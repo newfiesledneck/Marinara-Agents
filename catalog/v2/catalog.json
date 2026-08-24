@@ -1464,13 +1464,13 @@
           "storage",
           "ui"
         ],
-        "restartRequired": false
+        "restartRequired": true
       },
       "category": "tracker",
       "artifact": {
         "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.1.0.zip",
-        "sha256": "5c38aa8bec62acc4c6e55c7f8246adfd2096d94a5dbcf4dbaa415e7dd34a65d6",
-        "bytes": 7358
+        "sha256": "1c94282d0644871e3dbadc2d99704e432c5655a90ef3c973f39b5605c2f55fca",
+        "bytes": 7357
       }
     },
     {
