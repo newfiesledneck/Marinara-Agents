@@ -1449,13 +1449,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "b3cf94e15abec8aa724a260ebce0d7a9a7396ddbfb548fcedb83f91a4addf850",
-            "bytes": 3523
+            "sha256": "d3976986180f83b051c2fd37f7c168271d4fdf69e2ab76dae61d1261a68d020c",
+            "bytes": 8855
           },
           {
             "path": "server.mjs",
-            "sha256": "444369952cd62adeaa577f89b4ffd1b45af5c35c0725a6de182543dc9e9f98c7",
-            "bytes": 1426
+            "sha256": "1e4c3255a1be85a1da73399b1604c0a4166d7fd3e9368b1a67c715ad80f9ca02",
+            "bytes": 5199
           }
         ],
         "permissions": [
@@ -1469,8 +1469,8 @@
       "category": "tracker",
       "artifact": {
         "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.1.0.zip",
-        "sha256": "1c94282d0644871e3dbadc2d99704e432c5655a90ef3c973f39b5605c2f55fca",
-        "bytes": 7357
+        "sha256": "f2e625b6b2f7b76c3065ce136148f698d5b4753392e5856afec8923fedae92d0",
+        "bytes": 16462
       }
     },
     {
