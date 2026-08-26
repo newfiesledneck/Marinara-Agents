@@ -1421,7 +1421,7 @@
         },
         "id": "quartermaster",
         "name": "Quartermaster",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "description": "A per-chat RPG character sheet and inventory manager: equip slots, item locations, saved outfits, portrait and item images, and a read-only stat display. Early scaffold — most features are not yet implemented.",
         "engine": {
           "min": "2.4.4",
@@ -1449,13 +1449,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "0619ca9e0057d2ad4a938d7581278a0a489014944f05691a57491c903c306808",
-            "bytes": 63462
+            "sha256": "a7cbbc95d09d44fde5c0295705d3db7c01df34575185c0faab840dfaf0e1773d",
+            "bytes": 81823
           },
           {
             "path": "server.mjs",
-            "sha256": "e305d00f8ea40ddeb04c83baf6af0794d84d44c9ef9496fd8744784c209d41a4",
-            "bytes": 21404
+            "sha256": "426f2ea5ea6fac645a03b73ee5228bc1a7d6096d72280ae84a2198eedfc8d0e4",
+            "bytes": 22709
           }
         ],
         "permissions": [
@@ -1469,9 +1469,9 @@
       },
       "category": "tracker",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.3.0.zip",
-        "sha256": "7f33c3513dd14ec05452a161b1373dbb44c68a30e5f78ca90384a03eed7f777f",
-        "bytes": 87294
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.4.0.zip",
+        "sha256": "73ff97d56a08528c517c62261ce71d019195705ec3b3d8bb3835fd7a7387c1d8",
+        "bytes": 106960
       }
     },
     {
