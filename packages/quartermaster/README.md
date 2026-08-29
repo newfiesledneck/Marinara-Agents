@@ -8,8 +8,10 @@ rewrite.
 
 Requires **Marinara Engine 2.4.4+**, Roleplay mode only (`modeAllowlist: ["roleplay"]` — Game
 Mode's Tracker Panel and roleplay-tracker toolbar are gated to Roleplay by the Engine itself,
-confirmed against source, not just undocumented). Early scaffold — most features described
-below are built, but portrait/item image generation is not yet.
+confirmed against source, not just undocumented). Package-owned portrait/item image generation
+is not built — the dock shows the persona's existing avatar instead — and cover artwork
+(`artwork/agent-covers/quartermaster.png`) is still outstanding; both are why this stays in
+`INCOMPLETE_PACKAGE_IDS` rather than the published catalog.
 
 ## What it does
 
@@ -19,12 +21,22 @@ below are built, but portrait/item image generation is not yet.
 - **Item locations** — `bag` (carried), `equipped:<slot>`, or `stored:<name>` (a named stash).
 - **Saved outfits** — snapshot the current equip state under a name, equip/unequip it later in
   one step.
+- **Export/import** — download the current chat's items, outfits, and settings as a JSON file, or
+  replace them by importing one back — ported from the original extension. Item/outfit ids are
+  reissued on import rather than kept as-is, so importing into a chat that already has data (or
+  importing the same file twice) never collides with what's already there.
 - **Slot-group visibility toggles** — underwear (off by default, SFW), armor, and weapons
   (both on by default) can each be hidden — disabled, not just hidden — matching the original
   extension's `SLOT_GROUPS` convention.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
+- **Narrator prompt context** — `registerPromptContext` contributes a curated, read-only summary
+  of what's equipped/carried/stored (`provides: {inventory: true}` suppresses the Engine's own
+  built-in `[inventory:]` block). Gated on the Quartermaster agent being currently enabled for the
+  chat (`chatMeta.enableAgents`/`activeAgentIds` — the same signal every built-in tracker uses to
+  decide it's active), so disabling the agent stops this feed the same turn instead of continuing
+  to report stale state.
 - **Quartermaster agent** (`phase: post_processing`) — reads each turn's narration and returns a
   full-snapshot JSON description of the persona's current items/equip state, reconciled into
   the same store the dock UI reads and writes, through the `agent-runtime` capability's

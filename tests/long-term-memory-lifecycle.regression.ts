@@ -234,7 +234,7 @@ async function main() {
       );
       assert.match(
         artifactClient,
-        /extract:(?:\w+\.)?\w+!=="refresh"/u,
+        /extract:[^,}]+!=="refresh"/u,
         "Normal imports must continue extracting source notes",
       );
       assert.match(
@@ -286,6 +286,7 @@ async function main() {
       let deletedSuggestionId: string | null = null;
       const scopeTargetQueries: string[] = [];
       const noteQueries: string[] = [];
+      const sourcePreviewRequests: Record<string, unknown>[] = [];
       const reviewContextQueries: string[] = [];
       const reviewQueries: string[] = [];
       const rejectedSuggestionQueries: string[] = [];
@@ -571,6 +572,9 @@ async function main() {
       let failReviewContext = false;
       let omitReviewContextId: string | null = null;
       let reviewPreflightBlocked = false;
+      let confirmReviewDiscard = false;
+      let lastReviewDiscardMessage = "";
+      let reviewQueueEmpty = false;
       let reviewFingerprintRevision = 0;
       let lastInjectionRequests = 0;
       browserServer = createServer(async (request, response) => {
@@ -666,29 +670,38 @@ async function main() {
             });
           return send(200, {
             generatedAt: "2026-07-30T00:00:00.000Z",
-            sources: reviewSources.map((source) => ({
-              ...source,
-              drafts: source.drafts.map((item: any) => ({
-                ...item,
-                draft: {
-                  ...item.draft,
-                  updatedAt: reviewFingerprintRevision ? "2026-07-30T00:00:01.000Z" : item.draft.updatedAt,
-                },
-              })),
-            })),
+            sources: reviewQueueEmpty
+              ? []
+              : reviewSources.map((source) => ({
+                  ...source,
+                  drafts: source.drafts.map((item: any) => ({
+                    ...item,
+                    draft: {
+                      ...item.draft,
+                      updatedAt: reviewFingerprintRevision ? "2026-07-30T00:00:01.000Z" : item.draft.updatedAt,
+                    },
+                  })),
+                })),
             counts: {
-              sources: reviewSources.length,
-              drafts: reviewSources.reduce((count, source) => count + source.drafts.length, 0),
-              mutations: reviewSources.reduce(
-                (count, source) =>
-                  count +
-                  source.drafts.reduce((draftCount: number, item: any) => draftCount + item.draft.mutations.length, 0),
-                0,
-              ),
-              blockedDrafts: reviewSources.reduce(
-                (count, source) => count + source.drafts.filter((item: any) => item.blockReasons.length).length,
-                0,
-              ),
+              sources: reviewQueueEmpty ? 0 : reviewSources.length,
+              drafts: reviewQueueEmpty ? 0 : reviewSources.reduce((count, source) => count + source.drafts.length, 0),
+              mutations: reviewQueueEmpty
+                ? 0
+                : reviewSources.reduce(
+                    (count, source) =>
+                      count +
+                      source.drafts.reduce(
+                        (draftCount: number, item: any) => draftCount + item.draft.mutations.length,
+                        0,
+                      ),
+                    0,
+                  ),
+              blockedDrafts: reviewQueueEmpty
+                ? 0
+                : reviewSources.reduce(
+                    (count, source) => count + source.drafts.filter((item: any) => item.blockReasons.length).length,
+                    0,
+                  ),
               candidateRejections: 0,
               deduplications: 0,
             },
@@ -715,16 +728,45 @@ async function main() {
                 personaId: "persona-a",
                 characterIds: ["character-a"],
               },
+              {
+                id: "memory-conversation-branch",
+                label: "Memory conversation branch",
+                mode: "conversation",
+                groupId: "conversation-a",
+                personaId: "persona-a",
+                characterIds: ["character-a"],
+              },
+              ...Array.from({ length: 100 }, (_, index) => ({
+                id: `bulk-chat-${index}`,
+                label: `Bulk chat ${index}`,
+                mode: "conversation",
+                groupId: null,
+                personaId: null,
+                characterIds: [],
+              })),
             ],
             groups: [
               {
                 id: "conversation-a",
                 label: "Conversation A",
-                chatIds: ["memory-chat"],
+                chatIds: ["memory-chat", "memory-conversation-branch"],
+              },
+              {
+                id: "valid-group",
+                label: "Valid group",
+                chatIds: Array.from({ length: 100 }, (_, index) => `valid-group-chat-${index}`),
+              },
+              {
+                id: "overflow-group",
+                label: "Overflow group",
+                chatIds: Array.from({ length: 101 }, (_, index) => `overflow-group-chat-${index}`),
               },
             ],
             characters: [{ id: "character-a", label: "Character A" }],
-            personas: [{ id: "persona-a", label: "Persona A" }],
+            personas: [
+              { id: "persona-a", label: "Persona A", comment: "Space explorer" },
+              { id: "persona-b", label: "Persona A", comment: "Private detective" },
+            ],
           });
         }
         if (request.method === "GET" && url.pathname.endsWith("/notes")) {
@@ -928,8 +970,8 @@ async function main() {
         if (request.method === "POST" && url.pathname.endsWith("/import/preview"))
           return send(200, {
             source: "chats",
-            scanned: 1,
-            draftable: 0,
+            scanned: 2,
+            draftable: 1,
             importedCount: 1,
             samples: [
               {
@@ -944,75 +986,117 @@ async function main() {
                 existingNoteId: "source_desktop_reextract",
                 existingNoteTitle: "Desktop re-extract source",
               },
-            ],
-          });
-        if (request.method === "POST" && url.pathname.endsWith("/import/lorebooks/preview"))
-          return send(200, {
-            counts: {
-              books: 1,
-              entries: 1,
-              candidates: 1,
-              pending: 1,
-              imported: 0,
-            },
-            books: [
               {
-                id: "lorebook_mobile_fixture",
-                name: "Mobile Field Guide",
-                description: "A populated lorebook used to verify responsive source browsing.",
-                category: "Reference",
-                tags: ["mobile", "test"],
-                scope: {},
-                counts: { entries: 1, candidates: 1, pending: 1, imported: 0 },
-                entries: [
-                  {
-                    id: "entry_mobile_harbor",
-                    name: "Harbor Signals",
-                    candidateCount: 1,
-                    candidates: [
-                      {
-                        sourceId: "lorebook_mobile_fixture:entry_mobile_harbor:0",
-                        title: "Mobile Field Guide: Harbor Signals",
-                        importMode: "roleplay",
-                        mutationCount: 1,
-                        summary: "Harbor signal colors and their meanings.",
-                        snippet: "A blue lantern marks the safe channel after dusk.",
-                        status: "pending",
-                        freshness: "new",
-                      },
-                    ],
-                  },
-                ],
+                sourceId: "character-outside-current-chat",
+                title: "Character outside current chat",
+                importMode: "roleplay",
+                mutationCount: 1,
+                summary: "A character source from another chat.",
+                snippet: "This character remains available outside the active chat.",
+                status: "pending",
+                freshness: "new",
               },
             ],
           });
+        if (request.method === "POST" && url.pathname.endsWith("/import/lorebooks/preview")) {
+          const books = [
+            {
+              id: "lorebook_mobile_fixture",
+              name: "Mobile Field Guide",
+              description: "A populated lorebook used to verify responsive source browsing.",
+              category: "Reference",
+              tags: ["mobile", "test"],
+              scope: {},
+              counts: { entries: 1, candidates: 1, pending: 1, imported: 0 },
+              entries: [
+                {
+                  id: "entry_mobile_harbor",
+                  name: "Harbor Signals",
+                  candidateCount: 1,
+                  candidates: [
+                    {
+                      sourceId: "lorebook_mobile_fixture:entry_mobile_harbor:0",
+                      title: "Mobile Field Guide: Harbor Signals",
+                      importMode: "roleplay",
+                      mutationCount: 1,
+                      summary: "Harbor signal colors and their meanings.",
+                      snippet: "A blue lantern marks the safe channel after dusk.",
+                      status: "pending",
+                      freshness: "new",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "lorebook_outside_current_chat",
+              name: "Lorebook outside current chat",
+              description: "A lorebook source from another chat.",
+              category: "Reference",
+              tags: ["scope", "test"],
+              scope: {},
+              counts: { entries: 1, candidates: 1, pending: 1, imported: 0 },
+              entries: [
+                {
+                  id: "entry_outside_current_chat",
+                  name: "Outside Chat Entry",
+                  candidateCount: 1,
+                  candidates: [
+                    {
+                      sourceId: "lorebook_outside_current_chat:entry_outside_current_chat:0",
+                      title: "Lorebook outside current chat: Outside Chat Entry",
+                      importMode: "roleplay",
+                      mutationCount: 1,
+                      summary: "A lorebook entry from another chat.",
+                      snippet: "This entry remains available outside the active chat.",
+                      status: "pending",
+                      freshness: "new",
+                    },
+                  ],
+                },
+              ],
+            },
+          ];
+          return send(200, {
+            counts: {
+              books: books.length,
+              entries: books.reduce((count, book) => count + book.counts.entries, 0),
+              candidates: books.reduce((count, book) => count + book.counts.candidates, 0),
+              pending: books.reduce((count, book) => count + book.counts.pending, 0),
+              imported: books.reduce((count, book) => count + book.counts.imported, 0),
+            },
+            books,
+          });
+        }
         if (request.method === "GET" && url.pathname.endsWith("/rejected-suggestions")) {
           rejectedSuggestionQueries.push(url.search);
           if (url.searchParams.has("chatId")) return send(200, { suggestions: [], total: 0 });
           return send(200, {
-            suggestions: [
-              {
-                id: rejectedSuggestionId,
-                fingerprint: "a".repeat(64),
-                source: { sourceNoteId: "source_mobile_recovery" },
-                scope: {},
-                modes: ["roleplay"],
-                candidate: {
-                  index: 0,
-                  reason: "invalid_format",
-                  message: "A recoverable mobile memory.",
-                  snippet: "A recoverable mobile memory.",
-                  recovery: {
-                    noteType: "world",
-                    noteId: "world_mobile_recovery",
-                    sectionKey: "facts",
+            suggestions: reviewQueueEmpty
+              ? []
+              : [
+                  {
+                    id: rejectedSuggestionId,
+                    fingerprint: "a".repeat(64),
+                    source: { sourceNoteId: "source_mobile_recovery" },
+                    scope: {},
+                    modes: ["roleplay"],
+                    candidate: {
+                      index: 0,
+                      reason: "invalid_format",
+                      message: "A recoverable mobile memory.",
+                      snippet: "A recoverable mobile memory.",
+                      recovery: {
+                        noteType: "world",
+                        noteId: "world_mobile_recovery",
+                        sectionKey: "facts",
+                      },
+                    },
+                    createdAt: "2026-07-30T00:00:00.000Z",
+                    lastSeenAt: "2026-07-30T00:00:00.000Z",
                   },
-                },
-                createdAt: "2026-07-30T00:00:00.000Z",
-                lastSeenAt: "2026-07-30T00:00:00.000Z",
-              },
-            ],
-            total: 1,
+                ],
+            total: reviewQueueEmpty ? 0 : 1,
           });
         }
         if (request.method === "POST" && url.pathname.endsWith("/notes")) {
@@ -1025,6 +1109,31 @@ async function main() {
               createdAt: "2026-07-30T00:00:00.000Z",
               updatedAt: "2026-07-30T00:00:00.000Z",
               version: 1,
+            },
+          });
+        }
+        if (request.method === "POST" && url.pathname.endsWith("/import/source-notes")) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of request) chunks.push(Buffer.from(chunk));
+          const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
+            source: string;
+            sourceIds: string[];
+          };
+          return send(200, {
+            operationId: "00000000-0000-4000-8000-000000000001",
+            batchStatus: "failed",
+            source: body.source,
+            imported: [],
+            writeFailures: [],
+            missingSourceIds: body.sourceIds,
+            counts: {
+              requested: body.sourceIds.length,
+              sourceNotesWritten: 0,
+              succeeded: 0,
+              failed: 0,
+              cancelled: 0,
+              missing: body.sourceIds.length,
+              sourceWriteFailed: 0,
             },
           });
         }
@@ -1150,6 +1259,34 @@ async function main() {
                 })),
               }))
               .filter((source) => source.drafts.some((item: any) => item.draft.mutations.length > 0));
+          } else if (action === "skip" && draftId === reviewDraftIds.merge) {
+            reviewSources = reviewSources
+              .map((source) => ({
+                ...source,
+                drafts: source.drafts
+                  .filter((item: any) => item.draft.id !== draftId)
+                  .map((item: any) =>
+                    item.draft.id === reviewDraftIds.second
+                      ? {
+                          ...item,
+                          draft: {
+                            ...item.draft,
+                            mutations: item.draft.mutations.filter(
+                              (mutation: any) => mutation.id !== reviewMutationIds.partial,
+                            ),
+                          },
+                        }
+                      : item,
+                  ),
+                targets: source.targets.map((target: any) => ({
+                  ...target,
+                  rows: target.rows.filter(
+                    (row: any) =>
+                      row.draftId !== reviewDraftIds.second || row.mutation.id !== reviewMutationIds.partial,
+                  ),
+                })),
+              }))
+              .filter((source) => source.drafts.some((item: any) => item.draft.mutations.length > 0));
           } else {
             reviewSources = reviewSources
               .map((source) => ({
@@ -1165,7 +1302,12 @@ async function main() {
                 autoIncludedMutationIds: [],
                 indexRebuild: { status: "not_requested" },
               })
-            : send(200, { mutationIds });
+            : send(200, {
+                mutationIds:
+                  draftId === reviewDraftIds.merge
+                    ? [...new Set([...mutationIds, reviewMutationIds.partial])]
+                    : mutationIds,
+              });
         }
         if (request.method === "DELETE" && url.pathname.includes("/rejected-suggestions/")) {
           deletedSuggestionId = decodeURIComponent(url.pathname.split("/").at(-1)!);
@@ -1179,6 +1321,11 @@ async function main() {
       browser = await chromium.launch();
       const browserContext = await browser.newContext({ hasTouch: true });
       const page = await browserContext.newPage();
+      page.on("request", (request) => {
+        if (request.method() !== "POST") return;
+        const body = request.postDataJSON() as Record<string, unknown>;
+        if (request.url().endsWith("/api/long-term-memory/import/preview")) sourcePreviewRequests.push(body);
+      });
       const desktopActivationChanges: boolean[] = [];
       const chatSummarySettingsOpens: number[] = [];
       const promptPresetEditorOpens: number[] = [];
@@ -1192,6 +1339,10 @@ async function main() {
         promptPresetEditorOpens.push(Date.now());
       });
       await page.exposeFunction("declineDestinationChange", () => false);
+      await page.exposeFunction("confirmReviewDiscard", (options: { message?: string }) => {
+        lastReviewDiscardMessage = options.message ?? "";
+        return confirmReviewDiscard;
+      });
       await page.addInitScript(() => {
         Object.defineProperty(Crypto.prototype, "randomUUID", {
           configurable: true,
@@ -1258,10 +1409,26 @@ async function main() {
       assert.equal(
         await memoryScope
           .locator('[data-ltm-memory-scope-picker="branch"]')
-          .getByText("All branches", { exact: true })
+          .locator('[data-ltm-memory-scope-target="branch:all"]')
           .count(),
         1,
       );
+      const memoryChatPicker = memoryScope.locator('[data-ltm-memory-scope-picker="chat"]');
+      await memoryChatPicker.locator(":scope > summary").click();
+      assert.equal(await memoryChatPicker.locator('[data-ltm-memory-scope-target="group:conversation-a"]').count(), 1);
+      await memoryChatPicker.locator('[data-ltm-memory-scope-target="group:conversation-a"]').click();
+      const memoryBranchPicker = memoryScope.locator('[data-ltm-memory-scope-picker="branch"]');
+      assert.equal(
+        await memoryBranchPicker.locator('[data-ltm-memory-scope-target="chat:memory-conversation-branch"]').count(),
+        1,
+      );
+      assert.equal(await memoryBranchPicker.locator('[data-ltm-memory-scope-target="chat:memory-chat"]').count(), 0);
+      const roleplayMode = memoryScope.getByRole("checkbox", { name: "Roleplay" });
+      await roleplayMode.check();
+      assert.equal(await memoryBranchPicker.locator('[data-ltm-memory-scope-target="chat:memory-chat"]').count(), 1);
+      await roleplayMode.uncheck();
+      await memoryChatPicker.locator(":scope > summary").click();
+      await memoryChatPicker.locator('[data-ltm-memory-scope-target="chat:desktop-chat"]').click();
       await memoryScope.locator('[data-ltm-memory-scope-picker="character"] > summary').press("Enter");
       assert.equal(
         await memoryScope
@@ -1917,48 +2084,64 @@ async function main() {
         .locator('[data-ltm-status="danger"]')
         .filter({ hasText: "Memory context could not load." });
       await reviewContextError.waitFor();
-      await page.locator('[data-ltm-review-source-select="source_mobile_review"]').click();
-      await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
+      assert.equal(await page.locator("[data-ltm-workspace]").isVisible(), false);
+      assert.equal(await page.locator('[data-ltm-review-action="apply"]').count(), 0);
       const reviewUtilitySizes = await page
         .locator('[data-ltm-status="danger"] button, [data-ltm-review-rejected-count]')
-        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
+        .evaluateAll((elements) =>
+          elements
+            .map((element) => element.getBoundingClientRect().toJSON())
+            .filter((rect) => rect.width > 0 && rect.height > 0),
+        );
       assert.ok(
-        reviewUtilitySizes.length >= 2 && reviewUtilitySizes.every((rect) => rect.width >= 44 && rect.height >= 44),
+        reviewUtilitySizes.length >= 1 && reviewUtilitySizes.every((rect) => rect.width >= 44 && rect.height >= 44),
         JSON.stringify(reviewUtilitySizes),
       );
-      await page.locator('[data-ltm-review-draft-select="10000000-0000-4000-8000-000000000011"]').click();
-      await page.locator('[data-ltm-workspace-pane-tab="workbench"]').click();
-      const unavailableAccept = page.locator(
-        `[data-ltm-review-mutation="${reviewMutationIds.first}"] [aria-label^="Accept "]`,
-      );
-      const unavailableSkip = page.locator(
-        `[data-ltm-review-mutation="${reviewMutationIds.first}"] [aria-label^="Skip "]`,
-      );
-      assert.equal(await unavailableAccept.isDisabled(), true);
-      assert.equal(await unavailableSkip.isDisabled(), false);
-      await page
-        .locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"] [data-ltm-control="review-select"]`)
-        .check();
-      assert.equal(await page.getByRole("button", { name: "Accept eligible (1)" }).isDisabled(), true);
-      assert.equal(await page.getByRole("button", { name: "Skip selected (1)" }).isDisabled(), false);
-      await page
-        .locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"] [data-ltm-control="review-select"]`)
-        .uncheck();
       failReviewContext = false;
       omitReviewContextId = "world_second_mobile";
       await reviewContextError.getByRole("button", { name: "Retry" }).click();
       await reviewContextError.waitFor();
-      assert.equal(await unavailableAccept.isDisabled(), true);
+      assert.equal(await page.locator("[data-ltm-workspace]").isVisible(), false);
       omitReviewContextId = null;
-      await reviewContextError.getByRole("button", { name: "Retry" }).click();
+      await reviewContextError.getByRole("button", { name: "Retry" }).evaluate((button) => button.click());
       await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
       await page.locator('[data-ltm-review-source-select="source_mobile_review"]').waitFor();
-      assert.equal(await unavailableAccept.isDisabled(), false);
+      const restoredContextSource = page.locator('[data-ltm-review-source-select="source_mobile_review"]');
+      if ((await restoredContextSource.getAttribute("aria-expanded")) === "false") {
+        await restoredContextSource.click();
+      }
+      await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
+      await page.locator(`[data-ltm-review-draft-select="${reviewDraftIds.first}"]`).click();
+      await page.locator('[data-ltm-workspace-pane-tab="workbench"]').click();
+      const restoredAccept = page.locator(
+        `[data-ltm-review-mutation="${reviewMutationIds.first}"] [aria-label^="Review change "]`,
+      );
+      assert.equal(await restoredAccept.isDisabled(), false);
+      await restoredAccept.click();
+      await page
+        .locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"] [data-ltm-review-action="apply"]`)
+        .waitFor();
+      assert.equal(
+        await page
+          .locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"] [aria-label^="Apply change "]`)
+          .count(),
+        1,
+      );
+      const firstMutation = page.locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"]`);
+      assert.equal(await firstMutation.locator("[data-ltm-review-summary]").count(), 1);
+      assert.equal(await firstMutation.locator("[data-ltm-review-evidence-summary]").count(), 1);
+      await page
+        .locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"] [data-ltm-review-action="apply"]`)
+        .click();
+      await page.waitForFunction(
+        (mutationId) => !document.querySelector(`[data-ltm-review-mutation="${mutationId}"]`),
+        reviewMutationIds.first,
+      );
       const mergeSource = page.locator('[data-ltm-review-source-select="source_mobile_review"]');
       if ((await mergeSource.getAttribute("aria-expanded")) === "false") {
         await mergeSource.click();
-        await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
       }
+      await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
       await page.locator(`[data-ltm-review-draft-select="${reviewDraftIds.merge}"]`).click();
       await page.locator('[data-ltm-workspace-pane-tab="workbench"]').click();
       const mergeMutation = page.locator(`[data-ltm-review-mutation="${reviewMutationIds.merge}"]`);
@@ -1973,8 +2156,8 @@ async function main() {
       const restoredReviewSource = page.locator('[data-ltm-review-source-select="source_mobile_review"]');
       if ((await restoredReviewSource.getAttribute("aria-expanded")) === "false") {
         await restoredReviewSource.click();
-        await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
       }
+      await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
       await page.locator('[data-ltm-review-draft-select="10000000-0000-4000-8000-000000000012"]').click();
       await page.locator('[data-ltm-workspace-pane-tab="workbench"]').click();
       await page.locator("[data-ltm-review-draft-title]").waitFor();
@@ -2009,7 +2192,7 @@ async function main() {
       await page.locator('[data-ltm-workspace-pane-tab="workbench"]').click();
       await page.setViewportSize({ width: 1280, height: 900 });
       const acceptButtonSize = await page
-        .locator('[data-ltm-review-mutation] [aria-label^="Accept "]')
+        .locator("[data-ltm-review-mutation] [data-ltm-review-action]")
         .first()
         .evaluate((button) => {
           const rect = button.getBoundingClientRect();
@@ -2067,12 +2250,18 @@ async function main() {
       assert.equal(await page.locator("[data-ltm-review-conflicts]").count(), 1);
       assert.equal(
         await page
-          .locator(`[data-ltm-review-mutation="${reviewMutationIds.second}"] [aria-label^="Accept "]`)
+          .locator(`[data-ltm-review-mutation="${reviewMutationIds.second}"] [data-ltm-review-action="blocked"]`)
           .isDisabled(),
         true,
       );
       assert.equal(await page.getByRole("button", { name: /^Apply preflighted \(1\)/ }).count(), 1);
-      assert.deepEqual(reviewActionCalls, []);
+      assert.deepEqual(reviewActionCalls, [
+        {
+          action: "accept",
+          draftId: reviewDraftIds.first,
+          mutationIds: [reviewMutationIds.first],
+        },
+      ]);
       reviewPreflightBlocked = false;
       await page.getByRole("button", { name: "Clear" }).click();
       await page
@@ -2088,50 +2277,92 @@ async function main() {
       failSecondReviewAccept = false;
       await page.getByRole("button", { name: "Retry failed review actions" }).click();
       await page.getByText("Retry preflight complete. Review the results before applying again.").waitFor();
+      const editedPartial = page.locator(`[data-ltm-review-mutation="${reviewMutationIds.partial}"]`);
+      assert.match(await editedPartial.locator("[data-ltm-review-summary]").innerText(), /Edited proposal/u);
       await page.getByRole("button", { name: /^Apply preflighted \(/ }).click();
       await page.waitForFunction(
         (mutationId) => !document.querySelector(`[data-ltm-review-mutation="${mutationId}"]`),
         reviewMutationIds.second,
       );
       assert.deepEqual(reviewEditedMutationIds.at(-1), [reviewMutationIds.partial]);
-      await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
-      await page.locator(`[data-ltm-review-draft-select="${reviewDraftIds.first}"]`).click();
-      await page.locator('[data-ltm-workspace-pane-tab="workbench"]').click();
-      const firstMutation = page.locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"]`);
-      await firstMutation.waitFor({ state: "visible" });
-      await page.waitForFunction(
-        (mutationId) =>
-          document
-            .querySelector(`[data-ltm-review-mutation="${mutationId}"]`)
-            ?.textContent?.includes("First mobile review memory"),
-        reviewMutationIds.first,
-      );
-      await page
-        .locator(`[data-ltm-review-mutation="${reviewMutationIds.first}"] [data-ltm-control="review-select"]`)
-        .check();
-      await page.getByRole("button", { name: "Accept eligible (1)" }).click();
-      await page.getByRole("button", { name: /^Apply preflighted \(/ }).click();
-      await page.waitForFunction(
-        (mutationId) => !document.querySelector(`[data-ltm-review-mutation="${mutationId}"]`),
-        reviewMutationIds.first,
-      );
       assert.deepEqual(reviewActionCalls, [
-        {
-          action: "accept",
-          draftId: reviewDraftIds.second,
-          mutationIds: [reviewMutationIds.second, reviewMutationIds.partial],
-        },
-        {
-          action: "accept",
-          draftId: reviewDraftIds.second,
-          mutationIds: [reviewMutationIds.second, reviewMutationIds.partial],
-        },
         {
           action: "accept",
           draftId: reviewDraftIds.first,
           mutationIds: [reviewMutationIds.first],
         },
+        {
+          action: "accept",
+          draftId: reviewDraftIds.second,
+          mutationIds: [reviewMutationIds.second, reviewMutationIds.partial],
+        },
+        {
+          action: "accept",
+          draftId: reviewDraftIds.second,
+          mutationIds: [reviewMutationIds.second, reviewMutationIds.partial],
+        },
       ]);
+
+      await page.locator('[data-ltm-workspace-pane-tab="navigator"]').click();
+      const discardSource = page.locator('[data-ltm-review-source-select="source_mobile_review"]');
+      if ((await discardSource.getAttribute("aria-expanded")) === "false") await discardSource.click();
+      await page.locator(`[data-ltm-review-draft-select="${reviewDraftIds.merge}"]`).click();
+      await page.locator('[data-ltm-workspace-pane-tab="workbench"]').click();
+      const mergeDiscardMutation = page.locator(`[data-ltm-review-mutation="${reviewMutationIds.merge}"]`);
+      const skipCallCountBeforeDecline = reviewActionCalls.length;
+      confirmReviewDiscard = false;
+      await page.evaluate(() => {
+        const element = document.querySelector("marinara-capability-long-term-memory") as HTMLElement & {
+          capabilityProps?: Record<string, unknown>;
+        };
+        element.capabilityProps = {
+          ...element.capabilityProps,
+          confirmAction: (
+            window as Window & {
+              confirmReviewDiscard: (options: { message?: string }) => boolean;
+            }
+          ).confirmReviewDiscard,
+        };
+        element.dispatchEvent(new CustomEvent("marinara-capability-props"));
+      });
+      await mergeDiscardMutation.getByRole("button", { name: /^Discard proposal /u }).click();
+      assert.equal(reviewActionCalls.length, skipCallCountBeforeDecline);
+      assert.match(lastReviewDiscardMessage, /Dependent proposals may also be discarded\./u);
+      confirmReviewDiscard = true;
+      await page.evaluate(() => {
+        const element = document.querySelector("marinara-capability-long-term-memory") as HTMLElement & {
+          capabilityProps?: Record<string, unknown>;
+        };
+        element.capabilityProps = {
+          ...element.capabilityProps,
+          confirmAction: (
+            window as Window & {
+              confirmReviewDiscard: (options: { message?: string }) => boolean;
+            }
+          ).confirmReviewDiscard,
+        };
+        element.dispatchEvent(new CustomEvent("marinara-capability-props"));
+      });
+      await mergeDiscardMutation.getByRole("button", { name: /^Discard proposal /u }).click();
+      assert.equal(reviewActionCalls.at(-1)?.action, "skip");
+
+      reviewQueueEmpty = true;
+      await page.reload();
+      await page.evaluate((version) => {
+        const element = document.createElement("marinara-capability-long-term-memory") as HTMLElement & {
+          capabilityProps?: unknown;
+        };
+        element.setAttribute("view", "detail");
+        element.capabilityProps = { agent: { name: "Long-Term Memory" }, package: { version } };
+        document.body.append(element);
+      }, packageManifest.version);
+      await page.locator('[data-ltm-surface="detail"]').waitFor();
+      await page.locator('[data-ltm-navigation="mobile"] [data-ltm-destination="review"]').click();
+      await page
+        .getByText("No proposed memories need review yet. Import a source, then choose Extract to review.")
+        .waitFor();
+      assert.equal(await page.locator("[data-ltm-workspace]").isVisible(), false);
+      reviewQueueEmpty = false;
 
       healthState = "healthy";
       await page.setViewportSize({ width: 1280, height: 900 });
@@ -2457,9 +2688,241 @@ async function main() {
       assert.equal(await page.locator('[role="alert"]').count(), 0);
       assert.equal(deletedSuggestionId, rejectedSuggestionId);
       assert.equal(savedNote?.type, "world");
+      const expectedInitialChatSourceScope = {
+        chatId: "desktop-chat",
+        chatIds: ["desktop-chat"],
+      };
       await page.locator('[data-ltm-control="navigation"][data-ltm-destination="sources"]').first().click();
       await page.locator('[data-ltm-source-tab="chats"]').click();
+      const scopedChatPreviewRequestPromise = page.waitForRequest((request) => {
+        if (request.method() !== "POST" || !request.url().includes("/api/long-term-memory/import/preview"))
+          return false;
+        const body = request.postDataJSON() as { source?: string; sourceScope?: unknown };
+        return (
+          body.source === "chats" && JSON.stringify(body.sourceScope) === JSON.stringify(expectedInitialChatSourceScope)
+        );
+      });
+      const sourceScopePicker = page.locator('[data-ltm-scope-picker="source"]');
+      const sourceScopeTrigger = sourceScopePicker.getByRole("combobox");
+      assert.match((await sourceScopeTrigger.innerText()).trim(), /All Available/u);
+      await sourceScopeTrigger.click();
+      assert.equal(await sourceScopePicker.locator('[role="listbox"] input').count(), 0);
+      assert.equal(
+        await sourceScopePicker.locator('[role="option"][data-ltm-scope-option="chat:memory-chat"]').count(),
+        1,
+      );
+      assert.equal(
+        await sourceScopePicker.locator('[role="option"][data-ltm-scope-option="branch:memory-chat"]').count(),
+        0,
+      );
+      assert.equal(
+        await sourceScopePicker.locator('[role="option"][data-ltm-scope-option="group:conversation-a"]').count(),
+        1,
+      );
+      assert.notEqual(
+        await sourceScopePicker
+          .locator("[data-ltm-scope-picker-popup]")
+          .evaluate((listbox) => getComputedStyle(listbox).backgroundColor),
+        "rgba(0, 0, 0, 0)",
+      );
+      await sourceScopePicker.locator('[role="option"][data-ltm-scope-option="chat:desktop-chat"]').click();
+      const scopedChatPreviewRequest = (await scopedChatPreviewRequestPromise).postDataJSON() as {
+        sourceScope?: unknown;
+      };
+      assert.deepEqual(scopedChatPreviewRequest.sourceScope, expectedInitialChatSourceScope);
+      await page.locator('[data-ltm-source-preview-status="success"]').waitFor();
+      const destinationScopePicker = page.locator('[data-ltm-scope-picker="destination"]');
+      const destinationScopeTrigger = destinationScopePicker.getByRole("combobox");
+      assert.equal(await destinationScopeTrigger.getAttribute("aria-required"), "true");
+      await destinationScopeTrigger.click();
+      const destinationScopeSearch = destinationScopePicker.locator("input");
+      await destinationScopeSearch.fill("Overflow group");
+      assert.equal(await destinationScopePicker.locator('[data-ltm-scope-option="group:overflow-group"]').count(), 0);
+      await destinationScopeSearch.fill("Valid group");
+      assert.equal(await destinationScopePicker.locator('[data-ltm-scope-option="group:valid-group"]').count(), 1);
+      await destinationScopeSearch.fill("");
+      assert.equal(
+        await destinationScopePicker.locator('[role="option"][data-ltm-scope-option="chat:memory-chat"]').count(),
+        1,
+      );
+      assert.equal(
+        await destinationScopePicker.locator('[role="option"][data-ltm-scope-option="branch:memory-chat"]').count(),
+        0,
+      );
+      assert.equal(
+        await destinationScopePicker.locator('[role="option"][data-ltm-scope-option="group:conversation-a"]').count(),
+        1,
+      );
+      assert.notEqual(
+        await destinationScopePicker
+          .locator("[data-ltm-scope-picker-popup]")
+          .evaluate((listbox) => getComputedStyle(listbox).backgroundColor),
+        "rgba(0, 0, 0, 0)",
+      );
+      await destinationScopeSearch.fill("chat");
+      await destinationScopeSearch.press("ArrowDown");
+      assert.equal(
+        await destinationScopePicker
+          .locator('[role="option"][data-ltm-scope-option="chat:desktop-chat"][data-highlighted="true"]')
+          .count(),
+        1,
+      );
+      await destinationScopeSearch.fill("Space explorer");
+      const personaScopeOption = destinationScopePicker.locator('[data-ltm-scope-option="persona:persona-a"]');
+      assert.equal(await personaScopeOption.count(), 1);
+      assert.match(await personaScopeOption.innerText(), /Space explorer/u);
+      await personaScopeOption.click();
+      assert.match(await destinationScopeTrigger.innerText(), /Space explorer/u);
+      await destinationScopeTrigger.click();
+      await destinationScopeSearch.fill("Private detective");
+      const alternatePersonaScopeOption = destinationScopePicker.locator('[data-ltm-scope-option="persona:persona-b"]');
+      assert.equal(await alternatePersonaScopeOption.count(), 1);
+      await alternatePersonaScopeOption.click();
+      assert.match(await destinationScopeTrigger.innerText(), /Private detective/u);
+      await destinationScopeTrigger.click();
+      await destinationScopeSearch.fill("Memory chat");
+      await destinationScopePicker.locator('[role="option"][data-ltm-scope-option="chat:memory-chat"]').click();
+      assert.match((await destinationScopeTrigger.innerText()).trim(), /Memory chat/u);
+      const addDestination = page.locator("[data-ltm-add-destination]");
+      await addDestination.click();
+      const bulkDestination = page.locator("[data-ltm-bulk-destination]");
+      await bulkDestination.waitFor();
+      assert.equal(await bulkDestination.locator('[data-ltm-availability-tab="all"]').count(), 1);
+      await bulkDestination.locator('[data-ltm-availability-search="all"]').fill("conversation");
+      assert.equal(await bulkDestination.locator('[data-ltm-availability-target="chat:desktop-chat"]').count(), 1);
+      await bulkDestination.locator('[data-ltm-availability-search="all"]').fill("");
+      const bulkAllTab = bulkDestination.locator('[data-ltm-availability-tab="all"]');
+      await bulkAllTab.focus();
+      await bulkAllTab.press("ArrowRight");
+      await page.waitForFunction(() => document.activeElement?.getAttribute("data-ltm-availability-tab") === "chat");
+      assert.equal(
+        await bulkDestination.locator('[data-ltm-availability-tab="chat"]').getAttribute("aria-selected"),
+        "true",
+      );
+      assert.equal(
+        await page.evaluate(() => document.activeElement?.getAttribute("data-ltm-availability-tab")),
+        "chat",
+      );
+      await bulkDestination.locator('[data-ltm-availability-tab="chat"]').press("ArrowRight");
+      await page.waitForFunction(() => document.activeElement?.getAttribute("data-ltm-availability-tab") === "branch");
+      assert.equal(
+        await bulkDestination.locator('[data-ltm-availability-tab="branch"]').getAttribute("aria-selected"),
+        "true",
+      );
+      assert.equal(await bulkDestination.locator('[data-ltm-availability-target="chat:memory-chat"]').count(), 0);
+      assert.equal(await bulkDestination.locator('[data-ltm-availability-target="branch:memory-chat"]').count(), 0);
+      assert.equal(await bulkDestination.locator('[data-ltm-availability-target="branch:conversation-a"]').count(), 1);
+      assert.equal(
+        await page.evaluate(() => document.activeElement?.getAttribute("data-ltm-availability-tab")),
+        "branch",
+      );
+      await bulkDestination.locator('[data-ltm-availability-tab="persona"]').click();
+      const personaSearch = bulkDestination.locator('[data-ltm-availability-search="persona"]');
+      await personaSearch.fill("Private detective");
+      assert.equal(await bulkDestination.locator('[data-ltm-availability-target="persona:persona-a"]').count(), 0);
+      const personaBTarget = bulkDestination.locator('[data-ltm-availability-target="persona:persona-b"]');
+      assert.equal(await personaBTarget.count(), 1);
+      assert.match(await personaBTarget.innerText(), /Private detective/u);
+      await personaSearch.fill("");
+      const personaDestination = bulkDestination.locator('[data-ltm-availability-target="persona:persona-a"]');
+      await personaDestination.click();
+      assert.equal(await personaDestination.locator('input[type="checkbox"]').isChecked(), true);
+      await bulkDestination.locator("[data-ltm-bulk-cancel]").click();
+      assert.equal(await page.locator("[data-ltm-additional-destination-summary]").count(), 0);
+      await addDestination.click();
+      const bulkDestinationAfterCancel = page.locator("[data-ltm-bulk-destination]");
+      await bulkDestinationAfterCancel.locator('[data-ltm-availability-tab="persona"]').click();
+      await bulkDestinationAfterCancel.locator('[data-ltm-availability-target="persona:persona-a"] input').check();
+      await bulkDestinationAfterCancel.locator("[data-ltm-bulk-done]").click();
+      assert.match(await page.locator("[data-ltm-additional-destination-summary]").innerText(), /1 additional/u);
+      await addDestination.click();
+      const bulkBoundary = page.locator("[data-ltm-bulk-destination]");
+      await bulkBoundary.locator('[data-ltm-availability-tab="chat"]').click();
+      for (let index = 0; index < 99; index += 1) {
+        const bulkChat = bulkBoundary.locator(`[data-ltm-availability-target="chat:bulk-chat-${index}"] input`);
+        await bulkChat.evaluate((element) => (element as HTMLInputElement).click());
+        assert.equal(await bulkChat.isChecked(), true);
+      }
+      const blockedBulkChat = bulkBoundary.locator('[data-ltm-availability-target="chat:bulk-chat-99"] input');
+      assert.equal(await blockedBulkChat.isDisabled(), true);
+      await bulkBoundary.locator("[data-ltm-bulk-done]").click();
+      assert.match(await page.locator("[data-ltm-additional-destination-summary]").innerText(), /100 additional/u);
+      await destinationScopeTrigger.click();
+      await destinationScopeSearch.fill("Valid group");
+      await destinationScopePicker.locator('[data-ltm-scope-option="group:valid-group"]').click();
+      assert.match(await destinationScopeTrigger.innerText(), /Memory chat/u);
+      assert.equal(await page.getByText(/Some locations cannot be added/u).count(), 1);
+      await addDestination.click();
+      const bulkCleanup = page.locator("[data-ltm-bulk-destination]");
+      const bulkChatChips = bulkCleanup.locator('button[aria-label^="Remove Bulk chat"]');
+      while (await bulkChatChips.count()) await bulkChatChips.first().click({ force: true });
+      await bulkCleanup.locator("[data-ltm-bulk-done]").click();
+      assert.match(await page.locator("[data-ltm-additional-destination-summary]").innerText(), /1 additional/u);
+      await addDestination.click();
+      const selectedLocations = page
+        .locator("[data-ltm-bulk-destination]")
+        .getByText("Selected locations", { exact: true })
+        .locator("..");
+      assert.equal(await selectedLocations.getByText("Space explorer", { exact: true }).count(), 1);
+      await page.locator("[data-ltm-bulk-destination]").locator("[data-ltm-bulk-cancel]").click();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await addDestination.click();
+      const mobileBulkDestination = page.locator("[data-ltm-bulk-destination]");
+      const mobileBulkGeometry = await mobileBulkDestination.locator("section").evaluate((section) => {
+        const rect = section.getBoundingClientRect();
+        return {
+          width: rect.width,
+          height: rect.height,
+          pageFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+        };
+      });
+      assert.deepEqual(mobileBulkGeometry, { width: 390, height: 844, pageFits: true });
+      const removeLocationBox = await mobileBulkDestination.locator('button[aria-label^="Remove "]').boundingBox();
+      assert.ok(removeLocationBox);
+      assert.ok(removeLocationBox.width >= 44 && removeLocationBox.height >= 44);
+      await mobileBulkDestination.locator("[data-ltm-bulk-cancel]").click();
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.locator('[data-ltm-source-select="character-outside-current-chat"]').check();
+      const mergedDestinationRequestPromise = page.waitForRequest(
+        (request) => request.method() === "POST" && request.url().includes("/api/long-term-memory/import/source-notes"),
+      );
+      await page.locator('[data-ltm-source-action="import-selected"]').click();
+      const mergedDestinationRequest = (await mergedDestinationRequestPromise).postDataJSON() as {
+        destinationScope?: unknown;
+      };
+      assert.deepEqual(mergedDestinationRequest.destinationScope, {
+        chatId: "memory-chat",
+        chatIds: ["memory-chat"],
+        personaId: "persona-a",
+        personaIds: ["persona-a"],
+      });
+      await page.locator("[data-ltm-import-scope-result]").waitFor();
+      await destinationScopeTrigger.click();
+      await destinationScopeSearch.fill("Valid group");
+      await destinationScopePicker.locator('[data-ltm-scope-option="group:valid-group"]').click();
+      assert.match(await destinationScopeTrigger.innerText(), /Valid group/u);
+      await page.locator('[data-ltm-source-select="character-outside-current-chat"]').check();
+      const validGroupRequestPromise = page.waitForRequest(
+        (request) => request.method() === "POST" && request.url().includes("/api/long-term-memory/import/source-notes"),
+      );
+      await page.locator('[data-ltm-source-action="import-selected"]').click();
+      const validGroupRequest = (await validGroupRequestPromise).postDataJSON() as {
+        destinationScope?: unknown;
+      };
+      assert.deepEqual(validGroupRequest.destinationScope, {
+        chatId: "valid-group-chat-0",
+        chatIds: Array.from({ length: 100 }, (_, index) => `valid-group-chat-${index}`),
+        groupId: "valid-group",
+        groupIds: ["valid-group"],
+        personaId: "persona-a",
+        personaIds: ["persona-a"],
+      });
+      await page.locator("[data-ltm-import-scope-result]").waitFor();
       await page.locator('[data-ltm-source-tab="characters"]').click();
+      await page.locator('[data-ltm-source-row-status][data-ltm-source-id="character-outside-current-chat"]').waitFor();
+      const characterPreviewRequest = sourcePreviewRequests.filter((request) => request.source === "characters").at(-1);
+      assert.ok(characterPreviewRequest);
+      assert.equal(Object.hasOwn(characterPreviewRequest, "sourceScope"), false);
       assert.doesNotMatch(
         await page.locator('[data-ltm-surface="sources"]').innerText(),
         /character card|Summary Prompt|lorebook entries as source notes/iu,
@@ -2489,6 +2952,19 @@ async function main() {
       );
       assert.equal(await desktopReextract.isDisabled(), false);
       await page.locator('[data-ltm-source-tab="lorebooks"]').click();
+      const scopedLorebookPreviewRequestPromise = page.waitForRequest((request) => {
+        if (request.method() !== "POST" || !request.url().includes("/api/long-term-memory/import/lorebooks/preview"))
+          return false;
+        const body = request.postDataJSON() as { sourceScope?: unknown };
+        return JSON.stringify(body.sourceScope) === JSON.stringify(expectedInitialChatSourceScope);
+      });
+      await page.locator('[data-ltm-source-action="refresh-preview"]').click();
+      await page.locator('[data-ltm-lorebook-id="lorebook_outside_current_chat"]').waitFor();
+      const lorebookPreviewRequest = (await scopedLorebookPreviewRequestPromise).postDataJSON() as {
+        sourceScope?: unknown;
+      };
+      assert.ok(lorebookPreviewRequest);
+      assert.deepEqual(lorebookPreviewRequest.sourceScope, expectedInitialChatSourceScope);
       const sourcesWorkspace = page.locator('[data-ltm-surface="sources"] [data-ltm-workspace]');
       await sourcesWorkspace.waitFor();
       assert.equal(

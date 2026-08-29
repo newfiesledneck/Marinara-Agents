@@ -1,4 +1,4 @@
-// Quartermaster 0.7.1 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.0 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (6 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
@@ -78,6 +78,15 @@ QM.unequipAll = (chatId, ownerId) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/unequip-all`, {
     method: "POST",
     body: "{}",
+  });
+
+QM.exportInventory = (chatId, ownerId) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/export`, { method: "GET" });
+
+QM.importInventory = (chatId, ownerId, payload) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/import`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 
 // ===== 05-state.js =====
@@ -173,6 +182,46 @@ function qmSortByName(list) {
   return list.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// True while the user is mid-interaction with a live input/select inside
+// either view — an open <select> keeps its native dropdown's owning element
+// focused for as long as the popup stays open, so checking focus alone
+// covers both "typing in a field" and "a dropdown is open" without needing
+// a separate open/closed tracker.
+function qmIsLiveEditableElement(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+}
+
+function qmFocusIsInsideLiveView() {
+  if (typeof document === "undefined") return false;
+  const active = document.activeElement;
+  if (!qmIsLiveEditableElement(active)) return false;
+  const dockRoot = QM.dock && QM.dock.root;
+  const panelRoot = QM.panel && QM.panel.container;
+  return Boolean((dockRoot && dockRoot.contains(active)) || (panelRoot && panelRoot.contains(active)));
+}
+
+// Registered once, module-wide (not per mount/unmount), since it's a no-op
+// whenever polling isn't active. Catches the user up as soon as they finish
+// editing instead of leaving them looking at up-to-5-second-stale data until
+// the next tick — "focusout" (unlike "blur") bubbles, so one delegated
+// listener covers every field/select either view ever builds. The delay
+// lets focus land on wherever it's actually going next (tabbing to another
+// field, a <select>'s popup closing) before deciding the user is done.
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "focusout",
+    () => {
+      if (!QM.state._pollTimer) return;
+      setTimeout(() => {
+        if (QM.state.chatId && !qmFocusIsInsideLiveView()) QM.state._reload();
+      }, 200);
+    },
+    true,
+  );
+}
+
 QM.state = {
   chatId: null,
   items: null,
@@ -235,7 +284,14 @@ QM.state = {
     this._activeViewers += 1;
     if (this._pollTimer) return;
     this._pollTimer = setInterval(() => {
-      if (this.chatId && typeof document !== "undefined" && !document.hidden) this._reload();
+      if (!this.chatId || typeof document === "undefined" || document.hidden) return;
+      // A repaint replaces the DOM nodes wholesale (there's no cheap way to
+      // patch just the one row that changed), so a poll landing mid-edit —
+      // typing in a description field, an open <select>'s native dropdown —
+      // would tear the control out from under the user. Skip this tick and
+      // let qmScheduleCatchUpReload pick it up the moment focus leaves.
+      if (qmFocusIsInsideLiveView()) return;
+      this._reload();
     }, 5000);
   },
 
@@ -297,6 +353,14 @@ QM.state = {
   },
   unequipAll() {
     return this._mutate(QM.unequipAll(this.chatId, QM_OWNER_ID));
+  },
+  // Read-only — doesn't touch `this` state, just hands the caller (the dock's
+  // export button) the payload to write out as a file.
+  exportInventory() {
+    return QM.exportInventory(this.chatId, QM_OWNER_ID);
+  },
+  importInventory(payload) {
+    return this._mutate(QM.importInventory(this.chatId, QM_OWNER_ID, payload));
   },
   createOutfit(outfit) {
     return this._mutate(QM.createOutfit(this.chatId, QM_OWNER_ID, outfit));
@@ -625,6 +689,20 @@ function qmClampWindowValue(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+// "The persona" (the export route's own fallback when there's no active
+// persona) collapses to an empty slug, which the caller treats as "leave it
+// out of the filename" rather than downloading a file literally named
+// "the-persona".
+function qmFilenameSafe(text) {
+  const slug = (typeof text === "string" ? text : "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug === "the-persona" ? "" : slug;
+}
+
 function qmReadUiSize() {
   try {
     const stored = window.localStorage.getItem(QM_UI_SIZE_KEY);
@@ -707,6 +785,32 @@ QM.dock = {
   _interaction: null,
   _boundsObserver: null,
   _bodyObserver: null,
+
+  // Every DOM node _paint/_ensureRoot cache on `this` so a repaint can find
+  // and update them without rebuilding — cleared together whenever the root
+  // is rebuilt or there's no chat to show, since a stale reference into a
+  // detached tree is worse than none.
+  _resetCachedNodes() {
+    this.columns = null;
+    this.zoomWrapper = null;
+    this.uiSizeButtons = null;
+    this.errorNode = null;
+    this.feedSelect = null;
+    this.settingsSection = null;
+    this.settingsContent = null;
+    this.settingsChevron = null;
+    this.underwearToggle = null;
+    this.armorToggle = null;
+    this.weaponsToggle = null;
+    this.equippedContainer = null;
+    this.outfitsContainer = null;
+    this.outfitForm = null;
+    this.form = null;
+    this.listContainer = null;
+    this.portraitWrapper = null;
+    this.portraitImage = null;
+    this.portraitPlaceholder = null;
+  },
 
   isOpen() {
     return this.isOpenFlag;
@@ -1015,27 +1119,9 @@ QM.dock = {
     this.root = root;
     this.header = header;
     this.body = body;
-    // Reset the cached body children — a fresh body element means everything
-    // built for a previous root no longer exists.
-    this.columns = null;
-    this.zoomWrapper = null;
-    this.uiSizeButtons = null;
-    this.errorNode = null;
-    this.feedSelect = null;
-    this.settingsSection = null;
-    this.settingsContent = null;
-    this.settingsChevron = null;
-    this.underwearToggle = null;
-    this.armorToggle = null;
-    this.weaponsToggle = null;
-    this.equippedContainer = null;
-    this.outfitsContainer = null;
-    this.outfitForm = null;
-    this.form = null;
-    this.listContainer = null;
-    this.portraitWrapper = null;
-    this.portraitImage = null;
-    this.portraitPlaceholder = null;
+    // A fresh body element means everything built for a previous root no
+    // longer exists.
+    this._resetCachedNodes();
 
     this.observeChatBounds();
     this.observeBodyWidth();
@@ -1061,25 +1147,7 @@ QM.dock = {
 
     if (!QM.state.chatId) {
       this.body.replaceChildren(QM.textNode("No active chat."));
-      this.columns = null;
-      this.zoomWrapper = null;
-      this.uiSizeButtons = null;
-      this.errorNode = null;
-      this.feedSelect = null;
-      this.settingsSection = null;
-      this.settingsContent = null;
-      this.settingsChevron = null;
-      this.underwearToggle = null;
-      this.armorToggle = null;
-      this.weaponsToggle = null;
-      this.equippedContainer = null;
-      this.outfitsContainer = null;
-      this.outfitForm = null;
-      this.form = null;
-      this.listContainer = null;
-      this.portraitWrapper = null;
-      this.portraitImage = null;
-      this.portraitPlaceholder = null;
+      this._resetCachedNodes();
       return;
     }
 
@@ -1308,10 +1376,75 @@ QM.dock = {
     const content = document.createElement("div");
     Object.assign(content.style, { padding: "8px", display: this.settingsExpanded ? "" : "none" });
     content.appendChild(this._buildSlotVisibilityRow());
+    content.appendChild(this._buildExportImportRow());
     this.settingsContent = content;
 
     section.append(header, content);
     return section;
+  },
+
+  // Portable character sheet: export the current chat's items/outfits/
+  // settings as a downloadable file, or replace them by importing one back —
+  // in a fresh chat this needs no tracker agent enabled at all, matching the
+  // original extension's own export/import.
+  _buildExportImportRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" });
+
+    const exportButton = QM.button("Export…", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    exportButton.addEventListener("click", async () => {
+      exportButton.disabled = true;
+      try {
+        const payload = await QM.state.exportInventory();
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        const personaSlug = qmFilenameSafe(payload.personaName);
+        const datePart = new Date().toISOString().slice(0, 10);
+        link.download = `quartermaster-inventory-${personaSlug ? `${personaSlug}-` : ""}${datePart}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      } finally {
+        exportButton.disabled = false;
+      }
+    });
+
+    const importButton = QM.button("Import…", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "application/json";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      const hasExistingData = (QM.state.items ?? []).length > 0 || (QM.state.outfits ?? []).length > 0;
+      if (hasExistingData && !window.confirm("Importing replaces this chat's current items and outfits. Continue?")) {
+        return;
+      }
+      let payload;
+      try {
+        payload = JSON.parse(await file.text());
+      } catch {
+        QM.state.error = "That file isn't valid JSON.";
+        QM.state._notify();
+        return;
+      }
+      await QM.state.importInventory(payload);
+    });
+    importButton.addEventListener("click", () => fileInput.click());
+
+    row.append(exportButton, importButton, fileInput);
+    return row;
   },
 
   // A single row, one checkbox per group: "Show Slots: [ ] Underwear

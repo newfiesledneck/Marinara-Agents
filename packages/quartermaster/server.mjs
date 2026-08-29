@@ -88,6 +88,7 @@ function slotGroupVisible(slot, visibility) {
 
 const PACKAGE_ID = "quartermaster";
 const INVENTORY_KIND = "inventory";
+const QM_EXPORT_FORMAT_VERSION = 1;
 const MAX_ITEM_NAME_LENGTH = 200;
 const MAX_ITEM_DESCRIPTION_LENGTH = 4000;
 const MAX_STORED_LOCATION_LENGTH = 200;
@@ -260,6 +261,23 @@ function computeAppearanceText(state) {
 // function takes ownerId as a real parameter rather than assuming it, so
 // adding party members later is a call-site change, not a rewrite.
 const QM_TRACKER_OWNER_ID = "persona";
+
+// Same rule every built-in tracker (World State, Character Tracker, Persona
+// Stats, Hierarchical Maps, the roleplay-summary agent) uses to decide
+// whether it's active for a chat — confirmed against the Engine's own
+// generation code, not guessed: chatMeta.enableAgents plus
+// chatMeta.activeAgentIds is the one signal the pipeline itself uses to
+// decide whether an agent's post_processing turn even runs, so gating our
+// own prompt-context contribution on the same fields keeps us consistent
+// with what "disabling the agent" already means everywhere else. Without
+// this, a user who disables Quartermaster after using it keeps getting its
+// last-known inventory fed to the narrator indefinitely — the exact bug
+// found in another package's contributor, which isn't self-gated this way.
+function isQuartermasterAgentActive(chatMeta) {
+  if (!chatMeta || chatMeta.enableAgents !== true) return false;
+  const activeAgentIds = Array.isArray(chatMeta.activeAgentIds) ? chatMeta.activeAgentIds : [];
+  return activeAgentIds.includes(PACKAGE_ID);
+}
 
 // Case/separator-insensitive only — "Blue Hat" and "blue-hat" are the same
 // item, but "Blue Hat" and "Hat" are never merged automatically. Matching on
@@ -460,26 +478,30 @@ async function loadInventoryState(documents, chatId, ownerId) {
 // Neither slot instance's capabilityProps carries personaInfo/avatarUrl --
 // confirmed against the Engine's actual render sites this session
 // (RoleplayHUD.tsx's roleplay-tracker props and TrackerDataSidebar.tsx's
-// tracker-panel props are both far narrower than assumed). So the portrait
-// is resolved server-side instead: the chat's personaId, then that
-// persona's avatarPath via the resources facade — the same field name the
-// Engine's own client reads (persona.avatarPath) for the identical purpose.
-async function resolvePersonaAvatarUrl(persistence, resources, chatId) {
+// tracker-panel props are both far narrower than assumed). So the persona's
+// avatar/name are resolved server-side instead: the chat's personaId, then
+// that persona's record via the resources facade — the same field names the
+// Engine's own client reads (persona.avatarPath, persona.name) for the
+// identical purpose. One lookup shared by both resolvers below, rather than
+// two copies of the same chat→persona round trip.
+async function resolveChatPersonaData(persistence, resources, chatId) {
   const chat = await persistence.getChat(chatId);
   if (!chat || !chat.personaId) return null;
   const [persona] = await resources.listPersonas([chat.personaId]);
-  const avatarPath = persona && persona.data && typeof persona.data.avatarPath === "string" ? persona.data.avatarPath : null;
+  return persona?.data ?? null;
+}
+
+async function resolvePersonaAvatarUrl(persistence, resources, chatId) {
+  const data = await resolveChatPersonaData(persistence, resources, chatId);
+  const avatarPath = data && typeof data.avatarPath === "string" ? data.avatarPath : null;
   return avatarPath || null;
 }
 
-// Same resolution path as resolvePersonaAvatarUrl, for the prompt-context
-// summary's opening line — falls back to a generic label rather than failing
-// the whole contribution when there's no active persona to name.
+// Falls back to a generic label rather than failing the whole prompt-context
+// contribution when there's no active persona to name.
 async function resolvePersonaName(persistence, resources, chatId) {
-  const chat = await persistence.getChat(chatId);
-  if (!chat || !chat.personaId) return "The persona";
-  const [persona] = await resources.listPersonas([chat.personaId]);
-  const name = persona && persona.data && typeof persona.data.name === "string" ? persona.data.name.trim() : "";
+  const data = await resolveChatPersonaData(persistence, resources, chatId);
+  const name = data && typeof data.name === "string" ? data.name.trim() : "";
   return name || "The persona";
 }
 
@@ -562,13 +584,14 @@ export async function activate(context) {
   // than, agent-runtime's prepareContext above: that one feeds the TRACKER
   // AGENT its own prior state so it can decide what changed; this feeds the
   // NARRATOR a short, location-aware summary so prose stays consistent with
-  // what's actually equipped/carried. Runs unconditionally on every
-  // generation (registerPromptContext, not gated behind the agent being
-  // enabled) — contributes nothing when the owner has no items yet.
+  // what's actually equipped/carried. Gated on the agent being currently
+  // enabled for the chat (isQuartermasterAgentActive) — disabling the agent
+  // now stops this feed the same turn, matching every built-in tracker's own
+  // behavior, rather than continuing to report whatever was last written.
   // provides.inventory:true hands us the built-in [inventory:] block/command
   // instead of running both side by side.
-  const releasePromptContext = api.registerPromptContext(async ({ chatId, mode }) => {
-    if (mode !== "roleplay" || !chatId) return null;
+  const releasePromptContext = api.registerPromptContext(async ({ chatId, mode, chatMeta }) => {
+    if (mode !== "roleplay" || !chatId || !isQuartermasterAgentActive(chatMeta)) return null;
     try {
       const state = await loadInventoryState(documents, chatId, QM_TRACKER_OWNER_ID);
       // Skip the persona lookup entirely when there's nothing to report yet —
@@ -740,6 +763,110 @@ export async function activate(context) {
 
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
+      });
+
+      // Portable export/import (plan: carry a character sheet between chats
+      // without needing the tracker agent enabled at the destination — the
+      // original extension's own export/import, ported). Item/outfit ids are
+      // reissued on import rather than kept as-is: importing the same file
+      // twice, or into a chat that already has data with colliding ids,
+      // should never silently merge two unrelated items that happen to share
+      // an id. Outfit slot references are remapped through the old->new id
+      // map so an imported outfit still points at ITS OWN freshly-issued
+      // items instead of falling back to applyOutfitEquip's by-name
+      // recreation (which would work, but would leave the freshly-imported
+      // item sitting unused in the bag as a duplicate).
+      routes.get("/inventory/:chatId/:ownerId/export", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        // Informational only — the import route never reads this back. It's
+        // here so the client can put a real name on the downloaded file
+        // instead of just a date, for a user juggling exports from several
+        // personas.
+        const personaName = await resolvePersonaName(persistence, resources, chatId);
+        return {
+          formatVersion: QM_EXPORT_FORMAT_VERSION,
+          exportedAt: new Date().toISOString(),
+          personaName,
+          items: state.items,
+          outfits: state.outfits,
+          showUnderwear: state.showUnderwear,
+          showArmor: state.showArmor,
+          showWeapons: state.showWeapons,
+          appearanceFeedMode: state.appearanceFeedMode,
+        };
+      });
+
+      routes.post("/inventory/:chatId/:ownerId/import", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const body = request.body ?? {};
+        if (!Array.isArray(body.items) || !Array.isArray(body.outfits)) {
+          return reply.status(400).send({ error: "Import file is missing items or outfits" });
+        }
+
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        state.appearanceFeedMode = APPEARANCE_FEED_MODES.has(body.appearanceFeedMode)
+          ? body.appearanceFeedMode
+          : "off";
+        state.showUnderwear = typeof body.showUnderwear === "boolean" ? body.showUnderwear : SLOT_GROUP_DEFAULTS.underwear;
+        state.showArmor = typeof body.showArmor === "boolean" ? body.showArmor : SLOT_GROUP_DEFAULTS.armor;
+        state.showWeapons = typeof body.showWeapons === "boolean" ? body.showWeapons : SLOT_GROUP_DEFAULTS.weapons;
+
+        const idMap = new Map();
+        const nextItems = [];
+        for (const raw of body.items) {
+          if (!raw || typeof raw !== "object") continue;
+          const name = normalizeText(raw.name, MAX_ITEM_NAME_LENGTH);
+          if (!name) continue;
+          const location = normalizeLocation(raw.location, state) ?? "bag";
+          const item = {
+            id: randomUUID(),
+            name,
+            description: normalizeText(raw.description, MAX_ITEM_DESCRIPTION_LENGTH),
+            quantity: normalizeQuantity(raw.quantity),
+            location: "bag",
+            defaultSlot: normalizeDefaultSlot(raw.defaultSlot) || null,
+          };
+          applyLocation(nextItems, item, location);
+          nextItems.push(item);
+          if (typeof raw.id === "string") idMap.set(raw.id, item.id);
+        }
+
+        const nextOutfits = [];
+        for (const raw of body.outfits) {
+          if (!raw || typeof raw !== "object") continue;
+          const name = normalizeText(raw.name, MAX_OUTFIT_NAME_LENGTH);
+          if (!name) continue;
+          const slots = {};
+          for (const [slot, snapshot] of Object.entries(raw.slots ?? {})) {
+            if (!EQUIP_SLOT_SET.has(slot) || !snapshot || typeof snapshot !== "object") continue;
+            const snapshotName = normalizeText(snapshot.name, MAX_ITEM_NAME_LENGTH);
+            if (!snapshotName) continue;
+            slots[slot] = {
+              itemId: idMap.get(snapshot.itemId) ?? null,
+              name: snapshotName,
+              description: normalizeText(snapshot.description, MAX_ITEM_DESCRIPTION_LENGTH),
+            };
+          }
+          nextOutfits.push({
+            id: randomUUID(),
+            name,
+            description: normalizeText(raw.description, MAX_OUTFIT_DESCRIPTION_LENGTH),
+            slots,
+          });
+        }
+
+        state.items = nextItems;
+        state.outfits = nextOutfits;
+        await persistState(chatId, ownerId, state);
+        return {
+          items: state.items,
+          outfits: state.outfits,
+          appearanceFeedMode: state.appearanceFeedMode,
+          showUnderwear: state.showUnderwear,
+          showArmor: state.showArmor,
+          showWeapons: state.showWeapons,
+        };
       });
 
       routes.patch("/inventory/:chatId/:ownerId/settings", async (request, reply) => {

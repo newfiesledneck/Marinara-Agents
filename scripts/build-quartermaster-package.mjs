@@ -38,7 +38,7 @@ const PACKAGE_ID = "quartermaster";
 // live this session. Reset this to a clean starting version (0.1.0) in one
 // commit right before this is actually proposed; the intervening bumps are
 // disposable dev-iteration numbers, not real releases.
-const VERSION = "0.7.1";
+const VERSION = "0.1.0";
 // Declared against the exact staging Engine this scaffold was built and tested
 // against. Do not lower this to reach stable users — see CONTRIBUTING.md.
 const ENGINE_MIN = "2.4.4";
@@ -49,7 +49,7 @@ const BUILT_AGAINST = Object.freeze({
   engineCommit: "5c5a0bc8e7e4a6ef213dee45bf37fc7fba589e33",
 });
 const BASE_DESCRIPTION =
-  "A per-chat RPG character sheet and inventory manager: equip slots, item locations, saved outfits, portrait and item images, and a read-only stat display, with an optional tracker agent that syncs equipped items and inventory from the story. Early scaffold — most features are not yet implemented.";
+  "A per-chat RPG character sheet and inventory manager for Roleplay mode: equip slots arranged around your persona's portrait, item locations (bag, stored, equipped), and saved outfits, plus an optional tracker agent that keeps equipped items and inventory in sync with the story as you play.";
 // Local/fork dev testing (installing an unpublished build via a self-hosted
 // catalog — see CONTRIBUTING.md's MARINARA_CATALOG_INCLUDE_INCOMPLETE note)
 // needs the artifact to resolve from wherever it's actually pushed, not the

@@ -119,7 +119,6 @@ const slurpViewerSettingsKey = (personaId: string) => `slurp.viewer.${personaId}
 const NOODLER_RESERVE_STATE_ID = "noodler-reserve";
 let slurpSettingsUpdateQueue: Promise<unknown> = Promise.resolve();
 const ROLLING_DAY_MS = 24 * 60 * 60 * 1000;
-const MANUAL_POST_INVALIDATION_MS = 60 * 60 * 1000;
 /**
  * The reserve poll runs every minute, so a slot this far past its publish time means the server
  * was down or paused. Publishing it now would backdate it, and a long outage would release the
@@ -128,6 +127,11 @@ const MANUAL_POST_INVALIDATION_MS = 60 * 60 * 1000;
 const ELAPSED_PREPARED_SLOT_MS = 60 * 60 * 1000;
 /** How long published/discarded prepared rows are kept for crash recovery before pruning. */
 const TERMINAL_PREPARED_POST_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+import {
+  hasSlurpCreatorPostingIntervalConflict,
+  slurpCreatorPostingIntervalMs,
+} from "../slurp/slurp-posting-interval.js";
 
 export type NoodlerPostPageCursor = NoodlerPostSortKey;
 
@@ -349,9 +353,11 @@ type PublicRemoveInteractionCommand = Omit<NoodleRemoveInteractionInput, "actorK
 };
 type NoodlerCreateInteractionCommand = Omit<NoodlerCreateInteractionInput, "personaId"> & {
   actorAccountId: string;
+  viewerPersonaId: string;
 };
 type NoodlerRemoveInteractionCommand = Omit<NoodlerRemoveInteractionInput, "personaId"> & {
   actorAccountId: string;
+  viewerPersonaId: string;
 };
 type DeleteStoredInteractionCommand = {
   actorAccountId: string;
@@ -1092,9 +1098,60 @@ export function createSlurpStorage(db: DB) {
     return rows[0] ? mapInteraction(rows[0]) : null;
   };
 
+  const normalizeLegacyNoodlerToggleInteraction = async (
+    tx: Parameters<Parameters<DB["transaction"]>[0]>[0],
+    input: {
+      postId: string;
+      actorAccountId: string;
+      viewerPersonaId: string;
+      type: "like" | "repost" | "vote";
+      parentInteractionId: string | null;
+      actor: NoodleAccount;
+    },
+  ) => {
+    if (input.actorAccountId === input.viewerPersonaId) return;
+    const actorWhere = and(
+      eq(noodleInteractions.postId, input.postId),
+      eq(noodleInteractions.type, input.type),
+      input.parentInteractionId
+        ? eq(noodleInteractions.parentInteractionId, input.parentInteractionId)
+        : isNull(noodleInteractions.parentInteractionId),
+    );
+    const [legacyRows, actorRows] = await Promise.all([
+      tx
+        .select()
+        .from(noodleInteractions)
+        .where(and(actorWhere, eq(noodleInteractions.actorAccountId, input.viewerPersonaId))),
+      tx
+        .select()
+        .from(noodleInteractions)
+        .where(and(actorWhere, eq(noodleInteractions.actorAccountId, input.actorAccountId))),
+    ]);
+    if (legacyRows.length === 0) return;
+    const legacyIds = legacyRows.map((row) => row.id);
+    if (actorRows.length > 0) {
+      await tx.delete(noodleInteractions).where(inArray(noodleInteractions.id, legacyIds));
+      return;
+    }
+    const [keeper, ...duplicates] = legacyRows;
+    await tx
+      .update(noodleInteractions)
+      .set({ actorAccountId: input.actorAccountId, actorSnapshot: JSON.stringify(snapshotForAccount(input.actor)) })
+      .where(eq(noodleInteractions.id, keeper!.id));
+    if (duplicates.length > 0) {
+      await tx.delete(noodleInteractions).where(
+        inArray(
+          noodleInteractions.id,
+          duplicates.map((row) => row.id),
+        ),
+      );
+    }
+  };
+
   const upsertPollVote = async (
     postId: string,
     actor: NoodleAccount,
+    viewerPersonaId: string,
     optionId: string,
     authorPlatform: NoodlePlatform,
     imageUrl: string | null,
@@ -1121,8 +1178,8 @@ export function createSlurpStorage(db: DB) {
         const currentAuthor = mapAccount(authorRows[0]);
         if (
           currentActor.kind !== "persona" ||
-          (currentAuthor.sourceKind === "persona" && currentAuthor.sourceEntityId === currentActor.entityId) ||
-          isNoodlerHiddenFromViewer(currentAuthor, currentActor.id)
+          (currentAuthor.sourceKind === "persona" && currentAuthor.sourceEntityId === viewerPersonaId) ||
+          isNoodlerHiddenFromViewer(currentAuthor, viewerPersonaId)
         ) {
           return null;
         }
@@ -1135,7 +1192,7 @@ export function createSlurpStorage(db: DB) {
                 .from(noodleAccountSubscriptions)
                 .where(
                   and(
-                    eq(noodleAccountSubscriptions.viewerAccountId, currentActor.id),
+                    eq(noodleAccountSubscriptions.viewerAccountId, viewerPersonaId),
                     eq(noodleAccountSubscriptions.creatorAccountId, currentAuthor.id),
                   ),
                 );
@@ -1146,7 +1203,7 @@ export function createSlurpStorage(db: DB) {
                 .from(noodlePostUnlocks)
                 .where(
                   and(
-                    eq(noodlePostUnlocks.viewerAccountId, currentActor.id),
+                    eq(noodlePostUnlocks.viewerAccountId, viewerPersonaId),
                     eq(noodlePostUnlocks.postId, currentPostView.id),
                   ),
                 )
@@ -1161,6 +1218,14 @@ export function createSlurpStorage(db: DB) {
           return null;
         }
       }
+      await normalizeLegacyNoodlerToggleInteraction(tx, {
+        postId,
+        actorAccountId: currentActor.id,
+        viewerPersonaId,
+        type: "vote",
+        parentInteractionId: null,
+        actor: currentActor,
+      });
       const existingVotes = await tx
         .select()
         .from(noodleInteractions)
@@ -1832,9 +1897,10 @@ export function createSlurpStorage(db: DB) {
             disclosureMode,
             stagePersonality: account.settings.privacy.stagePersonality ?? "",
             access: account.settings.privacy.access,
-            autoPosting: currentSource
-              ? (account.settings.scheduler.autoPosting ?? defaultAutoPostingSettings())
-              : { ...(account.settings.scheduler.autoPosting ?? defaultAutoPostingSettings()), enabled: false },
+            autoPosting:
+              currentSource && !(account.kind === "persona" && account.sourceKind === "persona")
+                ? (account.settings.scheduler.autoPosting ?? defaultAutoPostingSettings())
+                : { ...(account.settings.scheduler.autoPosting ?? defaultAutoPostingSettings()), enabled: false },
             fanActivity: account.settings.scheduler.fanActivity ?? null,
             sourceStatus: !currentSource
               ? { state: "missing" as const }
@@ -2242,6 +2308,9 @@ export function createSlurpStorage(db: DB) {
           }
           next = { ...current, social };
         } else if (input.subtree === "scheduler") {
+          if (row.sourceKind === "persona" && row.kind === "persona" && input.patch.autoPosting?.enabled === true) {
+            return null;
+          }
           const currentAuto = current.scheduler.autoPosting ?? defaultAutoPostingSettings();
           const patchAuto = input.patch.autoPosting;
           const patchFan = input.patch.fanActivity;
@@ -2303,6 +2372,13 @@ export function createSlurpStorage(db: DB) {
         .filter((account) => account.settings.scheduler.autoPosting?.enabled === true);
       const checked = await Promise.all(
         enabled.map(async (account) => {
+          if (account.sourceKind === "persona" && account.kind === "persona") {
+            await this.patchAccountSettings(account.id, {
+              subtree: "scheduler",
+              patch: { autoPosting: { enabled: false } },
+            });
+            return null;
+          }
           const publicAccount = await this.resolveAccountSource(account);
           if (publicAccount && (await resolveNoodlerSourceSnapshot(db, publicAccount))) return account;
           await this.patchAccountSettings(account.id, {
@@ -2477,10 +2553,27 @@ export function createSlurpStorage(db: DB) {
       publishAt: string;
       policyFingerprint: string;
       createdAt: string;
-    }): Promise<string> {
+    }): Promise<string | null> {
       const id = newId();
-      await db.transaction(async (tx) =>
-        tx.insert(noodlerPreparedPosts).values({
+      return db.transaction(async (tx) => {
+        const settings = await this.getSettings();
+        const publishMs = Date.parse(input.publishAt);
+        const posts = await tx
+          .select()
+          .from(noodlePosts)
+          .where(eq(noodlePosts.authorAccountId, input.creatorAccountId));
+        const prepared = await tx
+          .select()
+          .from(noodlerPreparedPosts)
+          .where(eq(noodlerPreparedPosts.creatorAccountId, input.creatorAccountId));
+        const activityTimes = [
+          ...posts.map((post) => Date.parse(post.createdAt)),
+          ...prepared
+            .filter((item) => item.state === "scheduled" || item.state === "prepared")
+            .map((item) => Date.parse(item.publishAt)),
+        ];
+        if (hasSlurpCreatorPostingIntervalConflict(activityTimes, publishMs, settings.postsPerDay)) return null;
+        await tx.insert(noodlerPreparedPosts).values({
           id,
           creatorAccountId: input.creatorAccountId,
           generatedAt: input.createdAt,
@@ -2493,9 +2586,9 @@ export function createSlurpStorage(db: DB) {
           imageClaimToken: null,
           imageClaimLeaseUntil: null,
           updatedAt: input.createdAt,
-        }),
-      );
-      return id;
+        });
+        return id;
+      });
     },
 
     async fillNoodlerScheduledPost(
@@ -2531,7 +2624,7 @@ export function createSlurpStorage(db: DB) {
       id: string,
       publishAt: string,
       at = new Date(),
-    ): Promise<"updated" | "not_found" | "not_future" | "not_editable"> {
+    ): Promise<"updated" | "not_found" | "not_future" | "not_editable" | "conflict"> {
       const publishMs = Date.parse(publishAt);
       if (Number.isNaN(publishMs) || publishMs <= at.getTime()) return "not_future";
       const settings = await this.getSettings();
@@ -2540,6 +2633,22 @@ export function createSlurpStorage(db: DB) {
         const current = (await tx.select().from(noodlerPreparedPosts).where(eq(noodlerPreparedPosts.id, id)))[0];
         if (!current) return "not_found" as const;
         if (current.state !== "scheduled" && current.state !== "prepared") return "not_editable" as const;
+        const [posts, activeSlots] = await Promise.all([
+          tx.select().from(noodlePosts).where(eq(noodlePosts.authorAccountId, current.creatorAccountId)),
+          tx
+            .select()
+            .from(noodlerPreparedPosts)
+            .where(eq(noodlerPreparedPosts.creatorAccountId, current.creatorAccountId)),
+        ]);
+        const activityTimes = [
+          ...posts.map((post) => Date.parse(post.createdAt)),
+          ...activeSlots
+            .filter((item) => item.id !== current.id && (item.state === "scheduled" || item.state === "prepared"))
+            .map((item) => Date.parse(item.publishAt)),
+        ];
+        if (hasSlurpCreatorPostingIntervalConflict(activityTimes, publishMs, settings.postsPerDay)) {
+          return "conflict" as const;
+        }
         if (current.state === "prepared") {
           mediaPath = String(parseRecord(parseRecord(current.payload).metadata).noodlerMediaPath ?? "") || null;
         }
@@ -2629,7 +2738,8 @@ export function createSlurpStorage(db: DB) {
 
     async discardPreparedPostsAfterManualPost(creatorAccountId: string, manualCreatedAt: string): Promise<number> {
       const start = Date.parse(manualCreatedAt);
-      const end = start + MANUAL_POST_INVALIDATION_MS;
+      const settings = await this.getSettings();
+      const end = start + slurpCreatorPostingIntervalMs(settings.postsPerDay);
       const rows = await db
         .select()
         .from(noodlerPreparedPosts)
@@ -2714,6 +2824,26 @@ export function createSlurpStorage(db: DB) {
             !sourceSnapshot ||
             current.policyFingerprint !== noodlerReservePolicyFingerprint(account, settings, source.updatedAt)
           ) {
+            await tx
+              .update(noodlerPreparedPosts)
+              .set({ state: "discarded", updatedAt: at.toISOString() })
+              .where(eq(noodlerPreparedPosts.id, current.id));
+            return false;
+          }
+          const latestCreatorPost = (
+            await tx
+              .select()
+              .from(noodlePosts)
+              .where(eq(noodlePosts.authorAccountId, account.id))
+              .orderBy(desc(noodlePosts.createdAt))
+          )[0];
+          if (
+            latestCreatorPost &&
+            Date.parse(latestCreatorPost.createdAt) + slurpCreatorPostingIntervalMs(settings.postsPerDay) > at.getTime()
+          ) {
+            discardedMediaPaths.push(
+              String(parseRecord(parseRecord(current.payload).metadata).noodlerMediaPath ?? "") || null,
+            );
             await tx
               .update(noodlerPreparedPosts)
               .set({ state: "discarded", updatedAt: at.toISOString() })
@@ -3771,9 +3901,12 @@ export function createSlurpStorage(db: DB) {
       const parentInteractionId = input.parentInteractionId ?? null;
       if (input.type === "vote") {
         if (parentInteractionId) return null;
+        const actor = await this.getAccountById(input.actorAccountId);
+        if (!actor) return null;
         return upsertPollVote(
           postId,
-          input.actorAccountId,
+          actor,
+          actor.id,
           input.content?.trim() ?? "",
           "noodle",
           input.imageUrl?.trim() || null,
@@ -3820,12 +3953,17 @@ export function createSlurpStorage(db: DB) {
       creatorAccountId: string,
       postId: string,
       parentInteractionId: string,
-      viewerAccountId: string,
+      viewerPersonaId: string,
+      viewerActorAccountId: string,
       at = now(),
       ceiling = DEFAULT_NOODLER_CREATOR_REPLIES_PER_24_HOURS,
     ): Promise<NoodlerCreatorReplyClaimResult> {
-      const viewer = await this.getViewer(viewerAccountId);
+      const viewer = await this.getViewer(viewerPersonaId);
       if (!viewer) return { status: "ineligible" };
+      const viewerActor =
+        (await this.getNoodlerAccountById(viewerActorAccountId)) ??
+        (viewerActorAccountId === viewerPersonaId ? viewer : null);
+      if (!viewerActor) return { status: "ineligible" };
       return db.transaction(async (tx) => {
         const [creatorRows, parentRows] = await Promise.all([
           tx
@@ -3842,8 +3980,8 @@ export function createSlurpStorage(db: DB) {
           parentRow.type !== "reply" ||
           (!parentRow.content?.trim() && !parentRow.imageUrl?.trim()) ||
           parentRow.postId !== postId ||
-          parentRow.actorAccountId !== viewerAccountId ||
-          (creatorRow.sourceKind === "persona" && creatorRow.sourceEntityId === viewerAccountId) ||
+          ![viewerActor.id, viewerPersonaId].includes(parentRow.actorAccountId) ||
+          (creatorRow.sourceKind === "persona" && creatorRow.sourceEntityId === viewerPersonaId) ||
           parentRow.actorAccountId === creatorAccountId
         ) {
           return { status: "ineligible" };
@@ -3856,7 +3994,7 @@ export function createSlurpStorage(db: DB) {
         if (!postRow) return { status: "ineligible" };
 
         const creator = mapAccount(creatorRow);
-        if (isNoodlerHiddenFromViewer(creator, viewerAccountId)) return { status: "ineligible" };
+        if (isNoodlerHiddenFromViewer(creator, viewerPersonaId)) return { status: "ineligible" };
         const post = mapManagedPost(postRow);
         const [subscriptions, unlocks] = await Promise.all([
           tx
@@ -3864,14 +4002,14 @@ export function createSlurpStorage(db: DB) {
             .from(noodleAccountSubscriptions)
             .where(
               and(
-                eq(noodleAccountSubscriptions.viewerAccountId, viewerAccountId),
+                eq(noodleAccountSubscriptions.viewerAccountId, viewerPersonaId),
                 eq(noodleAccountSubscriptions.creatorAccountId, creatorAccountId),
               ),
             ),
           tx
             .select()
             .from(noodlePostUnlocks)
-            .where(and(eq(noodlePostUnlocks.viewerAccountId, viewerAccountId), eq(noodlePostUnlocks.postId, post.id))),
+            .where(and(eq(noodlePostUnlocks.viewerAccountId, viewerPersonaId), eq(noodlePostUnlocks.postId, post.id))),
         ]);
         if (
           !canViewNoodlerPost({
@@ -3967,7 +4105,7 @@ export function createSlurpStorage(db: DB) {
           creator,
           post,
           parent: mapInteraction(parentRow),
-          viewer,
+          viewer: viewerActor,
         };
       });
     },
@@ -4022,7 +4160,15 @@ export function createSlurpStorage(db: DB) {
           return null;
         }
         const creator = mapAccount(creatorRow);
-        if (isNoodlerHiddenFromViewer(creator, parentRow.actorAccountId)) return null;
+        const parentActorRows = await tx
+          .select()
+          .from(noodleAccounts)
+          .where(and(eq(noodleAccounts.id, parentRow.actorAccountId), eq(noodleAccounts.platform, "slurp")));
+        const viewerPersonaId =
+          parentActorRows[0]?.sourceKind === "persona"
+            ? (parentActorRows[0].sourceEntityId ?? parentRow.actorAccountId)
+            : parentRow.actorAccountId;
+        if (isNoodlerHiddenFromViewer(creator, viewerPersonaId)) return null;
         const post = mapManagedPost(postRow);
         const [subscriptions, unlocks] = await Promise.all([
           tx
@@ -4030,7 +4176,7 @@ export function createSlurpStorage(db: DB) {
             .from(noodleAccountSubscriptions)
             .where(
               and(
-                eq(noodleAccountSubscriptions.viewerAccountId, parentRow.actorAccountId),
+                eq(noodleAccountSubscriptions.viewerAccountId, viewerPersonaId),
                 eq(noodleAccountSubscriptions.creatorAccountId, creatorRow.id),
               ),
             ),
@@ -4038,10 +4184,7 @@ export function createSlurpStorage(db: DB) {
             .select()
             .from(noodlePostUnlocks)
             .where(
-              and(
-                eq(noodlePostUnlocks.viewerAccountId, parentRow.actorAccountId),
-                eq(noodlePostUnlocks.postId, postRow.id),
-              ),
+              and(eq(noodlePostUnlocks.viewerAccountId, viewerPersonaId), eq(noodlePostUnlocks.postId, postRow.id)),
             ),
         ]);
         if (
@@ -4101,15 +4244,21 @@ export function createSlurpStorage(db: DB) {
       input: NoodlerCreateInteractionCommand,
     ): Promise<NoodleInteraction | null> {
       const parentInteractionId = input.parentInteractionId ?? null;
+      const viewer = await this.getViewer(input.viewerPersonaId);
+      const actor = await this.getNoodlerAccountById(input.actorAccountId);
+      if (
+        !viewer ||
+        !actor ||
+        actor.kind !== "persona" ||
+        actor.sourceKind !== "persona" ||
+        actor.sourceEntityId !== input.viewerPersonaId
+      ) {
+        return null;
+      }
       if (input.type === "vote") {
         if (parentInteractionId) return null;
-        const actor = (await this.getAccountById(input.actorAccountId)) ?? (await this.getViewer(input.actorAccountId));
-        if (!actor) return null;
-        return upsertPollVote(postId, actor, input.content?.trim() ?? "", "slurp", null);
+        return upsertPollVote(postId, actor, input.viewerPersonaId, input.content?.trim() ?? "", "slurp", null);
       }
-
-      const actor = (await this.getAccountById(input.actorAccountId)) ?? (await this.getViewer(input.actorAccountId));
-      if (!actor) return null;
       return db.transaction(async (tx) => {
         const postRow = (await tx.select().from(noodlePosts).where(eq(noodlePosts.id, postId)))[0];
         if (!postRow) return null;
@@ -4123,8 +4272,8 @@ export function createSlurpStorage(db: DB) {
         const author = mapAccount(authorRow);
         if (
           actor.kind !== "persona" ||
-          (author.sourceKind === "persona" && author.sourceEntityId === actor.entityId) ||
-          isNoodlerHiddenFromViewer(author, actor.id)
+          (author.sourceKind === "persona" && author.sourceEntityId === input.viewerPersonaId) ||
+          isNoodlerHiddenFromViewer(author, input.viewerPersonaId)
         )
           return null;
         const subscribed =
@@ -4134,7 +4283,7 @@ export function createSlurpStorage(db: DB) {
               .from(noodleAccountSubscriptions)
               .where(
                 and(
-                  eq(noodleAccountSubscriptions.viewerAccountId, actor.id),
+                  eq(noodleAccountSubscriptions.viewerAccountId, input.viewerPersonaId),
                   eq(noodleAccountSubscriptions.creatorAccountId, author.id),
                 ),
               )
@@ -4142,7 +4291,9 @@ export function createSlurpStorage(db: DB) {
         const unlocked = await tx
           .select()
           .from(noodlePostUnlocks)
-          .where(and(eq(noodlePostUnlocks.viewerAccountId, actor.id), eq(noodlePostUnlocks.postId, postId)));
+          .where(
+            and(eq(noodlePostUnlocks.viewerAccountId, input.viewerPersonaId), eq(noodlePostUnlocks.postId, postId)),
+          );
         if (
           !canViewNoodlerPost({
             post: mapPost(postRow),
@@ -4151,6 +4302,16 @@ export function createSlurpStorage(db: DB) {
           })
         )
           return null;
+        if (isToggleInteractionType(input.type)) {
+          await normalizeLegacyNoodlerToggleInteraction(tx, {
+            postId,
+            actorAccountId: actor.id,
+            viewerPersonaId: input.viewerPersonaId,
+            type: input.type,
+            parentInteractionId,
+            actor,
+          });
+        }
         if (parentInteractionId) {
           const parent = (
             await tx.select().from(noodleInteractions).where(eq(noodleInteractions.id, parentInteractionId))
@@ -4302,8 +4463,16 @@ export function createSlurpStorage(db: DB) {
       postId: string,
       input: NoodlerRemoveInteractionCommand,
     ): Promise<NoodleInteraction | null> {
-      const actor = await this.getViewer(input.actorAccountId);
-      if (!actor) return null;
+      const viewer = await this.getViewer(input.viewerPersonaId);
+      const actor = await this.getNoodlerAccountById(input.actorAccountId);
+      if (
+        !viewer ||
+        !actor ||
+        actor.kind !== "persona" ||
+        actor.sourceKind !== "persona" ||
+        actor.sourceEntityId !== input.viewerPersonaId
+      )
+        return null;
       const parentInteractionId = input.parentInteractionId ?? null;
       return db.transaction(async (tx) => {
         const postRow = (await tx.select().from(noodlePosts).where(eq(noodlePosts.id, postId)))[0];
@@ -4317,8 +4486,8 @@ export function createSlurpStorage(db: DB) {
         if (!authorRow) return null;
         const author = mapAccount(authorRow);
         if (
-          (author.sourceKind === "persona" && author.sourceEntityId === actor.entityId) ||
-          isNoodlerHiddenFromViewer(author, actor.id)
+          (author.sourceKind === "persona" && author.sourceEntityId === input.viewerPersonaId) ||
+          isNoodlerHiddenFromViewer(author, input.viewerPersonaId)
         )
           return null;
         const subscriptions = await tx
@@ -4326,14 +4495,16 @@ export function createSlurpStorage(db: DB) {
           .from(noodleAccountSubscriptions)
           .where(
             and(
-              eq(noodleAccountSubscriptions.viewerAccountId, actor.id),
+              eq(noodleAccountSubscriptions.viewerAccountId, input.viewerPersonaId),
               eq(noodleAccountSubscriptions.creatorAccountId, author.id),
             ),
           );
         const unlocks = await tx
           .select()
           .from(noodlePostUnlocks)
-          .where(and(eq(noodlePostUnlocks.viewerAccountId, actor.id), eq(noodlePostUnlocks.postId, postId)));
+          .where(
+            and(eq(noodlePostUnlocks.viewerAccountId, input.viewerPersonaId), eq(noodlePostUnlocks.postId, postId)),
+          );
         if (
           !canViewNoodlerPost({
             post: mapPost(postRow),
@@ -4342,6 +4513,14 @@ export function createSlurpStorage(db: DB) {
           })
         )
           return null;
+        await normalizeLegacyNoodlerToggleInteraction(tx, {
+          postId,
+          actorAccountId: actor.id,
+          viewerPersonaId: input.viewerPersonaId,
+          type: input.type,
+          parentInteractionId,
+          actor,
+        });
         const existing = (
           await tx
             .select()

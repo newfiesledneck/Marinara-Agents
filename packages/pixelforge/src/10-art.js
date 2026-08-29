@@ -322,6 +322,49 @@ PF.art = (() => {
       px(g, 3, 11, 10, 1, PAL.white);
       px(g, 7, 13, 2, 2, PAL.stoneDark);
     },
+    /** WHERE THE ROAD CROSSES THE WATER. Painted water FIRST and decked over it,
+     *  because that is literally what the tile is: the water underneath is still
+     *  there, and a deck that did not show it would be a road tile with a wood
+     *  grain. The one-pixel margin of open water on all four sides is what makes
+     *  a run of them read as a boardwalk — the seam between two sections — and
+     *  is also why the tile needs no orientation: a bridge laid north-south and
+     *  one laid east-west are the same picture, which matters because the
+     *  compiler has no way to tell a placer which way a crossing runs.
+     *
+     *  Non-solid wherever it is laid: the whole point of the ruling is that the
+     *  road still crosses. No themed override, for the altar's reason — the
+     *  colony palette turns timber planking into deck plating on the same
+     *  silhouette, which is what a walkway over coolant is. */
+    bridge(g, rnd) {
+      PAINTERS.water(g, rnd);
+      px(g, 1, 1, T - 2, T - 2, PAL.beam);
+      px(g, 2, 2, T - 4, T - 4, PAL.path1);
+      for (let plank = 4; plank < T - 3; plank += 4) px(g, 2, plank, T - 4, 1, PAL.path2);
+      px(g, 2, 2, T - 4, 1, PAL.pathFleck);
+    },
+    /** THE QUEST BOARD (0.13 §2.1), and the one object in a settlement the
+     *  COMPILER stands up rather than a brief. Posted boards on two legs, with
+     *  three ruled notices on the face — a silhouette that reads at 16px as
+     *  "something with writing on it" and not as another table.
+     *
+     *  TIER-0 ONLY, on `hearth`'s precedent and not by oversight. `atlas.json`'s
+     *  key order IS the shipped sheet's index map, so adding a key there without
+     *  re-baking the PNG would slide every tile under it and repaint the whole
+     *  world; 15-assets resolves Tier1 ?? Tier0 PER TILE and returns null for an
+     *  id the atlas has no index for, so the board simply draws procedurally in
+     *  both tiers until a sheet is next baked.
+     *
+     *  Unfilled, like `table` and `well` above and for the same reason: it stands
+     *  on grass, path and paving alike, and the ground under it should show. */
+    board(g) {
+      px(g, 3, 11, 2, 5, PAL.beam);
+      px(g, 11, 11, 2, 5, PAL.beam);
+      px(g, 2, 2, 12, 10, PAL.beam);
+      px(g, 3, 3, 10, 8, PAL.plaster);
+      px(g, 4, 4, 5, 1, PAL.ink);
+      px(g, 4, 6, 8, 1, PAL.ink);
+      px(g, 4, 8, 4, 1, PAL.ink);
+    },
   };
 
   // ── Themes ──────────────────────────────────────────────────────────────────
@@ -454,6 +497,21 @@ PF.art = (() => {
           px(g, 0, 6, T, 1, PAL.trunk);
           px(g, 0, 9, T, 1, PAL.trunk);
         },
+        // A JOB TERMINAL where the notice board stands: the same silhouette on
+        // the same legs, but the face is a lit screen and the notices are rows of
+        // glowing text. The palette swap alone could not carry this one — a
+        // colony posting paper on a plank is the sort of detail that makes a
+        // reskin read as a reskin (20-world's BOARD_NAMES names it in words; this
+        // is the picture half of the same skin).
+        board(g) {
+          px(g, 3, 11, 2, 5, PAL.beam);
+          px(g, 11, 11, 2, 5, PAL.beam);
+          px(g, 2, 2, 12, 10, PAL.trunk);
+          px(g, 3, 3, 10, 8, PAL.night);
+          px(g, 4, 4, 5, 1, PAL.doorKnob);
+          px(g, 4, 6, 8, 1, PAL.doorKnob);
+          px(g, 4, 8, 4, 1, PAL.leafHi);
+        },
       },
     },
   };
@@ -466,7 +524,12 @@ PF.art = (() => {
    *  world builds already do. Unknown ids resolve to the fixed default, never
    *  whatever theme happens to be active (order-dependent worlds otherwise). */
   function setTheme(id) {
-    const theme = THEMES[typeof id === "string" ? id : ""] ? id : "cozy-village";
+    // PF.own, because "unknown" has to include the words every object answers
+    // to. The read was bare, so `THEMES["constructor"]` came back a truthy
+    // FUNCTION, "constructor" was accepted as a theme id and PINNED here — the
+    // one place the docstring above promises it cannot be — and from here it
+    // reaches world.theme, the save row, and every theme table downstream.
+    const theme = typeof id === "string" && PF.own(THEMES, id) ? id : "cozy-village";
     if (theme === activeTheme) return activeTheme;
     activeTheme = theme;
     for (const key of Object.keys(PAL)) delete PAL[key];

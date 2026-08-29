@@ -97,6 +97,20 @@ function qmClampWindowValue(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+// "The persona" (the export route's own fallback when there's no active
+// persona) collapses to an empty slug, which the caller treats as "leave it
+// out of the filename" rather than downloading a file literally named
+// "the-persona".
+function qmFilenameSafe(text) {
+  const slug = (typeof text === "string" ? text : "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug === "the-persona" ? "" : slug;
+}
+
 function qmReadUiSize() {
   try {
     const stored = window.localStorage.getItem(QM_UI_SIZE_KEY);
@@ -179,6 +193,32 @@ QM.dock = {
   _interaction: null,
   _boundsObserver: null,
   _bodyObserver: null,
+
+  // Every DOM node _paint/_ensureRoot cache on `this` so a repaint can find
+  // and update them without rebuilding — cleared together whenever the root
+  // is rebuilt or there's no chat to show, since a stale reference into a
+  // detached tree is worse than none.
+  _resetCachedNodes() {
+    this.columns = null;
+    this.zoomWrapper = null;
+    this.uiSizeButtons = null;
+    this.errorNode = null;
+    this.feedSelect = null;
+    this.settingsSection = null;
+    this.settingsContent = null;
+    this.settingsChevron = null;
+    this.underwearToggle = null;
+    this.armorToggle = null;
+    this.weaponsToggle = null;
+    this.equippedContainer = null;
+    this.outfitsContainer = null;
+    this.outfitForm = null;
+    this.form = null;
+    this.listContainer = null;
+    this.portraitWrapper = null;
+    this.portraitImage = null;
+    this.portraitPlaceholder = null;
+  },
 
   isOpen() {
     return this.isOpenFlag;
@@ -487,27 +527,9 @@ QM.dock = {
     this.root = root;
     this.header = header;
     this.body = body;
-    // Reset the cached body children — a fresh body element means everything
-    // built for a previous root no longer exists.
-    this.columns = null;
-    this.zoomWrapper = null;
-    this.uiSizeButtons = null;
-    this.errorNode = null;
-    this.feedSelect = null;
-    this.settingsSection = null;
-    this.settingsContent = null;
-    this.settingsChevron = null;
-    this.underwearToggle = null;
-    this.armorToggle = null;
-    this.weaponsToggle = null;
-    this.equippedContainer = null;
-    this.outfitsContainer = null;
-    this.outfitForm = null;
-    this.form = null;
-    this.listContainer = null;
-    this.portraitWrapper = null;
-    this.portraitImage = null;
-    this.portraitPlaceholder = null;
+    // A fresh body element means everything built for a previous root no
+    // longer exists.
+    this._resetCachedNodes();
 
     this.observeChatBounds();
     this.observeBodyWidth();
@@ -533,25 +555,7 @@ QM.dock = {
 
     if (!QM.state.chatId) {
       this.body.replaceChildren(QM.textNode("No active chat."));
-      this.columns = null;
-      this.zoomWrapper = null;
-      this.uiSizeButtons = null;
-      this.errorNode = null;
-      this.feedSelect = null;
-      this.settingsSection = null;
-      this.settingsContent = null;
-      this.settingsChevron = null;
-      this.underwearToggle = null;
-      this.armorToggle = null;
-      this.weaponsToggle = null;
-      this.equippedContainer = null;
-      this.outfitsContainer = null;
-      this.outfitForm = null;
-      this.form = null;
-      this.listContainer = null;
-      this.portraitWrapper = null;
-      this.portraitImage = null;
-      this.portraitPlaceholder = null;
+      this._resetCachedNodes();
       return;
     }
 
@@ -780,10 +784,75 @@ QM.dock = {
     const content = document.createElement("div");
     Object.assign(content.style, { padding: "8px", display: this.settingsExpanded ? "" : "none" });
     content.appendChild(this._buildSlotVisibilityRow());
+    content.appendChild(this._buildExportImportRow());
     this.settingsContent = content;
 
     section.append(header, content);
     return section;
+  },
+
+  // Portable character sheet: export the current chat's items/outfits/
+  // settings as a downloadable file, or replace them by importing one back —
+  // in a fresh chat this needs no tracker agent enabled at all, matching the
+  // original extension's own export/import.
+  _buildExportImportRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" });
+
+    const exportButton = QM.button("Export…", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    exportButton.addEventListener("click", async () => {
+      exportButton.disabled = true;
+      try {
+        const payload = await QM.state.exportInventory();
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        const personaSlug = qmFilenameSafe(payload.personaName);
+        const datePart = new Date().toISOString().slice(0, 10);
+        link.download = `quartermaster-inventory-${personaSlug ? `${personaSlug}-` : ""}${datePart}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      } finally {
+        exportButton.disabled = false;
+      }
+    });
+
+    const importButton = QM.button("Import…", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "application/json";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      const hasExistingData = (QM.state.items ?? []).length > 0 || (QM.state.outfits ?? []).length > 0;
+      if (hasExistingData && !window.confirm("Importing replaces this chat's current items and outfits. Continue?")) {
+        return;
+      }
+      let payload;
+      try {
+        payload = JSON.parse(await file.text());
+      } catch {
+        QM.state.error = "That file isn't valid JSON.";
+        QM.state._notify();
+        return;
+      }
+      await QM.state.importInventory(payload);
+    });
+    importButton.addEventListener("click", () => fileInput.click());
+
+    row.append(exportButton, importButton, fileInput);
+    return row;
   },
 
   // A single row, one checkbox per group: "Show Slots: [ ] Underwear
