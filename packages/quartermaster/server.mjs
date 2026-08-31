@@ -607,6 +607,48 @@ export async function activate(context) {
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
     async (routes) => {
+      // TEMP DEBUG — remove before pushing to origin/Quartermaster. Enumerates
+      // what the capability surface actually exposes (own + prototype-chain
+      // method names) so we can confirm/deny a persona-avatar write path and a
+      // possible cache-invalidation hook without guessing from Engine source
+      // that doesn't include the capability-host layer itself.
+      routes.get("/debug/capability-surface", async (request, reply) => {
+        const collect = (obj, depth = 4) => {
+          const names = new Set();
+          let cur = obj;
+          for (let i = 0; cur && i < depth; i += 1) {
+            for (const key of Object.getOwnPropertyNames(cur)) {
+              if (key === "constructor") continue;
+              try {
+                if (typeof obj[key] === "function") names.add(key);
+                else if (!(key in Object.prototype)) names.add(key);
+              } catch {
+                names.add(key);
+              }
+            }
+            cur = Object.getPrototypeOf(cur);
+          }
+          return [...names].sort();
+        };
+        const grep = (names) => names.filter((n) => /avatar|persona|cache|invalidat|refresh/i.test(n));
+        const resourcesNames = resources ? collect(resources) : [];
+        const persistenceNames = persistence ? collect(persistence) : [];
+        const documentsNames = documents ? collect(documents) : [];
+        const apiNames = api ? collect(api) : [];
+        return {
+          resources: resourcesNames,
+          persistence: persistenceNames,
+          documents: documentsNames,
+          api: apiNames,
+          matches: {
+            resources: grep(resourcesNames),
+            persistence: grep(persistenceNames),
+            documents: grep(documentsNames),
+            api: grep(apiNames),
+          },
+        };
+      });
+
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
