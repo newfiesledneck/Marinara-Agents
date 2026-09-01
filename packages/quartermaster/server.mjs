@@ -895,6 +895,56 @@ export async function activate(context) {
         return { surfaces, dataDirTree, packageInfo };
       });
 
+      // TEMP DEBUG — remove before pushing to origin/Quartermaster. Final,
+      // targeted follow-up: go deep into capability-packages/versions/quartermaster
+      // (unconfirmed lead — a non-versioned, non-UUID'd per-package folder that
+      // might be genuinely stable storage, unlike capability-runtime-snapshots)
+      // and the files sibling to versions/ we haven't seen. Media extensions are
+      // collapsed to a count server-side so the response can't bloat with
+      // jpg/mp4/etc. filenames regardless of how deep this goes. Read-only.
+      routes.get("/debug/versions-dir-deep", async (request, reply) => {
+        const MEDIA_EXT = new Set([
+          "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico",
+          "mp4", "webm", "mov", "avi", "mkv",
+          "mp3", "wav", "ogg", "flac", "m4a",
+        ]);
+        function extOf(name) {
+          const dot = name.lastIndexOf(".");
+          return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
+        }
+        async function listTreeFiltered(dirPath, depth) {
+          try {
+            const entries = await readdir(dirPath, { withFileTypes: true });
+            const out = [];
+            const mediaCounts = {};
+            for (const entry of entries) {
+              if (entry.isDirectory()) {
+                const node = { name: entry.name, kind: "dir" };
+                if (depth > 0) node.children = await listTreeFiltered(join(dirPath, entry.name), depth - 1);
+                out.push(node);
+                continue;
+              }
+              const ext = extOf(entry.name);
+              if (MEDIA_EXT.has(ext)) {
+                mediaCounts[ext] = (mediaCounts[ext] ?? 0) + 1;
+                continue;
+              }
+              out.push({ name: entry.name, kind: "file" });
+            }
+            if (Object.keys(mediaCounts).length > 0) out.push({ mediaCounts });
+            return out;
+          } catch (error) {
+            return { error: error?.message ?? String(error) };
+          }
+        }
+        if (!context?.dataDir) return { error: "context.dataDir not available" };
+        const versionsRoot = join(context.dataDir, "capability-packages");
+        return {
+          capabilityPackagesRoot: await listTreeFiltered(versionsRoot, 1),
+          quartermasterVersionsDir: await listTreeFiltered(join(versionsRoot, "versions", "quartermaster"), 4),
+        };
+      });
+
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
