@@ -40,7 +40,7 @@
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
+import { mkdir, writeFile, readFile, unlink, readdir } from "node:fs/promises";
 
 // Order matches the portrait ring layout, read top → left → right → bottom:
 // head/neck/eyes/ears above the portrait; armor/clothing/underwear stacked on
@@ -801,6 +801,98 @@ export async function activate(context) {
             listCharacters: describeDeep(resources?.listCharacters),
           },
         };
+      });
+
+      // TEMP DEBUG — remove before pushing to origin/Quartermaster. Final
+      // harvest pass before tearing down this instrumentation: full source
+      // for every remaining un-inspected resources/persistence/api method
+      // (not just the ones Quartermaster itself needs — kept for future
+      // capability-package projects generally), a read-only listing of what
+      // actually lives under context.dataDir (answers "what paths does a
+      // package have access to" concretely), and the real field values on
+      // context.package (only key names were probed before). No writes here
+      // except the already-proven-safe testRoundTrip helper is NOT reused —
+      // this route is 100% read-only (fs.readdir + property reads only).
+      routes.get("/debug/full-capability-harvest", async (request, reply) => {
+        const BUILTIN_SKIP = new Set([
+          "__defineGetter__",
+          "__defineSetter__",
+          "__lookupGetter__",
+          "__lookupSetter__",
+          "__proto__",
+          "constructor",
+          "hasOwnProperty",
+          "isPrototypeOf",
+          "propertyIsEnumerable",
+          "toLocaleString",
+          "toString",
+          "valueOf",
+        ]);
+        const describeDeep = (value, depth = 2) => {
+          if (typeof value === "function") {
+            let source = null;
+            try {
+              source = value.toString();
+            } catch (error) {
+              source = `<toString failed: ${error?.message}>`;
+            }
+            return { type: "function", length: value.length, name: value.name, source };
+          }
+          if (value && typeof value === "object" && depth > 0) {
+            const out = { type: "object", methods: {} };
+            for (const key of Object.getOwnPropertyNames(value)) {
+              if (BUILTIN_SKIP.has(key)) continue;
+              try {
+                out.methods[key] = describeDeep(value[key], depth - 1);
+              } catch (error) {
+                out.methods[key] = { type: "error", message: error?.message };
+              }
+            }
+            return out;
+          }
+          if (value === null || value === undefined) return { type: String(value) };
+          return { type: typeof value, value: typeof value === "string" ? value : undefined };
+        };
+        const surfaces = {
+          resources: describeDeep(resources),
+          persistence: describeDeep(persistence),
+          api: describeDeep(api),
+        };
+
+        // Read-only: what actually lives under the Engine's shared data root,
+        // two levels deep, so future packages know what's really there
+        // instead of guessing from the one avatars/ subtree we already found.
+        async function listDirTree(dirPath, depth) {
+          try {
+            const entries = await readdir(dirPath, { withFileTypes: true });
+            const out = [];
+            for (const entry of entries) {
+              const node = { name: entry.name, kind: entry.isDirectory() ? "dir" : "file" };
+              if (entry.isDirectory() && depth > 0) {
+                node.children = await listDirTree(join(dirPath, entry.name), depth - 1);
+              }
+              out.push(node);
+            }
+            return out;
+          } catch (error) {
+            return { error: error?.message ?? String(error) };
+          }
+        }
+        const dataDirTree = context?.dataDir ? await listDirTree(context.dataDir, 2) : null;
+
+        const packageInfo = {};
+        if (context?.package) {
+          for (const key of Object.getOwnPropertyNames(context.package)) {
+            if (BUILTIN_SKIP.has(key)) continue;
+            try {
+              packageInfo[key] = context.package[key];
+            } catch (error) {
+              packageInfo[key] = `<error: ${error?.message}>`;
+            }
+          }
+        }
+
+        return { surfaces, dataDirTree, packageInfo };
       });
 
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
