@@ -38,6 +38,8 @@
 // grouping, so a future narrative-driven equip agent can reason about
 // exactly what and where from the slot id alone.
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 
 // Order matches the portrait ring layout, read top → left → right → bottom:
 // head/neck/eyes/ears above the portrait; armor/clothing/underwear stacked on
@@ -706,12 +708,19 @@ export async function activate(context) {
           }
         }
         const grep = (names) => names.filter((n) => /storage|path|dir|file|asset|image|blob|upload/i.test(n));
+        let selfDir = null;
+        try {
+          selfDir = dirname(fileURLToPath(import.meta.url));
+        } catch (error) {
+          selfDir = `<failed: ${error?.message}>`;
+        }
         return {
           contextKeys,
           shape,
           matches: grep(contextKeys),
           apiKeys: api ? collect(api) : [],
           apiMatches: grep(api ? collect(api) : []),
+          selfDir,
         };
       });
 
