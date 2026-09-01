@@ -756,6 +756,53 @@ export async function activate(context) {
         };
       });
 
+      // TEMP DEBUG — remove before pushing to origin/Quartermaster. Pure
+      // introspection (toString()/arity only, never invoked) of the
+      // Game-Mode- and character-shaped methods spotted in the earlier
+      // resources/persistence/api enumeration but not yet read: whether
+      // party/character support and Game Mode integration are reachable at
+      // all, and what their real call shape looks like.
+      routes.get("/debug/game-and-character-shapes", async (request, reply) => {
+        const describeDeep = (value, depth = 2) => {
+          if (typeof value === "function") {
+            let source = null;
+            try {
+              source = value.toString();
+            } catch (error) {
+              source = `<toString failed: ${error?.message}>`;
+            }
+            return { type: "function", length: value.length, name: value.name, source };
+          }
+          if (value && typeof value === "object" && depth > 0) {
+            const out = { type: "object", methods: {} };
+            for (const key of Object.getOwnPropertyNames(value)) {
+              if (key === "constructor") continue;
+              try {
+                out.methods[key] = describeDeep(value[key], depth - 1);
+              } catch (error) {
+                out.methods[key] = { type: "error", message: error?.message };
+              }
+            }
+            return out;
+          }
+          if (value === null || value === undefined) return { type: String(value) };
+          return { type: typeof value };
+        };
+        return {
+          gameMode: {
+            registerTurnGameEngine: describeDeep(api?.registerTurnGameEngine),
+            registerConversationCommand: describeDeep(api?.registerConversationCommand),
+            getGameState: describeDeep(persistence?.getGameState),
+            markGameStateSnapshotCommitted: describeDeep(persistence?.markGameStateSnapshotCommitted),
+            spatialSnapshots: describeDeep(persistence?.spatialSnapshots),
+            appendRoleplayEvent: describeDeep(persistence?.appendRoleplayEvent),
+          },
+          characters: {
+            listCharacters: describeDeep(resources?.listCharacters),
+          },
+        };
+      });
+
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
