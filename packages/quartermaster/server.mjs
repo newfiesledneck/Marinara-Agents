@@ -672,6 +672,49 @@ export async function activate(context) {
         };
       });
 
+      // TEMP DEBUG — remove before pushing to origin/Quartermaster. Pure
+      // introspection of the full `context` object (not just context.api),
+      // looking for a package-scoped storage/file/path facility we may not
+      // have destructured yet — capability packages should have their own
+      // storage rather than reaching into the Engine's shared avatars dir.
+      routes.get("/debug/context-shape", async (request, reply) => {
+        const collect = (obj, depth = 4) => {
+          const names = new Set();
+          let cur = obj;
+          for (let i = 0; cur && i < depth; i += 1) {
+            for (const key of Object.getOwnPropertyNames(cur)) {
+              if (key === "constructor") continue;
+              names.add(key);
+            }
+            cur = Object.getPrototypeOf(cur);
+          }
+          return [...names].sort();
+        };
+        const describeValue = (value) => {
+          if (value === null || value === undefined) return { type: String(value) };
+          if (typeof value === "function") return { type: "function", length: value.length, name: value.name };
+          if (typeof value === "object") return { type: "object", keys: collect(value) };
+          return { type: typeof value, value: typeof value === "string" ? value : undefined };
+        };
+        const contextKeys = collect(context);
+        const shape = {};
+        for (const key of contextKeys) {
+          try {
+            shape[key] = describeValue(context[key]);
+          } catch (error) {
+            shape[key] = { type: "error", message: error?.message };
+          }
+        }
+        const grep = (names) => names.filter((n) => /storage|path|dir|file|asset|image|blob|upload/i.test(n));
+        return {
+          contextKeys,
+          shape,
+          matches: grep(contextKeys),
+          apiKeys: api ? collect(api) : [],
+          apiMatches: grep(api ? collect(api) : []),
+        };
+      });
+
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
