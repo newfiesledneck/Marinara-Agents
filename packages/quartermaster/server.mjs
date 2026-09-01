@@ -38,6 +38,8 @@
 // grouping, so a future narrative-driven equip agent can reason about
 // exactly what and where from the slot id alone.
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 
 // Order matches the portrait ring layout, read top → left → right → bottom:
 // head/neck/eyes/ears above the portrait; armor/clothing/underwear stacked on
@@ -93,6 +95,62 @@ const MAX_ITEM_DESCRIPTION_LENGTH = 4000;
 const MAX_STORED_LOCATION_LENGTH = 200;
 const MAX_OUTFIT_NAME_LENGTH = 200;
 const MAX_OUTFIT_DESCRIPTION_LENGTH = 4000;
+
+// ── Outfit portraits ─────────────────────────────────────────────────────────
+// Stored as real files under the Engine's shared gallery/ dir (confirmed, via
+// live production evidence, to survive long-term without being swept — see
+// _planning/capability-package-platform-notes.md), NOT in this package's own
+// documents store: at pack-image scale this belongs in files, and even for a
+// single portrait a real file avoids base64's ~33% size inflation. Metadata
+// (which file belongs to which outfit) still lives in the outfit record
+// itself, which IS a document — only the bytes are files.
+//
+// Filenames always include a fresh random component on every upload, never
+// reused for a replacement — this is what makes the portrait URL
+// cache-safe: a browser that already cached the old image at the old URL
+// never sees the new one at that URL, because the new one has a different
+// URL. No cache-busting query params or headers needed.
+const PORTRAIT_MIME_TO_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+const PORTRAIT_EXT_TO_CONTENT_TYPE = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
+const MAX_PORTRAIT_BYTES = 3 * 1024 * 1024; // post-decode; client resizes/compresses before upload
+
+function galleryPortraitDir(dataDir, chatId) {
+  return join(dataDir, "gallery", "quartermaster", "portraits", chatId);
+}
+
+function avatarsNpcDir(dataDir, chatId) {
+  return join(dataDir, "avatars", "npc", chatId);
+}
+
+// Decodes a `data:image/...;base64,...` string into bytes + a safe filename
+// extension, or returns null for anything malformed/oversized/unsupported —
+// callers turn that into a 400 rather than writing anything to disk.
+function decodePortraitDataUrl(dataUrl) {
+  if (typeof dataUrl !== "string") return null;
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,([a-zA-Z0-9+/=]+)$/.exec(dataUrl.trim());
+  if (!match) return null;
+  const ext = PORTRAIT_MIME_TO_EXT[match[1]];
+  if (!ext) return null;
+  let buffer;
+  try {
+    buffer = Buffer.from(match[2], "base64");
+  } catch {
+    return null;
+  }
+  if (buffer.length === 0 || buffer.length > MAX_PORTRAIT_BYTES) return null;
+  return { buffer, ext, contentType: PORTRAIT_EXT_TO_CONTENT_TYPE[ext] };
+}
+
+// Best-effort delete — a portrait file that's already gone (never written,
+// or removed some other way) must never fail the request that's replacing
+// or clearing it.
+async function removePortraitFileIfExists(filePath) {
+  try {
+    await unlink(filePath);
+  } catch {
+    // Already gone, or never existed — nothing to do.
+  }
+}
 
 function inventoryDocId(chatId, ownerId) {
   return `${chatId}:${ownerId}`;
@@ -462,15 +520,35 @@ async function loadInventoryDoc(documents, chatId, ownerId) {
 
 async function loadInventoryState(documents, chatId, ownerId) {
   const doc = await loadInventoryDoc(documents, chatId, ownerId);
+  const outfits = Array.isArray(doc?.data?.outfits) ? doc.data.outfits : [];
   return {
     items: Array.isArray(doc?.data?.items) ? doc.data.items : [],
-    outfits: Array.isArray(doc?.data?.outfits) ? doc.data.outfits : [],
+    // portraitFile defaults to null for outfits saved before this feature
+    // existed — same forward-compatible-read pattern as
+    // normalizeOutfitSlotSnapshot above.
+    outfits: outfits.map((outfit) => ({ portraitFile: null, ...outfit })),
     appearanceFeedMode: APPEARANCE_FEED_MODES.has(doc?.data?.appearanceFeedMode) ? doc.data.appearanceFeedMode : "off",
     // Per-group defaults (SLOT_GROUP_DEFAULTS): underwear off so a fresh
     // inventory is SFW, armor/weapons on since most characters use them.
     showUnderwear: typeof doc?.data?.showUnderwear === "boolean" ? doc.data.showUnderwear : SLOT_GROUP_DEFAULTS.underwear,
     showArmor: typeof doc?.data?.showArmor === "boolean" ? doc.data.showArmor : SLOT_GROUP_DEFAULTS.armor,
     showWeapons: typeof doc?.data?.showWeapons === "boolean" ? doc.data.showWeapons : SLOT_GROUP_DEFAULTS.weapons,
+    // Opt-in, default-off, per-chat: also push the active outfit's portrait
+    // to the persona's real avatar (resources.updatePersona), not just
+    // Quartermaster's own dock. originalPersonaAvatarPath/originalAvatarCaptured
+    // let a later revert (outfit unequipped, or one with no portrait equipped)
+    // restore exactly what was there before Quartermaster ever touched it —
+    // captured lazily, the first time the toggle actually fires.
+    replaceRealAvatarOnEquip: typeof doc?.data?.replaceRealAvatarOnEquip === "boolean" ? doc.data.replaceRealAvatarOnEquip : false,
+    originalAvatarCaptured: typeof doc?.data?.originalAvatarCaptured === "boolean" ? doc.data.originalAvatarCaptured : false,
+    originalPersonaAvatarPath:
+      typeof doc?.data?.originalPersonaAvatarPath === "string" || doc?.data?.originalPersonaAvatarPath === null
+        ? doc.data.originalPersonaAvatarPath
+        : null,
+    // The npc-avatar file Quartermaster itself last wrote for this chat, so
+    // the next sync can clean it up first — avatars/npc/ isn't swept by the
+    // Engine (confirmed), so without this every equip cycle leaks one file.
+    lastAvatarNpcFile: typeof doc?.data?.lastAvatarNpcFile === "string" ? doc.data.lastAvatarNpcFile : null,
   };
 }
 
@@ -494,6 +572,55 @@ async function resolvePersonaAvatarUrl(persistence, resources, chatId) {
   const data = await resolveChatPersonaData(persistence, resources, chatId);
   const avatarPath = data && typeof data.avatarPath === "string" ? data.avatarPath : null;
   return avatarPath || null;
+}
+
+// The opt-in real-avatar-replace sync. `outfit` is the outfit now considered
+// "active" (currently equipped, per outfitMatchesCurrent) — pass null when
+// nothing matches any saved outfit at all (unequip-all). Whether that outfit
+// actually has a portrait decides swap vs. revert; a portrait-less active
+// outfit is treated the same as "nothing active" (revert), so the avatar
+// always reflects the current specific outfit's portrait or the persona's
+// normal avatar, never a stale one from a previously-equipped outfit.
+//
+// Mutates `state` (originalAvatarCaptured/originalPersonaAvatarPath/
+// lastAvatarNpcFile) — caller is responsible for persisting it afterward,
+// same as every other state-mutating helper in this file.
+async function syncRealAvatarForOutfit(persistence, resources, dataDir, chatId, state, outfit) {
+  if (!state.replaceRealAvatarOnEquip) return;
+  const chat = await persistence.getChat(chatId);
+  const personaId = chat?.personaId;
+  if (!personaId) return;
+
+  if (!state.originalAvatarCaptured) {
+    const [persona] = await resources.listPersonas([personaId]);
+    const currentAvatarPath =
+      persona?.data && typeof persona.data.avatarPath === "string" ? persona.data.avatarPath : null;
+    state.originalPersonaAvatarPath = currentAvatarPath;
+    state.originalAvatarCaptured = true;
+  }
+
+  if (state.lastAvatarNpcFile) {
+    await removePortraitFileIfExists(join(avatarsNpcDir(dataDir, chatId), state.lastAvatarNpcFile));
+    state.lastAvatarNpcFile = null;
+  }
+
+  if (outfit && outfit.portraitFile) {
+    let buffer;
+    try {
+      buffer = await readFile(join(galleryPortraitDir(dataDir, chatId), outfit.portraitFile));
+    } catch {
+      return; // Portrait record exists but the file is missing — leave the avatar as-is rather than guess.
+    }
+    const ext = outfit.portraitFile.slice(outfit.portraitFile.lastIndexOf(".") + 1);
+    const filename = `qm-${outfit.id}-${randomUUID().slice(0, 8)}.${ext}`;
+    const dir = avatarsNpcDir(dataDir, chatId);
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, filename), buffer);
+    await resources.updatePersona(personaId, { avatarPath: `/api/avatars/npc/${encodeURIComponent(chatId)}/${filename}` });
+    state.lastAvatarNpcFile = filename;
+  } else {
+    await resources.updatePersona(personaId, { avatarPath: state.originalPersonaAvatarPath });
+  }
 }
 
 // Falls back to a generic label rather than failing the whole prompt-context
@@ -676,6 +803,7 @@ export async function activate(context) {
         for (const item of state.items) {
           if (item.location.startsWith("equipped:")) item.location = "bag";
         }
+        await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, null);
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
       });
@@ -708,6 +836,7 @@ export async function activate(context) {
           name,
           description: normalizeText(body.description, MAX_OUTFIT_DESCRIPTION_LENGTH),
           slots: currentEquippedSlots(state.items),
+          portraitFile: null,
         };
         state.outfits.push(outfit);
         await persistState(chatId, ownerId, state);
@@ -748,6 +877,7 @@ export async function activate(context) {
         // go on, recreating anything that's gone missing since it was saved.
         // See applyOutfitEquip's own comment.
         applyOutfitEquip(state, outfit);
+        await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, outfit);
 
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
@@ -756,12 +886,94 @@ export async function activate(context) {
       routes.delete("/inventory/:chatId/:ownerId/outfits/:outfitId", async (request, reply) => {
         const { chatId, ownerId, outfitId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
-        const nextOutfits = state.outfits.filter((candidate) => candidate.id !== outfitId);
-        if (nextOutfits.length === state.outfits.length) return reply.status(404).send({ error: "Outfit not found" });
-        state.outfits = nextOutfits;
+        const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
+        if (!outfit) return reply.status(404).send({ error: "Outfit not found" });
+        const wasActive = outfitMatchesCurrent(outfit, state.items);
+        state.outfits = state.outfits.filter((candidate) => candidate.id !== outfitId);
+
+        if (outfit.portraitFile) {
+          await removePortraitFileIfExists(join(galleryPortraitDir(context.dataDir, chatId), outfit.portraitFile));
+        }
+        if (wasActive) await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, null);
 
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
+      });
+
+      // Upload/replace an outfit's portrait. Body: { imageDataUrl }, a
+      // data:image/(png|jpeg|webp);base64,... string — resizing/compressing
+      // is the client's job (QM.state), this route only validates and
+      // decodes. The old file (if replacing) is removed after the new one is
+      // written successfully, never before — a failed write must never leave
+      // the outfit pointing at a file that no longer exists. If this outfit
+      // is the currently-equipped one and the real-avatar toggle is on, the
+      // new portrait also becomes the persona's real avatar immediately.
+      routes.post("/inventory/:chatId/:ownerId/outfits/:outfitId/portrait", async (request, reply) => {
+        const { chatId, ownerId, outfitId } = request.params;
+        const body = request.body ?? {};
+        const decoded = decodePortraitDataUrl(body.imageDataUrl);
+        if (!decoded) return reply.status(400).send({ error: "Invalid or oversized portrait image" });
+
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
+        if (!outfit) return reply.status(404).send({ error: "Outfit not found" });
+
+        const dir = galleryPortraitDir(context.dataDir, chatId);
+        const filename = `${outfitId}-${randomUUID().slice(0, 8)}.${decoded.ext}`;
+        await mkdir(dir, { recursive: true });
+        await writeFile(join(dir, filename), decoded.buffer);
+        const previousFile = outfit.portraitFile;
+        outfit.portraitFile = filename;
+        if (previousFile) await removePortraitFileIfExists(join(dir, previousFile));
+
+        if (outfitMatchesCurrent(outfit, state.items)) {
+          await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, outfit);
+        }
+
+        await persistState(chatId, ownerId, state);
+        return { items: state.items, outfits: state.outfits };
+      });
+
+      routes.delete("/inventory/:chatId/:ownerId/outfits/:outfitId/portrait", async (request, reply) => {
+        const { chatId, ownerId, outfitId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
+        if (!outfit) return reply.status(404).send({ error: "Outfit not found" });
+
+        if (outfit.portraitFile) {
+          await removePortraitFileIfExists(join(galleryPortraitDir(context.dataDir, chatId), outfit.portraitFile));
+          outfit.portraitFile = null;
+        }
+
+        if (outfitMatchesCurrent(outfit, state.items)) {
+          await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, outfit);
+        }
+
+        await persistState(chatId, ownerId, state);
+        return { items: state.items, outfits: state.outfits };
+      });
+
+      // Serves the raw image bytes for an outfit's portrait — the dock's
+      // <img src> points directly here, never at a gallery/ path. The
+      // filename always changes on replace (see decodePortraitDataUrl's own
+      // comment above), so this can be cached aggressively: the URL itself
+      // only ever refers to one immutable set of bytes.
+      routes.get("/inventory/:chatId/:ownerId/outfits/:outfitId/portrait", async (request, reply) => {
+        const { chatId, ownerId, outfitId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
+        if (!outfit || !outfit.portraitFile) return reply.status(404).send({ error: "No portrait set" });
+
+        let buffer;
+        try {
+          buffer = await readFile(join(galleryPortraitDir(context.dataDir, chatId), outfit.portraitFile));
+        } catch {
+          return reply.status(404).send({ error: "Portrait file missing" });
+        }
+        const ext = outfit.portraitFile.slice(outfit.portraitFile.lastIndexOf(".") + 1);
+        reply.header("Cache-Control", "public, max-age=31536000, immutable");
+        reply.type(PORTRAIT_EXT_TO_CONTENT_TYPE[ext] ?? "application/octet-stream");
+        return reply.send(buffer);
       });
 
       // Portable export/import (plan: carry a character sheet between chats
@@ -788,11 +1000,15 @@ export async function activate(context) {
           exportedAt: new Date().toISOString(),
           personaName,
           items: state.items,
-          outfits: state.outfits,
+          // portraitFile is a filename in THIS chat's own gallery folder — meaningless
+          // (and a dead reference) once exported, so it's dropped rather than carried
+          // through to a file that'll likely get imported into a different chat.
+          outfits: state.outfits.map(({ portraitFile, ...outfit }) => outfit),
           showUnderwear: state.showUnderwear,
           showArmor: state.showArmor,
           showWeapons: state.showWeapons,
           appearanceFeedMode: state.appearanceFeedMode,
+          replaceRealAvatarOnEquip: state.replaceRealAvatarOnEquip,
         };
       });
 
@@ -810,6 +1026,13 @@ export async function activate(context) {
         state.showUnderwear = typeof body.showUnderwear === "boolean" ? body.showUnderwear : SLOT_GROUP_DEFAULTS.underwear;
         state.showArmor = typeof body.showArmor === "boolean" ? body.showArmor : SLOT_GROUP_DEFAULTS.armor;
         state.showWeapons = typeof body.showWeapons === "boolean" ? body.showWeapons : SLOT_GROUP_DEFAULTS.weapons;
+        // Plain preference carry-over, not a full toggle-on sync (an import
+        // is generally into a fresh/empty state with nothing yet equipped to
+        // reflect) — originalAvatarCaptured/originalPersonaAvatarPath/
+        // lastAvatarNpcFile are deliberately NOT importable; they're specific
+        // to this chat's own persona history, not portable data.
+        state.replaceRealAvatarOnEquip =
+          typeof body.replaceRealAvatarOnEquip === "boolean" ? body.replaceRealAvatarOnEquip : false;
 
         const idMap = new Map();
         const nextItems = [];
@@ -852,6 +1075,7 @@ export async function activate(context) {
             name,
             description: normalizeText(raw.description, MAX_OUTFIT_DESCRIPTION_LENGTH),
             slots,
+            portraitFile: null,
           });
         }
 
@@ -865,6 +1089,7 @@ export async function activate(context) {
           showUnderwear: state.showUnderwear,
           showArmor: state.showArmor,
           showWeapons: state.showWeapons,
+          replaceRealAvatarOnEquip: state.replaceRealAvatarOnEquip,
         };
       });
 
@@ -885,12 +1110,39 @@ export async function activate(context) {
           state[key] = body[key];
         }
 
+        if (body.replaceRealAvatarOnEquip !== undefined) {
+          if (typeof body.replaceRealAvatarOnEquip !== "boolean") {
+            return reply.status(400).send({ error: "Invalid replaceRealAvatarOnEquip" });
+          }
+          const wasOn = state.replaceRealAvatarOnEquip;
+          const nowOn = body.replaceRealAvatarOnEquip;
+
+          if (wasOn && !nowOn && state.originalAvatarCaptured) {
+            // Restore whatever the real avatar was before Quartermaster ever
+            // touched it. Called while the flag is still true — syncRealAvatarForOutfit
+            // no-ops when it's false — then reset capture state so a future
+            // re-enable starts fresh from whatever's actually there then,
+            // not this stale snapshot.
+            await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, null);
+            state.originalAvatarCaptured = false;
+            state.originalPersonaAvatarPath = null;
+          }
+          state.replaceRealAvatarOnEquip = nowOn;
+          if (!wasOn && nowOn) {
+            // Reflect the currently-equipped outfit's portrait immediately,
+            // rather than waiting for the next explicit equip action.
+            const active = state.outfits.find((candidate) => outfitMatchesCurrent(candidate, state.items));
+            await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, active ?? null);
+          }
+        }
+
         await persistState(chatId, ownerId, state);
         return {
           appearanceFeedMode: state.appearanceFeedMode,
           showUnderwear: state.showUnderwear,
           showArmor: state.showArmor,
           showWeapons: state.showWeapons,
+          replaceRealAvatarOnEquip: state.replaceRealAvatarOnEquip,
         };
       });
     },

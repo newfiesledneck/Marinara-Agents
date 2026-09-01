@@ -145,6 +145,7 @@ QM.state = {
   showArmor: true,
   showWeapons: true,
   personaAvatarUrl: null,
+  replaceRealAvatarOnEquip: false,
   error: null,
   _listeners: new Set(),
 
@@ -224,6 +225,7 @@ QM.state = {
       this.showArmor = result.showArmor !== false;
       this.showWeapons = result.showWeapons !== false;
       this.personaAvatarUrl = result.personaAvatarUrl || null;
+      this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip === true;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
@@ -243,6 +245,7 @@ QM.state = {
       if (result.showUnderwear !== undefined) this.showUnderwear = result.showUnderwear;
       if (result.showArmor !== undefined) this.showArmor = result.showArmor;
       if (result.showWeapons !== undefined) this.showWeapons = result.showWeapons;
+      if (result.replaceRealAvatarOnEquip !== undefined) this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
@@ -282,6 +285,12 @@ QM.state = {
   deleteOutfit(outfitId) {
     return this._mutate(QM.deleteOutfit(this.chatId, QM_OWNER_ID, outfitId));
   },
+  uploadOutfitPortrait(outfitId, imageDataUrl) {
+    return this._mutate(QM.uploadOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId, imageDataUrl));
+  },
+  deleteOutfitPortrait(outfitId) {
+    return this._mutate(QM.deleteOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId));
+  },
   updateAppearanceFeedMode(mode) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { appearanceFeedMode: mode }));
   },
@@ -293,6 +302,9 @@ QM.state = {
   },
   updateShowWeapons(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { showWeapons: value }));
+  },
+  updateReplaceRealAvatarOnEquip(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { replaceRealAvatarOnEquip: value }));
   },
 
   // A group with no toggle (e.g. undefined) is always visible.
@@ -385,5 +397,16 @@ QM.state = {
       const itemId = snapshot && typeof snapshot === "object" ? snapshot.itemId : snapshot;
       return current[slot] === itemId;
     });
+  },
+
+  // The outfit (if any) whose slots exactly match what's currently equipped
+  // AND has a portrait set — used by the portrait ring to decide whether to
+  // show that portrait instead of the persona's own avatar. Ambiguous when
+  // two saved outfits happen to have identical slots (picks the first, same
+  // tie-break outfitMatchesCurrent's server-side counterpart already accepts
+  // for the appearance-macro's "outfitDescription" mode).
+  activeOutfitPortraitUrl() {
+    const active = (this.outfits ?? []).find((outfit) => outfit.portraitFile && this.outfitMatchesCurrent(outfit));
+    return active ? QM.outfitPortraitUrl(this.chatId, QM_OWNER_ID, active.id) : null;
   },
 };

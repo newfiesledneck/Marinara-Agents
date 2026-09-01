@@ -1,5 +1,5 @@
 // Quartermaster 0.1.1 — Marinara Engine roleplay-tracker capability (single-file client bundle)
-// Built from packages/quartermaster/src (6 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
+// Built from packages/quartermaster/src (7 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
 // ===== 00-api.js =====
@@ -80,6 +80,25 @@ QM.unequipAll = (chatId, ownerId) =>
     body: "{}",
   });
 
+QM.uploadOutfitPortrait = (chatId, ownerId, outfitId, imageDataUrl) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
+    { method: "POST", body: JSON.stringify({ imageDataUrl }) },
+  );
+
+QM.deleteOutfitPortrait = (chatId, ownerId, outfitId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
+    { method: "DELETE" },
+  );
+
+// Not a fetch — just the <img src> URL. Callers append a cache-buster (the
+// filename change already busts the browser cache; this is only relevant if
+// callers ever hit this before the state refetch lands, which none do today,
+// so plain is fine) only if they need to force a reload of the SAME filename.
+QM.outfitPortraitUrl = (chatId, ownerId, outfitId) =>
+  `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`;
+
 QM.exportInventory = (chatId, ownerId) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/export`, { method: "GET" });
 
@@ -88,6 +107,42 @@ QM.importInventory = (chatId, ownerId, payload) =>
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+// ===== 03-image.js =====
+// Quartermaster — client-side image resize/compression before upload, so a
+// phone photo doesn't get shipped to (and stored on) the server at full
+// resolution. Runs entirely in the browser via a canvas; the server only
+// validates size/type on receipt, it never resizes anything itself.
+const QM_PORTRAIT_MAX_DIMENSION = 640;
+const QM_PORTRAIT_JPEG_QUALITY = 0.85;
+
+QM.compressImageFile = function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read the selected file."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Could not load the selected file as an image."));
+      img.onload = () => {
+        const scale = Math.min(1, QM_PORTRAIT_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+        const width = Math.max(1, Math.round(img.naturalWidth * scale));
+        const height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        // PNG only when the source already was (preserves transparency);
+        // everything else — jpeg, webp, or anything else the browser can
+        // decode through the <input accept> filter — re-encodes as JPEG,
+        // smaller and universally supported by the canvas encoder.
+        const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+        resolve(canvas.toDataURL(outputType, outputType === "image/jpeg" ? QM_PORTRAIT_JPEG_QUALITY : undefined));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
 
 // ===== 05-state.js =====
 // Quartermaster — shared reactive state for the persona's inventory. Both
@@ -237,6 +292,7 @@ QM.state = {
   showArmor: true,
   showWeapons: true,
   personaAvatarUrl: null,
+  replaceRealAvatarOnEquip: false,
   error: null,
   _listeners: new Set(),
 
@@ -316,6 +372,7 @@ QM.state = {
       this.showArmor = result.showArmor !== false;
       this.showWeapons = result.showWeapons !== false;
       this.personaAvatarUrl = result.personaAvatarUrl || null;
+      this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip === true;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
@@ -335,6 +392,7 @@ QM.state = {
       if (result.showUnderwear !== undefined) this.showUnderwear = result.showUnderwear;
       if (result.showArmor !== undefined) this.showArmor = result.showArmor;
       if (result.showWeapons !== undefined) this.showWeapons = result.showWeapons;
+      if (result.replaceRealAvatarOnEquip !== undefined) this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
@@ -374,6 +432,12 @@ QM.state = {
   deleteOutfit(outfitId) {
     return this._mutate(QM.deleteOutfit(this.chatId, QM_OWNER_ID, outfitId));
   },
+  uploadOutfitPortrait(outfitId, imageDataUrl) {
+    return this._mutate(QM.uploadOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId, imageDataUrl));
+  },
+  deleteOutfitPortrait(outfitId) {
+    return this._mutate(QM.deleteOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId));
+  },
   updateAppearanceFeedMode(mode) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { appearanceFeedMode: mode }));
   },
@@ -385,6 +449,9 @@ QM.state = {
   },
   updateShowWeapons(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { showWeapons: value }));
+  },
+  updateReplaceRealAvatarOnEquip(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { replaceRealAvatarOnEquip: value }));
   },
 
   // A group with no toggle (e.g. undefined) is always visible.
@@ -477,6 +544,17 @@ QM.state = {
       const itemId = snapshot && typeof snapshot === "object" ? snapshot.itemId : snapshot;
       return current[slot] === itemId;
     });
+  },
+
+  // The outfit (if any) whose slots exactly match what's currently equipped
+  // AND has a portrait set — used by the portrait ring to decide whether to
+  // show that portrait instead of the persona's own avatar. Ambiguous when
+  // two saved outfits happen to have identical slots (picks the first, same
+  // tie-break outfitMatchesCurrent's server-side counterpart already accepts
+  // for the appearance-macro's "outfitDescription" mode).
+  activeOutfitPortraitUrl() {
+    const active = (this.outfits ?? []).find((outfit) => outfit.portraitFile && this.outfitMatchesCurrent(outfit));
+    return active ? QM.outfitPortraitUrl(this.chatId, QM_OWNER_ID, active.id) : null;
   },
 };
 
@@ -804,6 +882,7 @@ QM.dock = {
   underwearToggle: null,
   armorToggle: null,
   weaponsToggle: null,
+  replaceRealAvatarToggle: null,
   equippedContainer: null,
   outfitsContainer: null,
   outfitForm: null,
@@ -841,6 +920,7 @@ QM.dock = {
     this.underwearToggle = null;
     this.armorToggle = null;
     this.weaponsToggle = null;
+    this.replaceRealAvatarToggle = null;
     this.equippedContainer = null;
     this.outfitsContainer = null;
     this.outfitForm = null;
@@ -1293,7 +1373,18 @@ QM.dock = {
     this.underwearToggle.checked = QM.state.showUnderwear;
     this.armorToggle.checked = QM.state.showArmor;
     this.weaponsToggle.checked = QM.state.showWeapons;
-    if (QM.state.personaAvatarUrl && this.portraitImage) this.portraitImage.src = QM.state.personaAvatarUrl;
+    this.replaceRealAvatarToggle.checked = QM.state.replaceRealAvatarOnEquip;
+    // display was previously only set once at _buildPortrait()'s construction
+    // time, from whatever hasAvatar was at mount — harmless while the only
+    // input was the persona's own avatar (rarely changes mid-session), but
+    // outfit-portrait swapping changes this input constantly, so both the
+    // src and the image/placeholder toggle need to be live here, not just src.
+    const portraitUrl = QM.state.activeOutfitPortraitUrl() || QM.state.personaAvatarUrl;
+    if (this.portraitImage && this.portraitPlaceholder) {
+      this.portraitImage.style.display = portraitUrl ? "block" : "none";
+      this.portraitPlaceholder.style.display = portraitUrl ? "none" : "flex";
+      if (portraitUrl) this.portraitImage.src = portraitUrl;
+    }
     this.equippedContainer.replaceChildren(this._buildEquippedSection());
     this.outfitsContainer.replaceChildren(this._buildOutfitsList());
     this.listContainer.replaceChildren(this._buildItemList());
@@ -1432,23 +1523,25 @@ QM.dock = {
     header.append(chevron, label);
     header.addEventListener("click", () => {
       this.settingsExpanded = !this.settingsExpanded;
-      this.settingsContent.style.maxHeight = this.settingsExpanded ? "200px" : "0px";
+      this.settingsContent.style.maxHeight = this.settingsExpanded ? "320px" : "0px";
       this.settingsChevron.style.transform = this.settingsExpanded ? "rotate(90deg)" : "rotate(0deg)";
     });
 
     // max-height + overflow:hidden, not display:none/"" — display can't be
-    // transitioned, so the section used to snap open/closed instantly. 200px
-    // is a generous ceiling for what's actually two short rows; it doesn't
-    // need to track real content height since it's never the constraining
-    // factor once expanded.
+    // transitioned, so the section used to snap open/closed instantly. 320px
+    // is a generous ceiling for the current content (slot toggles, the
+    // real-avatar toggle + its warning note, export/import); it doesn't need
+    // to track real content height since it's never the constraining factor
+    // once expanded.
     const content = document.createElement("div");
     Object.assign(content.style, {
       padding: "0 8px",
-      maxHeight: this.settingsExpanded ? "200px" : "0px",
+      maxHeight: this.settingsExpanded ? "320px" : "0px",
       overflow: "hidden",
       transition: "max-height 0.2s ease",
     });
     content.appendChild(this._buildSlotVisibilityRow());
+    content.appendChild(this._buildRealAvatarToggleRow());
     content.appendChild(this._buildExportImportRow());
     this.settingsContent = content;
 
@@ -1565,11 +1658,51 @@ QM.dock = {
     return row;
   },
 
-  // Built once (like the forms) and cached on this.portraitImage so a
-  // refreshed avatar can be applied live without a repaint. v1 just shows
-  // the persona's real avatar — a package-owned generated/uploaded portrait
-  // (per the extension: separate from the persona avatar, swaps on equip)
-  // is later work, once this layout is settled.
+  // Opt-in, default-off: also push the active outfit's portrait to the
+  // persona's REAL avatar (not just this dock's own display), reverting to
+  // whatever it was before when unequipped. Two costs worth surfacing right
+  // here rather than only in the README, since this toggle is the one place
+  // a user decides to take them on: (1) the Engine keeps a permanent version
+  // history entry on every avatar change — no way to suppress it; (2) other
+  // Marinara UI showing the persona's avatar (chat header, persona picker)
+  // may take a while to visually catch up, per a known Engine-side caching
+  // behavior — generation-time reads (e.g. "send avatar as reference") are
+  // unaffected, this dock's own portrait display is unaffected either way.
+  _buildRealAvatarToggleRow() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { marginTop: "8px", fontSize: "12px" });
+
+    const checkboxLabel = document.createElement("label");
+    Object.assign(checkboxLabel.style, { display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" });
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.addEventListener("change", () => QM.state.updateReplaceRealAvatarOnEquip(checkbox.checked));
+    const text = document.createElement("span");
+    text.textContent = "Also replace persona's real avatar on equip";
+    checkboxLabel.append(checkbox, text);
+    this.replaceRealAvatarToggle = checkbox;
+
+    const note = document.createElement("p");
+    note.textContent =
+      "Reverts automatically when unequipped. Each change adds a permanent entry to the persona's " +
+      "version history (can't be turned off), and other Marinara screens showing this avatar may take " +
+      "a bit to catch up visually — image generation itself isn't affected.";
+    Object.assign(note.style, {
+      margin: "4px 0 0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    wrapper.append(checkboxLabel, note);
+    return wrapper;
+  },
+
+  // Built once (like the forms) and cached on this.portraitImage/
+  // this.portraitPlaceholder so a refreshed avatar can be applied live
+  // without a repaint — see render()'s own comment on why both need their
+  // display toggled on every render now, not just src. Shows the active
+  // outfit's own portrait when one's set (QM.state.activeOutfitPortraitUrl),
+  // falling back to the persona's real avatar otherwise.
   _buildPortrait() {
     const wrapper = document.createElement("div");
     Object.assign(wrapper.style, { display: "flex", justifyContent: "center", marginBottom: "8px" });
@@ -1874,6 +2007,90 @@ QM.dock = {
     return list;
   },
 
+  // A small clickable thumbnail (or a dashed placeholder when unset) that
+  // opens a file picker to upload/replace this outfit's portrait, plus a "×"
+  // to remove it. Compression happens client-side (QM.compressImageFile)
+  // before the upload call — the server only validates size/type, it never
+  // resizes. Phase 1 is upload-only; a "generate" option belongs here later
+  // once image-generation reachability from a package is actually confirmed.
+  _buildOutfitPortraitControl(outfit) {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { position: "relative", flexShrink: "0", width: "28px", height: "28px" });
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      try {
+        const dataUrl = await QM.compressImageFile(file);
+        await QM.state.uploadOutfitPortrait(outfit.id, dataUrl);
+      } catch (error) {
+        QM.state.error = error && error.message ? error.message : String(error);
+        QM.state._notify();
+      }
+    });
+
+    const thumbButton = document.createElement("button");
+    thumbButton.type = "button";
+    thumbButton.title = outfit.portraitFile ? "Replace portrait" : "Add portrait";
+    Object.assign(thumbButton.style, {
+      width: "28px",
+      height: "28px",
+      padding: "0",
+      cursor: "pointer",
+      borderRadius: "var(--radius, 4px)",
+      overflow: "hidden",
+      background: "var(--muted, rgba(128,128,128,0.15))",
+      border: outfit.portraitFile
+        ? "1px solid var(--border, rgba(128,128,128,0.3))"
+        : "1px dashed var(--border, rgba(128,128,128,0.4))",
+    });
+    thumbButton.addEventListener("click", () => fileInput.click());
+
+    if (outfit.portraitFile) {
+      const thumb = document.createElement("img");
+      thumb.alt = `${outfit.name} portrait`;
+      thumb.src = QM.outfitPortraitUrl(QM.state.chatId, QM_OWNER_ID, outfit.id);
+      Object.assign(thumb.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
+      thumbButton.appendChild(thumb);
+    } else {
+      thumbButton.textContent = "+";
+      Object.assign(thumbButton.style, { fontSize: "14px", lineHeight: "1", color: "var(--muted-foreground, currentcolor)" });
+    }
+
+    wrapper.append(thumbButton, fileInput);
+
+    if (outfit.portraitFile) {
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.title = "Remove portrait";
+      removeButton.textContent = "×";
+      Object.assign(removeButton.style, {
+        position: "absolute",
+        top: "-6px",
+        right: "-6px",
+        width: "14px",
+        height: "14px",
+        lineHeight: "12px",
+        padding: "0",
+        fontSize: "11px",
+        borderRadius: "50%",
+        cursor: "pointer",
+        background: QM_COLOR_DANGER,
+        color: QM_COLOR_DANGER_FG,
+        border: "none",
+      });
+      removeButton.addEventListener("click", () => QM.state.deleteOutfitPortrait(outfit.id));
+      wrapper.appendChild(removeButton);
+    }
+
+    return wrapper;
+  },
+
   _buildOutfitRow(outfit) {
     const row = document.createElement("li");
     Object.assign(row.style, {
@@ -1894,6 +2111,8 @@ QM.dock = {
     name.textContent = equipped ? `${outfit.name} (equipped)` : outfit.name;
     if (equipped) name.style.fontWeight = "600";
 
+    const portraitControl = this._buildOutfitPortraitControl(outfit);
+
     const equipButton = QM.button("Equip");
     equipButton.addEventListener("click", () => QM.state.equipOutfit(outfit.id));
 
@@ -1908,7 +2127,7 @@ QM.dock = {
     const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
     deleteButton.addEventListener("click", () => QM.state.deleteOutfit(outfit.id));
 
-    topLine.append(name, equipButton, updateButton, deleteButton);
+    topLine.append(portraitControl, name, equipButton, updateButton, deleteButton);
     row.appendChild(topLine);
 
     const descriptionInput = QM.smallInput("input");
