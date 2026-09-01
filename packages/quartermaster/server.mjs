@@ -649,6 +649,29 @@ export async function activate(context) {
         };
       });
 
+      // TEMP DEBUG — remove before pushing to origin/Quartermaster. Pure
+      // introspection, no writes: reads back the source text (and declared
+      // arity) of the persona-related resources methods so we can learn their
+      // real call signature without guessing and risking a malformed write
+      // against real persona data.
+      routes.get("/debug/persona-method-shapes", async (request, reply) => {
+        const describe = (fn) => {
+          if (typeof fn !== "function") return null;
+          let source = null;
+          try {
+            source = fn.toString();
+          } catch (error) {
+            source = `<toString failed: ${error?.message}>`;
+          }
+          return { length: fn.length, name: fn.name, source };
+        };
+        return {
+          listPersonas: describe(resources?.listPersonas),
+          createPersona: describe(resources?.createPersona),
+          updatePersona: describe(resources?.updatePersona),
+        };
+      });
+
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
