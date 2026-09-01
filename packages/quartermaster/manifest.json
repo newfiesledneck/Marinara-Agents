@@ -43,8 +43,8 @@
     },
     {
       "path": "server.mjs",
-      "sha256": "b819c3336fdd86958ea63b7bbe34a1733f547f06e89d389d2f44e891763f9688",
-      "bytes": 46050
+      "sha256": "eb76910ae6e80255c751a48bc87807439287a51ad36208176f04bd1c2573f486",
+      "bytes": 47988
     }
   ],
   "permissions": [
