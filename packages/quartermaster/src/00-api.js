@@ -75,6 +75,25 @@ QM.unequipAll = (chatId, ownerId) =>
     body: "{}",
   });
 
+QM.uploadOutfitPortrait = (chatId, ownerId, outfitId, imageDataUrl) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
+    { method: "POST", body: JSON.stringify({ imageDataUrl }) },
+  );
+
+QM.deleteOutfitPortrait = (chatId, ownerId, outfitId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
+    { method: "DELETE" },
+  );
+
+// Not a fetch — just the <img src> URL. Callers append a cache-buster (the
+// filename change already busts the browser cache; this is only relevant if
+// callers ever hit this before the state refetch lands, which none do today,
+// so plain is fine) only if they need to force a reload of the SAME filename.
+QM.outfitPortraitUrl = (chatId, ownerId, outfitId) =>
+  `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`;
+
 QM.exportInventory = (chatId, ownerId) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/export`, { method: "GET" });
 

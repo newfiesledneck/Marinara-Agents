@@ -6,8 +6,8 @@ native-styled tracker-panel accordion. Persona-only for now.
 
 Requires **Marinara Engine 2.4.4+**, Roleplay mode only (`modeAllowlist: ["roleplay"]` — Game
 Mode's Tracker Panel and roleplay-tracker toolbar are gated to Roleplay by the Engine itself,
-confirmed against source, not just undocumented). Package-owned portrait/item image generation
-is not built — the dock shows the persona's existing avatar instead — and cover artwork
+confirmed against source, not just undocumented). Outfit portraits can be uploaded, but not yet
+generated in-app — see Planned below — and cover artwork
 (`artwork/agent-covers/quartermaster.png`) is still outstanding. Visual refinement to the UI is
 still needed, it is not in its final state.
 
@@ -26,6 +26,21 @@ still needed, it is not in its final state.
 - **Slot-group visibility toggles** — underwear (off by default, SFW), armor, and weapons
   (both on by default) can each be hidden — disabled, not just hidden — matching the original
   extension's `SLOT_GROUPS` convention.
+- **Outfit portraits** — upload an image per saved outfit; the dock's portrait ring shows it
+  instead of the persona's own avatar whenever that outfit is currently equipped. Stored as real
+  files under the Engine's own shared `gallery/` directory (not inside this package's own data),
+  resized/compressed in the browser before upload. An opt-in, default-off, per-chat setting
+  ("Also replace persona's real avatar on equip") additionally pushes the active outfit's
+  portrait to the persona's actual avatar via the Engine's own persona-update API, reverting
+  automatically to whatever the avatar was before whenever the chat's equip state no longer
+  matches an outfit with a portrait (unequipping, or equipping one without a portrait). Turning
+  this on has two real costs worth knowing before you flip it: the Engine keeps a permanent
+  version-history entry on every avatar change it makes this way, with no way to suppress it; and
+  other Marinara screens that show the persona's avatar (chat header, persona picker) may take a
+  little while to visually catch up — a known Engine-side caching behavior, unrelated to
+  Quartermaster and outside its control. Image generation itself (e.g. Illustrator's "send avatar
+  as reference") is unaffected either way, and this dock's own portrait display always updates
+  immediately regardless of the toggle.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
@@ -47,11 +62,14 @@ still needed, it is not in its final state.
 - **Party / multi-character support** — persona-only for now, but `ownerId` is threaded through
   every function in `server.mjs` as a real parameter rather than assumed, so extending past the
   persona is a later addition, not a rewrite.
-- **Package-owned portrait/item images** — the dock currently shows the persona's existing
-  avatar as-is; a generated or uploaded portrait that changes with equipped gear is later work,
-  once the current layout is settled.
-- **Avatar swapping based on equipped gear** — tying the portrait image itself to what's
-  currently equipped, beyond the existing appearance-macro text feed.
+- **In-app portrait/item image generation** — outfit portraits are upload-only today; generating
+  one via a configured image-gen connection (the way the original extension's
+  `/characters/avatar-generation` flow worked) is later work, pending confirmation of how a
+  capability package can reach image generation at all.
+- **A pre-made item/portrait asset pack** — a large, curated image library (matching the
+  original extension's own, ~4,500 images) distributed and stored separately from a chat's own
+  uploads — likely via the Engine's `game-assets/` system. Distribution mechanism (bundled,
+  separate download, in-app fetch) not yet decided.
 
 Quality-of-life features from the original extension not covered above are intentionally out of
 scope for now — the focus here is the inventory/outfit/appearance core, not full parity.
