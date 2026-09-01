@@ -39,7 +39,8 @@
 // exactly what and where from the slot id alone.
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 
 // Order matches the portrait ring layout, read top → left → right → bottom:
 // head/neck/eyes/ears above the portrait; armor/clothing/underwear stacked on
@@ -714,6 +715,36 @@ export async function activate(context) {
         } catch (error) {
           selfDir = `<failed: ${error?.message}>`;
         }
+
+        // Real write/read/delete round trip, not just introspection — proves
+        // fs access actually works (not sandboxed) in both candidate storage
+        // locations: our own package folder (survives an uninstall's folder
+        // delete, per the design we want) and the Engine's shared per-chat
+        // avatars/npc dir (needed only for the opt-in "replace real avatar"
+        // path). Uses a harmless probe chatId under avatars/npc so nothing
+        // real is touched; the file is deleted immediately after verifying.
+        async function testRoundTrip(dirPath) {
+          const start = Date.now();
+          const filePath = join(dirPath, `.qm-probe-${randomUUID()}.txt`);
+          const payload = `quartermaster fs probe ${new Date().toISOString()}`;
+          try {
+            await mkdir(dirPath, { recursive: true });
+            await writeFile(filePath, payload, "utf8");
+            const readBack = await readFile(filePath, "utf8");
+            const matched = readBack === payload;
+            await unlink(filePath);
+            return { ok: matched, dirPath, tookMs: Date.now() - start, error: matched ? null : "content mismatch" };
+          } catch (error) {
+            return { ok: false, dirPath, tookMs: Date.now() - start, error: error?.message ?? String(error) };
+          }
+        }
+        const fsProbe = {
+          ownPackageFolder: await testRoundTrip(join(selfDir, "data", "portraits")),
+          sharedEngineAvatarsNpc: context?.dataDir
+            ? await testRoundTrip(join(context.dataDir, "avatars", "npc", "__quartermaster_probe__"))
+            : { ok: false, error: "context.dataDir not available" },
+        };
+
         return {
           contextKeys,
           shape,
@@ -721,6 +752,7 @@ export async function activate(context) {
           apiKeys: api ? collect(api) : [],
           apiMatches: grep(api ? collect(api) : []),
           selfDir,
+          fsProbe,
         };
       });
 
