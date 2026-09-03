@@ -41,6 +41,18 @@ still needed, it is not in its final state.
   Quartermaster and outside its control. Image generation itself (e.g. Illustrator's "send avatar
   as reference") is unaffected either way, and this dock's own portrait display always updates
   immediately regardless of the toggle.
+- **Item images** — matched by name, not a stored per-item reference: any image file placed in
+  `gallery/quartermaster/items/` (or a subfolder — searched recursively) whose filename matches an
+  item's name is shown automatically, regardless of casing or whether the name uses spaces,
+  hyphens, underscores, or nothing at all as separators ("White Sneakers" matches
+  `white_sneakers.jpg`, `whitesneakers.png`, `White-Sneakers.gif`, ...). This is what lets a
+  pre-made image pack "just work" by dropping its own folder structure straight into `items/` —
+  no per-item setup needed for any of it. Uploading an image for an item (via the item card) saves
+  it directly into `items/` itself (never a subfolder, so uploads can never overwrite anything
+  from a hand-placed pack), named after the item so it's found the same way; removing an uploaded
+  image only removes that upload — if a pack image also happens to match the item's name, it'll
+  still show afterward. Renaming an item does **not** currently rename or move its own uploaded
+  image file, so a rename can cause an uploaded image to stop matching; re-uploading fixes it.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
@@ -66,10 +78,10 @@ still needed, it is not in its final state.
   one via a configured image-gen connection (the way the original extension's
   `/characters/avatar-generation` flow worked) is later work, pending confirmation of how a
   capability package can reach image generation at all.
-- **A pre-made item/portrait asset pack** — a large, curated image library (matching the
-  original extension's own, ~4,500 images) distributed and stored separately from a chat's own
-  uploads — likely via the Engine's `game-assets/` system. Distribution mechanism (bundled,
-  separate download, in-app fetch) not yet decided.
+- **Distributing a pre-made item image pack** — where the images themselves live and how
+  they're matched by name is built (see Item images above); how a large, curated pack (matching
+  the original extension's own, ~4,500 images) actually gets onto a new user's machine — bundled,
+  a separate download, an in-app fetch — is not yet decided.
 
 Quality-of-life features from the original extension not covered above are intentionally out of
 scope for now — the focus here is the inventory/outfit/appearance core, not full parity.

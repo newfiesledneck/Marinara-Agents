@@ -280,6 +280,12 @@ QM.state = {
   deleteItem(itemId) {
     return this._mutate(QM.deleteItem(this.chatId, QM_OWNER_ID, itemId));
   },
+  uploadItemImage(itemId, imageDataUrl) {
+    return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
+  },
+  deleteItemImage(itemId) {
+    return this._mutate(QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId));
+  },
   unequipAll() {
     return this._mutate(QM.unequipAll(this.chatId, QM_OWNER_ID));
   },

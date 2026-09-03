@@ -152,6 +152,60 @@ async function removePortraitFileIfExists(filePath) {
   }
 }
 
+// ── Item images ───────────────────────────────────────────────────────────
+// Not chat-scoped, and not a stored per-item reference the way outfit
+// portraits are — matched purely by normalized name against whatever's in
+// gallery/quartermaster/items/ (recursively), same convention the original
+// extension used for its own image-pack matching. This is deliberate: it's
+// what lets a user drop a whole pre-made pack's folder structure straight
+// into items/ and have it "just work" without needing per-item state for
+// every one of thousands of pack images, and it means a rename that happens
+// to land on another pack image's name picks it up automatically. Read-time
+// only (no persisted index) so a hand-added file is found immediately, the
+// same tradeoff the original extension made for the same reason.
+//
+// Broader extension set than PORTRAIT_MIME_TO_EXT/decodePortraitDataUrl:
+// this only ever reads pre-existing files, never decodes uploaded bytes, so
+// gif (animated pack art) is fine here even though the upload path (canvas
+// re-encode) doesn't support it.
+const ITEM_IMAGE_EXT_TO_CONTENT_TYPE = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+function galleryItemsDir(dataDir) {
+  return join(dataDir, "gallery", "quartermaster", "items");
+}
+
+// Depth-first: files at each level before descending into subfolders, both
+// alphabetical, first match wins — same tie-break the outfit/item
+// name-matching (qmNormalizeMatchKey) already uses elsewhere in this file.
+async function findItemImageFile(dir, targetKey) {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  const files = entries.filter((entry) => entry.isFile()).sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of files) {
+    const dot = entry.name.lastIndexOf(".");
+    if (dot <= 0) continue;
+    const ext = entry.name.slice(dot + 1).toLowerCase();
+    if (!ITEM_IMAGE_EXT_TO_CONTENT_TYPE[ext]) continue;
+    if (qmNormalizeMatchKey(entry.name.slice(0, dot)) === targetKey) return { path: join(dir, entry.name), ext };
+  }
+  const dirs = entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of dirs) {
+    const found = await findItemImageFile(join(dir, entry.name), targetKey);
+    if (found) return found;
+  }
+  return null;
+}
+
 function inventoryDocId(chatId, ownerId) {
   return `${chatId}:${ownerId}`;
 }
@@ -844,6 +898,97 @@ export async function activate(context) {
         // applyOutfitEquip's own comment for why this is deliberate.
 
         await persistState(chatId, ownerId, state);
+        return { items: state.items, outfits: state.outfits };
+      });
+
+      // Serves an item's image, resolved by NAME (not a stored reference —
+      // see findItemImageFile's own comment). 404 with no body when nothing
+      // matches; the client swaps to its placeholder box on that, not an
+      // error state.
+      routes.get("/inventory/:chatId/:ownerId/items/:itemId/image", async (request, reply) => {
+        const { chatId, ownerId, itemId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const item = state.items.find((candidate) => candidate.id === itemId);
+        if (!item) return reply.status(404).send({ error: "Item not found" });
+
+        const found = await findItemImageFile(galleryItemsDir(context.dataDir), qmNormalizeMatchKey(item.name));
+        if (!found) return reply.status(404).send({ error: "No matching image" });
+
+        let buffer;
+        try {
+          buffer = await readFile(found.path);
+        } catch {
+          return reply.status(404).send({ error: "Image file missing" });
+        }
+        reply.header("Cache-Control", "public, max-age=300");
+        reply.type(ITEM_IMAGE_EXT_TO_CONTENT_TYPE[found.ext] ?? "application/octet-stream");
+        return reply.send(buffer);
+      });
+
+      // Uploads an image for this item, straight into gallery/quartermaster/items/
+      // (never a subfolder — those are reserved for a hand-placed image pack,
+      // never touched by upload/remove). Named after the item's OWN normalized
+      // match key so it's found by the exact same lookup a pack image would be,
+      // and any existing top-level file(s) matching that key are removed first
+      // (an item has at most one uploaded image; re-uploading replaces it,
+      // even across a format change, e.g. a prior .png replaced by a .jpg).
+      routes.post("/inventory/:chatId/:ownerId/items/:itemId/image", async (request, reply) => {
+        const { chatId, ownerId, itemId } = request.params;
+        const body = request.body ?? {};
+        const decoded = decodePortraitDataUrl(body.imageDataUrl);
+        if (!decoded) return reply.status(400).send({ error: "Invalid or oversized image" });
+
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const item = state.items.find((candidate) => candidate.id === itemId);
+        if (!item) return reply.status(404).send({ error: "Item not found" });
+
+        const dir = galleryItemsDir(context.dataDir);
+        await mkdir(dir, { recursive: true });
+        const key = qmNormalizeMatchKey(item.name);
+        let existing;
+        try {
+          existing = await readdir(dir, { withFileTypes: true });
+        } catch {
+          existing = [];
+        }
+        for (const entry of existing) {
+          if (!entry.isFile()) continue;
+          const dot = entry.name.lastIndexOf(".");
+          if (dot <= 0 || qmNormalizeMatchKey(entry.name.slice(0, dot)) !== key) continue;
+          await removePortraitFileIfExists(join(dir, entry.name));
+        }
+        await writeFile(join(dir, `${key}.${decoded.ext}`), decoded.buffer);
+
+        return { items: state.items, outfits: state.outfits };
+      });
+
+      // Removes only an UPLOADED image (a top-level file matching this
+      // item's key) — never touches a subfolder, so this can never delete
+      // anything from a hand-placed image pack. If a pack image also
+      // happens to match this item's name, it'll still show afterward;
+      // that's a real, known limitation of matching purely by name rather
+      // than a per-item reference, not a bug.
+      routes.delete("/inventory/:chatId/:ownerId/items/:itemId/image", async (request, reply) => {
+        const { chatId, ownerId, itemId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const item = state.items.find((candidate) => candidate.id === itemId);
+        if (!item) return reply.status(404).send({ error: "Item not found" });
+
+        const dir = galleryItemsDir(context.dataDir);
+        const key = qmNormalizeMatchKey(item.name);
+        let entries;
+        try {
+          entries = await readdir(dir, { withFileTypes: true });
+        } catch {
+          entries = [];
+        }
+        for (const entry of entries) {
+          if (!entry.isFile()) continue;
+          const dot = entry.name.lastIndexOf(".");
+          if (dot <= 0 || qmNormalizeMatchKey(entry.name.slice(0, dot)) !== key) continue;
+          await removePortraitFileIfExists(join(dir, entry.name));
+        }
+
         return { items: state.items, outfits: state.outfits };
       });
 
