@@ -53,6 +53,24 @@ const QM_SLOT_LABELS = {
   feet: "Feet",
   belt: "Belt",
 };
+// Used only inside a slot box rendered under its own group column heading
+// (10-dock.js's portrait ring — "Armor"/"Clothing"/"Underwear"/"Weapons"
+// above the box already says the group, so repeating it in every slot's own
+// label was redundant: "Armor (Torso)" under "Armor" just needs "Torso").
+// Slots with no group prefix to begin with fall through to the full label.
+// Every OTHER consumer (the default-slot dropdown, the tracker-panel's flat
+// equipped list) has no heading for context and keeps the full,
+// disambiguating QM_SLOT_LABELS on purpose.
+const QM_SLOT_SHORT_LABELS = {
+  armor_torso: "Torso",
+  armor_legs: "Legs",
+  clothing_torso: "Torso",
+  clothing_legs: "Legs",
+  underwear_top: "Top",
+  underwear_bottom: "Bottom",
+  weapon_left_hand: "Left Hand",
+  weapon_right_hand: "Right Hand",
+};
 // The dock's portrait-ring layout: slots arranged around the character
 // portrait the way the original extension's character sheet laid them out
 // (top row above the head, armor/clothing/underwear stacked to the left,

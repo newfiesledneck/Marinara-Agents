@@ -791,6 +791,17 @@ export async function activate(context) {
           const name = normalizeText(body.name, MAX_ITEM_NAME_LENGTH);
           if (!name) return reply.status(400).send({ error: "Item name is required" });
           item.name = name;
+          // Outfit slots carry their own name/description snapshot, not a
+          // live reference (see applyOutfitEquip's own comment) — a rename
+          // has to be pushed into every saved outfit's copy too, or a
+          // renamed item shows its old name the next time that outfit's
+          // equipped, and (worse) would fail to name-match itself on a
+          // future recreate, minting a duplicate under the old name.
+          for (const outfit of state.outfits) {
+            for (const snapshot of Object.values(outfit.slots ?? {})) {
+              if (snapshot && typeof snapshot === "object" && snapshot.itemId === item.id) snapshot.name = name;
+            }
+          }
         }
         if (body.description !== undefined) item.description = normalizeText(body.description, MAX_ITEM_DESCRIPTION_LENGTH);
         if (body.quantity !== undefined) item.quantity = normalizeQuantity(body.quantity);
@@ -1007,15 +1018,29 @@ export async function activate(context) {
         // instead of just a date, for a user juggling exports from several
         // personas.
         const personaName = await resolvePersonaName(persistence, resources, chatId);
+        // portraitFile is a filename in THIS chat's own gallery folder — meaningless
+        // (and a dead reference) once exported, so it's replaced with the actual image
+        // bytes (base64) instead, which travel with the file and get re-saved as a real
+        // file again on import, under whatever chat it lands in.
+        const outfits = await Promise.all(
+          state.outfits.map(async ({ portraitFile, ...outfit }) => {
+            if (!portraitFile) return outfit;
+            try {
+              const buffer = await readFile(join(galleryPortraitDir(context.dataDir, chatId), portraitFile));
+              const ext = portraitFile.slice(portraitFile.lastIndexOf(".") + 1);
+              const contentType = PORTRAIT_EXT_TO_CONTENT_TYPE[ext] ?? "image/png";
+              return { ...outfit, portraitDataUrl: `data:${contentType};base64,${buffer.toString("base64")}` };
+            } catch {
+              return outfit; // Portrait record exists but the file's missing — export without it.
+            }
+          }),
+        );
         return {
           formatVersion: QM_EXPORT_FORMAT_VERSION,
           exportedAt: new Date().toISOString(),
           personaName,
           items: state.items,
-          // portraitFile is a filename in THIS chat's own gallery folder — meaningless
-          // (and a dead reference) once exported, so it's dropped rather than carried
-          // through to a file that'll likely get imported into a different chat.
-          outfits: state.outfits.map(({ portraitFile, ...outfit }) => outfit),
+          outfits,
           showUnderwear: state.showUnderwear,
           showArmor: state.showArmor,
           showWeapons: state.showWeapons,
@@ -1082,12 +1107,22 @@ export async function activate(context) {
               description: normalizeText(snapshot.description, MAX_ITEM_DESCRIPTION_LENGTH),
             };
           }
+          const outfitId = randomUUID();
+          let portraitFile = null;
+          const decodedPortrait = decodePortraitDataUrl(raw.portraitDataUrl);
+          if (decodedPortrait) {
+            const dir = galleryPortraitDir(context.dataDir, chatId);
+            const filename = `${outfitId}-${randomUUID().slice(0, 8)}.${decodedPortrait.ext}`;
+            await mkdir(dir, { recursive: true });
+            await writeFile(join(dir, filename), decodedPortrait.buffer);
+            portraitFile = filename;
+          }
           nextOutfits.push({
-            id: randomUUID(),
+            id: outfitId,
             name,
             description: normalizeText(raw.description, MAX_OUTFIT_DESCRIPTION_LENGTH),
             slots,
-            portraitFile: null,
+            portraitFile,
           });
         }
 
