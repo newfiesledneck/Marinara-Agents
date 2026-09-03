@@ -75,6 +75,22 @@ QM.unequipAll = (chatId, ownerId) =>
     body: "{}",
   });
 
+QM.uploadItemImage = (chatId, ownerId, itemId, imageDataUrl) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`, {
+    method: "POST",
+    body: JSON.stringify({ imageDataUrl }),
+  });
+
+QM.deleteItemImage = (chatId, ownerId, itemId) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`, {
+    method: "DELETE",
+  });
+
+// Not a fetch — the <img src> URL. A 404 (no matching image, uploaded or
+// pack) is handled by the caller's onerror, not here.
+QM.itemImageUrl = (chatId, ownerId, itemId) =>
+  `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`;
+
 QM.uploadOutfitPortrait = (chatId, ownerId, outfitId, imageDataUrl) =>
   qmRequest(
     `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
