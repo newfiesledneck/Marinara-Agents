@@ -104,13 +104,31 @@ QM.button = function button(text, { bg, fg, border } = {}) {
   return el;
 };
 
-QM.descriptionInput = function descriptionInput(item) {
-  const input = QM.smallInput("input");
-  input.type = "text";
-  input.placeholder = "Description";
-  input.value = item.description || "";
-  input.addEventListener("change", () => QM.state.updateItem(item.id, { description: input.value }));
-  return input;
+// Wraps instead of a single-line <input> that cut long text off — shared by
+// item cards, the equipped-slot box, and saved-outfit cards, so a
+// description is always fully readable regardless of which view it's shown
+// in. onChange is called with the raw string on blur/change, same trigger
+// point the old single-line input used; the caller decides what to update
+// (QM.state.updateItem vs. updateOutfit).
+QM.descriptionTextarea = function descriptionTextarea(value, onChange) {
+  const textarea = document.createElement("textarea");
+  textarea.placeholder = "Description";
+  textarea.value = value || "";
+  textarea.rows = 2;
+  Object.assign(textarea.style, {
+    background: "var(--input, transparent)",
+    color: "inherit",
+    border: "1px solid var(--border, rgba(0,0,0,0.2))",
+    borderRadius: "var(--radius, 4px)",
+    padding: "4px 6px",
+    fontSize: "12px",
+    font: "inherit",
+    resize: "vertical",
+    width: "100%",
+    boxSizing: "border-box",
+  });
+  textarea.addEventListener("change", () => onChange(textarea.value));
+  return textarea;
 };
 
 QM.defaultSlotSelect = function defaultSlotSelect(item) {

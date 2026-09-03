@@ -102,6 +102,12 @@ const QM_DOCK_RING_STACK_WIDTH = 560;
 // isn't part of this wrapper, so it's unaffected.
 const QM_UI_SIZE_KEY = "marinara.quartermaster.uiSize";
 const QM_UI_SIZES = { S: 0.85, M: 1, L: 1.2 };
+// Independent from QM_UI_SIZES/zoom — this controls the pixel box size of
+// outfit portrait thumbnails and item placeholder images specifically, read
+// at build time by their card layouts rather than a live CSS zoom, since
+// those cards already get rebuilt on every repaint anyway.
+const QM_THUMBNAIL_SIZE_KEY = "marinara.quartermaster.thumbnailSize";
+const QM_THUMBNAIL_SIZES = { S: 48, M: 72, L: 100 };
 
 function qmClampWindowValue(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -134,6 +140,24 @@ function qmReadUiSize() {
 function qmWriteUiSize(size) {
   try {
     window.localStorage.setItem(QM_UI_SIZE_KEY, size);
+  } catch {
+    // Persisting is a convenience; the session still works without it.
+  }
+}
+
+function qmReadThumbnailSize() {
+  try {
+    const stored = window.localStorage.getItem(QM_THUMBNAIL_SIZE_KEY);
+    if (stored && QM_THUMBNAIL_SIZES[stored]) return stored;
+  } catch {
+    // A blocked storage read falls back to the default size.
+  }
+  return "M";
+}
+
+function qmWriteThumbnailSize(size) {
+  try {
+    window.localStorage.setItem(QM_THUMBNAIL_SIZE_KEY, size);
   } catch {
     // Persisting is a convenience; the session still works without it.
   }
@@ -176,6 +200,7 @@ QM.dock = {
   columns: null,
   zoomWrapper: null,
   uiSizeButtons: null,
+  thumbnailSizeButtons: null,
   errorNode: null,
   feedSelect: null,
   settingsSection: null,
@@ -196,6 +221,7 @@ QM.dock = {
   geometry: qmReadWindowGeometry(),
   bodyWidth: QM_WINDOW_DEFAULT_WIDTH,
   uiSize: qmReadUiSize(),
+  thumbnailSize: qmReadThumbnailSize(),
   // Collapsed by default to keep the dock compact; not persisted — a session
   // -only UI preference, unlike geometry/uiSize which are worth remembering
   // across visits.
@@ -214,6 +240,7 @@ QM.dock = {
     this.columns = null;
     this.zoomWrapper = null;
     this.uiSizeButtons = null;
+    this.thumbnailSizeButtons = null;
     this.errorNode = null;
     this.feedSelect = null;
     this.settingsSection = null;
@@ -600,6 +627,7 @@ QM.dock = {
       // Outside the zoom wrapper, so it stays a fixed-size, stable control
       // no matter what size it's currently set to.
       const uiSizeRow = this._buildUiSizeRow();
+      const thumbnailSizeRow = this._buildThumbnailSizeRow();
 
       this.zoomWrapper = document.createElement("div");
 
@@ -660,8 +688,9 @@ QM.dock = {
 
       columns.append(outfitsColumn, equippedColumn, bagColumn);
       this.zoomWrapper.append(this.errorNode, feedRow, this.settingsSection, columns);
-      this.body.replaceChildren(uiSizeRow, this.zoomWrapper);
+      this.body.replaceChildren(uiSizeRow, thumbnailSizeRow, this.zoomWrapper);
       this._applyUiSize();
+      this._applyThumbnailSize();
     }
 
     if (QM.state.error) {
@@ -768,6 +797,55 @@ QM.dock = {
     if (this.zoomWrapper) this.zoomWrapper.style.zoom = this._zoomFactor();
     for (const [size, button] of Object.entries(this.uiSizeButtons || {})) {
       const active = size === this.uiSize;
+      button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
+      button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
+      button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
+    }
+  },
+
+  // Controls the pixel box size of outfit portrait thumbnails and item
+  // placeholder images — separate from UI Size (that's a CSS zoom over the
+  // whole dock; this only affects how much room images take up in each
+  // card). Outfit/item cards already get rebuilt on every repaint, so a
+  // size change just triggers a full repaint rather than a live style patch.
+  _buildThumbnailSizeRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      marginBottom: "8px",
+      fontSize: "12px",
+      flexShrink: "0",
+    });
+
+    const label = document.createElement("span");
+    label.textContent = "Thumbnail Size:";
+    label.style.color = "var(--muted-foreground, currentcolor)";
+    row.appendChild(label);
+
+    this.thumbnailSizeButtons = {};
+    for (const size of Object.keys(QM_THUMBNAIL_SIZES)) {
+      const button = QM.button(size);
+      button.style.padding = "2px 10px";
+      button.addEventListener("click", () => this._setThumbnailSize(size));
+      this.thumbnailSizeButtons[size] = button;
+      row.appendChild(button);
+    }
+    return row;
+  },
+
+  _setThumbnailSize(size) {
+    if (!QM_THUMBNAIL_SIZES[size] || this.thumbnailSize === size) return;
+    this.thumbnailSize = size;
+    qmWriteThumbnailSize(size);
+    this._applyThumbnailSize();
+    this._paint();
+  },
+
+  _applyThumbnailSize() {
+    for (const [size, button] of Object.entries(this.thumbnailSizeButtons || {})) {
+      const active = size === this.thumbnailSize;
       button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
       button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
       button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
@@ -1171,7 +1249,7 @@ QM.dock = {
     });
 
     const label = document.createElement("span");
-    label.textContent = QM_SLOT_LABELS[slot];
+    label.textContent = QM_SLOT_SHORT_LABELS[slot] ?? QM_SLOT_LABELS[slot];
     Object.assign(label.style, {
       fontSize: "10px",
       color: "var(--muted-foreground, currentcolor)",
@@ -1214,9 +1292,9 @@ QM.dock = {
       // anything in an equipped: location), so this is the only place left
       // to edit a description without unequipping first — keep it, just
       // narrower than the old full-width slot row it replaced.
-      const description = QM.descriptionInput(equippedItem);
-      description.style.width = "100%";
-      description.style.boxSizing = "border-box";
+      const description = QM.descriptionTextarea(equippedItem.description, (value) =>
+        QM.state.updateItem(equippedItem.id, { description: value }),
+      );
       description.style.fontSize = "10px";
       box.appendChild(description);
       return box;
@@ -1315,9 +1393,12 @@ QM.dock = {
   // before the upload call — the server only validates size/type, it never
   // resizes. Phase 1 is upload-only; a "generate" option belongs here later
   // once image-generation reachability from a package is actually confirmed.
-  _buildOutfitPortraitControl(outfit) {
+  // sizePx follows QM_THUMBNAIL_SIZES[this.thumbnailSize] — same S/M/L
+  // control that sizes item-card placeholders, so the two stay visually
+  // consistent with each other.
+  _buildOutfitPortraitControl(outfit, sizePx) {
     const wrapper = document.createElement("div");
-    Object.assign(wrapper.style, { position: "relative", flexShrink: "0", width: "28px", height: "28px" });
+    Object.assign(wrapper.style, { position: "relative", flexShrink: "0", width: `${sizePx}px`, height: `${sizePx}px` });
 
     const fileInput = document.createElement("input");
     fileInput.type = "file";
@@ -1340,8 +1421,8 @@ QM.dock = {
     thumbButton.type = "button";
     thumbButton.title = outfit.portraitFile ? "Replace portrait" : "Add portrait";
     Object.assign(thumbButton.style, {
-      width: "28px",
-      height: "28px",
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
       padding: "0",
       cursor: "pointer",
       borderRadius: "var(--radius, 4px)",
@@ -1361,7 +1442,11 @@ QM.dock = {
       thumbButton.appendChild(thumb);
     } else {
       thumbButton.textContent = "+";
-      Object.assign(thumbButton.style, { fontSize: "14px", lineHeight: "1", color: "var(--muted-foreground, currentcolor)" });
+      Object.assign(thumbButton.style, {
+        fontSize: `${Math.round(sizePx * 0.4)}px`,
+        lineHeight: "1",
+        color: "var(--muted-foreground, currentcolor)",
+      });
     }
 
     wrapper.append(thumbButton, fileInput);
@@ -1413,8 +1498,6 @@ QM.dock = {
     name.textContent = equipped ? `${outfit.name} (equipped)` : outfit.name;
     if (equipped) name.style.fontWeight = "600";
 
-    const portraitControl = this._buildOutfitPortraitControl(outfit);
-
     const equipButton = QM.button("Equip");
     equipButton.addEventListener("click", () => QM.state.equipOutfit(outfit.id));
 
@@ -1429,17 +1512,24 @@ QM.dock = {
     const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
     deleteButton.addEventListener("click", () => QM.state.deleteOutfit(outfit.id));
 
-    topLine.append(portraitControl, name, equipButton, updateButton, deleteButton);
+    topLine.append(name, equipButton, updateButton, deleteButton);
     row.appendChild(topLine);
 
-    const descriptionInput = QM.smallInput("input");
-    descriptionInput.type = "text";
-    descriptionInput.placeholder = "Description";
-    descriptionInput.value = outfit.description || "";
-    descriptionInput.addEventListener("change", () =>
-      QM.state.updateOutfit(outfit.id, { description: descriptionInput.value }),
+    // Left half: the portrait thumbnail/upload control (bigger than before —
+    // an image reads faster at a glance than a name, per the request).
+    // Right half: description, wrapping instead of cut off.
+    const bodyRow = document.createElement("div");
+    Object.assign(bodyRow.style, { display: "flex", gap: "8px", alignItems: "flex-start" });
+
+    const portraitControl = this._buildOutfitPortraitControl(outfit, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
+
+    const description = QM.descriptionTextarea(outfit.description, (value) =>
+      QM.state.updateOutfit(outfit.id, { description: value }),
     );
-    row.appendChild(descriptionInput);
+    description.style.flex = "1";
+
+    bodyRow.append(portraitControl, description);
+    row.appendChild(bodyRow);
 
     return row;
   },
@@ -1530,9 +1620,21 @@ QM.dock = {
     const topLine = document.createElement("div");
     Object.assign(topLine.style, { display: "flex", alignItems: "center", gap: "6px" });
 
-    const label = document.createElement("span");
-    label.textContent = item.name;
-    label.style.flex = "1";
+    // Editable in place, same trigger (change/blur) as every other field on
+    // the card — renaming pushes through to any saved outfit's own snapshot
+    // of this item too (server.mjs's items PATCH route), so a renamed item
+    // doesn't show its old name the next time an outfit that equips it gets
+    // re-equipped.
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.value = item.name;
+    nameInput.style.flex = "1";
+    nameInput.style.fontWeight = "600";
+    nameInput.addEventListener("change", () => {
+      const name = nameInput.value.trim();
+      if (name) QM.state.updateItem(item.id, { name });
+      else nameInput.value = item.name; // Empty isn't a valid name — revert rather than submit it.
+    });
 
     const quantityInput = QM.smallInput("input");
     quantityInput.type = "number";
@@ -1547,7 +1649,28 @@ QM.dock = {
     const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
     deleteButton.addEventListener("click", () => QM.state.deleteItem(item.id));
 
-    topLine.append(label, quantityInput, deleteButton);
+    topLine.append(nameInput, quantityInput, deleteButton);
+
+    // Left half: a placeholder for a future item image (upload/generation —
+    // not built yet, same as outfit portraits were before this pass). Right
+    // half: everything else, stacked, at whatever's left of the card's width
+    // instead of spanning full-width like before.
+    const bodyRow = document.createElement("div");
+    Object.assign(bodyRow.style, { display: "flex", gap: "8px", alignItems: "flex-start" });
+
+    const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
+    const placeholder = document.createElement("div");
+    Object.assign(placeholder.style, {
+      width: `${thumbnailPx}px`,
+      height: `${thumbnailPx}px`,
+      flexShrink: "0",
+      borderRadius: "var(--radius, 4px)",
+      border: "1px dashed var(--border, rgba(128,128,128,0.4))",
+      background: "var(--muted, rgba(128,128,128,0.15))",
+    });
+
+    const detailsColumn = document.createElement("div");
+    Object.assign(detailsColumn.style, { display: "flex", flexDirection: "column", gap: "4px", flex: "1", minWidth: "0" });
 
     const storedLine = document.createElement("div");
     Object.assign(storedLine.style, { display: "flex", alignItems: "center", gap: "6px" });
@@ -1585,7 +1708,14 @@ QM.dock = {
     });
     equipLine.append(defaultSlotSelect, equipButton);
 
-    row.append(topLine, storedLine, equipLine, QM.descriptionInput(item));
+    const description = QM.descriptionTextarea(item.description, (value) =>
+      QM.state.updateItem(item.id, { description: value }),
+    );
+
+    detailsColumn.append(storedLine, equipLine, description);
+    bodyRow.append(placeholder, detailsColumn);
+
+    row.append(topLine, bodyRow);
     return row;
   },
 };
