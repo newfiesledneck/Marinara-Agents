@@ -1384,6 +1384,16 @@ QM.dock = {
       // no matter what size it's currently set to.
       const uiSizeRow = this._buildUiSizeRow();
       const thumbnailSizeRow = this._buildThumbnailSizeRow();
+      const sizeControlsRow = document.createElement("div");
+      Object.assign(sizeControlsRow.style, {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "16px",
+        marginBottom: "8px",
+        flexShrink: "0",
+      });
+      sizeControlsRow.append(uiSizeRow, thumbnailSizeRow);
 
       this.zoomWrapper = document.createElement("div");
 
@@ -1444,7 +1454,7 @@ QM.dock = {
 
       columns.append(outfitsColumn, equippedColumn, bagColumn);
       this.zoomWrapper.append(this.errorNode, feedRow, this.settingsSection, columns);
-      this.body.replaceChildren(uiSizeRow, thumbnailSizeRow, this.zoomWrapper);
+      this.body.replaceChildren(sizeControlsRow, this.zoomWrapper);
       this._applyUiSize();
       this._applyThumbnailSize();
     }
@@ -1471,6 +1481,15 @@ QM.dock = {
       this.portraitImage.style.display = portraitUrl ? "block" : "none";
       this.portraitPlaceholder.style.display = portraitUrl ? "none" : "flex";
       if (portraitUrl) this.portraitImage.src = portraitUrl;
+      // Scales with Thumbnail Size same as item/outfit thumbnails, relative
+      // to the 160x200 / 120x120 box _buildPortrait() sized at "M" — live
+      // here (not just at _buildPortrait()'s one-time construction) since a
+      // size change repaints without rebuilding the cached portrait nodes.
+      const portraitScale = QM_THUMBNAIL_SIZES[this.thumbnailSize] / QM_THUMBNAIL_SIZES.M;
+      this.portraitImage.style.maxWidth = `${Math.round(160 * portraitScale)}px`;
+      this.portraitImage.style.maxHeight = `${Math.round(200 * portraitScale)}px`;
+      this.portraitPlaceholder.style.width = `${Math.round(120 * portraitScale)}px`;
+      this.portraitPlaceholder.style.height = `${Math.round(120 * portraitScale)}px`;
     }
     this.equippedContainer.replaceChildren(this._buildEquippedSection());
     this.outfitsContainer.replaceChildren(this._buildOutfitsList());
@@ -1517,7 +1536,6 @@ QM.dock = {
       display: "flex",
       alignItems: "center",
       gap: "6px",
-      marginBottom: "8px",
       fontSize: "12px",
       flexShrink: "0",
     });
@@ -1570,7 +1588,6 @@ QM.dock = {
       display: "flex",
       alignItems: "center",
       gap: "6px",
-      marginBottom: "8px",
       fontSize: "12px",
       flexShrink: "0",
     });
@@ -1853,9 +1870,10 @@ QM.dock = {
     const image = document.createElement("img");
     image.alt = "Persona portrait";
     const hasAvatar = Boolean(QM.state.personaAvatarUrl);
+    const portraitScale = QM_THUMBNAIL_SIZES[this.thumbnailSize] / QM_THUMBNAIL_SIZES.M;
     Object.assign(image.style, {
-      maxWidth: "160px",
-      maxHeight: "200px",
+      maxWidth: `${Math.round(160 * portraitScale)}px`,
+      maxHeight: `${Math.round(200 * portraitScale)}px`,
       width: "auto",
       height: "auto",
       objectFit: "contain",
@@ -1869,8 +1887,8 @@ QM.dock = {
     const placeholder = document.createElement("span");
     placeholder.textContent = "No portrait";
     Object.assign(placeholder.style, {
-      width: "120px",
-      height: "120px",
+      width: `${Math.round(120 * portraitScale)}px`,
+      height: `${Math.round(120 * portraitScale)}px`,
       borderRadius: "var(--radius, 8px)",
       border: "1px solid var(--border, rgba(128,128,128,0.3))",
       background: "var(--muted, rgba(128,128,128,0.15))",
@@ -2011,6 +2029,7 @@ QM.dock = {
       color: "var(--muted-foreground, currentcolor)",
       textTransform: "uppercase",
       letterSpacing: "0.03em",
+      textAlign: "center",
     });
     box.appendChild(label);
 
@@ -2309,7 +2328,12 @@ QM.dock = {
 
     const img = document.createElement("img");
     img.alt = `${item.name} image`;
-    img.loading = "lazy";
+    // No loading="lazy": this element starts (and often stays, on a
+    // no-match) display:none, which has no layout box — a lazy image can
+    // never be "near the viewport" with no box at all, so the browser may
+    // never actually fetch it, leaving the placeholder showing forever even
+    // when a real match exists on disk. Fetch eagerly instead; the item
+    // list is never long enough for that to matter.
     Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "none" });
     img.addEventListener("load", () => {
       placeholderMark.style.display = "none";
