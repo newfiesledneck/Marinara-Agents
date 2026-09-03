@@ -80,6 +80,22 @@ QM.unequipAll = (chatId, ownerId) =>
     body: "{}",
   });
 
+QM.uploadItemImage = (chatId, ownerId, itemId, imageDataUrl) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`, {
+    method: "POST",
+    body: JSON.stringify({ imageDataUrl }),
+  });
+
+QM.deleteItemImage = (chatId, ownerId, itemId) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`, {
+    method: "DELETE",
+  });
+
+// Not a fetch — the <img src> URL. A 404 (no matching image, uploaded or
+// pack) is handled by the caller's onerror, not here.
+QM.itemImageUrl = (chatId, ownerId, itemId) =>
+  `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`;
+
 QM.uploadOutfitPortrait = (chatId, ownerId, outfitId, imageDataUrl) =>
   qmRequest(
     `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
@@ -426,6 +442,12 @@ QM.state = {
   },
   deleteItem(itemId) {
     return this._mutate(QM.deleteItem(this.chatId, QM_OWNER_ID, itemId));
+  },
+  uploadItemImage(itemId, imageDataUrl) {
+    return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
+  },
+  deleteItemImage(itemId) {
+    return this._mutate(QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId));
   },
   unequipAll() {
     return this._mutate(QM.unequipAll(this.chatId, QM_OWNER_ID));
@@ -2212,6 +2234,99 @@ QM.dock = {
     return wrapper;
   },
 
+  // Unlike outfit portraits, an item's image isn't a stored reference —
+  // it's resolved server-side by name (findItemImageFile, matching an
+  // uploaded file or a hand-placed image-pack file the same way — see
+  // server.mjs's own comment). So the client doesn't know in advance
+  // whether one exists; it just tries the URL and falls back to the dashed
+  // placeholder on a 404 via onerror/onload, rather than checking a flag.
+  _buildItemImageControl(item, sizePx) {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { position: "relative", flexShrink: "0", width: `${sizePx}px`, height: `${sizePx}px` });
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      try {
+        const dataUrl = await QM.compressImageFile(file);
+        await QM.state.uploadItemImage(item.id, dataUrl);
+      } catch (error) {
+        QM.state.error = error && error.message ? error.message : String(error);
+        QM.state._notify();
+      }
+    });
+
+    const thumbButton = document.createElement("button");
+    thumbButton.type = "button";
+    thumbButton.title = "Upload/replace image";
+    Object.assign(thumbButton.style, {
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
+      padding: "0",
+      cursor: "pointer",
+      borderRadius: "var(--radius, 4px)",
+      overflow: "hidden",
+      background: "var(--muted, rgba(128,128,128,0.15))",
+      border: "1px dashed var(--border, rgba(128,128,128,0.4))",
+    });
+    thumbButton.addEventListener("click", () => fileInput.click());
+
+    const placeholderMark = document.createElement("span");
+    placeholderMark.textContent = "+";
+    Object.assign(placeholderMark.style, {
+      fontSize: `${Math.round(sizePx * 0.4)}px`,
+      lineHeight: "1",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+    thumbButton.appendChild(placeholderMark);
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.title = "Remove uploaded image (a matching image-pack file, if any, would still show)";
+    removeButton.textContent = "×";
+    Object.assign(removeButton.style, {
+      position: "absolute",
+      top: "-6px",
+      right: "-6px",
+      width: "14px",
+      height: "14px",
+      lineHeight: "12px",
+      padding: "0",
+      fontSize: "11px",
+      borderRadius: "50%",
+      cursor: "pointer",
+      background: QM_COLOR_DANGER,
+      color: QM_COLOR_DANGER_FG,
+      border: "none",
+      display: "none",
+    });
+    removeButton.addEventListener("click", () => QM.state.deleteItemImage(item.id));
+
+    const img = document.createElement("img");
+    img.alt = `${item.name} image`;
+    img.loading = "lazy";
+    Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "none" });
+    img.addEventListener("load", () => {
+      placeholderMark.style.display = "none";
+      thumbButton.style.border = "1px solid var(--border, rgba(128,128,128,0.3))";
+      img.style.display = "block";
+      removeButton.style.display = "block";
+    });
+    img.addEventListener("error", () => {
+      img.remove();
+    });
+    img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
+    thumbButton.appendChild(img);
+
+    wrapper.append(thumbButton, fileInput, removeButton);
+    return wrapper;
+  },
+
   _buildOutfitRow(outfit) {
     const row = document.createElement("li");
     Object.assign(row.style, {
@@ -2385,23 +2500,14 @@ QM.dock = {
 
     topLine.append(nameInput, quantityInput, deleteButton);
 
-    // Left half: a placeholder for a future item image (upload/generation —
-    // not built yet, same as outfit portraits were before this pass). Right
-    // half: everything else, stacked, at whatever's left of the card's width
-    // instead of spanning full-width like before.
+    // Left half: the item's image (uploaded, or matched by name from a
+    // hand-placed image pack — see _buildItemImageControl's own comment).
+    // Right half: everything else, stacked, at whatever's left of the
+    // card's width instead of spanning full-width like before.
     const bodyRow = document.createElement("div");
     Object.assign(bodyRow.style, { display: "flex", gap: "8px", alignItems: "flex-start" });
 
-    const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
-    const placeholder = document.createElement("div");
-    Object.assign(placeholder.style, {
-      width: `${thumbnailPx}px`,
-      height: `${thumbnailPx}px`,
-      flexShrink: "0",
-      borderRadius: "var(--radius, 4px)",
-      border: "1px dashed var(--border, rgba(128,128,128,0.4))",
-      background: "var(--muted, rgba(128,128,128,0.15))",
-    });
+    const imageControl = this._buildItemImageControl(item, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
 
     const detailsColumn = document.createElement("div");
     Object.assign(detailsColumn.style, { display: "flex", flexDirection: "column", gap: "4px", flex: "1", minWidth: "0" });
@@ -2447,7 +2553,7 @@ QM.dock = {
     );
 
     detailsColumn.append(storedLine, equipLine, description);
-    bodyRow.append(placeholder, detailsColumn);
+    bodyRow.append(imageControl, detailsColumn);
 
     row.append(topLine, bodyRow);
     return row;
