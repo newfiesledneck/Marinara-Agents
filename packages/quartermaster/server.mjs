@@ -261,6 +261,18 @@ function applyOutfitEquip(state, outfit) {
     if (!slotGroupVisible(slot, state)) continue;
     const snapshot = normalizeOutfitSlotSnapshot(rawSnapshot);
     let item = snapshot.itemId ? state.items.find((candidate) => candidate.id === snapshot.itemId) : undefined;
+    // Recreating strictly by id would duplicate an item that already exists
+    // under the same name but a different id — e.g. two outfits each saved
+    // their own "sneakers" snapshot at different times, neither of whose
+    // itemId still resolves; equipping both used to mint two separate
+    // "sneakers" items. Match by normalized name first, same as
+    // reconcileTrackerOutput's own find-or-create just below, before ever
+    // minting a new item — only create when NEITHER the id nor the name
+    // resolves to anything already in the inventory.
+    if (!item && snapshot.name) {
+      const key = qmNormalizeMatchKey(snapshot.name);
+      item = state.items.find((candidate) => qmNormalizeMatchKey(candidate.name) === key);
+    }
     if (!item && snapshot.name) {
       item = {
         id: randomUUID(),
