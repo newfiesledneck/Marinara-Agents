@@ -53,30 +53,32 @@ const QM_SLOT_LABELS = {
   feet: "Feet",
   belt: "Belt",
 };
-// The dock's equipment overlay: 8 left/right slot pairs, rendered directly
-// on top of the portrait and spread evenly along its actual rendered height
-// (10-dock.js's overlay columns use space-between for this) — there's no
-// way to pin a slot to a real anatomical pixel position without image
+// The dock's equipment overlay. Head/Eyes/Ears/Neck sit in a row above the
+// portrait, Belt/Feet below it; the remaining 5 pairs sit in columns beside
+// it, stretched to the portrait's own real rendered height and spread
+// evenly across it (10-dock.js's middleRow/space-between) — there's no way
+// to pin a slot to a real anatomical pixel position without image
 // analysis, since personas vary in aspect ratio/pose, so this spreads them
 // evenly instead. Order and pairing match a reference RPG equipment-screen
 // layout the user provided. Every pair shares a single group (or neither
 // slot has one) — never split across two different groups — so
 // group-visibility only needs one check per row; QM.state.slotVisible on
 // either slot in a pair always agrees with the other.
+const QM_OVERLAY_TOP_SLOTS = ["head", "eyes", "ears", "neck"];
+const QM_OVERLAY_BOTTOM_SLOTS = ["belt", "feet"];
 const QM_OVERLAY_SLOT_PAIRS = [
-  ["head", "ears"],
-  ["neck", "eyes"],
+  ["hands", "back"],
   ["armor_torso", "armor_legs"],
   ["clothing_torso", "clothing_legs"],
   ["underwear_top", "underwear_bottom"],
   ["weapon_left_hand", "weapon_right_hand"],
-  ["hands", "back"],
-  ["belt", "feet"],
 ];
 // Fuller than QM_SLOT_LABELS would need to be for a grouped layout with a
 // heading nearby (the old ring's short labels) — this overlay has no
 // heading to disambiguate armor vs. clothing between rows, so every label
 // carries its own context, matching the reference layout's own labels.
+// Plain string — used for the unequip button's aria-label/title, not the
+// visible box label (see QM_OVERLAY_SLOT_LABEL_LINES for that).
 const QM_OVERLAY_SLOT_LABELS = {
   head: "Head",
   neck: "Neck",
@@ -94,6 +96,30 @@ const QM_OVERLAY_SLOT_LABELS = {
   weapon_right_hand: "Right Hand Weapon",
   feet: "Feet",
   belt: "Belt",
+};
+// The visible box label, pre-split into explicit lines rather than left to
+// natural CSS wrapping — at a fixed box width, "Torso Clothing" wrapped
+// while "Legs Clothing" didn't (different first-word length), throwing the
+// two paired columns visibly out of alignment with each other. Forcing
+// every multi-word label to break at the same point keeps a pair's two
+// boxes the same height regardless of word length.
+const QM_OVERLAY_SLOT_LABEL_LINES = {
+  head: ["Head"],
+  neck: ["Neck"],
+  eyes: ["Eyes"],
+  ears: ["Ears"],
+  armor_torso: ["Torso", "Armor"],
+  armor_legs: ["Legs", "Armor"],
+  clothing_torso: ["Torso", "Clothing"],
+  clothing_legs: ["Legs", "Clothing"],
+  underwear_top: ["Top", "Underwear"],
+  underwear_bottom: ["Bottom", "Underwear"],
+  back: ["Back", "Accessory"],
+  hands: ["Hands", "Accessory"],
+  weapon_left_hand: ["Left Hand", "Weapon"],
+  weapon_right_hand: ["Right Hand", "Weapon"],
+  feet: ["Feet"],
+  belt: ["Belt"],
 };
 const QM_APPEARANCE_FEED_OPTIONS = [
   { value: "off", label: "Off" },
