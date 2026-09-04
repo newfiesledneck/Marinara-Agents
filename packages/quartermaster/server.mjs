@@ -38,8 +38,9 @@
 // grouping, so a future narrative-driven equip agent can reason about
 // exactly what and where from the slot id alone.
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { mkdir, writeFile, readFile, readdir, unlink } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 // Order matches the portrait ring layout, read top → left → right → bottom:
 // head/neck/eyes/ears above the portrait; armor/clothing/underwear stacked on
@@ -204,6 +205,57 @@ async function findItemImageFile(dir, targetKey) {
     if (found) return found;
   }
   return null;
+}
+
+// ── Bundled slot icons ──────────────────────────────────────────────────────
+// Generic, always-available equip-slot artwork (a hat, gloves, a breastplate,
+// a sword, ...) — distinct from item images above: those are per-item,
+// gallery-stored, and optional; these ship as part of the package itself so
+// every slot looks right immediately after install, with no setup step. Read
+// from disk beside this very file (`icons/<slot>.webp`, declared in
+// manifest.json's files list and archived byte-identical, same guarantee
+// client.js has) rather than from context.dataDir — this is package code, not
+// package data. import.meta.url resolves into this install's own extracted
+// snapshot directory (confirmed in _planning/capability-package-platform-
+// notes.md), which carries a copy of every declared file, icons/ included.
+// Cached in memory after first read since these never change during a
+// process's lifetime — a version bump gets a fresh process, and therefore a
+// fresh cache, for free.
+const SLOT_ICON_DIR = join(dirname(fileURLToPath(import.meta.url)), "icons");
+// weapon_right_hand has no file of its own — the left-hand sword art is
+// reused as-is (the generated blade points straight up, symmetric enough
+// that a distinct or mirrored asset wasn't worth a second generation).
+const SLOT_ICON_FILES = {
+  head: "head",
+  neck: "neck",
+  eyes: "eyes",
+  ears: "ears",
+  armor_torso: "armor_torso",
+  armor_legs: "armor_legs",
+  clothing_torso: "clothing_torso",
+  clothing_legs: "clothing_legs",
+  underwear_top: "underwear_top",
+  underwear_bottom: "underwear_bottom",
+  back: "back",
+  hands: "hands",
+  weapon_left_hand: "weapon_left_hand",
+  weapon_right_hand: "weapon_left_hand",
+  feet: "feet",
+  belt: "belt",
+};
+const slotIconCache = new Map();
+async function loadSlotIconBuffer(slot) {
+  const baseName = SLOT_ICON_FILES[slot];
+  if (!baseName) return null;
+  if (slotIconCache.has(baseName)) return slotIconCache.get(baseName);
+  let buffer;
+  try {
+    buffer = await readFile(join(SLOT_ICON_DIR, `${baseName}.webp`));
+  } catch {
+    return null;
+  }
+  slotIconCache.set(baseName, buffer);
+  return buffer;
 }
 
 function inventoryDocId(chatId, ownerId) {
@@ -800,6 +852,19 @@ export async function activate(context) {
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
     async (routes) => {
+      // Bundled, not per-chat — no chatId/ownerId in the path. Long
+      // Cache-Control is safe: unlike an item's uploaded image, this content
+      // can only change by shipping a new package version, which the client
+      // only ever fetches fresh after an update anyway.
+      routes.get("/inventory/slot-icon/:slot", async (request, reply) => {
+        const { slot } = request.params;
+        const buffer = await loadSlotIconBuffer(slot);
+        if (!buffer) return reply.status(404).send({ error: "No icon for slot" });
+        reply.header("Cache-Control", "public, max-age=31536000, immutable");
+        reply.type("image/webp");
+        return reply.send(buffer);
+      });
+
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);

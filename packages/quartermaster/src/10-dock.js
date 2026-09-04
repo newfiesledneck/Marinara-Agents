@@ -1303,12 +1303,12 @@ QM.dock = {
       Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
       img.addEventListener("error", () => {
         img.remove();
-        imageWrap.appendChild(QM.buildSlotIcon(slot, iconSize - 6));
+        imageWrap.appendChild(QM.buildSlotIconRaster(slot, iconSize - 6));
       });
       img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id);
       imageWrap.appendChild(img);
     } else {
-      imageWrap.appendChild(QM.buildSlotIcon(slot, iconSize - 6));
+      imageWrap.appendChild(QM.buildSlotIconRaster(slot, iconSize - 6));
     }
     box.appendChild(imageWrap);
 
@@ -1494,7 +1494,12 @@ QM.dock = {
   // consistent with each other.
   _buildOutfitPortraitControl(outfit, sizePx) {
     const wrapper = document.createElement("div");
-    Object.assign(wrapper.style, { position: "relative", flexShrink: "0", width: `${sizePx}px`, height: `${sizePx}px` });
+    Object.assign(wrapper.style, {
+      position: "relative",
+      flexShrink: "0",
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
+    });
 
     const fileInput = document.createElement("input");
     fileInput.type = "file";
@@ -1582,7 +1587,12 @@ QM.dock = {
   // placeholder on a 404 via onerror/onload, rather than checking a flag.
   _buildItemImageControl(item, sizePx) {
     const wrapper = document.createElement("div");
-    Object.assign(wrapper.style, { position: "relative", flexShrink: "0", width: `${sizePx}px`, height: `${sizePx}px` });
+    Object.assign(wrapper.style, {
+      position: "relative",
+      flexShrink: "0",
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
+    });
 
     const fileInput = document.createElement("input");
     fileInput.type = "file";
@@ -1671,7 +1681,7 @@ QM.dock = {
       // scrolling the bag that this item still needs one set.
       if (item.defaultSlot) {
         placeholderMark.style.display = "none";
-        thumbButton.appendChild(QM.buildSlotIcon(item.defaultSlot, Math.round(sizePx * 0.6)));
+        thumbButton.appendChild(QM.buildSlotIconRaster(item.defaultSlot, Math.round(sizePx * 0.6)));
       }
     });
     img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
@@ -1864,7 +1874,13 @@ QM.dock = {
     const imageControl = this._buildItemImageControl(item, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
 
     const detailsColumn = document.createElement("div");
-    Object.assign(detailsColumn.style, { display: "flex", flexDirection: "column", gap: "4px", flex: "1", minWidth: "0" });
+    Object.assign(detailsColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+      flex: "1",
+      minWidth: "0",
+    });
 
     const storedLine = document.createElement("div");
     Object.assign(storedLine.style, { display: "flex", alignItems: "center", gap: "6px" });
