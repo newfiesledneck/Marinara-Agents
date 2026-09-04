@@ -399,15 +399,38 @@ QM.state = {
     try {
       const result = await QM.listItems(chatId, QM_OWNER_ID);
       if (this.chatId !== chatId) return; // chat changed while this was in flight
-      this.items = result.items;
-      this.outfits = result.outfits;
-      this.appearanceFeedMode = result.appearanceFeedMode;
-      this.showUnderwear = result.showUnderwear === true;
-      this.showArmor = result.showArmor !== false;
-      this.showWeapons = result.showWeapons !== false;
-      this.personaAvatarUrl = result.personaAvatarUrl || null;
-      this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip === true;
+      const next = {
+        items: result.items,
+        outfits: result.outfits,
+        appearanceFeedMode: result.appearanceFeedMode,
+        showUnderwear: result.showUnderwear === true,
+        showArmor: result.showArmor !== false,
+        showWeapons: result.showWeapons !== false,
+        personaAvatarUrl: result.personaAvatarUrl || null,
+        replaceRealAvatarOnEquip: result.replaceRealAvatarOnEquip === true,
+      };
+      // A repaint rebuilds every card's DOM wholesale (there's no cheap way
+      // to patch just the one thing that changed) — item images in
+      // particular re-fetch and visibly flicker on every rebuild. Most poll
+      // ticks land with nothing actually different server-side (the poll's
+      // whole job is catching a tracker-agent turn or another view's edit,
+      // which is the exception, not the norm), so compare before assigning
+      // and skip the notify entirely when nothing changed, rather than
+      // repainting every 5 seconds regardless.
+      const current = {
+        items: this.items,
+        outfits: this.outfits,
+        appearanceFeedMode: this.appearanceFeedMode,
+        showUnderwear: this.showUnderwear,
+        showArmor: this.showArmor,
+        showWeapons: this.showWeapons,
+        personaAvatarUrl: this.personaAvatarUrl,
+        replaceRealAvatarOnEquip: this.replaceRealAvatarOnEquip,
+      };
+      const changed = this.error !== null || JSON.stringify(next) !== JSON.stringify(current);
+      Object.assign(this, next);
       this.error = null;
+      if (!changed) return;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
     }
