@@ -1254,6 +1254,18 @@ QM.dock = {
       justifyContent: "center",
       marginBottom: "8px",
       position: "relative",
+      // middleRow's alignItems: "stretch" (see _buildEquippedSection's own
+      // comment) stretches every flex item to match whichever sibling is
+      // tallest — originally always the portrait, since its own max height
+      // (200 * portraitScale) comfortably exceeded the slot columns' stacked
+      // height. At smaller Thumbnail Sizes that's flipped: 5 stacked slot
+      // boxes can now be taller than a shrunk portrait, so stretch was
+      // pulling the frame down to match THEM instead, leaving empty border
+      // below the actual photo. align-self: center opts this one item out
+      // of that stretch, sizing it to its own content (the image/
+      // placeholder) regardless of which side is taller, while still
+      // centering it vertically alongside whichever side is.
+      alignSelf: "center",
     });
 
     // QM_PORTRAIT_SCALE, not QM_THUMBNAIL_SIZES directly — the portrait
