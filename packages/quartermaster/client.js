@@ -216,46 +216,47 @@ const QM_SLOT_LABELS = {
   feet: "Feet",
   belt: "Belt",
 };
-// Used only inside a slot box rendered under its own group column heading
-// (10-dock.js's portrait ring — "Armor"/"Clothing"/"Underwear"/"Weapons"
-// above the box already says the group, so repeating it in every slot's own
-// label was redundant: "Armor (Torso)" under "Armor" just needs "Torso").
-// Slots with no group prefix to begin with fall through to the full label.
-// Every OTHER consumer (the default-slot dropdown, the tracker-panel's flat
-// equipped list) has no heading for context and keeps the full,
-// disambiguating QM_SLOT_LABELS on purpose.
-const QM_SLOT_SHORT_LABELS = {
-  armor_torso: "Torso",
-  armor_legs: "Legs",
-  clothing_torso: "Torso",
-  clothing_legs: "Legs",
-  underwear_top: "Top",
-  underwear_bottom: "Bottom",
-  weapon_left_hand: "Left Hand",
-  weapon_right_hand: "Right Hand",
-};
-// The dock's portrait-ring layout: slots arranged around the character
-// portrait the way the original extension's character sheet laid them out
-// (top row above the head, armor/clothing/underwear stacked to the left,
-// accessories/weapons stacked to the right, feet/belt below). A column
-// tagged with `group` is dropped as a unit by the dock when that group's
-// toggle is off (QM.state.groupVisible) — Clothing/Accessories have no
-// group and stay on the ring even with Armor/Weapons hidden. `underwear` is
-// kept separate from `left` rather than folded into the Clothing entry so it
-// can render directly beneath Clothing specifically, matching the requested
-// "underneath clothing" placement.
-const QM_PORTRAIT_LAYOUT = {
-  top: ["head", "neck", "eyes", "ears"],
-  left: [
-    { header: "Armor", slots: ["armor_torso", "armor_legs"], group: "armor" },
-    { header: "Clothing", slots: ["clothing_torso", "clothing_legs"] },
-  ],
-  underwear: { header: "Underwear", slots: ["underwear_top", "underwear_bottom"], group: "underwear" },
-  right: [
-    { header: "Accessories", slots: ["back", "hands"] },
-    { header: "Weapons", slots: ["weapon_left_hand", "weapon_right_hand"], group: "weapons" },
-  ],
-  bottom: ["feet", "belt"],
+// The dock's equipment overlay: 8 left/right slot pairs, rendered directly
+// on top of the portrait and spread evenly along its actual rendered height
+// (10-dock.js's overlay columns use space-between for this) — there's no
+// way to pin a slot to a real anatomical pixel position without image
+// analysis, since personas vary in aspect ratio/pose, so this spreads them
+// evenly instead. Order and pairing match a reference RPG equipment-screen
+// layout the user provided. Every pair shares a single group (or neither
+// slot has one) — never split across two different groups — so
+// group-visibility only needs one check per row; QM.state.slotVisible on
+// either slot in a pair always agrees with the other.
+const QM_OVERLAY_SLOT_PAIRS = [
+  ["head", "ears"],
+  ["neck", "eyes"],
+  ["armor_torso", "armor_legs"],
+  ["clothing_torso", "clothing_legs"],
+  ["underwear_top", "underwear_bottom"],
+  ["weapon_left_hand", "weapon_right_hand"],
+  ["hands", "back"],
+  ["belt", "feet"],
+];
+// Fuller than QM_SLOT_LABELS would need to be for a grouped layout with a
+// heading nearby (the old ring's short labels) — this overlay has no
+// heading to disambiguate armor vs. clothing between rows, so every label
+// carries its own context, matching the reference layout's own labels.
+const QM_OVERLAY_SLOT_LABELS = {
+  head: "Head",
+  neck: "Neck",
+  eyes: "Eyes",
+  ears: "Ears",
+  armor_torso: "Torso Armor",
+  armor_legs: "Legs Armor",
+  clothing_torso: "Torso Clothing",
+  clothing_legs: "Legs Clothing",
+  underwear_top: "Top Underwear",
+  underwear_bottom: "Bottom Underwear",
+  back: "Back Accessory",
+  hands: "Hands Accessory",
+  weapon_left_hand: "Left Hand Weapon",
+  weapon_right_hand: "Right Hand Weapon",
+  feet: "Feet",
+  belt: "Belt",
 };
 const QM_APPEARANCE_FEED_OPTIONS = [
   { value: "off", label: "Off" },
@@ -866,10 +867,6 @@ const QM_WINDOW_DEFAULT_HEIGHT = 640;
 // of overlapping — this is also what fixes the ring overflowing into the
 // Outfits/Bag columns at the old fixed size, not just a resize nicety.
 const QM_DOCK_COLUMNS_STACK_WIDTH = 760;
-// Below this, the ring's own left-stack/portrait/right-stack row also
-// stacks vertically, for narrow phones where even one full-width column
-// isn't wide enough for the ring side-by-side.
-const QM_DOCK_RING_STACK_WIDTH = 560;
 
 // UI Size — a CSS zoom factor applied to a wrapper around everything in the
 // dock's body except the UI-size row itself (kept at a fixed, predictable
@@ -1584,8 +1581,8 @@ QM.dock = {
     this.uiSize = size;
     qmWriteUiSize(size);
     this._applyUiSize();
-    // The zoom factor changed, which shifts the effective stack thresholds
-    // (_applyResponsiveLayout and _buildEquippedSection both read it) even
+    // The zoom factor changed, which shifts the outfits/equipped/bag
+    // columns' own stack threshold (_applyResponsiveLayout reads it) even
     // though the real body width didn't move.
     this._applyResponsiveLayout();
   },
@@ -1886,9 +1883,13 @@ QM.dock = {
     // No fixed box — the frame just centers whatever's inside it. A fixed
     // square with object-fit: cover was cropping non-square avatars; capping
     // width/height on the <img> itself and letting it size naturally (below)
-    // shows the whole portrait at its real aspect ratio instead.
+    // shows the whole portrait at its real aspect ratio instead. position:
+    // relative so the equip-slot overlay columns (appended below) can anchor
+    // to this box's own tight bounds — not the full-width `wrapper` above
+    // it — regardless of the portrait's actual aspect ratio/size, which
+    // varies per persona and with Thumbnail Size.
     const frame = document.createElement("div");
-    Object.assign(frame.style, { display: "flex", alignItems: "center", justifyContent: "center" });
+    Object.assign(frame.style, { position: "relative", display: "flex", alignItems: "center", justifyContent: "center" });
 
     const image = document.createElement("img");
     image.alt = "Persona portrait";
@@ -1931,181 +1932,180 @@ QM.dock = {
     });
     this.portraitPlaceholder = placeholder;
 
-    frame.append(image, placeholder);
+    // Equip-slot overlay: two columns anchored to `frame`'s own left/right
+    // edges, each slot spread evenly along its full height (space-between)
+    // rather than pinned to a real anatomical position — there's no way to
+    // know where a persona's actual head/waist/feet fall in the image
+    // without pose analysis, so this is the practical alternative: it
+    // always reaches from the top to the bottom of whatever the portrait's
+    // real rendered height turns out to be.
+    const leftColumn = document.createElement("div");
+    Object.assign(leftColumn.style, {
+      position: "absolute",
+      left: "0",
+      top: "0",
+      bottom: "0",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      padding: "4px",
+      boxSizing: "border-box",
+    });
+    const rightColumn = document.createElement("div");
+    Object.assign(rightColumn.style, {
+      position: "absolute",
+      right: "0",
+      top: "0",
+      bottom: "0",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      alignItems: "flex-end",
+      padding: "4px",
+      boxSizing: "border-box",
+    });
+    this.equipLeftColumn = leftColumn;
+    this.equipRightColumn = rightColumn;
+
+    frame.append(image, placeholder, leftColumn, rightColumn);
     wrapper.appendChild(frame);
     return wrapper;
   },
 
-  // Portrait ring: a row of slots above the portrait, a stacked column of
-  // slots to each side, and a row below — the character-sheet layout from
-  // the original extension, not the flat grouped list this replaced. Layout
-  // data lives in QM_PORTRAIT_LAYOUT (05-state.js) so the dock only handles
-  // arrangement, not slot membership or visibility rules. Below
-  // QM_DOCK_RING_STACK_WIDTH the left-stack/portrait/right-stack row itself
-  // stacks vertically too, for phone-width docks.
+  // Repopulates the two equip-slot overlay columns (built once inside
+  // _buildPortrait and cached on this.equipLeftColumn/equipRightColumn, so
+  // the portrait <img> itself is never rebuilt here) and returns the
+  // already-cached portrait wrapper unchanged — the caller's
+  // replaceChildren(this._buildEquippedSection()) re-inserting the exact
+  // same node is a harmless no-op, not a rebuild, preserving the cached
+  // avatar image the same way every repaint already needed to.
   _buildEquippedSection() {
-    const wrapper = document.createElement("div");
-    Object.assign(wrapper.style, { display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" });
-
-    wrapper.appendChild(this._buildSlotBoxRow(QM_PORTRAIT_LAYOUT.top));
-
-    const ringStacked = this.bodyWidth < QM_DOCK_RING_STACK_WIDTH * this._zoomFactor();
-    const middleRow = document.createElement("div");
-    Object.assign(middleRow.style, {
-      display: "flex",
-      flexDirection: ringStacked ? "column" : "row",
-      gap: "8px",
-      // Row mode: flex-start, not center — the left stack grows taller than
-      // the right whenever the underwear toggle adds a third sub-column
-      // beneath Clothing, and centering each column independently around
-      // the row's height visibly shifted the shorter ones. Column mode
-      // (mobile/narrow) needs the opposite axis — center, so each stacked
-      // block is horizontally centered rather than left-hugging the row.
-      alignItems: ringStacked ? "center" : "flex-start",
-      justifyContent: "center",
-      width: "100%",
-    });
-
-    const leftStack = document.createElement("div");
-    Object.assign(leftStack.style, { display: "flex", gap: "4px" });
-    for (const group of QM_PORTRAIT_LAYOUT.left) {
-      if (group.group && !QM.state.groupVisible(group.group)) continue;
-      leftStack.appendChild(this._buildSlotBoxColumn(group.header, group.slots));
+    this.equipLeftColumn.replaceChildren();
+    this.equipRightColumn.replaceChildren();
+    for (const [leftSlot, rightSlot] of QM_OVERLAY_SLOT_PAIRS) {
+      // A pair always shares one group (or neither has one) — see
+      // QM_OVERLAY_SLOT_PAIRS's own comment — so checking the left slot
+      // alone is enough to decide the whole row.
+      if (!QM.state.slotVisible(leftSlot)) continue;
+      this.equipLeftColumn.appendChild(this._buildOverlaySlotBox(leftSlot));
+      this.equipRightColumn.appendChild(this._buildOverlaySlotBox(rightSlot));
     }
-    // Stacked beneath the Clothing column specifically (the last column
-    // appended above, since Clothing has no group and is always present),
-    // not a third column of its own — matches "underneath clothing" from
-    // the requested layout. Dropped entirely while hidden, same as every
-    // other group-gated surface (05-state.js/07-ui.js).
-    if (QM.state.groupVisible("underwear")) {
-      const clothingColumn = leftStack.lastElementChild;
-      clothingColumn.appendChild(this._buildSlotBoxColumnHeading(QM_PORTRAIT_LAYOUT.underwear.header));
-      for (const slot of QM_PORTRAIT_LAYOUT.underwear.slots) clothingColumn.appendChild(this._buildSlotBox(slot));
-    }
-
-    const rightStack = document.createElement("div");
-    Object.assign(rightStack.style, { display: "flex", gap: "4px" });
-    for (const group of QM_PORTRAIT_LAYOUT.right) {
-      if (group.group && !QM.state.groupVisible(group.group)) continue;
-      rightStack.appendChild(this._buildSlotBoxColumn(group.header, group.slots));
-    }
-
-    middleRow.append(leftStack, this.portraitWrapper, rightStack);
-    wrapper.appendChild(middleRow);
-
-    wrapper.appendChild(this._buildSlotBoxRow(QM_PORTRAIT_LAYOUT.bottom));
-
-    return wrapper;
+    return this.portraitWrapper;
   },
 
-  _buildSlotBoxRow(slots) {
-    const row = document.createElement("div");
-    Object.assign(row.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
-    for (const slot of slots) row.appendChild(this._buildSlotBox(slot));
-    return row;
-  },
-
-  _buildSlotBoxColumnHeading(text) {
-    const heading = document.createElement("div");
-    heading.textContent = text;
-    Object.assign(heading.style, {
-      fontSize: "10px",
-      fontWeight: "600",
-      textTransform: "uppercase",
-      letterSpacing: "0.04em",
-      color: "var(--muted-foreground, currentcolor)",
-      textAlign: "center",
-      marginTop: "2px",
-    });
-    return heading;
-  },
-
-  _buildSlotBoxColumn(header, slots) {
-    const column = document.createElement("div");
-    Object.assign(column.style, { display: "flex", flexDirection: "column", gap: "4px" });
-    column.appendChild(this._buildSlotBoxColumnHeading(header));
-    for (const slot of slots) column.appendChild(this._buildSlotBox(slot));
-    return column;
-  },
-
-  // A single compact slot box for the portrait ring — fixed width so the top
-  // row, side columns, and bottom row all line up. Occupied boxes show the
-  // item name and a small unequip button; empty ones show a bag picker, the
-  // same two states _buildSlotRow covered before, just narrower.
-  _buildSlotBox(slot) {
+  // One equip-slot overlay box: the equipped item's own image (if it has
+  // one — reuses the same by-name lookup item cards use) plus its name and
+  // an unequip control when occupied, or a compact bag picker when empty.
+  // Dark/semi-transparent regardless of the app's own light/dark theme —
+  // this sits on top of a persona photo of unknown brightness, so it needs
+  // its own reliable contrast rather than following var(--card)/
+  // var(--foreground), the same reasoning a photo-overlay caption uses.
+  _buildOverlaySlotBox(slot) {
     const box = document.createElement("div");
     Object.assign(box.style, {
       display: "flex",
       flexDirection: "column",
+      alignItems: "center",
       gap: "2px",
-      border: "1px solid var(--border, rgba(128,128,128,0.3))",
-      borderRadius: "var(--radius, 4px)",
+      width: "78px",
       padding: "3px 4px",
-      width: "104px",
+      borderRadius: "var(--radius, 4px)",
+      border: "1px solid rgba(255, 255, 255, 0.22)",
+      background: "rgba(15, 15, 18, 0.72)",
+      color: "#f2f2f2",
       boxSizing: "border-box",
+      pointerEvents: "auto",
     });
 
+    const equippedItem = QM.state.itemInSlot(slot);
+
+    const imageWrap = document.createElement("div");
+    Object.assign(imageWrap.style, {
+      width: "28px",
+      height: "28px",
+      borderRadius: "var(--radius, 4px)",
+      overflow: "hidden",
+      background: "rgba(255, 255, 255, 0.08)",
+      flexShrink: "0",
+    });
+    if (equippedItem) {
+      // Same by-name image lookup item cards use (QM.itemImageUrl) — falls
+      // back to an empty (but still visible/bordered) box on a 404 via
+      // onerror, same reasoning as _buildItemImageControl's own comment.
+      const img = document.createElement("img");
+      img.alt = equippedItem.name;
+      Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
+      img.addEventListener("error", () => img.remove());
+      img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id);
+      imageWrap.appendChild(img);
+    }
+    box.appendChild(imageWrap);
+
     const label = document.createElement("span");
-    label.textContent = QM_SLOT_SHORT_LABELS[slot] ?? QM_SLOT_LABELS[slot];
+    label.textContent = QM_OVERLAY_SLOT_LABELS[slot];
     Object.assign(label.style, {
-      fontSize: "10px",
-      color: "var(--muted-foreground, currentcolor)",
-      textTransform: "uppercase",
-      letterSpacing: "0.03em",
+      fontSize: "9px",
       textAlign: "center",
+      textTransform: "uppercase",
+      letterSpacing: "0.02em",
+      lineHeight: "1.2",
+      color: "rgba(255, 255, 255, 0.75)",
     });
     box.appendChild(label);
 
-    const equippedItem = QM.state.itemInSlot(slot);
     if (equippedItem) {
-      const line = document.createElement("div");
-      Object.assign(line.style, { display: "flex", alignItems: "center", gap: "4px" });
-
       const name = document.createElement("span");
       name.textContent = equippedItem.name;
       name.title = equippedItem.name;
       Object.assign(name.style, {
-        flex: "1",
-        minWidth: "0",
+        fontSize: "10px",
+        fontWeight: "600",
+        textAlign: "center",
+        maxWidth: "100%",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-        fontSize: "11px",
       });
+      box.appendChild(name);
 
-      const unequipButton = QM.button("×", {
-        bg: "var(--secondary, transparent)",
-        fg: "var(--secondary-foreground, inherit)",
-        border: true,
-      });
-      const unequipLabel = `Unequip ${QM_SLOT_LABELS[slot]}`;
+      const unequipButton = document.createElement("button");
+      unequipButton.type = "button";
+      unequipButton.textContent = "Unequip";
+      const unequipLabel = `Unequip ${QM_OVERLAY_SLOT_LABELS[slot]}`;
       unequipButton.title = unequipLabel;
       unequipButton.setAttribute("aria-label", unequipLabel);
-      Object.assign(unequipButton.style, { padding: "0 6px", lineHeight: "1.5", flexShrink: "0" });
+      Object.assign(unequipButton.style, {
+        fontSize: "9px",
+        padding: "1px 4px",
+        cursor: "pointer",
+        borderRadius: "3px",
+        background: "rgba(255, 255, 255, 0.12)",
+        color: "#f2f2f2",
+        border: "1px solid rgba(255, 255, 255, 0.3)",
+      });
       unequipButton.addEventListener("click", () => QM.state.updateItem(equippedItem.id, { location: "bag" }));
-
-      line.append(name, unequipButton);
-      box.appendChild(line);
-      // Equipped items disappear from the Bag list (bagItems() excludes
-      // anything in an equipped: location), so this is the only place left
-      // to edit a description without unequipping first — keep it, just
-      // narrower than the old full-width slot row it replaced.
-      const description = QM.descriptionTextarea(equippedItem.description, (value) =>
-        QM.state.updateItem(equippedItem.id, { description: value }),
-      );
-      description.style.fontSize = "10px";
-      box.appendChild(description);
+      box.appendChild(unequipButton);
       return box;
     }
 
     const bagItems = QM.state.bagItems();
-    const select = QM.smallInput("select");
+    const select = document.createElement("select");
     select.disabled = bagItems.length === 0;
-    Object.assign(select.style, { width: "100%", boxSizing: "border-box", fontSize: "11px" });
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = bagItems.length === 0 ? "(empty)" : "Equip…";
-    select.appendChild(placeholder);
+    Object.assign(select.style, {
+      width: "100%",
+      fontSize: "9px",
+      boxSizing: "border-box",
+      borderRadius: "3px",
+      background: "rgba(255, 255, 255, 0.1)",
+      color: "#f2f2f2",
+      border: "1px solid rgba(255, 255, 255, 0.3)",
+      colorScheme: "dark",
+    });
+    const placeholderOption = document.createElement("option");
+    placeholderOption.value = "";
+    placeholderOption.textContent = bagItems.length === 0 ? "(empty)" : "Equip…";
+    select.appendChild(placeholderOption);
     for (const item of bagItems) {
       const option = document.createElement("option");
       option.value = item.id;
