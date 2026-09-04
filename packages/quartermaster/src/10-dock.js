@@ -139,31 +139,73 @@ const QM_PORTRAIT_FRAME_STYLE = {
   boxSizing: "border-box",
 };
 
-// A small diamond accent sitting near one corner of the portrait frame,
-// echoing the frame's own cut-corner shape without needing to be pixel-exact
-// against the clip-path's diagonal — subtle is the goal here, not precision.
-// Lives on `wrapper` (a sibling of the clipped `frame`, not a child of it) —
-// anything placed inside `frame` itself would be clipped away wherever it
-// fell in one of the octagon's cut notches, corners included.
-function qmBuildPortraitCornerAccent(corner) {
-  const mark = document.createElement("span");
-  mark.setAttribute("aria-hidden", "true");
-  const edge = 5;
-  const offset = "-2px";
-  Object.assign(mark.style, {
+// Hand-drawn scrollwork corner ornament, designed and iterated visually
+// (see _planning/scratch/frame-ornament-lab.html) rather than guessed blind —
+// a flat SVG line drawing at ~32px doesn't survive freehand coordinate math
+// the way the equip-slot icons didn't either. Drawn once in a canonical
+// "top-left-ish" orientation: the dense curl detail sits near local (8,8),
+// diagonally inward from local (0,0), with two tendrils sweeping out toward
+// (34,2)/(2,34). Every corner reuses this exact same path, oriented by CSS
+// transform — see qmBuildPortraitCornerAccent's own comment for why it's
+// scale flips, not rotations, and why the specific corner→transform mapping
+// below isn't the "obvious" one.
+const QM_PORTRAIT_CORNER_PATH =
+  "M2 34 C2 16 16 2 34 2 M8 34 C8 20 20 8 34 8 M2 22 C2 22 10 16 10 8 C10 4 8 2 8 2 M22 2 C22 2 16 10 8 10 C4 10 2 8 2 8" +
+  " M34 2 C30 6 28 10 28 14 M2 34 C6 30 10 28 14 28";
+
+// scaleX/scaleY (reflections), not rotate(90deg) steps — a true rotation
+// would be the "obvious" way to place one ornament at all 4 corners, but
+// this path's curl is asymmetric (denser detail on one side), and mirroring
+// is what keeps that dense detail pointing in toward the portrait at every
+// corner rather than rotating it around to face out toward the corner tip
+// at 2 of the 4 positions. The exact mapping (which axis for which corner)
+// was arrived at visually, not derived — see the lab file's iteration
+// history if this ever needs revisiting.
+const QM_PORTRAIT_CORNER_TRANSFORMS = {
+  "top left": "scale(-1, -1)",
+  "top right": "scaleY(-1)",
+  "bottom left": "scaleX(-1)",
+  "bottom right": "none",
+};
+
+// sizePx here is deliberately small relative to the frame — anchored 2px
+// out from the frame's own edge (well outside the frame's 3px padding), not
+// flush with it, so the ornament's outer tips push past the border while
+// the dense inner detail (fixed at local ~8,8 regardless of sizePx) lands
+// close to the corner rather than reaching deep into the portrait. Lives on
+// `wrapper` (a sibling of the clipped `frame`, not a child of it) — anything
+// placed inside `frame` itself would be clipped away wherever it fell in one
+// of the octagon's cut notches, corners included.
+function qmBuildPortraitCornerAccent(corner, sizePx) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 36 36");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML =
+    `<path d="${QM_PORTRAIT_CORNER_PATH}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` +
+    `<circle cx="8" cy="8" r="1.6" fill="currentColor"/>`;
+  const offset = "2px";
+  Object.assign(svg.style, {
     position: "absolute",
-    width: `${edge}px`,
-    height: `${edge}px`,
-    background: "var(--primary, #444)",
-    opacity: "0.75",
-    transform: "rotate(45deg)",
+    width: `${sizePx}px`,
+    height: `${sizePx}px`,
+    color: "var(--primary, #444)",
     pointerEvents: "none",
+    transform: QM_PORTRAIT_CORNER_TRANSFORMS[corner],
     top: corner.includes("top") ? offset : "auto",
     bottom: corner.includes("bottom") ? offset : "auto",
     left: corner.includes("left") ? offset : "auto",
     right: corner.includes("right") ? offset : "auto",
   });
-  return mark;
+  return svg;
+}
+
+// Same clamp the lab settled on (20-30px), driven off the portrait's own max
+// width at the current Thumbnail Size — there's no single fixed "frame
+// width" to size off of the way the lab's test harness had, since the real
+// portrait's rendered width varies with its own aspect ratio; the max-width
+// QM_PORTRAIT_SCALE already computes is the closest stand-in.
+function qmPortraitCornerSize(portraitScale) {
+  return qmClampWindowValue(Math.round(160 * portraitScale) * 0.16, 20, 30);
 }
 
 function qmClampWindowValue(value, minimum, maximum) {
@@ -275,6 +317,7 @@ QM.dock = {
   portraitWrapper: null,
   portraitImage: null,
   portraitPlaceholder: null,
+  portraitCorners: null,
   geometry: qmReadWindowGeometry(),
   bodyWidth: QM_WINDOW_DEFAULT_WIDTH,
   uiSize: qmReadUiSize(),
@@ -319,6 +362,7 @@ QM.dock = {
     this.portraitWrapper = null;
     this.portraitImage = null;
     this.portraitPlaceholder = null;
+    this.portraitCorners = null;
   },
 
   isOpen() {
@@ -796,6 +840,13 @@ QM.dock = {
       this.portraitImage.style.maxHeight = `${Math.round(200 * portraitScale)}px`;
       this.portraitPlaceholder.style.width = `${Math.round(120 * portraitScale)}px`;
       this.portraitPlaceholder.style.height = `${Math.round(120 * portraitScale)}px`;
+      if (this.portraitCorners) {
+        const cornerSize = qmPortraitCornerSize(portraitScale);
+        for (const corner of this.portraitCorners) {
+          corner.style.width = `${cornerSize}px`;
+          corner.style.height = `${cornerSize}px`;
+        }
+      }
     }
     this.equippedContainer.replaceChildren(this._buildEquippedSection());
     this.outfitsContainer.replaceChildren(this._buildOutfitsList());
@@ -1227,13 +1278,14 @@ QM.dock = {
     this.portraitPlaceholder = placeholder;
 
     frame.append(image, placeholder);
-    wrapper.append(
-      frame,
-      qmBuildPortraitCornerAccent("top left"),
-      qmBuildPortraitCornerAccent("top right"),
-      qmBuildPortraitCornerAccent("bottom left"),
-      qmBuildPortraitCornerAccent("bottom right"),
-    );
+    const cornerSize = qmPortraitCornerSize(portraitScale);
+    this.portraitCorners = [
+      qmBuildPortraitCornerAccent("top left", cornerSize),
+      qmBuildPortraitCornerAccent("top right", cornerSize),
+      qmBuildPortraitCornerAccent("bottom left", cornerSize),
+      qmBuildPortraitCornerAccent("bottom right", cornerSize),
+    ];
+    wrapper.append(frame, ...this.portraitCorners);
     return wrapper;
   },
 
