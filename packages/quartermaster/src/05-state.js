@@ -53,46 +53,47 @@ const QM_SLOT_LABELS = {
   feet: "Feet",
   belt: "Belt",
 };
-// Used only inside a slot box rendered under its own group column heading
-// (10-dock.js's portrait ring — "Armor"/"Clothing"/"Underwear"/"Weapons"
-// above the box already says the group, so repeating it in every slot's own
-// label was redundant: "Armor (Torso)" under "Armor" just needs "Torso").
-// Slots with no group prefix to begin with fall through to the full label.
-// Every OTHER consumer (the default-slot dropdown, the tracker-panel's flat
-// equipped list) has no heading for context and keeps the full,
-// disambiguating QM_SLOT_LABELS on purpose.
-const QM_SLOT_SHORT_LABELS = {
-  armor_torso: "Torso",
-  armor_legs: "Legs",
-  clothing_torso: "Torso",
-  clothing_legs: "Legs",
-  underwear_top: "Top",
-  underwear_bottom: "Bottom",
-  weapon_left_hand: "Left Hand",
-  weapon_right_hand: "Right Hand",
-};
-// The dock's portrait-ring layout: slots arranged around the character
-// portrait the way the original extension's character sheet laid them out
-// (top row above the head, armor/clothing/underwear stacked to the left,
-// accessories/weapons stacked to the right, feet/belt below). A column
-// tagged with `group` is dropped as a unit by the dock when that group's
-// toggle is off (QM.state.groupVisible) — Clothing/Accessories have no
-// group and stay on the ring even with Armor/Weapons hidden. `underwear` is
-// kept separate from `left` rather than folded into the Clothing entry so it
-// can render directly beneath Clothing specifically, matching the requested
-// "underneath clothing" placement.
-const QM_PORTRAIT_LAYOUT = {
-  top: ["head", "neck", "eyes", "ears"],
-  left: [
-    { header: "Armor", slots: ["armor_torso", "armor_legs"], group: "armor" },
-    { header: "Clothing", slots: ["clothing_torso", "clothing_legs"] },
-  ],
-  underwear: { header: "Underwear", slots: ["underwear_top", "underwear_bottom"], group: "underwear" },
-  right: [
-    { header: "Accessories", slots: ["back", "hands"] },
-    { header: "Weapons", slots: ["weapon_left_hand", "weapon_right_hand"], group: "weapons" },
-  ],
-  bottom: ["feet", "belt"],
+// The dock's equipment overlay: 8 left/right slot pairs, rendered directly
+// on top of the portrait and spread evenly along its actual rendered height
+// (10-dock.js's overlay columns use space-between for this) — there's no
+// way to pin a slot to a real anatomical pixel position without image
+// analysis, since personas vary in aspect ratio/pose, so this spreads them
+// evenly instead. Order and pairing match a reference RPG equipment-screen
+// layout the user provided. Every pair shares a single group (or neither
+// slot has one) — never split across two different groups — so
+// group-visibility only needs one check per row; QM.state.slotVisible on
+// either slot in a pair always agrees with the other.
+const QM_OVERLAY_SLOT_PAIRS = [
+  ["head", "ears"],
+  ["neck", "eyes"],
+  ["armor_torso", "armor_legs"],
+  ["clothing_torso", "clothing_legs"],
+  ["underwear_top", "underwear_bottom"],
+  ["weapon_left_hand", "weapon_right_hand"],
+  ["hands", "back"],
+  ["belt", "feet"],
+];
+// Fuller than QM_SLOT_LABELS would need to be for a grouped layout with a
+// heading nearby (the old ring's short labels) — this overlay has no
+// heading to disambiguate armor vs. clothing between rows, so every label
+// carries its own context, matching the reference layout's own labels.
+const QM_OVERLAY_SLOT_LABELS = {
+  head: "Head",
+  neck: "Neck",
+  eyes: "Eyes",
+  ears: "Ears",
+  armor_torso: "Torso Armor",
+  armor_legs: "Legs Armor",
+  clothing_torso: "Torso Clothing",
+  clothing_legs: "Legs Clothing",
+  underwear_top: "Top Underwear",
+  underwear_bottom: "Bottom Underwear",
+  back: "Back Accessory",
+  hands: "Hands Accessory",
+  weapon_left_hand: "Left Hand Weapon",
+  weapon_right_hand: "Right Hand Weapon",
+  feet: "Feet",
+  belt: "Belt",
 };
 const QM_APPEARANCE_FEED_OPTIONS = [
   { value: "off", label: "Off" },
