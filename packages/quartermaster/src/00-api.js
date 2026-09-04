@@ -76,20 +76,32 @@ QM.unequipAll = (chatId, ownerId) =>
   });
 
 QM.uploadItemImage = (chatId, ownerId, itemId, imageDataUrl) =>
-  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`, {
-    method: "POST",
-    body: JSON.stringify({ imageDataUrl }),
-  });
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`,
+    {
+      method: "POST",
+      body: JSON.stringify({ imageDataUrl }),
+    },
+  );
 
 QM.deleteItemImage = (chatId, ownerId, itemId) =>
-  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`, {
-    method: "DELETE",
-  });
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`,
+    {
+      method: "DELETE",
+    },
+  );
 
 // Not a fetch — the <img src> URL. A 404 (no matching image, uploaded or
 // pack) is handled by the caller's onerror, not here.
 QM.itemImageUrl = (chatId, ownerId, itemId) =>
   `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`;
+
+// Not a fetch — the <img src> URL for a slot's bundled generic artwork
+// (server.mjs's SLOT_ICON_FILES). Not chat/owner-scoped — this is package
+// content, not chat data. A 404 (unrecognized slot) is handled by the
+// caller's onerror, same as itemImageUrl.
+QM.slotIconUrl = (slot) => `/api/quartermaster/inventory/slot-icon/${encodeURIComponent(slot)}`;
 
 QM.uploadOutfitPortrait = (chatId, ownerId, outfitId, imageDataUrl) =>
   qmRequest(
