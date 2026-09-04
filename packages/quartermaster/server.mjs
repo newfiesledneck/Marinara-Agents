@@ -852,15 +852,22 @@ export async function activate(context) {
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
     async (routes) => {
-      // Bundled, not per-chat — no chatId/ownerId in the path. Long
-      // Cache-Control is safe: unlike an item's uploaded image, this content
-      // can only change by shipping a new package version, which the client
-      // only ever fetches fresh after an update anyway.
+      // Bundled, not per-chat — no chatId/ownerId in the path. NOT cached
+      // aggressively, despite that: this route's URL is just the slot name
+      // ("/inventory/slot-icon/head"), which never changes across package
+      // versions, unlike the outfit-portrait route below (whose filename
+      // gets a fresh random suffix on every replace, making long caching
+      // actually safe there). An immutable/year-long Cache-Control here
+      // would tell the browser to keep serving pre-update bytes forever
+      // once cached once — confirmed live: a real icon swap plus reinstall
+      // didn't show up until the browser's own HTTP cache was cleared,
+      // since nothing about the request ever looked different to it. Same
+      // short cache window the item-image route uses.
       routes.get("/inventory/slot-icon/:slot", async (request, reply) => {
         const { slot } = request.params;
         const buffer = await loadSlotIconBuffer(slot);
         if (!buffer) return reply.status(404).send({ error: "No icon for slot" });
-        reply.header("Cache-Control", "public, max-age=31536000, immutable");
+        reply.header("Cache-Control", "public, max-age=300");
         reply.type("image/webp");
         return reply.send(buffer);
       });
