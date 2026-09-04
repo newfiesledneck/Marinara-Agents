@@ -128,8 +128,10 @@ const QM_PORTRAIT_SCALE = {
 // image filling the clipped shape edge-to-edge. Two box-shadow layers: the
 // outer glow (unchanged from before) plus a thin inset hairline for a subtle
 // "double border" look — same technique, no extra DOM needed for it.
+// clipPath is intentionally NOT in this static object — see
+// qmPortraitFrameClipPath's own comment for why it has to be a fixed pixel
+// value computed per portraitScale instead.
 const QM_PORTRAIT_FRAME_STYLE = {
-  clipPath: "polygon(12% 0%, 88% 0%, 100% 12%, 100% 88%, 88% 100%, 12% 100%, 0% 88%, 0% 12%)",
   border: "2px solid var(--primary, #444)",
   padding: "3px",
   background: "color-mix(in srgb, var(--primary, #444) 10%, rgba(0, 0, 0, 0.55))",
@@ -138,6 +140,25 @@ const QM_PORTRAIT_FRAME_STYLE = {
     "inset 0 0 0 1px color-mix(in srgb, var(--primary, #444) 35%, transparent)",
   boxSizing: "border-box",
 };
+
+// A percentage-based clip-path inset (the original design) cuts a DIFFERENT
+// angle on a non-square box — 12% of a 130px width is a different pixel
+// distance than 12% of a 162px height, so the corner cut on a typical
+// (taller-than-wide) portrait was never actually 45°. The corner ornaments
+// assume a true 45° notch (their own path is drawn against a square 36x36
+// viewBox), so a fixed EQUAL pixel inset on both axes is what actually
+// matches them, regardless of the portrait's own aspect ratio.
+function qmPortraitFrameCutSize(portraitScale) {
+  return Math.round(qmClampWindowValue(12 * portraitScale, 8, 18));
+}
+
+function qmPortraitFrameClipPath(cut) {
+  return (
+    `polygon(${cut}px 0, calc(100% - ${cut}px) 0, 100% ${cut}px, ` +
+    `100% calc(100% - ${cut}px), calc(100% - ${cut}px) 100%, ${cut}px 100%, ` +
+    `0 calc(100% - ${cut}px), 0 ${cut}px)`
+  );
+}
 
 // Hand-drawn scrollwork corner ornament, designed and iterated visually
 // (see _planning/scratch/frame-ornament-lab.html) rather than guessed blind —
@@ -849,6 +870,9 @@ QM.dock = {
       this.portraitImage.style.maxHeight = `${Math.round(200 * portraitScale)}px`;
       this.portraitPlaceholder.style.width = `${Math.round(120 * portraitScale)}px`;
       this.portraitPlaceholder.style.height = `${Math.round(120 * portraitScale)}px`;
+      if (this.portraitFrame) {
+        this.portraitFrame.style.clipPath = qmPortraitFrameClipPath(qmPortraitFrameCutSize(portraitScale));
+      }
       if (this.portraitCorners) {
         const cornerSize = qmPortraitCornerSize(portraitScale);
         for (const corner of this.portraitCorners) {
@@ -1232,6 +1256,12 @@ QM.dock = {
       position: "relative",
     });
 
+    // QM_PORTRAIT_SCALE, not QM_THUMBNAIL_SIZES directly — the portrait
+    // needs to scale much more aggressively per size than item/outfit
+    // thumbnails do, since 5 slot-box pairs need real vertical room beside
+    // it not to overlap at S/M. See QM_PORTRAIT_SCALE's own comment.
+    const portraitScale = QM_PORTRAIT_SCALE[this.thumbnailSize];
+
     // No fixed box — the frame just centers whatever's inside it. A fixed
     // square with object-fit: cover was cropping non-square avatars; capping
     // width/height on the <img> itself and letting it size naturally (below)
@@ -1243,6 +1273,7 @@ QM.dock = {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      clipPath: qmPortraitFrameClipPath(qmPortraitFrameCutSize(portraitScale)),
       ...QM_PORTRAIT_FRAME_STYLE,
     });
     // Measured by _updateConnectorLines to find where the connector lines
@@ -1254,11 +1285,6 @@ QM.dock = {
     const image = document.createElement("img");
     image.alt = "Persona portrait";
     const hasAvatar = Boolean(QM.state.personaAvatarUrl);
-    // QM_PORTRAIT_SCALE, not QM_THUMBNAIL_SIZES directly — the portrait
-    // needs to scale much more aggressively per size than item/outfit
-    // thumbnails do, since 5 slot-box pairs need real vertical room beside
-    // it not to overlap at S/M. See QM_PORTRAIT_SCALE's own comment.
-    const portraitScale = QM_PORTRAIT_SCALE[this.thumbnailSize];
     Object.assign(image.style, {
       maxWidth: `${Math.round(160 * portraitScale)}px`,
       maxHeight: `${Math.round(200 * portraitScale)}px`,
@@ -1428,6 +1454,15 @@ QM.dock = {
     if (containerRect.width === 0 || containerRect.height === 0) return;
     svg.setAttribute("width", String(containerRect.width));
     svg.setAttribute("height", String(containerRect.height));
+    // Load-bearing, not redundant with the width/height attributes above —
+    // confirmed live in _planning/scratch/connector-lines-zoom-test.html:
+    // without an explicit viewBox, this svg's internal coordinate mapping
+    // becomes unreliable specifically under the dock's own UI Size zoom
+    // (S/L, not M) — the width/height attributes alone aren't enough to pin
+    // "1 user unit = 1 real pixel" once an ancestor's CSS zoom is anything
+    // other than 1. A viewBox matching the same dimensions forces that
+    // mapping explicitly, which fixed it at both zoom factors tested.
+    svg.setAttribute("viewBox", `0 0 ${containerRect.width} ${containerRect.height}`);
     svg.replaceChildren();
 
     // Frame edges in container-relative coordinates.
@@ -1458,20 +1493,24 @@ QM.dock = {
     const leftPoints = qmFrameSpread(bySide.left, frameTop + 6, frameBottom - 6);
     const rightPoints = qmFrameSpread(bySide.right, frameTop + 6, frameBottom - 6);
 
-    const qmDrawConnector = (slot, boxX, boxY, frameX, frameY) => {
+    const qmDrawConnector = (slot, side, boxX, boxY, frameX, frameY) => {
       const selected = this.selectedSlot === slot;
       const opacity = selected ? 0.85 : 0.32;
       const midX = (boxX + frameX) / 2;
       const midY = (boxY + frameY) / 2;
-      // A gentle bow rather than a straight segment — offset the midpoint
-      // perpendicular to the line's own direction, scaled down for short
-      // lines so it never overshoots into a visible kink.
-      const dx = frameX - boxX;
-      const dy = frameY - boxY;
-      const length = Math.hypot(dx, dy) || 1;
+      // A gentle bow rather than a straight segment. Fixed axis-aligned
+      // offset, not perpendicular-to-this-line's-own-direction (the
+      // previous approach) — a per-line perpendicular flips sign between
+      // the left and right columns (their dx has opposite sign), which
+      // rotates the curve 180° instead of mirroring it: left bowed down,
+      // right bowed up, an visibly asymmetric pair rather than a matched
+      // one. A fixed bow direction per side-group is trivially mirror-
+      // symmetric instead — left/right always bow the same vertical way,
+      // top/bottom always bow the same horizontal way.
+      const length = Math.hypot(frameX - boxX, frameY - boxY) || 1;
       const bow = Math.min(10, length * 0.12);
-      const curveX = midX + (-dy / length) * bow;
-      const curveY = midY + (dx / length) * bow;
+      const curveX = side === "top" || side === "bottom" ? midX + bow : midX;
+      const curveY = side === "left" || side === "right" ? midY + bow : midY;
 
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", `M ${boxX} ${boxY} Q ${curveX} ${curveY} ${frameX} ${frameY}`);
@@ -1502,16 +1541,16 @@ QM.dock = {
       const boxY = box.top - containerRect.top + box.height / 2;
       if (ref.side === "top") {
         const index = bySide.top.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, boxX, box.bottom - containerRect.top, topPoints[index], frameTop);
+        qmDrawConnector(slot, "top", boxX, box.bottom - containerRect.top, topPoints[index], frameTop);
       } else if (ref.side === "bottom") {
         const index = bySide.bottom.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, boxX, box.top - containerRect.top, bottomPoints[index], frameBottom);
+        qmDrawConnector(slot, "bottom", boxX, box.top - containerRect.top, bottomPoints[index], frameBottom);
       } else if (ref.side === "left") {
         const index = bySide.left.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, box.right - containerRect.left, boxY, frameLeft, leftPoints[index]);
+        qmDrawConnector(slot, "left", box.right - containerRect.left, boxY, frameLeft, leftPoints[index]);
       } else if (ref.side === "right") {
         const index = bySide.right.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, box.left - containerRect.left, boxY, frameRight, rightPoints[index]);
+        qmDrawConnector(slot, "right", box.left - containerRect.left, boxY, frameRight, rightPoints[index]);
       }
     }
   },
