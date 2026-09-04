@@ -58,6 +58,12 @@ still needed, it is not in its final state.
   every slot looks right immediately after install — no setup step, unlike item images above. Used
   both for an empty slot and as the fallback for an equipped item with no matching item image of
   its own. Falls back to the original hand-drawn SVG pictogram if a file is ever missing.
+- **Portrait frame and connector lines** — the portrait sits in a theme-colored cut-corner frame
+  with hand-drawn scrollwork corner ornaments, and thin curved lines connect each equip slot to
+  the portrait, brightening when that slot is selected. Positions are measured live (not fixed
+  coordinates), so they stay correct across a Thumbnail Size change, a window resize, or the
+  portrait image itself finishing a load with a different aspect ratio than whatever was showing
+  before.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
