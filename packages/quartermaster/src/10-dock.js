@@ -1632,14 +1632,18 @@ QM.dock = {
   // the box body). Selecting reveals the bag picker inline, whether the
   // slot's empty or already occupied (swap, not just fill); an equipped
   // slot always shows a small "×" badge to unequip directly, whether
-  // selected or not. Dark/semi-transparent regardless of the app's own
-  // light/dark theme — this sits on top of a persona photo of unknown
-  // brightness, so it needs its own reliable contrast rather than following
-  // var(--card)/var(--foreground), the same reasoning a photo-overlay
-  // caption uses. The icon area shows the equipped item's own image when it
-  // has one (same by-name lookup item cards use), falling back to a plain
-  // slot pictogram (QM.buildSlotIcon) both when empty and when an equipped
-  // item has no matching image.
+  // selected or not.
+  //
+  // The item's own image (same by-name lookup item cards use), or the
+  // slot's fallback pictogram, fills the whole imageArea — the slot name
+  // and item name/"Empty" are overlay bands top and bottom, each with their
+  // OWN small translucent backing (not one dimming layer across the whole
+  // box), so the image reads clearly in the gap between the two bands
+  // rather than sitting under a single uniform tint. Dark/semi-transparent
+  // regardless of the app's own light/dark theme — this sits on top of a
+  // photo of unknown brightness, so it needs its own reliable contrast
+  // rather than following var(--card)/var(--foreground), the same
+  // reasoning a photo-overlay caption uses elsewhere.
   _buildOverlaySlotBox(slot) {
     const equippedItem = QM.state.itemInSlot(slot);
     const selected = this.selectedSlot === slot;
@@ -1649,15 +1653,13 @@ QM.dock = {
       position: "relative",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center",
-      gap: "2px",
+      alignItems: "stretch",
+      gap: "4px",
       width: "92px",
-      padding: "5px 6px",
       borderRadius: "var(--radius, 4px)",
       cursor: "pointer",
       boxSizing: "border-box",
       pointerEvents: "auto",
-      background: "rgba(15, 15, 18, 0.72)",
       color: "#f2f2f2",
       ...(selected
         ? {
@@ -1683,74 +1685,115 @@ QM.dock = {
       this._paint();
     });
 
-    const iconSize = 32;
-    const imageWrap = document.createElement("div");
-    Object.assign(imageWrap.style, {
-      width: `${iconSize}px`,
-      height: `${iconSize}px`,
-      borderRadius: "var(--radius, 4px)",
+    // Fixed square, clipped to its own rounding — only this element clips
+    // (not `box` itself), so the unequip badge below can still hang
+    // slightly outside it (negative offset, like before) without being cut
+    // off.
+    const imageArea = document.createElement("div");
+    Object.assign(imageArea.style, {
+      position: "relative",
+      width: "100%",
+      height: "92px",
       overflow: "hidden",
-      background: "rgba(255, 255, 255, 0.08)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "rgba(255, 255, 255, 0.55)",
-      flexShrink: "0",
+      borderRadius: "var(--radius, 4px)",
+      background: "rgba(15, 15, 18, 0.72)",
     });
+
+    const qmCenterFallbackIcon = () => {
+      const fallback = QM.buildSlotIconRaster(slot, 48);
+      Object.assign(fallback.style, {
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+      });
+      imageArea.appendChild(fallback);
+    };
+
     if (equippedItem) {
       // Same by-name image lookup item cards use (QM.itemImageUrl). On a
       // 404 (no matching image, uploaded or pack), falls back to the
-      // slot's own plain pictogram rather than leaving the box empty.
+      // slot's own plain pictogram rather than leaving the area blank.
       const img = document.createElement("img");
       img.alt = equippedItem.name;
-      Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
+      Object.assign(img.style, {
+        position: "absolute",
+        inset: "0",
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+      });
       img.addEventListener("error", () => {
         img.remove();
-        imageWrap.appendChild(QM.buildSlotIconRaster(slot, iconSize - 6));
+        qmCenterFallbackIcon();
       });
       img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id);
-      imageWrap.appendChild(img);
+      imageArea.appendChild(img);
     } else {
-      imageWrap.appendChild(QM.buildSlotIconRaster(slot, iconSize - 6));
+      qmCenterFallbackIcon();
     }
-    box.appendChild(imageWrap);
 
     // Pre-split into explicit lines (QM_OVERLAY_SLOT_LABEL_LINES), not left
     // to natural wrapping — see that constant's own comment for why: at a
     // fixed box width, different first-word lengths wrapped inconsistently
     // between a pair's two labels, throwing the two columns out of
     // alignment with each other.
+    const topBand = document.createElement("div");
+    Object.assign(topBand.style, {
+      position: "absolute",
+      top: "0",
+      left: "0",
+      right: "0",
+      padding: "2px 3px",
+      background: "rgba(0, 0, 0, 0.55)",
+      textAlign: "center",
+    });
     const label = document.createElement("span");
     Object.assign(label.style, {
+      display: "block",
       fontSize: "9px",
-      textAlign: "center",
       textTransform: "uppercase",
       letterSpacing: "0.02em",
       lineHeight: "1.2",
-      color: "rgba(255, 255, 255, 0.75)",
+      color: "rgba(255, 255, 255, 0.85)",
     });
     const labelLines = QM_OVERLAY_SLOT_LABEL_LINES[slot];
     labelLines.forEach((line, index) => {
       if (index > 0) label.appendChild(document.createElement("br"));
       label.appendChild(document.createTextNode(line));
     });
-    box.appendChild(label);
+    topBand.appendChild(label);
+    imageArea.appendChild(topBand);
 
+    const bottomBand = document.createElement("div");
+    Object.assign(bottomBand.style, {
+      position: "absolute",
+      bottom: "0",
+      left: "0",
+      right: "0",
+      padding: "2px 3px",
+      background: "rgba(0, 0, 0, 0.55)",
+      textAlign: "center",
+    });
     const status = document.createElement("span");
     status.textContent = equippedItem ? equippedItem.name : "Empty";
     if (equippedItem) status.title = equippedItem.name;
     Object.assign(status.style, {
+      display: "block",
       fontSize: "10px",
       fontWeight: equippedItem ? "600" : "400",
       fontStyle: equippedItem ? "normal" : "italic",
-      textAlign: "center",
       maxWidth: "100%",
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
-      color: equippedItem ? "#f2f2f2" : "rgba(255, 255, 255, 0.5)",
+      color: equippedItem ? "#f2f2f2" : "rgba(255, 255, 255, 0.7)",
     });
-    box.appendChild(status);
+    bottomBand.appendChild(status);
+    imageArea.appendChild(bottomBand);
+
+    box.appendChild(imageArea);
 
     if (equippedItem) {
       const unequipButton = document.createElement("button");
