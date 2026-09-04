@@ -53,6 +53,11 @@ still needed, it is not in its final state.
   image only removes that upload — if a pack image also happens to match the item's name, it'll
   still show afterward. Renaming an item does **not** currently rename or move its own uploaded
   image file, so a rename can cause an uploaded image to stop matching; re-uploading fixes it.
+- **Slot artwork** — every equip slot shows real generated artwork (a hat, gloves, a breastplate,
+  a sword, ...) instead of a bare pictogram, bundled with the package itself (`icons/*.webp`) so
+  every slot looks right immediately after install — no setup step, unlike item images above. Used
+  both for an empty slot and as the fallback for an equipped item with no matching item image of
+  its own. Falls back to the original hand-drawn SVG pictogram if a file is ever missing.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
@@ -91,6 +96,7 @@ scope for now — the focus here is the inventory/outfit/appearance core, not fu
 ```text
 packages/quartermaster/
 ├── src/                # plain-JS client modules, concatenated + minified in filename order into client.js
+├── icons/                # bundled slot artwork (WebP) — hand-picked binary assets, hashed as-is
 ├── server.mjs           # hand-authored — do not generate; hashed as-is by the build script
 ├── agents.json           # hand-authored — carries the tracker agent's real prompt template
 ├── client.js             # generated, minified — do not edit; review src/*.js instead

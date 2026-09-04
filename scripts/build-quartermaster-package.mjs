@@ -136,6 +136,22 @@ try {
   await rm(serverSyntaxCheckDir, { recursive: true, force: true });
 }
 
+// ── Bundled slot icons: hand-picked binary assets, hashed as-is ─────────────
+// Generic equip-slot artwork (see server.mjs's SLOT_ICON_DIR comment) —
+// pre-generated WebP images committed under packages/quartermaster/icons/,
+// not built from source the way client.js is. Every file in that directory
+// is declared individually (assertArtifactMatchesManifest requires the
+// archive's file set to equal the manifest's declared set exactly, no
+// directory-level shortcut) and archived byte-identical to what's on disk.
+const iconsDir = join(packageRoot, "icons");
+const iconFileNames = (await readdir(iconsDir)).filter((name) => name.endsWith(".webp")).sort();
+if (iconFileNames.length === 0) throw new Error("Quartermaster has no bundled slot icons");
+const iconFiles = [];
+for (const name of iconFileNames) {
+  const data = await readFile(join(iconsDir, name));
+  iconFiles.push({ path: `icons/${name}`, data });
+}
+
 // ── Agent definition: hand-maintained, generated description ────────────────
 const description = withPackageActivationGuidance(PACKAGE_ID, BASE_DESCRIPTION);
 const agentDefinitions = JSON.parse(await readFile(join(packageRoot, "agents.json"), "utf8"));
@@ -169,6 +185,7 @@ const manifest = {
     { path: "agents.json", sha256: sha256(agentsBuffer), bytes: agentsBuffer.byteLength },
     { path: "client.js", sha256: sha256(clientBuffer), bytes: clientBuffer.byteLength },
     { path: "server.mjs", sha256: sha256(serverBuffer), bytes: serverBuffer.byteLength },
+    ...iconFiles.map((file) => ({ path: file.path, sha256: sha256(file.data), bytes: file.data.byteLength })),
   ],
   // storage: package-owned inventory/outfit/image records via persistence.documents.
   // routes: serves those records (and later, item/portrait images) under /api/quartermaster.
@@ -208,6 +225,7 @@ const archive = createDeterministicZip([
   { name: "agents.json", data: agentsBuffer },
   { name: "client.js", data: clientBuffer },
   { name: "server.mjs", data: serverBuffer },
+  ...iconFiles.map((file) => ({ name: file.path, data: file.data })),
 ]);
 await mkdir(artifactsDir, { recursive: true });
 const artifactName = `quartermaster-${VERSION}.zip`;
@@ -242,7 +260,9 @@ catalog.packages.push({
 catalog.packages.sort((left, right) => left.manifest.name.localeCompare(right.manifest.name));
 await writeCatalogFamily(repoRoot, catalog);
 
+const iconsTotalBytes = iconFiles.reduce((sum, file) => sum + file.data.byteLength, 0);
 console.log(`built quartermaster ${VERSION}`);
 console.log(
-  `  client.js ${clientBuffer.byteLength} bytes, server.mjs ${serverBuffer.byteLength} bytes, artifact ${archive.byteLength} bytes`,
+  `  client.js ${clientBuffer.byteLength} bytes, server.mjs ${serverBuffer.byteLength} bytes, ` +
+    `icons ${iconFiles.length} files/${iconsTotalBytes} bytes, artifact ${archive.byteLength} bytes`,
 );

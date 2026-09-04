@@ -319,7 +319,8 @@ QM.state = {
       if (result.showUnderwear !== undefined) this.showUnderwear = result.showUnderwear;
       if (result.showArmor !== undefined) this.showArmor = result.showArmor;
       if (result.showWeapons !== undefined) this.showWeapons = result.showWeapons;
-      if (result.replaceRealAvatarOnEquip !== undefined) this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
+      if (result.replaceRealAvatarOnEquip !== undefined)
+        this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
