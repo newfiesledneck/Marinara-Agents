@@ -114,6 +114,16 @@ const QM_PORTRAIT_SCALE = {
   M: QM_THUMBNAIL_SIZES.L / QM_THUMBNAIL_SIZES.M,
   L: (QM_THUMBNAIL_SIZES.L / QM_THUMBNAIL_SIZES.M) * 2,
 };
+// Cut-corner "gem frame" look for the portrait — shared by both the real
+// image and the empty-state placeholder so they read as the same frame
+// regardless of which is showing. Border/glow use the theme's own accent
+// (var(--primary)), not a fixed brand color, so it matches whatever accent
+// the user's actually set in the Engine rather than a hardcoded look.
+const QM_PORTRAIT_FRAME_STYLE = {
+  clipPath: "polygon(12% 0%, 88% 0%, 100% 12%, 100% 88%, 88% 100%, 12% 100%, 0% 88%, 0% 12%)",
+  border: "2px solid var(--primary, #444)",
+  boxShadow: "0 0 12px color-mix(in srgb, var(--primary, #444) 45%, transparent)",
+};
 
 function qmClampWindowValue(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -232,6 +242,10 @@ QM.dock = {
   // -only UI preference, unlike geometry/uiSize which are worth remembering
   // across visits.
   settingsExpanded: false,
+  // Which equip slot's picker is open, if any — set by clicking a slot box,
+  // cleared by picking an item, clicking the same slot again, closing the
+  // dock, or switching chats (see close()/QM.state.setChat's own reset).
+  selectedSlot: null,
   _windowBound: false,
   _outsideClickBound: false,
   _interaction: null,
@@ -293,6 +307,7 @@ QM.dock = {
 
   close() {
     this.isOpenFlag = false;
+    this.selectedSlot = null;
     if (this.root) this.root.classList.add("qm-dock-collapsed");
     if (this.unsubscribe) {
       this.unsubscribe();
@@ -1131,8 +1146,7 @@ QM.dock = {
       width: "auto",
       height: "auto",
       objectFit: "contain",
-      borderRadius: "var(--radius, 8px)",
-      border: "1px solid var(--border, rgba(128,128,128,0.3))",
+      ...QM_PORTRAIT_FRAME_STYLE,
       display: hasAvatar ? "block" : "none",
     });
     if (hasAvatar) image.src = QM.state.personaAvatarUrl;
@@ -1143,8 +1157,7 @@ QM.dock = {
     Object.assign(placeholder.style, {
       width: `${Math.round(120 * portraitScale)}px`,
       height: `${Math.round(120 * portraitScale)}px`,
-      borderRadius: "var(--radius, 8px)",
-      border: "1px solid var(--border, rgba(128,128,128,0.3))",
+      ...QM_PORTRAIT_FRAME_STYLE,
       background: "var(--muted, rgba(128,128,128,0.15))",
       display: hasAvatar ? "none" : "flex",
       alignItems: "center",
@@ -1218,54 +1231,84 @@ QM.dock = {
     return wrapper;
   },
 
-  // One equip-slot overlay box: the equipped item's own image (if it has
-  // one — reuses the same by-name lookup item cards use) plus its name and
-  // an unequip control when occupied, or a compact bag picker when empty.
-  // Dark/semi-transparent regardless of the app's own light/dark theme —
-  // this sits on top of a persona photo of unknown brightness, so it needs
-  // its own reliable contrast rather than following var(--card)/
-  // var(--foreground), the same reasoning a photo-overlay caption uses.
+  // One equip-slot overlay box, in one of three visual states: empty
+  // (neutral border), equipped (theme-accent border — QM.button()'s own
+  // default fill, matching the Equip button beside it), or selected
+  // (stronger accent + glow, this.selectedSlot === slot — set by clicking
+  // the box body). Selecting reveals the bag picker inline, whether the
+  // slot's empty or already occupied (swap, not just fill); an equipped
+  // slot always shows a small "×" badge to unequip directly, whether
+  // selected or not. Dark/semi-transparent regardless of the app's own
+  // light/dark theme — this sits on top of a persona photo of unknown
+  // brightness, so it needs its own reliable contrast rather than following
+  // var(--card)/var(--foreground), the same reasoning a photo-overlay
+  // caption uses. The icon area shows the equipped item's own image when it
+  // has one (same by-name lookup item cards use), falling back to a plain
+  // slot pictogram (QM.buildSlotIcon) both when empty and when an equipped
+  // item has no matching image.
   _buildOverlaySlotBox(slot) {
+    const equippedItem = QM.state.itemInSlot(slot);
+    const selected = this.selectedSlot === slot;
+
     const box = document.createElement("div");
     Object.assign(box.style, {
+      position: "relative",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       gap: "2px",
       width: "92px",
-      padding: "4px 6px",
+      padding: "5px 6px",
       borderRadius: "var(--radius, 4px)",
-      // Matches QM.button()'s own default (unstyled) fill — the same color
-      // as the Equip button sitting right beside these slots elsewhere in
-      // the dock, so the equipment area reads as one visual family.
-      border: "1px solid var(--primary, #444)",
-      background: "rgba(15, 15, 18, 0.72)",
-      color: "#f2f2f2",
+      cursor: "pointer",
       boxSizing: "border-box",
       pointerEvents: "auto",
+      background: "rgba(15, 15, 18, 0.72)",
+      color: "#f2f2f2",
+      ...(selected
+        ? {
+            border: "2px solid var(--ring, var(--primary, #444))",
+            boxShadow: "0 0 8px color-mix(in srgb, var(--primary, #444) 55%, transparent)",
+          }
+        : equippedItem
+          ? { border: "1px solid var(--primary, #444)" }
+          : { border: "1px solid rgba(255, 255, 255, 0.22)" }),
+    });
+    box.addEventListener("click", (event) => {
+      if (event.target.closest("[data-qm-unequip]")) return; // the × badge handles its own click
+      this.selectedSlot = selected ? null : slot;
+      this._paint();
     });
 
-    const equippedItem = QM.state.itemInSlot(slot);
-
+    const iconSize = 32;
     const imageWrap = document.createElement("div");
     Object.assign(imageWrap.style, {
-      width: "28px",
-      height: "28px",
+      width: `${iconSize}px`,
+      height: `${iconSize}px`,
       borderRadius: "var(--radius, 4px)",
       overflow: "hidden",
       background: "rgba(255, 255, 255, 0.08)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "rgba(255, 255, 255, 0.55)",
       flexShrink: "0",
     });
     if (equippedItem) {
-      // Same by-name image lookup item cards use (QM.itemImageUrl) — falls
-      // back to an empty (but still visible/bordered) box on a 404 via
-      // onerror, same reasoning as _buildItemImageControl's own comment.
+      // Same by-name image lookup item cards use (QM.itemImageUrl). On a
+      // 404 (no matching image, uploaded or pack), falls back to the
+      // slot's own plain pictogram rather than leaving the box empty.
       const img = document.createElement("img");
       img.alt = equippedItem.name;
       Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
-      img.addEventListener("error", () => img.remove());
+      img.addEventListener("error", () => {
+        img.remove();
+        imageWrap.appendChild(QM.buildSlotIcon(slot, iconSize - 6));
+      });
       img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id);
       imageWrap.appendChild(img);
+    } else {
+      imageWrap.appendChild(QM.buildSlotIcon(slot, iconSize - 6));
     }
     box.appendChild(imageWrap);
 
@@ -1290,69 +1333,88 @@ QM.dock = {
     });
     box.appendChild(label);
 
-    if (equippedItem) {
-      const name = document.createElement("span");
-      name.textContent = equippedItem.name;
-      name.title = equippedItem.name;
-      Object.assign(name.style, {
-        fontSize: "10px",
-        fontWeight: "600",
-        textAlign: "center",
-        maxWidth: "100%",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      });
-      box.appendChild(name);
+    const status = document.createElement("span");
+    status.textContent = equippedItem ? equippedItem.name : "Empty";
+    if (equippedItem) status.title = equippedItem.name;
+    Object.assign(status.style, {
+      fontSize: "10px",
+      fontWeight: equippedItem ? "600" : "400",
+      fontStyle: equippedItem ? "normal" : "italic",
+      textAlign: "center",
+      maxWidth: "100%",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      color: equippedItem ? "#f2f2f2" : "rgba(255, 255, 255, 0.5)",
+    });
+    box.appendChild(status);
 
+    if (equippedItem) {
       const unequipButton = document.createElement("button");
       unequipButton.type = "button";
-      unequipButton.textContent = "Unequip";
+      unequipButton.dataset.qmUnequip = "true";
+      unequipButton.textContent = "×";
       const unequipLabel = `Unequip ${QM_OVERLAY_SLOT_LABELS[slot]}`;
       unequipButton.title = unequipLabel;
       unequipButton.setAttribute("aria-label", unequipLabel);
       Object.assign(unequipButton.style, {
-        fontSize: "9px",
-        padding: "1px 4px",
+        position: "absolute",
+        top: "-6px",
+        right: "-6px",
+        width: "16px",
+        height: "16px",
+        lineHeight: "14px",
+        padding: "0",
+        fontSize: "12px",
+        borderRadius: "50%",
         cursor: "pointer",
-        borderRadius: "3px",
-        background: "rgba(255, 255, 255, 0.12)",
-        color: "#f2f2f2",
-        border: "1px solid rgba(255, 255, 255, 0.3)",
+        background: QM_COLOR_DANGER,
+        color: QM_COLOR_DANGER_FG,
+        border: "none",
       });
-      unequipButton.addEventListener("click", () => QM.state.updateItem(equippedItem.id, { location: "bag" }));
+      unequipButton.addEventListener("click", () => {
+        QM.state.updateItem(equippedItem.id, { location: "bag" });
+        if (selected) this.selectedSlot = null;
+      });
       box.appendChild(unequipButton);
-      return box;
     }
 
-    const bagItems = QM.state.bagItems();
-    const select = document.createElement("select");
-    select.disabled = bagItems.length === 0;
-    Object.assign(select.style, {
-      width: "100%",
-      fontSize: "9px",
-      boxSizing: "border-box",
-      borderRadius: "3px",
-      background: "rgba(255, 255, 255, 0.1)",
-      color: "#f2f2f2",
-      border: "1px solid rgba(255, 255, 255, 0.3)",
-      colorScheme: "dark",
-    });
-    const placeholderOption = document.createElement("option");
-    placeholderOption.value = "";
-    placeholderOption.textContent = bagItems.length === 0 ? "(empty)" : "Equip…";
-    select.appendChild(placeholderOption);
-    for (const item of bagItems) {
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.textContent = item.name;
-      select.appendChild(option);
+    if (selected) {
+      const bagItems = QM.state.bagItems();
+      const select = document.createElement("select");
+      select.disabled = bagItems.length === 0;
+      select.addEventListener("click", (event) => event.stopPropagation()); // don't toggle selection off under the open dropdown
+      Object.assign(select.style, {
+        width: "100%",
+        marginTop: "2px",
+        fontSize: "9px",
+        boxSizing: "border-box",
+        borderRadius: "3px",
+        background: "rgba(255, 255, 255, 0.1)",
+        color: "#f2f2f2",
+        border: "1px solid rgba(255, 255, 255, 0.3)",
+        colorScheme: "dark",
+      });
+      const placeholderOption = document.createElement("option");
+      placeholderOption.value = "";
+      placeholderOption.textContent = bagItems.length === 0 ? "(bag empty)" : "Equip…";
+      select.appendChild(placeholderOption);
+      for (const item of bagItems) {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.name;
+        select.appendChild(option);
+      }
+      select.addEventListener("change", () => {
+        const itemId = select.value;
+        if (itemId) {
+          QM.state.updateItem(itemId, { location: `equipped:${slot}` });
+          this.selectedSlot = null;
+        }
+      });
+      box.appendChild(select);
     }
-    select.addEventListener("change", () => {
-      const itemId = select.value;
-      if (itemId) QM.state.updateItem(itemId, { location: `equipped:${slot}` });
-    });
-    box.appendChild(select);
+
     return box;
   },
 
@@ -1602,6 +1664,15 @@ QM.dock = {
     });
     img.addEventListener("error", () => {
       img.remove();
+      // No matching image (uploaded or pack) — fall back to that item's own
+      // default-slot icon rather than the bare "+" mark, same pictograms
+      // the equip-slot boxes use. An item with no default slot set keeps
+      // the plain "+" on purpose: it's a real, useful visual cue while
+      // scrolling the bag that this item still needs one set.
+      if (item.defaultSlot) {
+        placeholderMark.style.display = "none";
+        thumbButton.appendChild(QM.buildSlotIcon(item.defaultSlot, Math.round(sizePx * 0.6)));
+      }
     });
     img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
     thumbButton.appendChild(img);

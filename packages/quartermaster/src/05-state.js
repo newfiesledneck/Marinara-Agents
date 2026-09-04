@@ -214,6 +214,12 @@ QM.state = {
     this.showWeapons = true;
     this.personaAvatarUrl = null;
     this.error = null;
+    // A selected equip-slot picker (QM.dock's own UI state, not this
+    // object's) doesn't carry any meaning across a chat switch — the slot
+    // NAMES are the same fixed set everywhere, so leaving one "selected"
+    // wouldn't crash, but it would look like a stale leftover from the
+    // previous chat.
+    if (QM.dock) QM.dock.selectedSlot = null;
     this._notify();
     this.ensureLoaded();
   },
