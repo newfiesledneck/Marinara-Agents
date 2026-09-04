@@ -318,6 +318,9 @@ QM.dock = {
   portraitImage: null,
   portraitPlaceholder: null,
   portraitCorners: null,
+  portraitFrame: null,
+  connectorSvg: null,
+  equippedSlotBoxRefs: null,
   geometry: qmReadWindowGeometry(),
   bodyWidth: QM_WINDOW_DEFAULT_WIDTH,
   uiSize: qmReadUiSize(),
@@ -363,6 +366,9 @@ QM.dock = {
     this.portraitImage = null;
     this.portraitPlaceholder = null;
     this.portraitCorners = null;
+    this.portraitFrame = null;
+    this.connectorSvg = null;
+    this.equippedSlotBoxRefs = null;
   },
 
   isOpen() {
@@ -512,7 +518,10 @@ QM.dock = {
       const stacked = this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor();
       this.columns.style.flexDirection = stacked ? "column" : "row";
     }
-    if (this.equippedContainer) this.equippedContainer.replaceChildren(this._buildEquippedSection());
+    if (this.equippedContainer) {
+      this.equippedContainer.replaceChildren(this._buildEquippedSection());
+      requestAnimationFrame(() => this._updateConnectorLines());
+    }
   },
 
   resizeBy(deltaWidth, deltaHeight) {
@@ -849,6 +858,7 @@ QM.dock = {
       }
     }
     this.equippedContainer.replaceChildren(this._buildEquippedSection());
+    requestAnimationFrame(() => this._updateConnectorLines());
     this.outfitsContainer.replaceChildren(this._buildOutfitsList());
     this.listContainer.replaceChildren(this._buildItemList());
   },
@@ -1235,6 +1245,11 @@ QM.dock = {
       justifyContent: "center",
       ...QM_PORTRAIT_FRAME_STYLE,
     });
+    // Measured by _updateConnectorLines to find where the connector lines
+    // should actually terminate — the frame is the real visual boundary
+    // (border, clip-path corners), not `wrapper`, which also contains the
+    // corner ornaments sitting outside that boundary.
+    this.portraitFrame = frame;
 
     const image = document.createElement("img");
     image.alt = "Persona portrait";
@@ -1270,10 +1285,17 @@ QM.dock = {
     image.addEventListener("error", () => {
       image.style.display = "none";
       placeholder.style.display = "flex";
+      requestAnimationFrame(() => this._updateConnectorLines());
     });
     image.addEventListener("load", () => {
       image.style.display = "block";
       placeholder.style.display = "none";
+      // The one geometry change that doesn't go through a full
+      // _buildEquippedSection() rebuild — a freshly loaded avatar can change
+      // the frame's rendered size (different aspect ratio than whatever was
+      // showing before), so the connector lines need their own explicit
+      // recompute here.
+      requestAnimationFrame(() => this._updateConnectorLines());
     });
     this.portraitPlaceholder = placeholder;
 
@@ -1300,11 +1322,52 @@ QM.dock = {
   // rebuilt here) so the avatar <img> element survives every repaint.
   _buildEquippedSection() {
     const wrapper = document.createElement("div");
-    Object.assign(wrapper.style, { display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" });
+    Object.assign(wrapper.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+      alignItems: "center",
+      position: "relative",
+    });
+
+    // Reset fresh each rebuild — _buildOverlaySlotBox populates this as it
+    // creates each box, keyed by slot, so _updateConnectorLines knows which
+    // element to measure and which frame edge it should reach toward without
+    // re-deriving "which side is this slot on" from scratch every time.
+    this.equippedSlotBoxRefs = new Map();
+
+    // Painted first so slot boxes/portrait (opaque, drawn after in DOM
+    // order) sit visually on top of the lines rather than the lines
+    // crossing over them — only the small connection nodes are meant to
+    // read as touching an edge. Absolutely positioned to fill `wrapper`
+    // exactly (inset: 0), remeasured by _updateConnectorLines once real
+    // layout exists — building the lines here would just measure zeros,
+    // since nothing's attached to the document yet at this point.
+    const connectorSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    // width/height: 100% is load-bearing, not redundant with inset: 0 — SVG
+    // is a replaced element, and a replaced element's auto-height under
+    // position:absolute falls back to its intrinsic size (an SVG's default
+    // is literally 300x150, the same classic default <canvas> has) rather
+    // than actually stretching to the containing block the way an ordinary
+    // div would. Confirmed live in _planning/scratch/connector-lines-lab.html
+    // — inset: 0 alone silently clipped every line past the first ~150px.
+    Object.assign(connectorSvg.style, {
+      position: "absolute",
+      inset: "0",
+      width: "100%",
+      height: "100%",
+      pointerEvents: "none",
+    });
+    this.connectorSvg = connectorSvg;
+    wrapper.appendChild(connectorSvg);
 
     const topRow = document.createElement("div");
     Object.assign(topRow.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
-    for (const slot of QM_OVERLAY_TOP_SLOTS) topRow.appendChild(this._buildOverlaySlotBox(slot));
+    for (const slot of QM_OVERLAY_TOP_SLOTS) {
+      const box = this._buildOverlaySlotBox(slot);
+      this.equippedSlotBoxRefs.set(slot, { element: box, side: "top" });
+      topRow.appendChild(box);
+    }
     wrapper.appendChild(topRow);
 
     const middleRow = document.createElement("div");
@@ -1325,8 +1388,12 @@ QM.dock = {
       // QM_OVERLAY_SLOT_PAIRS's own comment — so checking the left slot
       // alone is enough to decide the whole row.
       if (!QM.state.slotVisible(leftSlot)) continue;
-      leftColumn.appendChild(this._buildOverlaySlotBox(leftSlot));
-      rightColumn.appendChild(this._buildOverlaySlotBox(rightSlot));
+      const leftBox = this._buildOverlaySlotBox(leftSlot);
+      const rightBox = this._buildOverlaySlotBox(rightSlot);
+      this.equippedSlotBoxRefs.set(leftSlot, { element: leftBox, side: "left" });
+      this.equippedSlotBoxRefs.set(rightSlot, { element: rightBox, side: "right" });
+      leftColumn.appendChild(leftBox);
+      rightColumn.appendChild(rightBox);
     }
 
     middleRow.append(leftColumn, this.portraitWrapper, rightColumn);
@@ -1334,10 +1401,119 @@ QM.dock = {
 
     const bottomRow = document.createElement("div");
     Object.assign(bottomRow.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
-    for (const slot of QM_OVERLAY_BOTTOM_SLOTS) bottomRow.appendChild(this._buildOverlaySlotBox(slot));
+    for (const slot of QM_OVERLAY_BOTTOM_SLOTS) {
+      const box = this._buildOverlaySlotBox(slot);
+      this.equippedSlotBoxRefs.set(slot, { element: box, side: "bottom" });
+      bottomRow.appendChild(box);
+    }
     wrapper.appendChild(bottomRow);
 
     return wrapper;
+  },
+
+  // Called (via requestAnimationFrame, so real layout exists) after every
+  // _buildEquippedSection() attach, after a Thumbnail Size change, and after
+  // the portrait image itself finishes loading (the one case that changes
+  // the frame's rendered size without going through a full section
+  // rebuild). Fully rebuilds the connector SVG's contents every time rather
+  // than trying to incrementally patch it — geometry can change for enough
+  // different reasons (selection, equip state, resize, image load) that a
+  // full recompute is simpler and cheap enough at this scale (≤16 slots).
+  _updateConnectorLines() {
+    const svg = this.connectorSvg;
+    const frame = this.portraitFrame;
+    if (!svg || !frame || !svg.isConnected) return;
+    const containerRect = svg.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    if (containerRect.width === 0 || containerRect.height === 0) return;
+    svg.setAttribute("width", String(containerRect.width));
+    svg.setAttribute("height", String(containerRect.height));
+    svg.replaceChildren();
+
+    // Frame edges in container-relative coordinates.
+    const frameLeft = frameRect.left - containerRect.left;
+    const frameTop = frameRect.top - containerRect.top;
+    const frameRight = frameLeft + frameRect.width;
+    const frameBottom = frameTop + frameRect.height;
+
+    // Boxes on the same side are distributed across the matching frame edge
+    // in the same relative order they appear on screen (top-to-bottom for
+    // the side columns, left-to-right for the top/bottom rows) — a fan of
+    // distinct connection points, not every line converging on one spot.
+    const bySide = { top: [], bottom: [], left: [], right: [] };
+    for (const [slot, ref] of this.equippedSlotBoxRefs) {
+      if (!ref.element.isConnected) continue;
+      bySide[ref.side].push({ slot, rect: ref.element.getBoundingClientRect() });
+    }
+    bySide.top.sort((a, b) => a.rect.left - b.rect.left);
+    bySide.bottom.sort((a, b) => a.rect.left - b.rect.left);
+    bySide.left.sort((a, b) => a.rect.top - b.rect.top);
+    bySide.right.sort((a, b) => a.rect.top - b.rect.top);
+
+    const qmFrameSpread = (list, from, to) =>
+      list.map((entry, index) => from + ((to - from) * (index + 1)) / (list.length + 1));
+
+    const topPoints = qmFrameSpread(bySide.top, frameLeft + 6, frameRight - 6);
+    const bottomPoints = qmFrameSpread(bySide.bottom, frameLeft + 6, frameRight - 6);
+    const leftPoints = qmFrameSpread(bySide.left, frameTop + 6, frameBottom - 6);
+    const rightPoints = qmFrameSpread(bySide.right, frameTop + 6, frameBottom - 6);
+
+    const qmDrawConnector = (slot, boxX, boxY, frameX, frameY) => {
+      const selected = this.selectedSlot === slot;
+      const opacity = selected ? 0.85 : 0.32;
+      const midX = (boxX + frameX) / 2;
+      const midY = (boxY + frameY) / 2;
+      // A gentle bow rather than a straight segment — offset the midpoint
+      // perpendicular to the line's own direction, scaled down for short
+      // lines so it never overshoots into a visible kink.
+      const dx = frameX - boxX;
+      const dy = frameY - boxY;
+      const length = Math.hypot(dx, dy) || 1;
+      const bow = Math.min(10, length * 0.12);
+      const curveX = midX + (-dy / length) * bow;
+      const curveY = midY + (dx / length) * bow;
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", `M ${boxX} ${boxY} Q ${curveX} ${curveY} ${frameX} ${frameY}`);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "var(--primary, #7a5cff)");
+      path.setAttribute("stroke-width", selected ? "1.6" : "1");
+      path.setAttribute("opacity", String(opacity));
+      svg.appendChild(path);
+
+      for (const [x, y] of [
+        [boxX, boxY],
+        [frameX, frameY],
+      ]) {
+        const node = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        node.setAttribute("cx", String(x));
+        node.setAttribute("cy", String(y));
+        node.setAttribute("r", selected ? "2.4" : "1.8");
+        node.setAttribute("fill", "var(--primary, #7a5cff)");
+        node.setAttribute("opacity", String(opacity));
+        svg.appendChild(node);
+      }
+    };
+
+    for (const [slot, ref] of this.equippedSlotBoxRefs) {
+      if (!ref.element.isConnected) continue;
+      const box = ref.element.getBoundingClientRect();
+      const boxX = box.left - containerRect.left + box.width / 2;
+      const boxY = box.top - containerRect.top + box.height / 2;
+      if (ref.side === "top") {
+        const index = bySide.top.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, boxX, box.bottom - containerRect.top, topPoints[index], frameTop);
+      } else if (ref.side === "bottom") {
+        const index = bySide.bottom.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, boxX, box.top - containerRect.top, bottomPoints[index], frameBottom);
+      } else if (ref.side === "left") {
+        const index = bySide.left.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, box.right - containerRect.left, boxY, frameLeft, leftPoints[index]);
+      } else if (ref.side === "right") {
+        const index = bySide.right.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, box.left - containerRect.left, boxY, frameRight, rightPoints[index]);
+      }
+    }
   },
 
   // One equip-slot overlay box, in one of three visual states: empty
