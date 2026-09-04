@@ -925,56 +925,6 @@ export async function activate(context) {
         return reply.send(buffer);
       });
 
-      // TEMP DEBUG — remove before pushing to origin/Quartermaster. Shows
-      // exactly what the server sees: the resolved items/ dir, every file
-      // in it (recursively) with its own computed match key, every current
-      // item's own computed key, and whether they match — so a mismatch is
-      // visible directly instead of guessed at. No :itemId needed — covers
-      // every item in the chat at once.
-      routes.get("/inventory/:chatId/:ownerId/items-image-debug", async (request, reply) => {
-        const { chatId, ownerId } = request.params;
-        const state = await loadInventoryState(documents, chatId, ownerId);
-        const dir = galleryItemsDir(context.dataDir);
-
-        async function listRecursive(d, relativeTo) {
-          let entries;
-          try {
-            entries = await readdir(d, { withFileTypes: true });
-          } catch (error) {
-            return [{ error: `${d}: ${error?.message ?? String(error)}` }];
-          }
-          let out = [];
-          for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-            if (entry.isFile()) {
-              const dot = entry.name.lastIndexOf(".");
-              const base = dot > 0 ? entry.name.slice(0, dot) : entry.name;
-              const ext = dot > 0 ? entry.name.slice(dot + 1).toLowerCase() : "";
-              out.push({
-                path: relativeTo ? `${relativeTo}/${entry.name}` : entry.name,
-                base,
-                ext,
-                key: qmNormalizeMatchKey(base),
-                recognizedExt: Boolean(ITEM_IMAGE_EXT_TO_CONTENT_TYPE[ext]),
-              });
-            } else if (entry.isDirectory()) {
-              out = out.concat(await listRecursive(join(d, entry.name), relativeTo ? `${relativeTo}/${entry.name}` : entry.name));
-            }
-          }
-          return out;
-        }
-
-        const allFiles = await listRecursive(dir, "");
-        const items = await Promise.all(
-          state.items.map(async (item) => {
-            const key = qmNormalizeMatchKey(item.name);
-            const found = await findItemImageFile(dir, key);
-            return { itemName: item.name, itemKey: key, findItemImageFileResult: found };
-          }),
-        );
-
-        return { dataDir: context.dataDir, itemsDir: dir, allFiles, items };
-      });
-
       // Uploads an image for this item, straight into gallery/quartermaster/items/
       // (never a subfolder — those are reserved for a hand-placed image pack,
       // never touched by upload/remove). Named after the item's OWN normalized
