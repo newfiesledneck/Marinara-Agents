@@ -15,7 +15,10 @@ still needed, it is not in its final state.
 
 - **Equip slots** — 16 slots (head, neck, eyes, ears, armor torso/legs, clothing torso/legs,
   underwear top/bottom, back, hands, weapon left/right hand, feet, belt), grouped into a
-  portrait ring in the dock.
+  portrait ring in the dock. The equipped item's own image (or the slot's fallback pictogram)
+  fills the whole slot box; the slot name and item name/"Empty" are overlay bands top and bottom,
+  each with their own small translucent backing rather than one dimming layer across the box, so
+  the image itself stays fully visible in the gap between the two bands.
 - **Item locations** — `bag` (carried), `equipped:<slot>`, or `stored:<name>` (a named stash).
 - **Saved outfits** — snapshot the current equip state under a name, equip/unequip it later in
   one step.
