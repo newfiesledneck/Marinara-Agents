@@ -1527,13 +1527,88 @@
           },
           {
             "path": "client.js",
-            "sha256": "29dfc23c0356bbeea44c34061b8b5fc56ab443720d46b6f0cbcc2085dabc1aef",
-            "bytes": 64179
+            "sha256": "b2b45cfecc65a43e1d6778799f171e4383200431dfb787550ad14731f22968db",
+            "bytes": 64595
           },
           {
             "path": "server.mjs",
-            "sha256": "dc5f7388aa231f688340f9d4b272db6f87d65f1d0b9046d4a8535d5c2d25a0a5",
-            "bytes": 67090
+            "sha256": "18edd0b061858464550521215fd435d323719fd59e86467153b3209db93aefdf",
+            "bytes": 70106
+          },
+          {
+            "path": "icons/armor_legs.webp",
+            "sha256": "1d269fb43b6f8b093f3fd089afdd5827b1d10f79c071d8ad543e137a89e66d30",
+            "bytes": 2030
+          },
+          {
+            "path": "icons/armor_torso.webp",
+            "sha256": "a0cfc8117b7a6981598367b46f4959e43f934cb642d16adfb8893c050164f734",
+            "bytes": 2326
+          },
+          {
+            "path": "icons/back.webp",
+            "sha256": "4a57145191c5ea975638a2af057563777345bda2b03eaa4532ff98a515c331a5",
+            "bytes": 2280
+          },
+          {
+            "path": "icons/belt.webp",
+            "sha256": "b979ec495af5cc05a59eac111f694a5c81aaffff066188843d136c2aafc30232",
+            "bytes": 1374
+          },
+          {
+            "path": "icons/clothing_legs.webp",
+            "sha256": "a7106f92aa244e17f4c41629eac571526ba113c61524cb61b3688278b052ff1b",
+            "bytes": 1848
+          },
+          {
+            "path": "icons/clothing_torso.webp",
+            "sha256": "82b73b8b2a9dcb1ceb585774556b7f613561c8803c0826cdc90406e3c4fe3c06",
+            "bytes": 2632
+          },
+          {
+            "path": "icons/ears.webp",
+            "sha256": "a79a22fd0377276da0843f19ee45010e885ccce8bd686cf02a82d844b5dbd7ac",
+            "bytes": 1138
+          },
+          {
+            "path": "icons/eyes.webp",
+            "sha256": "3b3273143f87268af1508f53bc038d8a77840ec834a2899645f3f5a2a24d2a70",
+            "bytes": 808
+          },
+          {
+            "path": "icons/feet.webp",
+            "sha256": "b5fbda9ef55e0549d70c443481400db51b8bc83f54e221225f5272eeba88ba76",
+            "bytes": 2094
+          },
+          {
+            "path": "icons/hands.webp",
+            "sha256": "9571b37a56fa3a4de52dabc1156806b90ce1bd9ab55c024ab2b73cd14205feb6",
+            "bytes": 1848
+          },
+          {
+            "path": "icons/head.webp",
+            "sha256": "83429ea49ae9804a307323874e10349a1099f83c2328a4b96a0544e69ae9dee9",
+            "bytes": 1376
+          },
+          {
+            "path": "icons/neck.webp",
+            "sha256": "ccf8d56d7c382c19d0b9fac3c381d9cc2d2a022edd97781a3aacb6a591897d35",
+            "bytes": 1820
+          },
+          {
+            "path": "icons/underwear_bottom.webp",
+            "sha256": "659f2965f851e9000af8a4383c58d71c5c77dd716a74dfcea0f5a74885f870f3",
+            "bytes": 1426
+          },
+          {
+            "path": "icons/underwear_top.webp",
+            "sha256": "9c1f1ccff6bd6a37dfa349513a1a4a677b3090a8bb245c4b0e065f3f6b3d1ac6",
+            "bytes": 1624
+          },
+          {
+            "path": "icons/weapon_left_hand.webp",
+            "sha256": "81fd8cabb43b1568e4438999f79fb84a13a7b606567729af276e828a0cb3f908",
+            "bytes": 388
           }
         ],
         "permissions": [
@@ -1552,8 +1627,8 @@
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/quartermaster/README.md",
       "artifact": {
         "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.1.1.zip",
-        "sha256": "f26cceb9fc1114b3cb61440c1f410f94cd21d8a98fba0355791e6894bf5f8f89",
-        "bytes": 136739
+        "sha256": "becb61d21211c9b5801c9418c6893996402235524c43f7a989cd47989effd597",
+        "bytes": 169219
       }
     },
     {
