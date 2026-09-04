@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { transform } from "esbuild";
 import { readCatalogFamily, writeCatalogFamily } from "./catalog-lanes.mjs";
 import { withPackageActivationGuidance } from "./catalog-package-guidance.mjs";
 import { writeEnglishPackageLocale } from "./package-locales.mjs";
@@ -86,12 +87,12 @@ const body = [];
 for (const part of parts) {
   body.push(`// ===== ${part} =====\n${await readTextNormalized(join(srcDir, part))}`);
 }
-const clientBuffer = Buffer.from(`${banner}(() => {\n"use strict";\n${body.join("\n")}\n})();\n`, "utf8");
+const readableClientSource = `${banner}(() => {\n"use strict";\n${body.join("\n")}\n})();\n`;
 
 const syntaxCheckDir = await mkdtemp(join(tmpdir(), "quartermaster-syntax-"));
 try {
   const syntaxCheckPath = join(syntaxCheckDir, "client.check.mjs");
-  await writeFile(syntaxCheckPath, clientBuffer);
+  await writeFile(syntaxCheckPath, readableClientSource);
   const checked = spawnSync(process.execPath, ["--check", syntaxCheckPath], { encoding: "utf8" });
   if (checked.status !== 0) {
     throw new Error(checked.stderr || checked.stdout || "Quartermaster client bundle failed the syntax check");
@@ -99,6 +100,26 @@ try {
 } finally {
   await rm(syntaxCheckDir, { recursive: true, force: true });
 }
+
+// Minified, not the readable concatenation above — the Engine's own install
+// fetch enforces a hard response-size cap (confirmed live: a 206,956-byte
+// artifact failed with "Outbound response exceeded 199790 bytes"), and this
+// package has grown past it on plain concatenation alone. Minifying (not
+// just this file, but what actually gets committed/shipped) is the
+// sustainable fix — trimming comments by hand only buys one release cycle
+// before the next feature grows past the cap again.
+//
+// package-manifest-integrity.mjs's assertDeclaredFilesMatchManifest hard-
+// requires the committed source file and the archived copy inside the zip
+// to be byte-identical (the exact rule that caught #544/#545's real
+// source/artifact drift bug) — so this can't be "readable in git, minified
+// only in the shipped zip" the way that might first seem tidier. The
+// minified bundle becomes packages/quartermaster/client.js itself. That's
+// an acceptable trade given client.js is already documented as "generated —
+// do not edit"; the real review target for a change is src/*.js, same as
+// before this.
+const minified = await transform(readableClientSource, { minify: true, loader: "js" });
+const clientBuffer = Buffer.from(minified.code, "utf8");
 
 // ── Server entrypoint: hand-authored, hashed as-is ───────────────────────────
 const serverPath = join(packageRoot, "server.mjs");
