@@ -1674,13 +1674,18 @@ QM.dock = {
       if (event.target.closest("[data-qm-unequip]")) return; // the × badge handles its own click
       const nowSelecting = !selected;
       this.selectedSlot = nowSelecting ? slot : null;
-      // Selecting (not deselecting) a slot searches the Bag for exactly
-      // what could fill it — a real navigational shortcut, not just a
-      // visual highlight. Only on select: deselecting leaves whatever
-      // search the user already had alone rather than surprise-clearing it.
+      // Selecting a slot searches the Bag for exactly what could fill it —
+      // a real navigational shortcut, not just a visual highlight.
+      // Deselecting that same slot (clicking it again) clears that search
+      // back out rather than leaving a stale filter the user has to notice
+      // and clear by hand — the slot-driven search and the slot's own
+      // selected state are meant to track each other.
       if (nowSelecting) {
         this.bagSearchMode = "slot";
         this.bagSearchQuery = QM_SLOT_LABELS[slot];
+      } else {
+        this.bagSearchMode = "name";
+        this.bagSearchQuery = "";
       }
       this._paint();
     });
