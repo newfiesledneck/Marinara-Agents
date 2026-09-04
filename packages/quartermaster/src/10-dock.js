@@ -119,11 +119,52 @@ const QM_PORTRAIT_SCALE = {
 // regardless of which is showing. Border/glow use the theme's own accent
 // (var(--primary)), not a fixed brand color, so it matches whatever accent
 // the user's actually set in the Engine rather than a hardcoded look.
+// Applied to the FRAME (the div wrapping the image/placeholder), not to the
+// image/placeholder themselves — clip-path clips a box's descendants along
+// with itself, so a child image's square corners are cut away for free
+// wherever they'd fall inside the octagon's notches, with no separate
+// clip-path needed on the image. The frame's own small padding is what makes
+// that backing/mat visible as a ring around the portrait rather than the
+// image filling the clipped shape edge-to-edge. Two box-shadow layers: the
+// outer glow (unchanged from before) plus a thin inset hairline for a subtle
+// "double border" look — same technique, no extra DOM needed for it.
 const QM_PORTRAIT_FRAME_STYLE = {
   clipPath: "polygon(12% 0%, 88% 0%, 100% 12%, 100% 88%, 88% 100%, 12% 100%, 0% 88%, 0% 12%)",
   border: "2px solid var(--primary, #444)",
-  boxShadow: "0 0 12px color-mix(in srgb, var(--primary, #444) 45%, transparent)",
+  padding: "3px",
+  background: "color-mix(in srgb, var(--primary, #444) 10%, rgba(0, 0, 0, 0.55))",
+  boxShadow:
+    "0 0 12px color-mix(in srgb, var(--primary, #444) 45%, transparent), " +
+    "inset 0 0 0 1px color-mix(in srgb, var(--primary, #444) 35%, transparent)",
+  boxSizing: "border-box",
 };
+
+// A small diamond accent sitting near one corner of the portrait frame,
+// echoing the frame's own cut-corner shape without needing to be pixel-exact
+// against the clip-path's diagonal — subtle is the goal here, not precision.
+// Lives on `wrapper` (a sibling of the clipped `frame`, not a child of it) —
+// anything placed inside `frame` itself would be clipped away wherever it
+// fell in one of the octagon's cut notches, corners included.
+function qmBuildPortraitCornerAccent(corner) {
+  const mark = document.createElement("span");
+  mark.setAttribute("aria-hidden", "true");
+  const edge = 5;
+  const offset = "-2px";
+  Object.assign(mark.style, {
+    position: "absolute",
+    width: `${edge}px`,
+    height: `${edge}px`,
+    background: "var(--primary, #444)",
+    opacity: "0.75",
+    transform: "rotate(45deg)",
+    pointerEvents: "none",
+    top: corner.includes("top") ? offset : "auto",
+    bottom: corner.includes("bottom") ? offset : "auto",
+    left: corner.includes("left") ? offset : "auto",
+    right: corner.includes("right") ? offset : "auto",
+  });
+  return mark;
+}
 
 function qmClampWindowValue(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -1123,14 +1164,26 @@ QM.dock = {
   // falling back to the persona's real avatar otherwise.
   _buildPortrait() {
     const wrapper = document.createElement("div");
-    Object.assign(wrapper.style, { display: "flex", justifyContent: "center", marginBottom: "8px" });
+    Object.assign(wrapper.style, {
+      display: "flex",
+      justifyContent: "center",
+      marginBottom: "8px",
+      position: "relative",
+    });
 
     // No fixed box — the frame just centers whatever's inside it. A fixed
     // square with object-fit: cover was cropping non-square avatars; capping
     // width/height on the <img> itself and letting it size naturally (below)
-    // shows the whole portrait at its real aspect ratio instead.
+    // shows the whole portrait at its real aspect ratio instead. The frame
+    // itself (not the image/placeholder) carries QM_PORTRAIT_FRAME_STYLE now
+    // — see that constant's own comment for why.
     const frame = document.createElement("div");
-    Object.assign(frame.style, { display: "flex", alignItems: "center", justifyContent: "center" });
+    Object.assign(frame.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      ...QM_PORTRAIT_FRAME_STYLE,
+    });
 
     const image = document.createElement("img");
     image.alt = "Persona portrait";
@@ -1146,7 +1199,6 @@ QM.dock = {
       width: "auto",
       height: "auto",
       objectFit: "contain",
-      ...QM_PORTRAIT_FRAME_STYLE,
       display: hasAvatar ? "block" : "none",
     });
     if (hasAvatar) image.src = QM.state.personaAvatarUrl;
@@ -1157,7 +1209,6 @@ QM.dock = {
     Object.assign(placeholder.style, {
       width: `${Math.round(120 * portraitScale)}px`,
       height: `${Math.round(120 * portraitScale)}px`,
-      ...QM_PORTRAIT_FRAME_STYLE,
       background: "var(--muted, rgba(128,128,128,0.15))",
       display: hasAvatar ? "none" : "flex",
       alignItems: "center",
@@ -1176,7 +1227,13 @@ QM.dock = {
     this.portraitPlaceholder = placeholder;
 
     frame.append(image, placeholder);
-    wrapper.appendChild(frame);
+    wrapper.append(
+      frame,
+      qmBuildPortraitCornerAccent("top left"),
+      qmBuildPortraitCornerAccent("top right"),
+      qmBuildPortraitCornerAccent("bottom left"),
+      qmBuildPortraitCornerAccent("bottom right"),
+    );
     return wrapper;
   },
 
