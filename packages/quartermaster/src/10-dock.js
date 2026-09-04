@@ -1493,20 +1493,24 @@ QM.dock = {
     const leftPoints = qmFrameSpread(bySide.left, frameTop + 6, frameBottom - 6);
     const rightPoints = qmFrameSpread(bySide.right, frameTop + 6, frameBottom - 6);
 
-    const qmDrawConnector = (slot, boxX, boxY, frameX, frameY) => {
+    const qmDrawConnector = (slot, side, boxX, boxY, frameX, frameY) => {
       const selected = this.selectedSlot === slot;
       const opacity = selected ? 0.85 : 0.32;
       const midX = (boxX + frameX) / 2;
       const midY = (boxY + frameY) / 2;
-      // A gentle bow rather than a straight segment — offset the midpoint
-      // perpendicular to the line's own direction, scaled down for short
-      // lines so it never overshoots into a visible kink.
-      const dx = frameX - boxX;
-      const dy = frameY - boxY;
-      const length = Math.hypot(dx, dy) || 1;
+      // A gentle bow rather than a straight segment. Fixed axis-aligned
+      // offset, not perpendicular-to-this-line's-own-direction (the
+      // previous approach) — a per-line perpendicular flips sign between
+      // the left and right columns (their dx has opposite sign), which
+      // rotates the curve 180° instead of mirroring it: left bowed down,
+      // right bowed up, an visibly asymmetric pair rather than a matched
+      // one. A fixed bow direction per side-group is trivially mirror-
+      // symmetric instead — left/right always bow the same vertical way,
+      // top/bottom always bow the same horizontal way.
+      const length = Math.hypot(frameX - boxX, frameY - boxY) || 1;
       const bow = Math.min(10, length * 0.12);
-      const curveX = midX + (-dy / length) * bow;
-      const curveY = midY + (dx / length) * bow;
+      const curveX = side === "top" || side === "bottom" ? midX + bow : midX;
+      const curveY = side === "left" || side === "right" ? midY + bow : midY;
 
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", `M ${boxX} ${boxY} Q ${curveX} ${curveY} ${frameX} ${frameY}`);
@@ -1537,16 +1541,16 @@ QM.dock = {
       const boxY = box.top - containerRect.top + box.height / 2;
       if (ref.side === "top") {
         const index = bySide.top.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, boxX, box.bottom - containerRect.top, topPoints[index], frameTop);
+        qmDrawConnector(slot, "top", boxX, box.bottom - containerRect.top, topPoints[index], frameTop);
       } else if (ref.side === "bottom") {
         const index = bySide.bottom.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, boxX, box.top - containerRect.top, bottomPoints[index], frameBottom);
+        qmDrawConnector(slot, "bottom", boxX, box.top - containerRect.top, bottomPoints[index], frameBottom);
       } else if (ref.side === "left") {
         const index = bySide.left.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, box.right - containerRect.left, boxY, frameLeft, leftPoints[index]);
+        qmDrawConnector(slot, "left", box.right - containerRect.left, boxY, frameLeft, leftPoints[index]);
       } else if (ref.side === "right") {
         const index = bySide.right.findIndex((entry) => entry.slot === slot);
-        qmDrawConnector(slot, box.left - containerRect.left, boxY, frameRight, rightPoints[index]);
+        qmDrawConnector(slot, "right", box.left - containerRect.left, boxY, frameRight, rightPoints[index]);
       }
     }
   },
