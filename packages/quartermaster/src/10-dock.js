@@ -233,6 +233,41 @@ function qmClampWindowValue(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+// A related but deliberately simpler sibling to the portrait's own frame —
+// same theme-colored border + soft glow language, but a plain rounded rect
+// (no clip-path cut corners: a compact list row's image/text would bite
+// against a cut notch at this size) with small corner dots instead of
+// scrollwork — the same accent the portrait frame carried before its own
+// curl-ornament upgrade, reused here rather than reinvented.
+const QM_ITEM_CARD_FRAME_STYLE = {
+  border: "1px solid var(--primary, #444)",
+  borderRadius: "var(--radius, 4px)",
+  padding: "5px 7px",
+  boxShadow: "0 0 6px color-mix(in srgb, var(--primary, #444) 25%, transparent)",
+  boxSizing: "border-box",
+};
+
+function qmBuildCardCornerDot(corner) {
+  const dot = document.createElement("span");
+  dot.setAttribute("aria-hidden", "true");
+  const edge = 5;
+  const offset = "-2px";
+  Object.assign(dot.style, {
+    position: "absolute",
+    width: `${edge}px`,
+    height: `${edge}px`,
+    background: "var(--primary, #444)",
+    opacity: "0.75",
+    transform: "rotate(45deg)",
+    pointerEvents: "none",
+    top: corner.includes("top") ? offset : "auto",
+    bottom: corner.includes("bottom") ? offset : "auto",
+    left: corner.includes("left") ? offset : "auto",
+    right: corner.includes("right") ? offset : "auto",
+  });
+  return dot;
+}
+
 // "The persona" (the export route's own fallback when there's no active
 // persona) collapses to an empty slug, which the caller treats as "leave it
 // out of the filename" rather than downloading a file literally named
@@ -354,6 +389,7 @@ QM.dock = {
   // cleared by picking an item, clicking the same slot again, closing the
   // dock, or switching chats (see close()/QM.state.setChat's own reset).
   selectedSlot: null,
+  itemEditorBackdrop: null,
   _windowBound: false,
   _outsideClickBound: false,
   _interaction: null,
@@ -390,6 +426,7 @@ QM.dock = {
     this.portraitFrame = null;
     this.connectorSvg = null;
     this.equippedSlotBoxRefs = null;
+    this.itemEditorBackdrop = null;
   },
 
   isOpen() {
@@ -420,6 +457,7 @@ QM.dock = {
   close() {
     this.isOpenFlag = false;
     this.selectedSlot = null;
+    this._closeItemEditor();
     if (this.root) this.root.classList.add("qm-dock-collapsed");
     if (this.unsubscribe) {
       this.unsubscribe();
@@ -2155,36 +2193,56 @@ QM.dock = {
     return list;
   },
 
+  // Read-only display card — name/slot/description/stored-at are no longer
+  // inline-editable here (see _openItemEditor's own comment for where that
+  // moved). Only quantity stays directly on the card, per the request: it's
+  // the one field someone adjusts constantly during play (used a charge,
+  // picked up another), while the rest are set-once-and-rarely-touched.
+  // Three stacked mini-rows beside one full-height image, matching the
+  // layout spec exactly:
+  //   name ............................. qty  [Delete]
+  //   slot .................................... Stored at: X
+  //   description preview ............ [Edit] [Equip]
   _buildItemRow(item) {
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
+      gap: "8px",
+      alignItems: "stretch",
+      position: "relative",
+      ...QM_ITEM_CARD_FRAME_STYLE,
+    });
+    for (const corner of ["top left", "top right", "bottom left", "bottom right"]) {
+      row.appendChild(qmBuildCardCornerDot(corner));
+    }
+
+    const imageControl = this._buildItemImageControl(item, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
+
+    const detailsColumn = document.createElement("div");
+    Object.assign(detailsColumn.style, {
+      display: "flex",
       flexDirection: "column",
+      justifyContent: "space-between",
       gap: "4px",
-      border: "1px solid var(--border, rgba(128,128,128,0.3))",
-      borderRadius: "var(--radius, 4px)",
-      padding: "4px 6px",
+      flex: "1",
+      minWidth: "0",
     });
 
-    const topLine = document.createElement("div");
-    Object.assign(topLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-
-    // Editable in place, same trigger (change/blur) as every other field on
-    // the card — renaming pushes through to any saved outfit's own snapshot
-    // of this item too (server.mjs's items PATCH route), so a renamed item
-    // doesn't show its old name the next time an outfit that equips it gets
-    // re-equipped.
-    const nameInput = QM.smallInput("input");
-    nameInput.type = "text";
-    nameInput.value = item.name;
-    nameInput.style.flex = "1";
-    nameInput.style.fontWeight = "600";
-    nameInput.addEventListener("change", () => {
-      const name = nameInput.value.trim();
-      if (name) QM.state.updateItem(item.id, { name });
-      else nameInput.value = item.name; // Empty isn't a valid name — revert rather than submit it.
+    const nameLine = document.createElement("div");
+    Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = item.name;
+    Object.assign(nameLabel.style, {
+      flex: "1",
+      minWidth: "0",
+      fontWeight: "600",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
     });
 
+    // Same up/down adjustment as before (a plain number input's native
+    // spinner) — the one field that stays directly editable on the card.
     const quantityInput = QM.smallInput("input");
     quantityInput.type = "number";
     // 0 is a legitimate quantity now ("used up but still tracked" — the same
@@ -2197,34 +2255,145 @@ QM.dock = {
 
     const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
     deleteButton.addEventListener("click", () => QM.state.deleteItem(item.id));
+    nameLine.append(nameLabel, quantityInput, deleteButton);
 
-    topLine.append(nameInput, quantityInput, deleteButton);
-
-    // Left half: the item's image (uploaded, or matched by name from a
-    // hand-placed image pack — see _buildItemImageControl's own comment).
-    // Right half: everything else, stacked, at whatever's left of the
-    // card's width instead of spanning full-width like before.
-    const bodyRow = document.createElement("div");
-    Object.assign(bodyRow.style, { display: "flex", gap: "8px", alignItems: "flex-start" });
-
-    const imageControl = this._buildItemImageControl(item, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
-
-    const detailsColumn = document.createElement("div");
-    Object.assign(detailsColumn.style, {
-      display: "flex",
-      flexDirection: "column",
-      gap: "4px",
+    const slotLine = document.createElement("div");
+    Object.assign(slotLine.style, { display: "flex", alignItems: "center", gap: "6px", fontSize: "11px" });
+    const slotLabel = document.createElement("span");
+    slotLabel.textContent = item.defaultSlot ? QM_SLOT_LABELS[item.defaultSlot] : "Default Slot";
+    Object.assign(slotLabel.style, {
       flex: "1",
       minWidth: "0",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      color: item.defaultSlot ? "inherit" : "var(--muted-foreground, currentcolor)",
+      fontStyle: item.defaultSlot ? "normal" : "italic",
     });
+    const storedLabel = document.createElement("span");
+    storedLabel.textContent = `Stored at: ${item.location.startsWith("stored:") ? item.location.slice("stored:".length) : "Bag"}`;
+    Object.assign(storedLabel.style, { color: "var(--muted-foreground, currentcolor)", whiteSpace: "nowrap" });
+    slotLine.append(slotLabel, storedLabel);
+
+    const descriptionLine = document.createElement("div");
+    Object.assign(descriptionLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const descriptionPreview = document.createElement("span");
+    descriptionPreview.textContent = item.description || "No description";
+    Object.assign(descriptionPreview.style, {
+      flex: "1",
+      minWidth: "0",
+      fontSize: "11px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      color: item.description ? "var(--muted-foreground, currentcolor)" : "var(--muted-foreground, currentcolor)",
+      fontStyle: item.description ? "normal" : "italic",
+    });
+    const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
+    editButton.addEventListener("click", () => this._openItemEditor(item));
+    const equipButton = QM.button("Equip");
+    // A stored defaultSlot can still point at a slot whose group has since
+    // been hidden (the editor's slot picker just won't offer it as an
+    // option anymore) — block the shortcut button too, or it'd be the one
+    // way left to equip into a slot a toggle is supposed to disable.
+    const canEquip = Boolean(item.defaultSlot) && QM.state.slotVisible(item.defaultSlot);
+    equipButton.disabled = !canEquip;
+    equipButton.style.opacity = canEquip ? "1" : "0.5";
+    equipButton.addEventListener("click", () => {
+      if (canEquip) QM.state.updateItem(item.id, { location: `equipped:${item.defaultSlot}` });
+    });
+    descriptionLine.append(descriptionPreview, editButton, equipButton);
+
+    detailsColumn.append(nameLine, slotLine, descriptionLine);
+    row.append(imageControl, detailsColumn);
+    return row;
+  },
+
+  // Every field that used to be inline-editable directly on the card
+  // (name, description, stored-at, default slot) except quantity now lives
+  // here instead — opened via the card's own [Edit] button. Each field
+  // still auto-applies on change/blur exactly like it did on the card
+  // (QM.defaultSlotSelect and QM.descriptionTextarea already wire their own
+  // onChange straight to QM.state.updateItem), so this is a relocation of
+  // existing controls into a focused view, not a new save/cancel flow — no
+  // "Save" button, just a close affordance once you're done. First modal
+  // this package has needed; mounted as a child of `this.root` (not
+  // document.body) so it's naturally removed if the dock itself closes, and
+  // a backdrop click only closes the editor, never the whole dock, since it
+  // never reaches the dock's own document-level outside-click listener.
+  _openItemEditor(item) {
+    this._closeItemEditor();
+    const backdrop = document.createElement("div");
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0, 0, 0, 0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      boxSizing: "border-box",
+      zIndex: "30",
+    });
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target === backdrop) this._closeItemEditor();
+    });
+
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      background: "var(--card, #1c1c1c)",
+      border: "1px solid var(--border, rgba(128,128,128,0.3))",
+      borderRadius: "var(--radius, 6px)",
+      padding: "12px",
+      width: "min(280px, 100%)",
+      maxHeight: "100%",
+      overflowY: "auto",
+      boxSizing: "border-box",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    });
+    panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("div");
+    Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between" });
+    const title = document.createElement("strong");
+    title.textContent = "Edit Item";
+    title.style.fontSize = "13px";
+    const closeButton = QM.button("×", { bg: "transparent", border: true, fg: "inherit" });
+    closeButton.style.padding = "0 6px";
+    closeButton.addEventListener("click", () => this._closeItemEditor());
+    header.append(title, closeButton);
+
+    const imageRow = document.createElement("div");
+    Object.assign(imageRow.style, { display: "flex", justifyContent: "center" });
+    imageRow.appendChild(this._buildItemImageControl(item, 96));
+
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.value = item.name;
+    nameInput.style.width = "100%";
+    nameInput.style.boxSizing = "border-box";
+    nameInput.style.fontWeight = "600";
+    // Renaming pushes through to any saved outfit's own snapshot of this
+    // item too (server.mjs's items PATCH route), so a renamed item doesn't
+    // show its old name the next time an outfit that equips it is re-equipped.
+    nameInput.addEventListener("change", () => {
+      const name = nameInput.value.trim();
+      if (name) QM.state.updateItem(item.id, { name });
+      else nameInput.value = item.name; // Empty isn't a valid name — revert rather than submit it.
+    });
+
+    const slotSelect = QM.defaultSlotSelect(item);
+    slotSelect.style.width = "100%";
+    slotSelect.style.boxSizing = "border-box";
 
     const storedLine = document.createElement("div");
     Object.assign(storedLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-
     const storedLabel = document.createElement("span");
     storedLabel.textContent = "Stored at:";
     Object.assign(storedLabel.style, { fontSize: "11px", color: "var(--muted-foreground, currentcolor)" });
-
     const storedInput = QM.smallInput("input");
     storedInput.type = "text";
     storedInput.placeholder = "bag";
@@ -2234,34 +2403,21 @@ QM.dock = {
       const text = storedInput.value.trim();
       QM.state.updateItem(item.id, { location: text ? `stored:${text}` : "bag" });
     });
-
     storedLine.append(storedLabel, storedInput);
-
-    const equipLine = document.createElement("div");
-    Object.assign(equipLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-    const defaultSlotSelect = QM.defaultSlotSelect(item);
-    defaultSlotSelect.style.flex = "1";
-    const equipButton = QM.button("Equip");
-    // A stored defaultSlot can still point at a slot whose group has since
-    // been hidden (defaultSlotSelect just won't offer it as an option
-    // anymore) — block the shortcut button too, or it'd be the one way left
-    // to equip into a slot a toggle is supposed to disable.
-    const canEquip = Boolean(item.defaultSlot) && QM.state.slotVisible(item.defaultSlot);
-    equipButton.disabled = !canEquip;
-    equipButton.style.opacity = canEquip ? "1" : "0.5";
-    equipButton.addEventListener("click", () => {
-      if (canEquip) QM.state.updateItem(item.id, { location: `equipped:${item.defaultSlot}` });
-    });
-    equipLine.append(defaultSlotSelect, equipButton);
 
     const description = QM.descriptionTextarea(item.description, (value) =>
       QM.state.updateItem(item.id, { description: value }),
     );
+    description.rows = 4;
 
-    detailsColumn.append(storedLine, equipLine, description);
-    bodyRow.append(imageControl, detailsColumn);
+    panel.append(header, imageRow, nameInput, slotSelect, storedLine, description);
+    backdrop.appendChild(panel);
+    this.itemEditorBackdrop = backdrop;
+    (this.root || this.body).appendChild(backdrop);
+  },
 
-    row.append(topLine, bodyRow);
-    return row;
+  _closeItemEditor() {
+    this.itemEditorBackdrop?.remove();
+    this.itemEditorBackdrop = null;
   },
 };
