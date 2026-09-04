@@ -64,6 +64,11 @@ still needed, it is not in its final state.
   coordinates), so they stay correct across a Thumbnail Size change, a window resize, or the
   portrait image itself finishing a load with a different aspect ratio than whatever was showing
   before.
+- **Bag item cards** — a read-only summary (image, name, slot, description preview, stored
+  location) with only quantity directly editable on the card; an Edit button opens a focused
+  editor for name, description, stored location, and default slot, plus uploading an item image.
+  Cards carry a simpler sibling of the portrait's own frame treatment (theme-colored border, soft
+  glow, small corner accents) rather than the full cut-corner/scrollwork look.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
