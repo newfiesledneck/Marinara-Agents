@@ -216,30 +216,32 @@ const QM_SLOT_LABELS = {
   feet: "Feet",
   belt: "Belt",
 };
-// The dock's equipment overlay: 8 left/right slot pairs, rendered directly
-// on top of the portrait and spread evenly along its actual rendered height
-// (10-dock.js's overlay columns use space-between for this) — there's no
-// way to pin a slot to a real anatomical pixel position without image
+// The dock's equipment overlay. Head/Eyes/Ears/Neck sit in a row above the
+// portrait, Belt/Feet below it; the remaining 5 pairs sit in columns beside
+// it, stretched to the portrait's own real rendered height and spread
+// evenly across it (10-dock.js's middleRow/space-between) — there's no way
+// to pin a slot to a real anatomical pixel position without image
 // analysis, since personas vary in aspect ratio/pose, so this spreads them
 // evenly instead. Order and pairing match a reference RPG equipment-screen
 // layout the user provided. Every pair shares a single group (or neither
 // slot has one) — never split across two different groups — so
 // group-visibility only needs one check per row; QM.state.slotVisible on
 // either slot in a pair always agrees with the other.
+const QM_OVERLAY_TOP_SLOTS = ["head", "eyes", "ears", "neck"];
+const QM_OVERLAY_BOTTOM_SLOTS = ["belt", "feet"];
 const QM_OVERLAY_SLOT_PAIRS = [
-  ["head", "ears"],
-  ["neck", "eyes"],
+  ["hands", "back"],
   ["armor_torso", "armor_legs"],
   ["clothing_torso", "clothing_legs"],
   ["underwear_top", "underwear_bottom"],
   ["weapon_left_hand", "weapon_right_hand"],
-  ["hands", "back"],
-  ["belt", "feet"],
 ];
 // Fuller than QM_SLOT_LABELS would need to be for a grouped layout with a
 // heading nearby (the old ring's short labels) — this overlay has no
 // heading to disambiguate armor vs. clothing between rows, so every label
 // carries its own context, matching the reference layout's own labels.
+// Plain string — used for the unequip button's aria-label/title, not the
+// visible box label (see QM_OVERLAY_SLOT_LABEL_LINES for that).
 const QM_OVERLAY_SLOT_LABELS = {
   head: "Head",
   neck: "Neck",
@@ -257,6 +259,30 @@ const QM_OVERLAY_SLOT_LABELS = {
   weapon_right_hand: "Right Hand Weapon",
   feet: "Feet",
   belt: "Belt",
+};
+// The visible box label, pre-split into explicit lines rather than left to
+// natural CSS wrapping — at a fixed box width, "Torso Clothing" wrapped
+// while "Legs Clothing" didn't (different first-word length), throwing the
+// two paired columns visibly out of alignment with each other. Forcing
+// every multi-word label to break at the same point keeps a pair's two
+// boxes the same height regardless of word length.
+const QM_OVERLAY_SLOT_LABEL_LINES = {
+  head: ["Head"],
+  neck: ["Neck"],
+  eyes: ["Eyes"],
+  ears: ["Ears"],
+  armor_torso: ["Torso", "Armor"],
+  armor_legs: ["Legs", "Armor"],
+  clothing_torso: ["Torso", "Clothing"],
+  clothing_legs: ["Legs", "Clothing"],
+  underwear_top: ["Top", "Underwear"],
+  underwear_bottom: ["Bottom", "Underwear"],
+  back: ["Back", "Accessory"],
+  hands: ["Hands", "Accessory"],
+  weapon_left_hand: ["Left Hand", "Weapon"],
+  weapon_right_hand: ["Right Hand", "Weapon"],
+  feet: ["Feet"],
+  belt: ["Belt"],
 };
 const QM_APPEARANCE_FEED_OPTIONS = [
   { value: "off", label: "Off" },
@@ -884,6 +910,16 @@ const QM_UI_SIZES = { S: 0.85, M: 1, L: 1.2 };
 // those cards already get rebuilt on every repaint anyway.
 const QM_THUMBNAIL_SIZE_KEY = "marinara.quartermaster.thumbnailSize";
 const QM_THUMBNAIL_SIZES = { S: 48, M: 72, L: 100 };
+// Independent from QM_THUMBNAIL_SIZES above (which still governs item/
+// outfit thumbnails, unchanged) — the portrait needs to scale far more
+// aggressively per size, since 5 equip-slot-box pairs beside it need real
+// vertical room not to overlap at S/M. S stays exactly what it was before;
+// M becomes what L used to be; L is double what L used to be.
+const QM_PORTRAIT_SCALE = {
+  S: QM_THUMBNAIL_SIZES.S / QM_THUMBNAIL_SIZES.M,
+  M: QM_THUMBNAIL_SIZES.L / QM_THUMBNAIL_SIZES.M,
+  L: (QM_THUMBNAIL_SIZES.L / QM_THUMBNAIL_SIZES.M) * 2,
+};
 
 function qmClampWindowValue(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -1505,7 +1541,7 @@ QM.dock = {
       // to the 160x200 / 120x120 box _buildPortrait() sized at "M" — live
       // here (not just at _buildPortrait()'s one-time construction) since a
       // size change repaints without rebuilding the cached portrait nodes.
-      const portraitScale = QM_THUMBNAIL_SIZES[this.thumbnailSize] / QM_THUMBNAIL_SIZES.M;
+      const portraitScale = QM_PORTRAIT_SCALE[this.thumbnailSize];
       this.portraitImage.style.maxWidth = `${Math.round(160 * portraitScale)}px`;
       this.portraitImage.style.maxHeight = `${Math.round(200 * portraitScale)}px`;
       this.portraitPlaceholder.style.width = `${Math.round(120 * portraitScale)}px`;
@@ -1883,18 +1919,18 @@ QM.dock = {
     // No fixed box — the frame just centers whatever's inside it. A fixed
     // square with object-fit: cover was cropping non-square avatars; capping
     // width/height on the <img> itself and letting it size naturally (below)
-    // shows the whole portrait at its real aspect ratio instead. position:
-    // relative so the equip-slot overlay columns (appended below) can anchor
-    // to this box's own tight bounds — not the full-width `wrapper` above
-    // it — regardless of the portrait's actual aspect ratio/size, which
-    // varies per persona and with Thumbnail Size.
+    // shows the whole portrait at its real aspect ratio instead.
     const frame = document.createElement("div");
-    Object.assign(frame.style, { position: "relative", display: "flex", alignItems: "center", justifyContent: "center" });
+    Object.assign(frame.style, { display: "flex", alignItems: "center", justifyContent: "center" });
 
     const image = document.createElement("img");
     image.alt = "Persona portrait";
     const hasAvatar = Boolean(QM.state.personaAvatarUrl);
-    const portraitScale = QM_THUMBNAIL_SIZES[this.thumbnailSize] / QM_THUMBNAIL_SIZES.M;
+    // QM_PORTRAIT_SCALE, not QM_THUMBNAIL_SIZES directly — the portrait
+    // needs to scale much more aggressively per size than item/outfit
+    // thumbnails do, since 5 slot-box pairs need real vertical room beside
+    // it not to overlap at S/M. See QM_PORTRAIT_SCALE's own comment.
+    const portraitScale = QM_PORTRAIT_SCALE[this.thumbnailSize];
     Object.assign(image.style, {
       maxWidth: `${Math.round(160 * portraitScale)}px`,
       maxHeight: `${Math.round(200 * portraitScale)}px`,
@@ -1932,66 +1968,60 @@ QM.dock = {
     });
     this.portraitPlaceholder = placeholder;
 
-    // Equip-slot overlay: two columns anchored to `frame`'s own left/right
-    // edges, each slot spread evenly along its full height (space-between)
-    // rather than pinned to a real anatomical position — there's no way to
-    // know where a persona's actual head/waist/feet fall in the image
-    // without pose analysis, so this is the practical alternative: it
-    // always reaches from the top to the bottom of whatever the portrait's
-    // real rendered height turns out to be.
-    const leftColumn = document.createElement("div");
-    Object.assign(leftColumn.style, {
-      position: "absolute",
-      left: "0",
-      top: "0",
-      bottom: "0",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      padding: "4px",
-      boxSizing: "border-box",
-    });
-    const rightColumn = document.createElement("div");
-    Object.assign(rightColumn.style, {
-      position: "absolute",
-      right: "0",
-      top: "0",
-      bottom: "0",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      alignItems: "flex-end",
-      padding: "4px",
-      boxSizing: "border-box",
-    });
-    this.equipLeftColumn = leftColumn;
-    this.equipRightColumn = rightColumn;
-
-    frame.append(image, placeholder, leftColumn, rightColumn);
+    frame.append(image, placeholder);
     wrapper.appendChild(frame);
     return wrapper;
   },
 
-  // Repopulates the two equip-slot overlay columns (built once inside
-  // _buildPortrait and cached on this.equipLeftColumn/equipRightColumn, so
-  // the portrait <img> itself is never rebuilt here) and returns the
-  // already-cached portrait wrapper unchanged — the caller's
-  // replaceChildren(this._buildEquippedSection()) re-inserting the exact
-  // same node is a harmless no-op, not a rebuild, preserving the cached
-  // avatar image the same way every repaint already needed to.
+  // Head/Eyes/Ears/Neck sit in a row above the portrait, Belt/Feet below —
+  // beside it. The remaining 5 pairs (QM_OVERLAY_SLOT_PAIRS) sit in columns
+  // to either side, stretched (alignItems: "stretch" on middleRow) to match
+  // whatever the portrait's own real rendered height turns out to be, then
+  // spread evenly across that matched height (space-between) — there's no
+  // way to pin a slot to a real anatomical position without pose analysis,
+  // since personas vary in aspect ratio, so this is the practical
+  // alternative. `this.portraitWrapper` itself is cached/reused (not
+  // rebuilt here) so the avatar <img> element survives every repaint.
   _buildEquippedSection() {
-    this.equipLeftColumn.replaceChildren();
-    this.equipRightColumn.replaceChildren();
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" });
+
+    const topRow = document.createElement("div");
+    Object.assign(topRow.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
+    for (const slot of QM_OVERLAY_TOP_SLOTS) topRow.appendChild(this._buildOverlaySlotBox(slot));
+    wrapper.appendChild(topRow);
+
+    const middleRow = document.createElement("div");
+    Object.assign(middleRow.style, {
+      display: "flex",
+      gap: "8px",
+      alignItems: "stretch",
+      justifyContent: "center",
+      width: "100%",
+    });
+
+    const leftColumn = document.createElement("div");
+    Object.assign(leftColumn.style, { display: "flex", flexDirection: "column", justifyContent: "space-between" });
+    const rightColumn = document.createElement("div");
+    Object.assign(rightColumn.style, { display: "flex", flexDirection: "column", justifyContent: "space-between" });
     for (const [leftSlot, rightSlot] of QM_OVERLAY_SLOT_PAIRS) {
       // A pair always shares one group (or neither has one) — see
       // QM_OVERLAY_SLOT_PAIRS's own comment — so checking the left slot
       // alone is enough to decide the whole row.
       if (!QM.state.slotVisible(leftSlot)) continue;
-      this.equipLeftColumn.appendChild(this._buildOverlaySlotBox(leftSlot));
-      this.equipRightColumn.appendChild(this._buildOverlaySlotBox(rightSlot));
+      leftColumn.appendChild(this._buildOverlaySlotBox(leftSlot));
+      rightColumn.appendChild(this._buildOverlaySlotBox(rightSlot));
     }
-    return this.portraitWrapper;
+
+    middleRow.append(leftColumn, this.portraitWrapper, rightColumn);
+    wrapper.appendChild(middleRow);
+
+    const bottomRow = document.createElement("div");
+    Object.assign(bottomRow.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
+    for (const slot of QM_OVERLAY_BOTTOM_SLOTS) bottomRow.appendChild(this._buildOverlaySlotBox(slot));
+    wrapper.appendChild(bottomRow);
+
+    return wrapper;
   },
 
   // One equip-slot overlay box: the equipped item's own image (if it has
@@ -2008,10 +2038,13 @@ QM.dock = {
       flexDirection: "column",
       alignItems: "center",
       gap: "2px",
-      width: "78px",
-      padding: "3px 4px",
+      width: "92px",
+      padding: "4px 6px",
       borderRadius: "var(--radius, 4px)",
-      border: "1px solid rgba(255, 255, 255, 0.22)",
+      // Matches QM.button()'s own default (unstyled) fill — the same color
+      // as the Equip button sitting right beside these slots elsewhere in
+      // the dock, so the equipment area reads as one visual family.
+      border: "1px solid var(--primary, #444)",
       background: "rgba(15, 15, 18, 0.72)",
       color: "#f2f2f2",
       boxSizing: "border-box",
@@ -2042,8 +2075,12 @@ QM.dock = {
     }
     box.appendChild(imageWrap);
 
+    // Pre-split into explicit lines (QM_OVERLAY_SLOT_LABEL_LINES), not left
+    // to natural wrapping — see that constant's own comment for why: at a
+    // fixed box width, different first-word lengths wrapped inconsistently
+    // between a pair's two labels, throwing the two columns out of
+    // alignment with each other.
     const label = document.createElement("span");
-    label.textContent = QM_OVERLAY_SLOT_LABELS[slot];
     Object.assign(label.style, {
       fontSize: "9px",
       textAlign: "center",
@@ -2051,6 +2088,11 @@ QM.dock = {
       letterSpacing: "0.02em",
       lineHeight: "1.2",
       color: "rgba(255, 255, 255, 0.75)",
+    });
+    const labelLines = QM_OVERLAY_SLOT_LABEL_LINES[slot];
+    labelLines.forEach((line, index) => {
+      if (index > 0) label.appendChild(document.createElement("br"));
+      label.appendChild(document.createTextNode(line));
     });
     box.appendChild(label);
 
