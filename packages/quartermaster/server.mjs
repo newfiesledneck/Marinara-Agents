@@ -39,7 +39,7 @@
 // exactly what and where from the slot id alone.
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
+import { mkdir, writeFile, readFile, readdir, unlink } from "node:fs/promises";
 
 // Order matches the portrait ring layout, read top → left → right → bottom:
 // head/neck/eyes/ears above the portrait; armor/clothing/underwear stacked on
