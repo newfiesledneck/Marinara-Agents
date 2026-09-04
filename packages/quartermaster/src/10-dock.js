@@ -247,6 +247,18 @@ const QM_ITEM_CARD_FRAME_STYLE = {
   boxSizing: "border-box",
 };
 
+// Same technique as QM_ITEM_CARD_FRAME_STYLE, but outlined in the Add
+// button's own success color instead of the theme accent — a visually
+// distinct "this is the create-new form, not one more item" cue, without
+// needing a different shape or extra ornamentation to say it.
+const QM_ADD_ITEM_FRAME_STYLE = {
+  border: `1px solid ${QM_COLOR_SUCCESS}`,
+  borderRadius: "var(--radius, 4px)",
+  padding: "5px 7px",
+  boxShadow: `0 0 6px color-mix(in srgb, ${QM_COLOR_SUCCESS} 25%, transparent)`,
+  boxSizing: "border-box",
+};
+
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
   dot.setAttribute("aria-hidden", "true");
@@ -390,6 +402,10 @@ QM.dock = {
   // dock, or switching chats (see close()/QM.state.setChat's own reset).
   selectedSlot: null,
   itemEditorBackdrop: null,
+  bagSearchQuery: "",
+  bagSearchMode: "name",
+  bagSearchInput: null,
+  bagSearchModeButtons: null,
   _windowBound: false,
   _outsideClickBound: false,
   _interaction: null,
@@ -427,6 +443,8 @@ QM.dock = {
     this.connectorSvg = null;
     this.equippedSlotBoxRefs = null;
     this.itemEditorBackdrop = null;
+    this.bagSearchInput = null;
+    this.bagSearchModeButtons = null;
   },
 
   isOpen() {
@@ -867,8 +885,9 @@ QM.dock = {
       const bagColumn = document.createElement("div");
       Object.assign(bagColumn.style, { flex: "1", minWidth: "0", width: "100%" });
       this.form = this._buildAddItemForm();
+      const bagSearchRow = this._buildBagSearchRow();
       this.listContainer = document.createElement("div");
-      bagColumn.append(QM.sectionHeading("Bag"), this.form, this.listContainer);
+      bagColumn.append(QM.sectionHeading("Bag"), this.form, bagSearchRow, this.listContainer);
 
       columns.append(outfitsColumn, equippedColumn, bagColumn);
       this.zoomWrapper.append(this.errorNode, feedRow, this.settingsSection, columns);
@@ -884,6 +903,7 @@ QM.dock = {
       this.errorNode.style.display = "none";
     }
 
+    this._applyBagSearch();
     this.feedSelect.value = QM.state.appearanceFeedMode;
     this.underwearToggle.checked = QM.state.showUnderwear;
     this.armorToggle.checked = QM.state.showArmor;
@@ -1650,7 +1670,16 @@ QM.dock = {
     });
     box.addEventListener("click", (event) => {
       if (event.target.closest("[data-qm-unequip]")) return; // the × badge handles its own click
-      this.selectedSlot = selected ? null : slot;
+      const nowSelecting = !selected;
+      this.selectedSlot = nowSelecting ? slot : null;
+      // Selecting (not deselecting) a slot searches the Bag for exactly
+      // what could fill it — a real navigational shortcut, not just a
+      // visual highlight. Only on select: deselecting leaves whatever
+      // search the user already had alone rather than surprise-clearing it.
+      if (nowSelecting) {
+        this.bagSearchMode = "slot";
+        this.bagSearchQuery = QM_SLOT_LABELS[slot];
+      }
       this._paint();
     });
 
@@ -2121,12 +2150,23 @@ QM.dock = {
     return row;
   },
 
+  // Shaped like an item card (same 3-row rhythm, same frame technique) but
+  // outlined in the Add button's own success color rather than the theme
+  // accent, so it reads as a distinct "create new" form rather than one
+  // more item in the list below it. No image control — there's no item id
+  // yet to attach an uploaded image to until after creation.
   _buildAddItemForm() {
     const form = document.createElement("form");
-    Object.assign(form.style, { display: "flex", flexDirection: "column", gap: "4px", marginBottom: "8px" });
+    Object.assign(form.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+      marginBottom: "8px",
+      ...QM_ADD_ITEM_FRAME_STYLE,
+    });
 
-    const line = document.createElement("div");
-    Object.assign(line.style, { display: "flex", gap: "6px" });
+    const nameLine = document.createElement("div");
+    Object.assign(nameLine.style, { display: "flex", gap: "6px" });
 
     const nameInput = QM.smallInput("input");
     nameInput.type = "text";
@@ -2143,7 +2183,42 @@ QM.dock = {
     const addButton = QM.button("Add", { bg: QM_COLOR_SUCCESS, fg: QM_COLOR_SUCCESS_FG });
     addButton.type = "submit";
 
-    line.append(nameInput, quantityInput, addButton);
+    nameLine.append(nameInput, quantityInput, addButton);
+
+    const slotLine = document.createElement("div");
+    Object.assign(slotLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+
+    // Not QM.defaultSlotSelect — that helper writes straight to
+    // QM.state.updateItem(item.id, ...) on change, but this item doesn't
+    // exist yet. Same population rule (hidden-group slots dropped), read
+    // once at submit time instead.
+    const slotSelect = QM.smallInput("select");
+    slotSelect.style.flex = "1";
+    const noneOption = document.createElement("option");
+    noneOption.value = "";
+    noneOption.textContent = "Select Default Slot";
+    slotSelect.appendChild(noneOption);
+    for (const slot of QM_EQUIP_SLOTS) {
+      if (!QM.state.slotVisible(slot)) continue;
+      const option = document.createElement("option");
+      option.value = slot;
+      option.textContent = QM_SLOT_LABELS[slot];
+      slotSelect.appendChild(option);
+    }
+
+    const storedLabel = document.createElement("span");
+    storedLabel.textContent = "Stored at:";
+    Object.assign(storedLabel.style, {
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+      whiteSpace: "nowrap",
+    });
+    const storedInput = QM.smallInput("input");
+    storedInput.type = "text";
+    storedInput.placeholder = "bag";
+    storedInput.style.flex = "1";
+
+    slotLine.append(slotSelect, storedLabel, storedInput);
 
     const descriptionInput = QM.smallInput("input");
     descriptionInput.type = "text";
@@ -2151,20 +2226,83 @@ QM.dock = {
     descriptionInput.style.width = "100%";
     descriptionInput.style.boxSizing = "border-box";
 
-    form.append(line, descriptionInput);
+    form.append(nameLine, slotLine, descriptionInput);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const name = nameInput.value.trim();
       if (!name) return;
       addButton.disabled = true;
-      await QM.state.addItem({ name, quantity: quantityInput.value, description: descriptionInput.value });
+      const stored = storedInput.value.trim();
+      await QM.state.addItem({
+        name,
+        quantity: quantityInput.value,
+        description: descriptionInput.value,
+        defaultSlot: slotSelect.value || null,
+        location: stored ? `stored:${stored}` : "bag",
+      });
       addButton.disabled = false;
       nameInput.value = "";
       quantityInput.value = "1";
       descriptionInput.value = "";
+      slotSelect.value = "";
+      storedInput.value = "";
     });
 
     return form;
+  },
+
+  // Sits between the Add Item form and the item list, so it visually
+  // separates the two the way the request asked. Name/Slot is a toggle
+  // (mutually exclusive, like Thumbnail Size's S/M/L group), not a
+  // checkbox — a search only ever matches one field at a time. Clicking an
+  // equip slot box (_buildOverlaySlotBox) sets bagSearchMode to "slot" and
+  // the query to that slot's own label, so the Bag immediately shows
+  // exactly what could fill it — _applyBagSearch (called every _paint, not
+  // just here) is what keeps this row's own DOM in sync with that, since
+  // the row itself is built once and cached like the Thumbnail Size row is.
+  _buildBagSearchRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" });
+
+    const searchInput = QM.smallInput("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Search...";
+    searchInput.value = this.bagSearchQuery;
+    searchInput.style.flex = "1";
+    searchInput.addEventListener("input", () => {
+      this.bagSearchQuery = searchInput.value;
+      this.listContainer.replaceChildren(this._buildItemList());
+    });
+    this.bagSearchInput = searchInput;
+    row.appendChild(searchInput);
+
+    this.bagSearchModeButtons = {};
+    for (const mode of ["name", "slot"]) {
+      const button = QM.button(mode === "name" ? "Name" : "Slot");
+      button.style.padding = "2px 10px";
+      button.addEventListener("click", () => {
+        if (this.bagSearchMode === mode) return;
+        this.bagSearchMode = mode;
+        this._applyBagSearch();
+        this.listContainer.replaceChildren(this._buildItemList());
+      });
+      this.bagSearchModeButtons[mode] = button;
+      row.appendChild(button);
+    }
+    this._applyBagSearch();
+    return row;
+  },
+
+  _applyBagSearch() {
+    if (this.bagSearchInput && this.bagSearchInput.value !== this.bagSearchQuery) {
+      this.bagSearchInput.value = this.bagSearchQuery;
+    }
+    for (const [mode, button] of Object.entries(this.bagSearchModeButtons || {})) {
+      const active = mode === this.bagSearchMode;
+      button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
+      button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
+      button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
+    }
   },
 
   _buildItemList() {
@@ -2178,9 +2316,19 @@ QM.dock = {
       gap: "6px",
     });
 
-    const items = QM.state.bagItems();
+    const query = this.bagSearchQuery.trim().toLowerCase();
+    let items = QM.state.bagItems();
+    if (query) {
+      items = items.filter((item) => {
+        if (this.bagSearchMode === "slot") {
+          const label = item.defaultSlot ? QM_SLOT_LABELS[item.defaultSlot].toLowerCase() : "";
+          return label.includes(query);
+        }
+        return item.name.toLowerCase().includes(query);
+      });
+    }
     if (items.length === 0) {
-      const empty = QM.textNode("Bag is empty.");
+      const empty = QM.textNode(query ? "No matching items." : "Bag is empty.");
       empty.style.color = "var(--muted-foreground, currentcolor)";
       empty.style.margin = "0";
       list.appendChild(empty);
@@ -2393,7 +2541,11 @@ QM.dock = {
     Object.assign(storedLine.style, { display: "flex", alignItems: "center", gap: "6px" });
     const storedLabel = document.createElement("span");
     storedLabel.textContent = "Stored at:";
-    Object.assign(storedLabel.style, { fontSize: "11px", color: "var(--muted-foreground, currentcolor)" });
+    Object.assign(storedLabel.style, {
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+      whiteSpace: "nowrap",
+    });
     const storedInput = QM.smallInput("input");
     storedInput.type = "text";
     storedInput.placeholder = "bag";

@@ -69,6 +69,13 @@ still needed, it is not in its final state.
   editor for name, description, stored location, and default slot, plus uploading an item image.
   Cards carry a simpler sibling of the portrait's own frame treatment (theme-colored border, soft
   glow, small corner accents) rather than the full cut-corner/scrollwork look.
+- **Add Item form and Bag search** — the add-item form now sets default slot and stored location
+  at creation time too (previously only settable after adding), styled with the same card
+  technique as item cards but outlined in the Add button's own success color so it reads as the
+  create-new form rather than one more item. Below it, a search box filters the Bag by name or
+  slot (a toggle switches which), placed between the add form and the item list so the two stay
+  visually separate. Clicking an equip slot box searches the Bag by that slot automatically — a
+  navigational shortcut to "what could fill this," not just a highlight.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
