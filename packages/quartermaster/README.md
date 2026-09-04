@@ -90,10 +90,10 @@ scope for now — the focus here is the inventory/outfit/appearance core, not fu
 
 ```text
 packages/quartermaster/
-├── src/                # plain-JS client modules, concatenated in filename order into client.js
+├── src/                # plain-JS client modules, concatenated + minified in filename order into client.js
 ├── server.mjs           # hand-authored — do not generate; hashed as-is by the build script
 ├── agents.json           # hand-authored — carries the tracker agent's real prompt template
-├── client.js             # generated — do not edit
+├── client.js             # generated, minified — do not edit; review src/*.js instead
 ├── manifest.json         # generated — do not edit
 └── locales/en.json       # generated — do not edit
 ```
