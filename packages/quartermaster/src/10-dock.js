@@ -272,40 +272,38 @@ const QM_ADD_ITEM_FRAME_STYLE = {
 // An item/outfit card's description preview should fill the card from the
 // row below the name down to the bottom, instead of sitting in a small
 // fixed box leaving the rest of the card's height unused next to a taller
-// portrait — while still capping out and scrolling instead of growing the
-// card unboundedly for a very long description.
+// portrait — while capping out and scrolling instead of growing the card
+// for a very long description, and never overflowing past the card itself.
 //
-// Two earlier revisions of this tried to compute a fixed row height in JS
-// (max of the portrait's size vs. a hand-measured "enough room for N lines
-// or the action-button stack" figure) and got it wrong twice in a row: the
-// first missed that the action column's real button-stack height wasn't
-// accounted for at all (only the description's own minimum was), and the
-// fix for THAT missed that the row's height is set in border-box mode, so
-// a row sized to exactly the portrait's own dimensions left no room for
-// the card's own padding/border and the portrait itself overflowed. Even
-// after both fixes, hand-measured pixel constants for the action column
-// still came up short in the real app (different font/line-height
-// rendering than the isolated lab measurement) — confirmed live, still
-// overflowing.
+// Three earlier revisions tried to get this from a JS-computed row height
+// and a JS-computed description max-height, and got it wrong each time: a
+// hand-measured constant for the action column's real button-stack height
+// (Edit/Update/Equip for outfits, Edit/Equip for items) came up short
+// against real font/line-height rendering (confirmed live, still
+// overflowing, twice, at different Thumbnail Sizes each time); and even
+// once overflow was fully fixed by dropping the computed height entirely
+// (leaving it "auto" so flexbox sizes the row to its tallest child), a
+// generous independent max-height on the description itself let long
+// descriptions visibly grow the card taller than the button stack needs —
+// not wrong, but not what was wanted: the buttons should set the card's
+// size, with the description scrolling within THAT, never expanding past
+// it.
 //
-// The actual fix: stop computing a row height at all. Leave it "auto" and
-// let plain flexbox do what it already does by default — a container with
-// no explicit height sizes itself to its tallest child, and align-items:
-// stretch (the default) matches everything else to that. That tallest
-// child is naturally whichever needs more room: the portrait (fixed size),
-// or detailsColumn's own nameLine+descriptionRow stack, which is itself
-// naturally sized to whichever of the description text or the action
-// column's real button stack is taller — no estimate to get wrong, because
-// nothing is estimated; the browser measures its own real content instead
-// of trusting a guessed constant. Only descriptionPreview needs a genuine
-// constant: an independent max-height ceiling (unrelated to anything
-// else), purely so an extremely long description scrolls instead of
-// growing the card without bound — a normal-length description just sits
-// in whatever natural height the row ends up being, which in practice is
-// usually generous already since the action column's own button stack
-// rarely needs less room than a few lines of text would.
+// The actual fix: measure the action column's real rendered height, live,
+// after each render, and use exactly that as the description's max-height
+// — not a guessed constant, the browser's own measurement of its own real
+// content, so there's nothing left to get subtly wrong. actionColumn gets
+// alignSelf:"flex-start" specifically so it's never stretched by a taller
+// sibling — without that, its own rendered height would reflect whatever
+// the description just grew it to, not its true natural size, making the
+// measurement circular. _applyCardDescriptionCaps (below) runs once per
+// repaint via requestAnimationFrame (mirroring _updateConnectorLines'
+// own pattern — both need a real layout pass to measure against) and
+// divides out the current zoom factor: getBoundingClientRect() reports
+// the ZOOMED size when the UI Size control's CSS zoom is active, but the
+// max-height being SET will also be re-zoomed once applied, so using the
+// raw measured value directly would double-scale it.
 const QM_DESC_LINE_HEIGHT_PX = 14;
-const QM_DESC_MAX_HEIGHT_PX = 140; // ~10 lines — a ceiling to scroll against, not a target
 
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
@@ -1084,6 +1082,7 @@ QM.dock = {
     requestAnimationFrame(() => this._updateConnectorLines());
     this.outfitsContainer.replaceChildren(this._buildOutfitsList());
     this.listContainer.replaceChildren(this._buildItemList());
+    requestAnimationFrame(() => this._applyCardDescriptionCaps());
   },
 
   // Controls what QM.state.updateAppearanceFeedMode writes into this chat's
@@ -1705,6 +1704,32 @@ QM.dock = {
   },
 
   // Called (via requestAnimationFrame, so real layout exists) after every
+  // outfits/Bag list rebuild — see _buildSectionHeader-adjacent call sites
+  // in render(), the outfit search input, and the Bag search input/mode
+  // toggle. Measures each card's actionColumn (Edit/Update/Equip, or
+  // Edit/Equip — alignSelf:"flex-start" there keeps its rendered height
+  // always its true natural size, never stretched by its sibling) and
+  // applies that exact height as the neighboring descriptionPreview's own
+  // max-height, so the description always scrolls within exactly the room
+  // the buttons already need rather than a guessed constant that's
+  // repeatedly come up wrong in the real app (see the comment above
+  // QM_DESC_LINE_HEIGHT_PX). Divides out the zoom factor since
+  // getBoundingClientRect() reports the post-zoom size but the max-height
+  // being set here will itself be re-zoomed once applied.
+  _applyCardDescriptionCaps() {
+    if (!this.root) return;
+    const zoom = this._zoomFactor();
+    const rows = this.root.querySelectorAll(".qm-card-desc-row");
+    for (const rowEl of rows) {
+      const descriptionPreview = rowEl.children[0];
+      const actionColumn = rowEl.children[1];
+      if (!descriptionPreview || !actionColumn) continue;
+      const actionsHeightPx = actionColumn.getBoundingClientRect().height / zoom;
+      if (actionsHeightPx > 0) descriptionPreview.style.maxHeight = `${Math.round(actionsHeightPx)}px`;
+    }
+  },
+
+  // Called (via requestAnimationFrame, so real layout exists) after every
   // _buildEquippedSection() attach, after a Thumbnail Size change, and after
   // the portrait image itself finishes loading (the one case that changes
   // the frame's rendered size without going through a full section
@@ -2091,6 +2116,7 @@ QM.dock = {
     searchInput.addEventListener("input", () => {
       this.outfitSearchQuery = searchInput.value;
       this.outfitsContainer.replaceChildren(this._buildOutfitsList());
+      requestAnimationFrame(() => this._applyCardDescriptionCaps());
     });
     this.outfitSearchInput = searchInput;
     row.appendChild(searchInput);
@@ -2426,6 +2452,7 @@ QM.dock = {
     nameLine.appendChild(deleteButton);
 
     const descriptionRow = document.createElement("div");
+    descriptionRow.className = "qm-card-desc-row";
     Object.assign(descriptionRow.style, { display: "flex", gap: "6px" });
     const descriptionPreview = document.createElement("span");
     descriptionPreview.className = "qm-desc-scroll";
@@ -2435,7 +2462,6 @@ QM.dock = {
       minWidth: "0",
       fontSize: "11px",
       lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
-      maxHeight: `${QM_DESC_MAX_HEIGHT_PX}px`,
       overflowY: "auto",
       whiteSpace: "normal",
       wordBreak: "break-word",
@@ -2448,6 +2474,7 @@ QM.dock = {
       flexDirection: "column",
       justifyContent: "space-between",
       gap: "4px",
+      alignSelf: "flex-start",
     });
     const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
     editButton.addEventListener("click", () => this._openOutfitEditor(outfit));
@@ -2588,6 +2615,7 @@ QM.dock = {
     searchInput.addEventListener("input", () => {
       this.bagSearchQuery = searchInput.value;
       this.listContainer.replaceChildren(this._buildItemList());
+      requestAnimationFrame(() => this._applyCardDescriptionCaps());
     });
     this.bagSearchInput = searchInput;
     row.appendChild(searchInput);
@@ -2601,6 +2629,7 @@ QM.dock = {
         this.bagSearchMode = mode;
         this._applyBagSearch();
         this.listContainer.replaceChildren(this._buildItemList());
+        requestAnimationFrame(() => this._applyCardDescriptionCaps());
       });
       this.bagSearchModeButtons[mode] = button;
       row.appendChild(button);
@@ -2908,12 +2937,12 @@ QM.dock = {
     Object.assign(storedLabel.style, { color: "var(--muted-foreground, currentcolor)", whiteSpace: "nowrap" });
     slotLine.append(slotLabel, storedLabel);
 
-    // flex:1/minHeight:0 on this row (rather than the alignItems:"center",
-    // natural-height row this used to be) lets the description actually
-    // fill whatever's left below the slot line instead of leaving the rest
-    // of the card's height as dead space — same technique as the outfit
-    // card's own descriptionRow/actionColumn split just below.
+    // qm-card-desc-row is how _applyCardDescriptionCaps finds this pair —
+    // see that method's own comment and the one above QM_DESC_LINE_HEIGHT_PX
+    // for why the description's max-height is measured from the action
+    // column live rather than computed here.
     const descriptionLine = document.createElement("div");
+    descriptionLine.className = "qm-card-desc-row";
     Object.assign(descriptionLine.style, { display: "flex", gap: "6px" });
     const descriptionPreview = document.createElement("span");
     descriptionPreview.className = "qm-desc-scroll";
@@ -2923,7 +2952,6 @@ QM.dock = {
       minWidth: "0",
       fontSize: "11px",
       lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
-      maxHeight: `${QM_DESC_MAX_HEIGHT_PX}px`,
       overflowY: "auto",
       whiteSpace: "normal",
       wordBreak: "break-word",
@@ -2936,6 +2964,7 @@ QM.dock = {
       flexDirection: "column",
       justifyContent: "space-between",
       gap: "4px",
+      alignSelf: "flex-start",
     });
     const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
     editButton.addEventListener("click", () => this._openItemEditor(item));
