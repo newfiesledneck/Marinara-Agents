@@ -446,6 +446,11 @@ QM.dock = {
   outfitSearchQuery: "",
   outfitSearchInput: null,
   columnCollapsed: qmReadColumnCollapsed(),
+  // How much window width was reclaimed the last time each column
+  // collapsed, so expanding it again can hand back exactly that much
+  // rather than re-measuring (the column's own rendered width while
+  // collapsed is just the fixed strip width, not useful for a restore).
+  columnCollapseDelta: { outfits: 0, equipped: 0, bag: 0 },
   sectionHeaders: null,
   sectionBodies: null,
   _windowBound: false,
@@ -2530,8 +2535,36 @@ QM.dock = {
     return header;
   },
 
+  // Collapsing a column shrinks the dock's own window width by exactly what
+  // that column used to occupy, instead of leaving the window alone and
+  // letting the other columns' flex stretch to absorb the reclaimed space
+  // -- per explicit feedback, the point is a narrower UI, not a wider
+  // Equipped column. Measuring the column's actual rendered width (rather
+  // than computing a share of the flex ratios) keeps this correct
+  // regardless of the window's current size or zoom factor; the exact
+  // pixel amount removed on collapse is stored so expanding hands back
+  // precisely that much rather than guessing. Skipped when the dock is
+  // narrow enough to stack columns vertically, since a collapsed column
+  // there just hides its content at full width -- there's no width to
+  // reclaim from a column that already spans the whole (already-narrow)
+  // dock.
   _toggleColumnCollapsed(columnKey) {
-    this.columnCollapsed[columnKey] = !this.columnCollapsed[columnKey];
+    const collapsing = !this.columnCollapsed[columnKey];
+    const refs = this.sectionHeaders && this.sectionHeaders[columnKey];
+    const stacked = this.columns ? this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor() : false;
+    if (refs && refs.columnEl && !stacked) {
+      if (collapsing) {
+        const measured = refs.columnEl.getBoundingClientRect().width;
+        const delta = Math.max(0, measured - QM_COLUMN_COLLAPSED_WIDTH);
+        this.columnCollapseDelta[columnKey] = delta;
+        this.resizeBy(-delta, 0);
+      } else {
+        const delta = this.columnCollapseDelta[columnKey] || 0;
+        this.columnCollapseDelta[columnKey] = 0;
+        this.resizeBy(delta, 0);
+      }
+    }
+    this.columnCollapsed[columnKey] = collapsing;
     qmWriteColumnCollapsed(this.columnCollapsed);
     this._applySectionHeaders();
   },

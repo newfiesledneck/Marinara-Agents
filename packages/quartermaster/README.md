@@ -89,12 +89,15 @@ still needed, it is not in its final state.
 - **Collapsible, counted section headers** — the Outfits/Equipped/Bag headers are bordered and
   clickable, and collapsing one narrows that column itself to a slim strip (its header label turns
   sideways so it's still readable and clickable to re-expand) rather than just hiding its content
-  inside a column that stays full width — the other columns' own flex naturally reclaims the
-  space, so collapsing a column actually narrows the dock for anyone who wants a tighter UI. State
-  persists per browser, like Thumbnail Size. On a narrow window where the columns stack vertically
-  instead of sitting side by side, there's no neighbor to hand the space to, so collapsing there
-  just hides that column's content at full width instead. Outfits and Bag show a live count (e.g.
-  "Outfits (5)") since those two are the columns whose size actually varies session to session.
+  inside a column that stays full width. The dock's own window shrinks by exactly the reclaimed
+  amount — the other columns keep their own width rather than stretching to fill the freed space —
+  so collapsing a column actually narrows the whole UI for anyone who wants a tighter footprint,
+  and expanding it again hands back precisely the same amount. State persists per browser, like
+  Thumbnail Size and window geometry. On a narrow window where the columns stack vertically
+  instead of sitting side by side, there's no width to reclaim from a column that already spans
+  the whole (already-narrow) dock, so collapsing there just hides that column's content at full
+  width instead. Outfits and Bag show a live count (e.g. "Outfits (5)") since those two are the
+  columns whose size actually varies session to session.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
