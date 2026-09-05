@@ -454,7 +454,7 @@ export const ltmNoteIdSchema = ltmIdentifierSchema;
 
 export const ltmSubjectReferenceSchema = z
   .object({
-    kind: z.enum(["character", "persona"]),
+    kind: z.enum(["character", "persona", "local_character"]),
     id: z.string().trim().min(1).max(120),
   })
   .strict();
@@ -481,6 +481,12 @@ export const ltmSubjectsSchema = z
   .refine((subjects) => subjects.every((subject, index) => index === 0 || subjects[index - 1]!.key < subject.key), {
     message: "Subjects must be sorted by stable key.",
   });
+
+function hasLocalCharacterSubject(subjects: readonly z.infer<typeof ltmSubjectSchema>[] | undefined) {
+  return subjects?.some(
+    (subject) => subject.ref?.kind === "local_character" || subject.key.startsWith("local_character:"),
+  );
+}
 
 export const ltmSourceProvenanceSchema = z
   .object({
@@ -904,6 +910,13 @@ export const ltmNoteSchema = z
   })
   .strict()
   .superRefine((note, ctx) => {
+    if (hasLocalCharacterSubject(note.subjects) && note.modes.some((mode) => mode !== "roleplay")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["modes"],
+        message: "Local character subjects are available only in Roleplay mode.",
+      });
+    }
     const allowedPrefixes = allowedStoredNoteIdPrefixes(note.type);
     if (!allowedPrefixes.some((prefix) => note.id === prefix || note.id.startsWith(prefix))) {
       ctx.addIssue({
@@ -1952,6 +1965,13 @@ export const ltmDraftNoteInputSchema = z
   })
   .strip()
   .superRefine((note, ctx) => {
+    if (hasLocalCharacterSubject(note.subjects) && note.modes.some((mode) => mode !== "roleplay")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["modes"],
+        message: "Local character subjects are available only in Roleplay mode.",
+      });
+    }
     const allowedPrefixes = LTM_NOTE_ID_PREFIXES_BY_TYPE[note.type];
     if (!allowedPrefixes.some((prefix) => note.id === prefix || note.id.startsWith(prefix))) {
       ctx.addIssue({
@@ -2071,6 +2091,7 @@ export const ltmExtractionDroppedCandidateSchema = z
   .object({
     index: z.number().int().min(0).max(LTM_EXTRACTION_MAX_CANDIDATES),
     reason: ltmExtractionDropReasonSchema,
+    validatorCode: z.string().trim().min(1).max(120).optional(),
     message: z.string().min(1).max(240),
     snippet: z.string().min(1).max(280).optional(),
     issues: z.array(z.string().trim().min(1).max(240)).max(8).optional(),
@@ -2324,6 +2345,13 @@ export const ltmRejectedSuggestionsResponseSchema = z
   })
   .strict();
 
+export const ltmRejectedSuggestionsClearResponseSchema = z
+  .object({
+    deletedCount: z.number().int().min(0).max(10_000),
+    sourceNoteId: ltmNoteIdSchema,
+  })
+  .strict();
+
 export const ltmExtractSourceNoteRequestSchema = z
   .object({
     chatId: z.string().min(1).max(120).optional(),
@@ -2358,6 +2386,11 @@ export const ltmExtractSourceNoteResponseSchema = z
 
 export const ltmInteropSourceSchema = z.enum(["characters", "lorebooks", "chats"]);
 
+const ltmPreviewQuerySchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() || undefined : value),
+  z.string().max(200).optional(),
+);
+
 export const ltmInteropPreviewRequestSchema = z
   .object({
     source: ltmInteropSourceSchema,
@@ -2366,6 +2399,7 @@ export const ltmInteropPreviewRequestSchema = z
     // Kept for clients built against the Phase 1 request contract.
     scope: ltmScopeSchema.optional(),
     mode: ltmModeSchema.optional(),
+    query: ltmPreviewQuerySchema,
   })
   .strict();
 
@@ -2410,6 +2444,14 @@ export const ltmInteropPreviewResponseSchema = z
     draftable: z.number().int().min(0).max(100),
     importedCount: z.number().int().min(0).max(100),
     samples: z.array(ltmInteropPreviewSampleSchema).max(100),
+    totals: z
+      .object({
+        matches: z.number().int().min(0).max(1_000_000),
+        ready: z.number().int().min(0).max(1_000_000),
+        imported: z.number().int().min(0).max(1_000_000),
+      })
+      .strict(),
+    truncated: z.boolean(),
   })
   .strict()
   .superRefine((response, ctx) => {
@@ -2437,6 +2479,7 @@ export const ltmLorebookPreviewRequestSchema = z
     // Kept for clients built against the Phase 1 request contract.
     scope: ltmScopeSchema.optional(),
     mode: ltmModeSchema.optional(),
+    query: ltmPreviewQuerySchema,
   })
   .strict();
 
@@ -2496,6 +2539,7 @@ export const ltmLorebookPreviewBookSchema = z
     tags: z.array(z.string().min(1).max(120)).max(100),
     scope: ltmScopeSchema,
     counts: ltmLorebookPreviewCountsSchema,
+    totals: ltmLorebookPreviewCountsSchema,
     entries: z.array(ltmLorebookPreviewEntrySchema).max(10_000),
   })
   .strict()
@@ -2519,6 +2563,10 @@ export const ltmLorebookPreviewResponseSchema = z
       books: z.number().int().min(0).max(100),
     }),
     books: z.array(ltmLorebookPreviewBookSchema).max(100),
+    totals: ltmLorebookPreviewCountsSchema.extend({
+      books: z.number().int().min(0).max(1_000_000),
+    }),
+    truncated: z.boolean(),
   })
   .strict()
   .superRefine((response, ctx) => {
@@ -2539,6 +2587,51 @@ export const ltmLorebookPreviewResponseSchema = z
         message: "books does not match the returned lorebooks.",
       });
   });
+
+export const ltmSourceDetailsRequestSchema = z
+  .object({
+    source: ltmInteropSourceSchema,
+    sourceIds: z
+      .array(z.string().min(1).max(120))
+      .min(1)
+      .max(100)
+      .refine((sourceIds) => new Set(sourceIds).size === sourceIds.length, "Source ids must be unique."),
+    sourceScope: ltmScopeSchema.optional(),
+    // Kept for clients built against the Phase 1 request contract.
+    scope: ltmScopeSchema.optional(),
+    mode: ltmModeSchema.optional(),
+    chatId: z.string().min(1).max(120).optional(),
+  })
+  .strict();
+
+const ltmSourceDetailContentSchema = z.object({ content: z.string().min(1).max(500_000) }).strict();
+
+export const ltmSourceDetailSchema = z.discriminatedUnion("status", [
+  ltmInteropPreviewSampleBaseSchema
+    .extend({
+      status: z.literal("pending"),
+      freshness: z.literal("new"),
+      ...ltmSourceDetailContentSchema.shape,
+    })
+    .strict(),
+  ltmInteropPreviewSampleBaseSchema
+    .extend({
+      status: z.literal("imported"),
+      freshness: ltmInteropPreviewFreshnessSchema.exclude(["new"]),
+      existingNoteId: ltmNoteIdSchema,
+      existingNoteTitle: z.string().min(1).max(240),
+      ...ltmSourceDetailContentSchema.shape,
+    })
+    .strict(),
+]);
+
+export const ltmSourceDetailsResponseSchema = z
+  .object({
+    source: ltmInteropSourceSchema,
+    details: z.array(ltmSourceDetailSchema).max(100),
+    missingSourceIds: z.array(z.string().min(1).max(120)).max(100),
+  })
+  .strict();
 
 export const ltmImportSourceNotesRequestSchema = z
   .object({
@@ -2869,6 +2962,7 @@ export type LtmDraftPreflightBlocker = z.infer<typeof ltmDraftPreflightBlockerSc
 export type LtmDraftPreflightRow = z.infer<typeof ltmDraftPreflightRowSchema>;
 export type LtmDraftPreflightResponse = z.infer<typeof ltmDraftPreflightResponseSchema>;
 export type LtmRejectedSuggestionsResponse = z.infer<typeof ltmRejectedSuggestionsResponseSchema>;
+export type LtmRejectedSuggestionsClearResponse = z.infer<typeof ltmRejectedSuggestionsClearResponseSchema>;
 export type LtmExtractSourceNoteRequest = z.infer<typeof ltmExtractSourceNoteRequestSchema>;
 export type LtmExtractSourceNoteResponse = z.infer<typeof ltmExtractSourceNoteResponseSchema>;
 export type LtmInteropSource = z.infer<typeof ltmInteropSourceSchema>;
@@ -2880,6 +2974,9 @@ export type LtmLorebookPreviewRequest = z.infer<typeof ltmLorebookPreviewRequest
 export type LtmLorebookPreviewEntry = z.infer<typeof ltmLorebookPreviewEntrySchema>;
 export type LtmLorebookPreviewBook = z.infer<typeof ltmLorebookPreviewBookSchema>;
 export type LtmLorebookPreviewResponse = z.infer<typeof ltmLorebookPreviewResponseSchema>;
+export type LtmSourceDetailsRequest = z.infer<typeof ltmSourceDetailsRequestSchema>;
+export type LtmSourceDetail = z.infer<typeof ltmSourceDetailSchema>;
+export type LtmSourceDetailsResponse = z.infer<typeof ltmSourceDetailsResponseSchema>;
 export type LtmImportSourceNotesRequest = z.infer<typeof ltmImportSourceNotesRequestSchema>;
 export type LtmImportedSourceResult = z.infer<typeof ltmImportedSourceResultSchema>;
 export type LtmImportSourceWriteFailure = z.infer<typeof ltmImportSourceWriteFailureSchema>;

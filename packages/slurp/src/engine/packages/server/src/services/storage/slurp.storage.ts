@@ -104,6 +104,10 @@ import {
   type PersistedNoodleRefreshSchedule,
 } from "../slurp/slurp-refresh-schedule.js";
 import { pruneNoodleRefreshRuns } from "./slurp-refresh-run-retention.js";
+import { noodlerPostImageRetryAttempts, NOODLER_POST_IMAGE_RETRY_LIMIT } from "../slurp/slurp-image-retry.js";
+
+/** Newest candidates the image-retry poll inspects per pass. */
+const IMAGE_RETRY_SCAN_LIMIT = 200;
 import { normalizeNoodlerSeenAt } from "../slurp/slurp-viewer-unseen.js";
 import { createCharactersStorage } from "./characters.storage.js";
 import {
@@ -154,11 +158,14 @@ const noodlerFanArchetypeWeightsSchema = z
  * must not become an implicit dependency of Creator scheduling or generation.
  */
 export const slurpSettingsSchema = z.object({
+  imageWidth: z.number().int().min(64).max(4096),
+  imageHeight: z.number().int().min(64).max(4096),
   refreshesPerDay: z.number().int().min(0).max(24),
   generationGuidance: z.string().max(20_000),
   generationConnectionId: z.string().nullable(),
   imageGenerationConnectionId: z.string().nullable(),
   imageGenerationPrompt: z.string(),
+  imagePromptInterpretation: z.string().max(20_000),
   enableImageInterpretation: z.boolean(),
   imageGenerationUseAvatarReferences: z.boolean(),
   imageGenerationIncludeDescriptions: z.boolean(),
@@ -281,6 +288,7 @@ export function noodlerReservePolicyFingerprint(
   settings?: Pick<
     SlurpSettings,
     | "imageGenerationPrompt"
+    | "imagePromptInterpretation"
     | "imageGenerationUseAvatarReferences"
     | "imageGenerationIncludeDescriptions"
     | "enableImageInterpretation"
@@ -294,6 +302,7 @@ export function noodlerReservePolicyFingerprint(
   const mediaPolicy = settings
     ? {
         imageGenerationPrompt: settings.imageGenerationPrompt,
+        imagePromptInterpretation: settings.imagePromptInterpretation,
         imageGenerationUseAvatarReferences: settings.imageGenerationUseAvatarReferences,
         imageGenerationIncludeDescriptions: settings.imageGenerationIncludeDescriptions,
         enableImageInterpretation: settings.enableImageInterpretation,
@@ -660,6 +669,8 @@ export const NOODLER_DEFAULT_GENERATION_GUIDANCE =
   "All Slurp creators and viewers are adults (18+). This is an adult creator page: flirty, suggestive, teasing, and sensual posts are common, and explicit posts appear regularly when they suit the creator — but they are not required and need not be the majority. Tease the locked posts and answer flirty comments in kind. Keep each creator's personality intact: a shy creator flirts shyly, a blunt one bluntly, a funny one filthily. Ordinary posts — updates, humor, behind the scenes, project news — matter just as much and keep both the page and the character human. Keep low mood or conflict uncommon and character-specific, and do not let recent posts set the default mood.";
 export const NOODLER_DEFAULT_IMAGE_GENERATION_PROMPT =
   "Create a polished social-media image for an adult Creator post. Match the creator's identity, personality, body, clothing, and established visual details. Follow the post's mood and subject. Describe the pose, expression, setting, lighting, camera angle, composition, and visible details clearly. Flirty, suggestive, sensual, or explicit imagery is allowed when it fits the post and creator, but do not force sexual content into ordinary updates. Keep the image coherent, intentional, and suitable for a public or locked Creator feed.";
+export const NOODLER_DEFAULT_IMAGE_PROMPT_INTERPRETATION =
+  "Edit this image prompt into a provider-ready image prompt. Preserve the original subject, action, setting, composition, and visual style. Preserve any explicit style in the original prompt, character context, image instructions, or style guidance. Do not add realistic, photorealistic, photographic, camera, lens, or natural-lighting language unless the supplied context clearly requests that style. Do not convert an anime, cartoon, game, manga, comic, illustration, painterly, fantasy, or stylized character into a realistic image. When no style is specified, keep the prompt style-neutral. Do not invent an art style. Treat image instructions as guidance, not text to copy into the result. Return only the provider-ready image prompt.";
 
 /**
  * Every previously shipped default, newest first. An install that never edited the guidance
@@ -669,11 +680,14 @@ export const NOODLER_DEFAULT_IMAGE_GENERATION_PROMPT =
  */
 
 export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
+  imageWidth: 1024,
+  imageHeight: 1536,
   refreshesPerDay: 0,
   generationGuidance: NOODLER_DEFAULT_GENERATION_GUIDANCE,
   generationConnectionId: null,
   imageGenerationConnectionId: null,
   imageGenerationPrompt: NOODLER_DEFAULT_IMAGE_GENERATION_PROMPT,
+  imagePromptInterpretation: NOODLER_DEFAULT_IMAGE_PROMPT_INTERPRETATION,
   enableImageInterpretation: true,
   imageGenerationUseAvatarReferences: false,
   imageGenerationIncludeDescriptions: false,
@@ -730,6 +744,10 @@ export function normalizeSlurpSettings(raw: unknown): SlurpSettings {
     rawRecord.imageGenerationPrompt === undefined || rawRecord.imageGenerationPrompt === ""
       ? NOODLER_DEFAULT_IMAGE_GENERATION_PROMPT
       : rawRecord.imageGenerationPrompt;
+  candidate.imagePromptInterpretation =
+    rawRecord.imagePromptInterpretation === undefined || rawRecord.imagePromptInterpretation === ""
+      ? NOODLER_DEFAULT_IMAGE_PROMPT_INTERPRETATION
+      : rawRecord.imagePromptInterpretation;
   candidate.nightQuiet = rawRecord.nightQuiet ?? DEFAULT_SLURP_SETTINGS.nightQuiet;
   candidate.onboarding = rawRecord.onboarding ?? DEFAULT_SLURP_SETTINGS.onboarding;
   candidate.fanArchetypeWeights = {
@@ -3193,6 +3211,35 @@ export function createSlurpStorage(db: DB) {
         .orderBy(desc(noodlePosts.createdAt))
         .limit(Math.max(1, Math.min(50, Math.floor(limit))));
       return rows.map(mapManagedPost);
+    },
+
+    /**
+     * Slurp creator posts that published without their picture and still have a prompt to draw
+     * from. The pending-review marker is excluded: those wait for the user, not for a retry.
+     */
+    async listNoodlerPostsAwaitingImageRetry(limit = 1, at = now()): Promise<NoodlerManagedPost[]> {
+      const accountIds = new Set((await this.listNoodlerAccounts()).map((account) => account.id));
+      if (accountIds.size === 0) return [];
+      // Bounded: the metadata filters below live in a JSON column, so they cannot be pushed into
+      // the query, and posts awaiting the user's prompt review keep a null imageUrl indefinitely —
+      // an unbounded scan would grow without limit on a once-a-minute poll.
+      // ponytail: newest page only; page through older rows if a long-idle post must self-heal.
+      const rows = await db
+        .select()
+        .from(noodlePosts)
+        .where(and(isNull(noodlePosts.imageUrl), isNotNull(noodlePosts.imagePrompt)))
+        .orderBy(desc(noodlePosts.createdAt))
+        .limit(IMAGE_RETRY_SCAN_LIMIT);
+      const eligible: NoodlerManagedPost[] = [];
+      for (const row of rows) {
+        if (!accountIds.has(row.authorAccountId) || !imageClaimIsAvailable(row, at)) continue;
+        const metadata = parseRecord(row.metadata);
+        if (metadata.imagePendingReview === true || metadata.imageGenerationFailed !== true) continue;
+        if (noodlerPostImageRetryAttempts(metadata) >= NOODLER_POST_IMAGE_RETRY_LIMIT) continue;
+        eligible.push(mapManagedPost(row));
+        if (eligible.length >= Math.max(1, Math.floor(limit))) break;
+      }
+      return eligible;
     },
 
     // Unbounded — used by the disclosure-downgrade review, which must inspect every

@@ -117,7 +117,7 @@ const groupedNoteTypes: ReadonlyArray<{
 ];
 
 function detailScrollBehavior(): ScrollBehavior {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
 const statuses: readonly LtmStatus[] = ["active", "resolved", "archived"];
 const modes: readonly LtmMode[] = ["conversation", "roleplay", "game"];
@@ -204,6 +204,7 @@ function ScopeTargetPicker({
   label,
   value,
   allLabel,
+  currentTargetId,
   searchLabel,
   searchable = true,
   targets,
@@ -214,6 +215,7 @@ function ScopeTargetPicker({
   label: string;
   value: string;
   allLabel: string;
+  currentTargetId?: string;
   searchLabel: string;
   searchable?: boolean;
   targets: Target[];
@@ -223,8 +225,10 @@ function ScopeTargetPicker({
   const [query, setQuery] = useState("");
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
-  const filtered = targets.filter((target) =>
-    target.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  const currentTarget = currentTargetId ? targets.find((target) => target.id === currentTargetId) : undefined;
+  const filtered = targets.filter(
+    (target) =>
+      target.id === currentTargetId || target.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
   const close = () => {
     setQuery("");
@@ -276,6 +280,19 @@ function ScopeTargetPicker({
           </label>
         ) : null}
         <div className="max-h-40 overflow-y-auto border-y border-[var(--marinara-editor-divider)] bg-[var(--marinara-editor-control-bg)]">
+          {currentTarget ? (
+            <button
+              type="button"
+              data-ltm-memory-scope-target={currentTarget.id}
+              className="mari-editor-action mari-editor-action--compact block min-h-11 w-full rounded-none border-x-0 border-t-0 px-3 py-2 text-left text-xs last:border-b-0"
+              onClick={() => {
+                close();
+                onSelect(currentTarget);
+              }}
+            >
+              {currentTarget.label}
+            </button>
+          ) : null}
           <button
             type="button"
             data-ltm-memory-scope-target={`${kind}:all`}
@@ -287,20 +304,22 @@ function ScopeTargetPicker({
           >
             {allLabel}
           </button>
-          {filtered.map((target) => (
-            <button
-              key={target.id}
-              type="button"
-              data-ltm-memory-scope-target={target.id}
-              className="mari-editor-action mari-editor-action--compact block min-h-11 w-full rounded-none border-x-0 border-t-0 px-3 py-2 text-left text-xs last:border-b-0"
-              onClick={() => {
-                close();
-                onSelect(target);
-              }}
-            >
-              {target.label}
-            </button>
-          ))}
+          {filtered
+            .filter((target) => target.id !== currentTargetId)
+            .map((target) => (
+              <button
+                key={target.id}
+                type="button"
+                data-ltm-memory-scope-target={target.id}
+                className="mari-editor-action mari-editor-action--compact block min-h-11 w-full rounded-none border-x-0 border-t-0 px-3 py-2 text-left text-xs last:border-b-0"
+                onClick={() => {
+                  close();
+                  onSelect(target);
+                }}
+              >
+                {target.label}
+              </button>
+            ))}
         </div>
       </div>
     </details>
@@ -1177,10 +1196,10 @@ export default function MemoryVault({
   const modeLabel = (mode: string) => localizedLabel(mode, localizeUi, labelKeys.mode);
   const relationLabel = (relation: string) => localizedLabel(relation, localizeUi, labelKeys.relation);
   const scopeTargetLabel = (
-    kind: "chat" | "character" | "group" | "persona",
+    kind: "chat" | "character" | "group" | "persona" | "local_character",
     id: string,
     targets: ReadonlyArray<{ id: string; label: string }>,
-    fallbackLabels: Partial<Record<"chat" | "character" | "group" | "persona", string>> = {},
+    fallbackLabels: Partial<Record<"chat" | "character" | "group" | "persona" | "local_character", string>> = {},
   ) =>
     formatScopeTargetLabel(kind, id, targets, {
       chat: localizeUi("ui.longTermMemory.memoryvault.chat"),
@@ -1428,7 +1447,9 @@ export default function MemoryVault({
         ? scopeTargets.data?.characters
         : subject.ref.kind === "persona"
           ? scopeTargets.data?.personas
-          : [];
+          : subject.ref.kind === "local_character"
+            ? scopeTargets.data?.localCharacters
+            : [];
     return targets?.find((target) => target.id === subject.ref!.id)?.label ?? subject.ref.id;
   };
   const visible = allNotes
@@ -1564,6 +1585,18 @@ export default function MemoryVault({
   const characterScopeTargets = (scopeTargets.data?.characters ?? []).map((character) =>
     targets.find((candidate) => candidate.id === `character:${character.id}`)!,
   );
+  const currentCharacterTarget: Target | null =
+    props.chatId && selectedChat?.characterIds.length
+      ? {
+          id: `character:${selectedChat.characterIds[0]}`,
+          label: localizeUi("ui.longTermMemory.memoryvault.current"),
+          scope: { characterIds: [selectedChat.characterIds[0]] },
+        }
+      : null;
+  const pickerCharacterScopeTargets = [
+    ...(currentCharacterTarget ? [currentCharacterTarget] : []),
+    ...characterScopeTargets,
+  ].filter((candidate, index, items) => items.findIndex((item) => item.id === candidate.id) === index);
   const conversationScopeTargets = conversations.map((conversation) => {
     const [kind, id] = conversation.id.split(/:(.+)/, 2);
     return {
@@ -1583,6 +1616,17 @@ export default function MemoryVault({
             },
     };
   });
+  const currentConversationScopeTarget: Target | null = props.chatId
+    ? {
+        id: `chat:${props.chatId}`,
+        label: localizeUi("ui.longTermMemory.memoryvault.current"),
+        scope: scopeTargets.data?.currentScope ?? { chatId: props.chatId, chatIds: [props.chatId] },
+      }
+    : null;
+  const pickerConversationScopeTargets = [
+    ...(currentConversationScopeTarget ? [currentConversationScopeTarget] : []),
+    ...conversationScopeTargets,
+  ].filter((candidate, index, items) => items.findIndex((item) => item.id === candidate.id) === index);
   const branchScopeTargets = branches.map((branch) => ({
     id: `chat:${branch.id}`,
     label: branch.label,
@@ -1593,6 +1637,18 @@ export default function MemoryVault({
       ...(selectedCharacterId ? { characterIds: [selectedCharacterId] } : {}),
     },
   }));
+  const currentBranchTarget: Target | null =
+    props.chatId && selectedChat?.groupId
+      ? {
+          id: `chat:${props.chatId}`,
+          label: localizeUi("ui.longTermMemory.memoryvault.current"),
+          scope: scopeTargets.data?.currentScope ?? { chatId: props.chatId, chatIds: [props.chatId] },
+        }
+      : null;
+  const pickerBranchScopeTargets = [
+    ...(currentBranchTarget ? [currentBranchTarget] : []),
+    ...branchScopeTargets,
+  ].filter((candidate, index, items) => items.findIndex((item) => item.id === candidate.id) === index);
   const statusScopeTargets: Target[] = statuses.map((status) => ({
     id: status,
     label: statusLabel(status),
@@ -1619,8 +1675,11 @@ export default function MemoryVault({
         })
       : "",
   ].filter(Boolean);
-  const pickerTargets = useMemo<PickerTarget[]>(
-    () => [
+  const pickerTargets = useMemo<PickerTarget[]>(() => {
+    const localSubjectFamily = draft?.subjects
+      ?.find((subject) => subject.ref?.kind === "local_character")
+      ?.ref?.id?.split(":")[0];
+    return [
       ...(scopeTargets.data?.chats ?? []).map((chat) => ({
         kind: "chat" as const,
         id: chat.id,
@@ -1643,9 +1702,23 @@ export default function MemoryVault({
         label: persona.label,
         comment: persona.comment,
       })),
-    ],
-    [scopeTargets.data?.characters, scopeTargets.data?.chats, scopeTargets.data?.groups, scopeTargets.data?.personas],
-  );
+      ...(scopeTargets.data?.localCharacters ?? [])
+        .filter((character) => !localSubjectFamily || character.familyId === localSubjectFamily)
+        .map((character) => ({
+          kind: "local_character" as const,
+          id: character.id,
+          label: character.label,
+          comment: character.comment,
+        })),
+    ];
+  }, [
+    scopeTargets.data?.characters,
+    scopeTargets.data?.chats,
+    scopeTargets.data?.groups,
+    scopeTargets.data?.localCharacters,
+    scopeTargets.data?.personas,
+    draft?.subjects,
+  ]);
   const availabilityTargets = useMemo<AvailabilityTargets>(() => {
     const chats = scopeTargets.data?.chats ?? [];
     const groups = scopeTargets.data?.groups ?? [];
@@ -1715,6 +1788,7 @@ export default function MemoryVault({
       return scopeTargetLabel(subject.ref.kind, subject.ref.id, pickerTargets, {
         character: localizeUi("ui.longTermMemory.memoryvault.deletedCharacter"),
         persona: localizeUi("ui.longTermMemory.memoryvault.missingPersona"),
+        local_character: localizeUi("ui.longTermMemory.memoryvault.missingLocalCharacter"),
       });
     return localizeUi("ui.longTermMemory.memoryvault.unresolvedSubject");
   };
@@ -2567,7 +2641,7 @@ export default function MemoryVault({
   const subjectLimitReached = Boolean(draft) && (draft?.subjects?.length ?? 0) >= subjectLimit;
   const selectSubjectTarget = (target: PickerTarget) => {
     if (!draft || (draft.type !== "character" && draft.type !== "relationship")) return;
-    if (target.kind !== "character" && target.kind !== "persona") return;
+    if (target.kind !== "character" && target.kind !== "persona" && target.kind !== "local_character") return;
     if ((draft.subjects?.length ?? 0) >= subjectLimit) return;
     const ref = { kind: target.kind, id: target.id };
     const key = `${ref.kind}:${ref.id}`;
@@ -2726,9 +2800,10 @@ export default function MemoryVault({
                       kind="character"
                       label={localizeUi("ui.longTermMemory.memoryvault.character")}
                       value={selectedCharacter?.label ?? localizeUi("ui.longTermMemory.memoryvault.allCharacters")}
-                      allLabel={localizeUi("ui.longTermMemory.memoryvault.allCharacters")}
+                      allLabel={localizeUi("ui.longTermMemory.memoryvault.all")}
+                      currentTargetId={currentCharacterTarget?.id}
                       searchLabel={localizeUi("ui.longTermMemory.memoryvault.searchCharacters")}
-                      targets={characterScopeTargets}
+                      targets={pickerCharacterScopeTargets}
                       onClear={() => void selectTarget(targets[0]!)}
                       onSelect={(candidate) => void selectTarget(candidate)}
                     />
@@ -2736,9 +2811,10 @@ export default function MemoryVault({
                       kind="chat"
                       label={localizeUi("ui.longTermMemory.memoryvault.chat")}
                       value={selectedConversation?.label ?? localizeUi("ui.longTermMemory.memoryvault.allChats")}
-                      allLabel={localizeUi("ui.longTermMemory.memoryvault.allChats")}
+                      allLabel={localizeUi("ui.longTermMemory.memoryvault.all")}
+                      currentTargetId={props.chatId ? `chat:${props.chatId}` : undefined}
                       searchLabel={localizeUi("ui.longTermMemory.memoryvault.searchChats")}
-                      targets={conversationScopeTargets}
+                      targets={pickerConversationScopeTargets}
                       onClear={() =>
                         void selectTarget(
                           selectedCharacter
@@ -2758,9 +2834,10 @@ export default function MemoryVault({
                           ? selectedChat.label
                           : localizeUi("ui.longTermMemory.memoryvault.allBranches")
                       }
-                      allLabel={localizeUi("ui.longTermMemory.memoryvault.allBranches")}
+                      allLabel={localizeUi("ui.longTermMemory.memoryvault.all")}
+                      currentTargetId={currentBranchTarget?.id}
                       searchLabel={localizeUi("ui.longTermMemory.memoryvault.searchBranches")}
-                      targets={branchScopeTargets}
+                      targets={pickerBranchScopeTargets}
                       onClear={() =>
                         void selectTarget(
                           selectedConversation
@@ -3326,7 +3403,18 @@ export default function MemoryVault({
                         <h3 className="text-sm font-semibold">{memoryLabel(draft)}</h3>
                         <p className="mt-1 text-xs text-[var(--muted-foreground)]">{provenanceSourceLabel()}</p>
                       </div>
-                      <Button onClick={() => void onOpenSources?.()}>
+                      <Button
+                        onClick={() =>
+                          void onOpenSources?.(
+                            draft.provenance?.kind === "character" || draft.tags.includes("imported_character")
+                              ? "characters"
+                              : draft.provenance?.kind === "lorebook" || draft.tags.includes("imported_lorebook")
+                                ? "lorebooks"
+                                : "chats",
+                            draft.id,
+                          )
+                        }
+                      >
                         <FileText aria-hidden="true" size="1rem" className="shrink-0" />
                         {localizeUi("ui.longTermMemory.memoryvault.openInSources")}
                       </Button>
@@ -3577,7 +3665,7 @@ export default function MemoryVault({
                               <TargetPicker
                                 targets={pickerTargets}
                                 selectedIds={subjectSelectionIds}
-                                allowedKinds={new Set(["character", "persona"])}
+                                allowedKinds={new Set(["character", "persona", "local_character"])}
                                 placeholder={localizeUi("ui.longTermMemory.memoryvault.chooseSubject")}
                                 emptyLabel={localizeUi("ui.longTermMemory.memoryvault.noSubjectTargets")}
                                 clearLabel={localizeUi("ui.longTermMemory.memoryvault.clearTargetSearch")}
