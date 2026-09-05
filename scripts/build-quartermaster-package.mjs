@@ -30,14 +30,19 @@ const packageRoot = join(repoRoot, "packages/quartermaster");
 const artifactsDir = join(repoRoot, "artifacts");
 
 const PACKAGE_ID = "quartermaster";
-// Bump the patch version for every build meant for a live install test, so
-// Download Agents offers Update instead of only Uninstall (it compares
-// version strings; an unchanged version looks identical to it even when the
-// content differs). Use a plain patch bump, not a -dev.N prerelease suffix:
-// semver ranks a prerelease BELOW its plain release (0.1.0-dev.2 < 0.1.0),
-// so once a plain 0.1.0 is installed, no prerelease build can ever look
-// newer to Download Agents.
-const VERSION = "0.1.1";
+// Only bump this the moment a confirmed-working batch is actually pushed to
+// origin/Quartermaster, paired with a real ### X.Y.Z entry in this package's
+// own README Changelog (see the plan doc's branch-protocol section) — NOT on
+// every local test build. Most local testing doesn't even need a bump:
+// Download Agents' "Update" button only compares version strings
+// (`compareCapabilityPackageVersions`, no content/hash check at all), but an
+// uninstall→reinstall works at any version since a fresh install never
+// compares against anything. When a bump IS due, use a plain patch bump, not
+// a -dev.N prerelease suffix: semver ranks a prerelease BELOW its plain
+// release (0.1.0-dev.2 < 0.1.0), so once a plain 0.1.0 is installed, no
+// prerelease build can ever look newer to Download Agents. Never reset the
+// version back down afterward, even across a long dev-iteration stretch.
+const VERSION = "0.1.2";
 // Declared against the exact staging Engine this scaffold was built and tested
 // against. Do not lower this to reach stable users — see CONTRIBUTING.md.
 const ENGINE_MIN = "2.4.4";

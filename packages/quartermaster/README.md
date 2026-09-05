@@ -8,8 +8,10 @@ Requires **Marinara Engine 2.4.4+**, Roleplay mode only (`modeAllowlist: ["rolep
 Mode's Tracker Panel and roleplay-tracker toolbar are gated to Roleplay by the Engine itself,
 confirmed against source, not just undocumented). Outfit portraits can be uploaded, but not yet
 generated in-app — see Planned below — and cover artwork
-(`artwork/agent-covers/quartermaster.png`) is still outstanding. Visual refinement to the UI is
-still needed, it is not in its final state.
+(`artwork/agent-covers/quartermaster.png`) is still outstanding. The dock has had a full visual
+pass (portrait frame, equip-slot artwork, card/modal redesigns — see the 0.1.2 changelog entry
+below), but it's still an evolving personal project, not yet proposed to the maintainers again —
+expect further refinement as real use turns up rough edges.
 
 ## What it does
 
@@ -170,6 +172,48 @@ lanes. `INCOMPLETE_PACKAGE_IDS` (`scripts/catalog-incomplete.mjs`) keeps this pa
 every published catalog until it's ready for testers.
 
 ## Changelog
+
+### 0.1.2
+
+Large visual/UX build-out, all manually tested against a live Engine install before landing:
+
+- **Portrait frame and connector lines** (new) — the cut-corner frame with hand-drawn scrollwork
+  corner ornaments, and the equip-slot-to-portrait connector lines, both described under
+  "Portrait frame and connector lines" above; includes fixes for a Thumbnail-Size border mismatch,
+  a UI-Size-zoom coordinate bug, and a left/right mirror-symmetry bug in the connector curves.
+- **Bundled slot artwork** (new) — real generated art per equip slot (`icons/*.webp`), replacing
+  the bare pictogram fallback everywhere it's used (an empty slot, or an equipped item with no
+  matching item image); falls back to the original SVG if a file is ever missing.
+- **Item cards redesigned** — image, name, slot, description; only quantity stays directly
+  editable, everything else (name/description/stored location/default slot/image) moved into a
+  focused Edit modal. The Add Item form now sets default slot and stored location at creation
+  time too, and a new Bag search (by name or slot) sits between the form and the list — clicking
+  an equip slot box searches the Bag by that slot automatically.
+- **Equip slots redesigned** — the equipped item's own image (or the slot's fallback artwork) now
+  fills the whole slot box, with the slot name and item name/"Empty" as translucent overlay bands
+  top and bottom instead of a small centered icon.
+- **Outfits section overhaul** — "Save Current Outfit" and "Unequip All" moved into the Equipped
+  column; saving opens a small modal (name, description, portrait) instead of an always-visible
+  form; outfit cards were redesigned to match item cards (image, name, description, Edit/Update/
+  Equip), with "Update" (resnapshot from what's currently equipped) living directly on the card;
+  the currently-equipped outfit gets a success-colored border instead of the theme accent; a
+  search box was added, matching the Bag's.
+- **Item/outfit description previews now fill the card and scroll** — previously a small fixed
+  2-line box regardless of how much room the card actually had; now fills from the name/slot line
+  down to the bottom (a guaranteed minimum of 5 lines for outfits, 3 for items, more if the
+  portrait's thumbnail size gives it the room) and scrolls instead of clipping for anything
+  longer.
+- **Collapsible, counted section headers** (new) — see "Collapsible, counted section headers"
+  above; collapsing a column genuinely narrows the dock's own window instead of just hiding
+  content inside a column that stays full width, with a threshold fix so collapsing more than one
+  column doesn't trip an unwanted stack-to-vertical fallback.
+- **Settings reorganized** — "Feed appearance" moved into the Settings section (next to the other
+  settings, with a real description of what each option does); each setting is now visually
+  separated by a thin rule; the real-avatar toggle's label dropped a stray "Also".
+- **Delete confirmation** — deleting an item or outfit now asks first; there was previously no
+  undo and no confirmation.
+- **Escape closes the open modal** (item editor, outfit editor, save-outfit) — previously only a
+  backdrop click or the "×" button did.
 
 ### 0.1.1
 
