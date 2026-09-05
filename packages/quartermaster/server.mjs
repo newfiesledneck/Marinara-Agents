@@ -498,7 +498,7 @@ function formatAgentRuntimeContext(items, outfitNames) {
 // any "equipped:<slot>" location on that outfit's own items — the outfit is
 // the whole point of the shortcut, so its items are also exempt from the
 // full-snapshot deletion rule even if the agent doesn't re-list them.
-async function reconcileTrackerOutput(documents, persistState, chatId, ownerId, data) {
+async function reconcileTrackerOutput(documents, persistState, chatId, ownerId, data, logger) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return;
   const state = await loadInventoryState(documents, chatId, ownerId);
 
@@ -783,7 +783,7 @@ async function saveInventoryState(documents, chatId, ownerId, state) {
 
 export async function activate(context) {
   const { api } = context;
-  const { persistence, resources } = api.runtime;
+  const { persistence, resources, logger } = api.runtime;
   const { documents } = persistence;
 
   // Every route below calls this instead of saveInventoryState directly, so
@@ -816,11 +816,19 @@ export async function activate(context) {
     async finalizeResult({ context, result }) {
       if (context.chatMode === "roleplay" && result?.success && result.data && typeof result.data === "object") {
         try {
-          await reconcileTrackerOutput(documents, persistState, context.chatId, QM_TRACKER_OWNER_ID, result.data);
-        } catch {
+          await reconcileTrackerOutput(documents, persistState, context.chatId, QM_TRACKER_OWNER_ID, result.data, logger);
+        } catch (error) {
           // A bad or malformed turn must never break generation — the next
           // turn's full-snapshot output self-corrects, same as every other
           // tracker in this ecosystem tolerates an occasional bad response.
+          // Still logged (not just swallowed) so a turn that fails EVERY
+          // time — as opposed to an occasional bad model response — is
+          // actually visible instead of looking identical to silent success.
+          logger.warn(
+            "[quartermaster] reconcileTrackerOutput failed for chat %s: %s",
+            context.chatId,
+            error instanceof Error ? error.message : String(error),
+          );
         }
       }
       return result;
