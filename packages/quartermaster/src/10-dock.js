@@ -66,6 +66,16 @@ const QM_DOCK_STYLE = `
   background:var(--border, rgba(128,128,128,0.4)); border-radius:4px;
 }
 #qm-dock-body::-webkit-scrollbar-thumb:hover{ background:var(--muted-foreground, rgba(128,128,128,0.6)); }
+.qm-desc-scroll{
+  scrollbar-width: thin;
+  scrollbar-color: var(--border, rgba(128,128,128,0.4)) transparent;
+}
+.qm-desc-scroll::-webkit-scrollbar{ width:6px; height:6px; }
+.qm-desc-scroll::-webkit-scrollbar-track{ background:transparent; }
+.qm-desc-scroll::-webkit-scrollbar-thumb{
+  background:var(--border, rgba(128,128,128,0.4)); border-radius:3px;
+}
+.qm-desc-scroll::-webkit-scrollbar-thumb:hover{ background:var(--muted-foreground, rgba(128,128,128,0.6)); }
 @media (max-width:767px){
   #qm-dock-root{
     top:var(--qm-mobile-top,0px) !important; left:0 !important; right:0 !important; bottom:0 !important;
@@ -634,6 +644,30 @@ QM.dock = {
     return QM_UI_SIZES[this.uiSize] || 1;
   },
 
+  // QM_DOCK_COLUMNS_STACK_WIDTH is calibrated assuming all three columns are
+  // showing their full expanded share; a collapsed column only needs its
+  // fixed narrow-strip width, not that share, so each currently-collapsed
+  // column lowers the threshold by the gap between the two. Without this,
+  // collapsing more than one column (which deliberately shrinks the window
+  // to match — see _toggleColumnCollapsed) could trip the "not enough room,
+  // stack them vertically" fallback even though everything still visible
+  // comfortably fits in a row.
+  _columnsStackThreshold() {
+    const flexSum = QM_COLUMN_KEYS.reduce((sum, key) => sum + Number(QM_COLUMN_EXPANDED_FLEX[key]), 0);
+    let threshold = QM_DOCK_COLUMNS_STACK_WIDTH;
+    for (const key of QM_COLUMN_KEYS) {
+      if (!this.columnCollapsed[key]) continue;
+      const fairShare = QM_DOCK_COLUMNS_STACK_WIDTH * (Number(QM_COLUMN_EXPANDED_FLEX[key]) / flexSum);
+      threshold -= Math.max(0, fairShare - QM_COLUMN_COLLAPSED_WIDTH);
+    }
+    return threshold;
+  },
+
+  _isColumnsStacked() {
+    if (!this.columns) return false;
+    return this.bodyWidth < this._columnsStackThreshold() * this._zoomFactor();
+  },
+
   // Cheap re-layout that doesn't touch QM.state — just toggles flex
   // direction on the stable, cached column/ring containers based on the
   // last measured body width. The ring's own middleRow is rebuilt on every
@@ -644,14 +678,11 @@ QM.dock = {
   // logical layout, so the stack point has to move out to match, or L would
   // stack sooner than it actually needs to.
   _applyResponsiveLayout() {
-    if (this.columns) {
-      const stacked = this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor();
-      this.columns.style.flexDirection = stacked ? "column" : "row";
-    }
-    // Crossing the stack threshold changes whether a collapsed column should
-    // be a narrow sideways-label strip (row layout) or a full-width
-    // hidden-body column (stacked layout) — re-derive that now rather than
-    // waiting for the next unrelated repaint to catch up.
+    // _applySectionHeaders owns the flexDirection decision too (see its own
+    // comment) — it needs the same collapse-aware threshold this function
+    // used to compute on its own with a plain flat one, so there's now a
+    // single, consistent place that decides it instead of two call sites
+    // that could disagree about whether the layout should be stacked.
     this._applySectionHeaders();
     if (this.equippedContainer) {
       this.equippedContainer.replaceChildren(this._buildEquippedSection());
@@ -895,7 +926,6 @@ QM.dock = {
       this.errorNode.style.color = QM_COLOR_DANGER;
       this.errorNode.style.display = "none";
 
-      const feedRow = this._buildAppearanceFeedRow();
       this.settingsSection = this._buildSettingsSection();
 
       // Built once and cached — the ring layout re-inserts this same node on
@@ -946,7 +976,7 @@ QM.dock = {
       bagColumn.append(this._buildSectionHeader("bag", "Bag", bagBody, bagColumn), bagBody);
 
       columns.append(outfitsColumn, equippedColumn, bagColumn);
-      this.zoomWrapper.append(this.errorNode, feedRow, this.settingsSection, columns);
+      this.zoomWrapper.append(this.errorNode, this.settingsSection, columns);
       this.body.replaceChildren(sizeControlsRow, this.zoomWrapper);
       this._applySectionHeaders();
       this._applyUiSize();
@@ -1004,15 +1034,18 @@ QM.dock = {
     this.listContainer.replaceChildren(this._buildItemList());
   },
 
+  // Controls what QM.state.updateAppearanceFeedMode writes into this chat's
+  // chatMeta.macroVariables (quartermaster_appearance_persona) every time
+  // equip state changes — the value a {{getvar::...}} token in the
+  // persona's own appearance field can pick up so Roleplay's Illustrator
+  // image generation reflects what's actually equipped, without a user
+  // having to hand-edit that field themselves.
   _buildAppearanceFeedRow() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { fontSize: "12px" });
+
     const row = document.createElement("div");
-    Object.assign(row.style, {
-      display: "flex",
-      alignItems: "center",
-      gap: "6px",
-      marginBottom: "8px",
-      fontSize: "12px",
-    });
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "6px" });
 
     const label = document.createElement("span");
     label.textContent = "Feed appearance:";
@@ -1030,7 +1063,23 @@ QM.dock = {
     this.feedSelect = select;
 
     row.append(label, select);
-    return row;
+
+    const note = document.createElement("p");
+    note.textContent =
+      "Writes the chosen text into a per-chat variable so a {{getvar::quartermaster_appearance_persona}} " +
+      "token in the persona's own Appearance field resolves to it — letting image generation (e.g. " +
+      "Illustrator) pick up what's actually equipped. Off writes nothing; Outfit description uses the " +
+      "saved outfit that exactly matches the current equip state (falling back to a plain list of " +
+      "equipped item names when nothing matches, e.g. after equipping something outside any saved " +
+      "outfit); Equipped item names always lists what's equipped, regardless of outfit.";
+    Object.assign(note.style, {
+      margin: "4px 0 0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    wrapper.append(row, note);
+    return wrapper;
   },
 
   // Fixed-size (outside the zoom wrapper) so the size control itself
@@ -1184,26 +1233,43 @@ QM.dock = {
     header.append(chevron, label);
     header.addEventListener("click", () => {
       this.settingsExpanded = !this.settingsExpanded;
-      this.settingsContent.style.maxHeight = this.settingsExpanded ? "320px" : "0px";
+      this.settingsContent.style.maxHeight = this.settingsExpanded ? "480px" : "0px";
       this.settingsChevron.style.transform = this.settingsExpanded ? "rotate(90deg)" : "rotate(0deg)";
     });
 
     // max-height + overflow:hidden, not display:none/"" — display can't be
-    // transitioned, so the section used to snap open/closed instantly. 320px
-    // is a generous ceiling for the current content (slot toggles, the
-    // real-avatar toggle + its warning note, export/import); it doesn't need
-    // to track real content height since it's never the constraining factor
-    // once expanded.
+    // transitioned, so the section used to snap open/closed instantly. 480px
+    // is a generous ceiling for the current content (the appearance-feed
+    // picker + its description, slot toggles, the real-avatar toggle + its
+    // warning note, export/import); it doesn't need to track real content
+    // height since it's never the constraining factor once expanded.
     const content = document.createElement("div");
     Object.assign(content.style, {
       padding: "0 8px",
-      maxHeight: this.settingsExpanded ? "320px" : "0px",
+      maxHeight: this.settingsExpanded ? "480px" : "0px",
       overflow: "hidden",
       transition: "max-height 0.2s ease",
     });
-    content.appendChild(this._buildSlotVisibilityRow());
-    content.appendChild(this._buildRealAvatarToggleRow());
-    content.appendChild(this._buildExportImportRow());
+    // A thin rule between each setting, purely for visual separation in a
+    // section that otherwise runs several unrelated controls together with
+    // nothing marking where one ends and the next begins.
+    const divider = () => {
+      const rule = document.createElement("div");
+      Object.assign(rule.style, {
+        borderTop: "1px solid var(--border, rgba(128,128,128,0.3))",
+        margin: "8px 0",
+      });
+      return rule;
+    };
+    content.append(
+      this._buildAppearanceFeedRow(),
+      divider(),
+      this._buildSlotVisibilityRow(),
+      divider(),
+      this._buildRealAvatarToggleRow(),
+      divider(),
+      this._buildExportImportRow(),
+    );
     this.settingsContent = content;
 
     section.append(header, content);
@@ -1216,7 +1282,7 @@ QM.dock = {
   // original extension's own export/import.
   _buildExportImportRow() {
     const row = document.createElement("div");
-    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" });
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px" });
 
     const exportButton = QM.button("Export…", {
       bg: "var(--secondary, transparent)",
@@ -1331,7 +1397,7 @@ QM.dock = {
   // unaffected, this dock's own portrait display is unaffected either way.
   _buildRealAvatarToggleRow() {
     const wrapper = document.createElement("div");
-    Object.assign(wrapper.style, { marginTop: "8px", fontSize: "12px" });
+    Object.assign(wrapper.style, { fontSize: "12px" });
 
     const checkboxLabel = document.createElement("label");
     Object.assign(checkboxLabel.style, { display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" });
@@ -1339,7 +1405,7 @@ QM.dock = {
     checkbox.type = "checkbox";
     checkbox.addEventListener("change", () => QM.state.updateReplaceRealAvatarOnEquip(checkbox.checked));
     const text = document.createElement("span");
-    text.textContent = "Also replace persona's real avatar on equip";
+    text.textContent = "Replace persona's real avatar on equip";
     checkboxLabel.append(checkbox, text);
     this.replaceRealAvatarToggle = checkbox;
 
@@ -2230,14 +2296,18 @@ QM.dock = {
   // Read-only display card, same rhythm as the item card: full-height
   // portrait on the left, everything else stacked to the right. No slot/
   // stored-at line here — outfits don't have either — so the description
-  // gets the extra room instead, clamped to two lines rather than one.
-  // Name/description editing, resnapshotting ("Update"), and the portrait
-  // upload all moved into _openOutfitEditor's modal, opened via [Edit];
-  // Delete stays directly on the card like it does on an item card. The
-  // currently-equipped outfit (QM.state.outfitMatchesCurrent) gets a
-  // success-colored border/glow instead of the theme accent, echoing the
-  // Add Item form's own "borrow a semantic color instead of a new shape"
-  // approach to standing out from its neighbors.
+  // gets the extra room instead, scrollable rather than a single clamped
+  // preview, so a long description is still fully readable without opening
+  // the editor. Name/description editing and the portrait upload moved into
+  // _openOutfitEditor's modal, opened via [Edit]; "Update" (resnapshotting
+  // from whatever's currently equipped) sits directly on the card between
+  // Edit and Equip instead, since it acts on live equip state rather than
+  // editing a stored field. Delete stays directly on the card like it does
+  // on an item card. The currently-equipped outfit
+  // (QM.state.outfitMatchesCurrent) gets a success-colored border/glow
+  // instead of the theme accent, echoing the Add Item form's own "borrow a
+  // semantic color instead of a new shape" approach to standing out from
+  // its neighbors.
   _buildOutfitRow(outfit) {
     const equipped = QM.state.outfitMatchesCurrent(outfit);
     const row = document.createElement("li");
@@ -2303,15 +2373,17 @@ QM.dock = {
     const descriptionRow = document.createElement("div");
     Object.assign(descriptionRow.style, { display: "flex", gap: "6px", flex: "1", minHeight: "0" });
     const descriptionPreview = document.createElement("span");
+    descriptionPreview.className = "qm-desc-scroll";
     descriptionPreview.textContent = outfit.description || "No description";
     Object.assign(descriptionPreview.style, {
       flex: "1",
       minWidth: "0",
       fontSize: "11px",
-      display: "-webkit-box",
-      WebkitLineClamp: "2",
-      WebkitBoxOrient: "vertical",
-      overflow: "hidden",
+      lineHeight: "14px",
+      maxHeight: "28px",
+      overflowY: "auto",
+      whiteSpace: "normal",
+      wordBreak: "break-word",
       color: "var(--muted-foreground, currentcolor)",
       fontStyle: outfit.description ? "normal" : "italic",
     });
@@ -2324,11 +2396,14 @@ QM.dock = {
     });
     const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
     editButton.addEventListener("click", () => this._openOutfitEditor(outfit));
+    const updateButton = QM.button("Update", { border: true, bg: "transparent", fg: "inherit" });
+    updateButton.title = "Resave the currently-equipped items into this outfit";
+    updateButton.addEventListener("click", () => QM.state.updateOutfit(outfit.id, { resnapshot: true }));
     const equipButton = QM.button("Equip");
     equipButton.disabled = equipped;
     equipButton.style.opacity = equipped ? "0.5" : "1";
     equipButton.addEventListener("click", () => QM.state.equipOutfit(outfit.id));
-    actionColumn.append(editButton, equipButton);
+    actionColumn.append(editButton, updateButton, equipButton);
     descriptionRow.append(descriptionPreview, actionColumn);
 
     detailsColumn.append(nameLine, descriptionRow);
@@ -2543,45 +2618,86 @@ QM.dock = {
   // than computing a share of the flex ratios) keeps this correct
   // regardless of the window's current size or zoom factor; the exact
   // pixel amount removed on collapse is stored so expanding hands back
-  // precisely that much rather than guessing. Skipped when the dock is
-  // narrow enough to stack columns vertically, since a collapsed column
-  // there just hides its content at full width -- there's no width to
-  // reclaim from a column that already spans the whole (already-narrow)
-  // dock.
+  // precisely that much rather than guessing.
+  //
+  // Whether to shrink the window at all is decided from the width the dock
+  // would have AFTER that shrink, not its current pre-collapse width --
+  // otherwise a collapse that (once the shrink actually lands) still needs
+  // stacked/mobile-style layout would pointlessly shrink the window for a
+  // column that, in stacked mode, doesn't need its width reclaimed at all
+  // (a collapsed column there just hides its content at full width). This
+  // same prediction also naturally covers "already stacked before this
+  // click": a column's rendered width IS the full body width in stacked
+  // layout, so subtracting it back out always lands far below the stack
+  // threshold, correctly skipping the resize without a separate check.
+  //
+  // this.bodyWidth is otherwise only updated later by the async
+  // ResizeObserver (observeBodyWidth), once the browser actually reflows
+  // after resizeBy changes the window's geometry -- updating it here too
+  // (by whatever resizeBy actually applied, which can be less than
+  // requested if window-size clamping kicked in) keeps the very next
+  // _applySectionHeaders call, a few lines down, already consistent with
+  // reality instead of quietly relying on a stale width until the real
+  // observer catches up moments later.
+  //
+  // Expanding always hands back whatever was taken regardless of the
+  // resulting stacked state -- otherwise, if some OTHER column's collapse
+  // had already pushed the layout into stacked mode, this column's own
+  // expand would silently skip restoring its share of the window width,
+  // leaving the dock stuck narrow even after every column shows itself
+  // expanded again.
   _toggleColumnCollapsed(columnKey) {
     const collapsing = !this.columnCollapsed[columnKey];
     const refs = this.sectionHeaders && this.sectionHeaders[columnKey];
-    const stacked = this.columns ? this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor() : false;
-    if (refs && refs.columnEl && !stacked) {
-      if (collapsing) {
-        const measured = refs.columnEl.getBoundingClientRect().width;
-        const delta = Math.max(0, measured - QM_COLUMN_COLLAPSED_WIDTH);
+    this.columnCollapsed[columnKey] = collapsing;
+    if (collapsing) {
+      const measured = refs && refs.columnEl ? refs.columnEl.getBoundingClientRect().width : 0;
+      const delta = Math.max(0, measured - QM_COLUMN_COLLAPSED_WIDTH);
+      const stackedAfterShrink = this.bodyWidth - delta < this._columnsStackThreshold() * this._zoomFactor();
+      if (refs && refs.columnEl && !stackedAfterShrink) {
         this.columnCollapseDelta[columnKey] = delta;
+        const widthBefore = this.geometry?.width;
         this.resizeBy(-delta, 0);
+        const applied = widthBefore != null && this.geometry ? widthBefore - this.geometry.width : delta;
+        this.bodyWidth = Math.max(0, this.bodyWidth - applied);
       } else {
-        const delta = this.columnCollapseDelta[columnKey] || 0;
         this.columnCollapseDelta[columnKey] = 0;
+      }
+    } else {
+      const delta = this.columnCollapseDelta[columnKey] || 0;
+      this.columnCollapseDelta[columnKey] = 0;
+      if (refs && refs.columnEl && delta > 0) {
+        const widthBefore = this.geometry?.width;
         this.resizeBy(delta, 0);
+        const applied = widthBefore != null && this.geometry ? this.geometry.width - widthBefore : delta;
+        this.bodyWidth += applied;
       }
     }
-    this.columnCollapsed[columnKey] = collapsing;
     qmWriteColumnCollapsed(this.columnCollapsed);
     this._applySectionHeaders();
   },
 
   // Called once at mount, again on every _paint (counts change on essentially
-  // every state mutation), and again whenever the body width crosses the
-  // stack threshold (_applyResponsiveLayout). Collapsing narrows the actual
+  // every state mutation), and again whenever the body width changes
+  // (_applyResponsiveLayout) or a column's collapse state flips
+  // (_toggleColumnCollapsed). Also owns the row/stacked flexDirection call
+  // for the whole columns container -- previously _applyResponsiveLayout
+  // decided that on its own with a flat threshold while this function
+  // separately decided each column's own narrow-strip styling with the same
+  // flat threshold; consolidating into one place means there's exactly one
+  // definition of "stacked" (the collapse-aware one in _isColumnsStacked)
+  // instead of two that could disagree. Collapsing narrows the actual
   // COLUMN width — not just hiding its content inside a column that stays
-  // full width — so the other columns' own flex naturally reclaims the
-  // space, matching a real sidebar-collapse rather than a cosmetic content
-  // toggle. That narrow-strip + sideways-label treatment only makes sense
-  // in the side-by-side (row) layout; when the dock is narrow enough to
-  // stack the columns (column layout), there's no horizontal neighbor to
-  // hand the space to, so a collapsed column there just hides its content
-  // at full width instead, same as the row layout's body-hide already did.
+  // full width — so the dock's own window shrinks to match (see
+  // _toggleColumnCollapsed), matching a real sidebar-collapse rather than a
+  // cosmetic content toggle. That narrow-strip + sideways-label treatment
+  // only makes sense in the side-by-side (row) layout; when the dock is
+  // narrow enough to stack the columns (column layout), there's no
+  // horizontal neighbor to hand the space to, so a collapsed column there
+  // just hides its content at full width instead.
   _applySectionHeaders() {
-    const stacked = this.columns ? this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor() : false;
+    const stacked = this._isColumnsStacked();
+    if (this.columns) this.columns.style.flexDirection = stacked ? "column" : "row";
     for (const key of QM_COLUMN_KEYS) {
       const refs = this.sectionHeaders && this.sectionHeaders[key];
       const body = this.sectionBodies && this.sectionBodies[key];
@@ -2737,15 +2853,18 @@ QM.dock = {
     const descriptionLine = document.createElement("div");
     Object.assign(descriptionLine.style, { display: "flex", alignItems: "center", gap: "6px" });
     const descriptionPreview = document.createElement("span");
+    descriptionPreview.className = "qm-desc-scroll";
     descriptionPreview.textContent = item.description || "No description";
     Object.assign(descriptionPreview.style, {
       flex: "1",
       minWidth: "0",
       fontSize: "11px",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      color: item.description ? "var(--muted-foreground, currentcolor)" : "var(--muted-foreground, currentcolor)",
+      lineHeight: "14px",
+      maxHeight: "28px",
+      overflowY: "auto",
+      whiteSpace: "normal",
+      wordBreak: "break-word",
+      color: "var(--muted-foreground, currentcolor)",
       fontStyle: item.description ? "normal" : "italic",
     });
     const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
@@ -2886,11 +3005,13 @@ QM.dock = {
 
   // Backdrop/panel structure identical to _openItemEditor (see that method's
   // own comment) — this one holds what used to be the outfit card's own
-  // inline fields (name, description, portrait) plus the "Update" resnapshot
-  // action that used to sit in the card's top line. Every field still
-  // auto-applies on change/blur; no Save button here either, since nothing
-  // in this modal is a pending edit the way a brand-new outfit's fields are
-  // in _openSaveOutfitModal.
+  // inline fields (name, description, portrait); the "Update" resnapshot
+  // action lives directly on the card instead (between Edit and Equip),
+  // since it acts on the currently-equipped state rather than editing a
+  // field, so it doesn't belong behind this modal like the others. Every
+  // field still auto-applies on change/blur; no Save button here either,
+  // since nothing in this modal is a pending edit the way a brand-new
+  // outfit's fields are in _openSaveOutfitModal.
   _openOutfitEditor(outfit) {
     this._closeOutfitEditor();
     const backdrop = document.createElement("div");
@@ -2957,16 +3078,7 @@ QM.dock = {
     );
     description.rows = 4;
 
-    const updateButton = QM.button("Update Outfit", {
-      bg: "var(--secondary, transparent)",
-      fg: "var(--secondary-foreground, inherit)",
-      border: true,
-    });
-    updateButton.title = "Resave the currently-equipped items into this outfit";
-    updateButton.style.width = "100%";
-    updateButton.addEventListener("click", () => QM.state.updateOutfit(outfit.id, { resnapshot: true }));
-
-    panel.append(header, imageRow, nameInput, description, updateButton);
+    panel.append(header, imageRow, nameInput, description);
     backdrop.appendChild(panel);
     this.outfitEditorBackdrop = backdrop;
     (this.root || this.body).appendChild(backdrop);
