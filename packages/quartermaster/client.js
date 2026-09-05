@@ -1,9 +1,931 @@
-(()=>{"use strict";const i={};async function v(t,e){const n=e&&e.body?{"Content-Type":"application/json"}:{},o=await fetch(`/api/quartermaster${t}`,{...e,headers:n}),r=await o.json().catch(()=>null);if(!o.ok)throw new Error(r&&r.error||`Request failed (${o.status})`);return r}i.listItems=(t,e)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}`,{method:"GET"}),i.addItem=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/items`,{method:"POST",body:JSON.stringify(n)}),i.updateItem=(t,e,n,o)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/items/${encodeURIComponent(n)}`,{method:"PATCH",body:JSON.stringify(o)}),i.deleteItem=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/items/${encodeURIComponent(n)}`,{method:"DELETE"}),i.createOutfit=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/outfits`,{method:"POST",body:JSON.stringify(n)}),i.updateOutfit=(t,e,n,o)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/outfits/${encodeURIComponent(n)}`,{method:"PATCH",body:JSON.stringify(o)}),i.equipOutfit=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/outfits/${encodeURIComponent(n)}/equip`,{method:"POST",body:"{}"}),i.deleteOutfit=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/outfits/${encodeURIComponent(n)}`,{method:"DELETE"}),i.updateSettings=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/settings`,{method:"PATCH",body:JSON.stringify(n)}),i.unequipAll=(t,e)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/unequip-all`,{method:"POST",body:"{}"}),i.uploadItemImage=(t,e,n,o)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/items/${encodeURIComponent(n)}/image`,{method:"POST",body:JSON.stringify({imageDataUrl:o})}),i.deleteItemImage=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/items/${encodeURIComponent(n)}/image`,{method:"DELETE"}),i.itemImageUrl=(t,e,n)=>`/api/quartermaster/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/items/${encodeURIComponent(n)}/image`,i.slotIconUrl=t=>`/api/quartermaster/inventory/slot-icon/${encodeURIComponent(t)}`,i.uploadOutfitPortrait=(t,e,n,o)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/outfits/${encodeURIComponent(n)}/portrait`,{method:"POST",body:JSON.stringify({imageDataUrl:o})}),i.deleteOutfitPortrait=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/outfits/${encodeURIComponent(n)}/portrait`,{method:"DELETE"}),i.outfitPortraitUrl=(t,e,n)=>`/api/quartermaster/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/outfits/${encodeURIComponent(n)}/portrait`,i.exportInventory=(t,e)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/export`,{method:"GET"}),i.importInventory=(t,e,n)=>v(`/inventory/${encodeURIComponent(t)}/${encodeURIComponent(e)}/import`,{method:"POST",body:JSON.stringify(n)});const ft=640,yt=.85;i.compressImageFile=function(e){return new Promise((n,o)=>{const r=new FileReader;r.onerror=()=>o(new Error("Could not read the selected file.")),r.onload=()=>{const s=new Image;s.onerror=()=>o(new Error("Could not load the selected file as an image.")),s.onload=()=>{const a=Math.min(1,ft/Math.max(s.naturalWidth,s.naturalHeight)),l=Math.max(1,Math.round(s.naturalWidth*a)),d=Math.max(1,Math.round(s.naturalHeight*a)),c=document.createElement("canvas");c.width=l,c.height=d,c.getContext("2d").drawImage(s,0,0,l,d);const u=e.type==="image/png"?"image/png":"image/jpeg";n(c.toDataURL(u,u==="image/jpeg"?yt:void 0))},s.src=r.result},r.readAsDataURL(e)})};const xt={head:'<path d="M12 3a7 7 0 0 0-7 7v3.5A1.5 1.5 0 0 0 6.5 15H8v2h8v-2h1.5a1.5 1.5 0 0 0 1.5-1.5V10a7 7 0 0 0-7-7Z"/><rect x="9" y="10.5" width="6" height="1.4" rx="0.7"/>',neck:'<path d="M6 4 L12 12 L18 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="15" r="2.6"/>',eyes:'<path d="M2 12s4-6.5 10-6.5S22 12 22 12s-4 6.5-10 6.5S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="2.8"/>',ears:'<path d="M9.5 3.5c3.6 0 5.8 2.7 5.8 5.8 0 1.8-.9 2.8-.9 4.5 0 1.4-1.1 2.7-2.7 2.7-1.1 0-1.9-.7-1.9-1.8 0-.9.7-1.4.7-2.5 0-1.2-1-1.9-1-3.2 0-2.3.8-4 0-5.5Z"/>',hands:'<path d="M7.2 9.2a4.8 4.8 0 0 1 9.6 0v5.6a4.8 4.8 0 0 1-9.6 0Z"/><path d="M6 10.5a2 2 0 0 1 2.8-1.8L8 12.5H6Z"/>',back:'<rect x="6" y="7" width="12" height="14" rx="3"/><path d="M9 7V5.2a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="13" width="6" height="4" rx="1" fill-opacity="0.35"/>',armor_torso:'<path d="M12 2.5 6.5 5.5v5c0 6 2.7 10 5.5 10s5.5-4 5.5-10v-5Z"/>',clothing_torso:'<path d="M8.3 3.8 4 6.8l2 3.2 2-1V20h8V9l2 1 2-3.2-4.3-3-1.7 1.6h-3Z"/>',armor_legs:'<rect x="6.5" y="4" width="4.2" height="16" rx="1.8"/><rect x="13.3" y="4" width="4.2" height="16" rx="1.8"/>',clothing_legs:'<path d="M7 3h10l1 8.5-1.3 9.5h-2.9l-1.3-10-1.3 10H8.3L7 11.5Z"/>',underwear_top:'<path d="M4 8c0-2.3 1.9-4.3 4-4.3S11.3 5.7 11.3 8c0 2.2-2 5.2-3.3 5.2S4 10.2 4 8Z"/><path d="M20 8c0-2.3-1.9-4.3-4-4.3S12.7 5.7 12.7 8c0 2.2 2 5.2 3.3 5.2S20 10.2 20 8Z"/>',underwear_bottom:'<path d="M5 5h14l-1.1 6.2c-.9 4.7-2.9 7.3-5.9 7.3s-5-2.6-5.9-7.3Z"/>',weapon_left_hand:'<path d="M11.3 2 12.7 2 12.7 14 11.3 14Z"/><rect x="8.3" y="14" width="7.4" height="1.8" rx="0.9"/><rect x="11.1" y="15.8" width="1.8" height="5.7" rx="0.9"/>',weapon_right_hand:'<path d="M11.3 2 12.7 2 12.7 14 11.3 14Z"/><rect x="8.3" y="14" width="7.4" height="1.8" rx="0.9"/><rect x="11.1" y="15.8" width="1.8" height="5.7" rx="0.9"/>',belt:'<rect x="2" y="10" width="20" height="4" rx="1.2"/><rect x="9.3" y="8.3" width="5.4" height="7.4" rx="1" fill-opacity="0.35"/>',feet:'<path d="M9 3h4v9.3l4.4 3.1c1.4 1 .7 3.1-1 3.1H7.4C6.6 18.5 6 17.8 6 17V8.5C6 5.5 7.2 3 9 3Z"/>'};i.buildSlotIcon=function(e,n){const o=document.createElementNS("http://www.w3.org/2000/svg","svg");return o.setAttribute("viewBox","0 0 24 24"),o.setAttribute("width",String(n)),o.setAttribute("height",String(n)),o.setAttribute("fill","currentColor"),o.setAttribute("aria-hidden","true"),o.innerHTML=xt[e]??"",o},i.buildSlotIconRaster=function(e,n){const o=document.createElement("img");return o.alt="",o.setAttribute("aria-hidden","true"),Object.assign(o.style,{width:`${n}px`,height:`${n}px`,objectFit:"contain",display:"block"}),o.addEventListener("error",()=>{o.replaceWith(i.buildSlotIcon(e,n))}),o.src=i.slotIconUrl(e),o};const x="persona",z=["head","neck","eyes","ears","armor_torso","armor_legs","clothing_torso","clothing_legs","underwear_top","underwear_bottom","back","hands","weapon_left_hand","weapon_right_hand","feet","belt"],vt={underwear:new Set(["underwear_top","underwear_bottom"]),armor:new Set(["armor_torso","armor_legs"]),weapons:new Set(["weapon_left_hand","weapon_right_hand"])},R={head:"Head",neck:"Neck",eyes:"Eyes",ears:"Ears",armor_torso:"Armor (Torso)",armor_legs:"Armor (Legs)",clothing_torso:"Clothing (Torso)",clothing_legs:"Clothing (Legs)",underwear_top:"Underwear (Top)",underwear_bottom:"Underwear (Bottom)",back:"Back",hands:"Hands",weapon_left_hand:"Weapon (Left Hand)",weapon_right_hand:"Weapon (Right Hand)",feet:"Feet",belt:"Belt"},wt=["head","eyes","ears","neck"],_t=["belt","feet"],Et=[["hands","back"],["armor_torso","armor_legs"],["clothing_torso","clothing_legs"],["underwear_top","underwear_bottom"],["weapon_left_hand","weapon_right_hand"]],St={head:"Head",neck:"Neck",eyes:"Eyes",ears:"Ears",armor_torso:"Torso Armor",armor_legs:"Legs Armor",clothing_torso:"Torso Clothing",clothing_legs:"Legs Clothing",underwear_top:"Top Underwear",underwear_bottom:"Bottom Underwear",back:"Back Accessory",hands:"Hands Accessory",weapon_left_hand:"Left Hand Weapon",weapon_right_hand:"Right Hand Weapon",feet:"Feet",belt:"Belt"},Ct={head:["Head"],neck:["Neck"],eyes:["Eyes"],ears:["Ears"],armor_torso:["Torso","Armor"],armor_legs:["Legs","Armor"],clothing_torso:["Torso","Clothing"],clothing_legs:["Legs","Clothing"],underwear_top:["Top","Underwear"],underwear_bottom:["Bottom","Underwear"],back:["Back","Accessory"],hands:["Hands","Accessory"],weapon_left_hand:["Left Hand","Weapon"],weapon_right_hand:["Right Hand","Weapon"],feet:["Feet"],belt:["Belt"]},It=[{value:"off",label:"Off"},{value:"outfitDescription",label:"Outfit description"},{value:"equippedNames",label:"Equipped item names"}],k="#dc2626",L="#fff",O="#16a34a",$="#fff";function V(t){return t.slice().sort((e,n)=>e.name.localeCompare(n.name))}function Ot(t){if(!t)return!1;const e=t.tagName;return e==="INPUT"||e==="SELECT"||e==="TEXTAREA"}function G(){if(typeof document>"u")return!1;const t=document.activeElement;if(!Ot(t))return!1;const e=i.dock&&i.dock.root,n=i.panel&&i.panel.container;return!!(e&&e.contains(t)||n&&n.contains(t))}typeof document<"u"&&document.addEventListener("focusout",()=>{i.state._pollTimer&&setTimeout(()=>{i.state.chatId&&!G()&&i.state._reload()},200)},!0),i.state={chatId:null,items:null,outfits:null,appearanceFeedMode:"off",showUnderwear:!1,showArmor:!0,showWeapons:!0,personaAvatarUrl:null,replaceRealAvatarOnEquip:!1,error:null,_listeners:new Set,subscribe(t){return this._listeners.add(t),()=>this._listeners.delete(t)},_notify(){for(const t of this._listeners)t()},setChat(t){this.chatId!==t&&(this.chatId=t,this.items=null,this.outfits=null,this.appearanceFeedMode="off",this.showUnderwear=!1,this.showArmor=!0,this.showWeapons=!0,this.personaAvatarUrl=null,this.error=null,i.dock&&(i.dock.selectedSlot=null),this._notify(),this.ensureLoaded())},ensureLoaded(){!this.chatId||this.items!==null||this._reload()},_activeViewers:0,_pollTimer:null,startPolling(){this._activeViewers+=1,!this._pollTimer&&(this._pollTimer=setInterval(()=>{!this.chatId||typeof document>"u"||document.hidden||G()||this._reload()},5e3))},stopPolling(){this._activeViewers=Math.max(0,this._activeViewers-1),this._activeViewers===0&&this._pollTimer&&(clearInterval(this._pollTimer),this._pollTimer=null)},async _reload(){const t=this.chatId;if(t){try{const e=await i.listItems(t,x);if(this.chatId!==t)return;const n={items:e.items,outfits:e.outfits,appearanceFeedMode:e.appearanceFeedMode,showUnderwear:e.showUnderwear===!0,showArmor:e.showArmor!==!1,showWeapons:e.showWeapons!==!1,personaAvatarUrl:e.personaAvatarUrl||null,replaceRealAvatarOnEquip:e.replaceRealAvatarOnEquip===!0},o={items:this.items,outfits:this.outfits,appearanceFeedMode:this.appearanceFeedMode,showUnderwear:this.showUnderwear,showArmor:this.showArmor,showWeapons:this.showWeapons,personaAvatarUrl:this.personaAvatarUrl,replaceRealAvatarOnEquip:this.replaceRealAvatarOnEquip},r=this.error!==null||JSON.stringify(n)!==JSON.stringify(o);if(Object.assign(this,n),this.error=null,!r)return}catch(e){this.error=e&&e.message?e.message:String(e)}this._notify()}},async _mutate(t){const e=this.chatId;if(e){try{const n=await t;if(this.chatId!==e)return;n.items!==void 0&&(this.items=n.items),n.outfits!==void 0&&(this.outfits=n.outfits),n.appearanceFeedMode!==void 0&&(this.appearanceFeedMode=n.appearanceFeedMode),n.showUnderwear!==void 0&&(this.showUnderwear=n.showUnderwear),n.showArmor!==void 0&&(this.showArmor=n.showArmor),n.showWeapons!==void 0&&(this.showWeapons=n.showWeapons),n.replaceRealAvatarOnEquip!==void 0&&(this.replaceRealAvatarOnEquip=n.replaceRealAvatarOnEquip),this.error=null}catch(n){this.error=n&&n.message?n.message:String(n)}this._notify()}},addItem(t){return this._mutate(i.addItem(this.chatId,x,t))},updateItem(t,e){return this._mutate(i.updateItem(this.chatId,x,t,e))},deleteItem(t){return this._mutate(i.deleteItem(this.chatId,x,t))},uploadItemImage(t,e){return this._mutate(i.uploadItemImage(this.chatId,x,t,e))},deleteItemImage(t){return this._mutate(i.deleteItemImage(this.chatId,x,t))},unequipAll(){return this._mutate(i.unequipAll(this.chatId,x))},exportInventory(){return i.exportInventory(this.chatId,x)},importInventory(t){return this._mutate(i.importInventory(this.chatId,x,t))},createOutfit(t){return this._mutate(i.createOutfit(this.chatId,x,t))},updateOutfit(t,e){return this._mutate(i.updateOutfit(this.chatId,x,t,e))},equipOutfit(t){return this._mutate(i.equipOutfit(this.chatId,x,t))},deleteOutfit(t){return this._mutate(i.deleteOutfit(this.chatId,x,t))},uploadOutfitPortrait(t,e){return this._mutate(i.uploadOutfitPortrait(this.chatId,x,t,e))},deleteOutfitPortrait(t){return this._mutate(i.deleteOutfitPortrait(this.chatId,x,t))},updateAppearanceFeedMode(t){return this._mutate(i.updateSettings(this.chatId,x,{appearanceFeedMode:t}))},updateShowUnderwear(t){return this._mutate(i.updateSettings(this.chatId,x,{showUnderwear:t}))},updateShowArmor(t){return this._mutate(i.updateSettings(this.chatId,x,{showArmor:t}))},updateShowWeapons(t){return this._mutate(i.updateSettings(this.chatId,x,{showWeapons:t}))},updateReplaceRealAvatarOnEquip(t){return this._mutate(i.updateSettings(this.chatId,x,{replaceRealAvatarOnEquip:t}))},groupVisible(t){return t?t==="underwear"?this.showUnderwear:t==="armor"?this.showArmor:t==="weapons"?this.showWeapons:!0:!0},slotVisible(t){for(const[e,n]of Object.entries(vt))if(n.has(t))return this.groupVisible(e);return!0},bagItems(){return V((this.items??[]).filter(t=>!t.location.startsWith("equipped:")))},itemsByLocationCategory(){const t=new Map;for(const n of this.bagItems()){const o=n.location==="bag"?"Bag":n.location.slice(7);t.has(o)||t.set(o,[]),t.get(o).push(n)}return[...t.keys()].sort((n,o)=>n==="Bag"?-1:o==="Bag"?1:n.localeCompare(o)).map(n=>({label:n,items:t.get(n)}))},equippedEntries(){const t=this.items??[],e=[];for(const n of z){if(!this.slotVisible(n))continue;const o=t.find(r=>r.location===`equipped:${n}`);o&&e.push({slot:n,item:o})}return e},itemInSlot(t){return(this.items??[]).find(e=>e.location===`equipped:${t}`)??null},sortedOutfits(){return V(this.outfits??[])},outfitItemNames(t){return Object.values(t.slots??{}).map(e=>e&&typeof e=="object"?e.name:null).filter(Boolean).sort((e,n)=>e.localeCompare(n))},outfitMatchesCurrent(t){const e={};for(const r of this.items??[])r.location.startsWith("equipped:")&&(e[r.location.slice(9)]=r.id);const n=Object.entries(t.slots??{}),o=Object.entries(e);return n.length!==o.length?!1:n.every(([r,s])=>{const a=s&&typeof s=="object"?s.itemId:s;return e[r]===a})},activeOutfitPortraitUrl(){const t=(this.outfits??[]).find(e=>e.portraitFile&&this.outfitMatchesCurrent(e));return t?i.outfitPortraitUrl(this.chatId,x,t.id):null}};const Y="qm-button-style",kt=`
+// Quartermaster 0.1.2 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Built from packages/quartermaster/src (8 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
+(() => {
+"use strict";
+// ===== 00-api.js =====
+// Quartermaster — client-side fetch helpers for the package's own privileged
+// routes (server.mjs). QM is the shared namespace concatenated files use to
+// talk to each other, the way Beholder's src/*.js share BH.
+
+const QM = {};
+
+async function qmRequest(path, options) {
+  // Only set Content-Type when there's actually a JSON body — Fastify's body
+  // parser rejects a bodyless request (GET/DELETE) that still declares
+  // application/json with "Body cannot be empty when content-type is set to
+  // 'application/json'".
+  const headers = options && options.body ? { "Content-Type": "application/json" } : {};
+  const response = await fetch(`/api/quartermaster${path}`, { ...options, headers });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error((body && body.error) || `Request failed (${response.status})`);
+  }
+  return body;
+}
+
+QM.listItems = (chatId, ownerId) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}`, { method: "GET" });
+
+QM.addItem = (chatId, ownerId, item) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items`, {
+    method: "POST",
+    body: JSON.stringify(item),
+  });
+
+QM.updateItem = (chatId, ownerId, itemId, patch) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+
+QM.deleteItem = (chatId, ownerId, itemId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}`,
+    { method: "DELETE" },
+  );
+
+QM.createOutfit = (chatId, ownerId, outfit) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits`, {
+    method: "POST",
+    body: JSON.stringify(outfit),
+  });
+
+QM.updateOutfit = (chatId, ownerId, outfitId, patch) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+
+QM.equipOutfit = (chatId, ownerId, outfitId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/equip`,
+    { method: "POST", body: "{}" },
+  );
+
+QM.deleteOutfit = (chatId, ownerId, outfitId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}`,
+    { method: "DELETE" },
+  );
+
+QM.updateSettings = (chatId, ownerId, settings) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify(settings),
+  });
+
+QM.unequipAll = (chatId, ownerId) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/unequip-all`, {
+    method: "POST",
+    body: "{}",
+  });
+
+QM.uploadItemImage = (chatId, ownerId, itemId, imageDataUrl) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`,
+    {
+      method: "POST",
+      body: JSON.stringify({ imageDataUrl }),
+    },
+  );
+
+QM.deleteItemImage = (chatId, ownerId, itemId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`,
+    {
+      method: "DELETE",
+    },
+  );
+
+// Not a fetch — the <img src> URL. A 404 (no matching image, uploaded or
+// pack) is handled by the caller's onerror, not here.
+QM.itemImageUrl = (chatId, ownerId, itemId) =>
+  `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`;
+
+// Not a fetch — the <img src> URL for a slot's bundled generic artwork
+// (server.mjs's SLOT_ICON_FILES). Not chat/owner-scoped — this is package
+// content, not chat data. A 404 (unrecognized slot) is handled by the
+// caller's onerror, same as itemImageUrl.
+QM.slotIconUrl = (slot) => `/api/quartermaster/inventory/slot-icon/${encodeURIComponent(slot)}`;
+
+QM.uploadOutfitPortrait = (chatId, ownerId, outfitId, imageDataUrl) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
+    { method: "POST", body: JSON.stringify({ imageDataUrl }) },
+  );
+
+QM.deleteOutfitPortrait = (chatId, ownerId, outfitId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`,
+    { method: "DELETE" },
+  );
+
+// Not a fetch — just the <img src> URL. Callers append a cache-buster (the
+// filename change already busts the browser cache; this is only relevant if
+// callers ever hit this before the state refetch lands, which none do today,
+// so plain is fine) only if they need to force a reload of the SAME filename.
+QM.outfitPortraitUrl = (chatId, ownerId, outfitId) =>
+  `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`;
+
+QM.exportInventory = (chatId, ownerId) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/export`, { method: "GET" });
+
+QM.importInventory = (chatId, ownerId, payload) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/import`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+// ===== 03-image.js =====
+// Quartermaster — client-side image resize/compression before upload, so a
+// phone photo doesn't get shipped to (and stored on) the server at full
+// resolution. Runs entirely in the browser via a canvas; the server only
+// validates size/type on receipt, it never resizes anything itself.
+const QM_PORTRAIT_MAX_DIMENSION = 640;
+const QM_PORTRAIT_JPEG_QUALITY = 0.85;
+
+QM.compressImageFile = function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read the selected file."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Could not load the selected file as an image."));
+      img.onload = () => {
+        const scale = Math.min(1, QM_PORTRAIT_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+        const width = Math.max(1, Math.round(img.naturalWidth * scale));
+        const height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        // PNG only when the source already was (preserves transparency);
+        // everything else — jpeg, webp, or anything else the browser can
+        // decode through the <input accept> filter — re-encodes as JPEG,
+        // smaller and universally supported by the canvas encoder.
+        const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+        resolve(canvas.toDataURL(outputType, outputType === "image/jpeg" ? QM_PORTRAIT_JPEG_QUALITY : undefined));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+// ===== 04-icons.js =====
+// Quartermaster — simple inline SVG pictograms, one per equip slot, shown in
+// an equipped-slot box when the slot has no equipped item, or when it does
+// but that item has no matching image (see _buildOverlaySlotBox's own
+// fallback logic). Deliberately plain geometric silhouettes rather than
+// detailed art — they render at ~32px, and fill="currentColor" so they
+// inherit whatever color the box's own text is using rather than carrying
+// their own.
+const QM_SLOT_ICON_PATHS = {
+  head: '<path d="M12 3a7 7 0 0 0-7 7v3.5A1.5 1.5 0 0 0 6.5 15H8v2h8v-2h1.5a1.5 1.5 0 0 0 1.5-1.5V10a7 7 0 0 0-7-7Z"/><rect x="9" y="10.5" width="6" height="1.4" rx="0.7"/>',
+  neck: '<path d="M6 4 L12 12 L18 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="15" r="2.6"/>',
+  eyes: '<path d="M2 12s4-6.5 10-6.5S22 12 22 12s-4 6.5-10 6.5S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="2.8"/>',
+  ears: '<path d="M9.5 3.5c3.6 0 5.8 2.7 5.8 5.8 0 1.8-.9 2.8-.9 4.5 0 1.4-1.1 2.7-2.7 2.7-1.1 0-1.9-.7-1.9-1.8 0-.9.7-1.4.7-2.5 0-1.2-1-1.9-1-3.2 0-2.3.8-4 0-5.5Z"/>',
+  hands:
+    '<path d="M7.2 9.2a4.8 4.8 0 0 1 9.6 0v5.6a4.8 4.8 0 0 1-9.6 0Z"/><path d="M6 10.5a2 2 0 0 1 2.8-1.8L8 12.5H6Z"/>',
+  back: '<rect x="6" y="7" width="12" height="14" rx="3"/><path d="M9 7V5.2a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="13" width="6" height="4" rx="1" fill-opacity="0.35"/>',
+  armor_torso: '<path d="M12 2.5 6.5 5.5v5c0 6 2.7 10 5.5 10s5.5-4 5.5-10v-5Z"/>',
+  clothing_torso: '<path d="M8.3 3.8 4 6.8l2 3.2 2-1V20h8V9l2 1 2-3.2-4.3-3-1.7 1.6h-3Z"/>',
+  armor_legs:
+    '<rect x="6.5" y="4" width="4.2" height="16" rx="1.8"/><rect x="13.3" y="4" width="4.2" height="16" rx="1.8"/>',
+  clothing_legs: '<path d="M7 3h10l1 8.5-1.3 9.5h-2.9l-1.3-10-1.3 10H8.3L7 11.5Z"/>',
+  underwear_top:
+    '<path d="M4 8c0-2.3 1.9-4.3 4-4.3S11.3 5.7 11.3 8c0 2.2-2 5.2-3.3 5.2S4 10.2 4 8Z"/><path d="M20 8c0-2.3-1.9-4.3-4-4.3S12.7 5.7 12.7 8c0 2.2 2 5.2 3.3 5.2S20 10.2 20 8Z"/>',
+  underwear_bottom: '<path d="M5 5h14l-1.1 6.2c-.9 4.7-2.9 7.3-5.9 7.3s-5-2.6-5.9-7.3Z"/>',
+  weapon_left_hand:
+    '<path d="M11.3 2 12.7 2 12.7 14 11.3 14Z"/><rect x="8.3" y="14" width="7.4" height="1.8" rx="0.9"/><rect x="11.1" y="15.8" width="1.8" height="5.7" rx="0.9"/>',
+  weapon_right_hand:
+    '<path d="M11.3 2 12.7 2 12.7 14 11.3 14Z"/><rect x="8.3" y="14" width="7.4" height="1.8" rx="0.9"/><rect x="11.1" y="15.8" width="1.8" height="5.7" rx="0.9"/>',
+  belt: '<rect x="2" y="10" width="20" height="4" rx="1.2"/><rect x="9.3" y="8.3" width="5.4" height="7.4" rx="1" fill-opacity="0.35"/>',
+  feet: '<path d="M9 3h4v9.3l4.4 3.1c1.4 1 .7 3.1-1 3.1H7.4C6.6 18.5 6 17.8 6 17V8.5C6 5.5 7.2 3 9 3Z"/>',
+};
+
+// <svg fill="currentColor"> wrapper around a slot's path markup — sizePx is
+// both width and height (icons are always square). Falls back to a plain
+// empty <svg> for an unrecognized slot rather than throwing, since a future
+// slot addition shouldn't be able to break rendering.
+QM.buildSlotIcon = function buildSlotIcon(slot, sizePx) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", String(sizePx));
+  svg.setAttribute("height", String(sizePx));
+  svg.setAttribute("fill", "currentColor");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML = QM_SLOT_ICON_PATHS[slot] ?? "";
+  return svg;
+};
+
+// The bundled photographic slot icon (server.mjs's SLOT_ICON_FILES) as an
+// <img>, falling back to the plain SVG pictogram above on a 404 or load
+// failure — same "always render something" guarantee buildSlotIcon itself
+// gives for an unrecognized slot. object-fit: contain, not cover: several of
+// these (the sword, the necklace) are tall/thin or wide/short rather than
+// square, and cover would crop off the point or the pendant to fill a square
+// box; contain letterboxes instead, which reads fine against the box's own
+// dark background.
+QM.buildSlotIconRaster = function buildSlotIconRaster(slot, sizePx) {
+  const img = document.createElement("img");
+  img.alt = "";
+  img.setAttribute("aria-hidden", "true");
+  Object.assign(img.style, { width: `${sizePx}px`, height: `${sizePx}px`, objectFit: "contain", display: "block" });
+  img.addEventListener("error", () => {
+    img.replaceWith(QM.buildSlotIcon(slot, sizePx));
+  });
+  img.src = QM.slotIconUrl(slot);
+  return img;
+};
+
+// ===== 05-state.js =====
+// Quartermaster — shared reactive state for the persona's inventory. Both
+// QM.dock (the self-managed floating panel) and QM.panel (the inline
+// tracker-panel accordion) read from and mutate through this single source,
+// so equipping/unequipping in one place is immediately reflected in the
+// other if both happen to be visible at once — each view just subscribes
+// and repaints on change rather than keeping its own copy.
+
+const QM_OWNER_ID = "persona";
+
+// Mirrors server.mjs's EQUIP_SLOTS exactly (same order too) — client and
+// server are separate bundles, so this is duplicated rather than shared.
+const QM_EQUIP_SLOTS = [
+  "head",
+  "neck",
+  "eyes",
+  "ears",
+  "armor_torso",
+  "armor_legs",
+  "clothing_torso",
+  "clothing_legs",
+  "underwear_top",
+  "underwear_bottom",
+  "back",
+  "hands",
+  "weapon_left_hand",
+  "weapon_right_hand",
+  "feet",
+  "belt",
+];
+// Three of the extension's original SLOT_GROUPS toggles (armor/underwear/
+// weapon) — every other slot has no group and is always on ("just regular
+// slots", per the request). Mirrors server.mjs's SLOT_GROUPS.
+const QM_SLOT_GROUPS = {
+  underwear: new Set(["underwear_top", "underwear_bottom"]),
+  armor: new Set(["armor_torso", "armor_legs"]),
+  weapons: new Set(["weapon_left_hand", "weapon_right_hand"]),
+};
+const QM_SLOT_LABELS = {
+  head: "Head",
+  neck: "Neck",
+  eyes: "Eyes",
+  ears: "Ears",
+  armor_torso: "Armor (Torso)",
+  armor_legs: "Armor (Legs)",
+  clothing_torso: "Clothing (Torso)",
+  clothing_legs: "Clothing (Legs)",
+  underwear_top: "Underwear (Top)",
+  underwear_bottom: "Underwear (Bottom)",
+  back: "Back",
+  hands: "Hands",
+  weapon_left_hand: "Weapon (Left Hand)",
+  weapon_right_hand: "Weapon (Right Hand)",
+  feet: "Feet",
+  belt: "Belt",
+};
+// The dock's equipment overlay. Head/Eyes/Ears/Neck sit in a row above the
+// portrait, Belt/Feet below it; the remaining 5 pairs sit in columns beside
+// it, stretched to the portrait's own real rendered height and spread
+// evenly across it (10-dock.js's middleRow/space-between) — there's no way
+// to pin a slot to a real anatomical pixel position without image
+// analysis, since personas vary in aspect ratio/pose, so this spreads them
+// evenly instead. Order and pairing match a reference RPG equipment-screen
+// layout the user provided. Every pair shares a single group (or neither
+// slot has one) — never split across two different groups — so
+// group-visibility only needs one check per row; QM.state.slotVisible on
+// either slot in a pair always agrees with the other.
+const QM_OVERLAY_TOP_SLOTS = ["head", "eyes", "ears", "neck"];
+const QM_OVERLAY_BOTTOM_SLOTS = ["belt", "feet"];
+const QM_OVERLAY_SLOT_PAIRS = [
+  ["hands", "back"],
+  ["armor_torso", "armor_legs"],
+  ["clothing_torso", "clothing_legs"],
+  ["underwear_top", "underwear_bottom"],
+  ["weapon_left_hand", "weapon_right_hand"],
+];
+// Fuller than QM_SLOT_LABELS would need to be for a grouped layout with a
+// heading nearby (the old ring's short labels) — this overlay has no
+// heading to disambiguate armor vs. clothing between rows, so every label
+// carries its own context, matching the reference layout's own labels.
+// Plain string — used for the unequip button's aria-label/title, not the
+// visible box label (see QM_OVERLAY_SLOT_LABEL_LINES for that).
+const QM_OVERLAY_SLOT_LABELS = {
+  head: "Head",
+  neck: "Neck",
+  eyes: "Eyes",
+  ears: "Ears",
+  armor_torso: "Torso Armor",
+  armor_legs: "Legs Armor",
+  clothing_torso: "Torso Clothing",
+  clothing_legs: "Legs Clothing",
+  underwear_top: "Top Underwear",
+  underwear_bottom: "Bottom Underwear",
+  back: "Back Accessory",
+  hands: "Hands Accessory",
+  weapon_left_hand: "Left Hand Weapon",
+  weapon_right_hand: "Right Hand Weapon",
+  feet: "Feet",
+  belt: "Belt",
+};
+// The visible box label, pre-split into explicit lines rather than left to
+// natural CSS wrapping — at a fixed box width, "Torso Clothing" wrapped
+// while "Legs Clothing" didn't (different first-word length), throwing the
+// two paired columns visibly out of alignment with each other. Forcing
+// every multi-word label to break at the same point keeps a pair's two
+// boxes the same height regardless of word length.
+const QM_OVERLAY_SLOT_LABEL_LINES = {
+  head: ["Head"],
+  neck: ["Neck"],
+  eyes: ["Eyes"],
+  ears: ["Ears"],
+  armor_torso: ["Torso", "Armor"],
+  armor_legs: ["Legs", "Armor"],
+  clothing_torso: ["Torso", "Clothing"],
+  clothing_legs: ["Legs", "Clothing"],
+  underwear_top: ["Top", "Underwear"],
+  underwear_bottom: ["Bottom", "Underwear"],
+  back: ["Back", "Accessory"],
+  hands: ["Hands", "Accessory"],
+  weapon_left_hand: ["Left Hand", "Weapon"],
+  weapon_right_hand: ["Right Hand", "Weapon"],
+  feet: ["Feet"],
+  belt: ["Belt"],
+};
+const QM_APPEARANCE_FEED_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "outfitDescription", label: "Outfit description" },
+  { value: "equippedNames", label: "Equipped item names" },
+];
+const QM_COLOR_DANGER = "#dc2626";
+const QM_COLOR_DANGER_FG = "#fff";
+const QM_COLOR_SUCCESS = "#16a34a";
+const QM_COLOR_SUCCESS_FG = "#fff";
+
+function qmSortByName(list) {
+  return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// True while the user is mid-interaction with a live input/select inside
+// either view — an open <select> keeps its native dropdown's owning element
+// focused for as long as the popup stays open, so checking focus alone
+// covers both "typing in a field" and "a dropdown is open" without needing
+// a separate open/closed tracker.
+function qmIsLiveEditableElement(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+}
+
+function qmFocusIsInsideLiveView() {
+  if (typeof document === "undefined") return false;
+  const active = document.activeElement;
+  if (!qmIsLiveEditableElement(active)) return false;
+  const dockRoot = QM.dock && QM.dock.root;
+  const panelRoot = QM.panel && QM.panel.container;
+  return Boolean((dockRoot && dockRoot.contains(active)) || (panelRoot && panelRoot.contains(active)));
+}
+
+// Registered once, module-wide (not per mount/unmount), since it's a no-op
+// whenever polling isn't active. Catches the user up as soon as they finish
+// editing instead of leaving them looking at up-to-5-second-stale data until
+// the next tick — "focusout" (unlike "blur") bubbles, so one delegated
+// listener covers every field/select either view ever builds. The delay
+// lets focus land on wherever it's actually going next (tabbing to another
+// field, a <select>'s popup closing) before deciding the user is done.
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "focusout",
+    () => {
+      if (!QM.state._pollTimer) return;
+      setTimeout(() => {
+        if (QM.state.chatId && !qmFocusIsInsideLiveView()) QM.state._reload();
+      }, 200);
+    },
+    true,
+  );
+}
+
+QM.state = {
+  chatId: null,
+  items: null,
+  outfits: null,
+  appearanceFeedMode: "off",
+  // Per-group defaults (matches server.mjs's SLOT_GROUP_DEFAULTS): underwear
+  // off so a fresh inventory is SFW; armor/weapons on since most characters
+  // use them. Off hides that group's slots from the dock's portrait ring,
+  // the tracker panel's Equipped list, and the default-slot picker, and the
+  // server independently rejects equipping into them — see server.mjs's
+  // normalizeLocation.
+  showUnderwear: false,
+  showArmor: true,
+  showWeapons: true,
+  personaAvatarUrl: null,
+  replaceRealAvatarOnEquip: false,
+  error: null,
+  _listeners: new Set(),
+
+  subscribe(fn) {
+    this._listeners.add(fn);
+    return () => this._listeners.delete(fn);
+  },
+
+  _notify() {
+    for (const fn of this._listeners) fn();
+  },
+
+  setChat(chatId) {
+    if (this.chatId === chatId) return;
+    this.chatId = chatId;
+    this.items = null;
+    this.outfits = null;
+    this.appearanceFeedMode = "off";
+    this.showUnderwear = false;
+    this.showArmor = true;
+    this.showWeapons = true;
+    this.personaAvatarUrl = null;
+    this.error = null;
+    // A selected equip-slot picker (QM.dock's own UI state, not this
+    // object's) doesn't carry any meaning across a chat switch — the slot
+    // NAMES are the same fixed set everywhere, so leaving one "selected"
+    // wouldn't crash, but it would look like a stale leftover from the
+    // previous chat.
+    if (QM.dock) QM.dock.selectedSlot = null;
+    this._notify();
+    this.ensureLoaded();
+  },
+
+  ensureLoaded() {
+    if (!this.chatId || this.items !== null) return;
+    this._reload();
+  },
+
+  // Neither view has any way to know the server-side tracker agent changed
+  // something — that happens entirely inside the post_processing pipeline,
+  // with no push/event back to the client. Confirmed live: an agent turn
+  // reconciled correctly (verified server-side), but the dock kept showing
+  // stale data until an unrelated manual action forced a reload. Polling
+  // while a view is actually open/mounted is the fix — ref-counted so the
+  // dock and tracker panel can both be open without either one stopping the
+  // other's polling when it closes first.
+  _activeViewers: 0,
+  _pollTimer: null,
+
+  startPolling() {
+    this._activeViewers += 1;
+    if (this._pollTimer) return;
+    this._pollTimer = setInterval(() => {
+      if (!this.chatId || typeof document === "undefined" || document.hidden) return;
+      // A repaint replaces the DOM nodes wholesale (there's no cheap way to
+      // patch just the one row that changed), so a poll landing mid-edit —
+      // typing in a description field, an open <select>'s native dropdown —
+      // would tear the control out from under the user. Skip this tick and
+      // let qmScheduleCatchUpReload pick it up the moment focus leaves.
+      if (qmFocusIsInsideLiveView()) return;
+      this._reload();
+    }, 5000);
+  },
+
+  stopPolling() {
+    this._activeViewers = Math.max(0, this._activeViewers - 1);
+    if (this._activeViewers === 0 && this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
+  },
+
+  async _reload() {
+    const chatId = this.chatId;
+    if (!chatId) return;
+    try {
+      const result = await QM.listItems(chatId, QM_OWNER_ID);
+      if (this.chatId !== chatId) return; // chat changed while this was in flight
+      const next = {
+        items: result.items,
+        outfits: result.outfits,
+        appearanceFeedMode: result.appearanceFeedMode,
+        showUnderwear: result.showUnderwear === true,
+        showArmor: result.showArmor !== false,
+        showWeapons: result.showWeapons !== false,
+        personaAvatarUrl: result.personaAvatarUrl || null,
+        replaceRealAvatarOnEquip: result.replaceRealAvatarOnEquip === true,
+      };
+      // A repaint rebuilds every card's DOM wholesale (there's no cheap way
+      // to patch just the one thing that changed) — item images in
+      // particular re-fetch and visibly flicker on every rebuild. Most poll
+      // ticks land with nothing actually different server-side (the poll's
+      // whole job is catching a tracker-agent turn or another view's edit,
+      // which is the exception, not the norm), so compare before assigning
+      // and skip the notify entirely when nothing changed, rather than
+      // repainting every 5 seconds regardless.
+      const current = {
+        items: this.items,
+        outfits: this.outfits,
+        appearanceFeedMode: this.appearanceFeedMode,
+        showUnderwear: this.showUnderwear,
+        showArmor: this.showArmor,
+        showWeapons: this.showWeapons,
+        personaAvatarUrl: this.personaAvatarUrl,
+        replaceRealAvatarOnEquip: this.replaceRealAvatarOnEquip,
+      };
+      const changed = this.error !== null || JSON.stringify(next) !== JSON.stringify(current);
+      Object.assign(this, next);
+      this.error = null;
+      if (!changed) return;
+    } catch (error) {
+      this.error = error && error.message ? error.message : String(error);
+    }
+    this._notify();
+  },
+
+  async _mutate(request) {
+    const chatId = this.chatId;
+    if (!chatId) return;
+    try {
+      const result = await request;
+      if (this.chatId !== chatId) return;
+      if (result.items !== undefined) this.items = result.items;
+      if (result.outfits !== undefined) this.outfits = result.outfits;
+      if (result.appearanceFeedMode !== undefined) this.appearanceFeedMode = result.appearanceFeedMode;
+      if (result.showUnderwear !== undefined) this.showUnderwear = result.showUnderwear;
+      if (result.showArmor !== undefined) this.showArmor = result.showArmor;
+      if (result.showWeapons !== undefined) this.showWeapons = result.showWeapons;
+      if (result.replaceRealAvatarOnEquip !== undefined)
+        this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
+      this.error = null;
+    } catch (error) {
+      this.error = error && error.message ? error.message : String(error);
+    }
+    this._notify();
+  },
+
+  addItem(item) {
+    return this._mutate(QM.addItem(this.chatId, QM_OWNER_ID, item));
+  },
+  updateItem(itemId, patch) {
+    return this._mutate(QM.updateItem(this.chatId, QM_OWNER_ID, itemId, patch));
+  },
+  deleteItem(itemId) {
+    return this._mutate(QM.deleteItem(this.chatId, QM_OWNER_ID, itemId));
+  },
+  uploadItemImage(itemId, imageDataUrl) {
+    return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
+  },
+  deleteItemImage(itemId) {
+    return this._mutate(QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId));
+  },
+  unequipAll() {
+    return this._mutate(QM.unequipAll(this.chatId, QM_OWNER_ID));
+  },
+  // Read-only — doesn't touch `this` state, just hands the caller (the dock's
+  // export button) the payload to write out as a file.
+  exportInventory() {
+    return QM.exportInventory(this.chatId, QM_OWNER_ID);
+  },
+  importInventory(payload) {
+    return this._mutate(QM.importInventory(this.chatId, QM_OWNER_ID, payload));
+  },
+  createOutfit(outfit) {
+    return this._mutate(QM.createOutfit(this.chatId, QM_OWNER_ID, outfit));
+  },
+  updateOutfit(outfitId, patch) {
+    return this._mutate(QM.updateOutfit(this.chatId, QM_OWNER_ID, outfitId, patch));
+  },
+  equipOutfit(outfitId) {
+    return this._mutate(QM.equipOutfit(this.chatId, QM_OWNER_ID, outfitId));
+  },
+  deleteOutfit(outfitId) {
+    return this._mutate(QM.deleteOutfit(this.chatId, QM_OWNER_ID, outfitId));
+  },
+  uploadOutfitPortrait(outfitId, imageDataUrl) {
+    return this._mutate(QM.uploadOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId, imageDataUrl));
+  },
+  deleteOutfitPortrait(outfitId) {
+    return this._mutate(QM.deleteOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId));
+  },
+  updateAppearanceFeedMode(mode) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { appearanceFeedMode: mode }));
+  },
+  updateShowUnderwear(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { showUnderwear: value }));
+  },
+  updateShowArmor(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { showArmor: value }));
+  },
+  updateShowWeapons(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { showWeapons: value }));
+  },
+  updateReplaceRealAvatarOnEquip(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { replaceRealAvatarOnEquip: value }));
+  },
+
+  // A group with no toggle (e.g. undefined) is always visible.
+  groupVisible(group) {
+    if (!group) return true;
+    if (group === "underwear") return this.showUnderwear;
+    if (group === "armor") return this.showArmor;
+    if (group === "weapons") return this.showWeapons;
+    return true;
+  },
+
+  // Single choke point every consumer (portrait ring, tracker panel, the
+  // default-slot picker) calls instead of checking QM_SLOT_GROUPS directly.
+  slotVisible(slot) {
+    for (const [group, slots] of Object.entries(QM_SLOT_GROUPS)) {
+      if (slots.has(slot)) return this.groupVisible(group);
+    }
+    return true;
+  },
+
+  // ── Derived, sorted views. Every list-producing getter sorts A-Z here so
+  // no render path can accidentally show raw insertion order again. ──
+  bagItems() {
+    return qmSortByName((this.items ?? []).filter((item) => !item.location.startsWith("equipped:")));
+  },
+
+  // [{ label, items }], Bag first then each "stored:<name>" category A-Z by
+  // label; items within a category A-Z by name.
+  itemsByLocationCategory() {
+    const categories = new Map();
+    for (const item of this.bagItems()) {
+      const label = item.location === "bag" ? "Bag" : item.location.slice("stored:".length);
+      if (!categories.has(label)) categories.set(label, []);
+      categories.get(label).push(item);
+    }
+    const labels = [...categories.keys()].sort((a, b) => {
+      if (a === "Bag") return -1;
+      if (b === "Bag") return 1;
+      return a.localeCompare(b);
+    });
+    return labels.map((label) => ({ label, items: categories.get(label) }));
+  },
+
+  // [{ slot, item }] for occupied slots, in EQUIP_SLOTS' fixed anatomical
+  // order — that order is itself the sort, not insertion order. A hidden
+  // group's entries drop out here too, the same as the portrait ring's slot
+  // boxes — so every consumer (tracker panel, dock) agrees on what's
+  // visible, not just the dock's own layout.
+  equippedEntries() {
+    const items = this.items ?? [];
+    const entries = [];
+    for (const slot of QM_EQUIP_SLOTS) {
+      if (!this.slotVisible(slot)) continue;
+      const item = items.find((candidate) => candidate.location === `equipped:${slot}`);
+      if (item) entries.push({ slot, item });
+    }
+    return entries;
+  },
+
+  itemInSlot(slot) {
+    return (this.items ?? []).find((item) => item.location === `equipped:${slot}`) ?? null;
+  },
+
+  sortedOutfits() {
+    return qmSortByName(this.outfits ?? []);
+  },
+
+  // Each slot carries its own name/description snapshot now (not just an
+  // item id — a saved outfit is a durable record, not a live reference:
+  // server.mjs's applyOutfitEquip recreates a
+  // missing item from this same snapshot). Reads the name straight off the
+  // outfit, so this shows correctly even for an item that's since been
+  // deleted or dropped by a tracker-agent turn.
+  outfitItemNames(outfit) {
+    return Object.values(outfit.slots ?? {})
+      .map((snapshot) => (snapshot && typeof snapshot === "object" ? snapshot.name : null))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  },
+
+  outfitMatchesCurrent(outfit) {
+    const current = {};
+    for (const item of this.items ?? []) {
+      if (item.location.startsWith("equipped:")) current[item.location.slice("equipped:".length)] = item.id;
+    }
+    const outfitEntries = Object.entries(outfit.slots ?? {});
+    const currentEntries = Object.entries(current);
+    if (outfitEntries.length !== currentEntries.length) return false;
+    return outfitEntries.every(([slot, snapshot]) => {
+      const itemId = snapshot && typeof snapshot === "object" ? snapshot.itemId : snapshot;
+      return current[slot] === itemId;
+    });
+  },
+
+  // The outfit (if any) whose slots exactly match what's currently equipped
+  // AND has a portrait set — used by the portrait ring to decide whether to
+  // show that portrait instead of the persona's own avatar. Ambiguous when
+  // two saved outfits happen to have identical slots (picks the first, same
+  // tie-break outfitMatchesCurrent's server-side counterpart already accepts
+  // for the appearance-macro's "outfitDescription" mode).
+  activeOutfitPortraitUrl() {
+    const active = (this.outfits ?? []).find((outfit) => outfit.portraitFile && this.outfitMatchesCurrent(outfit));
+    return active ? QM.outfitPortraitUrl(this.chatId, QM_OWNER_ID, active.id) : null;
+  },
+};
+
+// ===== 07-ui.js =====
+// Quartermaster — small shared DOM-building helpers used by both QM.dock
+// (the floating panel) and QM.panel (the inline tracker-panel accordion),
+// so the two views stay visually and behaviorally consistent instead of
+// each hand-rolling their own button/input styling.
+
+// Inline styles (Object.assign(el.style, ...) below) can't express :hover,
+// :active, or :focus-visible at all — those need a real stylesheet rule.
+// Injected once, globally, since both the dock and the tracker-panel
+// accordion share QM.button(). brightness() rather than per-variant hover
+// colors so it works uniformly across every bg (--primary, --secondary, the
+// fixed danger/success reds/greens) without a hover color per variant.
+const QM_BUTTON_STYLE_ID = "qm-button-style";
+const QM_BUTTON_STYLE = `
 .qm-btn{ transition: filter 0.1s ease, transform 0.05s ease; }
 .qm-btn:hover{ filter: brightness(1.12); }
 .qm-btn:active{ filter: brightness(0.92); transform: translateY(1px); }
 .qm-btn:focus-visible{ outline: 2px solid var(--ring, var(--border, currentcolor)); outline-offset: 1px; }
-`;function Rt(){if(document.getElementById(Y))return;const t=document.createElement("style");t.id=Y,t.textContent=kt,(document.head||document.body).appendChild(t)}i.textNode=function(e){const n=document.createElement("p");return n.style.margin="0 0 8px",n.textContent=e,n},i.sectionHeading=function(e){const n=document.createElement("h3");return n.textContent=e,Object.assign(n.style,{margin:"0 0 6px",fontSize:"12px",textTransform:"uppercase",letterSpacing:"0.04em",color:"var(--muted-foreground, currentcolor)",textAlign:"center"}),n},i.smallInput=function(e){const n=document.createElement(e);if(Object.assign(n.style,{background:"var(--input, transparent)",color:"inherit",border:"1px solid var(--border, rgba(0,0,0,0.2))",borderRadius:"var(--radius, 4px)",padding:"2px 4px",fontSize:"12px"}),e==="select"){const o=document.documentElement.dataset.theme!=="light";n.style.colorScheme=o?"dark":"light",n.style.background=o?"#1a1a1a":"#fff",n.style.color=o?"#f2f2f2":"#000"}return n},i.button=function(e,{bg:n,fg:o,border:r}={}){Rt();const s=document.createElement("button");return s.type="button",s.className="qm-btn",s.textContent=e,Object.assign(s.style,{background:n??"var(--primary, #444)",color:o??"var(--primary-foreground, #fff)",border:r?"1px solid var(--border, rgba(0,0,0,0.2))":"none",borderRadius:"var(--radius, 4px)",padding:"2px 8px",cursor:"pointer",fontSize:"12px"}),s},i.descriptionTextarea=function(e,n){const o=document.createElement("textarea");return o.placeholder="Description",o.value=e||"",o.rows=2,Object.assign(o.style,{background:"var(--input, transparent)",color:"inherit",border:"1px solid var(--border, rgba(0,0,0,0.2))",borderRadius:"var(--radius, 4px)",padding:"4px 6px",fontSize:"12px",font:"inherit",resize:"vertical",width:"100%",boxSizing:"border-box"}),o.addEventListener("change",()=>n(o.value)),o},i.defaultSlotSelect=function(e){const n=i.smallInput("select"),o=document.createElement("option");o.value="",o.textContent="Default slot\u2026",n.appendChild(o);for(const r of z){if(!i.state.slotVisible(r))continue;const s=document.createElement("option");s.value=r,s.textContent=R[r],n.appendChild(s)}return n.value=e.defaultSlot||"",n.addEventListener("change",()=>i.state.updateItem(e.id,{defaultSlot:n.value||null})),n};const J="qm-dock-style",Lt=`
+`;
+
+function qmEnsureButtonStyle() {
+  if (document.getElementById(QM_BUTTON_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = QM_BUTTON_STYLE_ID;
+  style.textContent = QM_BUTTON_STYLE;
+  (document.head || document.body).appendChild(style);
+}
+
+QM.textNode = function textNode(text) {
+  const node = document.createElement("p");
+  node.style.margin = "0 0 8px";
+  node.textContent = text;
+  return node;
+};
+
+// Centered — the Outfits/Equipped/Bag column headings sat flush left before
+// (the default for a block element), which read as misaligned against the
+// centered portrait ring between them. In the Equipped column the heading
+// sits in a grid alongside the Unequip All button (10-dock.js), which
+// centers it via a spacer column regardless of this text-align; here it
+// matters for Outfits/Bag, where the heading is the column's sole full-width
+// child.
+QM.sectionHeading = function sectionHeading(text) {
+  const heading = document.createElement("h3");
+  heading.textContent = text;
+  Object.assign(heading.style, {
+    margin: "0 0 6px",
+    fontSize: "12px",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    color: "var(--muted-foreground, currentcolor)",
+    textAlign: "center",
+  });
+  return heading;
+};
+
+QM.smallInput = function smallInput(tag) {
+  const el = document.createElement(tag);
+  Object.assign(el.style, {
+    background: "var(--input, transparent)",
+    color: "inherit",
+    border: "1px solid var(--border, rgba(0,0,0,0.2))",
+    borderRadius: "var(--radius, 4px)",
+    padding: "2px 4px",
+    fontSize: "12px",
+  });
+  // <select>'s CLOSED box respects author background/color reliably, but the
+  // OPEN dropdown popup is largely native-rendered by the browser —
+  // Chromium in particular picks its colors from color-scheme, ignoring
+  // var(--input)/color:inherit. Rather than hardcoding light (which put a
+  // bright white popup against a dark app), read the Engine's own theme
+  // signal — App.tsx sets document.documentElement.dataset.theme on every
+  // theme change, mirrored to :root's own color-scheme — and match it, so
+  // the popup at least looks native-dark or native-light instead of always
+  // light. Still an approximation (real per-variable popup theming isn't
+  // reliably achievable across browsers), but a matching native scheme reads
+  // far less jarring than a fixed white box in a dark app.
+  if (tag === "select") {
+    const isDark = document.documentElement.dataset.theme !== "light";
+    el.style.colorScheme = isDark ? "dark" : "light";
+    el.style.background = isDark ? "#1a1a1a" : "#fff";
+    el.style.color = isDark ? "#f2f2f2" : "#000";
+  }
+  return el;
+};
+
+// Shared button factory so danger/success/neutral styling stays consistent.
+// bg/fg are CSS color values; border draws a themed outline for neutral
+// (non-colored) buttons instead of a solid fill.
+QM.button = function button(text, { bg, fg, border } = {}) {
+  qmEnsureButtonStyle();
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = "qm-btn";
+  el.textContent = text;
+  Object.assign(el.style, {
+    background: bg ?? "var(--primary, #444)",
+    color: fg ?? "var(--primary-foreground, #fff)",
+    border: border ? "1px solid var(--border, rgba(0,0,0,0.2))" : "none",
+    borderRadius: "var(--radius, 4px)",
+    padding: "2px 8px",
+    cursor: "pointer",
+    fontSize: "12px",
+  });
+  return el;
+};
+
+// Wraps instead of a single-line <input> that cut long text off — shared by
+// item cards, the equipped-slot box, and saved-outfit cards, so a
+// description is always fully readable regardless of which view it's shown
+// in. onChange is called with the raw string on blur/change, same trigger
+// point the old single-line input used; the caller decides what to update
+// (QM.state.updateItem vs. updateOutfit).
+QM.descriptionTextarea = function descriptionTextarea(value, onChange) {
+  const textarea = document.createElement("textarea");
+  textarea.placeholder = "Description";
+  textarea.value = value || "";
+  textarea.rows = 2;
+  Object.assign(textarea.style, {
+    background: "var(--input, transparent)",
+    color: "inherit",
+    border: "1px solid var(--border, rgba(0,0,0,0.2))",
+    borderRadius: "var(--radius, 4px)",
+    padding: "4px 6px",
+    fontSize: "12px",
+    font: "inherit",
+    resize: "vertical",
+    width: "100%",
+    boxSizing: "border-box",
+  });
+  textarea.addEventListener("change", () => onChange(textarea.value));
+  return textarea;
+};
+
+QM.defaultSlotSelect = function defaultSlotSelect(item) {
+  const select = QM.smallInput("select");
+  const noneOption = document.createElement("option");
+  noneOption.value = "";
+  noneOption.textContent = "Default slot…";
+  select.appendChild(noneOption);
+  // A hidden group's slots drop out of the picker, matching the portrait
+  // ring — same "disabled AND hidden" behavior as the original extension's
+  // groupEnabled(), not just a cosmetic hide.
+  for (const slot of QM_EQUIP_SLOTS) {
+    if (!QM.state.slotVisible(slot)) continue;
+    const option = document.createElement("option");
+    option.value = slot;
+    option.textContent = QM_SLOT_LABELS[slot];
+    select.appendChild(option);
+  }
+  select.value = item.defaultSlot || "";
+  select.addEventListener("change", () => QM.state.updateItem(item.id, { defaultSlot: select.value || null }));
+  return select;
+};
+
+// ===== 10-dock.js =====
+// Quartermaster — self-managed floating sheet panel. Mirrors Beholder's
+// BH.dock (src/80-dock.js): the host's Tracker Panel is small and shared
+// chrome, not roomy enough for a real character-sheet layout (portrait,
+// equip-slot columns, inventory grid). So the panel lives in its own
+// fixed-position element appended to document.body, independent of any
+// host-provided slot container.
+//
+// A pure view over QM.state (05-state.js) — subscribes while open, repaints
+// on every change, unsubscribes while closed. The tracker-panel slot has its
+// own inline accordion view (15-panel.js) reading the same state, so
+// equipping something in one place is reflected in the other immediately.
+//
+// Styled with the host's own CSS custom properties (--popover, --foreground,
+// --border, etc. — defined on :root in the Engine's globals.css) for general
+// chrome, since our panel is plain light DOM appended under document.body
+// and inherits them directly. Destructive/dismiss and save/create actions
+// use fixed red/green instead of var(--destructive)/var(--primary) on
+// purpose — this app's own theme maps --destructive to the same purple as
+// --primary, so following it would lose the actual red/green danger-vs-safe
+// signal, which matters more here than perfect theme fidelity.
+//
+// Draggable/resizable/mobile-aware: ported from Beholder's own dock, which
+// solves the identical problem (a floating panel over the same host) —
+// geometry as CSS custom properties + a stylesheet with !important (inline
+// styles can't express :hover or @media, so position/size move out of
+// Object.assign and into QM_DOCK_STYLE below), pointerdown-driven move/
+// resize, chat-area bounds clamping via the same .rpg-chat-area/TopBar
+// selectors, and a 767px mobile breakpoint that goes full-screen — same
+// breakpoint Beholder uses elsewhere in the host, kept consistent rather
+// than picked independently. touch-action:none on drag surfaces and
+// env(safe-area-inset-bottom) on the scrolling body are both host
+// conventions confirmed against Pixelforge's own touch surfaces, not
+// Quartermaster-specific choices.
+
+const QM_DOCK_STYLE_ID = "qm-dock-style";
+const QM_DOCK_STYLE = `
 #qm-dock-root{
   position:fixed !important;
   top:var(--qm-window-top,4rem) !important;
@@ -55,4 +977,3707 @@
   #qm-dock-resize-handle{ display:none !important; }
   #qm-dock-body{ padding-bottom:max(10px, env(safe-area-inset-bottom)) !important; }
 }
-`,Z="marinara.quartermaster.window",H=12,W=320,D=360,K=960,Mt=640,Q=760,X="marinara.quartermaster.uiSize",A={S:.85,M:1,L:1.2},tt="marinara.quartermaster.thumbnailSize",S={S:48,M:72,L:100},et={S:S.S/S.M,M:S.L/S.M,L:S.L/S.M*2},qt={border:"2px solid var(--primary, #444)",padding:"3px",background:"color-mix(in srgb, var(--primary, #444) 10%, rgba(0, 0, 0, 0.55))",boxShadow:"0 0 12px color-mix(in srgb, var(--primary, #444) 45%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--primary, #444) 35%, transparent)",boxSizing:"border-box"};function nt(t){return Math.round(w(12*t,8,18))}function ot(t){return`polygon(${t}px 0, calc(100% - ${t}px) 0, 100% ${t}px, 100% calc(100% - ${t}px), calc(100% - ${t}px) 100%, ${t}px 100%, 0 calc(100% - ${t}px), 0 ${t}px)`}const At="M2 34 C2 16 16 2 34 2 M8 34 C8 20 20 8 34 8 M2 22 C2 22 10 16 10 8 C10 4 8 2 8 2 M22 2 C22 2 16 10 8 10 C4 10 2 8 2 8 M34 2 C30 6 28 10 28 14 M2 34 C6 30 10 28 14 28",Tt={"top left":"scale(-1, -1)","top right":"scaleY(-1)","bottom left":"scaleX(-1)","bottom right":"none"};function T(t,e){const n=document.createElementNS("http://www.w3.org/2000/svg","svg");n.setAttribute("viewBox","0 0 36 36"),n.setAttribute("aria-hidden","true"),n.innerHTML=`<path d="${At}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/>`;const o="2px";return Object.assign(n.style,{position:"absolute",width:`${e}px`,height:`${e}px`,color:"var(--primary, #444)",pointerEvents:"none",transform:Tt[t],top:t.includes("top")?o:"auto",bottom:t.includes("bottom")?o:"auto",left:t.includes("left")?o:"auto",right:t.includes("right")?o:"auto"}),n}function it(t){return w(Math.round(160*t)*.16,20,30)}function w(t,e,n){return Math.min(n,Math.max(e,t))}const rt={border:"1px solid var(--primary, #444)",borderRadius:"var(--radius, 4px)",padding:"5px 7px",boxShadow:"0 0 6px color-mix(in srgb, var(--primary, #444) 25%, transparent)",boxSizing:"border-box"},jt={border:`1px solid ${O}`,borderRadius:"var(--radius, 4px)",padding:"5px 7px",boxShadow:`0 0 6px color-mix(in srgb, ${O} 25%, transparent)`,boxSizing:"border-box"},j=14,Bt=26,Nt=5,Ut=46,zt=3;function st(t){const e=document.createElement("span");e.setAttribute("aria-hidden","true");const n=5,o="-2px";return Object.assign(e.style,{position:"absolute",width:`${n}px`,height:`${n}px`,background:"var(--primary, #444)",opacity:"0.75",transform:"rotate(45deg)",pointerEvents:"none",top:t.includes("top")?o:"auto",bottom:t.includes("bottom")?o:"auto",left:t.includes("left")?o:"auto",right:t.includes("right")?o:"auto"}),e}function $t(t){const e=(typeof t=="string"?t:"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);return e==="the-persona"?"":e}function Ht(){try{const t=window.localStorage.getItem(X);if(t&&A[t])return t}catch{}return"M"}function Wt(t){try{window.localStorage.setItem(X,t)}catch{}}function Dt(){try{const t=window.localStorage.getItem(tt);if(t&&S[t])return t}catch{}return"M"}function Qt(t){try{window.localStorage.setItem(tt,t)}catch{}}const at="marinara.quartermaster.columnCollapsed",B=["outfits","equipped","bag"],P={outfits:"1",equipped:"1.6",bag:"1"},N=40;function Pt(){const t={outfits:!1,equipped:!1,bag:!1};try{const e=JSON.parse(window.localStorage.getItem(at)||"null");if(e&&typeof e=="object")for(const n of B)typeof e[n]=="boolean"&&(t[n]=e[n])}catch{}return t}function Ft(t){try{window.localStorage.setItem(at,JSON.stringify(t))}catch{}}function Vt(){try{const t=JSON.parse(window.localStorage.getItem(Z)||"null");if(t&&[t.left,t.top,t.width,t.height].every(e=>Number.isFinite(e)))return t}catch{}return null}function lt(t){try{window.localStorage.setItem(Z,JSON.stringify(t))}catch{}}function Gt(){if(document.getElementById(J))return;const t=document.createElement("style");t.id=J,t.textContent=Lt,(document.head||document.body).appendChild(t)}i.dock={isOpenFlag:!1,unsubscribe:null,root:null,header:null,body:null,columns:null,zoomWrapper:null,uiSizeButtons:null,thumbnailSizeButtons:null,errorNode:null,feedSelect:null,settingsSection:null,settingsContent:null,settingsChevron:null,underwearToggle:null,armorToggle:null,weaponsToggle:null,replaceRealAvatarToggle:null,equippedContainer:null,outfitsContainer:null,form:null,listContainer:null,portraitWrapper:null,portraitImage:null,portraitPlaceholder:null,portraitCorners:null,portraitFrame:null,connectorSvg:null,equippedSlotBoxRefs:null,geometry:Vt(),bodyWidth:K,uiSize:Ht(),thumbnailSize:Dt(),settingsExpanded:!1,selectedSlot:null,itemEditorBackdrop:null,outfitEditorBackdrop:null,saveOutfitBackdrop:null,_itemEditorEscapeHandler:null,_outfitEditorEscapeHandler:null,_saveOutfitEscapeHandler:null,bagSearchQuery:"",bagSearchMode:"name",bagSearchInput:null,bagSearchModeButtons:null,outfitSearchQuery:"",outfitSearchInput:null,columnCollapsed:Pt(),columnCollapseDelta:{outfits:0,equipped:0,bag:0},sectionHeaders:null,sectionBodies:null,_windowBound:!1,_outsideClickBound:!1,_interaction:null,_boundsObserver:null,_bodyObserver:null,_resetCachedNodes(){this._unbindEscapeClose(this._itemEditorEscapeHandler),this._unbindEscapeClose(this._outfitEditorEscapeHandler),this._unbindEscapeClose(this._saveOutfitEscapeHandler),this._itemEditorEscapeHandler=null,this._outfitEditorEscapeHandler=null,this._saveOutfitEscapeHandler=null,this.columns=null,this.zoomWrapper=null,this.uiSizeButtons=null,this.thumbnailSizeButtons=null,this.errorNode=null,this.feedSelect=null,this.settingsSection=null,this.settingsContent=null,this.settingsChevron=null,this.underwearToggle=null,this.armorToggle=null,this.weaponsToggle=null,this.replaceRealAvatarToggle=null,this.equippedContainer=null,this.outfitsContainer=null,this.form=null,this.listContainer=null,this.portraitWrapper=null,this.portraitImage=null,this.portraitPlaceholder=null,this.portraitCorners=null,this.portraitFrame=null,this.connectorSvg=null,this.equippedSlotBoxRefs=null,this.itemEditorBackdrop=null,this.bagSearchInput=null,this.bagSearchModeButtons=null,this.outfitSearchInput=null,this.sectionHeaders=null,this.sectionBodies=null,this.outfitEditorBackdrop=null,this.saveOutfitBackdrop=null},isOpen(){return this.isOpenFlag},toggle(){this.isOpenFlag?this.close():this.openPanel()},openPanel(){this.isOpenFlag=!0,this._ensureRoot(),this.root.classList.remove("qm-dock-collapsed"),this._syncToggles(),this.syncGeometry(),this.unsubscribe||(this.unsubscribe=i.state.subscribe(()=>this._paint()),i.state.startPolling()),i.state.ensureLoaded(),this._paint()},close(){this.isOpenFlag=!1,this.selectedSlot=null,this._closeItemEditor(),this._closeOutfitEditor(),this._closeSaveOutfitModal(),this.root&&this.root.classList.add("qm-dock-collapsed"),this.unsubscribe&&(this.unsubscribe(),this.unsubscribe=null,i.state.stopPolling()),this._syncToggles()},_syncToggles(){for(const t of document.querySelectorAll(".qm-launch"))t.setAttribute("aria-pressed",this.isOpenFlag?"true":"false")},isMobile(){return window.matchMedia("(max-width: 767px)").matches},getChatBounds(){const e=Array.from(document.querySelectorAll(".rpg-chat-area")).map(s=>s.getBoundingClientRect()).filter(s=>s.width>1&&s.height>1).sort((s,a)=>a.width*a.height-s.width*s.height)[0]||{left:0,top:0,right:window.innerWidth,bottom:window.innerHeight},n=document.querySelector('[data-component="TopBar"], header.mari-topbar'),o=n?n.getBoundingClientRect().bottom:e.top,r=Math.min(e.bottom,Math.max(e.top,o));return{left:e.left,top:r,right:e.right,bottom:e.bottom}},applyGeometry(t){this.root&&(this.root.style.setProperty("--qm-window-left",`${Math.round(t.left)}px`),this.root.style.setProperty("--qm-window-top",`${Math.round(t.top)}px`),this.root.style.setProperty("--qm-window-width",`${Math.round(t.width)}px`),this.root.style.setProperty("--qm-window-height",`${Math.round(t.height)}px`))},syncGeometry(){if(!this.root)return;const t=this.getChatBounds();if(this.root.style.setProperty("--qm-mobile-top",`${Math.round(t.top)}px`),this.isMobile())return;const e=Math.max(1,t.right-t.left),n=Math.max(1,t.bottom-t.top),o=Math.min(H,e/4,n/4),r=Math.max(1,e-o*2),s=Math.max(1,n-o*2),a=Math.min(W,r),l=Math.min(D,s),d=w(this.geometry?.width??K,a,r),c=w(this.geometry?.height??Mt,l,s),u=t.right-o-d,p=t.top+o,h=w(this.geometry?.left??u,t.left+o,t.right-o-d),m=w(this.geometry?.top??p,t.top+o,t.bottom-o-c);this.geometry={left:h,top:m,width:d,height:c},this.applyGeometry(this.geometry)},observeChatBounds(){if(typeof ResizeObserver!="function")return;this._boundsObserver?.disconnect(),this._boundsObserver=new ResizeObserver(()=>this.syncGeometry());const t=Array.from(document.querySelectorAll(".rpg-chat-area")).find(n=>{const o=n.getBoundingClientRect();return o.width>1&&o.height>1});t&&this._boundsObserver.observe(t);const e=document.querySelector(".mari-main");e&&e!==t&&this._boundsObserver.observe(e)},observeBodyWidth(){typeof ResizeObserver!="function"||!this.body||(this._bodyObserver?.disconnect(),this._bodyObserver=new ResizeObserver(t=>{const e=t[0]?.contentRect?.width;!e||Math.abs(e-this.bodyWidth)<4||(this.bodyWidth=e,this._applyResponsiveLayout())}),this._bodyObserver.observe(this.body))},_zoomFactor(){return A[this.uiSize]||1},_columnsStackThreshold(){const t=B.reduce((n,o)=>n+Number(P[o]),0);let e=Q;for(const n of B){if(!this.columnCollapsed[n])continue;const o=Q*(Number(P[n])/t);e-=Math.max(0,o-N)}return e},_isColumnsStacked(){return this.columns?this.bodyWidth<this._columnsStackThreshold()*this._zoomFactor():!1},_applyResponsiveLayout(){this._applySectionHeaders(),this.equippedContainer&&(this.equippedContainer.replaceChildren(this._buildEquippedSection()),requestAnimationFrame(()=>this._updateConnectorLines()))},resizeBy(t,e){if(this.isMobile())return;this.syncGeometry();const n=this.getChatBounds(),o=this.geometry;if(!o)return;const r=Math.min(H,(n.right-n.left)/4,(n.bottom-n.top)/4),s=Math.max(1,n.right-r-o.left),a=Math.max(1,n.bottom-r-o.top);this.geometry={...o,width:w(o.width+t,Math.min(W,s),s),height:w(o.height+e,Math.min(D,a),a)},this.applyGeometry(this.geometry),lt(this.geometry)},startInteraction(t,e){if(this.isMobile()||e.button!==0||!this.root)return;const n=e.target instanceof Element?e.target:null;if(t==="move"&&n?.closest("button, input, label, select, textarea, a"))return;e.preventDefault(),this._interaction?.();const o=e.pointerId,r=this.root.getBoundingClientRect(),s={x:e.clientX,y:e.clientY,left:r.left,top:r.top,width:r.width,height:r.height},a=document.body.style.cursor,l=document.body.style.userSelect;document.body.style.cursor=t==="move"?"move":"nwse-resize",document.body.style.userSelect="none",this.root.classList.add(t==="move"?"qm-dock-dragging":"qm-dock-resizing");const d=p=>{if(p.pointerId!==o)return;const h=this.getChatBounds(),m=Math.min(H,(h.right-h.left)/4,(h.bottom-h.top)/4),f=p.clientX-s.x,b=p.clientY-s.y;if(t==="move"){const g=w(s.left+f,h.left+m,h.right-m-s.width),y=w(s.top+b,h.top+m,h.bottom-m-s.height);this.geometry={left:g,top:y,width:s.width,height:s.height}}else{const g=Math.max(1,h.right-m-s.left),y=Math.max(1,h.bottom-m-s.top);this.geometry={left:s.left,top:s.top,width:w(s.width+f,Math.min(W,g),g),height:w(s.height+b,Math.min(D,y),y)}}this.applyGeometry(this.geometry)},c=()=>{window.removeEventListener("pointermove",d),window.removeEventListener("pointerup",u),window.removeEventListener("pointercancel",u),document.body.style.cursor=a,document.body.style.userSelect=l,this.root?.classList.remove("qm-dock-dragging","qm-dock-resizing"),this.geometry&&lt(this.geometry),this._interaction=null},u=p=>{p.pointerId===o&&c()};this._interaction=c,window.addEventListener("pointermove",d),window.addEventListener("pointerup",u),window.addEventListener("pointercancel",u)},_ensureRoot(){if(this.root&&document.body.contains(this.root))return;Gt();const t=document.createElement("div");t.id="qm-dock-root",t.className="qm-dock-collapsed",Object.assign(t.style,{flexDirection:"column",background:"var(--popover, #fff)",color:"var(--popover-foreground, #1a1a1a)",border:"1px solid var(--border, rgba(0,0,0,0.15))",borderRadius:"var(--radius, 8px)",boxShadow:"0 8px 24px rgba(0,0,0,0.25)",fontFamily:"system-ui, sans-serif",fontSize:"13px",zIndex:"9999",overflow:"hidden"});const e=document.createElement("div");e.id="qm-dock-header",Object.assign(e.style,{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",borderBottom:"1px solid var(--border, rgba(0,0,0,0.1))",fontWeight:"600",flexShrink:"0"});const n=document.createElement("span");n.textContent="Quartermaster";const o=i.button("\xD7",{bg:k,fg:L});o.setAttribute("aria-label","Close Quartermaster"),Object.assign(o.style,{fontSize:"14px",lineHeight:"1",padding:"2px 8px"}),o.addEventListener("click",()=>this.close()),e.append(n,o),e.addEventListener("pointerdown",a=>this.startInteraction("move",a));const r=document.createElement("div");r.id="qm-dock-body",Object.assign(r.style,{padding:"10px",overflowY:"auto",flex:"1",minHeight:"0"});const s=document.createElement("button");if(s.type="button",s.id="qm-dock-resize-handle",s.title="Resize Quartermaster",s.setAttribute("aria-label","Resize Quartermaster"),s.addEventListener("pointerdown",a=>this.startInteraction("resize",a)),s.addEventListener("keydown",a=>{const l=a.shiftKey?48:16,d={ArrowLeft:[-l,0],ArrowRight:[l,0],ArrowUp:[0,-l],ArrowDown:[0,l]}[a.key];d&&(a.preventDefault(),this.resizeBy(d[0],d[1]))}),t.append(e,r,s),document.body.appendChild(t),this.root=t,this.header=e,this.body=r,this._resetCachedNodes(),this.observeChatBounds(),this.observeBodyWidth(),!this._windowBound){this._windowBound=!0;let a=0;window.addEventListener("resize",()=>{a||(a=requestAnimationFrame(()=>{a=0,this.syncGeometry()}))})}this._outsideClickBound||(this._outsideClickBound=!0,document.addEventListener("pointerdown",a=>{if(!this.isOpenFlag||this._interaction||!this.root)return;const l=a.target instanceof Element?a.target:null;!l||this.root.contains(l)||l.closest(".qm-launch")||this.close()},!0))},_paint(){if(!this.body||!this.isOpenFlag)return;if(!i.state.chatId){this.body.replaceChildren(i.textNode("No active chat.")),this._resetCachedNodes();return}if(!this.form||!this.body.contains(this.form)){const e=this._buildUiSizeRow(),n=this._buildThumbnailSizeRow(),o=document.createElement("div");Object.assign(o.style,{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"16px",marginBottom:"8px",flexShrink:"0"}),o.append(e,n),this.zoomWrapper=document.createElement("div"),this.errorNode=i.textNode(""),this.errorNode.style.color=k,this.errorNode.style.display="none",this.settingsSection=this._buildSettingsSection(),this.portraitWrapper=this._buildPortrait();const r=document.createElement("div");r.id="qm-dock-columns",Object.assign(r.style,{display:"flex",gap:"12px",alignItems:"flex-start",flexDirection:this.bodyWidth<Q*this._zoomFactor()?"column":"row"}),this.columns=r;const s=document.createElement("div");Object.assign(s.style,{flex:"1",minWidth:"0",width:"100%"}),this.outfitsContainer=document.createElement("div");const a=this._buildOutfitSearchRow(),l=document.createElement("div");l.append(a,this.outfitsContainer),s.append(this._buildSectionHeader("outfits","Outfits",l,s),l);const d=document.createElement("div");Object.assign(d.style,{flex:"1.6",minWidth:"0",width:"100%"}),this.equippedContainer=document.createElement("div");const c=document.createElement("div");c.appendChild(this.equippedContainer),d.append(this._buildSectionHeader("equipped","Equipped",c,d),c);const u=document.createElement("div");Object.assign(u.style,{flex:"1",minWidth:"0",width:"100%"}),this.form=this._buildAddItemForm();const p=this._buildBagSearchRow();this.listContainer=document.createElement("div");const h=document.createElement("div");h.append(this.form,p,this.listContainer),u.append(this._buildSectionHeader("bag","Bag",h,u),h),r.append(s,d,u),this.zoomWrapper.append(this.errorNode,this.settingsSection,r),this.body.replaceChildren(o,this.zoomWrapper),this._applySectionHeaders(),this._applyUiSize(),this._applyThumbnailSize()}i.state.error?(this.errorNode.textContent=`Error: ${i.state.error}`,this.errorNode.style.display=""):this.errorNode.style.display="none",this._applyBagSearch(),this._applyOutfitSearch(),this._applySectionHeaders(),this.feedSelect.value=i.state.appearanceFeedMode,this.underwearToggle.checked=i.state.showUnderwear,this.armorToggle.checked=i.state.showArmor,this.weaponsToggle.checked=i.state.showWeapons,this.replaceRealAvatarToggle.checked=i.state.replaceRealAvatarOnEquip;const t=i.state.activeOutfitPortraitUrl()||i.state.personaAvatarUrl;if(this.portraitImage&&this.portraitPlaceholder){this.portraitImage.style.display=t?"block":"none",this.portraitPlaceholder.style.display=t?"none":"flex",t&&(this.portraitImage.src=t);const e=et[this.thumbnailSize];if(this.portraitImage.style.maxWidth=`${Math.round(160*e)}px`,this.portraitImage.style.maxHeight=`${Math.round(200*e)}px`,this.portraitPlaceholder.style.width=`${Math.round(120*e)}px`,this.portraitPlaceholder.style.height=`${Math.round(120*e)}px`,this.portraitFrame&&(this.portraitFrame.style.clipPath=ot(nt(e))),this.portraitCorners){const n=it(e);for(const o of this.portraitCorners)o.style.width=`${n}px`,o.style.height=`${n}px`}}this.equippedContainer.replaceChildren(this._buildEquippedSection()),requestAnimationFrame(()=>this._updateConnectorLines()),this.outfitsContainer.replaceChildren(this._buildOutfitsList()),this.listContainer.replaceChildren(this._buildItemList())},_buildAppearanceFeedRow(){const t=document.createElement("div");Object.assign(t.style,{fontSize:"12px"});const e=document.createElement("div");Object.assign(e.style,{display:"flex",alignItems:"center",gap:"6px"});const n=document.createElement("span");n.textContent="Feed appearance:",n.style.color="var(--muted-foreground, currentcolor)";const o=i.smallInput("select");o.style.flex="1";for(const s of It){const a=document.createElement("option");a.value=s.value,a.textContent=s.label,o.appendChild(a)}o.addEventListener("change",()=>i.state.updateAppearanceFeedMode(o.value)),this.feedSelect=o,e.append(n,o);const r=document.createElement("p");return r.textContent="Writes the chosen text into a per-chat variable so a {{getvar::quartermaster_appearance_persona}} token in the persona's own Appearance field resolves to it \u2014 letting image generation (e.g. Illustrator) pick up what's actually equipped. Off writes nothing; Outfit description uses the saved outfit that exactly matches the current equip state (falling back to a plain list of equipped item names when nothing matches, e.g. after equipping something outside any saved outfit); Equipped item names always lists what's equipped, regardless of outfit.",Object.assign(r.style,{margin:"4px 0 0",fontSize:"11px",color:"var(--muted-foreground, currentcolor)"}),t.append(e,r),t},_buildUiSizeRow(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",alignItems:"center",gap:"6px",fontSize:"12px",flexShrink:"0"});const e=document.createElement("span");e.textContent="UI Size:",e.style.color="var(--muted-foreground, currentcolor)",t.appendChild(e),this.uiSizeButtons={};for(const n of Object.keys(A)){const o=i.button(n);o.style.padding="2px 10px",o.addEventListener("click",()=>this._setUiSize(n)),this.uiSizeButtons[n]=o,t.appendChild(o)}return t},_setUiSize(t){!A[t]||this.uiSize===t||(this.uiSize=t,Wt(t),this._applyUiSize(),this._applyResponsiveLayout())},_applyUiSize(){this.zoomWrapper&&(this.zoomWrapper.style.zoom=this._zoomFactor());for(const[t,e]of Object.entries(this.uiSizeButtons||{})){const n=t===this.uiSize;e.style.background=n?"var(--primary, #444)":"var(--secondary, transparent)",e.style.color=n?"var(--primary-foreground, #fff)":"var(--secondary-foreground, inherit)",e.style.border=n?"none":"1px solid var(--border, rgba(0,0,0,0.2))"}},_buildThumbnailSizeRow(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",alignItems:"center",gap:"6px",fontSize:"12px",flexShrink:"0"});const e=document.createElement("span");e.textContent="Thumbnail Size:",e.style.color="var(--muted-foreground, currentcolor)",t.appendChild(e),this.thumbnailSizeButtons={};for(const n of Object.keys(S)){const o=i.button(n);o.style.padding="2px 10px",o.addEventListener("click",()=>this._setThumbnailSize(n)),this.thumbnailSizeButtons[n]=o,t.appendChild(o)}return t},_setThumbnailSize(t){!S[t]||this.thumbnailSize===t||(this.thumbnailSize=t,Qt(t),this._applyThumbnailSize(),this._paint())},_applyThumbnailSize(){for(const[t,e]of Object.entries(this.thumbnailSizeButtons||{})){const n=t===this.thumbnailSize;e.style.background=n?"var(--primary, #444)":"var(--secondary, transparent)",e.style.color=n?"var(--primary-foreground, #fff)":"var(--secondary-foreground, inherit)",e.style.border=n?"none":"1px solid var(--border, rgba(0,0,0,0.2))"}},_buildSettingsSection(){const t=document.createElement("div");Object.assign(t.style,{border:"1px solid var(--border, rgba(128,128,128,0.3))",borderRadius:"var(--radius, 4px)",marginBottom:"8px",overflow:"hidden"});const e=document.createElement("button");e.type="button",Object.assign(e.style,{display:"flex",alignItems:"center",gap:"6px",width:"100%",padding:"6px 8px",background:"var(--secondary, transparent)",color:"inherit",border:"none",font:"inherit",textAlign:"left",cursor:"pointer"});const n=document.createElement("span");n.textContent="\u25B8",Object.assign(n.style,{display:"inline-block",transition:"transform 0.15s ease",transform:this.settingsExpanded?"rotate(90deg)":"rotate(0deg)"}),this.settingsChevron=n;const o=document.createElement("span");o.textContent="Settings",Object.assign(o.style,{fontWeight:"600",fontSize:"12px",textTransform:"uppercase",letterSpacing:"0.04em"}),e.append(n,o),e.addEventListener("click",()=>{this.settingsExpanded=!this.settingsExpanded,this.settingsContent.style.maxHeight=this.settingsExpanded?"480px":"0px",this.settingsChevron.style.transform=this.settingsExpanded?"rotate(90deg)":"rotate(0deg)"});const r=document.createElement("div");Object.assign(r.style,{padding:"0 8px",maxHeight:this.settingsExpanded?"480px":"0px",overflow:"hidden",transition:"max-height 0.2s ease"});const s=()=>{const a=document.createElement("div");return Object.assign(a.style,{borderTop:"1px solid var(--border, rgba(128,128,128,0.3))",margin:"8px 0"}),a};return r.append(this._buildAppearanceFeedRow(),s(),this._buildSlotVisibilityRow(),s(),this._buildRealAvatarToggleRow(),s(),this._buildExportImportRow()),this.settingsContent=r,t.append(e,r),t},_buildExportImportRow(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",alignItems:"center",gap:"10px"});const e=i.button("Export\u2026",{bg:"var(--secondary, transparent)",fg:"var(--secondary-foreground, inherit)",border:!0});e.addEventListener("click",async()=>{e.disabled=!0;try{const r=await i.state.exportInventory(),s=new Blob([JSON.stringify(r,null,2)],{type:"application/json"}),a=URL.createObjectURL(s),l=document.createElement("a");l.href=a;const d=$t(r.personaName),c=new Date().toISOString().slice(0,10);l.download=`quartermaster-inventory-${d?`${d}-`:""}${c}.json`,l.click(),URL.revokeObjectURL(a)}finally{e.disabled=!1}});const n=i.button("Import\u2026",{bg:"var(--secondary, transparent)",fg:"var(--secondary-foreground, inherit)",border:!0}),o=document.createElement("input");return o.type="file",o.accept="application/json",o.style.display="none",o.addEventListener("change",async()=>{const r=o.files&&o.files[0];if(o.value="",!r||((i.state.items??[]).length>0||(i.state.outfits??[]).length>0)&&!window.confirm("Importing replaces this chat's current items and outfits. Continue?"))return;let a;try{a=JSON.parse(await r.text())}catch{i.state.error="That file isn't valid JSON.",i.state._notify();return}await i.state.importInventory(a)}),n.addEventListener("click",()=>o.click()),t.append(e,n,o),t},_buildSlotVisibilityRow(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"10px",fontSize:"12px"});const e=document.createElement("span");e.textContent="Show Slots:",e.style.color="var(--muted-foreground, currentcolor)",t.appendChild(e);const n=(a,l)=>{const d=document.createElement("label");Object.assign(d.style,{display:"flex",alignItems:"center",gap:"4px",cursor:"pointer"});const c=document.createElement("input");c.type="checkbox",c.addEventListener("change",()=>l(c.checked));const u=document.createElement("span");return u.textContent=a,d.append(c,u),{label:d,checkbox:c}},o=n("Underwear",a=>i.state.updateShowUnderwear(a));this.underwearToggle=o.checkbox;const r=n("Armor",a=>i.state.updateShowArmor(a));this.armorToggle=r.checkbox;const s=n("Weapons",a=>i.state.updateShowWeapons(a));return this.weaponsToggle=s.checkbox,t.append(o.label,r.label,s.label),t},_buildRealAvatarToggleRow(){const t=document.createElement("div");Object.assign(t.style,{fontSize:"12px"});const e=document.createElement("label");Object.assign(e.style,{display:"flex",alignItems:"center",gap:"4px",cursor:"pointer"});const n=document.createElement("input");n.type="checkbox",n.addEventListener("change",()=>i.state.updateReplaceRealAvatarOnEquip(n.checked));const o=document.createElement("span");o.textContent="Replace persona's real avatar on equip",e.append(n,o),this.replaceRealAvatarToggle=n;const r=document.createElement("p");return r.textContent="Reverts automatically when unequipped. Each change adds a permanent entry to the persona's version history (can't be turned off), and other Marinara screens showing this avatar may take a bit to catch up visually \u2014 image generation itself isn't affected.",Object.assign(r.style,{margin:"4px 0 0",fontSize:"11px",color:"var(--muted-foreground, currentcolor)"}),t.append(e,r),t},_buildPortrait(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",justifyContent:"center",marginBottom:"8px",position:"relative",alignSelf:"center"});const e=et[this.thumbnailSize],n=document.createElement("div");Object.assign(n.style,{display:"flex",alignItems:"center",justifyContent:"center",clipPath:ot(nt(e)),...qt}),this.portraitFrame=n;const o=document.createElement("img");o.alt="Persona portrait";const r=!!i.state.personaAvatarUrl;Object.assign(o.style,{maxWidth:`${Math.round(160*e)}px`,maxHeight:`${Math.round(200*e)}px`,width:"auto",height:"auto",objectFit:"contain",display:r?"block":"none"}),r&&(o.src=i.state.personaAvatarUrl),this.portraitImage=o;const s=document.createElement("span");s.textContent="No portrait",Object.assign(s.style,{width:`${Math.round(120*e)}px`,height:`${Math.round(120*e)}px`,background:"var(--muted, rgba(128,128,128,0.15))",display:r?"none":"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",color:"var(--muted-foreground, currentcolor)"}),o.addEventListener("error",()=>{o.style.display="none",s.style.display="flex",requestAnimationFrame(()=>this._updateConnectorLines())}),o.addEventListener("load",()=>{o.style.display="block",s.style.display="none",requestAnimationFrame(()=>this._updateConnectorLines())}),this.portraitPlaceholder=s,n.append(o,s);const a=it(e);return this.portraitCorners=[T("top left",a),T("top right",a),T("bottom left",a),T("bottom right",a)],t.append(n,...this.portraitCorners),t},_buildEquippedSection(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",flexDirection:"column",gap:"6px",alignItems:"center",position:"relative"}),this.equippedSlotBoxRefs=new Map;const e=document.createElementNS("http://www.w3.org/2000/svg","svg");Object.assign(e.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none"}),this.connectorSvg=e,t.appendChild(e);const n=document.createElement("div");Object.assign(n.style,{display:"flex",gap:"4px",justifyContent:"center",flexWrap:"wrap"});for(const u of wt){const p=this._buildOverlaySlotBox(u);this.equippedSlotBoxRefs.set(u,{element:p,side:"top"}),n.appendChild(p)}t.appendChild(n);const o=document.createElement("div");Object.assign(o.style,{display:"flex",gap:"8px",alignItems:"stretch",justifyContent:"center",width:"100%"});const r=document.createElement("div");Object.assign(r.style,{display:"flex",flexDirection:"column",justifyContent:"space-between"});const s=document.createElement("div");Object.assign(s.style,{display:"flex",flexDirection:"column",justifyContent:"space-between"});for(const[u,p]of Et){if(!i.state.slotVisible(u))continue;const h=this._buildOverlaySlotBox(u),m=this._buildOverlaySlotBox(p);this.equippedSlotBoxRefs.set(u,{element:h,side:"left"}),this.equippedSlotBoxRefs.set(p,{element:m,side:"right"}),r.appendChild(h),s.appendChild(m)}o.append(r,this.portraitWrapper,s),t.appendChild(o);const a=document.createElement("div");Object.assign(a.style,{display:"flex",gap:"4px",justifyContent:"center",flexWrap:"wrap"});for(const u of _t){const p=this._buildOverlaySlotBox(u);this.equippedSlotBoxRefs.set(u,{element:p,side:"bottom"}),a.appendChild(p)}t.appendChild(a);const l=document.createElement("div");Object.assign(l.style,{display:"flex",gap:"6px",justifyContent:"center",marginTop:"4px"});const d=i.button("Save Current Outfit",{bg:O,fg:$});d.addEventListener("click",()=>this._openSaveOutfitModal());const c=i.button("Unequip All",{bg:"var(--secondary, transparent)",fg:"var(--secondary-foreground, inherit)",border:!0});return c.addEventListener("click",()=>i.state.unequipAll()),l.append(d,c),t.appendChild(l),t},_updateConnectorLines(){const t=this.connectorSvg,e=this.portraitFrame;if(!t||!e||!t.isConnected)return;const n=t.getBoundingClientRect(),o=e.getBoundingClientRect();if(n.width===0||n.height===0)return;t.setAttribute("width",String(n.width)),t.setAttribute("height",String(n.height)),t.setAttribute("viewBox",`0 0 ${n.width} ${n.height}`),t.replaceChildren();const r=o.left-n.left,s=o.top-n.top,a=r+o.width,l=s+o.height,d={top:[],bottom:[],left:[],right:[]};for(const[b,g]of this.equippedSlotBoxRefs)g.element.isConnected&&d[g.side].push({slot:b,rect:g.element.getBoundingClientRect()});d.top.sort((b,g)=>b.rect.left-g.rect.left),d.bottom.sort((b,g)=>b.rect.left-g.rect.left),d.left.sort((b,g)=>b.rect.top-g.rect.top),d.right.sort((b,g)=>b.rect.top-g.rect.top);const c=(b,g,y)=>b.map((_,C)=>g+(y-g)*(C+1)/(b.length+1)),u=c(d.top,r+6,a-6),p=c(d.bottom,r+6,a-6),h=c(d.left,s+6,l-6),m=c(d.right,s+6,l-6),f=(b,g,y,_,C,E)=>{const I=this.selectedSlot===b,ht=I?.85:.32,mt=(y+C)/2,gt=(_+E)/2,re=Math.hypot(C-y,E-_)||1,bt=Math.min(10,re*.12),se=g==="top"||g==="bottom"?mt+bt:mt,ae=g==="left"||g==="right"?gt+bt:gt,M=document.createElementNS("http://www.w3.org/2000/svg","path");M.setAttribute("d",`M ${y} ${_} Q ${se} ${ae} ${C} ${E}`),M.setAttribute("fill","none"),M.setAttribute("stroke","var(--primary, #7a5cff)"),M.setAttribute("stroke-width",I?"1.6":"1"),M.setAttribute("opacity",String(ht)),t.appendChild(M);for(const[le,de]of[[y,_],[C,E]]){const q=document.createElementNS("http://www.w3.org/2000/svg","circle");q.setAttribute("cx",String(le)),q.setAttribute("cy",String(de)),q.setAttribute("r",I?"2.4":"1.8"),q.setAttribute("fill","var(--primary, #7a5cff)"),q.setAttribute("opacity",String(ht)),t.appendChild(q)}};for(const[b,g]of this.equippedSlotBoxRefs){if(!g.element.isConnected)continue;const y=g.element.getBoundingClientRect(),_=y.left-n.left+y.width/2,C=y.top-n.top+y.height/2;if(g.side==="top"){const E=d.top.findIndex(I=>I.slot===b);f(b,"top",_,y.bottom-n.top,u[E],s)}else if(g.side==="bottom"){const E=d.bottom.findIndex(I=>I.slot===b);f(b,"bottom",_,y.top-n.top,p[E],l)}else if(g.side==="left"){const E=d.left.findIndex(I=>I.slot===b);f(b,"left",y.right-n.left,C,r,h[E])}else if(g.side==="right"){const E=d.right.findIndex(I=>I.slot===b);f(b,"right",y.left-n.left,C,a,m[E])}}},_buildOverlaySlotBox(t){const e=i.state.itemInSlot(t),n=this.selectedSlot===t,o=document.createElement("div");Object.assign(o.style,{position:"relative",display:"flex",flexDirection:"column",alignItems:"stretch",gap:"4px",width:"92px",borderRadius:"var(--radius, 4px)",cursor:"pointer",boxSizing:"border-box",pointerEvents:"auto",color:"#f2f2f2",...n?{border:"2px solid var(--ring, var(--primary, #444))",boxShadow:"0 0 8px color-mix(in srgb, var(--primary, #444) 55%, transparent)"}:e?{border:"1px solid var(--primary, #444)"}:{border:"1px solid rgba(255, 255, 255, 0.22)"}}),o.addEventListener("click",p=>{if(p.target.closest("[data-qm-unequip]"))return;const h=!n;this.selectedSlot=h?t:null,h?(this.bagSearchMode="slot",this.bagSearchQuery=R[t]):(this.bagSearchMode="name",this.bagSearchQuery=""),this._paint()});const r=document.createElement("div");Object.assign(r.style,{position:"relative",width:"100%",height:"92px",overflow:"hidden",borderRadius:"var(--radius, 4px)",background:"rgba(15, 15, 18, 0.72)"});const s=()=>{const p=i.buildSlotIconRaster(t,92);Object.assign(p.style,{position:"absolute",inset:"0",width:"100%",height:"100%",objectFit:"cover"}),r.appendChild(p)};if(e){const p=document.createElement("img");p.alt=e.name,Object.assign(p.style,{position:"absolute",inset:"0",width:"100%",height:"100%",objectFit:"cover",display:"block"}),p.addEventListener("error",()=>{p.remove(),s()}),p.src=i.itemImageUrl(i.state.chatId,x,e.id),r.appendChild(p)}else s();const a=document.createElement("div");Object.assign(a.style,{position:"absolute",top:"0",left:"0",right:"0",padding:"2px 3px",background:"rgba(0, 0, 0, 0.55)",textAlign:"center"});const l=document.createElement("span");Object.assign(l.style,{display:"block",fontSize:"9px",textTransform:"uppercase",letterSpacing:"0.02em",lineHeight:"1.2",color:"rgba(255, 255, 255, 0.85)"}),Ct[t].forEach((p,h)=>{h>0&&l.appendChild(document.createElement("br")),l.appendChild(document.createTextNode(p))}),a.appendChild(l),r.appendChild(a);const c=document.createElement("div");Object.assign(c.style,{position:"absolute",bottom:"0",left:"0",right:"0",padding:"2px 3px",background:"rgba(0, 0, 0, 0.55)",textAlign:"center"});const u=document.createElement("span");if(u.textContent=e?e.name:"Empty",e&&(u.title=e.name),Object.assign(u.style,{display:"block",fontSize:"10px",fontWeight:e?"600":"400",fontStyle:e?"normal":"italic",maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:e?"#f2f2f2":"rgba(255, 255, 255, 0.7)"}),c.appendChild(u),r.appendChild(c),o.appendChild(r),e){const p=document.createElement("button");p.type="button",p.dataset.qmUnequip="true",p.textContent="\xD7";const h=`Unequip ${St[t]}`;p.title=h,p.setAttribute("aria-label",h),Object.assign(p.style,{position:"absolute",top:"-6px",right:"-6px",width:"16px",height:"16px",lineHeight:"14px",padding:"0",fontSize:"12px",borderRadius:"50%",cursor:"pointer",background:k,color:L,border:"none"}),p.addEventListener("click",()=>{i.state.updateItem(e.id,{location:"bag"}),n&&(this.selectedSlot=null)}),o.appendChild(p)}if(n){const p=i.state.bagItems(),h=document.createElement("select");h.disabled=p.length===0,h.addEventListener("click",f=>f.stopPropagation()),Object.assign(h.style,{width:"100%",marginTop:"2px",fontSize:"9px",boxSizing:"border-box",borderRadius:"3px",background:"rgba(255, 255, 255, 0.1)",color:"#f2f2f2",border:"1px solid rgba(255, 255, 255, 0.3)",colorScheme:"dark"});const m=document.createElement("option");m.value="",m.textContent=p.length===0?"(bag empty)":"Equip\u2026",h.appendChild(m);for(const f of p){const b=document.createElement("option");b.value=f.id,b.textContent=f.name,h.appendChild(b)}h.addEventListener("change",()=>{const f=h.value;f&&(i.state.updateItem(f,{location:`equipped:${t}`}),this.selectedSlot=null)}),o.appendChild(h)}return o},_buildOutfitSearchRow(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",alignItems:"center",gap:"6px",marginBottom:"8px"});const e=i.smallInput("input");return e.type="text",e.placeholder="Search...",e.value=this.outfitSearchQuery,e.style.flex="1",e.addEventListener("input",()=>{this.outfitSearchQuery=e.value,this.outfitsContainer.replaceChildren(this._buildOutfitsList())}),this.outfitSearchInput=e,t.appendChild(e),t},_applyOutfitSearch(){this.outfitSearchInput&&this.outfitSearchInput.value!==this.outfitSearchQuery&&(this.outfitSearchInput.value=this.outfitSearchQuery)},_buildOutfitsList(){const t=document.createElement("ul");Object.assign(t.style,{listStyle:"none",margin:"0",padding:"0",display:"flex",flexDirection:"column",gap:"6px"});const e=this.outfitSearchQuery.trim().toLowerCase();let n=i.state.sortedOutfits();if(e&&(n=n.filter(o=>o.name.toLowerCase().includes(e))),n.length===0){const o=i.textNode(e?"No matching outfits.":"No saved outfits yet.");return o.style.color="var(--muted-foreground, currentcolor)",o.style.margin="0",t.appendChild(o),t}for(const o of n)t.appendChild(this._buildOutfitRow(o));return t},_buildOutfitPortraitControl(t,e){const n=document.createElement("div");Object.assign(n.style,{position:"relative",flexShrink:"0",width:`${e}px`,height:`${e}px`});const o=document.createElement("input");o.type="file",o.accept="image/png,image/jpeg,image/webp",o.style.display="none",o.addEventListener("change",async()=>{const s=o.files&&o.files[0];if(o.value="",!!s)try{const a=await i.compressImageFile(s);await i.state.uploadOutfitPortrait(t.id,a)}catch(a){i.state.error=a&&a.message?a.message:String(a),i.state._notify()}});const r=document.createElement("button");if(r.type="button",r.title=t.portraitFile?"Replace portrait":"Add portrait",Object.assign(r.style,{width:`${e}px`,height:`${e}px`,padding:"0",cursor:"pointer",borderRadius:"var(--radius, 4px)",overflow:"hidden",background:"var(--muted, rgba(128,128,128,0.15))",border:t.portraitFile?"1px solid var(--border, rgba(128,128,128,0.3))":"1px dashed var(--border, rgba(128,128,128,0.4))"}),r.addEventListener("click",()=>o.click()),t.portraitFile){const s=document.createElement("img");s.alt=`${t.name} portrait`,s.src=i.outfitPortraitUrl(i.state.chatId,x,t.id),Object.assign(s.style,{width:"100%",height:"100%",objectFit:"cover",display:"block"}),r.appendChild(s)}else r.textContent="+",Object.assign(r.style,{fontSize:`${Math.round(e*.4)}px`,lineHeight:"1",color:"var(--muted-foreground, currentcolor)"});if(n.append(r,o),t.portraitFile){const s=document.createElement("button");s.type="button",s.title="Remove portrait",s.textContent="\xD7",Object.assign(s.style,{position:"absolute",top:"-6px",right:"-6px",width:"14px",height:"14px",lineHeight:"12px",padding:"0",fontSize:"11px",borderRadius:"50%",cursor:"pointer",background:k,color:L,border:"none"}),s.addEventListener("click",()=>i.state.deleteOutfitPortrait(t.id)),n.appendChild(s)}return n},_buildItemImageControl(t,e){const n=document.createElement("div");Object.assign(n.style,{position:"relative",flexShrink:"0",width:`${e}px`,height:`${e}px`});const o=document.createElement("input");o.type="file",o.accept="image/png,image/jpeg,image/webp",o.style.display="none",o.addEventListener("change",async()=>{const d=o.files&&o.files[0];if(o.value="",!!d)try{const c=await i.compressImageFile(d);await i.state.uploadItemImage(t.id,c)}catch(c){i.state.error=c&&c.message?c.message:String(c),i.state._notify()}});const r=document.createElement("button");r.type="button",r.title="Upload/replace image",Object.assign(r.style,{width:`${e}px`,height:`${e}px`,padding:"0",cursor:"pointer",borderRadius:"var(--radius, 4px)",overflow:"hidden",background:"var(--muted, rgba(128,128,128,0.15))",border:"1px dashed var(--border, rgba(128,128,128,0.4))"}),r.addEventListener("click",()=>o.click());const s=document.createElement("span");s.textContent="+",Object.assign(s.style,{fontSize:`${Math.round(e*.4)}px`,lineHeight:"1",color:"var(--muted-foreground, currentcolor)"}),r.appendChild(s);const a=document.createElement("button");a.type="button",a.title="Remove uploaded image (a matching image-pack file, if any, would still show)",a.textContent="\xD7",Object.assign(a.style,{position:"absolute",top:"-6px",right:"-6px",width:"14px",height:"14px",lineHeight:"12px",padding:"0",fontSize:"11px",borderRadius:"50%",cursor:"pointer",background:k,color:L,border:"none",display:"none"}),a.addEventListener("click",()=>i.state.deleteItemImage(t.id));const l=document.createElement("img");return l.alt=`${t.name} image`,Object.assign(l.style,{width:"100%",height:"100%",objectFit:"cover",display:"none"}),l.addEventListener("load",()=>{s.style.display="none",r.style.border="1px solid var(--border, rgba(128,128,128,0.3))",l.style.display="block",a.style.display="block"}),l.addEventListener("error",()=>{if(l.remove(),t.defaultSlot){s.style.display="none";const d=i.buildSlotIconRaster(t.defaultSlot,e);Object.assign(d.style,{width:"100%",height:"100%",objectFit:"cover"}),r.appendChild(d)}}),l.src=i.itemImageUrl(i.state.chatId,x,t.id),r.appendChild(l),n.append(r,o,a),n},_buildOutfitRow(t){const e=i.state.outfitMatchesCurrent(t),n=S[this.thumbnailSize],o=Math.max(n,Bt+Nt*j),r=document.createElement("li");Object.assign(r.style,{display:"flex",gap:"8px",alignItems:"stretch",position:"relative",height:`${o}px`,...rt,...e?{border:`2px solid ${O}`,boxShadow:`0 0 8px color-mix(in srgb, ${O} 45%, transparent)`}:{}});for(const g of["top left","top right","bottom left","bottom right"])r.appendChild(st(g));const s=this._buildOutfitPortraitControl(t,n),a=document.createElement("div");Object.assign(a.style,{display:"flex",flexDirection:"column",justifyContent:"space-between",gap:"4px",flex:"1",minWidth:"0",minHeight:"0"});const l=document.createElement("div");Object.assign(l.style,{display:"flex",alignItems:"center",gap:"6px"});const d=document.createElement("span");if(d.textContent=t.name,Object.assign(d.style,{flex:"1",minWidth:"0",fontWeight:"600",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}),l.appendChild(d),e){const g=document.createElement("span");g.textContent="Equipped",Object.assign(g.style,{fontSize:"10px",fontWeight:"600",color:O,textTransform:"uppercase",letterSpacing:"0.02em",whiteSpace:"nowrap"}),l.appendChild(g)}const c=i.button("Delete",{bg:k,fg:L});c.addEventListener("click",()=>{window.confirm(`Delete "${t.name}"? This can't be undone.`)&&i.state.deleteOutfit(t.id)}),l.appendChild(c);const u=document.createElement("div");Object.assign(u.style,{display:"flex",gap:"6px",flex:"1",minHeight:"0"});const p=document.createElement("span");p.className="qm-desc-scroll",p.textContent=t.description||"No description",Object.assign(p.style,{flex:"1",minWidth:"0",fontSize:"11px",lineHeight:`${j}px`,overflowY:"auto",whiteSpace:"normal",wordBreak:"break-word",color:"var(--muted-foreground, currentcolor)",fontStyle:t.description?"normal":"italic"});const h=document.createElement("div");Object.assign(h.style,{display:"flex",flexDirection:"column",justifyContent:"space-between",gap:"4px"});const m=i.button("Edit",{border:!0,bg:"transparent",fg:"inherit"});m.addEventListener("click",()=>this._openOutfitEditor(t));const f=i.button("Update",{border:!0,bg:"transparent",fg:"inherit"});f.title="Resave the currently-equipped items into this outfit",f.addEventListener("click",()=>i.state.updateOutfit(t.id,{resnapshot:!0}));const b=i.button("Equip");return b.disabled=e,b.style.opacity=e?"0.5":"1",b.addEventListener("click",()=>i.state.equipOutfit(t.id)),h.append(m,f,b),u.append(p,h),a.append(l,u),r.append(s,a),r},_buildAddItemForm(){const t=document.createElement("form");Object.assign(t.style,{display:"flex",flexDirection:"column",gap:"4px",marginBottom:"8px",...jt});const e=document.createElement("div");Object.assign(e.style,{display:"flex",gap:"6px"});const n=i.smallInput("input");n.type="text",n.placeholder="Item name",n.required=!0,n.style.flex="1";const o=i.smallInput("input");o.type="number",o.min="1",o.value="1",o.style.width="56px";const r=i.button("Add",{bg:O,fg:$});r.type="submit",e.append(n,o,r);const s=document.createElement("div");Object.assign(s.style,{display:"flex",alignItems:"center",gap:"6px"});const a=i.smallInput("select");a.style.flex="1";const l=document.createElement("option");l.value="",l.textContent="Select Default Slot",a.appendChild(l);for(const p of z){if(!i.state.slotVisible(p))continue;const h=document.createElement("option");h.value=p,h.textContent=R[p],a.appendChild(h)}const d=document.createElement("span");d.textContent="Stored at:",Object.assign(d.style,{fontSize:"11px",color:"var(--muted-foreground, currentcolor)",whiteSpace:"nowrap"});const c=i.smallInput("input");c.type="text",c.placeholder="bag",c.style.flex="1",s.append(a,d,c);const u=i.smallInput("input");return u.type="text",u.placeholder="Description (optional)",u.style.width="100%",u.style.boxSizing="border-box",t.append(e,s,u),t.addEventListener("submit",async p=>{p.preventDefault();const h=n.value.trim();if(!h)return;r.disabled=!0;const m=c.value.trim();await i.state.addItem({name:h,quantity:o.value,description:u.value,defaultSlot:a.value||null,location:m?`stored:${m}`:"bag"}),r.disabled=!1,n.value="",o.value="1",u.value="",a.value="",c.value=""}),t},_buildBagSearchRow(){const t=document.createElement("div");Object.assign(t.style,{display:"flex",alignItems:"center",gap:"6px",marginBottom:"8px"});const e=i.smallInput("input");e.type="text",e.placeholder="Search...",e.value=this.bagSearchQuery,e.style.flex="1",e.addEventListener("input",()=>{this.bagSearchQuery=e.value,this.listContainer.replaceChildren(this._buildItemList())}),this.bagSearchInput=e,t.appendChild(e),this.bagSearchModeButtons={};for(const n of["name","slot"]){const o=i.button(n==="name"?"Name":"Slot");o.style.padding="2px 10px",o.addEventListener("click",()=>{this.bagSearchMode!==n&&(this.bagSearchMode=n,this._applyBagSearch(),this.listContainer.replaceChildren(this._buildItemList()))}),this.bagSearchModeButtons[n]=o,t.appendChild(o)}return this._applyBagSearch(),t},_applyBagSearch(){this.bagSearchInput&&this.bagSearchInput.value!==this.bagSearchQuery&&(this.bagSearchInput.value=this.bagSearchQuery);for(const[t,e]of Object.entries(this.bagSearchModeButtons||{})){const n=t===this.bagSearchMode;e.style.background=n?"var(--primary, #444)":"var(--secondary, transparent)",e.style.color=n?"var(--primary-foreground, #fff)":"var(--secondary-foreground, inherit)",e.style.border=n?"none":"1px solid var(--border, rgba(0,0,0,0.2))"}},_buildSectionHeader(t,e,n,o){this.sectionBodies=this.sectionBodies||{},this.sectionBodies[t]=n;const r=document.createElement("button");r.type="button",Object.assign(r.style,{display:"flex",alignItems:"center",justifyContent:"center",gap:"6px",width:"100%",padding:"6px 8px",marginBottom:"6px",boxSizing:"border-box",border:"1px solid var(--primary, #444)",borderRadius:"var(--radius, 4px)",background:"color-mix(in srgb, var(--primary, #444) 12%, transparent)",color:"inherit",cursor:"pointer",fontSize:"12px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"0.04em"});const s=document.createElement("span"),a=document.createElement("span");return a.setAttribute("aria-hidden","true"),r.append(s,a),r.addEventListener("click",()=>this._toggleColumnCollapsed(t)),this.sectionHeaders=this.sectionHeaders||{},this.sectionHeaders[t]={baseLabel:e,textEl:s,chevronEl:a,headerEl:r,columnEl:o},r},_toggleColumnCollapsed(t){const e=!this.columnCollapsed[t],n=this.sectionHeaders&&this.sectionHeaders[t];if(this.columnCollapsed[t]=e,e){const o=n&&n.columnEl?n.columnEl.getBoundingClientRect().width:0,r=Math.max(0,o-N),s=this.bodyWidth-r<this._columnsStackThreshold()*this._zoomFactor();if(n&&n.columnEl&&!s){this.columnCollapseDelta[t]=r;const a=this.geometry?.width;this.resizeBy(-r,0);const l=a!=null&&this.geometry?a-this.geometry.width:r;this.bodyWidth=Math.max(0,this.bodyWidth-l)}else this.columnCollapseDelta[t]=0}else{const o=this.columnCollapseDelta[t]||0;if(this.columnCollapseDelta[t]=0,n&&n.columnEl&&o>0){const r=this.geometry?.width;this.resizeBy(o,0);const s=r!=null&&this.geometry?this.geometry.width-r:o;this.bodyWidth+=s}}Ft(this.columnCollapsed),this._applySectionHeaders()},_applySectionHeaders(){const t=this._isColumnsStacked();this.columns&&(this.columns.style.flexDirection=t?"column":"row");for(const e of B){const n=this.sectionHeaders&&this.sectionHeaders[e],o=this.sectionBodies&&this.sectionBodies[e],r=!!this.columnCollapsed[e],s=r&&!t;if(o&&(o.style.display=r?"none":""),!n)continue;const a=e==="outfits"?i.state.sortedOutfits().length:e==="bag"?i.state.bagItems().length:null;n.textEl.textContent=a===null?n.baseLabel:`${n.baseLabel} (${a})`,n.chevronEl.textContent=r?"\u25B8":"\u25BE",n.columnEl&&Object.assign(n.columnEl.style,s?{flex:`0 0 ${N}px`,width:`${N}px`}:{flex:P[e],width:"100%"}),n.headerEl&&Object.assign(n.headerEl.style,s?{flexDirection:"column",height:"200px",padding:"8px 4px"}:{flexDirection:"row",height:"auto",padding:"6px 8px"}),Object.assign(n.textEl.style,s?{writingMode:"vertical-rl",textOrientation:"mixed"}:{writingMode:"horizontal-tb"})}},_buildItemList(){const t=document.createElement("ul");Object.assign(t.style,{listStyle:"none",margin:"0",padding:"0",display:"flex",flexDirection:"column",gap:"6px"});const e=this.bagSearchQuery.trim().toLowerCase();let n=i.state.bagItems();if(e&&(n=n.filter(o=>this.bagSearchMode==="slot"?(o.defaultSlot?R[o.defaultSlot].toLowerCase():"").includes(e):o.name.toLowerCase().includes(e))),n.length===0){const o=i.textNode(e?"No matching items.":"Bag is empty.");return o.style.color="var(--muted-foreground, currentcolor)",o.style.margin="0",t.appendChild(o),t}for(const o of n)t.appendChild(this._buildItemRow(o));return t},_buildItemRow(t){const e=S[this.thumbnailSize],n=Math.max(e,Ut+zt*j),o=document.createElement("li");Object.assign(o.style,{display:"flex",gap:"8px",alignItems:"stretch",position:"relative",height:`${n}px`,...rt});for(const C of["top left","top right","bottom left","bottom right"])o.appendChild(st(C));const r=this._buildItemImageControl(t,e),s=document.createElement("div");Object.assign(s.style,{display:"flex",flexDirection:"column",justifyContent:"space-between",gap:"4px",flex:"1",minWidth:"0",minHeight:"0"});const a=document.createElement("div");Object.assign(a.style,{display:"flex",alignItems:"center",gap:"6px"});const l=document.createElement("span");l.textContent=t.name,Object.assign(l.style,{flex:"1",minWidth:"0",fontWeight:"600",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"});const d=i.smallInput("input");d.type="number",d.min="0",d.value=String(t.quantity),d.style.width="48px",d.addEventListener("change",()=>i.state.updateItem(t.id,{quantity:d.value}));const c=i.button("Delete",{bg:k,fg:L});c.addEventListener("click",()=>{window.confirm(`Delete "${t.name}"? This can't be undone.`)&&i.state.deleteItem(t.id)}),a.append(l,d,c);const u=document.createElement("div");Object.assign(u.style,{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px"});const p=document.createElement("span");p.textContent=t.defaultSlot?R[t.defaultSlot]:"Default Slot",Object.assign(p.style,{flex:"1",minWidth:"0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:t.defaultSlot?"inherit":"var(--muted-foreground, currentcolor)",fontStyle:t.defaultSlot?"normal":"italic"});const h=document.createElement("span");h.textContent=`Stored at: ${t.location.startsWith("stored:")?t.location.slice(7):"Bag"}`,Object.assign(h.style,{color:"var(--muted-foreground, currentcolor)",whiteSpace:"nowrap"}),u.append(p,h);const m=document.createElement("div");Object.assign(m.style,{display:"flex",gap:"6px",flex:"1",minHeight:"0"});const f=document.createElement("span");f.className="qm-desc-scroll",f.textContent=t.description||"No description",Object.assign(f.style,{flex:"1",minWidth:"0",fontSize:"11px",lineHeight:`${j}px`,overflowY:"auto",whiteSpace:"normal",wordBreak:"break-word",color:"var(--muted-foreground, currentcolor)",fontStyle:t.description?"normal":"italic"});const b=document.createElement("div");Object.assign(b.style,{display:"flex",flexDirection:"column",justifyContent:"space-between",gap:"4px"});const g=i.button("Edit",{border:!0,bg:"transparent",fg:"inherit"});g.addEventListener("click",()=>this._openItemEditor(t));const y=i.button("Equip"),_=!!t.defaultSlot&&i.state.slotVisible(t.defaultSlot);return y.disabled=!_,y.style.opacity=_?"1":"0.5",y.addEventListener("click",()=>{_&&i.state.updateItem(t.id,{location:`equipped:${t.defaultSlot}`})}),b.append(g,y),m.append(f,b),s.append(a,u,m),o.append(r,s),o},_bindEscapeClose(t){const e=n=>{n.key==="Escape"&&t()};return document.addEventListener("keydown",e),e},_unbindEscapeClose(t){t&&document.removeEventListener("keydown",t)},_openItemEditor(t){this._closeItemEditor();const e=document.createElement("div");Object.assign(e.style,{position:"absolute",inset:"0",background:"rgba(0, 0, 0, 0.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",boxSizing:"border-box",zIndex:"30"}),e.addEventListener("pointerdown",m=>{m.target===e&&this._closeItemEditor()});const n=document.createElement("div");Object.assign(n.style,{background:"var(--card, #1c1c1c)",border:"1px solid var(--border, rgba(128,128,128,0.3))",borderRadius:"var(--radius, 6px)",padding:"12px",width:"min(280px, 100%)",maxHeight:"100%",overflowY:"auto",boxSizing:"border-box",boxShadow:"0 8px 24px rgba(0, 0, 0, 0.45)",display:"flex",flexDirection:"column",gap:"8px"}),n.addEventListener("pointerdown",m=>m.stopPropagation());const o=document.createElement("div");Object.assign(o.style,{display:"flex",alignItems:"center",justifyContent:"space-between"});const r=document.createElement("strong");r.textContent="Edit Item",r.style.fontSize="13px";const s=i.button("\xD7",{bg:"transparent",border:!0,fg:"inherit"});s.style.padding="0 6px",s.addEventListener("click",()=>this._closeItemEditor()),o.append(r,s);const a=document.createElement("div");Object.assign(a.style,{display:"flex",justifyContent:"center"}),a.appendChild(this._buildItemImageControl(t,96));const l=i.smallInput("input");l.type="text",l.value=t.name,l.style.width="100%",l.style.boxSizing="border-box",l.style.fontWeight="600",l.addEventListener("change",()=>{const m=l.value.trim();m?i.state.updateItem(t.id,{name:m}):l.value=t.name});const d=i.defaultSlotSelect(t);d.style.width="100%",d.style.boxSizing="border-box";const c=document.createElement("div");Object.assign(c.style,{display:"flex",alignItems:"center",gap:"6px"});const u=document.createElement("span");u.textContent="Stored at:",Object.assign(u.style,{fontSize:"11px",color:"var(--muted-foreground, currentcolor)",whiteSpace:"nowrap"});const p=i.smallInput("input");p.type="text",p.placeholder="bag",p.value=t.location.startsWith("stored:")?t.location.slice(7):"",p.style.flex="1",p.addEventListener("change",()=>{const m=p.value.trim();i.state.updateItem(t.id,{location:m?`stored:${m}`:"bag"})}),c.append(u,p);const h=i.descriptionTextarea(t.description,m=>i.state.updateItem(t.id,{description:m}));h.rows=4,n.append(o,a,l,d,c,h),e.appendChild(n),this.itemEditorBackdrop=e,(this.root||this.body).appendChild(e),this._itemEditorEscapeHandler=this._bindEscapeClose(()=>this._closeItemEditor())},_closeItemEditor(){this.itemEditorBackdrop?.remove(),this.itemEditorBackdrop=null,this._unbindEscapeClose(this._itemEditorEscapeHandler),this._itemEditorEscapeHandler=null},_openOutfitEditor(t){this._closeOutfitEditor();const e=document.createElement("div");Object.assign(e.style,{position:"absolute",inset:"0",background:"rgba(0, 0, 0, 0.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",boxSizing:"border-box",zIndex:"30"}),e.addEventListener("pointerdown",c=>{c.target===e&&this._closeOutfitEditor()});const n=document.createElement("div");Object.assign(n.style,{background:"var(--card, #1c1c1c)",border:"1px solid var(--border, rgba(128,128,128,0.3))",borderRadius:"var(--radius, 6px)",padding:"12px",width:"min(280px, 100%)",maxHeight:"100%",overflowY:"auto",boxSizing:"border-box",boxShadow:"0 8px 24px rgba(0, 0, 0, 0.45)",display:"flex",flexDirection:"column",gap:"8px"}),n.addEventListener("pointerdown",c=>c.stopPropagation());const o=document.createElement("div");Object.assign(o.style,{display:"flex",alignItems:"center",justifyContent:"space-between"});const r=document.createElement("strong");r.textContent="Edit Outfit",r.style.fontSize="13px";const s=i.button("\xD7",{bg:"transparent",border:!0,fg:"inherit"});s.style.padding="0 6px",s.addEventListener("click",()=>this._closeOutfitEditor()),o.append(r,s);const a=document.createElement("div");Object.assign(a.style,{display:"flex",justifyContent:"center"}),a.appendChild(this._buildOutfitPortraitControl(t,96));const l=i.smallInput("input");l.type="text",l.value=t.name,l.style.width="100%",l.style.boxSizing="border-box",l.style.fontWeight="600",l.addEventListener("change",()=>{const c=l.value.trim();c?i.state.updateOutfit(t.id,{name:c}):l.value=t.name});const d=i.descriptionTextarea(t.description,c=>i.state.updateOutfit(t.id,{description:c}));d.rows=4,n.append(o,a,l,d),e.appendChild(n),this.outfitEditorBackdrop=e,(this.root||this.body).appendChild(e),this._outfitEditorEscapeHandler=this._bindEscapeClose(()=>this._closeOutfitEditor())},_closeOutfitEditor(){this.outfitEditorBackdrop?.remove(),this.outfitEditorBackdrop=null,this._unbindEscapeClose(this._outfitEditorEscapeHandler),this._outfitEditorEscapeHandler=null},_openSaveOutfitModal(){this._closeSaveOutfitModal();const t=document.createElement("div");Object.assign(t.style,{position:"absolute",inset:"0",background:"rgba(0, 0, 0, 0.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",boxSizing:"border-box",zIndex:"30"}),t.addEventListener("pointerdown",m=>{m.target===t&&this._closeSaveOutfitModal()});const e=document.createElement("div");Object.assign(e.style,{background:"var(--card, #1c1c1c)",border:`1px solid ${O}`,borderRadius:"var(--radius, 6px)",padding:"12px",width:"min(280px, 100%)",maxHeight:"100%",overflowY:"auto",boxSizing:"border-box",boxShadow:"0 8px 24px rgba(0, 0, 0, 0.45)",display:"flex",flexDirection:"column",gap:"8px"}),e.addEventListener("pointerdown",m=>m.stopPropagation());const n=document.createElement("div");Object.assign(n.style,{display:"flex",alignItems:"center",justifyContent:"space-between"});const o=document.createElement("strong");o.textContent="Save Current Outfit",o.style.fontSize="13px";const r=i.button("\xD7",{bg:"transparent",border:!0,fg:"inherit"});r.style.padding="0 6px",r.addEventListener("click",()=>this._closeSaveOutfitModal()),n.append(o,r);let s=null;const a=document.createElement("div");Object.assign(a.style,{display:"flex",justifyContent:"center"});const l=document.createElement("div");Object.assign(l.style,{position:"relative",width:"96px",height:"96px"});const d=document.createElement("input");d.type="file",d.accept="image/png,image/jpeg,image/webp",d.style.display="none";const c=document.createElement("button");c.type="button",c.title="Add portrait",Object.assign(c.style,{width:"96px",height:"96px",padding:"0",cursor:"pointer",borderRadius:"var(--radius, 4px)",overflow:"hidden",background:"var(--muted, rgba(128,128,128,0.15))",border:"1px dashed var(--border, rgba(128,128,128,0.4))",fontSize:"38px",lineHeight:"1",color:"var(--muted-foreground, currentcolor)"}),c.textContent="+",c.addEventListener("click",()=>d.click()),d.addEventListener("change",async()=>{const m=d.files&&d.files[0];if(d.value="",!!m)try{s=await i.compressImageFile(m),c.textContent="",c.style.border="1px solid var(--border, rgba(128,128,128,0.3))";const f=document.createElement("img");f.alt="Outfit portrait preview",Object.assign(f.style,{width:"100%",height:"100%",objectFit:"cover",display:"block"}),f.src=s,c.replaceChildren(f)}catch(f){i.state.error=f&&f.message?f.message:String(f),i.state._notify()}}),l.append(c,d),a.appendChild(l);const u=i.smallInput("input");u.type="text",u.placeholder="Outfit name",u.required=!0,u.style.width="100%",u.style.boxSizing="border-box";const p=i.smallInput("textarea");p.placeholder="Description (fed to appearance when selected)",p.rows=3,Object.assign(p.style,{width:"100%",boxSizing:"border-box",resize:"vertical",font:"inherit"});const h=i.button("Save",{bg:O,fg:$});h.style.width="100%",h.addEventListener("click",async()=>{const m=u.value.trim();if(!m)return;h.disabled=!0,await i.state.createOutfit({name:m,description:p.value});const f=i.state.outfits[i.state.outfits.length-1];s&&f&&await i.state.uploadOutfitPortrait(f.id,s),h.disabled=!1,this._closeSaveOutfitModal()}),e.append(n,a,u,p,h),t.appendChild(e),this.saveOutfitBackdrop=t,(this.root||this.body).appendChild(t),this._saveOutfitEscapeHandler=this._bindEscapeClose(()=>this._closeSaveOutfitModal())},_closeSaveOutfitModal(){this.saveOutfitBackdrop?.remove(),this.saveOutfitBackdrop=null,this._unbindEscapeClose(this._saveOutfitEscapeHandler),this._saveOutfitEscapeHandler=null}};const F="text-[0.6875rem] leading-[0.875rem]",dt="text-[0.625rem] leading-[0.75rem]",Yt="relative z-10 overflow-hidden border-b border-[var(--border)] bg-[var(--tracker-panel-section-background,color-mix(in_srgb,var(--card)_5%,transparent))] shadow-[inset_0_1px_0_color-mix(in_srgb,var(--foreground)_5%,transparent)]",Jt="relative flex min-h-7 items-center gap-1 border-b border-[var(--border)]/42 px-1 py-0.5",Zt="flex min-w-0 flex-1 items-center gap-1 self-stretch rounded-sm px-0 text-left cursor-pointer select-none transition-colors hover:bg-[var(--accent)]/18 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--border)]",Kt="flex h-3.5 w-3 shrink-0 items-center justify-center",Xt="text-[color:var(--tracker-profile-icon,var(--muted-foreground))] opacity-60 transition-transform duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",te="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-[color:var(--tracker-profile-icon,var(--muted-foreground))] opacity-75",ee="min-w-0 flex-1 truncate font-semibold uppercase tracking-[0.08em] text-[var(--foreground)]/62 "+dt,ne='<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"></path></svg>',oe="rounded-sm border border-dashed border-[color-mix(in_srgb,var(--tracker-inline-rule,var(--border))_38%,transparent)] px-1 py-1 text-center text-[color-mix(in_srgb,var(--tracker-inline-muted,var(--muted-foreground))_66%,transparent)] "+F,ct="flex min-w-0 items-center gap-1 border-b border-[var(--border)]/25 px-1 py-1 last:border-0 "+F,U="text-[var(--muted-foreground)] "+dt;i.panel={container:null,unsubscribe:null,root:null,errorNode:null,equippedContent:null,outfitsContent:null,inventoryContent:null,expanded:{root:!1,equipped:!1,outfits:!1,inventory:!1},_sections:null,mount(t){if(this.container===t){this.paint();return}this.unmount(),this.container=t,this.root=null,this.unsubscribe=i.state.subscribe(()=>this.paint()),i.state.startPolling(),i.state.ensureLoaded(),this.paint()},unmount(){this.unsubscribe&&(this.unsubscribe(),this.unsubscribe=null,i.state.stopPolling()),this.container=null,this.root=null},paint(){this.container&&((!this.root||!this.container.contains(this.root))&&this._buildStructure(),this._updateContent())},_buildStructure(){const t=document.createElement("div");t.className=Yt;const e=this._buildHeader("Quartermaster",pt,"root");t.appendChild(e.header);const n=document.createElement("div");Object.assign(n.style,{display:"flex",flexDirection:"column"}),this.errorNode=document.createElement("div"),this.errorNode.className=ct,this.errorNode.style.color=k,this.errorNode.style.display="none";const o=this._buildSubsection("Equipped","equipped");this.equippedContent=o.content;const r=this._buildSubsection("Outfits","outfits");this.outfitsContent=r.content;const s=this._buildSubsection("Inventory","inventory");this.inventoryContent=s.content,n.append(this.errorNode,o.wrapper,r.wrapper,s.wrapper),t.appendChild(n),this._sections={root:{toggle:e.toggle,chevron:e.chevron,content:n},equipped:{toggle:o.toggle,chevron:o.chevron,content:o.content},outfits:{toggle:r.toggle,chevron:r.chevron,content:r.content},inventory:{toggle:s.toggle,chevron:s.chevron,content:s.content}},this._applyExpanded(),this.container.replaceChildren(t),this.root=t},_buildHeader(t,e,n){const o=document.createElement("div");o.className=Jt;const r=document.createElement("button");r.type="button",r.className=Zt;const s=document.createElement("span");s.className=Kt,s.setAttribute("aria-hidden","true");const a=document.createElement("span");if(a.className=Xt,a.innerHTML=ne,s.appendChild(a),r.appendChild(s),e){const d=document.createElement("span");d.className=te,d.setAttribute("aria-hidden","true"),d.innerHTML=e,r.appendChild(d)}const l=document.createElement("span");return l.textContent=t,l.className=ee,r.appendChild(l),r.setAttribute("aria-label",t),r.addEventListener("click",()=>this._toggleSection(n)),o.appendChild(r),{header:o,toggle:r,chevron:a}},_buildSubsection(t,e){const n=document.createElement("div"),o=this._buildHeader(t,null,e),r=document.createElement("div");return n.append(o.header,r),{wrapper:n,content:r,toggle:o.toggle,chevron:o.chevron}},_toggleSection(t){this.expanded[t]=!this.expanded[t],this._applyExpanded()},_applyExpanded(){if(this._sections)for(const t of Object.keys(this._sections)){const{toggle:e,chevron:n,content:o}=this._sections[t],r=this.expanded[t];o.style.display=r?"":"none",n.classList.toggle("-rotate-90",!r),e.setAttribute("aria-expanded",String(r))}},_updateContent(){if(!i.state.chatId){this.equippedContent.replaceChildren(this._empty("No active chat.")),this.outfitsContent.replaceChildren(this._empty("No active chat.")),this.inventoryContent.replaceChildren(this._empty("No active chat."));return}i.state.error?(this.errorNode.textContent=`Error: ${i.state.error}`,this.errorNode.style.display=""):this.errorNode.style.display="none",this.equippedContent.replaceChildren(this._buildEquipped()),this.outfitsContent.replaceChildren(this._buildOutfits()),this.inventoryContent.replaceChildren(this._buildInventory())},_row(t){const e=document.createElement("div");return e.className=ct,e.append(...t),e},_empty(t){const e=document.createElement("div");return e.className=oe,e.textContent=t,e},_buildEquipped(){const t=document.createElement("div"),e=i.state.equippedEntries();if(e.length===0)return t.appendChild(this._empty("Nothing equipped.")),t;for(const{slot:n,item:o}of e){const r=document.createElement("span");r.textContent=o.name,r.style.flex="1";const s=document.createElement("span");s.textContent=R[n],s.className=U;const a=i.button("Unequip",{bg:"var(--secondary, transparent)",fg:"var(--secondary-foreground, inherit)",border:!0});a.addEventListener("click",()=>i.state.updateItem(o.id,{location:"bag"})),t.appendChild(this._row([r,s,a]))}return t},_buildOutfits(){const t=document.createElement("div"),e=i.state.sortedOutfits();if(e.length===0)return t.appendChild(this._empty("No saved outfits yet.")),t;for(const n of e){const o=document.createElement("div");o.className="border-b border-[var(--border)]/25 px-1 py-1 last:border-0";const r=document.createElement("div");Object.assign(r.style,{display:"flex",alignItems:"center",gap:"6px"});const s=document.createElement("span");s.textContent=n.name,s.style.flex="1",s.className="font-semibold "+F;const a=i.state.outfitMatchesCurrent(n),l=a?i.button("Unequip",{bg:"var(--secondary, transparent)",fg:"var(--secondary-foreground, inherit)",border:!0}):i.button("Equip");l.addEventListener("click",()=>a?i.state.unequipAll():i.state.equipOutfit(n.id)),r.append(s,l);const d=i.state.outfitItemNames(n),c=document.createElement("div");c.textContent=d.length>0?d.join(", "):"(empty)",c.className=U,o.append(r,c),t.appendChild(o)}return t},_buildInventory(){const t=document.createElement("div"),e=i.state.itemsByLocationCategory();if(e.length===0)return t.appendChild(this._empty("Bag is empty.")),t;for(const n of e){const o=document.createElement("div");o.textContent=n.label,o.className="px-1 pt-1 font-semibold uppercase tracking-[0.08em] "+U,t.appendChild(o);for(const r of n.items){const s=document.createElement("span");s.textContent=r.name,s.style.flex="1";const a=document.createElement("span");a.textContent=`\xD7${r.quantity}`,a.className=U,t.appendChild(this._row([s,a]))}}return t}};const pt='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="8" width="14" height="13" rx="2"></rect><path d="M9 8V6a3 3 0 0 1 6 0v2"></path><rect x="9" y="12" width="6" height="4" rx="1"></rect></svg>';class ie extends HTMLElement{constructor(){super(),this._props=null,this._onPropsEvent=()=>this._render()}set capabilityProps(e){this._props=e,this._render()}get capabilityProps(){return this._props}static get observedAttributes(){return["view"]}attributeChangedCallback(e,n,o){e==="view"&&n!==o&&this._render()}connectedCallback(){this.addEventListener("marinara-capability-props",this._onPropsEvent),this._render()}disconnectedCallback(){this.removeEventListener("marinara-capability-props",this._onPropsEvent),i.panel.container===this&&i.panel.unmount()}get _chatId(){return this._props&&typeof this._props.chatId=="string"?this._props.chatId:null}_render(){if(i.state.setChat(this._chatId),this.getAttribute("view")==="tracker"){i.panel.mount(this);return}let n=this._button;(!n||!this.contains(n))&&(n=document.createElement("button"),n.type="button",n.innerHTML=pt,n.addEventListener("click",()=>i.dock.toggle()),this.replaceChildren(n),this._button=n);const o=this._props,r=o&&typeof o.toolbarButtonClass=="string"?o.toolbarButtonClass:"";n.className=`${r} qm-launch`.trim(),n.title="Quartermaster",n.setAttribute("aria-label","Quartermaster"),n.setAttribute("aria-pressed",i.dock.isOpen()?"true":"false")}}const ut="marinara-capability-quartermaster";customElements.get(ut)||customElements.define(ut,ie)})();
+`;
+
+const QM_WINDOW_KEY = "marinara.quartermaster.window";
+const QM_WINDOW_MARGIN = 12;
+const QM_WINDOW_MIN_WIDTH = 320;
+const QM_WINDOW_MIN_HEIGHT = 360;
+const QM_WINDOW_DEFAULT_WIDTH = 960;
+const QM_WINDOW_DEFAULT_HEIGHT = 640;
+// Below this measured content width the 3 columns stack vertically instead
+// of overlapping — this is also what fixes the ring overflowing into the
+// Outfits/Bag columns at the old fixed size, not just a resize nicety.
+const QM_DOCK_COLUMNS_STACK_WIDTH = 760;
+
+// UI Size — a CSS zoom factor applied to a wrapper around everything in the
+// dock's body except the UI-size row itself (kept at a fixed, predictable
+// size so it stays a stable control regardless of the current zoom) and the
+// header/resize-handle chrome. zoom (not transform:scale) because it
+// affects real layout — content correctly reflows and wraps at its scaled
+// size instead of visually stretching past its box — and dock-only per the
+// request: the tracker panel (15-panel.js) reads the same QM.state but
+// isn't part of this wrapper, so it's unaffected.
+const QM_UI_SIZE_KEY = "marinara.quartermaster.uiSize";
+const QM_UI_SIZES = { S: 0.85, M: 1, L: 1.2 };
+// Independent from QM_UI_SIZES/zoom — this controls the pixel box size of
+// outfit portrait thumbnails and item placeholder images specifically, read
+// at build time by their card layouts rather than a live CSS zoom, since
+// those cards already get rebuilt on every repaint anyway.
+const QM_THUMBNAIL_SIZE_KEY = "marinara.quartermaster.thumbnailSize";
+const QM_THUMBNAIL_SIZES = { S: 48, M: 72, L: 100 };
+// Independent from QM_THUMBNAIL_SIZES above (which still governs item/
+// outfit thumbnails, unchanged) — the portrait needs to scale far more
+// aggressively per size, since 5 equip-slot-box pairs beside it need real
+// vertical room not to overlap at S/M. S stays exactly what it was before;
+// M becomes what L used to be; L is double what L used to be.
+const QM_PORTRAIT_SCALE = {
+  S: QM_THUMBNAIL_SIZES.S / QM_THUMBNAIL_SIZES.M,
+  M: QM_THUMBNAIL_SIZES.L / QM_THUMBNAIL_SIZES.M,
+  L: (QM_THUMBNAIL_SIZES.L / QM_THUMBNAIL_SIZES.M) * 2,
+};
+// Cut-corner "gem frame" look for the portrait — shared by both the real
+// image and the empty-state placeholder so they read as the same frame
+// regardless of which is showing. Border/glow use the theme's own accent
+// (var(--primary)), not a fixed brand color, so it matches whatever accent
+// the user's actually set in the Engine rather than a hardcoded look.
+// Applied to the FRAME (the div wrapping the image/placeholder), not to the
+// image/placeholder themselves — clip-path clips a box's descendants along
+// with itself, so a child image's square corners are cut away for free
+// wherever they'd fall inside the octagon's notches, with no separate
+// clip-path needed on the image. The frame's own small padding is what makes
+// that backing/mat visible as a ring around the portrait rather than the
+// image filling the clipped shape edge-to-edge. Two box-shadow layers: the
+// outer glow (unchanged from before) plus a thin inset hairline for a subtle
+// "double border" look — same technique, no extra DOM needed for it.
+// clipPath is intentionally NOT in this static object — see
+// qmPortraitFrameClipPath's own comment for why it has to be a fixed pixel
+// value computed per portraitScale instead.
+const QM_PORTRAIT_FRAME_STYLE = {
+  border: "2px solid var(--primary, #444)",
+  padding: "3px",
+  background: "color-mix(in srgb, var(--primary, #444) 10%, rgba(0, 0, 0, 0.55))",
+  boxShadow:
+    "0 0 12px color-mix(in srgb, var(--primary, #444) 45%, transparent), " +
+    "inset 0 0 0 1px color-mix(in srgb, var(--primary, #444) 35%, transparent)",
+  boxSizing: "border-box",
+};
+
+// A percentage-based clip-path inset (the original design) cuts a DIFFERENT
+// angle on a non-square box — 12% of a 130px width is a different pixel
+// distance than 12% of a 162px height, so the corner cut on a typical
+// (taller-than-wide) portrait was never actually 45°. The corner ornaments
+// assume a true 45° notch (their own path is drawn against a square 36x36
+// viewBox), so a fixed EQUAL pixel inset on both axes is what actually
+// matches them, regardless of the portrait's own aspect ratio.
+function qmPortraitFrameCutSize(portraitScale) {
+  return Math.round(qmClampWindowValue(12 * portraitScale, 8, 18));
+}
+
+function qmPortraitFrameClipPath(cut) {
+  return (
+    `polygon(${cut}px 0, calc(100% - ${cut}px) 0, 100% ${cut}px, ` +
+    `100% calc(100% - ${cut}px), calc(100% - ${cut}px) 100%, ${cut}px 100%, ` +
+    `0 calc(100% - ${cut}px), 0 ${cut}px)`
+  );
+}
+
+// Hand-drawn scrollwork corner ornament, designed and iterated visually
+// (see _planning/scratch/frame-ornament-lab.html) rather than guessed blind —
+// a flat SVG line drawing at ~32px doesn't survive freehand coordinate math
+// the way the equip-slot icons didn't either. Drawn once in a canonical
+// "top-left-ish" orientation: the dense curl detail sits near local (8,8),
+// diagonally inward from local (0,0), with two tendrils sweeping out toward
+// (34,2)/(2,34). Every corner reuses this exact same path, oriented by CSS
+// transform — see qmBuildPortraitCornerAccent's own comment for why it's
+// scale flips, not rotations, and why the specific corner→transform mapping
+// below isn't the "obvious" one.
+const QM_PORTRAIT_CORNER_PATH =
+  "M2 34 C2 16 16 2 34 2 M8 34 C8 20 20 8 34 8 M2 22 C2 22 10 16 10 8 C10 4 8 2 8 2 M22 2 C22 2 16 10 8 10 C4 10 2 8 2 8" +
+  " M34 2 C30 6 28 10 28 14 M2 34 C6 30 10 28 14 28";
+
+// scaleX/scaleY (reflections), not rotate(90deg) steps — a true rotation
+// would be the "obvious" way to place one ornament at all 4 corners, but
+// this path's curl is asymmetric (denser detail on one side), and mirroring
+// is what keeps that dense detail pointing in toward the portrait at every
+// corner rather than rotating it around to face out toward the corner tip
+// at 2 of the 4 positions. The exact mapping (which axis for which corner)
+// was arrived at visually, not derived — see the lab file's iteration
+// history if this ever needs revisiting.
+const QM_PORTRAIT_CORNER_TRANSFORMS = {
+  "top left": "scale(-1, -1)",
+  "top right": "scaleY(-1)",
+  "bottom left": "scaleX(-1)",
+  "bottom right": "none",
+};
+
+// sizePx here is deliberately small relative to the frame — anchored 2px
+// out from the frame's own edge (well outside the frame's 3px padding), not
+// flush with it, so the ornament's outer tips push past the border while
+// the dense inner detail (fixed at local ~8,8 regardless of sizePx) lands
+// close to the corner rather than reaching deep into the portrait. Lives on
+// `wrapper` (a sibling of the clipped `frame`, not a child of it) — anything
+// placed inside `frame` itself would be clipped away wherever it fell in one
+// of the octagon's cut notches, corners included.
+function qmBuildPortraitCornerAccent(corner, sizePx) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 36 36");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML =
+    `<path d="${QM_PORTRAIT_CORNER_PATH}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>` +
+    `<circle cx="8" cy="8" r="1.6" fill="currentColor"/>`;
+  const offset = "2px";
+  Object.assign(svg.style, {
+    position: "absolute",
+    width: `${sizePx}px`,
+    height: `${sizePx}px`,
+    color: "var(--primary, #444)",
+    pointerEvents: "none",
+    transform: QM_PORTRAIT_CORNER_TRANSFORMS[corner],
+    top: corner.includes("top") ? offset : "auto",
+    bottom: corner.includes("bottom") ? offset : "auto",
+    left: corner.includes("left") ? offset : "auto",
+    right: corner.includes("right") ? offset : "auto",
+  });
+  return svg;
+}
+
+// Same clamp the lab settled on (20-30px), driven off the portrait's own max
+// width at the current Thumbnail Size — there's no single fixed "frame
+// width" to size off of the way the lab's test harness had, since the real
+// portrait's rendered width varies with its own aspect ratio; the max-width
+// QM_PORTRAIT_SCALE already computes is the closest stand-in.
+function qmPortraitCornerSize(portraitScale) {
+  return qmClampWindowValue(Math.round(160 * portraitScale) * 0.16, 20, 30);
+}
+
+function qmClampWindowValue(value, minimum, maximum) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+// A related but deliberately simpler sibling to the portrait's own frame —
+// same theme-colored border + soft glow language, but a plain rounded rect
+// (no clip-path cut corners: a compact list row's image/text would bite
+// against a cut notch at this size) with small corner dots instead of
+// scrollwork — the same accent the portrait frame carried before its own
+// curl-ornament upgrade, reused here rather than reinvented.
+const QM_ITEM_CARD_FRAME_STYLE = {
+  border: "1px solid var(--primary, #444)",
+  borderRadius: "var(--radius, 4px)",
+  padding: "5px 7px",
+  boxShadow: "0 0 6px color-mix(in srgb, var(--primary, #444) 25%, transparent)",
+  boxSizing: "border-box",
+};
+
+// Same technique as QM_ITEM_CARD_FRAME_STYLE, but outlined in the Add
+// button's own success color instead of the theme accent — a visually
+// distinct "this is the create-new form, not one more item" cue, without
+// needing a different shape or extra ornamentation to say it.
+const QM_ADD_ITEM_FRAME_STYLE = {
+  border: `1px solid ${QM_COLOR_SUCCESS}`,
+  borderRadius: "var(--radius, 4px)",
+  padding: "5px 7px",
+  boxShadow: `0 0 6px color-mix(in srgb, ${QM_COLOR_SUCCESS} 25%, transparent)`,
+  boxSizing: "border-box",
+};
+
+// An item/outfit card's description preview should fill the card from the
+// row below the name down to the bottom — not sit in a small fixed box
+// leaving the rest of the card's height unused next to a taller portrait —
+// while still capping out and scrolling instead of growing the card
+// unboundedly for a very long description. Both come from giving the whole
+// card row an explicit height (verified in a browser lab test, since a
+// flex item's default min-height:auto lets overflowing content grow its
+// container instead of scrolling unless every level down to the
+// description explicitly opts out via minHeight:"0"): max(the portrait's
+// own size, enough room for the name/slot row(s) plus a guaranteed minimum
+// number of description lines). A bigger portrait (L) lets the row grow to
+// match it, so the description gets more than the guaranteed minimum for
+// free; a smaller portrait (S) still guarantees the minimum by growing the
+// card past the portrait's own size, same as the original fixed-2-line
+// design already did at small sizes. The "other rows" pixel figures are
+// measured constants (name/slot row height with QM.button's actual
+// padding/font, not computed at render time), not something recalculated
+// per render.
+const QM_DESC_LINE_HEIGHT_PX = 14;
+const QM_OUTFIT_CARD_OTHER_ROWS_PX = 26; // nameLine + gap
+const QM_OUTFIT_CARD_MIN_DESC_LINES = 5;
+const QM_ITEM_CARD_OTHER_ROWS_PX = 46; // nameLine + slotLine + 2 gaps
+const QM_ITEM_CARD_MIN_DESC_LINES = 3;
+
+function qmBuildCardCornerDot(corner) {
+  const dot = document.createElement("span");
+  dot.setAttribute("aria-hidden", "true");
+  const edge = 5;
+  const offset = "-2px";
+  Object.assign(dot.style, {
+    position: "absolute",
+    width: `${edge}px`,
+    height: `${edge}px`,
+    background: "var(--primary, #444)",
+    opacity: "0.75",
+    transform: "rotate(45deg)",
+    pointerEvents: "none",
+    top: corner.includes("top") ? offset : "auto",
+    bottom: corner.includes("bottom") ? offset : "auto",
+    left: corner.includes("left") ? offset : "auto",
+    right: corner.includes("right") ? offset : "auto",
+  });
+  return dot;
+}
+
+// "The persona" (the export route's own fallback when there's no active
+// persona) collapses to an empty slug, which the caller treats as "leave it
+// out of the filename" rather than downloading a file literally named
+// "the-persona".
+function qmFilenameSafe(text) {
+  const slug = (typeof text === "string" ? text : "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug === "the-persona" ? "" : slug;
+}
+
+function qmReadUiSize() {
+  try {
+    const stored = window.localStorage.getItem(QM_UI_SIZE_KEY);
+    if (stored && QM_UI_SIZES[stored]) return stored;
+  } catch {
+    // A blocked storage read falls back to the default size.
+  }
+  return "M";
+}
+
+function qmWriteUiSize(size) {
+  try {
+    window.localStorage.setItem(QM_UI_SIZE_KEY, size);
+  } catch {
+    // Persisting is a convenience; the session still works without it.
+  }
+}
+
+function qmReadThumbnailSize() {
+  try {
+    const stored = window.localStorage.getItem(QM_THUMBNAIL_SIZE_KEY);
+    if (stored && QM_THUMBNAIL_SIZES[stored]) return stored;
+  } catch {
+    // A blocked storage read falls back to the default size.
+  }
+  return "M";
+}
+
+function qmWriteThumbnailSize(size) {
+  try {
+    window.localStorage.setItem(QM_THUMBNAIL_SIZE_KEY, size);
+  } catch {
+    // Persisting is a convenience; the session still works without it.
+  }
+}
+
+const QM_COLUMN_COLLAPSED_KEY = "marinara.quartermaster.columnCollapsed";
+const QM_COLUMN_KEYS = ["outfits", "equipped", "bag"];
+// The flex value each column uses when expanded — matches what each
+// column's own Object.assign(...style, {flex: ...}) already set at
+// creation (Equipped is wider since the portrait ring needs the room), so
+// collapsing/expanding restores exactly the original proportions rather
+// than a guessed one. Collapsed columns get a fixed narrow basis instead
+// (see _applySectionHeaders) so the OTHER columns' own flex naturally
+// absorbs the reclaimed width — a real horizontal collapse, not just
+// hiding content inside a column that stays its full original width.
+const QM_COLUMN_EXPANDED_FLEX = { outfits: "1", equipped: "1.6", bag: "1" };
+const QM_COLUMN_COLLAPSED_WIDTH = 40;
+
+function qmReadColumnCollapsed() {
+  const result = { outfits: false, equipped: false, bag: false };
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(QM_COLUMN_COLLAPSED_KEY) || "null");
+    if (stored && typeof stored === "object") {
+      for (const key of QM_COLUMN_KEYS) {
+        if (typeof stored[key] === "boolean") result[key] = stored[key];
+      }
+    }
+  } catch {
+    // A blocked or stale storage value falls back to every column expanded.
+  }
+  return result;
+}
+
+function qmWriteColumnCollapsed(state) {
+  try {
+    window.localStorage.setItem(QM_COLUMN_COLLAPSED_KEY, JSON.stringify(state));
+  } catch {
+    // Persisting is a convenience; the session still works without it.
+  }
+}
+
+function qmReadWindowGeometry() {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(QM_WINDOW_KEY) || "null");
+    if (stored && [stored.left, stored.top, stored.width, stored.height].every((value) => Number.isFinite(value))) {
+      return stored;
+    }
+  } catch {
+    // A blocked or stale storage value falls back to the default placement.
+  }
+  return null;
+}
+
+function qmWriteWindowGeometry(geometry) {
+  try {
+    window.localStorage.setItem(QM_WINDOW_KEY, JSON.stringify(geometry));
+  } catch {
+    // Persisting is a convenience; the session still works without it.
+  }
+}
+
+function qmEnsureDockStyle() {
+  if (document.getElementById(QM_DOCK_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = QM_DOCK_STYLE_ID;
+  style.textContent = QM_DOCK_STYLE;
+  (document.head || document.body).appendChild(style);
+}
+
+QM.dock = {
+  isOpenFlag: false,
+  unsubscribe: null,
+  root: null,
+  header: null,
+  body: null,
+  columns: null,
+  zoomWrapper: null,
+  uiSizeButtons: null,
+  thumbnailSizeButtons: null,
+  errorNode: null,
+  feedSelect: null,
+  settingsSection: null,
+  settingsContent: null,
+  settingsChevron: null,
+  underwearToggle: null,
+  armorToggle: null,
+  weaponsToggle: null,
+  replaceRealAvatarToggle: null,
+  equippedContainer: null,
+  outfitsContainer: null,
+  form: null,
+  listContainer: null,
+  portraitWrapper: null,
+  portraitImage: null,
+  portraitPlaceholder: null,
+  portraitCorners: null,
+  portraitFrame: null,
+  connectorSvg: null,
+  equippedSlotBoxRefs: null,
+  geometry: qmReadWindowGeometry(),
+  bodyWidth: QM_WINDOW_DEFAULT_WIDTH,
+  uiSize: qmReadUiSize(),
+  thumbnailSize: qmReadThumbnailSize(),
+  // Collapsed by default to keep the dock compact; not persisted — a session
+  // -only UI preference, unlike geometry/uiSize which are worth remembering
+  // across visits.
+  settingsExpanded: false,
+  // Which equip slot's picker is open, if any — set by clicking a slot box,
+  // cleared by picking an item, clicking the same slot again, closing the
+  // dock, or switching chats (see close()/QM.state.setChat's own reset).
+  selectedSlot: null,
+  itemEditorBackdrop: null,
+  outfitEditorBackdrop: null,
+  saveOutfitBackdrop: null,
+  _itemEditorEscapeHandler: null,
+  _outfitEditorEscapeHandler: null,
+  _saveOutfitEscapeHandler: null,
+  bagSearchQuery: "",
+  bagSearchMode: "name",
+  bagSearchInput: null,
+  bagSearchModeButtons: null,
+  outfitSearchQuery: "",
+  outfitSearchInput: null,
+  columnCollapsed: qmReadColumnCollapsed(),
+  // How much window width was reclaimed the last time each column
+  // collapsed, so expanding it again can hand back exactly that much
+  // rather than re-measuring (the column's own rendered width while
+  // collapsed is just the fixed strip width, not useful for a restore).
+  columnCollapseDelta: { outfits: 0, equipped: 0, bag: 0 },
+  sectionHeaders: null,
+  sectionBodies: null,
+  _windowBound: false,
+  _outsideClickBound: false,
+  _interaction: null,
+  _boundsObserver: null,
+  _bodyObserver: null,
+
+  // Every DOM node _paint/_ensureRoot cache on `this` so a repaint can find
+  // and update them without rebuilding — cleared together whenever the root
+  // is rebuilt or there's no chat to show, since a stale reference into a
+  // detached tree is worse than none.
+  _resetCachedNodes() {
+    // Nulling the backdrop refs below detaches them from `this` but doesn't
+    // remove their document-level Escape listener (that lives outside the
+    // DOM subtree being torn down) — unbind explicitly so a stray Escape
+    // press after a chat switch/root rebuild can't fire a closure over a
+    // now-orphaned modal.
+    this._unbindEscapeClose(this._itemEditorEscapeHandler);
+    this._unbindEscapeClose(this._outfitEditorEscapeHandler);
+    this._unbindEscapeClose(this._saveOutfitEscapeHandler);
+    this._itemEditorEscapeHandler = null;
+    this._outfitEditorEscapeHandler = null;
+    this._saveOutfitEscapeHandler = null;
+    this.columns = null;
+    this.zoomWrapper = null;
+    this.uiSizeButtons = null;
+    this.thumbnailSizeButtons = null;
+    this.errorNode = null;
+    this.feedSelect = null;
+    this.settingsSection = null;
+    this.settingsContent = null;
+    this.settingsChevron = null;
+    this.underwearToggle = null;
+    this.armorToggle = null;
+    this.weaponsToggle = null;
+    this.replaceRealAvatarToggle = null;
+    this.equippedContainer = null;
+    this.outfitsContainer = null;
+    this.form = null;
+    this.listContainer = null;
+    this.portraitWrapper = null;
+    this.portraitImage = null;
+    this.portraitPlaceholder = null;
+    this.portraitCorners = null;
+    this.portraitFrame = null;
+    this.connectorSvg = null;
+    this.equippedSlotBoxRefs = null;
+    this.itemEditorBackdrop = null;
+    this.bagSearchInput = null;
+    this.bagSearchModeButtons = null;
+    this.outfitSearchInput = null;
+    this.sectionHeaders = null;
+    this.sectionBodies = null;
+    this.outfitEditorBackdrop = null;
+    this.saveOutfitBackdrop = null;
+  },
+
+  isOpen() {
+    return this.isOpenFlag;
+  },
+
+  toggle() {
+    if (this.isOpenFlag) this.close();
+    else this.openPanel();
+  },
+
+  openPanel() {
+    this.isOpenFlag = true;
+    this._ensureRoot();
+    this.root.classList.remove("qm-dock-collapsed");
+    this._syncToggles();
+    this.syncGeometry();
+    if (!this.unsubscribe) {
+      this.unsubscribe = QM.state.subscribe(() => this._paint());
+      // Picks up server-side changes from the tracker agent, which has no
+      // way to push an update to us — see QM.state.startPolling's comment.
+      QM.state.startPolling();
+    }
+    QM.state.ensureLoaded();
+    this._paint();
+  },
+
+  close() {
+    this.isOpenFlag = false;
+    this.selectedSlot = null;
+    this._closeItemEditor();
+    this._closeOutfitEditor();
+    this._closeSaveOutfitModal();
+    if (this.root) this.root.classList.add("qm-dock-collapsed");
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+      QM.state.stopPolling();
+    }
+    this._syncToggles();
+  },
+
+  _syncToggles() {
+    for (const button of document.querySelectorAll(".qm-launch")) {
+      button.setAttribute("aria-pressed", this.isOpenFlag ? "true" : "false");
+    }
+  },
+
+  isMobile() {
+    return window.matchMedia("(max-width: 767px)").matches;
+  },
+
+  // The live roleplay chat area, not the viewport — keeps the dock from
+  // drifting over the composer or off past the sidebar. Same selectors
+  // Beholder's dock uses against this same host.
+  getChatBounds() {
+    const areas = Array.from(document.querySelectorAll(".rpg-chat-area"))
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 1 && rect.height > 1)
+      .sort((left, right) => right.width * right.height - left.width * left.height);
+    const rect = areas[0] || { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    const topbar = document.querySelector('[data-component="TopBar"], header.mari-topbar');
+    const topbarBottom = topbar ? topbar.getBoundingClientRect().bottom : rect.top;
+    const top = Math.min(rect.bottom, Math.max(rect.top, topbarBottom));
+    return { left: rect.left, top, right: rect.right, bottom: rect.bottom };
+  },
+
+  applyGeometry(geometry) {
+    if (!this.root) return;
+    this.root.style.setProperty("--qm-window-left", `${Math.round(geometry.left)}px`);
+    this.root.style.setProperty("--qm-window-top", `${Math.round(geometry.top)}px`);
+    this.root.style.setProperty("--qm-window-width", `${Math.round(geometry.width)}px`);
+    this.root.style.setProperty("--qm-window-height", `${Math.round(geometry.height)}px`);
+  },
+
+  syncGeometry() {
+    if (!this.root) return;
+    const bounds = this.getChatBounds();
+    this.root.style.setProperty("--qm-mobile-top", `${Math.round(bounds.top)}px`);
+    if (this.isMobile()) return;
+
+    const availableWidth = Math.max(1, bounds.right - bounds.left);
+    const availableHeight = Math.max(1, bounds.bottom - bounds.top);
+    const margin = Math.min(QM_WINDOW_MARGIN, availableWidth / 4, availableHeight / 4);
+    const maxWidth = Math.max(1, availableWidth - margin * 2);
+    const maxHeight = Math.max(1, availableHeight - margin * 2);
+    const minWidth = Math.min(QM_WINDOW_MIN_WIDTH, maxWidth);
+    const minHeight = Math.min(QM_WINDOW_MIN_HEIGHT, maxHeight);
+    const width = qmClampWindowValue(this.geometry?.width ?? QM_WINDOW_DEFAULT_WIDTH, minWidth, maxWidth);
+    const height = qmClampWindowValue(this.geometry?.height ?? QM_WINDOW_DEFAULT_HEIGHT, minHeight, maxHeight);
+    const defaultLeft = bounds.right - margin - width;
+    const defaultTop = bounds.top + margin;
+    const left = qmClampWindowValue(
+      this.geometry?.left ?? defaultLeft,
+      bounds.left + margin,
+      bounds.right - margin - width,
+    );
+    const top = qmClampWindowValue(
+      this.geometry?.top ?? defaultTop,
+      bounds.top + margin,
+      bounds.bottom - margin - height,
+    );
+    this.geometry = { left, top, width, height };
+    this.applyGeometry(this.geometry);
+  },
+
+  observeChatBounds() {
+    if (typeof ResizeObserver !== "function") return;
+    this._boundsObserver?.disconnect();
+    this._boundsObserver = new ResizeObserver(() => this.syncGeometry());
+    const area = Array.from(document.querySelectorAll(".rpg-chat-area")).find((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 1 && rect.height > 1;
+    });
+    if (area) this._boundsObserver.observe(area);
+    const main = document.querySelector(".mari-main");
+    if (main && main !== area) this._boundsObserver.observe(main);
+  },
+
+  // Tracks the dock's own content width so the columns/ring can reflow as
+  // it's resized, independent of the chat-bounds observer above (which
+  // tracks where the dock is ALLOWED to be, not how wide it currently is).
+  observeBodyWidth() {
+    if (typeof ResizeObserver !== "function" || !this.body) return;
+    this._bodyObserver?.disconnect();
+    this._bodyObserver = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect?.width;
+      if (!width || Math.abs(width - this.bodyWidth) < 4) return;
+      this.bodyWidth = width;
+      this._applyResponsiveLayout();
+    });
+    this._bodyObserver.observe(this.body);
+  },
+
+  _zoomFactor() {
+    return QM_UI_SIZES[this.uiSize] || 1;
+  },
+
+  // QM_DOCK_COLUMNS_STACK_WIDTH is calibrated assuming all three columns are
+  // showing their full expanded share; a collapsed column only needs its
+  // fixed narrow-strip width, not that share, so each currently-collapsed
+  // column lowers the threshold by the gap between the two. Without this,
+  // collapsing more than one column (which deliberately shrinks the window
+  // to match — see _toggleColumnCollapsed) could trip the "not enough room,
+  // stack them vertically" fallback even though everything still visible
+  // comfortably fits in a row.
+  _columnsStackThreshold() {
+    const flexSum = QM_COLUMN_KEYS.reduce((sum, key) => sum + Number(QM_COLUMN_EXPANDED_FLEX[key]), 0);
+    let threshold = QM_DOCK_COLUMNS_STACK_WIDTH;
+    for (const key of QM_COLUMN_KEYS) {
+      if (!this.columnCollapsed[key]) continue;
+      const fairShare = QM_DOCK_COLUMNS_STACK_WIDTH * (Number(QM_COLUMN_EXPANDED_FLEX[key]) / flexSum);
+      threshold -= Math.max(0, fairShare - QM_COLUMN_COLLAPSED_WIDTH);
+    }
+    return threshold;
+  },
+
+  _isColumnsStacked() {
+    if (!this.columns) return false;
+    return this.bodyWidth < this._columnsStackThreshold() * this._zoomFactor();
+  },
+
+  // Cheap re-layout that doesn't touch QM.state — just toggles flex
+  // direction on the stable, cached column/ring containers based on the
+  // last measured body width. The ring's own middleRow is rebuilt on every
+  // state repaint anyway (_buildEquippedSection), so it just reads
+  // this.bodyWidth fresh each time rather than needing a matching toggle
+  // here. Thresholds scale by the current zoom factor: at UI Size L,
+  // zoomed content needs more real (unzoomed) body pixels to fit the same
+  // logical layout, so the stack point has to move out to match, or L would
+  // stack sooner than it actually needs to.
+  _applyResponsiveLayout() {
+    // _applySectionHeaders owns the flexDirection decision too (see its own
+    // comment) — it needs the same collapse-aware threshold this function
+    // used to compute on its own with a plain flat one, so there's now a
+    // single, consistent place that decides it instead of two call sites
+    // that could disagree about whether the layout should be stacked.
+    this._applySectionHeaders();
+    if (this.equippedContainer) {
+      this.equippedContainer.replaceChildren(this._buildEquippedSection());
+      requestAnimationFrame(() => this._updateConnectorLines());
+    }
+  },
+
+  resizeBy(deltaWidth, deltaHeight) {
+    if (this.isMobile()) return;
+    this.syncGeometry();
+    const bounds = this.getChatBounds();
+    const geometry = this.geometry;
+    if (!geometry) return;
+    const margin = Math.min(QM_WINDOW_MARGIN, (bounds.right - bounds.left) / 4, (bounds.bottom - bounds.top) / 4);
+    const maxWidth = Math.max(1, bounds.right - margin - geometry.left);
+    const maxHeight = Math.max(1, bounds.bottom - margin - geometry.top);
+    this.geometry = {
+      ...geometry,
+      width: qmClampWindowValue(geometry.width + deltaWidth, Math.min(QM_WINDOW_MIN_WIDTH, maxWidth), maxWidth),
+      height: qmClampWindowValue(geometry.height + deltaHeight, Math.min(QM_WINDOW_MIN_HEIGHT, maxHeight), maxHeight),
+    };
+    this.applyGeometry(this.geometry);
+    qmWriteWindowGeometry(this.geometry);
+  },
+
+  // Pointerdown-driven move (header) or resize (corner handle). Ported from
+  // Beholder's dock almost verbatim — same host, same problem.
+  startInteraction(kind, event) {
+    if (this.isMobile() || event.button !== 0 || !this.root) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (kind === "move" && target?.closest("button, input, label, select, textarea, a")) return;
+    event.preventDefault();
+    this._interaction?.();
+
+    const pointerId = event.pointerId;
+    const startRect = this.root.getBoundingClientRect();
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      left: startRect.left,
+      top: startRect.top,
+      width: startRect.width,
+      height: startRect.height,
+    };
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = kind === "move" ? "move" : "nwse-resize";
+    document.body.style.userSelect = "none";
+    this.root.classList.add(kind === "move" ? "qm-dock-dragging" : "qm-dock-resizing");
+
+    const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      const bounds = this.getChatBounds();
+      const margin = Math.min(QM_WINDOW_MARGIN, (bounds.right - bounds.left) / 4, (bounds.bottom - bounds.top) / 4);
+      const deltaX = moveEvent.clientX - start.x;
+      const deltaY = moveEvent.clientY - start.y;
+      if (kind === "move") {
+        const left = qmClampWindowValue(start.left + deltaX, bounds.left + margin, bounds.right - margin - start.width);
+        const top = qmClampWindowValue(start.top + deltaY, bounds.top + margin, bounds.bottom - margin - start.height);
+        this.geometry = { left, top, width: start.width, height: start.height };
+      } else {
+        const maxWidth = Math.max(1, bounds.right - margin - start.left);
+        const maxHeight = Math.max(1, bounds.bottom - margin - start.top);
+        this.geometry = {
+          left: start.left,
+          top: start.top,
+          width: qmClampWindowValue(start.width + deltaX, Math.min(QM_WINDOW_MIN_WIDTH, maxWidth), maxWidth),
+          height: qmClampWindowValue(start.height + deltaY, Math.min(QM_WINDOW_MIN_HEIGHT, maxHeight), maxHeight),
+        };
+      }
+      this.applyGeometry(this.geometry);
+    };
+
+    const finish = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      this.root?.classList.remove("qm-dock-dragging", "qm-dock-resizing");
+      if (this.geometry) qmWriteWindowGeometry(this.geometry);
+      this._interaction = null;
+    };
+    const onEnd = (endEvent) => {
+      if (endEvent.pointerId === pointerId) finish();
+    };
+    this._interaction = finish;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
+  },
+
+  _ensureRoot() {
+    if (this.root && document.body.contains(this.root)) return;
+    qmEnsureDockStyle();
+
+    const root = document.createElement("div");
+    root.id = "qm-dock-root";
+    root.className = "qm-dock-collapsed";
+    Object.assign(root.style, {
+      flexDirection: "column",
+      background: "var(--popover, #fff)",
+      color: "var(--popover-foreground, #1a1a1a)",
+      border: "1px solid var(--border, rgba(0,0,0,0.15))",
+      borderRadius: "var(--radius, 8px)",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+      fontFamily: "system-ui, sans-serif",
+      fontSize: "13px",
+      zIndex: "9999",
+      overflow: "hidden",
+    });
+
+    const header = document.createElement("div");
+    header.id = "qm-dock-header";
+    Object.assign(header.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "8px 10px",
+      borderBottom: "1px solid var(--border, rgba(0,0,0,0.1))",
+      fontWeight: "600",
+      flexShrink: "0",
+    });
+    const title = document.createElement("span");
+    title.textContent = "Quartermaster";
+    const closeButton = QM.button("×", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
+    closeButton.setAttribute("aria-label", "Close Quartermaster");
+    Object.assign(closeButton.style, { fontSize: "14px", lineHeight: "1", padding: "2px 8px" });
+    closeButton.addEventListener("click", () => this.close());
+    header.append(title, closeButton);
+    header.addEventListener("pointerdown", (event) => this.startInteraction("move", event));
+
+    const body = document.createElement("div");
+    body.id = "qm-dock-body";
+    Object.assign(body.style, {
+      padding: "10px",
+      overflowY: "auto",
+      flex: "1",
+      minHeight: "0",
+    });
+
+    const resizeHandle = document.createElement("button");
+    resizeHandle.type = "button";
+    resizeHandle.id = "qm-dock-resize-handle";
+    resizeHandle.title = "Resize Quartermaster";
+    resizeHandle.setAttribute("aria-label", "Resize Quartermaster");
+    resizeHandle.addEventListener("pointerdown", (event) => this.startInteraction("resize", event));
+    resizeHandle.addEventListener("keydown", (event) => {
+      const step = event.shiftKey ? 48 : 16;
+      const delta = {
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step],
+      }[event.key];
+      if (!delta) return;
+      event.preventDefault();
+      this.resizeBy(delta[0], delta[1]);
+    });
+
+    root.append(header, body, resizeHandle);
+    document.body.appendChild(root);
+    this.root = root;
+    this.header = header;
+    this.body = body;
+    // A fresh body element means everything built for a previous root no
+    // longer exists.
+    this._resetCachedNodes();
+
+    this.observeChatBounds();
+    this.observeBodyWidth();
+    if (!this._windowBound) {
+      this._windowBound = true;
+      let frame = 0;
+      window.addEventListener("resize", () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          this.syncGeometry();
+        });
+      });
+    }
+    if (!this._outsideClickBound) {
+      this._outsideClickBound = true;
+      // Matches most other Marinara menus (and the original extension):
+      // clicking anywhere outside the open dock closes it. Capture phase so
+      // an intervening stopPropagation() elsewhere in the host can't hide a
+      // click from this; pointerdown (not click) to match the drag/resize
+      // handlers' own event choice and to close as soon as the press lands,
+      // not after it releases. Two exclusions: mid-drag/resize (this
+      // .root.contains would be true anyway since the pointer started
+      // inside, but this also covers a resize handle drag that ends outside
+      // the dock's own bounds), and the toolbar launch button itself — its
+      // own click handler already toggles, so also closing here would
+      // close-then-immediately-reopen instead of just toggling once.
+      document.addEventListener(
+        "pointerdown",
+        (event) => {
+          if (!this.isOpenFlag || this._interaction || !this.root) return;
+          const target = event.target instanceof Element ? event.target : null;
+          if (!target || this.root.contains(target) || target.closest(".qm-launch")) return;
+          this.close();
+        },
+        true,
+      );
+    }
+  },
+
+  // Rebuilds only what changed. Forms are built once and left alone on every
+  // repaint — rebuilding them on every add/delete/quantity change was wiping
+  // out whatever the user had already typed, since a fresh <input> has no
+  // value.
+  _paint() {
+    if (!this.body || !this.isOpenFlag) return;
+
+    if (!QM.state.chatId) {
+      this.body.replaceChildren(QM.textNode("No active chat."));
+      this._resetCachedNodes();
+      return;
+    }
+
+    if (!this.form || !this.body.contains(this.form)) {
+      // Outside the zoom wrapper, so it stays a fixed-size, stable control
+      // no matter what size it's currently set to.
+      const uiSizeRow = this._buildUiSizeRow();
+      const thumbnailSizeRow = this._buildThumbnailSizeRow();
+      const sizeControlsRow = document.createElement("div");
+      Object.assign(sizeControlsRow.style, {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "16px",
+        marginBottom: "8px",
+        flexShrink: "0",
+      });
+      sizeControlsRow.append(uiSizeRow, thumbnailSizeRow);
+
+      this.zoomWrapper = document.createElement("div");
+
+      this.errorNode = QM.textNode("");
+      this.errorNode.style.color = QM_COLOR_DANGER;
+      this.errorNode.style.display = "none";
+
+      this.settingsSection = this._buildSettingsSection();
+
+      // Built once and cached — the ring layout re-inserts this same node on
+      // every repaint instead of rebuilding it, so equipping/unequipping
+      // something doesn't reset or reload the portrait <img>.
+      this.portraitWrapper = this._buildPortrait();
+
+      const columns = document.createElement("div");
+      columns.id = "qm-dock-columns";
+      Object.assign(columns.style, {
+        display: "flex",
+        gap: "12px",
+        alignItems: "flex-start",
+        flexDirection: this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor() ? "column" : "row",
+      });
+      this.columns = columns;
+
+      // Left: Outfits. Center: portrait ring. Right: Bag/Inventory. Each
+      // column's header (_buildSectionHeader) is bordered/clickable and
+      // toggles that column's own body wrapper — see that method's own
+      // comment for why the live count and the collapse toggle share one
+      // element instead of being two separate headers.
+      const outfitsColumn = document.createElement("div");
+      Object.assign(outfitsColumn.style, { flex: "1", minWidth: "0", width: "100%" });
+      this.outfitsContainer = document.createElement("div");
+      const outfitSearchRow = this._buildOutfitSearchRow();
+      const outfitsBody = document.createElement("div");
+      outfitsBody.append(outfitSearchRow, this.outfitsContainer);
+      outfitsColumn.append(this._buildSectionHeader("outfits", "Outfits", outfitsBody, outfitsColumn), outfitsBody);
+
+      const equippedColumn = document.createElement("div");
+      Object.assign(equippedColumn.style, { flex: "1.6", minWidth: "0", width: "100%" });
+      this.equippedContainer = document.createElement("div");
+      const equippedBody = document.createElement("div");
+      equippedBody.appendChild(this.equippedContainer);
+      equippedColumn.append(
+        this._buildSectionHeader("equipped", "Equipped", equippedBody, equippedColumn),
+        equippedBody,
+      );
+
+      const bagColumn = document.createElement("div");
+      Object.assign(bagColumn.style, { flex: "1", minWidth: "0", width: "100%" });
+      this.form = this._buildAddItemForm();
+      const bagSearchRow = this._buildBagSearchRow();
+      this.listContainer = document.createElement("div");
+      const bagBody = document.createElement("div");
+      bagBody.append(this.form, bagSearchRow, this.listContainer);
+      bagColumn.append(this._buildSectionHeader("bag", "Bag", bagBody, bagColumn), bagBody);
+
+      columns.append(outfitsColumn, equippedColumn, bagColumn);
+      this.zoomWrapper.append(this.errorNode, this.settingsSection, columns);
+      this.body.replaceChildren(sizeControlsRow, this.zoomWrapper);
+      this._applySectionHeaders();
+      this._applyUiSize();
+      this._applyThumbnailSize();
+    }
+
+    if (QM.state.error) {
+      this.errorNode.textContent = `Error: ${QM.state.error}`;
+      this.errorNode.style.display = "";
+    } else {
+      this.errorNode.style.display = "none";
+    }
+
+    this._applyBagSearch();
+    this._applyOutfitSearch();
+    this._applySectionHeaders();
+    this.feedSelect.value = QM.state.appearanceFeedMode;
+    this.underwearToggle.checked = QM.state.showUnderwear;
+    this.armorToggle.checked = QM.state.showArmor;
+    this.weaponsToggle.checked = QM.state.showWeapons;
+    this.replaceRealAvatarToggle.checked = QM.state.replaceRealAvatarOnEquip;
+    // display was previously only set once at _buildPortrait()'s construction
+    // time, from whatever hasAvatar was at mount — harmless while the only
+    // input was the persona's own avatar (rarely changes mid-session), but
+    // outfit-portrait swapping changes this input constantly, so both the
+    // src and the image/placeholder toggle need to be live here, not just src.
+    const portraitUrl = QM.state.activeOutfitPortraitUrl() || QM.state.personaAvatarUrl;
+    if (this.portraitImage && this.portraitPlaceholder) {
+      this.portraitImage.style.display = portraitUrl ? "block" : "none";
+      this.portraitPlaceholder.style.display = portraitUrl ? "none" : "flex";
+      if (portraitUrl) this.portraitImage.src = portraitUrl;
+      // Scales with Thumbnail Size same as item/outfit thumbnails, relative
+      // to the 160x200 / 120x120 box _buildPortrait() sized at "M" — live
+      // here (not just at _buildPortrait()'s one-time construction) since a
+      // size change repaints without rebuilding the cached portrait nodes.
+      const portraitScale = QM_PORTRAIT_SCALE[this.thumbnailSize];
+      this.portraitImage.style.maxWidth = `${Math.round(160 * portraitScale)}px`;
+      this.portraitImage.style.maxHeight = `${Math.round(200 * portraitScale)}px`;
+      this.portraitPlaceholder.style.width = `${Math.round(120 * portraitScale)}px`;
+      this.portraitPlaceholder.style.height = `${Math.round(120 * portraitScale)}px`;
+      if (this.portraitFrame) {
+        this.portraitFrame.style.clipPath = qmPortraitFrameClipPath(qmPortraitFrameCutSize(portraitScale));
+      }
+      if (this.portraitCorners) {
+        const cornerSize = qmPortraitCornerSize(portraitScale);
+        for (const corner of this.portraitCorners) {
+          corner.style.width = `${cornerSize}px`;
+          corner.style.height = `${cornerSize}px`;
+        }
+      }
+    }
+    this.equippedContainer.replaceChildren(this._buildEquippedSection());
+    requestAnimationFrame(() => this._updateConnectorLines());
+    this.outfitsContainer.replaceChildren(this._buildOutfitsList());
+    this.listContainer.replaceChildren(this._buildItemList());
+  },
+
+  // Controls what QM.state.updateAppearanceFeedMode writes into this chat's
+  // chatMeta.macroVariables (quartermaster_appearance_persona) every time
+  // equip state changes — the value a {{getvar::...}} token in the
+  // persona's own appearance field can pick up so Roleplay's Illustrator
+  // image generation reflects what's actually equipped, without a user
+  // having to hand-edit that field themselves.
+  _buildAppearanceFeedRow() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { fontSize: "12px" });
+
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "6px" });
+
+    const label = document.createElement("span");
+    label.textContent = "Feed appearance:";
+    label.style.color = "var(--muted-foreground, currentcolor)";
+
+    const select = QM.smallInput("select");
+    select.style.flex = "1";
+    for (const option of QM_APPEARANCE_FEED_OPTIONS) {
+      const optionEl = document.createElement("option");
+      optionEl.value = option.value;
+      optionEl.textContent = option.label;
+      select.appendChild(optionEl);
+    }
+    select.addEventListener("change", () => QM.state.updateAppearanceFeedMode(select.value));
+    this.feedSelect = select;
+
+    row.append(label, select);
+
+    const note = document.createElement("p");
+    note.textContent =
+      "Writes the chosen text into a per-chat variable so a {{getvar::quartermaster_appearance_persona}} " +
+      "token in the persona's own Appearance field resolves to it — letting image generation (e.g. " +
+      "Illustrator) pick up what's actually equipped. Off writes nothing; Outfit description uses the " +
+      "saved outfit that exactly matches the current equip state (falling back to a plain list of " +
+      "equipped item names when nothing matches, e.g. after equipping something outside any saved " +
+      "outfit); Equipped item names always lists what's equipped, regardless of outfit.";
+    Object.assign(note.style, {
+      margin: "4px 0 0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    wrapper.append(row, note);
+    return wrapper;
+  },
+
+  // Fixed-size (outside the zoom wrapper) so the size control itself
+  // doesn't grow/shrink along with everything it controls. The active size
+  // gets QM.button's primary fill; the other two stay neutral outlines —
+  // reapplied by _applyUiSize rather than baked in here, so a size change
+  // can update the same buttons in place without rebuilding them.
+  _buildUiSizeRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      fontSize: "12px",
+      flexShrink: "0",
+    });
+
+    const label = document.createElement("span");
+    label.textContent = "UI Size:";
+    label.style.color = "var(--muted-foreground, currentcolor)";
+    row.appendChild(label);
+
+    this.uiSizeButtons = {};
+    for (const size of Object.keys(QM_UI_SIZES)) {
+      const button = QM.button(size);
+      button.style.padding = "2px 10px";
+      button.addEventListener("click", () => this._setUiSize(size));
+      this.uiSizeButtons[size] = button;
+      row.appendChild(button);
+    }
+    return row;
+  },
+
+  _setUiSize(size) {
+    if (!QM_UI_SIZES[size] || this.uiSize === size) return;
+    this.uiSize = size;
+    qmWriteUiSize(size);
+    this._applyUiSize();
+    // The zoom factor changed, which shifts the outfits/equipped/bag
+    // columns' own stack threshold (_applyResponsiveLayout reads it) even
+    // though the real body width didn't move.
+    this._applyResponsiveLayout();
+  },
+
+  _applyUiSize() {
+    if (this.zoomWrapper) this.zoomWrapper.style.zoom = this._zoomFactor();
+    for (const [size, button] of Object.entries(this.uiSizeButtons || {})) {
+      const active = size === this.uiSize;
+      button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
+      button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
+      button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
+    }
+  },
+
+  // Controls the pixel box size of outfit portrait thumbnails and item
+  // placeholder images — separate from UI Size (that's a CSS zoom over the
+  // whole dock; this only affects how much room images take up in each
+  // card). Outfit/item cards already get rebuilt on every repaint, so a
+  // size change just triggers a full repaint rather than a live style patch.
+  _buildThumbnailSizeRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      fontSize: "12px",
+      flexShrink: "0",
+    });
+
+    const label = document.createElement("span");
+    label.textContent = "Thumbnail Size:";
+    label.style.color = "var(--muted-foreground, currentcolor)";
+    row.appendChild(label);
+
+    this.thumbnailSizeButtons = {};
+    for (const size of Object.keys(QM_THUMBNAIL_SIZES)) {
+      const button = QM.button(size);
+      button.style.padding = "2px 10px";
+      button.addEventListener("click", () => this._setThumbnailSize(size));
+      this.thumbnailSizeButtons[size] = button;
+      row.appendChild(button);
+    }
+    return row;
+  },
+
+  _setThumbnailSize(size) {
+    if (!QM_THUMBNAIL_SIZES[size] || this.thumbnailSize === size) return;
+    this.thumbnailSize = size;
+    qmWriteThumbnailSize(size);
+    this._applyThumbnailSize();
+    this._paint();
+  },
+
+  _applyThumbnailSize() {
+    for (const [size, button] of Object.entries(this.thumbnailSizeButtons || {})) {
+      const active = size === this.thumbnailSize;
+      button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
+      button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
+      button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
+    }
+  },
+
+  // A collapsible wrapper (chevron + label, click to expand) around the
+  // slot-visibility toggles — collapsed by default to keep the dock compact
+  // when there's nothing to configure. Built once; the toggle checkboxes
+  // inside get their checked state synced every repaint (_paint), same as
+  // the other cached form-like controls.
+  _buildSettingsSection() {
+    const section = document.createElement("div");
+    Object.assign(section.style, {
+      border: "1px solid var(--border, rgba(128,128,128,0.3))",
+      borderRadius: "var(--radius, 4px)",
+      marginBottom: "8px",
+      overflow: "hidden",
+    });
+
+    const header = document.createElement("button");
+    header.type = "button";
+    Object.assign(header.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      width: "100%",
+      padding: "6px 8px",
+      background: "var(--secondary, transparent)",
+      color: "inherit",
+      border: "none",
+      font: "inherit",
+      textAlign: "left",
+      cursor: "pointer",
+    });
+
+    const chevron = document.createElement("span");
+    chevron.textContent = "▸";
+    Object.assign(chevron.style, {
+      display: "inline-block",
+      transition: "transform 0.15s ease",
+      transform: this.settingsExpanded ? "rotate(90deg)" : "rotate(0deg)",
+    });
+    this.settingsChevron = chevron;
+
+    const label = document.createElement("span");
+    label.textContent = "Settings";
+    Object.assign(label.style, {
+      fontWeight: "600",
+      fontSize: "12px",
+      textTransform: "uppercase",
+      letterSpacing: "0.04em",
+    });
+
+    header.append(chevron, label);
+    header.addEventListener("click", () => {
+      this.settingsExpanded = !this.settingsExpanded;
+      this.settingsContent.style.maxHeight = this.settingsExpanded ? "480px" : "0px";
+      this.settingsChevron.style.transform = this.settingsExpanded ? "rotate(90deg)" : "rotate(0deg)";
+    });
+
+    // max-height + overflow:hidden, not display:none/"" — display can't be
+    // transitioned, so the section used to snap open/closed instantly. 480px
+    // is a generous ceiling for the current content (the appearance-feed
+    // picker + its description, slot toggles, the real-avatar toggle + its
+    // warning note, export/import); it doesn't need to track real content
+    // height since it's never the constraining factor once expanded.
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      padding: "0 8px",
+      maxHeight: this.settingsExpanded ? "480px" : "0px",
+      overflow: "hidden",
+      transition: "max-height 0.2s ease",
+    });
+    // A thin rule between each setting, purely for visual separation in a
+    // section that otherwise runs several unrelated controls together with
+    // nothing marking where one ends and the next begins.
+    const divider = () => {
+      const rule = document.createElement("div");
+      Object.assign(rule.style, {
+        borderTop: "1px solid var(--border, rgba(128,128,128,0.3))",
+        margin: "8px 0",
+      });
+      return rule;
+    };
+    content.append(
+      this._buildAppearanceFeedRow(),
+      divider(),
+      this._buildSlotVisibilityRow(),
+      divider(),
+      this._buildRealAvatarToggleRow(),
+      divider(),
+      this._buildExportImportRow(),
+    );
+    this.settingsContent = content;
+
+    section.append(header, content);
+    return section;
+  },
+
+  // Portable character sheet: export the current chat's items/outfits/
+  // settings as a downloadable file, or replace them by importing one back —
+  // in a fresh chat this needs no tracker agent enabled at all, matching the
+  // original extension's own export/import.
+  _buildExportImportRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px" });
+
+    const exportButton = QM.button("Export…", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    exportButton.addEventListener("click", async () => {
+      exportButton.disabled = true;
+      try {
+        const payload = await QM.state.exportInventory();
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        const personaSlug = qmFilenameSafe(payload.personaName);
+        const datePart = new Date().toISOString().slice(0, 10);
+        link.download = `quartermaster-inventory-${personaSlug ? `${personaSlug}-` : ""}${datePart}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      } finally {
+        exportButton.disabled = false;
+      }
+    });
+
+    const importButton = QM.button("Import…", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "application/json";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      const hasExistingData = (QM.state.items ?? []).length > 0 || (QM.state.outfits ?? []).length > 0;
+      if (hasExistingData && !window.confirm("Importing replaces this chat's current items and outfits. Continue?")) {
+        return;
+      }
+      let payload;
+      try {
+        payload = JSON.parse(await file.text());
+      } catch {
+        QM.state.error = "That file isn't valid JSON.";
+        QM.state._notify();
+        return;
+      }
+      await QM.state.importInventory(payload);
+    });
+    importButton.addEventListener("click", () => fileInput.click());
+
+    row.append(exportButton, importButton, fileInput);
+    return row;
+  },
+
+  // A single row, one checkbox per group: "Show Slots: [ ] Underwear
+  // [ ] Armor [ ] Weapons". Matches the original extension's SLOT_GROUPS
+  // convention — armor, underwear, and weapon are the only groups with a
+  // toggle, everything else is always on. A group hidden here removes its
+  // slots from both the portrait ring and the equip picker (07-ui.js's
+  // defaultSlotSelect), not just a cosmetic hide — see
+  // QM.state.groupVisible/slotVisible.
+  _buildSlotVisibilityRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: "10px",
+      fontSize: "12px",
+    });
+
+    const label = document.createElement("span");
+    label.textContent = "Show Slots:";
+    label.style.color = "var(--muted-foreground, currentcolor)";
+    row.appendChild(label);
+
+    const build = (labelText, onChange) => {
+      const checkboxLabel = document.createElement("label");
+      Object.assign(checkboxLabel.style, { display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" });
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.addEventListener("change", () => onChange(checkbox.checked));
+      const text = document.createElement("span");
+      text.textContent = labelText;
+      checkboxLabel.append(checkbox, text);
+      return { label: checkboxLabel, checkbox };
+    };
+
+    const underwear = build("Underwear", (value) => QM.state.updateShowUnderwear(value));
+    this.underwearToggle = underwear.checkbox;
+    const armor = build("Armor", (value) => QM.state.updateShowArmor(value));
+    this.armorToggle = armor.checkbox;
+    const weapons = build("Weapons", (value) => QM.state.updateShowWeapons(value));
+    this.weaponsToggle = weapons.checkbox;
+
+    row.append(underwear.label, armor.label, weapons.label);
+    return row;
+  },
+
+  // Opt-in, default-off: also push the active outfit's portrait to the
+  // persona's REAL avatar (not just this dock's own display), reverting to
+  // whatever it was before when unequipped. Two costs worth surfacing right
+  // here rather than only in the README, since this toggle is the one place
+  // a user decides to take them on: (1) the Engine keeps a permanent version
+  // history entry on every avatar change — no way to suppress it; (2) other
+  // Marinara UI showing the persona's avatar (chat header, persona picker)
+  // may take a while to visually catch up, per a known Engine-side caching
+  // behavior — generation-time reads (e.g. "send avatar as reference") are
+  // unaffected, this dock's own portrait display is unaffected either way.
+  _buildRealAvatarToggleRow() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { fontSize: "12px" });
+
+    const checkboxLabel = document.createElement("label");
+    Object.assign(checkboxLabel.style, { display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" });
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.addEventListener("change", () => QM.state.updateReplaceRealAvatarOnEquip(checkbox.checked));
+    const text = document.createElement("span");
+    text.textContent = "Replace persona's real avatar on equip";
+    checkboxLabel.append(checkbox, text);
+    this.replaceRealAvatarToggle = checkbox;
+
+    const note = document.createElement("p");
+    note.textContent =
+      "Reverts automatically when unequipped. Each change adds a permanent entry to the persona's " +
+      "version history (can't be turned off), and other Marinara screens showing this avatar may take " +
+      "a bit to catch up visually — image generation itself isn't affected.";
+    Object.assign(note.style, {
+      margin: "4px 0 0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    wrapper.append(checkboxLabel, note);
+    return wrapper;
+  },
+
+  // Built once (like the forms) and cached on this.portraitImage/
+  // this.portraitPlaceholder so a refreshed avatar can be applied live
+  // without a repaint — see render()'s own comment on why both need their
+  // display toggled on every render now, not just src. Shows the active
+  // outfit's own portrait when one's set (QM.state.activeOutfitPortraitUrl),
+  // falling back to the persona's real avatar otherwise.
+  _buildPortrait() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, {
+      display: "flex",
+      justifyContent: "center",
+      marginBottom: "8px",
+      position: "relative",
+      // middleRow's alignItems: "stretch" (see _buildEquippedSection's own
+      // comment) stretches every flex item to match whichever sibling is
+      // tallest — originally always the portrait, since its own max height
+      // (200 * portraitScale) comfortably exceeded the slot columns' stacked
+      // height. At smaller Thumbnail Sizes that's flipped: 5 stacked slot
+      // boxes can now be taller than a shrunk portrait, so stretch was
+      // pulling the frame down to match THEM instead, leaving empty border
+      // below the actual photo. align-self: center opts this one item out
+      // of that stretch, sizing it to its own content (the image/
+      // placeholder) regardless of which side is taller, while still
+      // centering it vertically alongside whichever side is.
+      alignSelf: "center",
+    });
+
+    // QM_PORTRAIT_SCALE, not QM_THUMBNAIL_SIZES directly — the portrait
+    // needs to scale much more aggressively per size than item/outfit
+    // thumbnails do, since 5 slot-box pairs need real vertical room beside
+    // it not to overlap at S/M. See QM_PORTRAIT_SCALE's own comment.
+    const portraitScale = QM_PORTRAIT_SCALE[this.thumbnailSize];
+
+    // No fixed box — the frame just centers whatever's inside it. A fixed
+    // square with object-fit: cover was cropping non-square avatars; capping
+    // width/height on the <img> itself and letting it size naturally (below)
+    // shows the whole portrait at its real aspect ratio instead. The frame
+    // itself (not the image/placeholder) carries QM_PORTRAIT_FRAME_STYLE now
+    // — see that constant's own comment for why.
+    const frame = document.createElement("div");
+    Object.assign(frame.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      clipPath: qmPortraitFrameClipPath(qmPortraitFrameCutSize(portraitScale)),
+      ...QM_PORTRAIT_FRAME_STYLE,
+    });
+    // Measured by _updateConnectorLines to find where the connector lines
+    // should actually terminate — the frame is the real visual boundary
+    // (border, clip-path corners), not `wrapper`, which also contains the
+    // corner ornaments sitting outside that boundary.
+    this.portraitFrame = frame;
+
+    const image = document.createElement("img");
+    image.alt = "Persona portrait";
+    const hasAvatar = Boolean(QM.state.personaAvatarUrl);
+    Object.assign(image.style, {
+      maxWidth: `${Math.round(160 * portraitScale)}px`,
+      maxHeight: `${Math.round(200 * portraitScale)}px`,
+      width: "auto",
+      height: "auto",
+      objectFit: "contain",
+      display: hasAvatar ? "block" : "none",
+    });
+    if (hasAvatar) image.src = QM.state.personaAvatarUrl;
+    this.portraitImage = image;
+
+    const placeholder = document.createElement("span");
+    placeholder.textContent = "No portrait";
+    Object.assign(placeholder.style, {
+      width: `${Math.round(120 * portraitScale)}px`,
+      height: `${Math.round(120 * portraitScale)}px`,
+      background: "var(--muted, rgba(128,128,128,0.15))",
+      display: hasAvatar ? "none" : "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+    image.addEventListener("error", () => {
+      image.style.display = "none";
+      placeholder.style.display = "flex";
+      requestAnimationFrame(() => this._updateConnectorLines());
+    });
+    image.addEventListener("load", () => {
+      image.style.display = "block";
+      placeholder.style.display = "none";
+      // The one geometry change that doesn't go through a full
+      // _buildEquippedSection() rebuild — a freshly loaded avatar can change
+      // the frame's rendered size (different aspect ratio than whatever was
+      // showing before), so the connector lines need their own explicit
+      // recompute here.
+      requestAnimationFrame(() => this._updateConnectorLines());
+    });
+    this.portraitPlaceholder = placeholder;
+
+    frame.append(image, placeholder);
+    const cornerSize = qmPortraitCornerSize(portraitScale);
+    this.portraitCorners = [
+      qmBuildPortraitCornerAccent("top left", cornerSize),
+      qmBuildPortraitCornerAccent("top right", cornerSize),
+      qmBuildPortraitCornerAccent("bottom left", cornerSize),
+      qmBuildPortraitCornerAccent("bottom right", cornerSize),
+    ];
+    wrapper.append(frame, ...this.portraitCorners);
+    return wrapper;
+  },
+
+  // Head/Eyes/Ears/Neck sit in a row above the portrait, Belt/Feet below —
+  // beside it. The remaining 5 pairs (QM_OVERLAY_SLOT_PAIRS) sit in columns
+  // to either side, stretched (alignItems: "stretch" on middleRow) to match
+  // whatever the portrait's own real rendered height turns out to be, then
+  // spread evenly across that matched height (space-between) — there's no
+  // way to pin a slot to a real anatomical position without pose analysis,
+  // since personas vary in aspect ratio, so this is the practical
+  // alternative. `this.portraitWrapper` itself is cached/reused (not
+  // rebuilt here) so the avatar <img> element survives every repaint.
+  _buildEquippedSection() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+      alignItems: "center",
+      position: "relative",
+    });
+
+    // Reset fresh each rebuild — _buildOverlaySlotBox populates this as it
+    // creates each box, keyed by slot, so _updateConnectorLines knows which
+    // element to measure and which frame edge it should reach toward without
+    // re-deriving "which side is this slot on" from scratch every time.
+    this.equippedSlotBoxRefs = new Map();
+
+    // Painted first so slot boxes/portrait (opaque, drawn after in DOM
+    // order) sit visually on top of the lines rather than the lines
+    // crossing over them — only the small connection nodes are meant to
+    // read as touching an edge. Absolutely positioned to fill `wrapper`
+    // exactly (inset: 0), remeasured by _updateConnectorLines once real
+    // layout exists — building the lines here would just measure zeros,
+    // since nothing's attached to the document yet at this point.
+    const connectorSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    // width/height: 100% is load-bearing, not redundant with inset: 0 — SVG
+    // is a replaced element, and a replaced element's auto-height under
+    // position:absolute falls back to its intrinsic size (an SVG's default
+    // is literally 300x150, the same classic default <canvas> has) rather
+    // than actually stretching to the containing block the way an ordinary
+    // div would. Confirmed live in _planning/scratch/connector-lines-lab.html
+    // — inset: 0 alone silently clipped every line past the first ~150px.
+    Object.assign(connectorSvg.style, {
+      position: "absolute",
+      inset: "0",
+      width: "100%",
+      height: "100%",
+      pointerEvents: "none",
+    });
+    this.connectorSvg = connectorSvg;
+    wrapper.appendChild(connectorSvg);
+
+    const topRow = document.createElement("div");
+    Object.assign(topRow.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
+    for (const slot of QM_OVERLAY_TOP_SLOTS) {
+      const box = this._buildOverlaySlotBox(slot);
+      this.equippedSlotBoxRefs.set(slot, { element: box, side: "top" });
+      topRow.appendChild(box);
+    }
+    wrapper.appendChild(topRow);
+
+    const middleRow = document.createElement("div");
+    Object.assign(middleRow.style, {
+      display: "flex",
+      gap: "8px",
+      alignItems: "stretch",
+      justifyContent: "center",
+      width: "100%",
+    });
+
+    const leftColumn = document.createElement("div");
+    Object.assign(leftColumn.style, { display: "flex", flexDirection: "column", justifyContent: "space-between" });
+    const rightColumn = document.createElement("div");
+    Object.assign(rightColumn.style, { display: "flex", flexDirection: "column", justifyContent: "space-between" });
+    for (const [leftSlot, rightSlot] of QM_OVERLAY_SLOT_PAIRS) {
+      // A pair always shares one group (or neither has one) — see
+      // QM_OVERLAY_SLOT_PAIRS's own comment — so checking the left slot
+      // alone is enough to decide the whole row.
+      if (!QM.state.slotVisible(leftSlot)) continue;
+      const leftBox = this._buildOverlaySlotBox(leftSlot);
+      const rightBox = this._buildOverlaySlotBox(rightSlot);
+      this.equippedSlotBoxRefs.set(leftSlot, { element: leftBox, side: "left" });
+      this.equippedSlotBoxRefs.set(rightSlot, { element: rightBox, side: "right" });
+      leftColumn.appendChild(leftBox);
+      rightColumn.appendChild(rightBox);
+    }
+
+    middleRow.append(leftColumn, this.portraitWrapper, rightColumn);
+    wrapper.appendChild(middleRow);
+
+    const bottomRow = document.createElement("div");
+    Object.assign(bottomRow.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
+    for (const slot of QM_OVERLAY_BOTTOM_SLOTS) {
+      const box = this._buildOverlaySlotBox(slot);
+      this.equippedSlotBoxRefs.set(slot, { element: box, side: "bottom" });
+      bottomRow.appendChild(box);
+    }
+    wrapper.appendChild(bottomRow);
+
+    // Moved here from the Outfits column header (Save) and the Equipped
+    // column header (Unequip All) — both act on the current equip state,
+    // so both live beside it now instead of split across two different
+    // column headers.
+    const actionsRow = document.createElement("div");
+    Object.assign(actionsRow.style, { display: "flex", gap: "6px", justifyContent: "center", marginTop: "4px" });
+    const saveOutfitButton = QM.button("Save Current Outfit", {
+      bg: QM_COLOR_SUCCESS,
+      fg: QM_COLOR_SUCCESS_FG,
+    });
+    saveOutfitButton.addEventListener("click", () => this._openSaveOutfitModal());
+    const unequipAllButton = QM.button("Unequip All", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    unequipAllButton.addEventListener("click", () => QM.state.unequipAll());
+    actionsRow.append(saveOutfitButton, unequipAllButton);
+    wrapper.appendChild(actionsRow);
+
+    return wrapper;
+  },
+
+  // Called (via requestAnimationFrame, so real layout exists) after every
+  // _buildEquippedSection() attach, after a Thumbnail Size change, and after
+  // the portrait image itself finishes loading (the one case that changes
+  // the frame's rendered size without going through a full section
+  // rebuild). Fully rebuilds the connector SVG's contents every time rather
+  // than trying to incrementally patch it — geometry can change for enough
+  // different reasons (selection, equip state, resize, image load) that a
+  // full recompute is simpler and cheap enough at this scale (≤16 slots).
+  _updateConnectorLines() {
+    const svg = this.connectorSvg;
+    const frame = this.portraitFrame;
+    if (!svg || !frame || !svg.isConnected) return;
+    const containerRect = svg.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    if (containerRect.width === 0 || containerRect.height === 0) return;
+    svg.setAttribute("width", String(containerRect.width));
+    svg.setAttribute("height", String(containerRect.height));
+    // Load-bearing, not redundant with the width/height attributes above —
+    // confirmed live in _planning/scratch/connector-lines-zoom-test.html:
+    // without an explicit viewBox, this svg's internal coordinate mapping
+    // becomes unreliable specifically under the dock's own UI Size zoom
+    // (S/L, not M) — the width/height attributes alone aren't enough to pin
+    // "1 user unit = 1 real pixel" once an ancestor's CSS zoom is anything
+    // other than 1. A viewBox matching the same dimensions forces that
+    // mapping explicitly, which fixed it at both zoom factors tested.
+    svg.setAttribute("viewBox", `0 0 ${containerRect.width} ${containerRect.height}`);
+    svg.replaceChildren();
+
+    // Frame edges in container-relative coordinates.
+    const frameLeft = frameRect.left - containerRect.left;
+    const frameTop = frameRect.top - containerRect.top;
+    const frameRight = frameLeft + frameRect.width;
+    const frameBottom = frameTop + frameRect.height;
+
+    // Boxes on the same side are distributed across the matching frame edge
+    // in the same relative order they appear on screen (top-to-bottom for
+    // the side columns, left-to-right for the top/bottom rows) — a fan of
+    // distinct connection points, not every line converging on one spot.
+    const bySide = { top: [], bottom: [], left: [], right: [] };
+    for (const [slot, ref] of this.equippedSlotBoxRefs) {
+      if (!ref.element.isConnected) continue;
+      bySide[ref.side].push({ slot, rect: ref.element.getBoundingClientRect() });
+    }
+    bySide.top.sort((a, b) => a.rect.left - b.rect.left);
+    bySide.bottom.sort((a, b) => a.rect.left - b.rect.left);
+    bySide.left.sort((a, b) => a.rect.top - b.rect.top);
+    bySide.right.sort((a, b) => a.rect.top - b.rect.top);
+
+    const qmFrameSpread = (list, from, to) =>
+      list.map((entry, index) => from + ((to - from) * (index + 1)) / (list.length + 1));
+
+    const topPoints = qmFrameSpread(bySide.top, frameLeft + 6, frameRight - 6);
+    const bottomPoints = qmFrameSpread(bySide.bottom, frameLeft + 6, frameRight - 6);
+    const leftPoints = qmFrameSpread(bySide.left, frameTop + 6, frameBottom - 6);
+    const rightPoints = qmFrameSpread(bySide.right, frameTop + 6, frameBottom - 6);
+
+    const qmDrawConnector = (slot, side, boxX, boxY, frameX, frameY) => {
+      const selected = this.selectedSlot === slot;
+      const opacity = selected ? 0.85 : 0.32;
+      const midX = (boxX + frameX) / 2;
+      const midY = (boxY + frameY) / 2;
+      // A gentle bow rather than a straight segment. Fixed axis-aligned
+      // offset, not perpendicular-to-this-line's-own-direction (the
+      // previous approach) — a per-line perpendicular flips sign between
+      // the left and right columns (their dx has opposite sign), which
+      // rotates the curve 180° instead of mirroring it: left bowed down,
+      // right bowed up, an visibly asymmetric pair rather than a matched
+      // one. A fixed bow direction per side-group is trivially mirror-
+      // symmetric instead — left/right always bow the same vertical way,
+      // top/bottom always bow the same horizontal way.
+      const length = Math.hypot(frameX - boxX, frameY - boxY) || 1;
+      const bow = Math.min(10, length * 0.12);
+      const curveX = side === "top" || side === "bottom" ? midX + bow : midX;
+      const curveY = side === "left" || side === "right" ? midY + bow : midY;
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", `M ${boxX} ${boxY} Q ${curveX} ${curveY} ${frameX} ${frameY}`);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "var(--primary, #7a5cff)");
+      path.setAttribute("stroke-width", selected ? "1.6" : "1");
+      path.setAttribute("opacity", String(opacity));
+      svg.appendChild(path);
+
+      for (const [x, y] of [
+        [boxX, boxY],
+        [frameX, frameY],
+      ]) {
+        const node = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        node.setAttribute("cx", String(x));
+        node.setAttribute("cy", String(y));
+        node.setAttribute("r", selected ? "2.4" : "1.8");
+        node.setAttribute("fill", "var(--primary, #7a5cff)");
+        node.setAttribute("opacity", String(opacity));
+        svg.appendChild(node);
+      }
+    };
+
+    for (const [slot, ref] of this.equippedSlotBoxRefs) {
+      if (!ref.element.isConnected) continue;
+      const box = ref.element.getBoundingClientRect();
+      const boxX = box.left - containerRect.left + box.width / 2;
+      const boxY = box.top - containerRect.top + box.height / 2;
+      if (ref.side === "top") {
+        const index = bySide.top.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, "top", boxX, box.bottom - containerRect.top, topPoints[index], frameTop);
+      } else if (ref.side === "bottom") {
+        const index = bySide.bottom.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, "bottom", boxX, box.top - containerRect.top, bottomPoints[index], frameBottom);
+      } else if (ref.side === "left") {
+        const index = bySide.left.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, "left", box.right - containerRect.left, boxY, frameLeft, leftPoints[index]);
+      } else if (ref.side === "right") {
+        const index = bySide.right.findIndex((entry) => entry.slot === slot);
+        qmDrawConnector(slot, "right", box.left - containerRect.left, boxY, frameRight, rightPoints[index]);
+      }
+    }
+  },
+
+  // One equip-slot overlay box, in one of three visual states: empty
+  // (neutral border), equipped (theme-accent border — QM.button()'s own
+  // default fill, matching the Equip button beside it), or selected
+  // (stronger accent + glow, this.selectedSlot === slot — set by clicking
+  // the box body). Selecting reveals the bag picker inline, whether the
+  // slot's empty or already occupied (swap, not just fill); an equipped
+  // slot always shows a small "×" badge to unequip directly, whether
+  // selected or not.
+  //
+  // The item's own image (same by-name lookup item cards use), or the
+  // slot's fallback pictogram, fills the whole imageArea — the slot name
+  // and item name/"Empty" are overlay bands top and bottom, each with their
+  // OWN small translucent backing (not one dimming layer across the whole
+  // box), so the image reads clearly in the gap between the two bands
+  // rather than sitting under a single uniform tint. Dark/semi-transparent
+  // regardless of the app's own light/dark theme — this sits on top of a
+  // photo of unknown brightness, so it needs its own reliable contrast
+  // rather than following var(--card)/var(--foreground), the same
+  // reasoning a photo-overlay caption uses elsewhere.
+  _buildOverlaySlotBox(slot) {
+    const equippedItem = QM.state.itemInSlot(slot);
+    const selected = this.selectedSlot === slot;
+
+    const box = document.createElement("div");
+    Object.assign(box.style, {
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "stretch",
+      gap: "4px",
+      width: "92px",
+      borderRadius: "var(--radius, 4px)",
+      cursor: "pointer",
+      boxSizing: "border-box",
+      pointerEvents: "auto",
+      color: "#f2f2f2",
+      ...(selected
+        ? {
+            border: "2px solid var(--ring, var(--primary, #444))",
+            boxShadow: "0 0 8px color-mix(in srgb, var(--primary, #444) 55%, transparent)",
+          }
+        : equippedItem
+          ? { border: "1px solid var(--primary, #444)" }
+          : { border: "1px solid rgba(255, 255, 255, 0.22)" }),
+    });
+    box.addEventListener("click", (event) => {
+      if (event.target.closest("[data-qm-unequip]")) return; // the × badge handles its own click
+      const nowSelecting = !selected;
+      this.selectedSlot = nowSelecting ? slot : null;
+      // Selecting a slot searches the Bag for exactly what could fill it —
+      // a real navigational shortcut, not just a visual highlight.
+      // Deselecting that same slot (clicking it again) clears that search
+      // back out rather than leaving a stale filter the user has to notice
+      // and clear by hand — the slot-driven search and the slot's own
+      // selected state are meant to track each other.
+      if (nowSelecting) {
+        this.bagSearchMode = "slot";
+        this.bagSearchQuery = QM_SLOT_LABELS[slot];
+      } else {
+        this.bagSearchMode = "name";
+        this.bagSearchQuery = "";
+      }
+      this._paint();
+    });
+
+    // Fixed square, clipped to its own rounding — only this element clips
+    // (not `box` itself), so the unequip badge below can still hang
+    // slightly outside it (negative offset, like before) without being cut
+    // off.
+    const imageArea = document.createElement("div");
+    Object.assign(imageArea.style, {
+      position: "relative",
+      width: "100%",
+      height: "92px",
+      overflow: "hidden",
+      borderRadius: "var(--radius, 4px)",
+      background: "rgba(15, 15, 18, 0.72)",
+    });
+
+    // Fills imageArea the same way a real equipped-item photo does (both
+    // qmDrawConnector's img and this share the same box), not a small
+    // centered icon with margin around it — the bundled slot artwork is a
+    // real illustrated image now, not a plain glyph, so it should read the
+    // same way a real item photo would rather than looking noticeably
+    // smaller/"funkier" next to one. width/height: 100% is load-bearing
+    // here, not just objectFit — an absolutely positioned <img> only
+    // stretches to fill inset: 0 when its own width/height are explicitly
+    // set too (the same replaced-element sizing quirk the connector-line
+    // SVG overlay hit earlier).
+    const qmCenterFallbackIcon = () => {
+      const fallback = QM.buildSlotIconRaster(slot, 92);
+      Object.assign(fallback.style, {
+        position: "absolute",
+        inset: "0",
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+      });
+      imageArea.appendChild(fallback);
+    };
+
+    if (equippedItem) {
+      // Same by-name image lookup item cards use (QM.itemImageUrl). On a
+      // 404 (no matching image, uploaded or pack), falls back to the
+      // slot's own plain pictogram rather than leaving the area blank.
+      const img = document.createElement("img");
+      img.alt = equippedItem.name;
+      Object.assign(img.style, {
+        position: "absolute",
+        inset: "0",
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+      });
+      img.addEventListener("error", () => {
+        img.remove();
+        qmCenterFallbackIcon();
+      });
+      img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id);
+      imageArea.appendChild(img);
+    } else {
+      qmCenterFallbackIcon();
+    }
+
+    // Pre-split into explicit lines (QM_OVERLAY_SLOT_LABEL_LINES), not left
+    // to natural wrapping — see that constant's own comment for why: at a
+    // fixed box width, different first-word lengths wrapped inconsistently
+    // between a pair's two labels, throwing the two columns out of
+    // alignment with each other.
+    const topBand = document.createElement("div");
+    Object.assign(topBand.style, {
+      position: "absolute",
+      top: "0",
+      left: "0",
+      right: "0",
+      padding: "2px 3px",
+      background: "rgba(0, 0, 0, 0.55)",
+      textAlign: "center",
+    });
+    const label = document.createElement("span");
+    Object.assign(label.style, {
+      display: "block",
+      fontSize: "9px",
+      textTransform: "uppercase",
+      letterSpacing: "0.02em",
+      lineHeight: "1.2",
+      color: "rgba(255, 255, 255, 0.85)",
+    });
+    const labelLines = QM_OVERLAY_SLOT_LABEL_LINES[slot];
+    labelLines.forEach((line, index) => {
+      if (index > 0) label.appendChild(document.createElement("br"));
+      label.appendChild(document.createTextNode(line));
+    });
+    topBand.appendChild(label);
+    imageArea.appendChild(topBand);
+
+    const bottomBand = document.createElement("div");
+    Object.assign(bottomBand.style, {
+      position: "absolute",
+      bottom: "0",
+      left: "0",
+      right: "0",
+      padding: "2px 3px",
+      background: "rgba(0, 0, 0, 0.55)",
+      textAlign: "center",
+    });
+    const status = document.createElement("span");
+    status.textContent = equippedItem ? equippedItem.name : "Empty";
+    if (equippedItem) status.title = equippedItem.name;
+    Object.assign(status.style, {
+      display: "block",
+      fontSize: "10px",
+      fontWeight: equippedItem ? "600" : "400",
+      fontStyle: equippedItem ? "normal" : "italic",
+      maxWidth: "100%",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      color: equippedItem ? "#f2f2f2" : "rgba(255, 255, 255, 0.7)",
+    });
+    bottomBand.appendChild(status);
+    imageArea.appendChild(bottomBand);
+
+    box.appendChild(imageArea);
+
+    if (equippedItem) {
+      const unequipButton = document.createElement("button");
+      unequipButton.type = "button";
+      unequipButton.dataset.qmUnequip = "true";
+      unequipButton.textContent = "×";
+      const unequipLabel = `Unequip ${QM_OVERLAY_SLOT_LABELS[slot]}`;
+      unequipButton.title = unequipLabel;
+      unequipButton.setAttribute("aria-label", unequipLabel);
+      Object.assign(unequipButton.style, {
+        position: "absolute",
+        top: "-6px",
+        right: "-6px",
+        width: "16px",
+        height: "16px",
+        lineHeight: "14px",
+        padding: "0",
+        fontSize: "12px",
+        borderRadius: "50%",
+        cursor: "pointer",
+        background: QM_COLOR_DANGER,
+        color: QM_COLOR_DANGER_FG,
+        border: "none",
+      });
+      unequipButton.addEventListener("click", () => {
+        QM.state.updateItem(equippedItem.id, { location: "bag" });
+        if (selected) this.selectedSlot = null;
+      });
+      box.appendChild(unequipButton);
+    }
+
+    if (selected) {
+      const bagItems = QM.state.bagItems();
+      const select = document.createElement("select");
+      select.disabled = bagItems.length === 0;
+      select.addEventListener("click", (event) => event.stopPropagation()); // don't toggle selection off under the open dropdown
+      Object.assign(select.style, {
+        width: "100%",
+        marginTop: "2px",
+        fontSize: "9px",
+        boxSizing: "border-box",
+        borderRadius: "3px",
+        background: "rgba(255, 255, 255, 0.1)",
+        color: "#f2f2f2",
+        border: "1px solid rgba(255, 255, 255, 0.3)",
+        colorScheme: "dark",
+      });
+      const placeholderOption = document.createElement("option");
+      placeholderOption.value = "";
+      placeholderOption.textContent = bagItems.length === 0 ? "(bag empty)" : "Equip…";
+      select.appendChild(placeholderOption);
+      for (const item of bagItems) {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.name;
+        select.appendChild(option);
+      }
+      select.addEventListener("change", () => {
+        const itemId = select.value;
+        if (itemId) {
+          QM.state.updateItem(itemId, { location: `equipped:${slot}` });
+          this.selectedSlot = null;
+        }
+      });
+      box.appendChild(select);
+    }
+
+    return box;
+  },
+
+  // Name-only, unlike the Bag's name/slot toggle — outfits have no "slot"
+  // dimension to search by, so there's nothing for a second mode to filter
+  // against.
+  _buildOutfitSearchRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" });
+    const searchInput = QM.smallInput("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Search...";
+    searchInput.value = this.outfitSearchQuery;
+    searchInput.style.flex = "1";
+    searchInput.addEventListener("input", () => {
+      this.outfitSearchQuery = searchInput.value;
+      this.outfitsContainer.replaceChildren(this._buildOutfitsList());
+    });
+    this.outfitSearchInput = searchInput;
+    row.appendChild(searchInput);
+    return row;
+  },
+
+  _applyOutfitSearch() {
+    if (this.outfitSearchInput && this.outfitSearchInput.value !== this.outfitSearchQuery) {
+      this.outfitSearchInput.value = this.outfitSearchQuery;
+    }
+  },
+
+  _buildOutfitsList() {
+    const list = document.createElement("ul");
+    Object.assign(list.style, {
+      listStyle: "none",
+      margin: "0",
+      padding: "0",
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+    });
+
+    const query = this.outfitSearchQuery.trim().toLowerCase();
+    let outfits = QM.state.sortedOutfits();
+    if (query) outfits = outfits.filter((outfit) => outfit.name.toLowerCase().includes(query));
+    if (outfits.length === 0) {
+      const empty = QM.textNode(query ? "No matching outfits." : "No saved outfits yet.");
+      empty.style.color = "var(--muted-foreground, currentcolor)";
+      empty.style.margin = "0";
+      list.appendChild(empty);
+      return list;
+    }
+
+    for (const outfit of outfits) {
+      list.appendChild(this._buildOutfitRow(outfit));
+    }
+    return list;
+  },
+
+  // A small clickable thumbnail (or a dashed placeholder when unset) that
+  // opens a file picker to upload/replace this outfit's portrait, plus a "×"
+  // to remove it. Compression happens client-side (QM.compressImageFile)
+  // before the upload call — the server only validates size/type, it never
+  // resizes. Phase 1 is upload-only; a "generate" option belongs here later
+  // once image-generation reachability from a package is actually confirmed.
+  // sizePx follows QM_THUMBNAIL_SIZES[this.thumbnailSize] — same S/M/L
+  // control that sizes item-card placeholders, so the two stay visually
+  // consistent with each other.
+  _buildOutfitPortraitControl(outfit, sizePx) {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, {
+      position: "relative",
+      flexShrink: "0",
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
+    });
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      try {
+        const dataUrl = await QM.compressImageFile(file);
+        await QM.state.uploadOutfitPortrait(outfit.id, dataUrl);
+      } catch (error) {
+        QM.state.error = error && error.message ? error.message : String(error);
+        QM.state._notify();
+      }
+    });
+
+    const thumbButton = document.createElement("button");
+    thumbButton.type = "button";
+    thumbButton.title = outfit.portraitFile ? "Replace portrait" : "Add portrait";
+    Object.assign(thumbButton.style, {
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
+      padding: "0",
+      cursor: "pointer",
+      borderRadius: "var(--radius, 4px)",
+      overflow: "hidden",
+      background: "var(--muted, rgba(128,128,128,0.15))",
+      border: outfit.portraitFile
+        ? "1px solid var(--border, rgba(128,128,128,0.3))"
+        : "1px dashed var(--border, rgba(128,128,128,0.4))",
+    });
+    thumbButton.addEventListener("click", () => fileInput.click());
+
+    if (outfit.portraitFile) {
+      const thumb = document.createElement("img");
+      thumb.alt = `${outfit.name} portrait`;
+      thumb.src = QM.outfitPortraitUrl(QM.state.chatId, QM_OWNER_ID, outfit.id);
+      Object.assign(thumb.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
+      thumbButton.appendChild(thumb);
+    } else {
+      thumbButton.textContent = "+";
+      Object.assign(thumbButton.style, {
+        fontSize: `${Math.round(sizePx * 0.4)}px`,
+        lineHeight: "1",
+        color: "var(--muted-foreground, currentcolor)",
+      });
+    }
+
+    wrapper.append(thumbButton, fileInput);
+
+    if (outfit.portraitFile) {
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.title = "Remove portrait";
+      removeButton.textContent = "×";
+      Object.assign(removeButton.style, {
+        position: "absolute",
+        top: "-6px",
+        right: "-6px",
+        width: "14px",
+        height: "14px",
+        lineHeight: "12px",
+        padding: "0",
+        fontSize: "11px",
+        borderRadius: "50%",
+        cursor: "pointer",
+        background: QM_COLOR_DANGER,
+        color: QM_COLOR_DANGER_FG,
+        border: "none",
+      });
+      removeButton.addEventListener("click", () => QM.state.deleteOutfitPortrait(outfit.id));
+      wrapper.appendChild(removeButton);
+    }
+
+    return wrapper;
+  },
+
+  // Unlike outfit portraits, an item's image isn't a stored reference —
+  // it's resolved server-side by name (findItemImageFile, matching an
+  // uploaded file or a hand-placed image-pack file the same way — see
+  // server.mjs's own comment). So the client doesn't know in advance
+  // whether one exists; it just tries the URL and falls back to the dashed
+  // placeholder on a 404 via onerror/onload, rather than checking a flag.
+  _buildItemImageControl(item, sizePx) {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, {
+      position: "relative",
+      flexShrink: "0",
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
+    });
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp";
+    fileInput.style.display = "none";
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      try {
+        const dataUrl = await QM.compressImageFile(file);
+        await QM.state.uploadItemImage(item.id, dataUrl);
+      } catch (error) {
+        QM.state.error = error && error.message ? error.message : String(error);
+        QM.state._notify();
+      }
+    });
+
+    const thumbButton = document.createElement("button");
+    thumbButton.type = "button";
+    thumbButton.title = "Upload/replace image";
+    Object.assign(thumbButton.style, {
+      width: `${sizePx}px`,
+      height: `${sizePx}px`,
+      padding: "0",
+      cursor: "pointer",
+      borderRadius: "var(--radius, 4px)",
+      overflow: "hidden",
+      background: "var(--muted, rgba(128,128,128,0.15))",
+      border: "1px dashed var(--border, rgba(128,128,128,0.4))",
+    });
+    thumbButton.addEventListener("click", () => fileInput.click());
+
+    const placeholderMark = document.createElement("span");
+    placeholderMark.textContent = "+";
+    Object.assign(placeholderMark.style, {
+      fontSize: `${Math.round(sizePx * 0.4)}px`,
+      lineHeight: "1",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+    thumbButton.appendChild(placeholderMark);
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.title = "Remove uploaded image (a matching image-pack file, if any, would still show)";
+    removeButton.textContent = "×";
+    Object.assign(removeButton.style, {
+      position: "absolute",
+      top: "-6px",
+      right: "-6px",
+      width: "14px",
+      height: "14px",
+      lineHeight: "12px",
+      padding: "0",
+      fontSize: "11px",
+      borderRadius: "50%",
+      cursor: "pointer",
+      background: QM_COLOR_DANGER,
+      color: QM_COLOR_DANGER_FG,
+      border: "none",
+      display: "none",
+    });
+    removeButton.addEventListener("click", () => QM.state.deleteItemImage(item.id));
+
+    const img = document.createElement("img");
+    img.alt = `${item.name} image`;
+    // No loading="lazy": this element starts (and often stays, on a
+    // no-match) display:none, which has no layout box — a lazy image can
+    // never be "near the viewport" with no box at all, so the browser may
+    // never actually fetch it, leaving the placeholder showing forever even
+    // when a real match exists on disk. Fetch eagerly instead; the item
+    // list is never long enough for that to matter.
+    Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "none" });
+    img.addEventListener("load", () => {
+      placeholderMark.style.display = "none";
+      thumbButton.style.border = "1px solid var(--border, rgba(128,128,128,0.3))";
+      img.style.display = "block";
+      removeButton.style.display = "block";
+    });
+    img.addEventListener("error", () => {
+      img.remove();
+      // No matching image (uploaded or pack) — fall back to that item's own
+      // default-slot icon rather than the bare "+" mark, same artwork the
+      // equip-slot boxes use. An item with no default slot set keeps the
+      // plain "+" on purpose: it's a real, useful visual cue while
+      // scrolling the bag that this item still needs one set. Full sizePx,
+      // not a fraction of it — this is real illustrated artwork now, not a
+      // plain glyph, so it should fill thumbButton the same way an actual
+      // item photo does (the sibling `img` above, same width/height/
+      // objectFit) instead of sitting small in the middle of it.
+      if (item.defaultSlot) {
+        placeholderMark.style.display = "none";
+        const fallback = QM.buildSlotIconRaster(item.defaultSlot, sizePx);
+        Object.assign(fallback.style, { width: "100%", height: "100%", objectFit: "cover" });
+        thumbButton.appendChild(fallback);
+      }
+    });
+    img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
+    thumbButton.appendChild(img);
+
+    wrapper.append(thumbButton, fileInput, removeButton);
+    return wrapper;
+  },
+
+  // Read-only display card, same rhythm as the item card: full-height
+  // portrait on the left, everything else stacked to the right. No slot/
+  // stored-at line here — outfits don't have either — so the description
+  // gets the extra room instead, scrollable rather than a single clamped
+  // preview, so a long description is still fully readable without opening
+  // the editor. Name/description editing and the portrait upload moved into
+  // _openOutfitEditor's modal, opened via [Edit]; "Update" (resnapshotting
+  // from whatever's currently equipped) sits directly on the card between
+  // Edit and Equip instead, since it acts on live equip state rather than
+  // editing a stored field. Delete stays directly on the card like it does
+  // on an item card. The currently-equipped outfit
+  // (QM.state.outfitMatchesCurrent) gets a success-colored border/glow
+  // instead of the theme accent, echoing the Add Item form's own "borrow a
+  // semantic color instead of a new shape" approach to standing out from
+  // its neighbors.
+  _buildOutfitRow(outfit) {
+    const equipped = QM.state.outfitMatchesCurrent(outfit);
+    const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
+    const rowHeight = Math.max(
+      thumbnailPx,
+      QM_OUTFIT_CARD_OTHER_ROWS_PX + QM_OUTFIT_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX,
+    );
+    const row = document.createElement("li");
+    Object.assign(row.style, {
+      display: "flex",
+      gap: "8px",
+      alignItems: "stretch",
+      position: "relative",
+      height: `${rowHeight}px`,
+      ...QM_ITEM_CARD_FRAME_STYLE,
+      ...(equipped
+        ? {
+            border: `2px solid ${QM_COLOR_SUCCESS}`,
+            boxShadow: `0 0 8px color-mix(in srgb, ${QM_COLOR_SUCCESS} 45%, transparent)`,
+          }
+        : {}),
+    });
+    for (const corner of ["top left", "top right", "bottom left", "bottom right"]) {
+      row.appendChild(qmBuildCardCornerDot(corner));
+    }
+
+    const portraitControl = this._buildOutfitPortraitControl(outfit, thumbnailPx);
+
+    const detailsColumn = document.createElement("div");
+    Object.assign(detailsColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      gap: "4px",
+      flex: "1",
+      minWidth: "0",
+      minHeight: "0",
+    });
+
+    const nameLine = document.createElement("div");
+    Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = outfit.name;
+    Object.assign(nameLabel.style, {
+      flex: "1",
+      minWidth: "0",
+      fontWeight: "600",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    });
+    nameLine.appendChild(nameLabel);
+    if (equipped) {
+      const badge = document.createElement("span");
+      badge.textContent = "Equipped";
+      Object.assign(badge.style, {
+        fontSize: "10px",
+        fontWeight: "600",
+        color: QM_COLOR_SUCCESS,
+        textTransform: "uppercase",
+        letterSpacing: "0.02em",
+        whiteSpace: "nowrap",
+      });
+      nameLine.appendChild(badge);
+    }
+    const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
+    deleteButton.addEventListener("click", () => {
+      if (window.confirm(`Delete "${outfit.name}"? This can't be undone.`)) QM.state.deleteOutfit(outfit.id);
+    });
+    nameLine.appendChild(deleteButton);
+
+    const descriptionRow = document.createElement("div");
+    Object.assign(descriptionRow.style, { display: "flex", gap: "6px", flex: "1", minHeight: "0" });
+    const descriptionPreview = document.createElement("span");
+    descriptionPreview.className = "qm-desc-scroll";
+    descriptionPreview.textContent = outfit.description || "No description";
+    Object.assign(descriptionPreview.style, {
+      flex: "1",
+      minWidth: "0",
+      fontSize: "11px",
+      lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
+      overflowY: "auto",
+      whiteSpace: "normal",
+      wordBreak: "break-word",
+      color: "var(--muted-foreground, currentcolor)",
+      fontStyle: outfit.description ? "normal" : "italic",
+    });
+    const actionColumn = document.createElement("div");
+    Object.assign(actionColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      gap: "4px",
+    });
+    const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
+    editButton.addEventListener("click", () => this._openOutfitEditor(outfit));
+    const updateButton = QM.button("Update", { border: true, bg: "transparent", fg: "inherit" });
+    updateButton.title = "Resave the currently-equipped items into this outfit";
+    updateButton.addEventListener("click", () => QM.state.updateOutfit(outfit.id, { resnapshot: true }));
+    const equipButton = QM.button("Equip");
+    equipButton.disabled = equipped;
+    equipButton.style.opacity = equipped ? "0.5" : "1";
+    equipButton.addEventListener("click", () => QM.state.equipOutfit(outfit.id));
+    actionColumn.append(editButton, updateButton, equipButton);
+    descriptionRow.append(descriptionPreview, actionColumn);
+
+    detailsColumn.append(nameLine, descriptionRow);
+    row.append(portraitControl, detailsColumn);
+    return row;
+  },
+
+  // Shaped like an item card (same 3-row rhythm, same frame technique) but
+  // outlined in the Add button's own success color rather than the theme
+  // accent, so it reads as a distinct "create new" form rather than one
+  // more item in the list below it. No image control — there's no item id
+  // yet to attach an uploaded image to until after creation.
+  _buildAddItemForm() {
+    const form = document.createElement("form");
+    Object.assign(form.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+      marginBottom: "8px",
+      ...QM_ADD_ITEM_FRAME_STYLE,
+    });
+
+    const nameLine = document.createElement("div");
+    Object.assign(nameLine.style, { display: "flex", gap: "6px" });
+
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "Item name";
+    nameInput.required = true;
+    nameInput.style.flex = "1";
+
+    const quantityInput = QM.smallInput("input");
+    quantityInput.type = "number";
+    quantityInput.min = "1";
+    quantityInput.value = "1";
+    quantityInput.style.width = "56px";
+
+    const addButton = QM.button("Add", { bg: QM_COLOR_SUCCESS, fg: QM_COLOR_SUCCESS_FG });
+    addButton.type = "submit";
+
+    nameLine.append(nameInput, quantityInput, addButton);
+
+    const slotLine = document.createElement("div");
+    Object.assign(slotLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+
+    // Not QM.defaultSlotSelect — that helper writes straight to
+    // QM.state.updateItem(item.id, ...) on change, but this item doesn't
+    // exist yet. Same population rule (hidden-group slots dropped), read
+    // once at submit time instead.
+    const slotSelect = QM.smallInput("select");
+    slotSelect.style.flex = "1";
+    const noneOption = document.createElement("option");
+    noneOption.value = "";
+    noneOption.textContent = "Select Default Slot";
+    slotSelect.appendChild(noneOption);
+    for (const slot of QM_EQUIP_SLOTS) {
+      if (!QM.state.slotVisible(slot)) continue;
+      const option = document.createElement("option");
+      option.value = slot;
+      option.textContent = QM_SLOT_LABELS[slot];
+      slotSelect.appendChild(option);
+    }
+
+    const storedLabel = document.createElement("span");
+    storedLabel.textContent = "Stored at:";
+    Object.assign(storedLabel.style, {
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+      whiteSpace: "nowrap",
+    });
+    const storedInput = QM.smallInput("input");
+    storedInput.type = "text";
+    storedInput.placeholder = "bag";
+    storedInput.style.flex = "1";
+
+    slotLine.append(slotSelect, storedLabel, storedInput);
+
+    const descriptionInput = QM.smallInput("input");
+    descriptionInput.type = "text";
+    descriptionInput.placeholder = "Description (optional)";
+    descriptionInput.style.width = "100%";
+    descriptionInput.style.boxSizing = "border-box";
+
+    form.append(nameLine, slotLine, descriptionInput);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+      if (!name) return;
+      addButton.disabled = true;
+      const stored = storedInput.value.trim();
+      await QM.state.addItem({
+        name,
+        quantity: quantityInput.value,
+        description: descriptionInput.value,
+        defaultSlot: slotSelect.value || null,
+        location: stored ? `stored:${stored}` : "bag",
+      });
+      addButton.disabled = false;
+      nameInput.value = "";
+      quantityInput.value = "1";
+      descriptionInput.value = "";
+      slotSelect.value = "";
+      storedInput.value = "";
+    });
+
+    return form;
+  },
+
+  // Sits between the Add Item form and the item list, so it visually
+  // separates the two the way the request asked. Name/Slot is a toggle
+  // (mutually exclusive, like Thumbnail Size's S/M/L group), not a
+  // checkbox — a search only ever matches one field at a time. Clicking an
+  // equip slot box (_buildOverlaySlotBox) sets bagSearchMode to "slot" and
+  // the query to that slot's own label, so the Bag immediately shows
+  // exactly what could fill it — _applyBagSearch (called every _paint, not
+  // just here) is what keeps this row's own DOM in sync with that, since
+  // the row itself is built once and cached like the Thumbnail Size row is.
+  _buildBagSearchRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" });
+
+    const searchInput = QM.smallInput("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Search...";
+    searchInput.value = this.bagSearchQuery;
+    searchInput.style.flex = "1";
+    searchInput.addEventListener("input", () => {
+      this.bagSearchQuery = searchInput.value;
+      this.listContainer.replaceChildren(this._buildItemList());
+    });
+    this.bagSearchInput = searchInput;
+    row.appendChild(searchInput);
+
+    this.bagSearchModeButtons = {};
+    for (const mode of ["name", "slot"]) {
+      const button = QM.button(mode === "name" ? "Name" : "Slot");
+      button.style.padding = "2px 10px";
+      button.addEventListener("click", () => {
+        if (this.bagSearchMode === mode) return;
+        this.bagSearchMode = mode;
+        this._applyBagSearch();
+        this.listContainer.replaceChildren(this._buildItemList());
+      });
+      this.bagSearchModeButtons[mode] = button;
+      row.appendChild(button);
+    }
+    this._applyBagSearch();
+    return row;
+  },
+
+  _applyBagSearch() {
+    if (this.bagSearchInput && this.bagSearchInput.value !== this.bagSearchQuery) {
+      this.bagSearchInput.value = this.bagSearchQuery;
+    }
+    for (const [mode, button] of Object.entries(this.bagSearchModeButtons || {})) {
+      const active = mode === this.bagSearchMode;
+      button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
+      button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
+      button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
+    }
+  },
+
+  // A bordered, clickable header (replacing the old plain QM.sectionHeading
+  // for these three columns specifically) that both shows a live count and
+  // toggles that column's body collapsed/expanded — the two things the
+  // request asked for landed on the same element rather than two separate
+  // ones, since a header that already has to repaint its count every frame
+  // is the natural place to also reflect collapsed state. `bodyEl` is
+  // whatever sits below the header for that column; hiding/showing it is
+  // the entire collapse mechanism, no separate wrapper needed.
+  _buildSectionHeader(columnKey, baseLabel, bodyEl, columnEl) {
+    this.sectionBodies = this.sectionBodies || {};
+    this.sectionBodies[columnKey] = bodyEl;
+
+    const header = document.createElement("button");
+    header.type = "button";
+    Object.assign(header.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "6px",
+      width: "100%",
+      padding: "6px 8px",
+      marginBottom: "6px",
+      boxSizing: "border-box",
+      border: "1px solid var(--primary, #444)",
+      borderRadius: "var(--radius, 4px)",
+      background: "color-mix(in srgb, var(--primary, #444) 12%, transparent)",
+      color: "inherit",
+      cursor: "pointer",
+      fontSize: "12px",
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: "0.04em",
+    });
+    const text = document.createElement("span");
+    const chevron = document.createElement("span");
+    chevron.setAttribute("aria-hidden", "true");
+    header.append(text, chevron);
+    header.addEventListener("click", () => this._toggleColumnCollapsed(columnKey));
+
+    this.sectionHeaders = this.sectionHeaders || {};
+    this.sectionHeaders[columnKey] = { baseLabel, textEl: text, chevronEl: chevron, headerEl: header, columnEl };
+    return header;
+  },
+
+  // Collapsing a column shrinks the dock's own window width by exactly what
+  // that column used to occupy, instead of leaving the window alone and
+  // letting the other columns' flex stretch to absorb the reclaimed space
+  // -- per explicit feedback, the point is a narrower UI, not a wider
+  // Equipped column. Measuring the column's actual rendered width (rather
+  // than computing a share of the flex ratios) keeps this correct
+  // regardless of the window's current size or zoom factor; the exact
+  // pixel amount removed on collapse is stored so expanding hands back
+  // precisely that much rather than guessing.
+  //
+  // Whether to shrink the window at all is decided from the width the dock
+  // would have AFTER that shrink, not its current pre-collapse width --
+  // otherwise a collapse that (once the shrink actually lands) still needs
+  // stacked/mobile-style layout would pointlessly shrink the window for a
+  // column that, in stacked mode, doesn't need its width reclaimed at all
+  // (a collapsed column there just hides its content at full width). This
+  // same prediction also naturally covers "already stacked before this
+  // click": a column's rendered width IS the full body width in stacked
+  // layout, so subtracting it back out always lands far below the stack
+  // threshold, correctly skipping the resize without a separate check.
+  //
+  // this.bodyWidth is otherwise only updated later by the async
+  // ResizeObserver (observeBodyWidth), once the browser actually reflows
+  // after resizeBy changes the window's geometry -- updating it here too
+  // (by whatever resizeBy actually applied, which can be less than
+  // requested if window-size clamping kicked in) keeps the very next
+  // _applySectionHeaders call, a few lines down, already consistent with
+  // reality instead of quietly relying on a stale width until the real
+  // observer catches up moments later.
+  //
+  // Expanding always hands back whatever was taken regardless of the
+  // resulting stacked state -- otherwise, if some OTHER column's collapse
+  // had already pushed the layout into stacked mode, this column's own
+  // expand would silently skip restoring its share of the window width,
+  // leaving the dock stuck narrow even after every column shows itself
+  // expanded again.
+  _toggleColumnCollapsed(columnKey) {
+    const collapsing = !this.columnCollapsed[columnKey];
+    const refs = this.sectionHeaders && this.sectionHeaders[columnKey];
+    this.columnCollapsed[columnKey] = collapsing;
+    if (collapsing) {
+      const measured = refs && refs.columnEl ? refs.columnEl.getBoundingClientRect().width : 0;
+      const delta = Math.max(0, measured - QM_COLUMN_COLLAPSED_WIDTH);
+      const stackedAfterShrink = this.bodyWidth - delta < this._columnsStackThreshold() * this._zoomFactor();
+      if (refs && refs.columnEl && !stackedAfterShrink) {
+        this.columnCollapseDelta[columnKey] = delta;
+        const widthBefore = this.geometry?.width;
+        this.resizeBy(-delta, 0);
+        const applied = widthBefore != null && this.geometry ? widthBefore - this.geometry.width : delta;
+        this.bodyWidth = Math.max(0, this.bodyWidth - applied);
+      } else {
+        this.columnCollapseDelta[columnKey] = 0;
+      }
+    } else {
+      const delta = this.columnCollapseDelta[columnKey] || 0;
+      this.columnCollapseDelta[columnKey] = 0;
+      if (refs && refs.columnEl && delta > 0) {
+        const widthBefore = this.geometry?.width;
+        this.resizeBy(delta, 0);
+        const applied = widthBefore != null && this.geometry ? this.geometry.width - widthBefore : delta;
+        this.bodyWidth += applied;
+      }
+    }
+    qmWriteColumnCollapsed(this.columnCollapsed);
+    this._applySectionHeaders();
+  },
+
+  // Called once at mount, again on every _paint (counts change on essentially
+  // every state mutation), and again whenever the body width changes
+  // (_applyResponsiveLayout) or a column's collapse state flips
+  // (_toggleColumnCollapsed). Also owns the row/stacked flexDirection call
+  // for the whole columns container -- previously _applyResponsiveLayout
+  // decided that on its own with a flat threshold while this function
+  // separately decided each column's own narrow-strip styling with the same
+  // flat threshold; consolidating into one place means there's exactly one
+  // definition of "stacked" (the collapse-aware one in _isColumnsStacked)
+  // instead of two that could disagree. Collapsing narrows the actual
+  // COLUMN width — not just hiding its content inside a column that stays
+  // full width — so the dock's own window shrinks to match (see
+  // _toggleColumnCollapsed), matching a real sidebar-collapse rather than a
+  // cosmetic content toggle. That narrow-strip + sideways-label treatment
+  // only makes sense in the side-by-side (row) layout; when the dock is
+  // narrow enough to stack the columns (column layout), there's no
+  // horizontal neighbor to hand the space to, so a collapsed column there
+  // just hides its content at full width instead.
+  _applySectionHeaders() {
+    const stacked = this._isColumnsStacked();
+    if (this.columns) this.columns.style.flexDirection = stacked ? "column" : "row";
+    for (const key of QM_COLUMN_KEYS) {
+      const refs = this.sectionHeaders && this.sectionHeaders[key];
+      const body = this.sectionBodies && this.sectionBodies[key];
+      const collapsed = Boolean(this.columnCollapsed[key]);
+      const narrow = collapsed && !stacked;
+      if (body) body.style.display = collapsed ? "none" : "";
+      if (!refs) continue;
+      const count =
+        key === "outfits" ? QM.state.sortedOutfits().length : key === "bag" ? QM.state.bagItems().length : null;
+      refs.textEl.textContent = count === null ? refs.baseLabel : `${refs.baseLabel} (${count})`;
+      refs.chevronEl.textContent = collapsed ? "▸" : "▾";
+      if (refs.columnEl) {
+        Object.assign(
+          refs.columnEl.style,
+          narrow
+            ? { flex: `0 0 ${QM_COLUMN_COLLAPSED_WIDTH}px`, width: `${QM_COLUMN_COLLAPSED_WIDTH}px` }
+            : { flex: QM_COLUMN_EXPANDED_FLEX[key], width: "100%" },
+        );
+      }
+      if (refs.headerEl) {
+        Object.assign(
+          refs.headerEl.style,
+          narrow
+            ? { flexDirection: "column", height: "200px", padding: "8px 4px" }
+            : { flexDirection: "row", height: "auto", padding: "6px 8px" },
+        );
+      }
+      Object.assign(
+        refs.textEl.style,
+        narrow ? { writingMode: "vertical-rl", textOrientation: "mixed" } : { writingMode: "horizontal-tb" },
+      );
+    }
+  },
+
+  _buildItemList() {
+    const list = document.createElement("ul");
+    Object.assign(list.style, {
+      listStyle: "none",
+      margin: "0",
+      padding: "0",
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+    });
+
+    const query = this.bagSearchQuery.trim().toLowerCase();
+    let items = QM.state.bagItems();
+    if (query) {
+      items = items.filter((item) => {
+        if (this.bagSearchMode === "slot") {
+          const label = item.defaultSlot ? QM_SLOT_LABELS[item.defaultSlot].toLowerCase() : "";
+          return label.includes(query);
+        }
+        return item.name.toLowerCase().includes(query);
+      });
+    }
+    if (items.length === 0) {
+      const empty = QM.textNode(query ? "No matching items." : "Bag is empty.");
+      empty.style.color = "var(--muted-foreground, currentcolor)";
+      empty.style.margin = "0";
+      list.appendChild(empty);
+      return list;
+    }
+
+    for (const item of items) {
+      list.appendChild(this._buildItemRow(item));
+    }
+    return list;
+  },
+
+  // Read-only display card — name/slot/description/stored-at are no longer
+  // inline-editable here (see _openItemEditor's own comment for where that
+  // moved). Only quantity stays directly on the card, per the request: it's
+  // the one field someone adjusts constantly during play (used a charge,
+  // picked up another), while the rest are set-once-and-rarely-touched.
+  // Three stacked mini-rows beside one full-height image, matching the
+  // layout spec exactly:
+  //   name ............................. qty  [Delete]
+  //   slot .................................... Stored at: X
+  //   description preview ............ [Edit] [Equip]
+  _buildItemRow(item) {
+    const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
+    const rowHeight = Math.max(
+      thumbnailPx,
+      QM_ITEM_CARD_OTHER_ROWS_PX + QM_ITEM_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX,
+    );
+    const row = document.createElement("li");
+    Object.assign(row.style, {
+      display: "flex",
+      gap: "8px",
+      alignItems: "stretch",
+      position: "relative",
+      height: `${rowHeight}px`,
+      ...QM_ITEM_CARD_FRAME_STYLE,
+    });
+    for (const corner of ["top left", "top right", "bottom left", "bottom right"]) {
+      row.appendChild(qmBuildCardCornerDot(corner));
+    }
+
+    const imageControl = this._buildItemImageControl(item, thumbnailPx);
+
+    const detailsColumn = document.createElement("div");
+    Object.assign(detailsColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      gap: "4px",
+      flex: "1",
+      minWidth: "0",
+      minHeight: "0",
+    });
+
+    const nameLine = document.createElement("div");
+    Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = item.name;
+    Object.assign(nameLabel.style, {
+      flex: "1",
+      minWidth: "0",
+      fontWeight: "600",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    });
+
+    // Same up/down adjustment as before (a plain number input's native
+    // spinner) — the one field that stays directly editable on the card.
+    const quantityInput = QM.smallInput("input");
+    quantityInput.type = "number";
+    // 0 is a legitimate quantity now ("used up but still tracked" — the same
+    // rule the tracker agent follows), so this no longer floors at 1 the way
+    // a brand-new item's starting quantity still does.
+    quantityInput.min = "0";
+    quantityInput.value = String(item.quantity);
+    quantityInput.style.width = "48px";
+    quantityInput.addEventListener("change", () => QM.state.updateItem(item.id, { quantity: quantityInput.value }));
+
+    const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
+    deleteButton.addEventListener("click", () => {
+      if (window.confirm(`Delete "${item.name}"? This can't be undone.`)) QM.state.deleteItem(item.id);
+    });
+    nameLine.append(nameLabel, quantityInput, deleteButton);
+
+    const slotLine = document.createElement("div");
+    Object.assign(slotLine.style, { display: "flex", alignItems: "center", gap: "6px", fontSize: "11px" });
+    const slotLabel = document.createElement("span");
+    slotLabel.textContent = item.defaultSlot ? QM_SLOT_LABELS[item.defaultSlot] : "Default Slot";
+    Object.assign(slotLabel.style, {
+      flex: "1",
+      minWidth: "0",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      color: item.defaultSlot ? "inherit" : "var(--muted-foreground, currentcolor)",
+      fontStyle: item.defaultSlot ? "normal" : "italic",
+    });
+    const storedLabel = document.createElement("span");
+    storedLabel.textContent = `Stored at: ${item.location.startsWith("stored:") ? item.location.slice("stored:".length) : "Bag"}`;
+    Object.assign(storedLabel.style, { color: "var(--muted-foreground, currentcolor)", whiteSpace: "nowrap" });
+    slotLine.append(slotLabel, storedLabel);
+
+    // flex:1/minHeight:0 on this row (rather than the alignItems:"center",
+    // natural-height row this used to be) lets the description actually
+    // fill whatever's left below the slot line instead of leaving the rest
+    // of the card's height as dead space — same technique as the outfit
+    // card's own descriptionRow/actionColumn split just below.
+    const descriptionLine = document.createElement("div");
+    Object.assign(descriptionLine.style, { display: "flex", gap: "6px", flex: "1", minHeight: "0" });
+    const descriptionPreview = document.createElement("span");
+    descriptionPreview.className = "qm-desc-scroll";
+    descriptionPreview.textContent = item.description || "No description";
+    Object.assign(descriptionPreview.style, {
+      flex: "1",
+      minWidth: "0",
+      fontSize: "11px",
+      lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
+      overflowY: "auto",
+      whiteSpace: "normal",
+      wordBreak: "break-word",
+      color: "var(--muted-foreground, currentcolor)",
+      fontStyle: item.description ? "normal" : "italic",
+    });
+    const actionColumn = document.createElement("div");
+    Object.assign(actionColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      gap: "4px",
+    });
+    const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
+    editButton.addEventListener("click", () => this._openItemEditor(item));
+    const equipButton = QM.button("Equip");
+    // A stored defaultSlot can still point at a slot whose group has since
+    // been hidden (the editor's slot picker just won't offer it as an
+    // option anymore) — block the shortcut button too, or it'd be the one
+    // way left to equip into a slot a toggle is supposed to disable.
+    const canEquip = Boolean(item.defaultSlot) && QM.state.slotVisible(item.defaultSlot);
+    equipButton.disabled = !canEquip;
+    equipButton.style.opacity = canEquip ? "1" : "0.5";
+    equipButton.addEventListener("click", () => {
+      if (canEquip) QM.state.updateItem(item.id, { location: `equipped:${item.defaultSlot}` });
+    });
+    actionColumn.append(editButton, equipButton);
+    descriptionLine.append(descriptionPreview, actionColumn);
+
+    detailsColumn.append(nameLine, slotLine, descriptionLine);
+    row.append(imageControl, detailsColumn);
+    return row;
+  },
+
+  // Shared by all three modals below (item editor, outfit editor,
+  // save-outfit) so Escape closes whichever one is open, matching the
+  // backdrop-click-to-close affordance they already had. Listens on
+  // `document` rather than the backdrop itself since the backdrop is never
+  // focused (only its children are interactive) — a `keydown` on the
+  // backdrop element would never fire. Each open function stores the
+  // returned handler under its own property and the matching close function
+  // removes that exact listener, so closing one modal never accidentally
+  // strips Escape handling from a different one that might still be open.
+  _bindEscapeClose(closeFn) {
+    const handler = (event) => {
+      if (event.key === "Escape") closeFn();
+    };
+    document.addEventListener("keydown", handler);
+    return handler;
+  },
+
+  _unbindEscapeClose(handler) {
+    if (handler) document.removeEventListener("keydown", handler);
+  },
+
+  // Every field that used to be inline-editable directly on the card
+  // (name, description, stored-at, default slot) except quantity now lives
+  // here instead — opened via the card's own [Edit] button. Each field
+  // still auto-applies on change/blur exactly like it did on the card
+  // (QM.defaultSlotSelect and QM.descriptionTextarea already wire their own
+  // onChange straight to QM.state.updateItem), so this is a relocation of
+  // existing controls into a focused view, not a new save/cancel flow — no
+  // "Save" button, just a close affordance once you're done. First modal
+  // this package has needed; mounted as a child of `this.root` (not
+  // document.body) so it's naturally removed if the dock itself closes, and
+  // a backdrop click only closes the editor, never the whole dock, since it
+  // never reaches the dock's own document-level outside-click listener.
+  _openItemEditor(item) {
+    this._closeItemEditor();
+    const backdrop = document.createElement("div");
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0, 0, 0, 0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      boxSizing: "border-box",
+      zIndex: "30",
+    });
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target === backdrop) this._closeItemEditor();
+    });
+
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      background: "var(--card, #1c1c1c)",
+      border: "1px solid var(--border, rgba(128,128,128,0.3))",
+      borderRadius: "var(--radius, 6px)",
+      padding: "12px",
+      width: "min(280px, 100%)",
+      maxHeight: "100%",
+      overflowY: "auto",
+      boxSizing: "border-box",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    });
+    panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("div");
+    Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between" });
+    const title = document.createElement("strong");
+    title.textContent = "Edit Item";
+    title.style.fontSize = "13px";
+    const closeButton = QM.button("×", { bg: "transparent", border: true, fg: "inherit" });
+    closeButton.style.padding = "0 6px";
+    closeButton.addEventListener("click", () => this._closeItemEditor());
+    header.append(title, closeButton);
+
+    const imageRow = document.createElement("div");
+    Object.assign(imageRow.style, { display: "flex", justifyContent: "center" });
+    imageRow.appendChild(this._buildItemImageControl(item, 96));
+
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.value = item.name;
+    nameInput.style.width = "100%";
+    nameInput.style.boxSizing = "border-box";
+    nameInput.style.fontWeight = "600";
+    // Renaming pushes through to any saved outfit's own snapshot of this
+    // item too (server.mjs's items PATCH route), so a renamed item doesn't
+    // show its old name the next time an outfit that equips it is re-equipped.
+    nameInput.addEventListener("change", () => {
+      const name = nameInput.value.trim();
+      if (name) QM.state.updateItem(item.id, { name });
+      else nameInput.value = item.name; // Empty isn't a valid name — revert rather than submit it.
+    });
+
+    const slotSelect = QM.defaultSlotSelect(item);
+    slotSelect.style.width = "100%";
+    slotSelect.style.boxSizing = "border-box";
+
+    const storedLine = document.createElement("div");
+    Object.assign(storedLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const storedLabel = document.createElement("span");
+    storedLabel.textContent = "Stored at:";
+    Object.assign(storedLabel.style, {
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+      whiteSpace: "nowrap",
+    });
+    const storedInput = QM.smallInput("input");
+    storedInput.type = "text";
+    storedInput.placeholder = "bag";
+    storedInput.value = item.location.startsWith("stored:") ? item.location.slice("stored:".length) : "";
+    storedInput.style.flex = "1";
+    storedInput.addEventListener("change", () => {
+      const text = storedInput.value.trim();
+      QM.state.updateItem(item.id, { location: text ? `stored:${text}` : "bag" });
+    });
+    storedLine.append(storedLabel, storedInput);
+
+    const description = QM.descriptionTextarea(item.description, (value) =>
+      QM.state.updateItem(item.id, { description: value }),
+    );
+    description.rows = 4;
+
+    panel.append(header, imageRow, nameInput, slotSelect, storedLine, description);
+    backdrop.appendChild(panel);
+    this.itemEditorBackdrop = backdrop;
+    (this.root || this.body).appendChild(backdrop);
+    this._itemEditorEscapeHandler = this._bindEscapeClose(() => this._closeItemEditor());
+  },
+
+  _closeItemEditor() {
+    this.itemEditorBackdrop?.remove();
+    this.itemEditorBackdrop = null;
+    this._unbindEscapeClose(this._itemEditorEscapeHandler);
+    this._itemEditorEscapeHandler = null;
+  },
+
+  // Backdrop/panel structure identical to _openItemEditor (see that method's
+  // own comment) — this one holds what used to be the outfit card's own
+  // inline fields (name, description, portrait); the "Update" resnapshot
+  // action lives directly on the card instead (between Edit and Equip),
+  // since it acts on the currently-equipped state rather than editing a
+  // field, so it doesn't belong behind this modal like the others. Every
+  // field still auto-applies on change/blur; no Save button here either,
+  // since nothing in this modal is a pending edit the way a brand-new
+  // outfit's fields are in _openSaveOutfitModal.
+  _openOutfitEditor(outfit) {
+    this._closeOutfitEditor();
+    const backdrop = document.createElement("div");
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0, 0, 0, 0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      boxSizing: "border-box",
+      zIndex: "30",
+    });
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target === backdrop) this._closeOutfitEditor();
+    });
+
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      background: "var(--card, #1c1c1c)",
+      border: "1px solid var(--border, rgba(128,128,128,0.3))",
+      borderRadius: "var(--radius, 6px)",
+      padding: "12px",
+      width: "min(280px, 100%)",
+      maxHeight: "100%",
+      overflowY: "auto",
+      boxSizing: "border-box",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    });
+    panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("div");
+    Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between" });
+    const title = document.createElement("strong");
+    title.textContent = "Edit Outfit";
+    title.style.fontSize = "13px";
+    const closeButton = QM.button("×", { bg: "transparent", border: true, fg: "inherit" });
+    closeButton.style.padding = "0 6px";
+    closeButton.addEventListener("click", () => this._closeOutfitEditor());
+    header.append(title, closeButton);
+
+    const imageRow = document.createElement("div");
+    Object.assign(imageRow.style, { display: "flex", justifyContent: "center" });
+    imageRow.appendChild(this._buildOutfitPortraitControl(outfit, 96));
+
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.value = outfit.name;
+    nameInput.style.width = "100%";
+    nameInput.style.boxSizing = "border-box";
+    nameInput.style.fontWeight = "600";
+    nameInput.addEventListener("change", () => {
+      const name = nameInput.value.trim();
+      if (name) QM.state.updateOutfit(outfit.id, { name });
+      else nameInput.value = outfit.name; // Empty isn't a valid name — revert rather than submit it.
+    });
+
+    const description = QM.descriptionTextarea(outfit.description, (value) =>
+      QM.state.updateOutfit(outfit.id, { description: value }),
+    );
+    description.rows = 4;
+
+    panel.append(header, imageRow, nameInput, description);
+    backdrop.appendChild(panel);
+    this.outfitEditorBackdrop = backdrop;
+    (this.root || this.body).appendChild(backdrop);
+    this._outfitEditorEscapeHandler = this._bindEscapeClose(() => this._closeOutfitEditor());
+  },
+
+  _closeOutfitEditor() {
+    this.outfitEditorBackdrop?.remove();
+    this.outfitEditorBackdrop = null;
+    this._unbindEscapeClose(this._outfitEditorEscapeHandler);
+    this._outfitEditorEscapeHandler = null;
+  },
+
+  // Unlike the editors above, this one really is a pending-edit form with a
+  // real Save step — there's no outfit id yet for a field to auto-apply
+  // against. The image control is a plain staged file picker (not
+  // _buildOutfitPortraitControl, which uploads immediately via an outfit id
+  // this doesn't have yet): picking a file just compresses it and holds the
+  // resulting data URL in `stagedImageDataUrl` until Save actually creates
+  // the outfit and learns its id. QM.state.createOutfit's own response
+  // updates QM.state.outfits in place (05-state.js's _mutate), and the
+  // server always appends new outfits to the end of that array, so the
+  // freshly created one is reliably the last element right after the
+  // create call resolves — no separate "give me the new id back" plumbing
+  // needed for that part.
+  _openSaveOutfitModal() {
+    this._closeSaveOutfitModal();
+    const backdrop = document.createElement("div");
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0, 0, 0, 0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      boxSizing: "border-box",
+      zIndex: "30",
+    });
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target === backdrop) this._closeSaveOutfitModal();
+    });
+
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      background: "var(--card, #1c1c1c)",
+      border: `1px solid ${QM_COLOR_SUCCESS}`,
+      borderRadius: "var(--radius, 6px)",
+      padding: "12px",
+      width: "min(280px, 100%)",
+      maxHeight: "100%",
+      overflowY: "auto",
+      boxSizing: "border-box",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    });
+    panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("div");
+    Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between" });
+    const title = document.createElement("strong");
+    title.textContent = "Save Current Outfit";
+    title.style.fontSize = "13px";
+    const closeButton = QM.button("×", { bg: "transparent", border: true, fg: "inherit" });
+    closeButton.style.padding = "0 6px";
+    closeButton.addEventListener("click", () => this._closeSaveOutfitModal());
+    header.append(title, closeButton);
+
+    let stagedImageDataUrl = null;
+    const imageRow = document.createElement("div");
+    Object.assign(imageRow.style, { display: "flex", justifyContent: "center" });
+    const imageWrapper = document.createElement("div");
+    Object.assign(imageWrapper.style, { position: "relative", width: "96px", height: "96px" });
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp";
+    fileInput.style.display = "none";
+    const thumbButton = document.createElement("button");
+    thumbButton.type = "button";
+    thumbButton.title = "Add portrait";
+    Object.assign(thumbButton.style, {
+      width: "96px",
+      height: "96px",
+      padding: "0",
+      cursor: "pointer",
+      borderRadius: "var(--radius, 4px)",
+      overflow: "hidden",
+      background: "var(--muted, rgba(128,128,128,0.15))",
+      border: "1px dashed var(--border, rgba(128,128,128,0.4))",
+      fontSize: "38px",
+      lineHeight: "1",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+    thumbButton.textContent = "+";
+    thumbButton.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      try {
+        stagedImageDataUrl = await QM.compressImageFile(file);
+        thumbButton.textContent = "";
+        thumbButton.style.border = "1px solid var(--border, rgba(128,128,128,0.3))";
+        const preview = document.createElement("img");
+        preview.alt = "Outfit portrait preview";
+        Object.assign(preview.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
+        preview.src = stagedImageDataUrl;
+        thumbButton.replaceChildren(preview);
+      } catch (error) {
+        QM.state.error = error && error.message ? error.message : String(error);
+        QM.state._notify();
+      }
+    });
+    imageWrapper.append(thumbButton, fileInput);
+    imageRow.appendChild(imageWrapper);
+
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "Outfit name";
+    nameInput.required = true;
+    nameInput.style.width = "100%";
+    nameInput.style.boxSizing = "border-box";
+
+    const descriptionInput = QM.smallInput("textarea");
+    descriptionInput.placeholder = "Description (fed to appearance when selected)";
+    descriptionInput.rows = 3;
+    Object.assign(descriptionInput.style, {
+      width: "100%",
+      boxSizing: "border-box",
+      resize: "vertical",
+      font: "inherit",
+    });
+
+    const saveButton = QM.button("Save", { bg: QM_COLOR_SUCCESS, fg: QM_COLOR_SUCCESS_FG });
+    saveButton.style.width = "100%";
+    saveButton.addEventListener("click", async () => {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      saveButton.disabled = true;
+      await QM.state.createOutfit({ name, description: descriptionInput.value });
+      const created = QM.state.outfits[QM.state.outfits.length - 1];
+      if (stagedImageDataUrl && created) {
+        await QM.state.uploadOutfitPortrait(created.id, stagedImageDataUrl);
+      }
+      saveButton.disabled = false;
+      this._closeSaveOutfitModal();
+    });
+
+    panel.append(header, imageRow, nameInput, descriptionInput, saveButton);
+    backdrop.appendChild(panel);
+    this.saveOutfitBackdrop = backdrop;
+    (this.root || this.body).appendChild(backdrop);
+    this._saveOutfitEscapeHandler = this._bindEscapeClose(() => this._closeSaveOutfitModal());
+  },
+
+  _closeSaveOutfitModal() {
+    this.saveOutfitBackdrop?.remove();
+    this.saveOutfitBackdrop = null;
+    this._unbindEscapeClose(this._saveOutfitEscapeHandler);
+    this._saveOutfitEscapeHandler = null;
+  },
+};
+
+// ===== 15-panel.js =====
+// Quartermaster — inline tracker-panel accordion. Renders directly into the
+// tracker-panel slot's element (unlike the toolbar slot, which is just a
+// launcher button for QM.dock), matching how built-in trackers show up as a
+// collapsible section in the same panel: a top-level "Quartermaster" section
+// containing three sub-sections (Equipped, Outfits, Inventory). A pure view
+// over QM.state (05-state.js) — see 10-dock.js's header comment for why both
+// views share one state module instead of each keeping their own copy.
+//
+// Headers are hand-built <div>/<button> structures, NOT <details>/<summary>.
+// The Engine's native section header (SectionHeader in SectionControls.tsx)
+// is a clickable button containing, in order, a rotating chevron span, an
+// icon span, and a title span, with its own hover/focus treatment — <summary>
+// has no equivalent slot for the icon and no hover styling hook that matches.
+// memory-nag (MemoryNagTrackerPanel.tsx), a real capability package rendering
+// into this same tracker-panel slot, independently hand-builds the identical
+// chevron-frame → icon → title layout with manually-tracked collapsed state
+// for the same reason — confirming this is the established pattern for
+// package-supplied tracker-panel content, not just native-only.
+//
+// The whole DOM tree (including headers) is built ONCE and cached (this.root,
+// per-section refs in this._sections) — only each section's content <div>
+// gets replaceChildren() on every repaint, and expanded/collapsed state lives
+// in this.expanded rather than in the DOM. Rebuilding elements from scratch on
+// every equip/unequip (the first version did this with <details>) reset them
+// to closed every time, since a freshly-created element has no memory of
+// prior state — collapsing the whole menu on every click.
+//
+// Styled with the Engine's OWN tracker-panel Tailwind classes (copied
+// verbatim from SectionControls.tsx / InventoryTrackerPanel.tsx /
+// tracker-panel.constants.ts) instead of inline styles or guessed CSS
+// variables — Tailwind compiles one CSS rule per unique class string found
+// anywhere in the Engine's own source, so setting the exact same strings on
+// our plain DOM elements picks up already-compiled rules and matches native
+// tracker rows exactly, not an approximation of them.
+const QM_TRACKER_TEXT_ROW = "text-[0.6875rem] leading-[0.875rem]";
+const QM_TRACKER_TEXT_MICRO = "text-[0.625rem] leading-[0.75rem]";
+const QM_TRACKER_SECTION_SHELL_CLASS =
+  "relative z-10 overflow-hidden border-b border-[var(--border)] bg-[var(--tracker-panel-section-background,color-mix(in_srgb,var(--card)_5%,transparent))] shadow-[inset_0_1px_0_color-mix(in_srgb,var(--foreground)_5%,transparent)]";
+// Header container: layout/border only, not interactive — mirrors
+// SectionHeader's outer element in SectionControls.tsx.
+const QM_TRACKER_HEADER_CLASS =
+  "relative flex min-h-7 items-center gap-1 border-b border-[var(--border)]/42 px-1 py-0.5";
+// The actual clickable toggle inside the header — carries the hover/focus
+// treatment, copied verbatim from SectionHeader's button className.
+const QM_TRACKER_TOGGLE_CLASS =
+  "flex min-w-0 flex-1 items-center gap-1 self-stretch rounded-sm px-0 text-left cursor-pointer select-none transition-colors hover:bg-[var(--accent)]/18 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--border)]";
+const QM_TRACKER_CHEVRON_FRAME_CLASS = "flex h-3.5 w-3 shrink-0 items-center justify-center";
+const QM_TRACKER_CHEVRON_CLASS =
+  "text-[color:var(--tracker-profile-icon,var(--muted-foreground))] opacity-60 transition-transform duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]";
+const QM_TRACKER_ICON_CLASS =
+  "flex h-3.5 w-3.5 shrink-0 items-center justify-center text-[color:var(--tracker-profile-icon,var(--muted-foreground))] opacity-75";
+const QM_TRACKER_TITLE_CLASS =
+  "min-w-0 flex-1 truncate font-semibold uppercase tracking-[0.08em] text-[var(--foreground)]/62 " +
+  QM_TRACKER_TEXT_MICRO;
+// Lucide's ChevronDown path, redrawn at a fixed pixel size (not left to the
+// component's own 24x24 default) so it actually fits the chevron frame —
+// memory-nag's own chevron CSS does the same thing (explicit width/height on
+// the icon itself) rather than relying on the frame to clip it.
+const QM_TRACKER_CHEVRON_SVG =
+  '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+  '<path d="m6 9 6 6 6-6"></path>' +
+  "</svg>";
+const QM_TRACKER_EMPTY_CLASS =
+  "rounded-sm border border-dashed border-[color-mix(in_srgb,var(--tracker-inline-rule,var(--border))_38%,transparent)] px-1 py-1 text-center text-[color-mix(in_srgb,var(--tracker-inline-muted,var(--muted-foreground))_66%,transparent)] " +
+  QM_TRACKER_TEXT_ROW;
+const QM_TRACKER_ROW_CLASS =
+  "flex min-w-0 items-center gap-1 border-b border-[var(--border)]/25 px-1 py-1 last:border-0 " + QM_TRACKER_TEXT_ROW;
+const QM_TRACKER_MUTED_CLASS = "text-[var(--muted-foreground)] " + QM_TRACKER_TEXT_MICRO;
+
+QM.panel = {
+  container: null,
+  unsubscribe: null,
+  root: null,
+  errorNode: null,
+  equippedContent: null,
+  outfitsContent: null,
+  inventoryContent: null,
+  // Collapsed by default for every section, matching the previous
+  // <details>-without-`open`-attribute behavior — this rewrite changes how
+  // the header looks and where state lives, not the default open/closed
+  // state. Persists across repaints and container remounts (e.g. switching
+  // between detached/docked tracker panel) since it lives on `this`, not
+  // rebuilt with the DOM.
+  expanded: { root: false, equipped: false, outfits: false, inventory: false },
+  _sections: null,
+
+  mount(container) {
+    if (this.container === container) {
+      this.paint();
+      return;
+    }
+    this.unmount();
+    this.container = container;
+    this.root = null; // force the persistent structure to be rebuilt for the new container
+    this.unsubscribe = QM.state.subscribe(() => this.paint());
+    // Picks up server-side changes from the tracker agent, which has no way
+    // to push an update to us — see QM.state.startPolling's comment.
+    QM.state.startPolling();
+    QM.state.ensureLoaded();
+    this.paint();
+  },
+
+  unmount() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+      QM.state.stopPolling();
+    }
+    this.container = null;
+    this.root = null;
+  },
+
+  paint() {
+    if (!this.container) return;
+    if (!this.root || !this.container.contains(this.root)) this._buildStructure();
+    this._updateContent();
+  },
+
+  _buildStructure() {
+    const root = document.createElement("div");
+    root.className = QM_TRACKER_SECTION_SHELL_CLASS;
+
+    const rootSection = this._buildHeader("Quartermaster", QM_ICON_SVG, "root");
+    root.appendChild(rootSection.header);
+
+    const body = document.createElement("div");
+    Object.assign(body.style, { display: "flex", flexDirection: "column" });
+
+    this.errorNode = document.createElement("div");
+    this.errorNode.className = QM_TRACKER_ROW_CLASS;
+    this.errorNode.style.color = QM_COLOR_DANGER;
+    this.errorNode.style.display = "none";
+
+    const equipped = this._buildSubsection("Equipped", "equipped");
+    this.equippedContent = equipped.content;
+    const outfits = this._buildSubsection("Outfits", "outfits");
+    this.outfitsContent = outfits.content;
+    const inventory = this._buildSubsection("Inventory", "inventory");
+    this.inventoryContent = inventory.content;
+
+    body.append(this.errorNode, equipped.wrapper, outfits.wrapper, inventory.wrapper);
+    root.appendChild(body);
+
+    this._sections = {
+      root: { toggle: rootSection.toggle, chevron: rootSection.chevron, content: body },
+      equipped: { toggle: equipped.toggle, chevron: equipped.chevron, content: equipped.content },
+      outfits: { toggle: outfits.toggle, chevron: outfits.chevron, content: outfits.content },
+      inventory: { toggle: inventory.toggle, chevron: inventory.chevron, content: inventory.content },
+    };
+    this._applyExpanded();
+
+    this.container.replaceChildren(root);
+    this.root = root;
+  },
+
+  // Hand-built replica of the native SectionHeader (SectionControls.tsx): a
+  // header shell (layout/border only) containing one clickable toggle button
+  // with a rotating chevron, an optional package icon, and a title — see the
+  // file-level comment for why this replaces <details>/<summary>. `iconSvg`
+  // is only passed for the root section: nested sub-sections aren't separate
+  // packages, so they get the chevron + hover + title but no icon slot.
+  _buildHeader(label, iconSvg, key) {
+    const header = document.createElement("div");
+    header.className = QM_TRACKER_HEADER_CLASS;
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = QM_TRACKER_TOGGLE_CLASS;
+
+    const chevronFrame = document.createElement("span");
+    chevronFrame.className = QM_TRACKER_CHEVRON_FRAME_CLASS;
+    chevronFrame.setAttribute("aria-hidden", "true");
+    const chevron = document.createElement("span");
+    chevron.className = QM_TRACKER_CHEVRON_CLASS;
+    chevron.innerHTML = QM_TRACKER_CHEVRON_SVG;
+    chevronFrame.appendChild(chevron);
+    toggle.appendChild(chevronFrame);
+
+    if (iconSvg) {
+      const iconSpan = document.createElement("span");
+      iconSpan.className = QM_TRACKER_ICON_CLASS;
+      iconSpan.setAttribute("aria-hidden", "true");
+      iconSpan.innerHTML = iconSvg;
+      toggle.appendChild(iconSpan);
+    }
+
+    const title = document.createElement("span");
+    title.textContent = label;
+    title.className = QM_TRACKER_TITLE_CLASS;
+    toggle.appendChild(title);
+
+    toggle.setAttribute("aria-label", label);
+    toggle.addEventListener("click", () => this._toggleSection(key));
+    header.appendChild(toggle);
+
+    return { header, toggle, chevron };
+  },
+
+  _buildSubsection(label, key) {
+    const wrapper = document.createElement("div");
+    const built = this._buildHeader(label, null, key);
+    const content = document.createElement("div");
+    wrapper.append(built.header, content);
+    return { wrapper, content, toggle: built.toggle, chevron: built.chevron };
+  },
+
+  _toggleSection(key) {
+    this.expanded[key] = !this.expanded[key];
+    this._applyExpanded();
+  },
+
+  _applyExpanded() {
+    if (!this._sections) return;
+    for (const key of Object.keys(this._sections)) {
+      const { toggle, chevron, content } = this._sections[key];
+      const open = this.expanded[key];
+      content.style.display = open ? "" : "none";
+      chevron.classList.toggle("-rotate-90", !open);
+      toggle.setAttribute("aria-expanded", String(open));
+    }
+  },
+
+  _updateContent() {
+    if (!QM.state.chatId) {
+      this.equippedContent.replaceChildren(this._empty("No active chat."));
+      this.outfitsContent.replaceChildren(this._empty("No active chat."));
+      this.inventoryContent.replaceChildren(this._empty("No active chat."));
+      return;
+    }
+
+    if (QM.state.error) {
+      this.errorNode.textContent = `Error: ${QM.state.error}`;
+      this.errorNode.style.display = "";
+    } else {
+      this.errorNode.style.display = "none";
+    }
+
+    this.equippedContent.replaceChildren(this._buildEquipped());
+    this.outfitsContent.replaceChildren(this._buildOutfits());
+    this.inventoryContent.replaceChildren(this._buildInventory());
+  },
+
+  _row(children) {
+    const row = document.createElement("div");
+    row.className = QM_TRACKER_ROW_CLASS;
+    row.append(...children);
+    return row;
+  },
+
+  _empty(text) {
+    const node = document.createElement("div");
+    node.className = QM_TRACKER_EMPTY_CLASS;
+    node.textContent = text;
+    return node;
+  },
+
+  _buildEquipped() {
+    const list = document.createElement("div");
+    const entries = QM.state.equippedEntries();
+    if (entries.length === 0) {
+      list.appendChild(this._empty("Nothing equipped."));
+      return list;
+    }
+    for (const { slot, item } of entries) {
+      const name = document.createElement("span");
+      name.textContent = item.name;
+      name.style.flex = "1";
+
+      const slotLabel = document.createElement("span");
+      slotLabel.textContent = QM_SLOT_LABELS[slot];
+      slotLabel.className = QM_TRACKER_MUTED_CLASS;
+
+      const unequipButton = QM.button("Unequip", {
+        bg: "var(--secondary, transparent)",
+        fg: "var(--secondary-foreground, inherit)",
+        border: true,
+      });
+      unequipButton.addEventListener("click", () => QM.state.updateItem(item.id, { location: "bag" }));
+
+      list.appendChild(this._row([name, slotLabel, unequipButton]));
+    }
+    return list;
+  },
+
+  _buildOutfits() {
+    const list = document.createElement("div");
+    const outfits = QM.state.sortedOutfits();
+    if (outfits.length === 0) {
+      list.appendChild(this._empty("No saved outfits yet."));
+      return list;
+    }
+    for (const outfit of outfits) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "border-b border-[var(--border)]/25 px-1 py-1 last:border-0";
+
+      const topLine = document.createElement("div");
+      Object.assign(topLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+
+      const name = document.createElement("span");
+      name.textContent = outfit.name;
+      name.style.flex = "1";
+      name.className = "font-semibold " + QM_TRACKER_TEXT_ROW;
+
+      const equipped = QM.state.outfitMatchesCurrent(outfit);
+      const toggleButton = equipped
+        ? QM.button("Unequip", {
+            bg: "var(--secondary, transparent)",
+            fg: "var(--secondary-foreground, inherit)",
+            border: true,
+          })
+        : QM.button("Equip");
+      toggleButton.addEventListener("click", () =>
+        equipped ? QM.state.unequipAll() : QM.state.equipOutfit(outfit.id),
+      );
+
+      topLine.append(name, toggleButton);
+
+      const itemNames = QM.state.outfitItemNames(outfit);
+      const itemsLine = document.createElement("div");
+      itemsLine.textContent = itemNames.length > 0 ? itemNames.join(", ") : "(empty)";
+      itemsLine.className = QM_TRACKER_MUTED_CLASS;
+
+      wrapper.append(topLine, itemsLine);
+      list.appendChild(wrapper);
+    }
+    return list;
+  },
+
+  _buildInventory() {
+    const list = document.createElement("div");
+    const categories = QM.state.itemsByLocationCategory();
+    if (categories.length === 0) {
+      list.appendChild(this._empty("Bag is empty."));
+      return list;
+    }
+    for (const category of categories) {
+      const categoryLabel = document.createElement("div");
+      categoryLabel.textContent = category.label;
+      categoryLabel.className = "px-1 pt-1 font-semibold uppercase tracking-[0.08em] " + QM_TRACKER_MUTED_CLASS;
+      list.appendChild(categoryLabel);
+      for (const item of category.items) {
+        const name = document.createElement("span");
+        name.textContent = item.name;
+        name.style.flex = "1";
+        const qty = document.createElement("span");
+        qty.textContent = `×${item.quantity}`;
+        qty.className = QM_TRACKER_MUTED_CLASS;
+        list.appendChild(this._row([name, qty]));
+      }
+    }
+    return list;
+  },
+};
+
+// ===== 90-element.js =====
+// Quartermaster — capability package client entrypoint.
+// Registers <marinara-capability-quartermaster>, mounted by the host once per
+// slot instance with a "view" attribute telling us which one — "toolbar" for
+// the compact roleplay-tracker icon button (opens QM.dock, the floating
+// panel), "tracker" for the tracker-panel slot, which renders the real
+// inline accordion (QM.panel, 15-panel.js) directly rather than being a
+// launcher.
+//
+// v1 slice: persona-only inventory. No images, locks, party members, or
+// narrator ingestion yet.
+//
+// Game Mode: confirmed unreachable, not just undocumented — AppShell.tsx
+// gates the Tracker Panel with `activeChat?.mode === "roleplay"`, and
+// RoleplayHUD.tsx (which renders the roleplay-tracker toolbar button) is
+// Roleplay-only by construction. No package code can route around either.
+
+// A backpack, stroke-based to match the app's own (Lucide-style) toolbar
+// icons rather than looking like a pasted-in logo image. Deliberately not a
+// person silhouette — that's Persona Stats' icon.
+const QM_ICON_SVG =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+  '<rect x="5" y="8" width="14" height="13" rx="2"></rect>' +
+  '<path d="M9 8V6a3 3 0 0 1 6 0v2"></path>' +
+  '<rect x="9" y="12" width="6" height="4" rx="1"></rect>' +
+  "</svg>";
+
+class QuartermasterElement extends HTMLElement {
+  constructor() {
+    super();
+    this._props = null;
+    this._onPropsEvent = () => this._render();
+  }
+
+  set capabilityProps(value) {
+    this._props = value;
+    this._render();
+  }
+
+  get capabilityProps() {
+    return this._props;
+  }
+
+  static get observedAttributes() {
+    return ["view"];
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === "view" && oldValue !== newValue) this._render();
+  }
+
+  connectedCallback() {
+    this.addEventListener("marinara-capability-props", this._onPropsEvent);
+    this._render();
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener("marinara-capability-props", this._onPropsEvent);
+    if (QM.panel.container === this) QM.panel.unmount();
+  }
+
+  get _chatId() {
+    return this._props && typeof this._props.chatId === "string" ? this._props.chatId : null;
+  }
+
+  _render() {
+    QM.state.setChat(this._chatId);
+
+    const view = this.getAttribute("view");
+    if (view === "tracker") {
+      QM.panel.mount(this);
+      return;
+    }
+
+    let button = this._button;
+    if (!button || !this.contains(button)) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.innerHTML = QM_ICON_SVG;
+      button.addEventListener("click", () => QM.dock.toggle());
+      this.replaceChildren(button);
+      this._button = button;
+    }
+
+    const props = this._props;
+    const hostClass = props && typeof props.toolbarButtonClass === "string" ? props.toolbarButtonClass : "";
+    button.className = `${hostClass} qm-launch`.trim();
+    button.title = "Quartermaster";
+    button.setAttribute("aria-label", "Quartermaster");
+    button.setAttribute("aria-pressed", QM.dock.isOpen() ? "true" : "false");
+  }
+}
+
+const QUARTERMASTER_TAG = "marinara-capability-quartermaster";
+if (!customElements.get(QUARTERMASTER_TAG)) customElements.define(QUARTERMASTER_TAG, QuartermasterElement);
+
+})();
