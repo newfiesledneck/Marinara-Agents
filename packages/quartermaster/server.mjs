@@ -218,9 +218,17 @@ async function findItemImageFile(dir, targetKey) {
 // package data. import.meta.url resolves into this install's own extracted
 // snapshot directory (confirmed in _planning/capability-package-platform-
 // notes.md), which carries a copy of every declared file, icons/ included.
-// Cached in memory after first read since these never change during a
-// process's lifetime — a version bump gets a fresh process, and therefore a
-// fresh cache, for free.
+// NOT cached in memory, despite living beside genuinely immutable code —
+// confirmed live as a real bug, not just a theoretical one: this package's
+// own dev-catalog test loop reinstalls the SAME version (0.1.1) repeatedly
+// with different icon file *contents* each time, so "a version bump gets a
+// fresh process" (this comment's own prior justification for caching) does
+// not hold here — the Marinara Engine process can easily outlive several
+// icon-content swaps without restarting, and an in-memory Map has no way to
+// notice the files on disk changed out from under it. A plain readFile per
+// request costs nothing meaningful at this size (1-2KB each) and is simply
+// always correct, which an unbounded process-lifetime cache with no
+// invalidation path was not.
 const SLOT_ICON_DIR = join(dirname(fileURLToPath(import.meta.url)), "icons");
 // weapon_right_hand has no file of its own — the left-hand sword art is
 // reused as-is (the generated blade points straight up, symmetric enough
@@ -243,19 +251,14 @@ const SLOT_ICON_FILES = {
   feet: "feet",
   belt: "belt",
 };
-const slotIconCache = new Map();
 async function loadSlotIconBuffer(slot) {
   const baseName = SLOT_ICON_FILES[slot];
   if (!baseName) return null;
-  if (slotIconCache.has(baseName)) return slotIconCache.get(baseName);
-  let buffer;
   try {
-    buffer = await readFile(join(SLOT_ICON_DIR, `${baseName}.webp`));
+    return await readFile(join(SLOT_ICON_DIR, `${baseName}.webp`));
   } catch {
     return null;
   }
-  slotIconCache.set(baseName, buffer);
-  return buffer;
 }
 
 function inventoryDocId(chatId, ownerId) {
@@ -858,11 +861,14 @@ export async function activate(context) {
       // versions, unlike the outfit-portrait route below (whose filename
       // gets a fresh random suffix on every replace, making long caching
       // actually safe there). An immutable/year-long Cache-Control here
-      // would tell the browser to keep serving pre-update bytes forever
-      // once cached once — confirmed live: a real icon swap plus reinstall
-      // didn't show up until the browser's own HTTP cache was cleared,
-      // since nothing about the request ever looked different to it. Same
-      // short cache window the item-image route uses.
+      // would tell the browser to keep serving pre-update bytes forever once
+      // cached once. Confirmed live as TWO stacked stale-cache bugs, not
+      // one: clearing the browser's own site data still kept showing old
+      // icons, because loadSlotIconBuffer also cached the file contents in
+      // memory for the Engine process's own lifetime (see that function's
+      // own comment) — a real icon-content swap needed both layers cleared,
+      // browser cache and a server restart, to actually show up. Same short
+      // cache window the item-image route uses.
       routes.get("/inventory/slot-icon/:slot", async (request, reply) => {
         const { slot } = request.params;
         const buffer = await loadSlotIconBuffer(slot);

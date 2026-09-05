@@ -43,8 +43,8 @@
     },
     {
       "path": "server.mjs",
-      "sha256": "1e160a3f7cef5b00926f4d57ad9a02b63268bfe829817ba015efee28eb390cbb",
-      "bytes": 70609
+      "sha256": "883f85af25c95ffa705eca24103dac7b16a78722d0088da05c4b295ed4388784",
+      "bytes": 71270
     },
     {
       "path": "icons/armor_legs.webp",
