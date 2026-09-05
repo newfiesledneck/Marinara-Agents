@@ -21,7 +21,14 @@ still needed, it is not in its final state.
   the image itself stays fully visible in the gap between the two bands.
 - **Item locations** — `bag` (carried), `equipped:<slot>`, or `stored:<name>` (a named stash).
 - **Saved outfits** — snapshot the current equip state under a name, equip/unequip it later in
-  one step.
+  one step. "Save Current Outfit" sits in the Equipped column, beside "Unequip All" — both act on
+  the current equip state, so both live next to it — and opens a small modal for the name,
+  description, and (optionally) a portrait, rather than an always-visible inline form. Outfit
+  cards are read-only summaries (image, name, description preview) with an Edit button for
+  everything else, including resnapshotting the outfit from whatever's currently equipped; the
+  currently-equipped outfit gets a success-colored border instead of the theme accent so it's
+  clearly distinct from the rest. A search box (name only — outfits have no "slot" dimension the
+  way items do) sits between the Outfits header and the list.
 - **Export/import** — download the current chat's items, outfits, and settings as a JSON file, or
   replace them by importing one back — ported from the original extension. Item/outfit ids are
   reissued on import rather than kept as-is, so importing into a chat that already has data (or
@@ -79,6 +86,10 @@ still needed, it is not in its final state.
   slot (a toggle switches which), placed between the add form and the item list so the two stay
   visually separate. Clicking an equip slot box searches the Bag by that slot automatically — a
   navigational shortcut to "what could fill this," not just a highlight.
+- **Collapsible, counted section headers** — the Outfits/Equipped/Bag headers are bordered and
+  clickable, toggling that column's own content collapsed or expanded (persisted per browser, like
+  Thumbnail Size); Outfits and Bag show a live count (e.g. "Outfits (5)") since those two are the
+  columns whose size actually varies session to session.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.
