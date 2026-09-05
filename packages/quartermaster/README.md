@@ -24,8 +24,10 @@ still needed, it is not in its final state.
   one step. "Save Current Outfit" sits in the Equipped column, beside "Unequip All" — both act on
   the current equip state, so both live next to it — and opens a small modal for the name,
   description, and (optionally) a portrait, rather than an always-visible inline form. Outfit
-  cards are read-only summaries (image, name, scrollable description preview) with Edit, Update,
-  and Equip buttons; Edit opens a modal for the name/description/portrait, Update resnapshots the
+  cards are read-only summaries (image, name, description preview) with Edit, Update, and Equip
+  buttons; the description fills the card from the name down to the bottom (at least 5 lines,
+  more if the portrait's thumbnail size gives it the room) and scrolls instead of clipping for
+  anything longer. Edit opens a modal for the name/description/portrait, Update resnapshots the
   outfit from whatever's currently equipped right from the card (it acts on live equip state, not
   a stored field, so it doesn't hide behind the editor like the others do); the currently-equipped
   outfit gets a success-colored border instead of the theme accent so it's clearly distinct from
@@ -76,11 +78,13 @@ still needed, it is not in its final state.
   coordinates), so they stay correct across a Thumbnail Size change, a window resize, or the
   portrait image itself finishing a load with a different aspect ratio than whatever was showing
   before.
-- **Bag item cards** — a read-only summary (image, name, slot, scrollable description preview,
-  stored location) with only quantity directly editable on the card; an Edit button opens a
-  focused editor for name, description, stored location, and default slot, plus uploading an item
-  image. Cards carry a simpler sibling of the portrait's own frame treatment (theme-colored border,
-  soft glow, small corner accents) rather than the full cut-corner/scrollwork look.
+- **Bag item cards** — a read-only summary (image, name, slot, description preview, stored
+  location) with only quantity directly editable on the card; the description fills the card from
+  the slot line down to the bottom (at least 3 lines, more if the portrait's thumbnail size gives
+  it the room) and scrolls instead of clipping for anything longer. An Edit button opens a focused
+  editor for name, description, stored location, and default slot, plus uploading an item image.
+  Cards carry a simpler sibling of the portrait's own frame treatment (theme-colored border, soft
+  glow, small corner accents) rather than the full cut-corner/scrollwork look.
 - **Add Item form and Bag search** — the add-item form now sets default slot and stored location
   at creation time too (previously only settable after adding), styled with the same card
   technique as item cards but outlined in the Add button's own success color so it reads as the
