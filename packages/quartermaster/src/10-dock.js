@@ -269,6 +269,30 @@ const QM_ADD_ITEM_FRAME_STYLE = {
   boxSizing: "border-box",
 };
 
+// An item/outfit card's description preview should fill the card from the
+// row below the name down to the bottom — not sit in a small fixed box
+// leaving the rest of the card's height unused next to a taller portrait —
+// while still capping out and scrolling instead of growing the card
+// unboundedly for a very long description. Both come from giving the whole
+// card row an explicit height (verified in a browser lab test, since a
+// flex item's default min-height:auto lets overflowing content grow its
+// container instead of scrolling unless every level down to the
+// description explicitly opts out via minHeight:"0"): max(the portrait's
+// own size, enough room for the name/slot row(s) plus a guaranteed minimum
+// number of description lines). A bigger portrait (L) lets the row grow to
+// match it, so the description gets more than the guaranteed minimum for
+// free; a smaller portrait (S) still guarantees the minimum by growing the
+// card past the portrait's own size, same as the original fixed-2-line
+// design already did at small sizes. The "other rows" pixel figures are
+// measured constants (name/slot row height with QM.button's actual
+// padding/font, not computed at render time), not something recalculated
+// per render.
+const QM_DESC_LINE_HEIGHT_PX = 14;
+const QM_OUTFIT_CARD_OTHER_ROWS_PX = 26; // nameLine + gap
+const QM_OUTFIT_CARD_MIN_DESC_LINES = 5;
+const QM_ITEM_CARD_OTHER_ROWS_PX = 46; // nameLine + slotLine + 2 gaps
+const QM_ITEM_CARD_MIN_DESC_LINES = 3;
+
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
   dot.setAttribute("aria-hidden", "true");
@@ -2310,12 +2334,18 @@ QM.dock = {
   // its neighbors.
   _buildOutfitRow(outfit) {
     const equipped = QM.state.outfitMatchesCurrent(outfit);
+    const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
+    const rowHeight = Math.max(
+      thumbnailPx,
+      QM_OUTFIT_CARD_OTHER_ROWS_PX + QM_OUTFIT_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX,
+    );
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
       gap: "8px",
       alignItems: "stretch",
       position: "relative",
+      height: `${rowHeight}px`,
       ...QM_ITEM_CARD_FRAME_STYLE,
       ...(equipped
         ? {
@@ -2328,7 +2358,7 @@ QM.dock = {
       row.appendChild(qmBuildCardCornerDot(corner));
     }
 
-    const portraitControl = this._buildOutfitPortraitControl(outfit, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
+    const portraitControl = this._buildOutfitPortraitControl(outfit, thumbnailPx);
 
     const detailsColumn = document.createElement("div");
     Object.assign(detailsColumn.style, {
@@ -2338,6 +2368,7 @@ QM.dock = {
       gap: "4px",
       flex: "1",
       minWidth: "0",
+      minHeight: "0",
     });
 
     const nameLine = document.createElement("div");
@@ -2379,8 +2410,7 @@ QM.dock = {
       flex: "1",
       minWidth: "0",
       fontSize: "11px",
-      lineHeight: "14px",
-      maxHeight: "28px",
+      lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
       overflowY: "auto",
       whiteSpace: "normal",
       wordBreak: "break-word",
@@ -2779,19 +2809,25 @@ QM.dock = {
   //   slot .................................... Stored at: X
   //   description preview ............ [Edit] [Equip]
   _buildItemRow(item) {
+    const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
+    const rowHeight = Math.max(
+      thumbnailPx,
+      QM_ITEM_CARD_OTHER_ROWS_PX + QM_ITEM_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX,
+    );
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
       gap: "8px",
       alignItems: "stretch",
       position: "relative",
+      height: `${rowHeight}px`,
       ...QM_ITEM_CARD_FRAME_STYLE,
     });
     for (const corner of ["top left", "top right", "bottom left", "bottom right"]) {
       row.appendChild(qmBuildCardCornerDot(corner));
     }
 
-    const imageControl = this._buildItemImageControl(item, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
+    const imageControl = this._buildItemImageControl(item, thumbnailPx);
 
     const detailsColumn = document.createElement("div");
     Object.assign(detailsColumn.style, {
@@ -2801,6 +2837,7 @@ QM.dock = {
       gap: "4px",
       flex: "1",
       minWidth: "0",
+      minHeight: "0",
     });
 
     const nameLine = document.createElement("div");
@@ -2850,8 +2887,13 @@ QM.dock = {
     Object.assign(storedLabel.style, { color: "var(--muted-foreground, currentcolor)", whiteSpace: "nowrap" });
     slotLine.append(slotLabel, storedLabel);
 
+    // flex:1/minHeight:0 on this row (rather than the alignItems:"center",
+    // natural-height row this used to be) lets the description actually
+    // fill whatever's left below the slot line instead of leaving the rest
+    // of the card's height as dead space — same technique as the outfit
+    // card's own descriptionRow/actionColumn split just below.
     const descriptionLine = document.createElement("div");
-    Object.assign(descriptionLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+    Object.assign(descriptionLine.style, { display: "flex", gap: "6px", flex: "1", minHeight: "0" });
     const descriptionPreview = document.createElement("span");
     descriptionPreview.className = "qm-desc-scroll";
     descriptionPreview.textContent = item.description || "No description";
@@ -2859,13 +2901,19 @@ QM.dock = {
       flex: "1",
       minWidth: "0",
       fontSize: "11px",
-      lineHeight: "14px",
-      maxHeight: "28px",
+      lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
       overflowY: "auto",
       whiteSpace: "normal",
       wordBreak: "break-word",
       color: "var(--muted-foreground, currentcolor)",
       fontStyle: item.description ? "normal" : "italic",
+    });
+    const actionColumn = document.createElement("div");
+    Object.assign(actionColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      gap: "4px",
     });
     const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
     editButton.addEventListener("click", () => this._openItemEditor(item));
@@ -2880,7 +2928,8 @@ QM.dock = {
     equipButton.addEventListener("click", () => {
       if (canEquip) QM.state.updateItem(item.id, { location: `equipped:${item.defaultSlot}` });
     });
-    descriptionLine.append(descriptionPreview, editButton, equipButton);
+    actionColumn.append(editButton, equipButton);
+    descriptionLine.append(descriptionPreview, actionColumn);
 
     detailsColumn.append(nameLine, slotLine, descriptionLine);
     row.append(imageControl, detailsColumn);
