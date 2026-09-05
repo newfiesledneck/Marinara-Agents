@@ -202,7 +202,10 @@ Large visual/UX build-out, all manually tested against a live Engine install bef
   2-line box regardless of how much room the card actually had; now fills from the name/slot line
   down to the bottom (a guaranteed minimum of 5 lines for outfits, 3 for items, more if the
   portrait's thumbnail size gives it the room) and scrolls instead of clipping for anything
-  longer.
+  longer. Fixed a regression from this same change: the card's height only accounted for the
+  description's own minimum, not the Edit/Update/Equip (or Edit/Equip) button stack beside it, so
+  at smaller Thumbnail Sizes the buttons — and the image and description below them — visibly
+  overflowed past the card's own border instead of fitting inside it.
 - **Collapsible, counted section headers** (new) — see "Collapsible, counted section headers"
   above; collapsing a column genuinely narrows the dock's own window instead of just hiding
   content inside a column that stays full width, with a threshold fix so collapsing more than one
@@ -214,6 +217,14 @@ Large visual/UX build-out, all manually tested against a live Engine install bef
   undo and no confirmation.
 - **Escape closes the open modal** (item editor, outfit editor, save-outfit) — previously only a
   backdrop click or the "×" button did.
+- **Dropped a build-time minification step (and its `esbuild` dependency) added earlier in this
+  same release** — it was a reaction to a live "Outbound response exceeded 199790 bytes" install
+  error, but that number doesn't match any real cap in the Engine's own source, and other real,
+  currently-catalogued packages (Slurp, Noodle) ship 5MB+ artifacts through the identical
+  install-fetch path. Confirmed empirically: a fresh install of this package's un-minified,
+  ~300KB artifact — larger than the one that originally failed — installed and restarted cleanly.
+  `client.js` is plain concatenated source again; the artifact is larger, but nothing in this
+  package's own install path needed the smaller size after all.
 
 ### 0.1.1
 
