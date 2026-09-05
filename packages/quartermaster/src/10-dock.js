@@ -473,6 +473,9 @@ QM.dock = {
   itemEditorBackdrop: null,
   outfitEditorBackdrop: null,
   saveOutfitBackdrop: null,
+  _itemEditorEscapeHandler: null,
+  _outfitEditorEscapeHandler: null,
+  _saveOutfitEscapeHandler: null,
   bagSearchQuery: "",
   bagSearchMode: "name",
   bagSearchInput: null,
@@ -498,6 +501,17 @@ QM.dock = {
   // is rebuilt or there's no chat to show, since a stale reference into a
   // detached tree is worse than none.
   _resetCachedNodes() {
+    // Nulling the backdrop refs below detaches them from `this` but doesn't
+    // remove their document-level Escape listener (that lives outside the
+    // DOM subtree being torn down) — unbind explicitly so a stray Escape
+    // press after a chat switch/root rebuild can't fire a closure over a
+    // now-orphaned modal.
+    this._unbindEscapeClose(this._itemEditorEscapeHandler);
+    this._unbindEscapeClose(this._outfitEditorEscapeHandler);
+    this._unbindEscapeClose(this._saveOutfitEscapeHandler);
+    this._itemEditorEscapeHandler = null;
+    this._outfitEditorEscapeHandler = null;
+    this._saveOutfitEscapeHandler = null;
     this.columns = null;
     this.zoomWrapper = null;
     this.uiSizeButtons = null;
@@ -2398,7 +2412,9 @@ QM.dock = {
       nameLine.appendChild(badge);
     }
     const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
-    deleteButton.addEventListener("click", () => QM.state.deleteOutfit(outfit.id));
+    deleteButton.addEventListener("click", () => {
+      if (window.confirm(`Delete "${outfit.name}"? This can't be undone.`)) QM.state.deleteOutfit(outfit.id);
+    });
     nameLine.appendChild(deleteButton);
 
     const descriptionRow = document.createElement("div");
@@ -2866,7 +2882,9 @@ QM.dock = {
     quantityInput.addEventListener("change", () => QM.state.updateItem(item.id, { quantity: quantityInput.value }));
 
     const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
-    deleteButton.addEventListener("click", () => QM.state.deleteItem(item.id));
+    deleteButton.addEventListener("click", () => {
+      if (window.confirm(`Delete "${item.name}"? This can't be undone.`)) QM.state.deleteItem(item.id);
+    });
     nameLine.append(nameLabel, quantityInput, deleteButton);
 
     const slotLine = document.createElement("div");
@@ -2934,6 +2952,27 @@ QM.dock = {
     detailsColumn.append(nameLine, slotLine, descriptionLine);
     row.append(imageControl, detailsColumn);
     return row;
+  },
+
+  // Shared by all three modals below (item editor, outfit editor,
+  // save-outfit) so Escape closes whichever one is open, matching the
+  // backdrop-click-to-close affordance they already had. Listens on
+  // `document` rather than the backdrop itself since the backdrop is never
+  // focused (only its children are interactive) — a `keydown` on the
+  // backdrop element would never fire. Each open function stores the
+  // returned handler under its own property and the matching close function
+  // removes that exact listener, so closing one modal never accidentally
+  // strips Escape handling from a different one that might still be open.
+  _bindEscapeClose(closeFn) {
+    const handler = (event) => {
+      if (event.key === "Escape") closeFn();
+    };
+    document.addEventListener("keydown", handler);
+    return handler;
+  },
+
+  _unbindEscapeClose(handler) {
+    if (handler) document.removeEventListener("keydown", handler);
   },
 
   // Every field that used to be inline-editable directly on the card
@@ -3045,11 +3084,14 @@ QM.dock = {
     backdrop.appendChild(panel);
     this.itemEditorBackdrop = backdrop;
     (this.root || this.body).appendChild(backdrop);
+    this._itemEditorEscapeHandler = this._bindEscapeClose(() => this._closeItemEditor());
   },
 
   _closeItemEditor() {
     this.itemEditorBackdrop?.remove();
     this.itemEditorBackdrop = null;
+    this._unbindEscapeClose(this._itemEditorEscapeHandler);
+    this._itemEditorEscapeHandler = null;
   },
 
   // Backdrop/panel structure identical to _openItemEditor (see that method's
@@ -3131,11 +3173,14 @@ QM.dock = {
     backdrop.appendChild(panel);
     this.outfitEditorBackdrop = backdrop;
     (this.root || this.body).appendChild(backdrop);
+    this._outfitEditorEscapeHandler = this._bindEscapeClose(() => this._closeOutfitEditor());
   },
 
   _closeOutfitEditor() {
     this.outfitEditorBackdrop?.remove();
     this.outfitEditorBackdrop = null;
+    this._unbindEscapeClose(this._outfitEditorEscapeHandler);
+    this._outfitEditorEscapeHandler = null;
   },
 
   // Unlike the editors above, this one really is a pending-edit form with a
@@ -3279,10 +3324,13 @@ QM.dock = {
     backdrop.appendChild(panel);
     this.saveOutfitBackdrop = backdrop;
     (this.root || this.body).appendChild(backdrop);
+    this._saveOutfitEscapeHandler = this._bindEscapeClose(() => this._closeSaveOutfitModal());
   },
 
   _closeSaveOutfitModal() {
     this.saveOutfitBackdrop?.remove();
     this.saveOutfitBackdrop = null;
+    this._unbindEscapeClose(this._saveOutfitEscapeHandler);
+    this._saveOutfitEscapeHandler = null;
   },
 };
