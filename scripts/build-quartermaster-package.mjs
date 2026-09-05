@@ -17,7 +17,6 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { transform } from "esbuild";
 import { readCatalogFamily, writeCatalogFamily } from "./catalog-lanes.mjs";
 import { withPackageActivationGuidance } from "./catalog-package-guidance.mjs";
 import { writeEnglishPackageLocale } from "./package-locales.mjs";
@@ -106,25 +105,27 @@ try {
   await rm(syntaxCheckDir, { recursive: true, force: true });
 }
 
-// Minified, not the readable concatenation above — the Engine's own install
-// fetch enforces a hard response-size cap (confirmed live: a 206,956-byte
-// artifact failed with "Outbound response exceeded 199790 bytes"), and this
-// package has grown past it on plain concatenation alone. Minifying (not
-// just this file, but what actually gets committed/shipped) is the
-// sustainable fix — trimming comments by hand only buys one release cycle
-// before the next feature grows past the cap again.
-//
-// package-manifest-integrity.mjs's assertDeclaredFilesMatchManifest hard-
-// requires the committed source file and the archived copy inside the zip
-// to be byte-identical (the exact rule that caught #544/#545's real
-// source/artifact drift bug) — so this can't be "readable in git, minified
-// only in the shipped zip" the way that might first seem tidier. The
-// minified bundle becomes packages/quartermaster/client.js itself. That's
-// an acceptable trade given client.js is already documented as "generated —
-// do not edit"; the real review target for a change is src/*.js, same as
-// before this.
-const minified = await transform(readableClientSource, { minify: true, loader: "js" });
-const clientBuffer = Buffer.from(minified.code, "utf8");
+// Plain concatenation, not minified. A previous revision of this script ran
+// the bundle through esbuild.transform(minify) after a live reinstall threw
+// "Outbound response exceeded 199790 bytes" for a 206,956-byte artifact —
+// but that theory doesn't survive a check against other real, currently-
+// catalogued packages: Slurp and Noodle both ship multi-megabyte artifacts
+// (5.3MB / 5.1MB, both well over 25x that supposed cap) through the exact
+// same install-fetch mechanism, and "199790" appears nowhere in the checked-
+// out Engine source itself (only in this file's own now-removed comment) —
+// the real capability-package-install code isn't part of this repo's
+// checked-out Engine source, so that number was never actually read from
+// source, just inferred from one incident. The error was very likely real
+// (it's an exact match for the Engine's own readCappedResponse error
+// format), but probably wasn't caused by this package's own artifact size —
+// something else in that specific reinstall attempt is the more likely
+// explanation, matching how the earlier icon-caching investigation this
+// same session also turned out to have multiple independent causes rather
+// than one. Reverted to plain concatenation (dropping the esbuild
+// dependency entirely) specifically to test that theory empirically against
+// a live reinstall, rather than carrying a minification step (and its
+// dependency) to guard against a cap that may not really apply here.
+const clientBuffer = Buffer.from(readableClientSource, "utf8");
 
 // ── Server entrypoint: hand-authored, hashed as-is ───────────────────────────
 const serverPath = join(packageRoot, "server.mjs");
