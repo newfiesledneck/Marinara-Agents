@@ -1704,13 +1704,24 @@ QM.dock = {
       background: "rgba(15, 15, 18, 0.72)",
     });
 
+    // Fills imageArea the same way a real equipped-item photo does (both
+    // qmDrawConnector's img and this share the same box), not a small
+    // centered icon with margin around it — the bundled slot artwork is a
+    // real illustrated image now, not a plain glyph, so it should read the
+    // same way a real item photo would rather than looking noticeably
+    // smaller/"funkier" next to one. width/height: 100% is load-bearing
+    // here, not just objectFit — an absolutely positioned <img> only
+    // stretches to fill inset: 0 when its own width/height are explicitly
+    // set too (the same replaced-element sizing quirk the connector-line
+    // SVG overlay hit earlier).
     const qmCenterFallbackIcon = () => {
-      const fallback = QM.buildSlotIconRaster(slot, 48);
+      const fallback = QM.buildSlotIconRaster(slot, 92);
       Object.assign(fallback.style, {
         position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
+        inset: "0",
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
       });
       imageArea.appendChild(fallback);
     };
@@ -2126,13 +2137,19 @@ QM.dock = {
     img.addEventListener("error", () => {
       img.remove();
       // No matching image (uploaded or pack) — fall back to that item's own
-      // default-slot icon rather than the bare "+" mark, same pictograms
-      // the equip-slot boxes use. An item with no default slot set keeps
-      // the plain "+" on purpose: it's a real, useful visual cue while
-      // scrolling the bag that this item still needs one set.
+      // default-slot icon rather than the bare "+" mark, same artwork the
+      // equip-slot boxes use. An item with no default slot set keeps the
+      // plain "+" on purpose: it's a real, useful visual cue while
+      // scrolling the bag that this item still needs one set. Full sizePx,
+      // not a fraction of it — this is real illustrated artwork now, not a
+      // plain glyph, so it should fill thumbButton the same way an actual
+      // item photo does (the sibling `img` above, same width/height/
+      // objectFit) instead of sitting small in the middle of it.
       if (item.defaultSlot) {
         placeholderMark.style.display = "none";
-        thumbButton.appendChild(QM.buildSlotIconRaster(item.defaultSlot, Math.round(sizePx * 0.6)));
+        const fallback = QM.buildSlotIconRaster(item.defaultSlot, sizePx);
+        Object.assign(fallback.style, { width: "100%", height: "100%", objectFit: "cover" });
+        thumbButton.appendChild(fallback);
       }
     });
     img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
