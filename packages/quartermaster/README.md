@@ -87,9 +87,14 @@ still needed, it is not in its final state.
   visually separate. Clicking an equip slot box searches the Bag by that slot automatically — a
   navigational shortcut to "what could fill this," not just a highlight.
 - **Collapsible, counted section headers** — the Outfits/Equipped/Bag headers are bordered and
-  clickable, toggling that column's own content collapsed or expanded (persisted per browser, like
-  Thumbnail Size); Outfits and Bag show a live count (e.g. "Outfits (5)") since those two are the
-  columns whose size actually varies session to session.
+  clickable, and collapsing one narrows that column itself to a slim strip (its header label turns
+  sideways so it's still readable and clickable to re-expand) rather than just hiding its content
+  inside a column that stays full width — the other columns' own flex naturally reclaims the
+  space, so collapsing a column actually narrows the dock for anyone who wants a tighter UI. State
+  persists per browser, like Thumbnail Size. On a narrow window where the columns stack vertically
+  instead of sitting side by side, there's no neighbor to hand the space to, so collapsing there
+  just hides that column's content at full width instead. Outfits and Bag show a live count (e.g.
+  "Outfits (5)") since those two are the columns whose size actually varies session to session.
 - **Appearance macro** — writes the current outfit/equipped-items text into
   `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
   in the persona's appearance field resolves for Roleplay's Illustrator image generation.

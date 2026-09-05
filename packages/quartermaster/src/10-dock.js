@@ -332,6 +332,16 @@ function qmWriteThumbnailSize(size) {
 
 const QM_COLUMN_COLLAPSED_KEY = "marinara.quartermaster.columnCollapsed";
 const QM_COLUMN_KEYS = ["outfits", "equipped", "bag"];
+// The flex value each column uses when expanded — matches what each
+// column's own Object.assign(...style, {flex: ...}) already set at
+// creation (Equipped is wider since the portrait ring needs the room), so
+// collapsing/expanding restores exactly the original proportions rather
+// than a guessed one. Collapsed columns get a fixed narrow basis instead
+// (see _applySectionHeaders) so the OTHER columns' own flex naturally
+// absorbs the reclaimed width — a real horizontal collapse, not just
+// hiding content inside a column that stays its full original width.
+const QM_COLUMN_EXPANDED_FLEX = { outfits: "1", equipped: "1.6", bag: "1" };
+const QM_COLUMN_COLLAPSED_WIDTH = 40;
 
 function qmReadColumnCollapsed() {
   const result = { outfits: false, equipped: false, bag: false };
@@ -633,6 +643,11 @@ QM.dock = {
       const stacked = this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor();
       this.columns.style.flexDirection = stacked ? "column" : "row";
     }
+    // Crossing the stack threshold changes whether a collapsed column should
+    // be a narrow sideways-label strip (row layout) or a full-width
+    // hidden-body column (stacked layout) — re-derive that now rather than
+    // waiting for the next unrelated repaint to catch up.
+    this._applySectionHeaders();
     if (this.equippedContainer) {
       this.equippedContainer.replaceChildren(this._buildEquippedSection());
       requestAnimationFrame(() => this._updateConnectorLines());
@@ -904,14 +919,17 @@ QM.dock = {
       const outfitSearchRow = this._buildOutfitSearchRow();
       const outfitsBody = document.createElement("div");
       outfitsBody.append(outfitSearchRow, this.outfitsContainer);
-      outfitsColumn.append(this._buildSectionHeader("outfits", "Outfits", outfitsBody), outfitsBody);
+      outfitsColumn.append(this._buildSectionHeader("outfits", "Outfits", outfitsBody, outfitsColumn), outfitsBody);
 
       const equippedColumn = document.createElement("div");
       Object.assign(equippedColumn.style, { flex: "1.6", minWidth: "0", width: "100%" });
       this.equippedContainer = document.createElement("div");
       const equippedBody = document.createElement("div");
       equippedBody.appendChild(this.equippedContainer);
-      equippedColumn.append(this._buildSectionHeader("equipped", "Equipped", equippedBody), equippedBody);
+      equippedColumn.append(
+        this._buildSectionHeader("equipped", "Equipped", equippedBody, equippedColumn),
+        equippedBody,
+      );
 
       const bagColumn = document.createElement("div");
       Object.assign(bagColumn.style, { flex: "1", minWidth: "0", width: "100%" });
@@ -920,7 +938,7 @@ QM.dock = {
       this.listContainer = document.createElement("div");
       const bagBody = document.createElement("div");
       bagBody.append(this.form, bagSearchRow, this.listContainer);
-      bagColumn.append(this._buildSectionHeader("bag", "Bag", bagBody), bagBody);
+      bagColumn.append(this._buildSectionHeader("bag", "Bag", bagBody, bagColumn), bagBody);
 
       columns.append(outfitsColumn, equippedColumn, bagColumn);
       this.zoomWrapper.append(this.errorNode, feedRow, this.settingsSection, columns);
@@ -2476,7 +2494,7 @@ QM.dock = {
   // is the natural place to also reflect collapsed state. `bodyEl` is
   // whatever sits below the header for that column; hiding/showing it is
   // the entire collapse mechanism, no separate wrapper needed.
-  _buildSectionHeader(columnKey, baseLabel, bodyEl) {
+  _buildSectionHeader(columnKey, baseLabel, bodyEl, columnEl) {
     this.sectionBodies = this.sectionBodies || {};
     this.sectionBodies[columnKey] = bodyEl;
 
@@ -2508,7 +2526,7 @@ QM.dock = {
     header.addEventListener("click", () => this._toggleColumnCollapsed(columnKey));
 
     this.sectionHeaders = this.sectionHeaders || {};
-    this.sectionHeaders[columnKey] = { baseLabel, textEl: text, chevronEl: chevron };
+    this.sectionHeaders[columnKey] = { baseLabel, textEl: text, chevronEl: chevron, headerEl: header, columnEl };
     return header;
   },
 
@@ -2518,20 +2536,50 @@ QM.dock = {
     this._applySectionHeaders();
   },
 
-  // Called once at mount and again on every _paint — the count each header
-  // shows changes on essentially every state mutation (add/delete an item
-  // or outfit), so this can't just run once like a static label would.
+  // Called once at mount, again on every _paint (counts change on essentially
+  // every state mutation), and again whenever the body width crosses the
+  // stack threshold (_applyResponsiveLayout). Collapsing narrows the actual
+  // COLUMN width — not just hiding its content inside a column that stays
+  // full width — so the other columns' own flex naturally reclaims the
+  // space, matching a real sidebar-collapse rather than a cosmetic content
+  // toggle. That narrow-strip + sideways-label treatment only makes sense
+  // in the side-by-side (row) layout; when the dock is narrow enough to
+  // stack the columns (column layout), there's no horizontal neighbor to
+  // hand the space to, so a collapsed column there just hides its content
+  // at full width instead, same as the row layout's body-hide already did.
   _applySectionHeaders() {
+    const stacked = this.columns ? this.bodyWidth < QM_DOCK_COLUMNS_STACK_WIDTH * this._zoomFactor() : false;
     for (const key of QM_COLUMN_KEYS) {
       const refs = this.sectionHeaders && this.sectionHeaders[key];
       const body = this.sectionBodies && this.sectionBodies[key];
       const collapsed = Boolean(this.columnCollapsed[key]);
+      const narrow = collapsed && !stacked;
       if (body) body.style.display = collapsed ? "none" : "";
       if (!refs) continue;
       const count =
         key === "outfits" ? QM.state.sortedOutfits().length : key === "bag" ? QM.state.bagItems().length : null;
       refs.textEl.textContent = count === null ? refs.baseLabel : `${refs.baseLabel} (${count})`;
       refs.chevronEl.textContent = collapsed ? "▸" : "▾";
+      if (refs.columnEl) {
+        Object.assign(
+          refs.columnEl.style,
+          narrow
+            ? { flex: `0 0 ${QM_COLUMN_COLLAPSED_WIDTH}px`, width: `${QM_COLUMN_COLLAPSED_WIDTH}px` }
+            : { flex: QM_COLUMN_EXPANDED_FLEX[key], width: "100%" },
+        );
+      }
+      if (refs.headerEl) {
+        Object.assign(
+          refs.headerEl.style,
+          narrow
+            ? { flexDirection: "column", height: "200px", padding: "8px 4px" }
+            : { flexDirection: "row", height: "auto", padding: "6px 8px" },
+        );
+      }
+      Object.assign(
+        refs.textEl.style,
+        narrow ? { writingMode: "vertical-rl", textOrientation: "mixed" } : { writingMode: "horizontal-tb" },
+      );
     }
   },
 
