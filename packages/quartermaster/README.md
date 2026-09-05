@@ -24,11 +24,13 @@ still needed, it is not in its final state.
   one step. "Save Current Outfit" sits in the Equipped column, beside "Unequip All" — both act on
   the current equip state, so both live next to it — and opens a small modal for the name,
   description, and (optionally) a portrait, rather than an always-visible inline form. Outfit
-  cards are read-only summaries (image, name, description preview) with an Edit button for
-  everything else, including resnapshotting the outfit from whatever's currently equipped; the
-  currently-equipped outfit gets a success-colored border instead of the theme accent so it's
-  clearly distinct from the rest. A search box (name only — outfits have no "slot" dimension the
-  way items do) sits between the Outfits header and the list.
+  cards are read-only summaries (image, name, scrollable description preview) with Edit, Update,
+  and Equip buttons; Edit opens a modal for the name/description/portrait, Update resnapshots the
+  outfit from whatever's currently equipped right from the card (it acts on live equip state, not
+  a stored field, so it doesn't hide behind the editor like the others do); the currently-equipped
+  outfit gets a success-colored border instead of the theme accent so it's clearly distinct from
+  the rest. A search box (name only — outfits have no "slot" dimension the way items do) sits
+  between the Outfits header and the list.
 - **Export/import** — download the current chat's items, outfits, and settings as a JSON file, or
   replace them by importing one back — ported from the original extension. Item/outfit ids are
   reissued on import rather than kept as-is, so importing into a chat that already has data (or
@@ -40,7 +42,7 @@ still needed, it is not in its final state.
   instead of the persona's own avatar whenever that outfit is currently equipped. Stored as real
   files under the Engine's own shared `gallery/` directory (not inside this package's own data),
   resized/compressed in the browser before upload. An opt-in, default-off, per-chat setting
-  ("Also replace persona's real avatar on equip") additionally pushes the active outfit's
+  ("Replace persona's real avatar on equip") additionally pushes the active outfit's
   portrait to the persona's actual avatar via the Engine's own persona-update API, reverting
   automatically to whatever the avatar was before whenever the chat's equip state no longer
   matches an outfit with a portrait (unequipping, or equipping one without a portrait). Turning
@@ -74,11 +76,11 @@ still needed, it is not in its final state.
   coordinates), so they stay correct across a Thumbnail Size change, a window resize, or the
   portrait image itself finishing a load with a different aspect ratio than whatever was showing
   before.
-- **Bag item cards** — a read-only summary (image, name, slot, description preview, stored
-  location) with only quantity directly editable on the card; an Edit button opens a focused
-  editor for name, description, stored location, and default slot, plus uploading an item image.
-  Cards carry a simpler sibling of the portrait's own frame treatment (theme-colored border, soft
-  glow, small corner accents) rather than the full cut-corner/scrollwork look.
+- **Bag item cards** — a read-only summary (image, name, slot, scrollable description preview,
+  stored location) with only quantity directly editable on the card; an Edit button opens a
+  focused editor for name, description, stored location, and default slot, plus uploading an item
+  image. Cards carry a simpler sibling of the portrait's own frame treatment (theme-colored border,
+  soft glow, small corner accents) rather than the full cut-corner/scrollwork look.
 - **Add Item form and Bag search** — the add-item form now sets default slot and stored location
   at creation time too (previously only settable after adding), styled with the same card
   technique as item cards but outlined in the Add button's own success color so it reads as the
@@ -92,15 +94,22 @@ still needed, it is not in its final state.
   inside a column that stays full width. The dock's own window shrinks by exactly the reclaimed
   amount — the other columns keep their own width rather than stretching to fill the freed space —
   so collapsing a column actually narrows the whole UI for anyone who wants a tighter footprint,
-  and expanding it again hands back precisely the same amount. State persists per browser, like
-  Thumbnail Size and window geometry. On a narrow window where the columns stack vertically
-  instead of sitting side by side, there's no width to reclaim from a column that already spans
-  the whole (already-narrow) dock, so collapsing there just hides that column's content at full
-  width instead. Outfits and Bag show a live count (e.g. "Outfits (5)") since those two are the
-  columns whose size actually varies session to session.
+  and expanding it again hands back precisely the same amount, whether or not collapsing more than
+  one column at once briefly pushes the layout narrower than the point where columns would
+  otherwise stack vertically — the stack decision itself accounts for how many columns are
+  currently just narrow strips, so collapsing two columns doesn't force an unwanted stack that a
+  single collapse wouldn't have. State persists per browser, like Thumbnail Size and window
+  geometry. On a window narrow enough that the columns stack vertically instead of sitting side by
+  side, there's no width to reclaim from a column that already spans the whole (already-narrow)
+  dock, so collapsing there just hides that column's content at full width instead. Outfits and
+  Bag show a live count (e.g. "Outfits (5)") since those two are the columns whose size actually
+  varies session to session.
 - **Appearance macro** — writes the current outfit/equipped-items text into
-  `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token
-  in the persona's appearance field resolves for Roleplay's Illustrator image generation.
+  `chatMeta.macroVariables` per chat, so a `{{getvar::quartermaster_appearance_persona}}` token in
+  the persona's appearance field resolves for Roleplay's Illustrator image generation. The picker
+  for this (Off / Outfit description / Equipped item names), with a description of what each
+  option does, lives in the Settings section rather than always on screen, alongside the other
+  settings — each now visually separated by a thin rule.
 - **Narrator prompt context** — `registerPromptContext` contributes a curated, read-only summary
   of what's equipped/carried/stored (`provides: {inventory: true}` suppresses the Engine's own
   built-in `[inventory:]` block). Gated on the Quartermaster agent being currently enabled for the
