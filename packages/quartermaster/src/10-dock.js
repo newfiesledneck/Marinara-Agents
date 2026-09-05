@@ -301,6 +301,19 @@ const QM_OUTFIT_CARD_ACTIONS_PX = 70; // Edit/Update/Equip stacked, measured 66 
 const QM_ITEM_CARD_OTHER_ROWS_PX = 44; // nameLine + slotLine + 2 gaps
 const QM_ITEM_CARD_MIN_DESC_LINES = 3;
 const QM_ITEM_CARD_ACTIONS_PX = 51; // Edit/Equip stacked, measured 47 + buffer
+// QM_ITEM_CARD_FRAME_STYLE sets height in border-box mode, so the row's
+// declared height has to cover its own padding+border on top of whatever
+// content needs the rest -- missing this is exactly why the portrait still
+// overflowed past the card at large Thumbnail Sizes even after the
+// actionColumn fix above: the row height was set to the portrait's raw
+// size, leaving nothing left over for the frame's own padding/border, so
+// the portrait (sized to the FULL thumbnail size) always overran the
+// shrunken content box by exactly this amount. Confirmed in the same
+// browser lab, checking the portrait's own overflow specifically (the
+// earlier verification pass only checked the description/actionColumn and
+// missed this).
+const QM_CARD_PADDING_V_PX = 10; // QM_ITEM_CARD_FRAME_STYLE's padding: "5px 7px" — 5px top + 5px bottom
+const QM_CARD_BORDER_V_PX = 4; // reserves for the thicker 2px equipped-outfit border; a plain 1px border (items, non-equipped outfits) just gets 2px of harmless extra room
 
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
@@ -2358,11 +2371,14 @@ QM.dock = {
   _buildOutfitRow(outfit) {
     const equipped = QM.state.outfitMatchesCurrent(outfit);
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
-    const rowHeight = Math.max(
-      thumbnailPx,
-      QM_OUTFIT_CARD_OTHER_ROWS_PX +
-        Math.max(QM_OUTFIT_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_OUTFIT_CARD_ACTIONS_PX),
-    );
+    const rowHeight =
+      Math.max(
+        thumbnailPx,
+        QM_OUTFIT_CARD_OTHER_ROWS_PX +
+          Math.max(QM_OUTFIT_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_OUTFIT_CARD_ACTIONS_PX),
+      ) +
+      QM_CARD_PADDING_V_PX +
+      QM_CARD_BORDER_V_PX;
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
@@ -2836,11 +2852,14 @@ QM.dock = {
   //   description preview ............ [Edit] [Equip]
   _buildItemRow(item) {
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
-    const rowHeight = Math.max(
-      thumbnailPx,
-      QM_ITEM_CARD_OTHER_ROWS_PX +
-        Math.max(QM_ITEM_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_ITEM_CARD_ACTIONS_PX),
-    );
+    const rowHeight =
+      Math.max(
+        thumbnailPx,
+        QM_ITEM_CARD_OTHER_ROWS_PX +
+          Math.max(QM_ITEM_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_ITEM_CARD_ACTIONS_PX),
+      ) +
+      QM_CARD_PADDING_V_PX +
+      QM_CARD_BORDER_V_PX;
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
