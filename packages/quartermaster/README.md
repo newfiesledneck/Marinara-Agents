@@ -200,14 +200,12 @@ Large visual/UX build-out, all manually tested against a live Engine install bef
   search box was added, matching the Bag's.
 - **Item/outfit description previews now fill the card and scroll** — previously a small fixed
   2-line box regardless of how much room the card actually had; now fills from the name/slot line
-  down to the bottom (a guaranteed minimum of 5 lines for outfits, 3 for items, more if the
-  portrait's thumbnail size gives it the room) and scrolls instead of clipping for anything
-  longer. Fixed two regressions from this same change, both caught live: the card's height only
-  accounted for the description's own minimum, not the Edit/Update/Equip (or Edit/Equip) button
-  stack beside it, so the buttons overflowed past the card's own border at smaller Thumbnail
-  Sizes; and separately, the portrait/item image overflowed at larger Thumbnail Sizes because the
-  card's declared height didn't leave room for its own padding and border on top of the portrait's
-  full size. Both are now accounted for.
+  down to the bottom and scrolls instead of clipping for anything past a generous length. Went
+  through a couple of rounds of live-caught overflow bugs (buttons and then the portrait spilling
+  past the card's own border, at different Thumbnail Sizes) while this used a hand-computed pixel
+  height; settled on simply not computing one at all — the card's height is left to size itself
+  naturally to whichever needs more room (the portrait, or the name/description/button stack
+  beside it), which structurally can't overflow the way a guessed constant occasionally did.
 - **Collapsible, counted section headers** (new) — see "Collapsible, counted section headers"
   above; collapsing a column genuinely narrows the dock's own window instead of just hiding
   content inside a column that stays full width, with a threshold fix so collapsing more than one
