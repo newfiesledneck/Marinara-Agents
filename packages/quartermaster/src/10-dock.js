@@ -270,50 +270,42 @@ const QM_ADD_ITEM_FRAME_STYLE = {
 };
 
 // An item/outfit card's description preview should fill the card from the
-// row below the name down to the bottom — not sit in a small fixed box
-// leaving the rest of the card's height unused next to a taller portrait —
-// while still capping out and scrolling instead of growing the card
-// unboundedly for a very long description. Both come from giving the whole
-// card row an explicit height (verified in a browser lab test, since a
-// flex item's default min-height:auto lets overflowing content grow its
-// container instead of scrolling unless every level down to the
-// description explicitly opts out via minHeight:"0"): max(the portrait's
-// own size, enough room for the name/slot row(s) plus whichever needs MORE
-// room — a guaranteed minimum number of description lines, or the action
-// column's own button stack). That second term was missing in an earlier
-// revision of this constant (it only accounted for the description's own
-// minimum), which let the actionColumn — Edit/Update/Equip for outfits,
-// Edit/Equip for items — overflow past the card's own border at smaller
-// Thumbnail Sizes, since a flex item's buttons can't compress below their
-// own padding/font the way scrollable text can; a real regression, caught
-// via a live screenshot and reproduced/fixed in the same browser lab test
-// this whole design was built in. A bigger portrait (L) lets the row grow
-// past either minimum for free; a smaller portrait (S) still guarantees
-// both minimums by growing the card past the portrait's own size, same as
-// the original fixed-2-line design already did at small sizes. Every pixel
-// figure below is a measured constant (name/slot row height and
-// action-column height with QM.button's actual padding/font, plus a small
-// safety buffer) — not something recalculated at render time.
+// row below the name down to the bottom, instead of sitting in a small
+// fixed box leaving the rest of the card's height unused next to a taller
+// portrait — while still capping out and scrolling instead of growing the
+// card unboundedly for a very long description.
+//
+// Two earlier revisions of this tried to compute a fixed row height in JS
+// (max of the portrait's size vs. a hand-measured "enough room for N lines
+// or the action-button stack" figure) and got it wrong twice in a row: the
+// first missed that the action column's real button-stack height wasn't
+// accounted for at all (only the description's own minimum was), and the
+// fix for THAT missed that the row's height is set in border-box mode, so
+// a row sized to exactly the portrait's own dimensions left no room for
+// the card's own padding/border and the portrait itself overflowed. Even
+// after both fixes, hand-measured pixel constants for the action column
+// still came up short in the real app (different font/line-height
+// rendering than the isolated lab measurement) — confirmed live, still
+// overflowing.
+//
+// The actual fix: stop computing a row height at all. Leave it "auto" and
+// let plain flexbox do what it already does by default — a container with
+// no explicit height sizes itself to its tallest child, and align-items:
+// stretch (the default) matches everything else to that. That tallest
+// child is naturally whichever needs more room: the portrait (fixed size),
+// or detailsColumn's own nameLine+descriptionRow stack, which is itself
+// naturally sized to whichever of the description text or the action
+// column's real button stack is taller — no estimate to get wrong, because
+// nothing is estimated; the browser measures its own real content instead
+// of trusting a guessed constant. Only descriptionPreview needs a genuine
+// constant: an independent max-height ceiling (unrelated to anything
+// else), purely so an extremely long description scrolls instead of
+// growing the card without bound — a normal-length description just sits
+// in whatever natural height the row ends up being, which in practice is
+// usually generous already since the action column's own button stack
+// rarely needs less room than a few lines of text would.
 const QM_DESC_LINE_HEIGHT_PX = 14;
-const QM_OUTFIT_CARD_OTHER_ROWS_PX = 24; // nameLine + gap
-const QM_OUTFIT_CARD_MIN_DESC_LINES = 5;
-const QM_OUTFIT_CARD_ACTIONS_PX = 70; // Edit/Update/Equip stacked, measured 66 + buffer
-const QM_ITEM_CARD_OTHER_ROWS_PX = 44; // nameLine + slotLine + 2 gaps
-const QM_ITEM_CARD_MIN_DESC_LINES = 3;
-const QM_ITEM_CARD_ACTIONS_PX = 51; // Edit/Equip stacked, measured 47 + buffer
-// QM_ITEM_CARD_FRAME_STYLE sets height in border-box mode, so the row's
-// declared height has to cover its own padding+border on top of whatever
-// content needs the rest -- missing this is exactly why the portrait still
-// overflowed past the card at large Thumbnail Sizes even after the
-// actionColumn fix above: the row height was set to the portrait's raw
-// size, leaving nothing left over for the frame's own padding/border, so
-// the portrait (sized to the FULL thumbnail size) always overran the
-// shrunken content box by exactly this amount. Confirmed in the same
-// browser lab, checking the portrait's own overflow specifically (the
-// earlier verification pass only checked the description/actionColumn and
-// missed this).
-const QM_CARD_PADDING_V_PX = 10; // QM_ITEM_CARD_FRAME_STYLE's padding: "5px 7px" — 5px top + 5px bottom
-const QM_CARD_BORDER_V_PX = 4; // reserves for the thicker 2px equipped-outfit border; a plain 1px border (items, non-equipped outfits) just gets 2px of harmless extra room
+const QM_DESC_MAX_HEIGHT_PX = 140; // ~10 lines — a ceiling to scroll against, not a target
 
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
@@ -2371,21 +2363,12 @@ QM.dock = {
   _buildOutfitRow(outfit) {
     const equipped = QM.state.outfitMatchesCurrent(outfit);
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
-    const rowHeight =
-      Math.max(
-        thumbnailPx,
-        QM_OUTFIT_CARD_OTHER_ROWS_PX +
-          Math.max(QM_OUTFIT_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_OUTFIT_CARD_ACTIONS_PX),
-      ) +
-      QM_CARD_PADDING_V_PX +
-      QM_CARD_BORDER_V_PX;
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
       gap: "8px",
       alignItems: "stretch",
       position: "relative",
-      height: `${rowHeight}px`,
       ...QM_ITEM_CARD_FRAME_STYLE,
       ...(equipped
         ? {
@@ -2408,7 +2391,6 @@ QM.dock = {
       gap: "4px",
       flex: "1",
       minWidth: "0",
-      minHeight: "0",
     });
 
     const nameLine = document.createElement("div");
@@ -2444,7 +2426,7 @@ QM.dock = {
     nameLine.appendChild(deleteButton);
 
     const descriptionRow = document.createElement("div");
-    Object.assign(descriptionRow.style, { display: "flex", gap: "6px", flex: "1", minHeight: "0" });
+    Object.assign(descriptionRow.style, { display: "flex", gap: "6px" });
     const descriptionPreview = document.createElement("span");
     descriptionPreview.className = "qm-desc-scroll";
     descriptionPreview.textContent = outfit.description || "No description";
@@ -2453,6 +2435,7 @@ QM.dock = {
       minWidth: "0",
       fontSize: "11px",
       lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
+      maxHeight: `${QM_DESC_MAX_HEIGHT_PX}px`,
       overflowY: "auto",
       whiteSpace: "normal",
       wordBreak: "break-word",
@@ -2852,21 +2835,12 @@ QM.dock = {
   //   description preview ............ [Edit] [Equip]
   _buildItemRow(item) {
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
-    const rowHeight =
-      Math.max(
-        thumbnailPx,
-        QM_ITEM_CARD_OTHER_ROWS_PX +
-          Math.max(QM_ITEM_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_ITEM_CARD_ACTIONS_PX),
-      ) +
-      QM_CARD_PADDING_V_PX +
-      QM_CARD_BORDER_V_PX;
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
       gap: "8px",
       alignItems: "stretch",
       position: "relative",
-      height: `${rowHeight}px`,
       ...QM_ITEM_CARD_FRAME_STYLE,
     });
     for (const corner of ["top left", "top right", "bottom left", "bottom right"]) {
@@ -2883,7 +2857,6 @@ QM.dock = {
       gap: "4px",
       flex: "1",
       minWidth: "0",
-      minHeight: "0",
     });
 
     const nameLine = document.createElement("div");
@@ -2941,7 +2914,7 @@ QM.dock = {
     // of the card's height as dead space — same technique as the outfit
     // card's own descriptionRow/actionColumn split just below.
     const descriptionLine = document.createElement("div");
-    Object.assign(descriptionLine.style, { display: "flex", gap: "6px", flex: "1", minHeight: "0" });
+    Object.assign(descriptionLine.style, { display: "flex", gap: "6px" });
     const descriptionPreview = document.createElement("span");
     descriptionPreview.className = "qm-desc-scroll";
     descriptionPreview.textContent = item.description || "No description";
@@ -2950,6 +2923,7 @@ QM.dock = {
       minWidth: "0",
       fontSize: "11px",
       lineHeight: `${QM_DESC_LINE_HEIGHT_PX}px`,
+      maxHeight: `${QM_DESC_MAX_HEIGHT_PX}px`,
       overflowY: "auto",
       whiteSpace: "normal",
       wordBreak: "break-word",
