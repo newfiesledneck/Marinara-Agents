@@ -330,6 +330,32 @@ function qmWriteThumbnailSize(size) {
   }
 }
 
+const QM_COLUMN_COLLAPSED_KEY = "marinara.quartermaster.columnCollapsed";
+const QM_COLUMN_KEYS = ["outfits", "equipped", "bag"];
+
+function qmReadColumnCollapsed() {
+  const result = { outfits: false, equipped: false, bag: false };
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(QM_COLUMN_COLLAPSED_KEY) || "null");
+    if (stored && typeof stored === "object") {
+      for (const key of QM_COLUMN_KEYS) {
+        if (typeof stored[key] === "boolean") result[key] = stored[key];
+      }
+    }
+  } catch {
+    // A blocked or stale storage value falls back to every column expanded.
+  }
+  return result;
+}
+
+function qmWriteColumnCollapsed(state) {
+  try {
+    window.localStorage.setItem(QM_COLUMN_COLLAPSED_KEY, JSON.stringify(state));
+  } catch {
+    // Persisting is a convenience; the session still works without it.
+  }
+}
+
 function qmReadWindowGeometry() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(QM_WINDOW_KEY) || "null");
@@ -379,7 +405,6 @@ QM.dock = {
   replaceRealAvatarToggle: null,
   equippedContainer: null,
   outfitsContainer: null,
-  outfitForm: null,
   form: null,
   listContainer: null,
   portraitWrapper: null,
@@ -402,10 +427,17 @@ QM.dock = {
   // dock, or switching chats (see close()/QM.state.setChat's own reset).
   selectedSlot: null,
   itemEditorBackdrop: null,
+  outfitEditorBackdrop: null,
+  saveOutfitBackdrop: null,
   bagSearchQuery: "",
   bagSearchMode: "name",
   bagSearchInput: null,
   bagSearchModeButtons: null,
+  outfitSearchQuery: "",
+  outfitSearchInput: null,
+  columnCollapsed: qmReadColumnCollapsed(),
+  sectionHeaders: null,
+  sectionBodies: null,
   _windowBound: false,
   _outsideClickBound: false,
   _interaction: null,
@@ -432,7 +464,6 @@ QM.dock = {
     this.replaceRealAvatarToggle = null;
     this.equippedContainer = null;
     this.outfitsContainer = null;
-    this.outfitForm = null;
     this.form = null;
     this.listContainer = null;
     this.portraitWrapper = null;
@@ -445,6 +476,11 @@ QM.dock = {
     this.itemEditorBackdrop = null;
     this.bagSearchInput = null;
     this.bagSearchModeButtons = null;
+    this.outfitSearchInput = null;
+    this.sectionHeaders = null;
+    this.sectionBodies = null;
+    this.outfitEditorBackdrop = null;
+    this.saveOutfitBackdrop = null;
   },
 
   isOpen() {
@@ -476,6 +512,8 @@ QM.dock = {
     this.isOpenFlag = false;
     this.selectedSlot = null;
     this._closeItemEditor();
+    this._closeOutfitEditor();
+    this._closeSaveOutfitModal();
     if (this.root) this.root.classList.add("qm-dock-collapsed");
     if (this.unsubscribe) {
       this.unsubscribe();
@@ -855,43 +893,39 @@ QM.dock = {
       });
       this.columns = columns;
 
-      // Left: Outfits. Center: portrait ring. Right: Bag/Inventory.
+      // Left: Outfits. Center: portrait ring. Right: Bag/Inventory. Each
+      // column's header (_buildSectionHeader) is bordered/clickable and
+      // toggles that column's own body wrapper — see that method's own
+      // comment for why the live count and the collapse toggle share one
+      // element instead of being two separate headers.
       const outfitsColumn = document.createElement("div");
       Object.assign(outfitsColumn.style, { flex: "1", minWidth: "0", width: "100%" });
       this.outfitsContainer = document.createElement("div");
-      this.outfitForm = this._buildSaveOutfitForm();
-      outfitsColumn.append(QM.sectionHeading("Outfits"), this.outfitForm, this.outfitsContainer);
+      const outfitSearchRow = this._buildOutfitSearchRow();
+      const outfitsBody = document.createElement("div");
+      outfitsBody.append(outfitSearchRow, this.outfitsContainer);
+      outfitsColumn.append(this._buildSectionHeader("outfits", "Outfits", outfitsBody), outfitsBody);
 
       const equippedColumn = document.createElement("div");
       Object.assign(equippedColumn.style, { flex: "1.6", minWidth: "0", width: "100%" });
-      const equippedHeadingRow = document.createElement("div");
-      Object.assign(equippedHeadingRow.style, {
-        display: "grid",
-        gridTemplateColumns: "1fr auto 1fr",
-        alignItems: "center",
-        gap: "6px",
-      });
-      const equippedHeadingSpacer = document.createElement("span");
-      const unequipAllButton = QM.button("Unequip All", {
-        bg: "var(--secondary, transparent)",
-        fg: "var(--secondary-foreground, inherit)",
-        border: true,
-      });
-      unequipAllButton.addEventListener("click", () => QM.state.unequipAll());
-      equippedHeadingRow.append(equippedHeadingSpacer, QM.sectionHeading("Equipped"), unequipAllButton);
       this.equippedContainer = document.createElement("div");
-      equippedColumn.append(equippedHeadingRow, this.equippedContainer);
+      const equippedBody = document.createElement("div");
+      equippedBody.appendChild(this.equippedContainer);
+      equippedColumn.append(this._buildSectionHeader("equipped", "Equipped", equippedBody), equippedBody);
 
       const bagColumn = document.createElement("div");
       Object.assign(bagColumn.style, { flex: "1", minWidth: "0", width: "100%" });
       this.form = this._buildAddItemForm();
       const bagSearchRow = this._buildBagSearchRow();
       this.listContainer = document.createElement("div");
-      bagColumn.append(QM.sectionHeading("Bag"), this.form, bagSearchRow, this.listContainer);
+      const bagBody = document.createElement("div");
+      bagBody.append(this.form, bagSearchRow, this.listContainer);
+      bagColumn.append(this._buildSectionHeader("bag", "Bag", bagBody), bagBody);
 
       columns.append(outfitsColumn, equippedColumn, bagColumn);
       this.zoomWrapper.append(this.errorNode, feedRow, this.settingsSection, columns);
       this.body.replaceChildren(sizeControlsRow, this.zoomWrapper);
+      this._applySectionHeaders();
       this._applyUiSize();
       this._applyThumbnailSize();
     }
@@ -904,6 +938,8 @@ QM.dock = {
     }
 
     this._applyBagSearch();
+    this._applyOutfitSearch();
+    this._applySectionHeaders();
     this.feedSelect.value = QM.state.appearanceFeedMode;
     this.underwearToggle.checked = QM.state.showUnderwear;
     this.armorToggle.checked = QM.state.showArmor;
@@ -1504,6 +1540,26 @@ QM.dock = {
     }
     wrapper.appendChild(bottomRow);
 
+    // Moved here from the Outfits column header (Save) and the Equipped
+    // column header (Unequip All) — both act on the current equip state,
+    // so both live beside it now instead of split across two different
+    // column headers.
+    const actionsRow = document.createElement("div");
+    Object.assign(actionsRow.style, { display: "flex", gap: "6px", justifyContent: "center", marginTop: "4px" });
+    const saveOutfitButton = QM.button("Save Current Outfit", {
+      bg: QM_COLOR_SUCCESS,
+      fg: QM_COLOR_SUCCESS_FG,
+    });
+    saveOutfitButton.addEventListener("click", () => this._openSaveOutfitModal());
+    const unequipAllButton = QM.button("Unequip All", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    unequipAllButton.addEventListener("click", () => QM.state.unequipAll());
+    actionsRow.append(saveOutfitButton, unequipAllButton);
+    wrapper.appendChild(actionsRow);
+
     return wrapper;
   },
 
@@ -1880,43 +1936,30 @@ QM.dock = {
     return box;
   },
 
-  _buildSaveOutfitForm() {
-    const form = document.createElement("form");
-    Object.assign(form.style, { display: "flex", flexDirection: "column", gap: "4px", marginBottom: "8px" });
-
-    const line = document.createElement("div");
-    Object.assign(line.style, { display: "flex", gap: "6px" });
-
-    const nameInput = QM.smallInput("input");
-    nameInput.type = "text";
-    nameInput.placeholder = "Save current as outfit…";
-    nameInput.required = true;
-    nameInput.style.flex = "1";
-
-    const saveButton = QM.button("Save", { bg: QM_COLOR_SUCCESS, fg: QM_COLOR_SUCCESS_FG });
-    saveButton.type = "submit";
-
-    line.append(nameInput, saveButton);
-
-    const descriptionInput = QM.smallInput("input");
-    descriptionInput.type = "text";
-    descriptionInput.placeholder = "Description (fed to appearance when selected above)";
-    descriptionInput.style.width = "100%";
-    descriptionInput.style.boxSizing = "border-box";
-
-    form.append(line, descriptionInput);
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const name = nameInput.value.trim();
-      if (!name) return;
-      saveButton.disabled = true;
-      await QM.state.createOutfit({ name, description: descriptionInput.value });
-      saveButton.disabled = false;
-      nameInput.value = "";
-      descriptionInput.value = "";
+  // Name-only, unlike the Bag's name/slot toggle — outfits have no "slot"
+  // dimension to search by, so there's nothing for a second mode to filter
+  // against.
+  _buildOutfitSearchRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" });
+    const searchInput = QM.smallInput("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Search...";
+    searchInput.value = this.outfitSearchQuery;
+    searchInput.style.flex = "1";
+    searchInput.addEventListener("input", () => {
+      this.outfitSearchQuery = searchInput.value;
+      this.outfitsContainer.replaceChildren(this._buildOutfitsList());
     });
+    this.outfitSearchInput = searchInput;
+    row.appendChild(searchInput);
+    return row;
+  },
 
-    return form;
+  _applyOutfitSearch() {
+    if (this.outfitSearchInput && this.outfitSearchInput.value !== this.outfitSearchQuery) {
+      this.outfitSearchInput.value = this.outfitSearchQuery;
+    }
   },
 
   _buildOutfitsList() {
@@ -1930,9 +1973,11 @@ QM.dock = {
       gap: "6px",
     });
 
-    const outfits = QM.state.sortedOutfits();
+    const query = this.outfitSearchQuery.trim().toLowerCase();
+    let outfits = QM.state.sortedOutfits();
+    if (query) outfits = outfits.filter((outfit) => outfit.name.toLowerCase().includes(query));
     if (outfits.length === 0) {
-      const empty = QM.textNode("No saved outfits yet.");
+      const empty = QM.textNode(query ? "No matching outfits." : "No saved outfits yet.");
       empty.style.color = "var(--muted-foreground, currentcolor)";
       empty.style.margin = "0";
       list.appendChild(empty);
@@ -2159,59 +2204,112 @@ QM.dock = {
     return wrapper;
   },
 
+  // Read-only display card, same rhythm as the item card: full-height
+  // portrait on the left, everything else stacked to the right. No slot/
+  // stored-at line here — outfits don't have either — so the description
+  // gets the extra room instead, clamped to two lines rather than one.
+  // Name/description editing, resnapshotting ("Update"), and the portrait
+  // upload all moved into _openOutfitEditor's modal, opened via [Edit];
+  // Delete stays directly on the card like it does on an item card. The
+  // currently-equipped outfit (QM.state.outfitMatchesCurrent) gets a
+  // success-colored border/glow instead of the theme accent, echoing the
+  // Add Item form's own "borrow a semantic color instead of a new shape"
+  // approach to standing out from its neighbors.
   _buildOutfitRow(outfit) {
+    const equipped = QM.state.outfitMatchesCurrent(outfit);
     const row = document.createElement("li");
     Object.assign(row.style, {
       display: "flex",
-      flexDirection: "column",
-      gap: "3px",
-      border: "1px solid var(--border, rgba(128,128,128,0.3))",
-      borderRadius: "var(--radius, 4px)",
-      padding: "4px 6px",
+      gap: "8px",
+      alignItems: "stretch",
+      position: "relative",
+      ...QM_ITEM_CARD_FRAME_STYLE,
+      ...(equipped
+        ? {
+            border: `2px solid ${QM_COLOR_SUCCESS}`,
+            boxShadow: `0 0 8px color-mix(in srgb, ${QM_COLOR_SUCCESS} 45%, transparent)`,
+          }
+        : {}),
     });
-
-    const topLine = document.createElement("div");
-    Object.assign(topLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-
-    const equipped = QM.state.outfitMatchesCurrent(outfit);
-    const name = document.createElement("span");
-    name.style.flex = "1";
-    name.textContent = equipped ? `${outfit.name} (equipped)` : outfit.name;
-    if (equipped) name.style.fontWeight = "600";
-
-    const equipButton = QM.button("Equip");
-    equipButton.addEventListener("click", () => QM.state.equipOutfit(outfit.id));
-
-    const updateButton = QM.button("Update", {
-      bg: "var(--secondary, transparent)",
-      fg: "var(--secondary-foreground, inherit)",
-      border: true,
-    });
-    updateButton.title = "Resave the currently-equipped items into this outfit";
-    updateButton.addEventListener("click", () => QM.state.updateOutfit(outfit.id, { resnapshot: true }));
-
-    const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
-    deleteButton.addEventListener("click", () => QM.state.deleteOutfit(outfit.id));
-
-    topLine.append(name, equipButton, updateButton, deleteButton);
-    row.appendChild(topLine);
-
-    // Left half: the portrait thumbnail/upload control (bigger than before —
-    // an image reads faster at a glance than a name, per the request).
-    // Right half: description, wrapping instead of cut off.
-    const bodyRow = document.createElement("div");
-    Object.assign(bodyRow.style, { display: "flex", gap: "8px", alignItems: "flex-start" });
+    for (const corner of ["top left", "top right", "bottom left", "bottom right"]) {
+      row.appendChild(qmBuildCardCornerDot(corner));
+    }
 
     const portraitControl = this._buildOutfitPortraitControl(outfit, QM_THUMBNAIL_SIZES[this.thumbnailSize]);
 
-    const description = QM.descriptionTextarea(outfit.description, (value) =>
-      QM.state.updateOutfit(outfit.id, { description: value }),
-    );
-    description.style.flex = "1";
+    const detailsColumn = document.createElement("div");
+    Object.assign(detailsColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      gap: "4px",
+      flex: "1",
+      minWidth: "0",
+    });
 
-    bodyRow.append(portraitControl, description);
-    row.appendChild(bodyRow);
+    const nameLine = document.createElement("div");
+    Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = outfit.name;
+    Object.assign(nameLabel.style, {
+      flex: "1",
+      minWidth: "0",
+      fontWeight: "600",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    });
+    nameLine.appendChild(nameLabel);
+    if (equipped) {
+      const badge = document.createElement("span");
+      badge.textContent = "Equipped";
+      Object.assign(badge.style, {
+        fontSize: "10px",
+        fontWeight: "600",
+        color: QM_COLOR_SUCCESS,
+        textTransform: "uppercase",
+        letterSpacing: "0.02em",
+        whiteSpace: "nowrap",
+      });
+      nameLine.appendChild(badge);
+    }
+    const deleteButton = QM.button("Delete", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
+    deleteButton.addEventListener("click", () => QM.state.deleteOutfit(outfit.id));
+    nameLine.appendChild(deleteButton);
 
+    const descriptionRow = document.createElement("div");
+    Object.assign(descriptionRow.style, { display: "flex", gap: "6px", flex: "1", minHeight: "0" });
+    const descriptionPreview = document.createElement("span");
+    descriptionPreview.textContent = outfit.description || "No description";
+    Object.assign(descriptionPreview.style, {
+      flex: "1",
+      minWidth: "0",
+      fontSize: "11px",
+      display: "-webkit-box",
+      WebkitLineClamp: "2",
+      WebkitBoxOrient: "vertical",
+      overflow: "hidden",
+      color: "var(--muted-foreground, currentcolor)",
+      fontStyle: outfit.description ? "normal" : "italic",
+    });
+    const actionColumn = document.createElement("div");
+    Object.assign(actionColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      gap: "4px",
+    });
+    const editButton = QM.button("Edit", { border: true, bg: "transparent", fg: "inherit" });
+    editButton.addEventListener("click", () => this._openOutfitEditor(outfit));
+    const equipButton = QM.button("Equip");
+    equipButton.disabled = equipped;
+    equipButton.style.opacity = equipped ? "0.5" : "1";
+    equipButton.addEventListener("click", () => QM.state.equipOutfit(outfit.id));
+    actionColumn.append(editButton, equipButton);
+    descriptionRow.append(descriptionPreview, actionColumn);
+
+    detailsColumn.append(nameLine, descriptionRow);
+    row.append(portraitControl, detailsColumn);
     return row;
   },
 
@@ -2367,6 +2465,73 @@ QM.dock = {
       button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
       button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
       button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
+    }
+  },
+
+  // A bordered, clickable header (replacing the old plain QM.sectionHeading
+  // for these three columns specifically) that both shows a live count and
+  // toggles that column's body collapsed/expanded — the two things the
+  // request asked for landed on the same element rather than two separate
+  // ones, since a header that already has to repaint its count every frame
+  // is the natural place to also reflect collapsed state. `bodyEl` is
+  // whatever sits below the header for that column; hiding/showing it is
+  // the entire collapse mechanism, no separate wrapper needed.
+  _buildSectionHeader(columnKey, baseLabel, bodyEl) {
+    this.sectionBodies = this.sectionBodies || {};
+    this.sectionBodies[columnKey] = bodyEl;
+
+    const header = document.createElement("button");
+    header.type = "button";
+    Object.assign(header.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "6px",
+      width: "100%",
+      padding: "6px 8px",
+      marginBottom: "6px",
+      boxSizing: "border-box",
+      border: "1px solid var(--primary, #444)",
+      borderRadius: "var(--radius, 4px)",
+      background: "color-mix(in srgb, var(--primary, #444) 12%, transparent)",
+      color: "inherit",
+      cursor: "pointer",
+      fontSize: "12px",
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: "0.04em",
+    });
+    const text = document.createElement("span");
+    const chevron = document.createElement("span");
+    chevron.setAttribute("aria-hidden", "true");
+    header.append(text, chevron);
+    header.addEventListener("click", () => this._toggleColumnCollapsed(columnKey));
+
+    this.sectionHeaders = this.sectionHeaders || {};
+    this.sectionHeaders[columnKey] = { baseLabel, textEl: text, chevronEl: chevron };
+    return header;
+  },
+
+  _toggleColumnCollapsed(columnKey) {
+    this.columnCollapsed[columnKey] = !this.columnCollapsed[columnKey];
+    qmWriteColumnCollapsed(this.columnCollapsed);
+    this._applySectionHeaders();
+  },
+
+  // Called once at mount and again on every _paint — the count each header
+  // shows changes on essentially every state mutation (add/delete an item
+  // or outfit), so this can't just run once like a static label would.
+  _applySectionHeaders() {
+    for (const key of QM_COLUMN_KEYS) {
+      const refs = this.sectionHeaders && this.sectionHeaders[key];
+      const body = this.sectionBodies && this.sectionBodies[key];
+      const collapsed = Boolean(this.columnCollapsed[key]);
+      if (body) body.style.display = collapsed ? "none" : "";
+      if (!refs) continue;
+      const count =
+        key === "outfits" ? QM.state.sortedOutfits().length : key === "bag" ? QM.state.bagItems().length : null;
+      refs.textEl.textContent = count === null ? refs.baseLabel : `${refs.baseLabel} (${count})`;
+      refs.chevronEl.textContent = collapsed ? "▸" : "▾";
     }
   },
 
@@ -2636,5 +2801,246 @@ QM.dock = {
   _closeItemEditor() {
     this.itemEditorBackdrop?.remove();
     this.itemEditorBackdrop = null;
+  },
+
+  // Backdrop/panel structure identical to _openItemEditor (see that method's
+  // own comment) — this one holds what used to be the outfit card's own
+  // inline fields (name, description, portrait) plus the "Update" resnapshot
+  // action that used to sit in the card's top line. Every field still
+  // auto-applies on change/blur; no Save button here either, since nothing
+  // in this modal is a pending edit the way a brand-new outfit's fields are
+  // in _openSaveOutfitModal.
+  _openOutfitEditor(outfit) {
+    this._closeOutfitEditor();
+    const backdrop = document.createElement("div");
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0, 0, 0, 0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      boxSizing: "border-box",
+      zIndex: "30",
+    });
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target === backdrop) this._closeOutfitEditor();
+    });
+
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      background: "var(--card, #1c1c1c)",
+      border: "1px solid var(--border, rgba(128,128,128,0.3))",
+      borderRadius: "var(--radius, 6px)",
+      padding: "12px",
+      width: "min(280px, 100%)",
+      maxHeight: "100%",
+      overflowY: "auto",
+      boxSizing: "border-box",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    });
+    panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("div");
+    Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between" });
+    const title = document.createElement("strong");
+    title.textContent = "Edit Outfit";
+    title.style.fontSize = "13px";
+    const closeButton = QM.button("×", { bg: "transparent", border: true, fg: "inherit" });
+    closeButton.style.padding = "0 6px";
+    closeButton.addEventListener("click", () => this._closeOutfitEditor());
+    header.append(title, closeButton);
+
+    const imageRow = document.createElement("div");
+    Object.assign(imageRow.style, { display: "flex", justifyContent: "center" });
+    imageRow.appendChild(this._buildOutfitPortraitControl(outfit, 96));
+
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.value = outfit.name;
+    nameInput.style.width = "100%";
+    nameInput.style.boxSizing = "border-box";
+    nameInput.style.fontWeight = "600";
+    nameInput.addEventListener("change", () => {
+      const name = nameInput.value.trim();
+      if (name) QM.state.updateOutfit(outfit.id, { name });
+      else nameInput.value = outfit.name; // Empty isn't a valid name — revert rather than submit it.
+    });
+
+    const description = QM.descriptionTextarea(outfit.description, (value) =>
+      QM.state.updateOutfit(outfit.id, { description: value }),
+    );
+    description.rows = 4;
+
+    const updateButton = QM.button("Update Outfit", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    updateButton.title = "Resave the currently-equipped items into this outfit";
+    updateButton.style.width = "100%";
+    updateButton.addEventListener("click", () => QM.state.updateOutfit(outfit.id, { resnapshot: true }));
+
+    panel.append(header, imageRow, nameInput, description, updateButton);
+    backdrop.appendChild(panel);
+    this.outfitEditorBackdrop = backdrop;
+    (this.root || this.body).appendChild(backdrop);
+  },
+
+  _closeOutfitEditor() {
+    this.outfitEditorBackdrop?.remove();
+    this.outfitEditorBackdrop = null;
+  },
+
+  // Unlike the editors above, this one really is a pending-edit form with a
+  // real Save step — there's no outfit id yet for a field to auto-apply
+  // against. The image control is a plain staged file picker (not
+  // _buildOutfitPortraitControl, which uploads immediately via an outfit id
+  // this doesn't have yet): picking a file just compresses it and holds the
+  // resulting data URL in `stagedImageDataUrl` until Save actually creates
+  // the outfit and learns its id. QM.state.createOutfit's own response
+  // updates QM.state.outfits in place (05-state.js's _mutate), and the
+  // server always appends new outfits to the end of that array, so the
+  // freshly created one is reliably the last element right after the
+  // create call resolves — no separate "give me the new id back" plumbing
+  // needed for that part.
+  _openSaveOutfitModal() {
+    this._closeSaveOutfitModal();
+    const backdrop = document.createElement("div");
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0, 0, 0, 0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      boxSizing: "border-box",
+      zIndex: "30",
+    });
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target === backdrop) this._closeSaveOutfitModal();
+    });
+
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      background: "var(--card, #1c1c1c)",
+      border: `1px solid ${QM_COLOR_SUCCESS}`,
+      borderRadius: "var(--radius, 6px)",
+      padding: "12px",
+      width: "min(280px, 100%)",
+      maxHeight: "100%",
+      overflowY: "auto",
+      boxSizing: "border-box",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    });
+    panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("div");
+    Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between" });
+    const title = document.createElement("strong");
+    title.textContent = "Save Current Outfit";
+    title.style.fontSize = "13px";
+    const closeButton = QM.button("×", { bg: "transparent", border: true, fg: "inherit" });
+    closeButton.style.padding = "0 6px";
+    closeButton.addEventListener("click", () => this._closeSaveOutfitModal());
+    header.append(title, closeButton);
+
+    let stagedImageDataUrl = null;
+    const imageRow = document.createElement("div");
+    Object.assign(imageRow.style, { display: "flex", justifyContent: "center" });
+    const imageWrapper = document.createElement("div");
+    Object.assign(imageWrapper.style, { position: "relative", width: "96px", height: "96px" });
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp";
+    fileInput.style.display = "none";
+    const thumbButton = document.createElement("button");
+    thumbButton.type = "button";
+    thumbButton.title = "Add portrait";
+    Object.assign(thumbButton.style, {
+      width: "96px",
+      height: "96px",
+      padding: "0",
+      cursor: "pointer",
+      borderRadius: "var(--radius, 4px)",
+      overflow: "hidden",
+      background: "var(--muted, rgba(128,128,128,0.15))",
+      border: "1px dashed var(--border, rgba(128,128,128,0.4))",
+      fontSize: "38px",
+      lineHeight: "1",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+    thumbButton.textContent = "+";
+    thumbButton.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (!file) return;
+      try {
+        stagedImageDataUrl = await QM.compressImageFile(file);
+        thumbButton.textContent = "";
+        thumbButton.style.border = "1px solid var(--border, rgba(128,128,128,0.3))";
+        const preview = document.createElement("img");
+        preview.alt = "Outfit portrait preview";
+        Object.assign(preview.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
+        preview.src = stagedImageDataUrl;
+        thumbButton.replaceChildren(preview);
+      } catch (error) {
+        QM.state.error = error && error.message ? error.message : String(error);
+        QM.state._notify();
+      }
+    });
+    imageWrapper.append(thumbButton, fileInput);
+    imageRow.appendChild(imageWrapper);
+
+    const nameInput = QM.smallInput("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "Outfit name";
+    nameInput.required = true;
+    nameInput.style.width = "100%";
+    nameInput.style.boxSizing = "border-box";
+
+    const descriptionInput = QM.smallInput("textarea");
+    descriptionInput.placeholder = "Description (fed to appearance when selected)";
+    descriptionInput.rows = 3;
+    Object.assign(descriptionInput.style, {
+      width: "100%",
+      boxSizing: "border-box",
+      resize: "vertical",
+      font: "inherit",
+    });
+
+    const saveButton = QM.button("Save", { bg: QM_COLOR_SUCCESS, fg: QM_COLOR_SUCCESS_FG });
+    saveButton.style.width = "100%";
+    saveButton.addEventListener("click", async () => {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      saveButton.disabled = true;
+      await QM.state.createOutfit({ name, description: descriptionInput.value });
+      const created = QM.state.outfits[QM.state.outfits.length - 1];
+      if (stagedImageDataUrl && created) {
+        await QM.state.uploadOutfitPortrait(created.id, stagedImageDataUrl);
+      }
+      saveButton.disabled = false;
+      this._closeSaveOutfitModal();
+    });
+
+    panel.append(header, imageRow, nameInput, descriptionInput, saveButton);
+    backdrop.appendChild(panel);
+    this.saveOutfitBackdrop = backdrop;
+    (this.root || this.body).appendChild(backdrop);
+  },
+
+  _closeSaveOutfitModal() {
+    this.saveOutfitBackdrop?.remove();
+    this.saveOutfitBackdrop = null;
   },
 };
