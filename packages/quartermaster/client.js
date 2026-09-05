@@ -1170,20 +1170,29 @@ const QM_ADD_ITEM_FRAME_STYLE = {
 // flex item's default min-height:auto lets overflowing content grow its
 // container instead of scrolling unless every level down to the
 // description explicitly opts out via minHeight:"0"): max(the portrait's
-// own size, enough room for the name/slot row(s) plus a guaranteed minimum
-// number of description lines). A bigger portrait (L) lets the row grow to
-// match it, so the description gets more than the guaranteed minimum for
-// free; a smaller portrait (S) still guarantees the minimum by growing the
-// card past the portrait's own size, same as the original fixed-2-line
-// design already did at small sizes. The "other rows" pixel figures are
-// measured constants (name/slot row height with QM.button's actual
-// padding/font, not computed at render time), not something recalculated
-// per render.
+// own size, enough room for the name/slot row(s) plus whichever needs MORE
+// room — a guaranteed minimum number of description lines, or the action
+// column's own button stack). That second term was missing in an earlier
+// revision of this constant (it only accounted for the description's own
+// minimum), which let the actionColumn — Edit/Update/Equip for outfits,
+// Edit/Equip for items — overflow past the card's own border at smaller
+// Thumbnail Sizes, since a flex item's buttons can't compress below their
+// own padding/font the way scrollable text can; a real regression, caught
+// via a live screenshot and reproduced/fixed in the same browser lab test
+// this whole design was built in. A bigger portrait (L) lets the row grow
+// past either minimum for free; a smaller portrait (S) still guarantees
+// both minimums by growing the card past the portrait's own size, same as
+// the original fixed-2-line design already did at small sizes. Every pixel
+// figure below is a measured constant (name/slot row height and
+// action-column height with QM.button's actual padding/font, plus a small
+// safety buffer) — not something recalculated at render time.
 const QM_DESC_LINE_HEIGHT_PX = 14;
-const QM_OUTFIT_CARD_OTHER_ROWS_PX = 26; // nameLine + gap
+const QM_OUTFIT_CARD_OTHER_ROWS_PX = 24; // nameLine + gap
 const QM_OUTFIT_CARD_MIN_DESC_LINES = 5;
-const QM_ITEM_CARD_OTHER_ROWS_PX = 46; // nameLine + slotLine + 2 gaps
+const QM_OUTFIT_CARD_ACTIONS_PX = 70; // Edit/Update/Equip stacked, measured 66 + buffer
+const QM_ITEM_CARD_OTHER_ROWS_PX = 44; // nameLine + slotLine + 2 gaps
 const QM_ITEM_CARD_MIN_DESC_LINES = 3;
+const QM_ITEM_CARD_ACTIONS_PX = 51; // Edit/Equip stacked, measured 47 + buffer
 
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
@@ -3243,7 +3252,8 @@ QM.dock = {
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
     const rowHeight = Math.max(
       thumbnailPx,
-      QM_OUTFIT_CARD_OTHER_ROWS_PX + QM_OUTFIT_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX,
+      QM_OUTFIT_CARD_OTHER_ROWS_PX +
+        Math.max(QM_OUTFIT_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_OUTFIT_CARD_ACTIONS_PX),
     );
     const row = document.createElement("li");
     Object.assign(row.style, {
@@ -3720,7 +3730,8 @@ QM.dock = {
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
     const rowHeight = Math.max(
       thumbnailPx,
-      QM_ITEM_CARD_OTHER_ROWS_PX + QM_ITEM_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX,
+      QM_ITEM_CARD_OTHER_ROWS_PX +
+        Math.max(QM_ITEM_CARD_MIN_DESC_LINES * QM_DESC_LINE_HEIGHT_PX, QM_ITEM_CARD_ACTIONS_PX),
     );
     const row = document.createElement("li");
     Object.assign(row.style, {
