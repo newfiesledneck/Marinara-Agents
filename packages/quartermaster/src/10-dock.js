@@ -459,6 +459,7 @@ QM.dock = {
   armorToggle: null,
   weaponsToggle: null,
   replaceRealAvatarToggle: null,
+  restoreInventoryButton: null,
   equippedContainer: null,
   outfitsContainer: null,
   form: null,
@@ -537,6 +538,7 @@ QM.dock = {
     this.armorToggle = null;
     this.weaponsToggle = null;
     this.replaceRealAvatarToggle = null;
+    this.restoreInventoryButton = null;
     this.equippedContainer = null;
     this.outfitsContainer = null;
     this.form = null;
@@ -1048,6 +1050,7 @@ QM.dock = {
     this.armorToggle.checked = QM.state.showArmor;
     this.weaponsToggle.checked = QM.state.showWeapons;
     this.replaceRealAvatarToggle.checked = QM.state.replaceRealAvatarOnEquip;
+    this.restoreInventoryButton.disabled = !QM.state.previousSnapshot;
     // display was previously only set once at _buildPortrait()'s construction
     // time, from whatever hasAvatar was at mount — harmless while the only
     // input was the persona's own avatar (rarely changes mid-session), but
@@ -1322,6 +1325,8 @@ QM.dock = {
       this._buildExportImportRow(),
       divider(),
       this._buildRefreshImagesRow(),
+      divider(),
+      this._buildRestoreInventoryRow(),
     );
     this.settingsContent = content;
 
@@ -1423,6 +1428,42 @@ QM.dock = {
     });
 
     row.append(description, refreshButton);
+    return row;
+  },
+
+  // The safety net for a bad tracker-agent turn: server.mjs's
+  // reconcileTrackerOutput snapshots items+outfits right before applying
+  // each turn's changes, so this can revert to exactly how things stood
+  // before the LAST agent update, even if that turn wiped or badly mangled
+  // the inventory and there's no export file to re-import. Single-level —
+  // restoring consumes the snapshot, so the button disables itself again
+  // right after (synced every _paint from QM.state.previousSnapshot, same
+  // as the other Settings toggles) until the next agent turn creates a new
+  // one.
+  _buildRestoreInventoryRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px" });
+
+    const description = document.createElement("span");
+    description.textContent = "Revert to the state from just before the last agent update.";
+    Object.assign(description.style, { fontSize: "11px", color: "var(--muted-foreground, inherit)", flex: "1" });
+
+    const restoreButton = QM.button("Restore Inventory", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    restoreButton.disabled = !QM.state.previousSnapshot;
+    restoreButton.addEventListener("click", async () => {
+      if (!window.confirm("Replace the current items and outfits with the state from before the last agent update?")) {
+        return;
+      }
+      restoreButton.disabled = true;
+      await QM.state.restoreInventory();
+    });
+    this.restoreInventoryButton = restoreButton;
+
+    row.append(description, restoreButton);
     return row;
   },
 
