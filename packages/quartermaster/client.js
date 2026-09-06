@@ -2837,7 +2837,12 @@ QM.dock = {
         height: "100%",
         objectFit: "cover",
       });
-      imageArea.appendChild(fallback);
+      // Always the bottom-most layer in imageArea, whether this runs now
+      // (empty slot, before the label bands exist yet) or later from the
+      // equipped item's <img> error handler below (after the bands are
+      // already in the DOM) -- appendChild in that second case would paint
+      // the fallback OVER the bands instead of behind them.
+      imageArea.prepend(fallback);
     };
 
     if (equippedItem) {
