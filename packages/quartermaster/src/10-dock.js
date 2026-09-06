@@ -1320,6 +1320,8 @@ QM.dock = {
       this._buildRealAvatarToggleRow(),
       divider(),
       this._buildExportImportRow(),
+      divider(),
+      this._buildRefreshImagesRow(),
     );
     this.settingsContent = content;
 
@@ -1388,6 +1390,39 @@ QM.dock = {
     importButton.addEventListener("click", () => fileInput.click());
 
     row.append(exportButton, importButton, fileInput);
+    return row;
+  },
+
+  // Manual escape hatch for QM._missingItemImageIds (00-api.js): once an
+  // item's image request 404s, every equip-slot box and bag row remembers
+  // that for the rest of the session rather than re-requesting (and
+  // re-404ing) it on every repaint. That's the right default, but it means
+  // a pack image dropped straight into the gallery folder mid-session, or a
+  // just-uploaded image that should now show everywhere it's cached as
+  // missing, doesn't appear until something clears that cache. Closing and
+  // reopening the dock would also work (_resetCachedNodes runs on the next
+  // open regardless), but isn't obvious as the fix — this does the same
+  // rebuild on demand, from a control that's actually about images.
+  _buildRefreshImagesRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px" });
+
+    const description = document.createElement("span");
+    description.textContent = "Re-check every item for a matching image.";
+    Object.assign(description.style, { fontSize: "11px", color: "var(--muted-foreground, inherit)", flex: "1" });
+
+    const refreshButton = QM.button("Refresh Images", {
+      bg: "var(--secondary, transparent)",
+      fg: "var(--secondary-foreground, inherit)",
+      border: true,
+    });
+    refreshButton.addEventListener("click", () => {
+      QM._missingItemImageIds.clear();
+      this._resetCachedNodes();
+      this._paint();
+    });
+
+    row.append(description, refreshButton);
     return row;
   },
 
