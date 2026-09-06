@@ -343,14 +343,39 @@ function normalizeOutfitSlotSnapshot(value) {
   return { itemId: null, name: null, description: null };
 }
 
+// An outfit stays "the current outfit" as long as every slot IT saved is
+// still worn exactly as saved — equipping something extra in a slot the
+// outfit never claimed (a backpack, a ring) doesn't unequip it, only
+// swapping out one of the outfit's own slots does. Used to be exact-set
+// equality (same slot COUNT, not just the outfit's own slots matching),
+// which meant putting on literally anything else while an outfit was worn
+// silently dropped it as "active" — the appearance-macro description and
+// the real-avatar-replace sync would both revert as if the whole outfit had
+// been removed, even though every one of its own items was still on.
+// extraEquippedNames below is what surfaces that "something extra" instead
+// of just silently ignoring it.
 function outfitMatchesCurrent(outfit, items) {
   const current = currentEquippedSlots(items);
   const outfitEntries = Object.entries(outfit.slots ?? {});
-  const currentEntries = Object.entries(current);
-  if (outfitEntries.length !== currentEntries.length) return false;
+  if (outfitEntries.length === 0) return false; // a slotless outfit is never "currently worn"
   return outfitEntries.every(
     ([slot, snapshot]) => current[slot]?.itemId === normalizeOutfitSlotSnapshot(snapshot).itemId,
   );
+}
+
+// Names of currently equipped items in a slot the given (already-matching)
+// outfit doesn't itself reference — gear worn alongside the outfit rather
+// than part of it. Stable EQUIP_SLOTS order, matching equippedItemNamesText.
+function extraEquippedNames(outfit, items) {
+  const current = currentEquippedSlots(items);
+  const outfitSlots = new Set(Object.keys(outfit.slots ?? {}));
+  const names = [];
+  for (const slot of EQUIP_SLOTS) {
+    if (outfitSlots.has(slot)) continue;
+    const item = current[slot];
+    if (item) names.push(item.name);
+  }
+  return names;
 }
 
 // Equips a saved outfit: unequips everything currently worn, then applies
@@ -416,7 +441,9 @@ function equippedItemNamesText(items) {
 function computeAppearanceText(state) {
   if (state.appearanceFeedMode === "outfitDescription") {
     const matching = state.outfits.find((outfit) => outfitMatchesCurrent(outfit, state.items));
-    return matching ? matching.description : equippedItemNamesText(state.items);
+    if (!matching) return equippedItemNamesText(state.items);
+    const extras = extraEquippedNames(matching, state.items);
+    return extras.length > 0 ? `${matching.description} Also wearing ${extras.join(", ")}.` : matching.description;
   }
   if (state.appearanceFeedMode === "equippedNames") {
     return equippedItemNamesText(state.items);
@@ -501,6 +528,20 @@ function formatAgentRuntimeContext(items, outfitNames) {
 async function reconcileTrackerOutput(documents, persistState, chatId, ownerId, data, logger) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return;
   const state = await loadInventoryState(documents, chatId, ownerId);
+
+  // Snapshot exactly as this turn found it, before any of this turn's own
+  // changes apply — the "Restore Inventory" safety net for a tracker-agent
+  // turn that wipes or badly mangles the inventory (see the /restore route).
+  // Overwrites whatever was snapshotted last turn: single-level undo by
+  // design, not a full history stack, so this is unconditional regardless of
+  // whether this turn's response turns out to actually be fine. Items are
+  // flat objects (a shallow clone is enough); outfits get their own `slots`
+  // map shallow-cloned too since applyOutfitEquip below can replace slot
+  // entries in place on the very same outfit objects.
+  state.previousSnapshot = {
+    items: state.items.map((item) => ({ ...item })),
+    outfits: state.outfits.map((savedOutfit) => ({ ...savedOutfit, slots: { ...savedOutfit.slots } })),
+  };
 
   let outfit = null;
   if (typeof data.equipOutfit === "string" && data.equipOutfit.trim()) {
@@ -670,6 +711,18 @@ async function loadInventoryState(documents, chatId, ownerId) {
     // the next sync can clean it up first — avatars/npc/ isn't swept by the
     // Engine (confirmed), so without this every equip cycle leaks one file.
     lastAvatarNpcFile: typeof doc?.data?.lastAvatarNpcFile === "string" ? doc.data.lastAvatarNpcFile : null,
+    // A single-level undo for the tracker agent specifically: captured at
+    // the top of reconcileTrackerOutput, right before that turn's changes
+    // are applied, so a bad or wildly wrong agent response can be reverted
+    // via "Restore Inventory" in Settings. Not a full history stack — see
+    // that function's own comment and the /restore route for the scope.
+    previousSnapshot:
+      doc?.data?.previousSnapshot && typeof doc.data.previousSnapshot === "object"
+        ? {
+            items: Array.isArray(doc.data.previousSnapshot.items) ? doc.data.previousSnapshot.items : [],
+            outfits: Array.isArray(doc.data.previousSnapshot.outfits) ? doc.data.previousSnapshot.outfits : [],
+          }
+        : null,
   };
 }
 
@@ -969,6 +1022,29 @@ export async function activate(context) {
         await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, null);
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
+      });
+
+      // Reverts items+outfits to the snapshot captured just before the LAST
+      // tracker-agent turn (reconcileTrackerOutput's own previousSnapshot
+      // write) — the "Restore Inventory" safety net in Settings, for when a
+      // bad agent response wipes or badly mangles the inventory and there's
+      // nothing to re-import. Single-level: restoring consumes the snapshot
+      // (set to null) rather than leaving it in place, so clicking it twice
+      // can't ping-pong between the same two states.
+      routes.post("/inventory/:chatId/:ownerId/restore", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        if (!state.previousSnapshot) return reply.status(409).send({ error: "Nothing to restore" });
+
+        state.items = state.previousSnapshot.items;
+        state.outfits = state.previousSnapshot.outfits;
+        state.previousSnapshot = null;
+
+        const active = state.outfits.find((candidate) => outfitMatchesCurrent(candidate, state.items));
+        await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, active ?? null);
+
+        await persistState(chatId, ownerId, state);
+        return { items: state.items, outfits: state.outfits, previousSnapshot: state.previousSnapshot };
       });
 
       routes.delete("/inventory/:chatId/:ownerId/items/:itemId", async (request, reply) => {

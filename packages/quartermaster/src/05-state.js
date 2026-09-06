@@ -191,6 +191,11 @@ QM.state = {
   showWeapons: true,
   personaAvatarUrl: null,
   replaceRealAvatarOnEquip: false,
+  // Set (server-side, via reconcileTrackerOutput) right before each
+  // tracker-agent turn applies its changes — non-null means "Restore
+  // Inventory" in Settings has something to revert to. See
+  // server.mjs's own comment for the single-level (not full history) scope.
+  previousSnapshot: null,
   error: null,
   _listeners: new Set(),
 
@@ -213,6 +218,7 @@ QM.state = {
     this.showArmor = true;
     this.showWeapons = true;
     this.personaAvatarUrl = null;
+    this.previousSnapshot = null;
     this.error = null;
     // A selected equip-slot picker (QM.dock's own UI state, not this
     // object's) doesn't carry any meaning across a chat switch — the slot
@@ -278,6 +284,7 @@ QM.state = {
         showWeapons: result.showWeapons !== false,
         personaAvatarUrl: result.personaAvatarUrl || null,
         replaceRealAvatarOnEquip: result.replaceRealAvatarOnEquip === true,
+        previousSnapshot: result.previousSnapshot ?? null,
       };
       // A repaint rebuilds every card's DOM wholesale (there's no cheap way
       // to patch just the one thing that changed) — item images in
@@ -296,6 +303,7 @@ QM.state = {
         showWeapons: this.showWeapons,
         personaAvatarUrl: this.personaAvatarUrl,
         replaceRealAvatarOnEquip: this.replaceRealAvatarOnEquip,
+        previousSnapshot: this.previousSnapshot,
       };
       const changed = this.error !== null || JSON.stringify(next) !== JSON.stringify(current);
       Object.assign(this, next);
@@ -321,6 +329,7 @@ QM.state = {
       if (result.showWeapons !== undefined) this.showWeapons = result.showWeapons;
       if (result.replaceRealAvatarOnEquip !== undefined)
         this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
+      if (result.previousSnapshot !== undefined) this.previousSnapshot = result.previousSnapshot;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
@@ -347,6 +356,9 @@ QM.state = {
   },
   unequipAll() {
     return this._mutate(QM.unequipAll(this.chatId, QM_OWNER_ID));
+  },
+  restoreInventory() {
+    return this._mutate(QM.restoreInventory(this.chatId, QM_OWNER_ID));
   },
   // Read-only — doesn't touch `this` state, just hands the caller (the dock's
   // export button) the payload to write out as a file.
@@ -468,14 +480,18 @@ QM.state = {
       .sort((a, b) => a.localeCompare(b));
   },
 
+  // An outfit stays "the current outfit" as long as every slot IT saved is
+  // still worn exactly as saved — equipping something extra in a slot the
+  // outfit never claimed doesn't unequip it, only swapping out one of the
+  // outfit's own slots does. Mirrors server.mjs's outfitMatchesCurrent
+  // exactly (see its own comment for why this isn't exact-set equality).
   outfitMatchesCurrent(outfit) {
     const current = {};
     for (const item of this.items ?? []) {
       if (item.location.startsWith("equipped:")) current[item.location.slice("equipped:".length)] = item.id;
     }
     const outfitEntries = Object.entries(outfit.slots ?? {});
-    const currentEntries = Object.entries(current);
-    if (outfitEntries.length !== currentEntries.length) return false;
+    if (outfitEntries.length === 0) return false; // a slotless outfit is never "currently worn"
     return outfitEntries.every(([slot, snapshot]) => {
       const itemId = snapshot && typeof snapshot === "object" ? snapshot.itemId : snapshot;
       return current[slot] === itemId;

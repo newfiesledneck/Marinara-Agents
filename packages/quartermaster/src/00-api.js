@@ -75,6 +75,15 @@ QM.unequipAll = (chatId, ownerId) =>
     body: "{}",
   });
 
+// Reverts to the snapshot captured just before the last tracker-agent turn —
+// see server.mjs's reconcileTrackerOutput/restore route for the single-level
+// (not a full history) design.
+QM.restoreInventory = (chatId, ownerId) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/restore`, {
+    method: "POST",
+    body: "{}",
+  });
+
 QM.uploadItemImage = (chatId, ownerId, itemId, imageDataUrl) =>
   qmRequest(
     `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`,
