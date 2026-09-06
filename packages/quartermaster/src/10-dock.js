@@ -1953,7 +1953,9 @@ QM.dock = {
       imageArea.prepend(fallback);
     };
 
-    if (equippedItem) {
+    if (equippedItem && QM._missingItemImageIds.has(equippedItem.id)) {
+      qmCenterFallbackIcon();
+    } else if (equippedItem) {
       // Same by-name image lookup item cards use (QM.itemImageUrl). On a
       // 404 (no matching image, uploaded or pack), falls back to the
       // slot's own plain pictogram rather than leaving the area blank.
@@ -1968,6 +1970,7 @@ QM.dock = {
         display: "block",
       });
       img.addEventListener("error", () => {
+        QM._missingItemImageIds.add(equippedItem.id);
         img.remove();
         qmCenterFallbackIcon();
       });
@@ -2336,41 +2339,53 @@ QM.dock = {
     });
     removeButton.addEventListener("click", () => QM.state.deleteItemImage(item.id));
 
-    const img = document.createElement("img");
-    img.alt = `${item.name} image`;
-    // No loading="lazy": this element starts (and often stays, on a
-    // no-match) display:none, which has no layout box — a lazy image can
-    // never be "near the viewport" with no box at all, so the browser may
-    // never actually fetch it, leaving the placeholder showing forever even
-    // when a real match exists on disk. Fetch eagerly instead; the item
-    // list is never long enough for that to matter.
-    Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "none" });
-    img.addEventListener("load", () => {
-      placeholderMark.style.display = "none";
-      thumbButton.style.border = "1px solid var(--border, rgba(128,128,128,0.3))";
-      img.style.display = "block";
-      removeButton.style.display = "block";
-    });
-    img.addEventListener("error", () => {
-      img.remove();
-      // No matching image (uploaded or pack) — fall back to that item's own
-      // default-slot icon rather than the bare "+" mark, same artwork the
-      // equip-slot boxes use. An item with no default slot set keeps the
-      // plain "+" on purpose: it's a real, useful visual cue while
-      // scrolling the bag that this item still needs one set. Full sizePx,
-      // not a fraction of it — this is real illustrated artwork now, not a
-      // plain glyph, so it should fill thumbButton the same way an actual
-      // item photo does (the sibling `img` above, same width/height/
-      // objectFit) instead of sitting small in the middle of it.
+    // No matching image (uploaded or pack) — fall back to that item's own
+    // default-slot icon rather than the bare "+" mark, same artwork the
+    // equip-slot boxes use. An item with no default slot set keeps the
+    // plain "+" on purpose: it's a real, useful visual cue while scrolling
+    // the bag that this item still needs one set. Full sizePx, not a
+    // fraction of it — this is real illustrated artwork now, not a plain
+    // glyph, so it should fill thumbButton the same way an actual item
+    // photo does (the sibling `img` below, same width/height/objectFit)
+    // instead of sitting small in the middle of it.
+    const applyMissingImageFallback = () => {
       if (item.defaultSlot) {
         placeholderMark.style.display = "none";
         const fallback = QM.buildSlotIconRaster(item.defaultSlot, sizePx);
         Object.assign(fallback.style, { width: "100%", height: "100%", objectFit: "cover" });
         thumbButton.appendChild(fallback);
       }
-    });
-    img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
-    thumbButton.appendChild(img);
+    };
+
+    if (QM._missingItemImageIds.has(item.id)) {
+      // Already confirmed missing this session — skip the doomed request
+      // (and its console 404) entirely rather than re-fetching on every
+      // rebuild of this row (thumbnail size changes, list re-renders, etc).
+      applyMissingImageFallback();
+    } else {
+      const img = document.createElement("img");
+      img.alt = `${item.name} image`;
+      // No loading="lazy": this element starts (and often stays, on a
+      // no-match) display:none, which has no layout box — a lazy image can
+      // never be "near the viewport" with no box at all, so the browser may
+      // never actually fetch it, leaving the placeholder showing forever even
+      // when a real match exists on disk. Fetch eagerly instead; the item
+      // list is never long enough for that to matter.
+      Object.assign(img.style, { width: "100%", height: "100%", objectFit: "cover", display: "none" });
+      img.addEventListener("load", () => {
+        placeholderMark.style.display = "none";
+        thumbButton.style.border = "1px solid var(--border, rgba(128,128,128,0.3))";
+        img.style.display = "block";
+        removeButton.style.display = "block";
+      });
+      img.addEventListener("error", () => {
+        QM._missingItemImageIds.add(item.id);
+        img.remove();
+        applyMissingImageFallback();
+      });
+      img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
+      thumbButton.appendChild(img);
+    }
 
     wrapper.append(thumbButton, fileInput, removeButton);
     return wrapper;
