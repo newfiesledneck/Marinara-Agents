@@ -97,6 +97,17 @@ QM.deleteItemImage = (chatId, ownerId, itemId) =>
 QM.itemImageUrl = (chatId, ownerId, itemId) =>
   `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`;
 
+// Items confirmed to have no image (uploaded or pack), so repeated repaints
+// of the same item — the dock/panel rebuild their DOM on every reflow, not
+// just once — don't keep re-requesting (and re-404ing/re-logging) a URL
+// already known to fail. Session-lifetime only, not persisted: a page
+// reload re-checks everything once, which is fine. Cleared for a specific
+// item by uploadItemImage/deleteItemImage below; a rename that happens to
+// newly match a pack image is the one case this can go stale on, until the
+// next reload — rare enough not to warrant duplicating the server's
+// name-matching logic here just to key this more precisely.
+QM._missingItemImageIds = new Set();
+
 // Not a fetch — the <img src> URL for a slot's bundled generic artwork
 // (server.mjs's SLOT_ICON_FILES). Not chat/owner-scoped — this is package
 // content, not chat data. A 404 (unrecognized slot) is handled by the

@@ -338,9 +338,11 @@ QM.state = {
     return this._mutate(QM.deleteItem(this.chatId, QM_OWNER_ID, itemId));
   },
   uploadItemImage(itemId, imageDataUrl) {
+    QM._missingItemImageIds.delete(itemId);
     return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
   },
   deleteItemImage(itemId) {
+    QM._missingItemImageIds.add(itemId);
     return this._mutate(QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId));
   },
   unequipAll() {
