@@ -582,8 +582,9 @@ QM.dock = {
     this.syncGeometry();
     if (!this.unsubscribe) {
       this.unsubscribe = QM.state.subscribe(() => this._paint());
-      // Picks up server-side changes from the tracker agent, which has no
-      // way to push an update to us — see QM.state.startPolling's comment.
+      // Picks up server-side changes from the tracker agent via the
+      // Engine's own generation-complete event — see QM.state.startPolling's
+      // comment.
       QM.state.startPolling();
     }
     QM.state.ensureLoaded();

@@ -431,18 +431,76 @@ function qmFocusIsInsideLiveView() {
   return Boolean((dockRoot && dockRoot.contains(active)) || (panelRoot && panelRoot.contains(active)));
 }
 
+// The Engine dispatches this DOM event to every mounted package host when a
+// chat turn's generation finishes, including the persona-inventory-updating
+// post_processing tracker agent's own turn (same event packages/beholder
+// already relies on for its own equivalent tracker-agent-catch-up need).
+// Catching it means the dock/tracker panel catch up within moments of a
+// turn landing instead of on a fixed timer, and cost zero network traffic
+// while nothing has actually happened. The agent itself still runs
+// asynchronously after the event fires, so a short catch-up schedule (not a
+// single immediate reload) is still needed — self-cancels the moment state
+// actually changes.
+const QM_CATCH_UP_DELAYS = [0, 2000, 5000, 9000];
+let qmCatchUpTimers = [];
+let qmGenerationListenerBound = false;
+
+function qmStateSnapshotForChangeDetection() {
+  return JSON.stringify({
+    items: QM.state.items,
+    outfits: QM.state.outfits,
+    appearanceFeedMode: QM.state.appearanceFeedMode,
+    showUnderwear: QM.state.showUnderwear,
+    showArmor: QM.state.showArmor,
+    showWeapons: QM.state.showWeapons,
+    personaAvatarUrl: QM.state.personaAvatarUrl,
+    replaceRealAvatarOnEquip: QM.state.replaceRealAvatarOnEquip,
+    previousSnapshot: QM.state.previousSnapshot,
+  });
+}
+
+function qmScheduleCatchUpReload() {
+  for (const timer of qmCatchUpTimers) clearTimeout(timer);
+  qmCatchUpTimers = [];
+  const before = qmStateSnapshotForChangeDetection();
+  for (const delay of QM_CATCH_UP_DELAYS) {
+    qmCatchUpTimers.push(
+      setTimeout(async () => {
+        // No viewer left to show it, or the user's mid-edit — the next
+        // generation event (or the focusout catch-up below) will retry.
+        if (!QM.state._activeViewers || qmFocusIsInsideLiveView()) return;
+        await QM.state._reload();
+        if (qmStateSnapshotForChangeDetection() !== before) {
+          for (const timer of qmCatchUpTimers) clearTimeout(timer);
+          qmCatchUpTimers = [];
+        }
+      }, delay),
+    );
+  }
+}
+
+function qmBindGenerationListener() {
+  if (qmGenerationListenerBound || typeof window === "undefined") return;
+  qmGenerationListenerBound = true;
+  window.addEventListener("marinara:generation-complete", (event) => {
+    const chatId = event?.detail?.chatId;
+    if (chatId && chatId === QM.state.chatId && QM.state._activeViewers > 0) qmScheduleCatchUpReload();
+  });
+}
+
 // Registered once, module-wide (not per mount/unmount), since it's a no-op
-// whenever polling isn't active. Catches the user up as soon as they finish
-// editing instead of leaving them looking at up-to-5-second-stale data until
-// the next tick — "focusout" (unlike "blur") bubbles, so one delegated
-// listener covers every field/select either view ever builds. The delay
-// lets focus land on wherever it's actually going next (tabbing to another
-// field, a <select>'s popup closing) before deciding the user is done.
+// whenever no viewer is registered. Catches the user up as soon as they
+// finish editing instead of leaving them looking at stale data until the
+// next generation event — "focusout" (unlike "blur") bubbles, so one
+// delegated listener covers every field/select either view ever builds. The
+// delay lets focus land on wherever it's actually going next (tabbing to
+// another field, a <select>'s popup closing) before deciding the user is
+// done.
 if (typeof document !== "undefined") {
   document.addEventListener(
     "focusout",
     () => {
-      if (!QM.state._pollTimer) return;
+      if (!QM.state._activeViewers) return;
       setTimeout(() => {
         if (QM.state.chatId && !qmFocusIsInsideLiveView()) QM.state._reload();
       }, 200);
@@ -512,36 +570,24 @@ QM.state = {
   },
 
   // Neither view has any way to know the server-side tracker agent changed
-  // something — that happens entirely inside the post_processing pipeline,
-  // with no push/event back to the client. Confirmed live: an agent turn
-  // reconciled correctly (verified server-side), but the dock kept showing
-  // stale data until an unrelated manual action forced a reload. Polling
-  // while a view is actually open/mounted is the fix — ref-counted so the
-  // dock and tracker panel can both be open without either one stopping the
-  // other's polling when it closes first.
+  // something purely from its own state — that happens inside the
+  // post_processing pipeline. Catching the Engine's own
+  // "marinara:generation-complete" event (qmBindGenerationListener, above)
+  // is the fix, ref-counted so the dock and tracker panel can both be open
+  // without either one unregistering the other's ability to react to it
+  // when it closes first.
   _activeViewers: 0,
-  _pollTimer: null,
 
   startPolling() {
     this._activeViewers += 1;
-    if (this._pollTimer) return;
-    this._pollTimer = setInterval(() => {
-      if (!this.chatId || typeof document === "undefined" || document.hidden) return;
-      // A repaint replaces the DOM nodes wholesale (there's no cheap way to
-      // patch just the one row that changed), so a poll landing mid-edit —
-      // typing in a description field, an open <select>'s native dropdown —
-      // would tear the control out from under the user. Skip this tick and
-      // let qmScheduleCatchUpReload pick it up the moment focus leaves.
-      if (qmFocusIsInsideLiveView()) return;
-      this._reload();
-    }, 5000);
+    qmBindGenerationListener();
   },
 
   stopPolling() {
     this._activeViewers = Math.max(0, this._activeViewers - 1);
-    if (this._activeViewers === 0 && this._pollTimer) {
-      clearInterval(this._pollTimer);
-      this._pollTimer = null;
+    if (this._activeViewers === 0) {
+      for (const timer of qmCatchUpTimers) clearTimeout(timer);
+      qmCatchUpTimers = [];
     }
   },
 
@@ -1541,8 +1587,9 @@ QM.dock = {
     this.syncGeometry();
     if (!this.unsubscribe) {
       this.unsubscribe = QM.state.subscribe(() => this._paint());
-      // Picks up server-side changes from the tracker agent, which has no
-      // way to push an update to us — see QM.state.startPolling's comment.
+      // Picks up server-side changes from the tracker agent via the
+      // Engine's own generation-complete event — see QM.state.startPolling's
+      // comment.
       QM.state.startPolling();
     }
     QM.state.ensureLoaded();
@@ -4861,8 +4908,8 @@ QM.panel = {
     this.container = container;
     this.root = null; // force the persistent structure to be rebuilt for the new container
     this.unsubscribe = QM.state.subscribe(() => this.paint());
-    // Picks up server-side changes from the tracker agent, which has no way
-    // to push an update to us — see QM.state.startPolling's comment.
+    // Picks up server-side changes from the tracker agent via the Engine's
+    // own generation-complete event — see QM.state.startPolling's comment.
     QM.state.startPolling();
     QM.state.ensureLoaded();
     this.paint();
