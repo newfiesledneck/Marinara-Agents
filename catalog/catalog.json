@@ -1939,13 +1939,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "34bd736b55f7d4089b1ef0ebe93cf2b763592ea468642f92a1bb50a7f10257b4",
-            "bytes": 224948
+            "sha256": "abbf8660f9e45908e3320177cb5e6f44a266c92ee169cc33c2e7d884151c045a",
+            "bytes": 225992
           },
           {
             "path": "server.mjs",
-            "sha256": "4a0381da223bb91c53e767ea1c0b7d6890a580c90672b7295b15d478019db0ad",
-            "bytes": 92168
+            "sha256": "0fad9614d3aa634ba83129b5059520055e95de85ea4b24441ae1bdc32e4084da",
+            "bytes": 93689
           },
           {
             "path": "icons/armor_legs.webp",
@@ -2039,8 +2039,8 @@
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/quartermaster/README.md",
       "artifact": {
         "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.1.3.zip",
-        "sha256": "6a16beb240485ff4e6b47778bcd3755e4cf232a181fd079a4ca995fc3d7b9e26",
-        "bytes": 347798
+        "sha256": "902d7973f0d38a43a7517c2edf6c07db36c954a306d3e6ef26cf0e63c3252451",
+        "bytes": 350363
       }
     },
     {
