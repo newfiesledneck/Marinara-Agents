@@ -94,8 +94,8 @@ QM.panel = {
     this.container = container;
     this.root = null; // force the persistent structure to be rebuilt for the new container
     this.unsubscribe = QM.state.subscribe(() => this.paint());
-    // Picks up server-side changes from the tracker agent, which has no way
-    // to push an update to us — see QM.state.startPolling's comment.
+    // Picks up server-side changes from the tracker agent via the Engine's
+    // own generation-complete event — see QM.state.startPolling's comment.
     QM.state.startPolling();
     QM.state.ensureLoaded();
     this.paint();
