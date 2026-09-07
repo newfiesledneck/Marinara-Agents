@@ -76,27 +76,33 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.4",
+          "date": "2026-09-08",
+          "notes": "- Added Build Wardrobe: describe a style direction and get a proposed set of new items and\n  outfits to review before adding them to inventory.\n- Outfits it builds can reuse your existing wearable items instead of always creating new ones.\n- Generation uses the tracker agent's own configured connection, so switching that in the Agents\n  menu also moves this.\n- Fixed non-wearable items (a phone, a wallet) sometimes turning up in a generated outfit.",
+          "highlight": true
+        },
+        {
           "version": "0.1.3",
           "date": "2026-09-07",
-          "notes": "Fixed inventory silently wiping every turn: the tracker agent's resultType was misconfigured as a\ntext-only result, so its JSON response never actually got parsed. Outfits now stay equipped when\nextra items get added alongside them — only swapping one of the outfit's own items unequips it —\nand the appearance macro reflects that. Added a \"Restore Inventory\" safety net and a \"Refresh\nImages\" button, both under Settings. Fixed a rendering bug that hid an equip slot's name/item\nlabels behind its fallback icon, and stopped repeatedly re-requesting (and console-flooding)\nimages already confirmed missing.",
+          "notes": "- Fixed inventory silently wiping every turn: the tracker agent's resultType was misconfigured as\n  a text-only result, so its JSON response never actually got parsed.\n- Outfits now stay equipped when extra items get added alongside them — only swapping one of the\n  outfit's own items unequips it — and the appearance macro reflects that.\n- Added a \"Restore Inventory\" safety net and a \"Refresh Images\" button, both under Settings.\n- Fixed a rendering bug that hid an equip slot's name/item labels behind its fallback icon.\n- Stopped repeatedly re-requesting (and console-flooding) images already confirmed missing.",
           "highlight": true
         },
         {
           "version": "0.1.2",
           "date": "2026-09-05",
-          "notes": "Major visual overhaul: a decorated portrait frame with connector lines to each equip slot, bundled\nartwork for every equip slot, and redesigned item/outfit cards that size themselves to their own\ncontent instead of clipping or growing unbounded. Equip slots now show the item's full image;\noutfits got a reworked save/edit flow; columns can collapse to genuinely narrow the dock. Delete\nconfirmations and Escape-to-close round it out.",
+          "notes": "- Added a decorated portrait frame with connector lines to each equip slot.\n- Added bundled artwork for every equip slot.\n- Redesigned item/outfit cards to size themselves to their own content instead of clipping or\n  growing unbounded.\n- Equip slots now show the item's full image.\n- Outfits got a reworked save/edit flow.\n- Columns can collapse to genuinely narrow the dock.\n- Added delete confirmations and Escape-to-close.",
           "highlight": true
         },
         {
           "version": "0.1.1",
           "date": "2026-08-30",
-          "notes": "UI polish pass: theme-aware dropdowns, fixed a portrait-ring shift with the underwear toggle, real\nbutton hover/press states, consistent styling, an animated Settings section, and\nclick-outside-to-close.",
+          "notes": "- Theme-aware dropdowns.\n- Fixed a portrait-ring shift with the underwear toggle.\n- Real button hover/press states.\n- Consistent styling.\n- Added an animated Settings section.\n- Added click-outside-to-close.",
           "highlight": false
         },
         {
           "version": "0.1.0",
           "date": "2026-08-28",
-          "notes": "First release: equip slots around a portrait, item locations, saved outfits, export/import, the\nappearance macro, the narrator context feed, and an agent that keeps inventory in sync\nautomatically from the story.",
+          "notes": "- Equip slots around a portrait.\n- Item locations.\n- Saved outfits.\n- Export/import.\n- The appearance macro.\n- The narrator context feed.\n- An agent that keeps inventory in sync automatically from the story.",
           "highlight": true
         }
       ]
