@@ -733,7 +733,18 @@ PF.core = {
     // pack answers whether this arrival finished anything and the HUD says so —
     // the toast above is where the player is, this is what it was worth.
     this.hud?.questFilled(PF.pack.visited(this, sim.zoneId, PF.save._gen ?? 0));
-    PF.save.markDirty(this);
+    // THE LATTICE'S OWN ARRIVAL BOOKKEEPING (0.16 §2.3): the recency order, and
+    // on a landmark cell the discovery row and the second notice that goes with
+    // it. Ordinary country gets the one location toast above and nothing else.
+    // 50-spatial's drift arm runs the same call, because a narrated hop is an
+    // arrival too.
+    const entered = PF.lattice.enter(this, sim.zoneId);
+    // AND THE WRITE — EXCEPT FOR A WALK THROUGH THE WILDERNESS (0.16 §2.4). This
+    // line used to be unconditional, which is fine for a world where crossing a
+    // zone boundary is an event; out in the lattice it is what walking IS, every
+    // six to eight seconds, each one a whole-shard write. A cell-to-cell step
+    // writes nothing here and rides the positional autosave below instead.
+    if (!PF.lattice.isChunkCrossing(entered.from, entered.id)) PF.save.markDirty(this);
   },
 
   markDirty() {
@@ -856,6 +867,15 @@ PF.core = {
         if (detail.packageId !== (typeof core.host?.packageId === "string" ? core.host.packageId : "pixelforge"))
           return;
         if (detail.chatId !== core.chatId) return;
+        // Capability API 1.16: the GM's own event verbs ride the SAME bus and are
+        // not spatial. Routed here rather than through a second window listener —
+        // one listener, one address check, one branch per event family — and
+        // AHEAD of the funnel, which would otherwise take every type it does not
+        // recognise and quietly do nothing with it.
+        if (detail.type === "gm_verb") {
+          PF.gm.onVerb(core, detail);
+          return;
+        }
         PF.spatial.onHostEvent(core, detail);
       });
     }
