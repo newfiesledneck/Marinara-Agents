@@ -380,6 +380,21 @@ QM.state = {
   deleteOutfit(outfitId) {
     return this._mutate(QM.deleteOutfit(this.chatId, QM_OWNER_ID, outfitId));
   },
+  // Read-only preview — bypasses _mutate like exportInventory() above, since
+  // nothing gets written until confirmWardrobe below is called.
+  generateWardrobe(direction, includePersonaContext) {
+    return QM.generateWardrobe(this.chatId, QM_OWNER_ID, direction, includePersonaContext);
+  },
+  // _mutate applies the returned items/outfits but only reads the fields it
+  // recognizes — it drops the response's own `summary` field. Returning the
+  // same (already-settled) request lets the caller read `summary` too,
+  // without a second network round trip; a caller doing so must wrap it in
+  // its own try/catch, since a rejection is still a rejection on re-await.
+  async confirmWardrobe(proposal) {
+    const request = QM.confirmWardrobe(this.chatId, QM_OWNER_ID, proposal);
+    await this._mutate(request);
+    return request;
+  },
   uploadOutfitPortrait(outfitId, imageDataUrl) {
     return this._mutate(QM.uploadOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId, imageDataUrl));
   },

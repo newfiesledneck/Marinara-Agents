@@ -486,9 +486,11 @@ QM.dock = {
   itemEditorBackdrop: null,
   outfitEditorBackdrop: null,
   saveOutfitBackdrop: null,
+  wardrobeBuilderBackdrop: null,
   _itemEditorEscapeHandler: null,
   _outfitEditorEscapeHandler: null,
   _saveOutfitEscapeHandler: null,
+  _wardrobeEscapeHandler: null,
   bagSearchQuery: "",
   bagSearchMode: "name",
   bagSearchInput: null,
@@ -522,9 +524,11 @@ QM.dock = {
     this._unbindEscapeClose(this._itemEditorEscapeHandler);
     this._unbindEscapeClose(this._outfitEditorEscapeHandler);
     this._unbindEscapeClose(this._saveOutfitEscapeHandler);
+    this._unbindEscapeClose(this._wardrobeEscapeHandler);
     this._itemEditorEscapeHandler = null;
     this._outfitEditorEscapeHandler = null;
     this._saveOutfitEscapeHandler = null;
+    this._wardrobeEscapeHandler = null;
     this.columns = null;
     this.zoomWrapper = null;
     this.uiSizeButtons = null;
@@ -558,6 +562,7 @@ QM.dock = {
     this.sectionBodies = null;
     this.outfitEditorBackdrop = null;
     this.saveOutfitBackdrop = null;
+    this.wardrobeBuilderBackdrop = null;
   },
 
   isOpen() {
@@ -2203,7 +2208,11 @@ QM.dock = {
       requestAnimationFrame(() => this._applyCardDescriptionCaps());
     });
     this.outfitSearchInput = searchInput;
-    row.appendChild(searchInput);
+
+    const buildWardrobeButton = QM.button("Build Wardrobe…", { border: true });
+    buildWardrobeButton.addEventListener("click", () => this._openWardrobeBuilder());
+
+    row.append(searchInput, buildWardrobeButton);
     return row;
   },
 

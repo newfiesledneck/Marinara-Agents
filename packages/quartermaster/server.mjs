@@ -424,6 +424,65 @@ function applyOutfitEquip(state, outfit) {
   }
 }
 
+// Commits a Build Wardrobe proposal (already validated by
+// parseWardrobeProposal) into real items/outfits. Deliberately does NOT
+// call applyOutfitEquip -- this only builds saved definitions, nothing gets
+// worn. Two passes: items first (so an outfit in the same proposal can
+// reference an item defined earlier in it), then outfits, which resolve
+// "itemNames" against ALL of state.items -- not just this proposal's own
+// new ones -- so an outfit can equally reference something the persona
+// already owned before this call. Mutates `state` in place.
+function applyGeneratedWardrobe(state, proposal) {
+  const createdItemNames = [];
+  for (const entry of proposal.items) {
+    const key = qmNormalizeMatchKey(entry.name);
+    const existing = state.items.find((candidate) => qmNormalizeMatchKey(candidate.name) === key);
+    if (existing) continue; // reuse as-is -- never overwrite a possibly-customized existing item
+    state.items.push({
+      id: randomUUID(),
+      name: entry.name,
+      description: entry.description || "",
+      quantity: entry.quantity,
+      location: "bag",
+      defaultSlot: entry.defaultSlot,
+    });
+    createdItemNames.push(entry.name);
+  }
+
+  const createdOutfitNames = [];
+  const reusedItemNames = new Set();
+  const skipped = [];
+  for (const outfitEntry of proposal.outfits) {
+    const outfitKey = qmNormalizeMatchKey(outfitEntry.name);
+    if (state.outfits.some((candidate) => qmNormalizeMatchKey(candidate.name) === outfitKey)) {
+      skipped.push({ name: outfitEntry.name, reason: "duplicate-name" });
+      continue;
+    }
+    const slots = {};
+    for (const memberName of outfitEntry.itemNames) {
+      const memberKey = qmNormalizeMatchKey(memberName);
+      const item = state.items.find((candidate) => qmNormalizeMatchKey(candidate.name) === memberKey);
+      if (!item || !item.defaultSlot) continue; // unresolvable member, or nothing to place it in -- drop silently
+      if (slots[item.defaultSlot]) {
+        skipped.push({ outfitName: outfitEntry.name, itemName: memberName, reason: "slot-collision" });
+        continue;
+      }
+      slots[item.defaultSlot] = { itemId: item.id, name: item.name, description: item.description };
+      if (!createdItemNames.includes(item.name)) reusedItemNames.add(item.name);
+    }
+    state.outfits.push({
+      id: randomUUID(),
+      name: outfitEntry.name,
+      description: outfitEntry.description || "",
+      slots,
+      portraitFile: null,
+    });
+    createdOutfitNames.push(outfitEntry.name);
+  }
+
+  return { createdItemNames, createdOutfitNames, reusedItemNames: [...reusedItemNames], skipped };
+}
+
 function equippedItemNamesText(items) {
   const names = [];
   for (const slot of EQUIP_SLOTS) {
@@ -513,11 +572,191 @@ function formatAgentRuntimeContext(items, outfitNames) {
   return lines.join("\n");
 }
 
+const MAX_WARDROBE_EXISTING_ITEMS_LISTED = 100;
+
+// Builds the two messages for one Build Wardrobe generation call. Pure --
+// no I/O, no state mutation -- so it's trivially testable and reusable
+// between the initial attempt and a retry. `existingItems` lets the model
+// reuse something the persona already owns instead of inventing a
+// near-duplicate; outfits are allowed to reference them by exact name (see
+// buildGeneratedWardrobe's own comment for why that's safe to allow).
+function buildWardrobePrompt(direction, personaContext, existingItems, includePersonaContext) {
+  const systemMessage = [
+    "You are designing a wardrobe of clothing/gear items and outfits for a persona in a roleplay, based on the user's style direction below.",
+    "",
+    "Respond ONLY with valid JSON, no prose, no markdown:",
+    "{",
+    '  "items": [',
+    '    { "name": "string", "description": "string (optional, 1-2 sentences)", "quantity": integer >= 1, "defaultSlot": "<slot id>" | null }',
+    "  ],",
+    '  "outfits": [',
+    '    { "name": "string", "description": "string (a short visual description of the outfit as a whole)", "itemNames": ["exact name of an item -- either one you defined above, or an already-existing item from the list below", "..."] }',
+    "  ]",
+    "}",
+    "",
+    `Valid slot ids (use these exact strings only, or null): ${EQUIP_SLOTS.join(", ")}.`,
+    "",
+    "RULES:",
+    "1. Design enough NEW items to cover whatever the direction describes that the persona doesn't already own -- don't skip or merge requested outfits.",
+    '2. An outfit\'s "itemNames" may reference an item you just defined in "items" above, OR an already-existing item from the list below, by its exact name -- prefer reusing an existing item that already fits over inventing a near-duplicate.',
+    '3. Give a NEW item a "defaultSlot" whenever it\'s worn in a fixed spot; leave it null only for something with no natural equip slot.',
+    "4. Never give two items in the same outfit the same defaultSlot.",
+    "5. Only invent a new item when nothing existing already fits what the outfit needs.",
+    "6. Keep new item names short and distinct (a color/material/type in the name -- never shorten a distinguishing detail out of it).",
+    "7. quantity is almost always 1 for wearables.",
+  ].join("\n");
+
+  const userLines = [direction];
+
+  if (includePersonaContext && personaContext) {
+    const personaLines = ["", "## Persona"];
+    if (personaContext.description) personaLines.push(`Description: ${personaContext.description}`);
+    if (personaContext.personality) personaLines.push(`Personality: ${personaContext.personality}`);
+    if (personaContext.scenario) personaLines.push(`Scenario: ${personaContext.scenario}`);
+    if (personaContext.appearance) personaLines.push(`Appearance: ${personaContext.appearance}`);
+    if (personaContext.backstory) personaLines.push(`Backstory: ${personaContext.backstory}`);
+    if (personaLines.length > 2) userLines.push(...personaLines);
+  }
+
+  if (existingItems.length > 0) {
+    const listed = existingItems.slice(0, MAX_WARDROBE_EXISTING_ITEMS_LISTED);
+    userLines.push("", "## Existing inventory (reuse these by exact name in \"itemNames\" when they fit)");
+    for (const item of listed) {
+      const slot = item.defaultSlot || "no slot";
+      const description = item.description ? `: ${item.description}` : "";
+      userLines.push(`- "${item.name}" (${slot})${description}`);
+    }
+  }
+
+  return { systemMessage, userMessage: userLines.join("\n") };
+}
+
 // Reconciles one tracker-agent turn's raw JSON output into the owner's
 // canonical inventory. `persistState` is passed in rather than imported,
 // since it's a closure defined in activate() (it also syncs the appearance
 // macro — see persistState's own definition there).
 //
+const MAX_WARDROBE_ITEMS = 60;
+const MAX_WARDROBE_OUTFITS = 12;
+const WARDROBE_LLM_TEMPERATURE = 0.8; // creative -- unlike the tracker agent's temperature 0, this is meant to invent varied ideas, not report facts
+const WARDROBE_LLM_MAX_TOKENS = 4096;
+const WARDROBE_MAX_ATTEMPTS = 2; // 1 initial + 1 retry, same cap gacha-forge's own generation retry loop uses
+
+// Validates/coerces a Build Wardrobe response (either the raw LLM completion
+// text, or the client's echoed-back proposal re-serialized to a string by
+// the /confirm route) into a trustworthy `{items, outfits}` shape. Every
+// field goes through the SAME normalizers the rest of this file already
+// uses for item/outfit input -- this never accepts the LLM's (or a
+// tampered client's) JSON as-is. Returns null, never throws, when nothing
+// usable survives -- an outfit built entirely from reused existing items is
+// valid even with zero new items, so an empty "items" array alone is not a
+// failure; only BOTH being empty is. `parseJsonish` is `runtime.json.
+// parseJsonish` (a lenient extractor -- strips code fences etc.), passed in
+// rather than imported since this file has no direct Engine import for it.
+function parseWardrobeProposal(raw, parseJsonish, logger) {
+  let parsed;
+  try {
+    parsed = parseJsonish(raw);
+  } catch (error) {
+    logger?.warn("[quartermaster] wardrobe proposal was not parseable JSON: %s", error instanceof Error ? error.message : String(error));
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+  const items = [];
+  for (const entry of Array.isArray(parsed.items) ? parsed.items : []) {
+    if (items.length >= MAX_WARDROBE_ITEMS) break;
+    if (!entry || typeof entry !== "object") continue;
+    const name = normalizeText(entry.name, MAX_ITEM_NAME_LENGTH);
+    if (!name) continue;
+    const defaultSlot = normalizeDefaultSlot(entry.defaultSlot);
+    items.push({
+      name,
+      description: normalizeText(entry.description, MAX_ITEM_DESCRIPTION_LENGTH),
+      quantity: normalizeQuantity(entry.quantity) || 1,
+      defaultSlot: defaultSlot || null,
+    });
+  }
+
+  const outfits = [];
+  for (const entry of Array.isArray(parsed.outfits) ? parsed.outfits : []) {
+    if (outfits.length >= MAX_WARDROBE_OUTFITS) break;
+    if (!entry || typeof entry !== "object") continue;
+    const name = normalizeText(entry.name, MAX_OUTFIT_NAME_LENGTH);
+    if (!name) continue;
+    const itemNames = (Array.isArray(entry.itemNames) ? entry.itemNames : [])
+      .map((value) => normalizeText(value, MAX_ITEM_NAME_LENGTH))
+      .filter(Boolean);
+    outfits.push({ name, description: normalizeText(entry.description, MAX_OUTFIT_DESCRIPTION_LENGTH), itemNames });
+  }
+
+  if (items.length === 0 && outfits.length === 0) return null;
+  return { items, outfits };
+}
+
+// The retry loop for one Build Wardrobe generation call. Mirrors
+// gacha-forge's own proven inline-retry shape (simpler than hierarchical-
+// maps' separate fitContext-guarded repair sub-request, which this payload
+// is too small to need): on a parse/shape failure, the bad response is
+// appended back into the SAME conversation with a corrective instruction
+// and retried once, at a lower temperature. Never throws -- every failure
+// path returns `{ok: false, error}` and is logged via `logger.warn` first.
+async function generateWardrobeProposal({
+  runtime,
+  logger,
+  chatConnectionId,
+  direction,
+  personaContext,
+  existingItems,
+  includePersonaContext,
+}) {
+  const { systemMessage, userMessage } = buildWardrobePrompt(direction, personaContext, existingItems, includePersonaContext);
+  let messages = [
+    { role: "system", content: systemMessage },
+    { role: "user", content: userMessage },
+  ];
+
+  for (let attempt = 1; attempt <= WARDROBE_MAX_ATTEMPTS; attempt += 1) {
+    let resolved;
+    try {
+      resolved = await runtime.languageModels.resolveForRequest({ connectionId: null, chatConnectionId });
+    } catch (error) {
+      logger?.warn("[quartermaster] wardrobe generation could not resolve a language model: %s", error instanceof Error ? error.message : String(error));
+      return { ok: false, error: "no-connection" };
+    }
+
+    let result;
+    try {
+      result = await resolved.chatComplete(messages, {
+        temperature: attempt === 1 ? WARDROBE_LLM_TEMPERATURE : Math.min(WARDROBE_LLM_TEMPERATURE, 0.3),
+        maxTokens: WARDROBE_LLM_MAX_TOKENS,
+      });
+    } catch (error) {
+      logger?.warn("[quartermaster] wardrobe generation call failed: %s", error instanceof Error ? error.message : String(error));
+      return { ok: false, error: "generation-failed" };
+    }
+
+    const rawContent = typeof result.content === "string" ? result.content : "";
+    const proposal = rawContent ? parseWardrobeProposal(rawContent, runtime.json.parseJsonish, logger) : null;
+    if (proposal) return { ok: true, proposal };
+
+    if (result.finishReason === "length") {
+      logger?.warn("[quartermaster] wardrobe generation response was truncated (attempt %d)", attempt);
+      return { ok: false, error: "truncated" };
+    }
+
+    if (attempt < WARDROBE_MAX_ATTEMPTS) {
+      logger?.warn("[quartermaster] wardrobe generation produced unusable JSON, retrying (attempt %d)", attempt);
+      messages = [
+        ...messages,
+        { role: "assistant", content: rawContent },
+        { role: "user", content: "That was not valid JSON matching the requested schema. Respond again with ONLY the corrected JSON object -- no prose, no markdown." },
+      ];
+    }
+  }
+  return { ok: false, error: "generation-failed" };
+}
+
 // Full-snapshot semantics, matching every other tracker in this ecosystem
 // (Inventory Tracker/Character Tracker/World State): an
 // item not present in `data.items` this turn is removed. `equipOutfit`, when
@@ -803,6 +1042,34 @@ async function resolvePersonaName(persistence, resources, chatId) {
   const data = await resolveChatPersonaData(persistence, resources, chatId);
   const name = data && typeof data.name === "string" ? data.name.trim() : "";
   return name || "The persona";
+}
+
+// Personas share the same character-card-shaped record characters do (confirmed against
+// another package's own character-context reader) — description/personality/scenario/
+// appearance/backstory are all real, if usually sparser than a full character. Used by the
+// wardrobe builder to give the model a sense of who it's dressing; every other Quartermaster
+// feature only ever needed avatarPath/name. Each field capped defensively (a persona record
+// isn't otherwise size-bounded here) and omitted entirely when blank, so a persona with nothing
+// filled in still returns a valid (empty) context rather than failing.
+const MAX_WARDROBE_CONTEXT_FIELD_LENGTH = 2000;
+async function resolvePersonaWardrobeContext(persistence, resources, chatId) {
+  const data = await resolveChatPersonaData(persistence, resources, chatId);
+  if (!data || typeof data !== "object") return null;
+  const extensions = data.extensions && typeof data.extensions === "object" ? data.extensions : {};
+  const context = {};
+  const fields = {
+    description: data.description,
+    personality: data.personality,
+    scenario: data.scenario,
+    appearance: data.appearance ?? extensions.appearance,
+    backstory: data.backstory ?? extensions.backstory,
+  };
+  for (const [key, value] of Object.entries(fields)) {
+    if (typeof value === "string" && value.trim()) {
+      context[key] = value.trim().slice(0, MAX_WARDROBE_CONTEXT_FIELD_LENGTH);
+    }
+  }
+  return Object.keys(context).length > 0 ? context : null;
 }
 
 async function saveInventoryState(documents, chatId, ownerId, state) {
@@ -1194,6 +1461,59 @@ export async function activate(context) {
 
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
+      });
+
+      // Build Wardrobe: a one-shot, user-triggered LLM call (not the
+      // recurring post_processing tracker agent) that proposes new items +
+      // outfits from a free-text style direction. This route never writes
+      // to storage -- it only returns the parsed proposal for the client to
+      // preview; /wardrobe/confirm below is the separate step that actually
+      // persists, mirroring hierarchical-maps' own generate-then-save split
+      // for its "World Maps" AI builder.
+      routes.post("/inventory/:chatId/:ownerId/wardrobe/generate", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const body = request.body ?? {};
+        const direction = normalizeText(body.direction, 4000);
+        if (!direction) return reply.status(400).send({ error: "A style direction is required" });
+        const includePersonaContext = body.includePersonaContext !== false;
+
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const personaContext = includePersonaContext
+          ? await resolvePersonaWardrobeContext(persistence, resources, chatId)
+          : null;
+        const chat = await persistence.getChat(chatId);
+
+        const result = await generateWardrobeProposal({
+          runtime: api.runtime,
+          logger,
+          chatConnectionId: chat?.connectionId ?? null,
+          direction,
+          personaContext,
+          includePersonaContext,
+          existingItems: state.items.map((item) => ({
+            name: item.name,
+            description: item.description,
+            defaultSlot: item.defaultSlot,
+          })),
+        });
+        if (!result.ok) return reply.status(502).send({ error: result.error });
+        return { proposal: result.proposal };
+      });
+
+      // The confirm step for Build Wardrobe. The client echoes back exactly
+      // what /generate returned (unedited in v1 -- no per-item editing yet);
+      // this re-validates it server-side via the same parseWardrobeProposal
+      // used on the raw LLM text, rather than trusting the client's copy.
+      routes.post("/inventory/:chatId/:ownerId/wardrobe/confirm", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const body = request.body ?? {};
+        const proposal = parseWardrobeProposal(JSON.stringify(body.proposal ?? {}), (value) => JSON.parse(value), logger);
+        if (!proposal) return reply.status(400).send({ error: "Invalid wardrobe proposal" });
+
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const summary = applyGeneratedWardrobe(state, proposal);
+        await persistState(chatId, ownerId, state);
+        return { items: state.items, outfits: state.outfits, summary };
       });
 
       routes.post("/inventory/:chatId/:ownerId/outfits/:outfitId/equip", async (request, reply) => {
