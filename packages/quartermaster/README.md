@@ -21,7 +21,9 @@ Actively evolving — a personal project, not yet an official catalog package.
   from the item's card.
 - **Saved outfits** — snapshot the current equip state under a name, then re-equip, edit, or
   resnapshot it later in one click; delete ones you don't need. Search outfits by name, and the
-  dock shows which one (if any) is currently equipped.
+  dock shows which one (if any) is currently equipped — it stays equipped as long as its own saved
+  items are still worn, even if something extra (a picked-up item, an accessory) gets equipped
+  alongside it; swapping out one of the outfit's own items is what actually unequips it.
 - **Outfit portraits** — give a saved outfit its own portrait, shown in the dock in place of the
   persona's avatar whenever that outfit is equipped. An opt-in setting can also push it to the
   persona's *real* Marinara avatar — see below for what that involves before turning it on.
@@ -36,6 +38,9 @@ Actively evolving — a personal project, not yet an official catalog package.
   turn, replacing the Engine's built-in inventory block.
 - **Auto-tracking agent** — an optional agent reads each turn's narration and keeps equip state
   and inventory in sync automatically, no manual updates required.
+- **Restore Inventory** — a safety net for a bad agent turn: the state from just before the last
+  auto-tracking update is always one click away in Settings, in case a turn wipes or badly mangles
+  the inventory and there's no export file to fall back on.
 - **Dock display controls** — UI Size resizes the whole dock; Thumbnail Size resizes item/portrait
   images within it; either column (Outfits / Equipped / Bag) can be collapsed to a narrow strip to
   save space.
@@ -82,6 +87,21 @@ and writes `artifacts/quartermaster-<version>.zip`. `INCOMPLETE_PACKAGE_IDS`
 ready for testers.
 
 ## Changelog
+
+### 0.1.3
+
+Fixed a serious bug where the tracker agent's inventory updates were silently discarded every
+turn: its `resultType` was misconfigured as a text-only result, so the model's JSON response never
+actually got parsed, and the full-snapshot reconcile wiped the inventory to empty each time.
+Outfits now stay "currently equipped" as long as their own saved items are still worn, even if
+something extra gets equipped alongside them — only swapping out one of the outfit's own items
+unequips it — and the appearance-macro description now lists that extra gear alongside the
+outfit's own text. Added a "Restore Inventory" button (Settings) that reverts to the state from
+just before the last agent update, a safety net for a bad turn with no export file to fall back
+on. Added a "Refresh Images" button (Settings) and a missing-image cache, so an item with no
+picture no longer re-triggers a failed image request (and console 404) on every repaint. Fixed the
+equip-slot fallback icon rendering on top of its own name/slot labels when an equipped item had no
+image.
 
 ### 0.1.2
 
