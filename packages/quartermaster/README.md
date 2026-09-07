@@ -41,6 +41,10 @@ Actively evolving — a personal project, not yet an official catalog package.
 - **Restore Inventory** — a safety net for a bad agent turn: the state from just before the last
   auto-tracking update is always one click away in Settings, in case a turn wipes or badly mangles
   the inventory and there's no export file to fall back on.
+- **Build Wardrobe** — describe a style direction in plain text and get back a proposed set of new
+  items and saved outfits to review before anything is added; outfits it builds can reuse your
+  existing wearable items instead of always inventing new ones. No images — add those yourself
+  afterward, same as any manually-added item.
 - **Dock display controls** — UI Size resizes the whole dock; Thumbnail Size resizes item/portrait
   images within it; either column (Outfits / Equipped / Bag) can be collapsed to a narrow strip to
   save space.
@@ -88,38 +92,54 @@ ready for testers.
 
 ## Changelog
 
+### 0.1.4
+
+- Added Build Wardrobe: describe a style direction and get a proposed set of new items and
+  outfits to review before adding them to inventory.
+- Outfits it builds can reuse your existing wearable items instead of always creating new ones.
+- Generation uses the tracker agent's own configured connection (Agents menu), so switching that
+  there moves this too.
+- Fixed non-wearable existing items (a phone, a wallet) sometimes turning up in a generated
+  outfit.
+
 ### 0.1.3
 
-Fixed a serious bug where the tracker agent's inventory updates were silently discarded every
-turn: its `resultType` was misconfigured as a text-only result, so the model's JSON response never
-actually got parsed, and the full-snapshot reconcile wiped the inventory to empty each time.
-Outfits now stay "currently equipped" as long as their own saved items are still worn, even if
-something extra gets equipped alongside them — only swapping out one of the outfit's own items
-unequips it — and the appearance-macro description now lists that extra gear alongside the
-outfit's own text. Added a "Restore Inventory" button (Settings) that reverts to the state from
-just before the last agent update, a safety net for a bad turn with no export file to fall back
-on. Added a "Refresh Images" button (Settings) and a missing-image cache, so an item with no
-picture no longer re-triggers a failed image request (and console 404) on every repaint. Fixed the
-equip-slot fallback icon rendering on top of its own name/slot labels when an equipped item had no
-image.
+- Fixed a serious bug where the tracker agent's inventory updates were silently discarded every
+  turn: its `resultType` was misconfigured as a text-only result, so the model's JSON response
+  never actually got parsed, and the full-snapshot reconcile wiped the inventory to empty each
+  time.
+- Outfits now stay "currently equipped" as long as their own saved items are still worn, even if
+  something extra gets equipped alongside them — only swapping out one of the outfit's own items
+  unequips it — and the appearance-macro description now lists that extra gear alongside the
+  outfit's own text.
+- Added a "Restore Inventory" button (Settings) that reverts to the state from just before the
+  last agent update, a safety net for a bad turn with no export file to fall back on.
+- Added a "Refresh Images" button (Settings) and a missing-image cache, so an item with no
+  picture no longer re-triggers a failed image request (and console 404) on every repaint.
+- Fixed the equip-slot fallback icon rendering on top of its own name/slot labels when an
+  equipped item had no image.
 
 ### 0.1.2
 
-Large visual overhaul: a decorated portrait frame with connector lines to each equip slot;
-bundled artwork for every equip slot; redesigned item and outfit cards (image, name, description,
-focused Edit modal) sized to fit their own content instead of clipping or growing unbounded;
-equip slots now show the item's full image with overlay labels; a reworked Outfits section (save
-via modal, live equip/edit/update from the card); collapsible columns that actually narrow the
-dock instead of just hiding content; delete confirmations; Escape closes open modals; settings
-reorganized with descriptions.
+- Added a decorated portrait frame with connector lines to each equip slot.
+- Added bundled artwork for every equip slot.
+- Redesigned item and outfit cards (image, name, description, focused Edit modal) to size
+  themselves to their own content instead of clipping or growing unbounded.
+- Equip slots now show the item's full image with overlay labels.
+- Reworked the Outfits section (save via modal, live equip/edit/update from the card).
+- Collapsible columns that actually narrow the dock instead of just hiding content.
+- Added delete confirmations; Escape closes open modals; settings reorganized with descriptions.
 
 ### 0.1.1
 
-UI polish pass: theme-aware dropdowns, fixed a portrait-ring shift with the underwear toggle,
-real button hover/press states, consistent border radius and scrollbar styling, an animated
-Settings section, and click-outside-to-close.
+- Theme-aware dropdowns.
+- Fixed a portrait-ring shift with the underwear toggle.
+- Real button hover/press states.
+- Consistent border radius and scrollbar styling.
+- Added an animated Settings section.
+- Added click-outside-to-close.
 
 ### 0.1.0
 
-Initial release: equip slots around a portrait, item locations, saved outfits, export/import,
-the appearance macro, the narrator context feed, and the auto-tracking agent.
+- Initial release: equip slots around a portrait, item locations, saved outfits, export/import,
+  the appearance macro, the narrator context feed, and the auto-tracking agent.
