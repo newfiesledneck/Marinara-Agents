@@ -63,6 +63,20 @@ QM.deleteOutfit = (chatId, ownerId, outfitId) =>
     { method: "DELETE" },
   );
 
+// Build Wardrobe: a one-shot generation call, no write. Returns { proposal }.
+QM.generateWardrobe = (chatId, ownerId, direction, includePersonaContext) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/wardrobe/generate`, {
+    method: "POST",
+    body: JSON.stringify({ direction, includePersonaContext }),
+  });
+
+// The separate confirm step that actually persists a previously-generated proposal.
+QM.confirmWardrobe = (chatId, ownerId, proposal) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/wardrobe/confirm`, {
+    method: "POST",
+    body: JSON.stringify({ proposal }),
+  });
+
 QM.updateSettings = (chatId, ownerId, settings) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/settings`, {
     method: "PATCH",
