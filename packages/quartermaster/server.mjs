@@ -719,6 +719,19 @@ async function generateWardrobeProposal({
   ];
   const debugMode = runtime.isDebugAgentsEnabled?.() ?? false;
 
+  // TEMPORARY diagnostic -- unconditional (not gated on debugMode) so it
+  // proves out whether this route is even reached, what debugMode actually
+  // evaluates to, and whether logger.debugOverride exists as a real function
+  // on this package's sandboxed host at all. Remove once the debug-logging
+  // gap is actually diagnosed.
+  logger?.warn(
+    "[quartermaster] wardrobe generate diagnostic: debugMode=%s hasDebugOverride=%s hasLogger=%s hasIsDebugAgentsEnabled=%s",
+    debugMode,
+    typeof logger?.debugOverride === "function",
+    typeof logger === "object" && logger !== null,
+    typeof runtime.isDebugAgentsEnabled === "function",
+  );
+
   for (let attempt = 1; attempt <= WARDROBE_MAX_ATTEMPTS; attempt += 1) {
     let resolved;
     try {
