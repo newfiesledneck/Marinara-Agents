@@ -734,6 +734,20 @@ async function generateWardrobeProposal({
       return { ok: false, error: "no-connection" };
     }
 
+    // Passing debugMode to chatComplete does NOT reproduce the Engine's own
+    // "[agent-debug] <id> raw response" logging -- that's emitted by the
+    // pipeline executor specifically for a per-turn agents.json agent, not
+    // by chatComplete itself for a plain custom route's own ad-hoc call
+    // (confirmed live: a user with Debug mode on saw the tracker agent's own
+    // pipeline log but nothing for this call). So this is logged explicitly
+    // here instead, gated on the same isDebugAgentsEnabled() flag, so it's
+    // the direct way to check what actually got sent (e.g. whether persona
+    // context was really included) without depending on Engine-internal
+    // behavior this package doesn't control.
+    if (debugMode) {
+      logger?.warn("[quartermaster] wardrobe request (attempt %d): %s", attempt, JSON.stringify(messages));
+    }
+
     let result;
     try {
       result = await resolved.chatComplete(messages, {
@@ -747,6 +761,9 @@ async function generateWardrobeProposal({
     }
 
     const rawContent = typeof result.content === "string" ? result.content : "";
+    if (debugMode) {
+      logger?.warn("[quartermaster] wardrobe raw response (attempt %d, %d chars): %s", attempt, rawContent.length, rawContent);
+    }
     const proposal = rawContent ? parseWardrobeProposal(rawContent, runtime.json.parseJsonish, logger) : null;
     if (proposal) return { ok: true, proposal };
 
