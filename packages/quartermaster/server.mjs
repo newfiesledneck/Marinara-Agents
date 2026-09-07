@@ -734,19 +734,14 @@ async function generateWardrobeProposal({
       return { ok: false, error: "no-connection" };
     }
 
-    // Passing debugMode to chatComplete does NOT reproduce the Engine's own
-    // "[agent-debug] <id> raw response" logging -- that's emitted by the
-    // pipeline executor specifically for a per-turn agents.json agent, not
-    // by chatComplete itself for a plain custom route's own ad-hoc call
-    // (confirmed live: a user with Debug mode on saw the tracker agent's own
-    // pipeline log but nothing for this call). So this is logged explicitly
-    // here instead, gated on the same isDebugAgentsEnabled() flag, so it's
-    // the direct way to check what actually got sent (e.g. whether persona
-    // context was really included) without depending on Engine-internal
-    // behavior this package doesn't control.
-    if (debugMode) {
-      logger?.warn("[quartermaster] wardrobe request (attempt %d): %s", attempt, JSON.stringify(messages));
-    }
+    // Passing debugMode to chatComplete does NOT itself produce any logging --
+    // it's just forwarded to the provider call. The Engine's own
+    // "[agent-debug] <id> raw response" line for the tracker agent comes from
+    // the pipeline executor calling the host's `logger.debugOverride`, so
+    // this call does the same: `debugOverride` logs at `.warn` (visible even
+    // at the default `warn` log level) when debugMode is on, `.debug`
+    // otherwise, exactly like every other package's on-demand LLM route.
+    logger?.debugOverride?.(debugMode, "[quartermaster] wardrobe request (attempt %d): %s", attempt, JSON.stringify(messages));
 
     let result;
     try {
@@ -761,9 +756,7 @@ async function generateWardrobeProposal({
     }
 
     const rawContent = typeof result.content === "string" ? result.content : "";
-    if (debugMode) {
-      logger?.warn("[quartermaster] wardrobe raw response (attempt %d, %d chars): %s", attempt, rawContent.length, rawContent);
-    }
+    logger?.debugOverride?.(debugMode, "[quartermaster] wardrobe raw response (attempt %d, %d chars): %s", attempt, rawContent.length, rawContent);
     const proposal = rawContent ? parseWardrobeProposal(rawContent, runtime.json.parseJsonish, logger) : null;
     if (proposal) return { ok: true, proposal };
 
