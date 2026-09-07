@@ -120,7 +120,7 @@ Object.assign(QM.dock, {
 
     const directionInput = QM.smallInput("textarea");
     directionInput.placeholder =
-      'Describe the outfits you want, e.g. "Build me 5 outfits: a bikini, a casual outfit with leggings, a cold weather outfit with jeans and a jacket, a sporty outfit with dolphin shorts, and a cozy home outfit with pajama shorts"';
+      'Describe the outfits you want, e.g. "Build me 3 outfits, something casual with jeans and a jacket, something for cold weather with a hat and gloves, and something rugged with full suit of fancy armor and a glaive"';
     directionInput.rows = 5;
     directionInput.value = this._wardrobeDirection;
     Object.assign(directionInput.style, {
@@ -185,32 +185,61 @@ Object.assign(QM.dock, {
     this._renderWardrobeBuilderContent();
   },
 
+  // Sectioned, not one run-on sentence — a wardrobe touching a dozen
+  // existing items reads as an unreadable wall of text otherwise (found via
+  // real testing). A bold stat line, then each list (reused/skipped) gets
+  // its own labeled <ul>, one entry per line.
+  _buildWardrobeSummaryNode(summary) {
+    const container = document.createElement("div");
+    Object.assign(container.style, { fontSize: "12px", display: "flex", flexDirection: "column", gap: "8px" });
+
+    const statParts = [];
+    if (summary.createdItemNames.length > 0) statParts.push(`${summary.createdItemNames.length} item(s)`);
+    if (summary.createdOutfitNames.length > 0) statParts.push(`${summary.createdOutfitNames.length} outfit(s)`);
+    const statLine = document.createElement("div");
+    statLine.style.fontWeight = "600";
+    statLine.textContent = statParts.length > 0 ? `Added ${statParts.join(" and ")}.` : "Nothing new to add.";
+    container.appendChild(statLine);
+
+    const buildList = (label, entries) => {
+      if (entries.length === 0) return;
+      const section = document.createElement("div");
+      const sectionLabel = document.createElement("div");
+      sectionLabel.textContent = label;
+      sectionLabel.style.opacity = "0.85";
+      const list = document.createElement("ul");
+      Object.assign(list.style, { margin: "2px 0 0", paddingLeft: "18px" });
+      for (const entry of entries) {
+        const item = document.createElement("li");
+        item.textContent = entry;
+        list.appendChild(item);
+      }
+      section.append(sectionLabel, list);
+      container.appendChild(section);
+    };
+
+    buildList("Reused from your existing inventory:", summary.reusedItemNames);
+    buildList(
+      "Skipped:",
+      summary.skipped.map((entry) =>
+        entry.reason === "duplicate-name"
+          ? `"${entry.name}" — an outfit with that name already exists`
+          : `"${entry.itemName}" in "${entry.outfitName}" — that slot was already used`,
+      ),
+    );
+
+    return container;
+  },
+
   _renderWardrobeBuilderPreview() {
     const fragment = document.createDocumentFragment();
 
     if (this._wardrobeSummary) {
-      const summary = this._wardrobeSummary;
-      const lines = [];
-      if (summary.createdItemNames.length > 0) lines.push(`Added ${summary.createdItemNames.length} item(s).`);
-      if (summary.createdOutfitNames.length > 0) lines.push(`Added ${summary.createdOutfitNames.length} outfit(s).`);
-      if (summary.reusedItemNames.length > 0) lines.push(`Reused existing: ${summary.reusedItemNames.join(", ")}.`);
-      if (summary.skipped.length > 0) {
-        const skippedText = summary.skipped
-          .map((entry) =>
-            entry.reason === "duplicate-name"
-              ? `"${entry.name}" — an outfit with that name already exists`
-              : `"${entry.itemName}" in "${entry.outfitName}" — that slot was already used`,
-          )
-          .join("; ");
-        lines.push(`Skipped: ${skippedText}.`);
-      }
-      const summaryNode = document.createElement("div");
-      summaryNode.style.fontSize = "12px";
-      summaryNode.textContent = lines.length > 0 ? lines.join(" ") : "Nothing new to add.";
+      fragment.append(this._buildWardrobeSummaryNode(this._wardrobeSummary));
       const closeButton = QM.button("Close", { border: true });
       closeButton.style.width = "100%";
       closeButton.addEventListener("click", () => this._closeWardrobeBuilder());
-      fragment.append(summaryNode, closeButton);
+      fragment.append(closeButton);
       return fragment;
     }
 

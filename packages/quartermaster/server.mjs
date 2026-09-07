@@ -590,7 +590,7 @@ function buildWardrobePrompt(direction, personaContext, existingItems, includePe
     '    { "name": "string", "description": "string (optional, 1-2 sentences)", "quantity": integer >= 1, "defaultSlot": "<slot id>" | null }',
     "  ],",
     '  "outfits": [',
-    '    { "name": "string", "description": "string (a short visual description of the outfit as a whole)", "itemNames": ["exact name of an item -- either one you defined above, or an already-existing item from the list below", "..."] }',
+    '    { "name": "string", "description": "string (how the complete outfit looks and fits on the persona when worn)", "itemNames": ["exact name of an item -- either one you defined above, or an already-existing item from the list below", "..."] }',
     "  ]",
     "}",
     "",
@@ -599,11 +599,13 @@ function buildWardrobePrompt(direction, personaContext, existingItems, includePe
     "RULES:",
     "1. Design enough NEW items to cover whatever the direction describes that the persona doesn't already own -- don't skip or merge requested outfits.",
     '2. An outfit\'s "itemNames" may reference an item you just defined in "items" above, OR an already-existing item from the list below, by its exact name -- prefer reusing an existing item that already fits over inventing a near-duplicate.',
-    '3. Give a NEW item a "defaultSlot" whenever it\'s worn in a fixed spot; leave it null only for something with no natural equip slot.',
-    "4. Never give two items in the same outfit the same defaultSlot.",
-    "5. Only invent a new item when nothing existing already fits what the outfit needs.",
-    "6. Keep new item names short and distinct (a color/material/type in the name -- never shorten a distinguishing detail out of it).",
-    "7. quantity is almost always 1 for wearables.",
+    '3. Only include WEARABLE items in "itemNames" -- clothing, footwear, armor, and worn accessories. Never a phone, wallet, book, or other carried-but-not-worn object, even if it already exists in the inventory below.',
+    '4. Give a NEW item a "defaultSlot" whenever it\'s worn in a fixed spot; leave it null only for something with no natural equip slot.',
+    "5. Never give two items in the same outfit the same defaultSlot.",
+    "6. Only invent a new item when nothing existing already fits what the outfit needs.",
+    '7. An outfit\'s "description" describes the complete look as a whole -- how it appears and fits on the persona when worn -- not a list of its items.',
+    "8. Keep new item names short and distinct (a color/material/type in the name -- never shorten a distinguishing detail out of it).",
+    "9. quantity is almost always 1 for wearables.",
   ].join("\n");
 
   const userLines = [direction];
@@ -620,11 +622,10 @@ function buildWardrobePrompt(direction, personaContext, existingItems, includePe
 
   if (existingItems.length > 0) {
     const listed = existingItems.slice(0, MAX_WARDROBE_EXISTING_ITEMS_LISTED);
-    userLines.push("", "## Existing inventory (reuse these by exact name in \"itemNames\" when they fit)");
+    userLines.push("", '## Existing wearable inventory (reuse these by exact name in "itemNames" when they fit)');
     for (const item of listed) {
-      const slot = item.defaultSlot || "no slot";
       const description = item.description ? `: ${item.description}` : "";
-      userLines.push(`- "${item.name}" (${slot})${description}`);
+      userLines.push(`- "${item.name}" (${item.defaultSlot})${description}`);
     }
   }
 
@@ -704,6 +705,7 @@ function parseWardrobeProposal(raw, parseJsonish, logger) {
 async function generateWardrobeProposal({
   runtime,
   logger,
+  agentConnectionId,
   chatConnectionId,
   direction,
   personaContext,
@@ -715,11 +717,18 @@ async function generateWardrobeProposal({
     { role: "system", content: systemMessage },
     { role: "user", content: userMessage },
   ];
+  const debugMode = runtime.isDebugAgentsEnabled?.() ?? false;
 
   for (let attempt = 1; attempt <= WARDROBE_MAX_ATTEMPTS; attempt += 1) {
     let resolved;
     try {
-      resolved = await runtime.languageModels.resolveForRequest({ connectionId: null, chatConnectionId });
+      // Explicit connectionId first: the tracker agent's OWN configured
+      // connection (getAgentConfig, resolved by the route below), so
+      // switching that in the Agents menu also moves wardrobe generation
+      // with it. Falls back to the chat's own default connection only when
+      // the agent has no override set, same fallback chain every other
+      // package in this repo already uses.
+      resolved = await runtime.languageModels.resolveForRequest({ connectionId: agentConnectionId, chatConnectionId });
     } catch (error) {
       logger?.warn("[quartermaster] wardrobe generation could not resolve a language model: %s", error instanceof Error ? error.message : String(error));
       return { ok: false, error: "no-connection" };
@@ -730,6 +739,7 @@ async function generateWardrobeProposal({
       result = await resolved.chatComplete(messages, {
         temperature: attempt === 1 ? WARDROBE_LLM_TEMPERATURE : Math.min(WARDROBE_LLM_TEMPERATURE, 0.3),
         maxTokens: WARDROBE_LLM_MAX_TOKENS,
+        debugMode,
       });
     } catch (error) {
       logger?.warn("[quartermaster] wardrobe generation call failed: %s", error instanceof Error ? error.message : String(error));
@@ -1482,19 +1492,26 @@ export async function activate(context) {
           ? await resolvePersonaWardrobeContext(persistence, resources, chatId)
           : null;
         const chat = await persistence.getChat(chatId);
+        // The tracker agent's own configured connection (editable in the
+        // Agents menu) takes priority, so switching it there also moves
+        // wardrobe generation -- falls back to the chat's default connection
+        // only when the agent has none set.
+        const agentConfig = await api.runtime.getAgentConfig();
 
         const result = await generateWardrobeProposal({
           runtime: api.runtime,
           logger,
+          agentConnectionId: agentConfig?.connectionId ?? null,
           chatConnectionId: chat?.connectionId ?? null,
           direction,
           personaContext,
           includePersonaContext,
-          existingItems: state.items.map((item) => ({
-            name: item.name,
-            description: item.description,
-            defaultSlot: item.defaultSlot,
-          })),
+          // Wearable only (a real defaultSlot) -- a phone/wallet/book with no
+          // equip slot must never be offered as outfit material in the first
+          // place, not just discouraged by the prompt's own rules.
+          existingItems: state.items
+            .filter((item) => item.defaultSlot)
+            .map((item) => ({ name: item.name, description: item.description, defaultSlot: item.defaultSlot })),
         });
         if (!result.ok) return reply.status(502).send({ error: result.error });
         return { proposal: result.proposal };
