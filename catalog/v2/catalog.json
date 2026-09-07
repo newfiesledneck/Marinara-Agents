@@ -1939,8 +1939,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "631b77303c0a996c767b89ab632f0d2d33e643392520f5ece67012e4e8ffd838",
-            "bytes": 225992
+            "sha256": "2329588af94c6f227e3c31407a14e8a74b699e8d0be69d2d12ac97c15264b509",
+            "bytes": 227681
           },
           {
             "path": "server.mjs",
@@ -2039,8 +2039,8 @@
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/quartermaster/README.md",
       "artifact": {
         "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.1.4.zip",
-        "sha256": "7751490cca731b8ea85c70b3a525458399b9d9408f99d21a6aa41c145c2e3719",
-        "bytes": 351163
+        "sha256": "818986571a86ded5ab33ea9ab6b3a2bc2cfd11f6d63ea6bf4645f7da71562f70",
+        "bytes": 352852
       }
     },
     {
