@@ -88,6 +88,21 @@ ready for testers.
 
 ## Changelog
 
+### 0.1.3
+
+Fixed a serious bug where the tracker agent's inventory updates were silently discarded every
+turn: its `resultType` was misconfigured as a text-only result, so the model's JSON response never
+actually got parsed, and the full-snapshot reconcile wiped the inventory to empty each time.
+Outfits now stay "currently equipped" as long as their own saved items are still worn, even if
+something extra gets equipped alongside them — only swapping out one of the outfit's own items
+unequips it — and the appearance-macro description now lists that extra gear alongside the
+outfit's own text. Added a "Restore Inventory" button (Settings) that reverts to the state from
+just before the last agent update, a safety net for a bad turn with no export file to fall back
+on. Added a "Refresh Images" button (Settings) and a missing-image cache, so an item with no
+picture no longer re-triggers a failed image request (and console 404) on every repaint. Fixed the
+equip-slot fallback icon rendering on top of its own name/slot labels when an equipped item had no
+image.
+
 ### 0.1.2
 
 Large visual overhaul: a decorated portrait frame with connector lines to each equip slot;

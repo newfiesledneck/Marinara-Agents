@@ -1,5 +1,14 @@
 # Quartermaster changelog
 
+## 0.1.3 — 2026-09-07 [highlight]
+Fixed inventory silently wiping every turn: the tracker agent's resultType was misconfigured as a
+text-only result, so its JSON response never actually got parsed. Outfits now stay equipped when
+extra items get added alongside them — only swapping one of the outfit's own items unequips it —
+and the appearance macro reflects that. Added a "Restore Inventory" safety net and a "Refresh
+Images" button, both under Settings. Fixed a rendering bug that hid an equip slot's name/item
+labels behind its fallback icon, and stopped repeatedly re-requesting (and console-flooding)
+images already confirmed missing.
+
 ## 0.1.2 — 2026-09-05 [highlight]
 Major visual overhaul: a decorated portrait frame with connector lines to each equip slot, bundled
 artwork for every equip slot, and redesigned item/outfit cards that size themselves to their own
