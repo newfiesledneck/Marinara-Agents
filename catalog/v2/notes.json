@@ -76,6 +76,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.6",
+          "date": "2026-09-08",
+          "notes": "- Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit\n  portraits. Review (and optionally edit) the filled-in prompt before generating.\n- New Settings section picks which image connection to use and lets you edit the two prompt\n  templates, pre-filled with sensible defaults to edit from rather than write from scratch.\n- The portrait prompt no longer leaks a raw {{getvar::...}} appearance-macro token into the image\n  request when the persona's Appearance field uses it.\n- Export/import now carry the two prompt templates along with everything else.",
+          "highlight": true
+        },
+        {
           "version": "0.1.5",
           "date": "2026-09-08",
           "notes": "- Fixed Build Wardrobe producing no debug-log output even with Debug Mode enabled -- the\n  request/response now log correctly.\n- Replaced the dock/tracker panel's 5-second inventory poll with an event-driven refresh right\n  after a turn completes, cutting needless network requests.",
