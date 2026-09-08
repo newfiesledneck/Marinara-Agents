@@ -92,6 +92,17 @@ ready for testers.
 
 ## Changelog
 
+### 0.1.5
+
+- Fixed Build Wardrobe never producing debug-log output even with Debug Mode enabled: its request
+  and raw response now log correctly, matching the tracker agent's own per-turn debug logging.
+- Replaced the dock/tracker panel's 5-second inventory poll with the Engine's own
+  generation-complete event, so it refreshes right after a turn actually finishes instead of on a
+  fixed timer, cutting needless network traffic while nothing has changed.
+- The Build Wardrobe prompt sent to the model now labels its sections explicitly (the style
+  direction, the persona, the existing inventory) instead of leaving the direction unlabeled above
+  two headed sections.
+
 ### 0.1.4
 
 - Added Build Wardrobe: describe a style direction and get a proposed set of new items and
