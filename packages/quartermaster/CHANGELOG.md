@@ -1,5 +1,14 @@
 # Quartermaster changelog
 
+## 0.1.6 — 2026-09-08 [highlight]
+- Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit
+  portraits. Review (and optionally edit) the filled-in prompt before generating.
+- New Settings section picks which image connection to use and lets you edit the two prompt
+  templates, pre-filled with sensible defaults to edit from rather than write from scratch.
+- The portrait prompt no longer leaks a raw {{getvar::...}} appearance-macro token into the image
+  request when the persona's Appearance field uses it.
+- Export/import now carry the two prompt templates along with everything else.
+
 ## 0.1.5 — 2026-09-08
 - Fixed Build Wardrobe producing no debug-log output even with Debug Mode enabled -- the
   request/response now log correctly.

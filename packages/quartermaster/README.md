@@ -5,8 +5,8 @@ persona's portrait, item locations (bag / stored / equipped), and saved outfits,
 draggable/resizable floating dock plus a native Tracker Panel view.
 
 **Requires Marinara Engine 2.4.4+.** Roleplay only (no Game Mode support yet), persona-only (no
-party/NPC support yet), and outfit/item portraits are upload-only (no in-app generation yet).
-Actively evolving — a personal project, not yet an official catalog package.
+party/NPC support yet). Actively evolving — a personal project, not yet an official catalog
+package.
 
 ## Features
 
@@ -17,16 +17,23 @@ Actively evolving — a personal project, not yet an official catalog package.
   item in the bag, a named stash (`stored:<name>`), or a slot (`equipped:<slot>`); search the Bag
   by name or by slot.
 - **Item images** — give any item its own image: auto-matched by filename from a shared image
-  folder (so a pre-made image pack just works by copying its folder in), or upload one directly
-  from the item's card.
+  folder (so a pre-made image pack just works by copying its folder in), upload one directly from
+  the item's card, or generate one with AI (see Generate Image below).
 - **Saved outfits** — snapshot the current equip state under a name, then re-equip, edit, or
   resnapshot it later in one click; delete ones you don't need. Search outfits by name, and the
   dock shows which one (if any) is currently equipped — it stays equipped as long as its own saved
   items are still worn, even if something extra (a picked-up item, an accessory) gets equipped
   alongside it; swapping out one of the outfit's own items is what actually unequips it.
-- **Outfit portraits** — give a saved outfit its own portrait, shown in the dock in place of the
-  persona's avatar whenever that outfit is equipped. An opt-in setting can also push it to the
-  persona's *real* Marinara avatar — see below for what that involves before turning it on.
+- **Outfit portraits** — give a saved outfit its own portrait (uploaded or AI-generated), shown in
+  the dock in place of the persona's avatar whenever that outfit is equipped. An opt-in setting can
+  also push it to the persona's *real* Marinara avatar — see below for what that involves before
+  turning it on.
+- **Generate Image** — an AI-generated alternative to uploading, for both item images and outfit
+  portraits: click Generate on an item/outfit's image, review (and optionally edit) the filled-in
+  prompt, then generate. Uses whichever `image_generation` connection is picked in Settings →
+  Image generation (defaults to the Engine's own default connection if none is picked); the two
+  prompt templates there are editable too, pre-filled with sensible defaults to edit from rather
+  than write from scratch.
 - **Export / import** — back up or transfer a chat's items and outfits as a JSON file.
 - **Slot-group toggles** — hide underwear (off by default), armor, or weapons slots entirely if
   a chat doesn't need them.
@@ -43,8 +50,8 @@ Actively evolving — a personal project, not yet an official catalog package.
   the inventory and there's no export file to fall back on.
 - **Build Wardrobe** — describe a style direction in plain text and get back a proposed set of new
   items and saved outfits to review before anything is added; outfits it builds can reuse your
-  existing wearable items instead of always inventing new ones. No images — add those yourself
-  afterward, same as any manually-added item.
+  existing wearable items instead of always inventing new ones. No images at generation time — add
+  those yourself afterward (upload or Generate Image), same as any manually-added item.
 - **Dock display controls** — UI Size resizes the whole dock; Thumbnail Size resizes item/portrait
   images within it; either column (Outfits / Equipped / Bag) can be collapsed to a narrow strip to
   save space.
@@ -61,7 +68,6 @@ persona's *real* avatar elsewhere in Marinara.
 
 - **Party / multi-character support** — persona-only today; the storage layer is already built to
   extend to this without a rewrite.
-- **In-app image generation** — outfit/item portraits are upload-only for now.
 - **A distributable item-image pack** — matching works today; a curated pack to ship isn't decided.
 - **Game Mode support** — currently Roleplay-only; being investigated as a later step, after
   Roleplay mode is feature-complete.
@@ -91,6 +97,23 @@ and writes `artifacts/quartermaster-<version>.zip`. `INCOMPLETE_PACKAGE_IDS`
 ready for testers.
 
 ## Changelog
+
+### 0.1.6
+
+- Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit
+  portraits. Ported from the legacy RPG Inventory extension's own Generate/Upload menu, including
+  its editable "review prompt" step before every generation.
+- New Settings section (Image generation) picks which connection Quartermaster uses (a purely
+  local preference — it never changes any Engine-wide default) and lets you edit the two prompt
+  templates, pre-filled with the real default text so you edit from it rather than write a prompt
+  from scratch.
+- The default portrait prompt now specifies a casual pose.
+- Fixed the portrait prompt leaking a raw, unresolved `{{getvar::quartermaster_appearance_persona}}`
+  token into the image-generation request when the persona's Appearance field uses it — stripped
+  out now instead.
+- Export/import now carry the two prompt templates along with everything else (the image
+  connection itself is deliberately excluded — it references a connection configured on your own
+  Engine installation, not portable data).
 
 ### 0.1.5
 
