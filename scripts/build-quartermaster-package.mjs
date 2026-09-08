@@ -14,7 +14,7 @@
 import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readCatalogFamily, writeCatalogFamily } from "./catalog-lanes.mjs";
@@ -246,6 +246,30 @@ const archive = createDeterministicZip([
 await mkdir(artifactsDir, { recursive: true });
 const artifactName = `quartermaster-${VERSION}.zip`;
 const artifactPath = join(artifactsDir, artifactName);
+
+// Guards against a real incident: a rebuild once ran while VERSION still
+// matched an already-released, already-committed version (testing
+// post-release code changes before remembering to bump VERSION first),
+// silently overwriting that released artifact's bytes under the same
+// filename -- see _planning/quartermaster-release-process.md's own §3.
+// Silent/harmless in every legitimate case: a brand-new version (nothing
+// committed at this exact path yet) or a genuine no-op rebuild of the same
+// in-progress content both pass through untouched. Only fires the moment a
+// build would actually replace committed bytes with different ones.
+function assertArtifactNotOverwritingReleasedContent(path, newContent) {
+  if (process.env.ALLOW_ARTIFACT_OVERWRITE === "1") return;
+  const gitPath = relative(repoRoot, path).split("\\").join("/");
+  const committed = spawnSync("git", ["show", `HEAD:${gitPath}`], { cwd: repoRoot });
+  if (committed.status !== 0 || !committed.stdout || committed.stdout.length === 0) return; // not tracked at HEAD yet
+  if (!committed.stdout.equals(newContent)) {
+    throw new Error(
+      `${gitPath} is already committed at HEAD with different content than this build would write. ` +
+        "This almost always means VERSION wasn't bumped before rebuilding. Bump VERSION first, or set " +
+        "ALLOW_ARTIFACT_OVERWRITE=1 if this is genuinely intentional.",
+    );
+  }
+}
+assertArtifactNotOverwritingReleasedContent(artifactPath, archive);
 await writeFile(artifactPath, archive);
 
 // ── Catalog family ───────────────────────────────────────────────────────────
