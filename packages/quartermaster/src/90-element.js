@@ -33,10 +33,6 @@ class QuartermasterElement extends HTMLElement {
   }
 
   set capabilityProps(value) {
-    // TEMPORARY diagnostic -- confirms exactly what fields the host actually
-    // assigns here, since a server-side debugMode=false persisted even after
-    // forwarding it from this object. Remove once confirmed.
-    console.warn("[quartermaster] capabilityProps received:", value);
     this._props = value;
     this._render();
   }
@@ -68,9 +64,6 @@ class QuartermasterElement extends HTMLElement {
   }
 
   _render() {
-    // Not chat-scoped, and shared across every mounted instance (toolbar +
-    // tracker) via QM.state -- see its own field comment.
-    QM.state.debugMode = Boolean(this._props && this._props.debugMode === true);
     QM.state.setChat(this._chatId);
 
     const view = this.getAttribute("view");

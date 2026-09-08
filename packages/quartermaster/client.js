@@ -68,16 +68,32 @@ QM.deleteOutfit = (chatId, ownerId, outfitId) =>
     { method: "DELETE" },
   );
 
+// The host's Settings > Advanced > Message Tools > Debug Mode toggle isn't
+// exposed through capabilityProps for this package's slots (confirmed live:
+// a mounted element's own capabilityProps carries chatId/chatMode/
+// mobileCompact/trackerRetryBusy/lockMode/toolbarButtonClass/localization --
+// no debugMode field at all, unlike whatever slot type noodle/slurp use).
+// The host does persist it to localStorage under its own Zustand store key
+// (sources/engine/packages/client/src/stores/ui.store.ts's `name:
+// "marinara-engine-ui"`), which a same-origin package script can read
+// directly -- confirmed live to reflect the real toggle state. Read fresh at
+// request time (not cached) since the user can flip the toggle while a
+// builder modal is already open. Not a documented package API, just the
+// only mechanism that actually works for these slots -- could break if the
+// Engine ever renames this store's persist key.
+function qmReadHostDebugMode() {
+  try {
+    return JSON.parse(localStorage.getItem("marinara-engine-ui"))?.state?.debugMode === true;
+  } catch {
+    return false;
+  }
+}
+
 // Build Wardrobe: a one-shot generation call, no write. Returns { proposal }.
-// debugMode is read from QM.state (kept in sync with the host's live Debug
-// Mode toggle by 90-element.js) and forwarded explicitly -- the server has no
-// other way to see that per-user UI setting for a route outside the normal
-// per-turn chat-generation pipeline. Same pattern noodle/slurp use for their
-// own on-demand generation calls.
 QM.generateWardrobe = (chatId, ownerId, direction, includePersonaContext) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/wardrobe/generate`, {
     method: "POST",
-    body: JSON.stringify({ direction, includePersonaContext, debugMode: QM.state.debugMode === true }),
+    body: JSON.stringify({ direction, includePersonaContext, debugMode: qmReadHostDebugMode() }),
   });
 
 // The separate confirm step that actually persists a previously-generated proposal.
@@ -516,11 +532,6 @@ if (typeof document !== "undefined") {
 
 QM.state = {
   chatId: null,
-  // Mirrors the host's own Settings > Advanced > Message Tools > Debug Mode
-  // toggle -- kept in sync by 90-element.js's capabilityProps handling
-  // (noodle/slurp use the identical pattern for their own on-demand
-  // generation calls). Not chat-scoped, so setChat() below doesn't reset it.
-  debugMode: false,
   items: null,
   outfits: null,
   appearanceFeedMode: "off",
@@ -5213,10 +5224,6 @@ class QuartermasterElement extends HTMLElement {
   }
 
   set capabilityProps(value) {
-    // TEMPORARY diagnostic -- confirms exactly what fields the host actually
-    // assigns here, since a server-side debugMode=false persisted even after
-    // forwarding it from this object. Remove once confirmed.
-    console.warn("[quartermaster] capabilityProps received:", value);
     this._props = value;
     this._render();
   }
@@ -5248,9 +5255,6 @@ class QuartermasterElement extends HTMLElement {
   }
 
   _render() {
-    // Not chat-scoped, and shared across every mounted instance (toolbar +
-    // tracker) via QM.state -- see its own field comment.
-    QM.state.debugMode = Boolean(this._props && this._props.debugMode === true);
     QM.state.setChat(this._chatId);
 
     const view = this.getAttribute("view");
