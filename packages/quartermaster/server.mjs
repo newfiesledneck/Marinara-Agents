@@ -608,10 +608,10 @@ function buildWardrobePrompt(direction, personaContext, existingItems, includePe
     "9. quantity is almost always 1 for wearables.",
   ].join("\n");
 
-  const userLines = [direction];
+  const userLines = ["## Style direction (what the user is asking for)", direction];
 
   if (includePersonaContext && personaContext) {
-    const personaLines = ["", "## Persona"];
+    const personaLines = ["", "## Persona (who you're designing this wardrobe for)"];
     if (personaContext.description) personaLines.push(`Description: ${personaContext.description}`);
     if (personaContext.personality) personaLines.push(`Personality: ${personaContext.personality}`);
     if (personaContext.scenario) personaLines.push(`Scenario: ${personaContext.scenario}`);
@@ -718,12 +718,6 @@ async function generateWardrobeProposal({
     { role: "system", content: systemMessage },
     { role: "user", content: userMessage },
   ];
-
-  // TEMPORARY diagnostic -- unconditional (not gated on debugMode) to confirm
-  // the client is actually forwarding its live Debug Mode toggle now that
-  // isDebugAgentsEnabled() alone (the server-env-only override) was confirmed
-  // NOT to reflect it. Remove once confirmed working.
-  logger?.warn("[quartermaster] wardrobe generate diagnostic: debugMode=%s", debugMode);
 
   for (let attempt = 1; attempt <= WARDROBE_MAX_ATTEMPTS; attempt += 1) {
     let resolved;
