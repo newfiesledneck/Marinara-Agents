@@ -563,15 +563,26 @@ async function resolveImageConnection(preferredConnectionId) {
   );
 }
 
-// The actual paid call. Mirrors gacha-forge's real, shipped request shape
-// exactly (including purpose: "avatar", present in its current code even
-// though the older SillyTavern-style extension's own equivalent call never
-// sent it) -- this exact contract isn't independently verifiable against
-// this repo's partial Engine source mirror, confirmed only via gacha-forge's
-// real, shipped usage. Logs (never throws) when the response's own echoed
-// prompt doesn't match what was sent -- the Engine's route can silently
-// recompile its own prompt instead of using the override verbatim, same
-// "overrideTook" check gacha-forge itself does.
+// The actual paid call. Confirmed live (a real generated item image came
+// back showing the chat's active persona instead of a clean product shot,
+// for multiple different items) that this endpoint was silently rewriting
+// our prompt to blend in persona/character appearance -- the
+// "prompt override may not have taken" warning below fired every time.
+// Root cause, traced as far as this repo's partial Engine source mirror
+// allows: `resolveIllustratorCharacterReferences()` (services/image/
+// illustrator-references.ts) is this codebase's one confirmed real
+// mechanism for exactly this failure class -- it auto-attaches "the
+// current persona" as a reference image + appended appearance text,
+// defaulting to ON unless the caller explicitly opts out via
+// includeReferenceImages/includePersonaWhenMentionedInPrompt. Two changes
+// from the original (gacha-forge-copied, never independently verified)
+// request shape: dropped `purpose: "avatar"` entirely (the legacy
+// SillyTavern-style extension this package ports from never sent it, and
+// it's the most likely trigger for "treat this like a character avatar");
+// added those two opt-out flags by their exact names from that one
+// confirmed mechanism, as a best-guess fix for THIS endpoint's own
+// (unverifiable-from-source) contract -- verify empirically, same as this
+// whole endpoint's contract has had to be from the start.
 async function generateImageViaEngine({ connectionId, name, prompt, width, height, slug, logger }) {
   const result = await engineApiFetch("/api/characters/avatar-generation", {
     method: "POST",
@@ -580,7 +591,8 @@ async function generateImageViaEngine({ connectionId, name, prompt, width, heigh
       connectionId,
       name,
       appearance: prompt,
-      purpose: "avatar",
+      includeReferenceImages: false,
+      includePersonaWhenMentionedInPrompt: false,
       width,
       height,
       promptOverrides: [{ id: slug, prompt }],
@@ -590,9 +602,16 @@ async function generateImageViaEngine({ connectionId, name, prompt, width, heigh
     throw new Error("Engine returned no usable image");
   }
   if (typeof result.prompt === "string" && result.prompt !== prompt) {
+    // The echoed prompt itself, not just a boolean warning -- if the
+    // includeReferenceImages/includePersonaWhenMentionedInPrompt opt-out
+    // above doesn't fully fix this, seeing exactly what the Engine rewrote
+    // it to is the next real lead, same way seeing the actual capabilityProps
+    // object (not just a guess) is what settled the debugMode investigation
+    // earlier in this package's own history.
     logger?.warn(
-      "[quartermaster] image generation prompt override may not have taken for %s -- Engine echoed a different prompt",
+      "[quartermaster] image generation prompt override may not have taken for %s -- Engine echoed: %s",
       name,
+      result.prompt,
     );
   }
   return result.image;
