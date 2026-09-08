@@ -76,6 +76,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.5",
+          "date": "2026-09-08",
+          "notes": "- Fixed Build Wardrobe producing no debug-log output even with Debug Mode enabled -- the\n  request/response now log correctly.\n- Replaced the dock/tracker panel's 5-second inventory poll with an event-driven refresh right\n  after a turn completes, cutting needless network requests.",
+          "highlight": false
+        },
+        {
           "version": "0.1.4",
           "date": "2026-09-08",
           "notes": "- Added Build Wardrobe: describe a style direction and get a proposed set of new items and\n  outfits to review before adding them to inventory.\n- Outfits it builds can reuse your existing wearable items instead of always creating new ones.\n- Generation uses the tracker agent's own configured connection, so switching that in the Agents\n  menu also moves this.\n- Fixed non-wearable items (a phone, a wallet) sometimes turning up in a generated outfit.",
