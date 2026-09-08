@@ -255,16 +255,28 @@ const artifactPath = join(artifactsDir, artifactName);
 // Silent/harmless in every legitimate case: a brand-new version (nothing
 // committed at this exact path yet) or a genuine no-op rebuild of the same
 // in-progress content both pass through untouched. Only fires the moment a
-// build would actually replace committed bytes with different ones.
+// PLAIN build (the only kind that ever runs on `Quartermaster` itself,
+// per §2's own "never plain-rebuild mid-loop" rule -- see below) would
+// actually replace committed bytes with different ones.
+//
+// Deliberately exempts dev builds (QUARTERMASTER_DEV_ARTIFACT_BASE_URL set,
+// or MARINARA_CATALOG_INCLUDE_INCOMPLETE=1): those only ever run on
+// `quartermaster-dev-catalog`, whose own stated discipline is "push freely,
+// every iteration" under the SAME unbumped VERSION -- repeatedly overwriting
+// that branch's own last dev-build commit is the NORMAL, expected shape of
+// that loop, not a mistake. Without this exemption the guard would block
+// the dev loop's own ordinary iteration, not just the real incident.
 function assertArtifactNotOverwritingReleasedContent(path, newContent) {
   if (process.env.ALLOW_ARTIFACT_OVERWRITE === "1") return;
+  if (process.env.QUARTERMASTER_DEV_ARTIFACT_BASE_URL || process.env.MARINARA_CATALOG_INCLUDE_INCOMPLETE === "1") return;
   const gitPath = relative(repoRoot, path).split("\\").join("/");
   const committed = spawnSync("git", ["show", `HEAD:${gitPath}`], { cwd: repoRoot });
   if (committed.status !== 0 || !committed.stdout || committed.stdout.length === 0) return; // not tracked at HEAD yet
   if (!committed.stdout.equals(newContent)) {
     throw new Error(
       `${gitPath} is already committed at HEAD with different content than this build would write. ` +
-        "This almost always means VERSION wasn't bumped before rebuilding. Bump VERSION first, or set " +
+        "This almost always means VERSION wasn't bumped before a PLAIN rebuild (never run one mid-loop on " +
+        "Quartermaster -- see _planning/quartermaster-release-process.md §2). Bump VERSION first, or set " +
         "ALLOW_ARTIFACT_OVERWRITE=1 if this is genuinely intentional.",
     );
   }
