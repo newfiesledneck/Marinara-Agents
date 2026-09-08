@@ -97,6 +97,22 @@ const MAX_STORED_LOCATION_LENGTH = 200;
 const MAX_OUTFIT_NAME_LENGTH = 200;
 const MAX_OUTFIT_DESCRIPTION_LENGTH = 4000;
 
+// ── Generate Image (item/outfit portrait AI generation) ─────────────────────
+// Ported from the legacy RPG Inventory extension's own default prompt
+// templates/dimensions (_planning/RPG Inventory/extension.js) -- dimensions
+// are fixed constants, not user-editable in v1 (unlike the legacy
+// extension's own config.itemImageW/H), templates ARE user-editable (see
+// itemImagePromptTemplate/outfitPortraitPromptTemplate in loadInventoryState).
+const DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE =
+  "A crisp, studio photograph of a detailed {item}, {item_description}, set on a dark slate surface, dramatic cinematic side-lighting, 8k resolution, dark neutral background, perfectly centered item sheet asset.";
+const DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE = "A full body portrait of {name}, {persona_appearance}, wearing {equipped_items}.";
+const ITEM_IMAGE_GEN_WIDTH = 512;
+const ITEM_IMAGE_GEN_HEIGHT = 512;
+const OUTFIT_PORTRAIT_GEN_WIDTH = 768;
+const OUTFIT_PORTRAIT_GEN_HEIGHT = 1152;
+const MAX_PROMPT_TEMPLATE_LENGTH = 4000; // same scale as MAX_ITEM_DESCRIPTION_LENGTH/MAX_OUTFIT_DESCRIPTION_LENGTH
+const MAX_REVIEW_PROMPT_LENGTH = 4000; // the one-off, possibly-edited review-step text sent to /generate
+
 // ── Outfit portraits ─────────────────────────────────────────────────────────
 // Stored as real files under the Engine's shared gallery/ dir (confirmed, via
 // live production evidence, to survive long-term without being swept — see
@@ -490,6 +506,149 @@ function equippedItemNamesText(items) {
     if (item) names.push(item.name);
   }
   return names.join(", ");
+}
+
+// ── Image generation (loopback to the Engine's own REST API) ───────────────
+// No api.runtime.images method exists (confirmed against every package's own
+// package-runtime.ts: the full CapabilityRuntimeHost surface is only
+// persistence/resources/languageModels/json/logger/isDebugAgentsEnabled).
+// packages/gacha-forge/server.mjs is this repo's only other AI-image-
+// generation package, and it works by calling the Engine's own internal REST
+// route via a loopback fetch() from its own server-side Node code -- this
+// ports that exact, real, shipped mechanism in readable form, not through
+// api.runtime.
+function engineLoopbackBaseUrl(env) {
+  const port = Number.parseInt(env.PORT, 10);
+  const scheme = env.SSL_CERT && env.SSL_KEY ? "https" : "http";
+  return `${scheme}://127.0.0.1:${Number.isFinite(port) ? port : 7860}`;
+}
+
+async function engineApiFetch(path, options) {
+  if (typeof fetch !== "function") throw new Error("engine-image: no fetch available");
+  const response = await fetch(`${engineLoopbackBaseUrl(process.env)}${path}`, options);
+  if (!response.ok) {
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = typeof body?.error === "string" ? body.error : "";
+    } catch {
+      detail = "";
+    }
+    throw new Error(`engine ${path} -> ${response.status}${detail ? `: ${detail}` : ""}`);
+  }
+  return response.json();
+}
+
+// Never trusts a caller-supplied connectionId blindly -- re-lists real
+// connections every call and validates/falls back, same as gacha-forge's own
+// md() helper: exact id match, else the provider's isDefault connection,
+// else the first one. Returns null only when there is truly no
+// image_generation connection configured at all. Purely a READ (GET
+// /api/connections) -- preferredConnectionId (Quartermaster's own saved
+// setting) only steers which entry this one call's result picks; nothing
+// here can mutate a connection's config or default flag, and nothing here
+// is written back to the Engine.
+async function resolveImageConnection(preferredConnectionId) {
+  const connections = await engineApiFetch("/api/connections", { method: "GET" });
+  const imageConnections = Array.isArray(connections)
+    ? connections.filter((candidate) => candidate && candidate.provider === "image_generation")
+    : [];
+  if (imageConnections.length === 0) return null;
+  const preferred = imageConnections.find((candidate) => candidate.id === preferredConnectionId);
+  if (preferred) return preferred;
+  return (
+    imageConnections.find((candidate) => candidate.isDefault === true || candidate.isDefault === "true") ||
+    imageConnections[0]
+  );
+}
+
+// The actual paid call. Mirrors gacha-forge's real, shipped request shape
+// exactly (including purpose: "avatar", present in its current code even
+// though the older SillyTavern-style extension's own equivalent call never
+// sent it) -- this exact contract isn't independently verifiable against
+// this repo's partial Engine source mirror, confirmed only via gacha-forge's
+// real, shipped usage. Logs (never throws) when the response's own echoed
+// prompt doesn't match what was sent -- the Engine's route can silently
+// recompile its own prompt instead of using the override verbatim, same
+// "overrideTook" check gacha-forge itself does.
+async function generateImageViaEngine({ connectionId, name, prompt, width, height, slug, logger }) {
+  const result = await engineApiFetch("/api/characters/avatar-generation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      connectionId,
+      name,
+      appearance: prompt,
+      purpose: "avatar",
+      width,
+      height,
+      promptOverrides: [{ id: slug, prompt }],
+    }),
+  });
+  if (typeof result?.image !== "string" || !result.image.startsWith("data:")) {
+    throw new Error("Engine returned no usable image");
+  }
+  if (typeof result.prompt === "string" && result.prompt !== prompt) {
+    logger?.warn(
+      "[quartermaster] image generation prompt override may not have taken for %s -- Engine echoed a different prompt",
+      name,
+    );
+  }
+  return result.image;
+}
+
+// Ports the legacy RPG Inventory extension's buildItemPrompt exactly
+// (extension.js lines 3629-3644): fills {item}/{item_description}, but when
+// the item has no description, drops "{item_description}" AND one adjacent
+// comma rather than leaving a dangling ", ," in the final prompt.
+function buildItemImagePrompt(template, item) {
+  const tmpl = typeof template === "string" && template.trim() ? template : DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE;
+  const description = (item.description || "").trim();
+  let out = tmpl;
+  if (description) {
+    out = out.replace(/\{item_description\}/g, description);
+  } else {
+    out = out
+      .replace(/,\s*\{item_description\}\s*,/g, ",")
+      .replace(/,?\s*\{item_description\}\s*,?/g, "")
+      .replace(/\{item_description\}/g, "");
+  }
+  out = out.replace(/\{item\}/g, item.name || "item");
+  return out.replace(/\s{2,}/g, " ").replace(/\s+,/g, ",").replace(/,\s*,/g, ",").trim();
+}
+
+// A portrait is generated for one SPECIFIC saved outfit, which may not even
+// be what's currently equipped right now (the user could be viewing/editing
+// a different outfit than the one actually worn) -- so this is scoped to
+// THIS outfit's own saved data, never state.items' live equip state. Prefers
+// the outfit's own descriptive text (the same whole-look description Build
+// Wardrobe already writes / users already author) since that's what
+// actually makes the image model render the character IN the described
+// outfit; falls back to a plain name list from the outfit's own saved slots
+// only when it has no description at all.
+function outfitVisualDescriptionText(outfit) {
+  const description = (outfit.description || "").trim();
+  if (description) return description;
+  const names = Object.values(outfit.slots || {})
+    .map((slot) => slot.name)
+    .filter(Boolean);
+  return names.length > 0 ? names.join(", ") : "no special equipment";
+}
+
+// Ports buildPortraitPrompt (extension.js lines 3680-3689), with one
+// deliberate deviation: personaAppearance must be ONLY the persona's own
+// Appearance field text (see resolvePersonaWardrobeContext's own appearance
+// key) -- never a fallback to description/personality/scenario/backstory,
+// unlike the legacy extension's own `persona.appearance || persona.description`.
+// An empty personaAppearance resolves to "", cleaned up by the same
+// comma/whitespace collapse below, not silently backfilled from anything else.
+function buildOutfitPortraitPrompt(template, { personaName, personaAppearance, equippedItemsText }) {
+  const tmpl = typeof template === "string" && template.trim() ? template : DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE;
+  const out = tmpl
+    .replace(/\{name\}/g, personaName || "the character")
+    .replace(/\{persona_appearance\}/g, personaAppearance || "")
+    .replace(/\{equipped_items\}/g, equippedItemsText || "no special equipment");
+  return out.replace(/\s{2,}/g, " ").replace(/\s+,/g, ",").replace(/,\s*,/g, ",").trim();
 }
 
 // The text a {{getvar::quartermaster_appearance_<ownerId>}} macro should
@@ -982,6 +1141,17 @@ async function loadInventoryState(documents, chatId, ownerId) {
             outfits: Array.isArray(doc.data.previousSnapshot.outfits) ? doc.data.previousSnapshot.outfits : [],
           }
         : null,
+    // Generate Image settings -- a purely local preference read only when
+    // THIS package calls the Engine's own image-generation route (see
+    // resolveImageConnection/generateImageViaEngine below); never anything
+    // that touches an Engine-wide default. Empty template string means "use
+    // the built-in default", not the literal default text -- same
+    // fallback-at-use-time pattern as every other optional text field here.
+    imageConnectionId: typeof doc?.data?.imageConnectionId === "string" ? doc.data.imageConnectionId : null,
+    itemImagePromptTemplate:
+      typeof doc?.data?.itemImagePromptTemplate === "string" ? doc.data.itemImagePromptTemplate : "",
+    outfitPortraitPromptTemplate:
+      typeof doc?.data?.outfitPortraitPromptTemplate === "string" ? doc.data.outfitPortraitPromptTemplate : "",
   };
 }
 
@@ -1411,6 +1581,67 @@ export async function activate(context) {
         return { items: state.items, outfits: state.outfits };
       });
 
+      // Cheap: fills the saved (or default) item-image prompt template with
+      // this item's own name/description -- no LLM/image-gen cost, so safe
+      // to call every time "Generate" is opened. Shares buildItemImagePrompt
+      // with /generate below so the review textarea always starts from
+      // exactly what would be sent.
+      routes.post("/inventory/:chatId/:ownerId/items/:itemId/image/prompt-preview", async (request, reply) => {
+        const { chatId, ownerId, itemId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const item = state.items.find((candidate) => candidate.id === itemId);
+        if (!item) return reply.status(404).send({ error: "Item not found" });
+        return { prompt: buildItemImagePrompt(state.itemImagePromptTemplate, item) };
+      });
+
+      // The paid call. Body: { prompt } -- the review-step text (possibly
+      // edited). Returns { imageDataUrl }, UNSAVED -- mirrors Build
+      // Wardrobe's generate/confirm split: the client hands this data URL
+      // to the ALREADY-EXISTING POST .../items/:itemId/image route above to
+      // actually persist it, exactly like an upload would. This route never
+      // writes to storage.
+      routes.post("/inventory/:chatId/:ownerId/items/:itemId/image/generate", async (request, reply) => {
+        const { chatId, ownerId, itemId } = request.params;
+        const body = request.body ?? {};
+        const prompt = normalizeText(body.prompt, MAX_REVIEW_PROMPT_LENGTH);
+        if (!prompt) return reply.status(400).send({ error: "A prompt is required" });
+
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const item = state.items.find((candidate) => candidate.id === itemId);
+        if (!item) return reply.status(404).send({ error: "Item not found" });
+
+        let connection;
+        try {
+          connection = await resolveImageConnection(state.imageConnectionId);
+        } catch (error) {
+          logger?.warn(
+            "[quartermaster] could not reach the Engine's own connections list: %s",
+            error instanceof Error ? error.message : String(error),
+          );
+          return reply.status(502).send({ error: "engine-unreachable" });
+        }
+        if (!connection) return reply.status(400).send({ error: "no-image-connection" });
+
+        try {
+          const imageDataUrl = await generateImageViaEngine({
+            connectionId: connection.id,
+            name: item.name,
+            prompt,
+            width: ITEM_IMAGE_GEN_WIDTH,
+            height: ITEM_IMAGE_GEN_HEIGHT,
+            slug: `qm-item-${qmNormalizeMatchKey(item.name)}`,
+            logger,
+          });
+          return { imageDataUrl };
+        } catch (error) {
+          logger?.warn(
+            "[quartermaster] item image generation failed: %s",
+            error instanceof Error ? error.message : String(error),
+          );
+          return reply.status(502).send({ error: "generation-failed" });
+        }
+      });
+
       // Removes only an UPLOADED image (a top-level file matching this
       // item's key) — never touches a subfolder, so this can never delete
       // anything from a hand-placed image pack. If a pack image also
@@ -1619,6 +1850,82 @@ export async function activate(context) {
 
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
+      });
+
+      // Cheap: fills the saved (or default) outfit-portrait prompt template
+      // from the persona's name + its OWN Appearance field only (never
+      // description/personality/backstory, no fallback between them -- see
+      // buildOutfitPortraitPrompt's own comment) plus this SPECIFIC outfit's
+      // own saved description (falling back to its own saved item names,
+      // never live equip state -- see outfitVisualDescriptionText).
+      routes.post("/inventory/:chatId/:ownerId/outfits/:outfitId/portrait/prompt-preview", async (request, reply) => {
+        const { chatId, ownerId, outfitId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
+        if (!outfit) return reply.status(404).send({ error: "Outfit not found" });
+
+        const personaData = await resolveChatPersonaData(persistence, resources, chatId);
+        const personaName = (personaData && typeof personaData.name === "string" && personaData.name.trim()) || "the character";
+        const personaAppearance =
+          typeof personaData?.appearance === "string"
+            ? personaData.appearance.trim()
+            : typeof personaData?.extensions?.appearance === "string"
+              ? personaData.extensions.appearance.trim()
+              : "";
+
+        return {
+          prompt: buildOutfitPortraitPrompt(state.outfitPortraitPromptTemplate, {
+            personaName,
+            personaAppearance,
+            equippedItemsText: outfitVisualDescriptionText(outfit),
+          }),
+        };
+      });
+
+      // The paid call, same shape as the item one above -- body: { prompt },
+      // returns { imageDataUrl } UNSAVED. The client hands this to the
+      // ALREADY-EXISTING POST .../outfits/:outfitId/portrait route above to
+      // actually persist it.
+      routes.post("/inventory/:chatId/:ownerId/outfits/:outfitId/portrait/generate", async (request, reply) => {
+        const { chatId, ownerId, outfitId } = request.params;
+        const body = request.body ?? {};
+        const prompt = normalizeText(body.prompt, MAX_REVIEW_PROMPT_LENGTH);
+        if (!prompt) return reply.status(400).send({ error: "A prompt is required" });
+
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
+        if (!outfit) return reply.status(404).send({ error: "Outfit not found" });
+
+        let connection;
+        try {
+          connection = await resolveImageConnection(state.imageConnectionId);
+        } catch (error) {
+          logger?.warn(
+            "[quartermaster] could not reach the Engine's own connections list: %s",
+            error instanceof Error ? error.message : String(error),
+          );
+          return reply.status(502).send({ error: "engine-unreachable" });
+        }
+        if (!connection) return reply.status(400).send({ error: "no-image-connection" });
+
+        try {
+          const imageDataUrl = await generateImageViaEngine({
+            connectionId: connection.id,
+            name: outfit.name,
+            prompt,
+            width: OUTFIT_PORTRAIT_GEN_WIDTH,
+            height: OUTFIT_PORTRAIT_GEN_HEIGHT,
+            slug: `qm-outfit-${outfit.id}`,
+            logger,
+          });
+          return { imageDataUrl };
+        } catch (error) {
+          logger?.warn(
+            "[quartermaster] outfit portrait generation failed: %s",
+            error instanceof Error ? error.message : String(error),
+          );
+          return reply.status(502).send({ error: "generation-failed" });
+        }
       });
 
       routes.delete("/inventory/:chatId/:ownerId/outfits/:outfitId/portrait", async (request, reply) => {
@@ -1847,6 +2154,18 @@ export async function activate(context) {
           }
         }
 
+        if (body.imageConnectionId !== undefined) {
+          if (body.imageConnectionId !== null && typeof body.imageConnectionId !== "string") {
+            return reply.status(400).send({ error: "Invalid imageConnectionId" });
+          }
+          state.imageConnectionId = body.imageConnectionId || null;
+        }
+        for (const key of ["itemImagePromptTemplate", "outfitPortraitPromptTemplate"]) {
+          if (body[key] === undefined) continue;
+          if (typeof body[key] !== "string") return reply.status(400).send({ error: `Invalid ${key}` });
+          state[key] = normalizeText(body[key], MAX_PROMPT_TEMPLATE_LENGTH);
+        }
+
         await persistState(chatId, ownerId, state);
         return {
           appearanceFeedMode: state.appearanceFeedMode,
@@ -1854,6 +2173,9 @@ export async function activate(context) {
           showArmor: state.showArmor,
           showWeapons: state.showWeapons,
           replaceRealAvatarOnEquip: state.replaceRealAvatarOnEquip,
+          imageConnectionId: state.imageConnectionId,
+          itemImagePromptTemplate: state.itemImagePromptTemplate,
+          outfitPortraitPromptTemplate: state.outfitPortraitPromptTemplate,
         };
       });
     },

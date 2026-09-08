@@ -123,6 +123,8 @@ export default tseslint.config(
         QM: "readonly",
         QM_OWNER_ID: "readonly",
         QM_EQUIP_SLOTS: "readonly",
+        QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE: "readonly",
+        QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE: "readonly",
         QM_SLOT_GROUPS: "readonly",
         QM_SLOT_LABELS: "readonly",
         QM_PORTRAIT_LAYOUT: "readonly",

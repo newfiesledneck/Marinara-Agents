@@ -208,11 +208,21 @@ const manifest = {
   //   two — every other package in this repo ships exactly one; Memory Nag
   //   is the precedent for combining UI/storage identity and a real
   //   post_processing pipeline agent under that same single entry.
+  // network: server.mjs's engineApiFetch/generateImageViaEngine loopback to the
+  //   Engine's OWN internal REST API (GET /api/connections, POST
+  //   /api/characters/avatar-generation) via 127.0.0.1, for the Generate
+  //   Image feature — there is no api.runtime.images method (confirmed: the
+  //   full CapabilityRuntimeHost surface is only persistence/resources/
+  //   languageModels/json/logger/isDebugAgentsEnabled, checked against every
+  //   package's own package-runtime.ts). This is the same real, shipped
+  //   mechanism packages/gacha-forge/server.mjs uses for its own AI image
+  //   generation — that package declares this same permission for the same
+  //   reason.
   // prompt-context: registerPromptContext (server.mjs) feeds a curated,
   //   location-aware inventory summary to the NARRATOR every generation —
   //   deliberately separate from agent-runtime's prepareContext, which feeds
   //   the TRACKER AGENT its own prior state instead.
-  permissions: ["agent-runtime", "chat-read", "chat-write", "prompt-context", "routes", "storage", "ui"],
+  permissions: ["agent-runtime", "chat-read", "chat-write", "network", "prompt-context", "routes", "storage", "ui"],
   // The routes permission forces this: getCapabilityPackageInstallIssue in the
   // Engine's package-manager.service.ts rejects install for any package that
   // declares "routes" but restartRequired: false — privileged routes only

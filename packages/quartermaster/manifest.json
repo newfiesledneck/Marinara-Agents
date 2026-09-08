@@ -38,13 +38,13 @@
     },
     {
       "path": "client.js",
-      "sha256": "b3d0a0d3717de99d87029469791988212cf75bc6723aa0df84e1082cc8ab1cb3",
-      "bytes": 228823
+      "sha256": "af89fb066c8b0682d5bc6a96d524e1ea0ffbe7cdc7ff4452ce55497abfb8ab77",
+      "bytes": 254411
     },
     {
       "path": "server.mjs",
-      "sha256": "6d278d0bccdff1c911f44116b2639a1599507b1882d5e8b46ac50e7c96d61694",
-      "bytes": 95217
+      "sha256": "3c24f780f2c8ebc890ad19c68c8d3626c895a82c4774c0a8478960538b3edb4d",
+      "bytes": 111996
     },
     {
       "path": "icons/armor_legs.webp",
@@ -126,6 +126,7 @@
     "agent-runtime",
     "chat-read",
     "chat-write",
+    "network",
     "prompt-context",
     "routes",
     "storage",

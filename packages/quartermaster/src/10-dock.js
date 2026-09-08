@@ -452,6 +452,9 @@ QM.dock = {
   thumbnailSizeButtons: null,
   errorNode: null,
   feedSelect: null,
+  imageConnectionSelect: null,
+  itemPromptTextarea: null,
+  outfitPromptTextarea: null,
   settingsSection: null,
   settingsContent: null,
   settingsChevron: null,
@@ -487,10 +490,12 @@ QM.dock = {
   outfitEditorBackdrop: null,
   saveOutfitBackdrop: null,
   wardrobeBuilderBackdrop: null,
+  imageGenBackdrop: null,
   _itemEditorEscapeHandler: null,
   _outfitEditorEscapeHandler: null,
   _saveOutfitEscapeHandler: null,
   _wardrobeEscapeHandler: null,
+  _imageGenEscapeHandler: null,
   bagSearchQuery: "",
   bagSearchMode: "name",
   bagSearchInput: null,
@@ -525,16 +530,21 @@ QM.dock = {
     this._unbindEscapeClose(this._outfitEditorEscapeHandler);
     this._unbindEscapeClose(this._saveOutfitEscapeHandler);
     this._unbindEscapeClose(this._wardrobeEscapeHandler);
+    this._unbindEscapeClose(this._imageGenEscapeHandler);
     this._itemEditorEscapeHandler = null;
     this._outfitEditorEscapeHandler = null;
     this._saveOutfitEscapeHandler = null;
     this._wardrobeEscapeHandler = null;
+    this._imageGenEscapeHandler = null;
     this.columns = null;
     this.zoomWrapper = null;
     this.uiSizeButtons = null;
     this.thumbnailSizeButtons = null;
     this.errorNode = null;
     this.feedSelect = null;
+    this.imageConnectionSelect = null;
+    this.itemPromptTextarea = null;
+    this.outfitPromptTextarea = null;
     this.settingsSection = null;
     this.settingsContent = null;
     this.settingsChevron = null;
@@ -563,6 +573,7 @@ QM.dock = {
     this.outfitEditorBackdrop = null;
     this.saveOutfitBackdrop = null;
     this.wardrobeBuilderBackdrop = null;
+    this.imageGenBackdrop = null;
   },
 
   isOpen() {
@@ -1057,6 +1068,19 @@ QM.dock = {
     this.weaponsToggle.checked = QM.state.showWeapons;
     this.replaceRealAvatarToggle.checked = QM.state.replaceRealAvatarOnEquip;
     this.restoreInventoryButton.disabled = !QM.state.previousSnapshot;
+    if (this.imageConnectionSelect && !this.imageConnectionSelect.disabled) {
+      this.imageConnectionSelect.value = QM.state.imageConnectionId || "";
+    }
+    // Guarded against the active element: _paint() fires on every state
+    // change, including ones unrelated to these fields (e.g. an equip action
+    // elsewhere in the dock) -- an unconditional value= assignment here would
+    // silently clobber an in-progress, not-yet-blurred edit.
+    if (document.activeElement !== this.itemPromptTextarea) {
+      this.itemPromptTextarea.value = QM.state.itemImagePromptTemplate;
+    }
+    if (document.activeElement !== this.outfitPromptTextarea) {
+      this.outfitPromptTextarea.value = QM.state.outfitPortraitPromptTemplate;
+    }
     // display was previously only set once at _buildPortrait()'s construction
     // time, from whatever hasAvatar was at mount — harmless while the only
     // input was the persona's own avatar (rarely changes mid-session), but
@@ -1139,6 +1163,152 @@ QM.dock = {
     });
 
     wrapper.append(row, note);
+    return wrapper;
+  },
+
+  // Generate Image settings: which image_generation connection Quartermaster
+  // itself uses (a purely local, per-chat preference -- never an Engine-wide
+  // default, see server.mjs's own comment), and the two editable prompt
+  // templates. The connection list is fetched client-side straight from the
+  // Engine's own /api/connections (QM.listImageConnections, mirrors
+  // pixelforge's PF.api.getJson) since no package permission gates what
+  // browser JS can fetch same-origin.
+  _buildImageGenerationSettingsRow() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { fontSize: "12px", display: "flex", flexDirection: "column", gap: "8px" });
+
+    const connectionRow = document.createElement("div");
+    Object.assign(connectionRow.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const connectionLabel = document.createElement("span");
+    connectionLabel.textContent = "Image connection:";
+    connectionLabel.style.color = "var(--muted-foreground, currentcolor)";
+    const connectionSelect = QM.smallInput("select");
+    connectionSelect.style.flex = "1";
+    connectionSelect.disabled = true;
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "Loading connections…";
+    connectionSelect.appendChild(defaultOption);
+    connectionSelect.addEventListener("change", () => QM.state.updateImageConnectionId(connectionSelect.value));
+    this.imageConnectionSelect = connectionSelect;
+    connectionRow.append(connectionLabel, connectionSelect);
+
+    const connectionNote = document.createElement("p");
+    Object.assign(connectionNote.style, {
+      margin: "0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    const populateConnections = () => {
+      connectionSelect.disabled = true;
+      const checkingOption = document.createElement("option");
+      checkingOption.value = "";
+      checkingOption.textContent = "Checking…";
+      connectionSelect.replaceChildren(checkingOption);
+      QM.listImageConnections().then(
+        (connections) => {
+          const useDefaultOption = document.createElement("option");
+          useDefaultOption.value = "";
+          useDefaultOption.textContent = "Use Engine default";
+          const options = [
+            useDefaultOption,
+            ...connections.map((connection) => {
+              const option = document.createElement("option");
+              option.value = connection.id;
+              option.textContent = connection.name || connection.id;
+              return option;
+            }),
+          ];
+          connectionSelect.replaceChildren(...options);
+          connectionSelect.value = QM.state.imageConnectionId || "";
+          connectionSelect.disabled = false;
+          connectionNote.textContent =
+            connections.length === 0
+              ? "No image connection is configured in the Engine yet — Generate will be unavailable until one exists (Upload still works)."
+              : "Used only for Quartermaster's own Generate Image feature — never changes any Engine-wide default.";
+        },
+        () => {
+          const errorOption = document.createElement("option");
+          errorOption.value = "";
+          errorOption.textContent = "Could not load connections";
+          connectionSelect.replaceChildren(errorOption);
+          const retry = document.createElement("button");
+          retry.type = "button";
+          retry.textContent = "↻ Retry";
+          Object.assign(retry.style, {
+            marginLeft: "6px",
+            background: "none",
+            border: "none",
+            color: "var(--primary, currentcolor)",
+            cursor: "pointer",
+            font: "inherit",
+            fontSize: "11px",
+            padding: "0",
+          });
+          retry.addEventListener("click", populateConnections);
+          connectionNote.replaceChildren(document.createTextNode("Could not check for an image connection."), retry);
+        },
+      );
+    };
+    populateConnections();
+
+    const itemPromptLabel = document.createElement("p");
+    itemPromptLabel.textContent = "Item image prompt template:";
+    Object.assign(itemPromptLabel.style, { margin: "0", color: "var(--muted-foreground, currentcolor)" });
+    const itemPromptTextarea = QM.smallInput("textarea");
+    Object.assign(itemPromptTextarea.style, {
+      width: "100%",
+      minHeight: "48px",
+      resize: "vertical",
+      boxSizing: "border-box",
+    });
+    itemPromptTextarea.placeholder = QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE;
+    itemPromptTextarea.addEventListener("blur", () => QM.state.updateItemImagePromptTemplate(itemPromptTextarea.value));
+    this.itemPromptTextarea = itemPromptTextarea;
+    const itemPromptNote = document.createElement("p");
+    itemPromptNote.textContent = "Tokens: {item}, {item_description}. Saves when you click away.";
+    Object.assign(itemPromptNote.style, {
+      margin: "0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    const outfitPromptLabel = document.createElement("p");
+    outfitPromptLabel.textContent = "Outfit portrait prompt template:";
+    Object.assign(outfitPromptLabel.style, { margin: "0", color: "var(--muted-foreground, currentcolor)" });
+    const outfitPromptTextarea = QM.smallInput("textarea");
+    Object.assign(outfitPromptTextarea.style, {
+      width: "100%",
+      minHeight: "48px",
+      resize: "vertical",
+      boxSizing: "border-box",
+    });
+    outfitPromptTextarea.placeholder = QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE;
+    outfitPromptTextarea.addEventListener("blur", () =>
+      QM.state.updateOutfitPortraitPromptTemplate(outfitPromptTextarea.value),
+    );
+    this.outfitPromptTextarea = outfitPromptTextarea;
+    const outfitPromptNote = document.createElement("p");
+    outfitPromptNote.textContent =
+      "Tokens: {name}, {persona_appearance} (the persona's own Appearance field only), {equipped_items} " +
+      "(the outfit's own description). Saves when you click away.";
+    Object.assign(outfitPromptNote.style, {
+      margin: "0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    wrapper.append(
+      connectionRow,
+      connectionNote,
+      itemPromptLabel,
+      itemPromptTextarea,
+      itemPromptNote,
+      outfitPromptLabel,
+      outfitPromptTextarea,
+      outfitPromptNote,
+    );
     return wrapper;
   },
 
@@ -1293,20 +1463,21 @@ QM.dock = {
     header.append(chevron, label);
     header.addEventListener("click", () => {
       this.settingsExpanded = !this.settingsExpanded;
-      this.settingsContent.style.maxHeight = this.settingsExpanded ? "480px" : "0px";
+      this.settingsContent.style.maxHeight = this.settingsExpanded ? "900px" : "0px";
       this.settingsChevron.style.transform = this.settingsExpanded ? "rotate(90deg)" : "rotate(0deg)";
     });
 
     // max-height + overflow:hidden, not display:none/"" — display can't be
-    // transitioned, so the section used to snap open/closed instantly. 480px
+    // transitioned, so the section used to snap open/closed instantly. 900px
     // is a generous ceiling for the current content (the appearance-feed
     // picker + its description, slot toggles, the real-avatar toggle + its
-    // warning note, export/import); it doesn't need to track real content
+    // warning note, export/import, the image-generation connection picker +
+    // two prompt-template textareas); it doesn't need to track real content
     // height since it's never the constraining factor once expanded.
     const content = document.createElement("div");
     Object.assign(content.style, {
       padding: "0 8px",
-      maxHeight: this.settingsExpanded ? "480px" : "0px",
+      maxHeight: this.settingsExpanded ? "900px" : "0px",
       overflow: "hidden",
       transition: "max-height 0.2s ease",
     });
@@ -1327,6 +1498,8 @@ QM.dock = {
       this._buildSlotVisibilityRow(),
       divider(),
       this._buildRealAvatarToggleRow(),
+      divider(),
+      this._buildImageGenerationSettingsRow(),
       divider(),
       this._buildExportImportRow(),
       divider(),
@@ -2252,11 +2425,12 @@ QM.dock = {
   },
 
   // A small clickable thumbnail (or a dashed placeholder when unset) that
-  // opens a file picker to upload/replace this outfit's portrait, plus a "×"
-  // to remove it. Compression happens client-side (QM.compressImageFile)
+  // opens the Generate/Upload choice modal for this outfit's portrait, plus
+  // a "×" to remove it. Compression happens client-side (QM.compressImageFile)
   // before the upload call — the server only validates size/type, it never
-  // resizes. Phase 1 is upload-only; a "generate" option belongs here later
-  // once image-generation reachability from a package is actually confirmed.
+  // resizes. The hidden fileInput below is reused as-is by the modal's own
+  // "Upload" choice (12-image-gen.js) — this control's own upload logic is
+  // untouched either way.
   // sizePx follows QM_THUMBNAIL_SIZES[this.thumbnailSize] — same S/M/L
   // control that sizes item-card placeholders, so the two stay visually
   // consistent with each other.
@@ -2301,7 +2475,9 @@ QM.dock = {
         ? "1px solid var(--border, rgba(128,128,128,0.3))"
         : "1px dashed var(--border, rgba(128,128,128,0.4))",
     });
-    thumbButton.addEventListener("click", () => fileInput.click());
+    thumbButton.addEventListener("click", () =>
+      this._openImageGenModal({ kind: "outfit", subjectId: outfit.id, fileInput }),
+    );
 
     if (outfit.portraitFile) {
       const thumb = document.createElement("img");
@@ -2353,6 +2529,9 @@ QM.dock = {
   // server.mjs's own comment). So the client doesn't know in advance
   // whether one exists; it just tries the URL and falls back to the dashed
   // placeholder on a 404 via onerror/onload, rather than checking a flag.
+  // Clicking the thumbnail opens the Generate/Upload choice modal
+  // (12-image-gen.js); the hidden fileInput below is reused as-is by its own
+  // "Upload" choice, this control's own upload logic is untouched either way.
   _buildItemImageControl(item, sizePx) {
     const wrapper = document.createElement("div");
     Object.assign(wrapper.style, {
@@ -2381,7 +2560,7 @@ QM.dock = {
 
     const thumbButton = document.createElement("button");
     thumbButton.type = "button";
-    thumbButton.title = "Upload/replace image";
+    thumbButton.title = "Add or replace image";
     Object.assign(thumbButton.style, {
       width: `${sizePx}px`,
       height: `${sizePx}px`,
@@ -2392,7 +2571,9 @@ QM.dock = {
       background: "var(--muted, rgba(128,128,128,0.15))",
       border: "1px dashed var(--border, rgba(128,128,128,0.4))",
     });
-    thumbButton.addEventListener("click", () => fileInput.click());
+    thumbButton.addEventListener("click", () =>
+      this._openImageGenModal({ kind: "item", subjectId: item.id, fileInput }),
+    );
 
     const placeholderMark = document.createElement("span");
     placeholderMark.textContent = "+";

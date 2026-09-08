@@ -128,6 +128,48 @@ QM.uploadItemImage = (chatId, ownerId, itemId, imageDataUrl) =>
     },
   );
 
+// Generate Image: cheap prompt preview (no image-gen cost) + the paid
+// generate call, for both items and outfits. Neither route saves anything --
+// the caller feeds /generate's returned imageDataUrl into the EXISTING
+// uploadItemImage/uploadOutfitPortrait above to actually persist it, exactly
+// like a real upload.
+QM.itemImagePromptPreview = (chatId, ownerId, itemId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image/prompt-preview`,
+    { method: "POST", body: "{}" },
+  );
+
+QM.generateItemImage = (chatId, ownerId, itemId, prompt) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image/generate`,
+    { method: "POST", body: JSON.stringify({ prompt }) },
+  );
+
+QM.outfitPortraitPromptPreview = (chatId, ownerId, outfitId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait/prompt-preview`,
+    { method: "POST", body: "{}" },
+  );
+
+QM.generateOutfitPortrait = (chatId, ownerId, outfitId, prompt) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait/generate`,
+    { method: "POST", body: JSON.stringify({ prompt }) },
+  );
+
+// Same-origin plain fetch straight at the Engine's own top-level route, NOT
+// qmRequest (that's scoped to /api/quartermaster/...) -- mirrors pixelforge's
+// PF.api.getJson (packages/pixelforge/src/00-prelude.js): permissions gate
+// what server.mjs itself can call, not what browser JS can fetch same-origin,
+// so this needs no package permission. Filtered client-side the same way
+// server.mjs's own resolveImageConnection filters server-side.
+QM.listImageConnections = async () => {
+  const response = await fetch("/api/connections", { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`Could not load connections (${response.status})`);
+  const connections = await response.json();
+  return Array.isArray(connections) ? connections.filter((c) => c && c.provider === "image_generation") : [];
+};
+
 QM.deleteItemImage = (chatId, ownerId, itemId) =>
   qmRequest(
     `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image`,

@@ -1,5 +1,5 @@
 // Quartermaster 0.1.5 — Marinara Engine roleplay-tracker capability (single-file client bundle)
-// Built from packages/quartermaster/src (9 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
+// Built from packages/quartermaster/src (10 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
 // ===== 00-api.js =====
@@ -132,6 +132,48 @@ QM.uploadItemImage = (chatId, ownerId, itemId, imageDataUrl) =>
       body: JSON.stringify({ imageDataUrl }),
     },
   );
+
+// Generate Image: cheap prompt preview (no image-gen cost) + the paid
+// generate call, for both items and outfits. Neither route saves anything --
+// the caller feeds /generate's returned imageDataUrl into the EXISTING
+// uploadItemImage/uploadOutfitPortrait above to actually persist it, exactly
+// like a real upload.
+QM.itemImagePromptPreview = (chatId, ownerId, itemId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image/prompt-preview`,
+    { method: "POST", body: "{}" },
+  );
+
+QM.generateItemImage = (chatId, ownerId, itemId, prompt) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items/${encodeURIComponent(itemId)}/image/generate`,
+    { method: "POST", body: JSON.stringify({ prompt }) },
+  );
+
+QM.outfitPortraitPromptPreview = (chatId, ownerId, outfitId) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait/prompt-preview`,
+    { method: "POST", body: "{}" },
+  );
+
+QM.generateOutfitPortrait = (chatId, ownerId, outfitId, prompt) =>
+  qmRequest(
+    `/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait/generate`,
+    { method: "POST", body: JSON.stringify({ prompt }) },
+  );
+
+// Same-origin plain fetch straight at the Engine's own top-level route, NOT
+// qmRequest (that's scoped to /api/quartermaster/...) -- mirrors pixelforge's
+// PF.api.getJson (packages/pixelforge/src/00-prelude.js): permissions gate
+// what server.mjs itself can call, not what browser JS can fetch same-origin,
+// so this needs no package permission. Filtered client-side the same way
+// server.mjs's own resolveImageConnection filters server-side.
+QM.listImageConnections = async () => {
+  const response = await fetch("/api/connections", { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`Could not load connections (${response.status})`);
+  const connections = await response.json();
+  return Array.isArray(connections) ? connections.filter((c) => c && c.provider === "image_generation") : [];
+};
 
 QM.deleteItemImage = (chatId, ownerId, itemId) =>
   qmRequest(
@@ -324,6 +366,16 @@ const QM_EQUIP_SLOTS = [
   "feet",
   "belt",
 ];
+// Mirrors server.mjs's DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE/
+// DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE exactly -- client and server are
+// separate bundles, so this is duplicated rather than shared. Used only as
+// placeholder text (what an empty saved template actually falls back to),
+// never sent anywhere -- the server is the source of truth at generate time.
+const QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE =
+  "A crisp, studio photograph of a detailed {item}, {item_description}, set on a dark slate surface, dramatic cinematic side-lighting, 8k resolution, dark neutral background, perfectly centered item sheet asset.";
+const QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE =
+  "A full body portrait of {name}, {persona_appearance}, wearing {equipped_items}.";
+
 // Three of the extension's original SLOT_GROUPS toggles (armor/underwear/
 // weapon) — every other slot has no group and is always on ("just regular
 // slots", per the request). Mirrors server.mjs's SLOT_GROUPS.
@@ -551,6 +603,13 @@ QM.state = {
   // Inventory" in Settings has something to revert to. See
   // server.mjs's own comment for the single-level (not full history) scope.
   previousSnapshot: null,
+  // Generate Image settings — a purely local, per-chat preference read only
+  // when Quartermaster itself generates an image; see server.mjs's own
+  // field comments for why this never affects any other feature. Empty
+  // template string means "use the built-in default", not the literal text.
+  imageConnectionId: null,
+  itemImagePromptTemplate: "",
+  outfitPortraitPromptTemplate: "",
   error: null,
   _listeners: new Set(),
 
@@ -574,6 +633,9 @@ QM.state = {
     this.showWeapons = true;
     this.personaAvatarUrl = null;
     this.previousSnapshot = null;
+    this.imageConnectionId = null;
+    this.itemImagePromptTemplate = "";
+    this.outfitPortraitPromptTemplate = "";
     this.error = null;
     // A selected equip-slot picker (QM.dock's own UI state, not this
     // object's) doesn't carry any meaning across a chat switch — the slot
@@ -628,6 +690,9 @@ QM.state = {
         personaAvatarUrl: result.personaAvatarUrl || null,
         replaceRealAvatarOnEquip: result.replaceRealAvatarOnEquip === true,
         previousSnapshot: result.previousSnapshot ?? null,
+        imageConnectionId: result.imageConnectionId ?? null,
+        itemImagePromptTemplate: result.itemImagePromptTemplate || "",
+        outfitPortraitPromptTemplate: result.outfitPortraitPromptTemplate || "",
       };
       // A repaint rebuilds every card's DOM wholesale (there's no cheap way
       // to patch just the one thing that changed) — item images in
@@ -647,6 +712,9 @@ QM.state = {
         personaAvatarUrl: this.personaAvatarUrl,
         replaceRealAvatarOnEquip: this.replaceRealAvatarOnEquip,
         previousSnapshot: this.previousSnapshot,
+        imageConnectionId: this.imageConnectionId,
+        itemImagePromptTemplate: this.itemImagePromptTemplate,
+        outfitPortraitPromptTemplate: this.outfitPortraitPromptTemplate,
       };
       const changed = this.error !== null || JSON.stringify(next) !== JSON.stringify(current);
       Object.assign(this, next);
@@ -673,6 +741,10 @@ QM.state = {
       if (result.replaceRealAvatarOnEquip !== undefined)
         this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
       if (result.previousSnapshot !== undefined) this.previousSnapshot = result.previousSnapshot;
+      if (result.imageConnectionId !== undefined) this.imageConnectionId = result.imageConnectionId;
+      if (result.itemImagePromptTemplate !== undefined) this.itemImagePromptTemplate = result.itemImagePromptTemplate;
+      if (result.outfitPortraitPromptTemplate !== undefined)
+        this.outfitPortraitPromptTemplate = result.outfitPortraitPromptTemplate;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
@@ -746,6 +818,15 @@ QM.state = {
   },
   updateAppearanceFeedMode(mode) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { appearanceFeedMode: mode }));
+  },
+  updateImageConnectionId(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { imageConnectionId: value || null }));
+  },
+  updateItemImagePromptTemplate(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { itemImagePromptTemplate: value }));
+  },
+  updateOutfitPortraitPromptTemplate(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { outfitPortraitPromptTemplate: value }));
   },
   updateShowUnderwear(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { showUnderwear: value }));
@@ -1478,6 +1559,9 @@ QM.dock = {
   thumbnailSizeButtons: null,
   errorNode: null,
   feedSelect: null,
+  imageConnectionSelect: null,
+  itemPromptTextarea: null,
+  outfitPromptTextarea: null,
   settingsSection: null,
   settingsContent: null,
   settingsChevron: null,
@@ -1513,10 +1597,12 @@ QM.dock = {
   outfitEditorBackdrop: null,
   saveOutfitBackdrop: null,
   wardrobeBuilderBackdrop: null,
+  imageGenBackdrop: null,
   _itemEditorEscapeHandler: null,
   _outfitEditorEscapeHandler: null,
   _saveOutfitEscapeHandler: null,
   _wardrobeEscapeHandler: null,
+  _imageGenEscapeHandler: null,
   bagSearchQuery: "",
   bagSearchMode: "name",
   bagSearchInput: null,
@@ -1551,16 +1637,21 @@ QM.dock = {
     this._unbindEscapeClose(this._outfitEditorEscapeHandler);
     this._unbindEscapeClose(this._saveOutfitEscapeHandler);
     this._unbindEscapeClose(this._wardrobeEscapeHandler);
+    this._unbindEscapeClose(this._imageGenEscapeHandler);
     this._itemEditorEscapeHandler = null;
     this._outfitEditorEscapeHandler = null;
     this._saveOutfitEscapeHandler = null;
     this._wardrobeEscapeHandler = null;
+    this._imageGenEscapeHandler = null;
     this.columns = null;
     this.zoomWrapper = null;
     this.uiSizeButtons = null;
     this.thumbnailSizeButtons = null;
     this.errorNode = null;
     this.feedSelect = null;
+    this.imageConnectionSelect = null;
+    this.itemPromptTextarea = null;
+    this.outfitPromptTextarea = null;
     this.settingsSection = null;
     this.settingsContent = null;
     this.settingsChevron = null;
@@ -1589,6 +1680,7 @@ QM.dock = {
     this.outfitEditorBackdrop = null;
     this.saveOutfitBackdrop = null;
     this.wardrobeBuilderBackdrop = null;
+    this.imageGenBackdrop = null;
   },
 
   isOpen() {
@@ -2083,6 +2175,19 @@ QM.dock = {
     this.weaponsToggle.checked = QM.state.showWeapons;
     this.replaceRealAvatarToggle.checked = QM.state.replaceRealAvatarOnEquip;
     this.restoreInventoryButton.disabled = !QM.state.previousSnapshot;
+    if (this.imageConnectionSelect && !this.imageConnectionSelect.disabled) {
+      this.imageConnectionSelect.value = QM.state.imageConnectionId || "";
+    }
+    // Guarded against the active element: _paint() fires on every state
+    // change, including ones unrelated to these fields (e.g. an equip action
+    // elsewhere in the dock) -- an unconditional value= assignment here would
+    // silently clobber an in-progress, not-yet-blurred edit.
+    if (document.activeElement !== this.itemPromptTextarea) {
+      this.itemPromptTextarea.value = QM.state.itemImagePromptTemplate;
+    }
+    if (document.activeElement !== this.outfitPromptTextarea) {
+      this.outfitPromptTextarea.value = QM.state.outfitPortraitPromptTemplate;
+    }
     // display was previously only set once at _buildPortrait()'s construction
     // time, from whatever hasAvatar was at mount — harmless while the only
     // input was the persona's own avatar (rarely changes mid-session), but
@@ -2165,6 +2270,152 @@ QM.dock = {
     });
 
     wrapper.append(row, note);
+    return wrapper;
+  },
+
+  // Generate Image settings: which image_generation connection Quartermaster
+  // itself uses (a purely local, per-chat preference -- never an Engine-wide
+  // default, see server.mjs's own comment), and the two editable prompt
+  // templates. The connection list is fetched client-side straight from the
+  // Engine's own /api/connections (QM.listImageConnections, mirrors
+  // pixelforge's PF.api.getJson) since no package permission gates what
+  // browser JS can fetch same-origin.
+  _buildImageGenerationSettingsRow() {
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, { fontSize: "12px", display: "flex", flexDirection: "column", gap: "8px" });
+
+    const connectionRow = document.createElement("div");
+    Object.assign(connectionRow.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const connectionLabel = document.createElement("span");
+    connectionLabel.textContent = "Image connection:";
+    connectionLabel.style.color = "var(--muted-foreground, currentcolor)";
+    const connectionSelect = QM.smallInput("select");
+    connectionSelect.style.flex = "1";
+    connectionSelect.disabled = true;
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "Loading connections…";
+    connectionSelect.appendChild(defaultOption);
+    connectionSelect.addEventListener("change", () => QM.state.updateImageConnectionId(connectionSelect.value));
+    this.imageConnectionSelect = connectionSelect;
+    connectionRow.append(connectionLabel, connectionSelect);
+
+    const connectionNote = document.createElement("p");
+    Object.assign(connectionNote.style, {
+      margin: "0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    const populateConnections = () => {
+      connectionSelect.disabled = true;
+      const checkingOption = document.createElement("option");
+      checkingOption.value = "";
+      checkingOption.textContent = "Checking…";
+      connectionSelect.replaceChildren(checkingOption);
+      QM.listImageConnections().then(
+        (connections) => {
+          const useDefaultOption = document.createElement("option");
+          useDefaultOption.value = "";
+          useDefaultOption.textContent = "Use Engine default";
+          const options = [
+            useDefaultOption,
+            ...connections.map((connection) => {
+              const option = document.createElement("option");
+              option.value = connection.id;
+              option.textContent = connection.name || connection.id;
+              return option;
+            }),
+          ];
+          connectionSelect.replaceChildren(...options);
+          connectionSelect.value = QM.state.imageConnectionId || "";
+          connectionSelect.disabled = false;
+          connectionNote.textContent =
+            connections.length === 0
+              ? "No image connection is configured in the Engine yet — Generate will be unavailable until one exists (Upload still works)."
+              : "Used only for Quartermaster's own Generate Image feature — never changes any Engine-wide default.";
+        },
+        () => {
+          const errorOption = document.createElement("option");
+          errorOption.value = "";
+          errorOption.textContent = "Could not load connections";
+          connectionSelect.replaceChildren(errorOption);
+          const retry = document.createElement("button");
+          retry.type = "button";
+          retry.textContent = "↻ Retry";
+          Object.assign(retry.style, {
+            marginLeft: "6px",
+            background: "none",
+            border: "none",
+            color: "var(--primary, currentcolor)",
+            cursor: "pointer",
+            font: "inherit",
+            fontSize: "11px",
+            padding: "0",
+          });
+          retry.addEventListener("click", populateConnections);
+          connectionNote.replaceChildren(document.createTextNode("Could not check for an image connection."), retry);
+        },
+      );
+    };
+    populateConnections();
+
+    const itemPromptLabel = document.createElement("p");
+    itemPromptLabel.textContent = "Item image prompt template:";
+    Object.assign(itemPromptLabel.style, { margin: "0", color: "var(--muted-foreground, currentcolor)" });
+    const itemPromptTextarea = QM.smallInput("textarea");
+    Object.assign(itemPromptTextarea.style, {
+      width: "100%",
+      minHeight: "48px",
+      resize: "vertical",
+      boxSizing: "border-box",
+    });
+    itemPromptTextarea.placeholder = QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE;
+    itemPromptTextarea.addEventListener("blur", () => QM.state.updateItemImagePromptTemplate(itemPromptTextarea.value));
+    this.itemPromptTextarea = itemPromptTextarea;
+    const itemPromptNote = document.createElement("p");
+    itemPromptNote.textContent = "Tokens: {item}, {item_description}. Saves when you click away.";
+    Object.assign(itemPromptNote.style, {
+      margin: "0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    const outfitPromptLabel = document.createElement("p");
+    outfitPromptLabel.textContent = "Outfit portrait prompt template:";
+    Object.assign(outfitPromptLabel.style, { margin: "0", color: "var(--muted-foreground, currentcolor)" });
+    const outfitPromptTextarea = QM.smallInput("textarea");
+    Object.assign(outfitPromptTextarea.style, {
+      width: "100%",
+      minHeight: "48px",
+      resize: "vertical",
+      boxSizing: "border-box",
+    });
+    outfitPromptTextarea.placeholder = QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE;
+    outfitPromptTextarea.addEventListener("blur", () =>
+      QM.state.updateOutfitPortraitPromptTemplate(outfitPromptTextarea.value),
+    );
+    this.outfitPromptTextarea = outfitPromptTextarea;
+    const outfitPromptNote = document.createElement("p");
+    outfitPromptNote.textContent =
+      "Tokens: {name}, {persona_appearance} (the persona's own Appearance field only), {equipped_items} " +
+      "(the outfit's own description). Saves when you click away.";
+    Object.assign(outfitPromptNote.style, {
+      margin: "0",
+      fontSize: "11px",
+      color: "var(--muted-foreground, currentcolor)",
+    });
+
+    wrapper.append(
+      connectionRow,
+      connectionNote,
+      itemPromptLabel,
+      itemPromptTextarea,
+      itemPromptNote,
+      outfitPromptLabel,
+      outfitPromptTextarea,
+      outfitPromptNote,
+    );
     return wrapper;
   },
 
@@ -2319,20 +2570,21 @@ QM.dock = {
     header.append(chevron, label);
     header.addEventListener("click", () => {
       this.settingsExpanded = !this.settingsExpanded;
-      this.settingsContent.style.maxHeight = this.settingsExpanded ? "480px" : "0px";
+      this.settingsContent.style.maxHeight = this.settingsExpanded ? "900px" : "0px";
       this.settingsChevron.style.transform = this.settingsExpanded ? "rotate(90deg)" : "rotate(0deg)";
     });
 
     // max-height + overflow:hidden, not display:none/"" — display can't be
-    // transitioned, so the section used to snap open/closed instantly. 480px
+    // transitioned, so the section used to snap open/closed instantly. 900px
     // is a generous ceiling for the current content (the appearance-feed
     // picker + its description, slot toggles, the real-avatar toggle + its
-    // warning note, export/import); it doesn't need to track real content
+    // warning note, export/import, the image-generation connection picker +
+    // two prompt-template textareas); it doesn't need to track real content
     // height since it's never the constraining factor once expanded.
     const content = document.createElement("div");
     Object.assign(content.style, {
       padding: "0 8px",
-      maxHeight: this.settingsExpanded ? "480px" : "0px",
+      maxHeight: this.settingsExpanded ? "900px" : "0px",
       overflow: "hidden",
       transition: "max-height 0.2s ease",
     });
@@ -2353,6 +2605,8 @@ QM.dock = {
       this._buildSlotVisibilityRow(),
       divider(),
       this._buildRealAvatarToggleRow(),
+      divider(),
+      this._buildImageGenerationSettingsRow(),
       divider(),
       this._buildExportImportRow(),
       divider(),
@@ -3278,11 +3532,12 @@ QM.dock = {
   },
 
   // A small clickable thumbnail (or a dashed placeholder when unset) that
-  // opens a file picker to upload/replace this outfit's portrait, plus a "×"
-  // to remove it. Compression happens client-side (QM.compressImageFile)
+  // opens the Generate/Upload choice modal for this outfit's portrait, plus
+  // a "×" to remove it. Compression happens client-side (QM.compressImageFile)
   // before the upload call — the server only validates size/type, it never
-  // resizes. Phase 1 is upload-only; a "generate" option belongs here later
-  // once image-generation reachability from a package is actually confirmed.
+  // resizes. The hidden fileInput below is reused as-is by the modal's own
+  // "Upload" choice (12-image-gen.js) — this control's own upload logic is
+  // untouched either way.
   // sizePx follows QM_THUMBNAIL_SIZES[this.thumbnailSize] — same S/M/L
   // control that sizes item-card placeholders, so the two stay visually
   // consistent with each other.
@@ -3327,7 +3582,9 @@ QM.dock = {
         ? "1px solid var(--border, rgba(128,128,128,0.3))"
         : "1px dashed var(--border, rgba(128,128,128,0.4))",
     });
-    thumbButton.addEventListener("click", () => fileInput.click());
+    thumbButton.addEventListener("click", () =>
+      this._openImageGenModal({ kind: "outfit", subjectId: outfit.id, fileInput }),
+    );
 
     if (outfit.portraitFile) {
       const thumb = document.createElement("img");
@@ -3379,6 +3636,9 @@ QM.dock = {
   // server.mjs's own comment). So the client doesn't know in advance
   // whether one exists; it just tries the URL and falls back to the dashed
   // placeholder on a 404 via onerror/onload, rather than checking a flag.
+  // Clicking the thumbnail opens the Generate/Upload choice modal
+  // (12-image-gen.js); the hidden fileInput below is reused as-is by its own
+  // "Upload" choice, this control's own upload logic is untouched either way.
   _buildItemImageControl(item, sizePx) {
     const wrapper = document.createElement("div");
     Object.assign(wrapper.style, {
@@ -3407,7 +3667,7 @@ QM.dock = {
 
     const thumbButton = document.createElement("button");
     thumbButton.type = "button";
-    thumbButton.title = "Upload/replace image";
+    thumbButton.title = "Add or replace image";
     Object.assign(thumbButton.style, {
       width: `${sizePx}px`,
       height: `${sizePx}px`,
@@ -3418,7 +3678,9 @@ QM.dock = {
       background: "var(--muted, rgba(128,128,128,0.15))",
       border: "1px dashed var(--border, rgba(128,128,128,0.4))",
     });
-    thumbButton.addEventListener("click", () => fileInput.click());
+    thumbButton.addEventListener("click", () =>
+      this._openImageGenModal({ kind: "item", subjectId: item.id, fileInput }),
+    );
 
     const placeholderMark = document.createElement("span");
     placeholderMark.textContent = "+";
@@ -4826,6 +5088,316 @@ Object.assign(QM.dock, {
     });
     const cancelButton = QM.button("Cancel", { border: true });
     cancelButton.addEventListener("click", () => this._closeWardrobeBuilder());
+    buttonRow.append(tryAgainButton, cancelButton);
+    fragment.append(message, buttonRow);
+    return fragment;
+  },
+});
+
+// ===== 12-image-gen.js =====
+// Generate Image: an AI-generated alternative to uploading an item image or
+// outfit portrait, ported from the legacy RPG Inventory extension's own
+// Generate/Upload menu + editable "review prompt" step (see server.mjs's
+// buildItemImagePrompt/buildOutfitPortraitPrompt/generateImageViaEngine for
+// the actual prompt-building and generation logic). Attaches onto QM.dock
+// (built in 10-dock.js), same cross-file pattern 11-wardrobe.js already uses.
+//
+// Neither route this calls writes to storage -- the "Generate" step returns
+// an unsaved data URL, which this file then hands to the ALREADY-EXISTING
+// QM.state.uploadItemImage/uploadOutfitPortrait to actually persist it,
+// exactly like a real upload would (see server.mjs's own comment on why).
+
+// Friendlier text for the known server-side failure codes, same convention
+// QM_WARDROBE_ERROR_MESSAGES (11-wardrobe.js) uses.
+const QM_IMAGE_GEN_ERROR_MESSAGES = {
+  "no-image-connection":
+    "No image connection is configured. Choose one in Settings → Image generation, or use Upload instead.",
+  "engine-unreachable": "Could not reach the Engine's own image-generation API.",
+  "generation-failed": "Image generation failed. Try again, or use Upload instead.",
+};
+
+Object.assign(QM.dock, {
+  _imageGenViewState: "choice", // "choice" | "prompt" | "loading" | "error"
+  _imageGenKind: null, // "item" | "outfit"
+  _imageGenSubjectId: null,
+  _imageGenFileInput: null, // the existing hidden <input type=file>, reused for "Upload"
+  _imageGenHasConnections: null, // null = still checking, true/false once resolved
+  _imageGenConnectionsError: false, // the check itself failed (distinct from "checked, found none")
+  _imageGenPrompt: "",
+  _imageGenLoadingLabel: "",
+  _imageGenError: null,
+  _imageGenContentContainer: null,
+
+  _openImageGenModal({ kind, subjectId, fileInput }) {
+    this._closeImageGenModal();
+    this._imageGenKind = kind;
+    this._imageGenSubjectId = subjectId;
+    this._imageGenFileInput = fileInput;
+    this._imageGenViewState = "choice";
+    this._imageGenHasConnections = null;
+    this._imageGenConnectionsError = false;
+    this._imageGenPrompt = "";
+    this._imageGenError = null;
+
+    const backdrop = document.createElement("div");
+    Object.assign(backdrop.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0, 0, 0, 0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      boxSizing: "border-box",
+      zIndex: "30",
+    });
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target === backdrop) this._closeImageGenModal();
+    });
+
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      background: "var(--card, #1c1c1c)",
+      border: `1px solid ${QM_COLOR_SUCCESS}`,
+      borderRadius: "var(--radius, 6px)",
+      padding: "12px",
+      width: "min(360px, 100%)",
+      maxHeight: "100%",
+      overflowY: "auto",
+      boxSizing: "border-box",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    });
+    panel.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("div");
+    Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between" });
+    const title = document.createElement("strong");
+    title.textContent = kind === "outfit" ? "Add outfit portrait" : "Add item image";
+    title.style.fontSize = "13px";
+    const closeButton = QM.button("×", { bg: "transparent", border: true, fg: "inherit" });
+    closeButton.style.padding = "0 6px";
+    closeButton.addEventListener("click", () => this._closeImageGenModal());
+    header.append(title, closeButton);
+
+    const contentContainer = document.createElement("div");
+    Object.assign(contentContainer.style, { display: "flex", flexDirection: "column", gap: "8px" });
+    this._imageGenContentContainer = contentContainer;
+
+    panel.append(header, contentContainer);
+    backdrop.appendChild(panel);
+    this.imageGenBackdrop = backdrop;
+    (this.root || this.body).appendChild(backdrop);
+    this._imageGenEscapeHandler = this._bindEscapeClose(() => this._closeImageGenModal());
+
+    this._renderImageGenContent();
+    this._checkImageGenConnections();
+  },
+
+  _closeImageGenModal() {
+    this.imageGenBackdrop?.remove();
+    this.imageGenBackdrop = null;
+    this._imageGenContentContainer = null;
+    this._unbindEscapeClose(this._imageGenEscapeHandler);
+    this._imageGenEscapeHandler = null;
+  },
+
+  async _checkImageGenConnections() {
+    this._imageGenHasConnections = null;
+    this._imageGenConnectionsError = false;
+    this._renderImageGenContent();
+    try {
+      const connections = await QM.listImageConnections();
+      this._imageGenHasConnections = connections.length > 0;
+    } catch {
+      this._imageGenHasConnections = false;
+      this._imageGenConnectionsError = true;
+    }
+    this._renderImageGenContent();
+  },
+
+  _renderImageGenContent() {
+    if (!this._imageGenContentContainer) return;
+    const node =
+      this._imageGenViewState === "loading"
+        ? this._renderImageGenLoading()
+        : this._imageGenViewState === "prompt"
+          ? this._renderImageGenPrompt()
+          : this._imageGenViewState === "error"
+            ? this._renderImageGenError()
+            : this._renderImageGenChoice();
+    this._imageGenContentContainer.replaceChildren(node);
+  },
+
+  _renderImageGenChoice() {
+    const fragment = document.createDocumentFragment();
+
+    if (this._imageGenHasConnections === null) {
+      const checking = document.createElement("div");
+      checking.textContent = "Checking for an image connection…";
+      Object.assign(checking.style, { fontSize: "12px", color: "var(--muted-foreground, inherit)" });
+      fragment.appendChild(checking);
+    } else if (this._imageGenConnectionsError) {
+      const message = document.createElement("div");
+      Object.assign(message.style, { fontSize: "11px", color: "var(--muted-foreground, inherit)" });
+      message.textContent = "Could not check for an image connection — you can still upload.";
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.textContent = "↻ Retry";
+      Object.assign(retry.style, {
+        marginLeft: "6px",
+        background: "none",
+        border: "none",
+        color: "var(--primary, currentcolor)",
+        cursor: "pointer",
+        font: "inherit",
+        fontSize: "11px",
+        padding: "0",
+      });
+      retry.addEventListener("click", () => this._checkImageGenConnections());
+      message.appendChild(retry);
+      fragment.appendChild(message);
+    } else if (!this._imageGenHasConnections) {
+      const message = document.createElement("div");
+      message.textContent =
+        "No image connection selected. Choose one in Settings → Image generation to generate. You can still upload an image below.";
+      Object.assign(message.style, { fontSize: "11px", color: "var(--muted-foreground, inherit)" });
+      fragment.appendChild(message);
+    }
+
+    const buttonRow = document.createElement("div");
+    Object.assign(buttonRow.style, { display: "flex", gap: "6px" });
+
+    if (this._imageGenHasConnections) {
+      const generateButton = QM.button("Generate", { bg: QM_COLOR_SUCCESS, fg: QM_COLOR_SUCCESS_FG });
+      generateButton.style.flex = "1";
+      generateButton.addEventListener("click", () => this._submitImageGenPromptPreview());
+      buttonRow.appendChild(generateButton);
+    }
+
+    const uploadButton = QM.button("Upload", { border: true });
+    uploadButton.style.flex = "1";
+    uploadButton.addEventListener("click", () => {
+      this._imageGenFileInput?.click();
+      this._closeImageGenModal();
+    });
+    buttonRow.appendChild(uploadButton);
+
+    fragment.appendChild(buttonRow);
+    return fragment;
+  },
+
+  async _submitImageGenPromptPreview() {
+    this._imageGenViewState = "loading";
+    this._imageGenLoadingLabel = "Building prompt…";
+    this._renderImageGenContent();
+    try {
+      const result =
+        this._imageGenKind === "outfit"
+          ? await QM.outfitPortraitPromptPreview(QM.state.chatId, QM_OWNER_ID, this._imageGenSubjectId)
+          : await QM.itemImagePromptPreview(QM.state.chatId, QM_OWNER_ID, this._imageGenSubjectId);
+      this._imageGenPrompt = result.prompt;
+      this._imageGenViewState = "prompt";
+    } catch (error) {
+      const code = error && error.message;
+      this._imageGenError = (code && QM_IMAGE_GEN_ERROR_MESSAGES[code]) || code || "Could not build a prompt.";
+      this._imageGenViewState = "error";
+    }
+    this._renderImageGenContent();
+  },
+
+  _renderImageGenPrompt() {
+    const fragment = document.createDocumentFragment();
+
+    const hint = document.createElement("div");
+    hint.textContent =
+      "Edit the prompt for this one generation if you like. This won't change your saved template in Settings.";
+    Object.assign(hint.style, { fontSize: "11px", color: "var(--muted-foreground, inherit)" });
+
+    const promptInput = QM.smallInput("textarea");
+    promptInput.value = this._imageGenPrompt;
+    promptInput.rows = 5;
+    Object.assign(promptInput.style, { width: "100%", boxSizing: "border-box", resize: "vertical", font: "inherit" });
+
+    const buttonRow = document.createElement("div");
+    Object.assign(buttonRow.style, { display: "flex", gap: "6px" });
+    const generateButton = QM.button("Generate", { bg: QM_COLOR_SUCCESS, fg: QM_COLOR_SUCCESS_FG });
+    generateButton.style.flex = "1";
+    generateButton.disabled = !this._imageGenPrompt.trim();
+    generateButton.addEventListener("click", () => this._submitImageGenGenerate());
+    const cancelButton = QM.button("Cancel", { border: true });
+    cancelButton.addEventListener("click", () => this._closeImageGenModal());
+    buttonRow.append(generateButton, cancelButton);
+
+    promptInput.addEventListener("input", () => {
+      this._imageGenPrompt = promptInput.value;
+      generateButton.disabled = !promptInput.value.trim();
+    });
+
+    fragment.append(hint, promptInput, buttonRow);
+    return fragment;
+  },
+
+  _renderImageGenLoading() {
+    const node = document.createElement("div");
+    node.textContent = this._imageGenLoadingLabel || "Working…";
+    Object.assign(node.style, {
+      fontSize: "12px",
+      textAlign: "center",
+      padding: "12px 0",
+      color: "var(--muted-foreground, inherit)",
+    });
+    return node;
+  },
+
+  async _submitImageGenGenerate() {
+    this._imageGenViewState = "loading";
+    this._imageGenLoadingLabel = "Generating image…";
+    this._renderImageGenContent();
+    try {
+      const isOutfit = this._imageGenKind === "outfit";
+      const result = isOutfit
+        ? await QM.generateOutfitPortrait(QM.state.chatId, QM_OWNER_ID, this._imageGenSubjectId, this._imageGenPrompt)
+        : await QM.generateItemImage(QM.state.chatId, QM_OWNER_ID, this._imageGenSubjectId, this._imageGenPrompt);
+
+      this._imageGenLoadingLabel = "Saving…";
+      this._renderImageGenContent();
+      if (isOutfit) {
+        await QM.state.uploadOutfitPortrait(this._imageGenSubjectId, result.imageDataUrl);
+      } else {
+        await QM.state.uploadItemImage(this._imageGenSubjectId, result.imageDataUrl);
+      }
+      if (QM.state.error) throw new Error(QM.state.error);
+      this._closeImageGenModal();
+    } catch (error) {
+      const code = error && error.message;
+      this._imageGenError =
+        (code && QM_IMAGE_GEN_ERROR_MESSAGES[code]) ||
+        code ||
+        "Image generation failed. Try again, or use Upload instead.";
+      this._imageGenViewState = "error";
+      this._renderImageGenContent();
+    }
+  },
+
+  _renderImageGenError() {
+    const fragment = document.createDocumentFragment();
+    const message = document.createElement("div");
+    message.textContent = this._imageGenError || "Something went wrong.";
+    Object.assign(message.style, { fontSize: "12px", color: QM_COLOR_DANGER });
+    const buttonRow = document.createElement("div");
+    Object.assign(buttonRow.style, { display: "flex", gap: "6px" });
+    const tryAgainButton = QM.button("Try Again", { border: true });
+    tryAgainButton.addEventListener("click", () => {
+      this._imageGenViewState = "choice";
+      this._imageGenError = null;
+      this._renderImageGenContent();
+      this._checkImageGenConnections();
+    });
+    const cancelButton = QM.button("Cancel", { border: true });
+    cancelButton.addEventListener("click", () => this._closeImageGenModal());
     buttonRow.append(tryAgainButton, cancelButton);
     fragment.append(message, buttonRow);
     return fragment;
