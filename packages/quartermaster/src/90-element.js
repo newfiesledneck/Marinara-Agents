@@ -33,6 +33,10 @@ class QuartermasterElement extends HTMLElement {
   }
 
   set capabilityProps(value) {
+    // TEMPORARY diagnostic -- confirms exactly what fields the host actually
+    // assigns here, since a server-side debugMode=false persisted even after
+    // forwarding it from this object. Remove once confirmed.
+    console.warn("[quartermaster] capabilityProps received:", value);
     this._props = value;
     this._render();
   }
