@@ -27,6 +27,16 @@ const QM_EQUIP_SLOTS = [
   "feet",
   "belt",
 ];
+// Mirrors server.mjs's DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE/
+// DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE exactly -- client and server are
+// separate bundles, so this is duplicated rather than shared. Used only as
+// placeholder text (what an empty saved template actually falls back to),
+// never sent anywhere -- the server is the source of truth at generate time.
+const QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE =
+  "A crisp, studio photograph of a detailed {item}, {item_description}, set on a dark slate surface, dramatic cinematic side-lighting, 8k resolution, dark neutral background, perfectly centered item sheet asset.";
+const QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE =
+  "A full body portrait of {name}, {persona_appearance}, wearing {equipped_items}.";
+
 // Three of the extension's original SLOT_GROUPS toggles (armor/underwear/
 // weapon) — every other slot has no group and is always on ("just regular
 // slots", per the request). Mirrors server.mjs's SLOT_GROUPS.
@@ -254,6 +264,13 @@ QM.state = {
   // Inventory" in Settings has something to revert to. See
   // server.mjs's own comment for the single-level (not full history) scope.
   previousSnapshot: null,
+  // Generate Image settings — a purely local, per-chat preference read only
+  // when Quartermaster itself generates an image; see server.mjs's own
+  // field comments for why this never affects any other feature. Empty
+  // template string means "use the built-in default", not the literal text.
+  imageConnectionId: null,
+  itemImagePromptTemplate: "",
+  outfitPortraitPromptTemplate: "",
   error: null,
   _listeners: new Set(),
 
@@ -277,6 +294,9 @@ QM.state = {
     this.showWeapons = true;
     this.personaAvatarUrl = null;
     this.previousSnapshot = null;
+    this.imageConnectionId = null;
+    this.itemImagePromptTemplate = "";
+    this.outfitPortraitPromptTemplate = "";
     this.error = null;
     // A selected equip-slot picker (QM.dock's own UI state, not this
     // object's) doesn't carry any meaning across a chat switch — the slot
@@ -331,6 +351,9 @@ QM.state = {
         personaAvatarUrl: result.personaAvatarUrl || null,
         replaceRealAvatarOnEquip: result.replaceRealAvatarOnEquip === true,
         previousSnapshot: result.previousSnapshot ?? null,
+        imageConnectionId: result.imageConnectionId ?? null,
+        itemImagePromptTemplate: result.itemImagePromptTemplate || "",
+        outfitPortraitPromptTemplate: result.outfitPortraitPromptTemplate || "",
       };
       // A repaint rebuilds every card's DOM wholesale (there's no cheap way
       // to patch just the one thing that changed) — item images in
@@ -350,6 +373,9 @@ QM.state = {
         personaAvatarUrl: this.personaAvatarUrl,
         replaceRealAvatarOnEquip: this.replaceRealAvatarOnEquip,
         previousSnapshot: this.previousSnapshot,
+        imageConnectionId: this.imageConnectionId,
+        itemImagePromptTemplate: this.itemImagePromptTemplate,
+        outfitPortraitPromptTemplate: this.outfitPortraitPromptTemplate,
       };
       const changed = this.error !== null || JSON.stringify(next) !== JSON.stringify(current);
       Object.assign(this, next);
@@ -376,6 +402,10 @@ QM.state = {
       if (result.replaceRealAvatarOnEquip !== undefined)
         this.replaceRealAvatarOnEquip = result.replaceRealAvatarOnEquip;
       if (result.previousSnapshot !== undefined) this.previousSnapshot = result.previousSnapshot;
+      if (result.imageConnectionId !== undefined) this.imageConnectionId = result.imageConnectionId;
+      if (result.itemImagePromptTemplate !== undefined) this.itemImagePromptTemplate = result.itemImagePromptTemplate;
+      if (result.outfitPortraitPromptTemplate !== undefined)
+        this.outfitPortraitPromptTemplate = result.outfitPortraitPromptTemplate;
       this.error = null;
     } catch (error) {
       this.error = error && error.message ? error.message : String(error);
@@ -449,6 +479,15 @@ QM.state = {
   },
   updateAppearanceFeedMode(mode) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { appearanceFeedMode: mode }));
+  },
+  updateImageConnectionId(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { imageConnectionId: value || null }));
+  },
+  updateItemImagePromptTemplate(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { itemImagePromptTemplate: value }));
+  },
+  updateOutfitPortraitPromptTemplate(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { outfitPortraitPromptTemplate: value }));
   },
   updateShowUnderwear(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { showUnderwear: value }));
