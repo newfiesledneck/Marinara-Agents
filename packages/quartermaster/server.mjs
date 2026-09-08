@@ -705,6 +705,7 @@ function parseWardrobeProposal(raw, parseJsonish, logger) {
 async function generateWardrobeProposal({
   runtime,
   logger,
+  debugMode,
   agentConnectionId,
   chatConnectionId,
   direction,
@@ -717,20 +718,12 @@ async function generateWardrobeProposal({
     { role: "system", content: systemMessage },
     { role: "user", content: userMessage },
   ];
-  const debugMode = runtime.isDebugAgentsEnabled?.() ?? false;
 
-  // TEMPORARY diagnostic -- unconditional (not gated on debugMode) so it
-  // proves out whether this route is even reached, what debugMode actually
-  // evaluates to, and whether logger.debugOverride exists as a real function
-  // on this package's sandboxed host at all. Remove once the debug-logging
-  // gap is actually diagnosed.
-  logger?.warn(
-    "[quartermaster] wardrobe generate diagnostic: debugMode=%s hasDebugOverride=%s hasLogger=%s hasIsDebugAgentsEnabled=%s",
-    debugMode,
-    typeof logger?.debugOverride === "function",
-    typeof logger === "object" && logger !== null,
-    typeof runtime.isDebugAgentsEnabled === "function",
-  );
+  // TEMPORARY diagnostic -- unconditional (not gated on debugMode) to confirm
+  // the client is actually forwarding its live Debug Mode toggle now that
+  // isDebugAgentsEnabled() alone (the server-env-only override) was confirmed
+  // NOT to reflect it. Remove once confirmed working.
+  logger?.warn("[quartermaster] wardrobe generate diagnostic: debugMode=%s", debugMode);
 
   for (let attempt = 1; attempt <= WARDROBE_MAX_ATTEMPTS; attempt += 1) {
     let resolved;
@@ -1509,6 +1502,15 @@ export async function activate(context) {
         const direction = normalizeText(body.direction, 4000);
         if (!direction) return reply.status(400).send({ error: "A style direction is required" });
         const includePersonaContext = body.includePersonaContext !== false;
+        // The host's Debug Mode toggle only rides along on the normal
+        // per-turn chat-generation request -- a plain custom route like this
+        // one has no other way to see it, so the client forwards its own
+        // live copy (QM.state.debugMode, synced from capabilityProps). Still
+        // OR'd with isDebugAgentsEnabled() (the server-env override) so a
+        // forced-on env var keeps working regardless of what the client
+        // sends, same fallback chain hierarchical-maps uses for its own
+        // on-demand generation routes.
+        const debugMode = body.debugMode === true || (api.runtime.isDebugAgentsEnabled?.() ?? false);
 
         const state = await loadInventoryState(documents, chatId, ownerId);
         const personaContext = includePersonaContext
@@ -1524,6 +1526,7 @@ export async function activate(context) {
         const result = await generateWardrobeProposal({
           runtime: api.runtime,
           logger,
+          debugMode,
           agentConnectionId: agentConfig?.connectionId ?? null,
           chatConnectionId: chat?.connectionId ?? null,
           direction,

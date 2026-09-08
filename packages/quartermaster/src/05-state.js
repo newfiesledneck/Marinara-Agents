@@ -235,6 +235,11 @@ if (typeof document !== "undefined") {
 
 QM.state = {
   chatId: null,
+  // Mirrors the host's own Settings > Advanced > Message Tools > Debug Mode
+  // toggle -- kept in sync by 90-element.js's capabilityProps handling
+  // (noodle/slurp use the identical pattern for their own on-demand
+  // generation calls). Not chat-scoped, so setChat() below doesn't reset it.
+  debugMode: false,
   items: null,
   outfits: null,
   appearanceFeedMode: "off",

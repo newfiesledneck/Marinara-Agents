@@ -64,10 +64,15 @@ QM.deleteOutfit = (chatId, ownerId, outfitId) =>
   );
 
 // Build Wardrobe: a one-shot generation call, no write. Returns { proposal }.
+// debugMode is read from QM.state (kept in sync with the host's live Debug
+// Mode toggle by 90-element.js) and forwarded explicitly -- the server has no
+// other way to see that per-user UI setting for a route outside the normal
+// per-turn chat-generation pipeline. Same pattern noodle/slurp use for their
+// own on-demand generation calls.
 QM.generateWardrobe = (chatId, ownerId, direction, includePersonaContext) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/wardrobe/generate`, {
     method: "POST",
-    body: JSON.stringify({ direction, includePersonaContext }),
+    body: JSON.stringify({ direction, includePersonaContext, debugMode: QM.state.debugMode === true }),
   });
 
 // The separate confirm step that actually persists a previously-generated proposal.

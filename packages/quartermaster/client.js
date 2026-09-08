@@ -69,10 +69,15 @@ QM.deleteOutfit = (chatId, ownerId, outfitId) =>
   );
 
 // Build Wardrobe: a one-shot generation call, no write. Returns { proposal }.
+// debugMode is read from QM.state (kept in sync with the host's live Debug
+// Mode toggle by 90-element.js) and forwarded explicitly -- the server has no
+// other way to see that per-user UI setting for a route outside the normal
+// per-turn chat-generation pipeline. Same pattern noodle/slurp use for their
+// own on-demand generation calls.
 QM.generateWardrobe = (chatId, ownerId, direction, includePersonaContext) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/wardrobe/generate`, {
     method: "POST",
-    body: JSON.stringify({ direction, includePersonaContext }),
+    body: JSON.stringify({ direction, includePersonaContext, debugMode: QM.state.debugMode === true }),
   });
 
 // The separate confirm step that actually persists a previously-generated proposal.
@@ -511,6 +516,11 @@ if (typeof document !== "undefined") {
 
 QM.state = {
   chatId: null,
+  // Mirrors the host's own Settings > Advanced > Message Tools > Debug Mode
+  // toggle -- kept in sync by 90-element.js's capabilityProps handling
+  // (noodle/slurp use the identical pattern for their own on-demand
+  // generation calls). Not chat-scoped, so setChat() below doesn't reset it.
+  debugMode: false,
   items: null,
   outfits: null,
   appearanceFeedMode: "off",
@@ -5234,6 +5244,9 @@ class QuartermasterElement extends HTMLElement {
   }
 
   _render() {
+    // Not chat-scoped, and shared across every mounted instance (toolbar +
+    // tracker) via QM.state -- see its own field comment.
+    QM.state.debugMode = Boolean(this._props && this._props.debugMode === true);
     QM.state.setChat(this._chatId);
 
     const view = this.getAttribute("view");
