@@ -1074,12 +1074,17 @@ QM.dock = {
     // Guarded against the active element: _paint() fires on every state
     // change, including ones unrelated to these fields (e.g. an equip action
     // elsewhere in the dock) -- an unconditional value= assignment here would
-    // silently clobber an in-progress, not-yet-blurred edit.
+    // silently clobber an in-progress, not-yet-blurred edit. Falls back to
+    // the real default TEXT (not just a placeholder ghost) when unset, so a
+    // user edits FROM the actual default instead of writing a prompt from
+    // scratch -- placeholder stays as a secondary safety net, never shown
+    // once value is populated this way.
     if (document.activeElement !== this.itemPromptTextarea) {
-      this.itemPromptTextarea.value = QM.state.itemImagePromptTemplate;
+      this.itemPromptTextarea.value = QM.state.itemImagePromptTemplate || QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE;
     }
     if (document.activeElement !== this.outfitPromptTextarea) {
-      this.outfitPromptTextarea.value = QM.state.outfitPortraitPromptTemplate;
+      this.outfitPromptTextarea.value =
+        QM.state.outfitPortraitPromptTemplate || QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE;
     }
     // display was previously only set once at _buildPortrait()'s construction
     // time, from whatever hasAvatar was at mount — harmless while the only

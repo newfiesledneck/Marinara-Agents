@@ -35,7 +35,7 @@ const QM_EQUIP_SLOTS = [
 const QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE =
   "A crisp, studio photograph of a detailed {item}, {item_description}, set on a dark slate surface, dramatic cinematic side-lighting, 8k resolution, dark neutral background, perfectly centered item sheet asset.";
 const QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE =
-  "A full body portrait of {name}, {persona_appearance}, wearing {equipped_items}.";
+  "A full body portrait in a casual pose of {name}, {persona_appearance}, wearing {equipped_items}.";
 
 // Three of the extension's original SLOT_GROUPS toggles (armor/underwear/
 // weapon) — every other slot has no group and is always on ("just regular

@@ -105,7 +105,8 @@ const MAX_OUTFIT_DESCRIPTION_LENGTH = 4000;
 // itemImagePromptTemplate/outfitPortraitPromptTemplate in loadInventoryState).
 const DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE =
   "A crisp, studio photograph of a detailed {item}, {item_description}, set on a dark slate surface, dramatic cinematic side-lighting, 8k resolution, dark neutral background, perfectly centered item sheet asset.";
-const DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE = "A full body portrait of {name}, {persona_appearance}, wearing {equipped_items}.";
+const DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE =
+  "A full body portrait in a casual pose of {name}, {persona_appearance}, wearing {equipped_items}.";
 const ITEM_IMAGE_GEN_WIDTH = 512;
 const ITEM_IMAGE_GEN_HEIGHT = 512;
 const OUTFIT_PORTRAIT_GEN_WIDTH = 768;
@@ -1065,6 +1066,27 @@ function appearanceVariableName(ownerId) {
   return `quartermaster_appearance_${ownerId}`;
 }
 
+// A user following this package's own README places
+// {{getvar::quartermaster_appearance_<ownerId>}} literally in the persona's
+// Appearance field so the Engine's own per-turn template rendering can
+// substitute it during narration. The portrait-generation prompt reads that
+// field straight from persistence, bypassing that rendering entirely, so the
+// literal unresolved token would otherwise leak into the image-generation
+// request as dead syntax. Strip it out entirely (not resolve it to real
+// content -- unlike Build Wardrobe's own persona context, which deliberately
+// leaves this macro untouched to avoid anchoring generation toward the
+// CURRENT outfit; a portrait prompt has no such concern since it isn't
+// trying to describe an existing look, only clean up noise the model has no
+// use for).
+function stripAppearanceMacroToken(text, ownerId) {
+  if (!text) return text;
+  const pattern = new RegExp(String.raw`\{\{\s*getvar::${appearanceVariableName(ownerId)}\s*\}\}`, "gi");
+  return text
+    .replace(pattern, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 async function syncAppearanceMacro(persistence, chatId, ownerId, state) {
   const variableName = appearanceVariableName(ownerId);
   const text = computeAppearanceText(state);
@@ -1866,12 +1888,13 @@ export async function activate(context) {
 
         const personaData = await resolveChatPersonaData(persistence, resources, chatId);
         const personaName = (personaData && typeof personaData.name === "string" && personaData.name.trim()) || "the character";
-        const personaAppearance =
+        const rawPersonaAppearance =
           typeof personaData?.appearance === "string"
             ? personaData.appearance.trim()
             : typeof personaData?.extensions?.appearance === "string"
               ? personaData.extensions.appearance.trim()
               : "";
+        const personaAppearance = stripAppearanceMacroToken(rawPersonaAppearance, ownerId);
 
         return {
           prompt: buildOutfitPortraitPrompt(state.outfitPortraitPromptTemplate, {
@@ -2017,6 +2040,14 @@ export async function activate(context) {
           showWeapons: state.showWeapons,
           appearanceFeedMode: state.appearanceFeedMode,
           replaceRealAvatarOnEquip: state.replaceRealAvatarOnEquip,
+          // imageConnectionId deliberately NOT exported -- it's a reference to
+          // a connection configured on THIS Engine installation, not portable
+          // data (same reasoning as originalAvatarCaptured/lastAvatarNpcFile
+          // below, just for a different reason: those are chat-history-
+          // specific, this one is installation-specific). The two prompt
+          // templates ARE portable plain text, so those travel.
+          itemImagePromptTemplate: state.itemImagePromptTemplate,
+          outfitPortraitPromptTemplate: state.outfitPortraitPromptTemplate,
         };
       });
 
@@ -2041,6 +2072,14 @@ export async function activate(context) {
         // to this chat's own persona history, not portable data.
         state.replaceRealAvatarOnEquip =
           typeof body.replaceRealAvatarOnEquip === "boolean" ? body.replaceRealAvatarOnEquip : false;
+        // imageConnectionId is deliberately NOT imported -- see the export
+        // route's own comment; a connection id from another chat/installation
+        // wouldn't necessarily exist here. The two prompt templates ARE
+        // portable plain text, so those carry over (empty string, same as a
+        // fresh chat, when the export file doesn't have them -- e.g. one
+        // exported before this feature existed).
+        state.itemImagePromptTemplate = normalizeText(body.itemImagePromptTemplate, MAX_PROMPT_TEMPLATE_LENGTH);
+        state.outfitPortraitPromptTemplate = normalizeText(body.outfitPortraitPromptTemplate, MAX_PROMPT_TEMPLATE_LENGTH);
 
         const idMap = new Map();
         const nextItems = [];

@@ -374,7 +374,7 @@ const QM_EQUIP_SLOTS = [
 const QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE =
   "A crisp, studio photograph of a detailed {item}, {item_description}, set on a dark slate surface, dramatic cinematic side-lighting, 8k resolution, dark neutral background, perfectly centered item sheet asset.";
 const QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE =
-  "A full body portrait of {name}, {persona_appearance}, wearing {equipped_items}.";
+  "A full body portrait in a casual pose of {name}, {persona_appearance}, wearing {equipped_items}.";
 
 // Three of the extension's original SLOT_GROUPS toggles (armor/underwear/
 // weapon) — every other slot has no group and is always on ("just regular
@@ -2181,12 +2181,17 @@ QM.dock = {
     // Guarded against the active element: _paint() fires on every state
     // change, including ones unrelated to these fields (e.g. an equip action
     // elsewhere in the dock) -- an unconditional value= assignment here would
-    // silently clobber an in-progress, not-yet-blurred edit.
+    // silently clobber an in-progress, not-yet-blurred edit. Falls back to
+    // the real default TEXT (not just a placeholder ghost) when unset, so a
+    // user edits FROM the actual default instead of writing a prompt from
+    // scratch -- placeholder stays as a secondary safety net, never shown
+    // once value is populated this way.
     if (document.activeElement !== this.itemPromptTextarea) {
-      this.itemPromptTextarea.value = QM.state.itemImagePromptTemplate;
+      this.itemPromptTextarea.value = QM.state.itemImagePromptTemplate || QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE;
     }
     if (document.activeElement !== this.outfitPromptTextarea) {
-      this.outfitPromptTextarea.value = QM.state.outfitPortraitPromptTemplate;
+      this.outfitPromptTextarea.value =
+        QM.state.outfitPortraitPromptTemplate || QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE;
     }
     // display was previously only set once at _buildPortrait()'s construction
     // time, from whatever hasAvatar was at mount — harmless while the only
