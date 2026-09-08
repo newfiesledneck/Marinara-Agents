@@ -1,5 +1,11 @@
 # Quartermaster changelog
 
+## 0.1.5 — 2026-09-08
+- Fixed Build Wardrobe producing no debug-log output even with Debug Mode enabled -- the
+  request/response now log correctly.
+- Replaced the dock/tracker panel's 5-second inventory poll with an event-driven refresh right
+  after a turn completes, cutting needless network requests.
+
 ## 0.1.4 — 2026-09-08 [highlight]
 - Added Build Wardrobe: describe a style direction and get a proposed set of new items and
   outfits to review before adding them to inventory.
