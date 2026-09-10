@@ -319,7 +319,7 @@ const features = [
   },
   {
     id: "slurp",
-    version: "1.0.29",
+    version: "1.0.31",
     minEngineVersion: "2.4.3",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Slurp",
@@ -376,7 +376,7 @@ const features = [
   },
   {
     id: "long-term-memory",
-    version: "1.2.23",
+    version: "1.2.25",
     minEngineVersion: "2.4.1",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Long-Term Memory",
@@ -401,7 +401,7 @@ const features = [
   },
   {
     id: "memory-nag",
-    version: "1.0.17",
+    version: "1.1.0",
     minEngineVersion: "2.4.4",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Memory Nag",

@@ -1159,28 +1159,9 @@ export default function ReviewQueue({
     }
     return [...ids].sort();
   }, [rejectedSuggestions.data?.suggestions, review.data?.sources]);
-  const sourceContextNoteIds = useMemo(
-    () =>
-      [
-        ...(review.data?.sources ?? []).map((source) => source.sourceNoteId),
-        ...(rejectedSuggestions.data?.suggestions ?? []).map((suggestion) => suggestion.source.sourceNoteId),
-      ].filter((id, index, ids) => ids.indexOf(id) === index),
-    [rejectedSuggestions.data?.suggestions, review.data?.sources],
-  );
   const notes = useQuery({
-    queryKey: [...queryKeys.notes, "review-context", contextNoteIds, sourceContextNoteIds],
-    queryFn: async ({ signal }) => {
-      const sourceIds = new Set(sourceContextNoteIds);
-      const [sources, optionalContext] = await Promise.all([
-        requestNotesByIds<LtmNote>(sourceContextNoteIds, signal),
-        requestNotesByIds<LtmNote>(
-          contextNoteIds.filter((id) => !sourceIds.has(id)),
-          signal,
-          true,
-        ),
-      ]);
-      return [...sources, ...optionalContext];
-    },
+    queryKey: [...queryKeys.notes, "review-context", contextNoteIds],
+    queryFn: ({ signal }) => requestNotesByIds<LtmNote>(contextNoteIds, signal, true),
     enabled: review.isSuccess && rejectedSuggestions.isSuccess,
   });
   const noteById = useMemo(() => new Map((notes.data ?? []).map((note) => [note.id, note])), [notes.data]);
@@ -1215,6 +1196,11 @@ export default function ReviewQueue({
   }, [rejectedSuggestions.isSuccess, review.isSuccess, selectedSourceId, selectedSourceIsLive]);
   const effectiveSourceId =
     selectedSourceId && sourceIds.includes(selectedSourceId) ? selectedSourceId : (sourceIds[0] ?? null);
+  const selectedSourceMissing = reviewContextReady && Boolean(effectiveSourceId && !noteById.has(effectiveSourceId));
+  const sourceDisplayTitle = (id: string) =>
+    noteById.has(id)
+      ? noteDisplayTitle(noteById.get(id), missingContextTitle)
+      : localizeUi("ui.longTermMemory.reviewqueue.missingSourceTitle", { id });
   const selectedReviewSource = review.data?.sources.find((source) => source.sourceNoteId === effectiveSourceId);
   const selectedDraft =
     selectedReviewSource?.drafts.find((item) => item.draft.id === selectedDraftId) ?? selectedReviewSource?.drafts[0];
@@ -1569,6 +1555,7 @@ export default function ReviewQueue({
   const selectedRows = activeDraftRows.filter((row) => selectedIds.has(row.mutation.id));
   const eligibleIds = new Set<string>();
   for (const source of review.data?.sources ?? []) {
+    if (!noteById.has(source.sourceNoteId)) continue;
     for (const item of source.drafts) {
       if (item.freshness !== "fresh" || item.blockReasons.length) continue;
       for (const mutation of item.draft.mutations) {
@@ -1606,7 +1593,15 @@ export default function ReviewQueue({
     sources: review.data?.counts.sources ?? 0,
     pending: reviewMutationIds.size,
     ready: eligibleIds.size,
-    blocked: review.data?.counts.blockedDrafts ?? 0,
+    blocked:
+      review.data?.sources.reduce(
+        (count, source) =>
+          count +
+          source.drafts.filter(
+            (item) => item.blockReasons.length || (reviewContextReady && !noteById.has(source.sourceNoteId)),
+          ).length,
+        0,
+      ) ?? 0,
     reviewed: reviewedIds.size,
     remaining: Math.max(
       0,
@@ -1721,7 +1716,8 @@ export default function ReviewQueue({
   ) => {
     const applicableRows = explicitRows ?? (action === "accept" ? eligibleSelectedRows : skippableSelectedRows);
     if (!applicableRows.length) return;
-    if (action === "accept" && !reviewContextReady) return;
+    if (action === "accept" && (!reviewContextReady || applicableRows.some((row) => !noteById.has(row.sourceNoteId))))
+      return;
     const invalidEditIds = action === "accept" ? invalidClosureEditIds(applicableRows, allRows) : [];
     if (invalidEditIds.length) {
       setResult({
@@ -2041,10 +2037,23 @@ export default function ReviewQueue({
     setMobilePaneAndFocus("workbench");
   };
 
-  const dismissReport = async (draftId: string) => {
+  const dismissReport = async (item: LtmDraftReviewDraft) => {
+    if (dismissingId !== null || running !== null) return;
+    const draftId = item.draft.id;
+    const invalidated = item.draft.status === "invalidated";
     setDismissingId(draftId);
-    setResult(null);
     try {
+      if (invalidated) {
+        const title = localizeUi("ui.longTermMemory.reviewqueue.discardInvalidatedDraft");
+        const message = localizeUi("ui.longTermMemory.reviewqueue.discardInvalidatedDraftDescription", {
+          title: reviewDraftTitle(item),
+        });
+        const confirmed = props.confirmAction
+          ? await props.confirmAction({ title, message, confirmLabel: title, tone: "destructive" })
+          : window.confirm(message);
+        if (!confirmed) return;
+      }
+      setResult(null);
       await request(`/drafts/${draftId}`, "DELETE");
       await invalidateLtmQueries(queryClient, [queryKeys.review, queryKeys.pendingDrafts]);
     } catch (error) {
@@ -2058,9 +2067,15 @@ export default function ReviewQueue({
         autoIncluded: 0,
         indexRebuildFailures: [],
         messages: [
-          localizeUi("ui.longTermMemory.reviewqueue.reportDismissalFailed", {
-            message: error instanceof Error ? error.message : localizeUi("ui.longTermMemory.reviewqueue.requestFailed"),
-          }),
+          localizeUi(
+            invalidated
+              ? "ui.longTermMemory.reviewqueue.draftDiscardFailed"
+              : "ui.longTermMemory.reviewqueue.reportDismissalFailed",
+            {
+              message:
+                error instanceof Error ? error.message : localizeUi("ui.longTermMemory.reviewqueue.requestFailed"),
+            },
+          ),
         ],
         cascadeMutationLabels: [],
         savedMemoryIds: [],
@@ -2783,7 +2798,10 @@ export default function ReviewQueue({
       ) : null}
       {reviewContextFailed ? (
         <StatusSurface tone="danger">
-          {localizeUi("ui.longTermMemory.reviewqueue.memoryContextCouldNotLoad")}{" "}
+          <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+            {localizeUi("ui.longTermMemory.reviewqueue.memoryContextCouldNotLoad")}{" "}
+            {notes.error instanceof Error ? notes.error.message : ""}
+          </span>
           <Button className="shrink-0" disabled={notes.isFetching} onClick={() => void notes.refetch()}>
             {localizeUi("ui.longTermMemory.activityview.retry")}
           </Button>
@@ -2836,9 +2854,7 @@ export default function ReviewQueue({
                             size="0.875rem"
                             className={`shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
                           />
-                          <span className="min-w-0 flex-1 truncate font-semibold">
-                            {noteById.get(id)?.title || missingContextTitle}
-                          </span>
+                          <span className="min-w-0 flex-1 truncate font-semibold">{sourceDisplayTitle(id)}</span>
                           <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
                             {(source?.drafts.length ?? 0) + rejectedCount}
                           </span>
@@ -2887,10 +2903,10 @@ export default function ReviewQueue({
                               </span>
                             </span>
                             <span
-                              data-ltm-freshness={item.freshness}
-                              className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.6875rem] font-semibold ${freshnessClass(item.freshness)}`}
+                              data-ltm-freshness={noteById.has(id) ? item.freshness : "missing"}
+                              className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.6875rem] font-semibold ${freshnessClass(noteById.has(id) ? item.freshness : "missing")}`}
                             >
-                              {localizeUi(freshnessLabel[item.freshness])}
+                              {localizeUi(freshnessLabel[noteById.has(id) ? item.freshness : "missing"])}
                             </span>
                           </button>
                         ))}
@@ -2917,13 +2933,13 @@ export default function ReviewQueue({
                     {selectedDraft
                       ? reviewDraftTitle(selectedDraft)
                       : localizeUi("ui.longTermMemory.reviewqueue.sourceNote", {
-                          title: noteById.get(effectiveSourceId ?? "")?.title || missingContextTitle,
+                          title: sourceDisplayTitle(effectiveSourceId ?? ""),
                         })}
                   </h2>
                   {selectedDraft ? (
                     <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                       {localizeUi("ui.longTermMemory.reviewqueue.sourceNote", {
-                        title: noteById.get(effectiveSourceId ?? "")?.title || missingContextTitle,
+                        title: sourceDisplayTitle(effectiveSourceId ?? ""),
                       })}
                     </p>
                   ) : null}
@@ -2956,7 +2972,7 @@ export default function ReviewQueue({
                       {localizeUi("ui.longTermMemory.reviewqueue.details")}
                     </Button>
                   ) : null}
-                  {onOpenMemory && effectiveSourceId ? (
+                  {onOpenMemory && effectiveSourceId && !selectedSourceMissing ? (
                     <Button onClick={() => onOpenMemory(effectiveSourceId)}>
                       {localizeUi("ui.longTermMemory.reviewqueue.openSource")}
                     </Button>
@@ -2975,6 +2991,11 @@ export default function ReviewQueue({
                   ) : null}
                 </div>
               </header>
+              {selectedSourceMissing ? (
+                <StatusSurface tone="danger" data-ltm-review-source-missing>
+                  {localizeUi("ui.longTermMemory.reviewqueue.missingSourceHelp")}
+                </StatusSurface>
+              ) : null}
               {sourceRejectedSuggestions.length ? (
                 <details
                   data-ltm-rejected-suggestions
@@ -3230,15 +3251,17 @@ export default function ReviewQueue({
                                     ))}
                                   </div>
                                 ) : null}
-                                {diagnosticsOnly ? (
+                                {diagnosticsOnly || item.draft.status === "invalidated" ? (
                                   <Button
                                     destructive
                                     disabled={dismissingId !== null || running !== null}
-                                    onClick={() => void dismissReport(item.draft.id)}
+                                    onClick={() => void dismissReport(item)}
                                   >
                                     {dismissingId === item.draft.id
                                       ? localizeUi("ui.longTermMemory.reviewqueue.dismissing")
-                                      : localizeUi("ui.longTermMemory.reviewqueue.dismissReport")}
+                                      : item.draft.status === "invalidated"
+                                        ? localizeUi("ui.longTermMemory.reviewqueue.discardInvalidatedDraft")
+                                        : localizeUi("ui.longTermMemory.reviewqueue.dismissReport")}
                                   </Button>
                                 ) : null}
                                 <div className="space-y-3 pt-1">

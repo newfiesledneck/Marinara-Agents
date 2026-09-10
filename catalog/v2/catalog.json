@@ -901,7 +901,7 @@
         },
         "id": "long-term-memory",
         "name": "Long-Term Memory",
-        "version": "1.2.23",
+        "version": "1.2.25",
         "description": "Extracts durable memories from chat summaries, character records, and lorebooks, then recalls relevant context from a package-owned vault. Enable it per chat from Chat Settings → Agents → Long-Term Memory. In Roleplay and Game, you can also add it from Chat Settings → Agents → Misc Agents.",
         "engine": {
           "min": "2.4.1",
@@ -938,8 +938,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "f1b5475ecbecb5ab227520f516c4f62525087f991e0a9d8b6e3000778d076d5d",
-            "bytes": 897436
+            "sha256": "a03cd96fb0e361205e16d578115d1d5fe6426adce91a1960617567a6bb005869",
+            "bytes": 898888
           }
         ],
         "permissions": [
@@ -955,9 +955,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/long-term-memory.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/long-term-memory-1.2.23.zip",
-        "sha256": "728e8dff0e395fe13e207900eb1b9e76d4a0b8c61d21e29698a35ced0da8948f",
-        "bytes": 1294837
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/long-term-memory-1.2.25.zip",
+        "sha256": "ebebc3e0066fb4927076049232050f572790b8022ad106ad6ac7e123ee4baeb1",
+        "bytes": 1296289
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#long-term-memory"
     },
@@ -1016,7 +1016,7 @@
         },
         "id": "memory-nag",
         "name": "Memory Nag",
-        "version": "1.0.17",
+        "version": "1.1.0",
         "description": "Keeps a short per-chat vault of roleplay memories and recalls only the unresolved details that matter to the current turn. Add the Agent in Chat Settings → Agents → Tracker Agents for Roleplay mode. Once active, configure it in its standalone Memory Nag section.",
         "engine": {
           "min": "2.4.4",
@@ -1045,13 +1045,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "ddce4eb713d42206a6cff06ea097087131b8ee769c5e272e4d38eb9e47d2a6d6",
-            "bytes": 21611
+            "sha256": "acd55ad83277bed841d88cbc69718b4707323387d826141c23f9eb471a41df6a",
+            "bytes": 22341
           },
           {
             "path": "client.js",
-            "sha256": "91b07a52f827db8ab74c7a6ed196232193b1e1a4d92fd2637dd8e69150dedf1d",
-            "bytes": 371264
+            "sha256": "e78f3de49c2c668ba8a18d2ed2624d674e4d727e96f73d4b819a7b282dced6a5",
+            "bytes": 374438
           }
         ],
         "permissions": [
@@ -1067,9 +1067,9 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/memory-nag.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/memory-nag-1.0.17.zip",
-        "sha256": "4da625bc08cdb24b0ede684fc17845aac6858bd900be88a7b248fd0c20fcc3be",
-        "bytes": 396443
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/memory-nag-1.1.0.zip",
+        "sha256": "2b579064767c5ec20c76368197c0f2589246a08614cbbf21a84ea1519c7307ee",
+        "bytes": 400346
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#memory-nag"
     },

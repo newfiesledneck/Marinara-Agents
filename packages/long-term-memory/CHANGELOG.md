@@ -1,5 +1,14 @@
 # Long-Term Memory changelog
 
+## 1.2.25 - 2026-09-10
+
+- Added a confirmed discard action for invalidated drafts, removing old proposals without changing saved memories.
+
+## 1.2.24 - 2026-09-09 [highlight]
+
+- Kept drafts with missing source notes visibly blocked without preventing review of other sources.
+- Showed context-loading error details alongside Retry and kept orphaned rejected suggestions accessible.
+
 ## 1.2.23 — 2026-09-06 [highlight]
 
 - Restored responsive Memory Vault and Sources loading by deferring local-character discovery.

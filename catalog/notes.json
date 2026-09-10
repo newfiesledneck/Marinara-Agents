@@ -4,6 +4,18 @@
     "long-term-memory": {
       "versions": [
         {
+          "version": "1.2.25",
+          "date": "2026-09-10",
+          "notes": "- Added a confirmed discard action for invalidated drafts, removing old proposals without changing saved memories.",
+          "highlight": false
+        },
+        {
+          "version": "1.2.24",
+          "date": "2026-09-09",
+          "notes": "- Kept drafts with missing source notes visibly blocked without preventing review of other sources.\n- Showed context-loading error details alongside Retry and kept orphaned rejected suggestions accessible.",
+          "highlight": true
+        },
+        {
           "version": "1.2.23",
           "date": "2026-09-06",
           "notes": "- Restored responsive Memory Vault and Sources loading by deferring local-character discovery.\n- Reused one aggregate local-character catalog and kept its loading and retry state visible.",
@@ -31,6 +43,16 @@
           "version": "1.2.19",
           "date": "2026-09-04",
           "notes": "- Bound the Sources destination panel and restored page scrolling when its list is hovered.\n- Restricted Already imported counts and rows to the selected source scope.",
+          "highlight": false
+        }
+      ]
+    },
+    "memory-nag": {
+      "versions": [
+        {
+          "version": "1.1.0",
+          "date": "2026-09-09",
+          "notes": "Choose all unprocessed messages or a specific message range when creating vault memories, so long chats can skip stale history. Closing the progress or prompt window keeps the underlying chat settings open.",
           "highlight": false
         }
       ]
