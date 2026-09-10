@@ -41,7 +41,7 @@ const PACKAGE_ID = "quartermaster";
 // release (0.1.0-dev.2 < 0.1.0), so once a plain 0.1.0 is installed, no
 // prerelease build can ever look newer to Download Agents. Never reset the
 // version back down afterward, even across a long dev-iteration stretch.
-const VERSION = "0.1.6";
+const VERSION = "0.1.7";
 // Declared against the exact staging Engine this scaffold was built and tested
 // against. Do not lower this to reach stable users — see CONTRIBUTING.md.
 const ENGINE_MIN = "2.4.4";
@@ -268,7 +268,8 @@ const artifactPath = join(artifactsDir, artifactName);
 // the dev loop's own ordinary iteration, not just the real incident.
 function assertArtifactNotOverwritingReleasedContent(path, newContent) {
   if (process.env.ALLOW_ARTIFACT_OVERWRITE === "1") return;
-  if (process.env.QUARTERMASTER_DEV_ARTIFACT_BASE_URL || process.env.MARINARA_CATALOG_INCLUDE_INCOMPLETE === "1") return;
+  if (process.env.QUARTERMASTER_DEV_ARTIFACT_BASE_URL || process.env.MARINARA_CATALOG_INCLUDE_INCOMPLETE === "1")
+    return;
   const gitPath = relative(repoRoot, path).split("\\").join("/");
   const committed = spawnSync("git", ["show", `HEAD:${gitPath}`], { cwd: repoRoot });
   if (committed.status !== 0 || !committed.stdout || committed.stdout.length === 0) return; // not tracked at HEAD yet
