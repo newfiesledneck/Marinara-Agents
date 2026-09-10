@@ -1,16 +1,6 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "gacha-forge": {
-      "versions": [
-        {
-          "version": "1.7.0",
-          "date": "2026-09-05",
-          "notes": "- A whole chapter's scenes can be written in advance, so they open with no wait.\n- Leave a scene halfway and pick it up where you stopped instead of starting over.\n- Every banner now runs smaller side events alongside it: Tidewalk, Salvage Bingo and Supply Line.\n- Seasonal Event: ten draws at once, a daily boss, a party bonus and rewards for the coin you earn.\n- Items and rewards show a picture of the thing itself instead of a symbol.\n- Each connection generates one thing at a time, and whatever you are waiting for goes first.\n- Character names are capitalised, and your persona can be moved around the party and taken out of it.\n- Fixed: the top bar no longer cuts off its buttons, the Home no longer sends you back to Chapter One, and the battle screen no longer slides sideways.",
-          "highlight": false
-        }
-      ]
-    },
     "long-term-memory": {
       "versions": [
         {
@@ -97,6 +87,12 @@
     },
     "quartermaster": {
       "versions": [
+        {
+          "version": "0.1.7",
+          "date": "2026-09-09",
+          "notes": "- Attempted fix for Generate Image (0.1.6) sending the persona's appearance into item/outfit image\n  requests instead of a clean product shot -- the request now matches the exact shape confirmed\n  working against this same Engine, rather than an unverified one copied from another package.\n  Reported by a real user; pending final confirmation it fully resolves it.\n- A build-script safety check now refuses to silently overwrite an already-released version's\n  artifact file under the same filename.",
+          "highlight": false
+        },
         {
           "version": "0.1.6",
           "date": "2026-09-08",
