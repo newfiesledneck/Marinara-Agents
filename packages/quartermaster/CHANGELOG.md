@@ -1,5 +1,13 @@
 # Quartermaster changelog
 
+## 0.1.7 — 2026-09-09
+- Attempted fix for Generate Image (0.1.6) sending the persona's appearance into item/outfit image
+  requests instead of a clean product shot -- the request now matches the exact shape confirmed
+  working against this same Engine, rather than an unverified one copied from another package.
+  Reported by a real user; pending final confirmation it fully resolves it.
+- A build-script safety check now refuses to silently overwrite an already-released version's
+  artifact file under the same filename.
+
 ## 0.1.6 — 2026-09-08 [highlight]
 - Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit
   portraits. Review (and optionally edit) the filled-in prompt before generating.

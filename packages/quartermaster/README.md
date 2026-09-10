@@ -98,6 +98,19 @@ ready for testers.
 
 ## Changelog
 
+### 0.1.7
+
+- **Attempted fix** for Generate Image (added in 0.1.6): a real user reported item images coming
+  back showing their persona instead of a clean product shot, even for things like a pair of
+  slippers. Traced to the request sent to the Engine's own image-generation endpoint not matching
+  the exact shape the legacy RPG Inventory extension's own proven-working code uses — it now does,
+  field-for-field (a normalized name/slug and an `avatar:<slug>` override id, matching that
+  extension exactly, dropping a guessed field set copied from a different package that didn't
+  actually fix it). Marked "attempted" here because this is pending the reporting user's
+  confirmation that it fully resolves it.
+- The package's own build script now refuses to silently overwrite an already-released version's
+  artifact file under the same filename if a rebuild ever runs before a version bump.
+
 ### 0.1.6
 
 - Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit

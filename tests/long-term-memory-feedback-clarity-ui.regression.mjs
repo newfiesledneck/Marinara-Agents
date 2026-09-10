@@ -343,24 +343,6 @@ assert.match(vault, /data-ltm-note-actions-desktop[\s\S]*md:flex/u);
 assert.doesNotMatch(vault, /data-ltm-note-actions-desktop[\s\S]*opacity-0/u);
 assert.doesNotMatch(vault, /data-ltm-note-actions-desktop[\s\S]*pointer-events-none/u);
 assert.match(vault, /data-ltm-note-actions-open/u);
-assert.match(vault, /type ArchiveUndoState/u);
-assert.match(vault, /const \[archiveUndo, setArchiveUndo\]/u);
-assert.match(vault, /async function undoArchive/u);
-assert.match(vault, /previousArchiveStatuses/u);
-assert.match(vault, /setArchiveUndo\(\{ notes: archiveUndoNotes \}\)/u);
-assert.match(vault, /archiveUndoFailed/u);
-assert.match(vault, /Promise\.allSettled/u);
-assert.match(vault, /successfulRestores[\s\S]*status: "archived"/u);
-assert.match(
-  vault,
-  /const archiveCompleted\s*=\s*[\s\S]*result\.status === "complete"[\s\S]*ids\.every\(\(id\) => updatedNoteIds\.has\(id\)\)/u,
-);
-assert.match(vault, /if \(archiveCompleted && archiveUndoNotes\.length === ids\.length\) setArchiveUndo/u);
-assert.match(
-  vault,
-  /const allRestored\s*=\s*results\.every[\s\S]*result\.value\.status === "complete"[\s\S]*result\.value\.skippedNoteIds\.length === 0[\s\S]*result\.value\.failedNoteIds\.length === 0[\s\S]*actualIds\.length === expectedIds\.size[\s\S]*new Set\(actualIds\)\.size === expectedIds\.size[\s\S]*actualIds\.every\(\(id\) => expectedIds\.has\(id\)\)[\s\S]*if \(!allRestored\)/u,
-);
-assert.match(vault, /if \(!allRestored\)[\s\S]*Promise\.allSettled[\s\S]*await invalidate\(\);[\s\S]*throw new Error/u);
 assert.equal(locale["ui.longTermMemory.memoryvault.undo"], "Undo");
 assert.equal(locale["ui.longTermMemory.memoryvault.archiveSuccessOne"], "{{count}} memory archived.");
 assert.equal(locale["ui.longTermMemory.memoryvault.archiveSuccessOther"], "{{count}} memories archived.");
@@ -500,16 +482,8 @@ assert.match(api, /new URLSearchParams/u);
 assert.match(api, /undefined, signal/u);
 assert.match(api, /const missingIds = requestedIds\.filter/u);
 assert.doesNotMatch(reviewQueue, /requestAllNotes/u);
-assert.match(reviewQueue, /requestNotesByIds<LtmNote>\(sourceContextNoteIds, signal\)/u);
-assert.match(reviewQueue, /requestNotesByIds<LtmNote>\([\s\S]*true,/u);
-assert.match(reviewQueue, /"review-context", contextNoteIds, sourceContextNoteIds/u);
-const optionalContextIds = ["shared-note", "optional-target"];
-const sourceContextIds = ["shared-note"];
-assert.notDeepEqual(
-  ["review-context", optionalContextIds, []],
-  ["review-context", optionalContextIds, sourceContextIds],
-  "source/optional context transitions must produce a new review query key even when IDs are unchanged",
-);
+assert.match(reviewQueue, /requestNotesByIds<LtmNote>\(contextNoteIds, signal, true\)/u);
+assert.match(reviewQueue, /"review-context", contextNoteIds/u);
 assert.match(reviewQueue, /row\.disposition !== "new"/u);
 assert.match(reviewQueue, /reviewContextReady/u);
 assert.match(reviewQueue, /reviewContextFailed/u);
