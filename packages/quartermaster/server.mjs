@@ -563,39 +563,51 @@ async function resolveImageConnection(preferredConnectionId) {
   );
 }
 
+// Mirrors the legacy RPG Inventory extension's own imgKey/normName exactly
+// (extension.js: normName = lowercase+trim, imgKey = replace non-alphanumeric
+// runs with "-", trim leading/trailing "-", fall back to "item" if empty).
+function qmImageSlug(text) {
+  const normalized = String(text || "")
+    .trim()
+    .toLowerCase();
+  return normalized.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "item";
+}
+
 // The actual paid call. Confirmed live (a real generated item image came
 // back showing the chat's active persona instead of a clean product shot,
 // for multiple different items) that this endpoint was silently rewriting
 // our prompt to blend in persona/character appearance -- the
-// "prompt override may not have taken" warning below fired every time.
-// Root cause, traced as far as this repo's partial Engine source mirror
-// allows: `resolveIllustratorCharacterReferences()` (services/image/
-// illustrator-references.ts) is this codebase's one confirmed real
-// mechanism for exactly this failure class -- it auto-attaches "the
-// current persona" as a reference image + appended appearance text,
-// defaulting to ON unless the caller explicitly opts out via
-// includeReferenceImages/includePersonaWhenMentionedInPrompt. Two changes
-// from the original (gacha-forge-copied, never independently verified)
-// request shape: dropped `purpose: "avatar"` entirely (the legacy
-// SillyTavern-style extension this package ports from never sent it, and
-// it's the most likely trigger for "treat this like a character avatar");
-// added those two opt-out flags by their exact names from that one
-// confirmed mechanism, as a best-guess fix for THIS endpoint's own
-// (unverifiable-from-source) contract -- verify empirically, same as this
-// whole endpoint's contract has had to be from the start.
-async function generateImageViaEngine({ connectionId, name, prompt, width, height, slug, logger }) {
+// "prompt override may not have taken" warning below fired every time. A
+// first attempted fix (dropping purpose: "avatar", adding
+// includeReferenceImages/includePersonaWhenMentionedInPrompt opt-out flags
+// guessed from a DIFFERENT, unrelated engine mechanism) did NOT fix it --
+// confirmed live that the SAME chat, SAME connection, generating via the
+// legacy extension's own original code against this same running Engine
+// produces a clean result RIGHT NOW, proving the endpoint itself still
+// supports this correctly and the bug is a real difference in what we send,
+// not an Engine-side regression. Re-diffed our request against the legacy
+// extension's own proven-working one field-by-field and found two REAL
+// differences beyond the guessed flags above (now removed): (1) `name` was
+// the raw display name ("Pink slippers") instead of a normalized slug --
+// the very field the Engine's own hardcoded avatar-portrait template
+// interpolates verbatim ("...portrait for Pink slippers..."), and (2) our
+// promptOverrides id used a "qm-item-"/"qm-outfit-" prefix instead of the
+// legacy extension's own "avatar:" prefix. This now matches that proven
+// request shape exactly (connectionId/name/appearance/width/height/
+// promptOverrides, nothing else) rather than gacha-forge's differently-
+// shaped, never-independently-verified one.
+async function generateImageViaEngine({ connectionId, name, prompt, width, height, logger }) {
+  const slug = qmImageSlug(name);
   const result = await engineApiFetch("/api/characters/avatar-generation", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       connectionId,
-      name,
+      name: slug,
       appearance: prompt,
-      includeReferenceImages: false,
-      includePersonaWhenMentionedInPrompt: false,
       width,
       height,
-      promptOverrides: [{ id: slug, prompt }],
+      promptOverrides: [{ id: `avatar:${slug}`, prompt }],
     }),
   });
   if (typeof result?.image !== "string" || !result.image.startsWith("data:")) {
@@ -1670,7 +1682,6 @@ export async function activate(context) {
             prompt,
             width: ITEM_IMAGE_GEN_WIDTH,
             height: ITEM_IMAGE_GEN_HEIGHT,
-            slug: `qm-item-${qmNormalizeMatchKey(item.name)}`,
             logger,
           });
           return { imageDataUrl };
@@ -1957,7 +1968,6 @@ export async function activate(context) {
             prompt,
             width: OUTFIT_PORTRAIT_GEN_WIDTH,
             height: OUTFIT_PORTRAIT_GEN_HEIGHT,
-            slug: `qm-outfit-${outfit.id}`,
             logger,
           });
           return { imageDataUrl };
