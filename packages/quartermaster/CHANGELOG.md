@@ -1,5 +1,13 @@
 # Quartermaster changelog
 
+## 0.1.8 — 2026-09-11
+- Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --
+  item images no longer show a person.
+- The Bag column now splits into three tabs -- Items, Wearables (anything with a default slot
+  set), and Stored (anything in a named stash) -- instead of one flat list, so a chat with a lot
+  of stuff is easier to scan. Clicking an empty equip slot's quick-fill shortcut now also jumps
+  the Bag to the Wearables tab, since only a wearable item can ever fill a slot that way.
+
 ## 0.1.7 — 2026-09-09
 - Attempted fix for Generate Image (0.1.6) sending the persona's appearance into item/outfit image
   requests instead of a clean product shot -- the request now matches the exact shape confirmed

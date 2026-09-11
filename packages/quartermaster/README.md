@@ -15,7 +15,8 @@ package.
   shows the equipped item's own image, or built-in generated artwork if it doesn't have one.
 - **Bag** — add, edit, and remove items, each with a name, description, and quantity. Store an
   item in the bag, a named stash (`stored:<name>`), or a slot (`equipped:<slot>`); search the Bag
-  by name or by slot.
+  by name or by slot. Split into three tabs — Items, Wearables (anything with a default slot
+  set), and Stored (anything in a named stash) — so a busy chat's inventory stays easy to scan.
 - **Item images** — give any item its own image: auto-matched by filename from a shared image
   folder (so a pre-made image pack just works by copying its folder in), upload one directly from
   the item's card, or generate one with AI (see Generate Image below).
@@ -97,6 +98,15 @@ and writes `artifacts/quartermaster-<version>.zip`. `INCOMPLETE_PACKAGE_IDS`
 ready for testers.
 
 ## Changelog
+
+### 0.1.8
+
+- Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --
+  item images no longer show a person.
+- The Bag column now splits into three tabs (Items / Wearables / Stored) instead of one flat
+  list, so a chat with a lot of stuff is easier to scan. Selecting an empty equip slot's
+  quick-fill shortcut also jumps to the Wearables tab now, since only a wearable item can ever
+  fill a slot that way.
 
 ### 0.1.7
 
