@@ -1,4 +1,4 @@
-// Quartermaster 0.1.8 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.9 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (10 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
@@ -4294,7 +4294,15 @@ QM.dock = {
     });
 
     const query = this.bagSearchQuery.trim().toLowerCase();
-    let items = QM.state.bagItems().filter((item) => qmItemMatchesBagTab(item, this.bagTab));
+    // A slot-driven search (the equip-slot quick-fill shortcut) means "what
+    // could fill this slot" -- that has to reach every wearable regardless
+    // of tab, including ones currently stashed, or a stashed item becomes
+    // impossible to equip via this picker at all. Bypass the tab split for
+    // it; an ordinary name search still respects whichever tab is active.
+    const slotSearchActive = this.bagSearchMode === "slot" && query;
+    let items = slotSearchActive
+      ? QM.state.bagItems()
+      : QM.state.bagItems().filter((item) => qmItemMatchesBagTab(item, this.bagTab));
     if (query) {
       items = items.filter((item) => {
         if (this.bagSearchMode === "slot") {

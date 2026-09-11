@@ -1,5 +1,11 @@
 # Quartermaster changelog
 
+## 0.1.9 — 2026-09-11
+- Fixed a regression from 0.1.8's new Bag tabs: clicking an empty equip slot's quick-fill
+  shortcut only searched the Wearables tab, so a wearable item currently stashed (Stored tab)
+  couldn't be found or equipped from there at all. The slot-driven search now reaches every
+  wearable regardless of tab, matching how it worked before tabs existed.
+
 ## 0.1.8 — 2026-09-11
 - Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --
   item images no longer show a person.

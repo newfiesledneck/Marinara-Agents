@@ -99,6 +99,13 @@ ready for testers.
 
 ## Changelog
 
+### 0.1.9
+
+- Fixed a regression from 0.1.8's new Bag tabs: clicking an empty equip slot's quick-fill
+  shortcut only searched the Wearables tab, so a stashed wearable item couldn't be found or
+  equipped from there at all. That search now reaches every wearable regardless of tab, matching
+  how it worked before tabs existed.
+
 ### 0.1.8
 
 - Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --
