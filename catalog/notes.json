@@ -98,6 +98,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.9",
+          "date": "2026-09-11",
+          "notes": "- Fixed a regression from 0.1.8's new Bag tabs: clicking an empty equip slot's quick-fill\n  shortcut only searched the Wearables tab, so a wearable item currently stashed (Stored tab)\n  couldn't be found or equipped from there at all. The slot-driven search now reaches every\n  wearable regardless of tab, matching how it worked before tabs existed.",
+          "highlight": false
+        },
+        {
           "version": "0.1.8",
           "date": "2026-09-11",
           "notes": "- Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --\n  item images no longer show a person.\n- The Bag column now splits into three tabs -- Items, Wearables (anything with a default slot\n  set), and Stored (anything in a named stash) -- instead of one flat list, so a chat with a lot\n  of stuff is easier to scan. Clicking an empty equip slot's quick-fill shortcut now also jumps\n  the Bag to the Wearables tab, since only a wearable item can ever fill a slot that way.",
