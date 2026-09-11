@@ -1,4 +1,4 @@
-// Quartermaster 0.1.7 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.8 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (10 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
@@ -1496,6 +1496,23 @@ const QM_COLUMN_KEYS = ["outfits", "equipped", "bag"];
 const QM_COLUMN_EXPANDED_FLEX = { outfits: "1", equipped: "1.6", bag: "1" };
 const QM_COLUMN_COLLAPSED_WIDTH = 40;
 
+// Sub-tabs within the Bag column, splitting one flat list into three so a
+// chat with a lot of stuff isn't one giant scroll. A stored location wins
+// over defaultSlot when both apply (an item stashed in a closet stays
+// "Stored" even if it's also wearable) — location is the more specific,
+// deliberately-set fact in that case, so it takes priority.
+const QM_BAG_TABS = [
+  { key: "items", label: "Items" },
+  { key: "wearables", label: "Wearables" },
+  { key: "stored", label: "Stored" },
+];
+function qmItemMatchesBagTab(item, tab) {
+  const stored = item.location.startsWith("stored:");
+  if (tab === "stored") return stored;
+  if (stored) return false;
+  return tab === "wearables" ? Boolean(item.defaultSlot) : !item.defaultSlot;
+}
+
 function qmReadColumnCollapsed() {
   const result = { outfits: false, equipped: false, bag: false };
   try {
@@ -1607,6 +1624,8 @@ QM.dock = {
   bagSearchMode: "name",
   bagSearchInput: null,
   bagSearchModeButtons: null,
+  bagTab: "items",
+  bagTabButtons: null,
   outfitSearchQuery: "",
   outfitSearchInput: null,
   columnCollapsed: qmReadColumnCollapsed(),
@@ -1674,6 +1693,7 @@ QM.dock = {
     this.itemEditorBackdrop = null;
     this.bagSearchInput = null;
     this.bagSearchModeButtons = null;
+    this.bagTabButtons = null;
     this.outfitSearchInput = null;
     this.sectionHeaders = null;
     this.sectionBodies = null;
@@ -2145,10 +2165,11 @@ QM.dock = {
       const bagColumn = document.createElement("div");
       Object.assign(bagColumn.style, { flex: "1", minWidth: "0", width: "100%" });
       this.form = this._buildAddItemForm();
+      const bagTabRow = this._buildBagTabRow();
       const bagSearchRow = this._buildBagSearchRow();
       this.listContainer = document.createElement("div");
       const bagBody = document.createElement("div");
-      bagBody.append(this.form, bagSearchRow, this.listContainer);
+      bagBody.append(this.form, bagTabRow, bagSearchRow, this.listContainer);
       bagColumn.append(this._buildSectionHeader("bag", "Bag", bagBody, bagColumn), bagBody);
 
       columns.append(outfitsColumn, equippedColumn, bagColumn);
@@ -2226,6 +2247,7 @@ QM.dock = {
     this.equippedContainer.replaceChildren(this._buildEquippedSection());
     requestAnimationFrame(() => this._updateConnectorLines());
     this.outfitsContainer.replaceChildren(this._buildOutfitsList());
+    this._applyBagTabs();
     this.listContainer.replaceChildren(this._buildItemList());
     requestAnimationFrame(() => this._applyCardDescriptionCaps());
   },
@@ -3272,6 +3294,10 @@ QM.dock = {
       if (nowSelecting) {
         this.bagSearchMode = "slot";
         this.bagSearchQuery = QM_SLOT_LABELS[slot];
+        // Only a wearable (defaultSlot set) can ever fill a slot, so jump
+        // the Bag to that tab too — otherwise the shortcut could land the
+        // user on an empty Items/Stored tab even though matches exist.
+        this.bagTab = "wearables";
       } else {
         this.bagSearchMode = "name";
         this.bagSearchQuery = "";
@@ -4002,6 +4028,47 @@ QM.dock = {
   // exactly what could fill it — _applyBagSearch (called every _paint, not
   // just here) is what keeps this row's own DOM in sync with that, since
   // the row itself is built once and cached like the Thumbnail Size row is.
+  // Three-way split of the Bag list, checked every paint via
+  // _applyBagTabs (called from _applyBagSearch's own call sites, since the
+  // two rows always need to redraw together) so the active tab's styling
+  // and the item counts beside each label stay live.
+  _buildBagTabRow() {
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", gap: "4px", marginBottom: "8px" });
+
+    this.bagTabButtons = {};
+    for (const { key, label } of QM_BAG_TABS) {
+      const button = QM.button(label);
+      Object.assign(button.style, { flex: "1", padding: "2px 6px", fontSize: "11px" });
+      button.addEventListener("click", () => {
+        if (this.bagTab === key) return;
+        this.bagTab = key;
+        this._applyBagTabs();
+        this.listContainer.replaceChildren(this._buildItemList());
+        requestAnimationFrame(() => this._applyCardDescriptionCaps());
+      });
+      this.bagTabButtons[key] = button;
+      row.appendChild(button);
+    }
+    this._applyBagTabs();
+    return row;
+  },
+
+  _applyBagTabs() {
+    if (!this.bagTabButtons) return;
+    const items = QM.state.bagItems();
+    for (const { key, label } of QM_BAG_TABS) {
+      const button = this.bagTabButtons[key];
+      if (!button) continue;
+      const count = items.filter((item) => qmItemMatchesBagTab(item, key)).length;
+      button.textContent = `${label} (${count})`;
+      const active = this.bagTab === key;
+      button.style.background = active ? "var(--primary, #444)" : "var(--secondary, transparent)";
+      button.style.color = active ? "var(--primary-foreground, #fff)" : "var(--secondary-foreground, inherit)";
+      button.style.border = active ? "none" : "1px solid var(--border, rgba(0,0,0,0.2))";
+    }
+  },
+
   _buildBagSearchRow() {
     const row = document.createElement("div");
     Object.assign(row.style, { display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" });
@@ -4227,7 +4294,7 @@ QM.dock = {
     });
 
     const query = this.bagSearchQuery.trim().toLowerCase();
-    let items = QM.state.bagItems();
+    let items = QM.state.bagItems().filter((item) => qmItemMatchesBagTab(item, this.bagTab));
     if (query) {
       items = items.filter((item) => {
         if (this.bagSearchMode === "slot") {
@@ -4238,7 +4305,9 @@ QM.dock = {
       });
     }
     if (items.length === 0) {
-      const empty = QM.textNode(query ? "No matching items." : "Bag is empty.");
+      const emptyLabel =
+        this.bagTab === "wearables" ? "No wearables." : this.bagTab === "stored" ? "Nothing stored." : "No items.";
+      const empty = QM.textNode(query ? "No matching items." : emptyLabel);
       empty.style.color = "var(--muted-foreground, currentcolor)";
       empty.style.margin = "0";
       list.appendChild(empty);
