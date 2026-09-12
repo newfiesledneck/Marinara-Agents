@@ -4,6 +4,12 @@
     "long-term-memory": {
       "versions": [
         {
+          "version": "1.2.26",
+          "date": "2026-09-10",
+          "notes": "- Added persistent chat-mode availability selection to Sources for memory imports.",
+          "highlight": false
+        },
+        {
           "version": "1.2.25",
           "date": "2026-09-10",
           "notes": "- Added a confirmed discard action for invalidated drafts, removing old proposals without changing saved memories.",
@@ -50,6 +56,12 @@
     "memory-nag": {
       "versions": [
         {
+          "version": "1.1.1",
+          "date": "2026-09-11",
+          "notes": "Send the saved admin secret on plain-HTTP remote clients too, matching the Engine, so Create Memories no longer fails with an X-Admin-Secret error on LAN and Termux setups.",
+          "highlight": false
+        },
+        {
           "version": "1.1.0",
           "date": "2026-09-09",
           "notes": "Choose all unprocessed messages or a specific message range when creating vault memories, so long chats can skip stale history. Closing the progress or prompt window keeps the underlying chat settings open.",
@@ -81,6 +93,38 @@
           "version": "1.2.18",
           "date": "2026-09-03",
           "notes": "- Test the agent changelog feature with a highlighted patch release. No features were added.",
+          "highlight": true
+        }
+      ]
+    },
+    "slurp": {
+      "versions": [
+        {
+          "version": "1.50.0",
+          "date": "2026-09-11",
+          "notes": "- Mark Slurp as the legacy version while it is being reworked.\n- Add a full ZIP backup export containing Slurp data and media for migration.\n- New development is moving to Slurp Remastered. Bug fixes are not planned for this version.",
+          "highlight": true
+        },
+        {
+          "version": "1.0.31",
+          "date": "2026-09-09",
+          "notes": "- Include image generation guidance in the main Slurp post-generation prompt so image interpretation receives the generated image prompt and configured instructions.",
+          "highlight": false
+        },
+        {
+          "version": "1.0.30",
+          "date": "2026-09-08",
+          "notes": "- Preserve the selected image style profile after image prompt interpretation.",
+          "highlight": false
+        }
+      ]
+    },
+    "slurp2": {
+      "versions": [
+        {
+          "version": "0.0.1",
+          "date": "2026-09-12",
+          "notes": "- First release of the Slurp remaster as its own package. It installs beside Slurp Legacy and keeps its own separate data.\n- Added direct messages, scheduled follow-ups, commissions, an audience funnel, and creator earnings kept apart from spending money.\n- Added a backup export and restore. A Slurp Legacy backup can be restored here, which is how you move your data across.\n- Added a welcome screen. It appears after the install and after every update, warns that this is alpha software, and lists what changed.",
           "highlight": true
         }
       ]
