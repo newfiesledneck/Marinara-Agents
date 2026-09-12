@@ -1,18 +1,14 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "gacha-forge": {
-      "versions": [
-        {
-          "version": "1.7.0",
-          "date": "2026-09-05",
-          "notes": "- A whole chapter's scenes can be written in advance, so they open with no wait.\n- Leave a scene halfway and pick it up where you stopped instead of starting over.\n- Every banner now runs smaller side events alongside it: Tidewalk, Salvage Bingo and Supply Line.\n- Seasonal Event: ten draws at once, a daily boss, a party bonus and rewards for the coin you earn.\n- Items and rewards show a picture of the thing itself instead of a symbol.\n- Each connection generates one thing at a time, and whatever you are waiting for goes first.\n- Character names are capitalised, and your persona can be moved around the party and taken out of it.\n- Fixed: the top bar no longer cuts off its buttons, the Home no longer sends you back to Chapter One, and the battle screen no longer slides sideways.",
-          "highlight": false
-        }
-      ]
-    },
     "long-term-memory": {
       "versions": [
+        {
+          "version": "1.2.26",
+          "date": "2026-09-10",
+          "notes": "- Added persistent chat-mode availability selection to Sources for memory imports.",
+          "highlight": false
+        },
         {
           "version": "1.2.25",
           "date": "2026-09-10",
@@ -60,6 +56,12 @@
     "memory-nag": {
       "versions": [
         {
+          "version": "1.1.1",
+          "date": "2026-09-11",
+          "notes": "Send the saved admin secret on plain-HTTP remote clients too, matching the Engine, so Create Memories no longer fails with an X-Admin-Secret error on LAN and Termux setups.",
+          "highlight": false
+        },
+        {
           "version": "1.1.0",
           "date": "2026-09-09",
           "notes": "Choose all unprocessed messages or a specific message range when creating vault memories, so long chats can skip stale history. Closing the progress or prompt window keeps the underlying chat settings open.",
@@ -95,72 +97,14 @@
         }
       ]
     },
-    "quartermaster": {
-      "versions": [
-        {
-          "version": "0.1.9",
-          "date": "2026-09-11",
-          "notes": "- Fixed a regression from 0.1.8's new Bag tabs: clicking an empty equip slot's quick-fill\n  shortcut only searched the Wearables tab, so a wearable item currently stashed (Stored tab)\n  couldn't be found or equipped from there at all. The slot-driven search now reaches every\n  wearable regardless of tab, matching how it worked before tabs existed.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.8",
-          "date": "2026-09-11",
-          "notes": "- Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --\n  item images no longer show a person.\n- The Bag column now splits into three tabs -- Items, Wearables (anything with a default slot\n  set), and Stored (anything in a named stash) -- instead of one flat list, so a chat with a lot\n  of stuff is easier to scan. Clicking an empty equip slot's quick-fill shortcut now also jumps\n  the Bag to the Wearables tab, since only a wearable item can ever fill a slot that way.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.7",
-          "date": "2026-09-09",
-          "notes": "- Attempted fix for Generate Image (0.1.6) sending the persona's appearance into item/outfit image\n  requests instead of a clean product shot -- the request now matches the exact shape confirmed\n  working against this same Engine, rather than an unverified one copied from another package.\n  Reported by a real user; pending final confirmation it fully resolves it.\n- A build-script safety check now refuses to silently overwrite an already-released version's\n  artifact file under the same filename.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.6",
-          "date": "2026-09-08",
-          "notes": "- Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit\n  portraits. Review (and optionally edit) the filled-in prompt before generating.\n- New Settings section picks which image connection to use and lets you edit the two prompt\n  templates, pre-filled with sensible defaults to edit from rather than write from scratch.\n- The portrait prompt no longer leaks a raw {{getvar::...}} appearance-macro token into the image\n  request when the persona's Appearance field uses it.\n- Export/import now carry the two prompt templates along with everything else.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.5",
-          "date": "2026-09-08",
-          "notes": "- Fixed Build Wardrobe producing no debug-log output even with Debug Mode enabled -- the\n  request/response now log correctly.\n- Replaced the dock/tracker panel's 5-second inventory poll with an event-driven refresh right\n  after a turn completes, cutting needless network requests.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.4",
-          "date": "2026-09-08",
-          "notes": "- Added Build Wardrobe: describe a style direction and get a proposed set of new items and\n  outfits to review before adding them to inventory.\n- Outfits it builds can reuse your existing wearable items instead of always creating new ones.\n- Generation uses the tracker agent's own configured connection, so switching that in the Agents\n  menu also moves this.\n- Fixed non-wearable items (a phone, a wallet) sometimes turning up in a generated outfit.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.3",
-          "date": "2026-09-07",
-          "notes": "- Fixed inventory silently wiping every turn: the tracker agent's resultType was misconfigured as\n  a text-only result, so its JSON response never actually got parsed.\n- Outfits now stay equipped when extra items get added alongside them — only swapping one of the\n  outfit's own items unequips it — and the appearance macro reflects that.\n- Added a \"Restore Inventory\" safety net and a \"Refresh Images\" button, both under Settings.\n- Fixed a rendering bug that hid an equip slot's name/item labels behind its fallback icon.\n- Stopped repeatedly re-requesting (and console-flooding) images already confirmed missing.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.2",
-          "date": "2026-09-05",
-          "notes": "- Added a decorated portrait frame with connector lines to each equip slot.\n- Added bundled artwork for every equip slot.\n- Redesigned item/outfit cards to size themselves to their own content instead of clipping or\n  growing unbounded.\n- Equip slots now show the item's full image.\n- Outfits got a reworked save/edit flow.\n- Columns can collapse to genuinely narrow the dock.\n- Added delete confirmations and Escape-to-close.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.1",
-          "date": "2026-08-30",
-          "notes": "- Theme-aware dropdowns.\n- Fixed a portrait-ring shift with the underwear toggle.\n- Real button hover/press states.\n- Consistent styling.\n- Added an animated Settings section.\n- Added click-outside-to-close.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.0",
-          "date": "2026-08-28",
-          "notes": "- Equip slots around a portrait.\n- Item locations.\n- Saved outfits.\n- Export/import.\n- The appearance macro.\n- The narrator context feed.\n- An agent that keeps inventory in sync automatically from the story.",
-          "highlight": true
-        }
-      ]
-    },
     "slurp": {
       "versions": [
+        {
+          "version": "1.50.0",
+          "date": "2026-09-11",
+          "notes": "- Mark Slurp as the legacy version while it is being reworked.\n- Add a full ZIP backup export containing Slurp data and media for migration.\n- New development is moving to Slurp Remastered. Bug fixes are not planned for this version.",
+          "highlight": true
+        },
         {
           "version": "1.0.31",
           "date": "2026-09-09",
@@ -172,6 +116,16 @@
           "date": "2026-09-08",
           "notes": "- Preserve the selected image style profile after image prompt interpretation.",
           "highlight": false
+        }
+      ]
+    },
+    "slurp2": {
+      "versions": [
+        {
+          "version": "0.0.1",
+          "date": "2026-09-12",
+          "notes": "- First release of the Slurp remaster as its own package. It installs beside Slurp Legacy and keeps its own separate data.\n- Added direct messages, scheduled follow-ups, commissions, an audience funnel, and creator earnings kept apart from spending money.\n- Added a backup export and restore. A Slurp Legacy backup can be restored here, which is how you move your data across.\n- Added a welcome screen. It appears after the install and after every update, warns that this is alpha software, and lists what changed.",
+          "highlight": true
         }
       ]
     }
