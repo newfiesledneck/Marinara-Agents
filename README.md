@@ -24,7 +24,7 @@ Across its Engine compatibility lanes, the catalog currently contains **36 first
 | Agent | Package | What it does |
 | --- | --- | --- |
 | Background | [`background`](packages/background/manifest.json) | Selects the best existing scene background from your library. |
-| Beholder | [`beholder`](packages/beholder/manifest.json) | Tracks clothing by body slot, held items, wounds, missing parts, bare slots, and species. Recommended for OpenAI GPT-5.5+, Claude Opus 4.8+, or Kimi K3+. |
+| Beholder | [`beholder`](packages/beholder/manifest.json) | Tracks clothing by body slot, held items, wounds, missing parts, bare slots, and species. Slot editing supports Tab, Enter, and Space, with Escape returning focus. Recommended for OpenAI GPT-5.5+, Claude Opus 4.8+, or Kimi K3+. |
 | Character Tracker | [`character-tracker`](packages/character-tracker/manifest.json) | Tracks present characters, moods, actions, appearance, thoughts, and character stats. |
 | Custom Tracker | [`custom-tracker`](packages/custom-tracker/manifest.json) | Tracks user-defined currencies, counters, flags, and other custom fields. |
 | Expression Engine | [`expression`](packages/expression/manifest.json) | Detects character emotions and selects matching Visual Novel sprites or expressions. |
@@ -49,7 +49,7 @@ Across its Engine compatibility lanes, the catalog currently contains **36 first
 | Illustrator | [`illustrator`](packages/illustrator/manifest.json) | Creates images and videos, with optional automatic Roleplay backgrounds for new scene locations. |
 | Immersive HTML | [`html`](packages/html/manifest.json) | Adds diegetic HTML/CSS/JS visual artifacts without changing story meaning. |
 | Lorebook Keeper | [`lorebook-keeper`](packages/lorebook-keeper/manifest.json) | Creates and updates durable lorebook entries from important story facts. |
-| Long-Term Memory | [`long-term-memory`](packages/long-term-memory/manifest.json) | Extracts durable memories from chat summaries, character records, and lorebooks, with scoped vault browsing, review, source management, recall controls, and preset-marker placement for Roleplay. |
+| Long-Term Memory | [`long-term-memory`](packages/long-term-memory/manifest.json) | Extracts durable memories from chat summaries, character records, and lorebooks, with scoped vault browsing, review, paginated source browsing, recall controls, and preset-marker placement for Roleplay. |
 | Music DJ | [`spotify`](packages/spotify/manifest.json) | Plays scene-matched music through Spotify, YouTube, or local Game Assets. |
 | Noodle | [`noodle`](packages/noodle/manifest.json) | Explore the public Noodle social timeline as an optional local social world, available after installation from **Home → Noodle**. |
 | Slurp | [`slurp`](packages/slurp/manifest.json) | The standalone successor to NoodleR: create local Creator profiles, publish public or locked posts, and simulate audience activity from **Home → Slurp**. |
@@ -64,6 +64,8 @@ For complete mode, lifecycle, and settings documentation for every package, see 
 
 For manual-only Illustrator on the updated Engine staging build, set **Run Interval** to **0** in its setup or when adding it to a chat. This stops automatic Illustrator runs, including automatic scene backgrounds, while keeping the **Gallery → Illustrate** and **Background** actions available. The default remains **5**; choose a positive interval to resume automatic runs. This is an Engine scheduling option, so no Illustrator package update is required.
 
+Slurp and Slurp Remastered offer **Image context for reactions** in settings for fan reactions and creator replies: **Auto** prefers the stored image prompt and falls back to vision, **Stored image prompt only** uses that prompt only, and **Vision** describes the image. Public fans do not receive locked images. Manual creator refresh shows how many requests remain.
+
 ### In development
 
 These packages are being built in this repository but are not ready for the stable catalog yet. A package is either **in development** (hidden from every Engine channel) or **staging only** (offered to Engine `staging` testers, hidden from stable `main` users). See [Contributing § Packages that are not ready for everyone](CONTRIBUTING.md#packages-that-are-not-ready-for-everyone).
@@ -72,7 +74,7 @@ These packages are being built in this repository but are not ready for the stab
 | --- | --- | --- | --- |
 | Gacha Forge | [`gacha-forge`](packages/gacha-forge/manifest.json) | Staging only | A complete gacha game mode: describe a world and it builds the rest — banners to pull on, a generated cast, story chapters told by a visual-novel narrator, and the battles, gear and events that grow around them, all from **Home → Gacha Forge**. Offered to Engine `staging` testers while the game mode is exercised. |
 | Pixelforge | [`pixelforge`](packages/pixelforge/manifest.json) | In development | A walkable pixel-art RPG Experience for Game Mode: generated settlements, NPCs, and story-driven exploration. Under active development; not yet listed for users. |
-| Quartermaster | [`quartermaster`](packages/quartermaster/manifest.json) | In development | A per-chat RPG character sheet and inventory manager: equip slots, item locations, saved outfits, and a narration-driven tracker agent. Under active development; not yet listed for users. |
+| Quartermaster | [`quartermaster`](packages/quartermaster/manifest.json) | In development | A per-chat RPG character sheet and inventory manager: equip slots, a full inventory with saved outfits, AI-generated item and outfit art, and a narration-driven tracker agent that runs on its own. Under active development; not yet listed for users. |
 
 ### Localization sources
 

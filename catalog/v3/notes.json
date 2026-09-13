@@ -1,18 +1,34 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "gacha-forge": {
+    "beholder": {
       "versions": [
         {
-          "version": "1.7.0",
-          "date": "2026-09-05",
-          "notes": "- A whole chapter's scenes can be written in advance, so they open with no wait.\n- Leave a scene halfway and pick it up where you stopped instead of starting over.\n- Every banner now runs smaller side events alongside it: Tidewalk, Salvage Bingo and Supply Line.\n- Seasonal Event: ten draws at once, a daily boss, a party bonus and rewards for the coin you earn.\n- Items and rewards show a picture of the thing itself instead of a symbol.\n- Each connection generates one thing at a time, and whatever you are waiting for goes first.\n- Character names are capitalised, and your persona can be moved around the party and taken out of it.\n- Fixed: the top bar no longer cuts off its buttons, the Home no longer sends you back to Chapter One, and the battle screen no longer slides sideways.",
+          "version": "1.3.11",
+          "date": "2026-09-13",
+          "notes": "- Paper-doll slots can be reached by keyboard and opened with Enter or Space. Their focus outline stays visible, and closing the editor returns focus to its slot.",
+          "highlight": false
+        }
+      ]
+    },
+    "conversation-calls": {
+      "versions": [
+        {
+          "version": "1.0.15",
+          "date": "2026-09-13",
+          "notes": "- Keep required reasoning enabled for GLM 5.3 on NanoGPT and Z.AI when the selected effort is None.",
           "highlight": false
         }
       ]
     },
     "long-term-memory": {
       "versions": [
+        {
+          "version": "1.3.0",
+          "date": "2026-09-13",
+          "notes": "- Load additional pages of chat summaries, characters, and lorebook sources without losing filters, selections, or import status.\n- Keep retention cleanup recoverable when activity-index pruning fails.",
+          "highlight": true
+        },
         {
           "version": "1.2.27",
           "date": "2026-09-12",
@@ -72,6 +88,12 @@
     "memory-nag": {
       "versions": [
         {
+          "version": "1.1.2",
+          "date": "2026-09-13",
+          "notes": "Automatic scans wait while a manual message-range scan is active, avoiding duplicate model charges between batches. Finished, stopped, failed, and abandoned scans release the guard without losing checkpoint progress.",
+          "highlight": false
+        },
+        {
           "version": "1.1.1",
           "date": "2026-09-11",
           "notes": "Send the saved admin secret on plain-HTTP remote clients too, matching the Engine, so Create Memories no longer fails with an X-Admin-Secret error on LAN and Termux setups.",
@@ -87,6 +109,18 @@
     },
     "noodle": {
       "versions": [
+        {
+          "version": "1.2.23",
+          "date": "2026-09-13",
+          "notes": "- Applying a saved prompt asks before replacing the current prompt, including edits already saved as the active prompt.\n- Cancel works immediately in Delete All Noodle Data; only deletion requires typing DELETE.\n- A running timeline refresh blocks duplicate refresh requests instead of queuing extra generations.\n- GLM 5.3 on NanoGPT and Z.AI keeps its required reasoning enabled when the selected effort is None.",
+          "highlight": false
+        },
+        {
+          "version": "1.2.22",
+          "date": "2026-09-13",
+          "notes": "- Maintenance: simplify the inline composer's visibility checks and remove unused code.",
+          "highlight": false
+        },
         {
           "version": "1.2.21",
           "date": "2026-09-07",
@@ -113,72 +147,20 @@
         }
       ]
     },
-    "quartermaster": {
-      "versions": [
-        {
-          "version": "0.1.9",
-          "date": "2026-09-11",
-          "notes": "- Fixed a regression from 0.1.8's new Bag tabs: clicking an empty equip slot's quick-fill\n  shortcut only searched the Wearables tab, so a wearable item currently stashed (Stored tab)\n  couldn't be found or equipped from there at all. The slot-driven search now reaches every\n  wearable regardless of tab, matching how it worked before tabs existed.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.8",
-          "date": "2026-09-11",
-          "notes": "- Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --\n  item images no longer show a person.\n- The Bag column now splits into three tabs -- Items, Wearables (anything with a default slot\n  set), and Stored (anything in a named stash) -- instead of one flat list, so a chat with a lot\n  of stuff is easier to scan. Clicking an empty equip slot's quick-fill shortcut now also jumps\n  the Bag to the Wearables tab, since only a wearable item can ever fill a slot that way.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.7",
-          "date": "2026-09-09",
-          "notes": "- Attempted fix for Generate Image (0.1.6) sending the persona's appearance into item/outfit image\n  requests instead of a clean product shot -- the request now matches the exact shape confirmed\n  working against this same Engine, rather than an unverified one copied from another package.\n  Reported by a real user; pending final confirmation it fully resolves it.\n- A build-script safety check now refuses to silently overwrite an already-released version's\n  artifact file under the same filename.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.6",
-          "date": "2026-09-08",
-          "notes": "- Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit\n  portraits. Review (and optionally edit) the filled-in prompt before generating.\n- New Settings section picks which image connection to use and lets you edit the two prompt\n  templates, pre-filled with sensible defaults to edit from rather than write from scratch.\n- The portrait prompt no longer leaks a raw {{getvar::...}} appearance-macro token into the image\n  request when the persona's Appearance field uses it.\n- Export/import now carry the two prompt templates along with everything else.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.5",
-          "date": "2026-09-08",
-          "notes": "- Fixed Build Wardrobe producing no debug-log output even with Debug Mode enabled -- the\n  request/response now log correctly.\n- Replaced the dock/tracker panel's 5-second inventory poll with an event-driven refresh right\n  after a turn completes, cutting needless network requests.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.4",
-          "date": "2026-09-08",
-          "notes": "- Added Build Wardrobe: describe a style direction and get a proposed set of new items and\n  outfits to review before adding them to inventory.\n- Outfits it builds can reuse your existing wearable items instead of always creating new ones.\n- Generation uses the tracker agent's own configured connection, so switching that in the Agents\n  menu also moves this.\n- Fixed non-wearable items (a phone, a wallet) sometimes turning up in a generated outfit.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.3",
-          "date": "2026-09-07",
-          "notes": "- Fixed inventory silently wiping every turn: the tracker agent's resultType was misconfigured as\n  a text-only result, so its JSON response never actually got parsed.\n- Outfits now stay equipped when extra items get added alongside them — only swapping one of the\n  outfit's own items unequips it — and the appearance macro reflects that.\n- Added a \"Restore Inventory\" safety net and a \"Refresh Images\" button, both under Settings.\n- Fixed a rendering bug that hid an equip slot's name/item labels behind its fallback icon.\n- Stopped repeatedly re-requesting (and console-flooding) images already confirmed missing.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.2",
-          "date": "2026-09-05",
-          "notes": "- Added a decorated portrait frame with connector lines to each equip slot.\n- Added bundled artwork for every equip slot.\n- Redesigned item/outfit cards to size themselves to their own content instead of clipping or\n  growing unbounded.\n- Equip slots now show the item's full image.\n- Outfits got a reworked save/edit flow.\n- Columns can collapse to genuinely narrow the dock.\n- Added delete confirmations and Escape-to-close.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.1",
-          "date": "2026-08-30",
-          "notes": "- Theme-aware dropdowns.\n- Fixed a portrait-ring shift with the underwear toggle.\n- Real button hover/press states.\n- Consistent styling.\n- Added an animated Settings section.\n- Added click-outside-to-close.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.0",
-          "date": "2026-08-28",
-          "notes": "- Equip slots around a portrait.\n- Item locations.\n- Saved outfits.\n- Export/import.\n- The appearance macro.\n- The narrator context feed.\n- An agent that keeps inventory in sync automatically from the story.",
-          "highlight": true
-        }
-      ]
-    },
     "slurp": {
       "versions": [
+        {
+          "version": "1.51.0",
+          "date": "2026-09-13",
+          "notes": "- Completion and error notifications now appear inside the standalone package.\n- Fan reactions and creator replies can use stored image prompts or vision descriptions. Auto prefers the stored prompt, with vision as a fallback for uploaded images. Public fans never receive locked images, and descriptions follow the creator's identity protection.\n- The targeted creator refresh shows the remaining count as each generation finishes, including failed or skipped jobs.",
+          "highlight": true
+        },
+        {
+          "version": "1.50.1",
+          "date": "2026-09-13",
+          "notes": "- Maintenance: remove unused legacy code and an unnecessary settings read when checking the posting schedule.",
+          "highlight": false
+        },
         {
           "version": "1.50.0",
           "date": "2026-09-11",
@@ -201,6 +183,18 @@
     },
     "slurp2": {
       "versions": [
+        {
+          "version": "0.0.6",
+          "date": "2026-09-13",
+          "notes": "- Added image context options for reactions: stored prompts, vision descriptions, or automatic selection. Public fan reactions keep locked images hidden and respect Creator identity privacy.\n- Generation now shows how many Creators remain, including skipped or failed requests.\n- Restored visible success and error notifications for Slurp actions.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.5",
+          "date": "2026-09-13",
+          "notes": "- Made the welcome screen shorter, put Gunterlie beside the greeting, linked Slurp General, and tucked older release notes behind an expander.\n- Corrected older ad ratings, fallback handles, onboarding text, and invalid digest account errors.",
+          "highlight": false
+        },
         {
           "version": "0.0.4",
           "date": "2026-09-12",
