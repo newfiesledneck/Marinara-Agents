@@ -160,6 +160,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.11",
+          "date": "2026-09-13",
+          "notes": "- The tracking agent now targets specific changes (add/update/remove an item, equip an outfit)\n  instead of re-listing the whole inventory every turn, using a short tag for existing items\n  instead of retyping names. An item the model doesn't mention is never dropped, and a large\n  inventory can't have the model's own output cut off mid-listing and lose whatever didn't fit.\n  An implausibly large turn is rejected outright rather than applied.\n- Added a \"Recent Automatic Update\" view in Settings: what the last turn added, changed, or\n  removed, with the tracker's reasoning and a per-item Revert button for fixing one mistake\n  without reverting everything else. A revert refuses rather than overwriting if that item has\n  changed again since.",
+          "highlight": true
+        },
+        {
           "version": "0.1.10",
           "date": "2026-09-13",
           "notes": "- Rewrote the README's Features section for readability and completeness: organized by what you\n  actually interact with (the Dock, Equip Slots & Outfits, Inventory, Item Images, the tracking\n  agent, the Appearance Macro, the Tracker Panel) instead of a flat bullet list, and documented\n  several real features that were previously undocumented -- the Bag's Items/Wearables/Stored\n  tabs, outfit resnapshotting, the \"stays equipped through extras\" behavior, the Tracker Panel's\n  per-stash grouping, the Refresh Images setting, and Build Wardrobe sharing its LLM connection\n  with the tracking agent.\n- Updated the in-app description (shown in Download Agents) to mention saved outfits, AI-generated\n  art, and the tracker agent's own automation -- it hadn't been touched since before those\n  features shipped.",
