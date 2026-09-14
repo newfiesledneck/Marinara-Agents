@@ -160,6 +160,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.12",
+          "date": "2026-09-14",
+          "notes": "- Dock layout overhaul. Settings moved to its own top-level tab (Inventory/Settings), grouped\n  under Appearance/Display/Image Generation/Data with hover-and-tap info tooltips instead of\n  permanent explanatory paragraphs. Recent Automatic Update (renamed Recent Agent Update) moved\n  into Settings' old spot next to Restore Inventory, gained a collapsed-header +N/↑N/−N count,\n  colored rows, a left-side Revert button, and now shows the agent's reasoning even on a quiet\n  turn. Item/outfit cards collapse Edit/Update/Delete into a \"⋯\" menu and promote Equip to the\n  name row, giving descriptions the reclaimed width; Delete confirms there too. The item-image\n  and outfit-portrait remove buttons now confirm before clearing (they didn't before). \"Stored\n  at: Bag\" and \"Default Slot\" no longer render when they carry no information. Add Item is now\n  a modal instead of an always-open inline form.",
+          "highlight": true
+        },
+        {
           "version": "0.1.11",
           "date": "2026-09-13",
           "notes": "- The tracking agent now targets specific changes (add/update/remove an item, equip an outfit)\n  instead of re-listing the whole inventory every turn, using a short tag for existing items\n  instead of retyping names. An item the model doesn't mention is never dropped, and a large\n  inventory can't have the model's own output cut off mid-listing and lose whatever didn't fit.\n  An implausibly large turn is rejected outright rather than applied.\n- Added a \"Recent Automatic Update\" view in Settings: what the last turn added, changed, or\n  removed, with the tracker's reasoning and a per-item Revert button for fixing one mistake\n  without reverting everything else. A revert refuses rather than overwriting if that item has\n  changed again since.",
