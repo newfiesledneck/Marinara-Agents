@@ -160,9 +160,15 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.13",
+          "date": "2026-09-14",
+          "notes": "- Fixed Recent Agent Update's collapsed box showing a sliver of Restore Inventory underneath —\n  its vertical padding wasn't included in the collapsed max-height. Also shrank its header text.\n- Info tooltips and card overflow menus no longer clip against the dock's own edge; they now flip\n  to whichever side actually has room.\n- Shrank the item card's quantity field to match the \"⋯\" button beside it.\n- \"+ Add Item\" is now green, matching Save Current Outfit.",
+          "highlight": false
+        },
+        {
           "version": "0.1.12",
           "date": "2026-09-14",
-          "notes": "- Dock layout overhaul. Settings moved to its own top-level tab (Inventory/Settings), grouped\n  under Appearance/Display/Image Generation/Data with hover-and-tap info tooltips instead of\n  permanent explanatory paragraphs. Recent Automatic Update (renamed Recent Agent Update) moved\n  into Settings' old spot next to Restore Inventory, gained a collapsed-header +N/↑N/−N count,\n  colored rows, a left-side Revert button, and now shows the agent's reasoning even on a quiet\n  turn. Item/outfit cards collapse Edit/Update/Delete into a \"⋯\" menu and promote Equip to the\n  name row, giving descriptions the reclaimed width; Delete confirms there too. The item-image\n  and outfit-portrait remove buttons now confirm before clearing (they didn't before). \"Stored\n  at: Bag\" and \"Default Slot\" no longer render when they carry no information. Add Item is now\n  a modal instead of an always-open inline form.",
+          "notes": "- Dock layout overhaul: Settings moved to its own top-level tab (Inventory/Settings) instead of an\n  accordion, grouped under Appearance/Display/Image Generation/Data, with hover-and-tap info\n  tooltips replacing permanent explanatory paragraphs.\n- Recent Automatic Update (renamed Recent Agent Update) moved into Settings' old spot next to\n  Restore Inventory: collapsed header shows a +N/↑N/−N count, rows are colored, Revert sits on the\n  left, and it now shows the agent's reasoning even on a quiet turn.\n- Item/outfit cards collapse Edit/Update/Delete into a \"⋯\" menu and promote Equip to the name row,\n  giving descriptions the reclaimed width. Delete still confirms; the item-image and outfit-portrait\n  remove buttons now confirm too (they didn't before).\n- \"Stored at: Bag\" and \"Default Slot\" no longer render when they carry no information.\n- Add Item is now a modal instead of an always-open inline form.",
           "highlight": true
         },
         {
