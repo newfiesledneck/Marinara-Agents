@@ -189,19 +189,33 @@ published catalog until it's ready for testers.
 
 ## Changelog
 
+### 0.1.13
+
+- Fixed Recent Agent Update's collapsed box showing a sliver of Restore Inventory underneath —
+  its vertical padding wasn't included in the collapsed max-height calculation. Also shrank its
+  header text to match the other section labels.
+- Info tooltips and card overflow menus no longer clip against the dock's own edge (previously
+  clipped by the Bag/Outfits column's own scroll container) — they now flip to whichever side
+  actually has room, re-checked every time they open.
+- Shrank the item card's quantity field to match the width of the "⋯" button beside it — it
+  rarely needs more room than that.
+- "+ Add Item" is now green, matching Save Current Outfit's own styling.
+
 ### 0.1.12
 
-- Dock layout overhaul. Settings moved to its own top-level tab (Inventory/Settings), grouped
-  under Appearance/Display/Image Generation/Data, with hover-and-tap info tooltips replacing the
-  permanent explanatory paragraphs that used to sit under every control. Recent Automatic Update
-  (renamed Recent Agent Update) moved into Settings' old spot, right next to Restore Inventory —
-  its collapsed header now shows a compact +N/↑N/−N count, its rows are colored (green/yellow/red,
-  keeping the existing symbols too), Revert sits to the left of each row, and it now shows the
-  agent's own reasoning even on a turn that changed nothing.
+- Settings moved to its own top-level tab (Inventory/Settings) instead of an accordion that pushed
+  the actual inventory below the fold.
+- Settings is now grouped under Appearance/Display/Image Generation/Data instead of one flat list
+  of nine rows, with hover-and-tap info tooltips replacing the permanent explanatory paragraphs
+  that used to sit under every control.
+- Recent Automatic Update (renamed Recent Agent Update) moved into Settings' old spot, right next
+  to Restore Inventory — its collapsed header now shows a compact `+N/↑N/−N` count, its rows are
+  colored (green/yellow/red, keeping the existing symbols too), Revert sits to the left of each
+  row, and it now shows the agent's own reasoning even on a turn that changed nothing.
 - Item and outfit cards collapse Edit/Update/Delete into a "⋯" menu and promote Equip up to the
-  name row — descriptions get the width that used to go to a fixed action column. Delete still
-  confirms from inside the menu. The item-image and outfit-portrait "×" remove buttons now confirm
-  before clearing too (they didn't before).
+  name row — descriptions get the width that used to go to a fixed action column.
+- Delete still confirms from inside the "⋯" menu. The item-image and outfit-portrait "×" remove
+  buttons now confirm before clearing too (they didn't before).
 - "Stored at: Bag" and "Default Slot" no longer render on an item's card when they carry no real
   information (plain bag, no default slot set) — only shown when there's something to actually say.
 - Add Item is now a modal (Cancel/Add Item) instead of an always-open inline form in the Bag
