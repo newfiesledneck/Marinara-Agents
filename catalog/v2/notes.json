@@ -160,6 +160,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.14",
+          "date": "2026-09-15",
+          "notes": "- Actually fixed Recent Agent Update's collapsed-box leak (0.1.13 only got it partway): a flex\n  container's default min-height is \"auto,\" driven by its own children's content size, and per\n  spec that wins over a smaller max-height -- the collapsed box was still being forced open\n  enough to show a sliver of Restore Inventory. Explicit min-height:0 fixes it for real.\n- Fixed tooltip text overflowing its own box: a long unbroken token (the {{getvar::...}} macro\n  name in the Feed Appearance tooltip) wasn't wrapping, so it spilled past the fixed-width edge.",
+          "highlight": false
+        },
+        {
           "version": "0.1.13",
           "date": "2026-09-14",
           "notes": "- Fixed Recent Agent Update's collapsed box showing a sliver of Restore Inventory underneath —\n  its vertical padding wasn't included in the collapsed max-height. Also shrank its header text.\n- Info tooltips and card overflow menus no longer clip against the dock's own edge; they now flip\n  to whichever side actually has room.\n- Shrank the item card's quantity field to match the \"⋯\" button beside it.\n- \"+ Add Item\" is now green, matching Save Current Outfit.",
