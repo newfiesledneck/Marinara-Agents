@@ -11,8 +11,24 @@
         }
       ]
     },
+    "character-tracker": {
+      "versions": [
+        {
+          "version": "1.1.0",
+          "date": "2026-09-14",
+          "notes": "- On compatible Engines, report only changed or removed tracker values while preserving unchanged state and locked rows. Older Engines retain the full-output format.",
+          "highlight": false
+        }
+      ]
+    },
     "conversation-calls": {
       "versions": [
+        {
+          "version": "1.0.16",
+          "date": "2026-09-13",
+          "notes": "- SwarmUI video connections now generate character call clips using their saved workflow, resolution, frame rate, and LoRAs. Backup SwarmUI connections keep their own workflow settings.",
+          "highlight": true
+        },
         {
           "version": "1.0.15",
           "date": "2026-09-13",
@@ -21,12 +37,44 @@
         }
       ]
     },
+    "custom-tracker": {
+      "versions": [
+        {
+          "version": "1.1.0",
+          "date": "2026-09-14",
+          "notes": "- On compatible Engines, report only changed or removed tracker values while preserving unchanged state and locked rows. Older Engines retain the full-output format.",
+          "highlight": false
+        }
+      ]
+    },
     "gacha-forge": {
       "versions": [
+        {
+          "version": "1.8.0",
+          "date": "2026-09-14",
+          "notes": "- Combat is manual: on each turn you choose what a unit does and who it hits. Auto still plays the fight for you.\n- The Tower opens at Rank 20: a hundred floors, Tower Coin and a Tower shelf in the Shop, monthly floors built from your own story.\n- Bonds: every fight raises a unit's bond, and its levels open a conversation, a story chapter of their own, a Home background and an outfit.\n- Your character cards can be the banner cast, and outfit themes are yours to write, share and import.\n- Every skill and action has its own painted icon, and every screen has a ? that explains it the first time.\n- The unit sheet is split into tabs, the Gear tab shows a piece whole and compares changes, and Materials is a row of illustrated cards.\n- Combat Power measures how a unit really fights, and weapons, relics and skills were rebalanced to match their sheets.\n- Fixed: passives and skills do what they say, the game keeps your place when you come back, and screens no longer flash while they load.",
+          "highlight": true
+        },
         {
           "version": "1.7.0",
           "date": "2026-09-05",
           "notes": "- A whole chapter's scenes can be written in advance, so they open with no wait.\n- Leave a scene halfway and pick it up where you stopped instead of starting over.\n- Every banner now runs smaller side events alongside it: Tidewalk, Salvage Bingo and Supply Line.\n- Seasonal Event: ten draws at once, a daily boss, a party bonus and rewards for the coin you earn.\n- Items and rewards show a picture of the thing itself instead of a symbol.\n- Each connection generates one thing at a time, and whatever you are waiting for goes first.\n- Character names are capitalised, and your persona can be moved around the party and taken out of it.\n- Fixed: the top bar no longer cuts off its buttons, the Home no longer sends you back to Chapter One, and the battle screen no longer slides sideways.",
+          "highlight": false
+        }
+      ]
+    },
+    "inventory-tracker": {
+      "versions": [
+        {
+          "version": "1.2.0",
+          "date": "2026-09-14",
+          "notes": "- Track established item descriptions and storage locations on compatible Engines, preserving unchanged details and locked values.",
+          "highlight": true
+        },
+        {
+          "version": "1.1.0",
+          "date": "2026-09-14",
+          "notes": "- On compatible Engines, report only changed or removed tracker values while preserving unchanged state and locked rows. Older Engines retain the full-output format.",
           "highlight": false
         }
       ]
@@ -120,6 +168,12 @@
     "noodle": {
       "versions": [
         {
+          "version": "1.2.24",
+          "date": "2026-09-15",
+          "notes": "- Search icons and post menus keep Noodle's selected accent when Engine Chroma animates.",
+          "highlight": false
+        },
+        {
           "version": "1.2.23",
           "date": "2026-09-13",
           "notes": "- Applying a saved prompt asks before replacing the current prompt, including edits already saved as the active prompt.\n- Cancel works immediately in Delete All Noodle Data; only deletion requires typing DELETE.\n- A running timeline refresh blocks duplicate refresh requests instead of queuing extra generations.\n- GLM 5.3 on NanoGPT and Z.AI keeps its required reasoning enabled when the selected effort is None.",
@@ -153,106 +207,6 @@
           "version": "1.2.18",
           "date": "2026-09-03",
           "notes": "- Test the agent changelog feature with a highlighted patch release. No features were added.",
-          "highlight": true
-        }
-      ]
-    },
-    "quartermaster": {
-      "versions": [
-        {
-          "version": "0.1.15",
-          "date": "2026-09-15",
-          "notes": "- Recent Agent Update's collapsed-box leak, for real this time: the min-height:0 fix in 0.1.14\n  still wasn't enough, so the animated max-height/overflow-hidden collapse is gone entirely in\n  favor of a plain display:none toggle -- no more box-model subtlety left to get wrong, at the\n  cost of the slide animation the old Settings accordion had.\n- Widened the info tooltip box (220px -> 320px) so a long token like the Feed Appearance\n  tooltip's {{getvar::...}} macro name reads on one line instead of an awkward mid-token wrap.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.14",
-          "date": "2026-09-15",
-          "notes": "- Actually fixed Recent Agent Update's collapsed-box leak (0.1.13 only got it partway): a flex\n  container's default min-height is \"auto,\" driven by its own children's content size, and per\n  spec that wins over a smaller max-height -- the collapsed box was still being forced open\n  enough to show a sliver of Restore Inventory. Explicit min-height:0 fixes it for real.\n- Fixed tooltip text overflowing its own box: a long unbroken token (the {{getvar::...}} macro\n  name in the Feed Appearance tooltip) wasn't wrapping, so it spilled past the fixed-width edge.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.13",
-          "date": "2026-09-14",
-          "notes": "- Fixed Recent Agent Update's collapsed box showing a sliver of Restore Inventory underneath —\n  its vertical padding wasn't included in the collapsed max-height. Also shrank its header text.\n- Info tooltips and card overflow menus no longer clip against the dock's own edge; they now flip\n  to whichever side actually has room.\n- Shrank the item card's quantity field to match the \"⋯\" button beside it.\n- \"+ Add Item\" is now green, matching Save Current Outfit.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.12",
-          "date": "2026-09-14",
-          "notes": "- Dock layout overhaul: Settings moved to its own top-level tab (Inventory/Settings) instead of an\n  accordion, grouped under Appearance/Display/Image Generation/Data, with hover-and-tap info\n  tooltips replacing permanent explanatory paragraphs.\n- Recent Automatic Update (renamed Recent Agent Update) moved into Settings' old spot next to\n  Restore Inventory: collapsed header shows a +N/↑N/−N count, rows are colored, Revert sits on the\n  left, and it now shows the agent's reasoning even on a quiet turn.\n- Item/outfit cards collapse Edit/Update/Delete into a \"⋯\" menu and promote Equip to the name row,\n  giving descriptions the reclaimed width. Delete still confirms; the item-image and outfit-portrait\n  remove buttons now confirm too (they didn't before).\n- \"Stored at: Bag\" and \"Default Slot\" no longer render when they carry no information.\n- Add Item is now a modal instead of an always-open inline form.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.11",
-          "date": "2026-09-13",
-          "notes": "- The tracking agent now targets specific changes (add/update/remove an item, equip an outfit)\n  instead of re-listing the whole inventory every turn, using a short tag for existing items\n  instead of retyping names. An item the model doesn't mention is never dropped, and a large\n  inventory can't have the model's own output cut off mid-listing and lose whatever didn't fit.\n  An implausibly large turn is rejected outright rather than applied.\n- Added a \"Recent Automatic Update\" view in Settings: what the last turn added, changed, or\n  removed, with the tracker's reasoning and a per-item Revert button for fixing one mistake\n  without reverting everything else. A revert refuses rather than overwriting if that item has\n  changed again since.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.10",
-          "date": "2026-09-13",
-          "notes": "- Rewrote the README's Features section for readability and completeness: organized by what you\n  actually interact with (the Dock, Equip Slots & Outfits, Inventory, Item Images, the tracking\n  agent, the Appearance Macro, the Tracker Panel) instead of a flat bullet list, and documented\n  several real features that were previously undocumented -- the Bag's Items/Wearables/Stored\n  tabs, outfit resnapshotting, the \"stays equipped through extras\" behavior, the Tracker Panel's\n  per-stash grouping, the Refresh Images setting, and Build Wardrobe sharing its LLM connection\n  with the tracking agent.\n- Updated the in-app description (shown in Download Agents) to mention saved outfits, AI-generated\n  art, and the tracker agent's own automation -- it hadn't been touched since before those\n  features shipped.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.9",
-          "date": "2026-09-11",
-          "notes": "- Fixed a regression from 0.1.8's new Bag tabs: clicking an empty equip slot's quick-fill\n  shortcut only searched the Wearables tab, so a wearable item currently stashed (Stored tab)\n  couldn't be found or equipped from there at all. The slot-driven search now reaches every\n  wearable regardless of tab, matching how it worked before tabs existed.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.8",
-          "date": "2026-09-11",
-          "notes": "- Confirmed fix: the 0.1.7 persona-leak fix for Generate Image resolved the reported issue --\n  item images no longer show a person.\n- The Bag column now splits into three tabs -- Items, Wearables (anything with a default slot\n  set), and Stored (anything in a named stash) -- instead of one flat list, so a chat with a lot\n  of stuff is easier to scan. Clicking an empty equip slot's quick-fill shortcut now also jumps\n  the Bag to the Wearables tab, since only a wearable item can ever fill a slot that way.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.7",
-          "date": "2026-09-09",
-          "notes": "- Attempted fix for Generate Image (0.1.6) sending the persona's appearance into item/outfit image\n  requests instead of a clean product shot -- the request now matches the exact shape confirmed\n  working against this same Engine, rather than an unverified one copied from another package.\n  Reported by a real user; pending final confirmation it fully resolves it.\n- A build-script safety check now refuses to silently overwrite an already-released version's\n  artifact file under the same filename.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.6",
-          "date": "2026-09-08",
-          "notes": "- Added Generate Image: an AI-generated alternative to uploading, for both item images and outfit\n  portraits. Review (and optionally edit) the filled-in prompt before generating.\n- New Settings section picks which image connection to use and lets you edit the two prompt\n  templates, pre-filled with sensible defaults to edit from rather than write from scratch.\n- The portrait prompt no longer leaks a raw {{getvar::...}} appearance-macro token into the image\n  request when the persona's Appearance field uses it.\n- Export/import now carry the two prompt templates along with everything else.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.5",
-          "date": "2026-09-08",
-          "notes": "- Fixed Build Wardrobe producing no debug-log output even with Debug Mode enabled -- the\n  request/response now log correctly.\n- Replaced the dock/tracker panel's 5-second inventory poll with an event-driven refresh right\n  after a turn completes, cutting needless network requests.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.4",
-          "date": "2026-09-08",
-          "notes": "- Added Build Wardrobe: describe a style direction and get a proposed set of new items and\n  outfits to review before adding them to inventory.\n- Outfits it builds can reuse your existing wearable items instead of always creating new ones.\n- Generation uses the tracker agent's own configured connection, so switching that in the Agents\n  menu also moves this.\n- Fixed non-wearable items (a phone, a wallet) sometimes turning up in a generated outfit.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.3",
-          "date": "2026-09-07",
-          "notes": "- Fixed inventory silently wiping every turn: the tracker agent's resultType was misconfigured as\n  a text-only result, so its JSON response never actually got parsed.\n- Outfits now stay equipped when extra items get added alongside them — only swapping one of the\n  outfit's own items unequips it — and the appearance macro reflects that.\n- Added a \"Restore Inventory\" safety net and a \"Refresh Images\" button, both under Settings.\n- Fixed a rendering bug that hid an equip slot's name/item labels behind its fallback icon.\n- Stopped repeatedly re-requesting (and console-flooding) images already confirmed missing.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.2",
-          "date": "2026-09-05",
-          "notes": "- Added a decorated portrait frame with connector lines to each equip slot.\n- Added bundled artwork for every equip slot.\n- Redesigned item/outfit cards to size themselves to their own content instead of clipping or\n  growing unbounded.\n- Equip slots now show the item's full image.\n- Outfits got a reworked save/edit flow.\n- Columns can collapse to genuinely narrow the dock.\n- Added delete confirmations and Escape-to-close.",
-          "highlight": true
-        },
-        {
-          "version": "0.1.1",
-          "date": "2026-08-30",
-          "notes": "- Theme-aware dropdowns.\n- Fixed a portrait-ring shift with the underwear toggle.\n- Real button hover/press states.\n- Consistent styling.\n- Added an animated Settings section.\n- Added click-outside-to-close.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.0",
-          "date": "2026-08-28",
-          "notes": "- Equip slots around a portrait.\n- Item locations.\n- Saved outfits.\n- Export/import.\n- The appearance macro.\n- The narrator context feed.\n- An agent that keeps inventory in sync automatically from the story.",
           "highlight": true
         }
       ]
@@ -294,9 +248,69 @@
     "slurp2": {
       "versions": [
         {
+          "version": "0.0.16",
+          "date": "2026-09-15",
+          "notes": "- Settings -> Audience is simpler: one Activity choice (Off, Quiet, Realistic, Lively, Generous), crowd size and tone up front, and fan types, AI writing and advanced numbers in folded sections. Off also stops commissions, DMs and the activity pulse.\n- A fan type's tone override now changes how those fans write their comments.\n- Settings -> Tags is rebuilt: tags show as chips in their groups, with usage counts and a filter. Click a tag to rename it, merge it into another tag, move it to another group, or delete it.\n- Settings -> Creators: select many Creators and change gender, add or remove tags, or turn auto-post and images on or off in one step. The selected Creator also has a quick gender and tag editor.\n- Fix: toggles in Settings no longer black out the screen in Firefox.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.15",
+          "date": "2026-09-15",
+          "notes": "- Fixed a wide post or story pushing the left and right sidebars off the screen.\n- The follow button on a Creator profile now shows whether you follow that Creator.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.14",
+          "date": "2026-09-15",
+          "notes": "- Fixed commissions drawing a new picture on every retry when the fan could not pay.\n- Fixed locked pay-per-view messages sending what their picture shows before the fan paid.\n- Pictures in messages, commissions and your recent posts now reach the AI as stored prompts or descriptions, with an optional image description model. Each picture is described once, and models that cannot read images are skipped.\n- Characters can remember their Slurp posts, messages, commissions, subscriptions and tips in Engine chats: turn on Carryover to chats in Settings and Include Slurp activity in the chat's settings.\n- Added lorebook context for Creator posts, prompt presets with import and export, a changed count and Reset section for each settings section, gallery images when no picture is generated, a Professor Mari Creator switch, and a per-character choice for chat image instructions.\n- Deleting all Slurp data now asks you to type DELETE, and the mobile bottom bar is smaller.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.13",
+          "date": "2026-09-15",
+          "notes": "- Fixed Creator management (profile, goal, subscription price, projects, arcs, payout, and Story viewers) rejecting edits with \"Only the Creator's owner can...\" — Slurp is single-player, so any Creator is now always yours to manage.\n- Fixed direct-message replies crashing when two reply attempts collided, along with other duplicate-safe storage operations that crossed the package boundary.\n- Persona Creators can now like and reply to their own posts as their public Creator identity.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.12",
+          "date": "2026-09-15",
+          "notes": "- AI Creator drafts are repaired instead of failing: long text is shortened, gender and tag spellings are understood, broken JSON is fixed, and the form lists what still needs a choice.\n- Persona Creators now have the same drafting tools as character Creators: AI post drafts from your own text, and an AI image toggle in the composer for drafted and manual posts.\n- Fixed bulk Creator creation skipping open-mode Creators with a wrong gender and tags reason, and draft errors now show the real cause.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.11",
+          "date": "2026-09-14",
+          "notes": "- Fixed AI Creator drafts that failed or could not be saved because the model left out gender or gave fewer than three tags.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.10",
+          "date": "2026-09-14",
+          "notes": "- Rebuilt the audience as a deterministic simulation with editable fan types, presets, a seven-day estimate, and JSON import and export.\n- Added separate free-simulation and AI-text clocks with call limits, a shared model budget, weekly fan spending limits, and a multi-process world lease.\n- Added Creator pricing: own subscription, post, and commission prices with suggestions, commission quotes that follow the brief, haggling, and weekly dynamic prices for character Creators.\n- Long posts and long comment threads now collapse, and replies nest under the comment they answer.\n- Fixed doubled subscriber totals, lost followers after an ended subscription, tips missing from fan relationships, thin like pacing, and silent subscription lapses.\n- Fixed Slurp images failing with an X-Admin-Secret error on remote installs, and sent image connection custom parameters such as LoRA settings.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.9",
+          "date": "2026-09-14",
+          "notes": "- Added Autopurge with configurable day, week, or month retention; media-only or full-post cleanup; optional direct-message media cleanup; an immediate purge action; and restart-safe scheduling for overdue purges.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.8",
+          "date": "2026-09-14",
+          "notes": "- Bug fixes for discovery filters and translations, subscription prices, image references, fan privacy, rapport details, message fees, arc editing and generation, profile validation, regression tests, and test-output handling.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.7",
+          "date": "2026-09-13",
+          "notes": "- Rebuilt Discover around direct subscription actions, persistent grid and list views, and filters for subscription status, gender, weekly price, and Creator tags.\n- Added Recommended, Newest, Most liked, and Most subscribed sorting with stable results.\n- Added editable Creator gender and tags, including safe custom tags and AI-suggested curated tags during profile creation and redrafting.\n- Added Arcs with automatic suggestions, pacing, focus, allowed kinds, and delivery to posts, messages, fan comments, and notifications.\n- Moved message, photo, subscription, and tip prices from the profile information box to the action that uses each price.\n- Hid the Follow control for subscribed Creators because a subscription already includes following.\n- Made Open the default Creator identity mode and removed the Secret identity tier.\n- Fixed persona Creator creation when Slurp already has the persona's viewer identity.",
+          "highlight": false
+        },
+        {
           "version": "0.0.6",
           "date": "2026-09-13",
-          "notes": "- Added image context options for reactions: stored prompts, vision descriptions, or automatic selection. Public fan reactions keep locked images hidden and respect Creator identity privacy.\n- Generation now shows how many Creators remain, including skipped or failed requests.\n- Restored visible success and error notifications for Slurp actions.",
+          "notes": "- Added image context options for reactions: stored prompts, vision descriptions, or automatic selection. Public fan reactions keep locked images hidden and respect Creator identity privacy.\n- Generation now shows how many Creators remain, including skipped or failed requests.\n- Restored visible success and error notifications for Slurp actions.\n- Fixed persona Creator creation when Slurp already has the persona's viewer identity. The viewer and Creator accounts can now coexist for one persona.",
           "highlight": false
         },
         {
@@ -328,6 +342,16 @@
           "date": "2026-09-12",
           "notes": "- First release of the Slurp remaster as its own package. It installs beside Slurp Legacy and keeps its own separate data.\n- Added direct messages, scheduled follow-ups, commissions, an audience funnel, and creator earnings kept apart from spending money.\n- Added a backup export and restore. A Slurp Legacy backup can be restored here, which is how you move your data across.\n- Added a welcome screen. It appears after the install and after every update, warns that this is alpha software, and lists what changed.",
           "highlight": true
+        }
+      ]
+    },
+    "world-state": {
+      "versions": [
+        {
+          "version": "1.1.0",
+          "date": "2026-09-14",
+          "notes": "- On compatible Engines, report only changed or removed tracker values while preserving unchanged state and locked rows. Older Engines retain the full-output format.",
+          "highlight": false
         }
       ]
     }
