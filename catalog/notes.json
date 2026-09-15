@@ -160,6 +160,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.15",
+          "date": "2026-09-15",
+          "notes": "- Recent Agent Update's collapsed-box leak, for real this time: the min-height:0 fix in 0.1.14\n  still wasn't enough, so the animated max-height/overflow-hidden collapse is gone entirely in\n  favor of a plain display:none toggle -- no more box-model subtlety left to get wrong, at the\n  cost of the slide animation the old Settings accordion had.\n- Widened the info tooltip box (220px -> 320px) so a long token like the Feed Appearance\n  tooltip's {{getvar::...}} macro name reads on one line instead of an awkward mid-token wrap.",
+          "highlight": false
+        },
+        {
           "version": "0.1.14",
           "date": "2026-09-15",
           "notes": "- Actually fixed Recent Agent Update's collapsed-box leak (0.1.13 only got it partway): a flex\n  container's default min-height is \"auto,\" driven by its own children's content size, and per\n  spec that wins over a smaller max-height -- the collapsed box was still being forced open\n  enough to show a sliver of Restore Inventory. Explicit min-height:0 fixes it for real.\n- Fixed tooltip text overflowing its own box: a long unbroken token (the {{getvar::...}} macro\n  name in the Feed Appearance tooltip) wasn't wrapping, so it spilled past the fixed-width edge.",
