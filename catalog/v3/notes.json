@@ -244,6 +244,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.17",
+          "date": "2026-09-18",
+          "notes": "- Raised the minimum required Engine version to 2.4.6, matching what this has actually been\n  tested against recently.",
+          "highlight": false
+        },
+        {
           "version": "0.1.16",
           "date": "2026-09-16",
           "notes": "- Brief toast notifications now appear when the tracker agent adds, updates, equips, or removes\n  an item -- visible even with the dock closed.\n- Items can now be favorited with a star, which sorts them to the top of the Bag.",
