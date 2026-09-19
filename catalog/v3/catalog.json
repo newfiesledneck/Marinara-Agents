@@ -4,67 +4,6 @@
   "packages": [
     {
       "manifest": {
-        "schemaVersion": 2,
-        "capabilityApi": {
-          "major": 1,
-          "minor": 23
-        },
-        "builtAgainst": {
-          "engineVersion": "2.4.6",
-          "engineCommit": "1c160153fbe69f395ba940a0cf65d5e70e26cb9e"
-        },
-        "id": "ruleset-5e-2014",
-        "name": "5e (SRD 5.1)",
-        "version": "0.4.0",
-        "description": "Provides 5e SRD 5.1 rules for Game Mode ability checks, skill checks, saving throws, and the full character sheet, plus pickable SRD spells, class features and weapons so you do not type them row by row. Class resources now keep themselves: pick Rage, Ki, Sorcery Points, Channel Divinity, Action Surge, Indomitable, Bardic Inspiration, Divine Sense or Lay on Hands and the sheet sets the maximum from your level or your Charisma and keeps it current as you level up. Battles start from the sheet: your hit points and spell slots go into the fight (Pact Magic slots do not), your prepared spells, your cantrips and the weapons you picked show up as skills, and what the fight cost is written back when it ends. Health is carried as a share of the maximum, the damage is still Marinara's own combat math, and attack rolls, saving throws and concentration are not applied. After installing, choose it under Rules in the Game Mode setup wizard when you create a new game.",
-        "engine": {
-          "min": "2.4.6",
-          "maxExclusive": "4.0.0"
-        },
-        "kind": [
-          "ruleset"
-        ],
-        "entrypoints": {},
-        "contributions": {
-          "assets": {
-            "paths": [
-              "ruleset.json",
-              "catalogs/spells.json",
-              "catalogs/features.json"
-            ]
-          }
-        },
-        "files": [
-          {
-            "path": "ruleset.json",
-            "sha256": "e61c7bf78d93717a50856b66e53c418cf1d800929629197e4f2f99e073c14d4d",
-            "bytes": 59629
-          },
-          {
-            "path": "catalogs/spells.json",
-            "sha256": "ca26bdb3231e565f166de2f41afd0dcbd96074a692e89e16e764f36c5bf1e38d",
-            "bytes": 307146
-          },
-          {
-            "path": "catalogs/features.json",
-            "sha256": "f5461d01986872dbe3071eb34a3eb2383433a752a21d2f15c288c57c6a155524",
-            "bytes": 198169
-          }
-        ],
-        "permissions": [],
-        "restartRequired": false
-      },
-      "category": "misc",
-      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/ruleset-5e-2014.png",
-      "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/ruleset-5e-2014-0.4.0.zip",
-        "sha256": "9661c5a99d6530eca0aa1cb31f76a8115cd600ae7a8d6c7814d901936af1f3f2",
-        "bytes": 567480
-      },
-      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/game/getting-started.md#choosing-rules"
-    },
-    {
-      "manifest": {
         "schemaVersion": 1,
         "id": "eightball",
         "name": "8-Ball Pool",
@@ -128,7 +67,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/eightball.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/eightball-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/eightball-1.0.5.zip",
         "sha256": "b5b5923af21aefc348668a53dd187a7d7011f6cbfb0dcb7f4b19fab67d81df7a",
         "bytes": 665344
       },
@@ -170,7 +109,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/background.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/background-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/background-1.0.3.zip",
         "sha256": "c81a75a054570afb6fa6abf3da0b1c9570737afafbecb1172e4f0cb2b23f9fe4",
         "bytes": 1433
       },
@@ -224,7 +163,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/beholder.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/beholder-1.3.11.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/beholder-1.3.11.zip",
         "sha256": "8bb5a75dd11991399fcdf164c11cc3a91981de2971237055d5d983d693ea03a1",
         "bytes": 461323
       },
@@ -288,7 +227,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/conversation-calls.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/conversation-calls-1.0.17.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/conversation-calls-1.0.17.zip",
         "sha256": "bb1b12fae8ffcacb755d8c2e8519575a3a6d9dc32ac865187937d2d897372a55",
         "bytes": 3403058
       },
@@ -330,7 +269,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/card-evolution-auditor.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/card-evolution-auditor-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/card-evolution-auditor-1.0.2.zip",
         "sha256": "64e5d2a11e2cd5def8d57e5a9d6136d85dcda3284ee493b65b67ddf4baee4fbd",
         "bytes": 1545
       },
@@ -372,7 +311,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/character-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/character-tracker-1.1.0.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/character-tracker-1.1.0.zip",
         "sha256": "16f255450688654df0f7462350427a9e881b91e58c8c9d8daa0caa00da162420",
         "bytes": 2214
       },
@@ -439,7 +378,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/chess.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/chess-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/chess-1.0.5.zip",
         "sha256": "5a57afb19f65d5942e4746017a3411641c7a3fffb5d3991d419df1c1edb245c5",
         "bytes": 677116
       },
@@ -481,7 +420,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/combat.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/combat-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/combat-1.0.3.zip",
         "sha256": "9da6690edaa65f3f54e3a16489ef9780085c630008482e33592c7b6c748f2e82",
         "bytes": 1603
       },
@@ -523,7 +462,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/continuity.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/continuity-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/continuity-1.0.2.zip",
         "sha256": "4eced79f11d3612dc038d05fbd8877ca19f6e3e4be7eae818e0f6c397f4f5389",
         "bytes": 1569
       },
@@ -565,7 +504,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/custom-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/custom-tracker-1.1.0.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/custom-tracker-1.1.0.zip",
         "sha256": "3d54d8b50fdc57da092a9f5d7b3f14d04e5f2c63f5291e9f7d339b0488a9f178",
         "bytes": 1791
       },
@@ -607,7 +546,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/cyoa.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/cyoa-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/cyoa-1.0.3.zip",
         "sha256": "dd279408cd81692571cc3ed8d788ff731145722fc1e81b6eef9682b8b993c22b",
         "bytes": 1466
       },
@@ -649,7 +588,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/echo-chamber.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/echo-chamber-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/echo-chamber-1.0.2.zip",
         "sha256": "e78f4d13e6da36deae79dd6d0f6f4396e1bad8c75935b4cb41ffee4189a93520",
         "bytes": 2429
       },
@@ -691,7 +630,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/expression.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/expression-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/expression-1.0.4.zip",
         "sha256": "e038bdc5693a619445846aebe17a815ec85e17c6659e5d41d39fe3be7d4b6e13",
         "bytes": 1578
       },
@@ -2232,7 +2171,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/gacha-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/gacha-forge-1.8.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/gacha-forge-1.8.2.zip",
         "sha256": "d8ef6e02d41f0f885ffb3665cf66a1f052dc16ba52b97af7565f2107574e2bb1",
         "bytes": 7796444
       },
@@ -2274,7 +2213,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/haptic.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/haptic-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/haptic-1.0.3.zip",
         "sha256": "515d342cb2af5138ba64342f8d1b5e3e5dea56bb3597bfd842cda56b8a0c92bf",
         "bytes": 1980
       },
@@ -2316,7 +2255,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/illustrator.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/illustrator-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/illustrator-1.0.4.zip",
         "sha256": "d9d11c5edc32fb31206b2b43514aaa2c888697f205f1a4a33d19a2facbf3d529",
         "bytes": 3173
       },
@@ -2358,7 +2297,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/html.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/html-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/html-1.0.2.zip",
         "sha256": "5dc780a4f019905c8e409e2f996c85f457bbe1ba5adbd7ffd926d27cd00cea81",
         "bytes": 1632
       },
@@ -2400,7 +2339,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/inventory-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/inventory-tracker-1.2.0.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/inventory-tracker-1.2.0.zip",
         "sha256": "f06193a933817f1342c80a80ba48b639cd71d8b0c2032cf0463648671ee0e28f",
         "bytes": 2009
       },
@@ -2442,7 +2381,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/knowledge-retrieval.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/knowledge-retrieval-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/knowledge-retrieval-1.0.3.zip",
         "sha256": "3b72b8130c18752cf52e147b1c28b897ff1170ac915b99ee6275412dc347a839",
         "bytes": 1478
       },
@@ -2484,7 +2423,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/knowledge-router.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/knowledge-router-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/knowledge-router-1.0.3.zip",
         "sha256": "36ea3ff692a1b8fc43dfeba282f7a2f99a880ca3e46e5d8a01e934425ec4bf04",
         "bytes": 1591
       },
@@ -2557,7 +2496,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/long-term-memory.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/long-term-memory-1.3.4.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/long-term-memory-1.3.4.zip",
         "sha256": "9ee61708de3a43c1463e408a3d9a6f49a83ed623fa2ca5865eaa76ab8be4fe8b",
         "bytes": 1317946
       },
@@ -2599,7 +2538,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/lorebook-keeper.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/lorebook-keeper-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/lorebook-keeper-1.0.5.zip",
         "sha256": "8c7627f96eb2f4fb9c7ccece4783c6eb5aeea696db0780ac4507dfc478a0fa2a",
         "bytes": 2207
       },
@@ -2669,7 +2608,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/memory-nag.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/memory-nag-1.1.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/memory-nag-1.1.2.zip",
         "sha256": "8a575b8c002520efeca7e50b9c5cff791c72598cd36bb4a769f64281c21e2d46",
         "bytes": 401967
       },
@@ -2711,7 +2650,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/spotify.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/spotify-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/spotify-1.0.2.zip",
         "sha256": "ea71353c1fd41249c969bb38f72b9cad634b666200b8ad1523ddd245b34e61f1",
         "bytes": 2621
       },
@@ -2753,7 +2692,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/director.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/director-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/director-1.0.2.zip",
         "sha256": "2dbca3f5471d06e85da1b3edf2961cee34824d940493d0f5954dba5f320bf9e7",
         "bytes": 1440
       },
@@ -2851,7 +2790,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/noodle.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/noodle-1.2.24.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/noodle-1.2.24.zip",
         "sha256": "fc34f67225c422ed754c7cede1a8961854677d730376f0b0b328e6c30006bab3",
         "bytes": 4579666
       },
@@ -2893,7 +2832,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/persona-stats.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/persona-stats-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/persona-stats-1.0.2.zip",
         "sha256": "86df5e00036c224e58e9add1e84b844f9f63161ae3abaf6fb58f7a1d6c759970",
         "bytes": 1648
       },
@@ -2962,7 +2901,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/poker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/poker-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/poker-1.0.5.zip",
         "sha256": "6c0a3ed32fb423a30ae8c80cefec2b7f165ecb0966e88b0bd5d121ac0b0c6ff8",
         "bytes": 655358
       },
@@ -3004,157 +2943,11 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/prose-guardian.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/prose-guardian-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/prose-guardian-1.0.2.zip",
         "sha256": "d39342c6b4dc44a7669c8900d1e00d10f8aa16a2155a0ee6b4053d248cc4fc2f",
         "bytes": 1526
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/agents/built-in-agents.md#prose-guardian"
-    },
-    {
-      "manifest": {
-        "schemaVersion": 2,
-        "capabilityApi": {
-          "major": 1,
-          "minor": 14
-        },
-        "builtAgainst": {
-          "engineVersion": "2.4.6",
-          "engineCommit": "f66abf7eddb7db6312ff5ba8a080145644191775"
-        },
-        "id": "quartermaster",
-        "name": "Quartermaster",
-        "version": "0.1.17",
-        "description": "A per-chat RPG character sheet and inventory manager for Roleplay mode: equip slots arranged around your persona's portrait, a full inventory with saved outfits, AI-generated item and outfit art, and a tracker agent that keeps everything in sync with the story on its own. Add the Agent in Chat Settings → Agents → Tracker Agents for Roleplay mode.",
-        "engine": {
-          "min": "2.4.6",
-          "maxExclusive": "4.0.0"
-        },
-        "kind": [
-          "agent"
-        ],
-        "entrypoints": {
-          "agents": "agents.json",
-          "client": "client.js",
-          "server": "server.mjs"
-        },
-        "contributions": {
-          "slots": [
-            "roleplay-tracker",
-            "tracker-panel"
-          ]
-        },
-        "files": [
-          {
-            "path": "agents.json",
-            "sha256": "63c7caac0b38c228b2f29f0286b9c13cf1cdf95473a95614c87cde6143466e07",
-            "bytes": 5289
-          },
-          {
-            "path": "client.js",
-            "sha256": "4b77f7d3b09fe6712318dde2bb6e91b4adb43f1d7d54c935aacbbe86f41394b6",
-            "bytes": 286080
-          },
-          {
-            "path": "server.mjs",
-            "sha256": "a11b890e47422ff5ba7f4b6d10a0a18d1f7695b52b0dbaebda95d4717eb2f8e5",
-            "bytes": 129363
-          },
-          {
-            "path": "icons/armor_legs.webp",
-            "sha256": "93bcd46c97c7557b518c0a4e2f574820e13f0ae1c052cabe2a1f0e26d48cf8cd",
-            "bytes": 1396
-          },
-          {
-            "path": "icons/armor_torso.webp",
-            "sha256": "df2ecd89f7a4f93940d55e265e438ed6453a83f4ee1626d3fd8e66cc1dda0b82",
-            "bytes": 2108
-          },
-          {
-            "path": "icons/back.webp",
-            "sha256": "9d0336282b868b2c00435d86e517b92adc2bb4c88c27a967caf6a6543ba73802",
-            "bytes": 1314
-          },
-          {
-            "path": "icons/belt.webp",
-            "sha256": "614309426a9b4ae210460e56b35f3b5ff393292b916b18014ceebb5b4b7e7e36",
-            "bytes": 1590
-          },
-          {
-            "path": "icons/clothing_legs.webp",
-            "sha256": "ebad0f719c4d0ed7efdf0b69b01076eed74c4561c64d2e94683b3d5892e326c8",
-            "bytes": 1246
-          },
-          {
-            "path": "icons/clothing_torso.webp",
-            "sha256": "aff20911dcb06507c87a9f6e5387d72b6e5aa67a27e8c3397da152dea1cea799",
-            "bytes": 1542
-          },
-          {
-            "path": "icons/ears.webp",
-            "sha256": "071253ea4c8f8a0b6e6e412ca3276a41d9ddd7a39fc02402d09c51493a952c30",
-            "bytes": 1314
-          },
-          {
-            "path": "icons/eyes.webp",
-            "sha256": "091f7b9035b50be57b7c1ede9aaa8a522f1eed19473bb4f66489e2c2ac176577",
-            "bytes": 1374
-          },
-          {
-            "path": "icons/feet.webp",
-            "sha256": "529689447f6adfa1a03da10ff9931b0ba79897116643fc100d2afcd877941760",
-            "bytes": 2158
-          },
-          {
-            "path": "icons/hands.webp",
-            "sha256": "84f7cfe409139938464feb8df4aa5bc087e4d8a8d51c881af29f11151a2f7df3",
-            "bytes": 1864
-          },
-          {
-            "path": "icons/head.webp",
-            "sha256": "31e98b550dd50e2f348cc908170832761826ce32218b64cacb48c97628adbf81",
-            "bytes": 822
-          },
-          {
-            "path": "icons/neck.webp",
-            "sha256": "bfbc19de3fb432c6b6eb045309daf8fcc42a5fc741aa77b189f5a93dcc600853",
-            "bytes": 1592
-          },
-          {
-            "path": "icons/underwear_bottom.webp",
-            "sha256": "5be7078bf7dfff069e2ff16f6ceae2a7e16867b3b911751ca9fefa13724a9fed",
-            "bytes": 1450
-          },
-          {
-            "path": "icons/underwear_top.webp",
-            "sha256": "6e91581008c22eb2e1c7e583a1c294a375d0d4a03a3715e27d0f73045266b3ea",
-            "bytes": 916
-          },
-          {
-            "path": "icons/weapon_left_hand.webp",
-            "sha256": "9a9e629dd0b3d9e4005259f7aa6117d29158527ee3189d3926b3833ec879932f",
-            "bytes": 482
-          }
-        ],
-        "permissions": [
-          "agent-runtime",
-          "chat-read",
-          "chat-write",
-          "network",
-          "prompt-context",
-          "routes",
-          "storage",
-          "ui"
-        ],
-        "restartRequired": true
-      },
-      "category": "tracker",
-      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/quartermaster.png",
-      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/quartermaster/README.md",
-      "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.1.17.zip",
-        "sha256": "404b5421d30256a37ffbd15683adc538f403993991731bff767d980533b2f7fa",
-        "bytes": 447932
-      }
     },
     {
       "manifest": {
@@ -3192,7 +2985,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/quest.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quest-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/quest-1.0.4.zip",
         "sha256": "8399f39bc548bd16087d05e2d2893ce91be495375a7da19d8c4edf30bc6c642a",
         "bytes": 2990
       },
@@ -3261,7 +3054,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/rock-paper-scissors.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/rock-paper-scissors-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/rock-paper-scissors-1.0.5.zip",
         "sha256": "c941f85435ca13de2f4013d079a7071b106230d472aff09ae10ab559bfd6d93d",
         "bytes": 634622
       },
@@ -3363,7 +3156,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/slurp.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp-1.51.0.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/slurp-1.51.0.zip",
         "sha256": "c03e5e223aa146cf2f0f9eafe7a748ef0d38bc4b83c2714141cd417fcd022926",
         "bytes": 4783737
       },
@@ -3374,7 +3167,7 @@
         "schemaVersion": 1,
         "id": "slurp2",
         "name": "Slurp Remastered",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "description": "The Slurp remaster. It installs beside Slurp Legacy and keeps its own separate data: create a local Creator profile from an Engine character or persona, publish public or locked posts, and simulate subscriptions and audience activity. Install it, restart Marinara Engine when prompted, then open Home → Slurp Remastered.",
         "localizations": {
           "de": {
@@ -3434,13 +3227,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "34090021bebd1865eae5f4e02102337ae168604a3e26fe36673ff00606bd6180",
-            "bytes": 2975695
+            "sha256": "29d1676cb9cfa6b3c609844e60721aab5a75400d95825800a212ec3a1686f784",
+            "bytes": 2995264
           },
           {
             "path": "client.js",
-            "sha256": "c80f479c6cdbb1ecd49a1ba5b130b063fa54327dea1e97313c265057e745c176",
-            "bytes": 3614068
+            "sha256": "7d581a13b75afb90641d265e9938ce16e8c7ca77b6edc33e11f0920bab30adea",
+            "bytes": 3630177
           },
           {
             "path": "slurp2-logo.png",
@@ -3466,9 +3259,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/slurp2.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.1.0.zip",
-        "sha256": "de4b6e34388b942b0fce77e8c2476234a908592fb13b8f7bf10435e50db6da7d",
-        "bytes": 6746337
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/slurp2-0.1.1.zip",
+        "sha256": "ed0b3e35bbd0e60b1af0ce1906d5404c15dc1fa14a8e6e161ebe04740fadfed0",
+        "bytes": 6782015
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/slurp2/README.md"
     },
@@ -3508,7 +3301,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/storyboard.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/storyboard-1.1.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/storyboard-1.1.5.zip",
         "sha256": "aae00d5923bed18f55f01d692f8f3eaf306a3b34b63c7acd21172c6af47d9bd2",
         "bytes": 17737
       },
@@ -3578,7 +3371,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/tic-tac-toe.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/tic-tac-toe-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/tic-tac-toe-1.0.5.zip",
         "sha256": "0f102c617777c5656555aec0411ca51fc5892c5788fcbad620d01d291bc642f9",
         "bytes": 630150
       },
@@ -3645,7 +3438,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/uno.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/uno-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/uno-1.0.5.zip",
         "sha256": "eb697351c7a56a37a4c6a15f8ab3476c7f7eb6fd32949b2a41c8e828e631a1e7",
         "bytes": 653675
       },
@@ -3724,7 +3517,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/hierarchical-maps.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/hierarchical-maps-1.4.2.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/hierarchical-maps-1.4.2.zip",
         "sha256": "7c1faedf5282325d1fe9b6002617cd9282bab7268cc8c6a88b37b5f7df132cdf",
         "bytes": 1240805
       },
@@ -3766,7 +3559,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/world-state.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/world-state-1.1.0.zip",
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/world-state-1.1.0.zip",
         "sha256": "bedf93879675900da43eedf85320898788fd54920342070ba8dba6b24e339f49",
         "bytes": 2004
       },
