@@ -26,7 +26,9 @@ assert.match(
 );
 
 const taskRoutes = source(`${slp}/server/src/slp/features/maintenance/slp-maintenance-routes.ts`);
-assert.match(taskRoutes, /\["queued", "running"\]\.includes\(row\.status\)/u);
+// Pulse + E (task C): a first post that made it or failed stays one day as Done / Failed (with why and
+// Try again) instead of vanishing; a running one always shows. Changed on purpose.
+assert.match(taskRoutes, /\.filter\(\(row\) => row\.status === "running" \|\| recent\(row\.updatedAt\)\)/u);
 assert.match(taskRoutes, /audience\.lastRun\.error \?\?/u);
 
 const dayPlan = source(`${slp}/server/src/slp/modules/audience/slp-fan-activity-day-plan.ts`);

@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../../../lib/api-client.js";
 import { slpKeys } from "../../base/state/slp-query-keys.js";
-import { refreshSlurpCreatorBatch } from "./slp-refresh-batch.js";
+import { countSlurpRefreshOutcomes, refreshSlurpCreatorBatch } from "./slp-refresh-batch.js";
 
 export function useRefreshCreatorConversationSchedule() {
   const qc = useQueryClient();
@@ -31,6 +31,7 @@ export function useRefreshCreatorConversationSchedule() {
 }
 export function useRefreshTargetedCreatorsNow(onRemaining?: (remaining: number) => void) {
   const qc = useQueryClient();
+  const { t } = useUiTranslation();
   return useMutation({
     mutationKey: ["slurp", "generate-posts"],
     mutationFn: (input: { accountIds: string[]; executionId?: string; access?: "public" | "locked" }) =>
@@ -43,14 +44,25 @@ export function useRefreshTargetedCreatorsNow(onRemaining?: (remaining: number) 
           }),
         onRemaining,
       ),
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: (result) => {
+      const { made, skipped, failed } = countSlurpRefreshOutcomes(result.outcomes);
+      if (skipped + failed > 0)
+        toast[made > 0 ? "info" : "error"](
+          t("ui.slurp.creators.generateOutcome", {
+            made,
+            skipped,
+            failed,
+            defaultValue: "{{made}} new, {{skipped}} skipped, {{failed}} could not post.",
+          }),
+        );
+      return Promise.all([
         qc.invalidateQueries({ queryKey: slpKeys.noodlerAccounts() }),
         qc.invalidateQueries({ queryKey: slpKeys.noodlerReserveStatus() }),
         qc.invalidateQueries({
           queryKey: [...slpKeys.noodlerRoot(), "posts"],
         }),
         qc.invalidateQueries({ queryKey: slpKeys.slpCreatorViewers() }),
-      ]),
+      ]);
+    },
   });
 }

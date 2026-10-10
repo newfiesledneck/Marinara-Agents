@@ -16,6 +16,11 @@ import {
   type SlurpPostAccess,
   type SlurpPostGuidance,
 } from "../../modules/feed/slp-post-guidance.js";
+import {
+  normalizeSlpSpice,
+  slpClampExplicitLevel,
+  SLP_SPICE_SETTING_KEY,
+} from "../../../../../shared/src/slp/slp-spice.js";
 
 const KEY = "slurp2.post-guidance";
 export const SLURP_POST_GUIDANCE_KEY = KEY;
@@ -58,8 +63,19 @@ export async function updateSlurpPostGuidance(
   return run;
 }
 
+/** The Creator's level, never above the Slurp-wide limit (Backstage › Spice). */
 export async function resolveSlurpExplicitLevel(db: DB, creatorId: string): Promise<SlurpExplicitLevel> {
-  return selectSlurpExplicitLevel(await getSlurpPostGuidance(db), creatorId);
+  const [guidance, raw] = await Promise.all([
+    getSlurpPostGuidance(db),
+    createAppSettingsStorage(db).get(SLP_SPICE_SETTING_KEY),
+  ]);
+  let max = normalizeSlpSpice(null).max;
+  try {
+    max = normalizeSlpSpice(raw ? JSON.parse(raw) : null).max;
+  } catch {
+    // A broken blob keeps the shipped limit.
+  }
+  return slpClampExplicitLevel(selectSlurpExplicitLevel(guidance, creatorId), max);
 }
 
 export async function resolveSlurpPostGuidance(db: DB, creatorId: string, access: SlurpPostAccess): Promise<string> {

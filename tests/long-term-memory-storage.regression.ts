@@ -89,7 +89,9 @@ async function main() {
   const { activateLongTermMemoryStorage } = await import(`${source}/runtime.ts`);
   const { getLtmGlobalSettings, ltmSettingsPath, updateLtmGlobalSettings } = await import(`${source}/settings.ts`);
   const { ltmMutationTransactionSchema, recoverLtmMutations } = await import(`${source}/mutation-transaction.ts`);
-  const { readLtmNoteSummary, writeLtmNoteSummary } = await import(`${source}/index-state.ts`);
+  const { readLtmNoteSummary, writeLtmNoteSummary, rebuildLtmNoteSummary } = await import(`${source}/index-state.ts`);
+  const { rebuildLongTermMemoryIndexes, loadOrRebuildLongTermMemoryIndexes } = await import(`${source}/rebuild.ts`);
+  const { repairLongTermMemory } = await import(`${source}/maintenance.ts`);
   const { runLongTermMemoryRetention } = await import(`${source}/retention.ts`);
   const { rebuildLtmActivityIndex, readLtmActivityEvents } = await import(`${source}/activity-index.ts`);
   const { renderSectionContributions } = await import(`${source}/section-contributions.ts`);
@@ -114,6 +116,8 @@ async function main() {
     deleteRejectedSuggestionsForSource,
     listRejectedSuggestions,
   } = await import(`${source}/rejected-suggestions.ts`);
+  const { DEFAULT_LTM_GLOBAL_SETTINGS } =
+    await import("../packages/long-term-memory/src/engine/packages/shared/src/features/agents/long-term-memory/schema.ts");
 
   const dataDir = await mkdtemp(join(tmpdir(), "marinara-ltm-storage-"));
   const warnings: unknown[][] = [];
@@ -315,6 +319,37 @@ async function main() {
         "the generated-keyword filter toggle must persist",
       );
       await updateLtmGlobalSettings({ longTermMemoryStopWordsFilterGenerated: true }, root);
+
+      // #1246: an invalid persisted setting must load its default instead of
+      // making every settings read (and recall) throw.
+      await writeFile(ltmSettingsPath(root), '{"version":1,"longTermMemorySemanticWeight":null}\n');
+      assert.equal(
+        (await getLtmGlobalSettings(root)).longTermMemorySemanticWeight,
+        DEFAULT_LTM_GLOBAL_SETTINGS.longTermMemorySemanticWeight,
+        "a null persisted weight must load its default instead of throwing",
+      );
+      await writeFile(ltmSettingsPath(root), '{"version":1,"longTermMemoryRecallStyle":"legacy-unknown"}\n');
+      assert.equal(
+        (await getLtmGlobalSettings(root)).longTermMemoryRecallStyle,
+        DEFAULT_LTM_GLOBAL_SETTINGS.longTermMemoryRecallStyle,
+        "an unknown persisted recall style must load the default instead of throwing",
+      );
+      const recoveredWeight = await updateLtmGlobalSettings({ longTermMemorySemanticWeight: null }, root);
+      assert.equal(
+        recoveredWeight.longTermMemorySemanticWeight,
+        DEFAULT_LTM_GLOBAL_SETTINGS.longTermMemorySemanticWeight,
+        "saving a null weight must recover to the default",
+      );
+      assert.equal(
+        "longTermMemorySemanticWeight" in JSON.parse(await readFile(ltmSettingsPath(root), "utf8")),
+        false,
+        "an invalid null weight must not be persisted",
+      );
+      assert.equal(
+        (await updateLtmGlobalSettings({ longTermMemorySemanticWeight: 0.42 }, root)).longTermMemorySemanticWeight,
+        0.42,
+        "a valid weight must still persist",
+      );
 
       const quarantine = join(root, "quarantine", "expired");
       await mkdir(quarantine, { recursive: true });
@@ -617,6 +652,11 @@ async function main() {
         ...exported,
         settings: {
           ...exported.settings,
+          global: {
+            ...exported.settings.global,
+            longTermMemorySemanticWeight: null,
+            longTermMemoryRecallStyle: "legacy-unknown",
+          },
           policies: { version: 1, policies: [] },
           retrieval: {
             version: 1,
@@ -651,6 +691,17 @@ async function main() {
         "backups must reject contradictory scalar and array scope aliases",
       );
       await replaceLongTermMemoryData(legacyBackup, freshRoot);
+      const restoredGlobal = await getLtmGlobalSettings(freshRoot);
+      assert.equal(
+        restoredGlobal.longTermMemorySemanticWeight,
+        DEFAULT_LTM_GLOBAL_SETTINGS.longTermMemorySemanticWeight,
+        "a restored null weight must fall back to its default",
+      );
+      assert.equal(
+        restoredGlobal.longTermMemoryRecallStyle,
+        DEFAULT_LTM_GLOBAL_SETTINGS.longTermMemoryRecallStyle,
+        "a restored unknown recall style must fall back to the default",
+      );
       const reexportedLegacy = await exportLongTermMemoryData(freshRoot);
       assert.equal("policies" in reexportedLegacy.settings, false);
       assert.equal("retrieval" in reexportedLegacy.settings, false);
@@ -3089,6 +3140,73 @@ async function main() {
       );
       await misplacedStorage.cleanup();
 
+      const summaryRoot = join(dataDir, "vault-summary-tolerance");
+      const summaryDirs = getLongTermMemoryDirectories(summaryRoot);
+      await mkdir(join(summaryDirs.vault, "sources"), { recursive: true });
+      await writeFile(
+        join(summaryDirs.vault, "sources", "source_summary_ok.json"),
+        `${JSON.stringify({
+          id: "source_summary_ok",
+          title: "Healthy source",
+          type: "source",
+          status: "active",
+          modes: ["roleplay"],
+          scope: {},
+          tags: [],
+          keywords: [],
+          links: [],
+          provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-tolerance" },
+          sections: { source: { text: "Healthy source.", updatedAt: timestamp } },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          version: 1,
+        })}\n`,
+      );
+      await writeFile(
+        join(summaryDirs.vault, "sources", "source_summary_legacy.json"),
+        `${JSON.stringify({
+          id: "source_summary_legacy",
+          title: "Legacy source without provenance",
+          type: "source",
+          status: "active",
+          modes: ["roleplay"],
+          scope: {},
+          tags: [],
+          keywords: [],
+          links: [],
+          sections: { source: { text: "Legacy source.", updatedAt: timestamp } },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          version: 1,
+        })}\n`,
+      );
+      const summaryRuntime = await activateLongTermMemoryStorage(summaryRoot);
+      assert.equal(
+        (await readLtmNoteSummary(summaryRoot)).total,
+        1,
+        "a malformed vault note must be skipped instead of aborting the note-summary rebuild and activation",
+      );
+      await assert.rejects(
+        summaryRuntime.storage.listNotes({ type: "source" }),
+        /Source notes must store import provenance/u,
+        "typed reads must still surface the malformed note the summary skipped",
+      );
+      const summaryPath = join(summaryDirs.indexes, "note-summary.json");
+      const unreadableSource = join(summaryDirs.vault, "sources", "source_summary_ok.json");
+      await rm(summaryPath, { force: true });
+      await chmod(unreadableSource, 0o000);
+      try {
+        await assert.rejects(
+          () => rebuildLtmNoteSummary(summaryRoot),
+          /EACCES|permission/i,
+          "an unreadable vault note must reject the summary rebuild instead of caching an undercount",
+        );
+      } finally {
+        await chmod(unreadableSource, 0o600);
+      }
+      await assert.rejects(stat(summaryPath), { code: "ENOENT" }, "a failed rebuild must not cache a partial summary");
+      await summaryRuntime.cleanup();
+
       const raceRoot = join(dataDir, "vault-snapshot-race");
       {
         let rejectStale!: (error: Error) => void;
@@ -3143,6 +3261,43 @@ async function main() {
         149,
         "activity reads must not depend on rescanning the full event log",
       );
+
+      const quarantineRoot = join(dataDir, "maintenance-quarantine-invalidation");
+      const quarantineStorage = new LongTermMemoryStorage(quarantineRoot);
+      await quarantineStorage.createNote({
+        ...noteInput,
+        id: "world_quarantine_healthy",
+        title: "Healthy world",
+      });
+      await quarantineStorage.createNote({
+        ...noteInput,
+        id: "world_quarantine_bad",
+        title: "Malformed world",
+        sections: { facts: { text: "Quarantined note text.", updatedAt: timestamp } },
+      });
+      await rebuildLongTermMemoryIndexes({ root: quarantineRoot, embeddingAdapter: null, stopWords: [] });
+      await quarantineStorage.listNotes();
+      await writeFile(notePathForId("world_quarantine_bad", "world", quarantineRoot), "{");
+      const quarantineRepair = await repairLongTermMemory(["quarantine_malformed_notes"], quarantineRoot);
+      assert.equal(quarantineRepair.actions[0]?.count, 1, "official maintenance must quarantine the malformed note");
+      await assert.rejects(stat(notePathForId("world_quarantine_bad", "world", quarantineRoot)), { code: "ENOENT" });
+      assert.deepEqual(
+        (await quarantineStorage.listNotes()).map((note) => note.id),
+        ["world_quarantine_healthy"],
+        "official quarantine must invalidate the warm snapshot before the next read",
+      );
+      const quarantineIndex = await loadOrRebuildLongTermMemoryIndexes(quarantineRoot, null, []);
+      assert.equal(
+        Object.hasOwn(quarantineIndex.metadata.byNoteId, "world_quarantine_bad"),
+        false,
+        "the recall index must not retain the quarantined note id",
+      );
+      assert.equal(
+        Object.values(quarantineIndex.metadata.chunks).some((chunk) => chunk.text.includes("Quarantined note text.")),
+        false,
+        "the recall index must not retain the quarantined note text",
+      );
+      await quarantineStorage.cleanup();
 
       process.stdout.write(
         "Long-Term Memory storage regression: restart, recovery, self-check, cleanup, stable root ok\n",

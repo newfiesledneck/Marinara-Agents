@@ -322,3 +322,405 @@ modules, rejected alternative, and migration consequence.
 - **Migration consequence:** legacy calendar rows normalize into annual blueprints. Existing running
   arcs remain copied snapshots. Occurrences, facts, opportunities, and checkpoints use package-owned
   settings records and therefore travel with the existing backup/restore namespace.
+
+## Messaging Details edits (2026-09-27)
+
+- The client and server share `slp-message-details.ts` for the closed set of editable fields, enum choices and numeric bounds.
+- Creator and conversation state edits write their existing records. Calculated rapport and context edits live in per-thread `slurp2.messages.details.*` settings and are consumed by thread views, rapport scoring and message preparation. Editing displayed spending never creates a payment or alters the ledger.
+- The Details toggle only enables controls; switching it off does not undo saved edits.
+
+## Life moments and other Agents' data in the flavour brief (2026-09-27)
+
+- **Life moments** (`modules/feed/slp-life-moments.ts`) are a beat source between the player's steering and the
+  card deck: day-to-day moments from the Creator's own anchors plus a shared pool, used only when the card fits
+  (a word test on card, tags and anchors; a card "never" sentence rules a moment out). Milestones, viral posts,
+  gifts and comment fights need a real signal (`data/feed/slp-life-signals.ts`). Beat `anchorKind: "life"`,
+  keyed `sharedId: "life:…"`, so the existing per-day cap and beat history carry the variety rules. No new AI call.
+- **Storyline fit:** automatic storylines pass the Creator's card text to `slurpAutoArcPick`; a built-in type
+  whose needs are missing (a breakup without a partner) is never started on its own. Built-in types added in a
+  later version join a saved library; deleting a built-in keeps hiding it.
+- **Other Agents' data** (`data/creators/slp-agent-memory-source.ts`), behind the `flavourFromAgents` setting (on by
+  default): read-only reads of the Engine `game_state_snapshots` table (Character Tracker, World State, Persona
+  Stats; the package holds `chat-read`) through the Engine schema already in `sources/engine`, and Long-Term
+  Memory's in-process `long-term-memory:storage` service through the Engine service registry. None of these
+  Agents offers a documented read contract; any failure yields no lines. Rejected: a new Engine snapshot file
+  (`game-state.storage.ts`), which would change the captured Engine sources.
+
+## Action layer and Professor Mari (2026-09-28)
+
+- **Problem:** AI help was scattered: a composer "Guide" that wrote and published a whole post, an
+  "AI image" switch that drew after posting, "Draft voice" on fan types, "Write with AI" on post
+  guidance, a separate artwork tool on the profile and in Creator settings. Each had its own look,
+  its own budget handling (or none) and no Undo. Nothing outside the app could ask Slurp to do
+  anything for the player.
+- **Decision:** one named action layer (`shared/src/slp/slp-actions.ts`, runner in
+  `features/assist/slp-action-runner.ts`) with a strict schema per action, served over
+  `/slurp/actions` and as the in-process service `slurp2:actions`. The client's AI assist is two
+  shared components (`SlpTextAssist`, `SlpPictureAssist`) that call it. The old buttons fold into
+  them: Guide → Write / Improve on the caption (the text lands in the field; the player posts),
+  AI image → Draw a picture (seen before posting), Draft voice and Write with AI → the text assist
+  with their own writers (`run`), both artwork tools → the picture assist (Creator settings keep the
+  context switches under Advanced). The whole-profile draft (Generate / Rewrite draft from the
+  source card), Build with AI for storylines, wardrobe import, "Let them answer" in Creator DMs and
+  the prompt-as-written redraw box stay: each does something no single field assist does.
+- **Affected modules:** new `features/assist/` (client + server), `modules/assist/`, shared
+  `slp-actions.ts`; the model budget gains the `assist` job ("Writing help", present work).
+  `resolveSlurpAutomaticPostAccess` joins the feed contract (the runner's `write-post` needs it).
+  `SlpPostCardCtx` gains a `textAssist` render slot so the post edit sheet (a module) can show it.
+- **Rejected alternatives:** running the actions by injecting into the existing routes (it would
+  need the Engine's internal route token for every call and duplicate each route's error
+  mapping); one assist component per field (the duplicates this step removes); keeping drawn
+  pictures as draft files on disk (a data URL answer needs no storage, no serving route and no
+  cleanup; "Use" goes through the existing upload paths).
+- **Professor Mari (Engine @079c0ab00, read-only):** there is no Engine API through which a
+  capability package can give Mari an action. What exists and what is missing:
+  - Mari's tools are a fixed list: `WORKSPACE_TOOLS` and `WORKSPACE_TOOL_DEFINITIONS` in
+    `packages/server/src/services/professor-mari/workspace-agent.service.ts` (l.168, l.302), the
+    `MariWorkspaceToolName` union in `packages/shared/src/types/professor-mari-workspace.ts`, and the
+    dispatch `switch` (≈l.3530) that answers "Unknown workspace command" for anything else.
+  - Her `mari` CLI (`packages/server/src/bin/mari.ts`) only reaches
+    `/api/professor-mari/workspace/db/command` (the Mari DB service: tables, rows, characters,
+    lorebooks, presets), never a package route. Raw `bash` runs with network denied
+    (`workspace-shell-sandbox.ts`, `(deny network*)`). Skills are the user's own SKILL.md files in
+    the workspace; no API lets a package add one.
+  - The capability activation API (`capability-module-runtime.service.ts`, `CapabilityActivationContext`)
+    offers `registerService`, `registerConversationCommand` (Conversation chats, not Mari),
+    `registerPromptContext` (chat system prompt), `registerPrivilegedRoutes`, `runInternalRoute`.
+    No tool or action registration, and no manifest field for one.
+  - `getCapabilityService(key)` (`capability-service-registry.service.ts`) already lets Engine code
+    look a package service up. So the smallest Engine change is: one new Mari workspace tool (e.g.
+    `package_action`) that lists `getCapabilityService("<pkg>:actions")?.list()` in its tool
+    description and calls `.run(name, input)`; its name added to the union, the two lists and the
+    switch; plus the same approval gate Mari uses for writes (`apply: true` and a reason) and, if
+    wanted, a manifest permission such as `mari-actions` so the user sees which packages Mari can act
+    through. Slurp already registers `slurp2:actions` with exactly `{ list, run }`; nothing on the
+    package side would change.
+- **Migration consequence:** none stored. A saved AI budget without the `assist` row reads it with
+  its default (40 a day). The drawn picture Undo lives in memory: a restart between Use and Undo
+  loses that Undo and leaves one old file behind (`ponytail:` note in `slp-picture-undo.ts`).
+
+## Professor Mari actions (J2, 2026-09-28)
+
+- **Problem:** Engine PR #6800 (draft, issue #6799) lets Professor Mari list and run package actions
+  through `package_service`, for packages that register `mari-actions:<package-id>` with
+  `{ list, run }` and hold the new `mari-actions` permission. The Engine's manifest schema accepts
+  that permission only with `capabilityApi` 1.50 or newer, and an Engine without #6800 rejects a
+  manifest that names an unknown permission, so shipping the permission today would make Slurp
+  uninstallable on every released Engine.
+- **Decision:** the permission lives in the slurp2 builder definition as an optional permission
+  (`optionalPermissions: [{ permission: "mari-actions", capabilityApi: 1.50 }]`). The builder emits it
+  only when the feature's own `capabilityApi` reaches 1.50, so the day slurp2 declares 1.50 (a
+  deliberate minimum bump, once an Engine with #6800 ships) the manifest gains it with no other
+  change. The server feature-detects from its own manifest: `slpActionServiceKeys` registers
+  `mari-actions:slurp2` (the same `{ list, run }` object as `slurp2:actions`) only when the
+  permission is there, and a failed registration is a warning, never a failed activation. The action
+  layer gains `list-creators` (read-only) so Mari can find the `accountId` every other action takes.
+- **Affected modules:** `scripts/build-feature-packages.mjs` (`featurePermissions`), `slp-server-entry.ts`,
+  `features/assist/slp-action-runner.ts`, shared `slp-actions.ts`.
+- **Rejected alternatives:** emitting the permission now with `capabilityApi` 1.50 (no released Engine
+  would install Slurp); reading the build Engine's supported API to decide (the devbox Engine checkout
+  is older than the manifest's own 1.31, so the answer would not follow what the package declares).
+- **Migration consequence:** none. Manifest, catalog lanes and minimum Engine stay as they were
+  (`capabilityApi` 1.31); `run` ignores Mari's abort signal (an action is one bounded model call or
+  one write, and the Engine stops waiting on its own deadline).
+
+## Stir: one lever system over the action layer (W, 2026-09-28)
+
+- **Problem:** the things that make something happen in the world lived in five places (Studio's
+  Business and Relationships, the steering card in Creator tools, Backstage "Start now", the chapter
+  controls, Pulse "Run audience"), each calling its own route, and a player who runs no page could not
+  reach Studio's world controls at all.
+- **Decision:** every lever is an action in the one layer (`shared/src/slp/slp-actions.ts`): the tie
+  levers (suggest / push a collab, start / cool a rivalry, set up / steer a couple, open / close a
+  couple page), start an event, move a storyline chapter, wake the fans, a Creator's spice level, and
+  the read-only `list-world`. Each action carries Stir metadata (`SLP_ACTION_META`: deck category,
+  target, reversible, AI now, may be refused, deck card) and has a `preview` that writes nothing
+  (`features/assist/slp-action-preview.ts`; the tie previews are pure,
+  `modules/projects/slp-stir-tie-preview.ts`). The Stir tab, the ✦ sheet, the plain-words planner,
+  Slurp Support and Professor Mari all go through `preview` → "Do it" → the same runner. A play is kept
+  in a short ledger (`data/assist/slp-stir-plays-storage.ts`) with what one Undo needs. The planner is
+  one model call on a new AI budget row "Plans" (`plan`, 20 a day, present work). Slurp Support's
+  "staff" answer now proposes Stir cards on the reply instead of changing the steering at once (the
+  memory of the talk is still kept at once).
+- **Affected modules:** shared `slp-actions.ts`, `slp-stir.ts`, `slp-model-budget.ts`; server
+  `features/assist/` (runner, preview, levers, Stir service and routes, a new contract for the
+  planner), `features/projects/slp-stir-ties.ts` (through the projects contract),
+  `modules/assist/slp-stir-{plan,play,live}.ts`, `modules/projects/slp-stir-tie-preview.ts`,
+  `modules/messages/slp-support.ts`, the message operation, the DM prompt and response format; client
+  `features/stir/`.
+- **Rejected alternatives:** a Stir screen calling the Studio routes directly (the planner, Support and
+  Mari would each need their own copy); keeping Support's direct steering writes next to the cards (two
+  writers again, the concept's overlap 7); a "Control room" that merges Pulse and levers (an admin
+  panel, not a game).
+- **Migration consequence:** none stored. Old Support notes keep their Undo; a saved AI budget without
+  the `plan` row reads its default. Old Studio deep links open the Stir tab. The Studio routes stay for
+  the Business and Relationships lists, which moved into Stir unchanged.
+
+## Brands and products (R, 2026-09-28)
+
+- **Problem:** ads were flat rows (a brand name and one product each), brand deals picked one of
+  them by word overlap, and the player could only edit single ads. The player wants brands that hold
+  products, Creators sponsored through them, brands and products of their own in Backstage, and a
+  set of shipped parody brands, without losing the ads that exist.
+- **Decision:** Garnish gains a `GarnishBrand` (name, category, tone, logo prompt, logo, on/off) in
+  its own app-settings blob (`garnish.brands`). A product stays an ad: `GarnishAd` gains `brandId`,
+  `priceFeel` and `look`, and its `contentRating` is the product's spice fit. An ad without
+  `brandId` belongs to the brand named like it (`garnishAdBrandId` = `brand-<slug of name>`), and
+  shipped brands use the same id, so old ads, edited shipped ads and imports land under a brand with
+  no data rewritten. A switched-off brand hides all its products (`listActive`); a shipped brand is
+  switched off, never deleted. Brand deals read the brand's category and voice and the product's look
+  and spice fit (a suggestive product only to a suggestive or explicit Creator, explicit only to
+  explicit), and a new setting `brandDealsPace` (off / rare / normal / often; normal = before)
+  scales how often a brand looks. The Stir lever is the action `offer-brand-deal` with a `preview`
+  switch (pure rules in `slurpDealLever`; the preview and the run give the same offer), plus
+  `list-brands` and `draw-brand-picture` (the 3c picture assist draws logos and product pictures).
+- **Affected modules:** `services/garnish-ads/*` (types, base, storage, export), `features/ads`
+  (new `slp-brands-routes.ts`, image service, ads routes), `modules/economy/slp-brand-deals.ts`,
+  `modules/feed/slp-tie-beats.ts`, `features/projects` (new `slp-brand-deal-source.ts`,
+  `slp-brand-deal-lever.ts`), shared `slp-actions.ts`, the action runner; client `features/ads`
+  (new `SlpBrandsPanel.tsx`, `slp-brands-hooks.ts`), `SlpPictureAssist` (`drawWith`).
+- **Rejected alternatives:** a separate product table next to the ads (two lists for one thing, and
+  every reader of the pool would need both); rewriting stored ads with a `brandId` on first read
+  (a write on a read path, and an export from an older build would undo it).
+- **Migration consequence:** none stored. Old ads keep their ids and show under a brand named like
+  them; old deals read back without `look` / `tone`; a settings blob without `brandDealsPace` reads
+  "normal"; an export without `brands` still imports. Garnish stays extractable: nothing in
+  `garnish-ads/` imports Slurp (the boundary test still passes).
+
+## Merge V, M, R, F: brand deals in Stir, Posts per day sized (2026-09-29)
+
+- **Problem:** R left `offer-brand-deal` as a "soon" hook for Stir; the user decided on F that
+  "Posts per day" grows with the Creators like the AI budget, but it has ~20 readers.
+- **Decision:** `offer-brand-deal` is a work card in the deck and a planner action (the planner gets
+  the switched-on brands); `list-brands` takes an optional `accountId` and marks each product
+  `fits` / `spice` / `offBrand` (R's two fit rules); the Stir picker lists fitting products and "Show
+  all" reveals the rest with why. "Posts per day" is sized once, at the settings read
+  (`getSettings`: `2 + 1.9 × active Creators` unless `postsPerDayCustom`), so every reader sees the
+  same number; a PATCH that sends a number marks it the player's; the defaults route carries the
+  same sizing so a section reset lets it grow again.
+- **Affected modules:** shared `slp-actions.ts`, `slp-stir.ts`, `slp-model-budget.ts`; server
+  `features/projects/slp-brand-deal-lever.ts`, `features/assist/`, `modules/assist/slp-stir-*`,
+  `features/ads/slp-garnish-generation-service.ts`, `data/creators/slp-creators-storage-{1,2}.ts`,
+  `modules/settings/slp-settings.ts`, settings routes; client `features/stir/`, Publishing panel.
+- **Rejected alternatives:** sizing at each of the ~20 readers (one would be missed); storing the
+  sized number on every Creator change (a write per Creator toggle, and stale on import).
+- **Migration consequence:** a save without `postsPerDayCustom` keeps any number other than the
+  shipped 4 as the player's; the shipped 4 grows.
+
+## Pulse + E: long actions are Pulse tasks; follow-ups are promises (2026-09-29)
+
+- **Problem:** long actions held the player (the Stir play sheet and the sign-up modal could not
+  close, the composer waited for the post's AI picture, a Stir plan was lost when the player left
+  the box), and Pulse showed each pending mutation twice, without a name, reason or retry. A
+  follow-up blocked for two days was dropped, and automatic Creators never answered an AI fan.
+- **Decision:** one client task tracker, `base/state/slp-task-store.ts` (`startSlpTask`): the caller
+  closes its sheet at once, the task runs on, Pulse lists it (running / done with a result and a
+  tap-through / failed with why and Try again), a toast says how it went with See in Pulse. Its
+  words come from the caller's `t` (the package's bundled `i18next` is never initialised). Pulse's
+  open state lives in that store, so any screen or toast opens it. The server's `/slurp/tasks`
+  also sends Stir plays, a `retry` route per failed task and a `next` list ("Coming up", pure in
+  `modules/maintenance/slp-pulse.ts`). Follow-ups keep `first_due_at`; a wait never ends a promise
+  (only an opener expires), a failed one retries later by how late it is, a late one opens with an
+  in-character sorry. The unattended reply path answers an AI fan's text when
+  `slurpAnswersAiFan` picks it (1 in 4, by message id), text only, inside the AI budget.
+- **Affected modules:** client `base/state/slp-task-store.ts`, `slp-task-list.ts`,
+  `slp-stir-sheet-store.ts`, `modules/chrome/SlpPulse*.tsx`, `slp-pulse-model.ts`, `SlpShell.tsx`,
+  `features/stir/`, `features/onboarding/`, `app/slp-home-*.ts`; server
+  `features/maintenance/slp-maintenance-routes.ts`, `modules/maintenance/slp-pulse.ts`,
+  `features/messages/slp-message-operation.ts`, `slp-follow-up-scheduler-service.ts`,
+  `data/messages/slp-messages-storage-follow-ups.ts`, `modules/messages/slp-{follow-up,messaging}.ts`,
+  schema `slurp2_follow_ups.first_due_at`.
+- **Rejected alternatives:** server job rows for every long action (a migration and a poller for
+  work that already returns in one request); reading `useMutationState` for Pulse (no name, no
+  result, no retry, and every mutation twice); a stored attempt count for follow-up retries (the
+  lateness already says how often it failed).
+- **Migration consequence:** follow-up rows from before have no `first_due_at`; their current
+  `scheduledAt` stands in. Client tasks live in memory for the tab (a reload forgets finished ones;
+  server jobs and plays stay in Pulse).
+
+## World dial rule moves to shared (L, R1-116, 2026-09-28)
+
+- **Problem:** the audience estimate in Backstage (client) ignored the world-activity dial because
+  its rule (`slurpWorldActivityMultiplier`) lived in server `modules/audience/slp-scale.ts`, which the
+  client may not import. A copy of the multiplier on the client would be a second rule to keep in step.
+- **Decision:** `slp-scale.ts` is pure and has no imports, so it moves as is to
+  `shared/src/slp/slp-scale.ts`; every server reader imports it from there. The estimate now reads it,
+  plus the Fan Types, the background-profile switch and the AI-written fan runs.
+- **Affected modules:** shared `slp-scale.ts`; the eight server importers; client
+  `modules/audience/slp-simulation-estimate.ts`; `tests/slurp2-source.ts` maps the historical key.
+- **Rejected alternatives:** passing the multiplier in from the settings screen (the screen would own
+  the rule instead).
+- **Migration consequence:** none stored.
+
+## Merge L + Pulse follow-ups: per-fan answers, promises past the switch, Pulse history kept (2026-09-29)
+
+- **Problem:** after Pulse + E, an AI fan was answered per message (a fan who got an answer could be
+  ignored on the next one), the "writes first" switch cancelled promises the Creator made in a reply,
+  and Pulse forgot finished client tasks on every reload.
+- **Decision:** `slurpAnswersAiFan(message, answeredBefore)`: a fan the Creator already wrote to in
+  this thread keeps the conversation while the thread lives (text only, still the unattended reply
+  path and its budget row). The follow-up scheduler drops only `opener` rows when the switch is off;
+  every other follow-up is a promise and goes out (the world tick already makes no new openers). The
+  client task store keeps finished tasks in `localStorage` (`slurp2:pulse-tasks`, the pure
+  `slpStoredTasks`: done / failed, last 24 h, 50 rows, without the tab's Open / Try again functions).
+- **Affected modules:** server `modules/messages/slp-messaging.ts`,
+  `features/messages/slp-message-operation.ts`, `slp-follow-up-scheduler-service.ts`; client
+  `base/state/slp-task-{list,store}.ts`; the switch's help text.
+- **Rejected alternatives:** a stored "answered" flag on the thread (the thread's own messages
+  already say it); zustand `persist` (the package's other stored state uses plain `localStorage`).
+- **Migration consequence:** none stored server-side; a browser without the key starts with an empty
+  Pulse history.
+
+## 0.3.2 Creator Pages: one shared page schema, filled by code (2026-09-29)
+
+- **Problem:** a Creator could present themselves only through a bio and posts. A Page needs one
+  shape that the server stores and repairs (including a model's answer) and the client renders and
+  edits, without letting the model write facts that go stale.
+- **Decision:** `shared/src/slp/slp-creator-page.ts` holds the schema, limits and a lenient reader
+  that drops a bad block and keeps the rest. The Page stores only a theme id, block order and words;
+  pictures, prices, facts, people and the poll are filled on the client from data the profile already
+  loads. The Page lives in `settings.profile.page` (plus `pageWanted` for a new Creator's first Page)
+  and is on the audience allowlist. Model work sits in `features/creators/slp-creator-page-service.ts`
+  behind a new AI budget row (`page`); catch-up on open runs it detached, at most once at a time.
+- **Affected modules:** shared `slp-creator-page.ts`, `slp-social.schema.ts`/`types.ts`,
+  `slp-model-budget.ts`; server `modules/creators/slp-creator-page-{prompt,refresh}.ts`,
+  `modules/creators/slp-disclosure.ts`, `modules/records/slp-storage-model.ts`, the creators and
+  onboarding routes, `workflows/slp-world-tick-workflow.ts`; client `modules/creator/SlpCreatorPage.tsx`,
+  `slp-creator-page-{data,styles}.ts`, `features/creators/SlpCreatorPageEditor.tsx`,
+  `app/screens/SlpProfilePage.tsx` and the `pageContent` slot of `SlpProfileSurface`.
+- **Rejected alternatives:** storing the rendered page (prices and pictures would go stale); a
+  generated collage picture (costs an image call, drifts from the look, cannot be tapped); a sixth
+  profile tab (five already crowd a phone).
+- **Migration consequence:** none; both fields are optional and absent on existing accounts.
+
+## 0.3.5 Slurp Support desk: a desk record per Creator, a `messages/desk` seam (2026-09-29)
+
+- **Problem:** Slurp Support's thread ran on the fan-chat machinery (rapport, strikes, pictures, fees),
+  which does not describe a Creator's standing with the platform, and Support had two tools. The
+  design (`docs/SUPPORT-DESK.md`) adds trust, suspicion, offers, tickets, challenges, contracts,
+  leaving, notices and eight desk actions.
+- **Decision:** one desk record per Creator in app settings (`slurp2.creator.<id>.desk`, like the
+  steering), read through `shared/src/slp/slp-support-desk.ts` (pure rules and the settings schema,
+  both sides need them). The desk's routes, send-time checks, reply handling and clock live in the
+  new seam `features/messages/desk/`; its actions join the one action layer
+  (`features/assist/slp-desk-levers.ts`), so an Offer the Creator accepts runs through the same
+  runner. The world clock runs the desk on templates only; a Creator's line is rewritten on open
+  (pending-text kind `desk`, prompt `pendingDesk`). The reach effects go through the one
+  `platformInfluenceMultiplier("feed.reach")`.
+- **Affected modules:** shared `slp-support-desk.ts`, `slp-actions.ts`, `slp-stir.ts`; server
+  `data/creators/slp-support-desk-{storage,counts}.ts`, `data/messages/slp-support-desk-thread.ts`,
+  `modules/messages/slp-support-desk-talk.ts`, `features/messages/desk/*`, the thread, send and
+  generation paths, `features/world/slp-pending-text-service.ts`, the world scheduler and tick
+  workflow; client `modules/desk/SlpDeskCaseFile.tsx`, `features/messages/SlpDesk*.tsx`,
+  `features/stir/SlpStirDesk.tsx`, `SlpStirDeskFields.tsx`, `SlpStirSettingsPanel.tsx` and a new
+  Backstage section `stir`.
+- **Rejected alternatives:** new message kinds (`offer`, `note`) in the stored enum (a `system` or
+  `text` line with metadata needs no schema change and older clients render it); a table for the
+  desk (an app-settings record per Creator follows the steering and needs no migration); keeping
+  Support threads in every persona's inbox (they are staff work, not the persona's chats).
+- **Migration consequence:** none stored; a Creator without a record starts neutral on the first
+  desk pass, and one Support signed up starts warmer when its sign-up chat is kept.
+
+## 0.3.5 Polyamory: `moreIds` on a couple, group helpers apart (2026-09-29)
+
+- **Problem:** a couple could only be two people.
+- **Decision:** `SlurpCouple.moreIds` (up to two more, four people in all); the pair (`aId`, `bId`)
+  still drives the stage clock. Group rules, names and the couple-page money helpers
+  (`slurpCoupleBuzz`, `slurpCouplePageSplit`, now N-way) live in `modules/projects/slp-couple-group.ts`,
+  keeping `slp-creator-couples.ts` under the file limit. Off by default (`polyamory` setting).
+- **Also:** a polyamorous Creator may be in several couples (`slurpSetUpCouple` with `polyamory`); a
+  Creator's style is `relationshipStyle` in their steering (null = poly words on their card,
+  `SLP_POLY_CARD_WORDS`), read into `SlurpTieCreator.poly`. Monogamous Creators keep the old rule.
+- **Rejected alternatives:** only overlapping pairs (a throuple would read as three separate couples);
+  only groups (a Creator with two separate partners could not exist).
+- **Migration consequence:** none; `moreIds` and `relationshipStyle` are optional.
+
+## 0.3.8 Drama: situations and dramas as Story Pack data, no new domain (2026-09-30)
+
+- **Problem:** couples, collabs and rivalries are hard-coded dramas the player cannot join, the
+  world has no friends, roommates or exes, and a new kind of drama needs new code. Design:
+  `docs/DRAMA.md`.
+- **Decision:** no new top-level domain. Dramas and standing situations are new optional
+  arrays in the Story Pack schema (`shared/src/slp/slp-story-engine.ts`); a running drama is an arc
+  with a cast; new tie types (`friend`, `roommate`, `coworker`, `ex`) join the ties document; the
+  player's persona Creator can be one side of a tie; arc choices may ask the player or a Creator;
+  a hidden fact is a continuity record with `knownBy`, read through the one continuity gate. Posts
+  get at most one drama line through the existing beat brief; comments come from the reaction bank.
+- **Affected modules (planned):** shared `slp-story-engine.ts`; server `modules/projects/*` (ties,
+  couples, arc progress), `modules/feed/slp-tie-beats.ts`, `modules/continuity/*`,
+  `modules/world/slp-reaction-bank.ts`, `features/assist/slp-stir-*`, the world tick; client Backstage,
+  Creator settings, Stir, Creator Page People block.
+- **Rejected alternatives:** a separate "social world" graph store beside ties and continuity (two
+  sources of truth for relations and facts); hard-coded dramas per genre (every new drama would be
+  code); a relation/fact dump in the post prompt (infodumps cost heat and tokens).
+- **Migration consequence:** none; every new field is optional, old packs import unchanged, and
+  drama state and library live in their own app settings (`slurp2.drama.state`, `slurp2.drama.library`).
+  Built as designed; the differences are listed under "As built" in `docs/DRAMA.md`.
+
+## 0.3.11 Your relationship, a story-first Stir, Pause all (2026-10-01)
+
+- **Problem:** the player's own couple lived in her public posts only (the chat could not move it,
+  her DMs treated the player as a customer, pictures were sold to her partner); Stir stacked ten
+  sections with couples, collabs and dramas editable in three places, only one of them with preview
+  and Undo, and every persona saw and steered the others' couples and plays.
+- **Decision:**
+  - The DM answer to the player carries `us` (closer / hurt / madeUp); `modules/projects/slp-player-couple.ts`
+    decides whether it counts (days per stage), `features/projects` applies it. Couples gain `secret`.
+  - Every change to couples, bonds, collabs, rivalries and drama packs is a Stir play through the one
+    runner: new actions `set-bond`, `end-bond` (tie levers), `start-drama`, `end-drama`
+    (`features/world/slp-drama-levers.ts`, through the world contract). The ties panels' hooks and the
+    drama routes call the same levers.
+  - Stir preview, play, undo and the view take the playing persona; plays record it.
+  - Fans' DMs to the player's own page are notification events of kind `fan_note`; the player's heart
+    and one reply live in the app setting `slurp2.fan-notes`.
+  - "Pause all" is a setting kept in step with a process flag in `base/model/slp-pause.ts`; the
+    provider and image wrappers and every scheduler check it.
+  - `slp-creator-couples.ts` split into `slp-couple-fit.ts` and `slp-couple-read.ts` (size cap).
+- **Rejected alternatives:** a model-decided relationship stage (the model only reports the talk);
+  keeping the Business and Relationships sheets beside "Now showing" (a second way to change the
+  same couple); a DB column for fan-note replies (a migration for one small, capped list).
+- **Migration consequence:** none; `secret`, `personaId` on plays, `requestedLead` on the drama state
+  and `paused` are optional with safe defaults. Old fan threads to the player's page stay as they are.
+
+## Roleplay scenes from a DM thread (2026-10-05)
+
+- **Problem:** the player could not take a DM conversation into a real roleplay. Engine scenes branch
+  only from Engine Conversations, and Slurp's threads are not Engine chats.
+- **Decision:**
+  - Engine PR #7119 (Capability API 1.66, `scenes` permission) lets a package thread be a scene
+    origin. Slurp registers one provider in `slp-server-entry.ts`
+    (`features/messages/scenes/slp-roleplay-scene-origin.ts`) once its manifest holds `scenes`; the
+    builder adds it as an optional permission at Capability API 1.66.
+  - Slurp writes the plan itself (`slp-roleplay-scene-planner.ts`, prompt in
+    `modules/messages/slp-roleplay-scene-prompt.ts`) and hands it to the Engine's `startScene`.
+  - Each scene carries its own settings as the Engine's `packageData`: `lock` (thread paused, Creator
+    busy everywhere) and `reach` (`none`, `private`, `hint`, `public`). The planner proposes both; the
+    player changes them before the start and the reach again on the recap.
+  - The lock is the scene chat id on the thread (`scene_chat_id`); one guard
+    (`slp-roleplay-scene-lock.ts`, a preHandler on the messages routes) refuses every thread write
+    while it is set. Replies, follow-ups, due posts and comment replies of a busy Creator wait.
+  - Choosing a reach is the explicit promotion the continuity ledger asks for: the recap fact is
+    `slurp` reality at the reach's audience; the event itself stays `roleplay`.
+  - Creators may pitch a scene through an optional `sceneInvite` field in the DM reply, offered only
+    when no invite is open and the last is three days old.
+- **Rejected alternatives:** putting the DM into the Engine planner's prompt; a hidden Engine
+  Conversation as a fake origin (no lock, no way back); one global lock and reach setting.
+- **Migration consequence:** new nullable thread columns `scene_chat_id`, `scene_started_at`; new
+  continuity event type `scene_played`. Nothing runs until Capability API 1.66.
+
+## Guided post, review for everyone (2026-10-05)
+
+- **Problem:** Creators got a post from one Stir line, with its picture; the player's own page had only
+  the split-up composer (text help and picture apart) and no way to reach its owed #ad or a collab.
+- **Decision:**
+  - One action, `draft-post` (`features/assist/slp-assist-service.ts`): an idea in, the caption and its
+    picture out, nothing posted. An owed brand deal or a collab of that page rides along as context.
+  - One composer for every page: `SlpPostGuide` (assist feature, through `slp-assist-contract.ts`) sits
+    at the top of New post. Posting a draft written for an owed #ad marks the deal posted.
+  - Review for everyone: Stir's `write-post` preview answers `draftInComposer`, so "Do it" never posts
+    it; the card hands the idea to the page's composer (`composeGuide` in the package store). Professor
+    Mari's `write-post` still posts directly: the player asked Mari for exactly that.
+  - `SlpActionResult` moved to `shared/src/slp/slp-action-results.ts` (size cap of `slp-actions.ts`).
+- **Rejected alternatives:** a second composer for the player's page; letting Stir post for the
+  player's page unattended (it is the player's voice).
+- **Migration consequence:** none.

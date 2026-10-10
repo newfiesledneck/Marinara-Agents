@@ -39,6 +39,18 @@ export function isSlurpCharacterFanAccount(
   return account?.kind === "random_user" && slurpCharacterIdFromFanEntityId(account.entityId) !== null;
 }
 
+/**
+ * Whether a raw `slp_accounts` row (database or backup) is a Creator. Ambient profiles and
+ * characters in the audience are `random_user` rows, and a persona's viewer identity is an
+ * invited persona row; none of them is a Creator (R1-117). `invited` is stored as text.
+ */
+export function slurpAccountRowIsCreator(row: unknown): boolean {
+  if (!row || typeof row !== "object") return false;
+  const { kind, invited } = row as { kind?: unknown; invited?: unknown };
+  if (kind === "random_user") return false;
+  return !(kind === "persona" && (invited === true || invited === "true"));
+}
+
 /** One character group, as `characters.listGroups()` returns it: `characterIds` is a JSON string. */
 export type SlurpAudienceCharacterGroup = { id: string; characterIds?: unknown };
 

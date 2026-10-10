@@ -84,6 +84,70 @@ export type SlpDeepDetailsRecord = {
   /** Every image run for this post, oldest first, capped to the last few. Absent on older records. */
   imageRuns?: SlpDeepDetailsImageRun[];
   askedModelForImagePrompt: boolean;
+  /**
+   * Which planner wrote the post, the beat it chose (with its anchor, cast, and place), and the
+   * writer's claim check. `beat` is null when the post was intent-first or fell back to classic.
+   * Absent on records made before 0.2.42.
+   */
+  planner?: {
+    mode: "classic" | "beats";
+    beat: {
+      type: string;
+      anchorKind: string;
+      anchor: string;
+      line: string;
+      cast: string[];
+      place: string | null;
+      /** The callback this post could refer back to. Absent before 0.2.50. */
+      reference?: { kind: string; text: string };
+      /** The player's one-off idea this beat carried out (7b0). */
+      nudgeId?: string;
+      /** The shared idea it came from; `poll:<id>` when it answers a Story poll (3b). */
+      sharedId?: string;
+      /** The collab, brand deal, rivalry or couple moment it carried out (7b-c, U). */
+      tie?: { kind: string; partnerId?: string; brand?: string; hostShare?: number; moment?: string };
+    } | null;
+    claimCheck: {
+      ok: boolean;
+      problems: string[];
+      claims: { people: string[]; earlierEvents: string[]; stateChanges: string[] } | null;
+      revised?: boolean;
+    } | null;
+    /** The Creator's dial and the level this post was planned at (Beats). Absent before 0.2.49. */
+    heat?: { dial: string; planned: string };
+  };
+  /** What shaped the voice of this post (the 7b0 flavour brief). Absent on records made before it was recorded. */
+  flavour?: SlpDeepDetailsFlavour | null;
+};
+
+/**
+ * The flavour brief of one post, as parts rather than prompt text, so Deep details can say in plain
+ * words what shaped it. The values are the brief's own (card sentences, the player's steering).
+ */
+export type SlpDeepDetailsFlavour = {
+  /**
+   * The true details about them drawn for this post. `kind` is people, places, work, objects, habit
+   * or jokes for a card anchor (`text` is the bare anchor), else a card sentence (voice, never, life…)
+   * or another Agent's note (lately).
+   */
+  details: { kind: string; text: string }[];
+  /** A line of theirs shown to the model as their voice. */
+  voice: string | null;
+  /** An opener they had used a lot: asked to avoid it, or allowed once in a while. */
+  opener: { phrase: string; allowed: boolean } | null;
+  /** A day texture, drawn when the player set no mood. */
+  day: "flat" | "good" | "small" | null;
+  /** Their love life, one sentence, when they have one. */
+  relationship: string | null;
+  /** The steering that reached the brief. Null when the player set none. */
+  steering: {
+    mood: string | null;
+    life: string | null;
+    focus: string | null;
+    /** The one pushed topic this post carried. */
+    topic: string | null;
+    leftOut: string[];
+  } | null;
 };
 
 /**
@@ -119,6 +183,11 @@ export type SlpDeepDetailsImageRun = {
   };
   settings: { includeDescriptions: boolean; avatarReferences: boolean; interpretation: boolean };
   appearance: { source: "stage" | "source-card" | "reference" | "none"; text: string };
+  /**
+   * The viewpoint phrase Slurp kept in the prompt (P), in the words of the image model's family:
+   * tags for tag models, e621 tags for a drawn furry, natural words otherwise. Absent before it was recorded.
+   */
+  viewpoint?: { source: string; family: "tags" | "e621" | "natural"; phrase: string } | null;
   referenceImages: number;
   /** The image template as rendered, before the style profile was applied. */
   templatePrompt: string;
@@ -175,7 +244,13 @@ export type SlpDeepDetailsResponse = {
     completedAt: string | null;
     sourceEventId: string | null;
     slotId: string | null;
+    /** What a kept promise delivers, in the Creator's own label. */
+    topic?: string | null;
   } | null;
   links: { fromType: string; fromId: string; toType: string; toId: string; relation: string }[];
+  /** The Creators a collab, couple or rivalry post names, by account id. Absent before M. */
+  people?: Record<string, { displayName: string; handle: string }>;
+  /** The posts its purpose points at (the drop of a tease, the tease of a drop, the Story poll). Absent before M. */
+  related?: Record<string, { text: string; createdAt: string; access: string }>;
   stats: { likes: number; replies: number; unlocks: number };
 };

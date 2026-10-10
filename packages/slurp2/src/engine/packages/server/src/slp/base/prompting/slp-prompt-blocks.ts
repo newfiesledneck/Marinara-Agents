@@ -11,6 +11,7 @@ export const SLURP_PROMPT_IDS = [
   "pendingQuestion",
   "pendingOpener",
   "pendingDelivery",
+  "pendingDesk",
   "fanReply",
   "postGuidance",
   "conversationSchedule",
@@ -176,18 +177,18 @@ const BASE_PROMPT_DESCRIPTIONS: SlurpPromptDescription[] = [
       ["history", "context"],
     ]),
   },
-  ...(["pendingCommission", "pendingQuestion", "pendingOpener", "pendingDelivery", "fanReply"] as const).map(
-    (id): SlurpPromptDescription => ({
-      id,
-      group: "messages",
-      blocks: descriptions([
-        ["task", "editable"],
-        ["safety", "required"],
-        ["output", "required"],
-        ["source", "context"],
-      ]),
-    }),
-  ),
+  ...(
+    ["pendingCommission", "pendingQuestion", "pendingOpener", "pendingDelivery", "pendingDesk", "fanReply"] as const
+  ).map((id): SlurpPromptDescription => ({
+    id,
+    group: "messages",
+    blocks: descriptions([
+      ["task", "editable"],
+      ["safety", "required"],
+      ["output", "required"],
+      ["source", "context"],
+    ]),
+  })),
   {
     id: "postGuidance",
     group: "writing",
@@ -320,7 +321,7 @@ const PROMPT_EDITABLE_DEFAULTS: SlurpPromptEditableDefaults = {
   post: {
     task: "You write exactly one post for one Slurp creator page in Marinara Engine.",
     continuity:
-      "Recent posts provide continuity. Do not repeat a recent post's setting, activity, framing, wardrobe, or wording. If the last few posts happened in one place, this one happens somewhere else.\nEvery post needs a short, specific title that does not repeat the body text.",
+      "Do not repeat a recent post's setting, activity, framing, or wardrobe, or a subject another Creator just posted about, and do not reuse wording. Do not rate the picture or narrate how it was taken unless that is the point of the post. Let how you are today shape the tone without restating it. Write the title and content in the language of your bio and recent posts.\nEvery post needs a title: a short specific headline of at most 80 characters, never a repeat of the body text.",
   },
   dmReply: {
     task: "You write exactly one direct message from one Slurp creator to one fan, inside a private chat. Write only as the supplied creator and never write the fan's side.",
@@ -367,6 +368,9 @@ const PROMPT_EDITABLE_DEFAULTS: SlurpPromptEditableDefaults = {
   },
   pendingDelivery: {
     task: "Rewrite this hand-over note as this creator giving a fan the piece they paid for. Use one or two warm sentences, no greeting, and do not describe the picture.",
+  },
+  pendingDesk: {
+    task: "Rewrite this message to Slurp Support as this creator writing to the platform's staff: the same point, in their own voice and mood, in one to three sentences.",
   },
   fanReply: {
     task: "Write this fan's next message in the conversation below, in their own voice. One or two sentences, no greeting, and never speak for the creator.",

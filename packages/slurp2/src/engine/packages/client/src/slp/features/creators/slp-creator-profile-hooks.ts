@@ -43,17 +43,46 @@ export function useBulkCreateCreatorStageProfiles() {
   const qc = useQueryClient();
   const { t: localizeUi } = useUiTranslation();
   return useMutation({
-    mutationFn: (
-      input: SlpBulkCreatorAccountCreateInput & {
-        connectionId?: string | null;
-      },
-    ) =>
-      api.post<{
+    /**
+     * A server job (0.3.11): the request answers at once and this polls the progress, so a big batch
+     * never hangs on one request a proxy or a phone gives up on. `then` runs on the server when it is
+     * done (image connection, first posts, onboarding, a notification), even if this tab is gone.
+     */
+    mutationFn: async ({
+      onProgress,
+      ...input
+    }: SlpBulkCreatorAccountCreateInput & {
+      connectionId?: string | null;
+      then?: {
+        firstPosts?: boolean;
+        imageConnectionId?: string | null;
+        personaId?: string;
+        completeOnboarding?: boolean;
+      };
+      onProgress?: (done: number, total: number) => void;
+    }) => {
+      type Result = {
         created: SlurpManagedStageProfile[];
         skipped: string[];
         failed?: string[];
+        /** Creators that failed on the way and can be sent again as they are. */
+        retryable?: string[];
         reasons?: { accountId: string; reason: string }[];
-      }>("/slurp2/slurp/accounts/bulk", input),
+      };
+      type Progress = { total: number; done: number; finished: boolean; result: Result | null; error: string | null };
+      // An older server answers with the whole result (201): use it as it is.
+      const started = await api.post<Progress | Result>("/slurp2/slurp/accounts/bulk", { ...input, background: true });
+      if ("created" in started) return started;
+      let progress = started;
+      while (!progress.finished) {
+        onProgress?.(progress.done, progress.total);
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        progress = await api.get<Progress>(`/slurp2/slurp/accounts/bulk/${encodeURIComponent(input.executionId!)}`);
+      }
+      onProgress?.(progress.total, progress.total);
+      if (!progress.result) throw new Error(progress.error ?? "The sign-up stopped.");
+      return progress.result;
+    },
     onSuccess: (result) => {
       const failed = result.failed?.length ?? 0;
       const counts = {
@@ -89,6 +118,7 @@ export function useUpdateCreatorStageProfile() {
       sourceSnapshot?: SlpCreatorSourceSnapshot;
       sourceRevisionToken?: string;
       confirmAvatarReview?: boolean;
+      location?: string;
     } & SlurpStageProfileInput) =>
       api.put<SlurpManagedStageProfile>(`/slurp2/slurp/accounts/${encodeURIComponent(accountId)}/stage-profile`, {
         ...input,

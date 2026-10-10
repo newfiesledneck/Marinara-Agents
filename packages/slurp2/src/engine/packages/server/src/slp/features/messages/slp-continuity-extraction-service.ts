@@ -37,6 +37,7 @@ import {
   type SlurpExtractionMessage,
 } from "../../modules/continuity/slp-continuity-extraction.js";
 import { slurpContinuityIdentityOf } from "../../modules/continuity/slp-continuity-rules.js";
+import { slpWithProviderRetry } from "../../base/model/slp-provider-retry.js";
 
 const CHECKPOINT_KEY = "slurp2.continuity-checkpoints";
 /** Threads one drain reads. The rest wait for the next open; nothing here is urgent. */
@@ -95,23 +96,25 @@ export async function drainSlurpContinuityExtraction(
   );
   if (!connection) return 0;
   const fallbackConnection = await createConnectionsStorage(db).getFallbackForMain();
-  const provider = withConnectionFallbackProvider({
-    primary: createLLMProvider(
-      connection.provider,
-      resolveBaseUrl(connection),
-      connection.apiKey,
-      connection.maxContext,
-      connection.openrouterProvider,
-      connection.maxTokensOverride,
-      connection.claudeFastMode === "true",
-      connection.treatAsLocalEndpoint === "true",
-      connection.defaultParameters,
-    ),
-    primaryConnectionId: connection.id,
-    fallbackConnection,
-    fallbackBaseUrl: fallbackConnection ? resolveBaseUrl(fallbackConnection) : "",
-    category: "main",
-  });
+  const provider = slpWithProviderRetry(
+    withConnectionFallbackProvider({
+      primary: createLLMProvider(
+        connection.provider,
+        resolveBaseUrl(connection),
+        connection.apiKey,
+        connection.maxContext,
+        connection.openrouterProvider,
+        connection.maxTokensOverride,
+        connection.claudeFastMode === "true",
+        connection.treatAsLocalEndpoint === "true",
+        connection.defaultParameters,
+      ),
+      primaryConnectionId: connection.id,
+      fallbackConnection,
+      fallbackBaseUrl: fallbackConnection ? resolveBaseUrl(fallbackConnection) : "",
+      category: "main",
+    }),
+  );
 
   let recorded = 0;
   for (const thread of threads) {

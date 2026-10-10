@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { CheckCircle2, ListChecks, Loader2, Search, Settings2, Sparkles, UsersRound } from "lucide-react";
+import { CheckCircle2, ListChecks, Loader2, Search, Settings2, UsersRound } from "lucide-react";
+import { SlpSparkleGlyph } from "../../base/chrome/SlpGlyphs";
 import type { SlpCreatorManagedStageProfile } from "../../../../../shared/src/slp/slp-social.types.js";
 import { SlurpCreatorBulkEdit } from "./SlpCreatorBulkEdit";
 import { formatDateTime } from "../../base/ui/slp-date-time";
@@ -103,10 +104,7 @@ export function SlpCreatorsPanel(page: SlpBackstagePageProps) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <BackstagePageHeader
-          title={t("ui.slurp.settings.creators.title")}
-          detail={t("ui.slurp.settings.creators.detail")}
-        />
+        <BackstagePageHeader detail={t("ui.slurp.settings.creators.detail")} />
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -122,7 +120,7 @@ export function SlpCreatorsPanel(page: SlpBackstagePageProps) {
             {t("ui.slurp.settings.creators.add")}
           </button>
           <button type="button" onClick={openImprove} className={quietButton}>
-            <Sparkles size={14} className="text-[var(--noodle-accent)]" aria-hidden="true" />
+            <SlpSparkleGlyph size={14} className="text-[var(--noodle-accent-foreground)]" aria-hidden="true" />
             {t("ui.slurp.settings.creators.improve", { defaultValue: "Improve with AI" })}
           </button>
         </div>
@@ -243,7 +241,7 @@ export function SlpCreatorsPanel(page: SlpBackstagePageProps) {
                     <CheckCircle2
                       size={18}
                       aria-hidden="true"
-                      className={selected ? "text-[var(--noodle-accent)]" : "text-[var(--slurp-muted)]/40"}
+                      className={selected ? "text-[var(--noodle-accent-foreground)]" : "text-[var(--slurp-muted)]/40"}
                     />
                   )}
                   <Avatar account={creator} size="sm" />

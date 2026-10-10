@@ -370,6 +370,13 @@ export const slurpThreads = fileTable(
     lastStrikeAt: text("last_strike_at"),
     /** Working and long-term facts the creator has learned about this fan. See `slurp-thread-notes.ts`. */
     notes: text("notes").notNull().default("[]"),
+    /**
+     * The Engine roleplay scene this conversation is in while it runs (docs/SCENES.md). Set only by the
+     * Engine's claim and cleared only by the release for the same scene: it locks the thread and keeps
+     * the Creator busy everywhere else.
+     */
+    sceneChatId: text("scene_chat_id"),
+    sceneStartedAt: text("scene_started_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -392,6 +399,11 @@ export const slurpFollowUps = fileTable(
     sequenceNumber: text("sequence_number"),
     totalInSequence: text("total_in_sequence"),
     recurringPattern: text("recurring_pattern"),
+    /**
+     * When the promise first came due. `scheduledAt` moves with every wait; this does not, so the
+     * Creator knows when she is late (task E). Null on rows from before it: `scheduledAt` stands in.
+     */
+    firstDueAt: text("first_due_at"),
     status: text("status").notNull().default("pending"),
     claimedAt: text("claimed_at"),
     sentAt: text("sent_at"),
@@ -744,6 +756,16 @@ export const slurpContentOpportunities = fileTable("slurp2_content_opportunities
    * A plan with a source event and no slot is a promise: it waits until the planner honours it.
    */
   sourceEventId: text("source_event_id"),
+  /**
+   * What a promise delivers, in the Creator's own words from the request panel. Never the fan's
+   * wording: it reaches a public post.
+   */
+  topic: text("topic"),
+  /**
+   * The beat an ordinary slot was planned around (beats planner only), as JSON. A retry repeats
+   * it, and editorial memory counts beat types from it.
+   */
+  beat: text("beat"),
   plannedAt: text("planned_at").notNull(),
   dueAt: text("due_at"),
   completedAt: text("completed_at"),

@@ -159,8 +159,9 @@ assert.match(
   /slurpFanTypeCommissionBudget\(slurpResolveFanType\(settings\.fanTypes, member\), member\.id\)/u,
   "the member’s configured Fan Type must decide their commission budget",
 );
-// Never the instant the price is named.
-assert.match(worldOperation, /quotedFor < 1/u);
+// Never the instant the price is named, unless the player sets "Time before fans answer a quote" to 0.
+assert.match(worldOperation, /quotedForMinutes < settings\.messagesQuoteAnswerMinutes/u);
+assert.match(read("server/src/slp/modules/settings/slp-settings.ts"), /messagesQuoteAnswerMinutes: 1440,/u);
 
 // ── Creators answer their audience, and who they answer means something ──────
 // A creator answered only the player, and only when the player ticked a box. Everyone else wrote

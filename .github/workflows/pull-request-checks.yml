@@ -43,6 +43,12 @@ jobs:
       - name: Test Calls autoplay recovery
         run: npx tsx tests/calls-playback.regression.ts
 
+      - name: Test Calls speech-to-text server fallback and speech queue
+        run: npx tsx tests/calls-speech-to-text.regression.ts
+
+      - name: Test Calls mic clips and media uploads
+        run: npx tsx tests/calls-mic-segments.regression.ts
+
       - name: Test Calls release and SwarmUI video generation
         run: |
           node tests/conversation-calls-summary.regression.mjs
@@ -79,6 +85,9 @@ jobs:
       - name: Test catalog lane routing and build provenance
         run: node scripts/test-catalog-lanes.mjs
 
+      - name: Test Slurp unanswered follow-up control
+        run: npx tsx --tsconfig tests/tsconfig.regressions.json tests/slurp2-pause-follow-ups-until-reply.regression.ts
+
       - name: Validate package localization catalogs
         run: |
           node scripts/tests/ui-translation-retention.regression.mjs
@@ -103,8 +112,16 @@ jobs:
       - name: Test ruleset package contract
         run: node scripts/tests/ruleset-package.regression.mjs
 
-      - name: Test World Maps UI contracts
-        run: node tests/world-maps-ui-contract.regression.mjs
+      - name: Test World Maps UI contracts and location limit
+        run: |
+          node tests/world-maps-ui-contract.regression.mjs
+          npx tsx --tsconfig tests/tsconfig.regressions.json tests/map-location-limit.regression.ts
+
+      - name: Test Noodle timeline context budget, writer images and image prompts
+        run: |
+          npx tsx --tsconfig tests/tsconfig.regressions.json tests/noodle-timeline-context-budget.regression.ts
+          npx tsx --tsconfig tests/tsconfig.regressions.json tests/noodle-writer-images.regression.ts
+          npx tsx --tsconfig tests/tsconfig.regressions.json tests/noodle-image-prompt-instructions.regression.ts
 
       - name: Test Long-Term Memory feedback clarity UI contracts
         run: node tests/long-term-memory-feedback-clarity-ui.regression.mjs

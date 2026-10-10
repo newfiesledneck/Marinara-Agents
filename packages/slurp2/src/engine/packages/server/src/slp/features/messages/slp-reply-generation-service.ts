@@ -47,8 +47,11 @@ import { createChatsStorage } from "../../../services/storage/chats.storage.js";
 import { createCharactersStorage } from "../../../services/storage/characters.storage.js";
 import { SLURP_PLATFORM_CONTEXT } from "../../modules/prompting/slp-prompt.js";
 import { resolveCreatorCharacterCanon } from "../../data/creators/slp-source-resolve.js";
+import { resolveSlurpCreatorFlavour } from "../../data/creators/slp-flavour-source.js";
+import { slurpRotationHash } from "../../modules/feed/slp-post-variation.js";
 import { slurpPromptContext } from "../../base/prompting/slp-prompt-blocks.js";
 import { SLURP_PERFORMED_INTIMACY } from "../../modules/creators/slp-performance.js";
+import { slpWithProviderRetry } from "../../base/model/slp-provider-retry.js";
 
 type GenerationConnection = NonNullable<Awaited<ReturnType<ReturnType<typeof createConnectionsStorage>["getWithKey"]>>>;
 
@@ -84,6 +87,8 @@ export function buildCreatorReplyMessages(input: {
   /** Same Creator state the post path uses: energy, exposure, emotion, day vibe, goal. */
   creatorCondition?: string | null;
   characterCanon?: string;
+  /** The flavour brief (see `slp-creator-flavour.ts`); replaces the card dump when present. */
+  flavourBrief?: string;
   /** The Creator's private content menu. See `slurp-post-guidance.ts`. */
   contentMenu?: string;
   /** Holidays and site events running today. See `slurp-platform-events.ts`. */
@@ -122,6 +127,14 @@ export function buildCreatorReplyMessages(input: {
         kind: "context" as const,
         optional: true,
         text: SLURP_PERFORMED_INTIMACY,
+      },
+      {
+        id: "canon",
+        kind: "context" as const,
+        optional: true,
+        text: input.flavourBrief?.trim()
+          ? '"Who you are", after the data, is you: how you talk and what is going on in your life lately. Let it colour the reply. Never quote it.'
+          : "",
       },
       {
         id: "style",
@@ -172,13 +185,15 @@ export function buildCreatorReplyMessages(input: {
     // The comment path used to answer as a Creator with no state at all, so the same person was
     // exhausted and broke in a DM and blandly cheerful under her own post.
     creatorCondition: protect(input.creatorCondition) || "No Creator state is available right now.",
-    ...(input.characterCanon ? { characterCanon: protect(input.characterCanon) } : {}),
+    ...(input.characterCanon && !input.flavourBrief?.trim() ? { characterCanon: protect(input.characterCanon) } : {}),
   };
   return [
     { role: "system", content: system },
     {
       role: "user",
-      content: `# Untrusted Slurp data\n${JSON.stringify(data, null, 2)}`,
+      content: `# Untrusted Slurp data\n${JSON.stringify(data, null, 2)}${
+        input.flavourBrief?.trim() ? `\n\n# Who you are\n${protect(input.flavourBrief)}` : ""
+      }`,
     },
   ];
 }
@@ -196,23 +211,25 @@ export async function generateCreatorReply(input: {
 }): Promise<{ content: string; moodShift: SlurpMoodShift }> {
   const connections = createConnectionsStorage(input.db);
   const fallbackConnection = await connections.getFallbackForMain();
-  const provider = withConnectionFallbackProvider({
-    primary: createLLMProvider(
-      input.connection.provider,
-      resolveBaseUrl(input.connection),
-      input.connection.apiKey,
-      input.connection.maxContext,
-      input.connection.openrouterProvider,
-      input.connection.maxTokensOverride,
-      input.connection.claudeFastMode === "true",
-      input.connection.treatAsLocalEndpoint === "true",
-      input.connection.defaultParameters,
-    ),
-    primaryConnectionId: input.connection.id,
-    fallbackConnection,
-    fallbackBaseUrl: fallbackConnection ? resolveBaseUrl(fallbackConnection) : "",
-    category: "main",
-  });
+  const provider = slpWithProviderRetry(
+    withConnectionFallbackProvider({
+      primary: createLLMProvider(
+        input.connection.provider,
+        resolveBaseUrl(input.connection),
+        input.connection.apiKey,
+        input.connection.maxContext,
+        input.connection.openrouterProvider,
+        input.connection.maxTokensOverride,
+        input.connection.claudeFastMode === "true",
+        input.connection.treatAsLocalEndpoint === "true",
+        input.connection.defaultParameters,
+      ),
+      primaryConnectionId: input.connection.id,
+      fallbackConnection,
+      fallbackBaseUrl: fallbackConnection ? resolveBaseUrl(fallbackConnection) : "",
+      category: "main",
+    }),
+  );
   const disclosureMode = input.creator.settings.privacy.identityDisclosure ?? "open";
   const publicIdentity = await resolveNoodlerPublicIdentity(input.db, input.creator);
   const settings = await createSlurpStorage(input.db).getSettings();
@@ -242,6 +259,13 @@ export async function generateCreatorReply(input: {
     generationGuidance: settings.generationGuidance,
     scheduleContext,
     characterCanon,
+    flavourBrief: await resolveSlurpCreatorFlavour(input.db, {
+      account: input.creator,
+      source,
+      disclosureMode,
+      use: "comment",
+      sequence: slurpRotationHash(input.parent.id),
+    }),
     relationship,
     creatorCondition,
     imageContext: imageContexts.get(input.post.id),

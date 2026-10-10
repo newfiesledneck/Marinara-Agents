@@ -33,6 +33,7 @@ import { describeSlurpMood } from "./slp-mood.js";
  *
  * Long enough to be a real consequence, short enough that a session is not ended by it. The fan is
  * told what happened and when it lifts, because a refusal that looks like a bug is a bug.
+ * The default of the `messagesCoolOffMinutes` setting (the player can shorten it or turn it off).
  */
 export const SLURP_COOL_OFF_HOURS = 6;
 
@@ -89,6 +90,8 @@ export type SlurpStanceInput = {
   coolingOff: boolean;
   /** Cool-off periods already served in this thread inside the strike window. */
   strikes: number;
+  /** The one writing is her partner (Drama, "your relationship"): no paywall, and she never shuts them out. */
+  partner?: boolean;
 };
 
 /**
@@ -148,7 +151,8 @@ const WARMTH_INSTRUCTION: Record<SlurpStanceWarmth, string> = {
 
 export function resolveSlurpStance(input: SlurpStanceInput): SlurpStance {
   const evidence: SlurpStanceEvidence[] = [];
-  const ceiling = LATITUDE_CEILING[input.tone];
+  // A partner can get a short, cold answer after a fight, but she never cools off on them or ends the chat.
+  const ceiling = input.partner && input.tone === "unfiltered" ? "curt" : LATITUDE_CEILING[input.tone];
 
   // Rule 1. A boundary is not a mood, and nothing outranks it.
   if (input.coolingOff) {
@@ -211,9 +215,11 @@ export function resolveSlurpStance(input: SlurpStanceInput): SlurpStance {
   }
 
   instructions.push(
-    input.subscribed
-      ? "This fan is a paying subscriber right now. Treat them as one."
-      : "This fan is not subscribed. You may flirt, but paid content stays behind the paywall, and it is fair to say so.",
+    input.partner
+      ? "This is the person you are with, not a customer: nothing is behind a paywall for them."
+      : input.subscribed
+        ? "This fan is a paying subscriber right now. Treat them as one."
+        : "This fan is not subscribed. You may flirt, but paid content stays behind the paywall, and it is fair to say so.",
   );
   if (input.isRequest) {
     instructions.push("This is an unanswered message request, not an open conversation. Keep it brief and cautious.");
@@ -241,7 +247,10 @@ export function resolveSlurpStance(input: SlurpStanceInput): SlurpStance {
 
   // Hostile reactions are part of an ordinary relationship. The audience tone changes how often
   // the model chooses them, but it must not make an annoyed Creator unable to show annoyance.
-  const canSendImage = warmth === "warm" || warmth === "close" || warmth === "cold";
+  // A fan she barely knows (neutral) may get one too, as a paid picture (`resolveSlurpMediaOffer`):
+  // with pictures only from "warm" on, a week of chatting never produced a DM picture or a PPV.
+  // Only a guarded stranger gets none.
+  const canSendImage = warmth !== "guarded";
   const imageMode = canSendImage ? (warmth === "cold" ? "hostile" : "friendly") : "none";
   evidence.push({
     layer: "media latitude",
@@ -256,3 +265,31 @@ const WARMTH_ORDER: SlurpStanceWarmth[] = ["cold", "guarded", "neutral", "warm",
 /** Rapport's floor. History softens a bad mood; it never makes somebody warmer than the mood earned. */
 const atLeast = (value: SlurpStanceWarmth, floor: SlurpStanceWarmth): SlurpStanceWarmth =>
   WARMTH_ORDER[Math.max(WARMTH_ORDER.indexOf(value), WARMTH_ORDER.indexOf(floor))]!;
+
+/** Why a Creator will not send a picture in this chat right now, in the order the reply checks it. */
+export type SlurpDmPictureBlock =
+  "support" | "cooling_off" | "images_off" | "stance" | "energy" | "posture" | "comfort" | "respect";
+
+/**
+ * The Details panel's "Pictures" verdict, read off the same gates the reply passes before it draws
+ * (R1-012): Support's thread never gets one, the stance must allow one, the Creator's state must not
+ * hold it back, and the Creator's own Images switch must be on. Whether the model then wants a
+ * picture is its call; this says only whether one could come.
+ */
+export function slurpDmPictureVerdict(input: {
+  stance: Pick<SlurpStance, "latitude" | "canSendImage" | "imageMode">;
+  support: boolean;
+  imagesEnabled: boolean;
+  stateBlock: "energy" | "posture" | "comfort" | "respect" | null;
+}): { mode: SlurpStance["imageMode"]; blockedBy: SlurpDmPictureBlock | null } {
+  const blockedBy: SlurpDmPictureBlock | null = input.support
+    ? "support"
+    : input.stance.latitude === "cool_off"
+      ? "cooling_off"
+      : !input.imagesEnabled
+        ? "images_off"
+        : !input.stance.canSendImage
+          ? "stance"
+          : input.stateBlock;
+  return { mode: blockedBy ? "none" : input.stance.imageMode, blockedBy };
+}

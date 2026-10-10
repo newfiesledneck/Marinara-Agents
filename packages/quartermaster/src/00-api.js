@@ -4,16 +4,54 @@
 
 const QM = {};
 
+const QM_UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+// ponytail: every package route sits behind the Engine's privileged gate, so a
+// session from another device needs the admin secret the Engine's own client
+// keeps under this localStorage key (loopback is exempt, which is why this went
+// unnoticed). Same approach as Memory Nag and Relationship Tracker; replace
+// with a host-provided fetch if the Engine ever adds one.
+function qmAdminSecret() {
+  try {
+    return localStorage.getItem("marinara_admin_secret")?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+// CSRF marker sent explicitly rather than relying on the Engine's global fetch shim.
+function qmAuthHeaders(method) {
+  const headers = {};
+  if (QM_UNSAFE_METHODS.has(method)) headers["x-marinara-csrf"] = "1";
+  const secret = qmAdminSecret();
+  if (secret) headers["X-Admin-Secret"] = secret;
+  return headers;
+}
+
+// Turns the gate's refusal into a step the user can take on this device.
+// Wording matches Relationship Tracker, Noodle and Slurp (#1136).
+function qmResponseError(response, body) {
+  const message = body && typeof body.error === "string" ? body.error : "";
+  if (response.status === 403 && /admin.secret/i.test(message)) {
+    return /X-Admin-Secret/.test(message) && qmAdminSecret()
+      ? "The Admin Secret saved on this device does not match the Engine's ADMIN_SECRET. Enter the same value in Settings → Advanced → Admin Access."
+      : "Marinara Engine blocked Quartermaster because this device has no Admin Secret. Set ADMIN_SECRET in the Engine's .env file if it is not set yet, then enter the same value in Settings → Advanced → Admin Access.";
+  }
+  return message || `Request failed (${response.status})`;
+}
+
 async function qmRequest(path, options) {
+  const method = (options && options.method) || "GET";
   // Only set Content-Type when there's actually a JSON body — Fastify's body
   // parser rejects a bodyless request (GET/DELETE) that still declares
   // application/json with "Body cannot be empty when content-type is set to
   // 'application/json'".
-  const headers = options && options.body ? { "Content-Type": "application/json" } : {};
-  const response = await fetch(`/api/quartermaster${path}`, { ...options, headers });
+  const headers = qmAuthHeaders(method);
+  if (options && options.body) headers["Content-Type"] = "application/json";
+  const response = await fetch(`/api/quartermaster${path}`, { ...options, headers, credentials: "same-origin" });
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error((body && body.error) || `Request failed (${response.status})`);
+    throw new Error(qmResponseError(response, body));
   }
   return body;
 }
@@ -173,7 +211,10 @@ QM.generateOutfitPortrait = (chatId, ownerId, outfitId, prompt) =>
 // so this needs no package permission. Filtered client-side the same way
 // server.mjs's own resolveImageConnection filters server-side.
 QM.listImageConnections = async () => {
-  const response = await fetch("/api/connections", { headers: { Accept: "application/json" } });
+  const response = await fetch("/api/connections", {
+    headers: { ...qmAuthHeaders("GET"), Accept: "application/json" },
+    credentials: "same-origin",
+  });
   if (!response.ok) throw new Error(`Could not load connections (${response.status})`);
   const connections = await response.json();
   return Array.isArray(connections) ? connections.filter((c) => c && c.provider === "image_generation") : [];
@@ -227,6 +268,37 @@ QM.deleteOutfitPortrait = (chatId, ownerId, outfitId) =>
 // so plain is fine) only if they need to force a reload of the SAME filename.
 QM.outfitPortraitUrl = (chatId, ownerId, outfitId) =>
   `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`;
+
+// An <img src> can't send X-Admin-Secret, so with a secret saved on this device
+// our own (gated) image URLs load through fetch and a short-lived object URL.
+// fetch shares the browser's HTTP cache with a plain src, so caching behaves the
+// same either way. A failed load fires the img's "error" event, which is what
+// every caller already relies on for "no image". Images are reused across
+// repaints (the portrait), so a response that arrives after the element was
+// pointed somewhere else is dropped.
+const qmImageTargets = new WeakMap();
+QM.setImageSrc = (img, url) => {
+  qmImageTargets.set(img, url);
+  if (!url.startsWith("/api/quartermaster/") || !qmAdminSecret()) {
+    img.src = url;
+    return;
+  }
+  fetch(url, { headers: qmAuthHeaders("GET"), credentials: "same-origin" })
+    .then((response) => (response.ok ? response.blob() : null))
+    .catch(() => null)
+    .then((blob) => {
+      if (qmImageTargets.get(img) !== url) return;
+      if (!blob) {
+        img.dispatchEvent(new Event("error"));
+        return;
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      const release = () => URL.revokeObjectURL(objectUrl);
+      img.addEventListener("load", release, { once: true });
+      img.addEventListener("error", release, { once: true });
+      img.src = objectUrl;
+    });
+};
 
 QM.exportInventory = (chatId, ownerId) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/export`, { method: "GET" });

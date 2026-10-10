@@ -1,5 +1,29 @@
 # Quartermaster changelog
 
+## 0.1.24 — 2026-10-10 [highlight]
+- Works from other devices and remote access: Quartermaster now sends the Admin Secret saved in
+  Settings → Advanced → Admin Access, fixing "Invalid or missing X-Admin-Secret header".
+- Item images, outfit portraits and slot icons also load from other devices.
+- A missing or mismatched Admin Secret now explains how to fix it.
+
+## 0.1.23 — 2026-10-01
+- The description now says what it does in plain words.
+
+## 0.1.22 — 2026-09-27
+- Image uploads and outfit saves report their own result when other edits finish at the same time.
+- A completed upload cannot close a newer dialog or show its error in another chat.
+- Late inventory refreshes no longer undo a completed edit or replace a newer refresh.
+
+## 0.1.21 — 2026-09-26
+- Detached tracker elements wait until mounted before starting subscriptions or changing the active chat.
+- Late image-connection checks and failed mutations no longer overwrite another dialog or chat's state.
+- Failed image deletions preserve the image even when another request finishes at the same time.
+- Closing the active chat clears its old error from the tracker panel.
+
+## 0.1.20 — 2026-09-26
+- Rebuilding the dock now closes its dialogs and clears their pending sessions.
+- A late wardrobe confirmation cannot replace a newly opened dialog or another chat's view.
+
 ## 0.1.19 — 2026-09-26
 - Available from the official staging Download Agents catalog with Professor Mari's armored
   Quartermaster cover and installation guidance.

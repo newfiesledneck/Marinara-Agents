@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recordSlurpTasteSignal } from "../../../data/creators/slp-spice-storage.js";
 import { generateSlurpCommissionImage } from "./slp-commission-image-operation.js";
 import { logger } from "../../../../lib/logger.js";
 import { reactToSlurpPayment } from "../../economy/slp-economy-contract.js";
@@ -41,6 +42,7 @@ export async function slpCommissionsRoutes(app: FastifyInstance, messaging: SlpM
     if (commission === "open_request")
       return reply.code(409).send({ error: "You already have a commission request open with this Creator." });
     if (!commission) return reply.code(403).send({ error: "This Creator is not accepting commissions." });
+    recordSlurpTasteSignal(app.db, { text: parsed.data.brief }, "request");
     // A commission needs a review step. Character Creators quote from the world tick, while a
     // persona-owned Creator can review and negotiate it here without charging the fan first.
     return { commission };

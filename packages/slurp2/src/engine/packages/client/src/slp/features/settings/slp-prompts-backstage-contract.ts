@@ -18,6 +18,7 @@ import {
   SLURP_PROMPT_PRESET_NAME_LIMIT,
 } from "./slp-prompt-presets";
 import type { SlurpSettings } from "./slp-settings-contract";
+import type { SlpBackstageTarget } from "../../base/navigation/slp-backstage-target";
 import { useSlurpPostGuidance, useUpdateSlurpPostGuidance } from "./slp-post-guidance-contract";
 
 /**
@@ -25,9 +26,11 @@ import { useSlurpPostGuidance, useUpdateSlurpPostGuidance } from "./slp-post-gui
  * audience, creators, feed, media, messages, projects and world, so no content feature owns them.
  */
 export function useSlpPromptsBackstageState({
+  target,
   settings,
   updatePatch,
 }: {
+  target: SlpBackstageTarget;
   settings: SlurpSettings | undefined;
   updatePatch: (patch: Partial<SlurpSettings>) => Promise<boolean>;
 }) {
@@ -43,7 +46,8 @@ export function useSlpPromptsBackstageState({
     {},
   );
   const presetImportRef = useRef<HTMLInputElement>(null);
-  const postGuidanceQuery = useSlurpPostGuidance(true);
+  // Only the Prompts page shows it (0.3.6: every Backstage page used to load it).
+  const postGuidanceQuery = useSlurpPostGuidance(target === "prompts");
   const updatePostGuidance = useUpdateSlurpPostGuidance();
 
   useEffect(() => {

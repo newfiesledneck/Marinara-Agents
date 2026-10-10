@@ -8,7 +8,6 @@ export const DEFAULT_LTM_EXTRACTION_MAX_TOKENS = 8192;
 export const DEFAULT_LTM_EXTRACTION_TEMPERATURE = 0;
 export const DEFAULT_LTM_IMPORTED_SOURCE_MODE = "roleplay" satisfies LtmMode;
 export const DEFAULT_LTM_EXTRACTION_MAX_SOURCE_TOKENS = 8_192;
-export const DEFAULT_LTM_EXTRACTION_MAX_EXISTING_NOTE_TOKENS = 4_096;
 export const DEFAULT_LTM_EXTRACTION_EXISTING_NOTE_MAX_CHUNKS = 12;
 export const DEFAULT_LTM_EXTRACTION_EXISTING_NOTE_MAX_TOKENS = 4_096;
 export const LTM_EXTRACTION_MAX_CANDIDATES = 999;
@@ -273,48 +272,57 @@ export const DEFAULT_LTM_STREAM_DESCRIPTIONS_BY_MODE: Record<
   },
 };
 
-export const DEFAULT_LTM_RECALL_STYLE_BY_MODE: Record<LtmMode, LongTermMemoryRecallStyle> = {
-  roleplay: "story",
-  conversation: "balanced",
-  game: "exact",
-};
-
 export const DEFAULT_LTM_RECALL_STYLE = "balanced" satisfies LongTermMemoryRecallStyle;
 export const DEFAULT_LTM_RECALL_PREAMBLE = "Relevant long-term memories for this reply:";
 
+/**
+ * Per-style lane weights. A candidate's relevance is its strongest weighted lane
+ * score, so a lane contributes at most `weight × lane ceiling`: 1 for vector,
+ * keyword, direct and BM25, and 0.5 for graph, which is capped at
+ * `1 / (distance + 1)`. Scaling a style's weights together moves only its
+ * threshold scale, not its fused order.
+ *
+ * Issue #1264 rescaled every preset by 0.7 and retuned balanced. The scaled
+ * weights at the default threshold 0.35 select what the previous weights selected
+ * at 0.5, while the keyword and BM25 lane changes make single everyday keyword
+ * hits weaker and long-window BM25 matches stronger. Balanced uses relative
+ * weights 1 / 0.6 / 0.15 / 0.8, and every style keeps a keyword weight of 0.56 so
+ * a two-keyword or name match (0.75 of the lane) still clears the default
+ * threshold when the semantic lane is unavailable. Graph weights stay low, so
+ * graph-only neighbours (at most half the graph weight) sit under the default
+ * threshold, and a saved threshold above 0.4 is read as 0.4 because the rescaled
+ * ceiling leaves little above it.
+ *
+ * `custom` has no preset: a custom style reads the user's own saved weights, so a
+ * dead preset here only invited drift. Issue #1258.
+ */
 export const LTM_RECALL_STYLE_WEIGHTS = {
   balanced: {
-    semanticWeight: 0.6,
-    lexicalWeight: 0.3,
-    graphWeight: 0.1,
-    keywordWeight: 0.2,
+    semanticWeight: 0.7,
+    lexicalWeight: 0.42,
+    graphWeight: 0.105,
+    keywordWeight: 0.56,
   },
   exact: {
-    semanticWeight: 0.15,
-    lexicalWeight: 1,
+    semanticWeight: 0.105,
+    lexicalWeight: 0.7,
     graphWeight: 0,
-    keywordWeight: 0.8,
+    keywordWeight: 0.56,
   },
   broad: {
-    semanticWeight: 1,
-    lexicalWeight: 0.25,
-    graphWeight: 0.4,
-    keywordWeight: 0.2,
+    semanticWeight: 0.7,
+    lexicalWeight: 0.28,
+    graphWeight: 0.21,
+    keywordWeight: 0.56,
   },
   story: {
-    semanticWeight: 0.55,
-    lexicalWeight: 0.35,
-    graphWeight: 0.5,
-    keywordWeight: 0.3,
-  },
-  custom: {
-    semanticWeight: 0.6,
-    lexicalWeight: 0.4,
-    graphWeight: 0.15,
-    keywordWeight: 0.3,
+    semanticWeight: 0.7,
+    lexicalWeight: 0.525,
+    graphWeight: 0.42,
+    keywordWeight: 0.56,
   },
 } as const satisfies Record<
-  LongTermMemoryRecallStyle,
+  Exclude<LongTermMemoryRecallStyle, "custom">,
   {
     semanticWeight: number;
     lexicalWeight: number;

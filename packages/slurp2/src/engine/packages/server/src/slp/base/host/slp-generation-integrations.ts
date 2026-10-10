@@ -9,6 +9,7 @@ import { createLLMProvider } from "../../../services/llm/provider-registry.js";
 import { withConnectionFallbackProvider } from "../../../services/llm/connection-fallback-provider.js";
 import { resolveBaseUrl } from "../../../services/generation/connection-base-url.js";
 import { withConnectionAdmissionProvider } from "../../../services/generation/connection-admission.js";
+import { slpWithProviderRetry } from "../model/slp-provider-retry.js";
 
 let host: CapabilityIntegrationHost | null = null;
 
@@ -105,17 +106,20 @@ export function createSlurpPostProvider(input: {
     category: "main",
     admissionMode: input.admissionMode,
   });
-  if (hosted) return hosted;
-  return withConnectionAdmissionProvider(
-    withConnectionFallbackProvider({
-      primary,
-      primaryConnectionId: input.connection.id,
-      fallbackConnection: input.fallbackConnection,
-      fallbackBaseUrl: input.fallbackConnection ? resolveBaseUrl(input.fallbackConnection) : "",
-      category: "main",
-    }),
-    input.connection.id,
-    input.admissionMode ?? { kind: "foreground" },
+  // Posts get the same wait on a rate limit or a DNS hiccup as every other Slurp call (G8).
+  if (hosted) return slpWithProviderRetry(hosted);
+  return slpWithProviderRetry(
+    withConnectionAdmissionProvider(
+      withConnectionFallbackProvider({
+        primary,
+        primaryConnectionId: input.connection.id,
+        fallbackConnection: input.fallbackConnection,
+        fallbackBaseUrl: input.fallbackConnection ? resolveBaseUrl(input.fallbackConnection) : "",
+        category: "main",
+      }),
+      input.connection.id,
+      input.admissionMode ?? { kind: "foreground" },
+    ),
   );
 }
 

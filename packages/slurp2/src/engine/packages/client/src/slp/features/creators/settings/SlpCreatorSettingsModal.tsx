@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { showConfirmDialog } from "../../../../lib/app-dialogs";
@@ -10,6 +10,7 @@ import { profileAccent } from "../SlpStageProfileForm";
 import { useCreatorAccounts } from "../slp-creators-hooks";
 import { focusRing, quietButton } from "../slp-creator-classes";
 import { SLP_CREATOR_SETTINGS_SECTIONS } from "./slp-creator-settings-sections";
+import { SlpCreatorSettingsTab } from "./SlpCreatorSettingsTab";
 import type { SlpCreatorSettingsCreator } from "./slp-creator-settings-contract";
 import { useSlpCreatorSettingsStore } from "./slp-creator-settings-store";
 
@@ -38,6 +39,11 @@ export function SlpCreatorSettingsModal({
   const close = useSlpCreatorSettingsStore((state) => state.close);
   const accountsQuery = useCreatorAccounts(creatorId !== null);
   const creator = accountsQuery.data?.find((entry) => entry.id === creatorId) ?? null;
+  // A Creator that is gone (deleted here or elsewhere) closes the modal instead of loading forever.
+  const gone = creatorId !== null && accountsQuery.isSuccess && !accountsQuery.isFetching && !creator;
+  useEffect(() => {
+    if (gone) close();
+  }, [gone, close]);
   const panelRef = useRef<HTMLDivElement>(null);
   const dirtyRef = useRef(false);
   const [profileDirty, setProfileDirty] = useState(false);
@@ -59,9 +65,7 @@ export function SlpCreatorSettingsModal({
     [],
   );
 
-  const sections = SLP_CREATOR_SETTINGS_SECTIONS.filter(
-    (section) => !section.available || !creator || section.available(creator),
-  );
+  const sections = SLP_CREATOR_SETTINGS_SECTIONS;
   const activeSection = sections.find((section) => section.id === tab) ?? sections[0];
 
   const moveTab = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -105,7 +109,7 @@ export function SlpCreatorSettingsModal({
   }, [tab]);
 
   useEffect(() => {
-    if (tab !== "identity") setProfileSaveState(null);
+    if (tab !== "profile") setProfileSaveState(null);
   }, [tab]);
 
   useEffect(() => {
@@ -136,7 +140,7 @@ export function SlpCreatorSettingsModal({
         defaultValue: "{{name}}'s settings",
         name: creator.displayName,
       })
-    : t("ui.slurp.settings.creators.settingsTitle", { defaultValue: "Creator settings" });
+    : t("ui.slurp.settings.creators.tabsLabel", { defaultValue: "Creator settings" });
   const requestClose = async () => {
     if (
       dirtyRef.current &&
@@ -213,23 +217,33 @@ export function SlpCreatorSettingsModal({
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:flex-row">
           <div className="flex min-w-0 shrink-0 flex-col gap-3 sm:min-h-0 sm:w-52 sm:overflow-y-auto sm:overscroll-contain sm:pe-2">
-            <div className="flex min-w-0 items-center gap-3">
-              <Avatar account={creator} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold">{creator.displayName}</p>
-                <p className="truncate text-xs text-[var(--slurp-muted)]">@{creator.handle}</p>
-              </div>
-            </div>
-            {onViewProfile && (
+            {/* Who this is and the way to their profile, as one row: the name is the link. */}
+            {onViewProfile ? (
               <button
                 type="button"
                 onClick={() => {
                   void requestNavigation(() => onViewProfile(creator));
                 }}
-                className={quietButton}
+                aria-label={`${t("ui.slurp.settings.creators.viewProfile")}: ${creator.displayName}`}
+                className={`group flex min-h-14 min-w-0 items-center gap-3 rounded-lg p-2 text-start hover:bg-[var(--slurp-canvas)] ${focusRing}`}
               >
-                {t("ui.slurp.settings.creators.viewProfile")}
+                <Avatar account={creator} size="sm" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold">{creator.displayName}</span>
+                  <span className="block truncate text-xs text-[var(--slurp-muted)]">
+                    {t("ui.slurp.settings.creators.viewProfile")}
+                  </span>
+                </span>
+                <ArrowUpRight size={16} className="shrink-0 text-[var(--slurp-muted)]" aria-hidden="true" />
               </button>
+            ) : (
+              <div className="flex min-w-0 items-center gap-3 p-2">
+                <Avatar account={creator} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{creator.displayName}</p>
+                  <p className="truncate text-xs text-[var(--slurp-muted)]">@{creator.handle}</p>
+                </div>
+              </div>
             )}
             <button
               ref={sectionPickerTriggerRef}
@@ -254,23 +268,8 @@ export function SlpCreatorSettingsModal({
               {sections.map((section, index) => {
                 const Icon = section.icon;
                 const selected = section.id === activeSection?.id;
-                const previous = sections[index - 1];
                 return (
-                  <div key={section.id} className={previous?.group === section.group ? undefined : "pt-2 first:pt-0"}>
-                    {previous?.group !== section.group && (
-                      <p className="px-3 pb-1 text-[0.65rem] font-bold uppercase text-[var(--slurp-muted)]">
-                        {t(`ui.slurp.settings.creators.groups.${section.group}`, {
-                          defaultValue: {
-                            creator: "Creator",
-                            publishing: "Publishing",
-                            interaction: "Interaction",
-                            memory: "Memory",
-                            tools: "Tools",
-                            danger: "Danger zone",
-                          }[section.group],
-                        })}
-                      </p>
-                    )}
+                  <div key={section.id}>
                     <button
                       id={`slp-creator-settings-tab-${section.id}`}
                       type="button"
@@ -289,7 +288,7 @@ export function SlpCreatorSettingsModal({
                       <Icon
                         size={15}
                         aria-hidden="true"
-                        className={selected ? "text-[var(--noodle-accent)]" : undefined}
+                        className={selected ? "text-[var(--noodle-accent-foreground)]" : undefined}
                       />
                       <span className="truncate">{t(section.labelKey, { defaultValue: section.defaultLabel })}</span>
                     </button>
@@ -327,26 +326,11 @@ export function SlpCreatorSettingsModal({
                     <X size={18} aria-hidden="true" />
                   </button>
                 </div>
-                {sections.map((section, index) => {
-                  const previous = sections[index - 1];
+                {sections.map((section) => {
                   const selected = section.id === activeSection?.id;
                   const Icon = section.icon;
                   return (
-                    <div key={section.id} className={previous?.group === section.group ? undefined : "pt-4"}>
-                      {previous?.group !== section.group && (
-                        <p className="px-2 pb-1 text-xs font-bold uppercase text-[var(--slurp-muted)]">
-                          {t(`ui.slurp.settings.creators.groups.${section.group}`, {
-                            defaultValue: {
-                              creator: "Creator",
-                              publishing: "Publishing",
-                              interaction: "Interaction",
-                              memory: "Memory",
-                              tools: "Tools",
-                              danger: "Danger zone",
-                            }[section.group],
-                          })}
-                        </p>
-                      )}
+                    <div key={section.id}>
                       <button
                         type="button"
                         data-section
@@ -363,7 +347,7 @@ export function SlpCreatorSettingsModal({
                           {t(section.labelKey, { defaultValue: section.defaultLabel })}
                         </span>
                         {selected && (
-                          <span className="text-xs text-[var(--noodle-accent)]">
+                          <span className="text-xs text-[var(--noodle-accent-foreground)]">
                             {t("ui.slurp.settings.creators.currentSection", { defaultValue: "Current" })}
                           </span>
                         )}
@@ -383,24 +367,24 @@ export function SlpCreatorSettingsModal({
             className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain sm:border-s sm:border-[var(--slurp-outline)] sm:ps-4"
           >
             {sections.map((section) => {
-              if (section.id !== "identity" && section.id !== activeSection?.id) return null;
-              const SectionComponent = section.Component;
+              if (section.id !== "profile" && section.id !== activeSection?.id) return null;
               return (
                 <div key={`${creator.id}:${section.id}`} hidden={section.id !== activeSection?.id}>
-                  <SectionComponent
+                  <SlpCreatorSettingsTab
                     key={`${creator.id}:${section.id}`}
+                    section={section}
                     creator={creator}
                     active={section.id === activeSection?.id}
                     onClose={requestClose}
                     onDirtyChange={
-                      section.id === "identity"
+                      section.id === "profile"
                         ? (dirty) => {
                             dirtyRef.current = dirty;
                             setProfileDirty(dirty);
                           }
                         : undefined
                     }
-                    onSaveStateChange={section.id === "identity" ? reportProfileSaveState : undefined}
+                    onSaveStateChange={section.id === "profile" ? reportProfileSaveState : undefined}
                     onRedraft={
                       onRedraft
                         ? (entry) => {
@@ -413,34 +397,35 @@ export function SlpCreatorSettingsModal({
                 </div>
               );
             })}
+            {/* Inside the panel, so the bar never takes width from the tab content. */}
+            {tab === "profile" && profileSaveState && (
+              <div className="sticky bottom-0 z-10 mt-4 flex items-center justify-end gap-2 border-t border-[var(--slurp-outline)] bg-[var(--slurp-surface)] pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
+                <button
+                  type="button"
+                  disabled={profileSaveState.isPending}
+                  onClick={profileSaveState.discard}
+                  className={quietButton}
+                >
+                  {t("ui.slurp.creatorForm.cancel", { defaultValue: "Discard" })}
+                </button>
+                <button
+                  type="button"
+                  disabled={profileSaveState.isPending || !profileDirty}
+                  onClick={profileSaveState.save}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-4 text-sm font-bold text-[var(--slurp-on-accent)] disabled:opacity-50"
+                >
+                  {profileSaveState.isPending ? (
+                    <Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                  ) : (
+                    <Check size={15} aria-hidden="true" />
+                  )}
+                  {profileSaveState.isPending
+                    ? t("ui.noodle.stageprofileform.saving")
+                    : t("ui.noodle.stageprofileform.saveChanges")}
+                </button>
+              </div>
+            )}
           </div>
-          {tab === "identity" && profileSaveState && (
-            <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-end gap-2 border-t border-[var(--slurp-outline)] bg-[var(--slurp-surface)] px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:static sm:shrink-0 sm:bg-[var(--slurp-surface)] sm:px-0 sm:pb-0 sm:pt-3 sm:ps-56">
-              <button
-                type="button"
-                disabled={profileSaveState.isPending}
-                onClick={profileSaveState.discard}
-                className={quietButton}
-              >
-                {t("ui.slurp.creatorForm.cancel", { defaultValue: "Discard" })}
-              </button>
-              <button
-                type="button"
-                disabled={profileSaveState.isPending || !profileDirty}
-                onClick={profileSaveState.save}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-4 text-sm font-bold text-zinc-950 disabled:opacity-50"
-              >
-                {profileSaveState.isPending ? (
-                  <Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                ) : (
-                  <Check size={15} aria-hidden="true" />
-                )}
-                {profileSaveState.isPending
-                  ? t("ui.noodle.stageprofileform.saving")
-                  : t("ui.noodle.stageprofileform.saveChanges")}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </Modal>

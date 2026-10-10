@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { slpDramaSchema, slpSituationSchema } from "./slp-drama.js";
 
 export const SLP_STORY_PACK_FORMAT = "marinara-slurp-story-pack" as const;
 export const SLP_STORY_PACK_SCHEMA_VERSION = 1 as const;
@@ -159,6 +160,8 @@ export const slpArcBlueprintSchema = z
       )
       .max(12),
     revertProfileAtEnd: z.boolean().optional(),
+    /** A life event a Creator has only once (moving, a new job): never started automatically again. */
+    once: z.boolean().optional(),
     tags,
     storyTags: tags,
     tone: z.string().trim().max(80).default(""),
@@ -278,10 +281,16 @@ export const slpStoryPackSchema = z
     author: z.string().trim().min(1).max(100).optional(),
     arcs: z.array(slpArcBlueprintSchema).max(SLP_STORY_PACK_MAX_ENTRIES).default([]),
     events: z.array(slpEventBlueprintSchema).max(SLP_STORY_PACK_MAX_ENTRIES).default([]),
+    /** Drama (`docs/DRAMA.md`): standing situations and dramas with a cast. Optional; older packs have none. */
+    situations: z.array(slpSituationSchema).max(20).default([]),
+    dramas: z.array(slpDramaSchema).max(40).default([]),
   })
   .strict()
   .superRefine((pack, context) => {
-    if (pack.arcs.length + pack.events.length > SLP_STORY_PACK_MAX_ENTRIES)
+    if (
+      pack.arcs.length + pack.events.length + pack.situations.length + pack.dramas.length >
+      SLP_STORY_PACK_MAX_ENTRIES
+    )
       context.addIssue({
         code: "custom",
         path: ["arcs"],

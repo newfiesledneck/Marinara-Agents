@@ -1,3 +1,4 @@
+import { assertSlurpNotPaused } from "../model/slp-pause.js";
 import { slpIsAdmissionFailure } from "../../base/host/slp-admission.js";
 
 /**
@@ -36,6 +37,8 @@ export async function generateSlpImageWithRetry<T>(
   generate: (attempt: number) => Promise<T>,
   onAttemptFailure?: (error: unknown, attempt: number, maxAttempts: number) => void | Promise<void>,
 ): Promise<T> {
+  // "Pause all" (`slp-pause.ts`): not one image call while Slurp is paused.
+  assertSlurpNotPaused();
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= SLP_IMAGE_GENERATION_MAX_ATTEMPTS; attempt += 1) {

@@ -26,6 +26,16 @@ assert.match(
 // The drain only runs on a read, and only for the newest few. Opening after a week away must not
 // stall behind a queue.
 assert.match(service, /const DRAIN_LIMIT = 2;/u);
+// The scheduler rewrites more per pass, so a busy world does not queue faster than it rewrites;
+// the AI budget and its day pace still decide the spend.
+const scheduler = read("slp/features/world/slp-world-scheduler-service.ts");
+assert.match(scheduler, /drainSlurpPendingText\(app\.db, SCHEDULED_DRAIN_LIMIT, context\)/u);
+// "Rewrite all now" is the player's request: no per-read limit and no day pace, but the day's caps hold.
+assert.match(service, /drainSlurpPendingText\(db, Number\.POSITIVE_INFINITY, "present", false\)/u);
+assert.match(
+  service,
+  /claimSlurpModelBudget\(db, settings\.modelBudget, jobKind, undefined, paced \? undefined : false\)/u,
+);
 assert.match(
   service,
   /\(leftPolicy\?\.priority \?\? Number\(left\.priority\)\) - \(rightPolicy\?\.priority \?\? Number\(right\.priority\)\)[\s\S]*?\.slice\(0, limit\)/u,

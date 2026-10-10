@@ -6,6 +6,8 @@ import { createSlurpReplyQueueStorage } from "../../data/messages/slp-reply-queu
 import { deliverDueSlurpCommissions } from "./commissions/slp-commission-delivery-service.js";
 import { replyToSlurpMessage } from "./slp-message-operation.js";
 import { slurpPollBackoffMs } from "../../base/model/slp-poll-backoff.js";
+import { slurpPausedNow } from "../../data/settings/slp-pause-storage.js";
+import { reconcileSlpThreadScene } from "./scenes/slp-roleplay-scene-origin.js";
 
 const INITIAL_DELAY_MS = 15_000;
 // Delayed reply bubbles are timed in seconds, and a 60 s poll delivered every second bubble a
@@ -38,6 +40,8 @@ export function startSlurpMessageScheduler(app: FastifyInstance, registerStop?: 
   const deliver = async () => {
     if (stopped || delivering) return;
     delivering = (async () => {
+      // "Pause all": nothing arrives while Slurp is paused; it is all still there afterwards.
+      if (await slurpPausedNow(app.db)) return;
       const storage = createSlurpMessagesStorage(app.db);
       // A commissioned piece is drawn and paid for at accept time and then held, so this owes the
       // model nothing — it is a clock running out. Done first, and separately, so a dead text
@@ -94,7 +98,13 @@ export function startSlurpMessageScheduler(app: FastifyInstance, registerStop?: 
       // Off means the background loop stays asleep. Queued bubbles and commissions above are not
       // gated on it: those are already-sent and already-paid-for, and holding them back would lose
       // half a reply rather than prevent one.
-      const awayReplies = (await createSlurpStorage(app.db).getSettings()).messagesAwayRepliesEnabled;
+      const settings = await createSlurpStorage(app.db).getSettings();
+      const awayReplies = settings.messagesAwayRepliesEnabled && !settings.paused;
+      // A scene that ended while its release was lost would keep its Creator busy for good.
+      for (const thread of await storage.listSceneThreads())
+        await reconcileSlpThreadScene(app.db, thread).catch((error) => {
+          logger.warn({ err: error, threadId: thread.id }, "[slurp-message] Could not reconcile the scene");
+        });
       for (const thread of awayReplies ? await storage.listThreadsAwaitingReply() : []) {
         if (stopped) break;
         // The fan's newest message is the one being answered, even when a creator bubble or

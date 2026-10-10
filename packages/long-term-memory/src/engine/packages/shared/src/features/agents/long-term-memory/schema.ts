@@ -81,10 +81,10 @@ const ltmGlobalSettingsShape = z
     longTermMemoryScoreThreshold: z.number().finite().min(0).max(1).optional(),
     longTermMemoryRecallContextMessages: z.number().int().min(1).max(20).optional(),
     longTermMemoryRecallStyle: z.enum(["balanced", "exact", "broad", "story", "custom"]).optional(),
-    longTermMemorySemanticWeight: z.number().finite().min(0).max(1).nullable().optional(),
-    longTermMemoryLexicalWeight: z.number().finite().min(0).max(1).nullable().optional(),
-    longTermMemoryGraphWeight: z.number().finite().min(0).max(1).nullable().optional(),
-    longTermMemoryKeywordWeight: z.number().finite().min(0).max(1).nullable().optional(),
+    longTermMemorySemanticWeight: z.number().finite().min(0).max(1).optional(),
+    longTermMemoryLexicalWeight: z.number().finite().min(0).max(1).optional(),
+    longTermMemoryGraphWeight: z.number().finite().min(0).max(1).optional(),
+    longTermMemoryKeywordWeight: z.number().finite().min(0).max(1).optional(),
     longTermMemoryStopWords: z.array(z.string().trim().min(1).max(80)).max(200).optional(),
     longTermMemoryStopWordsFilterGenerated: z.boolean().optional(),
     longTermMemoryIncludeResolved: z.boolean().optional(),
@@ -105,6 +105,14 @@ export const ltmGlobalSettingsSchema = z.preprocess((value) => {
   for (const key of Object.keys(normalized)) {
     if (LTM_GLOBAL_LEGACY_KEYS.test(key)) delete normalized[key];
   }
+  for (const key of [
+    "longTermMemorySemanticWeight",
+    "longTermMemoryLexicalWeight",
+    "longTermMemoryGraphWeight",
+    "longTermMemoryKeywordWeight",
+  ]) {
+    if (normalized[key] == null) delete normalized[key];
+  }
   if ("longTermMemoryRecallStyle" in normalized) {
     normalized.longTermMemoryRecallStyle =
       input.longTermMemoryRecallStyle === "exact" ||
@@ -114,6 +122,7 @@ export const ltmGlobalSettingsSchema = z.preprocess((value) => {
       input.longTermMemoryRecallStyle === "balanced"
         ? input.longTermMemoryRecallStyle
         : undefined;
+    if (normalized.longTermMemoryRecallStyle === undefined) delete normalized.longTermMemoryRecallStyle;
   }
   return normalized;
 }, ltmGlobalSettingsShape);
@@ -144,8 +153,8 @@ export const DEFAULT_LTM_GLOBAL_SETTINGS = ltmResolvedGlobalSettingsSchema.parse
   version: 1,
   enableLongTermMemory: true,
   longTermMemoryBudgetTokens: 4096,
-  longTermMemoryMaxChunks: 20,
-  longTermMemoryScoreThreshold: 0,
+  longTermMemoryMaxChunks: 12,
+  longTermMemoryScoreThreshold: 0.35,
   longTermMemoryRecallContextMessages: 4,
   longTermMemoryRecallStyle: DEFAULT_LTM_RECALL_STYLE,
   longTermMemorySemanticWeight: DEFAULT_LTM_RECALL_STYLE_WEIGHTS.semanticWeight,
@@ -226,6 +235,9 @@ function normalizeLegacyExtractionSettings(value: unknown) {
   }
   delete normalized.refinePass;
   delete normalized.rejectPlaceholderOutput;
+  // The broad existing-note prompt budget no longer exists (issue #1086); discard
+  // stale persisted values instead of rejecting the whole strict settings object.
+  delete normalized.maxExistingNoteTokens;
   delete normalized.systemPrompt;
   delete normalized.systemPromptsByMode;
   delete normalized.activePromptTemplateId;
@@ -331,7 +343,6 @@ const ltmExtractionSettingsFields = {
   maxOutputTokens: z.number().int().min(512).max(32_768).optional(),
   temperature: z.number().finite().min(0).max(2).optional(),
   maxSourceTokens: z.number().int().min(128).max(65_536).optional(),
-  maxExistingNoteTokens: z.number().int().min(128).max(32_768).optional(),
   existingNoteMaxChunks: z.number().int().min(1).max(100).optional(),
   existingNoteMaxTokens: z.number().int().min(128).max(32_768).optional(),
   promptTemplates: ltmPromptTemplatesSchema,
@@ -377,7 +388,6 @@ export const ltmResolvedExtractionSettingsSchema = z
     maxOutputTokens: z.number().int().min(512).max(32_768),
     temperature: z.number().finite().min(0).max(2),
     maxSourceTokens: z.number().int().min(128).max(65_536),
-    maxExistingNoteTokens: z.number().int().min(128).max(32_768),
     existingNoteMaxChunks: z.number().int().min(1).max(100),
     existingNoteMaxTokens: z.number().int().min(128).max(32_768),
     promptTemplates: z.array(ltmExtractionPromptTemplateSchema).max(50),
@@ -2145,6 +2155,33 @@ export const ltmExtractionRecoveryHintSchema = z
   })
   .strict();
 
+const ltmIdentityNameSchema = z.string().trim().min(1).max(240);
+export const ltmSubjectIdentityReviewSchema = z
+  .object({
+    name: ltmIdentityNameSchema,
+    candidates: z.array(z.object({ name: ltmIdentityNameSchema, subject: ltmSubjectSchema }).strict()).max(10),
+    allowDifferent: z.boolean(),
+    matchedSubjectKey: ltmSubjectSchema.shape.key.optional(),
+  })
+  .strict();
+
+export const ltmSubjectIdentityDecisionSchema = z.discriminatedUnion("action", [
+  z.object({ name: ltmIdentityNameSchema, action: z.literal("bind"), subjectKey: ltmSubjectSchema.shape.key }).strict(),
+  z.object({ name: ltmIdentityNameSchema, action: z.literal("different") }).strict(),
+  z.object({ name: ltmIdentityNameSchema, action: z.literal("skip") }).strict(),
+]);
+export const ltmResolveSubjectIdentityRequestSchema = z
+  .object({
+    choices: z.array(ltmSubjectIdentityDecisionSchema).min(1).max(2),
+  })
+  .strict();
+
+export const ltmSavedSubjectIdentityChoiceSchema = z.discriminatedUnion("action", [
+  z.object({ name: ltmIdentityNameSchema, action: z.literal("bind"), subject: ltmSubjectSchema }).strict(),
+  z.object({ name: ltmIdentityNameSchema, action: z.literal("different"), subject: ltmSubjectSchema }).strict(),
+  z.object({ name: ltmIdentityNameSchema, action: z.literal("skip") }).strict(),
+]);
+
 export const ltmExtractionDroppedCandidateSchema = z
   .object({
     index: z.number().int().min(0).max(LTM_EXTRACTION_MAX_CANDIDATES),
@@ -2154,6 +2191,7 @@ export const ltmExtractionDroppedCandidateSchema = z
     snippet: z.string().min(1).max(280).optional(),
     issues: z.array(z.string().trim().min(1).max(240)).max(8).optional(),
     recovery: ltmExtractionRecoveryHintSchema.optional(),
+    identityReview: z.array(ltmSubjectIdentityReviewSchema).min(1).max(2).optional(),
     recoveryCandidate: ltmEvidenceUnitSchema
       .extend({
         subjectId: z.preprocess(
@@ -2186,6 +2224,14 @@ export const ltmRejectedSuggestionSchema = z
     candidate: ltmExtractionDroppedCandidateSchema,
     createdAt: ltmIsoTimestampSchema,
     lastSeenAt: ltmIsoTimestampSchema,
+    identityResolution: z
+      .object({
+        choices: z.array(ltmSavedSubjectIdentityChoiceSchema).min(1).max(2),
+        resolvedAt: ltmIsoTimestampSchema,
+        draftId: z.string().uuid().optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -2233,12 +2279,17 @@ export const ltmExtractionAccountingSchema = z
     validationRejections: z.number().int().min(0),
     deduplications: z.number().int().min(0),
     keptUnits: z.number().int().min(0),
+    userSkips: z.number().int().min(0).optional(),
   })
   .strict()
   .superRefine((accounting, ctx) => {
     const candidates = accounting.providerCandidates + accounting.normalizedAdditions;
     const dispositions =
-      accounting.parserRejections + accounting.validationRejections + accounting.deduplications + accounting.keptUnits;
+      accounting.parserRejections +
+      accounting.validationRejections +
+      accounting.deduplications +
+      accounting.keptUnits +
+      (accounting.userSkips ?? 0);
     if (candidates !== dispositions) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -2276,6 +2327,14 @@ export const ltmExtractionDraftSchema = z
     invalidationReason: z.string().min(1).max(2_000).optional(),
   })
   .strip();
+
+export const ltmResolveSubjectIdentityResponseSchema = z
+  .object({
+    resolved: z.literal(true),
+    suggestionId: z.string().uuid(),
+    draft: ltmExtractionDraftSchema.nullable(),
+  })
+  .strict();
 
 export const ltmDraftFreshnessSchema = z.enum([
   "fresh",
@@ -2450,6 +2509,7 @@ export const ltmExtractSourceNoteRequestSchema = z
     instruction: z.string().max(2_000).optional(),
     applyLowRisk: z.boolean().optional(),
     mode: ltmModeSchema.optional(),
+    modes: z.array(ltmModeSchema).min(1).max(8).optional(),
   })
   .strict()
   .default({});
@@ -2760,6 +2820,7 @@ const ltmImportedSourceResultBaseSchema = z.object({
   note: ltmNoteSchema,
   created: z.boolean(),
   sourceWriteStatus: z.enum(["created", "refreshed"]),
+  extractionMode: ltmModeSchema,
   extractionMethod: z.enum(["llm", "deterministic", "none"]),
   outcome: ltmExtractionOutcomeSchema,
   accounting: ltmExtractionAccountingSchema,
@@ -2944,13 +3005,45 @@ export const ltmInjectionUiSummarySchema = z.object({
   memories: z.array(ltmLastInjectionMemorySchema).default([]),
 });
 
+export const ltmRecallAttemptOutcomeSchema = z.enum(["completed", "skipped", "cancelled", "failed"]);
+
+// Package-owned trace of one recall call. Only outcomes the package directly
+// observed are recorded; a missing attempt means the host never invoked recall.
+export const ltmRecallAttemptSchema = z
+  .object({
+    version: z.literal(1),
+    chatId: z.string().max(200),
+    attemptId: z.string().uuid(),
+    at: ltmIsoTimestampSchema,
+    outcome: ltmRecallAttemptOutcomeSchema,
+    reason: z.string().max(120).optional(),
+    debugEnabled: z.boolean().default(false),
+    receiptId: z.string().uuid().optional(),
+  })
+  .strict();
+
+export const ltmLastInjectionAttemptSchema = ltmRecallAttemptSchema.extend({
+  confirmed: z.boolean().default(false),
+});
+
 export const ltmLastInjectionResponseSchema = z.object({
   memoryCount: z.number(),
   tokenCount: z.number(),
   memories: z.array(ltmLastInjectionMemorySchema),
   state: z.enum(["injected", "no_matches", "not_recorded"]).default("not_recorded"),
   dispatchedAt: ltmIsoTimestampSchema.nullable().default(null),
+  attempt: ltmLastInjectionAttemptSchema.nullable().default(null),
 });
+
+/**
+ * Why the semantic lane did or did not contribute to one recall. It separates a
+ * lane that is switched off from a provider that is unavailable, an index built
+ * for a different embedding space, and a valid index that simply matched nothing.
+ */
+export type LtmSemanticOutcome = "disabled" | "unavailable" | "incompatible" | "no_matches" | "contributed";
+
+/** How one recall obtained its index, as observed by the loader that produced it. */
+export type LtmIndexLoadOutcome = "loaded" | "upgraded" | "rebuilt" | "preloaded";
 
 export const ltmPendingDraftsCountResponseSchema = z.object({
   count: z.number(),
@@ -3055,6 +3148,10 @@ export type LtmExtractionDropReason = z.infer<typeof ltmExtractionDropReasonSche
 export type LtmExtractionRecoveryHint = z.infer<typeof ltmExtractionRecoveryHintSchema>;
 export type LtmExtractionDroppedCandidate = z.infer<typeof ltmExtractionDroppedCandidateSchema>;
 export type LtmRejectedSuggestion = z.infer<typeof ltmRejectedSuggestionSchema>;
+export type LtmSubjectIdentityReview = z.infer<typeof ltmSubjectIdentityReviewSchema>;
+export type LtmSubjectIdentityDecision = z.infer<typeof ltmSubjectIdentityDecisionSchema>;
+export type LtmSavedSubjectIdentityChoice = z.infer<typeof ltmSavedSubjectIdentityChoiceSchema>;
+export type LtmResolveSubjectIdentityResponse = z.infer<typeof ltmResolveSubjectIdentityResponseSchema>;
 export type LtmExtractionOutcomeState = z.infer<typeof ltmExtractionOutcomeStateSchema>;
 export type LtmExtractionOutcome = z.infer<typeof ltmExtractionOutcomeSchema>;
 export type LtmExtractionResponse = z.infer<typeof ltmExtractionResponseSchema>;
@@ -3097,6 +3194,9 @@ export type LtmImportSourceNotesResponse = z.infer<typeof ltmImportSourceNotesRe
 export type LtmEvidenceUnit = z.infer<typeof ltmEvidenceUnitSchema>;
 export type LtmEvidenceUnitExtractionResponse = z.infer<typeof ltmEvidenceUnitExtractionResponseSchema>;
 export type LtmLastInjectionMemory = z.infer<typeof ltmLastInjectionMemorySchema>;
+export type LtmRecallAttemptOutcome = z.infer<typeof ltmRecallAttemptOutcomeSchema>;
+export type LtmRecallAttempt = z.infer<typeof ltmRecallAttemptSchema>;
+export type LtmLastInjectionAttempt = z.infer<typeof ltmLastInjectionAttemptSchema>;
 export type LtmLastInjectionResponse = z.infer<typeof ltmLastInjectionResponseSchema>;
 export type LtmPendingDraftsCountResponse = z.infer<typeof ltmPendingDraftsCountResponseSchema>;
 

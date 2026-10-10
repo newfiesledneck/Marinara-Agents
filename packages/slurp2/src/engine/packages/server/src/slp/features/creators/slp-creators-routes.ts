@@ -12,11 +12,12 @@ import {
 import { z } from "zod";
 import { resolveSlurpTextConnection } from "../../base/identity/slp-connection.js";
 import { generateSlurpConversationSchedule } from "../messages/slp-messages-contract.js";
-import { slurpPlatformScaleMultiplier } from "../../modules/audience/slp-scale.js";
+import { slurpPlatformScaleMultiplier } from "../../../../../shared/src/slp/slp-scale.js";
 import { createSlurpPopulationStorage } from "../../data/audience/slp-audience-storage-funnel.js";
-import { slurpCreatorReach } from "../../../../../shared/src/slp/slp-reach.js";
+import { slurpCreatorReach, slurpShownSubscribers } from "../../../../../shared/src/slp/slp-reach.js";
 import { generateCreatorStageProfileDraft } from "./slp-stage-profile-draft-service.js";
 import { logger } from "../../../lib/logger.js";
+import { moveSlurpStrategyLimits } from "../../data/creators/slp-spice-storage.js";
 import { getErrorMessage } from "../../modules/creators/slp-public-support.js";
 import { tryCreatorAccountOperation } from "../../base/locking/slp-account-operation-lock.js";
 import { resolveCreatorSourceSnapshot } from "../../data/creators/slp-source-resolve.js";
@@ -30,6 +31,8 @@ import type { SlpRouteDeps } from "../viewer/slp-viewer-contract.js";
 import { slurpPromptContext } from "../../base/prompting/slp-prompt-blocks.js";
 import { slpWardrobeRoutes } from "./slp-wardrobe-routes.js";
 import { resolveImageAppearance } from "../media/slp-media-contract.js";
+import { normalizeSlpCreatorPage } from "../../../../../shared/src/slp/slp-creator-page.js";
+import { composeSlpCreatorPage, protectSlpCreatorPage } from "./slp-creator-page-service.js";
 
 const slpStageProfileUpdateRequestSchema = slpStageProfileUpdateSchema.extend({
   ...slurpDiscoveryProfileSchema.shape,
@@ -81,6 +84,8 @@ export async function slpCreatorsRoutes(app: FastifyInstance, deps: SlpRouteDeps
     ) {
       return reply.code(400).send({ error: "Persona-owned Slurp profiles cannot post automatically." });
     }
+    // The editor no longer shows the sign-up chat's spice lines; move them before a save drops them.
+    if (parsed.data.subtree === "strategy") await moveSlurpStrategyLimits(app.db, account).catch(() => undefined);
     const updated = await noodle.patchAccountSettings(id, parsed.data);
     if (!updated) return reply.code(404).send({ error: "Creator account not found" });
     return updated;
@@ -99,6 +104,33 @@ export async function slpCreatorsRoutes(app: FastifyInstance, deps: SlpRouteDeps
     const updated = await noodle.updateAccountProfile(id, { profile: parsed.data.profile });
     if (!updated) return reply.code(404).send({ error: "Creator account not found" });
     return updated;
+  });
+
+  // The player's own Page edit. Null removes the Page. Stored as the player's version from now on.
+  app.put("/slurp/accounts/:id/page", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = z.object({ page: z.unknown() }).strict().safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() });
+    const now = new Date().toISOString();
+    const page =
+      body.data.page === null ? null : normalizeSlpCreatorPage(body.data.page, { composedBy: "player", now });
+    if (body.data.page !== null && !page) return reply.code(400).send({ error: "The Page has no valid block." });
+    const account = await noodle.getNoodlerAccountById(id);
+    if (!account) return reply.code(404).send({ error: "Creator account not found" });
+    const updated = await noodle.updateAccountProfile(id, {
+      // The player decided; a new Creator no longer waits to design a first Page.
+      profile: { page: page ? { ...page, composedBy: "player", updatedAt: now } : undefined, pageWanted: undefined },
+    });
+    if (!updated) return reply.code(404).send({ error: "Creator account not found" });
+    return { page: updated.settings.profile.page ?? null };
+  });
+
+  // "Let <Creator> design it": one model call, the Creator's own Page replaces the current one.
+  app.post("/slurp/accounts/:id/page/compose", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const result = await composeSlpCreatorPage(app.db, { accountId: id, context: "present" });
+    if (!result.ok) return reply.code(result.status).send({ error: result.error });
+    return { page: result.page };
   });
 
   app.get("/slurp/accounts", async (_req, reply) => {
@@ -147,7 +179,11 @@ export async function slpCreatorsRoutes(app: FastifyInstance, deps: SlpRouteDeps
     const character = await characters.getById(source.entityId);
     if (!character) return reply.code(404).send({ error: "Linked Engine character not found." });
     const scheduleSettings = await noodle.getSettings();
-    const connection = await resolveSlurpTextConnection(connections, scheduleSettings.generationConnectionId);
+    // The player pressed it: the AI budget's connection applies, never its mode or caps (0.3.6).
+    const connection = await resolveSlurpTextConnection(
+      connections,
+      scheduleSettings.modelBudget.connectionId ?? scheduleSettings.generationConnectionId,
+    );
     if (!connection) return reply.code(409).send({ error: "Select a text generation connection first." });
     const data = (typeof character.data === "string" ? JSON.parse(character.data) : character.data) as Record<
       string,
@@ -217,8 +253,11 @@ export async function slpCreatorsRoutes(app: FastifyInstance, deps: SlpRouteDeps
           // Fans are subscribers. Both halves are exact rows and neither is reach: the personas
           // on this install pay through subscription rows, and the generated audience pays through
           // the funnel because it holds no wallet.
-          fans:
-            (await noodle.listSubscriptionsForCreator(creator.id)).length + (countsSubscribers.get(creator.id) ?? 0),
+          fans: slurpShownSubscribers(
+            countsSubscribers.get(creator.id) ?? 0,
+            (await noodle.listSubscriptionsForCreator(creator.id)).length,
+            countsScaleSettings.simulationTuning.economy.crowdWeight,
+          ),
           // Followers are social proof and nothing charges against them, so they carry the
           // synthetic platform reach. Real followers are folded in at a heavy weight.
           followers: slurpCreatorReach(
@@ -363,6 +402,14 @@ export async function slpCreatorsRoutes(app: FastifyInstance, deps: SlpRouteDeps
       } = parsed.data;
       const updated = await noodle.updateNoodlerStageProfile(id, stageProfile, sourceSnapshot ?? undefined, location);
       if (!updated) return { status: "not_found" } as const;
+      // Leaving Open: the Page is public, so words written under Open may name the other identity.
+      const page = slpCreatorAccount?.settings.profile.page;
+      if (page && currentMode === "open" && stageProfile.disclosureMode !== "open" && publicAccount) {
+        const identity = await resolveNoodlerPublicIdentity(publicAccount);
+        await noodle.updateAccountProfile(id, {
+          profile: { page: protectSlpCreatorPage(page, stageProfile.disclosureMode, identity) },
+        });
+      }
       const profile = (await noodle.listNoodlerStageProfiles()).find((item) => item.id === updated.id);
       if (!profile) throw new Error("Failed to load the updated Slurp stage profile.");
       return { status: "updated", profile, discardedPreparedPostCount } as const;

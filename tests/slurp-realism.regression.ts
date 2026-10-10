@@ -24,10 +24,16 @@ const setSelfies = share({ companyCanHoldCamera: true, intent: "set", effort: "h
 const casualSelfies = share({ companyCanHoldCamera: true, intent: "casual", effort: "low" }, "selfie");
 assert.ok(setSelfies < 0.2, `a planned shoot is a selfie ${Math.round(setSelfies * 100)}% of the time`);
 assert.ok(casualSelfies > setSelfies * 2, "an ordinary day should still be mostly a phone in her hand");
-const setTripods = share({ companyCanHoldCamera: true, intent: "set", effort: "high" }, "tripod");
-assert.ok(setTripods > 0.3, `a planned shoot uses a tripod only ${Math.round(setTripods * 100)}% of the time`);
-// Nothing is ruled out: the draw stays a draw.
-assert.ok(share({ companyCanHoldCamera: true, intent: "set", effort: "high" }, "mirror") > 0.05);
+// Slice I (user, 2026-09-28): the old "a planned shoot is mostly a timer" rule is loosened (timer shots
+// ~15-20 % of a feed, more camera variety). A planned shoot is still shot hands-free: a timer, the desk
+// camera or somebody else holding it, just not always the timer.
+const setShare = (source: string) => share({ companyCanHoldCamera: true, intent: "set", effort: "high" }, source);
+const setHandsFree = setShare("tripod") + setShare("desk") + setShare("partner");
+assert.ok(setHandsFree > 0.5, `a planned shoot is hands-free only ${Math.round(setHandsFree * 100)}% of the time`);
+assert.ok(setShare("tripod") > 0.1 && setShare("tripod") < 0.35, "the timer is part of a shoot, not all of it");
+// Nothing is ruled out: the draw stays a draw. Mirror shots are rare on purpose since 0.2.75 (image
+// models drew the Creator twice), but a planned shoot can still use one.
+assert.ok(share({ companyCanHoldCamera: true, intent: "set", effort: "high" }, "mirror") > 0.01);
 
 // Two Creators who shoot the same way no longer share one effort sequence.
 const profile = slurpProductionProfile("creator-one", "polished");

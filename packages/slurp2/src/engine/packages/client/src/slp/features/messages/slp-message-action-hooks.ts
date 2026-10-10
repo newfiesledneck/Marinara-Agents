@@ -13,6 +13,12 @@ export function useSendSlurpMessage() {
       content: string;
       requestId?: string;
       tip?: { amount: number; note?: string } | null;
+      /** Written as Slurp Support (Slurp's staff), not as the persona. */
+      asSupport?: boolean;
+      /** Support only: the Creator answers with a photo taken right now (0.3.6). */
+      photoDemand?: boolean;
+      /** Support only: an Offer or a move riding this line (docs/SUPPORT-DESK.md). */
+      desk?: { mode: "offer" | "now"; step: { action: string; input: Record<string, unknown> } };
     }) => api.post<SlurpSendResponse>("/slurp2/messages/send", input),
     // Settled, not success: a request that timed out may still have been stored.
     onSettled: () => invalidateSlurpMessages(queryClient),
@@ -191,13 +197,15 @@ export function useSendSlurpViewerImage() {
       personaId: string;
       file: File;
       content: string;
+      asSupport?: boolean;
     }) => {
       const form = new FormData();
       form.append("personaId", input.personaId);
+      if (input.asSupport) form.append("asSupport", "true");
       form.append("creatorAccountId", input.creatorAccountId);
       form.append("content", input.content);
       form.append("file", input.file);
-      return api.upload<{ message: SlurpMessage; replyStatus: string }>(
+      return api.upload<SlurpPhotoSendResult>(
         `/slurp2/messages/threads/${encodeURIComponent(input.threadId)}/image-upload`,
         form,
       );
@@ -206,6 +214,13 @@ export function useSendSlurpViewerImage() {
     onSettled: () => invalidateSlurpMessages(queryClient),
   });
 }
+/** A sent photo and the Creator's answer to it, shaped like a text send's (R1-019). */
+export type SlurpPhotoSendResult = {
+  message: SlurpMessage;
+  reply: SlurpMessage | null;
+  replyStatus: string;
+  typingMs?: number;
+};
 export function useGenerateSlurpViewerImage() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -215,8 +230,9 @@ export function useGenerateSlurpViewerImage() {
       personaId: string;
       prompt: string;
       content?: string;
+      asSupport?: boolean;
     }) =>
-      api.post<{ message: SlurpMessage; replyStatus: string }>(
+      api.post<SlurpPhotoSendResult>(
         `/slurp2/messages/threads/${encodeURIComponent(input.threadId)}/viewer-image`,
         input,
       ),
@@ -293,6 +309,36 @@ export function useCancelSlurpFollowUp() {
         },
       ),
     // Settled, not success: a request that timed out may still have been stored.
+    onSettled: () => invalidateSlurpMessages(queryClient),
+  });
+}
+
+/** An internal note in a Support thread: the player's own, never shown to the Creator or a model. */
+export function useAddSlurpDeskNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { personaId: string; creatorAccountId: string; text: string }) =>
+      api.post<{ message: SlurpMessage }>("/slurp2/slurp/desk/note", input),
+    onSettled: () => invalidateSlurpMessages(queryClient),
+  });
+}
+
+/** Support marks the open ticket resolved; the Creator answers and rates it. */
+export function useResolveSlurpDeskTicket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { personaId: string; creatorAccountId: string }) =>
+      api.post<{ message: SlurpMessage; replyStatus: string }>("/slurp2/slurp/desk/ticket/resolve", input),
+    onSettled: () => invalidateSlurpMessages(queryClient),
+  });
+}
+
+/** The player, as a Creator they run, answers an Offer AI Support sent them. */
+export function useAnswerSlurpDeskOffer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { personaId: string; messageId: string; answer: "accept" | "decline" }) =>
+      api.post<{ status: string; error: string | null }>("/slurp2/slurp/desk/offer/answer", input),
     onSettled: () => invalidateSlurpMessages(queryClient),
   });
 }

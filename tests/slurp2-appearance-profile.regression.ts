@@ -12,7 +12,10 @@ import type { SlpAccount } from "../packages/slurp2/src/engine/packages/shared/s
 import {
   ensureSlpImageAppearance,
   selectSlpImageProviderPrompt,
+  slurpApplyImageLook,
+  slurpLookForWriter,
 } from "../packages/slurp2/src/engine/packages/server/src/slp/base/media/slp-image-prompt.ts";
+import { slurp2Source } from "./slurp2-source.ts";
 import { slpImageReferencesSupported } from "../packages/slurp2/src/engine/packages/server/src/slp/base/media/slp-image-references.ts";
 
 const source = {
@@ -177,4 +180,38 @@ test("unsupported image providers and fallbacks receive text without avatar refe
   const openRouter = "https://openrouter.ai/api/v1";
   assert.equal(slpImageReferencesSupported({ model: "google/gemini-3.1-flash-image", baseUrl: openRouter }), true);
   assert.equal(slpImageReferencesSupported({ model: "krea/krea-2-medium", baseUrl: openRouter }), false);
+});
+
+test("the look reaches a picture prompt once, the way the player chose (0.3.0 report A)", () => {
+  const look = "Adult woman with green eyes and dark hair.";
+  const rewrite = "A woman with dark hair and green eyes waits at a bus stop in the rain.";
+  const count = (text: string) => text.match(/green eyes/gu)?.length ?? 0;
+  // The prompt writer sees the look in `writer` and `both`, never in `insert`.
+  assert.deepEqual((["writer", "insert", "both"] as const).map(slurpLookForWriter), [true, false, true]);
+  // Writer: its rewrite is sent as written, no second injection.
+  assert.equal(slurpApplyImageLook(rewrite, look, "writer", true), rewrite);
+  // Insert: the writer never saw the look, so Slurp adds it once.
+  const inserted = slurpApplyImageLook("A woman waits at a bus stop in the rain.", look, "insert", true);
+  assert.equal(count(inserted), 1);
+  assert.match(inserted, /dark hair/u);
+  // Both: only what the writer missed is added; a worded look is not repeated.
+  assert.equal(slurpApplyImageLook(rewrite, look, "both", true), rewrite);
+  assert.equal(count(slurpApplyImageLook("A woman at a bus stop.", look, "both", true)), 1);
+  // No rewrite (enhance off, failed or rejected): every mode inserts, or nobody would be drawn.
+  for (const mode of ["writer", "insert", "both"] as const) {
+    const fallback = slurpApplyImageLook("At a bus stop.", look, mode, false);
+    assert.equal(count(fallback), 1, mode);
+    assert.equal(slurpApplyImageLook(fallback, look, mode, false), fallback, `${mode}: a second pass adds nothing`);
+  }
+  // Both image paths use the setting for the writer context and the final prompt.
+  for (const path of ["slp-images-service.ts", "slp-public-images-service.ts"]) {
+    const service = slurp2Source(`packages/slurp2/src/engine/packages/server/src/slp/features/media/${path}`);
+    assert.match(service, /characterDescription && slurpLookForWriter\(lookMode\) \? `Appearance:/u, path);
+    assert.match(service, /slurpApplyImageLook\([\s\S]{0,260}lookMode,\s+usedRewrite,\s+\)/u, path);
+    assert.match(service, /onFallback: \(reason\) => \{\s+usedRewrite = false;/u, path);
+    assert.doesNotMatch(service, /ensureSlpImageAppearance\(/u, path);
+  }
+  const settings = slurp2Source("packages/slurp2/src/engine/packages/server/src/slp/modules/settings/slp-settings.ts");
+  assert.match(settings, /imageAppearanceMode: z\.enum\(\["writer", "insert", "both"\]\)/u);
+  assert.match(settings, /imageAppearanceMode: "writer",/u);
 });

@@ -124,9 +124,10 @@ assert.match(oneShot, /const chosen = request\.contentIntent;/u);
 assert.match(oneShot, /teaser: forced \? forced === "teaser" : isTeaser,/u);
 assert.match(oneShot, /intentWeights: forced \? slurpOnlyIntent\(forced\) : strategy\.intentWeights,/u);
 assert.doesNotMatch(oneShot, /subtree: "strategy"/u, "a one-shot choice must not write the saved strategy");
+// 3c: the composer's one-shot Purpose & Delivery now steer Write / Improve (Guide folded into it).
 assert.match(
-  slurp2Source("packages/slurp2/src/engine/packages/client/src/slp/app/slp-home-actions.ts"),
-  /\.\.\.\(contentIntent \? \{ contentIntent \} : \{\}\),/u,
+  slurp2Source("packages/slurp2/src/engine/packages/client/src/slp/app/screens/SlpScreenComposer.tsx"),
+  /contentIntent && `What this post is for: \$\{contentIntent\.replaceAll\("_", " "\)\}`[\s\S]*?context=\{assistContext\}/u,
 );
 
 console.log("slurp creator strategy regression checks passed");

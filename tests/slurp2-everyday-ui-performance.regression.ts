@@ -50,7 +50,8 @@ assert.match(
   /useSlurpConnections\([\s\S]*?creatorView === "create-profile"[\s\S]*?creationStep === "draft"[\s\S]*?editingProfileId !== null/u,
 );
 assert.doesNotMatch(homeState, /useSlurpNotifications|useSlurpThreads/u);
-assert.match(homeState, /useSlurpNotificationUnseenCount\(viewerPersonaId\)/u);
+// 0.3.5: the Inbox badge counts unread messages only, so Home no longer reads the Activity count.
+assert.doesNotMatch(homeState, /useSlurpNotificationUnseenCount/u);
 assert.match(homeState, /useSlurpUnreadCount\(viewerPersonaId\)/u);
 
 const notificationHooks = read("client/src/slp/features/notifications/slp-notification-hooks.ts");
@@ -102,5 +103,42 @@ const storage = read("server/src/slp/data/messages/slp-messages-storage-base.ts"
 assert.match(storage, /select\(\{[\s\S]*?viewerUnread:[\s\S]*?creatorUnread:[\s\S]*?\}\)[\s\S]*?from\(slurpThreads\)/u);
 const fallback = read("server/src/slp/data/messages/slp-messages-storage-facet.ts");
 assert.match(fallback, /countUnread: \(\) => \(\{ unread: 0, inboundUnread: 0 \}\)/u);
+
+// 0.3.6: stage profiles are cached by the accounts, characters and personas write generations (15 s at most),
+// and the Backstage asks only the open page's queries.
+const creatorsStorage = read("server/src/slp/data/creators/slp-creators-storage-3.ts");
+assert.match(creatorsStorage, /\["slurp2_accounts", "characters", "personas"\]/u);
+assert.match(creatorsStorage, /cached\?\.key === key && Date\.now\(\) - cached\.at < 15_000/u);
+assert.match(
+  read("client/src/slp/features/audience/slp-audience-backstage-contract.ts"),
+  /useSlurpAudienceCharacters\(target === "audience"\)/u,
+);
+assert.match(
+  read("client/src/slp/features/settings/slp-prompts-backstage-contract.ts"),
+  /useSlurpPostGuidance\(target === "prompts"\)/u,
+);
+assert.match(
+  read("client/src/slp/modules/settings/SlpSettingsControls.tsx"),
+  /\{seen && <div/u,
+  "a fold draws nothing until it is first opened",
+);
+
+// 0.3.6 (measured on a phone-sized, 4x-throttled browser): long lists draw a few cards at a time, no feed
+// row carries a framer layout node, the nav hide restyles only its bottom bars, and picture load marks
+// are written once per frame.
+const hub = read("client/src/slp/app/screens/SlpScreenHub.tsx");
+assert.match(hub, /visibleFeed\.slice\(0, drawnFeedCount\)\.map/u);
+assert.doesNotMatch(hub, /key=\{item\.post\.id\}\s+layout\s/u, "no layout node on every feed row");
+assert.match(read("client/src/slp/app/screens/SlpProfilePostCards.tsx"), /visiblePosts\.slice\(0, drawnPostCount\)/u);
+assert.match(read("client/src/slp/base/ui/slp-drawn-count.ts"), /requestIdleCallback/u);
+assert.doesNotMatch(read("client/src/slp/modules/chrome/SlpShell.tsx"), /data-\[slp-nav-hidden\]:\[--slp-nav-live/u);
+assert.match(
+  read("client/src/slp/slp-client-entry.tsx"),
+  /\[data-slp-nav-hidden\] \.slp-nav-live \{ --slp-nav-live: 0px; \}/u,
+);
+assert.match(
+  read("client/src/slp/base/chrome/SlpChrome.tsx"),
+  /if \(!slpLoadedImages\.length\) requestAnimationFrame\(flushSlpLoadedImages\)/u,
+);
 
 console.log("slurp2 everyday UI performance regression: ok");

@@ -14,6 +14,9 @@ import { wrapContent } from "../../../services/prompt/format-engine.js";
 import { createSlurpMessagesStorage } from "../../data/slp-storage.js";
 import { createSlurpStorage } from "../../data/slp-storage.js";
 import { sinceHoursIso } from "../../modules/creators/slp-public-support.js";
+import { readSlurpCreatorTiesDocument } from "../../data/projects/slp-creator-ties-storage.js";
+import { slurpCoupleOf } from "../../modules/projects/slp-creator-couples.js";
+import { slurpChatBridgeCoupleLine } from "../../modules/projects/slp-couple-lines.js";
 
 type WrapFormat = "xml" | "markdown" | "none";
 
@@ -101,6 +104,23 @@ export async function buildSlurpChatContext(db: DB, request: SlurpChatContextReq
 
   const persona = request.personaId ? await slurp.getViewer(request.personaId) : null;
   if (persona) {
+    // The persona's own page may be with one of these characters: a standing fact, never cut first.
+    // Best-effort: a relationship that cannot be read never costs the chat its Slurp context.
+    try {
+      const page = await slurp.getSlurpAccountForEntity("persona", request.personaId!, "creator");
+      const { couples } = page ? await readSlurpCreatorTiesDocument(db) : { couples: [] };
+      for (const creator of creators) {
+        const line = slurpChatBridgeCoupleLine(page ? slurpCoupleOf(couples, creator.id, page.id) : null, {
+          her: creator.displayName,
+          herGender: creator.settings.profile.gender,
+          you: persona.displayName,
+          at: new Date(),
+        });
+        if (line) entries.push({ at: SLURP_STANDING_FACT_AT, line });
+      }
+    } catch {
+      // No relationship line this time.
+    }
     const messages = createSlurpMessagesStorage(db);
     const subscribed = new Set(
       (await slurp.listSubscriptionsForViewer(persona.id)).map((entry) => entry.creatorAccountId),

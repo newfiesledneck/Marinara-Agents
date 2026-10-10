@@ -36,7 +36,15 @@ export type SlurpEventKind =
   /** One of the Creator's own arcs finished. */
   | "arc_complete"
   /** An automatic arc was started or suggested for a Creator. */
-  | "arc_started";
+  | "arc_started"
+  /** A drama moved (docs/DRAMA.md): the pack's own line, e.g. "Mia was tagged in a post by Jake". */
+  | "drama"
+  /** Something happened between the player and the Creator they are with: a date, an anniversary, a crush that faded. */
+  | "couple"
+  /** A fan's note to the player's own page: fans write notes there, never open a chat. */
+  | "fan_note"
+  /** A background sign-up finished: how many Creators joined (amount). */
+  | "sign_up";
 
 /**
  * Base weights. The gaps matter more than the numbers: anything at or above `SLURP_EVENT_NOTABLE`
@@ -63,6 +71,14 @@ const BASE: Record<SlurpEventKind, number> = {
   // The player did not start this one, so it has to be seen, or a suggestion would wait unnoticed.
   arc_started: 62,
   arc_phase: 42,
+  // The player switched drama on to see it: worth a line, below money and messages.
+  drama: 64,
+  // Her life with the player: above a drama beat, below a message from her.
+  couple: 66,
+  // A person wrote to you: a line of its own, below a real message.
+  fan_note: 58,
+  // The player started it and may have left: it has to be seen.
+  sign_up: 70,
 };
 
 /**

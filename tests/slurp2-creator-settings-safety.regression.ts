@@ -27,7 +27,7 @@ assert.match(modal, /accountsQuery\.refetch\(\)/u, "Creator load failures must o
 assert.match(modal, /sections\.map\(\(section\) =>/u, "all sections stay mounted across tab changes");
 assert.match(modal, /hidden=\{section\.id !== activeSection\?\.id\}/u, "inactive sections stay out of view");
 assert.match(modal, /dirtyRef\.current &&[\s\S]*showConfirmDialog/u, "modal exit confirms dirty profile edits");
-assert.match(modal, /onSaveStateChange=\{section\.id === "identity" \? reportProfileSaveState : undefined\}/u);
+assert.match(modal, /onSaveStateChange=\{section\.id === "profile" \? reportProfileSaveState : undefined\}/u);
 assert.match(modal, /dirtyRef\.current = state\.dirty/u, "Identity reports dirty and save state to the modal");
 assert.match(modal, /aria-haspopup="dialog"/u, "mobile section picker has an announced trigger");
 assert.match(modal, /role="dialog"[\s\S]*aria-modal="true"/u, "mobile section picker is a modal dialog");
@@ -40,21 +40,39 @@ assert.match(modal, /className=\{`inline-flex min-h-11 w-full items-center justi
 assert.match(modal, /className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain/u);
 assert.match(modal, /profileSaveState &&[\s\S]*profileSaveState\.save/u, "modal owns the profile save footer");
 assert.match(modal, /profileSaveState\.discard/u, "modal footer can discard the profile draft");
+assert.match(
+  modal,
+  /role="tabpanel"[\s\S]*sticky bottom-0[\s\S]*profileSaveState\.save[\s\S]*<\/div>\n\s*<\/div>\n\s*\)\}\n\s*<\/Modal>/u,
+  "the profile save bar sits inside the tab panel, so it never takes width from the tab content",
+);
+assert.doesNotMatch(modal, /sm:ps-56/u, "the save bar is no longer a padded column beside the panel");
 assert.match(editor, /showFooter=\{false\}/u, "nested profile footer is hidden in the modal");
 assert.match(editor, /showAvatarControls=\{false\}/u, "the artwork editor replaces the old avatar-only controls");
 assert.match(editor, /useUploadCreatorAvatar\(\)/u);
 assert.match(editor, /useUploadCreatorBanner\(\)/u);
-assert.match(editor, /useGenerateCreatorArtwork\(\)/u);
+// 3c: drawing the avatar or banner folds into the shared picture assist.
+assert.match(editor, /<SlpPictureAssist/u);
 assert.match(editor, /onSaveStateChange\?\.\(/u, "profile editor reports save state to the modal");
 assert.match(editor, /onDirtyChange\?\.\(JSON\.stringify\(draft\) !== JSON\.stringify\(initialDraft\)\)/u);
 assert.match(editor, /onDirtyChange\?\.\(false\)/u, "save and discard clear the dirty state");
-assert.match(sections, /group: "creator" \| "publishing" \| "interaction" \| "memory" \| "tools" \| "danger"/u);
 assert.match(sections, /id: "overview"[\s\S]*Component: SlpCreatorOverviewSection/u);
-assert.match(modalSections, /export function SlpCreatorOverviewSection/u);
-assert.match(modalSections, /overviewNeedsReview/u);
-assert.match(modalSections, /useSlpCreatorSettingsStore\.getState\(\)\.setTab\(section\)/u);
+assert.doesNotMatch(sections, /group:/u, "seven tabs need no group headings");
+const overview = slurp2Source(`${root}settings/SlpCreatorOverviewSection.tsx`);
+assert.match(overview, /export function SlpCreatorOverviewSection/u);
+assert.match(overview, /overviewNeedsReview/u);
+assert.match(overview, /useSlpCreatorSettingsStore\.getState\(\)\.setTab\(block\)/u, "every tile opens its block");
+for (const block of ["automation", "storylines", "continuity", "audience"]) {
+  assert.match(overview, new RegExp(`block="${block}"`, "u"), `a status tile opens ${block}`);
+}
+assert.match(overview, /role="switch"[\s\S]*updateAuto\.mutate/u, "auto-post is switchable from the overview");
+assert.match(
+  overview,
+  /useSlurpContinuity\(active \? creator\.id : null\)/u,
+  "memory counts load only while the tab is visible",
+);
+assert.doesNotMatch(modalSections, /SlpCreatorOverviewSection/u);
 assert.match(sections, /defaultLabel: "Audience activity"/u);
-assert.match(sections, /id: "content-rules"[\s\S]*group: "publishing"/u);
+assert.match(sections, /id: "content-rules",[\s\S]*blocks: blocks\("content-rules"\)/u);
 assert.match(publishingSections, /mode === "content-rules"/u);
 assert.match(modalSections, /SettingAnchor settingKey="creatorCollabs"/u);
 assert.match(contract, /creatorCollabs: "collaborations"/u);
@@ -68,5 +86,38 @@ assert.match(bulkEdit, /changeSummary/u);
 assert.match(bulkEdit, /pendingChanges/u);
 assert.match(bulkEdit, /Object\.keys\(patch\)\.length === 0/u, "empty bulk patches stay disabled");
 assert.match(metrics, /compact\.format\(metrics\.posts\)/u, "directory rows use compact metrics");
+
+// Seven tabs; every older section id still opens the tab that holds it.
+const store = slurp2Source(`${root}settings/slp-creator-settings-store.ts`);
+const tabBlocks = slurp2Source(`${root}settings/SlpCreatorSettingsTab.tsx`);
+assert.equal((sections.match(/^  \{\n    id: "/gmu) ?? []).length, 14 + 7, "14 blocks, 7 tabs");
+for (const [block, tab] of [
+  ["identity", "profile"],
+  ["appearance", "profile"],
+  ["wardrobe", "profile"],
+  ["automation", "posting"],
+  ["production", "posting"],
+  ["storylines", "posting"],
+  ["collaborations", "posting"],
+  ["audience", "fans"],
+  ["messages", "fans"],
+  ["continuity", "memory"],
+  ["improve", "tools"],
+  ["danger", "tools"],
+]) {
+  assert.match(store, new RegExp(`\\n  "?${block}"?: "${tab}",`, "u"), `${block} opens ${tab}`);
+}
+assert.match(store, /tab: slpCreatorSettingsTabFor\(options\?\.tab \?\? "overview"\)/u);
+assert.match(
+  store,
+  /setTab: \(tab\) => set\(\{ tab: slpCreatorSettingsTabFor\(tab\), settingKey: slpCreatorBlockAnchor\(tab\) \}\)/u,
+);
+assert.match(
+  tabBlocks,
+  /onDirtyChange=\{block\.id === "identity" \? props\.onDirtyChange : undefined\}/u,
+  "only Identity guards unsaved edits",
+);
+assert.match(tabBlocks, /settingKey=\{`block:\$\{block\.id\}`\}/u, "older ids scroll to their block");
+assert.match(modal, /\{tab === "profile" && profileSaveState && \(/u);
 
 console.log("slurp2 Creator settings safety regression passed");

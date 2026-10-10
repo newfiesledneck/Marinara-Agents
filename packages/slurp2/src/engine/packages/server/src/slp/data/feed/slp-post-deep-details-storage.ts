@@ -2,6 +2,7 @@ import type { DB } from "../../../db/connection.js";
 import { eq } from "../../../db/file-query.js";
 import { slpPostDeepDetails } from "../../../db/schema/slurp.js";
 import { logger } from "../../../lib/logger.js";
+import { newId } from "../../../utils/id-generator.js";
 import type { SlpDeepDetailsImageRun, SlpDeepDetailsRecord } from "../../../../../shared/src/slp/slp-deep-details.js";
 
 export async function saveSlurpPostDeepDetails(
@@ -14,6 +15,28 @@ export async function saveSlurpPostDeepDetails(
     record: JSON.stringify(input.record),
     createdAt: input.record.generatedAt,
   });
+}
+
+/**
+ * Saves a new post's record, best effort: a failed write costs the post its Deep details, never the
+ * post. Returns the id to stamp on the post, or null.
+ *
+ * ponytail: an unpublished scheduled post leaves its record until the Creator is deleted; sweep
+ * records with no post if they add up.
+ */
+export async function saveSlurpNewPostDeepDetails(
+  db: DB,
+  creatorAccountId: string,
+  record: SlpDeepDetailsRecord,
+): Promise<string | null> {
+  const id = newId();
+  try {
+    await saveSlurpPostDeepDetails(db, { id, creatorAccountId, record });
+    return id;
+  } catch (error) {
+    logger.warn(error, "[slurp] Could not record deep details for a post");
+    return null;
+  }
 }
 
 export async function getSlurpPostDeepDetails(db: DB, id: string): Promise<SlpDeepDetailsRecord | null> {

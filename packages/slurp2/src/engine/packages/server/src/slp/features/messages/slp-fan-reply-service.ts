@@ -32,6 +32,8 @@ import {
 } from "../../../../../shared/src/slp/slp-fan-types.js";
 import { NOODLER_UNTRUSTED_CONTENT_INSTRUCTION } from "../feed/slp-feed-contract.js";
 import type { SlurpMessage } from "../../data/messages/slp-messages-storage-types.js";
+import { slurpDmRoleHeader, slurpDmTranscript } from "../../modules/messages/slp-dm-roles.js";
+import { slpWithProviderRetry } from "../../base/model/slp-provider-retry.js";
 
 export type SlurpFanReplyOutcome =
   | { status: "replied"; message: SlurpMessage }
@@ -83,32 +85,42 @@ export async function replyAsSlurpFan(
 
   const connections = createConnectionsStorage(db);
   const fallbackConnection = await connections.getFallbackForMain();
-  const provider = withConnectionFallbackProvider({
-    primary: createLLMProvider(
-      connection.provider,
-      resolveBaseUrl(connection),
-      connection.apiKey,
-      connection.maxContext,
-      connection.openrouterProvider,
-      connection.maxTokensOverride,
-      connection.claudeFastMode === "true",
-      connection.treatAsLocalEndpoint === "true",
-      connection.defaultParameters,
-    ),
-    primaryConnectionId: connection.id,
-    fallbackConnection,
-    fallbackBaseUrl: fallbackConnection ? resolveBaseUrl(fallbackConnection) : "",
-    category: "main",
-  });
+  const provider = slpWithProviderRetry(
+    withConnectionFallbackProvider({
+      primary: createLLMProvider(
+        connection.provider,
+        resolveBaseUrl(connection),
+        connection.apiKey,
+        connection.maxContext,
+        connection.openrouterProvider,
+        connection.maxTokensOverride,
+        connection.claudeFastMode === "true",
+        connection.treatAsLocalEndpoint === "true",
+        connection.defaultParameters,
+      ),
+      primaryConnectionId: connection.id,
+      fallbackConnection,
+      fallbackBaseUrl: fallbackConnection ? resolveBaseUrl(fallbackConnection) : "",
+      category: "main",
+    }),
+  );
 
+  // The same roles and transcript as the Creator's side, told from the fan's seat.
+  const parties = {
+    creator: { name: creator.displayName, handle: creator.handle },
+    viewer: { name: speaker, handle: member?.handle ?? fanAccount?.handle ?? "" },
+  };
+  const roleHeader = slurpDmRoleHeader({
+    writer: "viewer",
+    ...parties,
+    openedBy: thread.openedBy,
+    requestFee: thread.requestFeePaid,
+    history,
+  });
   const data = {
     creator: { displayName: creator.displayName, handle: creator.handle, bio: creator.bio },
     fan: { name: speaker, voice, ...(tie ? { memory: slurpFanMemoryForPrompt(tie) } : {}) },
-    conversation: history.map((message) => ({
-      from: message.role === "creator" ? creator.displayName : speaker,
-      kind: message.kind,
-      content: message.content,
-    })),
+    conversation: slurpDmTranscript(history, { writer: "viewer", ...parties }),
     ...(input.guidance ? { whatTheFanIsAskingFor: input.guidance } : {}),
   };
   const shared = [
@@ -137,7 +149,10 @@ export async function replyAsSlurpFan(
           slurpPromptContext(settings).blocks,
         ),
       },
-      { role: "user" as const, content: `# Untrusted Slurp data\n${JSON.stringify(data, null, 2)}` },
+      {
+        role: "user" as const,
+        content: `# This chat\n${roleHeader}\n\n# Untrusted Slurp data\n${JSON.stringify(data, null, 2)}`,
+      },
     ],
     {
       model: connection.model,

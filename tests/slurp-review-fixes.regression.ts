@@ -168,10 +168,8 @@ assert.match(
   /if \(!hasMedia\) delete preparedMetadata\.noodlerPostType;/u,
   "publishing a prepared post without an image must drop the story flag",
 );
-assert.match(
-  generation,
-  /\.\.\.\(storyVariation \? \{ width: settings\.storyImageWidth, height: settings\.storyImageHeight \} : \{\}\)/u,
-);
+// The Story size is chosen in the shared image run from this flag (R1-052), so every path uses it.
+assert.match(generation, /negativePromptAdditions: negativePrompt,\s*story: storyVariation,/u);
 
 const cropEditor = read(join(client, "components/slurp/PostImageCropEditor.tsx"));
 // An uploaded Story is cropped to the same ratio an automatic one is drawn at, whatever the player
@@ -364,9 +362,9 @@ assert.match(messagesView2, /message\.metadata\.commissionId !== "string"/u);
 assert.match(messagesView2, /deliveryMessage: commission\.deliveryMessageId/u);
 assert.match(messagesView2, /const deliveryImage = useSlurpMediaSrc\(/u);
 assert.match(messagesView2, /commission\.state === "delivered" && deliveryMessage/u);
-assert.match(messagesView2, /const commissionTimeline = commissions\.map/u);
+assert.match(messagesView2, /const commissionTimeline = useMemo\(\s*\(\) =>\s*commissions\.map/u);
 assert.match(messagesView2, /const at = latestMessage[\s\S]{0,180}?commission\.updatedAt/u);
-assert.match(messagesView2, /const timeline = \[/u);
+assert.match(messagesView2, /const timeline = useMemo\(/u);
 assert.match(messagesView2, /commissionTimelineKey/u);
 assert.match(messagesView2, /\[commissionTimelineKey, messages\.length, typing, pending\]/u);
 assert.doesNotMatch(messagesView2, /commissions\.map\(\(commission\) => \(\s*<CommissionRow/u);

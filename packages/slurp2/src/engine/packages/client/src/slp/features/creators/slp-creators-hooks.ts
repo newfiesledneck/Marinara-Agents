@@ -35,8 +35,9 @@ export function useCreatorAccounts(enabled = true) {
       api.get<Array<SlurpManagedStageProfile & { scheduleStatus?: SlurpScheduleStatus }>>("/slurp2/slurp/accounts"),
     enabled,
     staleTime: 10_000,
-    // Autonomous reserve work changes operator state without a client mutation.
-    refetchInterval: enabled ? 30_000 : false,
+    // Autonomous reserve work changes operator state without a client mutation. The route builds every
+    // stage profile, so it polls slowly; new posts refresh it sooner (`useCreatorUnseenCount`).
+    refetchInterval: enabled ? 120_000 : false,
     refetchIntervalInBackground: false,
   });
 }

@@ -1,3 +1,4 @@
+import { slpOverrideRapport } from "../../../../../shared/src/slp/slp-message-details.js";
 // ──────────────────────────────────────────────
 // Storage: Slurp direct messages
 // ──────────────────────────────────────────────
@@ -21,6 +22,8 @@ import {
 } from "../../../db/schema/slurp.js";
 import { isSlurpFileUniqueConstraintError } from "../../base/host/slp-file-errors.js";
 import { applySlurpMood, type SlurpMoodShift } from "../../modules/world/slp-mood.js";
+import { slurpIsCouplePage } from "../../modules/projects/slp-creator-couples.js";
+import { readSlurpPlayerCouple } from "../projects/slp-creator-ties-storage.js";
 import {
   applySlurpThreadNotes,
   readStoredNotes,
@@ -126,6 +129,10 @@ export function createMessagesStorageBase(context: SlurpMessagesContext) {
       return rows[0] ? context.storage.withFollowUps(mapThread(rows[0])) : null;
     },
     async withFollowUps(thread: SlurpThread): Promise<SlurpThread> {
+      thread = {
+        ...thread,
+        rapport: slpOverrideRapport(thread.rapport, await context.storage.getDetailsOverrides(thread.id)),
+      };
       const rows = await db.select().from(slurpFollowUps).where(eq(slurpFollowUps.threadId, thread.id));
       if (rows.length === 0 && thread.scheduledFollowUps.length > 0) {
         await context.storage.addScheduledFollowUps(thread.id, thread.scheduledFollowUps);
@@ -420,7 +427,25 @@ export function createMessagesStorageBase(context: SlurpMessagesContext) {
       // Apply subscriber boost: subscribers gain rapport 1.5x faster from conversation and effort
       // Arc stat effects on fan loyalty scale here, the one place rapport is scored.
       const gain = await slurp.arcEffectMultiplier(creatorAccountId, "loyalty");
-      return scoreSlurpRapport(facts, messaging.rapportWeights, { subscriberBoost: true, gain });
+      // The persona's own Creator page may be her partner: a relationship starts the score close.
+      const page = await slurp.getSlurpAccountForEntity("persona", viewerAccountId, "creator").catch(() => null);
+      const partner = page ? await readSlurpPlayerCouple(db, creatorAccountId, page.id).catch(() => null) : null;
+      const computed = scoreSlurpRapport(facts, messaging.rapportWeights, {
+        subscriberBoost: true,
+        gain,
+        ...(partner
+          ? {
+              partner:
+                partner.stage === "sparks"
+                  ? ("crush" as const)
+                  : partner.stage === "rocky"
+                    ? ("rocky" as const)
+                    : ("partner" as const),
+            }
+          : {}),
+      });
+      const thread = await context.storage.getThread(viewerAccountId, creatorAccountId);
+      return thread ? slpOverrideRapport(computed, await context.storage.getDetailsOverrides(thread.id)) : computed;
     },
     /**
      * The facts behind one pair's rapport.
@@ -488,10 +513,16 @@ export function createMessagesStorageBase(context: SlurpMessagesContext) {
       viewerAccountId: string,
       creatorAccountId: string,
       openedBy: "viewer" | "creator" = "viewer",
+      /**
+       * The paid-DM request fee on a new thread. "waive": a tip or commission is already a payment to
+       * this Creator. "refuse": the caller shows no price (a shared post), so it asks for a message first.
+       */
+      requestFee: "charge" | "waive" | "refuse" = "charge",
     ): Promise<
       | { status: "ok"; thread: SlurpThread }
-      | { status: "closed" }
+      | { status: "closed"; reason?: "couple_page" }
       | { status: "insufficient_funds"; required: number }
+      | { status: "fee_required"; required: number }
       | { status: "not_found" }
     > {
       const creator = await slurp.getNoodlerAccountById(creatorAccountId);
@@ -500,6 +531,8 @@ export function createMessagesStorageBase(context: SlurpMessagesContext) {
       // account's source persona is what keeps a persona from messaging or tipping its own Creator.
       if (creator.sourceKind === "persona" && creator.sourceEntityId === viewerAccountId)
         return { status: "not_found" };
+      // A shared couple page has no one behind it to answer: fans write to either partner (7c M-002).
+      if (slurpIsCouplePage(creator)) return { status: "closed", reason: "couple_page" };
       const existing = await context.storage.getThread(viewerAccountId, creatorAccountId);
       // A creator writing first always gets through: it is their own inbox, and a welcome message
       // that the creator's own policy blocked would be an absurdity.
@@ -519,11 +552,13 @@ export function createMessagesStorageBase(context: SlurpMessagesContext) {
       if (!admission.allowed) return { status: "closed" };
 
       const settings = await slurp.getSettings();
+      if (requestFee === "refuse" && settings.walletEnabled && admission.fee > 0)
+        return { status: "fee_required", required: admission.fee };
       let feePaid = 0;
       let chargedByThisCall = false;
       const messageRequestId = `message-request:${viewerAccountId}:${creatorAccountId}`;
       const messageRequestCreditId = `${messageRequestId}:credit`;
-      if (settings.walletEnabled && admission.fee > 0) {
+      if (settings.walletEnabled && admission.fee > 0 && requestFee === "charge") {
         const paymentIntent = await createSlurpPaymentIntent(
           slurp,
           {

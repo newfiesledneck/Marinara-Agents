@@ -18,7 +18,7 @@ export function SlpPromptOutcomeSection({
   return (
     <section className="space-y-4 rounded-xl bg-[var(--slurp-surface-raised)] p-4 ring-1 ring-inset ring-[var(--slurp-outline)] sm:p-5">
       <div className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[var(--slurp-canvas)] text-[var(--noodle-accent)] ring-1 ring-inset ring-[var(--slurp-outline)]">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[var(--slurp-canvas)] text-[var(--noodle-accent-foreground)] ring-1 ring-inset ring-[var(--slurp-outline)]">
           {icon}
         </span>
         <div className="min-w-0 flex-1">

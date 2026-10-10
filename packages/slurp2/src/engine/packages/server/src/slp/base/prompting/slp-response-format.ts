@@ -126,8 +126,16 @@ function slpCreatorPostSchema(
   allowScenePlan: boolean,
   contentMaxLength: number,
   sceneShots: number,
+  claims: boolean,
 ) {
   const withShots = allowScenePlan && sceneShots > 0;
+  const required = withShots
+    ? ["title", "content", "scene", "shots"]
+    : allowScenePlan
+      ? ["title", "content", "scene"]
+      : allowImagePrompt
+        ? ["title", "content", "imagePrompt"]
+        : ["title", "content"];
   return {
     type: "object",
     properties: {
@@ -156,8 +164,9 @@ function slpCreatorPostSchema(
                 expression: { type: "string", maxLength: 300 },
                 visualDirection: { type: "string", maxLength: 500 },
                 outfit: { type: "string", maxLength: 300 },
+                subject: { anyOf: [{ type: "string", maxLength: 120 }, { type: "null" }] },
               },
-              required: ["wardrobeId", "setting", "action", "expression", "visualDirection", "outfit"],
+              required: ["wardrobeId", "setting", "action", "expression", "visualDirection", "outfit", "subject"],
               additionalProperties: false,
             },
           }
@@ -165,17 +174,22 @@ function slpCreatorPostSchema(
       ...(withShots
         ? { shots: { type: "array", minItems: sceneShots, maxItems: sceneShots, items: slpSceneShotJsonSchema } }
         : {}),
+      // The beats planner's self-declared claims, compared with the brief in code.
+      ...(claims ? { claims: slpBeatClaimsJsonSchema } : {}),
     },
-    required: withShots
-      ? ["title", "content", "scene", "shots"]
-      : allowScenePlan
-        ? ["title", "content", "scene"]
-        : allowImagePrompt
-          ? ["title", "content", "imagePrompt"]
-          : ["title", "content"],
+    required: claims ? [...required, "claims"] : required,
     additionalProperties: false,
   } as const;
 }
+
+const stringList = { type: "array", items: { type: "string", maxLength: 200 } } as const;
+
+const slpBeatClaimsJsonSchema = {
+  type: "object",
+  properties: { people: stringList, earlierEvents: stringList, stateChanges: stringList },
+  required: ["people", "earlierEvents", "stateChanges"],
+  additionalProperties: false,
+} as const;
 
 const slpCreatorProfileSchema = {
   type: "object",
@@ -286,6 +300,84 @@ const slpCreatorDmSchema = {
   additionalProperties: false,
 } as const;
 
+const slpCreatorStaffDmSchema = {
+  ...slpCreatorDmSchema,
+  properties: {
+    ...slpCreatorDmSchema.properties,
+    staff: {
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            mood: { type: ["string", "null"], enum: ["bright", "cozy", "restless", "low", "flirty", "stressed", null] },
+            focus: nullableString,
+            idea: nullableString,
+            more: nullableString,
+            less: nullableString,
+            takeaway: nullableString,
+            stir: nullableString,
+          },
+          required: ["mood", "focus", "idea", "more", "less", "takeaway", "stir"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
+    },
+    // The Support desk (docs/SUPPORT-DESK.md): how the talk moved their trust, their answer to an offer,
+    // something they let slip about another Creator, and a ticket rating. Read by `slp-support-desk-talk.ts`.
+    desk: {
+      type: "object",
+      properties: {
+        trust: { type: "string", enum: ["up", "same", "down"] },
+        offer: { type: ["string", "null"], enum: ["accept", "counter", "decline", null] },
+        counter: nullableString,
+        intel: nullableString,
+        rating: { type: ["number", "null"] },
+      },
+      required: ["trust", "offer", "counter", "intel", "rating"],
+      additionalProperties: false,
+    },
+  },
+  required: [...slpCreatorDmSchema.required, "staff", "desk"],
+} as const;
+
+/** Creator to Creator: the two may agree on a joint post (7b-c). */
+const slpCreatorCollabDmSchema = {
+  ...slpCreatorDmSchema,
+  properties: {
+    ...slpCreatorDmSchema.properties,
+    collab: {
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            idea: nullableString,
+            yourShare: { type: ["number", "null"] },
+            shoot: { type: ["boolean", "null"] },
+          },
+          required: ["idea", "yourShare", "shoot"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
+    },
+  },
+  required: [...slpCreatorDmSchema.required, "collab"],
+} as const;
+
+/** A reply to the player may say what the talk did to the two of them ("us", `slp-creator-couples.ts`). */
+const slpUsProperty = {
+  anyOf: [
+    {
+      type: "object",
+      properties: { step: { type: "string", enum: ["closer", "hurt", "madeUp"] }, why: nullableString },
+      required: ["step", "why"],
+      additionalProperties: false,
+    },
+    { type: "null" },
+  ],
+} as const;
+
 const slpCreatorFanActivitySchema = {
   type: "object",
   properties: {
@@ -299,6 +391,24 @@ const slpCreatorFanActivitySchema = {
   required: ["actorHandle", "creatorAccountId", "targetPostId", "type", "content", "parentInteractionId"],
   additionalProperties: false,
 } as const;
+
+/** A DM schema, with the "us" field added when the reply goes to the player. */
+function withUs<T extends { properties: object; required: readonly string[] }>(schema: T, us: boolean) {
+  return us
+    ? { ...schema, properties: { ...schema.properties, us: slpUsProperty }, required: [...schema.required, "us"] }
+    : schema;
+}
+
+/** A DM schema, with the "sceneInvite" field added when the Creator may pitch a scene (docs/SCENES.md). */
+function withSceneInvite<T extends { properties: object; required: readonly string[] }>(schema: T, invite: boolean) {
+  return invite
+    ? {
+        ...schema,
+        properties: { ...schema.properties, sceneInvite: nullableString },
+        required: [...schema.required, "sceneInvite"],
+      }
+    : schema;
+}
 
 export function slpResponseFormat(
   model: string,
@@ -315,6 +425,15 @@ export function slpResponseFormat(
     allowScenePlan?: boolean;
     contentMaxLength?: number;
     sceneShots?: number;
+    claims?: boolean;
+    /** A reply in Slurp Support's thread may say what the talk changed ("staff", `slp-support.ts`). */
+    staff?: boolean;
+    /** A reply from one Creator to another may agree on a joint post ("collab", `slp-creator-ties.ts`). */
+    collab?: boolean;
+    /** A reply to the player may say what the talk did to the two of them ("us"). */
+    us?: boolean;
+    /** A reply to the player may pitch a roleplay scene ("sceneInvite"). */
+    sceneInvite?: boolean;
   } = {},
 ): { type: string; [key: string]: unknown } {
   if (!isOpenAIGpt56Model(model)) return { type: "json_object" };
@@ -328,7 +447,12 @@ export function slpResponseFormat(
           : kind === "noodler_reply"
             ? noodlerReplySchema
             : kind === "noodler_dm"
-              ? slpCreatorDmSchema
+              ? options.staff
+                ? slpCreatorStaffDmSchema
+                : withSceneInvite(
+                    withUs(options.collab ? slpCreatorCollabDmSchema : slpCreatorDmSchema, options.us === true),
+                    options.sceneInvite === true,
+                  )
               : kind === "noodler_fan_activity"
                 ? {
                     type: "object",
@@ -346,6 +470,7 @@ export function slpResponseFormat(
                     options.allowScenePlan === true,
                     options.contentMaxLength ?? SLP_POST_HARD_MAX_LENGTH,
                     options.sceneShots ?? 0,
+                    options.claims === true,
                   );
   return {
     type: "json_schema",

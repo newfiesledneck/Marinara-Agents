@@ -3,7 +3,7 @@ import { api } from "../../../lib/api-client";
 
 export function useShareSlpPost() {
   return useMutation({
-    mutationFn: (input: { personaId: string; creatorAccountId: string; postId: string }) =>
+    mutationFn: (input: { personaId: string; creatorAccountId: string; postId: string; asSupport?: boolean }) =>
       api.post<{ message: unknown; thread: unknown }>("/slurp2/messages/share-post", input),
   });
 }

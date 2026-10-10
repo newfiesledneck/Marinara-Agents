@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import test from "node:test";
 import vm from "node:vm";
 
 const elements = [];
@@ -95,6 +96,61 @@ dock.close();
 assert.equal(removed.length, 3, "closing the dock removes all child dialogs");
 assert.ok(dock._imageGenSessionToken > token, "closing the dock invalidates pending previews");
 
+for (const change of ["none", "reopen", "chat", "reset"]) {
+  for (const reject of [false, true]) {
+    let settle;
+    let renders = 0;
+    QM.state.chatId = "chat-a";
+    QM.state.confirmWardrobe = () =>
+      new Promise((resolve, fail) => {
+        settle = () => (reject ? fail(new Error("Confirmation failed")) : resolve({ summary: "saved" }));
+      });
+    dock._renderWardrobeBuilderContent = () => renders++;
+    dock._wardrobeSummary = null;
+    dock._wardrobeError = null;
+    dock._wardrobeViewState = "preview";
+    const button = element();
+    const pending = dock._submitWardrobeConfirm(button);
+    if (change === "reopen") dock._closeWardrobeBuilder();
+    if (change === "chat") QM.state.chatId = "chat-b";
+    if (change === "reset") dock._resetCachedNodes();
+    settle();
+    await pending;
+    const current = change === "none";
+    assert.equal(dock._wardrobeSummary, current && !reject ? "saved" : null, `${change}: confirmation summary`);
+    assert.equal(
+      dock._wardrobeError,
+      current && reject ? "Confirmation failed" : null,
+      `${change}: confirmation error`,
+    );
+    assert.equal(dock._wardrobeViewState, current && reject ? "error" : "preview");
+    assert.equal(button.disabled, !(current && reject));
+    assert.equal(renders, current ? 1 : 0);
+  }
+}
+
+const resetRemoved = [];
+for (const key of [
+  "itemEditorBackdrop",
+  "outfitEditorBackdrop",
+  "saveOutfitBackdrop",
+  "addItemBackdrop",
+  "wardrobeBuilderBackdrop",
+  "imageGenBackdrop",
+]) {
+  dock[key] = { remove: () => resetRemoved.push(key) };
+}
+dock._wardrobeContentContainer = element();
+dock._imageGenContentContainer = element();
+const wardrobeToken = dock._wardrobeSessionToken;
+const imageToken = dock._imageGenSessionToken;
+dock._resetCachedNodes();
+assert.equal(resetRemoved.length, 6, "rebuilding the dock removes all dialogs");
+assert.equal(dock._wardrobeContentContainer, null);
+assert.equal(dock._imageGenContentContainer, null);
+assert.ok(dock._wardrobeSessionToken > wardrobeToken);
+assert.ok(dock._imageGenSessionToken > imageToken);
+
 QM.state.exportInventory = async () => {
   throw new Error("Export unavailable");
 };
@@ -121,6 +177,9 @@ for (const outcome of ["failure", "success", "chat-change"]) {
     if (outcome === "failure") QM.state.error = "Save unavailable";
     else QM.state.outfits = [{ id: "new" }, { id: "existing" }];
     if (outcome === "chat-change") QM.state.chatId = "chat-b";
+    return outcome === "failure"
+      ? { ok: false, error: "Save unavailable" }
+      : { ok: true, result: { outfits: QM.state.outfits } };
   };
   QM.state.uploadOutfitPortrait = async (id) => uploads.push(id);
   dock.body = element();
@@ -141,3 +200,381 @@ for (const outcome of ["failure", "success", "chat-change"]) {
   dock._closeSaveOutfitModal();
 }
 console.log("Quartermaster modal lifecycle and export regressions passed.");
+
+await test("image connection checks cannot overwrite a later dialog", async () => {
+  for (const stale of [false, true]) {
+    for (const reject of [false, true]) {
+      let settle;
+      QM.listImageConnections = () =>
+        new Promise((resolve, fail) => {
+          settle = () => (reject ? fail(new Error("Connection check failed")) : resolve([{}]));
+        });
+      const pending = dock._checkImageGenConnections();
+      if (stale) {
+        dock._closeImageGenModal();
+        dock._imageGenHasConnections = "new session";
+        dock._imageGenConnectionsError = false;
+      }
+      settle();
+      await pending;
+      assert.equal(dock._imageGenHasConnections, stale ? "new session" : !reject);
+      assert.equal(dock._imageGenConnectionsError, !stale && reject);
+    }
+  }
+});
+
+const stateSource = await readFile(new URL("../packages/quartermaster/src/05-state.js", import.meta.url), "utf8");
+await test("generated images use their own upload result and cannot close a later dialog", async () => {
+  const stateContext = vm.createContext({ QM });
+  vm.runInContext(stateSource, stateContext);
+  QM._missingItemImageIds = new Set();
+  for (const kind of ["item", "outfit"]) {
+    for (const succeeds of [false, true]) {
+      for (const change of ["none", "reopen", "chat"]) {
+        QM.state.chatId = "chat-a";
+        QM.state.error = null;
+        dock._imageGenKind = kind;
+        dock._imageGenSubjectId = "subject-a";
+        dock._imageGenError = null;
+        let settleUpload;
+        let startedUpload;
+        const uploadStarted = new Promise((resolve) => {
+          startedUpload = resolve;
+        });
+        const upload = () => {
+          startedUpload();
+          return new Promise((resolve, reject) => {
+            settleUpload = () => (succeeds ? resolve({}) : reject(new Error("Upload failed")));
+          });
+        };
+        QM.generateItemImage = QM.generateOutfitPortrait = async () => ({
+          imageDataUrl: "data:image/png;base64,fixture",
+        });
+        QM.uploadItemImage = QM.uploadOutfitPortrait = upload;
+        const pending = dock._submitImageGenGenerate();
+        await uploadStarted;
+        if (change === "reopen") dock._closeImageGenModal();
+        if (change === "chat") QM.state.chatId = "chat-b";
+        const token = dock._imageGenSessionToken;
+        if (change !== "none") dock._imageGenViewState = "choice";
+        // Settle the opposite result in the same turn, before the modal's continuation.
+        settleUpload();
+        await QM.state._mutate(succeeds ? Promise.reject(new Error("Unrelated failure")) : Promise.resolve({}));
+        await pending;
+        assert.equal(
+          dock._imageGenSessionToken,
+          token + (succeeds && change === "none" ? 1 : 0),
+          `${kind}/${succeeds}/${change}: closes only its successful upload`,
+        );
+        assert.equal(dock._imageGenError, !succeeds && change === "none" ? "Upload failed" : null);
+        if (change !== "none") assert.equal(dock._imageGenViewState, "choice");
+      }
+    }
+  }
+});
+
+await test("late inventory reloads cannot replace a mutation, newer reload, or another chat's error", async () => {
+  for (const change of ["mutation", "reload", "chat"]) {
+    for (const fails of [false, true]) {
+      const api = {};
+      vm.runInContext(stateSource, vm.createContext({ QM: api }));
+      api.state.chatId = "chat-a";
+      let settle;
+      api.listItems = () =>
+        new Promise((resolve, reject) => {
+          settle = () =>
+            fails ? reject(new Error("Old reload failed")) : resolve({ items: [{ id: "old" }], outfits: [] });
+        });
+      const pending = api.state._reload();
+      if (change === "mutation") await api.state._mutate(Promise.resolve({ items: [{ id: "current" }], outfits: [] }));
+      if (change === "reload") {
+        api.listItems = async () => ({ items: [{ id: "current" }], outfits: [] });
+        await api.state._reload();
+      }
+      if (change === "chat") {
+        api.state.chatId = "chat-b";
+        api.state.items = [{ id: "current" }];
+      }
+      api.state.error = "Current error";
+      settle();
+      await pending;
+      assert.equal(api.state.items[0].id, "current", `${change}/${fails}: keeps current inventory`);
+      assert.equal(api.state.error, "Current error", `${change}/${fails}: keeps current error`);
+    }
+  }
+});
+
+await test("outfit saves use their own result while another mutation changes shared state", async () => {
+  for (const succeeds of [false, true]) {
+    const uploads = [];
+    QM.state.chatId = "chat-a";
+    QM.state.outfits = [{ id: "existing" }];
+    let settle;
+    QM.createOutfit = () =>
+      new Promise((resolve, reject) => {
+        settle = () =>
+          succeeds ? resolve({ outfits: [{ id: "new" }, { id: "existing" }] }) : reject(new Error("Save failed"));
+      });
+    QM.uploadOutfitPortrait = async (_chatId, _ownerId, id) => {
+      uploads.push(id);
+      return {};
+    };
+    const start = elements.length;
+    dock.body = element();
+    dock._openSaveOutfitModal();
+    const controls = elements.slice(start);
+    controls.find((node) => node.placeholder === "Outfit name").value = "Armor";
+    const upload = controls.find((node) => node.type === "file");
+    upload.files = [{}];
+    await upload.listeners.change();
+    const save = controls.find((node) => node.textContent === "Save");
+    const pending = save.listeners.click();
+    settle();
+    await QM.state._mutate(
+      succeeds ? Promise.reject(new Error("Unrelated failure")) : Promise.resolve({ outfits: [{ id: "unrelated" }] }),
+    );
+    await pending;
+    assert.deepEqual(uploads, succeeds ? ["new"] : []);
+    assert.equal(save.disabled, false);
+    assert.equal(dock.saveOutfitBackdrop === null, succeeds);
+    dock._closeSaveOutfitModal();
+  }
+});
+
+await test("image deletion uses its own result during concurrent mutations", async () => {
+  for (const succeeds of [false, true]) {
+    const api = { _missingItemImageIds: new Set() };
+    vm.runInContext(stateSource, vm.createContext({ QM: api }));
+    api.state.chatId = "chat-a";
+    api.deleteItemImage = () => (succeeds ? Promise.resolve({}) : Promise.reject(new Error("Delete failed")));
+    await Promise.all([
+      api.state.deleteItemImage("item-a"),
+      api.state._mutate(succeeds ? Promise.reject(new Error("Other request failed")) : Promise.resolve({})),
+    ]);
+    assert.equal(api._missingItemImageIds.has("item-a"), succeeds);
+  }
+});
+
+await test("a failed mutation cannot overwrite another chat's error", async () => {
+  const api = {};
+  vm.runInContext(stateSource, vm.createContext({ QM: api }));
+  api.state.chatId = "chat-a";
+  let fail;
+  const request = new Promise((_resolve, reject) => {
+    fail = reject;
+  });
+  const pending = api.state._mutate(request);
+  api.state.chatId = "chat-b";
+  api.state.error = "Current chat error";
+  fail(new Error("Old chat error"));
+  await pending;
+  assert.equal(api.state.error, "Current chat error");
+});
+
+await test("returning to a chat does not accept a mutation from its previous visit", async () => {
+  for (const fails of [false, true]) {
+    const api = {};
+    vm.runInContext(stateSource, vm.createContext({ QM: api }));
+    const reads = [];
+    api.listItems = () => new Promise((resolve) => reads.push(resolve));
+    api.state.setChat("chat-a");
+    let settle;
+    const pending = api.state._mutate(
+      new Promise((resolve, reject) => {
+        settle = () => (fails ? reject(new Error("Previous visit")) : resolve({ items: [{ id: "old" }] }));
+      }),
+    );
+    api.state.setChat("chat-b");
+    api.state.setChat("chat-a");
+    const currentRead = api.state._reload();
+    const currentReload = api.state._reloadToken;
+    settle();
+    assert.equal(await pending, undefined);
+    assert.equal(api.state.items, null);
+    assert.equal(api.state.error, null);
+    assert.equal(api.state._reloadToken, currentReload, "keeps the current visit's reload valid");
+    reads.at(-1)({ items: [{ id: "current" }], outfits: [] });
+    await currentRead;
+    assert.equal(api.state.items[0].id, "current");
+  }
+});
+
+await test("closing the active chat clears the panel's old error", async () => {
+  const api = { state: { chatId: null } };
+  vm.runInContext(
+    await readFile(new URL("../packages/quartermaster/src/15-panel.js", import.meta.url), "utf8"),
+    vm.createContext({ QM: api, document: { createElement: element } }),
+  );
+  for (const key of ["equippedContent", "outfitsContent", "inventoryContent", "errorNode"]) api.panel[key] = element();
+  api.panel.errorNode.style.display = "";
+  api.panel._updateContent();
+  assert.equal(api.panel.errorNode.style.display, "none");
+});
+
+await test("detached elements wait for connection before changing shared state or mounting", async () => {
+  const chats = [];
+  const registry = new Map();
+  let mounts = 0;
+  let unmounts = 0;
+  const api = {
+    state: { setChat: (chatId) => chats.push(chatId) },
+    panel: {
+      mount(container) {
+        this.container = container;
+        mounts++;
+      },
+      unmount() {
+        this.container = null;
+        unmounts++;
+      },
+    },
+  };
+  class HostElement {
+    isConnected = false;
+    getAttribute() {
+      return "tracker";
+    }
+    addEventListener() {}
+    removeEventListener() {}
+  }
+  vm.runInContext(
+    await readFile(new URL("../packages/quartermaster/src/90-element.js", import.meta.url), "utf8"),
+    vm.createContext({
+      QM: api,
+      HTMLElement: HostElement,
+      customElements: {
+        get: (name) => registry.get(name),
+        define: (name, value) => registry.set(name, value),
+      },
+    }),
+  );
+  const Component = registry.get("marinara-capability-quartermaster");
+  const component = new Component();
+  component.capabilityProps = { chatId: "stale-chat" };
+  component.attributeChangedCallback("view", null, "tracker");
+  component.capabilityProps = { chatId: "chat-a" };
+  assert.deepEqual(chats, []);
+  assert.equal(mounts, 0);
+  component.isConnected = true;
+  component.connectedCallback();
+  assert.deepEqual(chats, ["chat-a"]);
+  assert.equal(mounts, 1);
+  component.isConnected = false;
+  component.disconnectedCallback();
+  component.capabilityProps = { chatId: "chat-b" };
+  assert.deepEqual(chats, ["chat-a"]);
+  assert.equal(unmounts, 1);
+});
+
+const apiSource = await readFile(new URL("../packages/quartermaster/src/00-api.js", import.meta.url), "utf8");
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+function loadApi({ secret = null, storageThrows = false, respond = () => ({ ok: true, status: 200, body: {} }) } = {}) {
+  const calls = [];
+  const context = vm.createContext({
+    localStorage: {
+      getItem(key) {
+        if (storageThrows) throw new Error("blocked");
+        return key === "marinara_admin_secret" ? secret : null;
+      },
+    },
+    fetch: (url, init = {}) => {
+      calls.push({ url, init });
+      return Promise.resolve(respond(url)).then((result) => ({
+        ok: result.ok,
+        status: result.status,
+        json: async () => result.body,
+        blob: async () => ({ blob: url }),
+      }));
+    },
+    URL: { createObjectURL: () => `blob:${calls.length}`, revokeObjectURL() {} },
+    Event,
+  });
+  vm.runInContext(apiSource, context);
+  return { QM: vm.runInContext("QM", context), calls };
+}
+function imageElement() {
+  const listeners = {};
+  return {
+    src: "",
+    errors: 0,
+    addEventListener(name, handler) {
+      (listeners[name] ??= []).push(handler);
+    },
+    dispatchEvent(event) {
+      if (event.type === "error") this.errors++;
+      for (const handler of listeners[event.type] ?? []) handler(event);
+    },
+  };
+}
+
+await test("package requests send the saved Admin Secret and the CSRF marker", async () => {
+  const withSecret = loadApi({ secret: " s3cret " });
+  await withSecret.QM.listItems("chat-a", "persona");
+  await withSecret.QM.addItem("chat-a", "persona", { name: "Sword" });
+  const [read, write] = withSecret.calls;
+  assert.equal(read.init.headers["X-Admin-Secret"], "s3cret");
+  assert.equal(read.init.headers["x-marinara-csrf"], undefined);
+  assert.equal(read.init.headers["Content-Type"], undefined);
+  assert.equal(write.init.headers["X-Admin-Secret"], "s3cret");
+  assert.equal(write.init.headers["x-marinara-csrf"], "1");
+  assert.equal(write.init.headers["Content-Type"], "application/json");
+
+  for (const options of [{ secret: null }, { storageThrows: true }]) {
+    const withoutSecret = loadApi(options);
+    await withoutSecret.QM.listItems("chat-a", "persona");
+    assert.equal(withoutSecret.calls[0].init.headers["X-Admin-Secret"], undefined);
+  }
+});
+
+await test("a refused Admin Secret explains how to fix it on this device", async () => {
+  const refused = () => ({ ok: false, status: 403, body: { error: "Invalid or missing X-Admin-Secret header" } });
+  await assert.rejects(
+    loadApi({ secret: "wrong", respond: refused }).QM.listItems("chat-a", "persona"),
+    /does not match/,
+  );
+  await assert.rejects(loadApi({ respond: refused }).QM.listItems("chat-a", "persona"), /has no Admin Secret/);
+  const missing = () => ({ ok: false, status: 404, body: { error: "Item not found" } });
+  await assert.rejects(
+    loadApi({ secret: "s", respond: missing }).QM.listItems("chat-a", "persona"),
+    /^Error: Item not found$/,
+  );
+});
+
+await test("gated images load with the Admin Secret and report failures through the error event", async () => {
+  const itemUrl = "/api/quartermaster/inventory/chat-a/persona/items/item-a/image";
+
+  const plain = loadApi();
+  const plainImg = imageElement();
+  plain.QM.setImageSrc(plainImg, itemUrl);
+  assert.equal(plainImg.src, itemUrl);
+  assert.equal(plain.calls.length, 0);
+
+  const loaded = loadApi({ secret: "s3cret" });
+  const loadedImg = imageElement();
+  loaded.QM.setImageSrc(loadedImg, itemUrl);
+  await flush();
+  assert.equal(loaded.calls[0].init.headers["X-Admin-Secret"], "s3cret");
+  assert.match(loadedImg.src, /^blob:/);
+
+  const missing = loadApi({ secret: "s3cret", respond: () => ({ ok: false, status: 404, body: {} }) });
+  const missingImg = imageElement();
+  missing.QM.setImageSrc(missingImg, itemUrl);
+  await flush();
+  assert.equal(missingImg.src, "");
+  assert.equal(missingImg.errors, 1);
+
+  let release;
+  const slow = loadApi({
+    secret: "s3cret",
+    respond: () => new Promise((resolve) => (release = () => resolve({ ok: true, status: 200, body: {} }))),
+  });
+  const reusedImg = imageElement();
+  slow.QM.setImageSrc(reusedImg, itemUrl);
+  slow.QM.setImageSrc(reusedImg, "/api/avatars/persona.png");
+  assert.equal(reusedImg.src, "/api/avatars/persona.png");
+  release();
+  await flush();
+  assert.equal(reusedImg.src, "/api/avatars/persona.png");
+  assert.equal(reusedImg.errors, 0);
+  assert.equal(slow.calls.length, 1);
+});

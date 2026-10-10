@@ -68,10 +68,10 @@ export function SlpDeepDetailsImageRuns({
         <details
           key={`${run.startedAt}-${index}`}
           open={index === runs.length - 1}
-          className="rounded-xl ring-1 ring-inset ring-[var(--slurp-outline)]"
+          className="rounded-2xl bg-[var(--slurp-canvas)]"
         >
           <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]">
-            <span className="font-black uppercase tracking-[0.12em] text-[var(--noodle-accent)]">
+            <span className="text-sm font-bold">
               Image run {index + 1} of {runs.length}
             </span>
             <span>{TRIGGER_LABEL[run.trigger]}</span>

@@ -15,6 +15,7 @@ import {
   rememberSlurpVisionRejection,
   slurpModelLacksVision,
 } from "./slp-vision.js";
+import { slpWithProviderRetry } from "../../base/model/slp-provider-retry.js";
 
 type GenerationConnection = NonNullable<Awaited<ReturnType<ReturnType<typeof createConnectionsStorage>["getWithKey"]>>>;
 
@@ -35,16 +36,18 @@ export async function slurpImageCaptioning(
 ): Promise<ImageCaptioningRuntime> {
   const connection =
     (connectionId ? await createConnectionsStorage(db).getWithKey(connectionId) : null) ?? textConnection;
-  const provider = createLLMProvider(
-    connection.provider,
-    resolveBaseUrl(connection),
-    connection.apiKey,
-    connection.maxContext,
-    connection.openrouterProvider,
-    connection.maxTokensOverride,
-    connection.claudeFastMode === "true",
-    connection.treatAsLocalEndpoint === "true",
-    connection.defaultParameters,
+  const provider = slpWithProviderRetry(
+    createLLMProvider(
+      connection.provider,
+      resolveBaseUrl(connection),
+      connection.apiKey,
+      connection.maxContext,
+      connection.openrouterProvider,
+      connection.maxTokensOverride,
+      connection.claudeFastMode === "true",
+      connection.treatAsLocalEndpoint === "true",
+      connection.defaultParameters,
+    ),
   );
   // The Engine's caption helper swallows provider errors, so a refusal is only visible here.
   const guardedProvider = Object.assign(Object.create(provider) as typeof provider, {

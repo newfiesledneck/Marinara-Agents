@@ -51,7 +51,7 @@ export type SlurpProductionProfile = {
 
 const PROFILES: Record<SlurpProductionStyle, Omit<SlurpProductionProfile, "style">> = {
   homemade: {
-    prefers: ["selfie", "mirror", "screenshot"],
+    prefers: ["selfie", "screenshot", "tripod"],
     effortWeights: [
       { value: "low", weight: 70 },
       { value: "medium", weight: 25 },
@@ -61,7 +61,7 @@ const PROFILES: Record<SlurpProductionStyle, Omit<SlurpProductionProfile, "style
       "You do not think of this as production. You take a picture, you post it, and you would not call any of it work.",
   },
   polished: {
-    prefers: ["tripod", "mirror", "selfie"],
+    prefers: ["tripod", "partner", "selfie"],
     effortWeights: [
       { value: "low", weight: 10 },
       { value: "medium", weight: 50 },
@@ -81,7 +81,7 @@ const PROFILES: Record<SlurpProductionStyle, Omit<SlurpProductionProfile, "style
       "You post what the day actually looked like, including the parts that did not come out well. A bad picture that is true beats a good one that is not.",
   },
   theatrical: {
-    prefers: ["tripod", "partner", "mirror"],
+    prefers: ["tripod", "partner", "screenshot"],
     effortWeights: [
       { value: "low", weight: 5 },
       { value: "medium", weight: 35 },
@@ -125,7 +125,7 @@ export function slurpPostEffort(
 }
 
 const EFFORT_INSTRUCTIONS: Record<SlurpPostEffort, string> = {
-  low: "Effort: none. Whatever the phone caught on the first take: an offhand crop, ordinary room light, nothing arranged or tidied. Still sharp and clearly visible — careless, not broken.",
+  low: "Effort: none. Whatever the first take caught: an offhand crop, ordinary room light, nothing arranged or tidied. Still sharp and clearly visible — careless, not broken.",
   medium: "Effort: a bit. They looked at it, they took a second one, and they stopped there.",
   high: "Effort: real. They set this up, fixed the light, and chose this frame out of several. It still has to be a picture a person could take where they are.",
 };
@@ -148,7 +148,7 @@ export function slurpEffortPhoto(effort: SlurpPostEffort): string {
 
 export function slurpProductionPhoto(style: SlurpProductionStyle): string {
   return {
-    homemade: "personal phone picture, ordinary available light",
+    homemade: "personal snapshot, ordinary available light",
     polished: "carefully composed personal photograph, deliberate lighting and framing",
     documentary: "observational personal photograph, available light and unembellished framing",
     theatrical: "deliberately staged personal photograph, controlled lighting and expressive composition",

@@ -43,7 +43,8 @@ assert.equal(readSlurpCreatorMessaging({ proactiveMessages: false }).proactiveMe
 assert.equal(readSlurpCreatorMessaging({}).proactiveMessages, true);
 assert.match(
   read(server + "services/slurp/slurp-follow-up-scheduler.service.ts"),
-  /if \(!messaging\.proactiveMessages\) \{[\s\S]{0,200}?cancelScheduledFollowUp/u,
+  // Pulse + E decision (changed on purpose): the switch drops openers only; promises still go out.
+  /if \(!messaging\.proactiveMessages && followUp\.type === "opener"\) \{[\s\S]{0,200}?cancelScheduledFollowUp/u,
 );
 
 console.log("slurp roleplay loop regression: ok");

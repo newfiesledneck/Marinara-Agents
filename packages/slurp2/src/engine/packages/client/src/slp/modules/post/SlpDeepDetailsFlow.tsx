@@ -29,8 +29,8 @@ export function SlpTextPreview({
   const [open, setOpen] = useState(false);
   const long = text.length > PREVIEW_CHARS || text.split("\n").length > PREVIEW_LINES;
   return (
-    <figure className="min-w-0 overflow-hidden rounded-xl bg-[var(--slurp-canvas)] ring-1 ring-inset ring-[var(--slurp-outline)]">
-      <figcaption className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--slurp-outline)] px-3 py-1.5">
+    <figure className="min-w-0 overflow-hidden rounded-xl bg-[var(--slurp-canvas)]">
+      <figcaption className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--noodle-divider)] px-3 py-1.5">
         <span className="text-xs font-semibold">
           {label}
           <span className="ms-2 font-normal tabular-nums text-[var(--muted-foreground)]">
@@ -59,14 +59,14 @@ export function SlpTextPreview({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
-          className="flex min-h-10 w-full items-center justify-center gap-1.5 border-t border-[var(--slurp-outline)] text-xs font-semibold hover:bg-[var(--slurp-surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--slurp-focus)]"
+          className="flex min-h-10 w-full items-center justify-center gap-1.5 border-t border-[var(--noodle-divider)] text-xs font-semibold hover:bg-[var(--slurp-surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--slurp-focus)]"
         >
           {open ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
           {open ? "Show less" : "Show all"}
         </button>
       )}
       {(note || from) && (
-        <div className="space-y-0.5 border-t border-[var(--slurp-outline)] px-3 py-1.5">
+        <div className="space-y-0.5 border-t border-[var(--noodle-divider)] px-3 py-1.5">
           {from && <From text={from} />}
           {note && <Note text={note} />}
         </div>
@@ -104,7 +104,7 @@ function RowGroup({ title, rows }: { title: string; rows: SlpFlowRow[] }) {
   const texts = shown.filter((row) => row.text);
   return (
     <section className="space-y-2">
-      <h5 className="text-xs font-bold uppercase tracking-wide text-[var(--muted-foreground)]">{title}</h5>
+      <h5 className="text-xs font-semibold text-[var(--muted-foreground)]">{title}</h5>
       {facts.length > 0 && (
         <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)]">
           {facts.map((row) => (
@@ -140,7 +140,7 @@ function Why({ text }: { text: string }) {
 
 export function ModelChip({ model }: { model: string }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-[var(--slurp-canvas)] px-2 py-1 font-mono text-xs ring-1 ring-inset ring-[var(--slurp-outline)]">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-[var(--slurp-canvas)] px-2 py-1 font-mono text-xs">
       <Cpu size={13} aria-hidden="true" className="shrink-0 text-[var(--muted-foreground)]" />
       <span className="truncate">{model}</span>
     </span>
@@ -156,7 +156,7 @@ export function SlpFlowNodeBody({ node }: { node: SlpFlowNode }) {
       <RowGroup title="Output" rows={node.outputs} />
       {node.details.length > 0 && (
         <section className="space-y-1">
-          <h5 className="text-xs font-bold uppercase tracking-wide text-[var(--muted-foreground)]">Log</h5>
+          <h5 className="text-xs font-semibold text-[var(--muted-foreground)]">Log</h5>
           {node.details.map((detail) => (
             <Block key={detail.label} label={detail.label} text={detail.text} />
           ))}
@@ -170,8 +170,8 @@ export function SlpFlowNodeBody({ node }: { node: SlpFlowNode }) {
 /** A source that feeds a step, shown inside that step so the reader sees it where it was used. */
 function SourceCard({ node, label }: { node: SlpFlowNode; label: string | null }) {
   return (
-    <details className="group rounded-xl bg-[var(--slurp-canvas)] ring-1 ring-inset ring-[var(--slurp-outline)]" open>
-      <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--slurp-focus)]">
+    <details className="group">
+      <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--slurp-focus)]">
         <ChevronDown
           size={14}
           aria-hidden="true"
@@ -183,7 +183,7 @@ function SourceCard({ node, label }: { node: SlpFlowNode; label: string | null }
           <StepStatus status={node.status} />
         </span>
       </summary>
-      <div className="border-t border-[var(--slurp-outline)] p-3">
+      <div className="pb-3 ps-6">
         <SlpFlowNodeBody node={node} />
       </div>
     </details>
@@ -211,19 +211,19 @@ export function SlpDeepDetailsFlow({ graph }: { graph: SlpFlowGraph }) {
           return (
             <li key={node.id} className="relative">
               {laneStarts && (
-                <h4 className={`mb-3 text-xs font-black uppercase tracking-[0.14em] ${index > 0 ? "mt-2" : ""}`}>
+                <h4 className={`mb-3 text-sm font-bold text-[var(--muted-foreground)] ${index > 0 ? "mt-2" : ""}`}>
                   {LANE_TITLE[node.lane]}
                 </h4>
               )}
               <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3">
                 <div className="relative flex justify-center" aria-hidden="true">
                   {!last && <span className="absolute inset-y-0 top-8 w-px bg-[var(--slurp-outline)]" />}
-                  <span className="relative z-10 grid size-8 place-items-center rounded-full bg-[var(--slurp-surface-raised)] text-xs font-bold tabular-nums ring-1 ring-inset ring-[var(--slurp-outline)]">
+                  <span className="relative z-10 grid size-8 place-items-center rounded-full bg-[var(--slurp-surface-raised)] text-xs font-bold tabular-nums">
                     {index + 1}
                   </span>
                 </div>
-                <article className="mb-5 min-w-0 rounded-2xl bg-[var(--slurp-surface-raised)] ring-1 ring-inset ring-[var(--slurp-outline)]">
-                  <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--slurp-outline)] px-4 py-3">
+                <article className="mb-5 min-w-0 rounded-2xl bg-[var(--slurp-surface-raised)] shadow-[var(--slurp-highlight)]">
+                  <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--noodle-divider)] px-4 py-3">
                     <h4 className="text-base font-bold">{node.title}</h4>
                     <StepStatus status={node.status} />
                     {node.model && (
@@ -234,10 +234,8 @@ export function SlpDeepDetailsFlow({ graph }: { graph: SlpFlowGraph }) {
                   </header>
                   <div className="space-y-4 p-4">
                     {sources.length > 0 && (
-                      <section className="space-y-2">
-                        <h5 className="text-xs font-bold uppercase tracking-wide text-[var(--muted-foreground)]">
-                          Sources used here
-                        </h5>
+                      <section className="divide-y divide-[var(--noodle-divider)]">
+                        <h5 className="pb-1 text-xs font-semibold text-[var(--muted-foreground)]">Sources used here</h5>
                         {sources.map((source) => (
                           <SourceCard key={source.node.id} node={source.node} label={source.label} />
                         ))}
@@ -262,16 +260,13 @@ export function SlpDeepDetailsFlow({ graph }: { graph: SlpFlowGraph }) {
 function DataSources({ sources }: { sources: SlpFlowNode[] }) {
   return (
     <section className="space-y-2">
-      <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em]">
+      <h4 className="flex items-center gap-2 text-sm font-bold text-[var(--muted-foreground)]">
         <Database size={14} aria-hidden="true" />
         Where the data comes from
       </h4>
       <div className="grid gap-2 md:grid-cols-2">
         {sources.map((source) => (
-          <details
-            key={source.id}
-            className="group min-w-0 rounded-xl bg-[var(--slurp-surface-raised)] ring-1 ring-inset ring-[var(--slurp-outline)]"
-          >
+          <details key={source.id} className="group min-w-0 rounded-xl bg-[var(--slurp-surface-raised)]">
             <summary className="flex min-h-11 cursor-pointer list-none items-start gap-2 px-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--slurp-focus)]">
               <ChevronDown
                 size={14}
@@ -285,7 +280,7 @@ function DataSources({ sources }: { sources: SlpFlowNode[] }) {
                 </span>
               </span>
             </summary>
-            <div className="space-y-3 border-t border-[var(--slurp-outline)] p-3">
+            <div className="space-y-3 border-t border-[var(--noodle-divider)] p-3">
               <p className="text-xs leading-5">{source.what}</p>
               <dl className="space-y-2">
                 {source.outputs.map((row) => (

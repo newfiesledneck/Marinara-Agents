@@ -80,7 +80,10 @@ for (const done of ["completed", "skipped", "cancelled"] as const) {
 // Wiring.
 const plan = slurp2Source("packages/slurp2/src/engine/packages/server/src/slp/features/feed/slp-post-plan-service.ts");
 // A due stage takes an undirected slot, but never outranks the player's own direction or purpose.
-assert.match(plan, /!directed && !chosen && !promise && !previewOnly\s*\?\s*await listOpenSlurpCampaignStages/u);
+assert.match(
+  plan,
+  /!directed && !chosen && !promise && !nudged && !previewOnly\s*\?\s*await listOpenSlurpCampaignStages/u,
+);
 assert.match(plan, /\(stage \? slurpCampaignStageIntent\(stage\.kind\) : undefined\);/u);
 // The teaser previews its own set's picture, cropped on the server.
 assert.match(plan, /other\.kind === "set"\)\?\.postId/u);

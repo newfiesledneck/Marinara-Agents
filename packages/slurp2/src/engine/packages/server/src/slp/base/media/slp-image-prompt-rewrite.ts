@@ -10,6 +10,7 @@ import { composeSlurpPromptBlocks, type SlurpPromptBlockOverrides } from "../pro
 import type { SlurpVisualBrief } from "./slp-visual-brief.js";
 import { slurpVisualBriefPolicyText, slurpVisualBriefText } from "./slp-visual-brief.js";
 import { resolveSlurpTextConnection } from "../identity/slp-connection.js";
+import { claimSlurpModelBudget, type SlurpModelBudget } from "../model/slp-model-worker.js";
 
 const MAX_REWRITTEN_PROMPT_LENGTH = 12_000;
 const MAX_INSTRUCTIONS_LENGTH = 5_000;
@@ -51,6 +52,18 @@ export async function rewriteSlpImagePrompt(input: {
    * nothing — every picture fell back, while the connection the player chose for Slurp sat unused.
    */
   connectionId?: string | null;
+  /**
+   * Slurp's viewpoint phrase for this picture ("selfie, arm extended toward the viewer …"). Kept word
+   * for word: the rewrite used to write "facing the camera, static shot from a tripod", and weak image
+   * models draw the camera and the tripod.
+   */
+  viewpoint?: string | null;
+  /**
+   * Slurp's AI budget: the rewrite is one call under "Image prompt enhancing". Over its daily limit,
+   * or with the budget mode "Off", the picture goes out with the unenhanced draft. Absent (tests),
+   * nothing is counted.
+   */
+  budget?: SlurpModelBudget;
   /** Receives the connection, model, and chat actually sent, for the Creator-private Deep details. */
   onRequest?: (request: {
     connectionId: string;
@@ -78,6 +91,10 @@ export async function rewriteSlpImagePrompt(input: {
       (await loadPrompt(createPromptOverridesStorage(input.db), NOODLE_IMAGE_INTERPRET, {}));
     const textConnection = await resolveSlurpTextConnection(connections, input.connectionId);
     if (!textConnection) return null;
+    if (input.budget && !(await claimSlurpModelBudget(input.db, input.budget, "image_prompt"))) {
+      logger.info("[slurp] Image prompt enhancing is off or over its daily limit; sending the unenhanced draft");
+      return null;
+    }
 
     const runtime = await resolveIllustratorPromptRuntime({
       chatMetadata: {},
@@ -103,7 +120,11 @@ export async function rewriteSlpImagePrompt(input: {
               id: "output",
               kind: "required",
               text: [
-                "Order the result: first any leading quality or style tag block from the original prompt, verbatim and in the same order; then the character's appearance, copied word for word from the character context and written only once; then the scene: outfit, pose, expression, action, setting, lighting, camera, and mood.",
+                "Order the result: first any leading quality or style tag block from the original prompt, verbatim and in the same order; then the character's appearance, copied word for word from the character context and written only once; then the scene: outfit, pose, expression, action, setting, lighting, viewpoint, and mood.",
+                input.viewpoint?.trim()
+                  ? `Keep this viewpoint phrase word for word, once: "${input.viewpoint.trim()}".`
+                  : "",
+                `${input.viewpoint?.trim() ? "Outside that phrase, never" : "Never"} name a camera, phone, lens, tripod, timer, or photographer: image models draw every object they read. Write where the viewer is ("seen from slightly above", "looking at the viewer") instead.`,
                 "Never add, remove, reword, or reorder quality, score, safety, resolution, or artist tags.",
                 'Never copy labels or field names such as "Appearance:", "Personality:", or "Style:" into the image prompt.',
                 "When the original prompt is comma-separated tags, write the whole result as comma-separated tags.",

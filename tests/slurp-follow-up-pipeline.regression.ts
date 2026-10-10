@@ -23,7 +23,11 @@ assert.doesNotMatch(scheduler, /coolingOff: false/u, "the follow-up must pass th
 
 // 2.4 — the follow-up reply applies the same outcome as a normal reply.
 assert.match(scheduler, /recordCreatorStateSignals\(threadRow\.creatorAccountId, reply\.stateSignals\)/u);
-assert.match(scheduler, /applyFollowUpBoundary\(messages, threadRow\.id, reply\.latitude\)/u);
+// Step 6.5: the boundary also takes the player's cool-off minutes.
+assert.match(
+  scheduler,
+  /applyFollowUpBoundary\(\s*messages,\s+threadRow\.id,\s+reply\.latitude,\s+settings\.messagesCoolOffMinutes,?\s*\)/u,
+);
 
 // 2.2 — the thread route and the client type both carry the scheduled follow-ups the UI renders.
 for (const route of ["packages/slurp2/src/engine/packages/server/src/routes/slurp-messages.routes.ts"]) {

@@ -9,7 +9,6 @@ import { newId } from "../../utils/id-generator.js";
 import { resolveImageConnectionFallback } from "../generation/media-connection-fallback.js";
 import { generateImage, stageImageToDisk, type StagedGalleryImage } from "../image/image-generation.js";
 import { resolveConnectionImageDefaults } from "../image/image-generation-defaults.js";
-import { compileImagePrompt, resolveImageStyleGuidanceText } from "../image/image-prompt-compiler.js";
 import { resolveImagePromptReviewSize } from "../image/image-prompt-review.js";
 import { loadImageGenerationUserSettings } from "../image/image-generation-settings.js";
 import {
@@ -25,6 +24,7 @@ import { createPromptOverridesStorage } from "../storage/prompt-overrides.storag
 import { loadPrompt, NOODLE_IMAGE_POST } from "../prompt-overrides/index.js";
 import { generateNoodleImageWithRetry } from "./noodle-image-retry.js";
 import { noodleImageExtension } from "./noodle-image-format.js";
+import { compileNoodleImagePrompts } from "./noodle-image-prompt.js";
 import { rewriteNoodleImagePrompt } from "./noodle-image-prompt-rewrite.js";
 import type { ConnectionAdmissionMode } from "../generation/connection-admission.js";
 import {
@@ -187,7 +187,7 @@ export async function generateNoodlePostImage(input: {
     }
   }
 
-  const postPrompt = await loadPrompt(input.promptOverrides, NOODLE_IMAGE_POST, {
+  const postPromptContext = {
     authorName: input.account.displayName,
     postContent: input.postContent,
     draftPrompt: input.draftPrompt,
@@ -195,22 +195,32 @@ export async function generateNoodlePostImage(input: {
     characterDescription,
     characterImageInstructions,
     characterPersonality,
-  });
-  const compiledPrompt = compileImagePrompt({
-    kind: "illustration",
-    prompt: postPrompt,
-    styleProfiles: imageSettings.styleProfiles,
-    imageDefaults,
-  });
-  const styleGuidance = resolveImageStyleGuidanceText(imageSettings.styleProfiles, compiledPrompt.profile.id);
+  };
+  const postPrompt = await loadPrompt(input.promptOverrides, NOODLE_IMAGE_POST, postPromptContext);
   const enableImageInterpretation =
     (input.settings as PackageNoodleSettings & { enableImageInterpretation?: boolean }).enableImageInterpretation !==
     false;
-  const rawFinalPrompt = input.promptOverride?.prompt.trim() || compiledPrompt.prompt;
+  // Include descriptions: the rewrite model gets the appearance notes as character context, so the
+  // prompt it edits leaves them out; without a rewrite they are added as written
+  // (Pasta-Devs/Marinara-Agents#1282).
+  const rewritePostPrompt =
+    characterDescription && enableImageInterpretation && !input.promptOverride
+      ? await loadPrompt(input.promptOverrides, NOODLE_IMAGE_POST, { ...postPromptContext, characterDescription: "" })
+      : postPrompt;
+  const {
+    styleGuidance,
+    literal: compiledPrompt,
+    forRewrite,
+  } = compileNoodleImagePrompts(
+    {
+      kind: "illustration",
+      prompt: postPrompt,
+      styleProfiles: imageSettings.styleProfiles,
+      imageDefaults,
+    },
+    rewritePostPrompt,
+  );
   const imagePromptInstructions = input.imageConnection.imagePromptInstructions?.trim();
-  const instructionLine = imagePromptInstructions
-    ? `User image instructions: ${imagePromptInstructions.replace(/\s+/g, " ").slice(0, 5000)}`
-    : "";
   const characterContext = [
     characterDescription ? `Appearance:\n${characterDescription}` : "",
     characterPersonality ? `Personality:\n${characterPersonality}` : "",
@@ -218,21 +228,39 @@ export async function generateNoodlePostImage(input: {
   ]
     .filter(Boolean)
     .join("\n\n");
-  const rewrittenPrompt =
-    (imagePromptInstructions || characterContext || styleGuidance) && enableImageInterpretation && !input.promptOverride
-      ? await rewriteNoodleImagePrompt({
-          db: input.db,
-          prompt: rawFinalPrompt,
-          instructions: imagePromptInstructions,
-          characterContext,
-          styleGuidance,
-        })
-      : null;
-  const finalPrompt =
-    rewrittenPrompt ??
-    (instructionLine && !input.promptOverride && !rawFinalPrompt.includes(instructionLine)
-      ? `${rawFinalPrompt}\n${instructionLine}`
-      : rawFinalPrompt);
+  const rewriteRequested = Boolean(
+    (imagePromptInstructions || characterContext || styleGuidance) &&
+    enableImageInterpretation &&
+    !input.promptOverride,
+  );
+  const rewrittenPrompt = rewriteRequested
+    ? await rewriteNoodleImagePrompt({
+        db: input.db,
+        prompt: forRewrite.prompt,
+        instructions: imagePromptInstructions,
+        characterContext,
+        styleGuidance,
+        noodleConnectionId: input.settings.generationConnectionId,
+        extraGuidance: [characterImageInstructions],
+      })
+    : null;
+  // The connection's Image Prompting Instructions, the poster's appearance notes, personality and image
+  // habits, and the profile's Style text guide the rewrite model only. Without a rewrite the image model
+  // gets the base prompt with the appearance notes; pasted instructions reached it as stray words
+  // (Pasta-Devs/Marinara-Agents#1278, Pasta-Devs/Marinara-Agents#1282).
+  if (rewriteRequested && !rewrittenPrompt) {
+    logger.warn(
+      "[noodle] Image prompt rewrite gave no prompt for %s; sending the base prompt without the image instructions",
+      input.account.displayName,
+    );
+  } else if (!rewriteRequested && imagePromptInstructions && !input.promptOverride) {
+    logDebugOverride(
+      input.debugMode,
+      "[debug/noodle/image] Interpret image prompts is off; the image connection's instructions were not applied for %s",
+      input.account.displayName,
+    );
+  }
+  const finalPrompt = rewrittenPrompt ?? (input.promptOverride?.prompt.trim() || compiledPrompt.prompt);
   const finalNegativePrompt = input.promptOverride
     ? input.promptOverride.negativePrompt?.trim() || undefined
     : compiledPrompt.negativePrompt || undefined;

@@ -3,6 +3,7 @@ import { createSlurpEventsStorage } from "../../data/notifications/slp-notificat
 import type { SlurpMessagesStorage } from "../../data/messages/slp-messages-storage.js";
 import { createSlurpPopulationStorage } from "../../data/audience/slp-audience-storage-funnel.js";
 import { groupSlurpEvents } from "../../modules/notifications/slp-event-weight.js";
+import { readSlurpFanNoteAnswers } from "../../data/notifications/slp-fan-note-storage.js";
 import type { SlpRouteDeps } from "../viewer/slp-viewer-contract.js";
 
 /** The activity-feed read model: stored events, resolved to names and grouped for display. */
@@ -52,9 +53,15 @@ export async function readSlpNotifications(
         });
     }),
   );
+  // A fan's note carries the player's heart and reply with it.
+  const answers = await readSlurpFanNoteAnswers(
+    db,
+    items.concat(unseen).flatMap((event) => (event.kind === "fan_note" ? [event.id] : [])),
+  );
   const named = (list: typeof items) =>
     list.map((event) => ({
       ...event,
+      ...(event.kind === "fan_note" ? { answer: answers.get(event.id) ?? null } : {}),
       subjectId: event.subjectId ? (commissionThreads.get(event.subjectId) ?? event.subjectId) : null,
       actorLabel: event.actorLabel ? (actors.get(event.actorLabel)?.displayName ?? null) : null,
       actorAvatarUrl: event.actorLabel ? (actors.get(event.actorLabel)?.avatarUrl ?? null) : null,

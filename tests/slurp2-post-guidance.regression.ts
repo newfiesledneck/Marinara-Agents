@@ -71,7 +71,8 @@ assert.match(guidanceField, /<PromptEditor/u);
 assert.doesNotMatch(guidanceField, /onBlur=/u, "post directions must not save implicitly on blur");
 assert.match(
   guidanceField,
-  /onSuccess: \(result\) => \{\s*setDraft\(result\.guidance\);\s*setOpen\(true\);/u,
+  // 3c: Write with AI folds into the shared text assist; its answer still opens in the editor.
+  /onApply=\{\(text\) => \{\s*setDraft\(text\);\s*setOpen\(true\);/u,
   "AI output must open as a reviewable draft instead of saving immediately",
 );
 
@@ -168,12 +169,12 @@ assert.match(
 );
 assert.match(
   routes,
-  /if \(previousImageUrl && updated && !updated\.imageUrl\) \{\s*await noodle\.restorePostImageIfUnclaimed\(post\.id, previousImageUrl\);/u,
+  /if \(previousImageUrl && updated && !updated\.imageUrl\) \{\s*await noodle\.restorePostImageIfUnclaimed\(post\.id, previousImageUrl, post\.imagePrompt\);/u,
   "a failed redraw restores the previous image",
 );
 assert.match(
   routes,
-  /if \(imagePrompt !== post\.imagePrompt \|\| previousImageUrl\) \{\s*await noodle\.updatePostMedia\(post\.id, \{ imagePrompt,/u,
+  /if \(imagePrompt !== post\.imagePrompt \|\| previousImageUrl \|\| asWritten !== wasAsWritten\) \{\s*await noodle\.updatePostMedia\(post\.id, \{\s*imagePrompt,/u,
   "a missing or rewritten prompt is persisted before generation",
 );
 assert.match(

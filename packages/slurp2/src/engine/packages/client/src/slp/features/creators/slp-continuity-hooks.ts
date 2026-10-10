@@ -115,17 +115,18 @@ export function useSlurpContinuityOverview() {
   });
 }
 
-/** One editor action. Each refetches the Creator's records, so the view never drifts. */
-export function useSlurpContinuityAction(creatorAccountId: string | null) {
+/** One editor action. Each refetches every continuity view, so none of them drifts. */
+export function useSlurpContinuityAction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { path: string; body?: Record<string, unknown> }) =>
       api.post<unknown>(`/slurp2/continuity/${input.path}`, input.body ?? {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: continuityKey(creatorAccountId ?? "none") }),
+    // The whole continuity root, so the cross-Creator review list and counts refresh too (R1-114).
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...slpKeys.noodlerRoot(), "continuity"] }),
   });
 }
 
-export function useSlurpContinuityEdit(creatorAccountId: string | null) {
+export function useSlurpContinuityEdit() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { id: string; text?: string; audienceScope?: string }) =>
@@ -133,6 +134,7 @@ export function useSlurpContinuityEdit(creatorAccountId: string | null) {
         ...(input.text !== undefined ? { text: input.text } : {}),
         ...(input.audienceScope ? { audienceScope: input.audienceScope } : {}),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: continuityKey(creatorAccountId ?? "none") }),
+    // The whole continuity root, so the cross-Creator review list and counts refresh too (R1-114).
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...slpKeys.noodlerRoot(), "continuity"] }),
   });
 }

@@ -10,8 +10,8 @@
   },
   "id": "noodle",
   "name": "Noodle",
-  "version": "1.2.25",
-  "description": "Explore the Noodle public timeline as an optional local social world. Install it, restart Marinara Engine when prompted, then open Home → Noodle.",
+  "version": "1.5.3",
+  "description": "A pretend social network where your characters post, share photos, and talk about your chats. Install it, restart Marinara Engine when prompted, then open Home → Noodle.",
   "localizations": {
     "de": {
       "name": "Noodle",
@@ -88,18 +88,18 @@
   "files": [
     {
       "path": "agents.json",
-      "sha256": "dbd9eccf6fca9b299ecdb9d0aab599e5d01fdd0260266490ca1c02a199bed923",
-      "bytes": 510
+      "sha256": "39cf1885fd4ddcaadfc8447f87b2dac254add9d24a4c59418de78f1c53eae045",
+      "bytes": 534
     },
     {
       "path": "server.mjs",
-      "sha256": "59b22b8e78ee7ac26ce2a2ad1f8efe7cf029b2243feea0c17af477d047595ca2",
-      "bytes": 2425599
+      "sha256": "57a770fec95ea59fcce99d75043332185d41bb145ce6b32124aa6f4c4d497a87",
+      "bytes": 2023117
     },
     {
       "path": "client.js",
-      "sha256": "c16a8f1a0cf318eb0ef677445029fb4b857c5c90e7aa33b2cfbd557be298e548",
-      "bytes": 2380932
+      "sha256": "e000cd25824d5ec0c06c1ba6b6db1319071c3086be88b98ea3446b1400df7189",
+      "bytes": 2394526
     },
     {
       "path": "noodle-klusek.png",

@@ -490,11 +490,23 @@ function parseSlurpStateJson(raw: string): unknown {
   }
 }
 
-export function slurpCreatorStateCanUseMedia(creator: SlurpCreatorState, thread: SlurpThreadState): boolean {
-  if (creator.energy < 25 || thread.posture === "rejecting") return false;
+/** Why the Creator's state holds a picture back in this thread, or null when it does not. */
+export function slurpCreatorStateMediaBlock(
+  creator: SlurpCreatorState,
+  thread: SlurpThreadState,
+): "energy" | "posture" | "comfort" | "respect" | null {
+  if (creator.energy < 25) return "energy";
+  if (thread.posture === "rejecting") return "posture";
   const adultStateActive = creator.arousal >= 36 || thread.adultLevel !== "ordinary";
-  if (!adultStateActive) return true;
-  return thread.sexualComfort >= 36 && thread.respect >= 36 && thread.posture !== "defensive";
+  if (!adultStateActive) return null;
+  if (thread.posture === "defensive") return "posture";
+  if (thread.sexualComfort < 36) return "comfort";
+  if (thread.respect < 36) return "respect";
+  return null;
+}
+
+export function slurpCreatorStateCanUseMedia(creator: SlurpCreatorState, thread: SlurpThreadState): boolean {
+  return slurpCreatorStateMediaBlock(creator, thread) === null;
 }
 
 /** Apply one bounded delta. The server, not the model, owns the limits. */
@@ -558,6 +570,29 @@ export function lowerSlurpAdultLevel(a: SlurpAdultLevel, b: SlurpAdultLevel): Sl
  * and it is why the fall is checked first: a level the thread no longer holds goes immediately,
  * whatever earned it.
  */
+/**
+ * What holds the next step back, read off the same rule `nextSlurpAdultLevel` applies, so the
+ * Details panel says what the server decides instead of guessing (R1-012). `falling`: the thread no
+ * longer holds its own level; `top`: there is no next step.
+ */
+export function slurpAdultRiseBlock(
+  state: SlurpThreadState,
+): "falling" | "respect" | "resentment" | "posture" | "comfort" | "desire" | "top" | null {
+  const index = slurpAdultLevelIndex(state.adultLevel);
+  const current = ADULT_LEVEL_REQUIREMENT[state.adultLevel];
+  if (index > 0 && (state.sexualComfort < current.sexualComfort || state.threadDesire < current.threadDesire))
+    return "falling";
+  if (state.respect < ADULT_RESPECT_FLOOR) return "respect";
+  if (state.resentment > ADULT_RESENTMENT_CEILING) return "resentment";
+  if (state.posture === "defensive" || state.posture === "rejecting") return "posture";
+  const next = SLURP_ADULT_LEVELS[index + 1];
+  if (!next) return "top";
+  const need = ADULT_LEVEL_REQUIREMENT[next];
+  if (state.sexualComfort < need.sexualComfort) return "comfort";
+  if (state.threadDesire < need.threadDesire) return "desire";
+  return null;
+}
+
 export function nextSlurpAdultLevel(state: SlurpThreadState): SlurpAdultLevel {
   const index = slurpAdultLevelIndex(state.adultLevel);
   const holds = (level: SlurpAdultLevel): boolean => {
@@ -684,4 +719,65 @@ export function slurpIntensityBand(value: number): "low" | "medium" | "high" | "
 
 export function slurpAdultLevelIndex(level: SlurpAdultLevel): number {
   return SLURP_ADULT_LEVELS.indexOf(level);
+}
+
+/**
+ * Where a chat with her partner starts (Drama, "your relationship"): the person she is with is no
+ * stranger she warms up to step by step. These are floors, never ceilings: a chat that is already
+ * further keeps it, and nothing here lowers a value. After a fight (`rocky`) some hurt stays and the
+ * ceiling holds one step lower until they make up. A crush is warm, not yet intimate. Her own spice
+ * level still caps what she does; this only stops the chat ladder from treating her partner as a fan.
+ */
+export function slurpPartnerThreadFloor(
+  state: SlurpThreadState,
+  partner: "partner" | "rocky" | "crush" | null,
+): SlurpThreadState {
+  if (!partner) return state;
+  const floor =
+    partner === "partner"
+      ? {
+          familiarity: 80,
+          emotionalTrust: 70,
+          sexualComfort: 80,
+          threadDesire: 60,
+          respect: 60,
+          adultLevel: "explicit",
+        }
+      : partner === "rocky"
+        ? {
+            familiarity: 75,
+            emotionalTrust: 50,
+            sexualComfort: 60,
+            threadDesire: 45,
+            respect: 50,
+            adultLevel: "intimate",
+          }
+        : {
+            familiarity: 35,
+            emotionalTrust: 30,
+            sexualComfort: 25,
+            threadDesire: 30,
+            respect: 50,
+            adultLevel: "suggestive",
+          };
+  const cold = ["open", "professional", "guarded", "distant"] as const;
+  return {
+    ...state,
+    familiarity: Math.max(state.familiarity, floor.familiarity),
+    emotionalTrust: Math.max(state.emotionalTrust, floor.emotionalTrust),
+    sexualComfort: Math.max(state.sexualComfort, floor.sexualComfort),
+    threadDesire: Math.max(state.threadDesire, floor.threadDesire),
+    respect: Math.max(state.respect, floor.respect),
+    resentment: partner === "rocky" ? Math.max(state.resentment, 30) : state.resentment,
+    adultLevel:
+      slurpAdultLevelIndex(state.adultLevel) >= slurpAdultLevelIndex(floor.adultLevel as SlurpAdultLevel)
+        ? state.adultLevel
+        : (floor.adultLevel as SlurpAdultLevel),
+    // Not the posture of somebody who is talking to a stranger.
+    posture: (cold as readonly string[]).includes(state.posture)
+      ? partner === "rocky"
+        ? "guarded"
+        : "playful"
+      : state.posture,
+  };
 }

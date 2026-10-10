@@ -16,6 +16,7 @@ const PROMPT_NAMES: Record<string, string> = {
   pendingQuestion: "Post questions",
   pendingOpener: "First messages",
   pendingDelivery: "Commission delivery",
+  pendingDesk: "Support desk messages",
   fanReply: "Fan replies",
   postGuidance: "Post guidance",
   conversationSchedule: "Conversation schedules",
@@ -32,13 +33,14 @@ const PROMPT_PURPOSES: Record<string, string> = {
   commentReply: "Responds to comments and joins public conversations naturally.",
   fanActivity: "Creates believable activity around Creator content.",
   stageProfile: "Writes the public identity for a managed Creator.",
-  ambientProfile: "Creates lightweight profiles for simulated audience members.",
+  ambientProfile: "Creates lightweight profiles for audience members.",
   publicProfile: "Sets up public profiles for existing characters.",
   arc: "Develops continuing events and Creator storylines.",
   pendingCommission: "Responds to new commission requests.",
   pendingQuestion: "Answers questions attached to Creator posts.",
   pendingOpener: "Starts a new private conversation.",
   pendingDelivery: "Writes notes for completed commission deliveries.",
+  pendingDesk: "Writes what a Creator sends to Slurp Support: tickets, complaints, a leave warning.",
   fanReply: "Writes a fan's next message in a conversation you play as the Creator.",
   postGuidance: "Turns a short direction into usable post guidance.",
   conversationSchedule: "Plans when conversations should continue.",
@@ -46,7 +48,7 @@ const PROMPT_PURPOSES: Record<string, string> = {
   reactionBank: "Builds reusable audience reactions.",
   imageInterpretation: "Turns an image idea into provider-ready direction.",
   imagePost: "Assembles the image prompt for a Creator post.",
-  garnishAds: "Writes advertisements that fit the simulated feed.",
+  garnishAds: "Writes sponsored posts that fit the feed.",
 };
 
 const BLOCK_PURPOSES: Record<string, string> = {

@@ -7,16 +7,16 @@ import {
   Palette,
   ShieldCheck,
   Shirt,
-  Sparkles,
   TriangleAlert,
   UserRound,
   UsersRound,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
+import { SlpSparkleGlyph } from "../../../base/chrome/SlpGlyphs";
 import type { ComponentType } from "react";
 
 import {
-  SlpCreatorOverviewSection,
   SlpCreatorAppearanceSection,
   SlpCreatorAutomationSection,
   SlpCreatorAudienceSection,
@@ -30,12 +30,14 @@ import {
   SlpCreatorProductionSection,
   SlpCreatorWardrobeSection,
 } from "./SlpCreatorSettingsSections";
+import { SlpCreatorOverviewSection } from "./SlpCreatorOverviewSection";
+import { SlpCreatorStorylinesSection } from "./SlpCreatorStorylinesSection";
 import type { SlpCreatorSettingsCreator, SlpCreatorSettingsSectionProps } from "./slp-creator-settings-contract";
-import type { SlpCreatorSettingsTab } from "./slp-creator-settings-store";
+import type { SlpCreatorSettingsBlock, SlpCreatorSettingsTab } from "./slp-creator-settings-store";
 
-export type SlpCreatorSettingsSection = {
-  id: SlpCreatorSettingsTab;
-  group: "creator" | "publishing" | "interaction" | "memory" | "tools" | "danger";
+/** One block of settings; a tab shows one or more blocks in order. */
+export type SlpCreatorSettingsBlockEntry = {
+  id: SlpCreatorSettingsBlock;
   icon: LucideIcon;
   /** Localization key for the tab label; the fallback doubles as the English copy. */
   labelKey: string;
@@ -46,15 +48,12 @@ export type SlpCreatorSettingsSection = {
 };
 
 /**
- * The Creator settings modal, one entry per tab.
- *
- * Adding a per-Creator setting means adding it to one section, or adding a section here. There is
- * no second list to keep in step: the modal, its tab rail and the settings search all read this.
+ * Every block of Creator settings. Adding a per-Creator setting means adding it to one block, or
+ * adding a block here and naming it in one tab below.
  */
-export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[] = [
+export const SLP_CREATOR_SETTINGS_BLOCKS: readonly SlpCreatorSettingsBlockEntry[] = [
   {
     id: "overview",
-    group: "creator",
     icon: CircleAlert,
     labelKey: "ui.slurp.settings.creators.tabs.overview",
     defaultLabel: "Overview",
@@ -62,7 +61,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "identity",
-    group: "creator",
     icon: UserRound,
     labelKey: "ui.slurp.settings.creators.tabs.identity",
     defaultLabel: "Identity",
@@ -70,7 +68,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "appearance",
-    group: "creator",
     icon: Palette,
     labelKey: "ui.slurp.settings.creators.tabs.appearance",
     defaultLabel: "Appearance",
@@ -78,7 +75,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "wardrobe",
-    group: "creator",
     icon: Shirt,
     labelKey: "ui.slurp.settings.creators.tabs.wardrobe",
     defaultLabel: "Wardrobe",
@@ -86,7 +82,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "audience",
-    group: "creator",
     icon: UsersRound,
     labelKey: "ui.slurp.settings.creators.tabs.audienceActivity",
     defaultLabel: "Audience activity",
@@ -94,7 +89,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "automation",
-    group: "publishing",
     icon: CalendarClock,
     labelKey: "ui.slurp.settings.creators.tabs.automation",
     defaultLabel: "Automation",
@@ -102,7 +96,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "content-rules",
-    group: "publishing",
     icon: ShieldCheck,
     labelKey: "ui.slurp.settings.creators.tabs.contentRules",
     defaultLabel: "Content rules",
@@ -110,7 +103,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "production",
-    group: "publishing",
     icon: Images,
     labelKey: "ui.slurp.settings.creators.tabs.production",
     defaultLabel: "Production",
@@ -118,7 +110,6 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "collaborations",
-    group: "publishing",
     icon: UsersRound,
     labelKey: "ui.slurp.settings.creators.tabs.collaborations",
     defaultLabel: "Collaborations",
@@ -126,15 +117,20 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "messages",
-    group: "interaction",
     icon: MessageCircle,
     labelKey: "ui.slurp.settings.creators.tabs.messages",
     defaultLabel: "Messages",
     Component: SlpCreatorMessagesSection,
   },
   {
+    id: "storylines",
+    icon: Workflow,
+    labelKey: "ui.slurp.settings.creators.tabs.storylines",
+    defaultLabel: "Storylines",
+    Component: SlpCreatorStorylinesSection,
+  },
+  {
     id: "continuity",
-    group: "memory",
     icon: BookOpen,
     labelKey: "ui.slurp.settings.creators.tabs.continuity",
     defaultLabel: "Continuity",
@@ -142,18 +138,83 @@ export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[]
   },
   {
     id: "improve",
-    group: "tools",
-    icon: Sparkles,
+    icon: SlpSparkleGlyph,
     labelKey: "ui.slurp.settings.creators.tabs.improve",
     defaultLabel: "Improve",
     Component: SlpCreatorImproveSection,
   },
   {
     id: "danger",
-    group: "danger",
     icon: TriangleAlert,
     labelKey: "ui.slurp.settings.creators.tabs.danger",
     defaultLabel: "Remove",
     Component: SlpCreatorDangerSection,
+  },
+];
+
+export type SlpCreatorSettingsSection = {
+  id: SlpCreatorSettingsTab;
+  icon: LucideIcon;
+  labelKey: string;
+  defaultLabel: string;
+  blocks: readonly SlpCreatorSettingsBlockEntry[];
+};
+
+const blocks = (...ids: SlpCreatorSettingsBlock[]) =>
+  ids.map((id) => SLP_CREATOR_SETTINGS_BLOCKS.find((block) => block.id === id)!);
+
+/**
+ * The Creator settings modal, one entry per tab: who they are, what they post, who they talk to,
+ * what they remember, tools. The modal, its tab rail and the settings search all read this.
+ */
+export const SLP_CREATOR_SETTINGS_SECTIONS: readonly SlpCreatorSettingsSection[] = [
+  {
+    id: "overview",
+    icon: CircleAlert,
+    labelKey: "ui.slurp.settings.creators.tabs.overview",
+    defaultLabel: "Overview",
+    blocks: blocks("overview"),
+  },
+  {
+    id: "profile",
+    icon: UserRound,
+    labelKey: "ui.slurp.settings.creators.tabs.profile",
+    defaultLabel: "Profile",
+    blocks: blocks("identity", "appearance", "wardrobe"),
+  },
+  {
+    id: "posting",
+    icon: CalendarClock,
+    labelKey: "ui.slurp.settings.creators.tabs.posting",
+    defaultLabel: "Posting",
+    blocks: blocks("automation", "production", "storylines", "collaborations"),
+  },
+  {
+    id: "content-rules",
+    icon: ShieldCheck,
+    labelKey: "ui.slurp.settings.creators.tabs.contentRules",
+    defaultLabel: "Content rules",
+    blocks: blocks("content-rules"),
+  },
+  {
+    id: "fans",
+    icon: MessageCircle,
+    labelKey: "ui.slurp.settings.creators.tabs.fans",
+    defaultLabel: "Fans & messages",
+    blocks: blocks("audience", "messages"),
+  },
+  {
+    id: "memory",
+    icon: BookOpen,
+    labelKey: "ui.slurp.settings.creators.tabs.memory",
+    defaultLabel: "Memory",
+    blocks: blocks("continuity"),
+  },
+  {
+    id: "tools",
+    icon: SlpSparkleGlyph,
+    labelKey: "ui.slurp.settings.creators.tabs.tools",
+    defaultLabel: "Tools",
+    blocks: blocks("improve", "danger"),
   },
 ];

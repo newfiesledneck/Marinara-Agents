@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import {
   createSlurpContinuityFact,
   editSlurpContinuityFact,
+  findSlurpContinuityFactBySourceHash,
   listSlurpContinuityForEditor,
   listSlurpContinuityLinks,
   moveSlurpContinuityStatus,
@@ -11,8 +12,13 @@ import {
   SLURP_PROMOTION_TARGETS,
 } from "../../data/continuity/slp-continuity-storage.js";
 import { listSlurpOpportunities } from "../../data/feed/slp-opportunity-storage.js";
+import { listSlurpSignals } from "./slp-signals-service.js";
 import { createSlurpStorage } from "../../data/slp-storage.js";
-import { slurpContinuityIdentityOf, SLURP_CONTINUITY_TEXT_MAX } from "../../modules/continuity/slp-continuity-rules.js";
+import {
+  slurpChatMomentKey,
+  slurpContinuityIdentityOf,
+  SLURP_CONTINUITY_TEXT_MAX,
+} from "../../modules/continuity/slp-continuity-rules.js";
 import {
   SLURP_AUDIENCE_SCOPES,
   SLURP_CONTINUITY_FACT_TYPES,
@@ -114,6 +120,63 @@ export async function slpContinuityRoutes(app: FastifyInstance) {
     });
     if (!fact) return reply.code(400).send({ error: "Write something for the note to say." });
     return fact;
+  });
+
+  /**
+   * "Save to Slurp" from an Engine chat. A chat knows its character, not the Slurp account, so this
+   * finds every Creator page that character runs and stores the moment on each. Saving is the
+   * player's explicit choice, so the note is active at once, but it stays with the Creator
+   * (creator_private) until the player promotes it. Saving the same message again stores nothing new.
+   */
+  app.post("/continuity/from-chat", async (req, reply) => {
+    const body = z
+      .object({
+        characterId: z.string().trim().min(1).max(128),
+        chatId: z.string().trim().min(1).max(128),
+        messageId: z.string().trim().max(128).optional(),
+        text: z.string().trim().min(1).max(SLURP_CONTINUITY_TEXT_MAX),
+        factType: z.enum(SLURP_CONTINUITY_FACT_TYPES).default("circumstance"),
+        subject: z.string().trim().max(120).optional(),
+      })
+      .strict()
+      .safeParse(req.body ?? {});
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() });
+    const { characterId, chatId, messageId, text, factType, subject } = body.data;
+    const accounts = (await createSlurpStorage(app.db).listNoodlerAccounts()).filter(
+      (account) => account.sourceKind === "character" && account.sourceEntityId === characterId,
+    );
+    if (accounts.length === 0) return reply.code(404).send({ error: "This character has no Slurp page." });
+    const sourceHash = slurpChatMomentKey(chatId, messageId, text);
+    const saved = [];
+    for (const account of accounts) {
+      const identity = slurpContinuityIdentityOf(account);
+      if (!identity) continue;
+      const existing = await findSlurpContinuityFactBySourceHash(app.db, account.id, sourceHash);
+      const fact =
+        existing ??
+        (await createSlurpContinuityFact(app.db, {
+          ...identity,
+          factType,
+          subject,
+          text,
+          audienceScope: "creator_private",
+          realityScope: "slurp",
+          source: "chat",
+          evidence: `chat ${chatId}${messageId ? ` message ${messageId}` : ""}`,
+          sourceHash,
+          contribution: "manual",
+        }));
+      if (fact) saved.push({ creatorAccountId: account.id, fact, created: !existing });
+    }
+    return { saved };
+  });
+
+  /** A Creator's recent signals, newest first, for the Backstage view. Owner-only like the editor. */
+  app.get("/continuity/:creatorAccountId/signals", async (req, reply) => {
+    const { creatorAccountId } = req.params as { creatorAccountId: string };
+    const signals = await listSlurpSignals(app.db, creatorAccountId);
+    if (!signals) return reply.code(404).send({ error: "Creator account not found" });
+    return { signals };
   });
 
   app.patch("/continuity/facts/:id", async (req, reply) => {

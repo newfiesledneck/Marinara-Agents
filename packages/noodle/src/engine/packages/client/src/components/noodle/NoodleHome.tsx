@@ -84,6 +84,7 @@ import {
 import { useUploadGlobalGalleryImages } from "../../hooks/use-global-gallery";
 import type { ChatImage } from "../../hooks/use-gallery";
 import type { PackageNoodleSettings, PackageNoodleSettingsUpdateInput } from "./noodle-settings-defaults";
+import { forgetNoodleTranslations, stopNoodleAutoTranslations } from "./noodle-translation";
 import {
   mergeNoodlePromptPreset,
   NOODLE_PROMPT_PRESET_LIMIT,
@@ -156,7 +157,7 @@ import type {
 } from "./noodle-navigation.types";
 import { NoodleProfileSurface } from "./NoodleProfileSurface";
 import { formatTime } from "./NoodleDateTime";
-import { NoodleImageComposer } from "./NoodleImageComposer";
+import { NOODLE_IMAGE_ACCEPT, NoodleImageComposer } from "./NoodleImageComposer";
 import { NoodlePollComposer } from "./NoodlePollComposer";
 import {
   insertAtSelection,
@@ -619,11 +620,21 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
   const selectedPersonaId = useUIStore((state) => state.noodleSelectedPersonaId);
   const setSelectedPersonaId = useUIStore((state) => state.setNoodleSelectedPersonaId);
   const notificationViewActive = navigation.mode === "public" && navigation.view === "notifications";
-  const { data, isLoading: isBootstrapLoading, isError: isBootstrapError } = useNoodle();
+  const {
+    data,
+    isLoading: isBootstrapLoading,
+    isError: isBootstrapError,
+    error: bootstrapError,
+    refetch: refetchBootstrap,
+  } = useNoodle();
   const feedQuery = useNoodleFeed();
   const notificationDataQuery = useNoodleNotificationData(notificationViewActive);
   const isLoading = isBootstrapLoading || feedQuery.isLoading;
   const isError = isBootstrapError || feedQuery.isError;
+  // From another device, every Noodle route fails until the Admin Secret is set (#1136).
+  const adminSecretMissing = [bootstrapError, feedQuery.error].some(
+    (error) => error instanceof Error && /admin.secret/i.test(error.message),
+  );
   const feedPosts = useMemo(() => feedQuery.data?.pages.flatMap((page) => page.items) ?? [], [feedQuery.data]);
   const feedInteractions = useMemo(
     () => feedQuery.data?.pages.flatMap((page) => page.interactions) ?? [],
@@ -835,6 +846,10 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
 
   const activeNoodleView = navigation.mode === "public" ? navigation.view : navigation.mode;
   const settings = data?.settings;
+  const autoTranslatePosts = (settings as PackageNoodleSettings | undefined)?.autoTranslatePosts === true;
+  useEffect(() => {
+    if (!autoTranslatePosts) stopNoodleAutoTranslations();
+  }, [autoTranslatePosts]);
   const settingsTab: SocialSettingsTab = "noodle";
   const requestedSettingsSection: SocialSettingsSection =
     navigation.mode === "settings" ? (navigation.section ?? "general") : "general";
@@ -2831,6 +2846,7 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
       if (deleteAllConfirmation !== "DELETE") return;
       deleteAllData.mutate(undefined, {
         onSuccess: (counts) => {
+          forgetNoodleTranslations();
           setConfirmAction(null);
           setDeleteAllConfirmation("");
           toast.success(
@@ -2849,6 +2865,7 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
     }
     resetNoodleTimeline.mutate(undefined, {
       onSuccess: () => {
+        forgetNoodleTranslations();
         setFocusedPostResult(null);
         clearReplyComposer();
         setPostMenuId(null);
@@ -3802,6 +3819,19 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
           </Section>
 
           <Section
+            visible={settingsTab === "noodle" && settingsSection === "general"}
+            title={localizeUi("ui.noodle.noodlehome.translation")}
+          >
+            <ToggleSetting
+              label={localizeUi("ui.noodle.noodlehome.autoTranslatePosts")}
+              help={localizeUi("ui.noodle.noodlehome.autoTranslatePostsHelp")}
+              checked={(settings as PackageNoodleSettings).autoTranslatePosts === true}
+              disabled={updateSettings.isPending}
+              onChange={(checked) => saveSettings({ autoTranslatePosts: checked })}
+            />
+          </Section>
+
+          <Section
             visible={settingsTab === "noodle" && settingsSection === "participants"}
             title={localizeUi("ui.noodle.noodlehome.activeAccounts")}
             help={localizeUi("ui.noodle.noodlehome.controlsHowManyEligibleCharactersOrRandomUsersAre")}
@@ -4070,6 +4100,13 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
             help={localizeUi("ui.noodle.noodlehome.letsAVisionCapableConnectionDescribeTimelineImagesFor")}
           >
             <div className="space-y-3">
+              <ToggleSetting
+                label={localizeUi("ui.noodle.noodlehome.showImagesToWriter")}
+                help={localizeUi("ui.noodle.noodlehome.showImagesToWriterHelp")}
+                checked={(settings as PackageNoodleSettings).showImagesToWriter !== false}
+                disabled={updateSettings.isPending}
+                onChange={(checked) => saveSettings({ showImagesToWriter: checked })}
+              />
               <ToggleSetting
                 label={localizeUi("ui.noodle.noodlehome.imageCaptioning")}
                 help={localizeUi(
@@ -4357,6 +4394,7 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
           replyMentionSuggestions,
           selectReplyMention,
         },
+        autoTranslate: autoTranslatePosts,
       }}
     />
   );
@@ -4809,11 +4847,17 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
       rightRail={rightRail}
       overlays={
         <>
-          <input ref={imageFileRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+          <input
+            ref={imageFileRef}
+            type="file"
+            accept={NOODLE_IMAGE_ACCEPT}
+            className="hidden"
+            onChange={handleImageFile}
+          />
           <input
             ref={replyImageFileRef}
             type="file"
-            accept="image/*"
+            accept={NOODLE_IMAGE_ACCEPT}
             className="hidden"
             onChange={handleReplyImageFile}
           />
@@ -5300,6 +5344,23 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError && posts.length === 0 ? (
+            <div role="alert" className="px-8 py-14 text-center">
+              <p className="text-base font-bold">{localizeUi("ui.noodle.widget.unavailable")}</p>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[var(--muted-foreground)]">
+                {localizeUi(adminSecretMissing ? "ui.noodle.widget.adminSecretMissing" : "ui.noodle.widget.loadReason")}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isBootstrapError) void refetchBootstrap();
+                  if (feedQuery.isError) void feedQuery.refetch();
+                }}
+                className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold hover:bg-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+              >
+                <RefreshCw size="0.875rem" aria-hidden="true" /> {localizeUi("ui.noodle.widget.retry")}
+              </button>
             </div>
           ) : isAccountSearch ? (
             accountSearchResults.length > 0 ? (

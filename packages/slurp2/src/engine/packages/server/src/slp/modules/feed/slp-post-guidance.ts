@@ -149,8 +149,8 @@ const NON_SEXUAL_INTENTS = new Set(["business", "appreciation"]);
  *
  * A locked post delivers the ceiling: it is the thing somebody paid for, and a paid post that
  * withholds what the free feed already showed is the complaint this whole module exists to answer.
- * Everything public sits one step under it, so the free feed advertises the paid one instead of
- * replacing it. A teaser is public, so it lands on the same step — which is the correct reading of
+ * Everything public sits one step under it (and never shows nudity), so the free feed advertises
+ * the paid one instead of replacing it. A teaser is public, so it lands on the same step — which is the correct reading of
  * "show enough that somebody wants the rest".
  */
 export function slurpPostSexualLevel(input: {
@@ -160,8 +160,20 @@ export function slurpPostSexualLevel(input: {
 }): SlurpExplicitLevel {
   if (input.intent && NON_SEXUAL_INTENTS.has(input.intent)) return "none";
   if (input.access === "locked") return input.level;
-  const index = SLURP_VISUAL_SEXUAL_LEVELS.indexOf(input.level);
-  return SLURP_VISUAL_SEXUAL_LEVELS[Math.max(0, index - 1)] ?? "none";
+  return slurpPublicSexualLevel(input.level);
+}
+
+/**
+ * The most anything public shows (posts, teasers, Stories anyone can see, a profile picture or cover):
+ * one step under the Creator, and never nudity (slice I, user: an Explicit Creator's public posts stop
+ * at a tease; nudity goes behind the lock).
+ */
+export function slurpPublicSexualLevel(level: SlurpExplicitLevel): SlurpExplicitLevel {
+  const index = Math.min(
+    SLURP_VISUAL_SEXUAL_LEVELS.indexOf(level) - 1,
+    SLURP_VISUAL_SEXUAL_LEVELS.indexOf("suggestive"),
+  );
+  return SLURP_VISUAL_SEXUAL_LEVELS[Math.max(0, index)] ?? "none";
 }
 
 /** The Creator's own content menu. Empty when they have none; there is no global fallback. */

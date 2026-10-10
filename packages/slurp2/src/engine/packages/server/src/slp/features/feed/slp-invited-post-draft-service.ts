@@ -19,6 +19,7 @@ import { slpCreatorSourceText } from "../../base/prompting/slp-prompt-safety.js"
 import { NOODLER_UNTRUSTED_CONTENT_INSTRUCTION } from "./slp-public-identity.js";
 import { composeSlurpPromptBlocks, type SlurpPromptBlockOverrides } from "../../base/prompting/slp-prompt-blocks.js";
 import { SLURP_PERFORMED_INTIMACY } from "../../modules/creators/slp-performance.js";
+import { slpWithProviderRetry } from "../../base/model/slp-provider-retry.js";
 
 export type InvitedSlpPostDraftRequest = {
   guidance?: string;
@@ -51,23 +52,25 @@ export async function generateInvitedSlpPostDraft(
   if (!character) throw new Error("Noodle character not found.");
   const connections = createConnectionsStorage(db);
   const fallback = await connections.getFallbackForMain();
-  const provider = withConnectionFallbackProvider({
-    primary: createLLMProvider(
-      connection.provider,
-      resolveBaseUrl(connection),
-      connection.apiKey,
-      connection.maxContext,
-      connection.openrouterProvider,
-      connection.maxTokensOverride,
-      connection.claudeFastMode === "true",
-      connection.treatAsLocalEndpoint === "true",
-      connection.defaultParameters,
-    ),
-    primaryConnectionId: connection.id,
-    fallbackConnection: fallback,
-    fallbackBaseUrl: fallback ? resolveBaseUrl(fallback) : "",
-    category: "main",
-  });
+  const provider = slpWithProviderRetry(
+    withConnectionFallbackProvider({
+      primary: createLLMProvider(
+        connection.provider,
+        resolveBaseUrl(connection),
+        connection.apiKey,
+        connection.maxContext,
+        connection.openrouterProvider,
+        connection.maxTokensOverride,
+        connection.claudeFastMode === "true",
+        connection.treatAsLocalEndpoint === "true",
+        connection.defaultParameters,
+      ),
+      primaryConnectionId: connection.id,
+      fallbackConnection: fallback,
+      fallbackBaseUrl: fallback ? resolveBaseUrl(fallback) : "",
+      category: "main",
+    }),
+  );
   const messages: ChatMessage[] = [
     {
       role: "system",

@@ -153,10 +153,12 @@ async function purgeUnlocked(db: DB, settings: SlurpSettings): Promise<Omit<Slur
   const postsToDelete = plan.postsToDelete.filter(
     (post) => mediaRemovalSucceeded(post.metadata) && allAttachmentMediaRemoved(post.id),
   );
+  // Only posts that still carry media: an already-stripped post was rewritten on every run (R1-115).
   const postsToStrip = settings.autopurgeKeepPosts
     ? oldPosts.filter((post) => {
         const path = ownedMediaPath(post.metadata);
-        return (path ? removedMediaPaths.has(path) : true) && allAttachmentMediaRemoved(post.id);
+        const hasMedia = Boolean(path || post.imageUrl || attachmentsByPost.has(post.id));
+        return hasMedia && (path ? removedMediaPaths.has(path) : true) && allAttachmentMediaRemoved(post.id);
       })
     : [];
   const messagesToStrip = oldMessages.filter((message) => {
@@ -179,8 +181,8 @@ async function purgeUnlocked(db: DB, settings: SlurpSettings): Promise<Omit<Slur
           imageUrl: null,
           imageClaimToken: null,
           imageClaimLeaseUntil: null,
+          // No `updatedAt`: a cleanup is not an edit, and the post would read "Last edited" (R1-115).
           metadata: JSON.stringify({ ...withoutMediaMetadata(post.metadata), postMedia: [] }),
-          updatedAt: now(),
         })
         .where(eq(slpPosts.id, post.id));
     }

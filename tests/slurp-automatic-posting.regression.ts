@@ -59,7 +59,10 @@ const viewerHook = hooks.slice(
   hooks.indexOf("export function useCreatorViewer"),
   hooks.indexOf("/**\n * Unseen-post count"),
 );
-assert.match(viewerHook, /refetchInterval: enabled && personaId \? 120_000 : false/u);
+// Step 3.1 (user): the feed keeps itself fresh instead of a refresh button. 0.3.6: the cheap unseen count
+// polls every 30 s and refreshes the feed on new posts; the full feed only polls slowly.
+assert.match(viewerHook, /refetchInterval: enabled && personaId \? 180_000 : false/u);
+assert.match(hooks, /refetchInterval: enabled && personaId \? 30_000 : false/u);
 assert.match(hooks, /invalidateQueries\(\{ queryKey: slpKeys\.viewer\(personaId\) \}\)/u);
 assert.match(storage, /autoPostGenerationMode: z\.enum\(\["pre_generate", "on_demand"\]\)/u);
 assert.match(
@@ -76,7 +79,7 @@ assert.match(
   /Date\.parse\(item\.publishAt\) < at\.getTime\(\) - elapsedPreparedSlotMs\(settings\.postsPerDay\)/u,
 );
 assert.match(storage, /slurpCreatorPostingIntervalMs\(settings\.postsPerDay\)/u);
-assert.match(storage, /hasSlurpCreatorPostingIntervalConflict\(activityTimes, publishMs, settings\.postsPerDay\)/u);
+assert.match(storage, /hasSlurpCreatorPostingIntervalConflict\(activityTimes, publishMs, perCreator\)/u);
 assert.doesNotMatch(
   reserveStorage.slice(reserveStorage.indexOf("const invalidIds"), reserveStorage.indexOf("const invalidIdSet")),
   /preserveFutureRows/u,
@@ -107,7 +110,7 @@ assert.match(
 );
 assert.match(
   storage,
-  /latestCreatorPost\.createdAt\) \+ slurpCreatorPostingIntervalMs\(settings\.postsPerDay\) > at\.getTime\(\)/u,
+  /latestCreatorPost\.createdAt\) \+\s*slurpCreatorPostingIntervalMs\(\s*slurpPacedPostsPerDay\(settings\.postsPerDay, await readSlurpCreatorPaceFactor\(db, account\.id\)\),?\s*\) >\s*at\.getTime\(\)/u,
 );
 const postingInterval = (24 * 60 * 60 * 1000) / 8;
 const candidateAt = Date.parse("2026-08-27T12:00:00.000Z");
@@ -200,7 +203,7 @@ assert.match(reserve, /Date\.parse\(item\.publishAt\) > at\.getTime\(\) - DAY_MS
 // has to stay for the widened grace to be safe.
 assert.match(
   storage,
-  /latestCreatorPost\.createdAt\) \+ slurpCreatorPostingIntervalMs\(settings\.postsPerDay\) > at\.getTime\(\)/u,
+  /latestCreatorPost\.createdAt\) \+\s*slurpCreatorPostingIntervalMs\(\s*slurpPacedPostsPerDay\(settings\.postsPerDay, await readSlurpCreatorPaceFactor\(db, account\.id\)\),?\s*\) >\s*at\.getTime\(\)/u,
 );
 // A slot is publishable right up to its interval and retired past it, at every pace.
 for (const postsPerDay of [4, 24, 96]) {
@@ -211,11 +214,12 @@ for (const postsPerDay of [4, 24, 96]) {
 assert.match(settingsUi, /value=\{settings\.postsPerDay\}\s*\n\s*min=\{1\}\s*\n\s*max=\{96\}/u);
 assert.match(routes, /app\.patch\("\/slurp\/auto-post\/schedule\/:slotId"/u);
 assert.match(storage, /item\.id !== current\.id && \(item\.state === "scheduled" \|\| item\.state === "prepared"\)/u);
-assert.match(storage, /hasSlurpCreatorPostingIntervalConflict\(activityTimes, publishMs, settings\.postsPerDay\)/u);
+assert.match(storage, /hasSlurpCreatorPostingIntervalConflict\(activityTimes, publishMs, perCreator\)/u);
 assert.match(routes, /result === "conflict"/u);
 assert.match(hooks, /slots: SlurpScheduleSlot\[\]/u);
 assert.match(settingsUi, /useUpdateCreatorScheduleSlot/u);
-assert.match(settingsUi, /type="datetime-local"/u);
+assert.match(settingsUi, /<ScheduleAgenda/u);
+assert.match(settingsUi, /type="time"[\s\S]*onBlur=\{commitTime\}/u, "a slot time saves when the field is left");
 assert.match(homeUi, /onRunNow\(profile\.id\)/u);
 assert.match(onboardingUi, /providerConfirmationOpen/u);
 for (const key of ["ui.slurp.providerDisclosure.generationDetail", "ui.slurp.providerDisclosure.onboardingDetail"]) {
@@ -267,7 +271,8 @@ const reschedule = storage.slice(
 );
 assert.match(
   reschedule,
-  /policyFingerprint: slpCreatorReservePolicyFingerprint\(account, settings, source\?\.updatedAt/u,
+  // 0.2.56: the fingerprint carries the content hash staleness is judged on.
+  /policyFingerprint: await slpCreatorReserveFingerprintFor\(db, account, settings, source\)/u,
 );
 
 async function testPollOrdering() {

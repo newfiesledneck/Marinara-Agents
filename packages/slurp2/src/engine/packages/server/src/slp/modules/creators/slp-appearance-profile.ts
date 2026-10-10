@@ -5,6 +5,7 @@ import type {
   SlpAppearanceProfileMode,
   SlpCreatorSourceSnapshot,
 } from "../../../../../shared/src/slp/slp-social.types.js";
+import { slpResolveCardMacros } from "../../base/prompting/slp-prompt-safety.js";
 
 /** A Creator still points at its card when its public account has been removed or hidden. */
 export function appearanceSourceAccount(account: SlpAccount, linkedAccount?: SlpAccount | null): SlpAccount {
@@ -37,7 +38,8 @@ export function appearanceEvidenceFromSource(
   return {
     sourceEntityId,
     sourceRevisionToken: appearanceSourceFingerprint(sourceEntityId, source),
-    sourceAppearance: source.appearance,
+    // The card's own appearance goes straight into picture prompts, so its macros are resolved here.
+    sourceAppearance: slpResolveCardMacros(source.appearance, source.name),
     description: source.description,
   };
 }
@@ -90,7 +92,34 @@ export function shouldAutoAcceptSlpAppearance(
   return mode === "always" || (mode === "high_confidence" && confidence === "high");
 }
 
-/** A candidate must cite source text verbatim, or come from an attached avatar. */
+/**
+ * Words that describe a body: how a card says what somebody looks like. Shared by the evidence
+ * check, the no-model fallback below, and the flavour brief (which must not cut such a sentence).
+ */
+export const SLP_BODY_WORDS =
+  /\b(?:hair|eyes?|skin|face|scars?|tattoos?|freckles?|piercings?|build|height|tall|short|petite|curvy|slim|slender|muscular|stocky|body|adult|\d{2}[- ]year[- ]old|horns?|wings?|tails?|fur|furred|scales?|scaled|claws?|talons?|paws?|muzzle|snout|fangs?|ears?|nose|cheeks?|lips|beard|glasses|anthro|digitigrade|species)\b/iu;
+
+/** Lower case, one space, straight quotes and hyphens: a model's copy of a quote differs in these. */
+function comparable(value: string): string {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[\u2018\u2019]/gu, "'")
+    .replace(/[\u201c\u201d]/gu, '"')
+    .replace(/[\u2010-\u2014]/gu, "-")
+    .replace(/\s+/gu, " ")
+    .replace(/^["'\s]+|["'.,;:!?\s]+$/gu, "")
+    .trim();
+}
+
+/**
+ * A candidate must cite source text verbatim, or come from an attached avatar.
+ *
+ * A quote found in the card is the evidence when it is about the body. The old rule (the quote
+ * must share a word of four letters or more with the appearance) rejected true quotes such as "is
+ * a 23-year-old human woman goth e-girl": in the simulation one Creator got no pictures at all and
+ * the extraction ran again for every post. A body quote without a shared word is now accepted, at
+ * medium confidence; a quote about something else still supports nothing.
+ */
 export function parseSlpAppearanceCandidate(content: string, sourceText: string, avatarAvailable: boolean) {
   const match = /\{[\s\S]*\}/u.exec(content);
   if (!match) return null;
@@ -100,16 +129,9 @@ export function parseSlpAppearanceCandidate(content: string, sourceText: string,
     const row = value as Record<string, unknown>;
     const text = typeof row.appearance === "string" ? row.appearance.trim().slice(0, 2000) : "";
     const quote = typeof row.evidence === "string" ? row.evidence.trim() : "";
-    if (
-      !text ||
-      (quote && !sourceText.toLocaleLowerCase().includes(quote.toLocaleLowerCase())) ||
-      (!quote && !avatarAvailable)
-    )
+    if (!text || (quote && !comparable(sourceText).includes(comparable(quote))) || (!quote && !avatarAvailable))
       return null;
-    const hasVisualEvidence =
-      /\b(?:hair|eyes?|skin|face|scar|tattoo|freckles?|build|height|tall|short|body|adult|horns?|wings?|fur|ears?|nose|cheeks?|beard|glasses)\b/iu.test(
-        quote,
-      );
+    const hasVisualEvidence = SLP_BODY_WORDS.test(comparable(quote));
     const stopWords = new Set(["with", "from", "that", "this", "have", "their", "person", "woman", "man"]);
     const sharedVisualWord = quote
       .toLocaleLowerCase()
@@ -120,7 +142,8 @@ export function parseSlpAppearanceCandidate(content: string, sourceText: string,
           !stopWords.has(word) &&
           text.toLocaleLowerCase().includes(word),
       );
-    if (!avatarAvailable && !sharedVisualWord) return null;
+    // A quote about something else ("enjoys long walks") supports no look at all.
+    if (!avatarAvailable && !sharedVisualWord && !hasVisualEvidence) return null;
     return {
       text,
       confidence:
@@ -132,6 +155,30 @@ export function parseSlpAppearanceCandidate(content: string, sourceText: string,
   } catch {
     return null;
   }
+}
+
+const FALLBACK_LOOK_MAX = 600;
+
+/**
+ * The card's own words about the body, for when the extraction call fails or answers nothing
+ * usable. A picture of the Creator as their card describes them beats no picture at all. Falls
+ * back to the card's opening when no sentence names the body.
+ */
+export function slpAppearanceFallback(sourceText: string): string | null {
+  const sentences = sourceText
+    .split(/(?<=[.!?])\s+|\n+/u)
+    .map((sentence) => sentence.replace(/\s+/gu, " ").trim())
+    .filter((sentence) => sentence.length >= 8 && !/\{\{\s*user\s*\}\}/iu.test(sentence));
+  const body = sentences.filter((sentence) => SLP_BODY_WORDS.test(sentence));
+  const picked: string[] = [];
+  let length = 0;
+  for (const sentence of body.length ? body : sentences.slice(0, 2)) {
+    if (picked.length > 0 && length + sentence.length > FALLBACK_LOOK_MAX) break;
+    picked.push(sentence);
+    length += sentence.length + 1;
+  }
+  const text = picked.join(" ").slice(0, 2000).trim();
+  return text || null;
 }
 
 export function createSlpAppearanceProfile(input: {

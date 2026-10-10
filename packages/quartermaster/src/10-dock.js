@@ -588,23 +588,12 @@ QM.dock = {
   // is rebuilt or there's no chat to show, since a stale reference into a
   // detached tree is worse than none.
   _resetCachedNodes() {
-    // Nulling the backdrop refs below detaches them from `this` but doesn't
-    // remove their document-level Escape listener (that lives outside the
-    // DOM subtree being torn down) — unbind explicitly so a stray Escape
-    // press after a chat switch/root rebuild can't fire a closure over a
-    // now-orphaned modal.
-    this._unbindEscapeClose(this._itemEditorEscapeHandler);
-    this._unbindEscapeClose(this._outfitEditorEscapeHandler);
-    this._unbindEscapeClose(this._saveOutfitEscapeHandler);
-    this._unbindEscapeClose(this._wardrobeEscapeHandler);
-    this._unbindEscapeClose(this._imageGenEscapeHandler);
-    this._unbindEscapeClose(this._addItemEscapeHandler);
-    this._itemEditorEscapeHandler = null;
-    this._outfitEditorEscapeHandler = null;
-    this._saveOutfitEscapeHandler = null;
-    this._wardrobeEscapeHandler = null;
-    this._imageGenEscapeHandler = null;
-    this._addItemEscapeHandler = null;
+    this._closeItemEditor();
+    this._closeOutfitEditor();
+    this._closeSaveOutfitModal();
+    this._closeAddItemModal();
+    this._closeWardrobeBuilder();
+    this._closeImageGenModal();
     this.columns = null;
     this.zoomWrapper = null;
     this.uiSizeButtons = null;
@@ -634,18 +623,12 @@ QM.dock = {
     this.portraitFrame = null;
     this.connectorSvg = null;
     this.equippedSlotBoxRefs = null;
-    this.itemEditorBackdrop = null;
     this.bagSearchInput = null;
     this.bagSearchModeButtons = null;
     this.bagTabButtons = null;
     this.outfitSearchInput = null;
     this.sectionHeaders = null;
     this.sectionBodies = null;
-    this.outfitEditorBackdrop = null;
-    this.saveOutfitBackdrop = null;
-    this.wardrobeBuilderBackdrop = null;
-    this.imageGenBackdrop = null;
-    this.addItemBackdrop = null;
     this.recentUpdateContainer = null;
     this.recentUpdateChevron = null;
     this.recentUpdateCountBadge = null;
@@ -1206,7 +1189,7 @@ QM.dock = {
     if (this.portraitImage && this.portraitPlaceholder) {
       this.portraitImage.style.display = portraitUrl ? "block" : "none";
       this.portraitPlaceholder.style.display = portraitUrl ? "none" : "flex";
-      if (portraitUrl) this.portraitImage.src = portraitUrl;
+      if (portraitUrl) QM.setImageSrc(this.portraitImage, portraitUrl);
       // Scales with Thumbnail Size same as item/outfit thumbnails, relative
       // to the 160x200 / 120x120 box _buildPortrait() sized at "M" — live
       // here (not just at _buildPortrait()'s one-time construction) since a
@@ -2604,7 +2587,7 @@ QM.dock = {
         img.remove();
         qmCenterFallbackIcon();
       });
-      img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id);
+      QM.setImageSrc(img, QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id));
       imageArea.appendChild(img);
     } else {
       qmCenterFallbackIcon();
@@ -2874,7 +2857,7 @@ QM.dock = {
     if (outfit.portraitFile) {
       const thumb = document.createElement("img");
       thumb.alt = `${outfit.name} portrait`;
-      thumb.src = QM.outfitPortraitUrl(QM.state.chatId, QM_OWNER_ID, outfit.id);
+      QM.setImageSrc(thumb, QM.outfitPortraitUrl(QM.state.chatId, QM_OWNER_ID, outfit.id));
       Object.assign(thumb.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
       thumbButton.appendChild(thumb);
     } else {
@@ -3050,7 +3033,7 @@ QM.dock = {
         img.remove();
         applyMissingImageFallback();
       });
-      img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
+      QM.setImageSrc(img, QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id));
       thumbButton.appendChild(img);
     }
 
@@ -4115,16 +4098,17 @@ QM.dock = {
       saveButton.disabled = true;
       const chatId = QM.state.chatId;
       const existingIds = new Set((QM.state.outfits ?? []).map((outfit) => outfit.id));
-      await QM.state.createOutfit({ name, description: descriptionInput.value });
-      if (QM.state.error || chatId !== QM.state.chatId || this.saveOutfitBackdrop !== backdrop) {
+      const outcome = await QM.state.createOutfit({ name, description: descriptionInput.value });
+      if (!outcome?.ok || chatId !== QM.state.chatId || this.saveOutfitBackdrop !== backdrop) {
         saveButton.disabled = false;
         return;
       }
-      const created = (QM.state.outfits ?? []).find((outfit) => !existingIds.has(outfit.id));
+      const created = (outcome.result.outfits ?? []).find((outfit) => !existingIds.has(outfit.id));
       if (stagedImageDataUrl && created) {
         await QM.state.uploadOutfitPortrait(created.id, stagedImageDataUrl);
       }
       saveButton.disabled = false;
+      if (chatId !== QM.state.chatId || this.saveOutfitBackdrop !== backdrop) return;
       this._closeSaveOutfitModal();
     });
 

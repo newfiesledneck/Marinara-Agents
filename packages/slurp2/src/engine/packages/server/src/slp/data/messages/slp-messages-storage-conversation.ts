@@ -5,7 +5,7 @@
 // Its own module rather than more of `slurp.storage.ts`, which is already past five thousand
 // lines. It composes that storage for accounts, subscriptions, and the wallet instead of
 // reimplementing them, so a DM tip and a profile tip move coins through exactly one code path.
-import { and, desc, eq, gt } from "../../../db/file-query.js";
+import { and, desc, eq, gt, inArray } from "../../../db/file-query.js";
 import { newId } from "../../../utils/id-generator.js";
 import type { DB } from "../../../db/connection.js";
 import {
@@ -23,6 +23,7 @@ import {
 import { mapMessage, now } from "./slp-messages-storage-helpers.js";
 import { isSlurpFileUniqueConstraintError } from "../../base/host/slp-file-errors.js";
 import { int } from "./slp-messages-storage-helpers.js";
+import { isUnsolicitedCreatorMessage, slurpAllowsUnsolicitedText } from "../../modules/messages/slp-follow-up.js";
 import { createSlurpPopulationStorage } from "../audience/slp-audience-storage-funnel.js";
 import type { SlurpMessage } from "./slp-messages-storage-types.js";
 import type { SlurpMessagesContext } from "./slp-messages-storage-context.js";
@@ -93,12 +94,32 @@ export function createMessagesStorageConversation(context: SlurpMessagesContext)
         createdAt: input.createdAt ?? timestamp,
       };
       const rapport = await context.storage.rapportFor(thread.viewerAccountId, thread.creatorAccountId);
+      // Settings › Messaging "Stop after one unanswered text": checked only when the message about
+      // to be appended is itself unsolicited (an opener, a check-in, a recurring update, a
+      // drama-choice question, the canned first-touch opener). Read once here, applied inside the
+      // transaction below against the thread's live history, so this is the one race-proof gate
+      // every send path shares — including the ones that call `sendCreatorMessage` directly and
+      // never pass through the follow-up scheduler's own, earlier, AI-spend-saving check.
+      const checkUnsolicitedGate = isUnsolicitedCreatorMessage({ role: input.role, kind, metadata: input.metadata });
+      const pauseUntilReply = checkUnsolicitedGate
+        ? (await slurp.getSettings()).messagesPauseFollowUpsUntilReply
+        : false;
       let stored = false;
       try {
         await db.transaction(async (tx) => {
           const currentRows = await tx.select().from(slurpThreads).where(eq(slurpThreads.id, threadId));
           const current = currentRows[0];
           if (!current) return;
+          if (pauseUntilReply) {
+            const recentRows = await tx
+              .select()
+              .from(slurpMessages)
+              .where(eq(slurpMessages.threadId, threadId))
+              .orderBy(desc(slurpMessages.createdAt))
+              .limit(60);
+            // The query is newest-first; the gate scans oldest-first, same order `listMessages` uses.
+            if (!slurpAllowsUnsolicitedText(recentRows.map(mapMessage).reverse())) return;
+          }
           if (current.state === "declined") return;
           if (input.paymentReactionSince) {
             const recentMessages = await tx
@@ -135,6 +156,8 @@ export function createMessagesStorageConversation(context: SlurpMessagesContext)
           // A quote, a delivery or a system note is not an answer. Letting one clear the obligation
           // meant a fan who wrote just before an automatic delivery never got a reply.
           const notAnAnswer = kind === "system" || kind.startsWith("commission");
+          // A Support desk notice or note (`deskQuiet`, docs/SUPPORT-DESK.md) asks nobody for an answer.
+          const quiet = input.role === "viewer" && input.metadata?.deskQuiet === true;
           const newerViewer =
             input.role === "creator" && (input.preserveReplyObligation || notAnAnswer)
               ? current.needsReply === "true"
@@ -158,25 +181,27 @@ export function createMessagesStorageConversation(context: SlurpMessagesContext)
             .set({
               state: input.role === "creator" && current.state === "request" ? "active" : current.state,
               lastMessageAt: message.createdAt > current.lastMessageAt ? message.createdAt : current.lastMessageAt,
+              // A line with no words (a scene's "ended" note) keeps the last real preview, not a blank.
               lastMessagePreview:
                 message.createdAt >= current.lastMessageAt
-                  ? slurpMessagePreview(kind, content, price)
+                  ? slurpMessagePreview(kind, content, price) || current.lastMessagePreview
                   : current.lastMessagePreview,
               viewerUnread: input.role === "creator" ? String(Number(current.viewerUnread) + 1) : current.viewerUnread,
-              creatorUnread:
-                input.role === "viewer"
+              creatorUnread: quiet
+                ? current.creatorUnread
+                : input.role === "viewer"
                   ? String(Number(current.creatorUnread) + 1)
                   : newerViewer
                     ? current.creatorUnread
                     : "0",
-              needsReply: input.role === "viewer" || newerViewer ? "true" : "false",
+              needsReply: quiet ? current.needsReply : input.role === "viewer" || newerViewer ? "true" : "false",
               replyNotBeforeAt: input.role === "creator" && !newerViewer ? null : current.replyNotBeforeAt,
               rapport: JSON.stringify(rapport),
               updatedAt: timestamp,
             })
             .where(eq(slurpThreads.id, threadId));
           if (input.role === "viewer") {
-            // The fan came back on their own, so "checking in on you" has nothing left to do.
+            // The fan came back on their own, so "checking in on you" (or writing first) has nothing left to do.
             // Promises, reminders and updates still owe the fan something and stay.
             await tx
               .update(slurpFollowUps)
@@ -184,7 +209,7 @@ export function createMessagesStorageConversation(context: SlurpMessagesContext)
               .where(
                 and(
                   eq(slurpFollowUps.threadId, threadId),
-                  eq(slurpFollowUps.type, "check_in"),
+                  inArray(slurpFollowUps.type, ["check_in", "opener"]),
                   eq(slurpFollowUps.status, "pending"),
                 ),
               );

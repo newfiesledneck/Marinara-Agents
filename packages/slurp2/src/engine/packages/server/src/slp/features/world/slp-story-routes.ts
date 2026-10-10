@@ -8,6 +8,9 @@ import {
   slpEventBlueprintSchema,
   slpStoryPackSchema,
 } from "../../../../../shared/src/slp/slp-story-engine.js";
+import { slpDramaSchema, slpSituationSchema } from "../../../../../shared/src/slp/slp-drama.js";
+import { applySlpDramaEntries } from "../../modules/world/events/slp-drama-library.js";
+import { readSlurpDramaLibrary, writeSlurpDramaLibrary } from "../../data/world/slp-drama-storage.js";
 import {
   applySlpStoryPack,
   exportSlpStoryPack,
@@ -18,6 +21,7 @@ import {
   type SlpStoryPackPreview,
 } from "../../modules/world/events/slp-story-packs.js";
 import { projectSlpStoryCalendar } from "../../modules/world/events/slp-story-runtime.js";
+import { slurpContentPackSummaries } from "../../modules/world/events/slp-content-packs.js";
 import type { SlpRouteDeps } from "../viewer/slp-viewer-contract.js";
 
 const PREVIEW_TTL_MS = 15 * 60_000;
@@ -29,7 +33,7 @@ const applySchema = z
       .array(
         z
           .object({
-            kind: z.enum(["arc", "event"]),
+            kind: z.enum(["arc", "event", "situation", "drama"]),
             contentId: z.string().trim().min(1).max(128),
             action: z.enum(["copy", "replace", "skip"]),
             enabled: z.boolean().optional(),
@@ -51,11 +55,15 @@ export async function slpStoryRoutes(app: FastifyInstance, { noodle }: SlpRouteD
   };
 
   app.get("/story-packs/bundled", async () => ({
-    packs: slpBundledStoryPacks().map(({ arcs, events, ...metadata }) => ({
+    packs: slpBundledStoryPacks().map(({ arcs, events, situations, dramas, ...metadata }) => ({
       ...metadata,
       arcCount: arcs.length,
       eventCount: events.length,
+      situationCount: situations.length,
+      dramaCount: dramas.length,
     })),
+    // The packs Backstage switches on and off; their on/off is the `contentPacks` setting.
+    contentPacks: slurpContentPackSummaries(),
   }));
 
   app.post("/story-packs/preview", async (req, reply) => {
@@ -63,7 +71,11 @@ export async function slpStoryRoutes(app: FastifyInstance, { noodle }: SlpRouteD
     const parsed = parseSlpStoryPack(req.body);
     if (!parsed.pack) return reply.code(400).send({ error: parsed.errors });
     const settings = await noodle.getSettings();
-    const preview = previewSlpStoryPack(parsed.pack, { arcs: settings.arcLibrary, events: settings.platformEvents });
+    const preview = previewSlpStoryPack(parsed.pack, {
+      arcs: settings.arcLibrary,
+      events: settings.platformEvents,
+      drama: await readSlurpDramaLibrary(app.db),
+    });
     const previewId = randomUUID();
     const expiresAt = Date.now() + PREVIEW_TTL_MS;
     previews.set(previewId, { preview, expiresAt });
@@ -75,7 +87,11 @@ export async function slpStoryRoutes(app: FastifyInstance, { noodle }: SlpRouteD
     const selected = slpBundledStoryPacks().find((item) => item.id === (req.params as { id: string }).id);
     if (!selected) return reply.code(404).send({ error: "Story pack not found." });
     const settings = await noodle.getSettings();
-    const preview = previewSlpStoryPack(selected, { arcs: settings.arcLibrary, events: settings.platformEvents });
+    const preview = previewSlpStoryPack(selected, {
+      arcs: settings.arcLibrary,
+      events: settings.platformEvents,
+      drama: await readSlurpDramaLibrary(app.db),
+    });
     const previewId = randomUUID();
     const expiresAt = Date.now() + PREVIEW_TTL_MS;
     previews.set(previewId, { preview, expiresAt });
@@ -95,14 +111,25 @@ export async function slpStoryRoutes(app: FastifyInstance, { noodle }: SlpRouteD
       ...staged.preview.pack,
       arcs: staged.preview.entries.filter((item) => item.kind === "arc" && item.value).map((item) => item.value),
       events: staged.preview.entries.filter((item) => item.kind === "event" && item.value).map((item) => item.value),
+      situations: staged.preview.entries
+        .filter((item) => item.kind === "situation" && item.value)
+        .map((item) => item.value),
+      dramas: staged.preview.entries.filter((item) => item.kind === "drama" && item.value).map((item) => item.value),
     });
     if (!normalized.success) return reply.code(409).send({ error: "The staged preview is no longer valid." });
     for (const choice of parsed.data.choices) {
       if (!choice.value) continue;
-      const schema = choice.kind === "arc" ? slpArcBlueprintSchema : slpEventBlueprintSchema;
+      const schema =
+        choice.kind === "arc"
+          ? slpArcBlueprintSchema
+          : choice.kind === "event"
+            ? slpEventBlueprintSchema
+            : choice.kind === "situation"
+              ? slpSituationSchema
+              : slpDramaSchema;
       const edited = schema.safeParse(choice.value);
       if (!edited.success) return reply.code(400).send({ error: "An edited pack entry is invalid." });
-      const contentId = edited.data.contentId ?? edited.data.id;
+      const contentId = ("contentId" in edited.data ? edited.data.contentId : undefined) ?? edited.data.id;
       if (contentId !== choice.contentId)
         return reply.code(400).send({ error: "An edited pack entry does not match its choice." });
     }
@@ -112,6 +139,25 @@ export async function slpStoryRoutes(app: FastifyInstance, { noodle }: SlpRouteD
       events: settings.platformEvents,
     });
     await noodle.updateSettings({ arcLibrary: result.arcs, platformEvents: result.events });
+    // Drama entries (situations, dramas) land in their own library, switched off until the player turns them on.
+    const dramaChoices = parsed.data.choices.filter(
+      (choice) => choice.action !== "skip" && (choice.kind === "situation" || choice.kind === "drama"),
+    );
+    if (dramaChoices.length) {
+      const entries = dramaChoices.flatMap((choice) => {
+        const staged_ = staged.preview.entries.find(
+          (item) => item.kind === choice.kind && item.contentId === choice.contentId,
+        );
+        const parsedValue = (choice.kind === "situation" ? slpSituationSchema : slpDramaSchema).safeParse(
+          choice.value ?? staged_?.value,
+        );
+        return parsedValue.success ? [{ kind: choice.kind, value: parsedValue.data } as never] : [];
+      });
+      await writeSlurpDramaLibrary(
+        app.db,
+        applySlpDramaEntries(await readSlurpDramaLibrary(app.db), staged.preview.pack.id, entries),
+      );
+    }
     previews.delete((req.params as { id: string }).id);
     return { imported: parsed.data.choices.filter((item) => item.action !== "skip").length };
   });
@@ -124,6 +170,8 @@ export async function slpStoryRoutes(app: FastifyInstance, { noodle }: SlpRouteD
         description: z.string().trim().max(1000).optional(),
         arcIds: z.array(z.string()).max(100).default([]),
         eventIds: z.array(z.string()).max(100).default([]),
+        situationIds: z.array(z.string()).max(20).default([]),
+        dramaIds: z.array(z.string()).max(40).default([]),
       })
       .strict()
       .safeParse(req.body ?? {});
@@ -133,6 +181,10 @@ export async function slpStoryRoutes(app: FastifyInstance, { noodle }: SlpRouteD
       ...body.data,
       arcs: settings.arcLibrary.filter((item) => body.data.arcIds.includes(item.id)),
       events: settings.platformEvents.filter((item) => body.data.eventIds.includes(item.id)),
+      drama: await readSlurpDramaLibrary(app.db).then((library) => ({
+        situations: library.situations.filter((item) => body.data.situationIds.includes(item.id)),
+        dramas: library.dramas.filter((item) => body.data.dramaIds.includes(item.id)),
+      })),
     });
   });
 

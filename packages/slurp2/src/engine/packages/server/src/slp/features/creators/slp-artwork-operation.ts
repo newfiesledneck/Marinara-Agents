@@ -16,6 +16,7 @@ import {
 import { resolveCreatorImageConnectionId } from "../../base/media/slp-image-connections.js";
 import { resolveCreatorArtwork } from "./slp-public-profiles-service.js";
 import { tryCreatorAccountOperation } from "../../base/locking/slp-account-operation-lock.js";
+import { slurpArtworkGaps } from "../../modules/creators/slp-artwork-gaps.js";
 import type { SlpCreatorArtworkPromptOptions } from "../../../../../shared/src/slp/slp-social.types.js";
 
 export type SlpCreatorArtworkOutcome = "idle" | "inherited" | "avatar" | "banner" | "unavailable";
@@ -36,7 +37,7 @@ function artworkPrompt(
     options.creatorDetails ? `For ${profile.displayName}. ${voice}` : "",
     options.composition
       ? kind === "avatar"
-        ? "One head-and-shoulders subject, looking at the camera, soft flattering light, shallow depth of field, centered composition, no interface or decorative frame."
+        ? "One head-and-shoulders subject, looking at the viewer, soft flattering light, shallow depth of field, centered composition, no interface or decorative frame."
         : "One continuous ultra-wide environmental scene, edge to edge, no text, logo, avatar bubble, framed portrait, or interface. If a person appears, keep them small and part of the environment."
       : "",
   ]
@@ -44,13 +45,13 @@ function artworkPrompt(
     .join(" ");
 }
 
-function artworkNegativePrompt(kind: "avatar" | "banner") {
+export function artworkNegativePrompt(kind: "avatar" | "banner") {
   return kind === "banner"
     ? "profile picture, avatar, avatar bubble, headshot, dominant face, circular portrait, round portrait, badge, medallion, sticker portrait, framed portrait, inset photo, picture-in-picture, profile card, social media interface, UI mockup, collage, text, logo, border"
     : "banner, cover image, profile page, interface, UI mockup, card, collage, inset image, text, logo, border, circular frame";
 }
 
-function artworkCompositionGuard(kind: "avatar" | "banner") {
+export function artworkCompositionGuard(kind: "avatar" | "banner") {
   return kind === "avatar"
     ? "COMPOSITION REQUIREMENT: output one standalone square avatar portrait only. Do not create a banner, profile page, card, UI mockup, inset image, collage, text, logo, border, or circular frame."
     : "COMPOSITION REQUIREMENT: output one continuous ultra-wide background scene only. The profile page draws its own avatar on top of this image, so a second one ruins it. Do not include a profile picture, avatar, avatar bubble, headshot, dominant face, circular or rounded crop, badge, medallion, sticker portrait, framed portrait, inset image, picture-in-picture, card, collage, social-media UI, text, logo, border, or empty placeholder intended to contain a portrait.";
@@ -105,6 +106,8 @@ export async function generateCreatorArtwork(
       db,
       debugMode: false,
       previewOnly: false,
+      // Only the player's routes call this; the world's backfill below stays on the budget.
+      playerAsked: true,
       width: input.kind === "banner" ? 1536 : 1024,
       height: input.kind === "banner" ? 512 : 1024,
       compositionGuard: options.composition ? artworkCompositionGuard(input.kind) : undefined,
@@ -145,10 +148,23 @@ export async function backfillNextCreatorArtwork(db: DB): Promise<SlpCreatorArtw
   const settings = await noodle.getSettings();
 
   const profiles = await noodle.listNoodlerStageProfiles();
-  const target = profiles.find((profile) => !profile.avatarUrl || !profile.bannerUrl);
-  if (!target) return "idle";
-  const kind: "avatar" | "banner" = target.avatarUrl ? "banner" : "avatar";
+  // The first missing picture that can make progress. An open Creator whose source has no banner
+  // to borrow stays "idle" forever, and taking only the first gap stalled every Creator after it
+  // (R1-056). A generating Creator still gets its avatar before its banner.
+  for (const { target, kind } of slurpArtworkGaps(profiles)) {
+    const outcome = await backfillCreatorArtwork(db, noodle, settings, target, kind);
+    if (outcome !== "idle") return outcome;
+  }
+  return "idle";
+}
 
+async function backfillCreatorArtwork(
+  db: DB,
+  noodle: ReturnType<typeof createSlurpStorage>,
+  settings: Awaited<ReturnType<ReturnType<typeof createSlurpStorage>["getSettings"]>>,
+  target: { id: string },
+  kind: "avatar" | "banner",
+): Promise<SlpCreatorArtworkOutcome> {
   const locked = await tryCreatorAccountOperation(target.id, async () => {
     const account = await noodle.getNoodlerAccountById(target.id);
     if (!account) return "idle" as const;
@@ -182,11 +198,17 @@ export async function backfillNextCreatorArtwork(db: DB): Promise<SlpCreatorArtw
       linkedPublicAccount,
       disclosureMode,
       postContent: account.bio,
-      draftPrompt: artworkPrompt(kind, {
-        displayName: account.displayName,
-        bio: account.bio,
-        stagePersonality: account.settings.privacy.stagePersonality ?? "",
-      }),
+      // The same defaults the artwork editor starts from. The options were missing here, so every
+      // backfill for a hinted or secret Creator threw on `options.creatorDetails` once a minute.
+      draftPrompt: artworkPrompt(
+        kind,
+        {
+          displayName: account.displayName,
+          bio: account.bio,
+          stagePersonality: account.settings.privacy.stagePersonality ?? "",
+        },
+        { creatorDetails: true, appearance: kind === "avatar", sourceReferences: kind === "avatar", composition: true },
+      ),
       settings,
       characters: createCharactersStorage(db),
       promptOverrides: createPromptOverridesStorage(db),

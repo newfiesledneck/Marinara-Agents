@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { slpSpiceFromStrategyText } from "../../../../../shared/src/slp/slp-spice.js";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { SlpCreatorManagedStageProfile } from "../../../../../shared/src/slp/slp-social.types.js";
@@ -23,7 +24,9 @@ export function SlurpCreatorStrategyGroup({ creator }: { creator: SlpCreatorMana
   const { saved, effective } = creator.strategy;
   // Keyed by Creator so switching Creators never carries one draft over to the next.
   const [draft, setDraft] = useState<{ id: string; text: string } | null>(null);
-  const text = draft?.id === creator.id ? draft.text : (saved?.strategyText ?? "");
+  // The sign-up chat's spice lines moved to the Creator's spice; the server moves them on save.
+  const savedText = slpSpiceFromStrategyText(saved?.strategyText ?? "").rest;
+  const text = draft?.id === creator.id ? draft.text : savedText;
   const save = (patch: Parameters<typeof update.mutate>[0]) =>
     update.mutate(patch, { onError: (error) => toast.error(errorMessage(error)) });
   const styleName = (style: string) => t(`ui.slurp.settings.creators.strategy.style.${style}`, { defaultValue: style });
@@ -93,7 +96,7 @@ export function SlurpCreatorStrategyGroup({ creator }: { creator: SlpCreatorMana
       {rate(
         "skipRate",
         40,
-        t("ui.slurp.settings.creators.strategy.skipLabel", { defaultValue: "Quiet slots" }),
+        t("ui.slurp.settings.creators.strategy.skipLabel", { defaultValue: "Skipped posts" }),
         t("ui.slurp.settings.creators.strategy.skipDetail", {
           defaultValue: "How often a scheduled slot stays empty. Never two in a row.",
         }),
@@ -101,7 +104,7 @@ export function SlurpCreatorStrategyGroup({ creator }: { creator: SlpCreatorMana
       {rate(
         "textOnlyRate",
         100,
-        t("ui.slurp.settings.creators.strategy.textLabel", { defaultValue: "Lean on words" }),
+        t("ui.slurp.settings.creators.strategy.textLabel", { defaultValue: "Posts without pictures" }),
         t("ui.slurp.settings.creators.strategy.textDetail", {
           defaultValue:
             "How often a post goes out without a picture. 50 is the default balance. Sets always have pictures.",
@@ -120,7 +123,7 @@ export function SlurpCreatorStrategyGroup({ creator }: { creator: SlpCreatorMana
           disabled={update.isPending}
           onChange={(event) => setDraft({ id: creator.id, text: event.target.value })}
           onBlur={() => {
-            if (text.trim() === (saved?.strategyText ?? "")) return;
+            if (text.trim() === savedText) return;
             save({ accountId: creator.id, strategyText: text.trim() || null });
           }}
           className={`${selectClass} min-h-24 py-2`}

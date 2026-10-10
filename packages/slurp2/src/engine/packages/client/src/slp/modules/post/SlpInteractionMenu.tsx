@@ -1,8 +1,8 @@
-import { Copy, Heart, MessageCircle, MoreHorizontal, Pencil, Flag, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Copy, MessageCircle, MoreHorizontal, Pencil, Flag, Trash2 } from "lucide-react";
+import { SlpHeartGlyph } from "../../base/chrome/SlpGlyphs";
+import { useRef, useState } from "react";
 import { useTranslation as useUiTranslation } from "react-i18next";
-
-const ITEM_CLASS = "flex min-h-9 w-full items-center gap-2 px-3 text-start transition-colors hover:bg-[var(--accent)]";
+import { SlpSheet, SlpSheetGroup, SlpSheetItem } from "../chrome/SlpSheet";
 
 export function SlpInteractionMenu({
   liked,
@@ -27,17 +27,19 @@ export function SlpInteractionMenu({
 }) {
   const { t: localizeUi } = useUiTranslation();
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
-  const run = (action: () => void) => {
-    close();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const run = (action: () => void) => () => {
+    setOpen(false);
     action();
   };
+  const title = localizeUi("ui.noodle.noodlepostcard.commentActions", { defaultValue: "Comment actions" });
 
   return (
     <div className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
-        aria-label={localizeUi("ui.noodle.noodlepostcard.commentActions", { defaultValue: "Comment actions" })}
+        aria-label={title}
         aria-expanded={open}
         aria-haspopup="menu"
         disabled={disabled}
@@ -46,44 +48,40 @@ export function SlpInteractionMenu({
       >
         <MoreHorizontal size={14} aria-hidden="true" />
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute end-0 top-[calc(100%+0.25rem)] z-40 min-w-44 overflow-hidden rounded-lg border border-[var(--noodle-divider)] bg-[var(--background)] py-1 text-xs shadow-2xl shadow-black/30"
-        >
-          <button type="button" role="menuitem" onClick={() => run(onReply)} className={ITEM_CLASS}>
-            <MessageCircle size={14} /> {localizeUi("ui.noodle.noodlepostcard.reply")}
-          </button>
-          <button type="button" role="menuitem" onClick={() => run(onLike)} className={ITEM_CLASS}>
-            <Heart size={14} fill={liked ? "currentColor" : "none"} />
+      <SlpSheet kind="menu" open={open} onClose={() => setOpen(false)} anchorRef={triggerRef} title={title}>
+        <SlpSheetGroup>
+          <SlpSheetItem onSelect={run(onReply)}>
+            <MessageCircle size={14} />
+            {localizeUi("ui.noodle.noodlepostcard.reply")}
+          </SlpSheetItem>
+          <SlpSheetItem onSelect={run(onLike)}>
+            <SlpHeartGlyph size={14} filled={liked} />
             {localizeUi(liked ? "ui.noodle.noodlepostcard.unlikeComment" : "ui.noodle.noodlepostcard.likeComment")}
-          </button>
-          <button type="button" role="menuitem" onClick={() => run(onCopy)} className={ITEM_CLASS}>
-            <Copy size={14} /> {localizeUi("ui.slurp.post.copyText", { defaultValue: "Copy text" })}
-          </button>
+          </SlpSheetItem>
+          <SlpSheetItem onSelect={run(onCopy)}>
+            <Copy size={14} />
+            {localizeUi("ui.slurp.post.copyText", { defaultValue: "Copy text" })}
+          </SlpSheetItem>
           {onReport && (
-            <button type="button" role="menuitem" onClick={() => run(onReport)} className={ITEM_CLASS}>
-              <Flag size={14} /> {localizeUi("ui.slurp.post.reportReply", { defaultValue: "Report reply" })}
-            </button>
+            <SlpSheetItem onSelect={run(onReport)}>
+              <Flag size={14} />
+              {localizeUi("ui.slurp.post.reportReply", { defaultValue: "Report reply" })}
+            </SlpSheetItem>
           )}
-          {canManage && (
-            <>
-              <div className="my-1 border-t border-[var(--noodle-divider)]" />
-              <button type="button" role="menuitem" onClick={() => run(onEdit)} className={ITEM_CLASS}>
-                <Pencil size={14} /> {localizeUi("ui.noodle.noodlepostcard.editComment")}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => run(onDelete)}
-                className={`${ITEM_CLASS} text-[var(--slurp-danger)] [&_svg]:!text-[var(--slurp-danger)]`}
-              >
-                <Trash2 size={14} /> {localizeUi("ui.noodle.noodlepostcard.deleteComment")}
-              </button>
-            </>
-          )}
-        </div>
-      )}
+        </SlpSheetGroup>
+        {canManage && (
+          <SlpSheetGroup label={localizeUi("ui.slurp.post.creatorTools", { defaultValue: "Creator tools" })}>
+            <SlpSheetItem tone="muted" onSelect={run(onEdit)}>
+              <Pencil size={14} />
+              {localizeUi("ui.noodle.noodlepostcard.editComment")}
+            </SlpSheetItem>
+            <SlpSheetItem tone="danger" onSelect={run(onDelete)}>
+              <Trash2 size={14} />
+              {localizeUi("ui.noodle.noodlepostcard.deleteComment")}
+            </SlpSheetItem>
+          </SlpSheetGroup>
+        )}
+      </SlpSheet>
     </div>
   );
 }

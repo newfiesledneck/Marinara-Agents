@@ -4,11 +4,14 @@ import { logger, logDebugOverride } from "../../../lib/logger.js";
 import { createSlurpStorage } from "../../data/slp-storage.js";
 import { type SlurpSettings } from "../../modules/settings/slp-settings.js";
 import { SLURP_ENERGY_COST } from "../../modules/creators/slp-creator-state.js";
-import { NOODLER_MEDIA_PREFIX } from "../../base/media/slp-media.js";
+import { NOODLER_MEDIA_PREFIX, slpCompactGeneratedImage } from "../../base/media/slp-media.js";
 import { resolveImageConnectionFallback } from "../../../services/generation/media-connection-fallback.js";
 import { generateImage, stageImageToDisk, type StagedGalleryImage } from "../../../services/image/image-generation.js";
 import { generateSlurpImageWithHost, stageSlurpImageWithHost } from "../../base/host/slp-generation-integrations.js";
-import { resolveConnectionImageDefaults } from "../../../services/image/image-generation-defaults.js";
+import {
+  resolveConnectionImageDefaults,
+  resolveImageGenerationService,
+} from "../../../services/image/image-generation-defaults.js";
 import { compileImagePrompt, resolveImageStyleGuidanceText } from "../../../services/image/image-prompt-compiler.js";
 import { resolveImagePromptReviewSize } from "../../../services/image/image-prompt-review.js";
 import type { SlurpVisualBrief } from "../../base/media/slp-visual-brief.js";
@@ -33,13 +36,28 @@ import { type ConnectionAdmissionMode } from "../../../services/generation/conne
 import { characterAppearanceFromRow, characterSlpImageContextFromRow } from "./slp-public-images-service.js";
 import type { SlpImagePromptReviewItem } from "./slp-public-images-service.js";
 import { characterNameFromRow } from "../../modules/creators/slp-public-support.js";
+import { parseRecord } from "../../modules/records/slp-storage-model.js";
+import { slpResolveCardMacros } from "../../base/prompting/slp-prompt-safety.js";
 import {
   selectSlpImageProviderPrompt,
-  ensureSlpImageAppearance,
+  slurpApplyImageLook,
+  slurpApplyImageSubject,
+  slurpImageSubjectName,
+  slurpImageIdentityContext,
+  slurpLookForWriter,
+  slurpArtStyle,
+  slurpStyledImagePrompt,
   slurpImageLook,
+  slurpPromptFamily,
+  slurpWithoutCameraDevice,
   stripAppearanceLabel,
 } from "../../base/media/slp-image-prompt.js";
-import { slurpImageExtension } from "../../base/media/slp-image-format.js";
+import { slurpViewpointForFamily, slurpViewpointIn } from "../../modules/feed/slp-camera-source.js";
+import {
+  slurpImageNegativePrompt,
+  slurpImageNegativeTerms,
+  slurpImageNegativeWithCompany,
+} from "../../modules/feed/slp-image-brief.js";
 import { slurpPromptContext } from "../../base/prompting/slp-prompt-blocks.js";
 
 /**
@@ -81,9 +99,18 @@ function slurpImageDefaultsForStyle(
 
 type ImageConnection = NonNullable<Awaited<ReturnType<ReturnType<typeof createConnectionsStorage>["getWithKey"]>>>;
 
+/** Another Creator the post is about (a partner, a collab), with the card behind their page. */
+type SlurpImageCompanion = { account: SlpAccount; source: SlpAccount | null };
+
 type CreatorPostImageInput = {
   account: SlpAccount;
   linkedPublicAccount: SlpAccount | null;
+  /**
+   * Other Creators this post is about (its beat's `castIds`, kept on the post as `slurpPictureCast`).
+   * The prompt writer gets their looks and puts them in the picture only when the post calls for
+   * it; a reference picture goes along only for somebody the final prompt names.
+   */
+  companionIds?: unknown;
   disclosureMode: SlpIdentityDisclosure;
   postContent: string;
   draftPrompt: string;
@@ -95,13 +122,19 @@ type CreatorPostImageInput = {
     | "imagePromptInterpretation"
     | "imageGenerationUseAvatarReferences"
     | "imageGenerationIncludeDescriptions"
+    | "imageAppearanceMode"
     | "appearanceProfileMode"
     | "enableImageInterpretation"
     | "imageWidth"
     | "imageHeight"
+    | "storyImageWidth"
+    | "storyImageHeight"
     | "characterImageInstructions"
+    | "creatorImageNames"
     | "promptBlocks"
     | "generationConnectionId"
+    | "imagePromptConnectionId"
+    | "modelBudget"
     | "imageStyleProfileId"
   >;
   characters: ReturnType<typeof createCharactersStorage>;
@@ -120,10 +153,20 @@ type CreatorPostImageInput = {
   beforeProviderAttempt?: (attempt: number) => Promise<void>;
   onProviderAttemptFailure?: (attempt: number) => Promise<void>;
   admissionMode?: ConnectionAdmissionMode;
+  /** The player asked for this picture: its prompt rewrite never spends the world's AI budget (0.3.6). */
+  playerAsked?: boolean;
   width?: number;
   height?: number;
+  /** A Story picture: drawn at the Story size unless the caller names its own size. */
+  story?: boolean;
   compositionGuard?: string;
+  /**
+   * This path's own negative terms. Absent, every Creator picture gets the shared ones (no phone,
+   * no second copy of the Creator) plus its visual brief's level; an empty string means none.
+   */
   negativePromptAdditions?: string;
+  /** False when the picture is not the Creator's work, so the Creator spends no energy on it. */
+  chargeEnergy?: boolean;
   suppressCharacterContext?: boolean;
   suppressStageAppearance?: boolean;
   suppressCreatorDetails?: boolean;
@@ -141,6 +184,18 @@ type CreatorPostImageResult = {
   /** Exact positive prompt sent to the image provider. Also stored as `metadata.imageProviderPrompt`. */
   providerPrompt: string;
 };
+
+/** The Creators a post's beat names, as picture companions. The author and unknown ids drop out. */
+async function resolveSlurpImageCompanions(db: DB, ids: unknown, authorId: string): Promise<SlurpImageCompanion[]> {
+  const noodle = createSlurpStorage(db);
+  const companions: SlurpImageCompanion[] = [];
+  for (const id of new Set(Array.isArray(ids) ? ids : [])) {
+    if (typeof id !== "string" || id === authorId) continue;
+    const account = await noodle.getNoodlerAccountById(id);
+    if (account) companions.push({ account, source: await noodle.resolveAccountSource(account) });
+  }
+  return companions;
+}
 
 /**
  * NoodleR analog of generateSlpPostImage. The deliberate difference from public
@@ -160,13 +215,19 @@ async function generateCreatorPostImageRun(
   run: SlpDeepDetailsImageRun,
 ): Promise<CreatorPostImageResult> {
   const imageSettings = await loadImageGenerationUserSettings(input.db);
+  const companions = await resolveSlurpImageCompanions(input.db, input.companionIds, input.account.id);
+  // A companion whose identity is not open keeps its source hidden too.
+  const hiddenSources = [
+    input.disclosureMode === "open" ? null : input.linkedPublicAccount,
+    ...companions.map((companion) =>
+      (companion.account.settings.privacy.identityDisclosure ?? "open") === "open" ? null : companion.source,
+    ),
+  ].filter((source): source is SlpAccount => Boolean(source));
   const redactIdentity = (value: string) => {
-    if (input.disclosureMode === "open" || !input.linkedPublicAccount) return value;
-    const terms = [
-      input.linkedPublicAccount.displayName,
-      input.linkedPublicAccount.handle,
-      input.linkedPublicAccount.entityId,
-    ].filter((term) => term.trim().length > 0);
+    if (hiddenSources.length === 0) return value;
+    const terms = hiddenSources
+      .flatMap((source) => [source.displayName, source.handle, source.entityId])
+      .filter((term) => term.trim().length > 0);
     return terms.reduce(
       (text, term) => text.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "giu"), "[redacted]"),
       value,
@@ -314,6 +375,50 @@ async function generateCreatorPostImageRun(
 
   // Card appearance carries clothes and costumes; the scene decides what is worn in this picture.
   if (!stageAppearance) characterDescription = slurpImageLook(characterDescription);
+  // A character the image model knows is drawn from their name (0.3.5, player report). The card's
+  // own name, on by default per Creator, only for an open identity; an OC's switch can be turned off.
+  const sourceName = sourceCharacter ? characterNameFromRow(sourceCharacter) : sourcePersona?.name?.trim() || "";
+  const subjectName =
+    !input.suppressCreatorDetails &&
+    !input.suppressCharacterContext &&
+    input.disclosureMode === "open" &&
+    input.settings.creatorImageNames?.[input.account.id] !== false &&
+    sourceName &&
+    sourceName !== "Character"
+      ? slurpImageSubjectName(input.visualBrief?.knownAs, [sourceName, input.account.displayName])
+      : "";
+  const sourceCard = sourceCharacter ? parseRecord(sourceCharacter.data) : null;
+  const identityContext = subjectName
+    ? slurpImageIdentityContext(
+        subjectName,
+        typeof sourceCard?.description === "string" ? slpResolveCardMacros(sourceCard.description, subjectName) : "",
+      )
+    : "";
+  // The people the post is about: their look for the writer, their card for a reference picture.
+  const companionCards = await Promise.all(
+    companions.map(async ({ account, source }) => {
+      const character = source?.kind === "character" ? await input.characters.getById(source.entityId) : null;
+      const persona = source?.kind === "persona" ? await input.characters.getPersona(source.entityId) : null;
+      const appearance = character ? characterAppearanceFromRow(character) : persona?.appearance?.trim() || "";
+      const row = character ?? persona;
+      return {
+        name: account.displayName,
+        // Descriptions off keeps every look out of the prompt, the companions' too; references stay.
+        look: includeAppearance
+          ? account.settings.stage?.appearance?.trim() || (appearance ? slurpImageLook(appearance) : "")
+          : "",
+        card: row ? { id: row.id, avatarPath: row.avatarPath ?? null, appearance } : null,
+      };
+    }),
+  );
+  const companionContext = companionCards.some((companion) => companion.look)
+    ? [
+        "Other people this post is about. Put one in the picture only when the post or the scene calls for them; otherwise leave them out. Whoever is in it looks like this:",
+        ...companionCards
+          .filter((companion) => companion.look)
+          .map((companion) => `${companion.name}: ${companion.look}`),
+      ].join("\n")
+    : "";
   run.appearance = { source: appearanceSource, text: redactIdentity(characterDescription) };
   run.referenceImages = referenceImages?.length ?? 0;
 
@@ -401,11 +506,14 @@ async function generateCreatorPostImageRun(
   // "${name}'s Appearance: ..." from the linked source account, so an unredacted context block sent
   // the source's real name to the interpretation model in the same call whose prompt beside it had
   // that name carefully replaced.
+  const lookMode = input.settings.imageAppearanceMode ?? "writer";
   const characterContext = redactIdentity(
     [
-      characterDescription ? `Appearance:\n${characterDescription}` : "",
+      identityContext,
+      characterDescription && slurpLookForWriter(lookMode) ? `Appearance:\n${characterDescription}` : "",
       characterPersonality ? `Personality:\n${characterPersonality}` : "",
       characterImageInstructions ? `Character image preferences:\n${characterImageInstructions}` : "",
+      companionContext,
       input.contentPolicy ? `Creator content policy:\n${input.contentPolicy}` : "",
     ]
       .filter(Boolean)
@@ -419,6 +527,9 @@ async function generateCreatorPostImageRun(
     input.settings.enableImageInterpretation !== false &&
     !skipInterpretation,
   );
+  // Slurp's own viewpoint phrase for this picture (PERSPECTIVE-RESEARCH.md): the rewrite keeps it, the
+  // device filter never cuts it, and the image model gets it in its own words below.
+  const viewpoint = slurpViewpointIn(input.visualBrief?.camera ?? "") ?? slurpViewpointIn(input.draftPrompt);
   const rewrittenPrompt = rewriteAttempted
     ? await rewriteSlpImagePrompt({
         db: input.db,
@@ -429,7 +540,9 @@ async function generateCreatorPostImageRun(
         characterContext,
         styleGuidance,
         promptBlocks: slurpPromptContext(input.settings).blocks,
-        connectionId: input.settings.generationConnectionId,
+        connectionId: input.settings.imagePromptConnectionId || input.settings.generationConnectionId,
+        viewpoint: viewpoint?.phrase,
+        budget: input.playerAsked ? undefined : input.settings.modelBudget,
         onRequest: ({ messages, ...model }) => {
           run.rewrite.model = model;
           run.rewrite.messages = messages;
@@ -454,6 +567,7 @@ async function generateCreatorPostImageRun(
     input.visualBrief && rewrittenPrompt && slurpVisualBriefPromptViolatesPolicy(input.visualBrief, rewrittenPrompt),
   );
   const acceptedRewrittenPrompt = rewriteViolatesPolicy ? null : compiledRewrittenPrompt?.prompt || rewrittenPrompt;
+  let usedRewrite = Boolean(acceptedRewrittenPrompt);
   if (rewriteAttempted) {
     run.rewrite = {
       ...run.rewrite,
@@ -472,6 +586,7 @@ async function generateCreatorPostImageRun(
       rawPrompt: rawProviderPrompt,
       rewriteAttempted,
       onFallback: (reason) => {
+        usedRewrite = false;
         if (run.rewrite.status === "accepted") run.rewrite = { ...run.rewrite, status: "rejected", reason };
         else if (run.rewrite.status === "failed") run.rewrite = { ...run.rewrite, reason };
         logger.warn("[slurp] Image prompt rewrite unusable (%s); sending the capped draft", reason);
@@ -483,12 +598,48 @@ async function generateCreatorPostImageRun(
       guidanceContext: [configuredImageInstructions, connectionImageInstructions],
     }),
   );
+  // Every path lands here, so the device is removed here: the caption or a stored draft may still
+  // say "I held my phone up" (R1-050). A prompt a human approved is sent as written.
+  const keep = viewpoint ? [viewpoint.phrase] : [];
+  const withoutDevice = slurpWithoutCameraDevice(finalPromptBase, keep) || finalPromptBase;
+  // A rewrite that dropped the viewpoint gets it back, so a selfie still reads as one.
+  const finalPromptScene = skipInterpretation
+    ? finalPromptBase
+    : viewpoint && !withoutDevice.includes(viewpoint.phrase)
+      ? `${withoutDevice}\n${viewpoint.phrase}`
+      : withoutDevice;
+  // The Creator's medium: an anime, furry or dragon Creator is drawn, so the brief's photo words go
+  // and their style leads. A photo-style Creator, and a prompt a human approved, stay as they are.
+  const styleSource = `${characterDescription}\n${characterImageInstructions}`;
+  const artStyle = skipInterpretation ? null : slurpArtStyle(styleSource);
+  // The viewpoint in the image model's words: tags for a tag model, e621 tags for a drawn furry.
+  const promptFamily = slurpPromptFamily({
+    promptMode: compiledPrompt.profile.promptMode,
+    service: resolveImageGenerationService(input.imageConnection),
+    model: imageModel,
+    furry: Boolean(artStyle?.tag.includes("furry")),
+  });
+  // One copy of the look: the writer's words, Slurp's insert, or the writer's plus the missing traits.
+  const finalPromptLook = slurpApplyImageLook(
+    skipInterpretation ? finalPromptScene : slurpViewpointForFamily(finalPromptScene, promptFamily),
+    redactIdentity(stageAppearance || stripAppearanceLabel(characterDescription)),
+    lookMode,
+    usedRewrite,
+  );
+  // The name leads on every path, with or without the enhancer; a prompt a human approved stays as written.
+  const finalPromptSubject = skipInterpretation
+    ? finalPromptLook
+    : slurpApplyImageSubject(finalPromptLook, subjectName, promptFamily);
   const finalPrompt = [
-    ensureSlpImageAppearance(finalPromptBase, redactIdentity(stageAppearance)),
+    artStyle ? slurpStyledImagePrompt(finalPromptSubject, styleSource) : finalPromptSubject,
     input.compositionGuard,
   ]
     .filter(Boolean)
     .join("\n\n");
+  // Two people only when the writer put a companion in the picture; left out, the one-person rule stands.
+  const companionNamed = companionCards.some((companion) =>
+    finalPrompt.toLocaleLowerCase().includes(companion.name.toLocaleLowerCase()),
+  );
   // A reviewer who cleared the negative prompt still gets the style profile's own negatives back,
   // for the same reason the positive prompt is recompiled above.
   const baseNegativePrompt =
@@ -497,23 +648,45 @@ async function generateCreatorPostImageRun(
         reviewedOverride?.negativePrompt ||
         undefined
       : compiledPrompt.negativePrompt || undefined;
-  // Deduplicated: the style profile and the level both add "text, watermark" and the like.
-  const finalNegativePrompt =
-    [
-      ...new Set(
-        [baseNegativePrompt, input.negativePromptAdditions]
-          .filter(Boolean)
-          .join(",")
-          .split(",")
-          .map((term) => term.trim())
-          .filter(Boolean),
-      ),
-    ].join(", ") || undefined;
-  const outputWidth = input.width ?? input.settings.imageWidth;
-  const outputHeight = input.height ?? input.settings.imageHeight;
+  const finalNegativePrompt = slurpImageNegativeTerms(
+    baseNegativePrompt,
+    // The one-person rule is lifted here, after the writer decided who is in the picture: the brief's
+    // own negatives keep it, and a companion the final prompt names takes it away.
+    companionNamed && input.negativePromptAdditions
+      ? slurpImageNegativeWithCompany(input.negativePromptAdditions)
+      : (input.negativePromptAdditions ??
+          slurpImageNegativePrompt(input.visualBrief?.sexualLevel, companionNamed, viewpoint?.source)),
+    artStyle?.negative,
+  );
+  // Chosen here rather than by each caller, so a scheduled or redrawn Story is a Story too (R1-052).
+  const outputWidth = input.width ?? (input.story ? input.settings.storyImageWidth : input.settings.imageWidth);
+  const outputHeight = input.height ?? (input.story ? input.settings.storyImageHeight : input.settings.imageHeight);
+  // A companion the final prompt names brings their card picture, after the Creator's own (at most 6).
+  const companionRefs = companionCards.filter((companion) => companion.card);
+  if (referenceImages?.length && companionRefs.length > 0) {
+    const companionResolution = await resolveIllustratorCharacterReferences({
+      charactersStore: input.characters,
+      chatCharacters: companionRefs.map((companion) => ({ name: companion.name, ...companion.card! })),
+      persona: null,
+      requestedNames: [],
+      promptText: finalPrompt,
+      maxReferences: 6,
+    });
+    const named = new Set(companionRefs.map((companion) => companion.name));
+    const extra = companionResolution.referenceImages.filter((_, index) =>
+      named.has(companionResolution.referenceNames[index] ?? ""),
+    );
+    referenceImages = Array.from(new Set([...referenceImages, ...extra])).slice(0, 6);
+    run.referenceImages = referenceImages.length;
+  }
   run.finalPrompt = finalPrompt;
   run.negativePrompt = finalNegativePrompt ?? null;
   run.size = { width: outputWidth ?? null, height: outputHeight ?? null };
+  // For Deep details: the viewpoint as the image model got it. A human-approved prompt kept its own words.
+  run.viewpoint =
+    viewpoint && !skipInterpretation
+      ? { ...viewpoint, family: promptFamily, phrase: slurpViewpointForFamily(viewpoint.phrase, promptFamily) }
+      : null;
   logDebugOverride(
     input.debugMode,
     "[debug/slurp/image] final image prompt for %s:\n%s",
@@ -597,22 +770,17 @@ async function generateCreatorPostImageRun(
   const provider = input.imageConnection.provider ?? "image_generation";
   // Only a picture that exists costs anything. The preview path returns above, and a failed
   // attempt threw before here, so a Creator is never charged for work that produced nothing.
-  try {
-    await createSlurpStorage(input.db).adjustCreatorState(input.account.id, { energy: -SLURP_ENERGY_COST.image });
-  } catch (error) {
-    logger.warn(error, "[slurp] Could not charge image energy for %s", input.account.id);
+  if (input.chargeEnergy !== false) {
+    try {
+      await createSlurpStorage(input.db).adjustCreatorState(input.account.id, { energy: -SLURP_ENERGY_COST.image });
+    } catch (error) {
+      logger.warn(error, "[slurp] Could not charge image energy for %s", input.account.id);
+    }
   }
+  const stored = await slpCompactGeneratedImage(image);
   const file =
-    stageSlurpImageWithHost(
-      `${NOODLER_MEDIA_PREFIX}${input.account.id}`,
-      image.base64,
-      slurpImageExtension(image.base64, image.ext),
-    ) ??
-    stageImageToDisk(
-      `${NOODLER_MEDIA_PREFIX}${input.account.id}`,
-      image.base64,
-      slurpImageExtension(image.base64, image.ext),
-    );
+    stageSlurpImageWithHost(`${NOODLER_MEDIA_PREFIX}${input.account.id}`, stored.base64, stored.ext) ??
+    stageImageToDisk(`${NOODLER_MEDIA_PREFIX}${input.account.id}`, stored.base64, stored.ext);
   return {
     metadata: {
       imageGenerated: true,

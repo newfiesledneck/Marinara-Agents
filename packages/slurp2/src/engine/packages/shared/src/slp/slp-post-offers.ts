@@ -18,6 +18,15 @@ export function slpGambleUnlockPrice(basePrice: number, free: boolean): number {
   return free ? 0 : basePrice * 3;
 }
 
+/**
+ * A gamble is offered only to a fan who could pay the losing side (user, fix phase 1b): with less than
+ * three times the price the fan cannot take the bet at all, instead of always winning it.
+ * `coins === null` means no wallet to check (SlurpCoins off), so nothing blocks.
+ */
+export function slpCanAffordGamble(coins: number | null, basePrice: number): boolean {
+  return coins === null || coins >= slpGambleUnlockPrice(basePrice, false);
+}
+
 /** Price display data for future creator-feed events. Callbacks stay owned by the host feature. */
 export type SlpDiscountOffer = {
   oldPrice: number;

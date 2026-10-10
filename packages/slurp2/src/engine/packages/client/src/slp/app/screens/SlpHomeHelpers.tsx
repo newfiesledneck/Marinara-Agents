@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { slpErrorText } from "../../base/ui/slp-error-text";
 import type { SlpCreatorContentFormat } from "../../features/feed/slp-feed-contract";
 import type { SlurpContentDelivery, SlurpContentIntent } from "../../../../../shared/src/slp/slp-content-axes.js";
 import { AnimatePresence } from "framer-motion";
@@ -68,7 +70,6 @@ export type SlurpViewerCreator = NonNullable<ReturnType<typeof useCreatorViewer>
 // ---------------------------------------------------------------------------
 
 export const SLP_CREATOR_FEED_WINDOW_SIZE = 20;
-export const SLURP_PLACEHOLDER_BALANCE = 1111;
 export const STAGE_PERSONALITY_MAX_LENGTH = 1000;
 
 export const EMPTY_SLP_CREATOR_POST_DRAFT: SlpCreatorPostDraft = {
@@ -143,6 +144,8 @@ export function parsePrice(value: string): number | null {
 }
 
 export function toSlpPostCardModel(view: SlpCreatorPostView, profile: SlpCreatorStageProfile): SlpPostCardModel {
+  // A joint post on the partner's page is still by its host.
+  const host = view.authorAccountId !== profile.id ? view.partnership?.host : null;
   return {
     id: view.id,
     authorAccountId: view.authorAccountId,
@@ -153,16 +156,19 @@ export function toSlpPostCardModel(view: SlpCreatorPostView, profile: SlpCreator
     imagePrompt: view.imagePrompt,
     images: view.images,
     metadata: view.metadata ?? {},
-    authorSnapshot: {
-      id: profile.id,
-      handle: profile.handle,
-      displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
-      avatarCrop: profile.avatarCrop,
-    },
+    authorSnapshot: host
+      ? { id: host.id, handle: host.handle, displayName: host.name, avatarUrl: host.avatarUrl, avatarCrop: null }
+      : {
+          id: profile.id,
+          handle: profile.handle,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          avatarCrop: profile.avatarCrop,
+        },
     createdAt: view.createdAt,
     interactions: view.interactions,
     likeCount: view.likeCount ?? undefined,
+    partnership: view.partnership ?? null,
   };
 }
 
@@ -197,7 +203,11 @@ export function serializeCreatorPostGuide(title: string, body: string) {
 }
 
 export function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return slpErrorText(
+    error,
+    fallback,
+    i18next.t("ui.slurp.wallet.notEnoughCoins", { defaultValue: "Not enough coins." }),
+  );
 }
 
 export function slpCreatorGoalOf(
@@ -222,13 +232,19 @@ export function slpCreatorGoalOf(
 // Shared small components
 // ---------------------------------------------------------------------------
 
-import { UserRound } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { SlurpSparkleVeil } from "../../base/chrome/SlpSparkleVeil";
 import { cn } from "../../../lib/utils";
-import { getSlpAccentStyle, SLP_PINK, ProfileInitial } from "../../base/chrome/SlpChrome";
+import {
+  getSlpAccentStyle,
+  SLP_PINK,
+  ProfileInitial,
+  SLP_IMG_FRAME_CLASS,
+  SLP_PAGE_SCROLL_CLASS,
+  SLP_TOP_BAR_CLASS,
+  slpImgFade,
+} from "../../base/chrome/SlpChrome";
 import { useTranslation as useUiTranslation } from "react-i18next";
 import { useSlurpMediaSrc } from "../../base/media/slp-media-src";
 import { Modal } from "../../../components/ui/Modal";
@@ -250,26 +266,29 @@ export function SlurpAccessTransition({
   const reduceMotion = useReducedMotion();
   const previousLocked = useRef(locked);
   const [celebrating, setCelebrating] = useState(false);
+  // Only a card that starts locked can grow on a reveal. A layout node on every card made framer
+  // measure the whole feed on each mount: most of a Hub tab switch on a phone (0.3.6).
+  const [mayReveal] = useState(locked);
 
   useEffect(() => {
     const revealed = previousLocked.current && !locked;
     previousLocked.current = locked;
     if (!revealed) return;
     setCelebrating(true);
-    const timer = window.setTimeout(() => setCelebrating(false), reduceMotion ? 350 : 1_000);
+    // Long enough for the veil to dissolve (slp-veil-dissolve: 120 ms delay + 1 s).
+    const timer = window.setTimeout(() => setCelebrating(false), reduceMotion ? 350 : 1_200);
     return () => window.clearTimeout(timer);
   }, [locked, reduceMotion]);
 
   return (
     <motion.div
-      layout={reduceMotion ? false : "size"}
+      layout={reduceMotion || !mayReveal ? false : "size"}
       transition={{ type: "spring", duration: 0.58, bounce: 0 }}
-      style={
-        menuOpen
-          ? { position: "relative", zIndex: 40 }
-          : { contentVisibility: "auto", containIntrinsicSize: "auto 720px" }
-      }
+      // `content-visibility` is desktop-only (slp-client-entry.tsx): on a phone a fast flick outran it
+      // and showed half-black pages; on desktop it spares off-screen cards every restyle (0.3.6).
+      style={menuOpen ? { position: "relative", zIndex: 40 } : undefined}
       data-slurp-access-transition={postId}
+      data-slp-menu-open={menuOpen ? "" : undefined}
     >
       <AnimatePresence initial={false} mode="popLayout">
         <motion.div
@@ -282,7 +301,7 @@ export function SlurpAccessTransition({
           transition={{ duration: reduceMotion ? 0.12 : 0.42, ease: "easeOut" }}
         >
           {children}
-          {celebrating && !locked && <SlurpSparkleVeil className="z-20 rounded-xl opacity-80" />}
+          {celebrating && !locked && <SlurpSparkleVeil className="slp-veil-dissolve z-20 rounded-2xl" />}
         </motion.div>
       </AnimatePresence>
     </motion.div>
@@ -332,38 +351,6 @@ export function DisclosureBadge({ mode, detail }: { mode: SlpIdentityDisclosure 
   );
 }
 
-export function EmptyState({
-  title,
-  detail,
-  action,
-  onAction,
-  icon: Icon = UserRound,
-}: {
-  title: string;
-  detail?: string;
-  action?: string;
-  onAction?: () => void;
-  /** Defaults to a person, which is wrong for an empty search or an empty feed. */
-  icon?: LucideIcon;
-}) {
-  return (
-    <div className="px-8 py-8 text-center sm:py-16">
-      <Icon size={36} className="mx-auto !text-[var(--noodle-accent)]" />
-      <p className="mt-4 font-bold">{title}</p>
-      {detail && <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--muted-foreground)]">{detail}</p>}
-      {action && onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="mt-5 min-h-11 rounded-lg border border-[var(--noodle-divider)] px-4 text-sm font-bold transition-[background-color,transform] hover:bg-[var(--accent)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] motion-reduce:transition-none motion-reduce:active:scale-100"
-        >
-          {action}
-        </button>
-      )}
-    </div>
-  );
-}
-
 export function SlpCreatorFrame({
   children,
   onBack,
@@ -387,7 +374,8 @@ export function SlpCreatorFrame({
     <div className="flex h-full min-h-0 flex-col">
       <header
         className={cn(
-          "flex h-14 shrink-0 items-center gap-2 border-b border-[var(--noodle-divider)] px-2",
+          "flex h-14 shrink-0 items-center gap-2 px-2",
+          SLP_TOP_BAR_CLASS,
           hideHeaderOnMobile && "hidden md:flex",
           hideHeader && "hidden md:hidden",
         )}
@@ -396,7 +384,7 @@ export function SlpCreatorFrame({
           <button
             type="button"
             onClick={onBack}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--noodle-accent)] hover:bg-[var(--noodle-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--noodle-accent)]"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--noodle-accent-foreground)] hover:bg-[var(--noodle-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--noodle-accent)]"
             aria-label={localizeUi("ui.noodle.noodlerframe.back")}
           >
             <ArrowLeft size={18} className="rtl:-scale-x-100" />
@@ -404,12 +392,12 @@ export function SlpCreatorFrame({
         )}
         <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</h1>
         {action ?? (
-          <span className="rounded-full bg-[var(--noodle-accent)]/10 px-2.5 py-1 text-[0.65rem] font-bold text-[var(--noodle-accent)]">
+          <span className="rounded-full bg-[var(--noodle-accent)]/10 px-2.5 py-1 text-[0.65rem] font-bold text-[var(--noodle-accent-foreground)]">
             {localizeUi("ui.noodle.noodlerframe.noodler")}
           </span>
         )}
       </header>
-      <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+      <main className={cn("min-h-0 flex-1 overflow-y-auto", SLP_PAGE_SCROLL_CLASS)}>{children}</main>
     </div>
   );
 }
@@ -481,7 +469,7 @@ export function LoadMoreFeedButton({
       onClick={onLoadMore}
       disabled={loading}
       aria-busy={loading}
-      className="min-h-11 w-full border-b border-[var(--noodle-divider)] px-4 py-3 text-sm font-bold text-[var(--noodle-accent)] hover:bg-[var(--noodle-accent)]/10"
+      className="min-h-11 w-full border-b border-[var(--noodle-divider)] px-4 py-3 text-sm font-bold text-[var(--noodle-accent-foreground)] hover:bg-[var(--noodle-accent)]/10"
     >
       {loading ? (
         <Loader2
@@ -507,12 +495,15 @@ export function SlurpMediaDialog({
   media,
   side,
   variant = "post",
+  pictured = true,
 }: {
   title: string;
   onClose: () => void;
   media: ReactNode;
   side: ReactNode;
   variant?: "post" | "story";
+  /** False for a text Story: no picture is coming, so the stage does not shimmer. */
+  pictured?: boolean;
 }) {
   const story = variant === "story";
   return (
@@ -522,7 +513,9 @@ export function SlurpMediaDialog({
       title={title}
       width={story ? "max-w-xl" : "max-w-6xl"}
       mobileFullscreen
-      contentClassName="p-0 sm:p-0"
+      // `!`: the Modal content area carries px-5 py-4, which beats a plain p-0 in the CSS order and
+      // left the Story and the picture inset on phones.
+      contentClassName="!p-0"
       panelClassName={cn(
         "noodle-icon-scope overflow-hidden",
         story &&
@@ -534,23 +527,27 @@ export function SlurpMediaDialog({
       <div
         className={cn(
           "flex h-full min-h-0 flex-col",
-          story ? "relative sm:h-[min(90vh,56rem)]" : "sm:h-[min(84vh,48rem)] sm:flex-row",
+          story
+            ? "relative sm:h-[min(90vh,56rem)]"
+            : // Phones scroll the whole post, so the picture keeps most of the screen and the card follows it.
+              "max-sm:overflow-y-auto sm:h-[min(84vh,48rem)] sm:flex-row",
         )}
       >
         <div
           className={cn(
-            "relative flex flex-1 items-center justify-center overflow-hidden bg-black",
-            story ? "min-h-0" : "min-h-[16rem] sm:min-h-0",
+            "relative flex items-center justify-center overflow-hidden bg-black",
+            pictured && SLP_IMG_FRAME_CLASS,
+            story ? "min-h-0 flex-1" : "h-[min(72dvh,40rem)] shrink-0 sm:h-auto sm:min-h-0 sm:flex-1",
           )}
         >
           {media}
         </div>
         <aside
           className={cn(
-            "flex min-h-0 w-full shrink-0 flex-col overflow-y-auto",
+            "flex w-full shrink-0 flex-col",
             story
-              ? "absolute inset-x-0 bottom-0 z-20 max-h-[46%] bg-gradient-to-t from-black via-black/88 to-transparent px-1 pb-2 pt-16 text-white"
-              : "border-t border-[var(--noodle-divider)] bg-[var(--slurp-surface)] sm:w-[24rem] sm:border-s sm:border-t-0 @min-[1280px]:w-[26rem]",
+              ? "absolute inset-x-0 bottom-0 z-20 max-h-[46%] min-h-0 overflow-y-auto bg-gradient-to-t from-black via-black/88 to-transparent px-1 pb-2 pt-16 text-white"
+              : "bg-[var(--slurp-surface-raised)] shadow-[var(--slurp-highlight)] sm:min-h-0 sm:w-[24rem] sm:overflow-y-auto @min-[1280px]:w-[26rem]",
           )}
         >
           {side}
@@ -585,17 +582,17 @@ export function SlurpPostDialog({
       media={
         source ? (
           <>
+            {/* The blur sits on the wrapper, so the picture inside can fade in like the main one. */}
+            <span aria-hidden="true" className="absolute inset-0 scale-110 opacity-25 blur-3xl">
+              <img key={source} src={source} alt="" {...slpImgFade} className="h-full w-full object-cover" />
+            </span>
             <img
-              src={source}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-3xl"
-            />
-            <img
+              key={source}
               src={source}
               alt={localizeUi("ui.noodle.post.imageBy", { name: authorName })}
               decoding="async"
-              className="relative z-10 max-h-full max-w-full object-contain outline outline-1 -outline-offset-1 outline-white/10"
+              {...slpImgFade}
+              className="relative z-10 h-full w-full object-contain"
             />
             {gallery.length > 1 && (
               <>
@@ -617,41 +614,42 @@ export function SlurpPostDialog({
                     <ChevronRight size={22} className="rtl:rotate-180" aria-hidden="true" />
                   </button>
                 </span>
-                <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-2 bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-10">
-                  <p className="text-xs font-bold tabular-nums text-white/80" aria-live="polite">
-                    {localizeUi("ui.slurp.post.imageCounter", {
-                      index: index + 1,
-                      total: gallery.length,
-                      defaultValue: "{{index}} of {{total}}",
-                    })}
-                  </p>
-                  <ol className="flex max-w-full gap-2 overflow-x-auto pb-1">
-                    {gallery.map((imageUrl, position) => (
-                      <li key={`${imageUrl}-${position}`}>
-                        <SlurpPostDialogThumb
-                          imageUrl={imageUrl}
-                          selected={position === index}
-                          label={localizeUi("ui.slurp.post.showImage", {
-                            index: position + 1,
-                            defaultValue: "Show image {{index}}",
-                          })}
-                          onSelect={() => setIndex(position)}
-                        />
-                      </li>
-                    ))}
-                  </ol>
-                </div>
+                <p
+                  className="absolute start-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold tabular-nums text-white ring-1 ring-inset ring-white/15 backdrop-blur-md"
+                  aria-live="polite"
+                >
+                  {localizeUi("ui.slurp.post.imageCounter", {
+                    index: index + 1,
+                    total: gallery.length,
+                    defaultValue: "{{index}} of {{total}}",
+                  })}
+                </p>
+                {/* Thumbnails sit under the picture, not on it. */}
+                <ol className="absolute inset-x-0 bottom-0 z-20 flex gap-1.5 overflow-x-auto bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8 [justify-content:safe_center]">
+                  {gallery.map((imageUrl, position) => (
+                    <li key={`${imageUrl}-${position}`}>
+                      <SlurpPostDialogThumb
+                        imageUrl={imageUrl}
+                        selected={position === index}
+                        label={localizeUi("ui.slurp.post.showImage", {
+                          index: position + 1,
+                          defaultValue: "Show image {{index}}",
+                        })}
+                        onSelect={() => setIndex(position)}
+                      />
+                    </li>
+                  ))}
+                </ol>
               </>
             )}
           </>
-        ) : (
-          <div className="h-full w-full animate-pulse bg-[var(--slurp-surface-raised)] motion-reduce:animate-none" />
-        )
+        ) : // While the picture is fetched, the dialog's frame itself shimmers (SLP_IMG_FRAME_CLASS).
+        null
       }
       // The dialog owns the picture, so the card must not draw it. The card is told to skip the
       // picture rather than handed a post with its image fields blanked: everything else that
       // reads those fields — "Download post card" in the card's own menu — needs them intact.
-      side={<SlpPostCard post={post} ctx={ctx} surface="profile" hideImage />}
+      side={<SlpPostCard post={post} ctx={ctx} surface="dialog" hideImage />}
     />
   );
 }
@@ -676,11 +674,20 @@ function SlurpPostDialogThumb({
       aria-current={selected ? "true" : undefined}
       onClick={onSelect}
       className={cn(
-        "size-14 overflow-hidden rounded-lg bg-black/40 ring-1 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-        selected ? "ring-2 ring-white" : "opacity-60 ring-white/25 hover:opacity-100",
+        "size-10 overflow-hidden rounded-lg bg-black/40 ring-1 transition-[opacity,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+        selected ? "scale-105 ring-2 ring-white" : "opacity-55 ring-white/25 hover:opacity-100",
       )}
     >
-      {source && <img src={source} alt="" decoding="async" className="h-full w-full object-cover" />}
+      {source && (
+        <img
+          key={source}
+          src={source}
+          alt=""
+          decoding="async"
+          {...slpImgFade}
+          className="slp-crop-top h-full w-full object-cover"
+        />
+      )}
     </button>
   );
 }

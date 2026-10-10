@@ -2,6 +2,9 @@ import { and, eq, or } from "../../../db/file-query.js";
 import { SlpPostUnlock } from "../../../../../shared/src/slp/slp-social.types.js";
 import { isSlurpFileUniqueConstraintError } from "../../base/host/slp-file-errors.js";
 import { slpCreatorUnlockPriceFromMetadata } from "../../modules/economy/slp-prices.js";
+import { createSlpActiveModifierProvider } from "../../base/modifiers/slp-active-modifier-provider.js";
+import { slurpSubscriptionCharge } from "../../modules/economy/slp-creator-pricing.js";
+import { slurpPlatformEventModifierSource } from "../../../../../shared/src/slp/slp-platform-events.js";
 import {
   applyStipend,
   credit,
@@ -17,6 +20,8 @@ import {
 } from "../../modules/economy/slp-wallet.js";
 import { reverse as reverseEarnings, slurpEarningsKey } from "../../modules/economy/slp-earnings.js";
 import { logger } from "../../../lib/logger.js";
+import { slurpPostIncomeParts } from "../../modules/projects/slp-creator-ties.js";
+import { parseRecord } from "../../modules/creators/slp-public-support.js";
 import { slpAccounts, slpPosts, slpPostUnlocks } from "../../../db/schema/slurp.js";
 import { newId, now } from "../../../utils/id-generator.js";
 import { slurpViewerSettingsKey } from "../host/slp-storage-constants.js";
@@ -129,26 +134,34 @@ export function createEconomyStorage2(context: SlurpStorageContext) {
           const previousWalletValue = await settingsStore.get(walletKey);
           const previousViewerSettingsValue = await settingsStore.get(viewerSettingsKey);
           const wallet = readSlurpWallet(previousWalletValue);
-          let earningsKey: string | null = null;
-          let earningsValue: string | null = null;
+          const earningsBefore = new Map<string, string | null>();
           let paymentCompleted = false;
           try {
+            // Only the gamble passes `freeOnUnaffordable`; its note says so, so the wallet ledger can
+            // show the outcome ("Gamble unlock · Free" / "−75") after the toast is gone.
+            const note = freeOnUnaffordable ? `gamble: ${postId}` : postId;
             const charged =
-              spend(wallet, "unlock", price, new Date(), postId) ??
-              (freeOnUnaffordable ? spend(wallet, "unlock", 0, new Date(), postId) : null);
+              spend(wallet, "unlock", price, new Date(), note) ??
+              (freeOnUnaffordable ? spend(wallet, "unlock", 0, new Date(), note) : null);
             if (!charged) return null;
-            chargedAmount = Math.abs(charged.receipts[postId]?.amount ?? 0);
+            // The spend carries no receipt id, so `receipts[postId]` was always empty and every unlock
+            // reported 0: no Creator share, no income note, and a paid gamble told the fan "free".
+            chargedAmount = wallet.coins - charged.coins;
             const post = (await db.select().from(slpPosts).where(eq(slpPosts.id, postId)))[0];
-            if (post) {
-              earningsKey = slurpEarningsKey(post.authorAccountId);
-              earningsValue = await settingsStore.get(earningsKey);
-            }
+            // A collab post pays both pages (7b-c); every other post pays its author.
+            const parts = post
+              ? slurpPostIncomeParts(
+                  { authorAccountId: post.authorAccountId, metadata: parseRecord(post.metadata) },
+                  Math.floor((chargedAmount * settings.walletCreatorRevenueSharePercent) / 100),
+                )
+              : [];
+            for (const part of parts)
+              earningsBefore.set(part.creatorId, await settingsStore.get(slurpEarningsKey(part.creatorId)));
             await writeWallet(viewerAccountId, charged);
             if (post) {
-              const share = Math.floor((chargedAmount * settings.walletCreatorRevenueSharePercent) / 100);
-              if (share > 0) {
-                await creditEarningsNow(post.authorAccountId, "unlock", share, `unlock: ${post.authorAccountId}`);
-              }
+              for (const part of parts)
+                if (part.amount > 0)
+                  await creditEarningsNow(part.creatorId, "unlock", part.amount, `unlock: ${post.authorAccountId}`);
               if (chargedAmount > 0)
                 await this.notifyCreatorIncome(post.authorAccountId, "unlock", chargedAmount, viewerAccountId, post.id);
               await this.advanceAudienceTie(viewerAccountId, post.authorAccountId, {
@@ -163,7 +176,11 @@ export function createEconomyStorage2(context: SlurpStorageContext) {
               error,
               [
                 () => restoreWallet(viewerAccountId, previousWalletValue, previousViewerSettingsValue),
-                ...(earningsKey ? [() => restoreSetting(earningsKey, earningsValue)] : []),
+                ...[...earningsBefore].map(
+                  ([creatorId, value]) =>
+                    () =>
+                      restoreSetting(slurpEarningsKey(creatorId), value),
+                ),
               ],
               "unlock",
             );
@@ -206,7 +223,11 @@ export function createEconomyStorage2(context: SlurpStorageContext) {
         const previousWalletValue = await settingsStore.get(slurpWalletKey(viewerAccountId));
         const previousViewerSettingsValue = await settingsStore.get(slurpViewerSettingsKey(viewerAccountId));
         const at = new Date();
-        const renewal = renewSubscriptions(stored, at);
+        const gone = new Set<string>();
+        for (const creatorAccountId of Object.keys(stored.subscriptions))
+          if (!(await this.getNoodlerAccountById(creatorAccountId, { includeHidden: true })))
+            gone.add(creatorAccountId);
+        const renewal = renewSubscriptions(stored, at, gone, viewerAccountId);
         if (renewal.wallet === stored) return stored;
         const walletAfterRenewal = renewal.lapsed.reduce(
           (wallet, creatorAccountId) => recordWalletActivity(wallet, "renew", 0, at, creatorAccountId),
@@ -270,6 +291,60 @@ export function createEconomyStorage2(context: SlurpStorageContext) {
     async getCreatorSubscriptionPrice(creatorAccountId: string): Promise<number> {
       const [prices, settings] = await Promise.all([readCreatorPrices(), this.getSettings()]);
       return prices[creatorAccountId] ?? settings.walletSubscriptionCost;
+    },
+    /**
+     * What a new subscription costs right now: the weekly price moved by any running platform event,
+     * exactly as `subscribe` charges it. Buttons, the 402 check and the price filter read this (R1-066).
+     */
+    async getCreatorSubscriptionCharge(creatorAccountId: string, at: Date = new Date()): Promise<number> {
+      const [base, settings] = await Promise.all([
+        this.getCreatorSubscriptionPrice(creatorAccountId),
+        this.getSettings(),
+      ]);
+      // SlurpCoins off: everything is on the house, and the buttons say no price (R1-077).
+      if (!settings.walletEnabled) return 0;
+      return slurpSubscriptionCharge(
+        base,
+        createSlpActiveModifierProvider([
+          slurpPlatformEventModifierSource(
+            settings.platformEvents,
+            await this.platformInfluenceStory(creatorAccountId),
+          ),
+        ]),
+        at,
+      );
+    },
+    /**
+     * `getCreatorSubscriptionCharge` for every shown Creator at once. Every feed and profile page
+     * priced each Creator separately: two settings clones, a price parse, an occurrence parse and an
+     * account scan per row. Here those are read once and the Creator's tags come from the account.
+     */
+    async getCreatorSubscriptionCharges(
+      creators: readonly { id: string; settings: { profile: { tags?: string[] } } }[],
+      at: Date = new Date(),
+    ): Promise<Record<string, number>> {
+      const [prices, settings, occurrences] = await Promise.all([
+        readCreatorPrices(),
+        this.getSettings(),
+        this.listStoryOccurrences().catch(() => []),
+      ]);
+      return Object.fromEntries(
+        creators.map((creator) => [
+          creator.id,
+          settings.walletEnabled
+            ? slurpSubscriptionCharge(
+                prices[creator.id] ?? settings.walletSubscriptionCost,
+                createSlpActiveModifierProvider([
+                  slurpPlatformEventModifierSource(settings.platformEvents, {
+                    occurrences,
+                    creator: { id: creator.id, tags: creator.settings.profile.tags ?? [] },
+                  }),
+                ]),
+                at,
+              )
+            : 0,
+        ]),
+      );
     },
     /** Set a creator's own weekly price, or clear it back to the Slurp-wide default with `null`. */
     async setCreatorSubscriptionPrice(creatorAccountId: string, price: number | null): Promise<void> {
@@ -370,6 +445,16 @@ export function createEconomyStorage2(context: SlurpStorageContext) {
       });
       return run;
     },
+    /** Coins a Creator gives the player in a drama (an allowance, a gift). `id` is its receipt: never twice. */
+    async creditGift(viewerAccountId: string, amount: number, note: string, id: string): Promise<SlurpWallet> {
+      const settings = await this.getSettings();
+      return enqueueFinancial(async () => {
+        const wallet = await getWalletNow(viewerAccountId);
+        // SlurpCoins off: everything is on the house, so no balance moves.
+        if (!settings.walletEnabled) return wallet;
+        return writeWallet(viewerAccountId, credit(wallet, "income", amount, new Date(), note, id));
+      });
+    },
     async reverseCreatorIncome(creatorAccountId: string, amount: number, note: string, id?: string): Promise<boolean> {
       const creator = await this.getNoodlerAccountById(creatorAccountId);
       if (!creator) return false;
@@ -391,6 +476,24 @@ export function createEconomyStorage2(context: SlurpStorageContext) {
       return receipt && receipt.kind !== "payout" && receipt.kind !== "reversal" && receipt.amount > 0
         ? receipt.amount
         : null;
+    },
+    /** A brand's fee for a sponsored post, paid once per deal (the receipt id). No platform share. */
+    async creditSponsorFee(creatorAccountId: string, fee: number, brand: string, receiptId: string) {
+      await enqueueFinancial(() => creditEarningsNow(creatorAccountId, "sponsor", fee, `sponsor: ${brand}`, receiptId));
+    },
+    /** A fan paid for a post: a collab post's income is split with the partner (7b-c). */
+    async creditPostIncome(
+      postId: string,
+      creatorAccountId: string,
+      price: number,
+      reason: "unlock" | "tip",
+      operationId?: string,
+    ) {
+      const post = (await db.select().from(slpPosts).where(eq(slpPosts.id, postId)))[0];
+      const parts = post
+        ? slurpPostIncomeParts({ authorAccountId: post.authorAccountId, metadata: parseRecord(post.metadata) }, price)
+        : [{ creatorId: creatorAccountId, amount: price }];
+      for (const part of parts) await this.creditCreatorIncome(part.creatorId, part.amount, reason, operationId);
     },
     /**
      * Pay a creator's owner when a fan pays that creator. Only a creator backed by one of this

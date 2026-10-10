@@ -146,21 +146,10 @@ const noodleOwnedSourcePaths = [
   "packages/server/src/services/storage/noodle-refresh-run-retention.ts",
   "packages/server/src/services/storage/noodle.storage.ts",
 ];
-const slurpSourceRoot = join(packagesDir, "slurp/src/engine");
 const slurp2SourceRoot = join(packagesDir, "slurp2/src/engine");
-const slurpOwnedSourcePaths = [
-  "packages/client/src/components/slurp",
-  "packages/client/src/hooks/use-slurp.ts",
-  "packages/client/src/localization/locales",
-  "packages/client/src/slurp-package-entry.tsx",
-  "packages/client/src/stores/slurp-package.store.ts",
-  "packages/server/src/db/schema/slurp.ts",
-  "packages/server/src/routes/slurp.routes.ts",
-  "packages/server/src/services/slurp",
-  "packages/server/src/services/storage/slurp.storage.ts",
-];
-// Deliberately not spread from slurpOwnedSourcePaths: that list belongs to frozen legacy Slurp, and
-// the remaster's list shrinks toward its slp roots as files move (see SLURP-MODULE-PLAN.md §5).
+const slurp2LazyLocalePaths = ["de", "ko", "pl"].map(
+  (language) => `src/engine/packages/client/src/slp/locales/${language}.json`,
+);
 const slurp2OwnedSourcePaths = [
   "packages/client/src/slp",
   "packages/server/src/slp",
@@ -168,6 +157,17 @@ const slurp2OwnedSourcePaths = [
   "packages/client/src/lib/api-client.ts",
   "packages/server/src/services/garnish-ads",
   "packages/server/src/db/schema/slurp.ts",
+];
+// Calls owns these files. The surface and routes replace vendored copies that stay under
+// sources/engine only because scripts/vendored-engine-baseline.json pins them; Calls does not build from those.
+const conversationCallsSourceRoot = join(packagesDir, "conversation-calls/src/engine");
+const conversationCallsOwnedSourcePaths = [
+  "packages/client/src/components/chat/ConversationCallSurface.tsx",
+  "packages/client/src/lib/call-mic-segmenter.ts",
+  "packages/client/src/lib/call-speech-queue.ts",
+  "packages/server/src/routes/conversation-calls.routes.ts",
+  "packages/server/src/services/conversation/call-transcription.ts",
+  "packages/server/src/services/conversation/call-upload.ts",
 ];
 // Release builds must bundle the current source; runtime reuse is for explicit non-release verification builds.
 const releaseBuild = process.env.MARINARA_RELEASE_BUILD !== "0";
@@ -178,9 +178,22 @@ const rebuiltFeatureClients = new Set(
     .filter(Boolean),
 );
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const capabilityApiAtLeast = (api, needed) =>
+  Boolean(api) && (api.major > needed.major || (api.major === needed.major && api.minor >= needed.minor));
+/**
+ * A feature's manifest permissions: its own, plus each optional one whose Capability API the feature
+ * already declares. An Engine refuses a permission it does not know, so an optional permission waits
+ * until the feature asks for an Engine new enough to have it.
+ */
+function featurePermissions(feature) {
+  const optional = (feature.optionalPermissions ?? [])
+    .filter((entry) => capabilityApiAtLeast(feature.capabilityApi, entry.capabilityApi))
+    .map((entry) => entry.permission);
+  return optional.length ? [...new Set([...feature.permissions, ...optional])].sort() : feature.permissions;
+}
 
 async function prepareFeatureBuildRoot(feature) {
-  if (feature.id === "noodle" || feature.id === "slurp" || feature.id === "slurp2") {
+  if (feature.id === "noodle" || feature.id === "slurp2" || feature.id === "conversation-calls") {
     if (!existsSync(feature.packageSourceRoot)) {
       throw new Error(`Missing package-owned ${feature.name} source`);
     }
@@ -278,13 +291,13 @@ async function removeOwnedSourceSnapshots(excludedPaths) {
 const features = [
   {
     id: "noodle",
-    version: "1.2.25",
+    version: "1.5.3",
     minEngineVersion: "2.4.6",
     capabilityApi: { major: 1, minor: 35 },
     builtAgainst: { engineVersion: "2.4.6", engineCommit: "2f5c8e314f8583cc274b488cfd309a2bc2a214d3" },
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Noodle",
-    description: "Explore the Noodle public timeline as an optional local social world.",
+    description: "A pretend social network where your characters post, share photos, and talk about your chats.",
     localizations: {
       de: {
         name: "Noodle",
@@ -357,36 +370,36 @@ const features = [
     },
   },
   {
-    id: "slurp",
-    version: "1.51.0",
-    minEngineVersion: "2.4.3",
+    id: "slurp2",
+    version: "0.3.20",
+    minEngineVersion: "2.4.6",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
-    name: "Slurp Legacy",
+    name: "Slurp",
     description:
-      "Legacy Slurp version. This package is being reworked and is on hold. New development is happening in Slurp Remastered. Bug fixes are not planned for this version.",
+      "A private social app for your characters. Turn characters and personas into Creators, post public or locked photos, and watch a simulated audience follow, subscribe, unlock, comment, and message them. By default, it is tuned for an adult experience.",
     localizations: {
       de: {
-        name: "Slurp Legacy",
+        name: "Slurp",
         description:
-          "Legacy-Version von Slurp. Dieses Paket wird \u00fcberarbeitet und ist pausiert. Die neue Entwicklung erfolgt in Slurp Remastered. Fehlerbehebungen sind f\u00fcr diese Version nicht geplant.",
+          "Eine private Social-App f\u00fcr deine Charaktere. Mache Charaktere und Personas zu Creators, poste \u00f6ffentliche oder gesperrte Fotos und sieh zu, wie ein simuliertes Publikum ihnen folgt, sie abonniert, Inhalte freischaltet, kommentiert und ihnen schreibt. Standardm\u00e4\u00dfig ist sie auf ein Erlebnis f\u00fcr Erwachsene abgestimmt.",
         homeBrowserTab: {
           label: "Slurp",
           ariaLabel: "Slurp \u00f6ffnen",
         },
       },
       ko: {
-        name: "Slurp Legacy",
+        name: "Slurp",
         description:
-          "Slurp \ub808\uac70\uc2dc \ubc84\uc804\uc785\ub2c8\ub2e4. \uc774 \ud328\ud0a4\uc9c0\ub294 \uc7ac\uc791\uc5c5 \uc911\uc774\uba70 \ubcf4\ub958 \uc0c1\ud0dc\uc785\ub2c8\ub2e4. \uc0c8\ub85c\uc6b4 \uac1c\ubc1c\uc740 Slurp Remastered\uc5d0\uc11c \uc9c4\ud589\ub429\ub2c8\ub2e4. \uc774 \ubc84\uc804\uc758 \ubc84\uadf8 \uc218\uc815\uc740 \uacc4\ud68d\ub418\uc5b4 \uc788\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.",
+          "\uce90\ub9ad\ud130\ub97c \uc704\ud55c \ube44\uacf5\uac1c \uc18c\uc15c \uc571\uc785\ub2c8\ub2e4. \uce90\ub9ad\ud130\uc640 \ud398\ub974\uc18c\ub098\ub97c \ud06c\ub9ac\uc5d0\uc774\ud130\ub85c \ub9cc\ub4e4\uace0, \uacf5\uac1c \ub610\ub294 \uc7a0\uae34 \uc0ac\uc9c4\uc744 \uac8c\uc2dc\ud558\uace0, \uc2dc\ubbac\ub808\uc774\uc158\ub41c \uccad\uc911\uc774 \ud314\ub85c\uc6b0\ud558\uace0 \uad6c\ub3c5\ud558\uace0 \uc7a0\uae08\uc744 \ud574\uc81c\ud558\uace0 \ub313\uae00\uacfc \uba54\uc2dc\uc9c0\ub97c \ub0a8\uae30\ub294 \ubaa8\uc2b5\uc744 \uc9c0\ucf1c\ubcf4\uc138\uc694. \uae30\ubcf8\uc801\uc73c\ub85c \uc131\uc778\uc6a9 \uacbd\ud5d8\uc5d0 \ub9de\ucdb0\uc838 \uc788\uc2b5\ub2c8\ub2e4.",
         homeBrowserTab: {
           label: "Slurp",
           ariaLabel: "Slurp \uc5f4\uae30",
         },
       },
       pl: {
-        name: "Slurp Legacy",
+        name: "Slurp",
         description:
-          "Starsza wersja Slurp. Ten pakiet jest przebudowywany i wstrzymany. Nowy rozw\u00f3j odbywa si\u0119 w Slurp Remastered. Poprawki b\u0142\u0119d\u00f3w dla tej wersji nie s\u0105 planowane.",
+          "Prywatna aplikacja spo\u0142eczno\u015bciowa dla Twoich postaci. Zamieniaj postacie i persony w tw\u00f3rc\u00f3w, publikuj publiczne lub zablokowane zdj\u0119cia i patrz, jak symulowana publiczno\u015b\u0107 je obserwuje, subskrybuje, odblokowuje posty, komentuje i pisze do nich wiadomo\u015bci. Domy\u015blnie jest dostrojona do tre\u015bci dla doros\u0142ych.",
         homeBrowserTab: {
           label: "Slurp",
           ariaLabel: "Otw\u00f3rz Slurp",
@@ -396,96 +409,52 @@ const features = [
     category: "misc",
     kind: ["agent"],
     modes: ["conversation", "roleplay", "game"],
-    permissions: ["chat-read", "network", "routes", "storage", "ui"],
-    serverImport: "packages/server/src/services/slurp/server-entry.ts",
-    serverEntry: true,
-    clientImport: "packages/client/src/slurp-package-entry.tsx",
-    packageSourceRoot: slurpSourceRoot,
-    ownedSourcePaths: slurpOwnedSourcePaths,
-    libraryHidden: true,
-    assetPaths: ["slurp-logo.png", "slurplegacy.png"],
-    contributions: {
-      slots: ["home-browser-tab"],
-      homeBrowserTab: {
-        label: "Slurp",
-        ariaLabel: "Open Slurp",
-        iconPaths: ["slurp-logo.png"],
-      },
-    },
-  },
-  {
-    id: "slurp2",
-    version: "0.2.40",
-    minEngineVersion: "2.4.6",
-    maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
-    name: "Slurp Remastered",
-    description:
-      "The Slurp remaster. It installs beside Slurp Legacy and keeps its own separate data: create a local Creator profile from an Engine character or persona, publish public or locked posts, and simulate subscriptions and audience activity.",
-    localizations: {
-      de: {
-        name: "Slurp Remastered",
-        description:
-          "Die Neufassung von Slurp. Sie wird neben Slurp Legacy installiert und behaelt eigene, getrennte Daten: Erstelle ein lokales Creator-Profil aus einem Engine-Charakter oder einer Engine-Persona, veroeffentliche oeffentliche oder gesperrte Beitraege und simuliere Abonnements und Publikumsaktivitaet.",
-        homeBrowserTab: {
-          label: "Slurp.",
-          ariaLabel: "Slurp. oeffnen",
-        },
-      },
-      ko: {
-        name: "Slurp Remastered",
-        description:
-          "Slurp\uc758 \ub9ac\uba54\uc774\uc2a4\ud130\uc785\ub2c8\ub2e4. Slurp Legacy\uc640 \ud568\uaed8 \uc124\uce58\ub418\uba70 \ub370\uc774\ud130\ub97c \ub530\ub85c \ubcf4\uad00\ud569\ub2c8\ub2e4. Engine \uce90\ub9ad\ud130\ub098 Engine \ud398\ub974\uc18c\ub098\ub85c \ub85c\uceec \ud06c\ub9ac\uc5d0\uc774\ud130 \ud504\ub85c\ud544\uc744 \ub9cc\ub4e4\uace0, \uacf5\uac1c \ub610\ub294 \uc7a0\uae34 \uac8c\uc2dc\ubb3c\uc744 \uac8c\uc2dc\ud558\uba70, \uad6c\ub3c5 \ubc0f \uccad\uc911 \ud65c\ub3d9\uc744 \uc2dc\ubbac\ub808\uc774\uc158\ud569\ub2c8\ub2e4.",
-        homeBrowserTab: {
-          label: "Slurp.",
-          ariaLabel: "Slurp. \uc5f4\uae30",
-        },
-      },
-      pl: {
-        name: "Slurp Remastered",
-        description:
-          "Odnowiona wersja Slurp. Instaluje sie obok Slurp Legacy i przechowuje wlasne, oddzielne dane: utworz lokalny profil tworcy z postaci silnika lub persony silnika, publikuj publiczne lub zablokowane posty i symuluj subskrypcje oraz aktywnosc publicznosci.",
-        homeBrowserTab: {
-          label: "Slurp.",
-          ariaLabel: "Otworz Slurp.",
-        },
-      },
-    },
-    category: "misc",
-    kind: ["agent"],
-    modes: ["conversation", "roleplay", "game"],
     permissions: ["chat-read", "network", "prompt-context", "routes", "storage", "ui"],
+    // Professor Mari may list and run Slurp's actions (`mari-actions:slurp2`, Engine PR #6800). The
+    // Engine accepts that permission only with capabilityApi 1.50, and an older Engine refuses a
+    // manifest that names it, so it is emitted once `capabilityApi` below reaches 1.50. Until then
+    // Slurp loads everywhere and registers only `slurp2:actions` (the server feature-detects it).
+    // Roleplay scenes from DM threads (packages/slurp2/docs/SCENES.md) need Engine PR #7119, Capability
+    // API 1.66; the server registers its scene origin only when the manifest holds `scenes`.
+    optionalPermissions: [
+      { permission: "mari-actions", capabilityApi: { major: 1, minor: 50 } },
+      { permission: "scenes", capabilityApi: { major: 1, minor: 66 } },
+    ],
     serverImport: "packages/server/src/slp/slp-server-entry.ts",
     serverEntry: true,
     clientImport: "packages/client/src/slp/slp-client-entry.tsx",
     packageSourceRoot: slurp2SourceRoot,
     ownedSourcePaths: slurp2OwnedSourcePaths,
-    capabilityApi: { major: 1, minor: 31 },
+    capabilityApi: { major: 1, minor: 66 },
     builtAgainst: {
       engineVersion: "2.4.6",
-      engineCommit: "c3ec876434ba25f5288a549afc292f1ca9b0e5c5",
+      engineCommit: "5a6fafa079c921a3dc1166169f41f318549d595e",
     },
     libraryHidden: true,
     // `slurpcoin.svg` is deliberately not shipped: the Engine keeps SVG out of its servable
     // package-asset content types, so the route 404s it whatever the manifest declares. The coin
     // is inlined as a data URI in SlurpCoin.tsx instead, from the same file kept as source.
-    assetPaths: ["slurp2-logo.png", "slurp2agent.png"],
+    // The UI catalogs other than English are served as package assets and fetched on demand, so
+    // client.js carries one language instead of four (slp-client-entry.tsx, 0.3.6).
+    assetPaths: ["slurp2-logo.png", "slurp2agent.png", ...slurp2LazyLocalePaths],
     contributions: {
       slots: ["home-browser-tab"],
       homeBrowserTab: {
-        label: "Slurp.",
-        ariaLabel: "Open Slurp.",
+        label: "Slurp",
+        ariaLabel: "Open Slurp",
         iconPaths: ["slurp2-logo.png"],
       },
+      assets: { paths: slurp2LazyLocalePaths },
     },
   },
   {
     id: "long-term-memory",
-    version: "1.3.21",
+    version: "1.4.23",
     minEngineVersion: "2.4.1",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Long-Term Memory",
     description:
-      "Extracts durable memories from chat summaries, character records, and lorebooks, then recalls relevant context from a package-owned vault.",
+      "Remembers important things from your chat summaries, characters, and lorebooks, and brings them back when they matter.",
     category: "misc",
     kind: ["agent"],
     modes: ["conversation", "roleplay", "game"],
@@ -505,12 +474,12 @@ const features = [
   },
   {
     id: "memory-nag",
-    version: "1.1.2",
+    version: "1.1.3",
     minEngineVersion: "2.4.4",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Memory Nag",
     description:
-      "Keeps a short per-chat vault of roleplay memories and recalls only the unresolved details that matter to the current turn.",
+      "Remembers loose ends from your roleplay, like promises and open questions, and reminds the AI when they matter.",
     category: "tracker",
     kind: ["agent"],
     modes: ["roleplay"],
@@ -525,7 +494,7 @@ const features = [
     capabilityApi: { major: 1, minor: 14 },
     agent: {
       description:
-        "Keeps a short per-chat vault of roleplay memories and recalls only the unresolved details that matter to the current turn.",
+        "Remembers loose ends from your roleplay, like promises and open questions, and reminds the AI when they matter.",
       phase: "post_processing",
       runtimeDisabled: false,
       execution: "pipeline",
@@ -560,12 +529,12 @@ const features = [
   },
   {
     id: "hierarchical-maps",
-    version: "1.4.3",
+    version: "1.5.1",
     minEngineVersion: "2.4.2",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "World Maps",
     description:
-      "Adds persistent hierarchical locations, durable shared worlds, reusable artwork, customizable Direct Link lines, and movement to Roleplay and Game.",
+      "Adds world maps to Roleplay and Game, from whole regions down to single rooms, with art and travel between places.",
     category: "tracker",
     kind: ["agent", "maps"],
     modes: ["roleplay", "game"],
@@ -577,7 +546,7 @@ const features = [
   {
     id: "conversation-calls",
     name: "Calls",
-    version: "1.0.17",
+    version: "1.1.1",
     minEngineVersion: "2.4.1",
     description: "Adds live audio and video calls with Conversation characters.",
     kind: ["agent", "conversation-calls"],
@@ -586,6 +555,8 @@ const features = [
     serverImport: "packages/server/src/routes/conversation-calls.routes.ts",
     serverExport: "conversationCallsRoutes",
     prefix: "/api/conversation-calls",
+    packageSourceRoot: conversationCallsSourceRoot,
+    ownedSourcePaths: conversationCallsOwnedSourcePaths,
   },
   ...[
     ["uno", "UNO", "Play UNO with Conversation characters.", "Uno", "/uno", ["uno"], "Group card game"],
@@ -767,12 +738,13 @@ export async function selfCheck({ api }) {
 }\n`
         : feature.id === "conversation-calls"
           ? `import { ${feature.serverExport} as register } from ${JSON.stringify(target)};
-import * as commandRuntime from ${JSON.stringify(resolve(sourceRoot, "packages/server/src/services/generation/conversation-call-command-runtime.ts"))};
-import * as characterVideos from ${JSON.stringify(resolve(sourceRoot, "packages/server/src/services/conversation/call-character-videos.service.ts"))};
-import { createConversationCallsStorage } from ${JSON.stringify(resolve(sourceRoot, "packages/server/src/services/storage/conversation-calls.storage.ts"))};
+import * as commandRuntime from ${JSON.stringify(resolve(prepared.buildRoot, "packages/server/src/services/generation/conversation-call-command-runtime.ts"))};
+import * as characterVideos from ${JSON.stringify(resolve(prepared.buildRoot, "packages/server/src/services/conversation/call-character-videos.service.ts"))};
+import { createConversationCallsStorage } from ${JSON.stringify(resolve(prepared.buildRoot, "packages/server/src/services/storage/conversation-calls.storage.ts"))};
 let readinessStorage = null;
 export async function activate({ app, api }) {
-  await app.register(register, { prefix: ${JSON.stringify(feature.prefix)} });
+  // runtime.integrations.speech (newer Engines) lets calls use the Speech to Text server from Connections.
+  await app.register(register, { prefix: ${JSON.stringify(feature.prefix)}, runtime: api.runtime });
   readinessStorage = createConversationCallsStorage(app.db);
   const cleanups = [
     api.registerService("conversation-calls:command", commandRuntime),
@@ -811,9 +783,7 @@ export async function selfCheck() {
         // method", which broke every outbound request the package made. The runtime provisions
         // undici alongside the snapshot, so resolving to the Engine's copy is the fix.
         "--external:undici",
-        ...(feature.id === "long-term-memory" || feature.id === "slurp" || feature.id === "slurp2"
-          ? ["--external:zod"]
-          : []),
+        ...(feature.id === "long-term-memory" || feature.id === "slurp2" ? ["--external:zod"] : []),
         `--alias:@marinara-engine/shared=${sharedBundleEntry}`,
         `--metafile=${metafile}`,
         `--outfile=${output}`,
@@ -829,11 +799,11 @@ export async function selfCheck() {
     }
     if (feature.ownedSourcePaths?.length) {
       await capturePackageSources(metafile, prepared.buildRoot, feature.ownedSourcePaths);
-      if (feature.id === "slurp" || feature.id === "slurp2") {
+      if (feature.id === "slurp2") {
         await removeOwnedSourceSnapshots([
           "packages/client/src/localization/locales",
           // Captured as generic Engine material before Slurp2 claimed it; only Slurp2 imports it.
-          ...(feature.id === "slurp2" ? ["packages/server/src/services/garnish-ads"] : []),
+          "packages/server/src/services/garnish-ads",
         ]);
       }
     } else {
@@ -1656,7 +1626,7 @@ function Root({ element }) {
 class Element extends HTMLElement { connectedCallback() { if (!this.__root) this.__root = createRoot(this); this.__root.render(<QueryClientProvider client={client}><Root element={this} /></QueryClientProvider>); } disconnectedCallback() { queueMicrotask(() => { if (!this.isConnected && this.__root) { this.__root.unmount(); this.__root = null; } }); } }
 if (!customElements.get(${JSON.stringify(tag)})) customElements.define(${JSON.stringify(tag)}, Element);`;
     } else if (feature.clientImport) {
-      if (feature.id === "noodle" || feature.id === "slurp" || feature.id === "slurp2") {
+      if (feature.id === "noodle" || feature.id === "slurp2") {
         const setterName = feature.id === "noodle" ? "setNoodlePackageStyles" : "setSlurpPackageStyles";
         source = `import { ${setterName} } from ${JSON.stringify(resolve(prepared.buildRoot, feature.clientImport))};`;
         const styles = await buildPackageStyles(prepared.buildRoot, temporary, feature.id);
@@ -1864,7 +1834,7 @@ for (const feature of selectedFeatures) {
         bytes: asset.buffer.byteLength,
       })),
     ],
-    permissions: feature.permissions,
+    permissions: featurePermissions(feature),
     restartRequired: true,
   };
   await writeFile(join(sourceDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -1909,7 +1879,7 @@ for (const feature of selectedFeatures) {
     catalog.packages.push({
       manifest,
       category: feature.category ?? "misc",
-      iconUrl: feature.id === "slurp" ? catalogArtworkUrl("slurp") : catalogArtworkUrl(feature.id),
+      iconUrl: catalogArtworkUrl(feature.id),
       artifact: {
         url: `https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/${basename(artifactPath)}`,
         sha256: sha256(artifact),
@@ -1920,7 +1890,7 @@ for (const feature of selectedFeatures) {
           ? "https://github.com/Pasta-Devs/Marinara-Engine/blob/main/docs/agents/hierarchical-maps.md"
           : feature.id === "noodle"
             ? "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/noodle/README.md"
-            : feature.id === "slurp" || feature.id === "slurp2"
+            : feature.id === "slurp2"
               ? `https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/${feature.id}/README.md`
               : `https://github.com/Pasta-Devs/Marinara-Agents#${feature.id}`,
     });

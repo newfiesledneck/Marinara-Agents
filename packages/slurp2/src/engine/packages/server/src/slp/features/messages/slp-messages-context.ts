@@ -4,6 +4,7 @@ import type { SlurpMessage } from "../../data/messages/slp-messages-storage-type
 import { resolveSlurpCreatorAvailability } from "../../modules/creators/slp-creator-schedule-context.js";
 import { createCharactersStorage } from "../../../services/storage/characters.storage.js";
 import type { FastifyInstance } from "fastify";
+import { SLURP_SUPPORT_ACCOUNT_ID } from "../../../../../shared/src/slp/slp-support.js";
 
 /** Storage handles and access checks shared by every message route. Created once per mount. */
 export function createSlpMessagesContext(
@@ -43,6 +44,11 @@ export function createSlpMessagesContext(
       if (thread?.extendedOnlineUntil && thread.extendedOnlineUntil > new Date().toISOString()) {
         availability = { online: true, activity: "chatting", minutesUntilOnline: 0 };
       }
+    }
+
+    if (threadId) {
+      const overrides = await messages.getDetailsOverrides(threadId);
+      availability = { ...availability, ...overrides.availability };
     }
 
     return {
@@ -107,9 +113,23 @@ export function createSlpMessagesContext(
     return Boolean(creator && creator.sourceKind === "persona" && creator.sourceEntityId === personaId);
   };
 
+  /**
+   * The seat a persona has in a thread: the one writing to the Creator ("viewer"), the Creator's own
+   * ("creator"), or none. Slurp Support's threads are the player's from every persona.
+   */
+  const seatIn = async (
+    personaId: string,
+    thread: { viewerAccountId: string; creatorAccountId: string },
+  ): Promise<"viewer" | "creator" | null> => {
+    if (thread.viewerAccountId === personaId) return "viewer";
+    if (await ownsCreator(personaId, thread.creatorAccountId)) return "creator";
+    return thread.viewerAccountId === SLURP_SUPPORT_ACCOUNT_ID ? "viewer" : null;
+  };
+
   return {
     slurp,
     messages,
+    seatIn,
     population,
     creatorPresence,
     requireViewer,

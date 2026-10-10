@@ -1,6 +1,7 @@
 import type { DB } from "../../../db/connection.js";
 import { desc, eq } from "../../../db/file-query.js";
-import { slurpContentOpportunities } from "../../../db/schema/slurp.js";
+import { slurpContentOpportunities, slurpContinuityEvents } from "../../../db/schema/slurp.js";
+import { recordSlurpContinuityEvent } from "../continuity/slp-continuity-storage.js";
 import { newId } from "../../../utils/id-generator.js";
 import type {
   SlurpContentDelivery,
@@ -8,6 +9,12 @@ import type {
   SlurpContentWorkflow,
 } from "../../../../../shared/src/slp/slp-content-axes.js";
 import type { SlurpSkipReason } from "../../modules/feed/slp-planner.js";
+import {
+  parseSlurpBeat,
+  type SlurpBeat,
+  type SlurpBeatHistory,
+  type SlurpBeatType,
+} from "../../modules/feed/slp-post-beat.js";
 
 export type SlurpContentOpportunity = {
   id: string;
@@ -21,6 +28,8 @@ export type SlurpContentOpportunity = {
   skipReason: SlurpSkipReason | null;
   postId: string | null;
   sourceEventId: string | null;
+  topic: string | null;
+  beat: SlurpBeat | null;
   plannedAt: string;
   dueAt: string | null;
   completedAt: string | null;
@@ -43,6 +52,8 @@ function mapOpportunity(row: Record<string, unknown>): SlurpContentOpportunity {
     skipReason: (row.skipReason ? String(row.skipReason) : null) as SlurpSkipReason | null,
     postId: row.postId ? String(row.postId) : null,
     sourceEventId: row.sourceEventId ? String(row.sourceEventId) : null,
+    topic: row.topic ? String(row.topic) : null,
+    beat: row.beat ? parseSlurpBeat(row.beat) : null,
     plannedAt: String(row.plannedAt),
     dueAt: row.dueAt ? String(row.dueAt) : null,
     completedAt: row.completedAt ? String(row.completedAt) : null,
@@ -68,6 +79,8 @@ export async function planSlurpOpportunity(
     access?: string;
     skipReason?: SlurpSkipReason;
     sourceEventId?: string | null;
+    topic?: string | null;
+    beat?: SlurpBeat | null;
     at: Date;
     dueAt?: Date | null;
   },
@@ -88,6 +101,8 @@ export async function planSlurpOpportunity(
     skipReason: input.skipReason ?? null,
     postId: null,
     sourceEventId: input.sourceEventId ?? null,
+    topic: input.topic ?? null,
+    beat: input.beat ? JSON.stringify(input.beat) : null,
     plannedAt: input.at.toISOString(),
     dueAt: input.dueAt ? input.dueAt.toISOString() : null,
     // A skip is over the moment it is made. Nothing else happens to it.
@@ -178,6 +193,34 @@ export async function claimSlurpPromise(
   return row ? mapOpportunity(row) : null;
 }
 
+const SLURP_BEAT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Editorial memory for the beats planner: this Creator's last beats and every Creator's beat types
+ * in the last day. One read of the plan table, which keeps only 40 plans per Creator.
+ */
+export async function readSlurpBeatHistory(db: DB, creatorAccountId: string, at: Date): Promise<SlurpBeatHistory> {
+  const since = new Date(at.getTime() - SLURP_BEAT_WINDOW_MS).toISOString();
+  const rows = (await db.select().from(slurpContentOpportunities))
+    .map(mapOpportunity)
+    .filter((row): row is SlurpContentOpportunity & { beat: SlurpBeat } => Boolean(row.beat))
+    .sort((left, right) => right.plannedAt.localeCompare(left.plannedAt));
+  const own = rows.filter((row) => row.creatorAccountId === creatorAccountId).slice(0, 6);
+  const globalCounts: Partial<Record<SlurpBeatType, number>> = {};
+  const sharedToday: Record<string, number> = {};
+  for (const row of rows.filter((entry) => entry.plannedAt >= since)) {
+    globalCounts[row.beat.type] = (globalCounts[row.beat.type] ?? 0) + 1;
+    if (row.beat.sharedId) sharedToday[row.beat.sharedId] = (sharedToday[row.beat.sharedId] ?? 0) + 1;
+  }
+  return {
+    recentOwn: own.map((row) => row.beat.type),
+    recentAnchors: own.map((row) => row.beat.anchor),
+    recentReferences: own.flatMap((row) => (row.beat.reference ? [row.beat.reference.id] : [])),
+    globalCounts,
+    sharedToday,
+  };
+}
+
 /** Whether the Creator's last plan was a quiet slot, so the planner does not stack two. */
 export async function slurpSkippedLastSlot(db: DB, creatorAccountId: string): Promise<boolean> {
   const [latest] = await listSlurpOpportunities(db, creatorAccountId, 1);
@@ -193,4 +236,37 @@ async function pruneSlurpOpportunities(db: DB, creatorAccountId: string): Promis
     .filter((entry) => !(entry.workflow === "planned" && entry.sourceEventId))) {
     await db.delete(slurpContentOpportunities).where(eq(slurpContentOpportunities.id, row.id));
   }
+}
+
+/**
+ * A promise was kept: record it in the thread it was made in, once. Called where a post goes up:
+ * a direct post when it lands, a scheduled one when the reserve publishes it. Recording it when the
+ * slot was only prepared kept promises a discarded slot never delivered (R1-034).
+ */
+export async function recordSlurpPromiseKept(
+  db: DB,
+  opportunity: Pick<SlurpContentOpportunity, "id" | "sourceEventId">,
+  input: { postId?: string | null; at: Date },
+): Promise<void> {
+  if (!opportunity.sourceEventId) return;
+  const [source] = await db
+    .select()
+    .from(slurpContinuityEvents)
+    .where(eq(slurpContinuityEvents.id, opportunity.sourceEventId));
+  if (!source?.threadId) return;
+  await recordSlurpContinuityEvent(db, {
+    sourceKind: String(source.sourceKind),
+    sourceEntityId: String(source.sourceEntityId),
+    creatorAccountId: String(source.creatorAccountId),
+    eventType: "promise_kept",
+    source: "slurp_post",
+    realityScope: "slurp",
+    audienceScope: "thread_private",
+    threadId: String(source.threadId),
+    payload: { requestId: opportunity.sourceEventId, ...(input.postId ? { postId: input.postId } : {}) },
+    relatedIds: [opportunity.sourceEventId, opportunity.id, ...(input.postId ? [input.postId] : [])],
+    fingerprint: `kept:${opportunity.id}`,
+    contribution: "system",
+    occurredAt: input.at,
+  });
 }

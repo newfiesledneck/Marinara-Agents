@@ -1,5 +1,6 @@
 import { normalizeAvatarCrop } from "@marinara-engine/shared";
 import { createSlpPoll, readSlpPollFromMetadata } from "../../../../../shared/src/slp/slp-polls.js";
+import { readSlpPostImageCrop } from "../../../../../shared/src/slp/slp-post-images.js";
 import { SlpPollInput } from "../../../../../shared/src/slp/slp-social-generation.schema.js";
 import {
   SlpAccount,
@@ -66,6 +67,9 @@ export function mapViewer(
     convoDisplayName?: string | null;
     avatarPath?: string | null;
     avatarCrop?: unknown;
+    /** The persona's public profile: DM replies read it as the fan's "about" (Plane 326, R1-001). */
+    aboutMe?: string | null;
+    description?: string | null;
     createdAt?: string;
     updatedAt?: string;
   },
@@ -76,7 +80,7 @@ export function mapViewer(
     entityId: personaId,
     handle: normalizeHandle(persona.convoDisplayName || persona.name, personaId),
     displayName: persona.convoDisplayName || persona.name || "User",
-    bio: "",
+    bio: persona.aboutMe || persona.description || "",
     avatarUrl: persona.avatarPath ?? null,
     avatarCrop: normalizeAvatarCrop(persona.avatarCrop),
     invited: true,
@@ -147,6 +151,10 @@ export function mapPost(row: PostRow): SlpPost {
                 position: media.position,
                 imageUrl: media.imageUrl,
                 imagePrompt: typeof media.imagePrompt === "string" ? media.imagePrompt : null,
+                ...(typeof media.width === "number" && typeof media.height === "number"
+                  ? { width: media.width, height: media.height }
+                  : {}),
+                crop: readSlpPostImageCrop({ imageCrop: media.crop }),
               },
             ]
           : [];
@@ -162,6 +170,7 @@ export function mapPost(row: PostRow): SlpPost {
           imagePrompt:
             (typeof metadata.imageProviderPrompt === "string" && metadata.imageProviderPrompt) ||
             (row.imagePrompt ?? null),
+          crop: readSlpPostImageCrop(metadata),
         },
         ...secondary,
       ]

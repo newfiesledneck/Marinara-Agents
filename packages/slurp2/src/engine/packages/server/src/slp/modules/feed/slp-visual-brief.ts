@@ -31,6 +31,9 @@ export function slurpVisualBriefFromSituation(input: {
   const intent = input.axes?.intent;
   return {
     subject: "the Creator",
+    // A known character's name as the post writer tagged it ("fubuki (one punch man)"). Never in the
+    // brief's text: only the image service reads it, behind the Creator's switch and an open identity.
+    ...(input.scene?.subject?.trim() ? { knownAs: input.scene.subject.trim() } : {}),
     action,
     setting: place,
     company,

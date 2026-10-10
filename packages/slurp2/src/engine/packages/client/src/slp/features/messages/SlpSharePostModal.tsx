@@ -76,7 +76,11 @@ export function SlpSharePostModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={localizeUi("ui.slurp.post.share", { defaultValue: "Share post" })}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={localizeUi("ui.slurp.post.sendInChat", { defaultValue: "Send in a chat" })}
+    >
       <div className="space-y-3 p-4">
         <label className="flex min-h-10 items-center gap-2 rounded-lg bg-[var(--slurp-surface)] px-3 ring-1 ring-inset ring-[var(--noodle-divider)]">
           <Search size={14} aria-hidden="true" />
@@ -92,7 +96,7 @@ export function SlpSharePostModal({
           type="button"
           aria-pressed={newChat}
           onClick={() => setNewChat((value) => !value)}
-          className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-start text-sm font-semibold text-[var(--noodle-accent)] ring-1 ring-inset ring-[var(--noodle-accent)]/35 hover:bg-[var(--noodle-accent)]/10"
+          className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-start text-sm font-semibold text-[var(--noodle-accent-foreground)] ring-1 ring-inset ring-[var(--noodle-accent)]/35 hover:bg-[var(--noodle-accent)]/10"
         >
           <MessageSquarePlus size={16} aria-hidden="true" />
           {newChat

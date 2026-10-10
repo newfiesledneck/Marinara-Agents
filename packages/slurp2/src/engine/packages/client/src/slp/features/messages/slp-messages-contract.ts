@@ -1,3 +1,5 @@
+import type { SlpSupportDesk } from "../../../../../shared/src/slp/slp-support-desk.js";
+import type { SlpPlayerCouple } from "../../../../../shared/src/slp/slp-stir.js";
 export type SlurpDmPolicy = "open" | "subscribers" | "paid" | "closed";
 export type SlurpRapportContribution = {
   key: string;
@@ -71,6 +73,8 @@ export type SlurpThread = {
   counterpartName?: string | null;
   counterpartHandle?: string | null;
   subscribed: boolean;
+  /** The Engine scene this thread is in while it runs (docs/SCENES.md): the thread is locked. */
+  sceneChatId?: string | null;
 };
 export type SlurpCommission = {
   id: string;
@@ -106,7 +110,28 @@ export type SlurpSendResponse = {
  * because a meter invites the player to farm it. The Creator's operator gets every number,
  * because that side is a business rather than a relationship.
  */
-export type SlurpThreadRelationship = {
+export type SlurpThreadRelationship = SlurpFanRelationship | SlurpSupportRelationship;
+
+/**
+ * Slurp Support's thread (docs/SUPPORT-DESK.md): no fan relationship at all. The Details panel shows
+ * the Creator's standing with Slurp (the desk record) instead.
+ */
+export type SlurpSupportRelationship = {
+  side: "viewer" | "creator";
+  desk: SlpSupportDesk;
+  availability: SlurpFanRelationship["availability"];
+  notes: SlurpFanRelationship["notes"];
+  coolUntil: null;
+  scheduledFollowUps: SlurpFanRelationship["scheduledFollowUps"];
+};
+
+/** Her and the player's own page as a couple (Details › You two). */
+export type SlurpPlayerCouple = SlpPlayerCouple;
+
+export type SlurpFanRelationship = {
+  desk?: undefined;
+  /** The player's own side only: she and the player's page as a couple, or null. */
+  couple?: SlurpPlayerCouple | null;
   side: "viewer" | "creator";
   tier: string;
   score: number;
@@ -125,6 +150,15 @@ export type SlurpThreadRelationship = {
   };
   audienceTone: "warm" | "mixed" | "unfiltered";
   imageMode: "friendly" | "hostile" | "none";
+  /** The server's verdicts, from the stance the reply is written from (R1-012). */
+  pictures?: {
+    mode: "friendly" | "hostile" | "none";
+    blockedBy:
+      "support" | "cooling_off" | "images_off" | "stance" | "energy" | "posture" | "comfort" | "respect" | null;
+  };
+  escalation?: {
+    blockedBy: "falling" | "respect" | "resentment" | "posture" | "comfort" | "desire" | "top" | null;
+  };
   creatorState: {
     emotion: string;
     emotionIntensity: number;
@@ -179,3 +213,6 @@ export { CreatorMessagingGroup } from "./SlpCreatorMessagingGroup.js";
 
 // The Creator settings modal edits one Creator's message policy.
 export { useSetSlurpCreatorMessaging } from "./slp-messages-hooks.js";
+
+// The role-play sign-up draws its chat with the same bubbles as a real thread.
+export { slurpBubbleSurface } from "./SlpMessageBubble.js";

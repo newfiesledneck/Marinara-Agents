@@ -1,4 +1,4 @@
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, ReactNode, RefObject } from "react";
 import type { SlpTextMention } from "../../../../../shared/src/slp/slp-mentions.js";
 import type { SlpPollInput } from "../../../../../shared/src/slp/slp-social-generation.schema.js";
 import type {
@@ -8,6 +8,7 @@ import type {
   SlpInteractionType,
   SlpPost,
   SlpPostImageCrop,
+  SlpPostPartnership,
 } from "../../../../../shared/src/slp/slp-social.types.js";
 import type { ConversationMediaPickerTabId } from "../../../components/chat/ConversationMediaPickerPanel";
 import type { ChatImage } from "../../../hooks/use-gallery";
@@ -76,6 +77,8 @@ export type SlpPostCardModel = Pick<
    * Optional because a managed post inside the composer has no projection behind it.
    */
   likeCount?: number;
+  /** A joint collab post or a paid partnership: the label under the name. */
+  partnership?: SlpPostPartnership | null;
 };
 
 export interface SlpPostCardTitleEditingCap {
@@ -84,9 +87,10 @@ export interface SlpPostCardTitleEditingCap {
   maxLength: number;
 }
 
+/** `position` is the picture of a set the change is for; 0 is the post picture (R1-039). */
 export type SlpPostImageUpdate =
-  | { kind: "replace"; file: File; crop: SlpPostImageCrop }
-  | { kind: "crop"; crop: SlpPostImageCrop }
+  | { kind: "replace"; file: File; crop: SlpPostImageCrop; position: number }
+  | { kind: "crop"; crop: SlpPostImageCrop; position: number }
   | { kind: "remove" };
 
 export type SlpPostImageCropSource =
@@ -104,6 +108,9 @@ export interface SlpPostCardImageEditingCap {
   error: string | null;
   fileInputRef: RefObject<HTMLInputElement | null>;
   beginCrop: (post: SlpPostCardModel) => void;
+  /** The picture of a set that Crop and Replace act on (its position; 0 is the post picture). */
+  position: number;
+  choosePosition: (position: number) => void;
   selectReplacement: (event: ChangeEvent<HTMLInputElement>) => void;
   applyCrop: (crop: SlpPostImageCrop) => Promise<void>;
   cancelCrop: () => void;
@@ -112,6 +119,18 @@ export interface SlpPostCardImageEditingCap {
 }
 
 export interface SlpPostCardCtx {
+  /**
+   * The AI assist for a post's text, handed in by the app (a module cannot reach a feature). Absent,
+   * the edit sheet shows no assist.
+   */
+  textAssist?: (input: {
+    value: string;
+    onApply: (text: string) => void;
+    accountId: string;
+    story: boolean;
+  }) => ReactNode;
+  /** W: Stir this post's Creator (the ✦ sheet, with the post as context). Absent, no menu row. */
+  stir?: (post: { id: string; authorAccountId: string }) => void;
   accountById?: Map<string, SlpAccount>;
   accountByHandle?: Map<string, SlpAccount>;
   personaAccount: SlpAccount | null;
@@ -121,6 +140,8 @@ export interface SlpPostCardCtx {
   editingPostContent: string;
   setEditingPostContent: React.Dispatch<React.SetStateAction<string>>;
   replyPostId: string | null;
+  /** The card that shows the post-level composer (`dialog:<id>` for the post dialog). */
+  replyKey?: string | null;
   replyParentInteractionId: string | null;
   replyText: string;
   replyHasText: boolean;
@@ -179,8 +200,14 @@ export interface SlpPostCardCtx {
   /** Post image crop, replacement, and removal capability. */
   imageEditing?: SlpPostCardImageEditingCap;
   /** Generate a missing post image from its saved prompt. */
-  generatePostImage?: (post: Pick<SlpPostCardModel, "id" | "authorAccountId">, imagePrompt?: string) => void;
-  generatingPostImageId?: string | null;
+  /** `asWritten`: the prompt comes from the redraw box and is sent to the provider as written. */
+  generatePostImage?: (
+    post: Pick<SlpPostCardModel, "id" | "authorAccountId">,
+    imagePrompt?: string,
+    asWritten?: boolean,
+  ) => void;
+  /** Every post whose picture is being drawn right now; two draws each keep their state (R1-059). */
+  generatingPostImageIds?: readonly string[];
   sharePost?: (post: SlpPostCardModel) => void;
   /** Optional event offer. Omit to keep the discounted unlock action hidden. */
   unlockOffer?: SlpPostUnlockOffer;
@@ -207,6 +234,18 @@ export interface SlpPostCardCtx {
 }
 
 export interface SlpPostCardControllerOptions {
+  /**
+   * The AI assist for a post's text, handed in by the app (a module cannot reach a feature). Absent,
+   * the edit sheet shows no assist.
+   */
+  textAssist?: (input: {
+    value: string;
+    onApply: (text: string) => void;
+    accountId: string;
+    story: boolean;
+  }) => ReactNode;
+  /** W: Stir this post's Creator (the ✦ sheet, with the post as context). Absent, no menu row. */
+  stir?: (post: { id: string; authorAccountId: string }) => void;
   postManagement: boolean;
   /** The Show more threshold from settings; the card cannot read settings itself. */
   postShowMoreLength?: number;

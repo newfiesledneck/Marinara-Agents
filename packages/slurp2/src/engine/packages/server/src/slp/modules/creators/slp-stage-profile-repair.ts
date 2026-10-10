@@ -68,6 +68,11 @@ export function clampSlurpDraftText(value: string, max: number): string {
   return (sentenceEnd >= max * 0.6 ? cut.slice(0, sentenceEnd + 1) : cut).trimEnd();
 }
 
+/** A model's gender word ("woman", "nb", "Male") as a discovery gender, or null. */
+export function readSlurpDraftGender(value: unknown): "male" | "female" | "other" | null {
+  return typeof value === "string" ? (GENDER_WORDS[value.trim().toLocaleLowerCase()] ?? null) : null;
+}
+
 function text(value: unknown): string {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) return value.filter((entry) => typeof entry === "string").join(" ");
@@ -104,8 +109,7 @@ export function repairSlurpStageProfileDraft(
   const bio = limited("bio", "Bio", text(raw.bio));
   const stagePersonality = limited("stagePersonality", "Stage personality", text(raw.stagePersonality));
 
-  const genderWord = typeof raw.gender === "string" ? raw.gender.trim().toLocaleLowerCase() : "";
-  const gender = GENDER_WORDS[genderWord] ?? null;
+  const gender = readSlurpDraftGender(raw.gender);
   if (!gender) notes.push("Pick a gender before saving.");
 
   const tagInput = Array.isArray(raw.tags) ? raw.tags : typeof raw.tags === "string" ? raw.tags.split(/[,;|]/u) : [];

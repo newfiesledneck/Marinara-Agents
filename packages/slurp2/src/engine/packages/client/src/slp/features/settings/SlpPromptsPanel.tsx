@@ -1,18 +1,16 @@
 import { Image, MessageSquareText, MoreVertical, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
-import { Field, Toggle } from "../../modules/settings/SlpSettingsControls";
+import { Field, SettingsGroup, Toggle } from "../../modules/settings/SlpSettingsControls";
 import { PromptCard } from "../../modules/settings/SlpBackstageKit";
+import { StatusStrip } from "../../modules/settings/SlpSettingsInputs";
 import { BackstagePageHeader, SettingAnchor } from "../../modules/settings/SlpSettingsKit";
 import {
   DEFAULT_SLURP_GENERATION_GUIDANCE,
-  SLURP_GUIDANCE_LEVELS,
-  SLURP_GUIDANCE_PRESETS,
   SLURP_IMAGE_INTERPRETATION_PRESETS,
   SLURP_IMAGE_INTERPRETATION_STYLES,
 } from "../../modules/settings/slp-backstage-format";
 import type { SlpBackstagePageProps } from "../backstage/slp-backstage-contract";
 import { SlurpPostGuidanceField } from "./SlpPostGuidanceField";
-import { SLURP_EXPLICIT_LEVELS } from "./slp-post-guidance-contract";
 import { SlurpPromptBlockBuilder } from "./SlpPromptBlockBuilder";
 import { SlpPromptOutcomeSection } from "./SlpPromptOutcomeCard";
 
@@ -29,7 +27,6 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
     setImagePromptDraft,
     setImagePromptEditorOpen,
     generationGuidanceIsDefault,
-    guidanceLevel,
     interpretationStyle,
     imagePromptIsDefault,
     selectedPresetName,
@@ -55,46 +52,34 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
           summary={t("ui.slurp.settings.prompts.voiceOutcomeDetail", {
             defaultValue: "Tone, language, maturity, and context shared across Creator writing.",
           })}
-          customized={!generationGuidanceIsDefault || settings.enableLorebookContext}
+          customized={!generationGuidanceIsDefault || settings.enableLorebookContext || !settings.flavourFromAgents}
         >
-          <PromptCard
-            title={t("ui.slurp.settings.prompts.generationGuidance")}
-            value={settings.generationGuidance}
-            isDefault={generationGuidanceIsDefault}
-            onEdit={() => {
-              setGenerationGuidanceDraft(settings.generationGuidance);
-              setGenerationGuidanceEditorOpen(true);
-            }}
-            onRestore={() => void update("generationGuidance", DEFAULT_SLURP_GENERATION_GUIDANCE)}
-          />
+          <SettingAnchor settingKey="generationGuidance">
+            <PromptCard
+              title={t("ui.slurp.settings.prompts.generationGuidance")}
+              value={settings.generationGuidance}
+              isDefault={generationGuidanceIsDefault}
+              onEdit={() => {
+                setGenerationGuidanceDraft(settings.generationGuidance);
+                setGenerationGuidanceEditorOpen(true);
+              }}
+              onRestore={() => void update("generationGuidance", DEFAULT_SLURP_GENERATION_GUIDANCE)}
+            />
+          </SettingAnchor>
           <PromptOptions label={t("ui.slurp.settings.prompts.moreSettings", { defaultValue: "More settings" })}>
-            <Field
-              settingKey="generationGuidance"
-              label={t("ui.slurp.settings.prompts.spice")}
-              detail={
-                guidanceLevel ? t("ui.slurp.settings.prompts.spiceDetail") : t("ui.slurp.settings.prompts.spiceCustom")
-              }
-            >
-              <div className="flex flex-wrap gap-2">
-                {SLURP_GUIDANCE_LEVELS.map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    aria-pressed={guidanceLevel === level}
-                    onClick={() => void update("generationGuidance", SLURP_GUIDANCE_PRESETS[level])}
-                    className={`min-h-11 rounded-full px-4 text-sm font-semibold ring-1 ring-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] ${guidanceLevel === level ? "bg-[var(--slurp-nav-active)] text-[var(--slurp-text)] ring-[var(--noodle-accent)]/45" : "bg-[var(--slurp-canvas)] text-[var(--slurp-muted)] ring-[var(--slurp-outline)] hover:text-[var(--slurp-text)]"}`}
-                  >
-                    {t(`ui.slurp.settings.prompts.spice.${level}`)}
-                  </button>
-                ))}
-              </div>
-            </Field>
             <Toggle
               settingKey="enableLorebookContext"
               label={t("ui.slurp.settings.prompts.lorebookContext")}
               detail={t("ui.slurp.settings.prompts.lorebookContextDetail")}
               value={settings.enableLorebookContext}
               onChange={(value) => update("enableLorebookContext", value)}
+            />
+            <Toggle
+              settingKey="flavourFromAgents"
+              label={t("ui.slurp.settings.prompts.flavourFromAgents")}
+              detail={t("ui.slurp.settings.prompts.flavourFromAgentsDetail")}
+              value={settings.flavourFromAgents}
+              onChange={(value) => update("flavourFromAgents", value)}
             />
           </PromptOptions>
         </SlpPromptOutcomeSection>
@@ -107,13 +92,6 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
           })}
           customized={postGuidanceCustom}
         >
-          <SlurpExplicitLevelField
-            t={t}
-            value={(postGuidanceDraft.level ?? postGuidanceQuery.data?.defaults.level ?? "") as string}
-            builtIn={postGuidanceQuery.data?.builtInLevel ?? "suggestive"}
-            disabled={postGuidanceQuery.isLoading || postGuidanceQuery.isError}
-            onStage={(value) => stagePostGuidance("level", value)}
-          />
           {(["public", "locked"] as const).map((access) => (
             <SlurpPostGuidanceField
               key={access}
@@ -124,7 +102,6 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
               onStage={(value) => stagePostGuidance(access, value)}
               label={t(`ui.slurp.settings.prompts.${access}Guidance`)}
               detail={t(`ui.slurp.settings.prompts.${access}GuidanceDetail`)}
-              generateLabel={t("ui.slurp.settings.prompts.guidanceGenerate")}
               clearLabel={t("ui.slurp.settings.prompts.guidanceUseBuiltIn")}
               savedMessage={t("ui.slurp.settings.prompts.guidanceSavedAccess")}
               disabled={postGuidanceQuery.isLoading || postGuidanceQuery.isError}
@@ -155,8 +132,8 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
           <PromptOptions label={t("ui.slurp.settings.prompts.moreSettings", { defaultValue: "More settings" })}>
             <Toggle
               settingKey="enableImageInterpretation"
-              label={t("ui.slurp.settings.images.interpretPrompts")}
-              detail={t("ui.slurp.settings.images.interpretPromptsDetail")}
+              label={t("ui.slurp.settings.images.enhancePrompts")}
+              detail={t("ui.slurp.settings.images.enhancePromptsDetail")}
               value={settings.enableImageInterpretation}
               onChange={(value) => update("enableImageInterpretation", value)}
             />
@@ -179,7 +156,7 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
                       onClick={() =>
                         void update("imagePromptInterpretation", SLURP_IMAGE_INTERPRETATION_PRESETS[style])
                       }
-                      className={`min-h-11 rounded-full px-4 text-sm font-semibold ring-1 ring-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] ${interpretationStyle === style ? "bg-[var(--slurp-nav-active)] text-[var(--slurp-text)] ring-[var(--noodle-accent)]/45" : "bg-[var(--slurp-canvas)] text-[var(--slurp-muted)] ring-[var(--slurp-outline)] hover:text-[var(--slurp-text)]"}`}
+                      className={`min-h-11 rounded-full px-4 text-sm font-semibold ring-1 ring-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] ${interpretationStyle === style ? "bg-[image:var(--slurp-nav-active)] text-[var(--slurp-text)] ring-[var(--noodle-accent)]/45" : "bg-[var(--slurp-canvas)] text-[var(--slurp-muted)] ring-[var(--slurp-outline)] hover:text-[var(--slurp-text)]"}`}
                     >
                       {t(`ui.slurp.settings.images.promptStyle.${style}`)}
                     </button>
@@ -196,11 +173,9 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
   return (
     <div className="space-y-6">
       <BackstagePageHeader
-        title={t("ui.slurp.settings.prompts.studioTitle", { defaultValue: "Prompt Studio" })}
         detail={t("ui.slurp.settings.prompts.studioDetail", {
           defaultValue: "Shape how Slurp writes, speaks, and creates. Your prompts stay visible and easy to edit.",
         })}
-        scope="all-slurp"
         actions={
           <SettingAnchor settingKey="promptPresets">
             <PromptPresetToolbar
@@ -212,6 +187,22 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
           </SettingAnchor>
         }
       />
+      <StatusStrip
+        label={t("ui.slurp.settings.strip.label")}
+        items={[
+          {
+            label: t("ui.slurp.settings.prompts.generationGuidance"),
+            value: generationGuidanceIsDefault
+              ? t("ui.slurp.settings.prompts.houseStyle")
+              : t("ui.slurp.settings.presets.custom"),
+            settingKey: "generationGuidance",
+          },
+        ]}
+      />
+      {/* 0.3.17: how far and which words live in Settings › Spice; this page is the house style. */}
+      <p className="px-1 text-xs leading-5 text-[var(--slurp-muted)] text-pretty">
+        {t("ui.slurp.settings.prompts.spiceMoved")}
+      </p>
       <SettingAnchor settingKey="promptBlocks">
         <SettingAnchor settingKey="promptInstructions">
           <SlurpPromptBlockBuilder
@@ -226,63 +217,6 @@ export function SlpPromptsPanel(page: SlpBackstagePageProps) {
         </SettingAnchor>
       </SettingAnchor>
     </div>
-  );
-}
-
-/**
- * How far this install's pictures go.
- *
- * Typed rather than another free-text field: the visual brief carries `sexualLevel` as a value,
- * and prose in the content menu cannot set it. Without this the brief was pinned to "none" for
- * every post that was not a teaser — including every locked post, which is the one somebody paid
- * for.
- *
- * This is the global level. A Creator overrides it on their own Backstage page, exactly like the
- * two guidance texts above.
- */
-function SlurpExplicitLevelField({
-  t,
-  value,
-  builtIn,
-  disabled,
-  onStage,
-}: {
-  t: SlpBackstagePageProps["t"];
-  value: string;
-  builtIn: string;
-  disabled: boolean;
-  onStage: (value: string) => void;
-}) {
-  const levels = ["", ...SLURP_EXPLICIT_LEVELS] as const;
-  return (
-    <Field
-      settingKey="postGuidance"
-      label={t("ui.slurp.settings.prompts.explicitLevel", { defaultValue: "How far pictures go" })}
-      detail={t("ui.slurp.settings.prompts.explicitLevelDetail", {
-        defaultValue:
-          "Locked posts go this far. Public posts stay one step below, so the free feed advertises the paid one. Housekeeping posts are never sexual.",
-      })}
-    >
-      <div className="flex flex-wrap gap-2">
-        {levels.map((level) => (
-          <button
-            key={level || "inherit"}
-            type="button"
-            disabled={disabled}
-            aria-pressed={value === level}
-            onClick={() => onStage(level)}
-            className={`min-h-11 rounded-full px-4 text-sm font-semibold ring-1 ring-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] disabled:opacity-50 ${value === level ? "bg-[var(--slurp-nav-active)] text-[var(--slurp-text)] ring-[var(--noodle-accent)]/45" : "bg-[var(--slurp-canvas)] text-[var(--slurp-muted)] ring-[var(--slurp-outline)] hover:text-[var(--slurp-text)]"}`}
-          >
-            {level
-              ? t(`ui.slurp.settings.prompts.explicitLevel.${level}`)
-              : t("ui.slurp.settings.prompts.explicitLevelShipped", {
-                  level: t(`ui.slurp.settings.prompts.explicitLevel.${builtIn}`),
-                  defaultValue: "Shipped ({{level}})",
-                })}
-          </button>
-        ))}
-      </div>
-    </Field>
   );
 }
 

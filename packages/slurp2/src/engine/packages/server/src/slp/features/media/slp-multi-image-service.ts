@@ -19,7 +19,7 @@ export const SLURP_SECONDARY_IMAGE_COUNT = 2;
  */
 const SLURP_ALTERNATE_FRAMINGS = [
   "Close-up crop from a three-quarter angle",
-  "Candid frame, looking away from the camera",
+  "Unposed frame, looking off to the side",
 ] as const;
 
 function alternateShot(input: ImageInput, index: number): SlpSecondaryShot {

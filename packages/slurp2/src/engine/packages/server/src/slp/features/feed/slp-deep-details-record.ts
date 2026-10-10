@@ -41,6 +41,8 @@ export function buildSlurpDeepDetailsRecord(ctx: {
   visualBrief?: SlurpVisualBrief | null;
   askModelForImagePrompt: boolean;
   wardrobeSelection?: SlurpWardrobeSelection;
+  planner?: SlpDeepDetailsRecord["planner"];
+  flavour?: SlpDeepDetailsRecord["flavour"];
 }): SlpDeepDetailsRecord {
   return {
     version: 1,
@@ -107,5 +109,7 @@ export function buildSlurpDeepDetailsRecord(ctx: {
     imageBrief: ctx.draftImagePrompt ?? null,
     visualBrief: ctx.visualBrief ?? null,
     askedModelForImagePrompt: ctx.askModelForImagePrompt,
+    ...(ctx.planner ? { planner: ctx.planner } : {}),
+    ...(ctx.flavour ? { flavour: ctx.flavour } : {}),
   };
 }

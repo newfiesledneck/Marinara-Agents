@@ -396,6 +396,8 @@ QM.state = {
   itemImagePromptTemplate: "",
   outfitPortraitPromptTemplate: "",
   error: null,
+  _chatToken: 0,
+  _reloadToken: 0,
   _listeners: new Set(),
 
   subscribe(fn) {
@@ -409,6 +411,8 @@ QM.state = {
 
   setChat(chatId) {
     if (this.chatId === chatId) return;
+    this._chatToken++;
+    this._reloadToken++;
     this.chatId = chatId;
     this.items = null;
     this.outfits = null;
@@ -464,9 +468,10 @@ QM.state = {
   async _reload() {
     const chatId = this.chatId;
     if (!chatId) return;
+    const token = ++this._reloadToken;
     try {
       const result = await QM.listItems(chatId, QM_OWNER_ID);
-      if (this.chatId !== chatId) return; // chat changed while this was in flight
+      if (this.chatId !== chatId || token !== this._reloadToken) return;
       const next = {
         items: result.items,
         outfits: result.outfits,
@@ -530,6 +535,7 @@ QM.state = {
       this.error = null;
       if (!changed) return;
     } catch (error) {
+      if (this.chatId !== chatId || token !== this._reloadToken) return;
       this.error = error && error.message ? error.message : String(error);
     }
     this._notify();
@@ -538,9 +544,11 @@ QM.state = {
   async _mutate(request) {
     const chatId = this.chatId;
     if (!chatId) return;
+    const chatToken = this._chatToken;
+    let outcome;
     try {
       const result = await request;
-      if (this.chatId !== chatId) return;
+      if (this.chatId !== chatId || chatToken !== this._chatToken) return;
       if (result.items !== undefined) this.items = result.items;
       if (result.outfits !== undefined) this.outfits = result.outfits;
       if (result.appearanceFeedMode !== undefined) this.appearanceFeedMode = result.appearanceFeedMode;
@@ -556,10 +564,16 @@ QM.state = {
       if (result.outfitPortraitPromptTemplate !== undefined)
         this.outfitPortraitPromptTemplate = result.outfitPortraitPromptTemplate;
       this.error = null;
+      outcome = { ok: true, result };
     } catch (error) {
+      if (this.chatId !== chatId || chatToken !== this._chatToken) return;
       this.error = error && error.message ? error.message : String(error);
+      outcome = { ok: false, error: this.error };
     }
+    // A read already in flight must not undo this completed edit or its error.
+    this._reloadToken++;
     this._notify();
+    return outcome;
   },
 
   addItem(item) {
@@ -575,13 +589,14 @@ QM.state = {
     QM._missingItemImageIds.delete(itemId);
     return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
   },
-  async deleteItemImage(itemId) {
-    await this._mutate(QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId));
-    // Only suppress future image lookups for this item once the delete has
-    // actually happened server-side -- marking it missing first (like
-    // uploadItemImage's own delete-from-cache does on success) would leave a
-    // failed delete permanently hiding an image that's still there.
-    if (!this.error) QM._missingItemImageIds.add(itemId);
+  deleteItemImage(itemId) {
+    return this._mutate(
+      QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId).then((result) => {
+        // Suppress image lookups only after this delete succeeds.
+        QM._missingItemImageIds.add(itemId);
+        return result;
+      }),
+    );
   },
   unequipAll() {
     return this._mutate(QM.unequipAll(this.chatId, QM_OWNER_ID));

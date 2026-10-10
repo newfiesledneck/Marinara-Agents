@@ -1,3 +1,5 @@
+import { resolveSlurpPostGuidance } from "../../data/settings/slp-post-guidance-storage.js";
+import { SLURP_SECONDARY_IMAGE_COUNT } from "../media/slp-media-contract.js";
 import type { DB } from "../../../db/connection.js";
 import { listSlurpContinuityFor } from "../../data/continuity/slp-continuity-storage.js";
 import { slurpContinuityInstruction } from "../../modules/continuity/slp-continuity-prompt.js";
@@ -11,6 +13,7 @@ import {
   type SlurpReusablePromptInstruction,
 } from "../../base/prompting/slp-prompt-blocks.js";
 import { resolveCreatorCharacterCanon } from "../../data/creators/slp-source-resolve.js";
+import { resolveSlurpCreatorFlavour } from "../../data/creators/slp-flavour-source.js";
 import { slpCreatorPublicIdentityFor } from "./slp-public-identity.js";
 import { slurpPostVariation, slurpPostVariationInstruction } from "../../modules/feed/slp-post-variation.js";
 import { slurpCameraSourceInstruction, slurpPostCameraSource } from "../../modules/feed/slp-camera-source.js";
@@ -79,15 +82,30 @@ export async function previewSlurpPromptBlocks(
     textOnlyRate: strategy.textOnlyRate,
   });
 
+  const postImages = account.settings.scheduler.autoPosting?.imagesEnabled === true && axes.delivery !== "text_only";
   const blocks = buildSlurpPostBlocks({
     account,
     stagePersonality: account.settings.privacy.stagePersonality ?? "",
     sourceCharacterContext,
+    // The character block reads differently when the brief is there; the preview shows the real one.
+    flavourBrief: await resolveSlurpCreatorFlavour(db, {
+      account,
+      source: linkedPublicAccount,
+      disclosureMode,
+      use: "post",
+      sequence,
+    }),
     disclosureMode,
     publicIdentity,
     recentPosts: [],
     request: { format: variation.format },
-    allowImagePrompt: settings.enableImagePrompts,
+    // The same picture path the post call takes (R1-126): a Creator that draws gets a scene plan
+    // (and a scene per extra picture of a set), never the old `enableImagePrompts` flag.
+    // ponytail: the wardrobe block is left out of the preview; add it when players ask about it.
+    allowImagePrompt: false,
+    allowScenePlan: postImages,
+    sceneShots: postImages && axes.delivery === "multi_image_set" ? SLURP_SECONDARY_IMAGE_COUNT : 0,
+    accessInstruction: await resolveSlurpPostGuidance(db, account.id, "public").catch(() => ""),
     imageGenerationPrompt: settings.imageGenerationPrompt,
     generationGuidance: settings.generationGuidance,
     postMaxLength: settings.postMaxLength,

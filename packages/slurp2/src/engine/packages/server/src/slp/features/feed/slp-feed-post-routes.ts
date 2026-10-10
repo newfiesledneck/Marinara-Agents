@@ -1,3 +1,5 @@
+import { slurpArcVoteClosed } from "../../modules/projects/slp-arc-progress.js";
+import { recordSlurpTasteSignal } from "../../data/creators/slp-spice-storage.js";
 import { createSlpPoll, readSlpPollFromMetadata } from "../../../../../shared/src/slp/slp-polls.js";
 import { slpIsAdmissionFailure } from "../../base/host/slp-admission.js";
 import {
@@ -333,6 +335,8 @@ export async function slpFeedPostRoutes(app: FastifyInstance, deps: SlpRouteDeps
       if (!poll?.options.some((option) => option.id === optionId)) {
         return reply.code(400).send({ error: "Choose a valid poll option." });
       }
+      const projects = await noodle.listProjects(gated.post.authorAccountId).catch(() => []);
+      if (slurpArcVoteClosed(projects, id)) return reply.code(409).send({ error: "This vote has closed." });
     }
     const interaction = await noodle.createNoodlerInteraction(id, {
       actorAccountId: actor.id,
@@ -342,6 +346,7 @@ export async function slpFeedPostRoutes(app: FastifyInstance, deps: SlpRouteDeps
       parentInteractionId: parsed.data.parentInteractionId ?? null,
     });
     if (!interaction) return reply.code(400).send({ error: "Could not add that Slurp interaction." });
+    recordSlurpTasteSignal(app.db, { metadata: gated.post.metadata }, parsed.data.type);
     // Taking part pays, capped per day. A like is one tap, so only the interactions that cost the
     // player something to write are rewarded — otherwise the cap is reached by tapping hearts.
     if (actor.id !== gated.creator.id && (parsed.data.type === "reply" || parsed.data.type === "vote")) {
@@ -566,11 +571,13 @@ export async function slpFeedPostRoutes(app: FastifyInstance, deps: SlpRouteDeps
     // name a file a concurrent write already replaced, and unlinking that deletes live bytes.
     const locked = await tryCreatorAccountOperation(existing.authorAccountId, async () => {
       const current = parsed.data.removeImage ? await noodle.getNoodlerPostById(id) : null;
+      const attachments = parsed.data.removeImage ? await listSlurpPostMedia(app.db, id) : [];
       const updated = await noodle.updateNoodlerPost(id, parsed.data);
       return updated
         ? {
             updated,
             staleMedia: current ? readCreatorMediaPath(current) : null,
+            staleAttachments: attachments.map((item) => item.mediaPath),
           }
         : null;
     });
@@ -580,7 +587,10 @@ export async function slpFeedPostRoutes(app: FastifyInstance, deps: SlpRouteDeps
       });
     }
     if (!locked.value) return reply.code(404).send({ error: "Slurp post not found" });
-    if (parsed.data.removeImage) unlinkCreatorMedia(locked.value.staleMedia);
+    if (parsed.data.removeImage) {
+      for (const mediaPath of [locked.value.staleMedia, ...locked.value.staleAttachments])
+        unlinkCreatorMedia(mediaPath);
+    }
     return locked.value.updated;
   });
   app.post("/slurp/posts", async (req, reply) => {
@@ -658,6 +668,8 @@ export async function slpFeedPostRoutes(app: FastifyInstance, deps: SlpRouteDeps
         imagePrompt: z.string().trim().min(1).max(2000).optional(),
         // Redraw a post that already has a picture; the old one comes back if the redraw fails.
         replace: z.boolean().optional(),
+        // Sent by the redraw box: the prompt goes to the provider exactly as the player left it.
+        asWritten: z.boolean().optional(),
         debugMode: z.boolean().optional(),
       })
       .safeParse(req.body ?? {});
@@ -669,6 +681,7 @@ export async function slpFeedPostRoutes(app: FastifyInstance, deps: SlpRouteDeps
       return reply.code(409).send({ error: "This post already has an image." });
     }
     const previousImageUrl = post.imageUrl;
+    const previousMediaPath = previousImageUrl ? readCreatorMediaPath(post) : null;
     const account = await noodle.getNoodlerAccountById(post.authorAccountId);
     const imagePrompt =
       parsed.data.imagePrompt ||
@@ -678,28 +691,43 @@ export async function slpFeedPostRoutes(app: FastifyInstance, deps: SlpRouteDeps
         .join("\n")
         .trim() ||
       `A new social media image for ${account?.displayName || "the creator"}.`;
-    if (imagePrompt !== post.imagePrompt || previousImageUrl) {
-      await noodle.updatePostMedia(post.id, { imagePrompt, ...(previousImageUrl ? { imageUrl: null } : {}) });
+    // A prompt sent from the redraw box goes out as written, also on Try again (R1-055). Only our own
+    // stored draft is rebuilt through the template and the rewrite, as an automatic retry is.
+    const wasAsWritten = post.metadata.imagePromptAsWritten === true;
+    const asWritten = parsed.data.asWritten === true || (wasAsWritten && imagePrompt === post.imagePrompt);
+    if (imagePrompt !== post.imagePrompt || previousImageUrl || asWritten !== wasAsWritten) {
+      await noodle.updatePostMedia(post.id, {
+        imagePrompt,
+        ...(previousImageUrl ? { imageUrl: null } : {}),
+        metadata: { imagePromptAsWritten: asWritten || undefined },
+      });
     }
-    // A prompt the user typed or kept from the last picture goes to the provider as written. Only
-    // the stored draft is rebuilt through the template and the rewrite, as an automatic retry is.
-    const reviewedPrompt = Boolean(parsed.data.imagePrompt) && parsed.data.imagePrompt !== post.imagePrompt?.trim();
     const result = await slpCreatorImages.generateReviewedImages({
       prompts: [{ id: post.id, prompt: imagePrompt }],
       debugMode: parsed.data.debugMode === true,
-      retryStoredPrompt: !reviewedPrompt,
+      retryStoredPrompt: !asWritten,
     });
     const updated = await noodle.getNoodlerPostById(id);
-    if (result.ok && updated?.imageUrl) return updated;
-    // The old picture was cleared only so the redraw could claim the post; a failed redraw gives it back.
-    // It never clears a claim: another request that now owns the redraw keeps it.
+    if (result.ok && updated?.imageUrl) {
+      if (!previousImageUrl) return updated;
+      // The old crop and description (R1-057) and the old file with its teaser and widths (R1-049) go.
+      await noodle.updatePostMedia(post.id, {
+        metadata: { imageCrop: undefined, imageDescription: undefined, imageDescriptionSource: undefined },
+      });
+      if (previousMediaPath && previousMediaPath !== readCreatorMediaPath(updated))
+        unlinkCreatorMedia(previousMediaPath);
+      return (await noodle.getNoodlerPostById(id)) ?? updated;
+    }
+    // The old picture was cleared only so the redraw could claim the post; a failed redraw gives it back
+    // with its prompt and no failure marks (R1-057). It never clears a claim another request owns.
     if (previousImageUrl && updated && !updated.imageUrl) {
-      await noodle.restorePostImageIfUnclaimed(post.id, previousImageUrl);
+      await noodle.restorePostImageIfUnclaimed(post.id, previousImageUrl, post.imagePrompt);
     }
     if (!result.ok) return reply.code(400).send({ error: result.message });
     if (updated?.updatedAt !== post.updatedAt && updated?.metadata.imageGenerationFailed === true) {
       return reply.code(502).send({ error: "Image generation failed. Try again later." });
     }
+    if (result.busy > 0) return reply.code(409).send({ error: "The image connection is busy. Try again soon." });
     return reply.code(409).send({ error: "This image is already being generated." });
   });
   app.delete("/slurp/posts/:id", async (req, reply) => {

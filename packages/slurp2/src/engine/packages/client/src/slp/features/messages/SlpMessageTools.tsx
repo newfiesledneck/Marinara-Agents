@@ -1,8 +1,16 @@
-import { Lock, Megaphone, Minus, Plus } from "lucide-react";
+import { ImagePlus, Loader2, Megaphone, Send } from "lucide-react";
+import { toast } from "sonner";
+import { Avatar, SLP_TYPE } from "../../base/chrome/SlpChrome";
+import { SlpAutoGrowTextarea } from "../../base/ui/SlpAutoGrowTextarea";
+import { SlpSheet } from "../../modules/chrome/SlpSheet";
+import { SlpLockGlyph } from "../../base/chrome/SlpGlyphs";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation as useUiTranslation } from "react-i18next";
 import { cn } from "../../../lib/utils";
-import { SlurpCoin, SlurpCoinAmount, SlurpCoinBurst } from "../../modules/coin/SlpCoin";
+import { ApiError } from "../../../lib/api-client.js";
+import { formatUpcomingClock } from "../../base/ui/slp-date-time";
+import { SlurpCoinAmount, SlpCoinText } from "../../modules/coin/SlpCoin";
+import { SlpButton, SlpChip, SlpPrimaryButton } from "../../modules/chrome/SlpButton";
 import { useSlurpWallet } from "../economy/slp-economy-contract";
 import { TIP_PRESETS } from "./SlpMessages";
 import {
@@ -11,31 +19,49 @@ import {
   useSendSlurpCreatorImage,
   useSendSlurpCreatorPpv,
   useSendSlurpViewerImage,
+  type SlurpPhotoSendResult,
 } from "../../features/messages/slp-message-action-hooks";
 
 // Creator-side tools: broadcast, the message toolbar and the fan image picker.
 
-export function BroadcastPanel({ creatorAccountId, personaId }: { creatorAccountId: string; personaId: string }) {
+/**
+ * Broadcast to subscribers (design step 7): a quiet "Broadcast" pill that opens a sheet titled with
+ * who receives it ("To 37 subscribers"), a text field, and a preview of the bubble each subscriber
+ * gets in their chat. Send stays off until there is text and someone to send it to.
+ */
+export function BroadcastPanel({
+  creatorAccountId,
+  personaId,
+  subscriberCount,
+  creator,
+}: {
+  creatorAccountId: string;
+  personaId: string;
+  subscriberCount: number;
+  creator: { displayName: string; avatarUrl: string | null };
+}) {
   const { t: localizeUi } = useUiTranslation();
   const broadcast = useBroadcastSlurpMessage();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const content = draft.trim();
 
   const submit = async () => {
-    const content = draft.trim();
     if (!content || broadcast.isPending) return;
+    setError(null);
     try {
       const sent = await broadcast.mutateAsync({ creatorAccountId, personaId, content });
       setDraft("");
-      setResult(
+      setOpen(false);
+      toast.success(
         localizeUi("ui.slurp.messages.broadcastSent", {
           defaultValue: "Sent to {{count}} subscribers.",
           count: sent.sent,
         }),
       );
     } catch (cause) {
-      setResult(
+      setError(
         cause instanceof Error
           ? cause.message
           : localizeUi("ui.slurp.messages.broadcastFailed", { defaultValue: "Could not send that broadcast." }),
@@ -44,53 +70,97 @@ export function BroadcastPanel({ creatorAccountId, personaId }: { creatorAccount
   };
 
   return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-xl bg-[var(--slurp-surface)]/55 shadow-[var(--slurp-shadow-raised)] ring-1 ring-inset ring-white/[0.055]",
-        open ? "w-full" : "self-end",
-      )}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        className="flex min-h-10 w-full items-center gap-2 px-3 text-start text-xs font-semibold text-[var(--muted-foreground)] transition-[background-color,transform] hover:bg-[var(--noodle-accent)]/[0.05] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--slurp-focus)] motion-reduce:transition-none motion-reduce:active:scale-100"
+    <>
+      <SlpButton variant="quiet" onClick={() => setOpen(true)} className="min-h-10 shrink-0 px-4 text-[13px]">
+        <Megaphone size={16} aria-hidden="true" />
+        {localizeUi("ui.slurp.messages.broadcastShort", { defaultValue: "Broadcast" })}
+      </SlpButton>
+      <SlpSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        closeDisabled={broadcast.isPending}
+        title={
+          subscriberCount > 0
+            ? localizeUi("ui.slurp.messages.broadcastTo", {
+                defaultValue: "To {{count}} subscribers",
+                count: subscriberCount,
+              })
+            : localizeUi("ui.slurp.messages.broadcastNobody", { defaultValue: "No subscribers yet" })
+        }
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <SlpButton variant="tertiary" onClick={() => setOpen(false)} disabled={broadcast.isPending}>
+              {localizeUi("chat.delete.dialog.cancel")}
+            </SlpButton>
+            <SlpPrimaryButton
+              disabled={!content || subscriberCount === 0 || broadcast.isPending}
+              aria-busy={broadcast.isPending}
+              onClick={() => void submit()}
+              className="px-6"
+            >
+              {broadcast.isPending ? (
+                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Send size={16} aria-hidden="true" />
+              )}
+              {localizeUi("ui.slurp.messages.broadcastSend", { defaultValue: "Send broadcast" })}
+            </SlpPrimaryButton>
+          </div>
+        }
       >
-        <Megaphone size={15} className="text-[var(--noodle-accent)]" aria-hidden="true" />
-        {localizeUi("ui.slurp.messages.broadcast", { defaultValue: "Broadcast to subscribers" })}
-      </button>
-      {open && (
-        <div className="flex flex-col gap-2 border-t border-[var(--noodle-divider)] p-3">
-          <label className="sr-only" htmlFor="slurp-broadcast-draft">
+        <div className="space-y-4 px-2 pb-2">
+          <p className={cn(SLP_TYPE.meta, "text-[var(--slurp-muted)]")}>
+            {subscriberCount > 0
+              ? localizeUi("ui.slurp.messages.broadcastDetail", {
+                  defaultValue: "Lands in each subscriber's chat with you, like a message you sent them.",
+                })
+              : localizeUi("ui.slurp.messages.broadcastNobodyDetail", {
+                  defaultValue: "Once someone subscribes, you can message all of them at once from here.",
+                })}
+          </p>
+          <label className="sr-only" htmlFor={`slurp-broadcast-draft-${creatorAccountId}`}>
             {localizeUi("ui.slurp.messages.broadcastLabel", { defaultValue: "Broadcast message" })}
           </label>
-          <textarea
-            id="slurp-broadcast-draft"
+          <SlpAutoGrowTextarea
+            id={`slurp-broadcast-draft-${creatorAccountId}`}
             value={draft}
-            rows={2}
             maxLength={2000}
+            disabled={broadcast.isPending}
             onChange={(event) => setDraft(event.target.value)}
             placeholder={localizeUi("ui.slurp.messages.broadcastPlaceholder", {
               defaultValue: "Something for everyone who subscribes…",
             })}
-            className="w-full resize-y rounded-lg bg-[var(--slurp-canvas,var(--background))] px-3 py-2 text-sm outline-none ring-1 ring-inset ring-[var(--noodle-divider)] focus:ring-2 focus:ring-[var(--noodle-accent)]"
+            className="min-h-24 w-full resize-none rounded-2xl bg-[var(--slurp-surface-raised)] px-4 py-3 text-base leading-6 shadow-[var(--slurp-highlight)] outline-none placeholder:text-[var(--slurp-muted)] focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] sm:text-[15px]"
           />
-          <div className="flex items-center justify-between gap-2">
-            <p aria-live="polite" className="min-w-0 truncate text-xs text-[var(--muted-foreground)]">
-              {result}
+          {/* What a subscriber sees: your bubble, incoming, in their chat. */}
+          <div aria-hidden={!content} className="space-y-2">
+            <p className={cn(SLP_TYPE.meta, "text-[var(--slurp-muted)]")}>
+              {localizeUi("ui.slurp.messages.broadcastPreview", { defaultValue: "Preview" })}
             </p>
-            <button
-              type="button"
-              disabled={!draft.trim() || broadcast.isPending}
-              onClick={() => void submit()}
-              className="min-h-11 shrink-0 rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-zinc-950 [&_svg]:!text-zinc-950 disabled:opacity-50"
-            >
-              {localizeUi("ui.slurp.messages.broadcastSend", { defaultValue: "Send broadcast" })}
-            </button>
+            <div className="flex items-end gap-2 rounded-2xl bg-[var(--slurp-canvas)] p-3">
+              <Avatar account={creator} size="sm" />
+              <p
+                className={cn(
+                  SLP_TYPE.body,
+                  "max-w-[80%] whitespace-pre-wrap break-words rounded-[18px] rounded-bl-md bg-[var(--slurp-surface-raised)] px-3.5 py-2 shadow-[var(--slurp-shadow-raised),var(--slurp-highlight)]",
+                  !content && "text-[var(--slurp-muted)]",
+                )}
+              >
+                {content ||
+                  localizeUi("ui.slurp.messages.broadcastPreviewEmpty", {
+                    defaultValue: "Your message shows up here.",
+                  })}
+              </p>
+            </div>
           </div>
+          {error && (
+            <p role="alert" className="text-xs text-[var(--slurp-danger)]">
+              {error}
+            </p>
+          )}
         </div>
-      )}
-    </section>
+      </SlpSheet>
+    </>
   );
 }
 
@@ -155,7 +225,7 @@ export function CreatorMessageTools({
           aria-expanded={open}
           className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-bold transition-colors hover:bg-[var(--noodle-accent)]/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--slurp-focus)] motion-reduce:transition-none"
         >
-          <Lock size={14} className="text-[var(--noodle-accent)]" aria-hidden="true" />
+          <SlpLockGlyph size={14} className="text-[var(--noodle-accent-foreground)]" aria-hidden="true" />
           {localizeUi("ui.slurp.messages.sendPpv", { defaultValue: "Send locked content" })}
         </button>
       )}
@@ -190,7 +260,7 @@ export function CreatorMessageTools({
               type="button"
               disabled={!content.trim() || price <= 0 || sendPpv.isPending}
               onClick={() => void submit()}
-              className="ml-auto min-h-9 rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-zinc-950 [&_svg]:!text-zinc-950 disabled:opacity-50"
+              className="ml-auto min-h-9 rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-[var(--slurp-on-accent)] [&_svg]:!text-[var(--slurp-on-accent)] disabled:opacity-50"
             >
               {localizeUi("ui.slurp.messages.ppvSend", { defaultValue: "Send locked" })}
             </button>
@@ -250,7 +320,7 @@ export function CreatorMessageTools({
                   },
                 );
             }}
-            className="mt-2 min-h-10 rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-zinc-950 [&_svg]:!text-zinc-950 disabled:opacity-50"
+            className="mt-2 min-h-10 rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-[var(--slurp-on-accent)] [&_svg]:!text-[var(--slurp-on-accent)] disabled:opacity-50"
           >
             {sendImage.isPending ? "Making…" : "Generate and send"}
           </button>
@@ -265,13 +335,19 @@ export function FanImageTool({
   creatorAccountId,
   personaId,
   mode,
+  onSent,
+  asSupport = false,
 }: {
   threadId: string;
   creatorAccountId: string;
   personaId: string;
   mode: "choose" | "upload" | "generate";
+  /** Slurp Support sends it, in Support's thread; a created picture shows only what is described. */
+  asSupport?: boolean;
+  /** The photo landed: the thread shows the answer (typing first) and closes the sheet (R1-019). */
+  onSent?: (result: SlurpPhotoSendResult) => void;
 }) {
-  const { t: localizeUi } = useUiTranslation();
+  const { t: localizeUi, i18n } = useUiTranslation();
   const send = useSendSlurpViewerImage();
   const generate = useGenerateSlurpViewerImage();
   const [file, setFile] = useState<File | null>(null);
@@ -281,7 +357,8 @@ export function FanImageTool({
   const [reviewing, setReviewing] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"upload" | "generate">("upload");
   const activeMode = mode === "choose" ? selectedMode : mode;
-  const viewerPrompt = prompt.trim() ? `A photo taken by the viewer persona: ${prompt.trim()}` : "";
+  // The server frames it as the player's own photo (R1-054); the review shows the player's words (R1-019).
+  const viewerPrompt = prompt.trim();
   return (
     <div className="overflow-hidden rounded-xl bg-[var(--slurp-surface)] ring-1 ring-inset ring-[var(--noodle-divider)]">
       <div className="flex flex-col gap-2 p-3">
@@ -300,10 +377,12 @@ export function FanImageTool({
                 onClick={() => setSelectedMode(option)}
                 className={cn(
                   "min-h-10 flex-1 rounded-lg px-3 text-xs font-bold ring-1 ring-inset ring-[var(--noodle-divider)]",
-                  activeMode === option && "bg-[var(--noodle-accent)] text-zinc-950",
+                  activeMode === option && "bg-[var(--noodle-accent)] text-[var(--slurp-on-accent)]",
                 )}
               >
-                {option === "upload" ? "Upload" : "Generate"}
+                {option === "upload"
+                  ? localizeUi("ui.slurp.messages.photoUpload", { defaultValue: "Upload" })
+                  : localizeUi("ui.slurp.messages.photoGenerate", { defaultValue: "Draw it" })}
               </button>
             ))}
           </div>
@@ -316,17 +395,26 @@ export function FanImageTool({
                 rows={2}
                 maxLength={1000}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Describe the photo the viewer persona took"
+                placeholder={localizeUi("ui.slurp.messages.photoDescribe", {
+                  defaultValue: "Describe the photo you took",
+                })}
                 className="w-full resize-y rounded-lg bg-[var(--slurp-canvas,var(--background))] px-3 py-2 text-sm ring-1 ring-inset ring-[var(--noodle-divider)]"
               />
             )}
             {activeMode === "upload" && (
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="text-xs"
-              />
+              // The whole button opens the picker; a bare file input only reacted on its "Choose file" text.
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-semibold ring-1 ring-inset ring-[var(--noodle-divider)] transition-colors hover:bg-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--noodle-accent)]">
+                <ImagePlus size={18} aria-hidden="true" className="shrink-0" />
+                <span className="min-w-0 truncate">
+                  {file?.name ?? localizeUi("ui.slurp.messages.photoChoose", { defaultValue: "Choose a photo" })}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  className="sr-only"
+                />
+              </label>
             )}
             <input
               value={content}
@@ -341,7 +429,7 @@ export function FanImageTool({
               type="button"
               disabled={activeMode === "upload" ? !file : !prompt.trim()}
               onClick={() => setReviewing(true)}
-              className="min-h-10 self-end rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-zinc-950 [&_svg]:!text-zinc-950 disabled:opacity-50"
+              className="min-h-10 self-end rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-[var(--slurp-on-accent)] [&_svg]:!text-[var(--slurp-on-accent)] disabled:opacity-50"
             >
               Review photo
             </button>
@@ -367,23 +455,47 @@ export function FanImageTool({
                   setError(null);
                   const request =
                     activeMode === "upload"
-                      ? file && send.mutateAsync({ threadId, creatorAccountId, personaId, file, content })
-                      : generate.mutateAsync({ threadId, creatorAccountId, personaId, prompt: viewerPrompt, content });
+                      ? file && send.mutateAsync({ threadId, creatorAccountId, personaId, file, content, asSupport })
+                      : generate.mutateAsync({
+                          threadId,
+                          creatorAccountId,
+                          personaId,
+                          prompt: viewerPrompt,
+                          content,
+                          asSupport,
+                        });
                   if (!request) return;
                   void request
-                    .then(() => {
+                    .then((result) => {
                       setFile(null);
                       setPrompt("");
                       setContent("");
                       setReviewing(false);
+                      onSent?.(result);
                     })
                     .catch((cause: unknown) => {
-                      setError(cause instanceof Error ? cause.message : "Could not send that picture.");
+                      // The picture wait answers with the time it ends, so say when, not "later".
+                      const retryAt =
+                        cause instanceof ApiError && cause.status === 429
+                          ? (cause.payload as { retryAt?: unknown } | undefined)?.retryAt
+                          : undefined;
+                      setError(
+                        typeof retryAt === "string" && formatUpcomingClock(retryAt, i18n.language)
+                          ? localizeUi("ui.slurp.messages.pictureWait", {
+                              defaultValue: "Draw again at {{time}}",
+                              time: formatUpcomingClock(retryAt, i18n.language),
+                            })
+                          : cause instanceof Error
+                            ? cause.message
+                            : "Could not send that picture.",
+                      );
                     });
                 }}
-                className="min-h-10 rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-zinc-950 [&_svg]:!text-zinc-950 disabled:opacity-50"
+                className="min-h-10 rounded-lg bg-[var(--noodle-accent)] px-3 text-xs font-bold text-[var(--slurp-on-accent)] [&_svg]:!text-[var(--slurp-on-accent)] disabled:opacity-50"
               >
-                {send.isPending || generate.isPending ? "Sending…" : "Send photo"}
+                {send.isPending || generate.isPending
+                  ? localizeUi("ui.slurp.messages.photoSending", { defaultValue: "Sending…" })
+                  : localizeUi("ui.slurp.messages.photoSend", { defaultValue: "Send photo" })}
               </button>
             </div>
           </div>
@@ -453,18 +565,16 @@ const TIP_MAX = 9999;
 export function SlurpTipPanel({
   personaId,
   busy,
-  sendingAmount,
   allowAttach,
   onSendNow,
   onAttach,
 }: {
   personaId: string | null;
   busy: boolean;
-  /** The amount a send is in flight for, so its coin burst plays. */
-  sendingAmount: number | null;
   /** A Creator tipping from their own side has no "next message" to carry it. */
   allowAttach: boolean;
-  onSendNow: (amount: number, note: string) => void;
+  /** `origin`: where the spend moment starts (the Send button, measured at the tap). */
+  onSendNow: (amount: number, note: string, origin: DOMRect) => void;
   onAttach: (amount: number, note: string) => void;
 }) {
   const { t: localizeUi } = useUiTranslation();
@@ -483,43 +593,16 @@ export function SlurpTipPanel({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-[var(--slurp-surface)] p-3 ring-1 ring-inset ring-[var(--noodle-divider)]">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => pick(amount - 5)}
-            disabled={amount <= 1}
-            aria-label={localizeUi("ui.slurp.messages.tipLess", { defaultValue: "Less" })}
-            className="flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-inset ring-[var(--noodle-divider)] transition-transform active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] disabled:opacity-40 motion-reduce:active:scale-100"
-          >
-            <Minus size={14} aria-hidden="true" />
-          </button>
-          <p
-            aria-live="polite"
-            className="relative flex min-w-24 items-center justify-center gap-1.5 text-2xl font-black tabular-nums"
-          >
-            <SlurpCoinBurst active={sendingAmount === amount} />
-            <SlurpCoin size={22} />
-            {valid ? amount : "–"}
-          </p>
-          <button
-            type="button"
-            onClick={() => pick(amount + 5)}
-            disabled={amount >= TIP_MAX}
-            aria-label={localizeUi("ui.slurp.messages.tipMore", { defaultValue: "More" })}
-            className="flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-inset ring-[var(--noodle-divider)] transition-transform active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] disabled:opacity-40 motion-reduce:active:scale-100"
-          >
-            <Plus size={14} aria-hidden="true" />
-          </button>
-        </div>
-        {balance !== undefined && (
-          <p className={cn("text-xs text-[var(--muted-foreground)]", short && "text-red-600 dark:text-red-400")}>
-            {localizeUi("ui.slurp.messages.tipBalance", { defaultValue: "Balance" })}{" "}
-            <SlurpCoinAmount amount={balance} />
-          </p>
-        )}
-      </div>
+    <div className="flex flex-col gap-3 px-1">
+      {/* One way to pick the amount: the chips or Other. The old ± stepper and big number said it twice. */}
+      {balance !== undefined && (
+        <p
+          aria-live="polite"
+          className={cn("text-xs text-[var(--slurp-muted)]", short && "text-[var(--slurp-danger)]")}
+        >
+          {localizeUi("ui.slurp.messages.tipBalance", { defaultValue: "Balance" })} <SlurpCoinAmount amount={balance} />
+        </p>
+      )}
 
       <div
         role="group"
@@ -527,20 +610,9 @@ export function SlurpTipPanel({
         className="flex flex-wrap items-center gap-1.5"
       >
         {TIP_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            aria-pressed={!custom && amount === preset}
-            onClick={() => pick(preset)}
-            className={cn(
-              "min-h-10 rounded-full px-4 text-xs font-bold tabular-nums ring-1 ring-inset ring-[var(--noodle-accent)]/40 transition-[background-color,transform] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] motion-reduce:active:scale-100",
-              !custom && amount === preset
-                ? "bg-[var(--noodle-accent)] text-zinc-950"
-                : "text-[var(--noodle-accent)] hover:bg-[var(--noodle-accent)]/10",
-            )}
-          >
-            {preset}
-          </button>
+          <SlpChip key={preset} selected={!custom && amount === preset} onClick={() => pick(preset)}>
+            <SlurpCoinAmount amount={preset} />
+          </SlpChip>
         ))}
         <label className="sr-only" htmlFor="slurp-tip-custom">
           {localizeUi("ui.slurp.messages.customTipAmount", { defaultValue: "Custom tip amount" })}
@@ -557,7 +629,7 @@ export function SlurpTipPanel({
             setAmount(Math.floor(Number(event.target.value)));
           }}
           placeholder={localizeUi("ui.slurp.messages.customTipPlaceholder", { defaultValue: "Other" })}
-          className="h-10 w-24 rounded-full bg-[var(--slurp-canvas,var(--background))] px-4 text-xs tabular-nums outline-none ring-1 ring-inset ring-[var(--noodle-divider)] focus:ring-2 focus:ring-[var(--slurp-focus)]"
+          className="h-11 w-24 rounded-full bg-[var(--slurp-surface)] px-4 text-base tabular-nums outline-none ring-1 ring-inset ring-[var(--noodle-divider)] focus:ring-2 focus:ring-[var(--slurp-focus)] sm:text-[13px]"
         />
       </div>
 
@@ -570,14 +642,14 @@ export function SlurpTipPanel({
         maxLength={280}
         onChange={(event) => setNote(event.target.value)}
         placeholder={localizeUi("ui.slurp.messages.tipNoteOptional", { defaultValue: "Add a note (optional)" })}
-        className="h-10 rounded-full bg-[var(--slurp-canvas,var(--background))] px-4 text-sm outline-none ring-1 ring-inset ring-[var(--noodle-divider)] focus:ring-2 focus:ring-[var(--slurp-focus)]"
+        className="h-11 rounded-full bg-[var(--slurp-surface)] px-4 text-base outline-none ring-1 ring-inset ring-[var(--noodle-divider)] placeholder:text-[var(--slurp-muted)] focus:ring-2 focus:ring-[var(--slurp-focus)] sm:text-sm"
       />
 
       {allowAttach && (
         <label className="flex min-h-10 cursor-pointer items-center justify-between gap-3 px-1 text-xs font-semibold">
           <span>
             {localizeUi("ui.slurp.messages.tipWithMessage", { defaultValue: "With my next message" })}
-            <span className="block text-[0.68rem] font-normal text-[var(--muted-foreground)]">
+            <span className="block text-xs font-normal text-[var(--slurp-muted)]">
               {localizeUi("ui.slurp.messages.tipWithMessageHint", {
                 defaultValue: "The tip goes with the next message you send.",
               })}
@@ -597,21 +669,30 @@ export function SlurpTipPanel({
         </label>
       )}
 
-      <button
-        type="button"
+      <SlpPrimaryButton
         disabled={busy || !personaId || !valid || (short && !withAttach)}
-        onClick={() => (withAttach ? onAttach(amount, note.trim()) : onSendNow(amount, note.trim()))}
-        className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[var(--noodle-accent)] px-4 text-sm font-bold text-zinc-950 transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] disabled:opacity-50 motion-reduce:active:scale-100"
+        onClick={(event) =>
+          withAttach
+            ? onAttach(amount, note.trim())
+            : onSendNow(amount, note.trim(), event.currentTarget.getBoundingClientRect())
+        }
+        className="w-full"
       >
-        {short && !withAttach
-          ? localizeUi("ui.slurp.messages.tipNotEnough", { defaultValue: "Not enough coins" })
-          : withAttach
-            ? localizeUi("ui.slurp.messages.tipAttach", { defaultValue: "Attach {{amount}} coins", amount })
-            : localizeUi("ui.slurp.messages.tipSendNow", { defaultValue: "Send {{amount}} coins", amount })}
-      </button>
-      <p className="text-center text-[0.65rem] text-[var(--muted-foreground)]">
+        {short && !withAttach ? (
+          localizeUi("ui.slurp.messages.tipNotEnough", { defaultValue: "Not enough coins" })
+        ) : withAttach ? (
+          <SlpCoinText>
+            {localizeUi("ui.slurp.messages.tipAttach", { defaultValue: "Attach {{amount}} <coin/>", amount })}
+          </SlpCoinText>
+        ) : (
+          <SlpCoinText>
+            {localizeUi("ui.slurp.messages.tipSendNow", { defaultValue: "Send {{amount}} <coin/>", amount })}
+          </SlpCoinText>
+        )}
+      </SlpPrimaryButton>
+      <p className="text-center text-xs text-[var(--slurp-muted)]">
         {localizeUi("ui.slurp.messages.sendTipDetail", {
-          defaultValue: "A tip is a gift. It does not guarantee a reply.",
+          defaultValue: "A gift, no strings. They reply if they feel like it.",
         })}
       </p>
     </div>

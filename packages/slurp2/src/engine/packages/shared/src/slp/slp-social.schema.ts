@@ -4,6 +4,7 @@
 // ──────────────────────────────────────────────
 import { z } from "zod";
 import { avatarCropSchema } from "@marinara-engine/shared";
+import { slpCreatorPageSchema } from "./slp-creator-page.js";
 
 export const slpAccountKindSchema = z.enum(["persona", "character", "random_user"]);
 export const slpInteractionTypeSchema = z.enum(["like", "repost", "reply", "vote"]);
@@ -198,6 +199,8 @@ export const slpAccountProfileSettingsSchema = z
     profileManuallyEdited: z.boolean().optional(),
     noodlerWizardExecutionId: z.string().min(1).max(128).optional(),
     noodlerSourceSnapshot: slpCreatorSourceSnapshotSchema.optional(),
+    page: slpCreatorPageSchema.optional(),
+    pageWanted: z.boolean().optional(),
   })
   .strict();
 
@@ -386,7 +389,9 @@ export const slpStageProfileDraftRequestSchema = z
     noodlerAccountId: z.string().min(1).optional(),
     disclosureMode: slpIdentityDisclosureSchema,
     guidance: z.string().trim().max(2000).default(""),
-    currentDraft: slpStageProfileSchema.partial().optional(),
+    // The editor sends its whole form, discovery fields (gender, tags, location) included. The draft
+    // reads only the stage fields, so the rest is dropped instead of failing the request (R1-070).
+    currentDraft: z.object(slpStageProfileShape).partial().optional(),
     connectionId: z.string().min(1).optional(),
   })
   .strict()
@@ -571,6 +576,11 @@ export const slpCreatorPostUpdateSchema = z
     content: z.string().trim().max(SLP_CREATOR_POST_CONTENT_MAX_LENGTH).optional(),
     removeImage: z.literal(true).optional(),
     imageCrop: slpPostImageCropSchema.nullable().optional(),
+    /**
+     * Which picture of a photo set a crop or a replacement is for (R1-039). Absent or 0 is the post
+     * picture; a later one is the set picture at that position. Remove always takes the whole set.
+     */
+    imagePosition: z.number().int().min(0).max(64).optional(),
     poll: slpPollInputSchema.nullable().optional(),
   })
   .strict()

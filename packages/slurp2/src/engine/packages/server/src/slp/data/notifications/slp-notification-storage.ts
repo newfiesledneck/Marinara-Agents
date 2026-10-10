@@ -8,7 +8,7 @@
  * Every later stage of the live-world plan writes here rather than inventing its own surface.
  */
 import { tolerateMissingTables } from "../../base/host/slp-host-tables.js";
-import { and, desc, eq, isNull } from "../../../db/file-query.js";
+import { and, desc, eq, isNull, ne } from "../../../db/file-query.js";
 import { newId, now } from "../../../utils/id-generator.js";
 import type { DB } from "../../../db/connection.js";
 import { slurpEvents } from "../../../db/schema/slurp.js";
@@ -113,6 +113,16 @@ export function createSlurpEventsStorage(db: DB) {
       return rows.map(mapEvent);
     },
 
+    /** One event of this persona's, or null (someone else's is null too). */
+    async get(recipientPersonaId: string, id: string): Promise<SlurpEvent | null> {
+      const rows = await db
+        .select()
+        .from(slurpEvents)
+        .where(and(eq(slurpEvents.recipientPersonaId, recipientPersonaId), eq(slurpEvents.id, id)))
+        .limit(1);
+      return rows[0] ? mapEvent(rows[0]) : null;
+    },
+
     /** Everything not yet marked seen, newest first. This is what the catch-up panel reads. */
     async listUnseen(recipientPersonaId: string, limit = 60): Promise<SlurpEvent[]> {
       const rows = await db
@@ -127,7 +137,13 @@ export function createSlurpEventsStorage(db: DB) {
     async countUnseen(recipientPersonaId: string): Promise<number> {
       return db.count(
         slurpEvents,
-        and(eq(slurpEvents.recipientPersonaId, recipientPersonaId), isNull(slurpEvents.seenAt)),
+        // A new message already counts in the inbox unread; Activity never lists it, so only
+        // "Mark as read" could clear it from the badge (R1-086).
+        and(
+          eq(slurpEvents.recipientPersonaId, recipientPersonaId),
+          isNull(slurpEvents.seenAt),
+          ne(slurpEvents.kind, "message"),
+        ),
       );
     },
 
@@ -174,6 +190,7 @@ export function createSlurpEventsStorage(db: DB) {
   return tolerateMissingTables(storage, {
     record: () => null,
     recordAndPrune: () => null,
+    get: () => null,
     list: () => [],
     listUnseen: () => [],
     countUnseen: () => 0,

@@ -1,51 +1,75 @@
-import { Activity, CheckCircle2, ChevronDown, CircleAlert, Loader2, Settings2, X } from "lucide-react";
-import { useMutationState, useQuery } from "@tanstack/react-query";
+import { Activity, CheckCircle2, ChevronDown, CircleAlert, Clock3, Loader2, RotateCcw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { type ReactNode, type RefObject, useState } from "react";
+import { useState } from "react";
 import { useTranslation as useUiTranslation } from "react-i18next";
 import type { SlpAccount } from "../../../../../shared/src/slp/slp-social.types.js";
-import { Avatar } from "../../base/chrome/SlpChrome";
+import { Avatar, SLP_EYEBROW_CLASS, SLP_TYPE, useSlpMediaQuery } from "../../base/chrome/SlpChrome";
+import { startSlpTask, useSlpTasks, type SlpPulseTarget, type SlpTask } from "../../base/state/slp-task-store";
+import type { SlpTaskAgainScreen } from "../../base/state/slp-task-list";
 import { api } from "../../../lib/api-client.js";
 import { cn } from "../../../lib/utils";
 import { sortSlpPulseScheduled } from "./slp-pulse-order";
+import {
+  slpPulseClientSection,
+  slpPulseComingUp,
+  slpPulseNextTarget,
+  slpPulseRunningCount,
+  slpPulseServerSection,
+  slpPulseTaskDone,
+  slpPulseServerTarget,
+  slpPulseSummaryCounts,
+  type PulseNext,
+  type PulseServerTask,
+  type PulseUsage,
+} from "./slp-pulse-model";
+import {
+  PulseAiToday,
+  PulseClientTaskRow,
+  PulseNextRow,
+  PulseQuickStarts,
+  slpPulseRunAudience,
+  formatPulseAge,
+  formatPulseUntil,
+} from "./SlpPulseRows";
+import { SlpSheet } from "./SlpSheet";
+import { SlpButton, SlpPrimaryButton } from "./SlpButton";
 
-export function SlpPulseCard({ open, onOpen }: { open: boolean; onOpen: () => void }) {
+export type SlpPulseBudgetNote = { onOpenBudget: () => void; onDismiss: () => void };
+
+/** `rail`: the desktop rail copy, mounted but hidden on phones, where it must not poll /slurp/tasks. */
+export function SlpPulseCard(props: { open: boolean; onOpen: () => void; note?: boolean; rail?: boolean }) {
+  const railHidden = !useSlpMediaQuery("(min-width: 1024px)");
+  return props.rail && railHidden ? null : <SlpPulseCardBody {...props} />;
+}
+
+function SlpPulseCardBody({ open, onOpen, note = false }: { open: boolean; onOpen: () => void; note?: boolean }) {
   const { t } = useUiTranslation();
   const serverTasks = useSlpPulseTasks(false);
-  const activeCount = serverTasks.data?.tasks.filter((task) => isActiveTask(task.status)).length ?? 0;
+  // Long actions started in this tab count too (task B), so the dot shows the moment one starts.
+  const clientRunning = useSlpTasks((state) => state.tasks.filter((task) => task.status === "running").length);
+  const activeCount = slpPulseRunningCount(serverTasks.data?.tasks) + clientRunning;
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-expanded={open}
-      aria-controls="slurp-pulse-panel"
+      aria-haspopup="dialog"
       className="group relative flex min-h-11 w-full items-center gap-2.5 overflow-hidden rounded-md bg-[color-mix(in_srgb,var(--noodle-accent)_9%,var(--slurp-surface-raised))] px-3 text-start ring-1 ring-inset ring-[var(--noodle-accent)]/18 transition-[background-color,transform,box-shadow] hover:bg-[var(--accent)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--noodle-accent)] motion-reduce:transition-none motion-reduce:active:scale-100"
     >
-      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center text-[var(--noodle-accent)]">
-        {activeCount > 0 && (
-          <>
-            <span className="absolute h-7 w-7 rounded-full border border-[var(--noodle-accent)]/18 motion-safe:animate-ping motion-reduce:animate-none" />
-            <span className="absolute h-9 w-9 rounded-full border border-[var(--noodle-accent)]/10 motion-safe:animate-[ping_1.8s_cubic-bezier(0,0,0.2,1)_infinite] motion-reduce:animate-none" />
-          </>
-        )}
-        {activeCount > 0 ? (
-          <motion.span
-            animate={{ scale: [1, 1.14, 1] }}
-            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-            className="inline-flex motion-reduce:transform-none"
-          >
-            <Activity size={17} strokeWidth={2.4} aria-hidden="true" />
-          </motion.span>
-        ) : (
-          <Activity size={17} strokeWidth={2.4} aria-hidden="true" />
+      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center text-[var(--noodle-accent-foreground)]">
+        <Activity size={17} strokeWidth={2.4} aria-hidden="true" />
+        {/* A still live dot, not a looping ping (marinara-design §7: no decorative loops). */}
+        {(activeCount > 0 || note) && (
+          <span className="absolute end-0 top-0.5 size-2 rounded-full bg-[var(--noodle-accent)] ring-2 ring-[var(--slurp-surface-raised)]" />
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-black leading-5">
+        <span className="block truncate text-sm font-bold leading-5">
           {t("ui.slurp.pulse.title", { defaultValue: "Pulse" })}
         </span>
         {activeCount > 0 && (
-          <span className="block truncate text-[0.68rem] leading-4 text-[var(--muted-foreground)]">
+          <span className="block truncate text-xs leading-4 text-[var(--muted-foreground)]">
             {activeCount} {t("ui.slurp.pulse.runningShort", { defaultValue: "running" })}
           </span>
         )}
@@ -54,236 +78,282 @@ export function SlpPulseCard({ open, onOpen }: { open: boolean; onOpen: () => vo
   );
 }
 
+/**
+ * Pulse: what Slurp is doing, what it did and what comes next (task C). A SlpSheet, so it never
+ * stacks on the More sheet (B8). Sections: Running · Queued · Failed (why + Try again) · Coming up ·
+ * Done, with today's AI use on top. A tap on a task opens what it made: the post, the chat, the
+ * Creator. Long actions started anywhere land here (task B); Stir plays are tasks too.
+ */
 export function SlpPulsePanel({
   open,
-  panelRef,
-  closeRef,
   onClose,
-  onGeneratePosts,
-  onRunAudience,
-  audiencePending = false,
+  budgetNote,
   accounts = [],
+  onOpenTarget,
+  onOpenBudget,
+  onGeneratePosts,
+  onStartAgain,
 }: {
   open: boolean;
-  panelRef: RefObject<HTMLElement | null>;
-  closeRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
-  onGeneratePosts?: () => void;
-  onRunAudience?: () => void;
-  audiencePending?: boolean;
+  budgetNote?: SlpPulseBudgetNote;
   accounts?: SlpAccount[];
+  /** Opens a task's result; Pulse closes first. */
+  onOpenTarget?: (target: SlpPulseTarget) => void;
+  onOpenBudget?: () => void;
+  /** The quick "Generate posts" chip: the Creator picker, whose run is a Pulse task. */
+  onGeneratePosts?: () => void;
+  /** "Start it again from …" on a failed task restored after a reload; Pulse closes first. */
+  onStartAgain?: (screen: SlpTaskAgainScreen, task: SlpTask) => void;
 }) {
   const { t } = useUiTranslation();
-  const mutations = usePulseMutations();
   const serverTasks = useSlpPulseTasks(open);
-  const tasks = mergePulseTasks(serverTasks.data?.tasks ?? [], mutations);
+  const clientTasks = useSlpTasks((state) => state.tasks);
+  const usage = useQuery({
+    queryKey: ["slurp", "model-budget", "usage"],
+    queryFn: () => api.get<PulseUsage>("/slurp2/model-budget/usage"),
+    enabled: open,
+    staleTime: 15_000,
+  });
+  const tasks = mergePulseTasks(serverTasks.data?.tasks ?? []);
   const groups = groupPulseTasks(tasks);
-  const queueSummary = pulseQueueSummary(tasks, t);
+  const comingUp = slpPulseComingUp(serverTasks.data?.next ?? [], tasks.scheduled);
+  const client = {
+    running: clientTasks.filter((task) => slpPulseClientSection(task) === "running"),
+    // A restored failed audience run can run again from right here.
+    failed: clientTasks
+      .filter((task) => slpPulseClientSection(task) === "failed")
+      .map((task) =>
+        !task.retry && task.kind === "run-audience" ? { ...task, retry: () => slpPulseRunAudience(t, task.id) } : task,
+      ),
+    done: clientTasks.filter((task) => slpPulseClientSection(task) === "done"),
+  };
   const taskAccounts = [...accounts, ...(serverTasks.data?.accounts ?? [])].filter(
     (account, index, all) => all.findIndex((candidate) => candidate.id === account.id) === index,
   );
-  if (!open) return null;
-
-  const runAction = (action: (() => void) | undefined, close = true) => {
-    action?.();
-    if (action && close) onClose();
+  const ownViewerIds = new Set(accounts.flatMap((account) => [account.id, account.entityId]));
+  const name = (id: string | undefined) =>
+    id ? taskAccounts.find((account) => account.id === id || account.entityId === id)?.displayName : undefined;
+  const openTarget = onOpenTarget
+    ? (target: SlpPulseTarget | null) => {
+        if (!target) return;
+        onClose();
+        onOpenTarget(target);
+      }
+    : undefined;
+  const startAgain = onStartAgain
+    ? (screen: SlpTaskAgainScreen, task: SlpTask) => {
+        onClose();
+        onStartAgain(screen, task);
+      }
+    : undefined;
+  const counts = {
+    running: groups.active.length + client.running.length,
+    queued: groups.queued.length,
+    failed: groups.attention.length + client.failed.length,
+    done: groups.recent.length + client.done.length,
+    next: comingUp.length,
+  };
+  const summary = slpPulseSummaryCounts(counts)
+    .map((key) => t(`ui.slurp.pulse.summary.${key}`, { count: counts[key] }))
+    .join(" · ");
+  const heading = (id: string, label: string, danger = false) => (
+    <h3 id={id} className={cn(SLP_EYEBROW_CLASS, "px-1", danger && "text-[var(--slurp-danger)]")}>
+      {label}
+    </h3>
+  );
+  const retryServer = (task: PulseTask) => {
+    const retry = task.retry;
+    if (!retry) return;
+    void startSlpTask({
+      t,
+      kind: task.kind,
+      label: pulseTaskLabel(task, t),
+      accountIds: task.accountIds,
+      run: () => api.post(`/slurp2${retry.path}`, retry.body),
+      startedToast: t("ui.slurp.pulse.retrying", { defaultValue: "Trying again. You can keep going." }),
+    }).then(() => serverTasks.refetch());
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end bg-black/45 md:items-stretch md:justify-end" onClick={onClose}>
-      <aside
-        id="slurp-pulse-panel"
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="slurp-pulse-title"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[86dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-[var(--slurp-canvas,var(--background))] text-[var(--foreground)] shadow-[var(--slurp-shadow-floating)] ring-1 ring-inset ring-[var(--noodle-divider)] md:my-4 md:ms-[15rem] md:me-auto md:max-h-none md:w-[min(25rem,calc(100vw-15rem))] md:rounded-2xl"
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--noodle-divider)] px-5 py-4">
-          <div>
-            <div className="flex items-center gap-2 text-[var(--noodle-accent)]">
-              {groups.active.length > 0 ? (
-                <motion.span
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                  className="inline-flex motion-reduce:transform-none"
-                >
-                  <Activity size={18} aria-hidden="true" />
-                </motion.span>
-              ) : (
-                <Activity size={18} aria-hidden="true" />
-              )}
-              <h2 id="slurp-pulse-title" className="text-lg font-black">
-                {t("ui.slurp.pulse.title", { defaultValue: "Pulse" })}
-              </h2>
-            </div>
-            <p className="mt-1 text-[0.68rem] text-[var(--muted-foreground)]">
-              {queueSummary || t("ui.slurp.pulse.description", { defaultValue: "Background activity" })}
-            </p>
-          </div>
-          <button
-            type="button"
-            ref={closeRef}
-            onClick={onClose}
-            aria-label={t("ui.slurp.pulse.close", { defaultValue: "Close Pulse" })}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--muted-foreground)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--noodle-accent)]"
-          >
-            <X size={19} aria-hidden="true" />
-          </button>
-        </div>
+    <SlpSheet open={open} onClose={onClose} back title={t("ui.slurp.pulse.title", { defaultValue: "Pulse" })}>
+      <div id="slurp-pulse-panel" className="space-y-6 px-2 pb-2">
+        {/* One status line: what runs, waits, failed and comes next, or "All quiet". */}
+        <p className={cn(SLP_TYPE.meta, "flex items-center gap-2 px-1 text-[var(--slurp-muted)]")}>
+          {counts.running > 0 ? (
+            <span className="size-2 shrink-0 rounded-full bg-[var(--noodle-accent)]" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 size={14} className="shrink-0 text-[var(--slurp-success)]" aria-hidden="true" />
+          )}
+          {summary ||
+            t("ui.slurp.pulse.quietNothing", {
+              defaultValue: "All quiet. What Slurp does, and what you start, shows up here.",
+            })}
+        </p>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-          <section aria-labelledby="slurp-pulse-actions" className="space-y-3">
-            <h3
-              id="slurp-pulse-actions"
-              className="text-xs font-black uppercase tracking-[0.14em] text-[var(--slurp-muted)]"
-            >
-              {t("ui.slurp.pulse.automationSettings", { defaultValue: "Automation settings" })}
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              <PulseAction
-                icon={<Settings2 size={17} aria-hidden="true" />}
-                label={t("ui.slurp.pulse.generatePosts", { defaultValue: "Generate posts" })}
-                onClick={() => runAction(onGeneratePosts)}
-              />
-              <PulseAction
-                icon={<Settings2 size={17} aria-hidden="true" />}
-                label={
-                  audiencePending
-                    ? t("ui.slurp.pulse.runningAudience", { defaultValue: "Running audience" })
-                    : t("ui.slurp.pulse.runAudience", { defaultValue: "Run audience" })
+        {/* Quick starts (release step): small chips, each runs on as a task below. Plans start in Stir. */}
+        <PulseQuickStarts
+          t={t}
+          onGeneratePosts={
+            onGeneratePosts
+              ? () => {
+                  onClose();
+                  onGeneratePosts();
                 }
-                onClick={() => runAction(onRunAudience, false)}
-                disabled={audiencePending}
-              />
-            </div>
-          </section>
+              : undefined
+          }
+        />
 
-          <section aria-labelledby="slurp-pulse-now" className="mt-6 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h3
-                id="slurp-pulse-now"
-                className="text-xs font-black uppercase tracking-[0.14em] text-[var(--slurp-muted)]"
-              >
-                {t("ui.slurp.pulse.now", { defaultValue: "Now" })}
-              </h3>
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--muted-foreground)]">
-                {tasks.active.length > 0 ? (
-                  <Loader2 size={14} className="animate-spin text-[var(--noodle-accent)]" aria-hidden="true" />
-                ) : (
-                  <CheckCircle2 size={14} className="text-emerald-500" aria-hidden="true" />
-                )}
-                {tasks.active.length > 0
-                  ? t("ui.slurp.pulse.runningCount", {
-                      defaultValue: "{{count}} running",
-                      count: groups.active.length,
-                    })
-                  : t("ui.slurp.pulse.quiet", { defaultValue: "All quiet" })}
-              </span>
-            </div>
-            {groups.active.length > 0 ? (
-              <div className="space-y-2">
-                {groups.active.map((group) => (
-                  <PulseGroupCard key={group.id} group={group} accounts={taskAccounts} t={t} />
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 rounded-xl bg-[var(--slurp-surface-raised)] px-4 py-3 ring-1 ring-inset ring-[var(--noodle-divider)]">
-                <CheckCircle2 size={16} className="shrink-0 text-emerald-500" aria-hidden="true" />
-                <p className="text-sm font-semibold">
-                  {t("ui.slurp.pulse.noWork", { defaultValue: "No background work is running." })}
-                </p>
-              </div>
-            )}
-          </section>
-
-          {groups.attention.length > 0 && (
-            <section aria-labelledby="slurp-pulse-attention" className="mt-7 space-y-3">
-              <h3
-                id="slurp-pulse-attention"
-                className="text-xs font-black uppercase tracking-[0.14em] text-[var(--slurp-danger)]"
-              >
-                {t("ui.slurp.pulse.attention", { defaultValue: "Needs attention" })}
-              </h3>
-              <div className="space-y-2">
-                {groups.attention.map((group) => (
-                  <PulseGroupCard key={group.id} group={group} accounts={taskAccounts} t={t} attention />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {groups.scheduled.length > 0 && (
-            <section aria-labelledby="slurp-pulse-scheduled" className="mt-7 space-y-3">
-              <h3
-                id="slurp-pulse-scheduled"
-                className="text-xs font-black uppercase tracking-[0.14em] text-[var(--slurp-muted)]"
-              >
-                {t("ui.slurp.pulse.scheduled", { defaultValue: "Scheduled" })}
-              </h3>
-              <div className="space-y-2">
-                {groups.scheduled.map((group) => (
-                  <PulseGroupCard key={group.id} group={group} accounts={taskAccounts} t={t} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section aria-labelledby="slurp-pulse-recent" className="mt-7">
-            <h3
-              id="slurp-pulse-recent"
-              className="text-xs font-black uppercase tracking-[0.14em] text-[var(--slurp-muted)]"
-            >
-              {t("ui.slurp.pulse.recent", { defaultValue: "Recent" })}
+        {budgetNote && (
+          // One-time note from Slurp after the AI budget defaults went up (task F). Either button clears it.
+          <section
+            aria-labelledby="slurp-pulse-budget-note"
+            className="space-y-2 rounded-xl bg-[color-mix(in_srgb,var(--noodle-accent)_9%,var(--slurp-surface-raised))] p-4 ring-1 ring-inset ring-[var(--noodle-accent)]/18"
+          >
+            <h3 id="slurp-pulse-budget-note" className="text-sm font-bold">
+              {t("ui.slurp.pulse.budgetNote.title", { defaultValue: "Your AI budget grew" })}
             </h3>
-            {groups.recent.length > 0 ? (
-              <div className="mt-3 space-y-2">
-                {groups.recent.slice(0, 5).map((group) => (
-                  <PulseGroupCard key={group.id} group={group} accounts={taskAccounts} t={t} />
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-[var(--muted-foreground)]">
-                {t("ui.slurp.pulse.noRecent", { defaultValue: "Completed work will appear here." })}
-              </p>
-            )}
+            <p className={cn(SLP_TYPE.meta, "text-[var(--slurp-muted)]")}>
+              {t("ui.slurp.pulse.budgetNote.body", {
+                defaultValue:
+                  "The AI budget now grows with your Creators, so they chat, get comments and hear from fans more often. On a paid AI connection that costs more. Limits you set yourself stay as they are.",
+              })}
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <SlpPrimaryButton
+                onClick={() => {
+                  budgetNote.onOpenBudget();
+                  onClose();
+                }}
+              >
+                {t("ui.slurp.pulse.budgetNote.open", { defaultValue: "Open AI budget" })}
+              </SlpPrimaryButton>
+              <SlpButton variant="quiet" onClick={budgetNote.onDismiss}>
+                {t("ui.slurp.pulse.budgetNote.dismiss", { defaultValue: "Got it" })}
+              </SlpButton>
+            </div>
           </section>
-        </div>
-      </aside>
-    </div>
+        )}
+
+        <PulseAiToday
+          usage={usage.data}
+          t={t}
+          onOpenBudget={
+            onOpenBudget
+              ? () => {
+                  onClose();
+                  onOpenBudget();
+                }
+              : undefined
+          }
+        />
+
+        {counts.running > 0 && (
+          <section aria-labelledby="slurp-pulse-now" className="space-y-2">
+            {heading("slurp-pulse-now", t("ui.slurp.pulse.sections.running", { defaultValue: "Running" }))}
+            <div className="space-y-2">
+              {client.running.map((task) => (
+                <PulseClientTaskRow key={task.id} task={task} name={name} t={t} onOpen={openTarget} />
+              ))}
+              {groups.active.map((group) => (
+                <PulseGroupCard key={group.id} group={group} accounts={taskAccounts} t={t} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {counts.queued > 0 && (
+          <section aria-labelledby="slurp-pulse-queued" className="space-y-2">
+            {heading("slurp-pulse-queued", t("ui.slurp.pulse.sections.queued", { defaultValue: "Queued" }))}
+            <div className="space-y-2">
+              {groups.queued.map((group) => (
+                <PulseGroupCard key={group.id} group={group} accounts={taskAccounts} t={t} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {counts.failed > 0 && (
+          <section aria-labelledby="slurp-pulse-attention" className="space-y-2">
+            {heading("slurp-pulse-attention", t("ui.slurp.pulse.sections.failed", { defaultValue: "Failed" }), true)}
+            <div className="space-y-2">
+              {client.failed.map((task) => (
+                <PulseClientTaskRow
+                  key={task.id}
+                  task={task}
+                  name={name}
+                  t={t}
+                  onOpen={openTarget}
+                  onStartAgain={startAgain}
+                />
+              ))}
+              {groups.attention.flatMap((group) =>
+                group.tasks.map((task) => (
+                  <PulseTaskRow
+                    key={task.id}
+                    task={task}
+                    accounts={taskAccounts}
+                    t={t}
+                    failed
+                    onRetry={task.retry ? () => retryServer(task) : undefined}
+                    onOpen={openTarget ? () => openTarget(slpPulseServerTarget(task, ownViewerIds)) : undefined}
+                  />
+                )),
+              )}
+            </div>
+          </section>
+        )}
+
+        {comingUp.length > 0 && (
+          <section aria-labelledby="slurp-pulse-next" className="space-y-2">
+            {heading("slurp-pulse-next", t("ui.slurp.pulse.sections.next", { defaultValue: "Coming up" }))}
+            <ol className="overflow-hidden rounded-xl bg-[var(--slurp-surface-raised)] ring-1 ring-inset ring-[var(--noodle-divider)]">
+              {comingUp.map((next) => (
+                <PulseNextRow
+                  key={next.id}
+                  next={next}
+                  name={name}
+                  t={t}
+                  onOpen={openTarget ? () => openTarget(slpPulseNextTarget(next, ownViewerIds)) : undefined}
+                />
+              ))}
+            </ol>
+          </section>
+        )}
+
+        {counts.done > 0 && (
+          <section aria-labelledby="slurp-pulse-recent" className="space-y-2">
+            {heading("slurp-pulse-recent", t("ui.slurp.pulse.sections.done", { defaultValue: "Done" }))}
+            <div className="space-y-2">
+              {client.done.slice(0, 5).map((task) => (
+                <PulseClientTaskRow key={task.id} task={task} name={name} t={t} onOpen={openTarget} />
+              ))}
+              {groups.recent.slice(0, 5).map((group) => (
+                <PulseGroupCard
+                  key={group.id}
+                  group={group}
+                  accounts={taskAccounts}
+                  t={t}
+                  onOpenTask={openTarget ? (task) => openTarget(slpPulseServerTarget(task, ownViewerIds)) : undefined}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </SlpSheet>
   );
 }
 
-type PulseMutation = {
-  id: number;
-  key: string;
-  status: "pending" | "success" | "error";
-  submittedAt: number;
-  variables: unknown;
-};
-
-type PulseServerTask = {
-  id: string;
-  kind: string;
-  status: string;
-  createdAt?: string;
-  updatedAt?: string;
-  publishAt?: string;
-  accountIds: string[];
-  detail?: string | null;
-  progress?: { completed: number; total: number } | null;
-};
-
 type PulseAccount = Pick<SlpAccount, "id" | "entityId" | "displayName" | "avatarUrl" | "avatarCrop">;
 
-type PulseTask = PulseServerTask & { source: "server" | "client" };
+type PulseTask = PulseServerTask & { source: "server" };
 type PulseGroup = {
   id: string;
   kind: string;
   tasks: PulseTask[];
   active: boolean;
+  queued: boolean;
   attention: boolean;
   scheduled: boolean;
   accountIds: string[];
@@ -291,63 +361,46 @@ type PulseGroup = {
 
 type PulseTasksResponse = {
   tasks: PulseServerTask[];
+  /** What Slurp does next on its own (task C); older servers send none. */
+  next?: PulseNext[];
   accounts: PulseAccount[];
 };
 
 function useSlpPulseTasks(active = false) {
+  // A tap in this tab starts a client task first; poll fast until the server shows its row.
+  const clientRunning = useSlpTasks((state) => state.tasks.some((task) => task.status === "running"));
   return useQuery({
     queryKey: ["slurp", "pulse", "tasks"],
     queryFn: () => api.get<PulseTasksResponse>("/slurp2/slurp/tasks"),
-    refetchInterval: active ? 2_000 : 15_000,
+    // The route reads many tables: poll fast only while something runs (0.3.6), slowly otherwise.
+    refetchInterval: (query) =>
+      clientRunning || slpPulseRunningCount(query.state.data?.tasks) > 0
+        ? active
+          ? 2_000
+          : 15_000
+        : active
+          ? 10_000
+          : 60_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
 }
 
-function usePulseMutations() {
-  const mutations = useMutationState<PulseMutation>({
-    filters: { mutationKey: ["slurp"] },
-    select: (mutation) => ({
-      id: mutation.mutationId,
-      key: String(mutation.options.mutationKey?.[1] ?? "task"),
-      status: mutation.state.status,
-      submittedAt: mutation.state.submittedAt,
-      variables: mutation.state.variables,
-    }),
-  });
-  const sorted = [...mutations].sort((left, right) => right.submittedAt - left.submittedAt);
-  return {
-    active: sorted.filter((mutation) => mutation.status === "pending"),
-    recent: sorted.filter((mutation) => mutation.status !== "pending"),
-  };
-}
-
-function mergePulseTasks(
-  serverTasks: PulseServerTask[],
-  mutations: { active: PulseMutation[]; recent: PulseMutation[] },
-) {
-  const server = serverTasks.map((task) => ({ ...task, source: "server" as const }));
-  const client = [...mutations.active, ...mutations.recent].map((mutation) => {
-    const accountIds = readAccountIds(mutation.variables);
-    return {
-      id: `client:${mutation.id}`,
-      kind: mutation.key,
-      status: mutation.status,
-      updatedAt: new Date(mutation.submittedAt).toISOString(),
-      accountIds,
-      detail: null,
-      progress: null,
-      source: "client" as const,
-    };
-  });
-  const combined = [...server, ...client].sort(
-    (left, right) =>
-      Date.parse(right.updatedAt ?? right.createdAt ?? "") - Date.parse(left.updatedAt ?? left.createdAt ?? ""),
-  );
+/**
+ * The server's tasks by state. Long actions from this tab come from the task store (task B), so the
+ * old copy of every pending "slurp" mutation is gone (it showed each action twice, without a name).
+ */
+function mergePulseTasks(serverTasks: PulseServerTask[]) {
+  const combined = serverTasks
+    .map((task) => ({ ...task, source: "server" as const }))
+    .sort(
+      (left, right) =>
+        Date.parse(right.updatedAt ?? right.createdAt ?? "") - Date.parse(left.updatedAt ?? left.createdAt ?? ""),
+    );
   return {
     active: combined.filter((task) => isActiveTask(task.status)),
     scheduled: sortSlpPulseScheduled(combined.filter((task) => task.status === "scheduled")),
-    recent: combined.filter((task) => isTerminalTask(task.status)),
+    recent: combined.filter((task) => slpPulseTaskDone(task.status)),
   };
 }
 
@@ -355,68 +408,41 @@ function groupPulseTasks(tasks: { active: PulseTask[]; scheduled: PulseTask[]; r
   const grouped = new Map<string, PulseGroup>();
   const add = (task: PulseTask) => {
     const kind = pulseGroupKind(task.kind);
-    const id = `${kind}:${task.source}`;
+    const section = slpPulseServerSection(task.status, slpPulseTaskDone(task.status));
+    // One card per kind and section, so a failed run never hides inside a group of finished ones.
+    const id = `${kind}:${section}`;
     const current = grouped.get(id) ?? {
       id,
       kind,
       tasks: [],
       active: false,
+      queued: false,
       attention: false,
       scheduled: false,
       accountIds: [],
     };
     current.tasks.push(task);
-    current.active ||= isActiveTask(task.status);
-    current.attention ||= task.status === "error" || task.status === "failed" || task.status === "abandoned";
-    current.scheduled ||= task.status === "scheduled";
+    current.active ||= section === "running";
+    current.queued ||= section === "queued";
+    current.attention ||= section === "failed";
+    current.scheduled ||= section === "scheduled";
     current.accountIds = [...new Set([...current.accountIds, ...task.accountIds])];
     grouped.set(id, current);
   };
   [...tasks.active, ...tasks.scheduled, ...tasks.recent].forEach(add);
-  const values = [...grouped.values()].sort((left, right) => {
-    if (left.scheduled && right.scheduled) {
-      const nextPublish = Date.parse(left.tasks[0]?.publishAt ?? "") - Date.parse(right.tasks[0]?.publishAt ?? "");
-      if (Number.isFinite(nextPublish) && nextPublish !== 0) return nextPublish;
-    }
-    return Date.parse(right.tasks[0]?.updatedAt ?? "") - Date.parse(left.tasks[0]?.updatedAt ?? "");
-  });
+  const values = [...grouped.values()].sort(
+    (left, right) => Date.parse(right.tasks[0]?.updatedAt ?? "") - Date.parse(left.tasks[0]?.updatedAt ?? ""),
+  );
   return {
-    active: values.filter((group) => group.active && !group.attention),
+    active: values.filter((group) => group.active),
+    queued: values.filter((group) => group.queued),
     attention: values.filter((group) => group.attention),
-    scheduled: values
-      .filter((group) => group.scheduled && !group.active && !group.attention)
-      .sort((left, right) => {
-        const leftAt = Date.parse(left.tasks[0]?.publishAt ?? "");
-        const rightAt = Date.parse(right.tasks[0]?.publishAt ?? "");
-        if (Number.isFinite(leftAt) && Number.isFinite(rightAt) && leftAt !== rightAt) return leftAt - rightAt;
-        if (Number.isFinite(leftAt) !== Number.isFinite(rightAt)) return Number.isFinite(leftAt) ? -1 : 1;
-        return left.id.localeCompare(right.id);
-      }),
-    recent: values.filter((group) => !group.active && !group.attention && !group.scheduled),
+    recent: values.filter((group) => !group.active && !group.queued && !group.attention && !group.scheduled),
   };
 }
 
-function pulseQueueSummary(
-  tasks: { active: PulseTask[]; scheduled: PulseTask[]; recent: PulseTask[] },
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  const queued = tasks.active.filter((task) => ["queued", "prepared"].includes(task.status)).length;
-  const working = tasks.active.length - queued;
-  const scheduled = tasks.scheduled.length;
-  const recent = tasks.recent.length;
-  if (working === 0 && queued === 0 && scheduled === 0) return "";
-  return [
-    working > 0 ? t("ui.slurp.pulse.queueWorking", { defaultValue: "{{count}} working", count: working }) : "",
-    queued > 0 ? t("ui.slurp.pulse.queueQueued", { defaultValue: "{{count}} queued", count: queued }) : "",
-    scheduled > 0 ? t("ui.slurp.pulse.queueScheduled", { defaultValue: "{{count}} scheduled", count: scheduled }) : "",
-    recent > 0 ? t("ui.slurp.pulse.queueRecent", { defaultValue: "{{count}} recent", count: recent }) : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
 function isActiveTask(status: string) {
-  return !isTerminalTask(status) && status !== "scheduled";
+  return !slpPulseTaskDone(status) && status !== "scheduled";
 }
 
 function pulseGroupKind(kind: string) {
@@ -435,25 +461,10 @@ function pulseGroupKind(kind: string) {
     return "post-production";
   }
   if (kind === "audience-activity") return "audience-activity";
-  if (["conversation-schedule", "conversation-follow-up"].includes(kind)) return "conversation";
+  if (["conversation-schedule", "conversation-follow-up", "conversation-opener"].includes(kind)) return "conversation";
   if (kind === "creator-improvement") return "creator-improvement";
   if (kind === "commission") return "commission";
   return kind;
-}
-
-function isTerminalTask(status: string) {
-  return new Set([
-    "completed",
-    "complete",
-    "success",
-    "failed",
-    "error",
-    "abandoned",
-    "published",
-    "discarded",
-    "sent",
-    "cancelled",
-  ]).has(status);
 }
 
 function PulseTaskRow({
@@ -462,6 +473,9 @@ function PulseTaskRow({
   running = false,
   compact = false,
   stacked = false,
+  failed = false,
+  onRetry,
+  onOpen,
   t,
 }: {
   task: PulseTask;
@@ -469,11 +483,16 @@ function PulseTaskRow({
   running?: boolean;
   compact?: boolean;
   stacked?: boolean;
+  /** A failed task shows its reason in full and its Try again (task C). */
+  failed?: boolean;
+  onRetry?: () => void;
+  /** A tap opens what it made (the post, the chat, the Creator). */
+  onOpen?: () => void;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const accountId = task.accountIds[0] ?? null;
   const account = accountId ? accounts.find((item) => item.id === accountId || item.entityId === accountId) : undefined;
-  const label = pulseTaskLabel(task.kind, t);
+  const label = pulseTaskLabel(task, t);
   const status = pulseTaskStatus(task.status, running, t);
   const scope =
     task.accountIds.length > 1
@@ -481,29 +500,19 @@ function PulseTaskRow({
       : (account?.displayName ?? t("ui.slurp.pulse.slurpTask", { defaultValue: "Slurp task" }));
   const progress =
     task.progress && task.progress.total > 0 ? `${task.progress.completed}/${task.progress.total}` : undefined;
-  const elapsed = task.publishAt
-    ? `in ${formatPulseUntil(task.publishAt)}`
-    : formatPulseAge(task.updatedAt ?? task.createdAt);
+  const elapsed = task.publishAt ? formatPulseUntil(task.publishAt) : formatPulseAge(task.updatedAt ?? task.createdAt);
   const detail =
     task.detail ||
     (progress ? t("ui.slurp.pulse.progress", { defaultValue: "{{progress}} complete", progress }) : status);
-  return (
-    <motion.div
-      initial={running ? { scale: 0.985 } : false}
-      animate={{ scale: 1 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className={cn(
-        "flex items-center gap-3",
-        stacked
-          ? "min-h-11 px-2 py-2"
-          : "rounded-xl bg-[var(--slurp-surface-raised)] ring-1 ring-inset ring-[var(--noodle-divider)]",
-        stacked ? "" : compact ? "px-3 py-2" : "px-3 py-2.5",
-      )}
-    >
+  const why = failed
+    ? task.detail || t("ui.slurp.pulse.failedNoReason", { defaultValue: "No reason was saved. Try again." })
+    : detail;
+  const body = (
+    <>
       {account ? (
         <Avatar account={account} size="xs" />
       ) : (
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--noodle-accent)]/12 text-[var(--noodle-accent)]">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--noodle-accent)]/12 text-[var(--noodle-accent-foreground)]">
           {running ? (
             <Loader2 size={15} className="animate-spin" aria-hidden="true" />
           ) : task.status === "error" || task.status === "failed" ? (
@@ -518,11 +527,13 @@ function PulseTaskRow({
         <span className="block truncate text-xs text-[var(--muted-foreground)]">
           {scope} {elapsed ? `· ${elapsed}` : ""}
         </span>
-        <span className="block truncate text-[0.68rem] text-[var(--muted-foreground)]">{detail}</span>
+        <span className={cn("block text-xs text-[var(--muted-foreground)]", failed ? "line-clamp-3" : "truncate")}>
+          {why}
+        </span>
       </span>
       <span
         className={cn(
-          "shrink-0 text-[0.68rem] font-semibold",
+          "shrink-0 text-xs font-semibold",
           task.status === "error" || task.status === "failed"
             ? "text-[var(--slurp-danger)]"
             : "text-[var(--muted-foreground)]",
@@ -530,6 +541,47 @@ function PulseTaskRow({
       >
         {status}
       </span>
+    </>
+  );
+  const rowClass = cn(
+    "flex w-full items-center gap-3 text-start",
+    stacked ? "min-h-11 px-2 py-2" : compact ? "px-3 py-2" : "px-3 py-2.5",
+  );
+  return (
+    <motion.div
+      initial={running ? { scale: 0.985 } : false}
+      animate={{ scale: 1 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className={cn(
+        !stacked && "rounded-xl ring-1 ring-inset",
+        !stacked &&
+          (failed
+            ? "bg-[var(--slurp-danger)]/7 ring-[var(--slurp-danger)]/25"
+            : "bg-[var(--slurp-surface-raised)] ring-[var(--noodle-divider)]"),
+      )}
+    >
+      {onOpen ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(
+            rowClass,
+            "min-h-11 rounded-xl hover:bg-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--noodle-accent)]",
+          )}
+        >
+          {body}
+        </button>
+      ) : (
+        <div className={rowClass}>{body}</div>
+      )}
+      {failed && onRetry && (
+        <div className="flex justify-end px-3 pb-2.5">
+          <SlpButton onClick={onRetry}>
+            <RotateCcw size={14} aria-hidden="true" />
+            {t("ui.slurp.pulse.retry", { defaultValue: "Try again" })}
+          </SlpButton>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -539,16 +591,20 @@ function PulseGroupCard({
   accounts,
   t,
   attention = false,
+  onOpenTask,
 }: {
   group: PulseGroup;
   accounts: PulseAccount[];
   t: (key: string, options?: Record<string, unknown>) => string;
   attention?: boolean;
+  /** Done tasks open what they made; a card of one opens it straight away. */
+  onOpenTask?: (task: PulseTask) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const latest = group.tasks[0];
-  const label = pulseGroupLabel(group.kind, t);
+  // A card of one names that task ("Play: Set them up"); a stack names its kind.
+  const label = group.tasks.length === 1 ? pulseTaskLabel(latest, t) : pulseGroupLabel(group.kind, t);
   const scope =
     group.accountIds.length > 1
       ? t("ui.slurp.pulse.creatorCount", { defaultValue: "{{count}} Creators", count: group.accountIds.length })
@@ -556,6 +612,7 @@ function PulseGroupCard({
         ? t("ui.slurp.pulse.taskCount", { defaultValue: "{{count}} items", count: group.tasks.length })
         : undefined;
   const running = group.active && !attention;
+  const openSingle = group.tasks.length === 1 && onOpenTask && latest.accountIds.length > 0;
   const names = group.accountIds
     .map((id) => accounts.find((account) => account.id === id || account.entityId === id)?.displayName)
     .filter((name): name is string => Boolean(name));
@@ -563,8 +620,8 @@ function PulseGroupCard({
   return (
     <motion.div
       className="space-y-1"
-      initial={{ opacity: 0, x: group.tasks[0]?.source === "client" ? 24 : 0 }}
-      animate={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.28, ease: "easeOut" }}
     >
       <div
@@ -578,17 +635,20 @@ function PulseGroupCard({
         <button
           type="button"
           onClick={() => {
+            if (openSingle) return onOpenTask(latest);
             if (expanded) setShowAllTasks(false);
             setExpanded(!expanded);
           }}
-          aria-expanded={expanded}
+          aria-expanded={openSingle ? undefined : expanded}
           className="relative z-10 flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--noodle-accent)]"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--noodle-accent)]/10 text-[var(--noodle-accent)]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--noodle-accent)]/10 text-[var(--noodle-accent-foreground)]">
             {attention ? (
               <CircleAlert size={16} aria-hidden="true" />
             ) : running ? (
               <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+            ) : group.queued ? (
+              <Clock3 size={16} aria-hidden="true" />
             ) : (
               <CheckCircle2 size={16} aria-hidden="true" />
             )}
@@ -599,10 +659,10 @@ function PulseGroupCard({
               {scope ?? nameSummary ?? taskSummary(group.tasks[0], t)}
             </span>
             {nameSummary && scope && (
-              <span className="block truncate text-[0.68rem] text-[var(--muted-foreground)]">{nameSummary}</span>
+              <span className="block truncate text-xs text-[var(--muted-foreground)]">{nameSummary}</span>
             )}
           </span>
-          <span className="flex shrink-0 items-center gap-2 text-[0.68rem] font-semibold text-[var(--muted-foreground)]">
+          <span className="flex shrink-0 items-center gap-2 text-xs font-semibold text-[var(--muted-foreground)]">
             {group.tasks.length > 1 && <span>{group.tasks.length}</span>}
             {group.tasks.length > 1 ? (
               <ChevronDown
@@ -631,6 +691,7 @@ function PulseGroupCard({
               accounts={accounts}
               running={isActiveTask(task.status)}
               compact
+              onOpen={onOpenTask && task.accountIds.length > 0 ? () => onOpenTask(task) : undefined}
               t={t}
             />
           ))}
@@ -639,7 +700,7 @@ function PulseGroupCard({
               type="button"
               onClick={() => setShowAllTasks((value) => !value)}
               aria-expanded={showAllTasks}
-              className="min-h-9 rounded-md px-2 text-start text-[0.68rem] font-semibold text-[var(--noodle-accent)] hover:bg-[var(--noodle-accent)]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--noodle-accent)]"
+              className="min-h-9 rounded-md px-2 text-start text-xs font-semibold text-[var(--noodle-accent-foreground)] hover:bg-[var(--noodle-accent)]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--noodle-accent)]"
             >
               {showAllTasks
                 ? t("ui.slurp.pulse.showFewer", { defaultValue: "Show fewer" })
@@ -657,12 +718,13 @@ function PulseGroupCard({
 
 function pulseGroupLabel(kind: string, t: (key: string, options?: Record<string, unknown>) => string) {
   const labels: Record<string, [string, string]> = {
-    "post-production": ["ui.slurp.pulse.generatePosts", "Generate posts"],
-    "audience-activity": ["ui.slurp.pulse.runAudience", "Audience activity"],
-    conversation: ["ui.slurp.pulse.conversation", "Conversation work"],
+    "post-production": ["ui.slurp.pulse.generatePosts", "New posts"],
+    "audience-activity": ["ui.slurp.pulse.audienceActivity", "Audience activity"],
+    conversation: ["ui.slurp.pulse.conversation", "Chats and promises"],
     "creator-improvement": ["ui.slurp.pulse.creatorImprovement", "Creator improvements"],
     commission: ["ui.slurp.pulse.commission", "Commission work"],
     "scheduled-post": ["ui.slurp.pulse.scheduledPost", "Scheduled post"],
+    "stir-play": ["ui.slurp.pulse.stirPlays", "Stir plays"],
   };
   const [key, defaultValue] = labels[kind] ?? ["ui.slurp.pulse.task", "Slurp work"];
   return t(key, { defaultValue });
@@ -674,15 +736,7 @@ function taskSummary(task: PulseTask | undefined, t: (key: string, options?: Rec
     return `${t("ui.slurp.pulse.nextPublish", { defaultValue: "Next publish" })} · ${formatPulseUntil(task.publishAt)}`;
   const progress =
     task.progress && task.progress.total > 0 ? `${task.progress.completed}/${task.progress.total}` : null;
-  return task.detail || progress || pulseTaskStatus(task.status, !isTerminalTask(task.status), t);
-}
-
-function formatPulseUntil(value: string) {
-  const minutes = Math.max(0, Math.round((Date.parse(value) - Date.now()) / 60_000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
+  return task.detail || progress || pulseTaskStatus(task.status, !slpPulseTaskDone(task.status), t);
 }
 
 function pulseTaskStatus(
@@ -696,41 +750,31 @@ function pulseTaskStatus(
   if (taskStatus === "scheduled") {
     return t("ui.slurp.pulse.scheduledStatus", { defaultValue: "Scheduled" });
   }
-  if (["queued", "prepared"].includes(taskStatus)) {
+  // A follow-up waiting for its time is queued, not finished (task C).
+  if (["queued", "prepared", "pending", "claimed"].includes(taskStatus)) {
     return t("ui.slurp.pulse.queued", { defaultValue: "Queued" });
   }
   if (taskStatus === "error" || taskStatus === "failed" || taskStatus === "abandoned") {
     return t("ui.slurp.pulse.failed", { defaultValue: "Failed" });
   }
+  if (taskStatus === "undone") return t("ui.slurp.pulse.undone", { defaultValue: "Undone" });
   if (taskStatus === "waiting" || taskStatus === "connection_required") {
     return t("ui.slurp.pulse.waiting", { defaultValue: "Waiting" });
   }
   return t("ui.slurp.pulse.complete", { defaultValue: "Complete" });
 }
 
-function formatPulseAge(value?: string) {
-  if (!value) return "";
-  const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 1000));
-  if (seconds < 10) return "Just now";
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h`;
-}
-
-function readAccountIds(variables: unknown): string[] {
-  if (!variables || typeof variables !== "object") return [];
-  const record = variables as Record<string, unknown>;
-  if (Array.isArray(record.accountIds)) {
-    return record.accountIds.filter((id): id is string => typeof id === "string");
+function pulseTaskLabel(
+  task: Pick<PulseTask, "kind" | "stirActions">,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  const key = task.kind;
+  // A Stir play is named by its first card ("Play: Post now"), like the deck names it (task C).
+  if (key === "stir-play") {
+    const action = task.stirActions?.[0];
+    const what = action ? t(`ui.slurp.stir.card.${action}.title`, { defaultValue: action }) : "";
+    return t("ui.slurp.pulse.stirPlay", { defaultValue: "Play: {{what}}", what });
   }
-  for (const key of ["accountId", "targetAccountId", "creatorAccountId"]) {
-    if (typeof record[key] === "string") return [record[key]];
-  }
-  return [];
-}
-
-function pulseTaskLabel(key: string, t: (key: string, options?: Record<string, unknown>) => string) {
   const labels: Record<string, [string, string]> = {
     "generate-post": ["ui.slurp.pulse.generatePost", "Generating post"],
     "generate-posts": ["ui.slurp.pulse.generatingPosts", "Generating posts"],
@@ -742,33 +786,10 @@ function pulseTaskLabel(key: string, t: (key: string, options?: Record<string, u
     "conversation-schedule": ["ui.slurp.pulse.scheduleTask", "Refreshing conversation schedule"],
     "first-post": ["ui.slurp.pulse.firstPost", "Creating first post"],
     "creator-improvement": ["ui.slurp.pulse.improvingCreators", "Improving Creator profiles"],
-    "conversation-follow-up": ["ui.slurp.pulse.followUp", "Preparing conversation follow-up"],
+    "conversation-follow-up": ["ui.slurp.pulse.followUp", "A promised message"],
+    "conversation-opener": ["ui.slurp.pulse.openerTask", "A first message"],
     commission: ["ui.slurp.pulse.preparingCommission", "Preparing commission"],
   };
   const [keyName, defaultValue] = labels[key] ?? ["ui.slurp.pulse.slurpTask", "Slurp task"];
   return t(keyName, { defaultValue });
-}
-
-function PulseAction({
-  icon,
-  label,
-  onClick,
-  disabled = false,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex min-h-14 items-center gap-2 rounded-xl bg-[var(--slurp-surface-raised)] px-3 text-start text-sm font-semibold ring-1 ring-inset ring-[var(--noodle-divider)] transition-[background-color,transform] hover:bg-[var(--accent)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--noodle-accent)] disabled:cursor-wait disabled:opacity-55 motion-reduce:transition-none motion-reduce:active:scale-100"
-    >
-      <span className="shrink-0 text-[var(--noodle-accent)]">{icon}</span>
-      {label}
-    </button>
-  );
 }

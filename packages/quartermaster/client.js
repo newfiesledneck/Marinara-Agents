@@ -1,4 +1,4 @@
-// Quartermaster 0.1.19 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.24 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (10 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
@@ -9,16 +9,54 @@
 
 const QM = {};
 
+const QM_UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+// ponytail: every package route sits behind the Engine's privileged gate, so a
+// session from another device needs the admin secret the Engine's own client
+// keeps under this localStorage key (loopback is exempt, which is why this went
+// unnoticed). Same approach as Memory Nag and Relationship Tracker; replace
+// with a host-provided fetch if the Engine ever adds one.
+function qmAdminSecret() {
+  try {
+    return localStorage.getItem("marinara_admin_secret")?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+// CSRF marker sent explicitly rather than relying on the Engine's global fetch shim.
+function qmAuthHeaders(method) {
+  const headers = {};
+  if (QM_UNSAFE_METHODS.has(method)) headers["x-marinara-csrf"] = "1";
+  const secret = qmAdminSecret();
+  if (secret) headers["X-Admin-Secret"] = secret;
+  return headers;
+}
+
+// Turns the gate's refusal into a step the user can take on this device.
+// Wording matches Relationship Tracker, Noodle and Slurp (#1136).
+function qmResponseError(response, body) {
+  const message = body && typeof body.error === "string" ? body.error : "";
+  if (response.status === 403 && /admin.secret/i.test(message)) {
+    return /X-Admin-Secret/.test(message) && qmAdminSecret()
+      ? "The Admin Secret saved on this device does not match the Engine's ADMIN_SECRET. Enter the same value in Settings → Advanced → Admin Access."
+      : "Marinara Engine blocked Quartermaster because this device has no Admin Secret. Set ADMIN_SECRET in the Engine's .env file if it is not set yet, then enter the same value in Settings → Advanced → Admin Access.";
+  }
+  return message || `Request failed (${response.status})`;
+}
+
 async function qmRequest(path, options) {
+  const method = (options && options.method) || "GET";
   // Only set Content-Type when there's actually a JSON body — Fastify's body
   // parser rejects a bodyless request (GET/DELETE) that still declares
   // application/json with "Body cannot be empty when content-type is set to
   // 'application/json'".
-  const headers = options && options.body ? { "Content-Type": "application/json" } : {};
-  const response = await fetch(`/api/quartermaster${path}`, { ...options, headers });
+  const headers = qmAuthHeaders(method);
+  if (options && options.body) headers["Content-Type"] = "application/json";
+  const response = await fetch(`/api/quartermaster${path}`, { ...options, headers, credentials: "same-origin" });
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error((body && body.error) || `Request failed (${response.status})`);
+    throw new Error(qmResponseError(response, body));
   }
   return body;
 }
@@ -178,7 +216,10 @@ QM.generateOutfitPortrait = (chatId, ownerId, outfitId, prompt) =>
 // so this needs no package permission. Filtered client-side the same way
 // server.mjs's own resolveImageConnection filters server-side.
 QM.listImageConnections = async () => {
-  const response = await fetch("/api/connections", { headers: { Accept: "application/json" } });
+  const response = await fetch("/api/connections", {
+    headers: { ...qmAuthHeaders("GET"), Accept: "application/json" },
+    credentials: "same-origin",
+  });
   if (!response.ok) throw new Error(`Could not load connections (${response.status})`);
   const connections = await response.json();
   return Array.isArray(connections) ? connections.filter((c) => c && c.provider === "image_generation") : [];
@@ -232,6 +273,37 @@ QM.deleteOutfitPortrait = (chatId, ownerId, outfitId) =>
 // so plain is fine) only if they need to force a reload of the SAME filename.
 QM.outfitPortraitUrl = (chatId, ownerId, outfitId) =>
   `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`;
+
+// An <img src> can't send X-Admin-Secret, so with a secret saved on this device
+// our own (gated) image URLs load through fetch and a short-lived object URL.
+// fetch shares the browser's HTTP cache with a plain src, so caching behaves the
+// same either way. A failed load fires the img's "error" event, which is what
+// every caller already relies on for "no image". Images are reused across
+// repaints (the portrait), so a response that arrives after the element was
+// pointed somewhere else is dropped.
+const qmImageTargets = new WeakMap();
+QM.setImageSrc = (img, url) => {
+  qmImageTargets.set(img, url);
+  if (!url.startsWith("/api/quartermaster/") || !qmAdminSecret()) {
+    img.src = url;
+    return;
+  }
+  fetch(url, { headers: qmAuthHeaders("GET"), credentials: "same-origin" })
+    .then((response) => (response.ok ? response.blob() : null))
+    .catch(() => null)
+    .then((blob) => {
+      if (qmImageTargets.get(img) !== url) return;
+      if (!blob) {
+        img.dispatchEvent(new Event("error"));
+        return;
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      const release = () => URL.revokeObjectURL(objectUrl);
+      img.addEventListener("load", release, { once: true });
+      img.addEventListener("error", release, { once: true });
+      img.src = objectUrl;
+    });
+};
 
 QM.exportInventory = (chatId, ownerId) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/export`, { method: "GET" });
@@ -341,7 +413,7 @@ QM.buildSlotIconRaster = function buildSlotIconRaster(slot, sizePx) {
   img.addEventListener("error", () => {
     img.replaceWith(QM.buildSlotIcon(slot, sizePx));
   });
-  img.src = QM.slotIconUrl(slot);
+  QM.setImageSrc(img, QM.slotIconUrl(slot));
   return img;
 };
 
@@ -744,6 +816,8 @@ QM.state = {
   itemImagePromptTemplate: "",
   outfitPortraitPromptTemplate: "",
   error: null,
+  _chatToken: 0,
+  _reloadToken: 0,
   _listeners: new Set(),
 
   subscribe(fn) {
@@ -757,6 +831,8 @@ QM.state = {
 
   setChat(chatId) {
     if (this.chatId === chatId) return;
+    this._chatToken++;
+    this._reloadToken++;
     this.chatId = chatId;
     this.items = null;
     this.outfits = null;
@@ -812,9 +888,10 @@ QM.state = {
   async _reload() {
     const chatId = this.chatId;
     if (!chatId) return;
+    const token = ++this._reloadToken;
     try {
       const result = await QM.listItems(chatId, QM_OWNER_ID);
-      if (this.chatId !== chatId) return; // chat changed while this was in flight
+      if (this.chatId !== chatId || token !== this._reloadToken) return;
       const next = {
         items: result.items,
         outfits: result.outfits,
@@ -878,6 +955,7 @@ QM.state = {
       this.error = null;
       if (!changed) return;
     } catch (error) {
+      if (this.chatId !== chatId || token !== this._reloadToken) return;
       this.error = error && error.message ? error.message : String(error);
     }
     this._notify();
@@ -886,9 +964,11 @@ QM.state = {
   async _mutate(request) {
     const chatId = this.chatId;
     if (!chatId) return;
+    const chatToken = this._chatToken;
+    let outcome;
     try {
       const result = await request;
-      if (this.chatId !== chatId) return;
+      if (this.chatId !== chatId || chatToken !== this._chatToken) return;
       if (result.items !== undefined) this.items = result.items;
       if (result.outfits !== undefined) this.outfits = result.outfits;
       if (result.appearanceFeedMode !== undefined) this.appearanceFeedMode = result.appearanceFeedMode;
@@ -904,10 +984,16 @@ QM.state = {
       if (result.outfitPortraitPromptTemplate !== undefined)
         this.outfitPortraitPromptTemplate = result.outfitPortraitPromptTemplate;
       this.error = null;
+      outcome = { ok: true, result };
     } catch (error) {
+      if (this.chatId !== chatId || chatToken !== this._chatToken) return;
       this.error = error && error.message ? error.message : String(error);
+      outcome = { ok: false, error: this.error };
     }
+    // A read already in flight must not undo this completed edit or its error.
+    this._reloadToken++;
     this._notify();
+    return outcome;
   },
 
   addItem(item) {
@@ -923,13 +1009,14 @@ QM.state = {
     QM._missingItemImageIds.delete(itemId);
     return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
   },
-  async deleteItemImage(itemId) {
-    await this._mutate(QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId));
-    // Only suppress future image lookups for this item once the delete has
-    // actually happened server-side -- marking it missing first (like
-    // uploadItemImage's own delete-from-cache does on success) would leave a
-    // failed delete permanently hiding an image that's still there.
-    if (!this.error) QM._missingItemImageIds.add(itemId);
+  deleteItemImage(itemId) {
+    return this._mutate(
+      QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId).then((result) => {
+        // Suppress image lookups only after this delete succeeds.
+        QM._missingItemImageIds.add(itemId);
+        return result;
+      }),
+    );
   },
   unequipAll() {
     return this._mutate(QM.unequipAll(this.chatId, QM_OWNER_ID));
@@ -1866,23 +1953,12 @@ QM.dock = {
   // is rebuilt or there's no chat to show, since a stale reference into a
   // detached tree is worse than none.
   _resetCachedNodes() {
-    // Nulling the backdrop refs below detaches them from `this` but doesn't
-    // remove their document-level Escape listener (that lives outside the
-    // DOM subtree being torn down) — unbind explicitly so a stray Escape
-    // press after a chat switch/root rebuild can't fire a closure over a
-    // now-orphaned modal.
-    this._unbindEscapeClose(this._itemEditorEscapeHandler);
-    this._unbindEscapeClose(this._outfitEditorEscapeHandler);
-    this._unbindEscapeClose(this._saveOutfitEscapeHandler);
-    this._unbindEscapeClose(this._wardrobeEscapeHandler);
-    this._unbindEscapeClose(this._imageGenEscapeHandler);
-    this._unbindEscapeClose(this._addItemEscapeHandler);
-    this._itemEditorEscapeHandler = null;
-    this._outfitEditorEscapeHandler = null;
-    this._saveOutfitEscapeHandler = null;
-    this._wardrobeEscapeHandler = null;
-    this._imageGenEscapeHandler = null;
-    this._addItemEscapeHandler = null;
+    this._closeItemEditor();
+    this._closeOutfitEditor();
+    this._closeSaveOutfitModal();
+    this._closeAddItemModal();
+    this._closeWardrobeBuilder();
+    this._closeImageGenModal();
     this.columns = null;
     this.zoomWrapper = null;
     this.uiSizeButtons = null;
@@ -1912,18 +1988,12 @@ QM.dock = {
     this.portraitFrame = null;
     this.connectorSvg = null;
     this.equippedSlotBoxRefs = null;
-    this.itemEditorBackdrop = null;
     this.bagSearchInput = null;
     this.bagSearchModeButtons = null;
     this.bagTabButtons = null;
     this.outfitSearchInput = null;
     this.sectionHeaders = null;
     this.sectionBodies = null;
-    this.outfitEditorBackdrop = null;
-    this.saveOutfitBackdrop = null;
-    this.wardrobeBuilderBackdrop = null;
-    this.imageGenBackdrop = null;
-    this.addItemBackdrop = null;
     this.recentUpdateContainer = null;
     this.recentUpdateChevron = null;
     this.recentUpdateCountBadge = null;
@@ -2484,7 +2554,7 @@ QM.dock = {
     if (this.portraitImage && this.portraitPlaceholder) {
       this.portraitImage.style.display = portraitUrl ? "block" : "none";
       this.portraitPlaceholder.style.display = portraitUrl ? "none" : "flex";
-      if (portraitUrl) this.portraitImage.src = portraitUrl;
+      if (portraitUrl) QM.setImageSrc(this.portraitImage, portraitUrl);
       // Scales with Thumbnail Size same as item/outfit thumbnails, relative
       // to the 160x200 / 120x120 box _buildPortrait() sized at "M" — live
       // here (not just at _buildPortrait()'s one-time construction) since a
@@ -3882,7 +3952,7 @@ QM.dock = {
         img.remove();
         qmCenterFallbackIcon();
       });
-      img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id);
+      QM.setImageSrc(img, QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, equippedItem.id));
       imageArea.appendChild(img);
     } else {
       qmCenterFallbackIcon();
@@ -4152,7 +4222,7 @@ QM.dock = {
     if (outfit.portraitFile) {
       const thumb = document.createElement("img");
       thumb.alt = `${outfit.name} portrait`;
-      thumb.src = QM.outfitPortraitUrl(QM.state.chatId, QM_OWNER_ID, outfit.id);
+      QM.setImageSrc(thumb, QM.outfitPortraitUrl(QM.state.chatId, QM_OWNER_ID, outfit.id));
       Object.assign(thumb.style, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
       thumbButton.appendChild(thumb);
     } else {
@@ -4328,7 +4398,7 @@ QM.dock = {
         img.remove();
         applyMissingImageFallback();
       });
-      img.src = QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id);
+      QM.setImageSrc(img, QM.itemImageUrl(QM.state.chatId, QM_OWNER_ID, item.id));
       thumbButton.appendChild(img);
     }
 
@@ -5393,16 +5463,17 @@ QM.dock = {
       saveButton.disabled = true;
       const chatId = QM.state.chatId;
       const existingIds = new Set((QM.state.outfits ?? []).map((outfit) => outfit.id));
-      await QM.state.createOutfit({ name, description: descriptionInput.value });
-      if (QM.state.error || chatId !== QM.state.chatId || this.saveOutfitBackdrop !== backdrop) {
+      const outcome = await QM.state.createOutfit({ name, description: descriptionInput.value });
+      if (!outcome?.ok || chatId !== QM.state.chatId || this.saveOutfitBackdrop !== backdrop) {
         saveButton.disabled = false;
         return;
       }
-      const created = (QM.state.outfits ?? []).find((outfit) => !existingIds.has(outfit.id));
+      const created = (outcome.result.outfits ?? []).find((outfit) => !existingIds.has(outfit.id));
       if (stagedImageDataUrl && created) {
         await QM.state.uploadOutfitPortrait(created.id, stagedImageDataUrl);
       }
       saveButton.disabled = false;
+      if (chatId !== QM.state.chatId || this.saveOutfitBackdrop !== backdrop) return;
       this._closeSaveOutfitModal();
     });
 
@@ -5796,12 +5867,16 @@ Object.assign(QM.dock, {
   },
 
   async _submitWardrobeConfirm(confirmButton) {
+    const token = this._wardrobeSessionToken;
+    const chatId = QM.state.chatId;
     confirmButton.disabled = true;
     try {
       const result = await QM.state.confirmWardrobe(this._wardrobeProposal);
+      if (token !== this._wardrobeSessionToken || chatId !== QM.state.chatId) return;
       this._wardrobeSummary = result.summary;
       this._renderWardrobeBuilderContent();
     } catch (error) {
+      if (token !== this._wardrobeSessionToken || chatId !== QM.state.chatId) return;
       confirmButton.disabled = false;
       this._wardrobeError = (error && error.message) || "The wardrobe could not be added.";
       this._wardrobeViewState = "error";
@@ -5948,13 +6023,16 @@ Object.assign(QM.dock, {
   },
 
   async _checkImageGenConnections() {
+    const token = this._imageGenSessionToken;
     this._imageGenHasConnections = null;
     this._imageGenConnectionsError = false;
     this._renderImageGenContent();
     try {
       const connections = await QM.listImageConnections();
+      if (token !== this._imageGenSessionToken) return;
       this._imageGenHasConnections = connections.length > 0;
     } catch {
+      if (token !== this._imageGenSessionToken) return;
       this._imageGenHasConnections = false;
       this._imageGenConnectionsError = true;
     }
@@ -6126,15 +6204,15 @@ Object.assign(QM.dock, {
 
       this._imageGenLoadingLabel = "Saving…";
       this._renderImageGenContent();
-      if (isOutfit) {
-        await QM.state.uploadOutfitPortrait(subjectId, result.imageDataUrl);
-      } else {
-        await QM.state.uploadItemImage(subjectId, result.imageDataUrl);
-      }
-      if (QM.state.error) throw new Error(QM.state.error);
+      const outcome = isOutfit
+        ? await QM.state.uploadOutfitPortrait(subjectId, result.imageDataUrl)
+        : await QM.state.uploadItemImage(subjectId, result.imageDataUrl);
+      if (token !== this._imageGenSessionToken || chatId !== QM.state.chatId) return;
+      if (!outcome) return;
+      if (!outcome.ok) throw new Error(outcome.error);
       this._closeImageGenModal();
     } catch (error) {
-      if (token !== this._imageGenSessionToken) return;
+      if (token !== this._imageGenSessionToken || chatId !== QM.state.chatId) return;
       const code = error && error.message;
       this._imageGenError =
         (code && QM_IMAGE_GEN_ERROR_MESSAGES[code]) ||
@@ -6393,6 +6471,7 @@ QM.panel = {
 
   _updateContent() {
     if (!QM.state.chatId) {
+      this.errorNode.style.display = "none";
       this.equippedContent.replaceChildren(this._empty("No active chat."));
       this.outfitsContent.replaceChildren(this._empty("No active chat."));
       this.inventoryContent.replaceChildren(this._empty("No active chat."));
@@ -6590,6 +6669,7 @@ class QuartermasterElement extends HTMLElement {
   }
 
   _render() {
+    if (!this.isConnected) return;
     QM.state.setChat(this._chatId);
 
     const view = this.getAttribute("view");

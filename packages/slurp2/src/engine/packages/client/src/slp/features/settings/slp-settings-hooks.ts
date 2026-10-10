@@ -84,6 +84,11 @@ export function useUpdateSlurpSettings() {
     },
   });
 }
+/** The empty hub's one-tap fix: Creators only post on their own once automatic posting is on. */
+export function useTurnOnSlurpAutoPosting(onError: (error: unknown) => void) {
+  const update = useUpdateSlurpSettings();
+  return () => update.mutate({ autoPostingScheduleEnabled: true }, { onError });
+}
 /** Put a built-in arc type back to its shipped state. */
 export function useResetSlurpArcType() {
   const queryClient = useQueryClient();

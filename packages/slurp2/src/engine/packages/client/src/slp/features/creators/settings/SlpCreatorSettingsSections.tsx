@@ -1,4 +1,4 @@
-import { ArrowUpRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -19,13 +19,15 @@ import { useSetSlurpCreatorPrice } from "../../economy/slp-economy-contract";
 import { useSlurpSettings, useUpdateSlurpSettings } from "../../settings/slp-settings-contract";
 import { useSlurpUIStore } from "../../../base/state/slp-package-store";
 import { SlurpContinuityPanel } from "../SlpContinuityPanel";
-import { formatDateTime } from "../../../base/ui/slp-date-time";
 import { SlurpCreatorImprover } from "../SlpCreatorImprover";
 import { SlurpCreatorProfileEditor } from "../SlpCreatorProfileEditor";
 import { SlurpCreatorStrategyGroup } from "../SlpCreatorStrategyGroup";
 import { CreatorCollabsEditor } from "../SlpCreatorMetrics";
+import { SlpCreatorRomanceGroup } from "./SlpCreatorRomanceGroup";
 import { useCreatorAccounts } from "../slp-creators-hooks";
 import { SlpWardrobeManager } from "../SlpWardrobeManager";
+import { SlpCanonAnchorsEditor } from "../SlpCanonAnchorsEditor";
+import { SlpCreatorSignalsList } from "../SlpCreatorSignalsList";
 import { SlpCreatorPublishingSection } from "./SlpCreatorPublishingSection";
 import { SettingAnchor } from "../../../modules/settings/SlpSettingsKit";
 import {
@@ -35,11 +37,8 @@ import {
   useCreatorAppearanceAction,
 } from "../slp-creator-profile-hooks";
 import { useSlpPersonaBackedCreator, useSlpViewerPersonaId } from "../slp-creators-hooks";
-import { useCreatorReserveStatus } from "../../feed/slp-feed-contract";
 import { accentButton, focusRing, noteClass, quietButton, selectClass } from "../slp-creator-classes";
 import type { SlpCreatorSettingsSectionProps } from "./slp-creator-settings-contract";
-import { useSlpCreatorSettingsStore } from "./slp-creator-settings-store";
-import { Avatar, SlurpMediaImg } from "../../../base/chrome/SlpChrome";
 
 const FAN_ARCHETYPES = ["ordinary", "eccentric", "crossFandom", "raider", "organicDiscovery", "freeResource"] as const;
 
@@ -228,181 +227,6 @@ export function SlpCreatorIdentitySection({
   );
 }
 
-export function SlpCreatorOverviewSection({ creator, active }: SlpCreatorSettingsSectionProps) {
-  const { t, i18n } = useTranslation();
-  const reserveStatus = useCreatorReserveStatus(active);
-  const status = reserveStatus.data?.creators.find((entry) => entry.accountId === creator.id);
-  const attention = [
-    ...(creator.sourceStatus.state === "missing"
-      ? [t("ui.slurp.settings.creators.sourceMissing")]
-      : creator.sourceStatus.state === "changed"
-        ? [t("ui.slurp.settings.creators.sourceChanged")]
-        : []),
-    ...(creator.appearanceState.source === "missing"
-      ? [t("ui.slurp.appearance.missing")]
-      : creator.appearanceState.needsReview
-        ? [t("ui.slurp.appearance.reviewNeeded")]
-        : []),
-  ];
-
-  const summaryButton = (
-    section:
-      | "identity"
-      | "appearance"
-      | "wardrobe"
-      | "audience"
-      | "automation"
-      | "content-rules"
-      | "production"
-      | "collaborations"
-      | "messages"
-      | "continuity",
-    label: string,
-    detail: string,
-  ) => (
-    <button
-      key={section}
-      type="button"
-      onClick={() => useSlpCreatorSettingsStore.getState().setTab(section)}
-      className={`group flex min-h-24 w-full items-start justify-between gap-3 rounded-xl bg-[var(--slurp-surface-raised)] p-4 text-start ring-1 ring-inset ring-[var(--slurp-outline)] transition-[background-color,box-shadow] hover:bg-[var(--slurp-canvas)] hover:ring-[var(--noodle-accent)]/45 ${focusRing}`}
-    >
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="mt-1 block line-clamp-2 text-xs leading-5 text-[var(--slurp-muted)]">{detail}</span>
-      </span>
-      <ArrowUpRight
-        size={17}
-        aria-hidden="true"
-        className="shrink-0 text-[var(--noodle-accent)] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none"
-      />
-    </button>
-  );
-
-  return (
-    <div className="space-y-6 pb-4">
-      <section
-        className="overflow-hidden rounded-xl bg-[var(--slurp-surface-raised)] ring-1 ring-inset ring-[var(--slurp-outline)]"
-        aria-label={creator.displayName}
-      >
-        <div className="relative h-36 overflow-hidden bg-[linear-gradient(115deg,var(--slurp-coral),var(--slurp-violet))]">
-          {creator.bannerUrl && <SlurpMediaImg src={creator.bannerUrl} alt="" className="h-full w-full object-cover" />}
-          <span className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />
-        </div>
-        <div className="relative flex flex-wrap items-end gap-3 px-4 pb-4">
-          <div className="-mt-10 rounded-full bg-[var(--slurp-surface-raised)] p-1 ring-1 ring-[var(--slurp-outline)]">
-            <Avatar account={creator} size="lg" />
-          </div>
-          <div className="min-w-0 flex-1 pb-1">
-            <h3 className="truncate text-lg font-bold">{creator.displayName}</h3>
-            <p className="truncate text-xs text-[var(--slurp-muted)]">@{creator.handle}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => useSlpCreatorSettingsStore.getState().setTab("identity")}
-            className={quietButton}
-          >
-            {t("ui.slurp.settings.creators.tabs.profile", { defaultValue: "Edit profile" })}
-            <ArrowUpRight size={15} aria-hidden="true" />
-          </button>
-          {creator.bio && <p className="w-full text-sm leading-6 text-[var(--slurp-muted)]">{creator.bio}</p>}
-        </div>
-      </section>
-
-      <section
-        className="space-y-2"
-        aria-label={t("ui.slurp.settings.creators.overviewStatus", { defaultValue: "Status" })}
-      >
-        <h4 className="text-xs font-bold uppercase text-[var(--slurp-muted)]">
-          {t("ui.slurp.settings.creators.overviewStatus", { defaultValue: "Status" })}
-        </h4>
-        {attention.length > 0 ? (
-          <div className="rounded-lg bg-[var(--slurp-warning)]/10 p-3 text-sm ring-1 ring-inset ring-[var(--slurp-warning)]/30">
-            <p className="font-semibold">
-              {t("ui.slurp.settings.creators.overviewNeedsReview", { defaultValue: "Needs review" })}
-            </p>
-            <ul className="mt-1 list-inside list-disc text-xs leading-5">
-              {attention.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <p className="rounded-lg bg-[var(--slurp-success)]/10 p-3 text-sm text-[var(--slurp-success)]">
-            {t("ui.slurp.settings.creators.overviewReady", { defaultValue: "No items need review." })}
-          </p>
-        )}
-        <p className="rounded-lg bg-[var(--slurp-surface-raised)] px-3 py-2 text-xs text-[var(--slurp-muted)]">
-          {creator.autoPosting.enabled
-            ? t("ui.slurp.settings.creators.filters.active")
-            : t("ui.slurp.settings.creators.filters.paused")}
-          {status?.nextPreparedAt
-            ? ` · ${t("ui.slurp.settings.creators.nextPost", { date: formatDateTime(status.nextPreparedAt, i18n.language) })}`
-            : ""}
-        </p>
-      </section>
-
-      <section aria-label={t("ui.slurp.settings.creators.overviewSections", { defaultValue: "Sections" })}>
-        <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-[var(--slurp-muted)]">
-          {t("ui.slurp.settings.creators.overviewSections", { defaultValue: "Sections" })}
-        </h4>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {summaryButton(
-            "identity",
-            t("ui.slurp.settings.creators.tabs.profile", { defaultValue: "Profile" }),
-            creator.bio ||
-              t("ui.slurp.settings.creators.overviewProfileEmpty", { defaultValue: "Add a bio and voice." }),
-          )}
-          {summaryButton(
-            "appearance",
-            t("ui.slurp.settings.creators.tabs.appearance", { defaultValue: "Appearance" }),
-            t(`ui.slurp.appearance.source.${creator.appearanceState.source}`),
-          )}
-          {summaryButton(
-            "wardrobe",
-            t("ui.slurp.settings.creators.tabs.wardrobe", { defaultValue: "Wardrobe" }),
-            t("ui.slurp.wardrobe.title", { defaultValue: "Saved looks" }),
-          )}
-          {summaryButton(
-            "audience",
-            t("ui.slurp.settings.creators.tabs.audienceActivity", { defaultValue: "Audience activity" }),
-            t("ui.noodle.noodlerfanactivity.creatorTitle"),
-          )}
-          {summaryButton(
-            "automation",
-            t("ui.slurp.settings.creators.tabs.automation", { defaultValue: "Automation" }),
-            t("ui.slurp.settings.creators.postingSchedule"),
-          )}
-          {summaryButton(
-            "content-rules",
-            t("ui.slurp.settings.creators.tabs.contentRules", { defaultValue: "Content rules" }),
-            t("ui.slurp.settings.creators.guidanceGroup"),
-          )}
-          {summaryButton(
-            "production",
-            t("ui.slurp.settings.creators.tabs.production", { defaultValue: "Production" }),
-            t("ui.slurp.settings.creators.imagesGroup"),
-          )}
-          {summaryButton(
-            "collaborations",
-            t("ui.slurp.settings.creators.tabs.collaborations", { defaultValue: "Collaborations" }),
-            t("ui.slurp.settings.creators.collabsGroup", { defaultValue: "Collabs" }),
-          )}
-          {summaryButton(
-            "messages",
-            t("ui.slurp.settings.creators.tabs.messages", { defaultValue: "Messages" }),
-            t("ui.slurp.settings.creators.messagesWorldRules"),
-          )}
-          {summaryButton(
-            "continuity",
-            t("ui.slurp.settings.creators.tabs.continuity", { defaultValue: "Continuity" }),
-            t("ui.slurp.continuity.allCreatorsHint", { defaultValue: "Review memories for this Creator." }),
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
-
 export function SlpCreatorAppearanceSection(props: SlpCreatorSettingsSectionProps) {
   return <SlpCreatorIdentitySection {...props} appearanceOnly />;
 }
@@ -429,7 +253,12 @@ export function SlpCreatorCollaborationsSection({ creator, active }: SlpCreatorS
   const accounts = useCreatorAccounts(active);
   const settings = useSlurpSettings(active);
   const updateSettings = useUpdateSlurpSettings();
-  if (!accounts.data || !settings.data) return <p className="text-sm text-[var(--slurp-muted)]">Loading...</p>;
+  if (!accounts.data || !settings.data)
+    return (
+      <p className="text-sm text-[var(--slurp-muted)]">
+        {t("ui.slurp.settings.loading", { defaultValue: "Loading…" })}
+      </p>
+    );
   return (
     <SettingAnchor settingKey="creatorCollabs">
       <CreatorCollabsEditor
@@ -439,6 +268,7 @@ export function SlpCreatorCollaborationsSection({ creator, active }: SlpCreatorS
         onSave={(next) => updateSettings.mutate({ creatorCollabs: next })}
         t={t}
       />
+      <SlpCreatorRomanceGroup creator={creator} creators={accounts.data} />
     </SettingAnchor>
   );
 }
@@ -497,68 +327,72 @@ export function SlpCreatorAudienceSection({ creator }: SlpCreatorSettingsSection
           <option value="off">{t("ui.noodle.noodlerfanactivity.off")}</option>
         </select>
       </Field>
-      {fanActivity && globalSettings && (
-        <div className="grid grid-cols-2 gap-3">
-          {FAN_ARCHETYPES.map((archetype) => {
-            const override = fanActivity.archetypeWeights?.[archetype];
-            const current = override ?? globalSettings.fanArchetypeWeights[archetype];
-            return (
-              <label key={archetype} className="space-y-1 text-xs font-semibold">
-                <span className="block text-[var(--slurp-muted)]">
-                  {t(`ui.noodle.noodlerfanactivity.archetype.${archetype}`)}
-                  {/* Without this an inherited value and a deliberate override that happens to
+      {/* The mix Fan Types replaced: shown only while it still differs from the defaults. */}
+      {fanActivity &&
+        globalSettings &&
+        (Object.keys(fanActivity.archetypeWeights ?? {}).length > 0 ||
+          Object.values(globalSettings.fanArchetypeWeights).some((weight) => weight !== 1)) && (
+          <div className="grid grid-cols-2 gap-3">
+            {FAN_ARCHETYPES.map((archetype) => {
+              const override = fanActivity.archetypeWeights?.[archetype];
+              const current = override ?? globalSettings.fanArchetypeWeights[archetype];
+              return (
+                <label key={archetype} className="space-y-1 text-xs font-semibold">
+                  <span className="block text-[var(--slurp-muted)]">
+                    {t(`ui.noodle.noodlerfanactivity.archetype.${archetype}`)}
+                    {/* Without this an inherited value and a deliberate override that happens to
                       match look identical. */}
-                  {override === undefined && (
-                    <span className="ms-1 font-normal opacity-70">
-                      {t("ui.noodle.noodlerfanactivity.inheritedValue")}
-                    </span>
-                  )}
-                </span>
-                <input
-                  key={`${creator.id}-${archetype}-${current}`}
-                  type="number"
-                  min={0}
-                  max={100}
-                  defaultValue={current}
-                  onBlur={(event) => {
-                    const value = Number(event.target.value);
-                    if (!Number.isInteger(value) || value < 0 || value > 100) {
-                      event.target.value = String(current);
-                      return;
-                    }
-                    const resolved = {
-                      ...globalSettings.fanArchetypeWeights,
-                      ...fanActivity.archetypeWeights,
-                      [archetype]: value,
-                    };
-                    if (!Object.values(resolved).some((weight) => weight > 0)) {
-                      toast.error(t("ui.noodle.noodlerfanactivity.allWeightsZero"));
-                      event.target.value = String(current);
-                      return;
-                    }
-                    updateFanActivity.mutate(
-                      {
-                        accountId: creator.id,
-                        fanActivity: {
-                          ...fanActivity,
-                          archetypeWeights: { ...fanActivity.archetypeWeights, [archetype]: value },
+                    {override === undefined && (
+                      <span className="ms-1 font-normal opacity-70">
+                        {t("ui.noodle.noodlerfanactivity.inheritedValue")}
+                      </span>
+                    )}
+                  </span>
+                  <input
+                    key={`${creator.id}-${archetype}-${current}`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    defaultValue={current}
+                    onBlur={(event) => {
+                      const value = Number(event.target.value);
+                      if (!Number.isInteger(value) || value < 0 || value > 100) {
+                        event.target.value = String(current);
+                        return;
+                      }
+                      const resolved = {
+                        ...globalSettings.fanArchetypeWeights,
+                        ...fanActivity.archetypeWeights,
+                        [archetype]: value,
+                      };
+                      if (!Object.values(resolved).some((weight) => weight > 0)) {
+                        toast.error(t("ui.noodle.noodlerfanactivity.allWeightsZero"));
+                        event.target.value = String(current);
+                        return;
+                      }
+                      updateFanActivity.mutate(
+                        {
+                          accountId: creator.id,
+                          fanActivity: {
+                            ...fanActivity,
+                            archetypeWeights: { ...fanActivity.archetypeWeights, [archetype]: value },
+                          },
                         },
-                      },
-                      {
-                        onError: (error) => {
-                          toast.error(errorMessage(error));
-                          event.target.value = String(current);
+                        {
+                          onError: (error) => {
+                            toast.error(errorMessage(error));
+                            event.target.value = String(current);
+                          },
                         },
-                      },
-                    );
-                  }}
-                  className={`min-h-11 w-full rounded-lg bg-[var(--slurp-canvas)] px-3 text-base ring-1 ring-inset ring-[var(--slurp-outline)] sm:text-sm ${focusRing}`}
-                />
-              </label>
-            );
-          })}
-        </div>
-      )}
+                      );
+                    }}
+                    className={`min-h-11 w-full rounded-lg bg-[var(--slurp-canvas)] px-3 text-base ring-1 ring-inset ring-[var(--slurp-outline)] sm:text-sm ${focusRing}`}
+                  />
+                </label>
+              );
+            })}
+          </div>
+        )}
     </SettingsGroup>
   );
 }
@@ -647,6 +481,22 @@ export function SlpCreatorImagesSection({ creator, active }: SlpCreatorSettingsS
           ))}
         </select>
       </Field>
+      {creator.sourceAccountId && settings && (
+        // 0.3.5 (player report): a model that learned a known character draws them from the name.
+        <Toggle
+          settingKey="creatorImageNames"
+          label={t("ui.slurp.settings.creators.imageName", { defaultValue: "The image model knows this character" })}
+          detail={t("ui.slurp.settings.creators.imageNameDetail", {
+            defaultValue:
+              "Puts their card name at the start of every picture prompt (as a tag for tag models), so a model that learned them draws the real character. Turn it off for an original character, or when their Appearance already has their tag under another spelling.",
+          })}
+          value={settings.creatorImageNames?.[creator.id] !== false}
+          onChange={(value) => {
+            const { [creator.id]: _previous, ...rest } = settings.creatorImageNames ?? {};
+            updateSettings.mutate({ creatorImageNames: value ? rest : { ...rest, [creator.id]: false } });
+          }}
+        />
+      )}
       {creator.sourceAccountId && !personaBacked && settings && (
         <Field
           settingKey="characterImageInstructions"
@@ -712,7 +562,24 @@ export function SlpCreatorMessagesSection({ creator, onClose }: SlpCreatorSettin
 
 /** What this Creator's world remembers about them. */
 export function SlpCreatorContinuitySection({ creator }: SlpCreatorSettingsSectionProps) {
-  return <SlurpContinuityPanel creatorAccountId={creator.id} />;
+  const { t } = useTranslation();
+  // Life details only feed "Post ideas: The Creator's life"; with Model's choice they do nothing.
+  const lifeIdeas = useSlurpSettings().data?.postPlanner !== "classic";
+  return (
+    <div className="space-y-6">
+      <SlurpContinuityPanel
+        creatorAccountId={creator.id}
+        lifeDetails={
+          lifeIdeas ? (
+            <SlpCanonAnchorsEditor creatorId={creator.id} />
+          ) : (
+            <p className={noteClass}>{t("ui.slurp.canonAnchors.classicNote")}</p>
+          )
+        }
+      />
+      <SlpCreatorSignalsList creatorId={creator.id} />
+    </div>
+  );
 }
 
 /** The AI checkup, scoped to this one Creator rather than the whole roster. */
@@ -721,7 +588,7 @@ export function SlpCreatorImproveSection({ creator }: SlpCreatorSettingsSectionP
   const settingsQuery = useSlurpSettings();
   if (!settingsQuery.data)
     return <p className={noteClass}>{t("ui.slurp.settings.loading", { defaultValue: "Loading…" })}</p>;
-  return <SlurpCreatorImprover creators={[creator]} settings={settingsQuery.data} />;
+  return <SlurpCreatorImprover scoped creators={[creator]} settings={settingsQuery.data} />;
 }
 
 /** Removing the Creator. Alone in its own tab so it is never a mis-click away from a setting. */
@@ -736,13 +603,11 @@ export function SlpCreatorDangerSection({ creator, onClose }: SlpCreatorSettings
         message: t("ui.slurp.settings.creators.deleteDetail", { name: creator.displayName }),
       });
       if (!confirmed) return;
-      deleteCreator.mutate(creator.id, {
-        onSuccess: () => {
-          toast.success(t("ui.slurp.settings.creators.deleted", { name: creator.displayName }));
-          onClose();
-        },
-        onError: (error) => toast.error(errorMessage(error)),
-      });
+      // Awaited, not per-call `mutate` callbacks: the list refetch removes this Creator and unmounts
+      // this section before they ran, so the toast never showed and the modal spun (0.3.0 report B).
+      await deleteCreator.mutateAsync(creator.id);
+      toast.success(t("ui.slurp.settings.creators.deleted", { name: creator.displayName }));
+      onClose();
     } catch (error) {
       toast.error(errorMessage(error));
     }

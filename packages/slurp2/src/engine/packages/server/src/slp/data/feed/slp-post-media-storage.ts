@@ -3,7 +3,7 @@ import { eq } from "../../../db/file-query.js";
 import { slpPostMedia, slpPosts } from "../../../db/schema/slurp.js";
 import { newId, now } from "../../../utils/id-generator.js";
 import { parseRecord } from "../../modules/records/slp-storage-model.js";
-import { slpCreatorPostAttachmentUrl } from "../../base/media/slp-media.js";
+import { slpCreatorPostAttachmentUrl, slpStoredMediaSize } from "../../base/media/slp-media.js";
 
 export type StoredSlpPostMedia = {
   id: string;
@@ -61,7 +61,13 @@ export async function addSlurpPostMedia(
       .set({
         metadata: JSON.stringify({
           ...metadata,
-          postMedia: rows.map(({ id, position, imageUrl, imagePrompt }) => ({ id, position, imageUrl, imagePrompt })),
+          postMedia: rows.map(({ id, position, imageUrl, imagePrompt, mediaPath }) => ({
+            id,
+            position,
+            imageUrl,
+            imagePrompt,
+            ...slpStoredMediaSize(mediaPath),
+          })),
         }),
         updatedAt: createdAt,
       })

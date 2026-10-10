@@ -115,7 +115,7 @@ assert.match(service, /catch \{\s*return null;/u);
 // Every modifier the vocabulary defines is worth nothing until something real produces it.
 const storage = slurp2Source("packages/slurp2/src/engine/packages/server/src/services/storage/slurp.storage.ts");
 // Money in: felt once it is worth feeling, and never able to fail the payment that caused it.
-assert.match(storage, /amount >= SLURP_PAID_WELL_COINS/u);
+assert.match(storage, /paidCoins >= SLURP_PAID_WELL_COINS/u);
 assert.match(storage, /addSlurpModifier\(state, "paid_well"/u);
 // Only the crossing fires, so a met goal does not re-fire on every coin after it.
 assert.match(

@@ -1,3 +1,4 @@
+import type { SlpMessageDetailsPatch } from "../../../../../shared/src/slp/slp-message-details.js";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { api } from "../../../lib/api-client.js";
@@ -28,6 +29,8 @@ export function useSlurpThreads(personaId: string | null) {
         unread: number;
         inboundUnread: number;
         attentionCommissions: Array<SlurpCommission & { side: "viewer" | "creator" }>;
+        /** Slurp Support's threads live on the Stir desk; the inbox shows one row for them. */
+        desk?: { threads: number; unread: number; lastMessageAt: string | null };
       }>(`/slurp2/messages/threads?personaId=${encodeURIComponent(personaId!)}`),
     enabled: Boolean(personaId),
     // A creator who is offline answers minutes or hours later, through the scheduler. Without a
@@ -91,8 +94,12 @@ export function useSlurpThread(threadId: string | null, personaId: string | null
         commissions: SlurpCommission[];
         subscribed?: boolean;
         relationship?: SlurpThreadRelationship;
+        /** Whether this thread can start a roleplay scene on this Engine (docs/SCENES.md). */
+        scenes?: boolean;
       }>(`/slurp2/messages/threads/${encodeURIComponent(threadId!)}?personaId=${encodeURIComponent(personaId!)}`),
     enabled: Boolean(threadId && personaId),
+    // Opening a chat marks it read and must show what arrived meanwhile, whatever the cache age.
+    refetchOnMount: "always",
     refetchInterval: threadId && personaId ? 30_000 : false,
     refetchIntervalInBackground: false,
   });
@@ -179,9 +186,25 @@ export function useSlurpRequestAction(threadId: string | null, personaId: string
  * The conversation with one creator, started or not. Used when the player opens a chat from a
  * profile, where there may be no thread yet and creating one on sight would charge a fee.
  */
-export function useSlurpCompose(creatorAccountId: string | null, personaId: string | null) {
+/**
+ * `support`: Slurp Support's one thread with this Creator, the same from every persona.
+ * `peek`: a profile reading only prices and policy; it neither marks the thread read nor polls.
+ */
+export function useSlurpCompose(
+  creatorAccountId: string | null,
+  personaId: string | null,
+  support = false,
+  peek = false,
+) {
   return useQuery({
-    queryKey: [...slpKeys.noodlerRoot(), "messages", "compose", creatorAccountId ?? "none", personaId ?? "none"],
+    queryKey: [
+      ...slpKeys.noodlerRoot(),
+      "messages",
+      "compose",
+      creatorAccountId ?? "none",
+      support ? "support" : (personaId ?? "none"),
+      ...(peek ? ["peek"] : []),
+    ],
     queryFn: () =>
       api.get<{
         thread: SlurpThread | null;
@@ -201,23 +224,31 @@ export function useSlurpCompose(creatorAccountId: string | null, personaId: stri
         commissions: SlurpCommission[];
         subscribed?: boolean;
         relationship?: SlurpThreadRelationship;
+        /** Whether this thread can start a roleplay scene on this Engine (docs/SCENES.md). */
+        scenes?: boolean;
       }>(
-        `/slurp2/messages/compose?personaId=${encodeURIComponent(personaId!)}&creatorAccountId=${encodeURIComponent(creatorAccountId!)}`,
+        `/slurp2/messages/compose?personaId=${encodeURIComponent(personaId!)}&creatorAccountId=${encodeURIComponent(creatorAccountId!)}${support ? "&support=1" : ""}${peek ? "&peek=1" : ""}`,
       ),
     enabled: Boolean(creatorAccountId && personaId),
     // Same poll as `useSlurpThread`. Without it a chat opened from a profile never saw the
     // queued off-hours reply, which is most of what the pacing model exists to produce.
-    refetchInterval: creatorAccountId && personaId ? 30_000 : false,
+    refetchOnMount: peek ? true : "always",
+    refetchInterval: creatorAccountId && personaId && !peek ? 30_000 : false,
     refetchIntervalInBackground: false,
   });
 }
 export function useRecordSlurpStoryView() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { storyId: string; personaId: string }) =>
       api.post<{ viewed: boolean; duplicate: boolean }>(
         `/slurp2/slurp/stories/${encodeURIComponent(input.storyId)}/view`,
         { personaId: input.personaId },
       ),
+    // A first view drops the Story's ring on the shelf (R1-024).
+    onSuccess: (result, input) => {
+      if (!result.duplicate) void qc.invalidateQueries({ queryKey: slpKeys.viewer(input.personaId) });
+    },
   });
 }
 export function useSlurpStoryViews(storyId: string | null, personaId: string | null, enabled = true) {
@@ -284,5 +315,14 @@ export function useSetSlurpCreatorMessaging() {
       );
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: slpKeys.noodlerRoot() }),
+  });
+}
+
+export function useSetSlurpMessageDetails(threadId: string | null, personaId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: SlpMessageDetailsPatch) =>
+      api.patch(`/slurp2/messages/threads/${encodeURIComponent(threadId!)}/details`, { personaId, ...patch }),
+    onSuccess: () => invalidateSlurpMessages(queryClient),
   });
 }

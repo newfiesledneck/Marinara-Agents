@@ -6,7 +6,7 @@
 // lines. It composes that storage for accounts, subscriptions, and the wallet instead of
 // reimplementing them, so a DM tip and a profile tip move coins through exactly one code path.
 import { tolerateMissingTables } from "../../base/host/slp-host-tables.js";
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, or } from "../../../db/file-query.js";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, or } from "../../../db/file-query.js";
 import { newId } from "../../../utils/id-generator.js";
 import type { DB } from "../../../db/connection.js";
 import { logger } from "../../../lib/logger.js";
@@ -21,6 +21,7 @@ import {
 } from "../../../db/schema/slurp.js";
 import { isSlurpFileUniqueConstraintError } from "../../base/host/slp-file-errors.js";
 import { applySlurpMood, type SlurpMoodShift } from "../../modules/world/slp-mood.js";
+import { slurpFailedFollowUpPatch, slurpFollowUpExpires } from "../../modules/messages/slp-follow-up.js";
 import {
   applySlurpThreadNotes,
   readStoredNotes,
@@ -139,6 +140,7 @@ export function createMessagesStorageFollowUps(context: SlurpMessagesContext) {
           creatorAccountId: String(thread.creatorAccountId),
           sequenceNumber: followUp.sequenceNumber == null ? null : String(followUp.sequenceNumber),
           totalInSequence: followUp.totalInSequence == null ? null : String(retained.length),
+          firstDueAt: followUp.scheduledAt,
           status: "pending",
           claimedAt: null,
           sentAt: null,
@@ -225,12 +227,31 @@ export function createMessagesStorageFollowUps(context: SlurpMessagesContext) {
           ),
         );
     },
-    /** Put a claimed follow-up back in the queue at a later time: cool-off, night quiet, offline. */
+    /**
+     * Put a claimed follow-up back in the queue at a later time: cool-off, night quiet, offline.
+     * A promise always waits (task E: it is delivered late, with a sorry); only an opener nobody
+     * asked for ends two days after it was planned (7c M-007).
+     */
     async postponeScheduledFollowUp(threadId: string, followUpId: string, scheduledAt: string): Promise<void> {
+      const row = (await db.select().from(slurpFollowUps).where(eq(slurpFollowUps.id, followUpId)))[0];
+      const overdue = Boolean(
+        row && slurpFollowUpExpires({ type: String(row.type), createdAt: String(row.createdAt) }),
+      );
       const timestamp = now();
       await db
         .update(slurpFollowUps)
-        .set({ status: "pending", claimedAt: null, scheduledAt, updatedAt: timestamp })
+        .set(
+          overdue
+            ? { status: "cancelled", claimedAt: null, cancelledAt: timestamp, updatedAt: timestamp }
+            : {
+                status: "pending",
+                claimedAt: null,
+                scheduledAt,
+                // A row from before 0.3.0 has no first due time; keep it before scheduledAt moves.
+                firstDueAt: row?.firstDueAt ?? row?.scheduledAt ?? scheduledAt,
+                updatedAt: timestamp,
+              },
+        )
         .where(
           and(
             eq(slurpFollowUps.id, followUpId),
@@ -241,15 +262,14 @@ export function createMessagesStorageFollowUps(context: SlurpMessagesContext) {
     },
     async failScheduledFollowUp(threadId: string, followUpId: string): Promise<void> {
       const timestamp = now();
-      // ponytail: one retry, then give up. A follow-up that failed twice went back to pending with
-      // the same due time forever and slowed every other follow-up; count attempts if one is not enough.
-      const failedBefore = Boolean(
-        (await db.select().from(slurpFollowUps).where(eq(slurpFollowUps.id, followUpId)))[0]?.failedAt,
-      );
+      // A promise is never given up for a failed call (task E). It goes back to the queue later
+      // and later (15 minutes up to 12 hours, by how late it is already), so a dead connection
+      // neither drops it nor holds the queue's first slot; an opener nobody asked for fails for good.
+      const row = (await db.select().from(slurpFollowUps).where(eq(slurpFollowUps.id, followUpId)))[0];
       await db
         .update(slurpFollowUps)
         .set({
-          status: failedBefore ? "failed" : "pending",
+          ...slurpFailedFollowUpPatch(row, new Date(timestamp)),
           claimedAt: null,
           failedAt: timestamp,
           updatedAt: timestamp,
@@ -280,6 +300,7 @@ export function createMessagesStorageFollowUps(context: SlurpMessagesContext) {
           sequenceNumber?: number;
           totalInSequence?: number;
           recurringPattern?: string;
+          firstDueAt?: string;
         };
       }>
     > {
@@ -297,6 +318,7 @@ export function createMessagesStorageFollowUps(context: SlurpMessagesContext) {
           sequenceNumber: slurpFollowUps.sequenceNumber,
           totalInSequence: slurpFollowUps.totalInSequence,
           recurringPattern: slurpFollowUps.recurringPattern,
+          firstDueAt: slurpFollowUps.firstDueAt,
         })
         .from(slurpFollowUps)
         .where(
@@ -331,6 +353,7 @@ export function createMessagesStorageFollowUps(context: SlurpMessagesContext) {
           sequenceNumber: row.sequenceNumber == null ? undefined : Number(row.sequenceNumber),
           totalInSequence: row.totalInSequence == null ? undefined : Number(row.totalInSequence),
           recurringPattern: row.recurringPattern ?? undefined,
+          firstDueAt: row.firstDueAt ?? row.scheduledAt,
         },
       }));
     },
@@ -528,26 +551,30 @@ export function createMessagesStorageFollowUps(context: SlurpMessagesContext) {
     },
     /** Clear one side's unread count and stamp the messages the other side sent. */
     async markRead(threadId: string, side: "viewer" | "creator"): Promise<void> {
+      // Every open thread polls this. Writing only when something is unread keeps a poll a read and
+      // stops a re-read from bumping `updatedAt` (and with it the thread's place in the inbox).
+      const [thread] = await db.select().from(slurpThreads).where(eq(slurpThreads.id, threadId)).limit(1);
+      if (!thread) return;
       const timestamp = now();
+      if (int((side === "viewer" ? thread.viewerUnread : thread.creatorUnread) as string) !== 0)
+        await db
+          .update(slurpThreads)
+          .set(
+            side === "viewer"
+              ? { viewerUnread: "0", updatedAt: timestamp }
+              : { creatorUnread: "0", updatedAt: timestamp },
+          )
+          .where(eq(slurpThreads.id, threadId));
       await db
-        .update(slurpThreads)
-        .set(
-          side === "viewer"
-            ? { viewerUnread: "0", updatedAt: timestamp }
-            : { creatorUnread: "0", updatedAt: timestamp },
-        )
-        .where(eq(slurpThreads.id, threadId));
-      const unread = await db
-        .select()
-        .from(slurpMessages)
+        .update(slurpMessages)
+        .set({ readAt: timestamp })
         .where(
-          and(eq(slurpMessages.threadId, threadId), eq(slurpMessages.role, side === "viewer" ? "creator" : "viewer")),
-        )
-        .orderBy(asc(slurpMessages.createdAt));
-      for (const row of unread) {
-        if (row.readAt) continue;
-        await db.update(slurpMessages).set({ readAt: timestamp }).where(eq(slurpMessages.id, row.id));
-      }
+          and(
+            eq(slurpMessages.threadId, threadId),
+            eq(slurpMessages.role, side === "viewer" ? "creator" : "viewer"),
+            isNull(slurpMessages.readAt),
+          ),
+        );
     },
   };
 }

@@ -1,11 +1,12 @@
 import type { SlurpPostAxes } from "../../modules/feed/slp-content-axes.js";
+import { slurpNameList } from "../../modules/projects/slp-couple-group.js";
 import type { SlurpPostVariation } from "../../modules/feed/slp-post-variation.js";
 import type { SlurpVisualBrief } from "../../base/media/slp-visual-brief.js";
 import type { SlurpExplicitLevel, SlurpPostAccess } from "../../modules/feed/slp-post-guidance.js";
 import type { SlpIdentityDisclosure } from "../../../../../shared/src/slp/slp-social.types.js";
-import { normalizeSlpImagePrompt } from "../../base/media/slp-image-prompt.js";
+import { normalizeSlpImagePrompt, slurpWithoutCameraDevice } from "../../base/media/slp-image-prompt.js";
 import { slurpImageBrief, slurpImageNegativePrompt } from "../../modules/feed/slp-image-brief.js";
-import { slurpCameraSourcePhoto, type SlurpCameraSource } from "../../modules/feed/slp-camera-source.js";
+import { slurpCameraSourceShot, type SlurpCameraSource } from "../../modules/feed/slp-camera-source.js";
 import { slurpVisualBriefFromSituation } from "../../modules/feed/slp-visual-brief.js";
 import { slurpPostSexualLevel } from "../../modules/feed/slp-post-guidance.js";
 import {
@@ -38,6 +39,10 @@ export function slurpPostPictureBriefs(input: {
   postImages: boolean;
   access: SlurpPostAccess;
   explicitLevel: SlurpExplicitLevel;
+  /** Who is in a spicy partner scene with them. See `slp-spice.ts`. */
+  partner?: string | null;
+  /** Who else the post is about (its beat's cast): they may be in the picture when it calls for them. */
+  cast?: readonly string[];
   /** The model's own idea, used only when there is no situation to brief from. */
   modelImagePrompt: string | null | undefined;
   /** This Creator's own look and life. See `SlpCreatorStageFacts`. */
@@ -55,6 +60,8 @@ export function slurpPostPictureBriefs(input: {
   negativePrompt: string | undefined;
   /** One brief per planned extra picture, each complete on its own. */
   shotBriefs: { draftPrompt: string; visualBrief: SlurpVisualBrief | undefined }[];
+  /** Whether the beat's cast may reach the picture at this level (their look, their card). */
+  pictureCast: boolean;
 } {
   const { variation, camera } = input;
   // Identity protection applies to the image prompt too, not only post text. The arc's chapter line
@@ -65,16 +72,27 @@ export function slurpPostPictureBriefs(input: {
     access: input.access,
     intent: input.axes?.intent,
   });
+  // Somebody else may join a clothed or suggestive picture. A nude or explicit one holds only the
+  // partner the spice consent gate chose (`partner`), and only when the beat names that one person.
+  const clothed = sexualLevel === "none" || sexualLevel === "suggestive";
+  const company = !input.partner && clothed && input.cast?.length ? slurpNameList(input.cast) : null;
+  // A collab partner reaches a nude or explicit picture only through the spice check (`partner`):
+  // their own level and hard noes decide, as for any partner.
+  const pictureCast = clothed || (Boolean(input.partner) && input.cast?.length === 1);
   // Produce mode briefs the picture from the situation, never from the caption the model just
   // wrote. Identity protection still applies: the brief carries the Creator's own place and
   // company, so a Secret Creator's details must be redacted here exactly as they are in the text.
   const effortPhoto = `${slurpProductionPhoto(input.productionStyle ?? "homemade")}; ${slurpEffortPhoto(input.effort)}`;
-  const imageDraft =
+  // Seeded by what this picture shows, so each post and each shot of a set gets its own angle.
+  const cameraShot = camera
+    ? slurpCameraSourceShot(camera, [input.scene?.action, variation?.place, variation?.moment].join("|"))
+    : "";
+  const rawImageDraft =
     // A post direction can ask the model for its own imagePrompt; a returned one is honoured.
     normalizeSlpImagePrompt(input.modelImagePrompt) ??
     (camera && variation
       ? slurpImageBrief({
-          cameraPhoto: slurpCameraSourcePhoto(camera),
+          cameraPhoto: cameraShot,
           variation,
           story: input.story,
           shoot: input.shoot,
@@ -83,9 +101,16 @@ export function slurpPostPictureBriefs(input: {
           stageFacts: input.stageFacts,
           scene: input.scene,
           selectedWardrobe: input.selectedWardrobe,
+          partner: input.partner,
+          company,
         })
       : null);
+  // How the picture was taken is the camera's job; the scene the writer planned must not show the
+  // phone or the arm that holds it, or every picture becomes a selfie.
+  // The viewpoint phrase is Slurp's own and stays whole: a mirror shot holds the phone on purpose.
+  const imageDraft = rawImageDraft ? slurpWithoutCameraDevice(rawImageDraft, [cameraShot]) || rawImageDraft : null;
   return {
+    pictureCast,
     draftImagePrompt: input.postImages
       ? protectCreatorGeneratedIdentity(
           imageDraft && arcImageLine ? `${imageDraft}\n${arcImageLine}` : imageDraft,
@@ -98,7 +123,7 @@ export function slurpPostPictureBriefs(input: {
         ? slurpVisualBriefFromSituation({
             variation,
             axes: input.axes,
-            cameraInstruction: slurpCameraSourcePhoto(camera),
+            cameraInstruction: cameraShot,
             effortInstruction: effortPhoto,
             shoot: input.shoot,
             story: input.story,
@@ -108,7 +133,10 @@ export function slurpPostPictureBriefs(input: {
             clothing: input.selectedWardrobe?.description ?? input.scene?.outfit ?? input.stageFacts?.wardrobe ?? null,
           })
         : undefined,
-    negativePrompt: input.postImages && camera && variation ? slurpImageNegativePrompt(sexualLevel) : undefined,
+    negativePrompt:
+      input.postImages && camera && variation
+        ? slurpImageNegativePrompt(sexualLevel, Boolean(input.partner), camera)
+        : undefined,
     // Each extra picture is briefed exactly like the first, so it reaches the image model as a
     // complete picture. A shot that names its own outfit wears it; otherwise it keeps the chosen look.
     shotBriefs: (input.shots ?? []).flatMap((shot) => {

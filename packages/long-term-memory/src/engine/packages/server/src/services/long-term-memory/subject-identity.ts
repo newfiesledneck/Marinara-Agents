@@ -14,6 +14,8 @@ import {
   type LtmScope,
   type LtmSubject,
   type LtmSubjectReference,
+  type LtmSavedSubjectIdentityChoice,
+  type LtmSubjectIdentityReview,
 } from "../../../../shared/src/features/agents/long-term-memory/index.js";
 import {
   isLocalCharacterSubject,
@@ -26,9 +28,10 @@ import {
 } from "./chat-scope.js";
 import type { LtmExtractionDiagnostic } from "../../../../shared/src/features/agents/long-term-memory/schema.js";
 import { noteIdForEvidenceUnit } from "./evidence-unit-validation.js";
-import { safeSnippet, uniqueStrings } from "./ltm-utils.js";
+import { safeSnippet, uniqueStrings, normalizeSubjectName } from "./ltm-utils.js";
 import { LongTermMemoryStorage } from "./storage.js";
 import { getPackagePersistence, getPackageResources } from "./package-runtime.js";
+import { readSavedLtmSubjectIdentityChoices } from "./rejected-suggestions.js";
 
 type RosterSubjectInput = {
   kind: LtmSubjectReference["kind"];
@@ -54,6 +57,7 @@ export type TrustedLtmSubjectCatalog = {
   notes: LtmNote[];
   ambiguousLocalNames?: string[];
   ambiguousLocalEntries?: Record<string, TrustedLtmSubjectCatalogEntry[]>;
+  identityChoices?: Array<LtmSavedSubjectIdentityChoice & { familyId: string }>;
 };
 
 export function trustedLtmCharacterAliasIdentifiers(catalog: TrustedLtmSubjectCatalog) {
@@ -72,6 +76,7 @@ export type LtmSubjectIdentityResolution = {
   droppedCandidates: LtmExtractionDroppedCandidate[];
   legacyBindings: Map<string, LtmSubject[]>;
   aliasChoices: Map<string, { title: string; canonicalName: string }>;
+  skippedUnits: number;
 };
 
 export type LtmSubjectIdentityCandidate = Pick<
@@ -81,6 +86,7 @@ export type LtmSubjectIdentityCandidate = Pick<
 
 export type LtmSubjectIdentityContext = {
   identityKeyForUnit(unit: LtmSubjectIdentityCandidate): string;
+  reviewForUnit(unit: LtmSubjectIdentityCandidate): LtmSubjectIdentityReview[];
   resolve(input: {
     units: LtmEvidenceUnit[];
     existingNotes: LtmNote[];
@@ -156,11 +162,22 @@ type BatchSubjectNameResolution = {
   matches: Map<string, SubjectMatch>;
   provisionalKeys: Set<string>;
   aliasChoices: Map<string, TrustedLtmSubjectCatalogEntry>;
+  savedMatches: Map<string, SubjectMatch>;
+  skippedNames: Set<string>;
 };
 
 const SOURCE_BACKED_NPC_NAME_PATTERN = /\b[\p{Lu}][\p{L}\p{N}'-]*(?:\s+[\p{Lu}][\p{L}\p{N}'-]*){0,3}\b/gu;
 const SOURCE_BACKED_PROPER_NAME_PATTERN = /^[\p{L}][\p{L}\p{N}'’.-]*(?:\s+[\p{L}][\p{L}\p{N}'’.-]*){0,3}$/u;
 const SOURCE_BACKED_NAME_BOUNDARY_PATTERN = /[\p{L}\p{N}'-]/u;
+// Korean postpositions written directly after a name. The choice follows the name's last syllable
+// (이수 takes 가, so 이수이 is a name rather than 이수 + 이); a final ㄹ takes 로 like an open syllable.
+// ponytail: fixed particle set, 2-into-3-syllable tails and stems of 2+ syllables only; chained
+// particles (이라는, 에게서), 4-syllable names and 1-syllable names keep the old matching. Add a
+// Hangul morphology table if real chats need them.
+const HANGUL_PARTICLE_ANY = /^(?:[의도]|(?:에게|에서|한테)[는도]?)$/u;
+const HANGUL_PARTICLE_OPEN = /^(?:[는가를와]|로[는도]?)$/u;
+const HANGUL_PARTICLE_CLOSED = /^(?:[은이을과]|으로[는도]?)$/u;
+const HANGUL_NAME_PATTERN = /^\p{Script=Hangul}+$/u;
 const GENERIC_ROLE_SUFFIXES = ["arian", "eer", "ician", "ist", "keeper", "ologist", "ographer"];
 const GENERIC_ROLE_QUALIFIERS = new Set([
   "a",
@@ -354,6 +371,7 @@ type SubjectMatch =
       basis: string;
       competingRecords?: CompetingSubjectRecord[];
       collisionSource?: "duplicate_local" | "group_catalog" | "alias_collision" | "mixed";
+      identityReview?: LtmSubjectIdentityReview[];
     }
   | { status: "cardinality"; count: number; basis: string }
   | { status: "untrusted"; basis: string };
@@ -404,6 +422,7 @@ type PreparedLtmSubjectIdentityContext = {
   unresolvedBySubject: Map<string, string[]>;
   batchNames: BatchSubjectNameResolution;
   establishedKeysBySubject: Map<string, string[]>;
+  namedDerivedKeysBySubject: Map<string, string[]>;
   sourceBackedNpcSourceText?: string;
   sourceBackedNpcSourceTitle?: string;
   scope?: LtmScope;
@@ -498,11 +517,14 @@ export async function loadTrustedLtmSubjectCatalog(
     });
   }
 
-  return buildTrustedLtmSubjectCatalog({
-    roster,
-    notes,
-    localSourceNotes: notes.filter((note) => isLtmSourceLikeNote(note)),
-  });
+  return {
+    ...buildTrustedLtmSubjectCatalog({
+      roster,
+      notes,
+      localSourceNotes: notes.filter((note) => isLtmSourceLikeNote(note)),
+    }),
+    identityChoices: await readSavedLtmSubjectIdentityChoices(scope, root),
+  };
 }
 
 export function buildTrustedLtmSubjectCatalog({
@@ -675,22 +697,6 @@ export function buildTrustedLtmSubjectCatalog({
       .sort(),
     ambiguousLocalEntries,
   };
-}
-
-export function filterDominatedLtmSubjectNotesForPrompt(notes: LtmNote[], catalog: TrustedLtmSubjectCatalog) {
-  const visibleSubjectKeys = new Set(catalog.entries.map((entry) => entry.subject.key));
-  const suppressedSubjectKeys = new Set(
-    catalog.notes.flatMap((note) =>
-      (note.subjects ?? []).flatMap((subject) =>
-        !subject.ref && isLocalCharacterSubject(subject) && !visibleSubjectKeys.has(subject.key) ? [subject.key] : [],
-      ),
-    ),
-  );
-  if (suppressedSubjectKeys.size === 0) return notes;
-  return notes.filter((note) => {
-    if (note.type !== "character" && note.type !== "relationship") return true;
-    return !(note.subjects ?? []).some((subject) => suppressedSubjectKeys.has(subject.key));
-  });
 }
 
 export function trustedLtmSubjectPromptCatalog(catalog: TrustedLtmSubjectCatalog) {
@@ -929,6 +935,43 @@ export function prepareLtmSubjectIdentityContext({
       unresolvedBySubject.set(compositeKey, ids);
     }
   }
+  const savedMatches = new Map<string, SubjectMatch>();
+  const skippedNames = new Set<string>();
+  // Saved decisions are keyed by the chat/group family, which exists independent of mode, so
+  // a Conversation or Game family can reuse bind/skip choices. Creating a local "different"
+  // identity stays gated to Roleplay through the mode-scoped `familyId` above.
+  const savedFamilyId = scope ? ltmScopeFamilyId(scope) : null;
+  for (const choice of catalog.identityChoices ?? []) {
+    if (!savedFamilyId || choice.familyId !== savedFamilyId) continue;
+    const token = normalizeSubjectName(choice.name);
+    skippedNames.delete(token);
+    if (choice.action === "skip") {
+      skippedNames.add(token);
+      savedMatches.set(token, { status: "untrusted", basis: "saved_skip" });
+      continue;
+    }
+    if (choice.action === "different" && familyId) {
+      const subject = scope && localCharacterSubjectForName(scope, choice.name);
+      if (subject?.key === choice.subject.key && !index.byKey.has(subject.key)) {
+        addCatalogEntry(index, {
+          subject,
+          name: choice.name,
+          aliases: [],
+          canonicalSlug: token,
+          familyId,
+          sourceScope: "local_note",
+        });
+      }
+    }
+    const entry = index.byKey.get(choice.subject.key);
+    savedMatches.set(
+      token,
+      entry &&
+        (choice.action !== "different" || entry.subject.key === localCharacterSubjectForName(scope!, choice.name)?.key)
+        ? { status: "matched", entries: [entry], basis: "trusted_key" }
+        : { status: "untrusted", basis: "saved_identity_unavailable" },
+    );
+  }
   const batchNames = preResolveBatchSubjectNames({
     units,
     index,
@@ -936,6 +979,8 @@ export function prepareLtmSubjectIdentityContext({
     mode,
     sourceText: sourceBackedNpcSourceText,
     sourceTitle: sourceBackedNpcSourceTitle,
+    savedMatches,
+    skippedNames,
   });
 
   const establishedKeysBySubject = new Map<string, string[]>();
@@ -966,10 +1011,16 @@ export function prepareLtmSubjectIdentityContext({
     if (resolveUnitSubjects(unit, index).status !== "matched") continue;
     for (const [position, name] of unit.subjectNames.entries()) {
       const token = normalizeSubjectName(name);
-      const alias = matchDirect(index, token);
-      if (alias.status !== "ambiguous" || alias.basis !== "alias") continue;
       const entry = index.byKey.get(unit.subjectKeys[position]!);
-      if (!entry || !alias.keys.includes(entry.subject.key)) continue;
+      if (!entry) continue;
+      const alias = matchDirect(index, token);
+      let ambiguousKeys: string[] = [];
+      if (alias.status === "ambiguous" && alias.basis === "alias") {
+        ambiguousKeys = alias.keys;
+      } else if (familyId) {
+        ambiguousKeys = partialNameCandidateEntries(index, name, familyId).map(subjectEntryKey);
+      }
+      if (!ambiguousKeys.includes(entry.subject.key)) continue;
       const prior = choices.get(token);
       choices.set(token, prior === undefined ? entry : prior?.subject.key === entry.subject.key ? entry : null);
     }
@@ -992,9 +1043,55 @@ export function prepareLtmSubjectIdentityContext({
       choices.set(token, prior === undefined ? entry : prior?.subject.key === entry.subject.key ? entry : null);
     }
   }
-  batchNames.aliasChoices = new Map(
-    [...choices].filter((choice): choice is [string, TrustedLtmSubjectCatalogEntry] => choice[1] !== null),
-  );
+  batchNames.aliasChoices = new Map([
+    ...[...choices].filter((choice): choice is [string, TrustedLtmSubjectCatalogEntry] => choice[1] !== null),
+    ...[...savedMatches].flatMap(([token, match]): Array<[string, TrustedLtmSubjectCatalogEntry]> =>
+      match.status === "matched" ? [[token, match.entries[0]!]] : [],
+    ),
+  ]);
+
+  // A nameless, keyless candidate may borrow the identity a named sibling in this
+  // batch resolved for the same bucket + subjectId. Only solid name matches qualify,
+  // and disagreeing siblings disqualify the key. Borrowed identities require review.
+  const namedDerivedKeysBySubject = new Map<string, string[]>();
+  {
+    const derived = new Map<string, string[]>();
+    const contested = new Set<string>();
+    const sameKeys = (left: string[], right: string[]) => {
+      if (left.length !== right.length) return false;
+      const sortedRight = [...right].sort();
+      return [...left].sort().every((key, index) => key === sortedRight[index]);
+    };
+    for (const unit of units) {
+      if (unit.bucket !== "character_fact" && unit.bucket !== "relationship_state") continue;
+      if (unit.subjectKeys !== undefined || !unit.subjectNames?.length) continue;
+      if (unit.subjectNames.some((name) => batchNames.skippedNames.has(normalizeSubjectName(name)))) continue;
+      const match = resolveNamedUnitSubjects(unit, batchNames, index, {
+        scope,
+        mode,
+        sourceBackedNpcSourceText,
+        sourceBackedNpcSourceTitle,
+      });
+      if (match.status !== "matched") continue;
+      if (match.basis !== "trusted_key" && match.basis !== "exact_name" && match.basis !== "unique_alias") continue;
+      const keys = match.entries.map((entry) => entry.subject.key);
+      // Donor and lookup share the raw subjectId, deliberately: a prefix-stripped
+      // match would let a differently named sibling borrow across IDs (fail-closed).
+      const subjectKey = `${unit.bucket}\u0000${unit.subjectId}`;
+      const prior = derived.get(subjectKey);
+      if (prior === undefined) derived.set(subjectKey, keys);
+      else if (!sameKeys(prior, keys)) contested.add(subjectKey);
+      const establishedSubjectKey = `${unit.bucket}\u0000${stripNotePrefix(normalizeSubjectIdentifier(unit.subjectId, ""))}`;
+      const established = establishedKeysBySubject.get(establishedSubjectKey);
+      if (contestedSubjectKeys.has(establishedSubjectKey) || (established && !sameKeys(established, keys))) {
+        contested.add(subjectKey);
+      }
+    }
+    for (const [subjectKey, keys] of derived) {
+      if (contested.has(subjectKey)) continue;
+      namedDerivedKeysBySubject.set(subjectKey, keys);
+    }
+  }
 
   const context: PreparedLtmSubjectIdentityContext = {
     catalog: effectiveCatalog,
@@ -1003,12 +1100,16 @@ export function prepareLtmSubjectIdentityContext({
     unresolvedBySubject,
     batchNames,
     establishedKeysBySubject,
+    namedDerivedKeysBySubject,
     sourceBackedNpcSourceText,
     sourceBackedNpcSourceTitle,
     scope,
     mode,
   };
   return {
+    reviewForUnit(unit) {
+      return namedSubjectIdentityReview(unit, batchNames, index, context);
+    },
     identityKeyForUnit(unit) {
       const hasSubjectNames = unit.subjectNames !== undefined && unit.subjectNames.length > 0;
       const established =
@@ -1017,11 +1118,28 @@ export function prepareLtmSubjectIdentityContext({
               `${unit.bucket}\u0000${stripNotePrefix(normalizeSubjectIdentifier(unit.subjectId, ""))}`,
             )
           : undefined;
-      const effectiveUnit = established ? { ...unit, subjectKeys: established } : unit;
-      const match =
+      let effectiveUnit = established ? { ...unit, subjectKeys: established } : unit;
+      let match =
         hasSubjectNames && effectiveUnit.subjectKeys === undefined
           ? resolveNamedUnitSubjects(unit, batchNames, index, context)
-          : resolveUnitSubjects(effectiveUnit, index);
+          : ((effectiveUnit.subjectKeys === undefined
+              ? batchNames.savedMatches.get(stripNotePrefix(normalizeSubjectName(effectiveUnit.subjectId)))
+              : undefined) ?? resolveUnitSubjects(effectiveUnit, index));
+      if (
+        match.status === "untrusted" &&
+        match.basis !== "saved_skip" &&
+        effectiveUnit.subjectKeys === undefined &&
+        !hasSubjectNames
+      ) {
+        const borrowed = namedDerivedKeysBySubject.get(`${unit.bucket}\u0000${unit.subjectId}`);
+        // Adopt the borrowed identity only when its keys resolve, mirroring the
+        // resolution path so prediction cannot target an identity resolve rejects.
+        const borrowedMatch = borrowed && resolveUnitSubjects({ ...effectiveUnit, subjectKeys: borrowed }, index);
+        if (borrowed && borrowedMatch?.status === "matched") {
+          effectiveUnit = { ...effectiveUnit, subjectKeys: borrowed };
+          match = borrowedMatch;
+        }
+      }
       if (match.status !== "matched") {
         // Mirror the resolution path so this pre-resolution key predicts the same target
         // for keyless source-backed units instead of deriving a short-form identity.
@@ -1111,6 +1229,7 @@ function resolveLtmSubjectIdentitiesWithContext({
     unresolvedBySubject,
     batchNames,
     establishedKeysBySubject,
+    namedDerivedKeysBySubject,
     sourceBackedNpcSourceText,
     sourceBackedNpcSourceTitle,
     scope,
@@ -1120,6 +1239,7 @@ function resolveLtmSubjectIdentitiesWithContext({
   const droppedCandidates: LtmExtractionDroppedCandidate[] = [];
   const resolved: ResolvedUnit[] = [];
   const aliasChoices = new Map<string, { title: string; canonicalName: string }>();
+  let skippedUnits = 0;
   const targetNotes = new Map(existingNotes.map((note) => [note.id, note]));
 
   for (const [candidateIndex, unit] of units.entries()) {
@@ -1134,6 +1254,23 @@ function resolveLtmSubjectIdentitiesWithContext({
       continue;
     }
 
+    const names = unit.subjectNames?.length
+      ? unit.subjectNames
+      : unit.subjectKeys === undefined
+        ? [stripNotePrefix(normalizeSubjectName(unit.subjectId))]
+        : [];
+    if (names.some((name) => batchNames.skippedNames.has(normalizeSubjectName(name)))) {
+      skippedUnits += 1;
+      diagnostics.push({
+        severity: "warning",
+        code: "subject_identity_skipped",
+        candidateIndex,
+        mutationId: unit.id,
+        message: "Skipped this candidate using a saved subject-name decision for this chat or group.",
+      });
+      continue;
+    }
+
     const hasSubjectNames = unit.subjectNames !== undefined && unit.subjectNames.length > 0;
     // Keyless, nameless backfill units adopt the trusted keys another unit in this
     // batch already established for the same bucket + subjectId. Units with explicit
@@ -1144,11 +1281,32 @@ function resolveLtmSubjectIdentitiesWithContext({
             `${unit.bucket}\u0000${stripNotePrefix(normalizeSubjectIdentifier(unit.subjectId, ""))}`,
           )
         : undefined;
-    const effectiveUnit = established ? { ...unit, subjectKeys: established } : unit;
-    const match =
+    let effectiveUnit = established ? { ...unit, subjectKeys: established } : unit;
+    let match =
       hasSubjectNames && effectiveUnit.subjectKeys === undefined
         ? resolveNamedUnitSubjects(unit, batchNames, index, context)
-        : resolveUnitSubjects(effectiveUnit, index);
+        : ((effectiveUnit.subjectKeys === undefined
+            ? batchNames.savedMatches.get(stripNotePrefix(normalizeSubjectName(effectiveUnit.subjectId)))
+            : undefined) ?? resolveUnitSubjects(effectiveUnit, index));
+    let borrowedIdentity = false;
+    // Only an untrusted, nameless, keyless candidate may borrow from a named sibling
+    // with the exact same bucket + subjectId; ambiguity/cardinality failures stay closed.
+    if (
+      match.status === "untrusted" &&
+      match.basis !== "saved_skip" &&
+      effectiveUnit.subjectKeys === undefined &&
+      !hasSubjectNames
+    ) {
+      const borrowed = namedDerivedKeysBySubject.get(`${unit.bucket}\u0000${unit.subjectId}`);
+      if (borrowed) {
+        const borrowedMatch = resolveUnitSubjects({ ...effectiveUnit, subjectKeys: borrowed }, index);
+        if (borrowedMatch.status === "matched") {
+          effectiveUnit = { ...effectiveUnit, subjectKeys: borrowed };
+          match = borrowedMatch;
+          borrowedIdentity = true;
+        }
+      }
+    }
     if (match.status !== "matched") {
       const sourceBackedNpc = hasSubjectNames
         ? null
@@ -1242,7 +1400,9 @@ function resolveLtmSubjectIdentitiesWithContext({
     const chosenName =
       effectiveUnit.bucket === "character_fact"
         ? effectiveUnit.subjectNames?.find(
-            (name) => batchNames.aliasChoices.get(normalizeSubjectName(name))?.subject.key === subjects[0]?.key,
+            (name) =>
+              !batchNames.savedMatches.has(normalizeSubjectName(name)) &&
+              batchNames.aliasChoices.get(normalizeSubjectName(name))?.subject.key === subjects[0]?.key,
           )
         : undefined;
     if (chosenName) aliasChoices.set(unit.id, { title: chosenName, canonicalName: entries[0]!.name });
@@ -1279,6 +1439,18 @@ function resolveLtmSubjectIdentitiesWithContext({
       subjects,
     };
     resolved.push({ unit: nextUnit, originalNoteId, targetNoteId: canonicalNoteId, candidateIndex });
+
+    if (borrowedIdentity) {
+      diagnostics.push({
+        severity: "warning",
+        code: "borrowed_subject_identity",
+        candidateIndex,
+        mutationId: unit.id,
+        noteId: canonicalNoteId,
+        message: `Used ${subjectNames.join(" and ")} from a named memory with the same subjectId for this unnamed candidate. Review the character match before accepting.`,
+        details: { subjectNames, subjectKeys, matchBasis: "borrowed_subject_identity" },
+      });
+    }
 
     if (entries.some((entry) => batchNames.provisionalKeys.has(entry.subject.key))) {
       diagnostics.push({
@@ -1380,6 +1552,7 @@ function resolveLtmSubjectIdentitiesWithContext({
     droppedCandidates,
     legacyBindings,
     aliasChoices,
+    skippedUnits,
   };
 }
 
@@ -1390,6 +1563,8 @@ function preResolveBatchSubjectNames({
   mode,
   sourceText,
   sourceTitle,
+  savedMatches,
+  skippedNames,
 }: {
   units: LtmEvidenceUnit[];
   index: CatalogIndex;
@@ -1397,6 +1572,8 @@ function preResolveBatchSubjectNames({
   mode?: LtmMode;
   sourceText?: string;
   sourceTitle?: string;
+  savedMatches: Map<string, SubjectMatch>;
+  skippedNames: Set<string>;
 }): BatchSubjectNameResolution {
   const matches = new Map<string, SubjectMatch>();
   const provisionalKeys = new Set<string>();
@@ -1412,11 +1589,16 @@ function preResolveBatchSubjectNames({
 
   for (const name of names) {
     const normalizedName = normalizeSubjectName(name);
+    const saved = savedMatches.get(normalizedName);
+    if (saved) {
+      matches.set(name, saved);
+      continue;
+    }
     if (familyId && index.ambiguousLocalNames.has(`${familyId}\u0000${normalizedName}`)) {
       matches.set(name, localAmbiguousMatch(index, familyId, normalizedName));
       continue;
     }
-    const direct = matchDirect(index, normalizedName);
+    const direct = matchDirectName(index, name);
     const sourceVisible = isSourceBackedProperName(name, [sourceText, sourceTitle]);
     if (direct.status !== "untrusted") {
       matches.set(name, direct);
@@ -1477,7 +1659,7 @@ function preResolveBatchSubjectNames({
     matches.set(name, matchDirect(index, normalizeSubjectName(name)));
   }
 
-  return { matches, provisionalKeys, aliasChoices: new Map() };
+  return { matches, provisionalKeys, aliasChoices: new Map(), savedMatches, skippedNames };
 }
 
 function resolveAndCacheSubjectName(
@@ -1490,6 +1672,8 @@ function resolveAndCacheSubjectName(
   name?: string,
 ): SubjectMatch {
   if (!name || !index) return { status: "untrusted", basis: "source_visible_name" };
+  const saved = batch.savedMatches.get(normalizeSubjectName(name));
+  if (saved) return saved;
   const cached = batch.matches.get(name);
   if (cached) return cached;
   const normalizedName = normalizeSubjectName(name);
@@ -1504,7 +1688,7 @@ function resolveAndCacheSubjectName(
     batch.matches.set(name, match);
     return match;
   }
-  const direct = matchDirect(index, normalizedName);
+  const direct = matchDirectName(index, name);
   if (direct.status !== "untrusted") {
     batch.matches.set(name, direct);
     return direct;
@@ -1597,6 +1781,9 @@ function resolveNamedUnitSubjects(
       basis: ambiguous[0]!.basis,
       competingRecords: competingRecords.length > 0 ? competingRecords : undefined,
       collisionSource: ambiguous[0]!.collisionSource,
+      ...(ambiguous.some((match) => match.basis === "partial_name_requires_review") && index && context
+        ? { identityReview: namedSubjectIdentityReview(unit, batch, index, context) }
+        : {}),
     };
   }
   const unmatched = nameMatches.find((match) => match.status !== "matched");
@@ -1617,6 +1804,40 @@ function resolveNamedUnitSubjects(
         ? "unique_alias"
         : "exact_name",
   };
+}
+
+function namedSubjectIdentityReview(
+  unit: LtmSubjectIdentityCandidate,
+  batch: BatchSubjectNameResolution,
+  index: CatalogIndex,
+  context: Pick<
+    PreparedLtmSubjectIdentityContext,
+    "scope" | "mode" | "sourceBackedNpcSourceText" | "sourceBackedNpcSourceTitle"
+  >,
+): LtmSubjectIdentityReview[] {
+  return (unit.subjectNames ?? []).map((name) => {
+    const choice = batch.aliasChoices.get(normalizeSubjectName(name));
+    const match: SubjectMatch = choice
+      ? { status: "matched", entries: [choice], basis: "trusted_key" }
+      : resolveAndCacheSubjectName(batch, index, context, name);
+    const entries =
+      match.status === "matched"
+        ? match.entries
+        : match.status === "ambiguous"
+          ? match.keys.flatMap((key) => (index.byKey.has(key) ? [index.byKey.get(key)!] : []))
+          : [];
+    return {
+      name,
+      candidates: entries.slice(0, 10).map((entry) => ({ name: entry.name, subject: entry.subject })),
+      allowDifferent: Boolean(
+        (context.mode === undefined || context.mode === "roleplay") &&
+        context.scope &&
+        ltmScopeFamilyId(context.scope) &&
+        isSourceBackedProperName(name, [context.sourceBackedNpcSourceText, context.sourceBackedNpcSourceTitle]),
+      ),
+      ...(match.status === "matched" ? { matchedSubjectKey: match.entries[0]!.subject.key } : {}),
+    };
+  });
 }
 
 function sourceBackedNpcSubject(
@@ -1656,6 +1877,7 @@ type MutableCatalogIdentity = {
   name: string;
   aliases: Set<string>;
   familyId?: string;
+  subject?: LtmSubject;
 };
 
 function mutableHasRelatedIdentity(mutable: Map<string, MutableCatalogIdentity>, name: string, familyId: string) {
@@ -1664,8 +1886,44 @@ function mutableHasRelatedIdentity(mutable: Map<string, MutableCatalogIdentity>,
   return [...mutable.values()].some((entry) => {
     if (entry.familyId && entry.familyId !== familyId) return false;
     if ([...entry.aliases].some((alias) => normalizeSubjectName(alias) === slug)) return true;
-    return normalizeSubjectName(entry.name) === slug;
+    if (normalizeSubjectName(entry.name) === slug) return true;
+    // A short source form must not seed a local identity when a trusted character/persona
+    // with a longer name covers it. Resolution then routes the name to review instead.
+    return Boolean(
+      entry.subject && isTrustedCharacterOrPersonaSubject(entry.subject) && partialNameTokensMatch(name, entry.name),
+    );
   });
+}
+
+function isTrustedCharacterOrPersonaSubject(subject: LtmSubject | undefined) {
+  if (!subject) return false;
+  const kind = subject.ref?.kind;
+  if (kind === "character" || kind === "persona") return true;
+  if (kind) return false;
+  return subject.key.startsWith("character:") || subject.key.startsWith("persona:");
+}
+
+// A strict token-subset of a longer trusted character/persona name is a short or partial
+// surface form ("Alex" for "Alex Rivera"). It is never identity evidence on its own, so
+// callers route it to review instead of binding it by first name alone.
+function partialNameTokensMatch(name: string, entryName: string) {
+  if (isHangulNameSuffix(name, entryName)) return true;
+  const tokenTokens = normalizeSubjectName(name).split("_").filter(Boolean);
+  const entryTokens = normalizeSubjectName(entryName).split("_").filter(Boolean);
+  if (tokenTokens.length === 0 || entryTokens.length <= tokenTokens.length) return false;
+  return tokenTokens.every((part) => entryTokens.includes(part));
+}
+
+function partialNameCandidateEntries(index: CatalogIndex, name: string, familyId: string) {
+  const token = normalizeSubjectName(name);
+  return index.entries.filter(
+    (entry) =>
+      (!entry.familyId || entry.familyId === familyId) &&
+      isTrustedCharacterOrPersonaSubject(entry.subject) &&
+      normalizeSubjectName(entry.name) !== token &&
+      !entry.aliases.some((alias) => normalizeSubjectName(alias) === token) &&
+      partialNameTokensMatch(name, entry.name),
+  );
 }
 
 function sourceBackedNpcNames(sources: Array<string | undefined>) {
@@ -1709,6 +1967,58 @@ function isGenericSubjectName(name: string) {
   return genericFinalToken && tokens.slice(0, -1).every((token) => GENERIC_ROLE_QUALIFIERS.has(token));
 }
 
+// Hangul names carry no spaces, so "진욱" is the 2-syllable tail of "도진욱" rather than a shared token.
+function isHangulNameSuffix(name: string, entryName: string) {
+  const short = name.trim().normalize("NFC");
+  const long = entryName.trim().normalize("NFC");
+  return (
+    short.length === 2 &&
+    long.length === 3 &&
+    HANGUL_NAME_PATTERN.test(short) &&
+    HANGUL_NAME_PATTERN.test(long) &&
+    long.endsWith(short)
+  );
+}
+
+function isHangulParticle(stem: string, particle: string) {
+  const syllable = stem.charCodeAt(stem.length - 1) - 0xac00;
+  if (syllable < 0 || syllable > 11171) return false;
+  if (HANGUL_PARTICLE_ANY.test(particle)) return true;
+  const final = syllable % 28;
+  if (final === 0) return HANGUL_PARTICLE_OPEN.test(particle);
+  if (final === 8 && particle.startsWith("으")) return false;
+  return HANGUL_PARTICLE_CLOSED.test(final === 8 ? particle.replace(/^로/u, "으로") : particle);
+}
+
+// True when `rest` begins with one whole permitted particle for `name` and then a name boundary.
+// A single-syllable name is too ambiguous against a following particle to count as present.
+function followedByHangulParticle(name: string, rest: string) {
+  if (name.length < 2) return false;
+  for (let length = 1; length <= 4; length += 1) {
+    if (
+      isHangulParticle(name, rest.slice(0, length)) &&
+      !SOURCE_BACKED_NAME_BOUNDARY_PATTERN.test(rest[length] ?? "")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// A returned Hangul name may carry its particle ("서무진은"). The full name always wins; the stripped
+// stem binds only to a known exact name or alias and never creates a character.
+function matchDirectName(index: CatalogIndex, name: string): SubjectMatch {
+  const direct = matchDirect(index, normalizeSubjectName(name));
+  if (direct.status !== "untrusted") return direct;
+  const value = name.trim().normalize("NFC");
+  for (let length = 1; length <= 4 && value.length - length >= 2; length += 1) {
+    if (!isHangulParticle(value.slice(0, -length), value.slice(-length))) continue;
+    const token = normalizeSubjectName(value.slice(0, -length));
+    if (index.exact.has(token) || index.aliases.has(token)) return matchDirect(index, token);
+  }
+  return direct;
+}
+
 function sourceContainsWholeName(source: string | undefined, name: string) {
   if (!source) return false;
   const searchable = source.toLowerCase();
@@ -1724,7 +2034,10 @@ function sourceContainsWholeName(source: string | undefined, name: string) {
       !SOURCE_BACKED_NAME_BOUNDARY_PATTERN.test(searchable[afterIndex + 2] ?? "");
     if (
       (!before || !SOURCE_BACKED_NAME_BOUNDARY_PATTERN.test(before)) &&
-      (!after || !SOURCE_BACKED_NAME_BOUNDARY_PATTERN.test(after) || possessiveEnd)
+      (!after ||
+        !SOURCE_BACKED_NAME_BOUNDARY_PATTERN.test(after) ||
+        possessiveEnd ||
+        followedByHangulParticle(needle, searchable.slice(afterIndex)))
     ) {
       return true;
     }
@@ -1735,28 +2048,57 @@ function sourceContainsWholeName(source: string | undefined, name: string) {
 
 // Canonicalize a surface name against trusted catalog entries related by the
 // conservative shorter/longer name heuristic before any provisional local
-// character is created. Returns matched/ambiguous, or null when no trusted
-// relation exists (the caller may then create a provisional identity).
+// character is created. Exact names and explicit aliases bind; a short or partial
+// form of one trusted character/persona is routed to review instead of binding by
+// first name alone, and an ambiguous relation fails closed with the competing
+// identities.
 function matchTrustedNameRelation(index: CatalogIndex, name: string, familyId: string | null): SubjectMatch | null {
-  if (!familyId) return null;
   const token = normalizeSubjectName(name);
+  const isExactOrAlias = (entry: TrustedLtmSubjectCatalogEntry) =>
+    normalizeSubjectName(entry.name) === token || entry.aliases.some((alias) => normalizeSubjectName(alias) === token);
+  // No local family outside Roleplay: family-scoped local entries drop out, but trusted
+  // character/persona partial names must still reach review.
   const related = index.entries.filter(
     (entry) =>
       (!entry.familyId || entry.familyId === familyId) &&
-      (normalizeSubjectName(entry.name) === token ||
-        entry.aliases.some((alias) => normalizeSubjectName(alias) === token)),
+      (isExactOrAlias(entry) ||
+        (isTrustedCharacterOrPersonaSubject(entry.subject) && partialNameTokensMatch(name, entry.name))),
   );
   const uniqueSubjects = new Map(related.map((entry) => [entry.subject.key, entry]));
   if (uniqueSubjects.size === 0) return null;
+  const allowDifferent = familyId !== null;
   if (uniqueSubjects.size === 1) {
-    return { status: "matched", entries: [[...uniqueSubjects.values()][0]!], basis: "batch_name_alias" };
+    const entry = [...uniqueSubjects.values()][0]!;
+    if (isExactOrAlias(entry)) return { status: "matched", entries: [entry], basis: "batch_name_alias" };
+    return {
+      status: "ambiguous",
+      keys: [entry.subject.key],
+      basis: "partial_name_requires_review",
+      identityReview: [{ name, candidates: [{ name: entry.name, subject: entry.subject }], allowDifferent }],
+      competingRecords: [
+        {
+          key: entry.subject.key,
+          name: entry.name,
+          canonicalSlug: entry.canonicalSlug,
+          provenance: entry.provenance ?? entry.subject.key,
+          sourceScope: entry.sourceScope,
+        },
+      ],
+    };
   }
   const competing = [...uniqueSubjects.values()];
-  const { collisionSource, competingRecords } = diagnoseCollision(competing);
+  const { collisionSource, competingRecords } = diagnoseCollision(competing, "partial_name");
   return {
     status: "ambiguous",
     keys: competing.map(subjectEntryKey),
-    basis: "batch_name_alias",
+    basis: "partial_name_requires_review",
+    identityReview: [
+      {
+        name,
+        candidates: competing.slice(0, 10).map((entry) => ({ name: entry.name, subject: entry.subject })),
+        allowDifferent,
+      },
+    ],
     competingRecords,
     collisionSource,
   };
@@ -2224,6 +2566,7 @@ function subjectRejection(unit: LtmEvidenceUnit, match: Exclude<SubjectMatch, { 
   const isCompositeCharacter = unit.bucket === "character_fact" && match.status === "cardinality" && match.count > 1;
   const isAmbiguous = match.status === "ambiguous";
   const isSuggestion = isAmbiguous && match.basis === "spelling_variation";
+  const isPartialName = isAmbiguous && match.basis === "partial_name_requires_review";
   const code = isCompositeCharacter
     ? "composite_character_subject"
     : isAmbiguous && !isSuggestion
@@ -2239,16 +2582,18 @@ function subjectRejection(unit: LtmEvidenceUnit, match: Exclude<SubjectMatch, { 
         : "invalid_subject_cardinality";
   const message = isCompositeCharacter
     ? "Dropped a character fact that combined multiple character subjects."
-    : isSuggestion
-      ? "Dropped a fuzzy subject match that needs an explicit identity choice."
-      : isAmbiguous
-        ? "Dropped a candidate whose subject matches more than one trusted roster identity."
-        : match.status === "cardinality"
-          ? `Dropped a ${unit.bucket} candidate with ${match.count} resolved subjects.`
-          : "Dropped a candidate whose subject is not in the trusted chat roster or bound memories.";
+    : isPartialName
+      ? "Dropped a candidate whose short subject name needs an explicit identity choice."
+      : isSuggestion
+        ? "Dropped a fuzzy subject match that needs an explicit identity choice."
+        : isAmbiguous
+          ? "Dropped a candidate whose subject matches more than one trusted roster identity."
+          : match.status === "cardinality"
+            ? `Dropped a ${unit.bucket} candidate with ${match.count} resolved subjects.`
+            : "Dropped a candidate whose subject is not in the trusted chat roster or bound memories.";
   return {
     diagnostic: {
-      severity: "error" as const,
+      severity: isPartialName ? ("warning" as const) : ("error" as const),
       code,
       candidateIndex: index,
       mutationId: unit.id,
@@ -2281,7 +2626,11 @@ function subjectRejection(unit: LtmEvidenceUnit, match: Exclude<SubjectMatch, { 
       validatorCode: code,
       message,
       snippet: safeSnippet(unit.text),
-      recoveryCandidate: unit,
+      ...(isAmbiguous && match.identityReview ? { identityReview: match.identityReview } : {}),
+      recoveryCandidate:
+        !unit.subjectNames?.length && isAmbiguous && match.identityReview
+          ? { ...unit, subjectNames: match.identityReview.map((participant) => participant.name) }
+          : unit,
       recovery: {
         noteType: unit.bucket === "character_fact" ? ("character" as const) : ("relationship" as const),
         noteId,
@@ -2374,21 +2723,6 @@ function extractAliases(record: Record<string, unknown>) {
 function readStringArray(value: unknown) {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
   return typeof value === "string" ? value.split(/[,;\n]/g) : [];
-}
-
-function normalizeSubjectName(value: string) {
-  return value
-    .trim()
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^\p{L}0-9]+/gu, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/_+/g, "_")
-    .replace(/[^a-z0-9_]/gu, (letter) => `u${letter.codePointAt(0)!.toString(16)}`)
-    .slice(0, 120)
-    .replace(/_+$/g, "");
 }
 
 export function normalizeSubjectIdentifier(value: unknown, fallback = "subject") {

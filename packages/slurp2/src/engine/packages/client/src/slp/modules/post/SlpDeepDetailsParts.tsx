@@ -1,5 +1,9 @@
+import i18next from "i18next";
 import { Check, Copy } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { SLP_TYPE } from "../../base/chrome/SlpChrome";
+import { formatFullTime } from "../../base/ui/slp-date-time";
+import { formatSlpPercent } from "../../base/ui/slp-number-format";
 
 /** Building blocks shared by the Deep details view and its image runs. */
 
@@ -23,8 +27,12 @@ const STATUS_DOT: Record<SlpStepStatus, string> = {
   missing: "bg-transparent ring-1 ring-inset ring-[var(--muted-foreground)]",
 };
 
-/** Status as a colored dot beside plain words, so it reads in any theme and never by color alone. */
+/**
+ * Status as a colored dot beside plain words, so it reads in any theme and never by color alone.
+ * "Completed" is the normal case and says nothing, so only the exceptions show.
+ */
 export function StepStatus({ status }: { status: SlpStepStatus }) {
+  if (status === "done") return null;
   return (
     <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold">
       <span className={`size-2 rounded-full ${STATUS_DOT[status]}`} aria-hidden="true" />
@@ -37,17 +45,22 @@ export function str(value: unknown): string | null {
   return typeof value === "string" && value ? value : null;
 }
 
+/** Every date in Deep details: the full form of Slurp's one Timestamp ("Sep 27, 2026, 5:24 AM"). */
 export function formatTime(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return formatFullTime(value, i18next.language) || value;
+}
+
+/** Every rate in Deep details: the stored whole-number percent (0–100) as Slurp's one percent format. */
+export function formatRate(percent: number): string {
+  return formatSlpPercent(percent / 100, i18next.language);
 }
 
 export function Chip({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
-    <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-[var(--slurp-surface-raised)] px-2.5 text-xs ring-1 ring-inset ring-[var(--slurp-outline)]">
+    <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-[var(--slurp-surface-raised)] px-2.5 text-xs">
       <span className="text-[var(--muted-foreground)]">{label}</span>
-      <span className="font-bold text-[var(--noodle-accent)]">{value}</span>
+      <span className="font-semibold">{value}</span>
     </span>
   );
 }
@@ -67,11 +80,11 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl bg-[var(--slurp-surface-raised)] p-4 ring-1 ring-inset ring-[var(--slurp-outline)]">
+    <section className="rounded-2xl bg-[var(--slurp-surface-raised)] p-4 shadow-[var(--slurp-highlight)]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--noodle-accent)]">
+        <h4 className={`${SLP_TYPE.title} flex items-center gap-2`}>
           {step !== undefined && (
-            <span className="inline-flex size-6 items-center justify-center rounded-full bg-[var(--slurp-canvas)] tabular-nums ring-1 ring-inset ring-[var(--slurp-outline)]">
+            <span className="inline-flex size-6 items-center justify-center rounded-full bg-[var(--slurp-canvas)] text-xs tabular-nums">
               {step}
             </span>
           )}
@@ -91,7 +104,7 @@ export function Rows({ rows, mono = false }: { rows: [string, string | null][]; 
   const shown = rows.filter((row): row is [string, string] => Boolean(row[1]));
   if (shown.length === 0) return <p className="text-xs text-[var(--muted-foreground)]">—</p>;
   return (
-    <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)]">
+    <dl className="grid grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)] gap-x-4 gap-y-2 sm:grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)]">
       {shown.map(([label, value]) => (
         <div key={label} className="contents">
           <dt className="text-xs font-semibold text-[var(--muted-foreground)]">{label}</dt>
@@ -107,7 +120,7 @@ export function Rows({ rows, mono = false }: { rows: [string, string | null][]; 
 /** Long text. Collapsed by default when `collapsed`, so the prompt is there without being the view. */
 export function Block({ label, text, collapsed = false }: { label: string; text: string; collapsed?: boolean }) {
   const body = (
-    <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--slurp-canvas)] p-3 font-mono text-xs leading-5 ring-1 ring-inset ring-[var(--slurp-outline)]">
+    <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--slurp-canvas)] p-3 font-mono text-xs leading-5">
       {text}
     </pre>
   );
@@ -140,7 +153,7 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
           .then(() => setCopied(true))
           .catch(() => setCopied(false));
       }}
-      className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-[var(--noodle-accent)] ring-1 ring-inset ring-[var(--slurp-outline)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
+      className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-[var(--noodle-accent-foreground)] hover:bg-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
     >
       {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
       {copied ? "Copied" : label}

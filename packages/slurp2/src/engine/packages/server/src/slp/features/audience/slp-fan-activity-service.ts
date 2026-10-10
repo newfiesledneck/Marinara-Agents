@@ -49,6 +49,7 @@ import { slpResponseFormat } from "../../base/prompting/slp-response-format.js";
 import { normalizeSlurpFanActivityRows } from "../../modules/audience/slp-fan-activity-response.js";
 import { composeSlurpPromptBlocks } from "../../base/prompting/slp-prompt-blocks.js";
 import { slurpPromptContext } from "../../base/prompting/slp-prompt-blocks.js";
+import { slpWithProviderRetry } from "../../base/model/slp-provider-retry.js";
 
 type GenerationConnection = NonNullable<Awaited<ReturnType<ReturnType<typeof createConnectionsStorage>["getWithKey"]>>>;
 
@@ -328,16 +329,18 @@ async function generateFanActivity(input: {
   creators: SlpCreatorFanCreatorCandidate[];
   debugMode: boolean;
 }): Promise<SlpGeneratedFanRefresh> {
-  const provider = createLLMProvider(
-    input.connection.provider,
-    resolveBaseUrl(input.connection),
-    input.connection.apiKey,
-    input.connection.maxContext,
-    input.connection.openrouterProvider,
-    input.connection.maxTokensOverride,
-    input.connection.claudeFastMode === "true",
-    input.connection.treatAsLocalEndpoint === "true",
-    input.connection.defaultParameters,
+  const provider = slpWithProviderRetry(
+    createLLMProvider(
+      input.connection.provider,
+      resolveBaseUrl(input.connection),
+      input.connection.apiKey,
+      input.connection.maxContext,
+      input.connection.openrouterProvider,
+      input.connection.maxTokensOverride,
+      input.connection.claudeFastMode === "true",
+      input.connection.treatAsLocalEndpoint === "true",
+      input.connection.defaultParameters,
+    ),
   );
   const imageContexts = await prepareSlurpPostImageContexts({
     posts: input.creators.flatMap((candidate) => candidate.posts),

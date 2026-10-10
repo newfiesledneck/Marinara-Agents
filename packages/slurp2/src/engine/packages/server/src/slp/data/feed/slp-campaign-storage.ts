@@ -41,7 +41,14 @@ function mapStage(row: Record<string, unknown>): SlurpCampaignStage {
  */
 export async function openSlurpCampaign(
   db: DB,
-  input: { creatorAccountId: string; opportunityId: string | null; at: Date; dueAt?: Date | null },
+  input: {
+    creatorAccountId: string;
+    opportunityId: string | null;
+    at: Date;
+    dueAt?: Date | null;
+    /** A free tease opens its own campaign, tease first (3b). */
+    template?: typeof SLURP_CAMPAIGN_TEMPLATE;
+  },
 ): Promise<string> {
   const campaignId = newId();
   // Stages count from when the set goes up, not from when it was planned: a scheduled set planned
@@ -54,7 +61,7 @@ export async function openSlurpCampaign(
     createdAt: input.at.toISOString(),
     expiresAt: new Date(at + SLURP_CAMPAIGN_MAX_AGE_MS).toISOString(),
   });
-  for (const [position, stage] of SLURP_CAMPAIGN_TEMPLATE.entries()) {
+  for (const [position, stage] of (input.template ?? SLURP_CAMPAIGN_TEMPLATE).entries()) {
     await db.insert(slurpContentCampaignStages).values({
       id: newId(),
       campaignId,

@@ -250,6 +250,8 @@ export type SlurpProject = {
   completedAt: string | null;
   /** A one-shot line for the next post in this arc. Empty when none; cleared once a post publishes. */
   twist: string;
+  /** The player asked to stay on this chapter: posts and time do not move it on until released. */
+  held?: boolean;
   /** Choice per chapter, by index. Cleared once settled. */
   choices: (SlurpArcChoice | null)[];
   /** The post carrying the open choice's poll, once one published. */
@@ -463,6 +465,7 @@ export function readSlurpProject(value: unknown): SlurpProject | null {
     history,
     completedAt,
     twist: clampText(raw.twist, SLURP_ARC_TWIST_MAX_LENGTH),
+    ...(raw.held === true ? { held: true } : {}),
     choices: Array.isArray(raw.choices) ? raw.choices.slice(0, chapters.length).map(readSlurpArcChoice) : [],
     pollPostId: clampText(raw.pollPostId, 128) || null,
     pollClosesAt: validDate(raw.pollClosesAt) ? raw.pollClosesAt : null,

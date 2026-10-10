@@ -1,3 +1,7 @@
+import {
+  slpDetailsOverridesSchema,
+  type SlpMessageDetailsPatch,
+} from "../../../../../shared/src/slp/slp-message-details.js";
 // ──────────────────────────────────────────────
 // Storage: Slurp direct messages
 // ──────────────────────────────────────────────
@@ -33,6 +37,8 @@ import {
   type SlurpCreatorStateSignal,
 } from "../../modules/creators/slp-creator-state.js";
 import { activeSlurpStrikes } from "../../modules/world/slp-stance.js";
+import { SLURP_SUPPORT_NAME } from "../../modules/messages/slp-dm-roles.js";
+import { SLURP_SUPPORT_ACCOUNT_ID } from "../../../../../shared/src/slp/slp-support.js";
 import { SLURP_ONLINE_AFTER_DELIVERY_MINUTES } from "../../modules/messages/slp-conversation-momentum.js";
 import { createAppSettingsStorage } from "../../../services/storage/app-settings.storage.js";
 import { createSlurpEventsStorage } from "../notifications/slp-notification-storage.js";
@@ -104,23 +110,40 @@ export function createMessagesStorageActions(context: SlurpMessagesContext) {
       creatorAccountId: string,
       content: string,
       requestId?: string,
+      /** The player writes as Slurp Support: staff reach any Creator, and the line is Support's, not the fan's. */
+      options: { asSupport?: boolean; metadata?: Record<string, unknown> } = {},
     ): Promise<SlurpSendResult> {
-      const opened = await context.storage.openThread(viewerAccountId, creatorAccountId, "viewer");
+      // Support writes from its own account, so a Creator has one Support thread whichever persona
+      // the player writes from (`slp-support.ts`). Staff reach any Creator without a fee.
+      if (options.asSupport) viewerAccountId = SLURP_SUPPORT_ACCOUNT_ID;
+      const opened = options.asSupport
+        ? await context.storage.openThread(viewerAccountId, creatorAccountId, "creator", "waive")
+        : await context.storage.openThread(viewerAccountId, creatorAccountId, "viewer");
       if (opened.status !== "ok") return opened;
       if (requestId) {
         const existing = (await context.storage.listMessages(opened.thread.id)).find(
           (message) => message.role === "viewer" && message.metadata.requestId === requestId,
         );
-        if (existing) return { status: "sent", thread: opened.thread, message: existing };
+        if (existing) return { status: "sent", thread: opened.thread, message: existing, replayed: true };
       }
+      // Support is a faceless team: every line it writes is "Slurp Support".
+      const support = options.asSupport ? { sceneSpeaker: SLURP_SUPPORT_NAME, supportVoice: true } : null;
       const message = await context.storage.appendMessage(opened.thread.id, {
         id: requestId ? `dm:${requestId}:message` : undefined,
         senderAccountId: viewerAccountId,
         role: "viewer",
         content,
-        metadata: requestId ? { requestId } : undefined,
+        metadata:
+          requestId || support || options.metadata
+            ? { ...(requestId ? { requestId } : {}), ...support, ...options.metadata }
+            : undefined,
       });
       if (!message) return { status: "not_found" };
+      // Slurp's staff writing is not a fan engaging: no event, no tie.
+      if (support) {
+        const thread = await context.storage.getThreadById(opened.thread.id);
+        return { status: "sent", thread: thread ?? opened.thread, message };
+      }
       await slurp.recordCreatorEvent(creatorAccountId, "message", {
         subjectId: opened.thread.id,
         actorLabel: viewerAccountId,
@@ -165,7 +188,7 @@ export function createMessagesStorageActions(context: SlurpMessagesContext) {
       note: string,
       requestId?: string,
     ): Promise<SlurpSendResult> {
-      const opened = await context.storage.openThread(viewerAccountId, creatorAccountId, "viewer");
+      const opened = await context.storage.openThread(viewerAccountId, creatorAccountId, "viewer", "waive");
       if (opened.status !== "ok") return opened;
       const settings = await slurp.getSettings();
       const tipId = requestId ?? newId();
@@ -326,7 +349,15 @@ export function createMessagesStorageActions(context: SlurpMessagesContext) {
     /** Coins this fan has put into this Creator: tips, unlocks and commissions together. */
     async spentWithCreator(viewerAccountId: string, creatorAccountId: string): Promise<number> {
       const facts = await context.storage.rapportFactsFor(viewerAccountId, creatorAccountId);
-      return Math.max(0, Math.round(facts.tippedCoins + facts.unlockedCoins));
+      // Paid commissions too; the line said "tips, unlocks and commissions" and counted two (R1-018).
+      const thread = await context.storage.getThread(viewerAccountId, creatorAccountId);
+      const overrides = thread ? await context.storage.getDetailsOverrides(thread.id) : {};
+      if (overrides.spentCoins !== undefined) return overrides.spentCoins;
+      const commissions = thread ? await context.storage.listCommissionsForThread(thread.id) : [];
+      const commissionCoins = commissions
+        .filter((entry) => ["accepted", "cancellation_pending", "delivered"].includes(entry.state))
+        .reduce((sum, entry) => sum + entry.price, 0);
+      return Math.max(0, Math.round(facts.tippedCoins + facts.unlockedCoins + commissionCoins));
     },
     /**
      * The thread as the fan is allowed to see it.
@@ -440,6 +471,17 @@ export function createMessagesStorageActions(context: SlurpMessagesContext) {
         .set({ metadata: JSON.stringify(metadata) })
         .where(eq(slurpMessages.id, messageId));
     },
+    /** Merge a few keys into one message's metadata (a Support plan and whether it was played, W). */
+    async mergeMessageMetadata(messageId: string, patch: Record<string, unknown>): Promise<void> {
+      await db.transaction(async (tx) => {
+        const row = (await tx.select().from(slurpMessages).where(eq(slurpMessages.id, messageId)))[0];
+        if (!row) return;
+        await tx
+          .update(slurpMessages)
+          .set({ metadata: JSON.stringify({ ...(json(row.metadata as string) ?? {}), ...patch }) })
+          .where(eq(slurpMessages.id, messageId));
+      });
+    },
     async setMessageReaction(
       messageId: string,
       viewerAccountId: string,
@@ -503,6 +545,60 @@ export function createMessagesStorageActions(context: SlurpMessagesContext) {
       const current = (await context.storage.getThreadById(threadId))?.extendedOnlineUntil ?? null;
       if (current && current >= until) return;
       await context.storage.setExtendedOnline(threadId, until);
+    },
+    async getDetailsOverrides(threadId: string) {
+      const stored = await settingsStore.get(`slurp2.messages.details.${threadId}`);
+      return slpDetailsOverridesSchema.parse(json(stored ?? "{}"));
+    },
+    async saveDetailsOverrides(threadId: string, patch: SlpMessageDetailsPatch): Promise<void> {
+      const previous = await context.storage.getDetailsOverrides(threadId);
+      const changes = slpDetailsOverridesSchema.parse(
+        Object.fromEntries(Object.entries(patch).filter(([key]) => key in slpDetailsOverridesSchema.shape)),
+      );
+      const next = {
+        ...previous,
+        ...changes,
+        ...(changes.availability ? { availability: { ...previous.availability, ...changes.availability } } : {}),
+        ...(changes.contributionPoints
+          ? { contributionPoints: { ...previous.contributionPoints, ...changes.contributionPoints } }
+          : {}),
+      };
+      await settingsStore.set(`slurp2.messages.details.${threadId}`, JSON.stringify(next));
+    },
+    async setThreadDetails(threadId: string, patch: SlpMessageDetailsPatch): Promise<void> {
+      await db.transaction(async (tx) => {
+        const row = (await tx.select().from(slurpThreads).where(eq(slurpThreads.id, threadId)))[0];
+        if (!row) return;
+        const thread = mapThread(row);
+        const timestamp = now();
+        await tx
+          .update(slurpThreads)
+          .set({
+            ...(patch.coolUntil === undefined ? {} : { coolUntil: patch.coolUntil }),
+            ...(patch.mood === undefined ? {} : { mood: String(patch.mood), moodUpdatedAt: timestamp }),
+            ...(patch.strikes === undefined ? {} : { strikes: String(patch.strikes), lastStrikeAt: timestamp }),
+            ...(patch.score === undefined && patch.tier === undefined
+              ? {}
+              : {
+                  rapport: JSON.stringify({
+                    ...thread.rapport,
+                    ...(patch.score === undefined ? {} : { score: patch.score }),
+                    ...(patch.tier === undefined ? {} : { tier: patch.tier }),
+                  }),
+                }),
+            ...(patch.threadState
+              ? {
+                  threadState: JSON.stringify({
+                    ...thread.threadState,
+                    ...patch.threadState,
+                    updatedAt: patch.threadState.updatedAt ?? timestamp,
+                  }),
+                }
+              : {}),
+            updatedAt: timestamp,
+          })
+          .where(eq(slurpThreads.id, threadId));
+      });
     },
     async adjustCheatState(threadId: string, input: { mood?: number; rapport?: number }): Promise<SlurpThread | null> {
       const thread = await context.storage.getThreadById(threadId);

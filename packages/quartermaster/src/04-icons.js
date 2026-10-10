@@ -60,6 +60,6 @@ QM.buildSlotIconRaster = function buildSlotIconRaster(slot, sizePx) {
   img.addEventListener("error", () => {
     img.replaceWith(QM.buildSlotIcon(slot, sizePx));
   });
-  img.src = QM.slotIconUrl(slot);
+  QM.setImageSrc(img, QM.slotIconUrl(slot));
   return img;
 };

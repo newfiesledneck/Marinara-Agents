@@ -16,16 +16,18 @@ import type { SlurpArcType } from "../../projects/slp-project.js";
 import type { SlurpPlatformEvent } from "../../../../../../shared/src/slp/slp-platform-events.js";
 import { SLURP_ARC_LIBRARY_SEED } from "../../projects/slp-arc-library.js";
 import { slurpPlatformEventsDefault } from "../../../../../../shared/src/slp/slp-platform-events.js";
+import type { SlpDrama, SlpSituation } from "../../../../../../shared/src/slp/slp-drama.js";
+import { slpDramaPreviewStatus, SLP_EMPTY_DRAMA_LIBRARY, type SlpDramaLibrary } from "./slp-drama-library.js";
 
 export type SlpStoryPackPreviewEntry = {
-  kind: "arc" | "event";
+  kind: "arc" | "event" | "situation" | "drama";
   contentId: string;
   name: string;
   status: "new" | "update" | "local-edit" | "conflict" | "invalid";
   selected: boolean;
   warnings: string[];
   error?: string;
-  value?: SlpArcBlueprint | SlpEventBlueprint;
+  value?: SlpArcBlueprint | SlpEventBlueprint | SlpSituation | SlpDrama;
 };
 
 export type SlpStoryPackPreview = {
@@ -87,15 +89,17 @@ function pack(
   description: string,
   arcs: SlpArcBlueprint[],
   events: SlpEventBlueprint[],
+  drama: { situations?: SlpSituation[]; dramas?: SlpDrama[] } = {},
 ): SlpStoryPack {
   return slpStoryPackSchema.parse({
+    ...drama,
     format: SLP_STORY_PACK_FORMAT,
     schemaVersion: SLP_STORY_PACK_SCHEMA_VERSION,
     id,
     version: "1.0.0",
     name,
     description,
-    author: "Slurp Remastered",
+    author: "Slurp",
     arcs,
     events,
   });
@@ -381,7 +385,7 @@ export function parseSlpStoryPack(value: unknown): { pack: SlpStoryPack | null; 
 
 export function previewSlpStoryPack(
   value: unknown,
-  current: { arcs: readonly SlurpArcType[]; events: readonly SlurpPlatformEvent[] },
+  current: { arcs: readonly SlurpArcType[]; events: readonly SlurpPlatformEvent[]; drama?: SlpDramaLibrary },
 ): SlpStoryPackPreview {
   const parsed = parseSlpStoryPack(value);
   if (!parsed.pack) throw new Error(parsed.errors.join(" ") || "This is not a valid Slurp story pack.");
@@ -417,6 +421,24 @@ export function previewSlpStoryPack(
   };
   pack.arcs.forEach((entry) => add("arc", entry));
   pack.events.forEach((entry) => add("event", entry));
+  // Drama entries: new, an update of this pack's own, or a conflict with Slurp's or another pack's id.
+  const library = current.drama ?? SLP_EMPTY_DRAMA_LIBRARY;
+  for (const [kind, list] of [
+    ["situation", pack.situations],
+    ["drama", pack.dramas],
+  ] as const)
+    for (const entry of list) {
+      const status = slpDramaPreviewStatus(library, pack.id, kind, entry.id);
+      entries.push({
+        kind,
+        contentId: entry.id,
+        name: entry.name,
+        status,
+        selected: status !== "conflict",
+        warnings: status === "conflict" ? ["Another pack or Slurp already uses this id; it is skipped."] : [],
+        value: entry,
+      });
+    }
   return {
     pack: { id: pack.id, version: pack.version, name: pack.name, description: pack.description, author: pack.author },
     entries,
@@ -425,7 +447,7 @@ export function previewSlpStoryPack(
 }
 
 export type SlpStoryPackApplyChoice = {
-  kind: "arc" | "event";
+  kind: "arc" | "event" | "situation" | "drama";
   contentId: string;
   action: "copy" | "replace" | "skip";
   enabled?: boolean;
@@ -441,7 +463,8 @@ export function applySlpStoryPack(
   const arcs = [...current.arcs];
   const events = [...current.events];
   for (const choice of choices) {
-    if (choice.action === "skip") continue;
+    // Drama entries go to their own library (`applySlpDramaEntries`), not the arc and event lists.
+    if (choice.action === "skip" || choice.kind === "situation" || choice.kind === "drama") continue;
     const item = preview.entries.find((entry) => entry.kind === choice.kind && entry.contentId === choice.contentId);
     if (!item?.value) continue;
     const source = stripLocal(choice.value ?? item.value);
@@ -473,12 +496,17 @@ export function exportSlpStoryPack(input: {
   description?: string;
   arcs: SlurpArcType[];
   events: SlurpPlatformEvent[];
+  drama?: SlpDramaLibrary;
 }): SlpStoryPack {
   return pack(
     input.id,
     input.name,
-    input.description ?? "Exported from Slurp Remastered.",
+    input.description ?? "Exported from Slurp.",
     input.arcs.map((entry) => stripLocal(entry) as SlpArcBlueprint),
     input.events.map((entry) => stripLocal(entry) as SlpEventBlueprint),
+    {
+      situations: (input.drama?.situations ?? []).map(({ packId: _packId, ...entry }) => entry),
+      dramas: (input.drama?.dramas ?? []).map(({ packId: _packId, ...entry }) => entry),
+    },
   );
 }

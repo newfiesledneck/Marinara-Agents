@@ -212,7 +212,8 @@ const renewalBranch = subscribeSource.slice(
 );
 assert.ok(renewalBranch.length > 0, "the renewal branch must still be present");
 assert.doesNotMatch(renewalBranch, /slurpSubscriptionCharge/u, "renewal must not re-price through an event");
-assert.match(renewalBranch, /spend\(existingWallet, "subscribe", basePrice, at, creatorAccountId\)/u);
+// Fix phase 1 (R1-090): the line also carries its Creator binding; the price stays basePrice.
+assert.match(renewalBranch, /spend\(existingWallet, "subscribe", basePrice, at, creatorAccountId(?:, undefined, \{)?/u);
 assert.match(renewalBranch, /price: basePrice,/u, "renewal must store the unmodified agreed price");
 assert.doesNotMatch(
   subscribeSource,

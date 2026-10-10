@@ -72,10 +72,11 @@ const generation = slurp2Source(
   "packages/slurp2/src/engine/packages/server/src/slp/features/feed/slp-generation-service.ts",
 );
 assert.match(generation, /\.\.\.\(deepDetailsId \? \{ deepDetailsId \} : \{\}\)/u);
-assert.match(generation, /input\.previewOnly \? null : newId\(\)/u);
+// M: the id and the best-effort write moved into the storage helper (a preview still records nothing).
+assert.match(generation, /input\.previewOnly\s*\?\s*null\s*:\s*await saveSlurpNewPostDeepDetails\(/u);
 assert.match(
   generation,
-  /slurpDeepDetailsImageRunRecorder\(db, deepDetailsId, "generation"\)/u,
+  /slurpDeepDetailsImageRunRecorder\(input\.db, input\.deepDetailsId, "generation"\)/u,
   "successful generation records the exact provider prompt privately",
 );
 const detailsStorage = slurp2Source(

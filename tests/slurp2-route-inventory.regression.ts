@@ -6,6 +6,17 @@ import { join } from "node:path";
 // parser. The route list below is the post-rename inventory. BASELINE is derived from it through
 // the explicit mapping table, so a method change or a missing route cannot pass by rebaselining.
 const EXPECTED = [
+  // Roleplay scenes from a DM thread (docs/SCENES.md).
+  "GET /messages/threads/:threadId/scene/origin",
+  "POST /messages/threads/:threadId/scene/invite/:messageId/decline",
+  "POST /messages/threads/:threadId/scene/plan",
+  "POST /messages/threads/:threadId/scene/recap/:messageId/reach",
+  // 0.3.5: the Slurp Support desk.
+  "GET /slurp/desk",
+  "POST /slurp/desk/note",
+  "POST /slurp/desk/ticket/resolve",
+  "POST /slurp/desk/offer/answer",
+  "PATCH /messages/threads/:threadId/details",
   "GET /slurp/posts/:id/deep-details",
   "GET /continuity",
   "GET /continuity/:creatorAccountId",
@@ -14,6 +25,64 @@ const EXPECTED = [
   "GET /slurp/tasks",
   "PATCH /continuity/facts/:id",
   "POST /continuity/:creatorAccountId/facts",
+  "POST /continuity/from-chat",
+  "GET /continuity/:creatorAccountId/signals",
+  "GET /slurp/accounts/:id/canon-anchors",
+  "PUT /slurp/accounts/:id/canon-anchors",
+  "DELETE /slurp/accounts/:id/canon-anchors",
+  // 7b0: the player's steering for a Creator (life, pace, ideas for the next posts).
+  "GET /slurp/accounts/:id/steering",
+  "PATCH /slurp/accounts/:id/steering",
+  "POST /slurp/accounts/:id/steering/ideas",
+  "DELETE /slurp/accounts/:id/steering/ideas/:ideaId",
+  // 7b-1: the player's "Rewrite" answer after a steering change (prepared posts are written again).
+  "POST /slurp/accounts/:id/steering/rewrite-prepared",
+  // 7b-c: undo what a talk with Slurp Support changed, or keep it and hide the note.
+  "POST /slurp/accounts/:id/steering/support-undo",
+  "DELETE /slurp/accounts/:id/steering/support-note",
+  // 3c: the action layer behind the AI assist (what Slurp can do for the player, and doing one thing).
+  "GET /slurp/actions",
+  "POST /slurp/actions/:name",
+  // W: Stir (preview one action or a list, plain words → a plan, do a play, undo it, the Stir tab).
+  "POST /slurp/actions/:name/preview",
+  "POST /slurp/stir/preview",
+  "POST /slurp/stir/plan",
+  "POST /slurp/stir/play",
+  "POST /slurp/stir/plays/:id/undo",
+  // 0.3.1: "Not now" on a Stir suggestion.
+  "POST /slurp/stir/suggestions/:id/dismiss",
+  "GET /slurp/stir",
+  // 7b-c: collabs, rivalries and brand deals in Studio.
+  "GET /slurp/ties",
+  "POST /slurp/ties/collabs",
+  "POST /slurp/ties/collabs/:id/push",
+  "POST /slurp/ties/collabs/:id/decline",
+  "POST /slurp/ties/collabs/:id/block",
+  "POST /slurp/ties/collabs/:id/drop",
+  "POST /slurp/ties/collabs/:id/post-now",
+  "POST /slurp/ties/unblock",
+  "POST /slurp/ties/rivalries/:id/cool",
+  "POST /slurp/ties/deals/:id/answer",
+  // U: "Mark as posted" for a sponsored post the player's own page owes.
+  "POST /slurp/ties/deals/:id/posted",
+  // 7b-couples: set two Creators up, steer their story, open or close their shared page.
+  "POST /slurp/ties/couples",
+  "POST /slurp/ties/couples/:id/steer",
+  "POST /slurp/ties/couples/:id/page",
+  // 0.3.8 Drama: bonds on the People map; what runs, the player's answer, start and end (docs/DRAMA.md).
+  "POST /slurp/ties/bonds",
+  "POST /slurp/ties/bonds/:id/end",
+  "GET /slurp/drama",
+  "POST /slurp/drama/choice",
+  "POST /slurp/drama/start",
+  "POST /slurp/drama/runs/:id/end",
+  // 0.3.2 Creator Pages: the player's edit, and "Let <Creator> design it".
+  "PUT /slurp/accounts/:id/page",
+  "POST /slurp/accounts/:id/page/compose",
+  // 7b-spice: Backstage › Spice (the Slurp-wide limit, the player's taste, "Slurp noticed you like …").
+  "GET /slurp/spice",
+  "PATCH /slurp/spice",
+  "POST /slurp/spice/noticed",
   "POST /continuity/:target/:id/retract",
   "POST /continuity/facts/:id/promote",
   "POST /continuity/proposals/:id/:decision",
@@ -23,6 +92,7 @@ const EXPECTED = [
   "POST /slurp/posts/:id/report",
   "ADDCONTENTTYPEPARSER application/zip",
   "DELETE /data",
+  "DELETE /data/activity",
   "DELETE /data/unused",
   "DELETE /slurp/accounts/:id",
   "DELETE /slurp/accounts/:id/avatar",
@@ -54,6 +124,7 @@ const EXPECTED = [
   "GET /messages/threads/:threadId",
   "GET /messages/threads/:threadId/prompt",
   "GET /model-budget/usage",
+  "POST /model-budget/rewrite-pending",
   "GET /slurp/account-connection-counts",
   "GET /slurp/accounts",
   "GET /slurp/accounts/:id/arc-config",
@@ -134,6 +205,7 @@ const EXPECTED = [
   "POST /discovery-tags/delete",
   "POST /discovery-tags/rename",
   "POST /fan-types/rebalance",
+  "POST /fan-types/voice-draft",
   "POST /messages/:messageId/reaction",
   "POST /messages/cheat",
   "POST /messages/commissions",
@@ -176,16 +248,26 @@ const EXPECTED = [
   "POST /slurp/accounts/:id/subscribe",
   "POST /slurp/accounts/:id/tip",
   "POST /slurp/accounts/bulk",
+  "GET /slurp/accounts/bulk/:executionId",
   "POST /slurp/accounts/bulk-update",
   "POST /slurp/ads/:id/image",
   "POST /slurp/ads/generate",
   "POST /slurp/ads/import",
   "POST /slurp/ads/lorebook/sync",
   "POST /slurp/ads/pool",
+  "GET /slurp/ads/brands",
+  "POST /slurp/ads/brands",
+  "PATCH /slurp/ads/brands/:id",
+  "DELETE /slurp/ads/brands/:id",
+  "POST /slurp/ads/brands/:id/products",
+  "POST /slurp/ads/pool/:id/picture",
   "POST /slurp/auto-post/refresh-now",
   "POST /slurp/auto-post/refresh-targeted",
   "POST /slurp/fan-activity/refresh-now",
   "POST /slurp/first-posts/enqueue",
+  "POST /slurp/onboarding/scene/keep",
+  "POST /slurp/onboarding/scene/turn",
+  "POST /slurp/notifications/:id/fan-note",
   "POST /slurp/notifications/seen",
   "POST /slurp/post-guidance-draft",
   "POST /slurp/posts",
@@ -196,6 +278,7 @@ const EXPECTED = [
   "POST /slurp/posts/:id/gamble-unlock",
   "POST /slurp/posts/:postId/interactions/:interactionId/creator-reply",
   "POST /slurp/refresh/images",
+  "POST /slurp/refresh/images/cancel",
   "POST /slurp/stage-profile-draft",
   "POST /slurp/stories/:id/view",
   "POST /slurp/viewer/ads/:id/action",
@@ -236,6 +319,86 @@ const RETAINED_OLD_PATHS = new Set([
   "GET /noodler/posts/:id/media/:position",
 ]);
 const ADDED_ROUTES = new Set([
+  // Roleplay scenes from a DM thread (docs/SCENES.md).
+  "GET /messages/threads/:threadId/scene/origin",
+  "POST /messages/threads/:threadId/scene/invite/:messageId/decline",
+  "POST /messages/threads/:threadId/scene/plan",
+  "POST /messages/threads/:threadId/scene/recap/:messageId/reach",
+  // The recovery reset: clears activity, keeps Creators and settings.
+  "DELETE /data/activity",
+  "PATCH /messages/threads/:threadId/details",
+  // Fix phase 1b (R1-107): "Draft voice" in the fan type editor.
+  "POST /fan-types/voice-draft",
+  // Overnight plan item 7: one exchange of the role-play Creator sign-up, and keeping its chat.
+  "POST /slurp/onboarding/scene/turn",
+  "POST /slurp/onboarding/scene/keep",
+  // Fix phase 1 (R1-047): closing the picture review ends the wait.
+  "POST /slurp/refresh/images/cancel",
+  // 0.2.47: "Save to Slurp" from an Engine chat.
+  "POST /continuity/from-chat",
+  // 0.2.53: a Creator's recent signals.
+  "GET /continuity/:creatorAccountId/signals",
+  // 0.2.51: the canon anchor editor.
+  "GET /slurp/accounts/:id/canon-anchors",
+  "PUT /slurp/accounts/:id/canon-anchors",
+  "DELETE /slurp/accounts/:id/canon-anchors",
+  // 7b0: the player's steering for a Creator (life, pace, ideas for the next posts).
+  "GET /slurp/accounts/:id/steering",
+  "PATCH /slurp/accounts/:id/steering",
+  "POST /slurp/accounts/:id/steering/ideas",
+  "DELETE /slurp/accounts/:id/steering/ideas/:ideaId",
+  // 7b-1: the player's "Rewrite" answer after a steering change (prepared posts are written again).
+  "POST /slurp/accounts/:id/steering/rewrite-prepared",
+  // 7b-c: undo what a talk with Slurp Support changed, or keep it and hide the note.
+  "POST /slurp/accounts/:id/steering/support-undo",
+  "DELETE /slurp/accounts/:id/steering/support-note",
+  // 3c: the action layer behind the AI assist (what Slurp can do for the player, and doing one thing).
+  "GET /slurp/actions",
+  "POST /slurp/actions/:name",
+  // W: Stir (preview one action or a list, plain words → a plan, do a play, undo it, the Stir tab).
+  "POST /slurp/actions/:name/preview",
+  "POST /slurp/stir/preview",
+  "POST /slurp/stir/plan",
+  "POST /slurp/stir/play",
+  "POST /slurp/stir/plays/:id/undo",
+  // 0.3.1: "Not now" on a Stir suggestion.
+  "POST /slurp/stir/suggestions/:id/dismiss",
+  "GET /slurp/stir",
+  // 7b-c: collabs, rivalries and brand deals in Studio.
+  "GET /slurp/ties",
+  "POST /slurp/ties/collabs",
+  "POST /slurp/ties/collabs/:id/push",
+  "POST /slurp/ties/collabs/:id/decline",
+  "POST /slurp/ties/collabs/:id/block",
+  "POST /slurp/ties/collabs/:id/drop",
+  "POST /slurp/ties/collabs/:id/post-now",
+  "POST /slurp/ties/unblock",
+  "POST /slurp/ties/rivalries/:id/cool",
+  "POST /slurp/ties/deals/:id/answer",
+  // U: "Mark as posted" for a sponsored post the player's own page owes.
+  "POST /slurp/ties/deals/:id/posted",
+  // 7b-couples: set two Creators up, steer their story, open or close their shared page.
+  "POST /slurp/ties/couples",
+  "POST /slurp/ties/couples/:id/steer",
+  "POST /slurp/ties/couples/:id/page",
+  // 0.3.8 Drama: bonds on the People map; what runs, the player's answer, start and end (docs/DRAMA.md).
+  "POST /slurp/ties/bonds",
+  "POST /slurp/ties/bonds/:id/end",
+  "GET /slurp/drama",
+  "POST /slurp/drama/choice",
+  "POST /slurp/drama/start",
+  "POST /slurp/drama/runs/:id/end",
+  // 0.3.11: a heart or one reply to a fan's note on the player's own page (fans write notes there, not chats).
+  "POST /slurp/notifications/:id/fan-note",
+  // 0.3.11: a background sign-up's progress (big batches run as a server job).
+  "GET /slurp/accounts/bulk/:executionId",
+  // 0.3.2 Creator Pages: the player's edit, and "Let <Creator> design it".
+  "PUT /slurp/accounts/:id/page",
+  "POST /slurp/accounts/:id/page/compose",
+  // 7b-spice: Backstage › Spice (the Slurp-wide limit, the player's taste, "Slurp noticed you like …").
+  "GET /slurp/spice",
+  "PATCH /slurp/spice",
+  "POST /slurp/spice/noticed",
   "GET /messages/unread-count",
   "GET /slurp/notifications/unseen-count",
   "GET /slurp/posts/:id/deep-details",
@@ -276,6 +439,20 @@ const ADDED_ROUTES = new Set([
   "POST /story-packs/previews/:id/apply",
   "POST /story/events/:id/start",
   "POST /story/occurrences/:id/status",
+  // R: brands and their products in Backstage (a product picture by upload or the picture assist).
+  "GET /slurp/ads/brands",
+  "POST /slurp/ads/brands",
+  "PATCH /slurp/ads/brands/:id",
+  "DELETE /slurp/ads/brands/:id",
+  "POST /slurp/ads/brands/:id/products",
+  "POST /slurp/ads/pool/:id/picture",
+  // 0.3.5: the Slurp Support desk (case files, notes, ticket resolve, answering an Offer as your Creator).
+  "GET /slurp/desk",
+  "POST /slurp/desk/note",
+  "POST /slurp/desk/ticket/resolve",
+  "POST /slurp/desk/offer/answer",
+  // 0.3.7: "Rewrite all now" in AI budget settings.
+  "POST /model-budget/rewrite-pending",
 ]);
 
 // Routes staging had that Slurp2 no longer serves. The share card is now drawn on a canvas in
@@ -302,22 +479,26 @@ const mappedStagingRoutes = [
 assert.deepEqual([...EXPECTED].sort(), mappedStagingRoutes, "the route mapping must match the staging fixture");
 
 const EXPECTED_HANDLER_COUNTS = {
-  "features/ads": 18,
-  "features/audience": 12,
-  "features/creators": 35,
+  "features/ads": 24,
+  "features/assist": 9,
+  "features/audience": 13,
+  "features/creators": 49,
   "features/discovery": 4,
   "features/economy": 14,
-  "features/feed": 35,
-  "features/maintenance": 14,
+  "features/feed": 39,
+  "features/maintenance": 15,
   "features/media": 7,
-  "features/messages": 40,
-  "features/notifications": 3,
-  "features/onboarding": 4,
-  "features/projects": 15,
-  "features/settings": 7,
-  "features/world": 11,
+  "features/messages": 49,
+  "features/notifications": 4,
+  "features/onboarding": 7,
+  "features/projects": 31,
+  "features/settings": 8,
+  "features/world": 15,
 } as const;
-const EXPECTED_METHOD_COUNTS = { DELETE: 14, GET: 72, PATCH: 16, POST: 112, PUT: 5 } as const;
+// W: +5 POST, +1 GET (Stir). R: +3 POST, +1 GET, +1 PATCH, +1 DELETE (brands).
+// 0.3.4: +1 POST, +1 PUT (Creator Pages). 0.3.5: +1 GET, +3 POST (Support desk). 0.3.7: +1 POST (rewrite all).
+// 0.3.8: +1 GET, +5 POST (Drama: bonds, drama view, choice, start, end). 0.3.11: +1 POST (fan notes).
+const EXPECTED_METHOD_COUNTS = { DELETE: 19, GET: 84, PATCH: 20, POST: 158, PUT: 7 } as const;
 
 const root = join(import.meta.dirname, "../packages/slurp2/src/engine/packages/server/src/slp");
 const registration = /\bapp\.(get|post|put|patch|delete|addContentTypeParser)(?:<[^()]*?>)?\(\s*["'`]([^"'`]+)["'`]/gu;
@@ -372,7 +553,8 @@ const methodCounts = Object.fromEntries(
     }, new Map<string, number>()),
 );
 assert.deepEqual(methodCounts, EXPECTED_METHOD_COUNTS, "HTTP method multiset changed from staging");
-assert.equal(foundRoutes.filter((route) => !route.startsWith("ADDCONTENTTYPEPARSER ")).length, 219);
+// 0.3.5: +4 (the Support desk). 0.3.7: +1 (rewrite all). Roleplay scenes: +4. 0.3.17: +2 (collab drop, post now).
+assert.equal(foundRoutes.filter((route) => !route.startsWith("ADDCONTENTTYPEPARSER ")).length, 288);
 assert.deepEqual(handlerCounts, EXPECTED_HANDLER_COUNTS, "handler count changed in a feature");
 assert.ok(foundRoutes.includes("POST /slurp/posts/:id/media"), "the renamed POST media route must remain registered");
 assert.ok(
@@ -395,3 +577,12 @@ assert.deepEqual(
 const entry = readFileSync(join(root, "slp-server-entry.ts"), "utf8");
 assert.match(entry, /mountSlpRoutes\(Object\.assign\(router, \{ db: app\.db, noodle \}\)/u);
 assert.equal(existsSync(join(root, "features/maintenance/slp-backup-routes.ts")), true);
+// A route that builds the messages storage from the facet module gets no core factory and throws
+// "Slurp core storage factory is required" (0.3.1 Start over, 0.3.0 Stir); data/slp-storage.ts wires it.
+for (const route of ["features/maintenance/slp-maintenance-routes.ts", "features/assist/slp-stir-routes.ts"]) {
+  assert.doesNotMatch(
+    readFileSync(join(root, route), "utf8"),
+    /import \{[^}]*\bcreateSlurpMessagesStorage\b[^}]*\} from "\.\.\/\.\.\/data\/messages\/slp-messages-storage\.js"/u,
+    `${route} must build the messages storage through data/slp-storage.ts`,
+  );
+}

@@ -57,6 +57,10 @@ export function createSlurpStorage(db: DB) {
   );
 }
 
-export function createSlurpMessagesStorage(db: DB) {
-  return createSlurpMessagesStorageFacet(db, createSlurpStorage);
+/** `core` lets a caller hand in its own storage, so the world tick keeps its event cap (R1-119). */
+export function createSlurpMessagesStorage(
+  db: DB,
+  core: (db: DB) => ReturnType<typeof createSlurpStorage> = createSlurpStorage,
+) {
+  return createSlurpMessagesStorageFacet(db, core);
 }

@@ -1,3 +1,5 @@
+import { resolveMacros } from "@marinara-engine/shared";
+
 function promptRecord(value: unknown): Record<string, unknown> {
   if (!value) return {};
   if (typeof value === "string") {
@@ -51,13 +53,32 @@ function promptField(primary: unknown, fallback?: unknown): string {
   return typeof fallback === "string" && fallback.trim() ? fallback : "";
 }
 
+/**
+ * Engine macros for Slurp text (card fields, wardrobe looks). Cards are written for roleplay chats,
+ * so `{{char}}` is the Creator and `{{user}}` the player; unresolved, the model saw template syntax
+ * where the person should be. An empty name (the concealed brief) keeps the source name out of the
+ * prompt. Slurp has no chat, so chat-only macros (`{{input}}`, chat variables) resolve to nothing;
+ * `{{random::…}}` rolls again on every call.
+ */
+export function slpResolveCardMacros(text: string, name: string): string {
+  if (!text.includes("{{")) return text;
+  // Cards write `{{ Char }}` too; the Engine resolver only knows the tight form.
+  const tight = text.replace(/\{\{\s*(char|user)\s*\}\}/giu, (_, macro: string) => `{{${macro.toLowerCase()}}}`);
+  return resolveMacros(
+    tight,
+    { char: name.trim() || "the Creator", user: "the player", characters: [], variables: {} },
+    { trimResult: false },
+  );
+}
+
 export function noodlerConcealedSourceText(data: unknown): string {
   const source = promptRecord(data);
   const extensions = promptRecord(source.extensions);
+  const field = (value: string) => slpResolveCardMacros(value, "");
   return [
-    `Description: ${promptField(source.description)}`,
-    `Personality: ${promptField(source.personality)}`,
-    `Appearance: ${promptField(source.appearance, extensions.appearance)}`,
+    `Description: ${field(promptField(source.description))}`,
+    `Personality: ${field(promptField(source.personality))}`,
+    `Appearance: ${field(promptField(source.appearance, extensions.appearance))}`,
   ]
     .filter((line) => line.split(": ").slice(1).join(": ").trim())
     .join("\n");
@@ -74,11 +95,7 @@ export function noodlerConcealedSourceText(data: unknown): string {
  * the prompt.
  */
 function canonField(value: string, name: string, max: number): string {
-  const text = value
-    .replace(/\{\{\s*char\s*\}\}/giu, name || "the Creator")
-    .replace(/\{\{\s*user\s*\}\}/giu, "the player")
-    .replace(/\s+\n/gu, "\n")
-    .trim();
+  const text = slpResolveCardMacros(value, name).replace(/\s+\n/gu, "\n").trim();
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
   const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("\n"));
@@ -106,13 +123,15 @@ export function slpCreatorCharacterCanonText(data: unknown, includeName: boolean
 export function slpCreatorSourceText(data: unknown): string {
   const source = promptRecord(data);
   const extensions = promptRecord(source.extensions);
+  const name = promptField(source.name);
+  const field = (value: string) => slpResolveCardMacros(value, name);
   return [
-    `Name: ${promptField(source.name)}`,
-    `Description: ${promptField(source.description)}`,
-    `Personality: ${promptField(source.personality)}`,
-    `Scenario: ${promptField(source.scenario)}`,
-    `Appearance: ${promptField(source.appearance, extensions.appearance)}`,
-    `Backstory: ${promptField(source.backstory, extensions.backstory)}`,
+    `Name: ${name}`,
+    `Description: ${field(promptField(source.description))}`,
+    `Personality: ${field(promptField(source.personality))}`,
+    `Scenario: ${field(promptField(source.scenario))}`,
+    `Appearance: ${field(promptField(source.appearance, extensions.appearance))}`,
+    `Backstory: ${field(promptField(source.backstory, extensions.backstory))}`,
   ]
     .filter((line) => line.trim().split(": ").slice(1).join(": ").trim())
     .join("\n");

@@ -3,7 +3,16 @@ import type {
   SlpDeepDetailsRecord,
   SlpDeepDetailsResponse,
 } from "../../../../../shared/src/slp/slp-deep-details.js";
+import { formatFullTime } from "../../base/ui/slp-date-time";
+import { formatSlpPercent } from "../../base/ui/slp-number-format";
 import { mapOrigins, originTable } from "./slp-deep-details-origins";
+import {
+  buildSlpDeepDetailsStory,
+  slpEnhanceChanges,
+  SLP_STORY_NODES,
+  slpStoryNode,
+  type SlpDeepRowId,
+} from "./slp-deep-details-story";
 import type { SlpStepStatus } from "./SlpDeepDetailsParts";
 
 /**
@@ -81,7 +90,7 @@ const chat = (messages: { role: string; content: string }[]) =>
 
 const json = (value: unknown) => (value ? JSON.stringify(value, null, 2) : null);
 
-function postNodes(data: SlpDeepDetailsResponse, details: SlpDeepDetailsRecord): SlpFlowNode[] {
+function postNodes(data: SlpDeepDetailsResponse, details: SlpDeepDetailsRecord, locale: string): SlpFlowNode[] {
   const plan = details.plan;
   const weights = Object.entries(details.strategy.intentWeights).sort(([, a], [, b]) => b - a);
   const weightText = weights.map(([intent, weight]) => `${intent}: ${weight}`).join("\n");
@@ -90,9 +99,9 @@ function postNodes(data: SlpDeepDetailsResponse, details: SlpDeepDetailsRecord):
     .map(([intent, weight]) => `${intent} ${weight}`)
     .join(", ");
   const scene = details.modelOutput.scene;
-  const sceneShort = scene ? [scene.setting, scene.action].filter(Boolean).join(" — ") : null;
+  const sceneShort = scene ? [scene.setting, scene.action].filter(Boolean).join(" · ") : null;
   const project = plan.project
-    ? `${plan.project.title}${plan.project.chapter ? ` — ${plan.project.chapter}` : ""}`
+    ? `${plan.project.title}${plan.project.chapter ? ` · ${plan.project.chapter}` : ""}`
     : null;
   return [
     {
@@ -113,8 +122,17 @@ function postNodes(data: SlpDeepDetailsResponse, details: SlpDeepDetailsRecord):
           value: topWeights || null,
           note: "The plan draws the post's intent from these odds.",
         }),
-        fact("Quiet slots", `${details.strategy.skipRate}%`, "Chance that a scheduled slot stays empty."),
-        fact("Lean on words", `${details.strategy.textOnlyRate} / 100`, "Chance of a text-only post."),
+        // Both rates are stored as whole percents; one percent format for both (04 §9 c).
+        fact(
+          "Skipped posts",
+          formatSlpPercent(details.strategy.skipRate / 100, locale),
+          "Chance that a scheduled slot stays empty.",
+        ),
+        fact(
+          "Posts without pictures",
+          formatSlpPercent(details.strategy.textOnlyRate / 100, locale),
+          "Chance of a text-only post.",
+        ),
       ],
       what: "The Creator's saved posting habits, read from the profile before every post.",
       why: "They keep one Creator's feed consistent from post to post.",
@@ -131,7 +149,7 @@ function postNodes(data: SlpDeepDetailsResponse, details: SlpDeepDetailsRecord):
       inputs: [],
       outputs: [
         fact("Workflow", data.plan?.workflow ?? null, "What asked for the post: the schedule, run now, or you."),
-        fact("Due", data.plan?.dueAt ?? null),
+        fact("Due", data.plan?.dueAt ? formatFullTime(data.plan.dueAt, locale) : null),
         row("Player direction", details.direction, { note: "Copied into the writing prompt as your direction." }),
         fact("Subscribers asked for", plan.demandTopic, "A topic the post should answer."),
         fact("Campaign", plan.campaignId),
@@ -294,6 +312,12 @@ function postNodes(data: SlpDeepDetailsResponse, details: SlpDeepDetailsRecord):
   ];
 }
 
+const VIEWPOINT_FAMILY: Record<string, string> = {
+  tags: "in tag words for a tag model",
+  e621: "in e621 tags for a drawn furry",
+  natural: "in plain words",
+};
+
 const REWRITE_OUTCOME: Record<SlpDeepDetailsImageRun["rewrite"]["status"], string> = {
   skipped: "Not run",
   accepted: "Used, then styled again",
@@ -315,7 +339,7 @@ const APPEARANCE_SOURCE: Record<SlpDeepDetailsImageRun["appearance"]["source"], 
   none: ["None", "The picture has no written look, so the image model invents one."],
 };
 
-function imageNodes(run: SlpDeepDetailsImageRun, brief: string | null, start: number): SlpFlowNode[] {
+function imageNodes(run: SlpDeepDetailsImageRun, brief: string | null, start: number, locale: string): SlpFlowNode[] {
   const style = run.styleProfile;
   const lastAttempt = run.attempts.at(-1);
   const failures = run.attempts.filter((attempt) => !attempt.ok).length;
@@ -325,6 +349,7 @@ function imageNodes(run: SlpDeepDetailsImageRun, brief: string | null, start: nu
   const [appearanceLabel, appearanceNote] = APPEARANCE_SOURCE[run.appearance.source];
   const styleText = [style.styleText, style.positiveTags].filter(Boolean).join("\n");
   const chosen = run.rewrite.status === "accepted" ? run.rewrite.output : run.styledPrompt;
+  const changes = slpEnhanceChanges(run, 12);
   return [
     {
       id: "appearance",
@@ -442,6 +467,8 @@ function imageNodes(run: SlpDeepDetailsImageRun, brief: string | null, start: nu
       outputs: [
         fact("Outcome", REWRITE_OUTCOME[run.rewrite.status]),
         fact("Reason", run.rewrite.reason),
+        fact("Added", changes?.added.join(", ") || null, "Prompt parts the enhance step put in."),
+        fact("Left out", changes?.dropped.join(", ") || null, "Prompt parts the enhance step dropped."),
         row("Answer", run.rewrite.output, { value: chars(run.rewrite.output) }),
       ],
       what:
@@ -477,6 +504,13 @@ function imageNodes(run: SlpDeepDetailsImageRun, brief: string | null, start: nu
           note: "Handed to the image connection.",
         }),
         row("Negative prompt", run.negativePrompt, { note: "Style negatives and content-level negatives, merged." }),
+        fact(
+          "Viewpoint",
+          run.viewpoint?.phrase ?? null,
+          run.viewpoint
+            ? `Kept word for word, ${VIEWPOINT_FAMILY[run.viewpoint.family] ?? "for this model"}.`
+            : undefined,
+        ),
         fact("Size", run.size.width && run.size.height ? `${run.size.width} × ${run.size.height}` : null),
       ],
       what: "Slurp takes the winning text, makes sure the look is in it, and merges the negative prompts.",
@@ -533,7 +567,7 @@ function imageNodes(run: SlpDeepDetailsImageRun, brief: string | null, start: nu
       details: run.attempts.map((attempt) => ({
         label: `Attempt ${attempt.attempt} · ${attempt.ok ? "succeeded" : "failed"} · ${(attempt.durationMs / 1000).toFixed(1)} s`,
         text: [
-          `Started ${attempt.startedAt}`,
+          `Started ${formatFullTime(attempt.startedAt, locale) || attempt.startedAt}`,
           `Route: ${attempt.route === "host" ? "Engine image service" : "bundled image service"}`,
           attempt.servedBy ? `Served by fallback: ${modelLabel(attempt.servedBy.model, attempt.servedBy.name)}` : "",
           attempt.error ? `Error: ${attempt.error}` : "",
@@ -703,12 +737,17 @@ function pictureWithoutRun(data: SlpDeepDetailsResponse, details: SlpDeepDetails
 export function buildSlpDeepDetailsFlow(
   data: SlpDeepDetailsResponse,
   run: SlpDeepDetailsImageRun | null,
+  locale = "en",
 ): SlpFlowGraph | null {
   const details = data.details;
   if (!details) return null;
+  const story = buildSlpDeepDetailsStory(data, locale)
+    .map(slpStoryNode)
+    .filter((node): node is SlpFlowNode => Boolean(node));
   const nodes = [
-    ...postNodes(data, details),
-    ...(run ? imageNodes(run, details.imageBrief, 5) : pictureWithoutRun(data, details, 5)),
+    ...story,
+    ...postNodes(data, details, locale),
+    ...(run ? imageNodes(run, details.imageBrief, 5, locale) : pictureWithoutRun(data, details, 5)),
   ];
   const main = nodes.filter((node) => node.kind === "step" || node.kind === "model");
   const edges: SlpFlowEdge[] = main.slice(1).map((node, index) => ({
@@ -724,6 +763,11 @@ export function buildSlpDeepDetailsFlow(
     ["appearance", "rewrite", "character context"],
     ["style-profile", "rewrite", "style guidance"],
   ];
+  for (const node of story) {
+    for (const [to, label] of SLP_STORY_NODES[node.id.slice("story-".length) as SlpDeepRowId]?.feeds ?? []) {
+      feeds.push([node.id, to, label]);
+    }
+  }
   for (const [from, to, label] of feeds) {
     if (nodes.some((node) => node.id === from) && nodes.some((node) => node.id === to)) {
       edges.push({ from, to, label });

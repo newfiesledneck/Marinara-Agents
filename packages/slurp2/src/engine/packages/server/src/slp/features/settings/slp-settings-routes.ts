@@ -5,9 +5,16 @@ import {
   slurpPromptEditableDefaults,
 } from "../../base/prompting/slp-prompt-blocks.js";
 import { slpIsAdmissionFailure } from "../../base/host/slp-admission.js";
-import { DEFAULT_SLURP_SETTINGS, slurpSettingsSchema } from "../../modules/settings/slp-settings.js";
-import { getSlurpModelBudgetLedger } from "../../base/model/slp-model-worker.js";
+import { normalizeSlurpSettings, slurpSettingsSchema } from "../../modules/settings/slp-settings.js";
+import {
+  countSlurpActiveCreators,
+  getSlurpModelBudgetLedger,
+  resolveSlurpModelBudget,
+  SLURP_TOKENS_PER_CALL_ESTIMATE,
+  slurpSizedPostsPerDay,
+} from "../../base/model/slp-model-worker.js";
 import { resolveSlurpTextConnection } from "../../base/identity/slp-connection.js";
+import { createSlurpStorage } from "../../data/slp-storage.js";
 import { createConnectionsStorage } from "../../../services/storage/connections.storage.js";
 import type { FastifyInstance } from "fastify";
 import type { SlpRouteDeps } from "../viewer/slp-viewer-contract.js";
@@ -15,6 +22,11 @@ import { z } from "zod";
 import { getErrorMessage } from "../../modules/creators/slp-public-support.js";
 import { generateCreatorPost, previewSlurpPromptBlocks } from "../feed/slp-feed-contract.js";
 import { SLURP_PROMPT_IDS } from "../../base/prompting/slp-prompt-blocks.js";
+import {
+  countSlurpPendingText,
+  slurpRewritingAllPending,
+  startSlurpRewriteAllPending,
+} from "../world/slp-world-contract.js";
 
 const slurpPromptPreviewSchema = z.object({
   promptId: z.enum(SLURP_PROMPT_IDS),
@@ -121,11 +133,36 @@ export async function slpSettingsRoutes(app: FastifyInstance, deps: SlpRouteDeps
     }
   });
   // The shipped values, so Settings can show what differs and reset one section.
-  app.get("/settings/defaults", async () => DEFAULT_SLURP_SETTINGS);
+  // Normalized, like every stored value: the raw constant lacks the built-in instructions the
+  // normalizer adds, so a fresh install read "1 setting differs" (R1-125).
+  // "Posts per day" is shown sized for today's Creators, like the stored value an untouched one reads as.
+  app.get("/settings/defaults", async () => ({
+    ...normalizeSlurpSettings(null),
+    postsPerDay: slurpSizedPostsPerDay(await countSlurpActiveCreators(app.db)),
+  }));
   app.patch("/settings", async (req, reply) => {
     const body = slurpSettingsSchema.partial().safeParse(req.body ?? {});
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() });
     return noodle.updateSlurpSettings(body.data);
   });
-  app.get("/model-budget/usage", async () => getSlurpModelBudgetLedger(app.db));
+  // The Creator count sizes every limit the player did not set; Settings shows the sized numbers.
+  // Pulse (task C) shows today's use against the day's limit, so the sized limit and the mode come too.
+  app.get("/model-budget/usage", async () => {
+    const usage = {
+      ...(await getSlurpModelBudgetLedger(app.db)),
+      activeCreators: await countSlurpActiveCreators(app.db),
+    };
+    const settings = await createSlurpStorage(app.db).getSettings();
+    const budget = resolveSlurpModelBudget(settings.modelBudget, usage.activeCreators);
+    return {
+      ...usage,
+      mode: budget.mode,
+      callsPerDayLimit: budget.callsPerDay,
+      tokensPerCall: SLURP_TOKENS_PER_CALL_ESTIMATE,
+      pendingRewrites: await countSlurpPendingText(app.db),
+      rewritingAll: slurpRewritingAllPending(),
+    };
+  });
+  // "Rewrite all pending" runs in the background; Settings polls the usage above for progress.
+  app.post("/model-budget/rewrite-pending", async () => ({ started: startSlurpRewriteAllPending(app.db) }));
 }

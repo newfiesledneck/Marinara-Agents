@@ -23,6 +23,8 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/app/screens/SlpHomeDestinations.tsx",
     "packages/client/src/slp/app/screens/SlpHomeFeedRail.tsx",
     "packages/client/src/slp/app/screens/SlpScreenComposer.tsx",
+    // Step 7: the composer's access chips (Public · Subscribers · Locked · price).
+    "packages/client/src/slp/modules/post/SlpComposerAudience.tsx",
     "packages/client/src/slp/app/screens/SlpScreenMoments.tsx",
     "packages/client/src/slp/app/screens/SlpScreenSubscriptions.tsx",
     "packages/client/src/slp/app/screens/SlpScreenSuggestedCreators.tsx",
@@ -39,8 +41,11 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/app/screens/SlpScreenProfile.tsx",
     // The follow toggle sits in the leading actions the profile screen passes to its surface.
     "packages/client/src/slp/app/screens/SlpProfileLeadingActions.tsx",
-    "packages/client/src/slp/app/screens/SlpScreenStudio.tsx",
+    // W: Studio's own-page half is the profile's Dashboard sheet; its world half moved to Stir.
+    "packages/client/src/slp/app/screens/SlpDashboard.tsx",
     "packages/client/src/slp/app/screens/SlpScreenWallet.tsx",
+    // Step 6: the one Collect card (earnings → Wallet) that Studio and Wallet share.
+    "packages/client/src/slp/app/screens/SlpCollectCard.tsx",
     "packages/client/src/slp/modules/story/SlpStoryTile.tsx",
   ],
   // Slice 9 split Backstage into a thin host, an explicit panel registry and feature-owned panels.
@@ -81,7 +86,6 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/features/creators/settings/slp-creator-settings-store.ts",
   ],
   "packages/client/src/components/slurp/SlurpBackstageWorld.tsx": [
-    "packages/client/src/slp/features/backstage/SlpBackstageWorldPanel.tsx",
     "packages/client/src/slp/features/discovery/SlpDiscoveryPanel.tsx",
     "packages/client/src/slp/features/world/SlpWorldEventsPanel.tsx",
     "packages/client/src/slp/features/projects/SlpProjectsPanel.tsx",
@@ -91,7 +95,6 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/features/audience/SlpAudiencePanel.tsx",
   ],
   "packages/client/src/components/slurp/SlurpBackstageAutomation.tsx": [
-    "packages/client/src/slp/features/backstage/SlpBackstageAutomationPanel.tsx",
     "packages/client/src/slp/features/feed/SlpPublishingPanel.tsx",
     "packages/client/src/slp/features/media/SlpImagesPanel.tsx",
   ],
@@ -118,11 +121,17 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/base/navigation/slp-backstage-target.ts",
     "packages/client/src/slp/features/backstage/slp-backstage-placement.ts",
   ],
+  // 0.3.11: the Details panel's small parts moved to SlpDetailsParts.tsx (size cap).
+  "packages/client/src/slp/features/messages/SlpMessageInsights.tsx": [
+    "packages/client/src/slp/features/messages/SlpMessageInsights.tsx",
+    "packages/client/src/slp/features/messages/SlpDetailsParts.tsx",
+  ],
   "packages/client/src/components/slurp/SlurpMessages.tsx": [
     "packages/client/src/slp/features/messages/SlpMessages.tsx",
     "packages/client/src/slp/features/messages/commissions/SlpCommissions.tsx",
     "packages/client/src/slp/features/messages/SlpMessageInsights.tsx",
     "packages/client/src/slp/features/messages/SlpMessageInsightParts.tsx",
+    "packages/client/src/slp/features/messages/SlpDetailsParts.tsx",
     "packages/client/src/slp/features/messages/SlpThreadView.tsx",
     "packages/client/src/slp/features/messages/slp-thread-view-model.ts",
     "packages/client/src/slp/features/messages/slp-thread-actions.ts",
@@ -134,8 +143,15 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/features/messages/SlpMessageBubble.tsx",
     "packages/client/src/slp/features/messages/SlpMessageTools.tsx",
   ],
+  // V: the post card's picture frame moved into its own component.
+  "packages/client/src/slp/modules/post/SlpPostCard.tsx": [
+    "packages/client/src/slp/modules/post/SlpPostCard.tsx",
+    "packages/client/src/slp/modules/post/SlpPostMediaFrame.tsx",
+  ],
   "packages/client/src/components/slurp/SlurpPostCard.tsx": [
     "packages/client/src/slp/modules/post/SlpPostCard.tsx",
+    // V: the post picture's adaptive frame moved out of the card.
+    "packages/client/src/slp/modules/post/SlpPostMediaFrame.tsx",
     "packages/client/src/slp/modules/post/SlpPostHelpers.tsx",
     "packages/client/src/slp/modules/post/SlpPostTypes.tsx",
     "packages/client/src/slp/modules/post/SlpPostHooks.tsx",
@@ -143,16 +159,26 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/modules/post/SlpMarkdownRenderer.tsx",
     "packages/client/src/slp/modules/post/SlpPollCard.tsx",
     "packages/client/src/slp/modules/post/SlpPostImageEditControls.tsx",
+    // Step 7: post edit moved from the card into one full-screen sheet.
+    "packages/client/src/slp/modules/post/SlpPostEditSheet.tsx",
     "packages/client/src/slp/modules/post/SlpPostReplyRow.tsx",
     "packages/client/src/slp/modules/post/SlpPostReplyComposer.tsx",
     "packages/client/src/slp/modules/post/SlpPostComposerShell.tsx",
   ],
   "packages/client/src/components/slurp/SlurpCreatorPostCard.tsx": [
     "packages/client/src/slp/modules/post/SlpPostCard.tsx",
+    // V: the post picture's adaptive frame moved out of the card.
+    "packages/client/src/slp/modules/post/SlpPostMediaFrame.tsx",
     "packages/client/src/slp/modules/post/SlpPostMenu.tsx",
     "packages/client/src/slp/modules/post/SlpReplyRow.tsx",
     "packages/client/src/slp/modules/post/SlpReplyComposer.tsx",
     "packages/client/src/slp/modules/post/SlpLockedPostCard.tsx",
+    "packages/client/src/slp/modules/post/SlpUnlockOfferRows.tsx",
+  ],
+  // Fix phase 1b: the unlock sheet's price rows moved into their own file.
+  "packages/client/src/slp/modules/post/SlpLockedPostCard.tsx": [
+    "packages/client/src/slp/modules/post/SlpLockedPostCard.tsx",
+    "packages/client/src/slp/modules/post/SlpUnlockOfferRows.tsx",
   ],
   "packages/client/src/slp/modules/post/SlpCreatorPostMenu.tsx": [
     "packages/client/src/slp/modules/post/SlpPostMenu.tsx",
@@ -217,6 +243,21 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
   "packages/client/src/hooks/use-slurp-media-src.ts": ["packages/client/src/slp/base/media/slp-media-src.ts"],
   "packages/client/src/lib/slurp-discovery.ts": ["packages/client/src/slp/features/discovery/slp-discovery.ts"],
   "packages/client/src/lib/slurp-refresh-batch.ts": ["packages/client/src/slp/features/creators/slp-refresh-batch.ts"],
+  // L (R1-011/R1-012): the reply's availability and stance moved into one helper the thread and
+  // prompt routes read too.
+  "packages/server/src/slp/features/messages/slp-message-operation.ts": [
+    "packages/server/src/slp/features/messages/slp-message-operation.ts",
+    "packages/server/src/slp/features/messages/slp-thread-stance.ts",
+  ],
+  "packages/server/src/slp/features/messages/slp-message-generation-service.ts": [
+    "packages/server/src/slp/features/messages/slp-message-generation-service.ts",
+    "packages/server/src/slp/features/messages/slp-thread-stance.ts",
+  ],
+  // L (R1-034): the kept-promise record moved to the opportunity storage both post paths reach.
+  "packages/server/src/slp/features/feed/slp-post-plan-service.ts": [
+    "packages/server/src/slp/features/feed/slp-post-plan-service.ts",
+    "packages/server/src/slp/data/feed/slp-opportunity-storage.ts",
+  ],
   "packages/server/src/routes/slurp.routes.ts": [
     "packages/server/src/slp/modules/requests/slp-request-schemas.ts",
     "packages/server/src/slp/base/host/slp-multipart.ts",
@@ -453,21 +494,27 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
   ],
   "packages/server/src/services/slurp/slurp-generation.service.ts": [
     "packages/server/src/slp/features/feed/slp-generation-service.ts",
+    "packages/server/src/slp/features/feed/slp-post-lore.ts",
+    "packages/server/src/slp/features/feed/slp-post-beat-service.ts",
     "packages/server/src/slp/features/feed/slp-public-identity.ts",
     "packages/server/src/slp/features/feed/slp-post-prompt.ts",
+    "packages/server/src/slp/modules/feed/slp-post-history.ts",
     "packages/server/src/slp/features/feed/slp-post-picture-briefs.ts",
     "packages/server/src/slp/features/feed/slp-prepared-post.ts",
     "packages/server/src/slp/features/feed/slp-automatic-post-access.ts",
+    "packages/server/src/slp/features/feed/slp-post-media-operation.ts",
   ],
   // The model call and its correction turn moved into slp-post-prompt.ts (completeSlurpCreatorPost),
   // and the two picture briefs into slp-post-picture-briefs.ts. Automatic post access moved to
   // slp-automatic-post-access.ts.
   "packages/server/src/slp/features/feed/slp-generation-service.ts": [
     "packages/server/src/slp/features/feed/slp-generation-service.ts",
+    "packages/server/src/slp/features/feed/slp-post-lore.ts",
     "packages/server/src/slp/features/feed/slp-post-prompt.ts",
     "packages/server/src/slp/features/feed/slp-post-picture-briefs.ts",
     "packages/server/src/slp/features/feed/slp-prepared-post.ts",
     "packages/server/src/slp/features/feed/slp-automatic-post-access.ts",
+    "packages/server/src/slp/features/feed/slp-post-media-operation.ts",
   ],
   "packages/server/src/services/slurp/slurp-post.operation.ts": [
     "packages/server/src/slp/features/feed/slp-post-operation.ts",
@@ -619,7 +666,7 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/server/src/slp/features/audience/slp-audience-reply-operation.ts",
   ],
   "packages/server/src/services/slurp/slurp-reach.ts": ["packages/shared/src/slp/slp-reach.ts"],
-  "packages/server/src/services/slurp/slurp-scale.ts": ["packages/server/src/slp/modules/audience/slp-scale.ts"],
+  "packages/server/src/services/slurp/slurp-scale.ts": ["packages/shared/src/slp/slp-scale.ts"],
   "packages/server/src/services/slurp/slurp-ambient-profiles.ts": [
     "packages/server/src/slp/data/audience/slp-ambient-profiles.ts",
   ],
@@ -852,6 +899,12 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/client/src/slp/features/projects/SlpArcTimelineCard.tsx",
     "packages/client/src/slp/features/projects/SlpArcConfigSection.tsx",
     "packages/client/src/slp/features/projects/SlpProjectEditor.tsx",
+  ],
+  // W: the Studio screen was split. Its own-page half (money, fans, tip goal, owed #ad) is the own
+  // profile's Dashboard sheet; Business and Relationships moved into the Stir tab.
+  "packages/client/src/slp/app/screens/SlpScreenStudio.tsx": [
+    "packages/client/src/slp/app/screens/SlpDashboard.tsx",
+    "packages/client/src/slp/features/stir/SlpStirScreen.tsx",
   ],
   "packages/server/src/services/slurp/slurp-post-guidance.storage.ts": [
     "packages/server/src/slp/data/settings/slp-post-guidance-storage.ts",

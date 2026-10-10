@@ -9,6 +9,7 @@ async function main() {
   const source = "../packages/long-term-memory/src/engine/packages/server/src/services/long-term-memory";
   const { configurePackageRuntime } = await import(`${source}/package-runtime.ts`);
   const { runLongTermMemoryEvidenceUnitExtraction } = await import(`${source}/evidence-unit-extraction.ts`);
+  const { readLtmDebugLog } = await import(`${source}/debug-log.ts`);
   const { sourceHashForLtmSourceNote } = await import(`${source}/source-hash.ts`);
   const root = await mkdtemp(join(tmpdir(), "marinara-ltm-extraction-reliability-"));
   const timestamp = "2026-08-09T00:00:00.000Z";
@@ -95,6 +96,25 @@ async function main() {
     },
   };
   try {
+    for (const usage of [
+      undefined,
+      { promptTokens: 40, completionTokens: 12, completionReasoningTokens: 8, totalTokens: 60 },
+      { promptTokens: 40 },
+      { promptTokens: 0, completionTokens: 0 },
+    ]) {
+      calls.length = 0;
+      response = { content: validContent, finishReason: "stop", usage };
+      const operationId = randomUUID();
+      await runLongTermMemoryEvidenceUnitExtraction({ ...options, operationId });
+      assert.equal(calls.length, 1, "debug accounting must not change provider calls");
+      const events = await readLtmDebugLog({ operationId }, root);
+      const request = events.find((event) => event.action === "evidence_unit_request")!;
+      const result = events.find((event) => event.action === "evidence_unit_response")!;
+      assert.ok(request.counts!.estimatedPromptTokens > 0, "request usage must be explicitly estimated");
+      assert.equal(request.counts!.promptTokens, undefined);
+      assert.deepEqual(result.counts, { responseChars: validContent.length, ...usage });
+    }
+
     for (const testCase of [
       {
         response: { content: "  ", finishReason: "stop" },
@@ -157,11 +177,16 @@ async function main() {
         JSON.stringify(validUnit) +
         ',{"bucket":"timeline_event","subjectId":"partial_event","sectionKey":"event","text":"Mara was interrup';
       response = { content: truncatedPayloadContent, finishReason };
-      const recoveredRun = await runLongTermMemoryEvidenceUnitExtraction({ ...options, operationId: randomUUID() });
+      const operationId = randomUUID();
+      const recoveredRun = await runLongTermMemoryEvidenceUnitExtraction({ ...options, operationId });
       assert.equal(calls.length, 1);
       assert.equal(recoveredRun.response.incomplete, true);
       assert.equal(recoveredRun.response.units.length, 1);
       assert.equal(recoveredRun.response.units[0]?.subjectId, "observatory_gate_sealed");
+      const events = await readLtmDebugLog({ operationId }, root);
+      const result = events.find((event) => event.action === "evidence_unit_response")!;
+      assert.equal(result.status, "warning", "recovered truncation must remain visible in debug reporting");
+      assert.equal(result.details!.finishReason, finishReason);
     }
 
     calls.length = 0;
@@ -285,8 +310,9 @@ async function main() {
     calls.length = 0;
     options.languageModel.maxContext = null;
     options.languageModel.maxOutputTokens = 123;
+    const cappedOperationId = randomUUID();
     await assert.rejects(
-      () => runLongTermMemoryEvidenceUnitExtraction({ ...options, operationId: randomUUID() }),
+      () => runLongTermMemoryEvidenceUnitExtraction({ ...options, operationId: cappedOperationId }),
       (error: any) =>
         error.code === "ltm_model_output_budget_unviable" &&
         /requested=200/u.test(error.message) &&
@@ -294,6 +320,11 @@ async function main() {
         /fitted=123/u.test(error.message),
     );
     assert.equal(calls.length, 0, "provider-capped budgets fail without max-context metadata");
+    const cappedEvents = await readLtmDebugLog({ operationId: cappedOperationId }, root);
+    const preflight = cappedEvents.find((event) => event.action === "evidence_unit_context_preflight");
+    assert.ok(preflight, "missing context metadata must not suppress the preflight failure event");
+    assert.equal(preflight.status, "error");
+    assert.equal(preflight.counts!.estimatedPromptTokens, undefined);
 
     calls.length = 0;
     options.maxOutputTokens = null;
@@ -323,6 +354,7 @@ async function main() {
     );
     const { LongTermMemoryStorage } = await import(`${source}/storage.ts`);
     const { LongTermMemoryDraftStore } = await import(`${source}/draft-store.ts`);
+    const { withLtmVaultLock } = await import(`${source}/vault-lock.ts`);
     const commitRoot = await mkdtemp(join(tmpdir(), "marinara-ltm-source-commit-"));
     try {
       const storage = new LongTermMemoryStorage(commitRoot);
@@ -492,6 +524,617 @@ async function main() {
         assert.equal(JSON.stringify(deterministicBatch[0]?.draft).includes(excludedTarget.id), false);
       } finally {
         LongTermMemoryStorage.prototype.listNotes = originalListNotes;
+      }
+
+      // Issue #1087: preparation for every item finishes before any commit, so a sibling
+      // source's create is invisible to the pre-batch index and only exists as a batch-overlay
+      // projection. Commit-time reconciliation must reuse that target instead of creating a
+      // duplicate note under a second id.
+      const batchSourceAlpha = await storage.createNote({
+        id: "source_batch_reconcile_alpha",
+        title: "Cobalt archive alpha",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-batch-alpha" },
+        sections: {
+          source: {
+            text: "The cobalt archive alpha ledger records the observatory vault survey.",
+            updatedAt: timestamp,
+          },
+        },
+      });
+      const batchSourceBeta = await storage.createNote({
+        id: "source_batch_reconcile_beta",
+        title: "Cobalt archive beta",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-batch-beta" },
+        sections: {
+          source: {
+            text: "The cobalt archive beta ledger records the observatory vault survey.",
+            updatedAt: timestamp,
+          },
+        },
+      });
+      const worldUnitFor = (note: any, subjectId: string, text: string) => ({
+        bucket: "world_fact",
+        subjectId,
+        sectionKey: "facts",
+        title: "Cobalt Archive",
+        text,
+        claimKind: "static",
+        importance: "major",
+        evidence: [`source_note:${note.id}`],
+        confidence: 0.95,
+        salience: 0.8,
+        status: "active",
+        links: [{ target: note.id, relation: "extracted_from" }],
+        sourceHash: sourceHashForLtmSourceNote(note),
+      });
+      const alphaUnit = worldUnitFor(
+        batchSourceAlpha,
+        "cobalt_archive_alpha",
+        "The cobalt archive alpha ledger records the observatory vault survey.",
+      );
+      const betaUnit = worldUnitFor(
+        batchSourceBeta,
+        "cobalt_archive_beta",
+        "The cobalt archive beta ledger records the observatory vault survey.",
+      );
+      options.languageModel.chatComplete = async (messages: any[], chatOptions: any) => {
+        calls.push(chatOptions);
+        const unit = JSON.stringify(messages).includes("alpha ledger") ? alphaUnit : betaUnit;
+        return { content: JSON.stringify({ summary: "Cobalt archive fact.", units: [unit] }), finishReason: "stop" };
+      };
+      const siblingBatch = await processLongTermMemorySourceBatch({
+        items: [
+          {
+            sourceId: batchSourceAlpha.id,
+            title: batchSourceAlpha.title!,
+            note: batchSourceAlpha,
+            created: false,
+            extractionMode: "roleplay",
+          },
+          {
+            sourceId: batchSourceBeta.id,
+            title: batchSourceBeta.title!,
+            note: batchSourceBeta,
+            created: false,
+            extractionMode: "roleplay",
+          },
+        ],
+        languageModel: options.languageModel,
+        operationId: randomUUID(),
+        signal: new AbortController().signal,
+        concurrency: 2,
+        root: commitRoot,
+      });
+      assert.deepEqual(
+        siblingBatch.map((result: any) => result.extractionStatus),
+        ["succeeded", "succeeded"],
+        JSON.stringify(siblingBatch.map((result: any) => result.error)),
+      );
+      const createdNoteIds = (result: any) =>
+        (result.draft?.mutations ?? [])
+          .filter((mutation: any) => mutation.kind === "create_note")
+          .map((mutation: any) => mutation.note.id);
+      assert.deepEqual(
+        createdNoteIds(siblingBatch[0]),
+        ["world_cobalt_archive_alpha"],
+        "the first source creates its derived target",
+      );
+      assert.deepEqual(
+        createdNoteIds(siblingBatch[1]),
+        ["world_cobalt_archive_alpha"],
+        "a sibling source in the same batch must reuse the first source's target instead of creating a duplicate",
+      );
+
+      // Issue #1087 concurrent case: a compatible note committed after the preparation index
+      // snapshot (here, during the provider call) must still be reused at commit instead of a
+      // second note being created. The batch overlay does not cover this note, so only the fresh
+      // commit-time vault scan can see it.
+      const freshnessSource = await storage.createNote({
+        id: "source_commit_freshness",
+        title: "Cobalt archive freshness",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-commit-freshness" },
+        sections: {
+          source: {
+            text: "The cobalt archive gamma ledger records the observatory vault survey.",
+            updatedAt: timestamp,
+          },
+        },
+      });
+      const gammaUnit = worldUnitFor(
+        freshnessSource,
+        "cobalt_archive_gamma",
+        "The cobalt archive gamma ledger records the observatory vault survey.",
+      );
+      options.languageModel.chatComplete = async (_messages: any[], chatOptions: any) => {
+        calls.push(chatOptions);
+        // Loaded after the preparation index snapshot (which happens before the provider call),
+        // so only the commit-time fresh scan can observe it.
+        await storage.createNote({
+          id: "world_cobalt_archive_delta",
+          title: "Cobalt Archive",
+          type: "world",
+          status: "active",
+          modes: ["roleplay"],
+          scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+          tags: [],
+          keywords: [],
+          links: [],
+          sections: {
+            facts: { text: "The cobalt archive delta ledger records the vault survey.", updatedAt: timestamp },
+          },
+        });
+        return {
+          content: JSON.stringify({ summary: "Cobalt archive fact.", units: [gammaUnit] }),
+          finishReason: "stop",
+        };
+      };
+      const committedDuringPreparation = await processLongTermMemorySource({
+        sourceNote: freshnessSource,
+        languageModel: options.languageModel,
+        mode: "roleplay",
+        modes: ["roleplay"],
+        extractionMode: "roleplay",
+        operationId: randomUUID(),
+        root: commitRoot,
+      });
+      const mutationTargetNoteIds = (result: any) =>
+        (result.draft?.mutations ?? []).map((mutation: any) =>
+          mutation.kind === "create_note" ? mutation.note.id : mutation.noteId,
+        );
+      assert.deepEqual(
+        [...new Set(mutationTargetNoteIds(committedDuringPreparation))],
+        ["world_cobalt_archive_delta"],
+        "a note committed after the preparation snapshot must be reused instead of duplicated",
+      );
+
+      // Issue #1087 archived case: the commit-time candidate set must keep retrieval's active-only
+      // view. An archived compatible memory is not a recall target, so the source creates a fresh
+      // active note instead of reviving and mutating the archived one.
+      const archivedSource = await storage.createNote({
+        id: "source_commit_archived",
+        title: "Archived commit source",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-commit-archived" },
+        sections: {
+          source: {
+            text: "The obsidian archive epsilon ledger records the sealed vault survey.",
+            updatedAt: timestamp,
+          },
+        },
+      });
+      const archivedTarget = await storage.createNote({
+        id: "world_obsidian_vault_sealed",
+        title: "Obsidian Archive",
+        type: "world",
+        status: "archived",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: [],
+        keywords: [],
+        links: [],
+        sections: {
+          facts: {
+            text: "The obsidian archive epsilon ledger records the earlier vault survey.",
+            updatedAt: timestamp,
+          },
+        },
+      });
+      const archivedUnit = {
+        ...worldUnitFor(
+          archivedSource,
+          "obsidian_archive_epsilon",
+          "The obsidian archive epsilon ledger records the sealed vault survey.",
+        ),
+        title: "Obsidian Archive",
+      };
+      options.languageModel.chatComplete = async () => ({
+        content: JSON.stringify({ summary: "Obsidian archive fact.", units: [archivedUnit] }),
+        finishReason: "stop",
+      });
+      const archivedCommit = await processLongTermMemorySource({
+        sourceNote: archivedSource,
+        languageModel: options.languageModel,
+        mode: "roleplay",
+        modes: ["roleplay"],
+        extractionMode: "roleplay",
+        operationId: randomUUID(),
+        root: commitRoot,
+      });
+      assert.deepEqual(
+        [...new Set(mutationTargetNoteIds(archivedCommit))],
+        ["world_obsidian_archive_epsilon"],
+        "an archived compatible memory must not be reused by commit-time reconciliation",
+      );
+      assert.equal(
+        (await storage.getNote(archivedTarget.id))?.status,
+        "archived",
+        "commit-time reconciliation must not mutate an archived memory",
+      );
+
+      // Issue #1087 duplicate-candidate case: once a sibling target is both durable and still in the
+      // batch overlay, the two representations must merge to one candidate. Counting them twice
+      // turned a valid reuse into a spurious ambiguity, so the second source duplicated the note.
+      await storage.createNote({
+        id: "world_basalt_archive_alpha",
+        title: "Basalt Archive",
+        type: "world",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: [],
+        keywords: [],
+        links: [],
+        sections: {
+          facts: { text: "The basalt archive alpha ledger records the previous vault survey.", updatedAt: timestamp },
+        },
+      });
+      const overlaySourceAlpha = await storage.createNote({
+        id: "source_batch_overlay_alpha",
+        title: "Basalt overlay alpha",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-batch-overlay-alpha" },
+        sections: {
+          source: {
+            text: "The basalt archive alpha ledger records the sealed vault survey.",
+            updatedAt: timestamp,
+          },
+        },
+      });
+      const overlaySourceBeta = await storage.createNote({
+        id: "source_batch_overlay_beta",
+        title: "Basalt overlay beta",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-batch-overlay-beta" },
+        sections: {
+          source: {
+            text: "The basalt archive beta ledger records the sealed vault survey.",
+            updatedAt: timestamp,
+          },
+        },
+      });
+      const basaltAlphaUnit = {
+        ...worldUnitFor(
+          overlaySourceAlpha,
+          "basalt_archive_alpha",
+          "The basalt archive alpha ledger records the sealed vault survey.",
+        ),
+        title: "Basalt Archive",
+      };
+      const basaltBetaUnit = {
+        ...worldUnitFor(
+          overlaySourceBeta,
+          "basalt_archive_beta",
+          "The basalt archive beta ledger records the sealed vault survey.",
+        ),
+        title: "Basalt Archive",
+      };
+      options.languageModel.chatComplete = async (messages: any[], chatOptions: any) => {
+        calls.push(chatOptions);
+        const unit = JSON.stringify(messages).includes("alpha ledger") ? basaltAlphaUnit : basaltBetaUnit;
+        return { content: JSON.stringify({ summary: "Basalt archive fact.", units: [unit] }), finishReason: "stop" };
+      };
+      const overlayBatch = await processLongTermMemorySourceBatch({
+        items: [
+          {
+            sourceId: overlaySourceAlpha.id,
+            title: overlaySourceAlpha.title!,
+            note: overlaySourceAlpha,
+            created: false,
+            extractionMode: "roleplay",
+          },
+          {
+            sourceId: overlaySourceBeta.id,
+            title: overlaySourceBeta.title!,
+            note: overlaySourceBeta,
+            created: false,
+            extractionMode: "roleplay",
+          },
+        ],
+        languageModel: options.languageModel,
+        operationId: randomUUID(),
+        signal: new AbortController().signal,
+        concurrency: 2,
+        root: commitRoot,
+      });
+      assert.deepEqual(
+        overlayBatch.map((result: any) => result.extractionStatus),
+        ["succeeded", "succeeded"],
+        JSON.stringify(overlayBatch.map((result: any) => result.error)),
+      );
+      assert.deepEqual(
+        [...new Set(mutationTargetNoteIds(overlayBatch[1]))],
+        ["world_basalt_archive_alpha"],
+        "a durable target also present in the batch overlay must reconcile as one candidate",
+      );
+      assert.equal(
+        (overlayBatch[1] as any)?.diagnostics?.some(
+          (diagnostic: any) => diagnostic.code === "candidate_reconciliation_ambiguous",
+        ),
+        false,
+        "the duplicate durable/overlay candidate must not read as ambiguous",
+      );
+
+      // Issue #1087 terminal-overlay case: once the durable target is archived (or resolved) after a
+      // batch item projected it while active, the stale active overlay copy must not revive it as a
+      // reconciliation candidate. The terminal durable state wins, so the second source creates a
+      // fresh memory instead of mutating an archived note.
+      const graniteSourceAlpha = await storage.createNote({
+        id: "source_granite_batch_alpha",
+        title: "Granite overlay alpha",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-granite-alpha" },
+        sections: {
+          source: { text: "The granite archive alpha ledger records the sealed vault survey.", updatedAt: timestamp },
+        },
+      });
+      const graniteSourceBeta = await storage.createNote({
+        id: "source_granite_batch_beta",
+        title: "Granite overlay beta",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-granite-beta" },
+        sections: {
+          source: { text: "The granite archive beta ledger records the sealed vault survey.", updatedAt: timestamp },
+        },
+      });
+      const graniteTarget = await storage.createNote({
+        id: "world_granite_archive_alpha",
+        title: "Granite Archive",
+        type: "world",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: [],
+        keywords: [],
+        links: [],
+        sections: {
+          facts: { text: "The granite archive alpha ledger records the previous vault survey.", updatedAt: timestamp },
+        },
+      });
+      const graniteAlphaUnit = {
+        ...worldUnitFor(
+          graniteSourceAlpha,
+          "granite_archive_alpha",
+          "The granite archive alpha ledger records the sealed vault survey.",
+        ),
+        title: "Granite Archive",
+      };
+      const graniteBetaUnit = {
+        ...worldUnitFor(
+          graniteSourceBeta,
+          "granite_archive_beta",
+          "The granite archive beta ledger records the flooded vault survey.",
+        ),
+        title: "Granite Archive",
+      };
+      options.languageModel.chatComplete = async (messages: any[], chatOptions: any) => {
+        calls.push(chatOptions);
+        const unit = JSON.stringify(messages).includes("alpha ledger") ? graniteAlphaUnit : graniteBetaUnit;
+        return { content: JSON.stringify({ summary: "Granite archive fact.", units: [unit] }), finishReason: "stop" };
+      };
+      // Archive the durable target after the first item's projection but before the second item commits,
+      // leaving the batch overlay holding a stale active copy of it.
+      const originalCreateDraftForOverlayStatus = LongTermMemoryDraftStore.prototype.createDraft;
+      let graniteTargetArchived = false;
+      LongTermMemoryDraftStore.prototype.createDraft = async function (input: any) {
+        const draft = await originalCreateDraftForOverlayStatus.call(this, input);
+        if (!graniteTargetArchived && input.source?.sourceNoteId === graniteSourceAlpha.id) {
+          graniteTargetArchived = true;
+          await storage.updateNote(graniteTarget.id, { status: "archived" });
+        }
+        return draft;
+      };
+      try {
+        const graniteBatch = await processLongTermMemorySourceBatch({
+          items: [
+            {
+              sourceId: graniteSourceAlpha.id,
+              title: graniteSourceAlpha.title!,
+              note: graniteSourceAlpha,
+              created: false,
+              extractionMode: "roleplay",
+            },
+            {
+              sourceId: graniteSourceBeta.id,
+              title: graniteSourceBeta.title!,
+              note: graniteSourceBeta,
+              created: false,
+              extractionMode: "roleplay",
+            },
+          ],
+          languageModel: options.languageModel,
+          operationId: randomUUID(),
+          signal: new AbortController().signal,
+          concurrency: 2,
+          root: commitRoot,
+        });
+        assert.deepEqual(
+          graniteBatch.map((result: any) => result.extractionStatus),
+          ["succeeded", "succeeded"],
+          JSON.stringify(graniteBatch.map((result: any) => result.error)),
+        );
+        assert.equal(graniteTargetArchived, true, "the durable target must be archived between item commits");
+        assert.deepEqual(
+          [...new Set(mutationTargetNoteIds(graniteBatch[1]))],
+          ["world_granite_archive_beta"],
+          "a terminal durable target must not be revived by a stale active batch overlay",
+        );
+        assert.equal(
+          (graniteBatch[1] as any)?.diagnostics?.some(
+            (diagnostic: any) => diagnostic.code === "candidate_reconciliation_ambiguous",
+          ),
+          false,
+          "the terminal durable target must be filtered, not read as ambiguous",
+        );
+        assert.equal(
+          (await storage.getNote(graniteTarget.id))?.status,
+          "archived",
+          "commit-time reconciliation must not revive an archived memory",
+        );
+      } finally {
+        LongTermMemoryDraftStore.prototype.createDraft = originalCreateDraftForOverlayStatus;
+      }
+
+      // Issue #1087 lock-scope case: the ordered commit loop must hold one vault lock across items
+      // so an independent writer cannot land between commits and make the shared batch overlay
+      // stale. An external task that acquires the vault lock outside the batch's async context
+      // must therefore wait for the whole loop, not for the gap between items.
+      const lockScopeSourceAlpha = await storage.createNote({
+        id: "source_lock_scope_alpha",
+        title: "Lock scope alpha",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-lock-scope-alpha" },
+        sections: {
+          source: { text: "The lock scope alpha ledger records the sealed vault survey.", updatedAt: timestamp },
+        },
+      });
+      const lockScopeSourceBeta = await storage.createNote({
+        id: "source_lock_scope_beta",
+        title: "Lock scope beta",
+        type: "source",
+        status: "active",
+        modes: ["roleplay"],
+        scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+        tags: ["source_summary"],
+        keywords: [],
+        links: [],
+        provenance: { kind: "chat_summary", sourceId: "chat-a", entryId: "summary-lock-scope-beta" },
+        sections: {
+          source: { text: "The lock scope beta ledger records the sealed vault survey.", updatedAt: timestamp },
+        },
+      });
+      const lockScopeAlphaUnit = worldUnitFor(
+        lockScopeSourceAlpha,
+        "lock_scope_alpha",
+        "The lock scope alpha ledger records the sealed vault survey.",
+      );
+      const lockScopeBetaUnit = worldUnitFor(
+        lockScopeSourceBeta,
+        "lock_scope_beta",
+        "The lock scope beta ledger records the sealed vault survey.",
+      );
+      options.languageModel.chatComplete = async (messages: any[], chatOptions: any) => {
+        calls.push(chatOptions);
+        const unit = JSON.stringify(messages).includes("alpha ledger") ? lockScopeAlphaUnit : lockScopeBetaUnit;
+        return { content: JSON.stringify({ summary: "Lock scope fact.", units: [unit] }), finishReason: "stop" };
+      };
+      const lockOrder: string[] = [];
+      let signalExternal!: () => void;
+      const externalGate = new Promise<void>((resolve) => {
+        signalExternal = resolve;
+      });
+      // Started outside the batch's async context, so its continuation keeps an unheld lock scope
+      // and genuinely contends for the vault lock instead of re-entering the batch's held one.
+      const externalLockWriter = (async () => {
+        await externalGate;
+        await withLtmVaultLock(storage.root, async () => {
+          lockOrder.push("external-writer");
+        });
+      })();
+      const originalCreateDraftForLockScope = LongTermMemoryDraftStore.prototype.createDraft;
+      LongTermMemoryDraftStore.prototype.createDraft = async function (input: any) {
+        const draft = await originalCreateDraftForLockScope.call(this, input);
+        if (input.source?.sourceNoteId === lockScopeSourceAlpha.id) {
+          signalExternal();
+          // Let the external task reach the lock while this item's commit still holds it.
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        if (input.source?.sourceNoteId === lockScopeSourceBeta.id) lockOrder.push("item-two-commit");
+        return draft;
+      };
+      try {
+        const lockScopeBatch = await processLongTermMemorySourceBatch({
+          items: [
+            {
+              sourceId: lockScopeSourceAlpha.id,
+              title: lockScopeSourceAlpha.title!,
+              note: lockScopeSourceAlpha,
+              created: false,
+              extractionMode: "roleplay",
+            },
+            {
+              sourceId: lockScopeSourceBeta.id,
+              title: lockScopeSourceBeta.title!,
+              note: lockScopeSourceBeta,
+              created: false,
+              extractionMode: "roleplay",
+            },
+          ],
+          languageModel: options.languageModel,
+          operationId: randomUUID(),
+          signal: new AbortController().signal,
+          concurrency: 2,
+          root: commitRoot,
+        });
+        await externalLockWriter;
+        assert.deepEqual(
+          lockScopeBatch.map((result: any) => result.extractionStatus),
+          ["succeeded", "succeeded"],
+          JSON.stringify(lockScopeBatch.map((result: any) => result.error)),
+        );
+        assert.deepEqual(
+          lockOrder,
+          ["item-two-commit", "external-writer"],
+          "the ordered commit loop must hold one vault lock across items",
+        );
+      } finally {
+        LongTermMemoryDraftStore.prototype.createDraft = originalCreateDraftForLockScope;
       }
 
       const originalListNotesForFailure = LongTermMemoryStorage.prototype.listNotes;

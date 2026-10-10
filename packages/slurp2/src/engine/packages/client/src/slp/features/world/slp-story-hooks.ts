@@ -19,6 +19,16 @@ export type SlpBundledPackSummary = Pick<
   arcCount: number;
   eventCount: number;
 };
+/** A content pack Backstage switches on and off (`contentPacks` setting). */
+export type SlpContentPackSummary = {
+  id: string;
+  name: string;
+  adds: string;
+  defaultOn: boolean;
+  dates: { name: string; month: number | null; day: number | null }[];
+  arcs: string[];
+  extras: string[];
+};
 export type SlpPackPreviewEntry = {
   kind: "arc" | "event";
   contentId: string;
@@ -52,7 +62,10 @@ export function useSlpStoryCalendar(from: Date, to: Date) {
 export function useSlpBundledStoryPacks() {
   return useQuery({
     queryKey: [...storyKey, "packs"],
-    queryFn: () => api.get<{ packs: SlpBundledPackSummary[] }>("/slurp2/story-packs/bundled"),
+    queryFn: () =>
+      api.get<{ packs: SlpBundledPackSummary[]; contentPacks?: SlpContentPackSummary[] }>(
+        "/slurp2/story-packs/bundled",
+      ),
     staleTime: Infinity,
   });
 }

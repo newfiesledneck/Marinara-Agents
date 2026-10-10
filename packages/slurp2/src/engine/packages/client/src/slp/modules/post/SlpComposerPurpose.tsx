@@ -82,6 +82,10 @@ export function SlpComposerPurpose({
           ))}
         </select>
       </label>
+      {/* Both steer the AI draft only; "Post" sends your own words as they are (R1-037). */}
+      <span className="basis-full text-[11px] leading-4 text-[var(--slurp-muted)]">
+        {localizeUi("ui.slurp.composer.purposeGuideOnly", { defaultValue: "Purpose and delivery shape Guide drafts." })}
+      </span>
     </>
   );
 }

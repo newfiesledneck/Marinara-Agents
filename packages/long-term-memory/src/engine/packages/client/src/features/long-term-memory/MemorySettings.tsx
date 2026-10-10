@@ -8,6 +8,7 @@ import type {
   LtmIntegrityResponse,
 } from "../../../../shared/src/features/agents/long-term-memory/schema.js";
 import { LTM_RECALL_STYLE_WEIGHTS } from "../../../../shared/src/features/agents/long-term-memory/constants.js";
+import { LTM_RECALL_SCORE_THRESHOLD_CEILING } from "../../../../shared/src/features/agents/long-term-memory/runtime-settings.js";
 import { invalidateLtmQueries, queryKeys, request, requestHost, requestRaw } from "./api";
 import { Button, InfoPopover, NumberField, StatusSurface, inputClass } from "./shared-controls";
 import type { LongTermMemoryDestinationProps } from "./types";
@@ -47,6 +48,7 @@ type LanguageConnection = {
 };
 type RepairAction = "rebuild_indexes" | "quarantine_malformed_notes" | "backfill_imported_source_titles";
 type SettingsTab = "recall" | "extraction" | "maintenance" | "debug";
+type SettingsRebuildOutcome = { status: "complete" | "deferred"; error?: string };
 
 const settingsTabs: Array<{ id: SettingsTab; labelKey: string }> = [
   {
@@ -198,7 +200,6 @@ function extractionForm(settings: LtmExtractionSettingsPatch): ExtractionForm {
     maxOutputTokens: resolved.maxOutputTokens ?? 4096,
     temperature: resolved.temperature ?? 0.2,
     maxSourceTokens: resolved.maxSourceTokens ?? 16000,
-    maxExistingNoteTokens: resolved.maxExistingNoteTokens ?? 8000,
     existingNoteMaxChunks: resolved.existingNoteMaxChunks ?? 20,
     existingNoteMaxTokens: resolved.existingNoteMaxTokens ?? 4000,
     promptTemplates: resolved.promptTemplates ?? [],
@@ -250,7 +251,9 @@ export default function MemorySettings({
   props,
   onDirtyChange,
   onOpenMemory,
+  onOpenReview,
   openActivityRequest,
+  openActivityMemoryId,
   onOpenActivityHandled,
 }: LongTermMemoryDestinationProps) {
   const { t: localizeUi, locale } = useLtmTranslation();
@@ -289,15 +292,24 @@ export default function MemorySettings({
   const [messageState, setMessageState] = useState<{
     text: string;
     tone: "success" | "danger";
-  }>({ text: "", tone: "success" });
+    // Which StatusSurface owns the message: the Debug panel shows only its own save
+    // feedback, while every other tab (and every unrelated action such as a backup
+    // export) uses the shared surface.
+    surface: "shared" | "debug";
+  }>({ text: "", tone: "success", surface: "shared" });
   const message = messageState.text;
-  const setMessage = (text: string, tone: "success" | "danger" = "success") => setMessageState({ text, tone });
+  const setMessage = (text: string, tone: "success" | "danger" = "success", surface: "shared" | "debug" = "shared") =>
+    setMessageState({ text, tone, surface });
   const [activeTab, setActiveTab] = useState<SettingsTab>("recall");
+  // Capture the Vault memory link's target before the handoff request is reset, so the
+  // Debug tab can open filtered to that memory without a stale filter on later entries.
+  const [debugMemoryId, setDebugMemoryId] = useState<string | null>(null);
   useEffect(() => {
     if (!openActivityRequest) return;
+    setDebugMemoryId(openActivityMemoryId ?? null);
     setActiveTab("debug");
     onOpenActivityHandled?.();
-  }, [onOpenActivityHandled, openActivityRequest]);
+  }, [onOpenActivityHandled, openActivityRequest, openActivityMemoryId]);
   const [selectedActions, setSelectedActions] = useState<RepairAction[]>([]);
   const [identityPreview, setIdentityPreview] = useState<LtmIdentityRepairPreviewResponse | null>(null);
   const [selectedIdentityCandidates, setSelectedIdentityCandidates] = useState<string[]>([]);
@@ -329,6 +341,11 @@ export default function MemorySettings({
     extractionFormState && savedExtraction && !same(extractionFormState, savedExtraction),
   );
   const dirty = globalDirty || extractionDirty;
+  // D05: a toggle-local cue for the one setting the Debug panel owns. It reuses the
+  // existing save flow and leave guard rather than adding a second persistence path.
+  const debugDirty = Boolean(
+    globalForm && savedGlobal && globalForm.longTermMemoryDebug !== savedGlobal.longTermMemoryDebug,
+  );
   useEffect(() => {
     onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
@@ -336,32 +353,57 @@ export default function MemorySettings({
 
   const saveSettings = async () => {
     if (!globalDirty && !extractionDirty) return;
+    // Keep the Debug panel's surface for saves started there; every other save shows in
+    // the shared surface (D05).
+    const surface: "shared" | "debug" = activeTab === "debug" ? "debug" : "shared";
     setPending("global");
     setMessage("");
+    let rebuild: SettingsRebuildOutcome | null = null;
     try {
       if (globalDirty && globalForm) {
-        const saved = settingsForm(await request<LtmGlobalSettings>("/settings", "PUT", globalPayload(globalForm)));
-        setGlobalForm(saved);
+        const submitted = globalForm;
+        const response = await request<LtmGlobalSettings & { rebuild?: SettingsRebuildOutcome | null }>(
+          "/settings",
+          "PUT",
+          globalPayload(submitted),
+        );
+        const saved = settingsForm(response);
         setSavedGlobal(saved);
-        await invalidateLtmQueries(queryClient, [queryKeys.settings, queryKeys.chatDefaults]);
+        // Saving now awaits an index rebuild, so only clear the form when no newer edit
+        // arrived while it was in flight; otherwise those edits stay dirty.
+        setGlobalForm((current) => (current && same(current, submitted) ? saved : current));
+        await invalidateLtmQueries(queryClient, [queryKeys.settings, queryKeys.chatDefaults, queryKeys.status]);
+        rebuild = response.rebuild ?? null;
       }
       if (extractionDirty && extractionFormState) {
+        const submitted = extractionFormState;
         const saved = extractionForm(
-          await request<LtmExtractionSettingsPatch>(
-            "/extraction-settings",
-            "PUT",
-            extractionPayload(extractionFormState),
-          ),
+          await request<LtmExtractionSettingsPatch>("/extraction-settings", "PUT", extractionPayload(submitted)),
         );
-        setExtractionFormState(saved);
         setSavedExtraction(saved);
+        // The global save can await a long index rebuild, so keep newer extraction edits
+        // that arrived while this request was in flight instead of overwriting them.
+        setExtractionFormState((current) => (current && same(current, submitted) ? saved : current));
         await invalidateLtmQueries(queryClient, [queryKeys.extractionSettings]);
       }
-      setMessage(localizeUi("ui.longTermMemory.memorysettings.memorySettingsSaved"));
+      if (rebuild?.status === "deferred") {
+        setMessage(
+          localizeUi("ui.longTermMemory.memorysettings.memorySettingsSavedIndexRebuildFailed", {
+            error: rebuild.error ?? "",
+          }),
+          "danger",
+          surface,
+        );
+      } else if (rebuild?.status === "complete") {
+        setMessage(localizeUi("ui.longTermMemory.memorysettings.memorySettingsSavedIndexRebuilt"), "success", surface);
+      } else {
+        setMessage(localizeUi("ui.longTermMemory.memorysettings.memorySettingsSaved"), "success", surface);
+      }
     } catch (error) {
       setMessage(
         errorMessage(error, localizeUi("ui.longTermMemory.memorysettings.couldNotSaveMemorySettings")),
         "danger",
+        surface,
       );
     } finally {
       setPending("");
@@ -731,7 +773,7 @@ export default function MemorySettings({
     setPending("settings-reset");
     setMessage("");
     try {
-      await request("/settings/reset", "POST");
+      const response = await request<{ rebuild?: SettingsRebuildOutcome | null }>("/settings/reset", "POST");
       setGlobalForm(null);
       setSavedGlobal(null);
       setExtractionFormState(null);
@@ -740,9 +782,19 @@ export default function MemorySettings({
         queryKeys.settings,
         queryKeys.extractionSettings,
         queryKeys.chatDefaults,
+        queryKeys.status,
       ]);
       await Promise.all([global.refetch(), extraction.refetch()]);
-      setMessage(localizeUi("ui.longTermMemory.memorysettings.memorySettingsResetToDefaults"));
+      if (response.rebuild?.status === "deferred") {
+        setMessage(
+          localizeUi("ui.longTermMemory.memorysettings.memorySettingsResetIndexRebuildFailed", {
+            error: response.rebuild.error ?? "",
+          }),
+          "danger",
+        );
+      } else {
+        setMessage(localizeUi("ui.longTermMemory.memorysettings.memorySettingsResetToDefaults"));
+      }
     } catch (error) {
       setMessage(
         errorMessage(error, localizeUi("ui.longTermMemory.memorysettings.couldNotResetMemorySettings")),
@@ -916,7 +968,9 @@ export default function MemorySettings({
           </button>
         ))}
       </div>
-      {message ? <StatusSurface tone={messageState.tone}>{message}</StatusSurface> : null}
+      {/* The Debug panel renders its own message beside the toggle, so the shared
+          surface yields there instead of showing the same save feedback twice. */}
+      {message && activeTab !== "debug" ? <StatusSurface tone={messageState.tone}>{message}</StatusSurface> : null}
 
       <section
         id="settings-panel-recall"
@@ -925,14 +979,12 @@ export default function MemorySettings({
         hidden={activeTab !== "recall"}
         className="mari-editor-panel space-y-3 p-3"
       >
-        <div>
-          <h3 className="flex items-center gap-1 text-sm font-semibold">
-            {localizeUi("ui.longTermMemory.memorysettings.globalRecall")}
-            <InfoPopover
-              label={localizeUi("ui.longTermMemory.memorysettings.globalRecall")}
-              content={localizeUi("ui.longTermMemory.memorysettings.defaultsUsedByEveryChatUnlessThatChatOverrides")}
-            />
-          </h3>
+        <div className="flex items-center gap-1">
+          <h3 className="text-sm font-semibold">{localizeUi("ui.longTermMemory.memorysettings.globalRecall")}</h3>
+          <InfoPopover
+            label={localizeUi("ui.longTermMemory.memorysettings.globalRecall")}
+            content={localizeUi("ui.longTermMemory.memorysettings.defaultsUsedByEveryChatUnlessThatChatOverrides")}
+          />
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <Toggle
@@ -1002,7 +1054,7 @@ export default function MemorySettings({
             )}
             value={globalForm.longTermMemoryScoreThreshold}
             min={0}
-            max={1}
+            max={LTM_RECALL_SCORE_THRESHOLD_CEILING}
             step={0.01}
             onChange={(value) =>
               setGlobalForm({
@@ -1269,20 +1321,6 @@ export default function MemorySettings({
             }
           />
           <NumberField
-            label={localizeUi("ui.longTermMemory.memorysettings.maximumExistingNoteTokens")}
-            help={localizeUi("ui.longTermMemory.memorysettings.maximumExistingMemoryContextMadeAvailableWhileTheModel")}
-            value={extractionFormState.maxExistingNoteTokens}
-            min={128}
-            max={32768}
-            step={128}
-            onChange={(value) =>
-              setExtractionFormState({
-                ...extractionFormState,
-                maxExistingNoteTokens: value,
-              })
-            }
-          />
-          <NumberField
             label={localizeUi("ui.longTermMemory.memorysettings.existingNoteChunks")}
             help={localizeUi(
               "ui.longTermMemory.memorysettings.maximumNumberOfExistingMemoryChunksConsideredWhileChecking",
@@ -1356,13 +1394,13 @@ export default function MemorySettings({
           </p>
         </div>
         <div className="border-t border-[var(--border)] pt-3">
-          <h4 className="flex items-center gap-1 text-xs font-semibold">
-            {localizeUi("ui.longTermMemory.memorysettings.backupAndReset")}
+          <div className="flex items-center gap-1">
+            <h4 className="text-xs font-semibold">{localizeUi("ui.longTermMemory.memorysettings.backupAndReset")}</h4>
             <InfoPopover
               label={localizeUi("ui.longTermMemory.memorysettings.backupAndReset")}
               content={localizeUi("ui.longTermMemory.memorysettings.exportOrReplaceThePackageOwnedMemoryVaultAnd")}
             />
-          </h4>
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button disabled={pending !== ""} onClick={() => void exportBackup()}>
               <Download aria-hidden="true" size="0.875rem" />{" "}
@@ -1461,15 +1499,15 @@ export default function MemorySettings({
           {localizeUi("ui.longTermMemory.memorysettings.runSelectedMaintenance")}
         </Button>
         <div className="border-t border-[var(--border)] pt-3">
-          <h4 className="flex items-center gap-1 text-xs font-semibold">
-            {localizeUi("ui.longTermMemory.memorysettings.identityRepair")}
+          <div className="flex items-center gap-1">
+            <h4 className="text-xs font-semibold">{localizeUi("ui.longTermMemory.memorysettings.identityRepair")}</h4>
             <InfoPopover
               label={localizeUi("ui.longTermMemory.memorysettings.identityRepair")}
               content={localizeUi(
                 "ui.longTermMemory.memorysettings.previewDuplicateTrustedIdentitiesBeforeMergingAndArchivingDuplicates",
               )}
             />
-          </h4>
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button disabled={pending !== ""} onClick={() => void previewIdentities()}>
               {localizeUi("ui.longTermMemory.memorysettings.previewIdentityRepairs")}
@@ -1656,7 +1694,7 @@ export default function MemorySettings({
         role="tabpanel"
         aria-labelledby="settings-tab-debug"
         hidden={activeTab !== "debug"}
-        className="mari-editor-panel space-y-3 p-3"
+        className="space-y-3 p-3"
       >
         <Toggle
           label={localizeUi("ui.longTermMemory.memorysettings.recordDebugActivity")}
@@ -1666,7 +1704,28 @@ export default function MemorySettings({
           checked={globalForm.longTermMemoryDebug}
           onChange={(value) => setGlobalForm({ ...globalForm, longTermMemoryDebug: value })}
         />
-        {activeTab === "debug" ? <ActivityView props={props} onOpenMemory={onOpenMemory} /> : null}
+        {debugDirty ? (
+          <div className="flex flex-wrap items-center gap-2" data-ltm-debug-dirty>
+            <span className="text-xs text-[var(--muted-foreground)]">
+              {localizeUi("ui.longTermMemory.memorysettings.unsavedDebugChange")}
+            </span>
+            <Button primary disabled={pending !== ""} onClick={() => void saveSettings()}>
+              {localizeUi("ui.longTermMemory.memorysettings.saveDebugChange")}
+            </Button>
+          </div>
+        ) : null}
+        {message && messageState.surface === "debug" ? (
+          <StatusSurface tone={messageState.tone}>{message}</StatusSurface>
+        ) : null}
+        {activeTab === "debug" ? (
+          <ActivityView
+            props={props}
+            onOpenMemory={onOpenMemory}
+            onOpenReview={onOpenReview}
+            openActivityMemoryId={debugMemoryId}
+            onOpenActivityMemoryIdHandled={() => setDebugMemoryId(null)}
+          />
+        ) : null}
       </section>
     </section>
   );

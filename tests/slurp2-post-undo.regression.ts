@@ -23,7 +23,7 @@ assert.match(
 );
 
 const helpers = slurp2Source("packages/slurp2/src/engine/packages/client/src/slp/app/screens/SlpHomeHelpers.tsx");
-assert.match(helpers, /<SlpPostCard post=\{post\} ctx=\{ctx\} surface="profile" hideImage \/>/u);
+assert.match(helpers, /<SlpPostCard post=\{post\} ctx=\{ctx\} surface="dialog" hideImage \/>/u);
 assert.doesNotMatch(helpers, /imageUrl: null, images: \[\]/u);
 const hub = slurp2Source("packages/slurp2/src/engine/packages/client/src/slp/app/screens/SlpScreenHub.tsx");
 assert.doesNotMatch(hub, /SlpDeletedPostSlot|deletedPostIds|onRestorePost/u);

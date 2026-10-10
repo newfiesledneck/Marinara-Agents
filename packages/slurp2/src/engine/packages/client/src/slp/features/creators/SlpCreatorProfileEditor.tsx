@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, Loader2, Sparkles, Trash2, Upload, UserRound } from "lucide-react";
+import { ImagePlus, Trash2, Upload, UserRound } from "lucide-react";
+import { SlpSparkleGlyph } from "../../base/chrome/SlpGlyphs";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type {
-  SlpCreatorArtworkPromptOptions,
   SlpCreatorManagedStageProfile,
   SlpIdentityDisclosure,
 } from "../../../../../shared/src/slp/slp-social.types.js";
@@ -13,14 +13,14 @@ import {
   useUpdateCreatorStageProfile,
   useUploadCreatorAvatar,
   useUploadCreatorBanner,
-  useGenerateCreatorArtwork,
   useUseCreatorSourceAvatar,
 } from "./slp-creator-profile-hooks";
 import { showConfirmDialog } from "../../../lib/app-dialogs";
 import { confirmSlurpAvatarReview, StageProfileForm } from "./SlpStageProfileForm";
 import { errorMessage } from "../../modules/settings/slp-backstage-format";
 import { Avatar, SlurpMediaImg } from "../../base/chrome/SlpChrome";
-import { accentButton, focusRing, quietButton } from "./slp-creator-classes";
+import { quietButton, selectClass } from "./slp-creator-classes";
+import { SlpPictureAssist } from "../assist/slp-assist-contract";
 
 /**
  * The Creator's own profile fields, inside Backstage.
@@ -59,6 +59,9 @@ export function SlurpCreatorProfileEditor({
     [creator],
   );
   const [draft, setDraft] = useState<SlurpStageProfileInput>(initialDraft);
+  // The profile's location line; "Edit profile" could not reach it, only "Redraft with AI" (R1-069).
+  const initialLocation = (creator as { location?: string }).location ?? "";
+  const [location, setLocation] = useState(initialLocation);
   const saveStateRef = useRef<{ isPending: boolean; dirty: boolean; save: () => void; discard: () => void }>({
     isPending: false,
     dirty: false,
@@ -68,6 +71,7 @@ export function SlurpCreatorProfileEditor({
 
   const save = async () => {
     const input = { ...draft, handle: draft.handle.replace(/^@+/u, "") };
+    const nextLocation = location.trim();
     const review = await confirmSlurpAvatarReview({
       existing: creator,
       nextDisclosure: input.disclosureMode,
@@ -76,7 +80,12 @@ export function SlurpCreatorProfileEditor({
     });
     if (!review.proceed) return;
     updateProfile.mutate(
-      { accountId: creator.id, ...input, ...(review.confirmAvatarReview && { confirmAvatarReview: true }) },
+      {
+        accountId: creator.id,
+        ...input,
+        location: nextLocation,
+        ...(review.confirmAvatarReview && { confirmAvatarReview: true }),
+      },
       {
         onSuccess: () => {
           setDraft(input);
@@ -88,16 +97,19 @@ export function SlurpCreatorProfileEditor({
     );
   };
 
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || location !== initialLocation;
   useEffect(() => {
     onDirtyChange?.(JSON.stringify(draft) !== JSON.stringify(initialDraft));
-  }, [draft, initialDraft, onDirtyChange]);
+    if (location !== initialLocation) onDirtyChange?.(true);
+  }, [draft, initialDraft, location, initialLocation, onDirtyChange]);
 
   saveStateRef.current = {
     isPending: updateProfile.isPending,
-    dirty: JSON.stringify(draft) !== JSON.stringify(initialDraft),
+    dirty,
     save: () => void save(),
     discard: () => {
       setDraft(initialDraft);
+      setLocation(initialLocation);
       onDirtyChange?.(false);
     },
   };
@@ -109,7 +121,7 @@ export function SlurpCreatorProfileEditor({
       save: () => saveStateRef.current.save(),
       discard: () => saveStateRef.current.discard(),
     });
-  }, [onSaveStateChange, updateProfile.isPending, draft, initialDraft]);
+  }, [onSaveStateChange, updateProfile.isPending, draft, initialDraft, location]);
 
   return (
     <div className="space-y-5">
@@ -150,6 +162,17 @@ export function SlurpCreatorProfileEditor({
         showFooter={false}
         showAvatarControls={false}
       />
+      <label className="block space-y-1">
+        <span className="text-xs font-semibold">{t("ui.noodle.noodleprofilesurface.location")}</span>
+        <input
+          value={location}
+          maxLength={120}
+          disabled={updateProfile.isPending}
+          onChange={(event) => setLocation(event.target.value)}
+          placeholder={t("ui.noodle.noodleprofilesurface.somewhereCozy")}
+          className={selectClass}
+        />
+      </label>
     </div>
   );
 }
@@ -163,24 +186,11 @@ function CreatorArtworkControls({
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const bannerFileRef = useRef<HTMLInputElement>(null);
   const [artworkKind, setArtworkKind] = useState<"avatar" | "banner" | null>(null);
-  const [guidance, setGuidance] = useState("");
-  const [options, setOptions] = useState<SlpCreatorArtworkPromptOptions>({
-    creatorDetails: true,
-    appearance: true,
-    sourceReferences: true,
-    composition: true,
-  });
   const uploadAvatar = useUploadCreatorAvatar();
   const uploadBanner = useUploadCreatorBanner();
-  const generateArtwork = useGenerateCreatorArtwork();
   const useSourceAvatar = useUseCreatorSourceAvatar();
   const removeAvatar = useRemoveCreatorAvatar();
-  const busy =
-    uploadAvatar.isPending ||
-    uploadBanner.isPending ||
-    generateArtwork.isPending ||
-    useSourceAvatar.isPending ||
-    removeAvatar.isPending;
+  const busy = uploadAvatar.isPending || uploadBanner.isPending || useSourceAvatar.isPending || removeAvatar.isPending;
   const fail = (error: unknown) => toast.error(errorMessage(error, t("ui.slurp.artwork.generateError")));
   const upload = (kind: "avatar" | "banner", file: File) => {
     const mutation = kind === "avatar" ? uploadAvatar : uploadBanner;
@@ -189,38 +199,7 @@ function CreatorArtworkControls({
       { onError: (error) => toast.error(errorMessage(error, t(`ui.slurp.artwork.${kind}UploadError`))) },
     );
   };
-  const startGeneration = (kind: "avatar" | "banner") => {
-    setArtworkKind(kind);
-    setGuidance("");
-    setOptions({
-      creatorDetails: true,
-      appearance: kind === "avatar",
-      sourceReferences: kind === "avatar",
-      composition: true,
-    });
-  };
-  const promptOptions: Array<{ key: keyof SlpCreatorArtworkPromptOptions; label: string; detail: string }> = [
-    {
-      key: "creatorDetails",
-      label: t("ui.slurp.artwork.optionCreator"),
-      detail: t("ui.slurp.artwork.optionCreatorDetail"),
-    },
-    {
-      key: "appearance",
-      label: t("ui.slurp.artwork.optionAppearance"),
-      detail: t("ui.slurp.artwork.optionAppearanceDetail"),
-    },
-    {
-      key: "sourceReferences",
-      label: t("ui.slurp.artwork.optionSource"),
-      detail: t("ui.slurp.artwork.optionSourceDetail"),
-    },
-    {
-      key: "composition",
-      label: t("ui.slurp.artwork.optionComposition"),
-      detail: t("ui.slurp.artwork.optionCompositionDetail"),
-    },
-  ];
+  const startGeneration = (kind: "avatar" | "banner") => setArtworkKind(kind);
 
   return (
     <section aria-label={t("ui.slurp.settings.creators.artworkHeading")} className="space-y-3">
@@ -232,7 +211,9 @@ function CreatorArtworkControls({
       </div>
       <div className="overflow-hidden rounded-xl bg-[var(--slurp-surface-raised)] ring-1 ring-inset ring-[var(--slurp-outline)]">
         <div className="relative h-36 overflow-hidden bg-[linear-gradient(115deg,var(--slurp-coral),var(--slurp-violet))]">
-          {creator.bannerUrl && <SlurpMediaImg src={creator.bannerUrl} alt="" className="h-full w-full object-cover" />}
+          {creator.bannerUrl && (
+            <SlurpMediaImg src={creator.bannerUrl} alt="" className="slp-crop-top h-full w-full object-cover" />
+          )}
           <span className="absolute inset-x-3 top-3 rounded-md bg-black/55 px-2 py-1 text-xs font-bold text-white backdrop-blur-sm w-fit">
             {t("ui.slurp.settings.creators.bannerHeading")}
           </span>
@@ -261,7 +242,7 @@ function CreatorArtworkControls({
                 <Upload size={15} aria-hidden="true" /> {t("ui.noodle.stageprofileform.uploadAvatar")}
               </button>
               <button type="button" disabled={busy} onClick={() => startGeneration("avatar")} className={quietButton}>
-                <Sparkles size={15} aria-hidden="true" /> {t("ui.slurp.artwork.generateAvatar")}
+                <SlpSparkleGlyph size={15} aria-hidden="true" /> {t("ui.slurp.artwork.generateAvatar")}
               </button>
               {creator.sourceAccountId && creator.disclosureMode === "open" && (
                 <button
@@ -299,7 +280,7 @@ function CreatorArtworkControls({
                 <ImagePlus size={15} aria-hidden="true" /> {t("ui.noodle.noodleprofilesurface.uploadBanner")}
               </button>
               <button type="button" disabled={busy} onClick={() => startGeneration("banner")} className={quietButton}>
-                <Sparkles size={15} aria-hidden="true" /> {t("ui.slurp.artwork.generateBanner")}
+                <SlpSparkleGlyph size={15} aria-hidden="true" /> {t("ui.slurp.artwork.generateBanner")}
               </button>
             </div>
           </div>
@@ -330,78 +311,19 @@ function CreatorArtworkControls({
         }}
       />
       {artworkKind && (
-        <div className="space-y-3 rounded-xl bg-[var(--slurp-surface-raised)] p-4 ring-1 ring-inset ring-[var(--noodle-accent)]/35">
-          <label className="block space-y-2 text-sm font-semibold">
-            <span>{t("ui.slurp.artwork.guidanceLabel")}</span>
-            <textarea
-              value={guidance}
-              onChange={(event) => setGuidance(event.target.value)}
-              maxLength={2000}
-              placeholder={t(
-                artworkKind === "banner" ? "ui.slurp.artwork.bannerPlaceholder" : "ui.slurp.artwork.avatarPlaceholder",
-              )}
-              className={`min-h-24 w-full resize-y rounded-lg bg-[var(--slurp-surface)] p-3 text-sm font-normal ring-1 ring-inset ring-[var(--slurp-outline)] ${focusRing}`}
-            />
-          </label>
-          <p className="text-xs leading-5 text-[var(--slurp-muted)]">{t("ui.slurp.artwork.optionalHelp")}</p>
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-bold">{t("ui.slurp.artwork.optionalContext")}</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {promptOptions.map((option) => (
-                <label
-                  key={option.key}
-                  className="flex cursor-pointer items-start gap-3 rounded-lg bg-[var(--slurp-surface)] p-3 ring-1 ring-inset ring-[var(--slurp-outline)]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={options[option.key]}
-                    disabled={busy}
-                    onChange={(event) => setOptions((current) => ({ ...current, [option.key]: event.target.checked }))}
-                    className="mt-0.5 size-4 shrink-0 accent-[var(--noodle-accent)]"
-                  />
-                  <span>
-                    <span className="block text-xs font-bold">{option.label}</span>
-                    <span className="mt-1 block text-xs leading-5 text-[var(--slurp-muted)]">{option.detail}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" disabled={busy} onClick={() => setArtworkKind(null)} className={quietButton}>
-              {t("ui.slurp.artwork.cancel")}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                generateArtwork.mutate(
-                  { accountId: creator.id, kind: artworkKind, guidance: guidance.trim() || undefined, options },
-                  {
-                    onSuccess: () => {
-                      toast.success(
-                        t(
-                          artworkKind === "avatar"
-                            ? "ui.slurp.artwork.avatarGenerated"
-                            : "ui.slurp.artwork.bannerGenerated",
-                        ),
-                      );
-                      setArtworkKind(null);
-                    },
-                    onError: fail,
-                  },
-                )
-              }
-              className={accentButton}
-            >
-              {generateArtwork.isPending ? (
-                <Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-              ) : (
-                <Sparkles size={15} aria-hidden="true" />
-              )}
-              {t("ui.slurp.artwork.generate")}
-            </button>
-          </div>
+        <div className="space-y-2 rounded-xl bg-[var(--slurp-surface-raised)] p-4 ring-1 ring-inset ring-[var(--noodle-accent)]/35">
+          <p className="text-sm font-bold">
+            {t(artworkKind === "banner" ? "ui.slurp.assist.drawTitle.cover" : "ui.slurp.assist.drawTitle.avatar")}
+          </p>
+          <SlpPictureAssist
+            key={artworkKind}
+            accountId={creator.id}
+            target={artworkKind === "banner" ? "cover" : "avatar"}
+            context={creator.bio}
+            advanced
+            onDone={() => setArtworkKind(null)}
+            onCancel={() => setArtworkKind(null)}
+          />
         </div>
       )}
     </section>

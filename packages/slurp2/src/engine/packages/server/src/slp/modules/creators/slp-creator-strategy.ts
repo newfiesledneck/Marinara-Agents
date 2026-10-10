@@ -23,6 +23,7 @@
 import type { SlpCreatorStrategySettings } from "../../../../../shared/src/slp/slp-social.types.js";
 import type { SlurpContentIntent } from "../../../../../shared/src/slp/slp-content-axes.js";
 import { SLURP_CONTENT_INTENTS } from "../../../../../shared/src/slp/slp-content-axes.js";
+import { slpSpiceFromStrategyText } from "../../../../../shared/src/slp/slp-spice.js";
 import {
   slurpProductionInstruction,
   slurpProductionProfile,
@@ -103,7 +104,11 @@ export function slurpCreatorStrategy(
       clamp(stored?.textOnlyRate, SLURP_STRATEGY_LIMITS.textOnlyRate.min, SLURP_STRATEGY_LIMITS.textOnlyRate.max) ??
       derived.textOnlyRate,
     intentWeights,
-    strategyText: (stored?.strategyText ?? "").trim().slice(0, SLURP_STRATEGY_LIMITS.strategyText),
+    // The sign-up chat's spice lines live in the Creator's spice now (`slp-spice-storage.ts`).
+    strategyText: slpSpiceFromStrategyText((stored?.strategyText ?? "").trim()).rest.slice(
+      0,
+      SLURP_STRATEGY_LIMITS.strategyText,
+    ),
   };
 }
 

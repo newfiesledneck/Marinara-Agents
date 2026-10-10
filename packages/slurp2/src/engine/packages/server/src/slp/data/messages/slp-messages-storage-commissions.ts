@@ -5,7 +5,6 @@ import type { DB } from "../../../db/connection.js";
 import { logger } from "../../../lib/logger.js";
 import {
   slurpCommissions,
-  slurpPaymentCompensations,
   slurpMessageClaims,
   slurpMessages,
   slurpReplyBubbles,
@@ -61,6 +60,7 @@ import type {
   SlurpThreadView,
 } from "./slp-messages-storage-types.js";
 import { createSlurpReplyMethods } from "./slp-reply-storage-methods.js";
+import { slurpCommissionWasCharged } from "./slp-messages-storage-refunds.js";
 import type { SlurpMessagesContext } from "./slp-messages-storage-context.js";
 
 const briefCreations = new Map<string, Promise<unknown>>();
@@ -89,18 +89,7 @@ export function createMessagesStorageCommissions(context: SlurpMessagesContext) 
     hasCompletedSlurpPaymentOperation,
     queueCommissionOperation,
   } = context;
-  /**
-   * Did accepting this commission take coins from a player wallet? An audience commission and one
-   * accepted with the wallet off charged nobody. Reading the current wallet setting instead
-   * refunded coins nobody paid, and an audience refund had no credit to reverse and retried forever.
-   */
-  const commissionWasCharged = async (id: string): Promise<boolean> => {
-    const [intent] = await db
-      .select()
-      .from(slurpPaymentCompensations)
-      .where(eq(slurpPaymentCompensations.id, `commission:${id}:accept`));
-    return intent?.status === "charged" || intent?.status === "settled";
-  };
+  const commissionWasCharged = (id: string) => slurpCommissionWasCharged(db, id);
   return {
     async createCommission(
       viewerAccountId: string,
@@ -126,7 +115,7 @@ export function createMessagesStorageCommissions(context: SlurpMessagesContext) 
       creatorAccountId: string,
       brief: string,
     ): Promise<SlurpCommission | "open_request" | null> {
-      const opened = await context.storage.openThread(viewerAccountId, creatorAccountId, "viewer");
+      const opened = await context.storage.openThread(viewerAccountId, creatorAccountId, "viewer", "waive");
       if (opened.status !== "ok") return null;
       const timestamp = now();
       const row = {
@@ -210,6 +199,11 @@ export function createMessagesStorageCommissions(context: SlurpMessagesContext) 
       return rows[0] ? mapCommission(rows[0]) : null;
     },
     /** Every commission waiting on the fan's answer, for the world tick to settle. */
+    /** Paid and not yet delivered, for the world tick's delivery repair. */
+    async listAcceptedCommissions(): Promise<SlurpCommission[]> {
+      const rows = await db.select().from(slurpCommissions).where(eq(slurpCommissions.state, "accepted"));
+      return rows.map(mapCommission);
+    },
     async listQuotedCommissions(): Promise<SlurpCommission[]> {
       // Filtered in the query rather than after it: these run every world tick, and the table
       // only ever grows.
@@ -609,7 +603,8 @@ export function createMessagesStorageCommissions(context: SlurpMessagesContext) 
      */
     async scheduleCommissionDelivery(
       id: string,
-      input: { deliverAt: string; mediaPath: string },
+      /** No picture: the delivery is the Creator's note alone (the world tick's repair). */
+      input: { deliverAt: string; mediaPath: string | null },
     ): Promise<SlurpCommission | null> {
       const commission = await context.storage.getCommission(id);
       if (!commission || commission.state !== "accepted") return null;

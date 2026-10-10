@@ -41,6 +41,11 @@ export const slpWardrobeSceneSchema = z
     visualDirection: z.string().trim().max(500),
     /** What they wear in this photo. Optional so scenes stored before it existed still parse. */
     outfit: z.string().trim().max(300).optional(),
+    /**
+     * Who is in the photo as an image model knows them ("fubuki (one punch man)"), or null for an
+     * original character (0.3.5, player report). Slurp puts it in front of the look.
+     */
+    subject: z.string().trim().max(120).nullable().optional(),
   })
   .strict();
 

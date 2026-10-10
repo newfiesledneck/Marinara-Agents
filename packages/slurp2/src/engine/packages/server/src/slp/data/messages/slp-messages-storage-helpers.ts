@@ -1,10 +1,11 @@
 import {
   SLURP_THREAD_STATE_DEFAULT,
   decaySlurpThreadState,
+  slurpPartnerThreadFloor,
   type SlurpThreadState as SlurpConversationState,
 } from "../../modules/creators/slp-creator-state.js";
 import { readStoredNotes, type SlurpThreadNote } from "../../modules/messages/slp-thread-notes.js";
-import type { SlurpRapport } from "../../modules/messages/slp-rapport.js";
+import { slurpRapportPartner, type SlurpRapport } from "../../modules/messages/slp-rapport.js";
 import type { SlurpMessageKind, SlurpThreadState } from "../../modules/messages/slp-messaging.js";
 import type { SlurpCommission, SlurpMessage, SlurpThread } from "./slp-messages-storage-types.js";
 
@@ -124,10 +125,16 @@ export const mapThread = (row: Record<string, unknown>): SlurpThread => ({
     }
   })(),
   clearedAt: (row.clearedAt as string | null) ?? null,
-  threadState: readThreadState(row.threadState, String(row.updatedAt)),
+  // Her partner starts close (Drama, "your relationship"): the cached rapport says who they are to her.
+  threadState: slurpPartnerThreadFloor(
+    readThreadState(row.threadState, String(row.updatedAt)),
+    slurpRapportPartner(readStoredRapport(json(row.rapport as string))),
+  ),
   strikes: int(row.strikes as string),
   lastStrikeAt: (row.lastStrikeAt as string | null) ?? null,
   notes: readStoredNotes(row.notes),
+  sceneChatId: (row.sceneChatId as string | null) ?? null,
+  sceneStartedAt: (row.sceneStartedAt as string | null) ?? null,
   createdAt: String(row.createdAt),
   updatedAt: String(row.updatedAt),
 });

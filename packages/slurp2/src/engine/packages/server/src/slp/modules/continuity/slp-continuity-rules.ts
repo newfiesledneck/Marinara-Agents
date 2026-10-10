@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /**
  * Who may read a continuity record, and how a record's status may change.
  *
@@ -136,4 +137,14 @@ export function slurpContinuityIdentityOf(account: {
   const sourceEntityId = account.sourceEntityId ?? account.entityId ?? null;
   if (!sourceKind || !sourceEntityId) return null;
   return { sourceKind, sourceEntityId, creatorAccountId: account.id };
+}
+
+/**
+ * One saved chat moment per message, so saving the same message twice stores it once. Without a
+ * message id the text itself tells moments apart; keyed on the chat alone, every later save from
+ * that chat was silently dropped.
+ */
+export function slurpChatMomentKey(chatId: string, messageId?: string | null, text = ""): string {
+  const message = messageId?.trim();
+  return `chat:${chatId.trim()}:${message || `text-${createHash("sha256").update(text.trim()).digest("hex").slice(0, 16)}`}`;
 }

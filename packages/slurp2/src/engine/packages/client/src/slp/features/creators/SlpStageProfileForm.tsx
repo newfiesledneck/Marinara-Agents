@@ -2,22 +2,13 @@ import { createPortal } from "react-dom";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ModalPortalContext } from "../../../components/ui/Modal";
 import { useTranslation as useUiTranslation } from "react-i18next";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  ChevronDown,
-  Link,
-  Loader2,
-  Sparkles,
-  Trash2,
-  Upload,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Link, Loader2, Trash2, Upload, UserRound } from "lucide-react";
+import { SlpSparkleGlyph } from "../../base/chrome/SlpGlyphs";
+import { SLP_MOTION } from "../../base/chrome/slp-motion";
 import type { SlpCreatorStageProfile, SlpIdentityDisclosure } from "../../../../../shared/src/slp/slp-social.types.js";
 import type { SlurpStageProfileInput } from "../../base/state/slp-state-types";
 import { getSlpAccentStyle, SLP_PINK, ProfileInitial } from "../../base/chrome/SlpChrome";
-import { SlurpStageFactsFields } from "./SlpStageFactsFields";
+import { SlpAssistedField, SlurpStageFactsFields } from "./SlpStageFactsFields";
 import { isSlurpDiscoveryProfileIncomplete, SlurpDiscoveryProfileEditor } from "../discovery/slp-discovery-contract";
 import { fieldClass, textareaClass } from "../../modules/post/SlpPostHelpers";
 import { cn } from "../../../lib/utils";
@@ -95,10 +86,11 @@ export function disclosureOptions(t: ReturnType<typeof useUiTranslation>["t"]): 
   return [
     {
       value: "open",
-      label: "Linked identity",
-      shortLabel: "Open",
-      detail: "This Creator may openly use the source identity.",
-      guidance: "Names, handles, recognizable details, and continuity may carry over.",
+      // From the locale like the other modes (R1-081); the guidance was a shorter English copy.
+      label: t("ui.noodle.disclosure.open.label"),
+      shortLabel: t("ui.noodle.disclosure.open.shortLabel"),
+      detail: t("ui.noodle.disclosure.open.detail"),
+      guidance: t("ui.noodle.disclosure.open.guidance"),
     },
     {
       value: "hinted",
@@ -136,7 +128,11 @@ export function WizardFooter({
   const { t: localizeUi } = useUiTranslation();
   const labels = ["Source", "Disclosure", "Profile"];
   return (
-    <div className="sticky bottom-0 z-[60] shrink-0 border-t border-[var(--noodle-divider)] bg-[var(--background)] px-4 pb-3 pt-3 sm:px-6">
+    <div
+      className="slp-nav-live sticky bottom-[var(--slp-nav-live,0px)] z-[60] shrink-0 border-t border-[var(--noodle-divider)] bg-[var(--background)] px-4 pb-3 pt-3 sm:px-6"
+      // Glides with the floating nav instead of jumping when it slides away.
+      style={{ transition: `bottom ${SLP_MOTION.bar}ms ${SLP_MOTION.barEase}` }}
+    >
       {showProgress && (
         <div
           className="mb-3 flex items-center justify-center gap-1.5"
@@ -183,7 +179,7 @@ export function WizardFooter({
             type="button"
             onClick={onNext}
             disabled={nextDisabled || disabled}
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-5 text-sm font-bold text-zinc-950 [&_svg]:!text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-5 text-sm font-bold text-[var(--slurp-on-accent)] [&_svg]:!text-[var(--slurp-on-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {localizeUi("ui.noodle.wizardfooter.continue")} <ArrowRight size={16} />
           </button>
@@ -399,7 +395,7 @@ export function StageProfileForm({
                       {option.detail}
                     </span>
                   </span>
-                  {isSelected && <Check size={14} className="mt-0.5 shrink-0 text-[var(--noodle-accent)]" />}
+                  {isSelected && <Check size={14} className="mt-0.5 shrink-0 text-[var(--noodle-accent-foreground)]" />}
                 </button>
               );
             })}
@@ -413,8 +409,8 @@ export function StageProfileForm({
       <div className="px-4 py-5 sm:px-6 @min-[1024px]:py-6">
         <div className="rounded-lg border border-[var(--noodle-divider)] bg-[var(--accent)]/40 p-4">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent)]">
-              <Sparkles size={16} />
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent-foreground)]">
+              <SlpSparkleGlyph size={16} />
             </span>
             <div className="min-w-0">
               <p className="text-sm font-bold">
@@ -531,7 +527,7 @@ export function StageProfileForm({
               <span className="relative block">
                 <span
                   aria-hidden="true"
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-semibold text-[var(--noodle-accent)]"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-semibold text-[var(--noodle-accent-foreground)]"
                 >
                   @
                 </span>
@@ -547,9 +543,16 @@ export function StageProfileForm({
                 />
               </span>
             </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-semibold">{localizeUi("ui.noodle.noodleprofilesurface.bio")}</span>
+            <SlpAssistedField
+              label={localizeUi("ui.noodle.noodleprofilesurface.bio")}
+              field="bio"
+              value={draft.bio}
+              accountId={isEditing ? accentId : undefined}
+              context={draft.displayName}
+              onApply={(bio) => onChange({ bio })}
+            >
               <textarea
+                aria-label={localizeUi("ui.noodle.noodleprofilesurface.bio")}
                 rows={2}
                 disabled={isGenerating || isPending}
                 value={draft.bio}
@@ -563,10 +566,17 @@ export function StageProfileForm({
                   onChange({ stagePersonality: appendAudienceStance(draft.stagePersonality, sentence) })
                 }
               />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-semibold">{localizeUi("ui.noodle.stageprofileform.stageVoice")}</span>
+            </SlpAssistedField>
+            <SlpAssistedField
+              label={localizeUi("ui.noodle.stageprofileform.stageVoice")}
+              field="voice"
+              value={draft.stagePersonality}
+              accountId={isEditing ? accentId : undefined}
+              context={draft.displayName}
+              onApply={(stagePersonality) => onChange({ stagePersonality })}
+            >
               <textarea
+                aria-label={localizeUi("ui.noodle.stageprofileform.stageVoice")}
                 rows={2}
                 disabled={isGenerating || isPending}
                 value={draft.stagePersonality}
@@ -575,9 +585,14 @@ export function StageProfileForm({
                 placeholder={localizeUi("ui.noodle.stageprofileform.voiceAttitudeBoundariesAndCreatorPersona")}
                 className={`${textareaClass} !min-h-0`}
               />
-            </label>
+            </SlpAssistedField>
           </div>
-          <SlurpStageFactsFields draft={draft} disabled={isGenerating || isPending} onChange={onChange} />
+          <SlurpStageFactsFields
+            draft={draft}
+            disabled={isGenerating || isPending}
+            onChange={onChange}
+            accountId={isEditing ? accentId : undefined}
+          />
           <SlurpDiscoveryProfileEditor
             gender={draft.gender}
             tags={draft.tags}
@@ -593,14 +608,14 @@ export function StageProfileForm({
               disabled={isPending}
               className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--noodle-divider)] px-3 text-sm font-semibold hover:bg-[var(--accent)] disabled:opacity-50"
             >
-              <Sparkles size={16} className="text-[var(--noodle-accent)]" aria-hidden="true" />
+              <SlpSparkleGlyph size={16} className="text-[var(--noodle-accent-foreground)]" aria-hidden="true" />
               {localizeUi("ui.noodle.stageprofileform.aiGuidance")}
             </button>
           ) : (
             <details className="group overflow-visible rounded-lg border border-[var(--noodle-divider)]">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--accent)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--noodle-accent)] [&::-webkit-details-marker]:hidden">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent)]">
-                  <Sparkles size={16} />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent-foreground)]">
+                  <SlpSparkleGlyph size={16} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold">{localizeUi("ui.noodle.stageprofileform.aiGuidance")}</span>
@@ -653,7 +668,7 @@ export function StageProfileForm({
                           (isGenerating || isPending) && "cursor-not-allowed opacity-50",
                         )}
                       >
-                        <Link size={18} className="shrink-0 !text-[var(--noodle-accent)]" />
+                        <Link size={18} className="shrink-0 !text-[var(--noodle-accent-foreground)]" />
                         <span className="truncate text-xs font-semibold">
                           {selectedConnection?.name ?? "Default connection"}
                         </span>
@@ -728,9 +743,9 @@ export function StageProfileForm({
                     type="button"
                     onClick={onGenerate}
                     disabled={isGenerating || isPending || connections.length === 0}
-                    className="inline-flex min-h-11 w-40 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-4 text-sm font-bold text-zinc-950 [&_svg]:!text-zinc-950 hover:opacity-90 disabled:opacity-50"
+                    className="inline-flex min-h-11 w-40 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-4 text-sm font-bold text-[var(--slurp-on-accent)] [&_svg]:!text-[var(--slurp-on-accent)] hover:opacity-90 disabled:opacity-50"
                   >
-                    {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}{" "}
+                    {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <SlpSparkleGlyph size={16} />}{" "}
                     {isGenerating
                       ? localizeUi("ui.noodle.stageprofileform.generatingDraft")
                       : previousDraft
@@ -742,7 +757,7 @@ export function StageProfileForm({
                   <button
                     type="button"
                     onClick={onUndoDraft}
-                    className="mt-1 flex min-h-11 w-full items-center justify-center text-xs font-semibold text-[var(--noodle-accent)] hover:underline"
+                    className="mt-1 flex min-h-11 w-full items-center justify-center text-xs font-semibold text-[var(--noodle-accent-foreground)] hover:underline"
                   >
                     {localizeUi("ui.noodle.stageprofileform.undoAiChanges")}
                   </button>
@@ -764,7 +779,7 @@ export function StageProfileForm({
               type="button"
               onClick={onSave}
               disabled={!canSave}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-5 text-sm font-bold text-zinc-950 [&_svg]:!text-zinc-950 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--noodle-accent)] px-5 text-sm font-bold text-[var(--slurp-on-accent)] [&_svg]:!text-[var(--slurp-on-accent)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isPending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
               {isPending

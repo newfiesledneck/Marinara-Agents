@@ -8,10 +8,13 @@ import { isDebugAgentsEnabled } from "../../../config/runtime-config.js";
 import { resolveSlurpTextConnection } from "../../base/identity/slp-connection.js";
 import { createConnectionsStorage } from "../../../services/storage/connections.storage.js";
 import { buildSlurpMessagePrompt } from "./slp-message-generation-service.js";
+import { resolveSlurpReplyAvailability, resolveSlurpReplyViewer } from "./slp-thread-stance.js";
+import { activeSlurpStrikes } from "../../modules/world/slp-stance.js";
 import { describeSlurpDayVibe } from "../world/slp-world-contract.js";
 import type { FastifyInstance } from "fastify";
 import { personaQuerySchema } from "../../modules/messages/slp-messages-schemas.js";
 import type { SlpMessagesContext } from "./slp-messages-context.js";
+import { SLURP_FUNNEL_STAGES } from "../../../../../shared/src/slp/slp-population.js";
 
 /**
  * An image a paid message carries.
@@ -186,9 +189,17 @@ export async function slpMessagesCreatorRoutes(app: FastifyInstance, messaging: 
       const wallet = await slurp.getWallet(subscription.viewerAccountId);
       if (wallet.subscriptions[creatorAccountId]) activeSubscribers.push(subscription);
     }
+    // The sheet's "To 37 subscribers" counts audience subscribers too (ties at subscriber or
+    // later), so they get the broadcast as well (R1-002). A persona on both lists gets it once.
+    const recipients = new Set(activeSubscribers.map((subscription) => subscription.viewerAccountId));
+    const subscriberFloor = SLURP_FUNNEL_STAGES.indexOf("subscriber");
+    for (const tie of await population.listTiesForCreator(creatorAccountId)) {
+      if (SLURP_FUNNEL_STAGES.indexOf(tie.stage as (typeof SLURP_FUNNEL_STAGES)[number]) >= subscriberFloor)
+        recipients.add(tie.memberId);
+    }
     const sent = [];
-    for (const subscription of activeSubscribers) {
-      const message = await messages.sendCreatorMessage(creatorAccountId, subscription.viewerAccountId, {
+    for (const viewerAccountId of recipients) {
+      const message = await messages.sendCreatorMessage(creatorAccountId, viewerAccountId, {
         content: parsed.data.content,
         kind: "broadcast",
       });
@@ -269,12 +280,16 @@ export async function slpMessagesCreatorRoutes(app: FastifyInstance, messaging: 
     if (!thread || !(await ownsCreator(viewer.id, thread.creatorAccountId)))
       return reply.code(404).send({ error: "Thread not found" });
     const creator = await slurp.getNoodlerAccountById(thread.creatorAccountId);
-    const fan = await slurp.getViewer(thread.viewerAccountId);
+    // The reply's own inputs, read through the helpers the reply operation reads (R1-011): the fan
+    // it answers (an audience member too, as in a draft), the connection with the budget's choice
+    // first, the availability with its open window and overrides, the strikes still counting, and
+    // the thread id that brings the Details overrides in.
+    const fan = await resolveSlurpReplyViewer(app.db, thread, creator, true);
     if (!creator || !fan) return reply.code(404).send({ error: "Thread not found" });
-    const settings = await slurp.getSettings();
+    const { settings, details, availability } = await resolveSlurpReplyAvailability(app.db, thread, creator);
     const connection = await resolveSlurpTextConnection(
       createConnectionsStorage(app.db),
-      settings.generationConnectionId,
+      settings.modelBudget.connectionId ?? settings.generationConnectionId,
     );
     if (!connection) return reply.code(409).send({ error: "No text connection is configured." });
     const subscriptions = await slurp.listSubscriptionsForViewer(thread.viewerAccountId);
@@ -285,18 +300,23 @@ export async function slpMessagesCreatorRoutes(app: FastifyInstance, messaging: 
       viewer: fan,
       history: await messages.listMessages(thread.id, 60),
       rapport: thread.rapport,
-      subscribed: subscriptions.some((entry) => entry.creatorAccountId === thread.creatorAccountId),
+      subscribed: subscriptions.some(
+        (entry: { creatorAccountId: string }) => entry.creatorAccountId === thread.creatorAccountId,
+      ),
       dmPolicy: messaging.dmPolicy,
       isRequest: thread.state === "request",
       mood: thread.mood,
       moodUpdatedAt: thread.moodUpdatedAt,
       notes: thread.notes,
+      threadId: thread.id,
       threadState: thread.threadState,
       creatorState: await slurp.getCreatorState(thread.creatorAccountId),
-      dayVibe: await describeSlurpDayVibe(app.db, thread.creatorAccountId),
+      dayVibe:
+        details.dayVibe !== undefined ? details.dayVibe : await describeSlurpDayVibe(app.db, thread.creatorAccountId),
       coolingOff: Boolean(thread.coolUntil && thread.coolUntil > new Date().toISOString()),
-      strikes: thread.strikes,
+      strikes: activeSlurpStrikes(thread.strikes, thread.lastStrikeAt),
       connection,
+      availability,
     });
     return {
       // The layers first. This is the section that answers "why did she say that".

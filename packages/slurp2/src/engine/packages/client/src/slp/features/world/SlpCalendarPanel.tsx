@@ -1,4 +1,5 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, List, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, List } from "lucide-react";
+import { SlpSparkleGlyph } from "../../base/chrome/SlpGlyphs";
 import { useMemo, useState } from "react";
 
 import type { SlpStoryCalendarItem } from "../../../../../shared/src/slp/slp-story-engine.js";
@@ -33,12 +34,16 @@ const itemTone = (item: SlpStoryCalendarItem) =>
   item.kind === "occasion"
     ? "bg-[var(--slurp-violet)]/12 text-[var(--slurp-violet)] ring-[var(--slurp-violet)]/25"
     : item.kind === "plan"
-      ? "bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent)] ring-[var(--noodle-accent)]/30"
+      ? "bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent-foreground)] ring-[var(--noodle-accent)]/30"
       : item.status === "active"
-        ? "bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent)] ring-[var(--noodle-accent)]/30"
+        ? "bg-[var(--noodle-accent)]/15 text-[var(--noodle-accent-foreground)] ring-[var(--noodle-accent)]/30"
         : "bg-[var(--slurp-surface-raised)] text-[var(--slurp-text)] ring-[var(--slurp-outline)]";
 
 export function SlpCalendarPanel(page: SlpBackstagePageProps) {
+  const { t } = page;
+  const kindLabel = (kind: SlpStoryCalendarItem["kind"]) => t(`ui.slurp.calendar.kind.${kind}`);
+  const statusLabel = (status: SlpStoryCalendarItem["status"]) =>
+    t(`ui.slurp.calendar.status.${status}`, { defaultValue: status });
   const [month, setMonth] = useState(today);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "agenda">("month");
@@ -75,10 +80,10 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
     () => [...(calendar.data?.items ?? [])].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)),
     [calendar.data?.items],
   );
-  const open = (target: "events" | "arcs" | "packs" | "general") =>
+  const open = (target: "events" | "arcs" | "packs" | "storylines") =>
     page.onNavigate({
       ...page.navigation,
-      section: target === "general" ? "automation" : "content",
+      section: "content",
       target,
     });
   const createPlanFromOccasion = async (item: SlpStoryCalendarItem) => {
@@ -103,20 +108,20 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--noodle-accent)]">When</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight">Your Slurp calendar</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--slurp-muted)]">
-            Occasions are context. Active items are work in progress. Nothing publishes only because it appears here.
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--noodle-accent-foreground)]">
+            {t("ui.slurp.calendar.eyebrow")}
           </p>
+          <h2 className="mt-1 text-2xl font-black tracking-tight">{t("ui.slurp.calendar.title")}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--slurp-muted)]">{t("ui.slurp.calendar.detail")}</p>
         </div>
         <div className="flex gap-2">
           <button type="button" className={buttonClass} onClick={() => setMonth(today())}>
-            Today
+            {t("ui.slurp.calendar.today")}
           </button>
           <button
             type="button"
             className={buttonClass}
-            aria-label="Previous month"
+            aria-label={t("ui.slurp.calendar.previousMonth")}
             onClick={() => setMonth((value) => addMonths(value, -1))}
           >
             <ChevronLeft size={16} aria-hidden="true" />
@@ -124,7 +129,7 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
           <button
             type="button"
             className={buttonClass}
-            aria-label="Next month"
+            aria-label={t("ui.slurp.calendar.nextMonth")}
             onClick={() => setMonth((value) => addMonths(value, 1))}
           >
             <ChevronRight size={16} aria-hidden="true" />
@@ -135,19 +140,19 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
           className="flex flex-wrap gap-2 text-xs font-semibold text-[var(--slurp-muted)]"
-          aria-label="Calendar legend"
+          aria-label={t("ui.slurp.calendar.legend")}
         >
           <span className="inline-flex items-center gap-2 rounded-full bg-[var(--slurp-violet)]/10 px-3 py-2">
-            <Sparkles size={13} aria-hidden="true" /> Occasion
+            <SlpSparkleGlyph size={13} aria-hidden="true" /> {t("ui.slurp.calendar.kind.occasion")}
           </span>
           <span className="inline-flex items-center gap-2 rounded-full bg-[var(--noodle-accent)]/10 px-3 py-2">
-            <Clock3 size={13} aria-hidden="true" /> Plan or activity
+            <Clock3 size={13} aria-hidden="true" /> {t("ui.slurp.calendar.legendPlan")}
           </span>
         </div>
         <div
           className="flex rounded-lg bg-[var(--slurp-surface-raised)] p-1 ring-1 ring-inset ring-[var(--slurp-outline)]"
           role="group"
-          aria-label="Calendar view"
+          aria-label={t("ui.slurp.calendar.view")}
         >
           <button
             type="button"
@@ -155,7 +160,7 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
             className={`${buttonClass} min-h-9 border-0 px-2.5 ${view === "month" ? "bg-[var(--slurp-text)] text-[var(--slurp-canvas)]" : "text-[var(--slurp-muted)]"}`}
             onClick={() => setView("month")}
           >
-            <CalendarDays size={15} aria-hidden="true" /> Month
+            <CalendarDays size={15} aria-hidden="true" /> {t("ui.slurp.calendar.month")}
           </button>
           <button
             type="button"
@@ -163,23 +168,23 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
             className={`${buttonClass} min-h-9 border-0 px-2.5 ${view === "agenda" ? "bg-[var(--slurp-text)] text-[var(--slurp-canvas)]" : "text-[var(--slurp-muted)]"}`}
             onClick={() => setView("agenda")}
           >
-            <List size={15} aria-hidden="true" /> Agenda
+            <List size={15} aria-hidden="true" /> {t("ui.slurp.calendar.agenda")}
           </button>
         </div>
       </div>
 
       {calendar.isLoading ? (
         <p role="status" className="rounded-xl bg-[var(--slurp-surface-raised)] p-6 text-sm text-[var(--slurp-muted)]">
-          Loading calendar…
+          {t("ui.slurp.calendar.loading")}
         </p>
       ) : calendar.isError ? (
         <div
           role="alert"
           className="rounded-xl bg-[var(--slurp-surface-raised)] p-6 text-sm text-red-600 ring-1 ring-inset ring-red-500/25"
         >
-          <p>Unable to load the calendar.</p>
+          <p>{t("ui.slurp.calendar.error")}</p>
           <button type="button" className={`${buttonClass} mt-3`} onClick={() => void calendar.refetch()}>
-            Try again
+            {t("ui.slurp.calendar.retry")}
           </button>
         </div>
       ) : (
@@ -188,7 +193,7 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
           className={`${view === "month" ? "" : "hidden"} overflow-hidden rounded-2xl bg-[var(--slurp-surface-raised)] shadow-[var(--slurp-shadow)] ring-1 ring-inset ring-[var(--slurp-outline)]`}
         >
           <div className="flex items-center gap-3 border-b border-[var(--slurp-outline)] px-4 py-3">
-            <CalendarDays size={18} className="text-[var(--noodle-accent)]" aria-hidden="true" />
+            <CalendarDays size={18} className="text-[var(--noodle-accent-foreground)]" aria-hidden="true" />
             <h3 id="slurp-calendar-month" className="text-base font-black">
               {monthLabel.format(month)}
             </h3>
@@ -227,7 +232,7 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
                     ))}
                     {items.length > 3 && (
                       <span className="block px-2 text-[0.68rem] font-semibold text-[var(--slurp-muted)]">
-                        +{items.length - 3} more
+                        {t("ui.slurp.calendar.more", { count: items.length - 3 })}
                       </span>
                     )}
                   </div>
@@ -244,15 +249,15 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
           className="rounded-2xl bg-[var(--slurp-surface-raised)] p-4 shadow-[var(--slurp-shadow)] ring-1 ring-inset ring-[var(--slurp-outline)]"
         >
           <div className="flex items-center gap-3">
-            <List size={18} className="text-[var(--noodle-accent)]" aria-hidden="true" />
+            <List size={18} className="text-[var(--noodle-accent-foreground)]" aria-hidden="true" />
             <h3 id="slurp-calendar-agenda" className="text-base font-black">
-              Agenda
+              {t("ui.slurp.calendar.agenda")}
             </h3>
           </div>
           {orderedItems.length === 0 ? (
             <div className="mt-5 rounded-xl bg-[var(--slurp-canvas)] p-5 text-center">
-              <p className="text-sm font-bold">Nothing is scheduled in this range.</p>
-              <p className="mt-1 text-xs text-[var(--slurp-muted)]">Add an occasion or start a Plan to see it here.</p>
+              <p className="text-sm font-bold">{t("ui.slurp.calendar.emptyTitle")}</p>
+              <p className="mt-1 text-xs text-[var(--slurp-muted)]">{t("ui.slurp.calendar.emptyDetail")}</p>
             </div>
           ) : (
             <ul className="mt-4 space-y-2">
@@ -270,12 +275,11 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold">{item.title}</span>
                       <span className="mt-1 block text-xs text-[var(--slurp-muted)]">
-                        {dayLabel.format(new Date(item.startsAt))} ·{" "}
-                        {item.kind === "occasion" ? "Occasion" : item.kind === "plan" ? "Plan" : "Running occasion"}
+                        {dayLabel.format(new Date(item.startsAt))} · {kindLabel(item.kind)}
                       </span>
                     </span>
                     <span className="shrink-0 text-xs font-semibold capitalize text-[var(--slurp-muted)]">
-                      {item.status}
+                      {statusLabel(item.status)}
                     </span>
                   </button>
                 </li>
@@ -293,35 +297,31 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--slurp-muted)]">
-                {selectedItem.kind === "occasion"
-                  ? "Occasion"
-                  : selectedItem.kind === "plan"
-                    ? "Plan"
-                    : "Running occasion"}
+                {kindLabel(selectedItem.kind)}
               </p>
               <h3 id="slurp-calendar-selection" className="mt-1 text-lg font-black">
                 {selectedItem.title}
               </h3>
             </div>
             <button type="button" className={buttonClass} onClick={() => setSelectedItemId(null)}>
-              Close details
+              {t("ui.slurp.calendar.closeDetails")}
             </button>
           </div>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--slurp-muted)]">
-            {selectedItem.description || "No additional guidance is configured."}
+            {selectedItem.description || t("ui.slurp.calendar.noGuidance")}
           </p>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
             <div className="rounded-xl bg-[var(--slurp-canvas)] p-3">
-              <dt className="text-xs font-bold text-[var(--slurp-muted)]">Starts</dt>
+              <dt className="text-xs font-bold text-[var(--slurp-muted)]">{t("ui.slurp.calendar.starts")}</dt>
               <dd className="mt-1 font-semibold">{dayLabel.format(new Date(selectedItem.startsAt))}</dd>
             </div>
             <div className="rounded-xl bg-[var(--slurp-canvas)] p-3">
-              <dt className="text-xs font-bold text-[var(--slurp-muted)]">Ends</dt>
+              <dt className="text-xs font-bold text-[var(--slurp-muted)]">{t("ui.slurp.calendar.ends")}</dt>
               <dd className="mt-1 font-semibold">{dayLabel.format(new Date(selectedItem.endsAt))}</dd>
             </div>
             <div className="rounded-xl bg-[var(--slurp-canvas)] p-3">
-              <dt className="text-xs font-bold text-[var(--slurp-muted)]">Status</dt>
-              <dd className="mt-1 font-semibold capitalize">{selectedItem.status}</dd>
+              <dt className="text-xs font-bold text-[var(--slurp-muted)]">{t("ui.slurp.calendar.statusLabel")}</dt>
+              <dd className="mt-1 font-semibold">{statusLabel(selectedItem.status)}</dd>
             </div>
           </dl>
           <button
@@ -329,7 +329,9 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
             className={`${buttonClass} mt-4`}
             onClick={() => open(selectedItem.kind === "occasion" ? "events" : "arcs")}
           >
-            {selectedItem.kind === "occasion" ? "Edit Occasion" : "Open Plan templates"}
+            {selectedItem.kind === "occasion"
+              ? t("ui.slurp.calendar.editEvent")
+              : t("ui.slurp.calendar.openStorylineTypes")}
           </button>
           {selectedItem.kind === "occasion" && (
             <button
@@ -338,36 +340,34 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
               disabled={!page.selectedCreatorId || !page.viewerPersonaId || createPlan.isPending}
               onClick={() => void createPlanFromOccasion(selectedItem)}
             >
-              {createPlan.isPending ? "Creating Plan…" : "Create Plan from occasion"}
+              {createPlan.isPending ? t("ui.slurp.calendar.creatingStoryline") : t("ui.slurp.calendar.createStoryline")}
             </button>
           )}
           {selectedItem.kind === "occasion" && (!page.selectedCreatorId || !page.viewerPersonaId) && (
-            <p className="mt-2 text-xs text-[var(--slurp-muted)]">
-              Select a Creator and a persona first; the Plan is created for that Creator.
-            </p>
+            <p className="mt-2 text-xs text-[var(--slurp-muted)]">{t("ui.slurp.calendar.needCreator")}</p>
           )}
         </aside>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2" aria-label="Calendar actions">
+      <section className="grid gap-3 sm:grid-cols-2" aria-label={t("ui.slurp.calendar.actions")}>
         <button
           type="button"
           className="rounded-xl bg-[var(--slurp-surface-raised)] p-4 text-start ring-1 ring-inset ring-[var(--slurp-outline)] hover:bg-[var(--slurp-canvas)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
           onClick={() => open("events")}
         >
-          <span className="block text-sm font-black">Edit occasions</span>
+          <span className="block text-sm font-black">{t("ui.slurp.calendar.editOccasions")}</span>
           <span className="mt-1 block text-xs leading-5 text-[var(--slurp-muted)]">
-            Change dates, guidance, and automation for holidays and campaigns.
+            {t("ui.slurp.calendar.editOccasionsDetail")}
           </span>
         </button>
         <button
           type="button"
           className="rounded-xl bg-[var(--slurp-surface-raised)] p-4 text-start ring-1 ring-inset ring-[var(--slurp-outline)] hover:bg-[var(--slurp-canvas)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
-          onClick={() => open("general")}
+          onClick={() => open("storylines")}
         >
-          <span className="block text-sm font-black">Open Plan automation</span>
+          <span className="block text-sm font-black">{t("ui.slurp.calendar.openRules")}</span>
           <span className="mt-1 block text-xs leading-5 text-[var(--slurp-muted)]">
-            Set how Plans start and progress. Reusable templates live in Plan templates.
+            {t("ui.slurp.calendar.openRulesDetail")}
           </span>
         </button>
         <button
@@ -375,9 +375,9 @@ export function SlpCalendarPanel(page: SlpBackstagePageProps) {
           className="rounded-xl bg-[var(--slurp-surface-raised)] p-4 text-start ring-1 ring-inset ring-[var(--slurp-outline)] hover:bg-[var(--slurp-canvas)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
           onClick={() => open("packs")}
         >
-          <span className="block text-sm font-black">Open Packs</span>
+          <span className="block text-sm font-black">{t("ui.slurp.calendar.openPacks")}</span>
           <span className="mt-1 block text-xs leading-5 text-[var(--slurp-muted)]">
-            Import reusable Occasions and Plan templates.
+            {t("ui.slurp.calendar.openPacksDetail")}
           </span>
         </button>
       </section>

@@ -88,6 +88,8 @@ export function startSlpAutoPostScheduler(app: FastifyInstance, registerStop?: (
       // rather than materializing both tables once a minute for the server's lifetime.
       const noodle = createSlurpStorage(app.db);
       const settings = await noodle.getSettings();
+      // "Pause all": no posting and no artwork while Slurp is paused.
+      if (settings.paused) return;
       if (Date.now() >= imageWorkNotBefore) {
         // Artwork is independent of the posting schedule: a creator with no picture needs one even
         // when automatic posting is off, so this runs before the idle check returns.

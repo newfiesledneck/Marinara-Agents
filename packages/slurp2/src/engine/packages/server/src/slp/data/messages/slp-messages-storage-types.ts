@@ -54,6 +54,9 @@ export type SlurpThread = {
   strikes: number;
   lastStrikeAt: string | null;
   notes: SlurpThreadNote[];
+  /** The Engine scene this thread is in, while it runs. */
+  sceneChatId: string | null;
+  sceneStartedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -87,7 +90,7 @@ export type SlurpCommission = {
 };
 
 export type SlurpSendResult =
-  | { status: "sent"; thread: SlurpThread; message: SlurpMessage }
-  | { status: "closed" }
+  | { status: "sent"; thread: SlurpThread; message: SlurpMessage; /** A resend of a stored line. */ replayed?: true }
+  | { status: "closed"; reason?: "couple_page" }
   | { status: "insufficient_funds"; required: number }
   | { status: "not_found" };

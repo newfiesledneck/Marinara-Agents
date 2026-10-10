@@ -18,7 +18,7 @@ assert.match(generation, /input\.allowStory !== false && variation\?\.story === 
 assert.match(generation, /settings\.storyImagesEnabled \? settings\.storyRate : "off"/u);
 assert.match(
   generation,
-  /input\.request\.postType === "story"\) &&\s*imagesEnabled/u,
+  /input\.request\.postType === "story" \|\|\s*nudge\?\.story === true\) &&\s*imagesEnabled/u,
   "manual Story posts must still use the image path",
 );
 assert.match(automation, /settingKey="storyImagesEnabled"/u);
@@ -28,7 +28,7 @@ assert.match(home, /storyLifetimeHours \* 60 \* 60 \* 1000/u);
 assert.doesNotMatch(home, /SLURP_MOMENT_WINDOW_MS/u);
 assert.match(backstage, /storyRate: automation\("general", "story posts", "story rate"\)/u);
 assert.match(backstage, /arcLibrary: content\("arcs", "plan templates", "stories"\)/u);
-assert.equal(english["ui.slurp.settings.storyRate"], "Story posts");
+assert.equal(english["ui.slurp.settings.storyRate"], "Stories");
 for (const key of [
   "ui.slurp.settings.storyImagesEnabled",
   "ui.slurp.settings.storyImagesEnabledDetail",

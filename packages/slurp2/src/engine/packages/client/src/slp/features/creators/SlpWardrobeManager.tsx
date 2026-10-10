@@ -1,4 +1,5 @@
-import { Check, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { SlpSparkleGlyph } from "../../base/chrome/SlpGlyphs";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -429,7 +430,7 @@ export function SlpWardrobeManager({ creatorId, legacyWardrobe }: { creatorId: s
                     >
                       {(lorebookEntries.data?.items ?? []).map((entry) => (
                         <option key={`${entry.lorebookId}:${entry.id}`} value={entry.id}>
-                          {entry.lorebookName} — {entry.name}
+                          {entry.lorebookName} · {entry.name}
                         </option>
                       ))}
                     </select>
@@ -471,7 +472,7 @@ export function SlpWardrobeManager({ creatorId, legacyWardrobe }: { creatorId: s
             {previewImport.isPending ? (
               <Loader2 size={15} className="animate-spin motion-reduce:animate-none" />
             ) : (
-              <Sparkles size={15} />
+              <SlpSparkleGlyph size={15} />
             )}
             {t("ui.slurp.wardrobe.preview", { defaultValue: "Extract review draft" })}
           </button>

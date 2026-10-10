@@ -12,8 +12,6 @@ import {
   usePreviewBundledStoryPack,
   usePreviewStoryPack,
   useSlpBundledStoryPacks,
-  useSlpStoryTimeline,
-  useSetStoryOccurrenceStatus,
   type SlpPackPreview,
 } from "./slp-story-hooks.js";
 
@@ -22,11 +20,9 @@ const button =
 
 export function SlpStoryPacksPanel({ arcs, events }: { arcs: SlurpArcType[]; events: SlurpPlatformEvent[] }) {
   const packs = useSlpBundledStoryPacks();
-  const timeline = useSlpStoryTimeline();
   const bundledPreview = usePreviewBundledStoryPack();
   const uploadPreview = usePreviewStoryPack();
   const apply = useApplyStoryPack();
-  const setStatus = useSetStoryOccurrenceStatus();
   const uploadRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<SlpPackPreview | null>(null);
   const [actions, setActions] = useState<Record<string, "copy" | "replace" | "skip">>({});
@@ -115,10 +111,10 @@ export function SlpStoryPacksPanel({ arcs, events }: { arcs: SlurpArcType[]; eve
       <section aria-labelledby="slurp-story-packs-heading" className="space-y-4">
         <div>
           <h2 id="slurp-story-packs-heading" className="text-base font-black">
-            Story packs
+            More story packs
           </h2>
           <p className="mt-1 text-sm text-[var(--slurp-muted)]">
-            Review reusable arcs and events before adding them. Imports start disabled.
+            Review these before you add them, or import a pack file. Imported items start switched off.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -145,7 +141,11 @@ export function SlpStoryPacksPanel({ arcs, events }: { arcs: SlurpArcType[]; eve
               className="space-y-3 rounded-xl bg-[var(--slurp-surface-raised)] p-4 ring-1 ring-inset ring-[var(--slurp-outline)]"
             >
               <div className="flex items-start gap-3">
-                <PackageOpen size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--noodle-accent)]" />
+                <PackageOpen
+                  size={18}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0 text-[var(--noodle-accent-foreground)]"
+                />
                 <div>
                   <h3 className="font-bold">{pack.name}</h3>
                   <p className="mt-1 text-xs leading-5 text-[var(--slurp-muted)]">{pack.description}</p>
@@ -196,13 +196,13 @@ export function SlpStoryPacksPanel({ arcs, events }: { arcs: SlurpArcType[]; eve
                     <div>
                       <h3 className="font-bold">{entry.name}</h3>
                       <p className="text-xs text-[var(--slurp-muted)]">
-                        {entry.kind === "arc" ? "Plan template" : "Occasion"} · {entry.status.replace("-", " ")}
+                        {entry.kind === "arc" ? "Storyline type" : "Event"} · {entry.status.replace("-", " ")}
                       </p>
                     </div>
                     {entry.kind === "arc" && (
                       <button
                         type="button"
-                        className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs font-bold text-[var(--noodle-accent)] hover:bg-[var(--slurp-surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
+                        className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs font-bold text-[var(--noodle-accent-foreground)] hover:bg-[var(--slurp-surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
                         aria-expanded={expandedEntries[entryKey(entry)] ?? false}
                         onClick={() =>
                           setExpandedEntries({
@@ -231,7 +231,7 @@ export function SlpStoryPacksPanel({ arcs, events }: { arcs: SlurpArcType[]; eve
                     <div className="grid gap-3">
                       <div className="grid gap-2 sm:grid-cols-2">
                         <label className="grid gap-1 text-xs font-semibold">
-                          Plan template name
+                          Storyline type name
                           <input
                             className="min-h-10 rounded-lg border border-[var(--slurp-outline)] bg-[var(--slurp-canvas)] px-3 text-sm"
                             value={(editedEntries[entryKey(entry)] as SlpArcBlueprint).name}
@@ -371,67 +371,6 @@ export function SlpStoryPacksPanel({ arcs, events }: { arcs: SlurpArcType[]; eve
           </div>
         </section>
       )}
-
-      <section aria-labelledby="slurp-world-timeline-heading" className="space-y-3">
-        <div>
-          <h2 id="slurp-world-timeline-heading" className="text-base font-black">
-            World timeline
-          </h2>
-          <p className="mt-1 text-sm text-[var(--slurp-muted)]">
-            Suggestions, active events, and recent history keep their original participants and rules.
-          </p>
-        </div>
-        {(timeline.data?.occurrences ?? []).length === 0 ? (
-          <p className="text-sm text-[var(--slurp-muted)]">
-            No event occurrences yet. Start a manual event or wait for a scheduled date.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {timeline.data?.occurrences.map((occurrence) => (
-              <li
-                key={occurrence.id}
-                className="rounded-xl bg-[var(--slurp-surface-raised)] p-4 ring-1 ring-inset ring-[var(--slurp-outline)]"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-bold">{occurrence.blueprint.name}</h3>
-                    <p className="mt-1 text-xs text-[var(--slurp-muted)]">
-                      {occurrence.status} · {occurrence.participantIds.length} Creators · {occurrence.triggerEvidence}
-                    </p>
-                  </div>
-                  {occurrence.status === "suggested" && (
-                    <div className="flex gap-2">
-                      <button
-                        className={button}
-                        type="button"
-                        onClick={() => setStatus.mutate({ id: occurrence.id, status: "dismissed" })}
-                      >
-                        Dismiss
-                      </button>
-                      <button
-                        className={button}
-                        type="button"
-                        onClick={() => setStatus.mutate({ id: occurrence.id, status: "active" })}
-                      >
-                        Start event
-                      </button>
-                    </div>
-                  )}
-                  {occurrence.status === "active" && (
-                    <button
-                      className={button}
-                      type="button"
-                      onClick={() => setStatus.mutate({ id: occurrence.id, status: "completed" })}
-                    >
-                      End event
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }

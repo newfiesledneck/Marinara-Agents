@@ -6,6 +6,8 @@ import {
   SlpPostUpdateInput,
 } from "../../../../../shared/src/slp/slp-social-generation.schema.js";
 import { SlpCreatorManagedPost, SlpPost, SlpPostSource } from "../../../../../shared/src/slp/slp-social.types.js";
+import { slpWithSetPictureChange } from "../../../../../shared/src/slp/slp-post-images.js";
+import { slpStoredMediaSize } from "../../base/media/slp-media.js";
 import {
   slpAccounts,
   slpActivityDigests,
@@ -175,13 +177,41 @@ export function createFeedPostStorage2(context: SlurpStorageContext) {
       });
     },
     /** Give a post back its previous picture unless another request now holds its image claim. */
-    async restorePostImageIfUnclaimed(id: string, imageUrl: string, at = now()): Promise<boolean> {
+    /**
+     * Give a post back the picture a failed redraw replaced, with the prompt that picture was drawn
+     * from, and without the failed attempt's marks: the picture on screen did not fail.
+     */
+    async restorePostImageIfUnclaimed(
+      id: string,
+      imageUrl: string,
+      imagePrompt?: string | null,
+      at = now(),
+    ): Promise<boolean> {
       return db.transaction(async (tx) => {
         const rows = await tx.select().from(slpPosts).where(eq(slpPosts.id, id));
         const row = rows[0];
         if (!row || row.imageUrl) return false;
         if (row.imageClaimToken && row.imageClaimLeaseUntil && row.imageClaimLeaseUntil > at) return false;
-        await tx.update(slpPosts).set({ imageUrl, updatedAt: at }).where(eq(slpPosts.id, id));
+        const metadata = parseRecord(row.metadata);
+        for (const key of [
+          "imageGenerationFailed",
+          "imageGenerationError",
+          "imageRetryAttempts",
+          "imageRetryPrompt",
+          "imageRetryNegativePrompt",
+          "imagePromptAsWritten",
+        ]) {
+          delete metadata[key];
+        }
+        await tx
+          .update(slpPosts)
+          .set({
+            imageUrl,
+            ...(imagePrompt !== undefined && { imagePrompt }),
+            metadata: JSON.stringify(metadata),
+            updatedAt: at,
+          })
+          .where(eq(slpPosts.id, id));
         return true;
       });
     },
@@ -208,6 +238,7 @@ export function createFeedPostStorage2(context: SlurpStorageContext) {
         // finalized (success or failed) row never keeps contradictory pending lifecycle state.
         const mergedMetadata = { ...parseRecord(row.metadata), ...input.metadata };
         delete mergedMetadata.imagePendingReview;
+        delete mergedMetadata.imageGenerationDeferred;
         if (input.imageUrl) {
           delete mergedMetadata.imageGenerationFailed;
           delete mergedMetadata.imageGenerationError;
@@ -316,7 +347,10 @@ export function createFeedPostStorage2(context: SlurpStorageContext) {
       input: SlpCreatorPostUpdateInput,
       media?: { imageUrl: string; noodlerMediaPath: string },
     ): Promise<SlpCreatorManagedPost | null> {
-      const imageChanged = Boolean(media || input.removeImage);
+      // A crop or a replacement for a later picture of a set touches that picture only (R1-039).
+      // Remove always takes the whole set (R1-051), so it ignores the position.
+      const setPosition = !input.removeImage && (input.imagePosition ?? 0) > 0 ? input.imagePosition! : null;
+      const imageChanged = setPosition === null && Boolean(media || input.removeImage);
       const updated = await db.transaction(async (tx) => {
         const postRows = await tx.select().from(slpPosts).where(eq(slpPosts.id, id));
         const existing = postRows[0];
@@ -337,13 +371,39 @@ export function createFeedPostStorage2(context: SlurpStorageContext) {
             "imageGenerationFailed",
             "imageGenerationError",
             "imagePendingReview",
+            "imageGenerationDeferred",
           ]) {
             delete nextMetadata[key];
           }
         }
-        if (media) nextMetadata.noodlerMediaPath = media.noodlerMediaPath;
-        if (input.removeImage || input.imageCrop === null) delete nextMetadata.imageCrop;
-        else if (input.imageCrop !== undefined) nextMetadata.imageCrop = input.imageCrop;
+        if (setPosition !== null) {
+          const postMedia = slpWithSetPictureChange(nextMetadata.postMedia, setPosition, {
+            replaced: Boolean(media),
+            crop: input.imageCrop,
+            size: media ? slpStoredMediaSize(media.noodlerMediaPath) : null,
+          });
+          if (!postMedia) return false;
+          nextMetadata.postMedia = postMedia;
+          // The new file takes the row; its URL stays the position's, and the post's `updatedAt`
+          // versions it.
+          if (media)
+            await tx
+              .update(slpPostMedia)
+              .set({ mediaPath: media.noodlerMediaPath, imagePrompt: null })
+              .where(and(eq(slpPostMedia.postId, id), eq(slpPostMedia.position, setPosition)));
+        }
+        if (media && setPosition === null) nextMetadata.noodlerMediaPath = media.noodlerMediaPath;
+        // Removing the picture of a photo set removes the whole set; otherwise the second picture
+        // became the post picture (R1-051). The caller unlinks the files.
+        if (input.removeImage) {
+          delete nextMetadata.postMedia;
+          await tx.delete(slpPostMedia).where(eq(slpPostMedia.postId, id));
+        }
+        // A set picture's own crop was written above; the post picture's stays as it is then.
+        if (setPosition === null) {
+          if (input.removeImage || input.imageCrop === null) delete nextMetadata.imageCrop;
+          else if (input.imageCrop !== undefined) nextMetadata.imageCrop = input.imageCrop;
+        }
         await tx
           .update(slpPosts)
           .set({
@@ -357,7 +417,7 @@ export function createFeedPostStorage2(context: SlurpStorageContext) {
               imageClaimToken: null,
               imageClaimLeaseUntil: null,
             }),
-            ...((imageChanged || input.imageCrop !== undefined || input.poll !== undefined) && {
+            ...((imageChanged || setPosition !== null || input.imageCrop !== undefined || input.poll !== undefined) && {
               metadata: JSON.stringify(nextMetadata),
             }),
             updatedAt: now(),

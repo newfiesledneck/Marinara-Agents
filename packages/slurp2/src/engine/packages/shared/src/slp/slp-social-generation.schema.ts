@@ -83,6 +83,8 @@ const slpCreatorGenerationRequestShape = {
   contentIntent: z.enum(SLURP_CONTENT_INTENTS).optional(),
   /** One-shot delivery. It is paired with an intent so incompatible combinations fail early. */
   contentDelivery: z.enum(SLURP_CONTENT_DELIVERIES).optional(),
+  /** The Locked price the player set in the composer; absent uses the Creator's own (R1-026). */
+  unlockPrice: z.number().int().min(1).max(100_000).optional(),
 };
 
 export const slpCreatorGenerationRequestSchema = z
@@ -130,6 +132,9 @@ export const slpGeneratedPostSchema = z.object({
   poll: slpPollInputSchema.nullable().optional(),
 });
 
+/** A locked post's teaser line: one short sentence. */
+export const SLP_LOCKED_TEASER_MAX_LENGTH = 120;
+
 export const slpGeneratedCreatorPostSchema = z
   .object({
     title: slpCreatorPostTitleSchema,
@@ -139,14 +144,17 @@ export const slpGeneratedCreatorPostSchema = z
     // Extra pictures are a bonus: a malformed list falls back to generic alternates, never fails the post.
     shots: z.array(slpSceneShotSchema).max(3).nullable().optional().catch(null),
     poll: slpPollInputSchema.nullable().optional(),
+    // The line a non-subscriber reads under a locked post. A bonus: a bad one never fails the post.
+    teaser: z.string().trim().min(1).max(SLP_LOCKED_TEASER_MAX_LENGTH).nullable().optional().catch(null),
   })
   .strip()
-  .transform(({ title, content, imagePrompt, scene, shots }) => ({
+  .transform(({ title, content, imagePrompt, scene, shots, teaser }) => ({
     title,
     content,
     imagePrompt: imagePrompt ?? null,
     scene: scene ?? null,
     shots: shots ?? [],
+    teaser: teaser ?? null,
   }));
 
 export const slpGeneratedCreatorReplySchema = z

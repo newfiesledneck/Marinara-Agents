@@ -1,7 +1,13 @@
 import { SlpBootstrap } from "../../../../../shared/src/slp/slp-social.types.js";
 import { z } from "zod";
-import { slpArcBlueprintSchema } from "../../../../../shared/src/slp/slp-story-engine.js";
-import { SLURP_DISCOVERY_TAG_MAX_LENGTH, SLURP_DISCOVERY_TAG_SEED } from "../discovery/slp-discovery-profile.js";
+import { slpArcBlueprintSchema, type SlpArcBlueprint } from "../../../../../shared/src/slp/slp-story-engine.js";
+
+const SLURP_ARC_LIBRARY_MAX = 200;
+import {
+  LEGACY_SLURP_DISCOVERY_TAG_SEED,
+  SLURP_DISCOVERY_TAG_MAX_LENGTH,
+  SLURP_DISCOVERY_TAG_SEED,
+} from "../discovery/slp-discovery-profile.js";
 import {
   normalizeSlurpPromptBlockOverrides,
   slurpLegacyClassicPromptBlocks,
@@ -11,22 +17,15 @@ import {
 import { SLURP_DEFAULT_ECONOMY } from "../economy/slp-wallet.js";
 import {
   slurpCreatorCollabsSchema,
-  SLURP_PROJECT_CHAPTER_MAX_LENGTH,
-  SLURP_PROJECT_DIRECTION_MAX_LENGTH,
-  SLURP_PROJECT_MAX_CHAPTERS,
   SLURP_ARC_STAT_EFFECTS,
-  SLURP_ARC_BIO_MAX_LENGTH,
-  SLURP_ARC_LOCATION_MAX_LENGTH,
   SLURP_ARC_PACES,
   SLURP_DEFAULT_ARC_PACE,
 } from "../projects/slp-project.js";
-import { SLURP_ARC_MAX_DURATION_DAYS, SLURP_ARC_TONE_MAX_LENGTH } from "../projects/slp-project.js";
 import {
   slurpArcLibraryFromLegacy,
   slurpNormalizeArcLibrary,
   SLURP_ARC_AUTO_MODES,
   SLURP_ARC_SOURCES,
-  SLURP_ARC_TYPE_NAME_MAX_LENGTH,
   SLURP_DEFAULT_ARC_AUTO_MODE,
 } from "../projects/slp-arc-library.js";
 import { SLURP_AUDIENCE_TONES, SLURP_DEFAULT_AUDIENCE_TONE } from "../../../../../shared/src/slp/slp-tone.js";
@@ -40,15 +39,28 @@ import {
   slurpNormalizePlatformEvents,
   slurpPlatformEventsDefault,
   slurpPlatformEventsSchema,
+  SLURP_PLATFORM_EVENTS_MAX,
+  type SlurpPlatformEvent,
 } from "../../../../../shared/src/slp/slp-platform-events.js";
+import { readSlurpContentPackToggles, slurpApplyContentPacks } from "../world/events/slp-content-packs.js";
 import { slurpNormalizeReactionBanks, SlurpReactionBanks } from "../world/slp-reaction-bank.js";
-import { slurpModelBudgetSchema } from "../../../../../shared/src/slp/slp-model-budget.js";
+import { slurpModelBudgetSchema, slurpPostsPerDayIsCustom } from "../../../../../shared/src/slp/slp-model-budget.js";
+import {
+  normalizeSlpSupportDeskSettings,
+  slpSupportDeskSettingsSchema,
+  SLP_DEFAULT_SUPPORT_DESK_SETTINGS,
+} from "../../../../../shared/src/slp/slp-support-desk.js";
+import { slpDramaSettingsSchema } from "../../../../../shared/src/slp/slp-drama.js";
+import { SLURP_STORY_JOB_DEFAULTS, type SlurpStoryJobWeights } from "../../../../../shared/src/slp/slp-post-purpose.js";
+import { DEFAULT_SLP_CREATOR_REPLIES_PER_24_HOURS } from "../../../../../shared/src/slp/slp-social.schema.js";
+import { SLURP_COOL_OFF_HOURS } from "../world/slp-stance.js";
+import { SLURP_CUSTOM_OPENER_MAX_LENGTH, SLURP_CUSTOM_OPENERS_MAX } from "../../../../../shared/src/slp/slp-world.js";
 import {
   SLURP_DEFAULT_PLATFORM_SCALE,
   SLURP_DEFAULT_WORLD_ACTIVITY,
   SLURP_PLATFORM_SCALE,
   SLURP_WORLD_ACTIVITY,
-} from "../audience/slp-scale.js";
+} from "../../../../../shared/src/slp/slp-scale.js";
 import {
   SLURP_DEFAULT_PROJECT_RATE,
   SLURP_DEFAULT_STORY_RATE,
@@ -59,11 +71,9 @@ import {
 } from "../feed/slp-post-variation.js";
 import { logger } from "../../../lib/logger.js";
 import { SLURP_DEFAULT_CREATOR_MESSAGING, SLURP_DM_POLICIES } from "../messages/slp-messaging.js";
-import { NOODLER_CONTENT_HARD_MAX_LENGTH } from "../../base/prompting/slp-content-format.js";
-import { SLURP_MODIFIER_KINDS } from "../creators/slp-creator-state.js";
 import { SLURP_DEFAULT_REPLY_DELAYS } from "../messages/slp-messaging.js";
-import { parseRecord } from "../records/slp-storage-model.js";
-import type { SlurpAccount } from "../records/slp-storage-model.js";
+import { NOODLER_CONTENT_HARD_MAX_LENGTH } from "../../base/prompting/slp-content-format.js";
+import { parseRecord, type SlurpAccount } from "../records/slp-storage-model.js";
 export const slpCreatorFanArchetypeWeightsSchema = z
   .object({
     ordinary: z.number().finite().min(0),
@@ -85,6 +95,8 @@ export const slpCreatorFanArchetypeWeightsSchema = z
 export const slurpSettingsSchema = z.object({
   inlineAdsEnabled: z.boolean(),
   inlineAdsFrequency: z.enum(["light", "standard", "frequent"]),
+  /** How often brands offer Creators a paid partnership (R). "normal" is the pace before R. */
+  brandDealsPace: z.enum(["off", "rare", "normal", "often"]),
   inlineAdsSteering: z.enum(["balanced", "personalized", "random"]),
   inlineAdsPreferredTags: z.array(z.string().trim().min(1).max(32)).max(8),
   inlineAdsContentCeiling: z.enum(["tame", "suggestive", "explicit"]),
@@ -108,6 +120,8 @@ export const slurpSettingsSchema = z.object({
   storyLifetimeHours: z.number().int().min(1).max(168),
   /** How often an automatic post goes out free as a teaser. See `slurpTeaserPost`. */
   teaserRate: z.enum(SLURP_TEASER_RATE),
+  /** How often posts reuse an earlier picture. See `slurpReuseDelivery`. */
+  pictureReuse: z.enum(["off", "rare", "regular"]),
   /** Share of a Creator's automatic posts that continue a project rather than standing alone. */
   projectRate: z.enum(SLURP_PROJECT_RATE),
   /** Multiplies every arc chapter's day range. */
@@ -134,7 +148,9 @@ export const slurpSettingsSchema = z.object({
   /** Default event behavior. Imported blueprints inherit this safe suggestion policy. */
   storyAutomation: z.enum(["manual", "suggest", "auto"]),
   /** Arc types Slurp and the player start arcs from. Replaces the v1 `arcAllowedKinds`. */
-  arcLibrary: z.array(slpArcBlueprintSchema).max(200),
+  arcLibrary: z.array(slpArcBlueprintSchema).max(SLURP_ARC_LIBRARY_MAX),
+  /** Content packs switched on or off (Backstage › Packs). A pack missing here uses its default. */
+  contentPacks: z.record(z.string(), z.boolean()),
   /** The curated Discover tags and the group each is shown under. Creators may still carry custom tags. */
   discoveryTags: z
     .array(
@@ -166,7 +182,10 @@ export const slurpSettingsSchema = z.object({
   imageContextMode: z.enum(["auto", "imagePrompt", "vision"]),
   /** Describes pictures for image context. Null uses the Creator text connection. */
   imageContextConnectionId: z.string().nullable(),
-  imageGenerationConnectionId: z.string().nullable(),
+  /** Builds Creator Pages (a long structured answer); null = the AI writing connection. */
+  pageConnectionId: z.string().nullable().default(null),
+  /** The LLM connection that enhances picture prompts; null = Slurp's text connection. */
+  imagePromptConnectionId: z.string().nullable(),
   /**
    * Engine image style profile for Slurp pictures. Null uses the connection's profile, then the
    * Engine default. When set, the connection's own prompt prefixes are left out: a chosen style
@@ -178,16 +197,14 @@ export const slurpSettingsSchema = z.object({
   enableImageInterpretation: z.boolean(),
   imageGenerationUseAvatarReferences: z.boolean(),
   imageGenerationIncludeDescriptions: z.boolean(),
+  /** How the look reaches the picture prompt: `slurpApplyImageLook`. */
+  imageAppearanceMode: z.enum(["writer", "insert", "both"]),
   appearanceProfileMode: z.enum(["ask", "high_confidence", "always"]),
   autoPostingImagesEnabled: z.boolean(),
   allowRandomUsers: z.boolean(),
   /** Ambient roster entity ids the user deleted; the seeder never recreates these. */
   dismissedAmbientProfileIds: z.array(z.string()),
   allowProfessorMari: z.boolean(),
-  participantSelectionMode: z.enum(["all", "random", "exact"]),
-  participantMin: z.number().int().min(1).max(24),
-  participantMax: z.number().int().min(1).max(24),
-  invitedCharacterGroupIds: z.array(z.string()),
   /**
    * Characters the user put in the audience.
    *
@@ -220,6 +237,8 @@ export const slurpSettingsSchema = z.object({
   /** Whether Professor Mari, the Engine's built-in character, may be picked as a new Creator source. */
   professorMariCreatorSource: z.boolean(),
   characterImageInstructions: z.record(z.string(), z.boolean()),
+  /** Per Creator: false turns off "The image model knows this character" (the card name in picture prompts). */
+  creatorImageNames: z.record(z.string(), z.boolean()),
   /** Saved sets of generation guidance and image prompt, switched from Settings. */
   promptPresets: z
     .array(
@@ -247,21 +266,50 @@ export const slurpSettingsSchema = z.object({
       }),
     )
     .max(100),
-  enableEnhancedTimelineWriting: z.boolean(),
-  includeCharacterSchedules: z.boolean(),
   enableLorebookContext: z.boolean(),
+  /**
+   * Let the flavour brief read what the player's other Agents know about a Creator (Long-Term
+   * Memory, Character Tracker, World State, Persona Stats). Read-only. See `slp-agent-memory-source.ts`.
+   */
+  flavourFromAgents: z.boolean(),
+  /**
+   * How ordinary posts are planned. `classic` lets the model pick the subject; `beats` picks a
+   * concrete beat from the Creator's card first. See `modules/feed/slp-post-beat.ts`.
+   */
+  postPlanner: z.enum(["classic", "beats"]),
+  /** "Daily life": how often an ordinary post is a day-to-day life moment. See `slp-life-moments.ts`. */
+  lifeMomentRate: z.enum(["rarely", "sometimes", "often"]),
+  /** What automatic Stories are for: one weight per job, 0 = never. See `slurpStoryPurpose`. */
+  storyJobs: z
+    .object(
+      Object.fromEntries(
+        Object.keys(SLURP_STORY_JOB_DEFAULTS).map((key) => [key, z.number().int().min(0).max(10)]),
+      ) as Record<keyof SlurpStoryJobWeights, z.ZodNumber>,
+    )
+    .strict(),
+  /**
+   * Beats only: a daily world tick and weekly niche patterns per topical tag add shared beat ideas.
+   * See `modules/feed/slp-shared-preseed.ts`.
+   */
+  sharedPreseed: z.boolean(),
+  /** With the shared preseed on, the world tick may also start a real Slurp-wide platform event. */
+  sharedWorldEvents: z.boolean(),
   enableImagePrompts: z.boolean(),
   maxImagesPerRefresh: z.number().int().min(0).max(24),
   maxGeneratedPostsPerRefresh: z.number().int().min(0).max(24),
   maxLikesPerRefresh: z.number().int().min(0).max(24),
   maxRepliesPerRefresh: z.number().int().min(0).max(24),
   allowGalleryImageAttachments: z.boolean(),
-  /**
-   * Posts a day across the whole Creator cast, and now actually that number: the reserve used to
-   * lay down twice as many slots as this asked for. The ceiling is well above the old 24 so a
-   * player who liked the accidental rate can ask for it outright.
-   */
+  /** Tap a cropped picture preview to open the full post (locked posts still open their unlock options). */
+  previewOpensPost: z.boolean(),
+  /** Previews show the whole picture fitted instead of cropping it (top centre). Display only. */
+  previewWholePictures: z.boolean(),
+  /** Every Slurp picture and video stays blurred until it is tapped (for using Slurp in public). */
+  blurPictures: z.boolean(),
+  /** Posts a day across the whole Creator cast, and now actually that number (the reserve used to lay down twice as many slots). The ceiling is well above the old 24 for a player who liked that accidental rate. */
   postsPerDay: z.number().int().min(1).max(96),
+  /** The player set "Posts per day" by hand. Otherwise it grows with the active Creators (F). */
+  postsPerDayCustom: z.boolean(),
   autoPostingScheduleEnabled: z.boolean(),
   autoPostGenerationMode: z.enum(["pre_generate", "on_demand"]),
   fanActivityEnabled: z.boolean(),
@@ -297,6 +345,8 @@ export const slurpSettingsSchema = z.object({
    * Commissions and the later bubbles of a reply already sent still arrive — those are owed.
    */
   messagesAwayRepliesEnabled: z.boolean(),
+  /** One unsolicited text, then none until a real reply. See `slurpAllowsUnsolicitedText`. */
+  messagesPauseFollowUpsUntilReply: z.boolean(),
   /** Messages one reply is broken into. One keeps a reply in a single bubble. */
   messagesReplyBubbleLimit: z.number().int().min(1).max(4),
   /** Where a creator nobody has configured by hand starts. */
@@ -315,6 +365,25 @@ export const slurpSettingsSchema = z.object({
   messagesRecentPostAwayMaxMinutes: z.number().int().min(0).max(1440),
   messagesStalePostAwayMinMinutes: z.number().int().min(0).max(1440),
   messagesStalePostAwayMaxMinutes: z.number().int().min(0).max(1440),
+  /** Minutes between two pictures you draw into one chat. 0 turns the wait off. */
+  messagesViewerImageCooldownMinutes: z.number().int().min(0).max(10080),
+  /** Minutes a Creator stays away after they have had enough. 0 = they do not step away (the strike still counts). */
+  messagesCoolOffMinutes: z.number().int().min(0).max(10080),
+  /** Minutes a fan thinks over a quote before answering it. 0 = the next world tick. */
+  messagesQuoteAnswerMinutes: z.number().int().min(0).max(10080),
+  /** The player's own first lines for fan DMs. Empty = the built-in ones. */
+  messagesFanOpeners: z
+    .array(z.string().trim().min(1).max(SLURP_CUSTOM_OPENER_MAX_LENGTH))
+    .max(SLURP_CUSTOM_OPENERS_MAX),
+  /** The player's own first words for commission requests. Empty = the built-in ones. */
+  messagesCommissionOpeners: z
+    .array(z.string().trim().min(1).max(SLURP_CUSTOM_OPENER_MAX_LENGTH))
+    .max(SLURP_CUSTOM_OPENERS_MAX),
+  /**
+   * Creator replies to comments in any 24 hours, installation-wide (your comments and the
+   * audience's share it). No "off": the audience drain runs on page loads and this is its only cap.
+   */
+  creatorRepliesPerDay: z.number().int().min(1).max(200),
   autopurgeEnabled: z.boolean(),
   autopurgeRetentionValue: z.number().int().min(1).max(365),
   autopurgeRetentionUnit: z.enum(["days", "weeks", "months"]),
@@ -331,6 +400,13 @@ export const slurpSettingsSchema = z.object({
   creatorCollabs: slurpCreatorCollabsSchema,
   /** Which visible text may call a model, and the hard hourly/daily budget for it. */
   modelBudget: slurpModelBudgetSchema,
+  /** Settings › Stir: the Slurp Support desk (tickets, notices, refusals, shady moves, leaving). */
+  supportDesk: slpSupportDeskSettingsSchema,
+  drama: slpDramaSettingsSchema,
+  /** Settings › Stir: a couple may grow to four people (0.3.5). Off by default. */
+  polyamory: z.boolean(),
+  /** Settings › Overview › Pause all: no model or image call, no tick, nothing (`slp-pause.ts`). */
+  paused: z.boolean(),
   nightQuiet: z.boolean(),
   onboarding: z.enum(["not_started", "in_progress", "completed"]),
 });
@@ -353,11 +429,7 @@ const LEGACY_SLP_CREATOR_DEFAULT_GENERATION_GUIDANCE =
 export const LEGACY_SLURP_DEFAULT_GENERATION_GUIDANCE =
   "All Slurp creators and viewers are adults (18+). This is an adult creator page: flirty, suggestive, teasing, and sensual posts are common, and explicit posts appear regularly when they suit the creator — but they are not required and need not be the majority. Tease the locked posts and answer flirty comments in kind. Keep each creator's personality intact: a shy creator flirts shyly, a blunt one bluntly, a funny one filthily. Ordinary posts — updates, humor, behind the scenes, project news — matter just as much and keep both the page and the character human. Keep low mood or conflict uncommon and character-specific, and do not let recent posts set the default mood.";
 
-/**
- * Three shipped spice levels for the generation guidance. The middle level is the default; the
- * settings surface writes one of these verbatim into `generationGuidance`, and any edit to the
- * text is preserved as the user's own.
- */
+/** The old Writing spice presets (before 0.3.17), written verbatim into `generationGuidance`. */
 export const SLURP_GUIDANCE_PRESETS = {
   mild: "All Slurp creators and viewers are adults (18+). This is an adult creator page, but a restrained one: posts are flirty, teasing, and suggestive rather than graphic. Innuendo, charm, and anticipation do the work, and locked posts are teased instead of described. Do not write explicit sexual detail. Keep each creator's personality intact: a shy creator flirts shyly, a blunt one flirts bluntly. Ordinary posts about their day, work, and mood stay just as important as the flirty ones.",
   steamy:
@@ -368,7 +440,12 @@ export const SLURP_GUIDANCE_PRESETS = {
 
 export type SlurpGuidanceLevel = keyof typeof SLURP_GUIDANCE_PRESETS;
 
-export const SLP_CREATOR_DEFAULT_GENERATION_GUIDANCE: string = SLURP_GUIDANCE_PRESETS.steamy;
+// House style (0.3.17), no spice: level and Language reach the prompt as their own lines. The presets
+// above stay only so `readSlurpSpice` can recognise and migrate them.
+export const SLURP_HOUSE_STYLE_GUIDANCE =
+  "All Slurp creators and viewers are adults (18+). This is an adult creator page. How far each creator goes is set by their spice level; their personality decides how: a shy creator stays tamer and flirts shyly, an outgoing one is bolder and blunter. Tease the locked posts and answer flirty comments in kind. Ordinary posts about their day, work, and mood matter just as much and keep the feed believable. Keep each creator's personality intact.";
+
+export const SLP_CREATOR_DEFAULT_GENERATION_GUIDANCE: string = SLURP_HOUSE_STYLE_GUIDANCE;
 
 /** The middle level shipped with a typo before the levels existed; migrate it forward. */
 export const LEGACY_TYPO_SLURP_DEFAULT_GENERATION_GUIDANCE =
@@ -405,6 +482,7 @@ export const SLP_CREATOR_DEFAULT_IMAGE_PROMPT_INTERPRETATION =
 export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
   inlineAdsEnabled: true,
   inlineAdsFrequency: "standard",
+  brandDealsPace: "normal",
   inlineAdsSteering: "personalized",
   inlineAdsPreferredTags: [],
   inlineAdsContentCeiling: "explicit",
@@ -427,12 +505,15 @@ export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
   walletCreatorRevenueSharePercent: SLURP_DEFAULT_ECONOMY.creatorRevenueSharePercent,
   inlineAdsLorebookId: null,
   inlineAdsLorebookRevision: null,
+  // Exact 4:5, the feed's own frame: 2:3 was cropped in the feed and cut in half on profiles
+  // (R1-062). A default only; a stored size is never rewritten.
   imageWidth: 1024,
-  imageHeight: 1536,
+  imageHeight: 1280,
   storyRate: SLURP_DEFAULT_STORY_RATE,
   storyImagesEnabled: true,
   storyLifetimeHours: 72,
   teaserRate: SLURP_DEFAULT_TEASER_RATE,
+  pictureReuse: "regular",
   projectRate: SLURP_DEFAULT_PROJECT_RATE,
   arcPace: SLURP_DEFAULT_ARC_PACE,
   discoveryTags: SLURP_DISCOVERY_TAG_SEED.map((entry) => ({ ...entry })),
@@ -448,6 +529,7 @@ export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
   arcCrossovers: true,
   storyAutomation: "suggest",
   arcLibrary: slurpArcLibraryFromLegacy(undefined),
+  contentPacks: {},
   // 4:5. The composer crops an uploaded Story to whatever ratio is configured here, so the two
   // halves of the feature stay one shape.
   storyImageWidth: 1024,
@@ -461,7 +543,8 @@ export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
   generationConnectionId: null,
   imageContextMode: "auto",
   imageContextConnectionId: null,
-  imageGenerationConnectionId: null,
+  pageConnectionId: null,
+  imagePromptConnectionId: null,
   imageStyleProfileId: null,
   imageGenerationPrompt: SLP_CREATOR_DEFAULT_IMAGE_GENERATION_PROMPT,
   imagePromptInterpretation: SLP_CREATOR_DEFAULT_IMAGE_PROMPT_INTERPRETATION,
@@ -473,15 +556,12 @@ export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
   // reference image simply ignores the references.
   imageGenerationUseAvatarReferences: true,
   imageGenerationIncludeDescriptions: true,
+  imageAppearanceMode: "writer",
   appearanceProfileMode: "high_confidence",
   autoPostingImagesEnabled: false,
   allowRandomUsers: false,
   dismissedAmbientProfileIds: [],
   allowProfessorMari: false,
-  participantSelectionMode: "random",
-  participantMin: 1,
-  participantMax: 4,
-  invitedCharacterGroupIds: [],
   audienceCharacters: {},
   audienceCharacterGroupIds: [],
   audienceCharacterLimit: 5,
@@ -491,20 +571,30 @@ export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
   postMaxLength: NOODLER_CONTENT_HARD_MAX_LENGTH,
   postShowMoreLength: 300,
   characterImageInstructions: {},
+  creatorImageNames: {},
   promptPresets: [],
   promptBlocks: {} satisfies SlurpPromptBlockOverrides,
   classicPromptBlocks: {} satisfies SlurpPromptBlockOverrides,
   professorMariCreatorSource: true,
-  enableEnhancedTimelineWriting: false,
-  includeCharacterSchedules: false,
   enableLorebookContext: false,
+  flavourFromAgents: true,
+  // Beats by default since 0.2.55: the fixes for same-y, canon-less, tame posts live there.
+  postPlanner: "beats",
+  lifeMomentRate: "sometimes",
+  storyJobs: { ...SLURP_STORY_JOB_DEFAULTS },
+  sharedPreseed: false,
+  sharedWorldEvents: false,
   enableImagePrompts: false,
   maxImagesPerRefresh: 0,
   maxGeneratedPostsPerRefresh: 4,
   maxLikesPerRefresh: 4,
   maxRepliesPerRefresh: 4,
   allowGalleryImageAttachments: false,
+  previewOpensPost: true,
+  previewWholePictures: false,
+  blurPictures: false,
   postsPerDay: 4,
+  postsPerDayCustom: false,
   autoPostingScheduleEnabled: false,
   autoPostGenerationMode: "on_demand",
   // On by default, and at a volume that reads as a comment section rather than a rumour of one.
@@ -536,11 +626,18 @@ export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
     freeResource: 1,
   },
   messagesAwayRepliesEnabled: true,
+  messagesPauseFollowUpsUntilReply: false,
   messagesReplyBubbleLimit: 3,
   messagesDefaultDmPolicy: SLURP_DEFAULT_CREATOR_MESSAGING.dmPolicy,
   messagesDefaultRequestFee: SLURP_DEFAULT_CREATOR_MESSAGING.requestFee,
   messagesDefaultPpvPrice: SLURP_DEFAULT_CREATOR_MESSAGING.ppvPrice,
   ...SLURP_DEFAULT_REPLY_DELAYS,
+  messagesViewerImageCooldownMinutes: 180,
+  messagesCoolOffMinutes: SLURP_COOL_OFF_HOURS * 60,
+  messagesQuoteAnswerMinutes: 1440,
+  messagesFanOpeners: [],
+  messagesCommissionOpeners: [],
+  creatorRepliesPerDay: DEFAULT_SLP_CREATOR_REPLIES_PER_24_HOURS,
   autopurgeEnabled: false,
   autopurgeRetentionValue: 4,
   autopurgeRetentionUnit: "weeks",
@@ -552,6 +649,10 @@ export const DEFAULT_SLURP_SETTINGS: SlurpSettings = {
   platformEvents: slurpPlatformEventsDefault(),
   creatorCollabs: [],
   modelBudget: slurpModelBudgetSchema.parse({}),
+  supportDesk: { ...SLP_DEFAULT_SUPPORT_DESK_SETTINGS },
+  drama: slpDramaSettingsSchema.parse({}),
+  polyamory: false,
+  paused: false,
   nightQuiet: false,
   onboarding: "not_started",
 };
@@ -568,7 +669,37 @@ export function isSlurpViewerActorAccount(account: Pick<SlurpAccount, "invited" 
   return account.invited === true && account.kind === "persona";
 }
 
+// The world tick reads settings many times per pass; a full zod parse each time held the Engine's
+// event loop for seconds. Stored settings arrive as a JSON string (null before the first save), so
+// the last one is the cache key. Callers get a clone because some of them build on the result.
+let cachedSettingsRaw: string | null = null;
+let cachedSettings: SlurpSettings | null = null;
+
+/**
+ * Keys retired in fix phase 1b (R1-136): nothing read them. Stored copies are safe: the normalizer
+ * takes only known keys, the PATCH schema strips unknown ones, and the next save drops them. Listed
+ * so a test can prove old data still loads.
+ */
+export const SLURP_RETIRED_SETTINGS_KEYS = [
+  "imageGenerationConnectionId",
+  "invitedCharacterGroupIds",
+  "includeCharacterSchedules",
+  "enableEnhancedTimelineWriting",
+  "participantSelectionMode",
+  "participantMin",
+  "participantMax",
+] as const;
+
 export function normalizeSlurpSettings(raw: unknown): SlurpSettings {
+  if (typeof raw !== "string" && raw !== null) return normalizeSlurpSettingsUncached(raw);
+  if (raw !== cachedSettingsRaw || !cachedSettings) {
+    cachedSettings = normalizeSlurpSettingsUncached(raw);
+    cachedSettingsRaw = raw;
+  }
+  return structuredClone(cachedSettings);
+}
+
+function normalizeSlurpSettingsUncached(raw: unknown): SlurpSettings {
   const rawRecord = parseRecord(raw);
   const candidate = Object.fromEntries(
     Object.entries(DEFAULT_SLURP_SETTINGS).map(([key, value]) => [key, rawRecord[key] ?? value]),
@@ -626,14 +757,34 @@ export function normalizeSlurpSettings(raw: unknown): SlurpSettings {
   candidate.classicPromptBlocks =
     rawRecord.classicPromptBlocks ?? slurpLegacyClassicPromptBlocks(rawRecord.promptBlocks);
   candidate.nightQuiet = rawRecord.nightQuiet ?? DEFAULT_SLURP_SETTINGS.nightQuiet;
+  candidate.paused = rawRecord.paused === true;
   // Repaired rather than replaced: a player who edited one type must not lose the other seven
   // because a single field went out of range. An all-disabled list re-enables built-in Regular,
   // which is the one state the tick cannot run in — there would be nobody to pick.
   candidate.fanTypes = slurpNormalizeFanTypes(rawRecord.fanTypes ?? DEFAULT_SLURP_SETTINGS.fanTypes);
   // An empty list is a real choice; only a missing or non-array value falls back to the defaults.
   candidate.platformEvents = slurpNormalizePlatformEvents(rawRecord.platformEvents);
+  // An untouched tag list gains the "look" group; an edited one is the player's and stays as it is.
+  candidate.discoveryTags =
+    JSON.stringify(rawRecord.discoveryTags) === JSON.stringify(LEGACY_SLURP_DISCOVERY_TAG_SEED)
+      ? DEFAULT_SLURP_SETTINGS.discoveryTags
+      : (rawRecord.discoveryTags ?? DEFAULT_SLURP_SETTINGS.discoveryTags);
   candidate.arcLibrary = slurpNormalizeArcLibrary(rawRecord.arcLibrary, rawRecord.arcAllowedKinds);
+  // Packs that are on join both libraries, packs that are off leave them (Backstage › Packs).
+  candidate.contentPacks = readSlurpContentPackToggles(rawRecord.contentPacks);
+  ({ arcs: candidate.arcLibrary, events: candidate.platformEvents } = slurpApplyContentPacks({
+    arcs: candidate.arcLibrary as SlpArcBlueprint[],
+    events: candidate.platformEvents as SlurpPlatformEvent[],
+    toggles: candidate.contentPacks as Record<string, boolean>,
+    maxArcs: SLURP_ARC_LIBRARY_MAX,
+    maxEvents: SLURP_PLATFORM_EVENTS_MAX,
+  }));
   candidate.onboarding = rawRecord.onboarding ?? DEFAULT_SLURP_SETTINGS.onboarding;
+  candidate.postsPerDayCustom = slurpPostsPerDayIsCustom(rawRecord);
+  // A partial or older value keeps the balanced weight for every job it does not name.
+  candidate.storyJobs = { ...DEFAULT_SLURP_SETTINGS.storyJobs, ...parseRecord(rawRecord.storyJobs) };
+  // A partial or older value keeps the default for every field it does not name.
+  candidate.supportDesk = normalizeSlpSupportDeskSettings(rawRecord.supportDesk);
   candidate.fanArchetypeWeights = {
     ...DEFAULT_SLURP_SETTINGS.fanArchetypeWeights,
     ...parseRecord(rawRecord.fanArchetypeWeights),

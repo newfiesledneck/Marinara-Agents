@@ -1,5 +1,4 @@
 import {
-  DEFAULT_LTM_EXTRACTION_MAX_EXISTING_NOTE_TOKENS,
   DEFAULT_LTM_EXTRACTION_MAX_TOKENS,
   DEFAULT_LTM_EXTRACTION_REASONING_EFFORT,
   DEFAULT_LTM_EXTRACTION_VERBOSITY,
@@ -38,11 +37,7 @@ import { compileLtmEvidenceUnits } from "./evidence-unit-compiler.js";
 import { noteIdForEvidenceUnit, validateLtmEvidenceUnits } from "./evidence-unit-validation.js";
 import { normalizeStructuredSummaryEvidenceUnits } from "./structured-summary-normalizer.js";
 import { isLocalCharacterSubject } from "./chat-scope.js";
-import {
-  filterDominatedLtmSubjectNotesForPrompt,
-  trustedLtmSubjectPromptCatalog,
-  type TrustedLtmSubjectCatalog,
-} from "./subject-identity.js";
+import { trustedLtmSubjectPromptCatalog, type TrustedLtmSubjectCatalog } from "./subject-identity.js";
 
 const LTM_EXTRACTION_BUCKET_SCAN_ORDER = [
   "timeline_event",
@@ -85,7 +80,7 @@ const LTM_EXTRACTION_TIMELINE_LINK_RELATIONS = new Set<string>([
 
 function serverEnforcedLinkRules(allowedBuckets: readonly LtmEvidenceUnit["bucket"][]) {
   return [
-    "Every link target must resolve to sourceNote.id, an exact existingTypedNotes id, or a target note derived from a unit in the same response.",
+    "Every link target must resolve to sourceNote.id or a target note derived from a unit in the same response.",
     'Every non-timeline unit with claimKind "change" must link to a timeline_event associated with this source. Static units do not require timeline links. Every timeline_event must link to sourceNote.id with extracted_from.',
     ...(allowedBuckets.includes("relationship_state")
       ? [
@@ -102,7 +97,6 @@ function serverEnforcedLinkPrompt(rules: readonly string[]) {
 export interface RunLongTermMemoryEvidenceUnitExtractionOptions {
   sourceNote: LtmNote;
   sourceText: string;
-  existingNotes: LtmNote[];
   languageModel: PackageLanguageModel;
   root?: string;
   scope: LtmScope;
@@ -114,7 +108,6 @@ export interface RunLongTermMemoryEvidenceUnitExtractionOptions {
   verbosity?: "none" | "low" | "medium" | "high";
   maxOutputTokens?: number;
   temperature?: number;
-  maxExistingNoteTokens?: number;
   signal?: AbortSignal;
   operationId?: string;
   allowedBuckets?: LtmEvidenceUnit["bucket"][];
@@ -128,8 +121,27 @@ export interface CompileEvidenceUnitExtractionResult {
   unitResponse: LtmEvidenceUnitExtractionResponse;
   compiledResponse: LtmExtractionResponse;
   diagnostics: LtmExtractionDiagnostic[];
+  /** True when full (pre-truncation) diagnostics require human review before auto-apply. */
+  requiresReview: boolean;
   outcome: LtmExtractionOutcome;
   accounting: LtmExtractionAccounting;
+}
+
+/** Diagnostic codes that must block low-risk auto-apply even if later truncated from the retained list. */
+export function diagnosticsRequireExtractionReview(diagnostics: readonly LtmExtractionDiagnostic[]) {
+  return diagnostics.some(
+    (diagnostic) =>
+      diagnostic.code === "candidate_reconciliation_ambiguous" ||
+      diagnostic.code === "candidate_reconciliation_incomplete" ||
+      diagnostic.code === "ambiguous_subject_identity" ||
+      diagnostic.code === "borrowed_subject_identity" ||
+      diagnostic.code === "event_shaped_character_fact",
+  );
+}
+
+export function boundLtmExtractionDiagnostics(diagnostics: readonly LtmExtractionDiagnostic[]) {
+  if (diagnostics.length <= MAX_LTM_EXTRACTION_DIAGNOSTICS) return [...diagnostics];
+  return [...diagnostics.slice(0, MAX_LTM_EXTRACTION_DIAGNOSTICS - 1), diagnostics[diagnostics.length - 1]!];
 }
 
 type ParsedEvidenceUnitPayload = {
@@ -463,7 +475,7 @@ export function evidenceUnitResponseFormat(options: {
                 links: {
                   type: "array",
                   description:
-                    "Every link target must resolve to the source note, an existing note, or a target note derived from a unit in the same response.",
+                    "Every link target must resolve to the source note or a target note derived from a unit in the same response.",
                   maxItems: 50,
                   items: {
                     type: "object",
@@ -474,8 +486,7 @@ export function evidenceUnitResponseFormat(options: {
                         type: "string",
                         pattern: "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
                         maxLength: 120,
-                        description:
-                          "Exact existing note id or target note id derived from a unit in the same response.",
+                        description: "Target note id derived from a unit in the same response, or the source note id.",
                       },
                       relation: { type: "string", enum: LTM_EXTRACTION_LINK_RELATIONS },
                       aspect: { type: "string", maxLength: 50 },
@@ -593,6 +604,11 @@ function deterministicEvidenceUnitId(record: Record<string, unknown>, expectedSo
 function normalizedEvidenceUnitRecord(unit: unknown, expectedSourceHash: string, trustedEvidence: string[]): unknown {
   if (!unit || typeof unit !== "object" || Array.isArray(unit)) return unit;
   const record = unit as Record<string, unknown>;
+  // An explicitly empty subjectKeys array must behave like an omitted field so it
+  // cannot suppress trusted name-based resolution. The internal resolver stays strict.
+  const { subjectKeys: rawSubjectKeys, ...recordWithoutSubjectKeys } = record;
+  const normalizedRecord =
+    Array.isArray(rawSubjectKeys) && rawSubjectKeys.length === 0 ? recordWithoutSubjectKeys : record;
   const names = Array.isArray(record.subjectNames) ? record.subjectNames : [];
   const expectedNames = record.bucket === "character_fact" ? 1 : record.bucket === "relationship_state" ? 2 : 0;
   const recoverableNames =
@@ -626,9 +642,9 @@ function normalizedEvidenceUnitRecord(unit: unknown, expectedSourceHash: string,
       ? `${rawSubject.slice(0, maxSubjectLength - 11).replace(/_+$/g, "")}_${stableJsonHash(rawSubject).slice(0, 10)}`
       : subjectId;
   return {
-    ...record,
+    ...normalizedRecord,
     ...(boundedSubject !== record.subjectId ? { subjectId: boundedSubject } : {}),
-    id: deterministicEvidenceUnitId(record, expectedSourceHash),
+    id: deterministicEvidenceUnitId(normalizedRecord, expectedSourceHash),
     sourceHash: expectedSourceHash,
     ...(record.evidence === undefined && trustedEvidence.length ? { evidence: trustedEvidence } : {}),
   };
@@ -1033,29 +1049,6 @@ function estimateLtmPromptTokens(text: string) {
   return Math.max(1, Math.ceil(text.length / 4));
 }
 
-function formatExistingNotes(notes: LtmNote[], maxTokens = DEFAULT_LTM_EXTRACTION_MAX_EXISTING_NOTE_TOKENS) {
-  let usedTokens = 0;
-  const blocks: string[] = [];
-  for (const note of notes) {
-    const sections = Object.entries(note.sections)
-      .map(([key, section]) => `${key}: ${section.text}`)
-      .join("\n");
-    const block = [
-      `id: ${note.id}`,
-      `type: ${note.type}`,
-      `status: ${note.status}`,
-      `tags: ${note.tags.join(", ") || "(none)"}`,
-      `subjects: ${note.subjects?.map((subject) => subject.key).join(", ") || "(unbound)"}`,
-      `sections:\n${sections}`,
-    ].join("\n");
-    const blockTokens = estimateLtmPromptTokens(block);
-    if (usedTokens + blockTokens > maxTokens) break;
-    usedTokens += blockTokens;
-    blocks.push(block);
-  }
-  return blocks.length ? blocks.join("\n\n---\n\n") : "(no relevant memory streams)";
-}
-
 async function preflightExtractionPromptContext({
   messages,
   chatOptions,
@@ -1087,13 +1080,14 @@ async function preflightExtractionPromptContext({
       provider: extractionOptions.languageModel.name,
       model: extractionOptions.languageModel.model,
       counts: {
-        maxContext: providerMaxContext,
+        ...(providerMaxContext != null ? { maxContext: providerMaxContext } : {}),
         requestedOutputTokens: requestedMaxTokens ?? 0,
         providerCappedOutputTokens: providerCappedMaxTokens ?? 0,
         fittedOutputTokens,
         minimumOutputTokens: MIN_LTM_EXTRACTION_OUTPUT_TOKENS,
-        estimatedPromptTokens: fit?.estimatedTokensBefore ?? 0,
-        fittedPromptTokens: fit?.estimatedTokensAfter ?? 0,
+        ...(fit
+          ? { estimatedPromptTokens: fit.estimatedTokensBefore, fittedPromptTokens: fit.estimatedTokensAfter }
+          : {}),
       },
       details: { reason: "output_budget_below_viability_floor" },
     });
@@ -1122,7 +1116,6 @@ async function preflightExtractionPromptContext({
       estimatedPromptTokens: fit.estimatedTokensBefore,
       fittedPromptTokens: fit.estimatedTokensAfter,
       sourceChars: extractionOptions.sourceText.length,
-      existingNotes: extractionOptions.existingNotes.length,
     },
     details: {
       reason: fit.trimmed ? "prompt_trim_required" : "output_budget_reduced",
@@ -1221,7 +1214,7 @@ export function evidenceUnitMessages(options: RunLongTermMemoryEvidenceUnitExtra
           salience: "0..1",
           status: "one allowedStatuses value",
           links:
-            "real links only, otherwise []; targets must be derived from units in the same response or copied exactly from sourceNote.id or existingTypedNotes",
+            "real links only, otherwise []; targets must be derived from units in the same response or copied exactly from sourceNote.id",
           dimensions:
             "relationship_state only: optional object with allowedRelationshipDimensions keys and 0..100 integer values",
           dimensionChanges:
@@ -1241,6 +1234,8 @@ export function evidenceUnitMessages(options: RunLongTermMemoryEvidenceUnitExtra
           "resolved_in",
           "evidenced_by",
           "caused_by",
+          "planted_in",
+          "paid_off_in",
           "affects_relationship",
           "affects_character",
         ],
@@ -1264,7 +1259,7 @@ export function evidenceUnitMessages(options: RunLongTermMemoryEvidenceUnitExtra
             : "Preserve the character_fact and relationship_state subjectId values from the supplied candidate units.",
           "For other streams, the compiler derives the target note id from bucket + subjectId: timeline_event -> timeline_<subjectId>, world_fact or anchor -> world_<subjectId> unless anchor sectionKey starts with tone, thread -> thread_<subjectId>, tone -> tone_<subjectId>.",
           "For timeline_event, subjectId must name the specific event or beat, not just a person, character, place, or broad entity. Use damo_arrival or lisa_minimizing_damo instead of damo_korvak.",
-          "Do not intentionally target an existing note id unless that exact note appears in existingTypedNotes. If a broad note is not listed, use a source-specific subjectId for a new in-scope note.",
+          "Use a source-specific subjectId derived from the source text; never target or invent an existing note id. The server resolves subject and link hints against the vault after extraction.",
           ...validationRules,
           "relationship_state dimension keys must come only from allowedRelationshipDimensions. Put professional curiosity, reputation, gossip, or attention as text/thread/world/timeline facts, not dimensions.",
           ...(resolveSubjectNames
@@ -1282,13 +1277,6 @@ export function evidenceUnitMessages(options: RunLongTermMemoryEvidenceUnitExtra
                 "For each unit, include 3-5 concise keywords or short phrases in keywords. Prefer concrete recall terms and multi-word entities when relevant.",
             }
           : {}),
-        existingTypedNotes: formatExistingNotes(
-          filterDominatedLtmSubjectNotesForPrompt(
-            options.existingNotes ?? [],
-            promptCatalog ?? { entries: [], notes: [] },
-          ),
-          options.maxExistingNoteTokens,
-        ),
         sourceText: options.sourceText,
       }),
     },
@@ -1334,10 +1322,8 @@ export async function runLongTermMemoryEvidenceUnitExtraction(
     counts: {
       messages: messages.length,
       promptChars,
-      promptTokens: estimateLtmPromptTokens(messages.map((message) => message.content).join("\n")),
+      estimatedPromptTokens: estimateLtmPromptTokens(messages.map((message) => message.content).join("\n")),
       sourceChars: options.sourceText.length,
-      existingNotes: options.existingNotes.length,
-      maxExistingNoteTokens: options.maxExistingNoteTokens ?? DEFAULT_LTM_EXTRACTION_MAX_EXISTING_NOTE_TOKENS,
     },
     details: {
       reasoningEffort: requestedReasoningEffort,
@@ -1364,29 +1350,31 @@ export async function runLongTermMemoryEvidenceUnitExtraction(
     });
 
     const content = result.content?.trim() ?? "";
+    const incomplete = ["length", "max_tokens", "token_limit"].includes(result.finishReason.toLowerCase());
     await recordLtmDebugEvent({
       operationId: options.operationId,
       root: options.root,
       phase: "llm",
       action: "evidence_unit_response",
-      status: content ? "ok" : "error",
+      status: content ? (incomplete ? "warning" : "ok") : "error",
       sourceNoteId: options.sourceNote.id,
       provider: options.languageModel.name,
       model: options.languageModel.model,
       durationMs: Date.now() - started,
-      counts: {
-        responseChars: content.length,
-        promptTokens: result.usage?.promptTokens ?? 0,
-        completionTokens: result.usage?.completionTokens ?? 0,
-        completionReasoningTokens: result.usage?.completionReasoningTokens ?? 0,
-        totalTokens: result.usage?.totalTokens ?? 0,
-      },
+      counts: Object.fromEntries(
+        Object.entries({
+          responseChars: content.length,
+          promptTokens: result.usage?.promptTokens,
+          completionTokens: result.usage?.completionTokens,
+          completionReasoningTokens: result.usage?.completionReasoningTokens,
+          totalTokens: result.usage?.totalTokens,
+        }).filter(([, count]) => count != null),
+      ),
       details: {
         finishReason: result.finishReason,
         responseSnippet: content.slice(0, 1_500),
       },
     });
-    const incomplete = ["length", "max_tokens", "token_limit"].includes(result.finishReason.toLowerCase());
     if (!content) {
       throw new LtmServiceError(
         "empty_output: extraction model returned no content; the source remains retryable",
@@ -1497,6 +1485,7 @@ export function compileEvidenceUnitExtraction(options: {
   totalCandidates?: number;
   providerCandidates?: number;
   parserRejectionCount?: number;
+  userSkippedUnits?: number;
   normalizedAdditions?: number;
   parserDroppedCandidates?: LtmExtractionDroppedCandidate[];
   preValidationDroppedCandidates?: LtmExtractionDroppedCandidate[];
@@ -1537,7 +1526,12 @@ export function compileEvidenceUnitExtraction(options: {
   });
   const keptUnits = validated.keptUnits;
   const dedupResult = deduplicateUnits(keptUnits, options.existingNotes, options.scope);
-  const closed = closeSourceEventGraph(dedupResult.deduplicated, options.sourceNote, options.existingNotes);
+  const roleplayOnly = dropLocalCharactersOutsideRoleplay(
+    dedupResult.deduplicated,
+    options.modes,
+    options.existingNotes,
+  );
+  const closed = closeSourceEventGraph(roleplayOnly.units, options.sourceNote, options.existingNotes);
   const parserDroppedCandidates = options.parserDroppedCandidates ?? [];
   const parserRejectionCount = options.parserRejectionCount ?? parserDroppedCandidates.length;
   const preValidationDroppedCandidates = options.preValidationDroppedCandidates ?? [];
@@ -1569,6 +1563,7 @@ export function compileEvidenceUnitExtraction(options: {
     ...parserDroppedCandidates,
     ...preValidationDroppedCandidates,
     ...validated.droppedCandidates,
+    ...roleplayOnly.droppedCandidates,
     ...closed.droppedCandidates,
     ...duplicateAliasClosure.droppedCandidates,
   ];
@@ -1577,6 +1572,7 @@ export function compileEvidenceUnitExtraction(options: {
     parserRejectionCount +
     preValidationDroppedCandidates.length +
     validated.droppedCandidates.length +
+    roleplayOnly.droppedCandidates.length +
     closed.droppedCandidates.length +
     duplicateAliasClosure.droppedCandidates.length;
   const duplicateTitles = duplicateAliasClosure.units.length
@@ -1597,8 +1593,24 @@ export function compileEvidenceUnitExtraction(options: {
   const diagnostics = [
     ...validated.diagnostics,
     ...dedupResult.diagnostics.filter((diagnostic) => !rejectedAliasIds.has(diagnostic.mutationId)),
+    ...roleplayOnly.diagnostics,
     ...closed.diagnostics,
     ...duplicateAliasClosure.diagnostics,
+    // The compiler narrows a new local character note to Roleplay when other modes were also selected.
+    ...compiled.mutations.flatMap((mutation): LtmExtractionDiagnostic[] =>
+      mutation.kind === "create_note" && mutation.note.modes.length < options.modes.length
+        ? [
+            {
+              severity: "warning",
+              code: "local_character_restricted_to_roleplay",
+              mutationId: mutation.id,
+              noteId: mutation.note.id,
+              message:
+                "Local character memories are available only in Roleplay mode, so this memory was restricted to Roleplay.",
+            },
+          ]
+        : [],
+    ),
   ];
   if (options.unitResponse.incomplete) {
     diagnostics.push({
@@ -1607,25 +1619,29 @@ export function compileEvidenceUnitExtraction(options: {
       message: "Extraction output was cut off by the model limit; the source remains retryable.",
     });
   }
-  const boundedDiagnostics =
-    diagnostics.length <= MAX_LTM_EXTRACTION_DIAGNOSTICS
-      ? diagnostics
-      : [...diagnostics.slice(0, MAX_LTM_EXTRACTION_DIAGNOSTICS - 1), diagnostics[diagnostics.length - 1]!];
+  // Review gating must see every diagnostic, including ones dropped by the retained-list bound below.
+  const requiresReview = diagnosticsRequireExtractionReview(diagnostics);
+  const boundedDiagnostics = boundLtmExtractionDiagnostics(diagnostics);
   const accounting = ltmExtractionAccountingSchema.parse({
     providerCandidates:
       options.providerCandidates ??
       options.totalCandidates ??
-      options.unitResponse.units.length + parserDroppedCandidates.length + preValidationDroppedCandidates.length,
+      options.unitResponse.units.length +
+        parserDroppedCandidates.length +
+        preValidationDroppedCandidates.length +
+        (options.userSkippedUnits ?? 0),
     normalizedAdditions: (options.normalizedAdditions ?? 0) + normalized.addedUnits,
     parserRejections: parserRejectionCount,
     validationRejections:
       preValidationDroppedCandidates.length +
       validated.droppedCandidates.length +
+      roleplayOnly.droppedCandidates.length +
       closed.droppedCandidates.length +
       duplicateAliasClosure.droppedCandidates.length,
     deduplications:
       validated.keptUnits.length - dedupResult.deduplicated.length - duplicateAliasClosure.droppedCandidates.length,
     keptUnits: closed.units.length,
+    ...(options.userSkippedUnits ? { userSkips: options.userSkippedUnits } : {}),
   });
   const totalCandidates = accounting.providerCandidates + accounting.normalizedAdditions;
   const outcome = summarizeExtractionOutcome({
@@ -1641,9 +1657,41 @@ export function compileEvidenceUnitExtraction(options: {
     unitResponse: { ...options.unitResponse, units: normalizedUnits },
     compiledResponse,
     diagnostics: boundedDiagnostics,
+    requiresReview,
     outcome,
     accounting,
   };
+}
+
+// A new local character note must be Roleplay-only, so without Roleplay it cannot be created at all.
+function dropLocalCharactersOutsideRoleplay(units: LtmEvidenceUnit[], modes: LtmMode[], existingNotes: LtmNote[]) {
+  const droppedCandidates: LtmExtractionDroppedCandidate[] = [];
+  const diagnostics: LtmExtractionDiagnostic[] = [];
+  if (modes.includes("roleplay")) return { units, droppedCandidates, diagnostics };
+  const existingIds = new Set(existingNotes.map((note) => note.id));
+  const message = "Local character memories are available only in Roleplay mode; select Roleplay to keep this memory.";
+  const kept = units.filter((unit, index) => {
+    const noteId = noteIdForEvidenceUnit(unit);
+    if (existingIds.has(noteId) || !unit.subjects?.some(isLocalCharacterSubject)) return true;
+    droppedCandidates.push({
+      index,
+      reason: "target_note_outside_scope",
+      validatorCode: "local_character_requires_roleplay",
+      message,
+      snippet: safeSnippet(unit.text),
+      recoveryCandidate: unit,
+    });
+    diagnostics.push({
+      severity: "error",
+      code: "local_character_requires_roleplay",
+      candidateIndex: index,
+      mutationId: unit.id,
+      noteId,
+      message,
+    });
+    return false;
+  });
+  return { units: kept, droppedCandidates, diagnostics };
 }
 
 function closeSourceEventGraph(

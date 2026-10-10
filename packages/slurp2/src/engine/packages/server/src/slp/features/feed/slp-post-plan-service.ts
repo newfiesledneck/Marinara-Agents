@@ -8,30 +8,50 @@ import { slurpContinuityInstruction } from "../../modules/continuity/slp-continu
 import { slurpContinuityIdentityOf } from "../../modules/continuity/slp-continuity-rules.js";
 import type { SlpCreatorManagedPost } from "../../../../../shared/src/slp/slp-social.types.js";
 import type { SlurpPostAxes } from "../../modules/feed/slp-content-axes.js";
-import type { SlurpContentOpportunity } from "../../data/feed/slp-opportunity-storage.js";
+import { recordSlurpPromiseKept, type SlurpContentOpportunity } from "../../data/feed/slp-opportunity-storage.js";
 import { logger } from "../../../lib/logger.js";
 import type { SlpAccount } from "../../../../../shared/src/slp/slp-social.types.js";
 import type { SlpCreatorGenerationRequest } from "../../../../../shared/src/slp/slp-social-generation.schema.js";
 import { slurpOnlyIntent, slurpPostAxes, slurpReuseDelivery } from "../../modules/feed/slp-content-axes.js";
+import { createSlurpStorage } from "../../data/slp-storage.js";
 import type { SlurpCreatorStrategy } from "../../modules/creators/slp-creator-strategy.js";
 import { findReusableSlurpShoot } from "../../data/feed/slp-shoot-storage.js";
 import {
   claimSlurpPromise,
   completeSlurpOpportunity,
   findDueSlurpPromise,
+  findSlurpOpportunityBySlot,
   planSlurpOpportunity,
 } from "../../data/feed/slp-opportunity-storage.js";
+import { planSlurpBeat, readSlurpCanonAnchorState, type SlurpBeatContext } from "./slp-post-beat-service.js";
+import { slurpSharedIdeasFor } from "./slp-shared-preseed-service.js";
+import { slurpBeatIntents } from "../../modules/feed/slp-post-beat.js";
 import { topSlurpDemandTrend } from "../../data/feed/slp-demand-storage.js";
-import { eq } from "../../../db/file-query.js";
-import { slurpContinuityEvents } from "../../../db/schema/slurp.js";
 import { findSlurpReuse, loadSlurpReuse } from "../media/slp-media-contract.js";
-import { slurpCampaignStageIntent, slurpNextCampaignStage } from "../../modules/feed/slp-campaign.js";
+import {
+  slurpCampaignStageIntent,
+  slurpHeldDropStage,
+  slurpNextCampaignStage,
+} from "../../modules/feed/slp-campaign.js";
 import {
   completeSlurpCampaignStageFor,
   listOpenSlurpCampaignStages,
   moveSlurpCampaignStage,
   openSlurpCampaign,
 } from "../../data/feed/slp-campaign-storage.js";
+import {
+  slurpPollAnswerBeat,
+  slurpPostPurpose,
+  slurpPostPurposeLine,
+  type SlurpPurposePlan,
+} from "../../modules/feed/slp-post-purpose.js";
+import {
+  openSlurpTease,
+  planSlurpStoryPurpose,
+  slurpCampaignPurposeFacts,
+  takeSlurpPollAnswer,
+} from "./slp-post-purpose-service.js";
+import { linkSlurpPurposePost } from "../../data/feed/slp-purpose-storage.js";
 
 /**
  * Everything decided about a post before a word of it is written.
@@ -55,9 +75,13 @@ export async function planSlurpPost(
     isTeaser: boolean;
     imagesEnabled: boolean;
     previewOnly?: boolean;
+    /** The reserve prepares this post, which draws one picture: no photo set. */
+    singlePicture?: boolean;
     slotId?: string | null;
     at: Date;
     dueAt?: Date | null;
+    /** Set when the beats planner is on. See `slp-post-beat-service.ts`. */
+    beats?: SlurpBeatContext | null;
   },
 ) {
   const {
@@ -80,29 +104,84 @@ export async function planSlurpPost(
   const chosen = request.contentIntent;
   // A promise the Creator made in a thread comes first among automatic reasons to post: it was
   // made to a person. It still never outranks the player's own direction or purpose.
+  // A retried or rewritten slot keeps its commitment. A claimed promise has this slot on its row and
+  // a claimed campaign stage names its plan, so neither is "due" any more; the slot's own plan is.
+  const slotPlan = slotId && !previewOnly ? await findSlurpOpportunityBySlot(db, slotId).catch(() => null) : null;
+  // The player's own idea for this post outranks every automatic reason to post, like their
+  // direction does, but keeps the beat, so the Creator still writes it their own way.
+  const nudged = Boolean(ctx.beats?.nudge) && !directed && !chosen;
   const promise =
-    !directed && !chosen && !previewOnly
-      ? await findDueSlurpPromise(db, account.id, { at, access: request.access ?? "public" }).catch(
+    !directed && !chosen && !nudged && !previewOnly
+      ? ((slotPlan?.sourceEventId ? slotPlan : null) ??
+        (await findDueSlurpPromise(db, account.id, { at, access: request.access ?? "public" }).catch(
           (error: unknown) => {
             logger.warn(error, "[slurp] Could not read promises; this post is planned on its own");
             return null;
           },
-        )
+        )))
       : null;
   // A due campaign stage takes an undirected slot the same way a chosen purpose would. It never
   // outranks the player: a directed or purpose-picked post leaves the campaign waiting.
   const stages =
-    !directed && !chosen && !promise && !previewOnly
+    !directed && !chosen && !promise && !nudged && !previewOnly
       ? await listOpenSlurpCampaignStages(db, account.id, at).catch((error: unknown) => {
           logger.warn(error, "[slurp] Could not read campaigns; this post is planned on its own");
           return [];
         })
       : [];
-  const stage = slurpNextCampaignStage(stages, { at, access: request.access ?? "public" });
+  // A slot Slurp held for a teased drop (slice I) runs that drop: the tease named this hour. It is
+  // the next stage even while its tease waits to go up; a promise still comes first. The player's idea
+  // waits for the next free slot (U: the reserve passes `heldDrop`, so no idea reaches this slot).
+  const stage =
+    slurpHeldDropStage(stages, dueAt) ??
+    (slotPlan
+      ? stages.find((entry) => entry.status === "claimed" && entry.opportunityId === slotPlan.id)
+      : undefined) ??
+    slurpNextCampaignStage(stages, { at, access: request.access ?? "public", story: storyVariation });
   const forced =
     chosen ??
     (promise?.intent === "request" || promise?.intent === "teaser" ? promise.intent : undefined) ??
     (stage ? slurpCampaignStageIntent(stage.kind) : undefined);
+  // A Story poll whose answer is ready becomes the next ordinary post (3b): after the player's own
+  // idea, a promise and a campaign stage. A retried slot keeps it through the beat it stored.
+  const retriedPoll = slotPlan?.beat?.sharedId?.startsWith("poll:") ? slotPlan.beat : null;
+  const pollAnswer = retriedPoll
+    ? { pollPostId: retriedPoll.sharedId!.slice("poll:".length), answer: retriedPoll.anchor }
+    : !directed && !forced && !promise && !nudged && !storyVariation && !isTeaser
+      ? await takeSlurpPollAnswer(db, account.id, { at, previewOnly })
+      : null;
+  // The card's anchors as cached (never a fresh read, which would be a model call): poll choices and cast.
+  const anchors =
+    ctx.beats && (pollAnswer || storyVariation)
+      ? ((await readSlurpCanonAnchorState(db, account.id, ctx.beats.canonText).catch(() => null))?.anchors ?? null)
+      : null;
+  // Beat-first for ordinary slots only: direction, a chosen purpose, a promise, and a campaign stage
+  // stay intent-first. A retry repeats the beat its slot already stored. No beat means classic.
+  // An arc post in a teaser slot gets no beat: a card beat beside the project block contradicted it.
+  const beat =
+    ctx.beats && !directed && !forced && !promise && !stage && !(isTeaser && ctx.beats.arc && !nudged)
+      ? (slotPlan?.beat ??
+        (pollAnswer ? slurpPollAnswerBeat(pollAnswer.answer, pollAnswer.pollPostId, anchors, ["casual"]) : null) ??
+        (nudged ? null : ctx.beats.arc) ??
+        (await planSlurpBeat(db, {
+          accountId: account.id,
+          sequence,
+          context: ctx.beats,
+          intents: isTeaser ? ["teaser"] : ["casual", "set", "behind_the_scenes", "appreciation", "business"],
+          at,
+          dueAt,
+          previewOnly,
+          shared:
+            ctx.beats.shared && !previewOnly
+              ? await slurpSharedIdeasFor(db, {
+                  tags: ctx.beats.shared.tags,
+                  context: ctx.beats,
+                  at,
+                  worldEvents: ctx.beats.shared.worldEvents,
+                })
+              : null,
+        })))
+      : null;
   const drawn =
     !directed || forced
       ? slurpPostAxes(account.id, sequence, {
@@ -112,6 +191,8 @@ export async function planSlurpPost(
           intentWeights: forced ? slurpOnlyIntent(forced) : strategy.intentWeights,
           textOnlyRate: strategy.textOnlyRate,
           access: request.access ?? "public",
+          intentsAllowed: beat ? slurpBeatIntents(beat.type) : undefined,
+          singlePicture: ctx.singlePicture,
         })
       : null;
   const drawnAxes =
@@ -150,9 +231,16 @@ export async function planSlurpPost(
           return null;
         })
       : null;
+  // The player's picture reuse setting limits automatic reuse only; a delivery they picked still reuses.
+  const pictureReuse = reuse ? (await createSlurpStorage(db).getSettings()).pictureReuse : "regular";
   const reusedAxesDrawn =
     // A campaign teaser shows its set whenever a preview can be cut; that is what the stage is for.
-    requestedAxes && reuse && stage?.kind === "teaser" && reuse.preview && requestedAxes.delivery === "new_capture"
+    requestedAxes &&
+    reuse &&
+    pictureReuse !== "off" &&
+    stage?.kind === "teaser" &&
+    reuse.preview &&
+    requestedAxes.delivery === "new_capture"
       ? { ...requestedAxes, delivery: "cropped_preview" as const }
       : requestedAxes && reuse && requestedAxes.delivery === "new_capture"
         ? slurpReuseDelivery(
@@ -160,6 +248,7 @@ export async function planSlurpPost(
             { shoot: Boolean(reuse.shoot), archive: Boolean(reuse.archive), preview: Boolean(reuse.preview) },
             account.id,
             sequence,
+            pictureReuse,
           )
         : requestedAxes;
   const reusedAxes =
@@ -208,6 +297,7 @@ export async function planSlurpPost(
             access: request.access ?? "",
             at: at,
             dueAt: dueAt ?? null,
+            beat,
           }).catch((error: unknown) => {
             // A post must never fail over planner bookkeeping.
             logger.warn(error, "[slurp] Could not record a content plan; the post stands on its own");
@@ -219,7 +309,8 @@ export async function planSlurpPost(
   let campaignId = stage?.campaignId ?? null;
   if (opportunity) {
     try {
-      if (stage) await moveSlurpCampaignStage(db, stage, "claimed", { at, opportunityId: opportunity.id });
+      if (stage && stage.status !== "claimed")
+        await moveSlurpCampaignStage(db, stage, "claimed", { at, opportunityId: opportunity.id });
       else if (axes?.intent === "set") {
         campaignId = await openSlurpCampaign(db, {
           creatorAccountId: account.id,
@@ -232,6 +323,32 @@ export async function planSlurpPost(
       logger.warn(error, "[slurp] Could not update a campaign; the post stands on its own");
     }
   }
+  // What this post is for, in plain words, and what it leads to (3b). A free tease promises a drop;
+  // a campaign stage knows its tease or its drop; an automatic Story gets a job of its own.
+  const tease =
+    opportunity &&
+    isTeaser &&
+    axes?.intent === "teaser" &&
+    !storyVariation &&
+    !stage &&
+    !promise &&
+    !nudged &&
+    !forced &&
+    !directed
+      ? await openSlurpTease(db, { creatorAccountId: account.id, opportunityId: opportunity.id, stages, at, dueAt })
+      : null;
+  const stageFacts = stage ? await slurpCampaignPurposeFacts(db, account.id, stage, stages) : {};
+  const storyPurpose =
+    storyVariation && !directed && !chosen && !nudged && !promise && !stage
+      ? await planSlurpStoryPurpose(db, {
+          creatorAccountId: account.id,
+          sequence,
+          stages,
+          anchors,
+          steering: ctx.beats?.steering ?? null,
+          at: dueAt ?? at,
+        })
+      : null;
   // Anonymous demand: when this post answers "somebody asked", the most-asked topic can say what.
   // A promised post never gets it: its request is private to one thread.
   const demand =
@@ -252,7 +369,24 @@ export async function planSlurpPost(
       logger.warn(error, "[slurp] Could not read continuity for a post; it is written without it");
       return "";
     });
+  const postPurpose = slurpPostPurpose({
+    intent: axes?.intent,
+    stageKind: stage?.kind,
+    campaignId,
+    tease: tease ?? stageFacts.tease,
+    drop: stageFacts.drop,
+    promise: Boolean(promise),
+    demand: Boolean(demand),
+    pollAnswer,
+    beat,
+  });
+  const purpose: SlurpPurposePlan = storyPurpose ?? {
+    purpose: postPurpose,
+    line: slurpPostPurposeLine(postPurpose, { at: dueAt ?? at, teaseTitle: stageFacts.drop?.title }),
+    spiceKind: stageFacts.spiceKind ?? null,
+  };
   return {
+    purpose,
     axes,
     shoot,
     reusedMedia,
@@ -261,39 +395,8 @@ export async function planSlurpPost(
     demandTopic: demand?.topic ?? null,
     continuityInstruction,
     campaignId,
+    beat,
   };
-}
-
-/**
- * A promise was kept: record it in the thread it was made in, once. Called wherever a plan
- * completes, so a promise kept by a scheduled post is recorded as surely as a direct one.
- */
-export async function recordSlurpPromiseKept(
-  db: DB,
-  opportunity: Pick<SlurpContentOpportunity, "id" | "sourceEventId">,
-  input: { postId?: string | null; at: Date },
-): Promise<void> {
-  if (!opportunity.sourceEventId) return;
-  const [source] = await db
-    .select()
-    .from(slurpContinuityEvents)
-    .where(eq(slurpContinuityEvents.id, opportunity.sourceEventId));
-  if (!source?.threadId) return;
-  await recordSlurpContinuityEvent(db, {
-    sourceKind: String(source.sourceKind),
-    sourceEntityId: String(source.sourceEntityId),
-    creatorAccountId: String(source.creatorAccountId),
-    eventType: "promise_kept",
-    source: "slurp_post",
-    realityScope: "slurp",
-    audienceScope: "thread_private",
-    threadId: String(source.threadId),
-    payload: { requestId: opportunity.sourceEventId, ...(input.postId ? { postId: input.postId } : {}) },
-    relatedIds: [opportunity.sourceEventId, opportunity.id, ...(input.postId ? [input.postId] : [])],
-    fingerprint: `kept:${opportunity.id}`,
-    contribution: "system",
-    occurredAt: input.at,
-  });
 }
 
 /**
@@ -305,7 +408,8 @@ export async function recordSlurpPostOutcome(
   db: DB,
   input: {
     account: Parameters<typeof slurpContinuityIdentityOf>[0];
-    post: Pick<SlpCreatorManagedPost, "id" | "access">;
+    post: Pick<SlpCreatorManagedPost, "id" | "access"> &
+      Partial<Pick<SlpCreatorManagedPost, "authorAccountId" | "metadata">>;
     axes: SlurpPostAxes | null;
     shootId: string | null;
     opportunity: SlurpContentOpportunity | null;
@@ -353,6 +457,14 @@ export async function recordSlurpPostOutcome(
       toId: post.id,
       relation: "fulfilled_by",
     }).catch(() => undefined);
+  }
+  // A drop links its tease and countdowns to itself; a tease links to a drop that is already up (3b).
+  if (post.authorAccountId && post.metadata && !input.previewOnly) {
+    await linkSlurpPurposePost(db, {
+      id: post.id,
+      authorAccountId: post.authorAccountId,
+      metadata: post.metadata,
+    }).catch((error: unknown) => logger.warn(error, "[slurp] Could not link a post to its tease or drop"));
   }
   if (shootId) {
     await recordSlurpContinuityLink(db, {

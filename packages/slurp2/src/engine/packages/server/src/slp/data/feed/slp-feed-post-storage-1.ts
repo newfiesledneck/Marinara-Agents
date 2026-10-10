@@ -115,7 +115,13 @@ export function createFeedPostStorage1(context: SlurpStorageContext) {
       for (const row of rows) {
         if (!accountIds.has(row.authorAccountId) || !imageClaimIsAvailable(row, at)) continue;
         const metadata = parseRecord(row.metadata);
-        if (metadata.imagePendingReview === true || metadata.imageGenerationFailed !== true) continue;
+        // A deferred picture (the connection was busy when the reserve drew) is still owed: it
+        // retries like a failed one, or it said "Drawing the picture…" forever (R1-046).
+        if (
+          metadata.imagePendingReview === true ||
+          (metadata.imageGenerationFailed !== true && metadata.imageGenerationDeferred !== true)
+        )
+          continue;
         if (slpCreatorPostImageRetryAttempts(metadata) >= SLP_CREATOR_POST_IMAGE_RETRY_LIMIT) continue;
         eligible.push(mapManagedPost(row));
         if (eligible.length >= Math.max(1, Math.floor(limit))) break;

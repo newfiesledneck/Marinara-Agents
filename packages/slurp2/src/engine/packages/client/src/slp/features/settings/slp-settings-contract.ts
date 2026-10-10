@@ -1,5 +1,7 @@
 import type { SlurpFanType } from "../../../../../shared/src/slp/slp-fan-types.js";
 import type { SlurpModelBudget } from "../../../../../shared/src/slp/slp-model-budget.js";
+import type { SlpSupportDeskSettings } from "../../../../../shared/src/slp/slp-support-desk.js";
+import type { SlpDramaSettings } from "../../../../../shared/src/slp/slp-drama.js";
 import type { SlurpPlatformEvent } from "../../../../../shared/src/slp/slp-platform-events.js";
 import type { SlurpSimulationTuning } from "../../../../../shared/src/slp/slp-tuning.js";
 import type { SlurpPromptPreset } from "./slp-prompt-presets.js";
@@ -13,6 +15,7 @@ import type { SlurpArcType } from "../projects/slp-projects-contract.js";
 export type SlurpSettings = {
   inlineAdsEnabled: boolean;
   inlineAdsFrequency: "light" | "standard" | "frequent";
+  brandDealsPace: "off" | "rare" | "normal" | "often";
   inlineAdsSteering: "balanced" | "personalized" | "random";
   inlineAdsPreferredTags: string[];
   inlineAdsContentCeiling: SlurpContentRating;
@@ -41,6 +44,7 @@ export type SlurpSettings = {
   storyImagesEnabled: boolean;
   storyLifetimeHours: number;
   teaserRate: "off" | "rare" | "regular" | "often";
+  pictureReuse: "off" | "rare" | "regular";
   projectRate: "off" | "rare" | "regular" | "often";
   arcPace: "slow" | "normal" | "fast";
   arcAffectsMood: boolean;
@@ -55,6 +59,8 @@ export type SlurpSettings = {
   arcCrossovers: boolean;
   storyAutomation: "manual" | "suggest" | "auto";
   arcLibrary: SlurpArcType[];
+  /** Content packs switched on or off (Backstage › Packs). A pack missing here uses its default. */
+  contentPacks: Record<string, boolean>;
   discoveryTags: Array<{ tag: string; group: string }>;
   storyImageWidth: number;
   storyImageHeight: number;
@@ -64,27 +70,28 @@ export type SlurpSettings = {
   worldActivity: "off" | "quiet" | "normal" | "busy";
   platformScale: "intimate" | "normal" | "large";
   postsPerDay: number;
+  /** The player set "Posts per day" by hand; otherwise it grows with the active Creators (F). */
+  postsPerDayCustom: boolean;
   autoPostingScheduleEnabled: boolean;
   autoPostGenerationMode: "pre_generate" | "on_demand";
   fanActivityEnabled: boolean;
   generationConnectionId: string | null;
   imageContextMode: "auto" | "imagePrompt" | "vision";
   imageContextConnectionId: string | null;
-  imageGenerationConnectionId: string | null;
+  pageConnectionId: string | null;
+  imagePromptConnectionId: string | null;
   imageStyleProfileId: string | null;
   imageGenerationPrompt: string;
   imagePromptInterpretation: string;
   enableImageInterpretation: boolean;
   imageGenerationUseAvatarReferences: boolean;
   imageGenerationIncludeDescriptions: boolean;
+  /** How the look reaches the picture prompt: the prompt writer words it, Slurp inserts it, or both. */
+  imageAppearanceMode: "writer" | "insert" | "both";
   appearanceProfileMode: "ask" | "high_confidence" | "always";
   autoPostingImagesEnabled: boolean;
   allowRandomUsers: boolean;
   allowProfessorMari: boolean;
-  participantSelectionMode: "all" | "random" | "exact";
-  participantMin: number;
-  participantMax: number;
-  invitedCharacterGroupIds: string[];
   /** Characters the user put in the audience. Value is a Fan Type id, or true to derive one. */
   audienceCharacters: Record<string, string | boolean>;
   /** Character groups whose members join the audience. Per-character entries win. */
@@ -97,21 +104,32 @@ export type SlurpSettings = {
   postMaxLength: number;
   postShowMoreLength: number;
   characterImageInstructions: Record<string, boolean>;
+  /** Per Creator: false turns off "The image model knows this character". */
+  creatorImageNames: Record<string, boolean>;
   promptPresets: SlurpPromptPreset[];
   promptBlocks: Record<string, SlurpPromptBlockOverride[]>;
   /** Prompt edits from before Classic generation was removed. Source of the Classic prompt preset. */
   classicPromptBlocks: Record<string, SlurpPromptBlockOverride[]>;
   promptInstructions: SlurpReusablePromptInstruction[];
   professorMariCreatorSource: boolean;
-  enableEnhancedTimelineWriting: boolean;
-  includeCharacterSchedules: boolean;
   enableLorebookContext: boolean;
+  flavourFromAgents: boolean;
+  postPlanner: "classic" | "beats";
+  lifeMomentRate: "rarely" | "sometimes" | "often";
+  /** One weight per Story job (0-10, 0 = never); `SLURP_STORY_JOB_DEFAULTS` is balanced. */
+  storyJobs: { countdown: number; newPost: number; comment: number; poll: number; earlier: number; plain: number };
+  sharedPreseed: boolean;
+  sharedWorldEvents: boolean;
   enableImagePrompts: boolean;
   maxImagesPerRefresh: number;
   maxGeneratedPostsPerRefresh: number;
   maxLikesPerRefresh: number;
   maxRepliesPerRefresh: number;
   allowGalleryImageAttachments: boolean;
+  previewOpensPost: boolean;
+  previewWholePictures: boolean;
+  /** Every Slurp picture and video stays blurred until it is tapped. */
+  blurPictures: boolean;
   fanActivityRunsPerDay: number;
   audienceReactionBank: { shared: string[]; byType: Record<string, string[]> };
   fanLikesPerRefresh: number;
@@ -123,6 +141,8 @@ export type SlurpSettings = {
   creatorCollabs: { creatorIds: [string, string]; content: string }[];
   /** Creators answer while you are away. Off leaves the background reply loop asleep. */
   messagesAwayRepliesEnabled: boolean;
+  /** A Creator writes first once, then waits for a real reply before writing first again. */
+  messagesPauseFollowUpsUntilReply: boolean;
   messagesReplyBubbleLimit: number;
   messagesDefaultDmPolicy: "open" | "subscribers" | "paid" | "closed";
   messagesDefaultRequestFee: number;
@@ -139,6 +159,18 @@ export type SlurpSettings = {
   messagesRecentPostAwayMaxMinutes: number;
   messagesStalePostAwayMinMinutes: number;
   messagesStalePostAwayMaxMinutes: number;
+  /** Minutes between two pictures you draw into one chat; 0 = no wait. */
+  messagesViewerImageCooldownMinutes: number;
+  /** Minutes a Creator stays away after they have had enough; 0 = they do not step away. */
+  messagesCoolOffMinutes: number;
+  /** Minutes a fan thinks over a quote before answering it; 0 = the next world tick. */
+  messagesQuoteAnswerMinutes: number;
+  /** The player's own first lines for fan DMs; empty = the built-in ones. */
+  messagesFanOpeners: string[];
+  /** The player's own first words for commission requests; empty = the built-in ones. */
+  messagesCommissionOpeners: string[];
+  /** Creator replies to comments in any 24 hours (1–200). */
+  creatorRepliesPerDay: number;
   autopurgeEnabled: boolean;
   autopurgeRetentionValue: number;
   autopurgeRetentionUnit: "days" | "weeks" | "months";
@@ -150,6 +182,14 @@ export type SlurpSettings = {
   simulationTuning: SlurpSimulationTuning;
   /** When model-written audience text may run and how many calls it may spend. */
   modelBudget: SlurpModelBudget;
+  /** Settings › Stir: the Slurp Support desk. */
+  supportDesk: SlpSupportDeskSettings;
+  /** Settings › Stir: a couple may grow to four people. */
+  polyamory: boolean;
+  /** Settings › Overview › Pause all: no AI calls, no ticks, nothing, until switched back on. */
+  paused: boolean;
+  /** Backstage › Drama: level, the situations and dramas switched on, situation dials. */
+  drama: SlpDramaSettings;
   onboarding: "not_started" | "in_progress" | "completed";
 };
 export type SlurpSettingsUpdate = Partial<SlurpSettings>;

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { logger } from "../../../lib/logger.js";
 import { runCreatorFanActivity, type SlpCreatorFanRunResult } from "./slp-fan-activity-operation.js";
 import { slurpPollBackoffMs } from "../../base/model/slp-poll-backoff.js";
+import { slurpPausedNow } from "../../data/settings/slp-pause-storage.js";
 
 const INITIAL_DELAY_MS = 45_000;
 const POLL_MS = 60_000;
@@ -20,6 +21,9 @@ export function startCreatorFanActivityScheduler(
     timer.unref?.();
   };
   const poll = async () => {
+    if (stopped || active) return;
+    // "Pause all": no audience at all while Slurp is paused.
+    if (await slurpPausedNow(app.db)) return schedule(POLL_MS);
     if (stopped || active) return;
     active = runCreatorFanActivity({
       db: app.db,

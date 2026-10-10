@@ -9,6 +9,7 @@ import {
   type SlpCreatorViewerSignalResponse,
 } from "../../modules/requests/slp-request-schemas.js";
 import type { SlpRouteDeps } from "../viewer/slp-viewer-contract.js";
+import { slurpCollabPostIdsForCreator } from "../projects/slp-projects-contract.js";
 
 const slpCreatorViewerFeedQuerySchema = slpCreatorViewerPersonaSchema
   .extend({
@@ -187,15 +188,18 @@ export async function slpFeedViewerRoutes(app: FastifyInstance, deps: SlpRouteDe
     const viewerOwnsCreator = Boolean(
       context && creatorBelongsToViewer(context.accountById.get(id) ?? null, context.viewer),
     );
+    const pageReadable = !context || viewerOwnsCreator || context.subscribedIds.has(id);
+    // Joint collab posts by a partner show here too; this page's subscribers can read them.
+    const collabPostIds = await slurpCollabPostIdsForCreator(app.db, id).catch(() => []);
+    const readContext =
+      context && pageReadable && collabPostIds.length
+        ? { ...context, unlockedIds: new Set([...context.unlockedIds, ...collabPostIds]) }
+        : context;
     const page = await noodle.listNoodlerPostPage({
       accountIds: [id],
-      readableContentAccountIds:
-        !context ||
-        creatorBelongsToViewer(context.accountById.get(id) ?? null, context.viewer) ||
-        context.subscribedIds.has(id)
-          ? [id]
-          : [],
-      unlockedPostIds: context ? [...context.unlockedIds] : [],
+      extraPostIds: collabPostIds,
+      readableContentAccountIds: pageReadable ? [id] : [],
+      unlockedPostIds: readContext ? [...readContext.unlockedIds] : pageReadable ? collabPostIds : [],
       mediaOnly: parsed.data.filter === "media",
       cursor:
         parsed.data.cursorAt && parsed.data.cursorId
@@ -203,7 +207,7 @@ export async function slpFeedViewerRoutes(app: FastifyInstance, deps: SlpRouteDe
           : null,
       limit: parsed.data.limit,
     });
-    const projected = context ? await projectViewerPosts(context, page.items) : null;
+    const projected = readContext ? await projectViewerPosts(readContext, page.items) : null;
     return {
       items:
         context && !viewerOwnsCreator
@@ -211,10 +215,12 @@ export async function slpFeedViewerRoutes(app: FastifyInstance, deps: SlpRouteDe
               const viewerPost = projected!.get(post.id);
               return viewerPost ? [{ viewerPost }] : [];
             })
-          : page.items.map((managed) => ({
-              managed,
-              viewerPost: projected?.get(managed.id) ?? null,
-            })),
+          : page.items.flatMap((managed) =>
+              // A partner's post on the player's own page is shown, never managed from here.
+              managed.authorAccountId !== id && projected
+                ? [{ viewerPost: projected.get(managed.id) ?? null }].filter((item) => item.viewerPost)
+                : [{ managed, viewerPost: projected?.get(managed.id) ?? null }],
+            ),
       total: page.total,
       nextCursor: page.nextCursor,
     };

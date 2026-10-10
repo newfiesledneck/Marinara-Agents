@@ -1,15 +1,23 @@
 import { slpDeepDetailsRoutes } from "./features/feed/slp-deep-details-routes.js";
+import { slpCanonAnchorRoutes } from "./features/feed/slp-canon-anchor-routes.js";
+import type { SceneOriginProvider } from "@marinara-engine/shared";
+import { createSlpSceneOriginProvider } from "./features/messages/scenes/slp-roleplay-scene-origin.js";
+import { setSlpScenesAvailable } from "./base/host/slp-scene-host.js";
 import type { FastifyInstance, FastifyPluginAsync, InjectOptions } from "fastify";
 import { createSlpRouteHost } from "./features/viewer/slp-route-host.js";
 import { createSlpViewerContext } from "./features/viewer/slp-viewer-context.js";
 import { slpMediaRoutes } from "./features/media/slp-media-routes.js";
 import { slpSettingsRoutes } from "./features/settings/slp-settings-routes.js";
 import { slpAdsRoutes } from "./features/ads/slp-ads-routes.js";
+import { slpBrandsRoutes } from "./features/ads/slp-brands-routes.js";
 import { slpAudienceRoutes } from "./features/audience/slp-audience-routes.js";
 import { slpImprovementRoutes } from "./features/creators/improvement/slp-improvement-routes.js";
 import { slpCreatorsRoutes } from "./features/creators/slp-creators-routes.js";
+import { slpSteeringRoutes } from "./features/creators/slp-steering-routes.js";
+import { slpSpiceRoutes } from "./features/creators/slp-spice-routes.js";
 import { slpDiscoveryRoutes } from "./features/discovery/slp-discovery-routes.js";
 import { slpStudioRoutes } from "./features/economy/slp-studio-routes.js";
+import { slpCreatorTiesRoutes } from "./features/projects/slp-creator-ties-routes.js";
 import { slpWalletRoutes } from "./features/economy/slp-wallet-routes.js";
 import { slpFeedPostRoutes } from "./features/feed/slp-feed-post-routes.js";
 import { slpFeedPublishingRoutes } from "./features/feed/slp-feed-publishing-routes.js";
@@ -20,6 +28,11 @@ import { slpMessagesRoutes } from "./features/messages/slp-messages-routes.js";
 import { slpNotificationsRoutes } from "./features/notifications/slp-notifications-routes.js";
 import { slpOnboardingRoutes } from "./features/onboarding/slp-onboarding-routes.js";
 import { slpProjectsRoutes } from "./features/projects/slp-projects-routes.js";
+import { slpAssistRoutes } from "./features/assist/slp-assist-routes.js";
+import { slpStirRoutes } from "./features/assist/slp-stir-routes.js";
+import { slpActionService } from "./features/assist/slp-action-runner.js";
+import { slpActionServiceKeys } from "../../../shared/src/slp/slp-actions.js";
+import { logger } from "../lib/logger.js";
 import { slpCatchUpWorldOnOpen } from "./workflows/slp-world-tick-workflow.js";
 import { startSlpAutoPostScheduler } from "./features/feed/slp-autopost-scheduler-service.js";
 import { startCreatorFanActivityScheduler } from "./features/audience/slp-fan-activity-scheduler-service.js";
@@ -29,8 +42,10 @@ import { startSlurpFollowUpScheduler } from "./features/messages/slp-follow-up-s
 import { startSlurpPaymentRecoveryScheduler } from "./features/economy/slp-payment-recovery-scheduler-service.js";
 import { startSlurpWorldScheduler } from "./features/world/slp-world-scheduler-service.js";
 import { slpStoryRoutes } from "./features/world/slp-story-routes.js";
+import { slpDramaRoutes } from "./features/world/slp-drama-routes.js";
 import { createSlurpActivationLifecycle } from "./base/locking/slp-activation-lifecycle.js";
 import { createSlurpMessagesStorage } from "./data/slp-storage.js";
+import { migrateSlurpSupportThreads } from "./data/messages/slp-support-migration.js";
 import { createSlurpStorage } from "./data/slp-storage.js";
 import { createSlurpPopulationStorage } from "./data/audience/slp-audience-storage-funnel.js";
 import * as slurpSchema from "../db/schema/slurp.js";
@@ -60,28 +75,39 @@ export async function mountSlpRoutes(app: FastifyInstance) {
   await slpMaintenanceRoutes(app, deps);
   await slpProjectsRoutes(app, deps);
   await slpStoryRoutes(app, deps);
+  await slpDramaRoutes(app, deps);
   await slpDiscoveryRoutes(app, deps);
   await slpCreatorsRoutes(app, deps);
+  await slpSteeringRoutes(app, deps);
+  await slpSpiceRoutes(app);
   await slpImprovementRoutes(app, deps);
   await slpBackupRoutes(app, deps);
   await slpWalletRoutes(app, deps);
   await slpMediaRoutes(app, deps);
   await slpNotificationsRoutes(app, deps, slpCatchUpWorldOnOpen);
   await slpStudioRoutes(app, deps);
+  await slpCreatorTiesRoutes(app, deps);
   await slpFeedViewerRoutes(app, deps);
   await slpAdsRoutes(app, deps);
+  await slpBrandsRoutes(app, deps);
   await slpFeedPostRoutes(app, deps);
   await slpDeepDetailsRoutes(app, deps);
+  await slpCanonAnchorRoutes(app, deps);
   await slpOnboardingRoutes(app, deps);
   await slpFeedPublishingRoutes(app, deps);
+  await slpAssistRoutes(app);
+  await slpStirRoutes(app, deps);
   await slpMessagesRoutes(app, noodle, messages);
 }
 
 export async function activate({
   app,
   api,
+  package: installed,
 }: {
   app: FastifyInstance;
+  /** The installed package; its manifest's permissions say whether Professor Mari may act (J2). */
+  package?: { manifest?: { permissions?: readonly string[] } };
   api: {
     registerService<T>(key: string, service: T): () => void | Promise<void>;
     registerPromptContext?(
@@ -92,6 +118,8 @@ export async function activate({
       options: { prefix: string },
     ): Promise<() => void | Promise<void>>;
     runInternalRoute?: (options: InjectOptions | string) => ReturnType<FastifyInstance["inject"]>;
+    /** Capability API 1.66 with the `scenes` permission: DM threads become scene origins. */
+    registerSceneOrigin?(provider: SceneOriginProvider): () => void | Promise<void>;
     runtime?: { integrations?: CapabilityIntegrationHost };
   };
 }) {
@@ -126,6 +154,9 @@ export async function activate({
     const population = createSlurpPopulationStorage(app.db);
     const messagesStorage = createSlurpMessagesStorage(app.db);
     await messagesStorage.recoverPendingPayments();
+    // Slurp Support has one thread per Creator; older data (and restored backups) kept its lines in
+    // persona chats. Idempotent, so it runs on every start.
+    await migrateSlurpSupportThreads(app.db);
     // Capability routes are registered through the host's revocable privileged route slots.
     // Noodle's existing plugin creates storage adapters while it registers, so expose only the
     // host database on the otherwise constrained collector.
@@ -138,6 +169,24 @@ export async function activate({
         pause: async <T>(run: () => Promise<T>) => run(),
       }),
     );
+    // The action layer as an in-process service (docs/architecture/README.md "Action layer"). On an
+    // Engine with Capability API 1.50 and the `mari-actions` permission, Professor Mari lists and runs
+    // the same actions through `mari-actions:slurp2`; older Engines only get `slurp2:actions`.
+    const actions = slpActionService(app.db);
+    for (const key of slpActionServiceKeys(installed?.manifest?.permissions)) {
+      try {
+        addTeardown(api.registerService(key, actions));
+      } catch (error) {
+        logger.warn(error, `[slurp2] Could not offer Slurp actions as ${key}; the app works without it`);
+      }
+    }
+    // Roleplay scenes from DM threads (docs/SCENES.md). The builder adds `scenes` once Slurp declares
+    // Capability API 1.66; without it the Start a scene action stays hidden and nothing registers.
+    if (api.registerSceneOrigin && installed?.manifest?.permissions?.includes("scenes")) {
+      addTeardown(api.registerSceneOrigin(createSlpSceneOriginProvider(app.db)));
+      setSlpScenesAvailable(true);
+      addTeardown(() => setSlpScenesAvailable(false));
+    }
     // Slurp activity in ordinary chats. Each chat opts in, so registering costs nothing until then.
     if (api.registerPromptContext) {
       addTeardown(api.registerPromptContext((request) => buildSlurpChatContext(app.db, request)));

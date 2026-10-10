@@ -1,12 +1,11 @@
-import { useStartStoryEvent } from "./slp-story-hooks";
-import { toast } from "sonner";
+import { useSlpStoryTimeline } from "./slp-story-hooks";
 import { CalendarDays, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   SLURP_PLATFORM_EVENT_GUIDANCE_MAX,
-  slurpActivePlatformEvents,
+  slurpRunningPlatformEventIds,
   slurpPlatformEventSchema,
   slurpPlatformEventsDefault,
   type SlurpPlatformEvent,
@@ -26,15 +25,31 @@ const dateValue = (item: SlurpPlatformEvent) =>
   item.activation.kind === "annual" ? `2000-${pad(item.activation.month)}-${pad(item.activation.day)}` : "2000-01-01";
 const eventOrder = (item: SlurpPlatformEvent) =>
   item.activation.kind === "annual" ? item.activation.month * 100 + item.activation.day : 20_000;
-const eventWhen = (item: SlurpPlatformEvent) => {
+/** "Jan 1 · 1 day" in the reader's language. The year is a placeholder: annual events recur. */
+const eventWhen = (item: SlurpPlatformEvent, t: ReturnType<typeof useTranslation>["t"], language?: string) => {
   const rule = item.activation;
-  if (rule.kind === "annual") return `${pad(rule.month)}/${pad(rule.day)} · ${rule.durationDays} days`;
-  if (rule.kind === "window") return `${rule.startsAt.slice(0, 10)} – ${rule.endsAt.slice(0, 10)}`;
-  if (rule.kind === "manual") return `Manual · ${rule.durationDays} days`;
-  if (rule.kind === "creator-milestone") return `${rule.metric} reaches ${rule.threshold.toLocaleString()}`;
-  if (rule.kind === "notable-post") return `A post reaches ${rule.reach.toLocaleString()}`;
-  if (rule.kind === "arc-lifecycle") return `Tagged arc ${rule.phase}`;
-  return `${rule.chancePercent}% ${rule.period} chance`;
+  if (rule.kind === "annual")
+    return t("ui.slurp.settings.events.whenAnnual", {
+      date: new Intl.DateTimeFormat(language, { month: "short", day: "numeric", timeZone: "UTC" }).format(
+        Date.UTC(2000, rule.month - 1, rule.day),
+      ),
+      count: rule.durationDays,
+    });
+  if (rule.kind === "window")
+    return t("ui.slurp.settings.events.whenWindow", {
+      start: rule.startsAt.slice(0, 10),
+      end: rule.endsAt.slice(0, 10),
+    });
+  if (rule.kind === "manual") return t("ui.slurp.settings.events.whenManual", { count: rule.durationDays });
+  if (rule.kind === "creator-milestone")
+    return t("ui.slurp.settings.events.whenMilestone", {
+      metric: rule.metric,
+      threshold: rule.threshold.toLocaleString(language),
+    });
+  if (rule.kind === "notable-post")
+    return t("ui.slurp.settings.events.whenNotablePost", { reach: rule.reach.toLocaleString(language) });
+  if (rule.kind === "arc-lifecycle") return t("ui.slurp.settings.events.whenArc", { phase: rule.phase });
+  return t("ui.slurp.settings.events.whenChance", { percent: rule.chancePercent, period: rule.period });
 };
 
 /** Holidays and site-wide events. Click a row to edit it in place. */
@@ -42,16 +57,19 @@ export function SlurpPlatformEventsSettings({
   events,
   saving,
   onSave,
+  onStartInStir,
 }: {
   events: SlurpPlatformEvent[];
   saving: boolean;
   onSave: (events: SlurpPlatformEvent[]) => Promise<boolean>;
+  /** W: "Start now" left Settings; this opens the Stir tab, where the event card starts it. */
+  onStartInStir?: () => void;
 }) {
-  const startEvent = useStartStoryEvent();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SlurpPlatformEvent | null>(null);
-  const activeIds = new Set(slurpActivePlatformEvents(events, new Date()).map((item) => item.id));
+  const timeline = useSlpStoryTimeline();
+  const activeIds = slurpRunningPlatformEventIds(events, timeline.data?.occurrences ?? [], new Date());
   const sorted = [...events].sort((a, b) => eventOrder(a) - eventOrder(b) || a.name.localeCompare(b.name));
   const valid = draft ? slurpPlatformEventSchema.safeParse(draft).success : false;
 
@@ -138,10 +156,10 @@ export function SlurpPlatformEventsSettings({
             }
             className={fieldClass}
           >
-            <option value="inherit">Use World setting</option>
-            <option value="manual">Manual only</option>
-            <option value="suggest">Suggest</option>
-            <option value="auto">Start automatically</option>
+            <option value="inherit">{t("ui.slurp.settings.events.automationInherit")}</option>
+            <option value="manual">{t("ui.slurp.settings.events.automationManual")}</option>
+            <option value="suggest">{t("ui.slurp.settings.events.automationSuggest")}</option>
+            <option value="auto">{t("ui.slurp.settings.events.automationAuto")}</option>
           </select>
         </label>
       </div>
@@ -165,17 +183,17 @@ export function SlurpPlatformEventsSettings({
             }}
             className={fieldClass}
           >
-            <option value="annual">Annual date</option>
-            <option value="manual">Manual campaign</option>
+            <option value="annual">{t("ui.slurp.settings.events.activation.annual")}</option>
+            <option value="manual">{t("ui.slurp.settings.events.activation.manual")}</option>
             {!(["annual", "manual"] as string[]).includes(draft.activation.kind) && (
-              <option value={draft.activation.kind}>Existing advanced trigger</option>
+              <option value={draft.activation.kind}>{t("ui.slurp.settings.events.activation.advanced")}</option>
             )}
           </select>
         </label>
         {draft.activation.kind === "annual" && (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-semibold">
-              {t("ui.slurp.settings.events.start", { defaultValue: "Starts every year" })}
+              {t("ui.slurp.settings.events.startsEveryYear", { defaultValue: "Starts every year" })}
               <input
                 type="date"
                 value={dateValue(draft)}
@@ -238,17 +256,16 @@ export function SlurpPlatformEventsSettings({
             }
             className={fieldClass}
           >
-            <option value="all">All current Creators</option>
-            <option value="random">A deterministic random subset</option>
+            <option value="all">{t("ui.slurp.settings.events.targetAll")}</option>
+            <option value="random">{t("ui.slurp.settings.events.targetRandom")}</option>
             {!(["all", "random"] as string[]).includes(draft.target.kind) && (
-              <option value={draft.target.kind}>Existing filtered target</option>
+              <option value={draft.target.kind}>{t("ui.slurp.settings.events.targetAdvanced")}</option>
             )}
           </select>
         </label>
         {draft.target.kind === "random" && (
           <p className="text-xs text-[var(--slurp-muted)]">
-            This event will choose {draft.target.min}–{draft.target.max} matching Creators once, then keep that
-            participant list.
+            {t("ui.slurp.settings.events.targetRandomDetail", { min: draft.target.min, max: draft.target.max })}
           </p>
         )}
       </fieldset>
@@ -316,12 +333,12 @@ export function SlurpPlatformEventsSettings({
           {t("ui.slurp.settings.events.empty", { defaultValue: "No events. Add one or restore the defaults." })}
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-[var(--slurp-outline)] overflow-hidden rounded-xl bg-[var(--slurp-surface-raised)] ring-1 ring-inset ring-[var(--slurp-outline)]">
           {sorted.map((item) => {
             const expanded = selectedId === item.id;
             return (
-              <li key={item.id} className="space-y-2">
-                <div className="flex items-center gap-2 rounded-xl bg-[var(--slurp-surface-raised)] px-3 py-2 ring-1 ring-inset ring-[var(--slurp-outline)]">
+              <li key={item.id} className="space-y-2 px-3 py-1.5 sm:px-4">
+                <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={item.enabled}
@@ -340,36 +357,31 @@ export function SlurpPlatformEventsSettings({
                     onClick={() => open(item)}
                     className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
                   >
-                    <CalendarDays size={16} aria-hidden="true" className="shrink-0 text-[var(--noodle-accent)]" />
+                    <CalendarDays
+                      size={16}
+                      aria-hidden="true"
+                      className="shrink-0 text-[var(--noodle-accent-foreground)]"
+                    />
                     <span className={cn("min-w-0 flex-1 truncate text-sm font-bold", !item.enabled && "opacity-60")}>
                       {item.name}
                     </span>
                     {activeIds.has(item.id) && (
-                      <span className="rounded-full bg-[var(--noodle-accent)]/15 px-2 py-0.5 text-xs font-bold text-[var(--noodle-accent)]">
+                      <span className="rounded-full bg-[var(--noodle-accent)]/15 px-2 py-0.5 text-xs font-bold text-[var(--noodle-accent-foreground)]">
                         {t("ui.slurp.settings.events.active", { defaultValue: "Running now" })}
                       </span>
                     )}
-                    <span className="shrink-0 text-xs tabular-nums text-[var(--slurp-muted)]">{eventWhen(item)}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-[var(--slurp-muted)]">
+                      {eventWhen(item, t, i18n.language)}
+                    </span>
                   </button>
-                  {item.activation.kind === "manual" && item.enabled && (
+                  {/* W: starting an event is a story lever, so it lives in Stir (World); the rules stay here. */}
+                  {item.activation.kind === "manual" && item.enabled && onStartInStir && (
                     <button
                       type="button"
-                      disabled={startEvent.isPending}
-                      onClick={() =>
-                        startEvent.mutate(item.id, {
-                          onSuccess: () =>
-                            toast.success(
-                              t("ui.slurp.settings.events.started", {
-                                defaultValue: "{{name}} started.",
-                                name: item.name,
-                              }),
-                            ),
-                          onError: (error) => toast.error(error instanceof Error ? error.message : String(error)),
-                        })
-                      }
-                      className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold ring-1 ring-inset ring-[var(--slurp-outline)] hover:bg-[var(--slurp-canvas)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] disabled:opacity-50"
+                      onClick={onStartInStir}
+                      className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold text-[var(--slurp-ink)] ring-1 ring-inset ring-[var(--slurp-outline)] hover:bg-[var(--slurp-canvas)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
                     >
-                      {t("ui.slurp.settings.events.start", { defaultValue: "Start now" })}
+                      {t("ui.slurp.stir.startInStir")}
                     </button>
                   )}
                 </div>
