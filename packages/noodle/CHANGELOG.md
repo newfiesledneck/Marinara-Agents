@@ -1,5 +1,9 @@
 # Noodle release notes
 
+## 1.5.4 — 2026-10-11
+
+- The switch that adds a character's image instructions to their Noodle images is now in Noodle. Open the character's Noodle profile, choose Edit profile and find it under the profile fields. Edit image instructions opens the character's Convo tab, where you write the instructions. Your current choice carries over. The link needs Marinara Engine with capability API 1.67; on an older Engine, the switch works without the link.
+
 ## 1.5.3 — 2026-10-09 [highlight]
 
 - Interpret image prompts now works without an Agents default connection. When none is set under Settings → Connections → Defaults, Noodle's own text connection rewrites the image prompt. Before, the rewrite was skipped, so your image connection's Image Prompting Instructions had no effect and the style profile's Style text was pasted into the prompt.

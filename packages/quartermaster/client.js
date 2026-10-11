@@ -1,4 +1,4 @@
-// Quartermaster 0.1.24 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.25 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (10 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
@@ -243,7 +243,8 @@ QM.itemImageUrl = (chatId, ownerId, itemId) =>
 // just once — don't keep re-requesting (and re-404ing/re-logging) a URL
 // already known to fail. Session-lifetime only, not persisted: a page
 // reload re-checks everything once, which is fine. Cleared for a specific
-// item by uploadItemImage/deleteItemImage below; a rename that happens to
+// item by uploadItemImage/deleteItemImage below, and entirely by Refresh
+// Images or an Admin Secret change (qmSyncImageSecret); a rename that happens to
 // newly match a pack image is the one case this can go stale on, until the
 // next reload — rare enough not to warrant duplicating the server's
 // name-matching logic here just to key this more precisely.
@@ -275,34 +276,101 @@ QM.outfitPortraitUrl = (chatId, ownerId, outfitId) =>
   `/api/quartermaster/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/outfits/${encodeURIComponent(outfitId)}/portrait`;
 
 // An <img src> can't send X-Admin-Secret, so with a secret saved on this device
-// our own (gated) image URLs load through fetch and a short-lived object URL.
-// fetch shares the browser's HTTP cache with a plain src, so caching behaves the
-// same either way. A failed load fires the img's "error" event, which is what
-// every caller already relies on for "no image". Images are reused across
-// repaints (the portrait), so a response that arrives after the element was
-// pointed somewhere else is dropped.
+// our own (gated) image URLs load through fetch into a session cache of object
+// URLs, shared by every element showing that image: the dock rebuilds its lists
+// on every repaint, so loading per element would refetch everything each time.
+// Without a saved secret nothing changes: a plain src, as before.
+//
+// Entry status: "loading", "ok", "missing" (a confirmed 404, like
+// _missingItemImageIds) or "failed" (refused secret, server or network error).
+// Both failures stay cached so repaints don't refetch them; reopening the dock
+// retries "failed" ones, and Refresh Images or a secret change retries all.
+// The cache is our only cache (no-store), so a cleared entry never comes back
+// from the browser's HTTP cache, where portraits are marked immutable.
+const qmImageCache = new Map();
+// img -> the cache entry it last asked for, so only its latest request applies.
 const qmImageTargets = new WeakMap();
+let qmImageCacheSecret = null;
+
+// ponytail: a retired object URL is revoked after a delay instead of tracking
+// every element using it. An image already on screen keeps its decoded
+// picture; the delay covers one that was still loading it.
+function qmRetireImage(entry) {
+  const objectUrl = entry.objectUrl;
+  if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+}
+
+QM.forgetImage = (url) => {
+  const entry = qmImageCache.get(url);
+  if (!entry) return;
+  qmImageCache.delete(url);
+  qmRetireImage(entry);
+};
+
+QM.clearImageCache = () => {
+  for (const entry of qmImageCache.values()) qmRetireImage(entry);
+  qmImageCache.clear();
+};
+
+// A new or removed secret can fix (or cause) refused requests, so everything,
+// including items remembered as having no image, gets a fresh try.
+function qmSyncImageSecret(secret) {
+  if (qmImageCacheSecret === null) qmImageCacheSecret = secret;
+  if (secret === qmImageCacheSecret) return;
+  qmImageCacheSecret = secret;
+  QM.clearImageCache();
+  QM._missingItemImageIds.clear();
+}
+
+QM.retryFailedImages = () => {
+  qmSyncImageSecret(qmAdminSecret());
+  for (const [url, entry] of qmImageCache) {
+    if (entry.status === "failed") qmImageCache.delete(url);
+  }
+};
+
+function qmLoadImage(url) {
+  const entry = { status: "loading", objectUrl: null, ready: null };
+  qmImageCache.set(url, entry);
+  entry.ready = fetch(url, { headers: qmAuthHeaders("GET"), credentials: "same-origin", cache: "no-store" })
+    .then(async (response) => {
+      if (!response.ok) return response.status === 404 ? "missing" : "failed";
+      const blob = await response.blob();
+      // Forgotten while loading: discard without creating an object URL.
+      if (qmImageCache.get(url) !== entry) return "stale";
+      entry.objectUrl = URL.createObjectURL(blob);
+      return "ok";
+    })
+    .catch(() => "failed")
+    .then((status) => {
+      entry.status = status;
+    });
+  return entry;
+}
+
+// A failed load fires the img's "error" event, which every caller already uses
+// for its fallback; event.qmRetryable marks a failure that isn't a real "no image".
 QM.setImageSrc = (img, url) => {
-  qmImageTargets.set(img, url);
-  if (!url.startsWith("/api/quartermaster/") || !qmAdminSecret()) {
+  const secret = qmAdminSecret();
+  qmSyncImageSecret(secret);
+  if (!secret || !url.startsWith("/api/quartermaster/")) {
+    qmImageTargets.delete(img);
     img.src = url;
     return;
   }
-  fetch(url, { headers: qmAuthHeaders("GET"), credentials: "same-origin" })
-    .then((response) => (response.ok ? response.blob() : null))
-    .catch(() => null)
-    .then((blob) => {
-      if (qmImageTargets.get(img) !== url) return;
-      if (!blob) {
-        img.dispatchEvent(new Event("error"));
-        return;
-      }
-      const objectUrl = URL.createObjectURL(blob);
-      const release = () => URL.revokeObjectURL(objectUrl);
-      img.addEventListener("load", release, { once: true });
-      img.addEventListener("error", release, { once: true });
-      img.src = objectUrl;
-    });
+  const entry = qmImageCache.get(url) || qmLoadImage(url);
+  if (qmImageTargets.get(img) === entry) return;
+  qmImageTargets.set(img, entry);
+  entry.ready.then(() => {
+    if (qmImageTargets.get(img) !== entry || qmImageCache.get(url) !== entry) return;
+    if (entry.status === "ok") {
+      img.src = entry.objectUrl;
+      return;
+    }
+    const event = new Event("error");
+    event.qmRetryable = entry.status === "failed";
+    img.dispatchEvent(event);
+  });
 };
 
 QM.exportInventory = (chatId, ownerId) =>
@@ -1005,15 +1073,25 @@ QM.state = {
   deleteItem(itemId) {
     return this._mutate(QM.deleteItem(this.chatId, QM_OWNER_ID, itemId));
   },
+  // Each image change drops that image from QM.setImageSrc's cache once it
+  // succeeds, before _mutate repaints, so the next render fetches the new one.
   uploadItemImage(itemId, imageDataUrl) {
     QM._missingItemImageIds.delete(itemId);
-    return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
+    const chatId = this.chatId;
+    return this._mutate(
+      QM.uploadItemImage(chatId, QM_OWNER_ID, itemId, imageDataUrl).then((result) => {
+        QM.forgetImage(QM.itemImageUrl(chatId, QM_OWNER_ID, itemId));
+        return result;
+      }),
+    );
   },
   deleteItemImage(itemId) {
+    const chatId = this.chatId;
     return this._mutate(
-      QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId).then((result) => {
+      QM.deleteItemImage(chatId, QM_OWNER_ID, itemId).then((result) => {
         // Suppress image lookups only after this delete succeeds.
         QM._missingItemImageIds.add(itemId);
+        QM.forgetImage(QM.itemImageUrl(chatId, QM_OWNER_ID, itemId));
         return result;
       }),
     );
@@ -1063,10 +1141,22 @@ QM.state = {
     return request;
   },
   uploadOutfitPortrait(outfitId, imageDataUrl) {
-    return this._mutate(QM.uploadOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId, imageDataUrl));
+    const chatId = this.chatId;
+    return this._mutate(
+      QM.uploadOutfitPortrait(chatId, QM_OWNER_ID, outfitId, imageDataUrl).then((result) => {
+        QM.forgetImage(QM.outfitPortraitUrl(chatId, QM_OWNER_ID, outfitId));
+        return result;
+      }),
+    );
   },
   deleteOutfitPortrait(outfitId) {
-    return this._mutate(QM.deleteOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId));
+    const chatId = this.chatId;
+    return this._mutate(
+      QM.deleteOutfitPortrait(chatId, QM_OWNER_ID, outfitId).then((result) => {
+        QM.forgetImage(QM.outfitPortraitUrl(chatId, QM_OWNER_ID, outfitId));
+        return result;
+      }),
+    );
   },
   updateAppearanceFeedMode(mode) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { appearanceFeedMode: mode }));
@@ -2010,6 +2100,7 @@ QM.dock = {
 
   openPanel() {
     this.isOpenFlag = true;
+    QM.retryFailedImages();
     this._ensureRoot();
     this.root.classList.remove("qm-dock-collapsed");
     this._syncToggles();
@@ -3131,10 +3222,10 @@ QM.dock = {
   // re-404ing) it on every repaint. That's the right default, but it means
   // a pack image dropped straight into the gallery folder mid-session, or a
   // just-uploaded image that should now show everywhere it's cached as
-  // missing, doesn't appear until something clears that cache. Closing and
-  // reopening the dock would also work (_resetCachedNodes runs on the next
-  // open regardless), but isn't obvious as the fix — this does the same
-  // rebuild on demand, from a control that's actually about images.
+  // missing, doesn't appear until something clears that cache. Reopening the
+  // dock only retries images that failed for another reason (see
+  // QM.retryFailedImages); this clears everything, including the loaded-image
+  // cache QM.setImageSrc keeps when an Admin Secret is saved.
   _buildRefreshImagesRow() {
     const row = document.createElement("div");
     Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px" });
@@ -3150,6 +3241,7 @@ QM.dock = {
     });
     refreshButton.addEventListener("click", () => {
       QM._missingItemImageIds.clear();
+      QM.clearImageCache();
       this._resetCachedNodes();
       this._paint();
     });
@@ -3947,8 +4039,8 @@ QM.dock = {
         objectFit: "cover",
         display: "block",
       });
-      img.addEventListener("error", () => {
-        QM._missingItemImageIds.add(equippedItem.id);
+      img.addEventListener("error", (event) => {
+        if (!event.qmRetryable) QM._missingItemImageIds.add(equippedItem.id);
         img.remove();
         qmCenterFallbackIcon();
       });
@@ -4393,8 +4485,8 @@ QM.dock = {
         img.style.display = "block";
         removeButton.style.display = "block";
       });
-      img.addEventListener("error", () => {
-        QM._missingItemImageIds.add(item.id);
+      img.addEventListener("error", (event) => {
+        if (!event.qmRetryable) QM._missingItemImageIds.add(item.id);
         img.remove();
         applyMissingImageFallback();
       });

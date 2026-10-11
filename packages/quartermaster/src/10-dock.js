@@ -645,6 +645,7 @@ QM.dock = {
 
   openPanel() {
     this.isOpenFlag = true;
+    QM.retryFailedImages();
     this._ensureRoot();
     this.root.classList.remove("qm-dock-collapsed");
     this._syncToggles();
@@ -1766,10 +1767,10 @@ QM.dock = {
   // re-404ing) it on every repaint. That's the right default, but it means
   // a pack image dropped straight into the gallery folder mid-session, or a
   // just-uploaded image that should now show everywhere it's cached as
-  // missing, doesn't appear until something clears that cache. Closing and
-  // reopening the dock would also work (_resetCachedNodes runs on the next
-  // open regardless), but isn't obvious as the fix — this does the same
-  // rebuild on demand, from a control that's actually about images.
+  // missing, doesn't appear until something clears that cache. Reopening the
+  // dock only retries images that failed for another reason (see
+  // QM.retryFailedImages); this clears everything, including the loaded-image
+  // cache QM.setImageSrc keeps when an Admin Secret is saved.
   _buildRefreshImagesRow() {
     const row = document.createElement("div");
     Object.assign(row.style, { display: "flex", alignItems: "center", gap: "10px" });
@@ -1785,6 +1786,7 @@ QM.dock = {
     });
     refreshButton.addEventListener("click", () => {
       QM._missingItemImageIds.clear();
+      QM.clearImageCache();
       this._resetCachedNodes();
       this._paint();
     });
@@ -2582,8 +2584,8 @@ QM.dock = {
         objectFit: "cover",
         display: "block",
       });
-      img.addEventListener("error", () => {
-        QM._missingItemImageIds.add(equippedItem.id);
+      img.addEventListener("error", (event) => {
+        if (!event.qmRetryable) QM._missingItemImageIds.add(equippedItem.id);
         img.remove();
         qmCenterFallbackIcon();
       });
@@ -3028,8 +3030,8 @@ QM.dock = {
         img.style.display = "block";
         removeButton.style.display = "block";
       });
-      img.addEventListener("error", () => {
-        QM._missingItemImageIds.add(item.id);
+      img.addEventListener("error", (event) => {
+        if (!event.qmRetryable) QM._missingItemImageIds.add(item.id);
         img.remove();
         applyMissingImageFallback();
       });

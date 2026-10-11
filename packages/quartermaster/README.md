@@ -205,6 +205,12 @@ overwrite an already-released version's artifact file if you forget to bump `VER
 
 ## Changelog
 
+### 0.1.25
+- With an Admin Secret saved, each image now loads once and is reused, instead of reloading after
+  every change in the dock.
+- An image that failed to load for a reason other than having no image tries again when the dock is
+  reopened, and changing the saved Admin Secret retries every image.
+
 ### 0.1.24
 - Works from other devices and remote access: Quartermaster now sends the Admin Secret saved in
   Settings → Advanced → Admin Access, fixing "Invalid or missing X-Admin-Secret header".

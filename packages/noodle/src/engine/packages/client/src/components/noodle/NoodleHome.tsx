@@ -72,7 +72,13 @@ import { api, ApiError } from "../../lib/api-client";
 import { showConfirmDialog } from "../../lib/app-dialogs";
 import { DEFAULT_NOODLE_SETTINGS, normalizeAvatarCrop, type AvatarCrop } from "@marinara-engine/shared";
 import { cn } from "../../lib/utils";
-import { useActivePersona, useCharacterGroups, useCharacters, usePersonas } from "../../hooks/use-characters";
+import {
+  useActivePersona,
+  useCharacterGroups,
+  useCharacters,
+  usePersonas,
+  useUpdateCharacter,
+} from "../../hooks/use-characters";
 import { useConnections } from "../../hooks/use-connections";
 import { useNoodleCustomEmojiMap } from "../../hooks/use-noodle-custom-emojis";
 import {
@@ -654,6 +660,8 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
   const rerollAmbientProfiles = useRerollAmbientNoodleProfiles();
   const updateAccountFollow = useUpdateNoodleAccountFollow();
   const updateAccountProfile = useUpdateNoodleAccountProfile();
+  const updateCharacter = useUpdateCharacter();
+  const openCharacter = useUIStore((state) => state.openCharacter);
   const patchAccountSettings = usePatchNoodleAccountSettings();
   const inviteCharacter = useInviteNoodleCharacter();
   const inviteCharacters = useInviteNoodleCharacters();
@@ -1845,6 +1853,30 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
                 : false;
   const normalizedProfileHandle = profileHandle.trim().replace(/^@+/, "");
   const isEditingProfile = canEditViewedProfile && profileEditing;
+  const viewedCharacter =
+    viewedProfileAccount?.kind === "character"
+      ? characters.find((character) => character.id === viewedProfileAccount.entityId)
+      : undefined;
+  const viewedCharacterId = typeof viewedCharacter?.id === "string" ? viewedCharacter.id : null;
+  // The card flag lives on the character, so it saves at once instead of with the profile draft.
+  // Slurp reads the same flag as its default.
+  const storedApplyImageInstructions =
+    parseRecord(parseRecord(viewedCharacter?.data).extensions).applyConversationImageInstructionsToNoodle === true;
+  const applyImageInstructions =
+    updateCharacter.isPending && updateCharacter.variables?.id === viewedCharacterId
+      ? parseRecord(updateCharacter.variables?.data?.extensions).applyConversationImageInstructionsToNoodle === true
+      : storedApplyImageInstructions;
+  const setApplyImageInstructions = (value: boolean) => {
+    if (!viewedCharacterId) return;
+    updateCharacter.mutate(
+      {
+        id: viewedCharacterId,
+        data: { extensions: { applyConversationImageInstructionsToNoodle: value } },
+        skipVersionSnapshot: true,
+      },
+      { onError: () => toast.error(localizeUi("ui.noodle.noodlehome.imageInstructionsSaveFailed")) },
+    );
+  };
   const profileDisplayName = canEditViewedProfile
     ? profileName.trim() || viewedProfileAccount?.displayName || "Noodle Account"
     : viewedProfileAccount?.displayName || "Noodle Account";
@@ -5288,6 +5320,33 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
                       onBioChange: setProfileBio,
                       location: profileLocation,
                       onLocationChange: setProfileLocation,
+                      footer: viewedCharacterId ? (
+                        <div className="space-y-1.5 border-t border-[var(--noodle-divider)] pt-3">
+                          <label className="flex items-start gap-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={applyImageInstructions}
+                              disabled={updateCharacter.isPending}
+                              onChange={(event) => setApplyImageInstructions(event.target.checked)}
+                              className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--noodle-accent)]"
+                            />
+                            <span>{localizeUi("ui.noodle.noodlehome.useCharacterImageInstructions")}</span>
+                            <HelpTooltip
+                              wide
+                              text={localizeUi("ui.noodle.noodlehome.useCharacterImageInstructionsHelp")}
+                            />
+                          </label>
+                          {openCharacter && (
+                            <button
+                              type="button"
+                              onClick={() => openCharacter(viewedCharacterId, { tab: "convo" })}
+                              className="ml-5 text-xs font-semibold text-[var(--noodle-accent)] hover:underline"
+                            >
+                              {localizeUi("ui.noodle.noodlehome.editImageInstructions")}
+                            </button>
+                          )}
+                        </div>
+                      ) : undefined,
                     }
                   : undefined
               }

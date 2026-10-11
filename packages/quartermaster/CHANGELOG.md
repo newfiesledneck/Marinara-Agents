@@ -1,5 +1,11 @@
 # Quartermaster changelog
 
+## 0.1.25 — 2026-10-11
+- With an Admin Secret saved, each image now loads once and is reused, instead of reloading after
+  every change in the dock.
+- An image that failed to load for a reason other than having no image tries again when the dock is
+  reopened, and changing the saved Admin Secret retries every image.
+
 ## 0.1.24 — 2026-10-10 [highlight]
 - Works from other devices and remote access: Quartermaster now sends the Admin Secret saved in
   Settings → Advanced → Admin Access, fixing "Invalid or missing X-Admin-Secret header".

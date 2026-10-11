@@ -585,15 +585,25 @@ QM.state = {
   deleteItem(itemId) {
     return this._mutate(QM.deleteItem(this.chatId, QM_OWNER_ID, itemId));
   },
+  // Each image change drops that image from QM.setImageSrc's cache once it
+  // succeeds, before _mutate repaints, so the next render fetches the new one.
   uploadItemImage(itemId, imageDataUrl) {
     QM._missingItemImageIds.delete(itemId);
-    return this._mutate(QM.uploadItemImage(this.chatId, QM_OWNER_ID, itemId, imageDataUrl));
+    const chatId = this.chatId;
+    return this._mutate(
+      QM.uploadItemImage(chatId, QM_OWNER_ID, itemId, imageDataUrl).then((result) => {
+        QM.forgetImage(QM.itemImageUrl(chatId, QM_OWNER_ID, itemId));
+        return result;
+      }),
+    );
   },
   deleteItemImage(itemId) {
+    const chatId = this.chatId;
     return this._mutate(
-      QM.deleteItemImage(this.chatId, QM_OWNER_ID, itemId).then((result) => {
+      QM.deleteItemImage(chatId, QM_OWNER_ID, itemId).then((result) => {
         // Suppress image lookups only after this delete succeeds.
         QM._missingItemImageIds.add(itemId);
+        QM.forgetImage(QM.itemImageUrl(chatId, QM_OWNER_ID, itemId));
         return result;
       }),
     );
@@ -643,10 +653,22 @@ QM.state = {
     return request;
   },
   uploadOutfitPortrait(outfitId, imageDataUrl) {
-    return this._mutate(QM.uploadOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId, imageDataUrl));
+    const chatId = this.chatId;
+    return this._mutate(
+      QM.uploadOutfitPortrait(chatId, QM_OWNER_ID, outfitId, imageDataUrl).then((result) => {
+        QM.forgetImage(QM.outfitPortraitUrl(chatId, QM_OWNER_ID, outfitId));
+        return result;
+      }),
+    );
   },
   deleteOutfitPortrait(outfitId) {
-    return this._mutate(QM.deleteOutfitPortrait(this.chatId, QM_OWNER_ID, outfitId));
+    const chatId = this.chatId;
+    return this._mutate(
+      QM.deleteOutfitPortrait(chatId, QM_OWNER_ID, outfitId).then((result) => {
+        QM.forgetImage(QM.outfitPortraitUrl(chatId, QM_OWNER_ID, outfitId));
+        return result;
+      }),
+    );
   },
   updateAppearanceFeedMode(mode) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { appearanceFeedMode: mode }));

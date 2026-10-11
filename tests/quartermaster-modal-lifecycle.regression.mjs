@@ -37,6 +37,12 @@ const QM = {
   button: element,
   smallInput: element,
   compressImageFile: async () => "data:image/png;base64,fixture",
+  forgottenImages: [],
+  forgetImage(url) {
+    this.forgottenImages.push(url);
+  },
+  itemImageUrl: (_chatId, _ownerId, id) => `item:${id}`,
+  outfitPortraitUrl: (_chatId, _ownerId, id) => `outfit:${id}`,
 };
 const context = vm.createContext({
   QM,
@@ -307,6 +313,7 @@ await test("late inventory reloads cannot replace a mutation, newer reload, or a
 await test("outfit saves use their own result while another mutation changes shared state", async () => {
   for (const succeeds of [false, true]) {
     const uploads = [];
+    QM.forgottenImages.length = 0;
     QM.state.chatId = "chat-a";
     QM.state.outfits = [{ id: "existing" }];
     let settle;
@@ -335,6 +342,7 @@ await test("outfit saves use their own result while another mutation changes sha
     );
     await pending;
     assert.deepEqual(uploads, succeeds ? ["new"] : []);
+    assert.deepEqual(QM.forgottenImages, succeeds ? ["outfit:new"] : [], "drops the cached portrait after its upload");
     assert.equal(save.disabled, false);
     assert.equal(dock.saveOutfitBackdrop === null, succeeds);
     dock._closeSaveOutfitModal();
@@ -343,7 +351,12 @@ await test("outfit saves use their own result while another mutation changes sha
 
 await test("image deletion uses its own result during concurrent mutations", async () => {
   for (const succeeds of [false, true]) {
-    const api = { _missingItemImageIds: new Set() };
+    const forgotten = [];
+    const api = {
+      _missingItemImageIds: new Set(),
+      forgetImage: (url) => forgotten.push(url),
+      itemImageUrl: (_chatId, _ownerId, id) => `item:${id}`,
+    };
     vm.runInContext(stateSource, vm.createContext({ QM: api }));
     api.state.chatId = "chat-a";
     api.deleteItemImage = () => (succeeds ? Promise.resolve({}) : Promise.reject(new Error("Delete failed")));
@@ -352,6 +365,11 @@ await test("image deletion uses its own result during concurrent mutations", asy
       api.state._mutate(succeeds ? Promise.reject(new Error("Other request failed")) : Promise.resolve({})),
     ]);
     assert.equal(api._missingItemImageIds.has("item-a"), succeeds);
+    assert.deepEqual(
+      forgotten,
+      succeeds ? ["item:item-a"] : [],
+      "drops the cached image only after a successful delete",
+    );
   }
 });
 
@@ -468,13 +486,18 @@ await test("detached elements wait for connection before changing shared state o
 
 const apiSource = await readFile(new URL("../packages/quartermaster/src/00-api.js", import.meta.url), "utf8");
 const flush = () => new Promise((resolve) => setImmediate(resolve));
-function loadApi({ secret = null, storageThrows = false, respond = () => ({ ok: true, status: 200, body: {} }) } = {}) {
+const ok = { ok: true, status: 200, body: {} };
+function loadApi({ secret = null, storageThrows = false, respond = () => ok } = {}) {
   const calls = [];
+  const created = [];
+  const revoked = [];
+  const timers = [];
+  const storage = { secret };
   const context = vm.createContext({
     localStorage: {
       getItem(key) {
         if (storageThrows) throw new Error("blocked");
-        return key === "marinara_admin_secret" ? secret : null;
+        return key === "marinara_admin_secret" ? storage.secret : null;
       },
     },
     fetch: (url, init = {}) => {
@@ -486,26 +509,48 @@ function loadApi({ secret = null, storageThrows = false, respond = () => ({ ok: 
         blob: async () => ({ blob: url }),
       }));
     },
-    URL: { createObjectURL: () => `blob:${calls.length}`, revokeObjectURL() {} },
+    URL: {
+      createObjectURL: (blob) => {
+        created.push(blob.blob);
+        return `blob:${created.length}`;
+      },
+      revokeObjectURL: (objectUrl) => revoked.push(objectUrl),
+    },
+    setTimeout: (callback) => timers.push(callback),
     Event,
   });
   vm.runInContext(apiSource, context);
-  return { QM: vm.runInContext("QM", context), calls };
+  const runTimers = () => timers.splice(0).forEach((callback) => callback());
+  return { QM: vm.runInContext("QM", context), calls, created, revoked, storage, runTimers };
 }
 function imageElement() {
   const listeners = {};
   return {
     src: "",
-    errors: 0,
+    errors: [],
     addEventListener(name, handler) {
       (listeners[name] ??= []).push(handler);
     },
     dispatchEvent(event) {
-      if (event.type === "error") this.errors++;
+      if (event.type === "error") this.errors.push(event.qmRetryable);
       for (const handler of listeners[event.type] ?? []) handler(event);
     },
   };
 }
+// Responses held until released, by URL, so tests control their order.
+function heldResponses() {
+  const waiting = [];
+  return {
+    respond: (url) => new Promise((resolve) => waiting.push({ url, resolve })),
+    release(url, result = ok) {
+      const index = waiting.findIndex((entry) => entry.url === url);
+      waiting.splice(index, 1)[0].resolve(result);
+    },
+  };
+}
+const itemUrl = "/api/quartermaster/inventory/chat-a/persona/items/item-a/image";
+const otherUrl = "/api/quartermaster/inventory/chat-a/persona/items/item-b/image";
+const portraitUrl = "/api/quartermaster/inventory/chat-a/persona/outfits/outfit-a/portrait";
 
 await test("package requests send the saved Admin Secret and the CSRF marker", async () => {
   const withSecret = loadApi({ secret: " s3cret " });
@@ -540,13 +585,11 @@ await test("a refused Admin Secret explains how to fix it on this device", async
   );
 });
 
-await test("gated images load with the Admin Secret and report failures through the error event", async () => {
-  const itemUrl = "/api/quartermaster/inventory/chat-a/persona/items/item-a/image";
-
+await test("gated images load with the Admin Secret and say whether a failure is worth retrying", async () => {
   const plain = loadApi();
   const plainImg = imageElement();
   plain.QM.setImageSrc(plainImg, itemUrl);
-  assert.equal(plainImg.src, itemUrl);
+  assert.equal(plainImg.src, itemUrl, "no saved secret: plain src, as before");
   assert.equal(plain.calls.length, 0);
 
   const loaded = loadApi({ secret: "s3cret" });
@@ -554,27 +597,114 @@ await test("gated images load with the Admin Secret and report failures through 
   loaded.QM.setImageSrc(loadedImg, itemUrl);
   await flush();
   assert.equal(loaded.calls[0].init.headers["X-Admin-Secret"], "s3cret");
-  assert.match(loadedImg.src, /^blob:/);
+  assert.equal(loaded.calls[0].init.cache, "no-store");
+  assert.equal(loadedImg.src, "blob:1");
 
-  const missing = loadApi({ secret: "s3cret", respond: () => ({ ok: false, status: 404, body: {} }) });
-  const missingImg = imageElement();
-  missing.QM.setImageSrc(missingImg, itemUrl);
+  const engineImg = imageElement();
+  loaded.QM.setImageSrc(engineImg, "/api/avatars/persona.png");
+  assert.equal(engineImg.src, "/api/avatars/persona.png", "Engine URLs keep a plain src");
+
+  const cases = [
+    [() => ({ ok: false, status: 404, body: {} }), false],
+    [() => ({ ok: false, status: 403, body: {} }), true],
+    [() => ({ ok: false, status: 500, body: {} }), true],
+    [() => Promise.reject(new Error("offline")), true],
+  ];
+  for (const [respond, retryable] of cases) {
+    const failing = loadApi({ secret: "s3cret", respond });
+    const img = imageElement();
+    failing.QM.setImageSrc(img, itemUrl);
+    await flush();
+    assert.equal(img.src, "");
+    assert.deepEqual(img.errors, [retryable]);
+  }
+});
+
+await test("images are fetched once and shared by every element and repaint", async () => {
+  const held = heldResponses();
+  const api = loadApi({ secret: "s3cret", respond: held.respond });
+  const first = imageElement();
+  const second = imageElement();
+  api.QM.setImageSrc(first, itemUrl);
+  api.QM.setImageSrc(second, itemUrl);
+  api.QM.setImageSrc(first, itemUrl);
+  assert.equal(api.calls.length, 1, "concurrent loads across elements share one fetch");
+  held.release(itemUrl);
   await flush();
-  assert.equal(missingImg.src, "");
-  assert.equal(missingImg.errors, 1);
+  assert.equal(first.src, "blob:1");
+  assert.equal(second.src, "blob:1");
+  const rebuilt = imageElement();
+  api.QM.setImageSrc(rebuilt, itemUrl);
+  await flush();
+  assert.equal(rebuilt.src, "blob:1", "a rebuilt row reuses the cached image");
+  assert.equal(api.calls.length, 1);
 
-  let release;
-  const slow = loadApi({
+  const failing = loadApi({ secret: "s3cret", respond: () => ({ ok: false, status: 500, body: {} }) });
+  failing.QM.setImageSrc(imageElement(), itemUrl);
+  await flush();
+  const repainted = imageElement();
+  failing.QM.setImageSrc(repainted, itemUrl);
+  await flush();
+  assert.equal(failing.calls.length, 1, "a failure is not refetched on every repaint");
+  assert.deepEqual(repainted.errors, [true]);
+});
+
+await test("only an element's latest request applies, and forgotten images are never cached", async () => {
+  const held = heldResponses();
+  const api = loadApi({ secret: "s3cret", respond: held.respond });
+  const img = imageElement();
+  api.QM.setImageSrc(img, itemUrl);
+  api.QM.setImageSrc(img, otherUrl);
+  held.release(otherUrl);
+  await flush();
+  assert.equal(img.src, "blob:1");
+  held.release(itemUrl);
+  await flush();
+  assert.equal(img.src, "blob:1", "an old response after a replacement completes is ignored");
+  assert.deepEqual(img.errors, []);
+
+  api.QM.setImageSrc(img, itemUrl);
+  await flush();
+  assert.equal(img.src, "blob:2", "A -> B -> A shows A");
+
+  const portrait = imageElement();
+  api.QM.setImageSrc(portrait, portraitUrl);
+  api.QM.forgetImage(portraitUrl);
+  held.release(portraitUrl);
+  await flush();
+  assert.equal(api.created.length, 2, "a response forgotten while loading creates no object URL");
+  assert.equal(portrait.src, "");
+  assert.deepEqual(portrait.errors, []);
+  api.QM.setImageSrc(portrait, portraitUrl);
+  assert.equal(api.calls.length, 4, "the next render fetches the replacement");
+
+  api.QM.forgetImage(itemUrl);
+  assert.deepEqual(api.revoked, [], "revocation waits for elements still loading the old URL");
+  api.runTimers();
+  assert.deepEqual(api.revoked, ["blob:2"]);
+});
+
+await test("reopening the dock retries real failures, and a new Admin Secret retries everything", async () => {
+  const api = loadApi({
     secret: "s3cret",
-    respond: () => new Promise((resolve) => (release = () => resolve({ ok: true, status: 200, body: {} }))),
+    respond: (url) => (url === itemUrl ? { ok: false, status: 404, body: {} } : { ok: false, status: 500, body: {} }),
   });
-  const reusedImg = imageElement();
-  slow.QM.setImageSrc(reusedImg, itemUrl);
-  slow.QM.setImageSrc(reusedImg, "/api/avatars/persona.png");
-  assert.equal(reusedImg.src, "/api/avatars/persona.png");
-  release();
+  api.QM.setImageSrc(imageElement(), itemUrl);
+  api.QM.setImageSrc(imageElement(), otherUrl);
   await flush();
-  assert.equal(reusedImg.src, "/api/avatars/persona.png");
-  assert.equal(reusedImg.errors, 0);
-  assert.equal(slow.calls.length, 1);
+  api.QM.retryFailedImages();
+  api.QM.setImageSrc(imageElement(), itemUrl);
+  api.QM.setImageSrc(imageElement(), otherUrl);
+  assert.deepEqual(
+    api.calls.slice(2).map((call) => call.url),
+    [otherUrl],
+    "only the non-404 failure is retried on reopen",
+  );
+
+  api.QM._missingItemImageIds.add("item-a");
+  api.storage.secret = "new-secret";
+  api.QM.setImageSrc(imageElement(), itemUrl);
+  assert.equal(api.QM._missingItemImageIds.size, 0, "remembered missing items get a fresh try");
+  assert.equal(api.calls.at(-1).url, itemUrl);
+  assert.equal(api.calls.at(-1).init.headers["X-Admin-Secret"], "new-secret");
 });
