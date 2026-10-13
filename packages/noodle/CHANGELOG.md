@@ -1,5 +1,9 @@
 # Noodle release notes
 
+## 1.5.5 — 2026-10-11
+
+- Each character can now use their own image generation connection for Noodle images. Open the character's Noodle profile, choose Edit profile and pick it under Image connection. The choice saves right away. Use Noodle image connection keeps the connection from Noodle's settings. Noodle still needs an image connection in its settings or a default image connection before it makes images.
+
 ## 1.5.4 — 2026-10-11
 
 - The switch that adds a character's image instructions to their Noodle images is now in Noodle. Open the character's Noodle profile, choose Edit profile and find it under the profile fields. Edit image instructions opens the character's Convo tab, where you write the instructions. Your current choice carries over. The link needs Marinara Engine with capability API 1.67; on an older Engine, the switch works without the link.

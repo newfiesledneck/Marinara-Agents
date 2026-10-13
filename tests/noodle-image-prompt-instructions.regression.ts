@@ -109,6 +109,7 @@ async function postImagePrompt(options: {
   interpret: boolean;
   rewrite?: string | null;
   promptOverride?: { prompt: string };
+  characterConnectionId?: string;
 }) {
   const rewrites: RewriteInput[] = [];
   const warnings: string[] = [];
@@ -119,7 +120,11 @@ async function postImagePrompt(options: {
     data: {
       name: "Dottore",
       personality,
-      extensions: { applyConversationImageInstructionsToNoodle: true, conversationImageInstructions: imageHabits },
+      extensions: {
+        applyConversationImageInstructionsToNoodle: true,
+        conversationImageInstructions: imageHabits,
+        noodleImageConnectionId: options.characterConnectionId,
+      },
     },
   };
   const context = {
@@ -154,7 +159,13 @@ async function postImagePrompt(options: {
     loadImageGenerationUserSettings: async () => ({ styleProfiles: context.styleProfiles }),
     resolveConnectionImageDefaults: () => undefined,
     resolveImageConnectionFallback: async () => null,
-    createConnectionsStorage: () => ({}),
+    createConnectionsStorage: () => ({
+      getWithKey: async (id: string) =>
+        ({
+          "dottore-comfy": { id, provider: "image_generation", model: "", imagePromptInstructions: "Lab photo tags." },
+          "dottore-text": { id, provider: "openai", model: "", imagePromptInstructions: "Not an image connection." },
+        })[id] ?? null,
+    }),
     loadPrompt: async (
       _storage: unknown,
       def: typeof NOODLE_IMAGE_POST,
@@ -317,6 +328,23 @@ async function main() {
   // habits count as guidance it must not copy.
   assert.equal(rewriteInput!.noodleConnectionId, "noodle-writer");
   assert.deepEqual([...(rewriteInput!.extraGuidance ?? [])], [imageHabits]);
+
+  // A character's own image connection (Edit profile) replaces the Noodle one; a connection that is not
+  // an image connection is ignored.
+  const ownConnection = await postImagePrompt({
+    profileId: "danbooru",
+    interpret: true,
+    rewrite: "1boy",
+    characterConnectionId: "dottore-comfy",
+  });
+  assert.equal(ownConnection.rewrites[0]!.instructions, "Lab photo tags.");
+  const wrongProvider = await postImagePrompt({
+    profileId: "danbooru",
+    interpret: true,
+    rewrite: "1boy",
+    characterConnectionId: "dottore-text",
+  });
+  assert.equal(wrongProvider.rewrites[0]!.instructions, connectionInstructions);
 
   // Rewrite failed: the base prompt goes out, and the failure is logged.
   const failed = await postImagePrompt({ profileId: "danbooru", interpret: true, rewrite: null });

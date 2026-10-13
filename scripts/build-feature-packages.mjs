@@ -166,8 +166,11 @@ const conversationCallsOwnedSourcePaths = [
   "packages/client/src/lib/call-mic-segmenter.ts",
   "packages/client/src/lib/call-speech-queue.ts",
   "packages/server/src/routes/conversation-calls.routes.ts",
+  "packages/server/src/services/conversation/call-command.ts",
   "packages/server/src/services/conversation/call-transcription.ts",
   "packages/server/src/services/conversation/call-upload.ts",
+  // Replaces the vendored host shim, which rang nothing when registered as the [call] service.
+  "packages/server/src/services/generation/conversation-call-command-runtime.ts",
 ];
 // Release builds must bundle the current source; runtime reuse is for explicit non-release verification builds.
 const releaseBuild = process.env.MARINARA_RELEASE_BUILD !== "0";
@@ -291,7 +294,7 @@ async function removeOwnedSourceSnapshots(excludedPaths) {
 const features = [
   {
     id: "noodle",
-    version: "1.5.4",
+    version: "1.5.5",
     minEngineVersion: "2.4.6",
     capabilityApi: { major: 1, minor: 35 },
     builtAgainst: { engineVersion: "2.4.6", engineCommit: "2f5c8e314f8583cc274b488cfd309a2bc2a214d3" },
@@ -371,7 +374,7 @@ const features = [
   },
   {
     id: "slurp2",
-    version: "0.3.20",
+    version: "0.3.29",
     minEngineVersion: "2.4.6",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Slurp",
@@ -449,7 +452,7 @@ const features = [
   },
   {
     id: "long-term-memory",
-    version: "1.4.23",
+    version: "1.4.29",
     minEngineVersion: "2.4.1",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Long-Term Memory",
@@ -546,7 +549,7 @@ const features = [
   {
     id: "conversation-calls",
     name: "Calls",
-    version: "1.1.1",
+    version: "1.1.2",
     minEngineVersion: "2.4.1",
     description: "Adds live audio and video calls with Conversation characters.",
     kind: ["agent", "conversation-calls"],

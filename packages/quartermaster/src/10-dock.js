@@ -286,6 +286,11 @@ const QM_ADD_ITEM_FRAME_STYLE = {
 // — a plain fixed cap is simpler and, with the action column gone, no
 // longer trading anything away.
 const QM_DESC_LINE_HEIGHT_PX = 14;
+// Portrait-ring geometry shared by the slot boxes and the clothing-layer
+// width check (_clothingLayersBeside), so the two can't drift apart.
+const QM_OVERLAY_BOX_WIDTH = 92;
+const QM_OVERLAY_LAYER_GAP = 4;
+const QM_OVERLAY_COLUMN_GAP = 8;
 const QM_CARD_DESC_MAX_HEIGHT_PX = QM_DESC_LINE_HEIGHT_PX * 5;
 
 function qmBuildCardCornerDot(corner) {
@@ -534,6 +539,9 @@ QM.dock = {
   portraitFrame: null,
   connectorSvg: null,
   equippedSlotBoxRefs: null,
+  // The clothing-layer layout the current section was built with (see
+  // _clothingLayersBeside); null until the first build.
+  _layersBesideBuilt: null,
   geometry: qmReadWindowGeometry(),
   bodyWidth: QM_WINDOW_DEFAULT_WIDTH,
   uiSize: qmReadUiSize(),
@@ -2220,8 +2228,10 @@ QM.dock = {
     return wrapper;
   },
 
-  // Head/Eyes/Ears/Neck sit in a row above the portrait, Belt/Feet below —
-  // beside it. The remaining 5 pairs (QM_OVERLAY_SLOT_PAIRS) sit in columns
+  // Head/Eyes/Ears/Neck sit in a row above the portrait, Belt/Socks/Feet below,
+  // and the three extras in a row under that. The inner clothing boxes bring
+  // their mid/outer layers along (_withClothingLayers). The remaining 5 pairs
+  // (QM_OVERLAY_SLOT_PAIRS) sit in columns
   // to either side, stretched (alignItems: "stretch" on middleRow) to match
   // whatever the portrait's own real rendered height turns out to be, then
   // spread evenly across that matched height (space-between) — there's no
@@ -2282,16 +2292,30 @@ QM.dock = {
     const middleRow = document.createElement("div");
     Object.assign(middleRow.style, {
       display: "flex",
-      gap: "8px",
+      gap: `${QM_OVERLAY_COLUMN_GAP}px`,
       alignItems: "stretch",
       justifyContent: "center",
       width: "100%",
     });
 
+    // Aligned toward the portrait, so the inner clothing boxes stay in line
+    // with the rest of their column while their layers extend outward.
+    const layersBeside = this._clothingLayersBeside();
+    this._layersBesideBuilt = layersBeside;
     const leftColumn = document.createElement("div");
-    Object.assign(leftColumn.style, { display: "flex", flexDirection: "column", justifyContent: "space-between" });
+    Object.assign(leftColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      alignItems: "flex-end",
+    });
     const rightColumn = document.createElement("div");
-    Object.assign(rightColumn.style, { display: "flex", flexDirection: "column", justifyContent: "space-between" });
+    Object.assign(rightColumn.style, {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+    });
     for (const [leftSlot, rightSlot] of QM_OVERLAY_SLOT_PAIRS) {
       // A pair always shares one group (or neither has one) — see
       // QM_OVERLAY_SLOT_PAIRS's own comment — so checking the left slot
@@ -2301,8 +2325,8 @@ QM.dock = {
       const rightBox = this._buildOverlaySlotBox(rightSlot);
       this.equippedSlotBoxRefs.set(leftSlot, { element: leftBox, side: "left" });
       this.equippedSlotBoxRefs.set(rightSlot, { element: rightBox, side: "right" });
-      leftColumn.appendChild(leftBox);
-      rightColumn.appendChild(rightBox);
+      leftColumn.append(...this._withClothingLayers(leftSlot, leftBox, "left", layersBeside));
+      rightColumn.append(...this._withClothingLayers(rightSlot, rightBox, "right", layersBeside));
     }
 
     middleRow.append(leftColumn, this.portraitWrapper, rightColumn);
@@ -2316,6 +2340,13 @@ QM.dock = {
       bottomRow.appendChild(box);
     }
     wrapper.appendChild(bottomRow);
+
+    // Below the bottom row and not wired to the portrait: a connector line
+    // from here would have to cross the boxes above it.
+    const extrasRow = document.createElement("div");
+    Object.assign(extrasRow.style, { display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" });
+    for (const slot of QM_OVERLAY_EXTRA_SLOTS) extrasRow.appendChild(this._buildOverlaySlotBox(slot));
+    wrapper.appendChild(extrasRow);
 
     // Moved here from the Outfits column header (Save) and the Equipped
     // column header (Unequip All) — both act on the current equip state,
@@ -2340,6 +2371,34 @@ QM.dock = {
     return wrapper;
   },
 
+  // A column entry for one slot: the inner clothing slots bring their
+  // QM_OVERLAY_SLOT_LAYERS with them, beside the inner box and extending away
+  // from the portrait when they fit, otherwise stacked above it, outer first.
+  // Only the inner box is in equippedSlotBoxRefs, so only it gets a connector.
+  _withClothingLayers(slot, box, side, beside) {
+    const layers = QM_OVERLAY_SLOT_LAYERS[slot];
+    if (!layers) return [box];
+    const outerFirst = layers.map((layer) => this._buildOverlaySlotBox(layer)).reverse();
+    if (!beside) return [...outerFirst, box];
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", gap: `${QM_OVERLAY_LAYER_GAP}px` });
+    row.append(...(side === "left" ? [...outerFirst, box] : [box, ...outerFirst.reverse()]));
+    return [row];
+  },
+
+  // Whether three boxes per side plus the portrait fit the equipped column.
+  // The column's width comes from its flex share (minWidth 0), never from this
+  // content, so the answer doesn't depend on which layout is showing, and both
+  // sides are measured in the same (zoomed) space. Nothing measurable (not
+  // laid out yet, or hidden) keeps the last answer.
+  _clothingLayersBeside() {
+    const available = this.equippedContainer?.clientWidth ?? 0;
+    const portrait = this.portraitWrapper?.offsetWidth ?? 0;
+    if (!available || !portrait) return this._layersBesideBuilt ?? false;
+    const side = 3 * QM_OVERLAY_BOX_WIDTH + 2 * QM_OVERLAY_LAYER_GAP;
+    return 2 * side + portrait + 2 * QM_OVERLAY_COLUMN_GAP <= available;
+  },
+
   // Called (via requestAnimationFrame, so real layout exists) after every
   // _buildEquippedSection() attach, after a Thumbnail Size change, and after
   // the portrait image itself finishes loading (the one case that changes
@@ -2347,8 +2406,15 @@ QM.dock = {
   // rebuild). Fully rebuilds the connector SVG's contents every time rather
   // than trying to incrementally patch it — geometry can change for enough
   // different reasons (selection, equip state, resize, image load) that a
-  // full recompute is simpler and cheap enough at this scale (≤16 slots).
+  // full recompute is simpler and cheap enough at this scale (a couple dozen
+  // slots). Also where the clothing-layer layout settles, since it depends on
+  // measured widths: a changed answer rebuilds the section once.
   _updateConnectorLines() {
+    if (this.equippedContainer && this._clothingLayersBeside() !== this._layersBesideBuilt) {
+      this.equippedContainer.replaceChildren(this._buildEquippedSection());
+      requestAnimationFrame(() => this._updateConnectorLines());
+      return;
+    }
     const svg = this.connectorSvg;
     const frame = this.portraitFrame;
     if (!svg || !frame || !svg.isConnected) return;
@@ -2488,7 +2554,7 @@ QM.dock = {
       flexDirection: "column",
       alignItems: "stretch",
       gap: "4px",
-      width: "92px",
+      width: `${QM_OVERLAY_BOX_WIDTH}px`,
       borderRadius: "var(--radius, 4px)",
       cursor: "pointer",
       boxSizing: "border-box",

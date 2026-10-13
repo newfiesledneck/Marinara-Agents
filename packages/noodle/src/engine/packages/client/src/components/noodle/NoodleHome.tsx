@@ -1858,22 +1858,20 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
       ? characters.find((character) => character.id === viewedProfileAccount.entityId)
       : undefined;
   const viewedCharacterId = typeof viewedCharacter?.id === "string" ? viewedCharacter.id : null;
-  // The card flag lives on the character, so it saves at once instead of with the profile draft.
-  // Slurp reads the same flag as its default.
-  const storedApplyImageInstructions =
-    parseRecord(parseRecord(viewedCharacter?.data).extensions).applyConversationImageInstructionsToNoodle === true;
-  const applyImageInstructions =
-    updateCharacter.isPending && updateCharacter.variables?.id === viewedCharacterId
-      ? parseRecord(updateCharacter.variables?.data?.extensions).applyConversationImageInstructionsToNoodle === true
-      : storedApplyImageInstructions;
-  const setApplyImageInstructions = (value: boolean) => {
+  // Card flags live on the character, so they save at once instead of with the profile draft.
+  // Slurp reads the image-instruction flag as its default.
+  const viewedExtensions = {
+    ...parseRecord(parseRecord(viewedCharacter?.data).extensions),
+    ...(updateCharacter.isPending && updateCharacter.variables?.id === viewedCharacterId
+      ? parseRecord(updateCharacter.variables?.data?.extensions)
+      : {}),
+  };
+  const applyImageInstructions = viewedExtensions.applyConversationImageInstructionsToNoodle === true;
+  const characterImageConnectionId = readString(viewedExtensions.noodleImageConnectionId);
+  const saveViewedCharacterExtensions = (extensions: Record<string, unknown>) => {
     if (!viewedCharacterId) return;
     updateCharacter.mutate(
-      {
-        id: viewedCharacterId,
-        data: { extensions: { applyConversationImageInstructionsToNoodle: value } },
-        skipVersionSnapshot: true,
-      },
+      { id: viewedCharacterId, data: { extensions }, skipVersionSnapshot: true },
       { onError: () => toast.error(localizeUi("ui.noodle.noodlehome.imageInstructionsSaveFailed")) },
     );
   };
@@ -5327,7 +5325,11 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
                               type="checkbox"
                               checked={applyImageInstructions}
                               disabled={updateCharacter.isPending}
-                              onChange={(event) => setApplyImageInstructions(event.target.checked)}
+                              onChange={(event) =>
+                                saveViewedCharacterExtensions({
+                                  applyConversationImageInstructionsToNoodle: event.target.checked,
+                                })
+                              }
                               className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--noodle-accent)]"
                             />
                             <span>{localizeUi("ui.noodle.noodlehome.useCharacterImageInstructions")}</span>
@@ -5345,6 +5347,30 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
                               {localizeUi("ui.noodle.noodlehome.editImageInstructions")}
                             </button>
                           )}
+                          <label className="block space-y-1.5 pt-1.5">
+                            <span className={cn(labelClass, "flex items-center gap-1")}>
+                              {localizeUi("ui.noodle.noodlehome.characterImageConnection")}
+                              <HelpTooltip
+                                wide
+                                text={localizeUi("ui.noodle.noodlehome.characterImageConnectionHelp")}
+                              />
+                            </span>
+                            <select
+                              value={characterImageConnectionId}
+                              disabled={updateCharacter.isPending}
+                              onChange={(event) =>
+                                saveViewedCharacterExtensions({ noodleImageConnectionId: event.target.value || null })
+                              }
+                              className={fieldClass}
+                            >
+                              <option value="">{localizeUi("ui.noodle.noodlehome.useNoodleImageConnection")}</option>
+                              {imageConnections.map((connection) => (
+                                <option key={String(connection.id)} value={String(connection.id)}>
+                                  {String(connection.name ?? connection.model ?? "Image connection")}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
                         </div>
                       ) : undefined,
                     }

@@ -129,7 +129,7 @@ export async function rebuildLongTermMemoryIndexes(
     await markLtmIndexesBuilding(root);
     try {
       clearAutoUpgradeFailure(root, embeddingAdapter ?? null);
-      const notes = await new LongTermMemoryStorage(root).listNotes();
+      const notes = await new LongTermMemoryStorage(root).listNotes({ skipInvalid: true });
       await writeLtmNoteSummary(root, notes);
       const chunks = chunkNotes(notes, { includeSourceNotes: false, stopWords });
       const vectors = await embedLongTermMemoryTexts(
@@ -206,13 +206,15 @@ export async function loadOrRebuildLongTermMemoryIndexes(
     // save must judge freshness against the settings that save just persisted.
     const resolvedStopWords = stopWords ?? ltmGeneratedStopWords(await getLtmGlobalSettings(root));
     signal?.throwIfAborted();
+    let stale = false;
     try {
       const index = parseLtmRecallIndex(JSON.parse(await readFile(path, "utf8")));
-      const notes = await new LongTermMemoryStorage(root).listNotes();
+      const notes = await new LongTermMemoryStorage(root).listNotes({ skipInvalid: true });
       if (
         index.sourceHash !==
         stableJsonHash(chunkNotes(notes, { includeSourceNotes: false, stopWords: resolvedStopWords }))
       ) {
+        stale = true;
         throw new Error("Stale long-term memory recall index.");
       }
       const usableEmbeddings = getUsableEmbeddingState(index, embeddingAdapter);
@@ -227,10 +229,31 @@ export async function loadOrRebuildLongTermMemoryIndexes(
     } catch (error) {
       // Cancellation is not corruption: never quarantine a valid index or rebuild on abort.
       if (isCancellation(error, signal)) throw error;
-      await quarantineLtmIndexArtifact(root, path).catch(() => {});
+      // A stale index parsed fine and the rebuild's atomic write replaces it, so only an
+      // unreadable or malformed one is quarantined; otherwise every edit would park a full copy.
+      if (!stale) await quarantineLtmIndexArtifact(root, path).catch(() => {});
       await rebuildLongTermMemoryIndexes({ root, embeddingAdapter, stopWords: resolvedStopWords, signal });
       if (observation) observation.outcome = "rebuilt";
       return parseLtmRecallIndex(JSON.parse(await readFile(path, "utf8")));
     }
   });
+}
+
+/**
+ * Bring the recall index up to date for the embedding source the host currently resolves.
+ * The Engine calls this from a connection or agent save. A deliberate save is a retry, so it
+ * clears the process-local auto-upgrade guard under the vault lock. Rejecting when the new source
+ * still cannot embed the vault lets the Engine report `failed` instead of a false "refreshed".
+ */
+export async function refreshLongTermMemoryIndexes(root: string, signal?: AbortSignal) {
+  const embeddingAdapter = await resolvePackageEmbeddingAdapter();
+  // Clear the guard while holding the vault lock: an upgrade that failed just before this call
+  // restores the guard on its way out, and clearing first would let it win and skip the retry.
+  const index = await withLtmVaultLock(root, async () => {
+    clearAutoUpgradeFailure(root, embeddingAdapter ?? null);
+    return loadOrRebuildLongTermMemoryIndexes(root, embeddingAdapter ?? null, undefined, signal);
+  });
+  if (embeddingAdapter && index.embeddings.chunks.length > 0 && !getUsableEmbeddingState(index, embeddingAdapter)) {
+    throw new Error("Long-term memory could not embed the vault with the new embedding source");
+  }
 }

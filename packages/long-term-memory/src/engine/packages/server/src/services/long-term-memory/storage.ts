@@ -73,6 +73,11 @@ export type ListLtmNotesOptions = {
   includeGlobal?: boolean;
   offset?: number;
   limit?: number;
+  /**
+   * Skip notes that were read but fail validation instead of throwing; unreadable folders and files
+   * still throw. Only the read-only recall index reads set it.
+   */
+  skipInvalid?: boolean;
 };
 
 function rewriteDraftMutationNoteIds(mutation: unknown, fromId: string, toId: string) {
@@ -161,6 +166,24 @@ async function rewriteRejectedSuggestions(
   return JSON.stringify(before) === JSON.stringify(after) ? null : { path, before, after };
 }
 
+// Rejected suggestions name notes in `source.sourceNoteId` and `candidate.recovery.noteId`.
+function redirectRejectedSuggestionNoteId(fromId: string, toId: string) {
+  return (suggestion: LtmRejectedSuggestion): LtmRejectedSuggestion => {
+    const source =
+      suggestion.source.sourceNoteId === fromId ? { ...suggestion.source, sourceNoteId: toId } : suggestion.source;
+    const recovery = suggestion.candidate.recovery;
+    return source === suggestion.source && recovery?.noteId !== fromId
+      ? suggestion
+      : {
+          ...suggestion,
+          source,
+          ...(recovery?.noteId === fromId
+            ? { candidate: { ...suggestion.candidate, recovery: { ...recovery, noteId: toId } } }
+            : {}),
+        };
+  };
+}
+
 function rewriteSectionContributionSourceIds(note: LtmNote, fromId: string, toId: string) {
   return Object.fromEntries(
     Object.entries(note.sections).map(([key, section]) => [
@@ -237,8 +260,13 @@ export class LongTermMemoryStorage {
       // A typed read only owns one vault folder, so a malformed or misplaced
       // note elsewhere must not fail it. Full reads still surface any failure.
       const wantedFolder = filter.type ? vaultFolderForNoteType(filter.type) : undefined;
-      const failure = scan.errors.find((item) => !wantedFolder || item.folder === wantedFolder);
-      if (failure) throw failure.error;
+      const failures = scan.errors.filter((item) => !wantedFolder || item.folder === wantedFolder);
+      // Only a file that was read but is not a valid note may be skipped; an unreadable folder or
+      // file is not a content problem and still fails the read.
+      const blocking = failures.find((item) => !filter.skipInvalid || !item.invalidNote);
+      if (blocking) throw blocking.error;
+      // Vault health and maintenance report and quarantine the invalid files; recall serves the rest.
+      if (failures.length) logger.debug("[ltm] Recall skipped %d invalid vault file(s)", failures.length);
       const offset = filter.offset ?? 0;
       let matched = 0;
       const notes: LtmNote[] = [];
@@ -284,15 +312,20 @@ export class LongTermMemoryStorage {
       .flat()
       .sort((left, right) => left.name.localeCompare(right.name) || left.folder.localeCompare(right.folder));
     for (const file of files) {
+      let raw: string;
       try {
-        const note = parseStoredLtmNote(
-          JSON.parse(await readFile(safeJoin(dirs.vault, `${file.folder}/${file.name}`), "utf8")),
-        );
+        raw = await readFile(safeJoin(dirs.vault, `${file.folder}/${file.name}`), "utf8");
+      } catch (error) {
+        errors.push({ folder: file.folder, error });
+        continue;
+      }
+      try {
+        const note = parseStoredLtmNote(JSON.parse(raw));
         if (vaultFolderForNoteType(note.type) !== file.folder)
           throw new Error(`Long-term memory note ${note.id} has type ${note.type} but is stored in ${file.folder}.`);
         notes.push(note);
       } catch (error) {
-        errors.push({ folder: file.folder, error });
+        errors.push({ folder: file.folder, error, invalidNote: true });
       }
     }
     return { notes, errors };
@@ -803,9 +836,10 @@ export class LongTermMemoryStorage {
             }),
           });
       }
-      if (noteFiles.length || draftFiles.length)
+      const rejectedFile = await rewriteRejectedSuggestions(this.root, redirectRejectedSuggestionNoteId(from, to));
+      if (noteFiles.length || draftFiles.length || rejectedFile)
         await commitLtmMutation(this.root, {
-          files: [...noteFiles, ...draftFiles],
+          files: [...noteFiles, ...draftFiles, ...(rejectedFile ? [rejectedFile] : [])],
           events: [],
         });
       return {
@@ -897,22 +931,10 @@ export class LongTermMemoryStorage {
             }),
           });
       }
-      const rejectedFile = await rewriteRejectedSuggestions(this.root, (suggestion) => {
-        const source =
-          suggestion.source.sourceNoteId === currentId
-            ? { ...suggestion.source, sourceNoteId: targetId }
-            : suggestion.source;
-        const recovery = suggestion.candidate.recovery;
-        return source === suggestion.source && recovery?.noteId !== currentId
-          ? suggestion
-          : {
-              ...suggestion,
-              source,
-              ...(recovery?.noteId === currentId
-                ? { candidate: { ...suggestion.candidate, recovery: { ...recovery, noteId: targetId } } }
-                : {}),
-            };
-      });
+      const rejectedFile = await rewriteRejectedSuggestions(
+        this.root,
+        redirectRejectedSuggestionNoteId(currentId, targetId),
+      );
       await commitLtmMutation(this.root, {
         files: [
           {

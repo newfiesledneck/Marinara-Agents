@@ -53,6 +53,45 @@ async function pruneEventLog(path: string, cutoff: number) {
 export const longTermMemoryRetentionConfigPath = (root = getLongTermMemoryRoot()) =>
   safeJoin(getLongTermMemoryDirectories(root).config, "retention.json");
 
+const LTM_REPAIR_BACKUP_KINDS = ["identity-repairs", "forks"] as const;
+
+export function getLtmRepairBackupsRoot(
+  kind: (typeof LTM_REPAIR_BACKUP_KINDS)[number],
+  root = getLongTermMemoryRoot(),
+) {
+  return join(dirname(root), "backups", `long-term-memory-${kind}`);
+}
+
+// A repair backup only serves the rollback inside the call that made it, so keep the newest few.
+// `keepPath` is the backup the repair just made: it survives even when modification times tie.
+export async function pruneLtmRepairBackups(directory: string, options: { keepPath?: string; keep?: number } = {}) {
+  const { keepPath, keep = 3 } = options;
+  try {
+    const entries = await readdir(directory, { withFileTypes: true }).catch((error) => {
+      if (isEnoent(error)) return [];
+      throw error;
+    });
+    const backups = await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map(async (entry) => {
+          const path = join(directory, entry.name);
+          return { path, mtimeMs: (await stat(path)).mtimeMs };
+        }),
+    );
+    const newest = (a: (typeof backups)[number], b: (typeof backups)[number]) =>
+      Number(b.path === keepPath) - Number(a.path === keepPath) || b.mtimeMs - a.mtimeMs;
+    for (const backup of backups.sort(newest).slice(keep)) await rm(backup.path, { recursive: true, force: true });
+  } catch (error) {
+    logger.warn(error, "[ltm] Could not prune repair backups in %s", directory);
+  }
+}
+
+export async function removeLtmRepairBackups(root = getLongTermMemoryRoot()) {
+  for (const kind of LTM_REPAIR_BACKUP_KINDS)
+    await rm(getLtmRepairBackupsRoot(kind, root), { recursive: true, force: true });
+}
+
 async function runLongTermMemoryRetentionUnsafe({
   root = getLongTermMemoryRoot(),
   now = new Date(),

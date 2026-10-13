@@ -1,5 +1,13 @@
 # Quartermaster changelog
 
+## 0.1.26 — 2026-10-12 [highlight]
+- Layered clothing: torso and legs each have Inner, Mid and Outer clothing slots, so a shirt,
+  waistcoat and jacket (or tights under shorts) can be worn together. Existing clothing becomes the
+  Inner layer.
+- New Socks slot, plus three Extra Wearable slots for anything no other slot fits.
+- The tracker agent and Build Wardrobe use the new slots. If you customized the tracker prompt,
+  reset it to the default to pick them up.
+
 ## 0.1.25 — 2026-10-11
 - With an Admin Secret saved, each image now loads once and is reused, instead of reloading after
   every change in the dock.

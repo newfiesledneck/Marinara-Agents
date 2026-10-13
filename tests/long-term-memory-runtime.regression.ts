@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { Module } from "node:module";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
@@ -550,11 +550,13 @@ async function main() {
         note("world_tagged", "chat-a", "The brass warding marker is recorded here.", { tags: ["cobalt_tag"] }),
       );
       const embedCalls: string[] = [];
+      const embedInputTypes = new Map<string, string | undefined>();
       const testEmbeddingAdapter = {
         spaceId: "test-space",
         label: "test embeddings",
-        async embed(texts: string[]) {
+        async embed(texts: string[], _signal?: AbortSignal, inputType?: "query" | "document") {
           embedCalls.push(...texts);
+          for (const text of texts) embedInputTypes.set(text, inputType);
           return texts.map((text) =>
             text.includes("beneath the observatory")
               ? [1, 0]
@@ -577,11 +579,13 @@ async function main() {
         embeddings: testEmbeddingAdapter,
       });
       const embeddingBatchCalls: string[][] = [];
+      const embeddingBatchInputTypes: Array<string | undefined> = [];
       const embeddingBatchAdapter = {
         spaceId: "batch-test-space",
         label: "batch test embeddings",
-        async embed(texts: string[]) {
+        async embed(texts: string[], _signal?: AbortSignal, inputType?: "query" | "document") {
           embeddingBatchCalls.push(texts);
+          embeddingBatchInputTypes.push(inputType);
           if (texts.length > 128 || texts.reduce((total, text) => total + text.length, 0) > 200_000) return null;
           return texts.map((text) => [Number(text.match(/^chunk-(\d+)/)?.[1] ?? -1)]);
         },
@@ -602,6 +606,7 @@ async function main() {
         },
       ]) {
         embeddingBatchCalls.length = 0;
+        embeddingBatchInputTypes.length = 0;
         const vectors = await embedLongTermMemoryTexts(scenario.texts, { embeddingAdapter: embeddingBatchAdapter });
         assert.equal(vectors?.length, scenario.expectedLength);
         assert.deepEqual(
@@ -611,8 +616,12 @@ async function main() {
         );
         assert.equal(embeddingBatchCalls.length, 2);
         assert.ok(scenario.batchCheck(embeddingBatchCalls));
+        assert.deepEqual(embeddingBatchInputTypes, ["document", "document"], "every batch must carry the input type");
       }
       await rebuildLongTermMemoryIndexes({ root: storage.root });
+      // #1302: indexed chunks are document embeddings; only the recall query is a query.
+      assert.ok(embedInputTypes.size > 0);
+      assert.deepEqual([...new Set(embedInputTypes.values())], ["document"]);
       const semantic = await retrieveLongTermMemory({
         root: storage.root,
         queryText: "observatory",
@@ -628,6 +637,7 @@ async function main() {
       assert.equal(semantic.embeddingsAvailable, true);
       assert.equal(semantic.chunks[0]?.chunk.noteId, "world_visible");
       assert.equal(embedCalls.includes("observatory"), true);
+      assert.equal(embedInputTypes.get("observatory"), "query", "recall must embed its query as a query");
       await storage.createNote({
         id: "world_vector_only",
         title: "world_vector_only",
@@ -1918,6 +1928,34 @@ async function main() {
           "concurrent stale loaders must recheck freshness under the lock and rebuild once",
         );
 
+        // #1328: an index that is only out of date is replaced by the rebuild; only an
+        // unreadable one is quarantined, so edits do not park a full copy each time.
+        const quarantinedIndexCopies = () =>
+          readdir(join(vaultRoot, "quarantine", "indexes")).then(
+            (names) => names.length,
+            () => 0,
+          );
+        const copiesBeforeStale = await quarantinedIndexCopies();
+        await storage.createNote(note("world_1328_stale", "chat-a", "A cobalt archive stale-index entry."));
+        const staleRebuilt = await loadOrRebuildLongTermMemoryIndexes(vaultRoot, null, []);
+        assert.equal(
+          Object.hasOwn(staleRebuilt.metadata.byNoteId, "world_1328_stale"),
+          true,
+          "a stale index must be rebuilt with the new note",
+        );
+        assert.equal(
+          await quarantinedIndexCopies(),
+          copiesBeforeStale,
+          "a stale but readable index must be replaced, not quarantined",
+        );
+        await writeFile(recallIndexPath, "{");
+        await loadOrRebuildLongTermMemoryIndexes(vaultRoot, null, []);
+        assert.equal(
+          await quarantinedIndexCopies(),
+          copiesBeforeStale + 1,
+          "an unreadable index must still be quarantined",
+        );
+
         // Recall cancellation must reach rebuild embedding work, avoid publishing after
         // abort, and release the vault lock so a queued reader proceeds.
         await storage.createNote(note("world_1178_abort", "chat-a", "A cobalt archive cancellation entry."));
@@ -2129,6 +2167,11 @@ async function main() {
           "function",
           "recordPromptAccepted must remain registered",
         );
+        assert.equal(
+          typeof liveRuntime.refresh,
+          "function",
+          "the runtime service must expose the embedding refresh hook",
+        );
 
         const mutationPath = join(vaultRoot, "vault", "world", "world_1179_mutation.json");
         await storage.createNote(note("world_1179_mutation", "chat-a", "Original observatory text."));
@@ -2238,6 +2281,61 @@ async function main() {
           "recall must not serve a note quarantined by official maintenance",
         );
 
+        // #1328: a note written by a newer version (unknown field) is skipped by recall, which
+        // keeps serving the rest of the vault; full reads and writes still refuse to run over it.
+        // The index is built while the note is still valid, so the downgrade leaves it stale and
+        // recall has to rebuild it over the invalid note, not just load a fresh index.
+        await storage.createNote(note("world_1328_future", "chat-a", "A cobalt archive future-field entry."));
+        await rebuildLongTermMemoryIndexes({ root: vaultRoot, embeddingAdapter: null, stopWords: [] });
+        assert.equal(
+          Object.hasOwn(
+            parseLtmRecallIndex(JSON.parse(await readFile(longTermMemoryRecallIndexPath(vaultRoot), "utf8"))).metadata
+              .byNoteId,
+            "world_1328_future",
+          ),
+          true,
+          "the index must contain the note before it becomes invalid",
+        );
+        const futureNotePath = join(vaultRoot, "vault", "world", "world_1328_future.json");
+        const futureNote = JSON.parse(await readFile(futureNotePath, "utf8"));
+        await writeFile(futureNotePath, JSON.stringify({ ...futureNote, futureField: true }));
+        invalidateLtmVaultSnapshot(vaultRoot);
+        try {
+          const staleOverInvalid = await loadOrRebuildLongTermMemoryIndexes(vaultRoot, null, []);
+          assert.equal(
+            Object.hasOwn(staleOverInvalid.metadata.byNoteId, "world_1328_future"),
+            false,
+            "rebuilding a stale index must skip the invalid note instead of failing",
+          );
+          assert.equal(
+            Object.hasOwn(staleOverInvalid.metadata.byNoteId, "world_1178_lock"),
+            true,
+            "the rebuilt index must keep the valid notes",
+          );
+          const futureRecall = await retrieveLongTermMemory({
+            root: vaultRoot,
+            embeddingAdapter: null,
+            queryText: "cobalt archive lock-coordination entry",
+            scope: { chatId: "chat-a", chatIds: ["chat-a"] },
+            mode: "roleplay",
+            semanticWeight: 0,
+          });
+          assert.equal(
+            futureRecall.chunks.some((hit) => hit.chunk.noteId === "world_1178_lock"),
+            true,
+            "recall must keep serving valid notes while one note has an unknown field",
+          );
+          assert.equal(
+            futureRecall.chunks.some((hit) => hit.chunk.noteId === "world_1328_future"),
+            false,
+            "recall must not serve the note it could not validate",
+          );
+          await assert.rejects(storage.listNotes(), undefined, "full reads must still surface the invalid note");
+        } finally {
+          await rm(futureNotePath, { force: true });
+          invalidateLtmVaultSnapshot(vaultRoot);
+        }
+
         // Issue #1295: Korean short keywords and particles must survive lexical
         // recall without any embedding source.
         await storage.createNote(
@@ -2265,6 +2363,107 @@ async function main() {
           false,
           "an unrelated Korean memory must not be recalled for the particle query",
         );
+      }
+
+      // #1303: the Engine calls refresh on the runtime service when a connection or agent
+      // save changes LTM's embedding configuration. It must rebuild for the new space, report
+      // success, skip an already-current index, and reject a source that still cannot embed.
+      {
+        const vaultRoot = storage.root;
+        const liveRuntime = services.get("long-term-memory:runtime");
+        resolvedAdapter = {
+          spaceId: "refresh-space-a",
+          label: "refresh A",
+          async embed(texts: string[]) {
+            return texts.map(() => [5]);
+          },
+        };
+        await rebuildLongTermMemoryIndexes({ root: vaultRoot, embeddingAdapter: resolvedAdapter });
+        assert.equal(
+          parseLtmRecallIndex(JSON.parse(await readFile(longTermMemoryRecallIndexPath(vaultRoot), "utf8"))).embeddings
+            .spaceId,
+          "refresh-space-a",
+          "the starting index must carry the first embedding space",
+        );
+
+        let refreshBEmbeds = 0;
+        resolvedAdapter = {
+          spaceId: "refresh-space-b",
+          label: "refresh B",
+          async embed(texts: string[]) {
+            refreshBEmbeds += 1;
+            return texts.map(() => [6]);
+          },
+        };
+        assert.deepEqual(
+          await liveRuntime.refresh({ signal: new AbortController().signal }),
+          { status: "refreshed" },
+          "refresh must report success after rebuilding for the new embedding space",
+        );
+        assert.equal(
+          parseLtmRecallIndex(JSON.parse(await readFile(longTermMemoryRecallIndexPath(vaultRoot), "utf8"))).embeddings
+            .spaceId,
+          "refresh-space-b",
+          "refresh must rebuild the persisted index for the new embedding space",
+        );
+        assert.ok(refreshBEmbeds > 0, "refresh must embed the vault once for the new space");
+
+        const embedsAfterRebuild = refreshBEmbeds;
+        assert.deepEqual(await liveRuntime.refresh({ signal: new AbortController().signal }), { status: "refreshed" });
+        assert.equal(
+          refreshBEmbeds,
+          embedsAfterRebuild,
+          "an already-current index must not be re-embedded by a second refresh",
+        );
+
+        resolvedAdapter = {
+          spaceId: "refresh-space-fail",
+          label: "refresh failing",
+          async embed() {
+            throw new Error("provider unavailable");
+          },
+        };
+        await assert.rejects(
+          liveRuntime.refresh({ signal: new AbortController().signal }),
+          /could not embed the vault/u,
+          "a refresh that cannot embed the new space must reject so the Engine reports failure",
+        );
+
+        // A failed in-flight upgrade must not suppress the retry a save just asked for: the save
+        // clears the guard under the vault lock, so refresh cannot skip on a restored guard.
+        let releaseRaceEmbed!: () => void;
+        let raceEmbedEntered!: () => void;
+        const raceEmbedStarted = new Promise<void>((resolve) => (raceEmbedEntered = resolve));
+        const raceEmbedHeld = new Promise<void>((resolve) => (releaseRaceEmbed = resolve));
+        const staleUpgrade = loadOrRebuildLongTermMemoryIndexes(vaultRoot, {
+          spaceId: "refresh-race-space",
+          label: "race failing",
+          async embed() {
+            raceEmbedEntered();
+            await raceEmbedHeld;
+            throw new Error("provider unavailable");
+          },
+        });
+        await raceEmbedStarted;
+        let raceEmbeds = 0;
+        resolvedAdapter = {
+          spaceId: "refresh-race-space",
+          label: "race working",
+          async embed(texts: string[]) {
+            raceEmbeds += 1;
+            return texts.map(() => [8]);
+          },
+        };
+        const retryRefresh = liveRuntime.refresh({ signal: new AbortController().signal });
+        await new Promise((resolve) => setImmediate(resolve)); // let refresh queue on the lock first
+        releaseRaceEmbed();
+        await staleUpgrade;
+        assert.deepEqual(
+          await retryRefresh,
+          { status: "refreshed" },
+          "a refresh must retry after an in-flight upgrade fails, not skip on the guard it restored",
+        );
+        assert.ok(raceEmbeds > 0, "the corrected embedding source must actually run");
       }
     },
     [

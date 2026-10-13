@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { runRegressionToCompletion, runWithSafeCleanup } from "./regression-helpers.ts";
 
 async function main() {
@@ -92,7 +92,9 @@ async function main() {
   const { readLtmNoteSummary, writeLtmNoteSummary, rebuildLtmNoteSummary } = await import(`${source}/index-state.ts`);
   const { rebuildLongTermMemoryIndexes, loadOrRebuildLongTermMemoryIndexes } = await import(`${source}/rebuild.ts`);
   const { repairLongTermMemory } = await import(`${source}/maintenance.ts`);
-  const { runLongTermMemoryRetention } = await import(`${source}/retention.ts`);
+  const { pruneLtmRepairBackups, runLongTermMemoryRetention } = await import(`${source}/retention.ts`);
+  const { previewLtmNoteForkRepair, applyLtmNoteForkRepair } = await import(`${source}/note-fork-repair.ts`);
+  const { readLongTermMemoryUsage } = await import(`${source}/usage.ts`);
   const { rebuildLtmActivityIndex, readLtmActivityEvents } = await import(`${source}/activity-index.ts`);
   const { renderSectionContributions } = await import(`${source}/section-contributions.ts`);
   const { buildStopWordSet, extractNoteKeywords } = await import(`${source}/keyword-extract.ts`);
@@ -3298,6 +3300,182 @@ async function main() {
         "the recall index must not retain the quarantined note text",
       );
       await quarantineStorage.cleanup();
+
+      // Issue #1328: at the rejected-suggestion cap the least recently seen unresolved
+      // suggestion makes room; a saved identity decision is never evicted.
+      const capRoot = join(dataDir, "rejected-suggestion-cap");
+      await new LongTermMemoryStorage(capRoot).initializeLtmStore();
+      const capFingerprint = (index: number) => createHash("sha256").update(`cap-${index}`).digest("hex");
+      const capSuggestions = (resolved: (index: number) => boolean) =>
+        Array.from({ length: 10_000 }, (_, index) => ({
+          id: randomUUID(),
+          fingerprint: capFingerprint(index),
+          source: { sourceNoteId: `source_cap_${index}`, chatId: "chat-a" },
+          scope: { chatId: "chat-a" },
+          modes: ["roleplay"],
+          candidate: { index: 0, reason: "invalid_format", message: "Rejected candidate.", snippet: "candidate" },
+          createdAt: timestamp,
+          lastSeenAt: new Date(Date.parse(timestamp) + index * 1000).toISOString(),
+          ...(resolved(index)
+            ? { identityResolution: { choices: [{ name: "Sam", action: "skip" }], resolvedAt: timestamp } }
+            : {}),
+        }));
+      const capDraft = { ...rejectionDraft, source: { sourceNoteId: "source_cap_new", chatId: "chat-a" } } as any;
+      await writeFile(ltmRejectedSuggestionsPath(capRoot), JSON.stringify(capSuggestions((index) => index === 0)));
+      assert.equal((await addRejectedSuggestions(capDraft, capRoot)).length, 1);
+      const capped = JSON.parse(await readFile(ltmRejectedSuggestionsPath(capRoot), "utf8")) as Array<{
+        fingerprint: string;
+        source: { sourceNoteId: string };
+      }>;
+      assert.equal(capped.length, 10_000, "the cap must hold after eviction");
+      assert.equal(
+        capped.some((item) => item.source.sourceNoteId === "source_cap_new"),
+        true,
+        "the new suggestion must be stored at the cap",
+      );
+      assert.equal(
+        capped.some((item) => item.fingerprint === capFingerprint(0)),
+        true,
+        "a saved identity decision must survive eviction even when it is the oldest",
+      );
+      assert.equal(
+        capped.some((item) => item.fingerprint === capFingerprint(1)),
+        false,
+        "the least recently seen unresolved suggestion must make room",
+      );
+      await writeFile(ltmRejectedSuggestionsPath(capRoot), JSON.stringify(capSuggestions(() => true)));
+      await assert.rejects(addRejectedSuggestions(capDraft, capRoot), /rejected-suggestion limit reached/u);
+
+      // Issue #1328: a malformed usage file or injection receipt must not stop activation, and
+      // the malformed usage file is set aside so statistics restart instead of failing every read.
+      const lenientRoot = join(dataDir, "malformed-usage-activation");
+      await new LongTermMemoryStorage(lenientRoot).initializeLtmStore();
+      const lenientDirs = getLongTermMemoryDirectories(lenientRoot);
+      await mkdir(lenientDirs.receipts, { recursive: true });
+      await writeFile(join(lenientDirs.indexes, "usage.json"), "not json\n");
+      await writeFile(join(lenientDirs.receipts, "broken-receipt.json"), "{bad\n");
+      const lenientRuntime = await activateLongTermMemoryStorage(lenientRoot);
+      await lenientRuntime.cleanup();
+      assert.deepEqual(
+        await readLongTermMemoryUsage(lenientRoot),
+        { version: 2, chats: {} },
+        "a malformed usage file must restart from empty statistics",
+      );
+      await assert.rejects(stat(join(lenientDirs.indexes, "usage.json")), { code: "ENOENT" });
+      assert.equal((await readdir(join(lenientRoot, "quarantine", "indexes"))).length, 1);
+      // Valid JSON of the wrong shape takes the same path as unparseable content.
+      await writeFile(join(lenientDirs.indexes, "usage.json"), JSON.stringify({ version: 2, chats: "not-a-record" }));
+      assert.deepEqual(
+        await readLongTermMemoryUsage(lenientRoot),
+        { version: 2, chats: {} },
+        "a schema-invalid usage file must restart from empty statistics",
+      );
+      await assert.rejects(stat(join(lenientDirs.indexes, "usage.json")), { code: "ENOENT" });
+      assert.equal((await readdir(join(lenientRoot, "quarantine", "indexes"))).length, 2);
+
+      // A malformed usage file that cannot be set aside must not be replaced by empty statistics:
+      // the original stays on disk and the read fails instead of letting the next write overwrite it.
+      const stuckRoot = join(dataDir, "usage-quarantine-failure");
+      await new LongTermMemoryStorage(stuckRoot).initializeLtmStore();
+      const stuckUsagePath = join(getLongTermMemoryDirectories(stuckRoot).indexes, "usage.json");
+      await writeFile(stuckUsagePath, "not json\n");
+      await rm(join(stuckRoot, "quarantine"), { recursive: true, force: true });
+      await writeFile(join(stuckRoot, "quarantine"), "not a folder");
+      await assert.rejects(readLongTermMemoryUsage(stuckRoot), undefined, "a failed quarantine must surface");
+      assert.equal(
+        await readFile(stuckUsagePath, "utf8"),
+        "not json\n",
+        "the malformed usage file must stay in place when it cannot be set aside",
+      );
+
+      // Issue #1328: recall skips a note it read but cannot validate; an unreadable vault folder is
+      // not a content problem and still fails the read, so recall never silently loses a note type.
+      const skipRoot = join(dataDir, "skip-invalid");
+      const skipStorage = new LongTermMemoryStorage(skipRoot);
+      await skipStorage.initializeLtmStore();
+      await skipStorage.createNote({ ...noteInput, id: "world_skip_valid", title: "Valid" });
+      const skipWorldFolder = join(getLongTermMemoryDirectories(skipRoot).vault, "world");
+      await writeFile(join(skipWorldFolder, "world_skip_broken.json"), "{");
+      invalidateLtmVaultSnapshot(skipRoot);
+      assert.deepEqual(
+        (await skipStorage.listNotes({ skipInvalid: true })).map((item: { id: string }) => item.id),
+        ["world_skip_valid"],
+        "skipInvalid must serve the valid notes around an unparseable file",
+      );
+      await assert.rejects(skipStorage.listNotes(), undefined, "a full read must still surface the invalid file");
+      await rm(skipWorldFolder, { recursive: true, force: true });
+      await writeFile(skipWorldFolder, "not a folder");
+      invalidateLtmVaultSnapshot(skipRoot);
+      await assert.rejects(
+        skipStorage.listNotes({ skipInvalid: true }),
+        { code: "ENOTDIR" },
+        "skipInvalid must not hide a vault folder that cannot be listed",
+      );
+
+      // Issue #1328: a repair backup only serves its own rollback, so a fourth fork repair keeps the
+      // newest three, and Delete all data removes every repair backup the package wrote.
+      const pruneDataDir = join(dataDir, "repair-backups");
+      const pruneRoot = join(pruneDataDir, "long-term-memory");
+      const pruneStorage = new LongTermMemoryStorage(pruneRoot);
+      await pruneStorage.initializeLtmStore();
+      const forkBackupIds: string[] = [];
+      for (const pair of ["a", "b", "c", "d"]) {
+        const ids = [`world_prune_${pair}_one`, `world_prune_${pair}_two`];
+        for (const [position, id] of ids.entries()) {
+          const createdAt = `2026-01-0${position + 1}T00:00:00.000Z`;
+          await pruneStorage.createNote({
+            id,
+            title: id,
+            type: "world",
+            status: "active",
+            modes: ["roleplay"],
+            scope: { chatId: "chat-a" },
+            tags: [],
+            keywords: ["shared"],
+            links: [],
+            sections: { facts: { text: "Shared durable fact", updatedAt: createdAt } },
+            createdAt,
+            updatedAt: createdAt,
+            version: 1,
+          });
+        }
+        const candidate = (await previewLtmNoteForkRepair({ noteIds: ids }, { root: pruneRoot })).candidates[0];
+        const applied = await applyLtmNoteForkRepair(
+          {
+            noteIds: candidate.noteIds,
+            canonicalNoteId: candidate.canonicalNoteId,
+            contentHash: candidate.contentHash,
+          },
+          { root: pruneRoot },
+        );
+        forkBackupIds.push(applied.backupId);
+      }
+      const forkBackupsRoot = join(pruneDataDir, "backups", "long-term-memory-forks");
+      assert.deepEqual(
+        (await readdir(forkBackupsRoot)).sort(),
+        forkBackupIds.slice(1).sort(),
+        "a fourth repair must keep exactly the newest three backups, including its own",
+      );
+      // Equal modification times must not let a prune remove the backup the repair just made.
+      const tiedBackups = join(pruneDataDir, "tied-backups");
+      const tiedStamp = new Date("2026-01-01T00:00:00.000Z");
+      const tiedNames = ["t0", "t1", "t2", "t3", "t4"];
+      for (const current of tiedNames) {
+        for (const name of tiedNames) {
+          await mkdir(join(tiedBackups, name), { recursive: true });
+          await utimes(join(tiedBackups, name), tiedStamp, tiedStamp);
+        }
+        await pruneLtmRepairBackups(tiedBackups, { keepPath: join(tiedBackups, current) });
+        const survivors = await readdir(tiedBackups);
+        assert.equal(survivors.length, 3, "a prune over tied backups must still keep three");
+        assert.equal(survivors.includes(current), true, `the current backup ${current} must survive a timestamp tie`);
+        await rm(tiedBackups, { recursive: true, force: true });
+      }
+      const identityBackupsRoot = join(pruneDataDir, "backups", "long-term-memory-identity-repairs");
+      await mkdir(join(identityBackupsRoot, randomUUID()), { recursive: true });
+      await deleteAllLongTermMemoryData(pruneRoot);
+      for (const directory of [forkBackupsRoot, identityBackupsRoot])
+        await assert.rejects(stat(directory), { code: "ENOENT" }, "Delete all data must remove repair backups");
 
       process.stdout.write(
         "Long-Term Memory storage regression: restart, recovery, self-check, cleanup, stable root ok\n",

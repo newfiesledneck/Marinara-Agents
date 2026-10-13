@@ -36,17 +36,20 @@
 // precision. Layered slots (underwear/clothing/armor) are named
 // <garment-type>_<region> rather than reusing the extension's UI-column
 // grouping, so a future narrative-driven equip agent can reason about
-// exactly what and where from the slot id alone.
+// exactly what and where from the slot id alone. Clothing layers by
+// position, inside out: clothing_* (inner, the first layer over underwear),
+// midlayer_*, outerwear_* — so layering stays one item per slot. The ids are
+// never renamed (saved data stores them); only the display labels say
+// Inner/Mid/Outer. extra_wearable_1-3 hold worn items no other slot fits.
 import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { mkdir, writeFile, readFile, readdir, unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-// Order matches the portrait ring layout, read top → left → right → bottom:
-// head/neck/eyes/ears above the portrait; armor/clothing/underwear stacked on
-// the left; back+hands (accessories) and both weapon hands on the right;
-// feet/belt below. This order is what equippedItemNamesText/EQUIP_SLOTS
-// consumers show items in, not just a display grouping.
+// The order equippedItemNamesText (appearance macro, image prompts) lists
+// items in, so worn layers run outer → inner: armor, outerwear, midlayer,
+// clothing, underwear; footwear before socks; extras last. Mirrored exactly by
+// 05-state.js's QM_EQUIP_SLOTS and agents.json's slot list (a test checks).
 const EQUIP_SLOTS = [
   "head",
   "neck",
@@ -54,6 +57,10 @@ const EQUIP_SLOTS = [
   "ears",
   "armor_torso",
   "armor_legs",
+  "outerwear_torso",
+  "outerwear_legs",
+  "midlayer_torso",
+  "midlayer_legs",
   "clothing_torso",
   "clothing_legs",
   "underwear_top",
@@ -63,7 +70,11 @@ const EQUIP_SLOTS = [
   "weapon_left_hand",
   "weapon_right_hand",
   "feet",
+  "socks",
   "belt",
+  "extra_wearable_1",
+  "extra_wearable_2",
+  "extra_wearable_3",
 ];
 const EQUIP_SLOT_SET = new Set(EQUIP_SLOTS);
 // Three of the extension's original SLOT_GROUPS toggles (armor/underwear/
@@ -258,7 +269,10 @@ async function findItemImageFile(dir, targetKey) {
 const SLOT_ICON_DIR = join(dirname(fileURLToPath(import.meta.url)), "icons");
 // weapon_right_hand has no file of its own — the left-hand sword art is
 // reused as-is (the generated blade points straight up, symmetric enough
-// that a distinct or mirrored asset wasn't worth a second generation).
+// that a distinct or mirrored asset wasn't worth a second generation). The
+// mid/outer clothing layers reuse their region's clothing art the same way.
+// socks and extra_wearable_* have no art yet: the 404 makes the client draw
+// its own icon (04-icons.js).
 const SLOT_ICON_FILES = {
   head: "head",
   neck: "neck",
@@ -266,7 +280,11 @@ const SLOT_ICON_FILES = {
   ears: "ears",
   armor_torso: "armor_torso",
   armor_legs: "armor_legs",
+  outerwear_torso: "clothing_torso",
+  midlayer_torso: "clothing_torso",
   clothing_torso: "clothing_torso",
+  outerwear_legs: "clothing_legs",
+  midlayer_legs: "clothing_legs",
   clothing_legs: "clothing_legs",
   underwear_top: "underwear_top",
   underwear_bottom: "underwear_bottom",
@@ -839,6 +857,8 @@ function buildWardrobePrompt(direction, personaContext, existingItems, includePe
     '7. An outfit\'s "description" describes the complete look as a whole -- how it appears and fits on the persona when worn -- not a list of its items.',
     "8. Keep new item names short and distinct (a color/material/type in the name -- never shorten a distinguishing detail out of it).",
     "9. quantity is almost always 1 for wearables.",
+    "10. Clothing is worn in layers, one item per layer slot, inside out: clothing_torso/clothing_legs is the inner layer (the first one over underwear), midlayer_torso/midlayer_legs goes over it, outerwear_torso/outerwear_legs over that. Example: dress shirt -> clothing_torso, waistcoat -> midlayer_torso, suit jacket -> outerwear_torso; tights -> clothing_legs with shorts over them -> midlayer_legs. A single garment worn alone uses the inner slot.",
+    "11. feet is footwear (shoes, boots, sandals); socks go in socks. extra_wearable_1, extra_wearable_2 and extra_wearable_3 are only for worn items that no other slot fits (a second necklace, rings, bracelets, a coat over a suit jacket).",
   ].join("\n");
 
   const userLines = ["## Style direction (what the user is asking for)", direction];

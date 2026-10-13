@@ -708,3 +708,115 @@ await test("reopening the dock retries real failures, and a new Admin Secret ret
   assert.equal(api.calls.at(-1).url, itemUrl);
   assert.equal(api.calls.at(-1).init.headers["X-Admin-Secret"], "new-secret");
 });
+
+const serverSource = await readFile(new URL("../packages/quartermaster/server.mjs", import.meta.url), "utf8");
+const agentDefinitions = JSON.parse(
+  await readFile(new URL("../packages/quartermaster/agents.json", import.meta.url), "utf8"),
+);
+const slotContext = vm.createContext({ QM: {} });
+vm.runInContext(stateSource, slotContext);
+vm.runInContext(
+  await readFile(new URL("../packages/quartermaster/src/04-icons.js", import.meta.url), "utf8"),
+  slotContext,
+);
+const slotValue = (name) => vm.runInContext(name, slotContext);
+const clientSlots = [...slotValue("QM_EQUIP_SLOTS")];
+
+await test("server, client and tracker prompt list the same slots, worn layers outer to inner", () => {
+  const serverSlots = [...serverSource.match(/const EQUIP_SLOTS = \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  const promptSlots = agentDefinitions[0].defaultPromptTemplate
+    .match(/Valid slots \(use these exact ids only\): ([^.]+)\./)[1]
+    .split(", ");
+  assert.deepEqual(clientSlots, serverSlots);
+  assert.deepEqual(promptSlots, serverSlots);
+  const before = (...slots) =>
+    slots.slice(1).forEach((slot, index) => {
+      assert.ok(serverSlots.indexOf(slots[index]) < serverSlots.indexOf(slot), `${slots[index]} before ${slot}`);
+    });
+  before("armor_torso", "outerwear_torso", "midlayer_torso", "clothing_torso", "underwear_top");
+  before("armor_legs", "outerwear_legs", "midlayer_legs", "clothing_legs", "underwear_bottom");
+  before("feet", "socks");
+  assert.deepEqual(serverSlots.slice(-3), ["extra_wearable_1", "extra_wearable_2", "extra_wearable_3"]);
+});
+
+await test("every slot is on the portrait ring once, with labels, an icon, and a distinct search label", () => {
+  const ringSlots = [
+    ...slotValue("QM_OVERLAY_TOP_SLOTS"),
+    ...slotValue("QM_OVERLAY_SLOT_PAIRS").flat(),
+    ...Object.values(slotValue("QM_OVERLAY_SLOT_LAYERS")).flat(),
+    ...slotValue("QM_OVERLAY_BOTTOM_SLOTS"),
+    ...slotValue("QM_OVERLAY_EXTRA_SLOTS"),
+  ];
+  assert.deepEqual([...ringSlots].sort(), [...clientSlots].sort());
+  const labels = slotValue("QM_SLOT_LABELS");
+  for (const slot of clientSlots) {
+    assert.ok(labels[slot], `${slot} label`);
+    assert.ok(slotValue("QM_OVERLAY_SLOT_LABELS")[slot], `${slot} ring label`);
+    assert.ok(slotValue("QM_OVERLAY_SLOT_LABEL_LINES")[slot]?.length, `${slot} ring label lines`);
+    assert.ok(slotValue("QM_SLOT_ICON_PATHS")[slot], `${slot} drawn icon`);
+  }
+  // The Bag's slot search matches a label by substring, so no label may contain another.
+  for (const a of clientSlots) {
+    for (const b of clientSlots) {
+      if (a !== b) assert.ok(!labels[a].toLowerCase().includes(labels[b].toLowerCase()), `${a} vs ${b}`);
+    }
+  }
+});
+
+await test("clothing layers sit beside the inner box when they fit, otherwise stack outer first above it", () => {
+  const saved = {
+    build: dock._buildOverlaySlotBox,
+    container: dock.equippedContainer,
+    portrait: dock.portraitWrapper,
+    built: dock._layersBesideBuilt,
+    createElement: context.document.createElement,
+  };
+  // In the real bundle 05-state.js shares the dock's scope; this context loads only the dock files.
+  context.QM_OVERLAY_SLOT_LAYERS = slotValue("QM_OVERLAY_SLOT_LAYERS");
+  dock._buildOverlaySlotBox = (slot) => ({ slot });
+  context.document.createElement = () => ({
+    style: {},
+    children: [],
+    append(...nodes) {
+      this.children.push(...nodes);
+    },
+  });
+  // Copied into this realm first: arrays built inside the vm context have a different prototype.
+  const slotsOf = (nodes) => [...nodes].map((node) => node.slot);
+  try {
+    const layers = (slot, side, beside) => dock._withClothingLayers(slot, { slot }, side, beside);
+    assert.deepEqual(slotsOf(layers("clothing_torso", "left", false)), [
+      "outerwear_torso",
+      "midlayer_torso",
+      "clothing_torso",
+    ]);
+    assert.deepEqual(slotsOf(layers("clothing_legs", "right", false)), [
+      "outerwear_legs",
+      "midlayer_legs",
+      "clothing_legs",
+    ]);
+    const [torsoRow] = layers("clothing_torso", "left", true);
+    assert.deepEqual(slotsOf(torsoRow.children), ["outerwear_torso", "midlayer_torso", "clothing_torso"]);
+    const [legsRow] = layers("clothing_legs", "right", true);
+    assert.deepEqual(slotsOf(legsRow.children), ["clothing_legs", "midlayer_legs", "outerwear_legs"]);
+    assert.deepEqual(slotsOf(layers("armor_torso", "left", true)), ["armor_torso"]);
+
+    // Two sides of 3 * 92 + 2 * 4, the 160px portrait, and two 8px column gaps.
+    dock.portraitWrapper = { offsetWidth: 160 };
+    dock.equippedContainer = { clientWidth: 744 };
+    assert.equal(dock._clothingLayersBeside(), true);
+    dock.equippedContainer = { clientWidth: 743 };
+    assert.equal(dock._clothingLayersBeside(), false);
+    dock.equippedContainer = { clientWidth: 0 };
+    dock._layersBesideBuilt = true;
+    assert.equal(dock._clothingLayersBeside(), true, "nothing measurable keeps the last layout");
+  } finally {
+    dock._buildOverlaySlotBox = saved.build;
+    dock.equippedContainer = saved.container;
+    dock.portraitWrapper = saved.portrait;
+    dock._layersBesideBuilt = saved.built;
+    context.document.createElement = saved.createElement;
+  }
+});

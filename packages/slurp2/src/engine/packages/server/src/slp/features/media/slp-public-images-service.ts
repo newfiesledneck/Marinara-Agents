@@ -175,12 +175,9 @@ export async function generateSlpPostImage(input: {
   );
   const allowAvatarReferences = slpImageReferencesSupported(input.imageConnection, imageFallback);
   // The Creator's own appearance, written on the Creator rather than borrowed from a card.
-  //
-  // It is applied unconditionally, unlike the block below it. `imageGenerationIncludeDescriptions`
-  // decides whether to pull the *source character's* description into the picture; it was never
-  // meant to decide whether the picture knows who the Creator is. With it off, a Creator with no
-  // linked source, or a source card with an empty Appearance field, the image model received a
-  // scene containing nobody and invented somebody — a different somebody every post.
+  // `imageGenerationIncludeDescriptions` ("Use the Creator's look") gates this: off, a public
+  // picture uses only the post, image habits and avatar references, same as the DM path in
+  // slp-images-service.ts. The player-facing copy for the toggle says exactly that.
   const stageAppearance = input.settings.imageGenerationIncludeDescriptions
     ? await resolveImageAppearance({
         db: input.db,
@@ -321,11 +318,12 @@ export async function generateSlpPostImage(input: {
   ]
     .filter(Boolean)
     .join("\n\n");
-  const rewriteAttempted = Boolean(
+  let rewriteAttempted = Boolean(
     (imagePromptInstructions || characterContext || styleGuidance) &&
     input.settings.enableImageInterpretation !== false &&
     !input.promptOverride,
   );
+  let rewriteFailure: string | null = null;
   const rewrittenPrompt = rewriteAttempted
     ? await rewriteSlpImagePrompt({
         db: input.db,
@@ -338,6 +336,12 @@ export async function generateSlpPostImage(input: {
         promptBlocks: slurpPromptContext(input.settings).blocks,
         connectionId: input.settings.imagePromptConnectionId || input.settings.generationConnectionId,
         budget: input.settings.modelBudget,
+        onBudgetSkip: () => {
+          rewriteAttempted = false;
+        },
+        onFailure: (reason) => {
+          rewriteFailure = reason;
+        },
       })
     : null;
   // The style profile is an Engine setting, not something the interpretation model owns. The
@@ -354,10 +358,10 @@ export async function generateSlpPostImage(input: {
         imageDefaults,
       })
     : null;
-  const acceptedRewrittenPrompt =
-    input.visualBrief && rewrittenPrompt && slurpVisualBriefPromptViolatesPolicy(input.visualBrief, rewrittenPrompt)
-      ? null
-      : compiledRewrittenPrompt?.prompt || rewrittenPrompt;
+  const rewriteViolatesPolicy = Boolean(
+    input.visualBrief && rewrittenPrompt && slurpVisualBriefPromptViolatesPolicy(input.visualBrief, rewrittenPrompt),
+  );
+  const acceptedRewrittenPrompt = rewriteViolatesPolicy ? null : compiledRewrittenPrompt?.prompt || rewrittenPrompt;
   let usedRewrite = Boolean(acceptedRewrittenPrompt);
   const finalPromptBase = selectSlpImageProviderPrompt({
     rewrittenPrompt: acceptedRewrittenPrompt,
@@ -369,6 +373,7 @@ export async function generateSlpPostImage(input: {
       .filter(Boolean)
       .join("\n"),
     rewriteAttempted,
+    rewriteFailure: rewriteViolatesPolicy ? "the rewrite broke the scene's content level" : rewriteFailure,
     onFallback: (reason) => {
       usedRewrite = false;
       logger.warn("[slurp] Image prompt rewrite unusable (%s); sending the capped draft", reason);

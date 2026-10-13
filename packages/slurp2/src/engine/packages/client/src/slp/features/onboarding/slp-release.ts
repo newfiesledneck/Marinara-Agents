@@ -1,5 +1,5 @@
 // The splash screen needs the shipped version and its public notes inside the client bundle.
-export const SLURP2_VERSION = "0.3.20";
+export const SLURP2_VERSION = "0.3.29";
 
 export interface Slurp2ReleaseEntry {
   version: string;
@@ -12,6 +12,74 @@ export interface Slurp2ReleaseEntry {
  * in-universe bullets per release (technical detail lives in CHANGELOG.md).
  */
 export const SLURP2_RELEASES: Slurp2ReleaseEntry[] = [
+  {
+    version: "0.3.29",
+    date: "2026-10-12",
+    notes: [
+      "When a picture's description can't be polished, the server log now names the reason, so connection trouble is easier to spot.",
+    ],
+  },
+  {
+    version: "0.3.28",
+    date: "2026-10-12",
+    notes: [
+      "Hold a Creator's chat message and pick “Deep details” to see what went into that reply: where the two of you stand, what they remembered, and everything they were told.",
+      "Slurp keeps this for the newest 50 replies of each chat.",
+    ],
+  },
+  {
+    version: "0.3.27",
+    date: "2026-10-12",
+    notes: [
+      "Each Creator's Posting settings now show their Page style in plain words. Not sure it fits? “Suggest from card” proposes one; nothing changes until you choose Use.",
+    ],
+  },
+  {
+    version: "0.3.26",
+    date: "2026-10-12",
+    notes: [
+      "Creators stay themselves: what is always true about them (how they talk, what they can and cannot do, their firm limits) is now in every post, Story and chat, not just some.",
+      "Your fixes to a Creator's Life details now stay when their card changes. There is a new “Always true” list there too.",
+    ],
+  },
+  {
+    version: "0.3.25",
+    date: "2026-10-12",
+    notes: [
+      "Enhance image prompts now understands more of the answers it gets, so fewer pictures fall back to the plain draft.",
+      "With the AI budget off or used up for the day, pictures go out with their full draft and the log stays quiet.",
+    ],
+  },
+  {
+    version: "0.3.24",
+    date: "2026-10-11",
+    notes: [
+      "In a picture with two Creators, each one is now described on their own, by name, so the second person stops borrowing the first one's features.",
+    ],
+  },
+  {
+    version: "0.3.23",
+    date: "2026-10-11",
+    notes: [
+      "A known character's name now sits after your style tags and in front of their look in picture prompts, so pictures with two people mix them up less.",
+    ],
+  },
+  {
+    version: "0.3.22",
+    date: "2026-10-11",
+    notes: [
+      "Backups now include reports.",
+      "Create posts now says which Creators it skipped or could not post for, not just how many.",
+      "The settings search box now stays reachable on a phone inside a settings section.",
+    ],
+  },
+  {
+    version: "0.3.21",
+    date: "2026-10-11",
+    notes: [
+      "Stir follows a collab you start: Recent plays shows whether they are still talking it over, agreed, said no, or posted, and opens the joint post once it is up.",
+    ],
+  },
   {
     version: "0.3.20",
     date: "2026-10-10",

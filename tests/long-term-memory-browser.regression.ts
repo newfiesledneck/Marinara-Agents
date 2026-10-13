@@ -2408,17 +2408,20 @@ async function main() {
         sourceNoteId: legacyGlobalNote.id,
         ...fields,
       });
+      const secondsAfter = (seconds: number) => new Date(Date.parse(noteTimestamp) + seconds * 1000).toISOString();
       const debugEvents = [
         debugEvent("estimated", "extract_source_note", "started"),
         debugEvent("estimated", "evidence_unit_request", "started", {
+          ts: secondsAfter(2),
           model: "fixture-model",
           counts: { estimatedPromptTokens: 123 },
         }),
         debugEvent("estimated", "evidence_unit_response", "ok", {
-          durationMs: 450,
+          ts: secondsAfter(74),
+          durationMs: 72_000,
           details: { finishReason: "stop", responseSnippet: "private response snippet" },
         }),
-        debugEvent("estimated", "extract_source_note", "ok", { durationMs: 500 }),
+        debugEvent("estimated", "extract_source_note", "ok", { ts: secondsAfter(75), durationMs: 500 }),
         debugEvent("reported", "evidence_unit_request", "started", { counts: { estimatedPromptTokens: 123 } }),
         debugEvent("reported", "evidence_unit_response", "ok", {
           counts: { promptTokens: 40, completionTokens: 12, completionReasoningTokens: 8, totalTokens: 60 },
@@ -2443,10 +2446,19 @@ async function main() {
         debugEvent("partial", "import_sources", "ok"),
         debugEvent("breakdown", "evidence_units_compiled", "warning", {
           sourceNoteId: "source_mobile_review",
-          counts: { totalCandidates: 12, units: 7, mutations: 2, targetNotes: 2, deduplications: 1 },
+          counts: {
+            totalCandidates: 12,
+            units: 7,
+            mutations: 2,
+            targetNotes: 2,
+            deduplications: 1,
+            candidateRejectionDiagnostics: 4,
+          },
           details: {
             mutationKinds: { create_note: 1, append_section: 1 },
             targetNoteIds: ["world_legacy_global", "world_scoped_desktop"],
+            // The server always logs the model's own summary, which does not explain the warning.
+            summary: "Compiled the extraction into seven units.",
           },
         }),
         debugEvent("breakdown", "draft_deferred", "ok", {
@@ -2589,14 +2601,61 @@ async function main() {
             ],
           },
         }),
-        debugEvent("apply", "apply_changes", "ok", {
+        debugEvent("recall-rejected-threshold", "recall_explanation", "ok", {
+          phase: "retrieval",
           sourceNoteId: undefined,
-          mutationIds: ["11111111-2222-3333-4444-555555555555"],
+          chatId: "chat-artifact",
+          details: {
+            chatId: "chat-artifact",
+            scoreThreshold: 0.5,
+            selected: [],
+            rejected: [
+              { noteId: legacyGlobalNote.id, sectionKey: "facts", score: 0.3, rejectionReason: "score_threshold" },
+            ],
+          },
         }),
+        debugEvent("apply", "apply_changes", "ok", { sourceNoteId: undefined }),
+        // The server logs the selected ids on mutations_selected, with the skipped ids in details.
         debugEvent("apply", "mutations_selected", "ok", {
           sourceNoteId: undefined,
+          mutationIds: ["66666666-7777-8888-9999-000000000000"],
           details: { skippedMutationIds: ["11111111-2222-3333-4444-555555555555"] },
         }),
+        // An auto-apply runs inside the extraction's operation, so the extraction's own terminal
+        // event makes the operation read completed_with_warnings rather than error.
+        debugEvent("apply-failed", "extract_source_note", "started", { sourceNoteId: undefined }),
+        debugEvent("apply-failed", "extract_source_note", "ok", { sourceNoteId: undefined }),
+        // The selection is logged before the write, so a failed apply saved an unknown share of it.
+        debugEvent("apply-failed", "mutations_selected", "ok", {
+          sourceNoteId: undefined,
+          mutationIds: ["77777777-8888-9999-0000-111111111111"],
+          details: { skippedMutationIds: [] },
+        }),
+        debugEvent("apply-failed", "apply_draft", "error", {
+          sourceNoteId: undefined,
+          error: { message: "The memory could not be written." },
+        }),
+        // One operation applying two drafts: the failure belongs to its own draft only.
+        debugEvent("apply-mixed", "mutations_selected", "ok", {
+          id: "apply-mixed-selected-a",
+          draftId: "draft-a",
+          sourceNoteId: undefined,
+          mutationIds: ["88888888-9999-0000-1111-222222222222"],
+          details: { skippedMutationIds: [] },
+        }),
+        debugEvent("apply-mixed", "apply_draft", "error", {
+          draftId: "draft-a",
+          sourceNoteId: undefined,
+          error: { message: "The memory could not be written." },
+        }),
+        debugEvent("apply-mixed", "mutations_selected", "ok", {
+          id: "apply-mixed-selected-b",
+          draftId: "draft-b",
+          sourceNoteId: undefined,
+          mutationIds: ["99999999-0000-1111-2222-333333333333"],
+          details: { skippedMutationIds: [] },
+        }),
+        debugEvent("apply-mixed", "apply_draft", "ok", { draftId: "draft-b", sourceNoteId: undefined }),
         debugEvent("unrelated", "extract_source_note", "ok", { sourceNoteId: "world_unrelated" }),
       ];
       // Simulates a retained log that holds no events for the handed memory.
@@ -2638,6 +2697,19 @@ async function main() {
         assert.match(estimated, /500 ms/u);
         assert.match(estimated, /Estimated input: 123 tokens/u);
         assert.doesNotMatch(estimated, /Input \(provider-reported\)|Output:|Total:/u);
+        // Steps read as sentences with their offset from the start, in the shared duration units.
+        assert.match(estimated, /\+2\.0 s[\s\S]*Sent to the model[\s\S]*Started/u);
+        assert.match(estimated, /\+1 min 14 s[\s\S]*Model replied after 1 min 12 s[\s\S]*Succeeded/u);
+        assert.match(estimated, /took 500 ms/u, "the header names the operation's recorded duration");
+        assert.doesNotMatch(estimated, /Phase \/|LLM \//u, "steps no longer lead with a Phase / Action heading");
+        assert.doesNotMatch(estimated, /72,000 ms/u);
+        assert.match(estimated, /Copy JSON copies the 4 log records for this operation\./u);
+        assert.match(estimated, /It includes the model's reply excerpt, which isn't shown here\./u);
+        assert.equal(
+          await details.locator("time[datetime]").first().getAttribute("datetime"),
+          secondsAfter(75),
+          "the header time is the operation's last event",
+        );
         // M1: a completed operation's old started steps must not age into "No completion
         // recorded"; a started-only old operation still must.
         assert.doesNotMatch(estimated, /No completion recorded/u);
@@ -2660,11 +2732,12 @@ async function main() {
         assert.match(await operation("partial"), /One source failed\./u);
         assert.match(await operation("truncated"), /What to try[\s\S]*output budget/iu);
         const breakdown = await operation("breakdown");
-        assert.match(
-          breakdown,
-          /Result[\s\S]*12 candidates[\s\S]*7 kept units[\s\S]*2 changes[\s\S]*2 target memories/u,
-        );
-        assert.match(breakdown, /1 duplicates[\s\S]*Create note[\s\S]*Append section/u);
+        assert.match(breakdown, /Result\s+12\s+candidates found\s+→\s+7\s+kept\s+→\s+2\s+changes/u);
+        assert.doesNotMatch(breakdown, /kept units/u);
+        assert.match(breakdown, /Create note[\s\S]*Append section/u);
+        assert.match(breakdown, /Kept 7 of 12 candidates/u);
+        assert.match(breakdown, /4 candidates failed checks; see Not kept\./u);
+        assert.doesNotMatch(breakdown, /Compile evidence: Warning/u);
         assert.match(breakdown, /Not kept[\s\S]*No supporting quote\.[\s\S]*Evidence was omitted\./u);
         assert.match(breakdown, /The extraction processing limit was exceeded\./u);
         assert.doesNotMatch(breakdown, /unspecified extraction reason/u);
@@ -2686,7 +2759,35 @@ async function main() {
         await operation("breakdown");
         await details.getByRole("button", { name: "Open Review Queue" }).waitFor({ state: "hidden" });
         debugReviewPending = true;
-        assert.match(await operation("apply"), /Not saved[\s\S]*11111111-2222-3333-4444-555555555555/u);
+        const applied = await operation("apply");
+        assert.match(applied, /Result\s+2\s+changes in the draft\s+→\s+1\s+saved/u);
+        assert.match(applied, /Selected 1 of 2 changes/u);
+        assert.match(applied, /Not saved[\s\S]*1 change skipped/u);
+        assert.doesNotMatch(applied, /11111111-2222-3333-4444-555555555555|66666666-7777-8888-9999-000000000000/u);
+        assert.equal(
+          await details.locator("[data-ltm-debug-facts]").count(),
+          0,
+          "an operation with no facts renders no empty Details section",
+        );
+        await details.getByRole("button", { name: /^Copy JSON/u }).click();
+        assert.match(
+          await activityPage.evaluate(() => navigator.clipboard.readText()),
+          /11111111-2222-3333-4444-555555555555/u,
+          "raw ids stay available through Copy JSON",
+        );
+        const failedApply = await operation("apply-failed");
+        assert.match(failedApply, /Result[\s\S]*Not recorded/u);
+        assert.doesNotMatch(
+          failedApply,
+          /1 saved|1 change skipped|No skipped changes/u,
+          "a failed apply claims no saves",
+        );
+        const mixedApply = await operation("apply-mixed");
+        assert.match(
+          mixedApply,
+          /Result[\s\S]*Not recorded[\s\S]*1\s+change in the draft\s+→\s+1\s+saved/u,
+          "only the failed draft loses its saved count",
+        );
         for (const [id, count, more, incomplete] of [
           ["counts-only", 3, 3, true],
           ["sample-only", 3, 2, true],
@@ -2701,11 +2802,20 @@ async function main() {
         }
         assert.doesNotMatch(
           await operation("noduration"),
-          / ms/u,
+          / ms|\d s\b/u,
           "an operation without a recorded duration must not display a fabricated one",
         );
-        assert.match(await operation("noduration"), /Minimum relevance: Not recorded/u);
-        assert.match(await operation("noduration"), /Not recorded indexed · 3 eligible · Not recorded/u);
+        // Settings are whole labels; an unrecorded one reads "Not recorded" and a missing count is left out.
+        const recordedSetting = (term: string) =>
+          details.locator("dt", { hasText: term }).locator("xpath=following-sibling::dd[1]").innerText();
+        assert.equal(await recordedSetting("Minimum relevance"), "Not recorded");
+        assert.match(await details.innerText(), /3\s+usable in this chat/u);
+        assert.doesNotMatch(await details.innerText(), /indexed/u);
+        assert.equal(
+          await details.locator("[data-ltm-debug-nothing-added]").count(),
+          0,
+          "malformed rows add no callout",
+        );
         const missingOutcome = await details
           .getByRole("heading", { name: "Not kept", exact: true })
           .locator("..")
@@ -2729,8 +2839,65 @@ async function main() {
         const partial = await operation("partial");
         assert.match(partial, /Completed with warnings/u);
         assert.match(partial, /One source failed\./u);
+        // The active chip reads pressed with the pointer elsewhere.
+        await showEvents();
+        await activityPage.mouse.move(0, 0);
+        const chipBackground = (chip: string) =>
+          activity
+            .locator(`[data-ltm-debug-chip="${chip}"]`)
+            .evaluate((element) => getComputedStyle(element).backgroundColor);
+        assert.notEqual(await chipBackground("problems"), await chipBackground("recall"));
         await showEvents();
         await activity.locator('[data-ltm-debug-chip="all"]').click();
+        // Rows show the outcome rather than repeating their title.
+        const rowText = async (id: string) => {
+          await showEvents();
+          return activity.locator(`[data-ltm-debug-operation="${id}"]`).innerText();
+        };
+        assert.match(await rowText("breakdown"), /7 of 12 kept/u);
+        assert.match(await rowText("recall"), /1 added · 6 not added/u);
+        assert.match(await rowText("apply"), /1 saved · 1 skipped/u);
+        assert.doesNotMatch(
+          await activity.locator("[data-ltm-debug-list]").innerText(),
+          /(AI extraction|Memory recall|Deferred draft): Ok\./u,
+        );
+        assert.doesNotMatch(await operation("estimated"), /AI extraction: Ok\./u, "timeline steps do not repeat it");
+        // The open event stays marked with the pointer elsewhere, also after returning to Events.
+        await showEvents();
+        await activity.locator('[data-ltm-debug-operation="recall"]').click();
+        await showEvents();
+        await activityPage.mouse.move(0, 0);
+        const selectedRow = activity.locator('[data-ltm-debug-operation="recall"]');
+        const rowStyle = (row: typeof selectedRow) =>
+          row.evaluate((element) => {
+            // Read the settled colors, not a mid-transition frame.
+            for (const animation of element.getAnimations({ subtree: true })) animation.finish();
+            return {
+              background: getComputedStyle(element).backgroundColor,
+              bar: getComputedStyle(element).boxShadow,
+              title: getComputedStyle(element.querySelector(".font-semibold")!).color,
+              summary: getComputedStyle(element.querySelector(".line-clamp-2")!).color,
+            };
+          });
+        const selectedStyle = await rowStyle(selectedRow);
+        const otherStyle = await rowStyle(activity.locator('[data-ltm-debug-operation="recall-desktop"]'));
+        assert.notEqual(selectedStyle.background, otherStyle.background);
+        assert.notEqual(selectedStyle.bar, otherStyle.bar, "the selected row carries an accent bar");
+        assert.equal(selectedStyle.summary, selectedStyle.title, "muted row text meets contrast when selected");
+        assert.ok(
+          await activity.locator("[data-ltm-debug-list] .line-clamp-2").evaluateAll((spans) =>
+            spans.every((span) => {
+              const style = getComputedStyle(span);
+              return span.getBoundingClientRect().height <= Number.parseFloat(style.lineHeight) * 2 + 1;
+            }),
+          ),
+          "row summaries clamp to two lines",
+        );
+        // A hovered row reads like the selected one, wherever on the row the pointer is.
+        await activity.locator('[data-ltm-debug-operation="recall-desktop"] .font-semibold').hover();
+        const hoveredStyle = await rowStyle(activity.locator('[data-ltm-debug-operation="recall-desktop"]'));
+        assert.equal(hoveredStyle.summary, hoveredStyle.title, "muted row text meets contrast when hovered");
+        await activityPage.mouse.move(0, 0);
         // Search narrows whole operations and keeps the full event list of the match.
         await showEvents();
         const searchBox = activity.locator("[data-ltm-debug-search]");
@@ -2747,10 +2914,28 @@ async function main() {
         const recall = await operation("recall");
         assert.match(recall, /Memory recall/u);
         assert.match(recall, /Recall from chat-artifact/u);
-        assert.match(recall, /1 added · 6 not added[\s\S]*Added[\s\S]*Not added[\s\S]*Run parameters/u);
-        assert.match(recall, /Minimum relevance: 50%/u);
+        assert.match(
+          recall,
+          /Result\s+4\s+indexed\s+→\s+3\s+usable in this chat\s+→\s+1\s+added[\s\S]*Added[\s\S]*Not added[\s\S]*Recall settings used/u,
+        );
+        assert.doesNotMatch(recall, /1 selected · 6 rejected/u, "recall counts appear once, under Result");
+        assert.equal(await recordedSetting("Minimum relevance"), "50%");
+        assert.equal(await recordedSetting("Memory limit"), "8");
+        assert.equal(await recordedSetting("Token limit"), "2,048");
+        assert.equal(await recordedSetting("Tokens used"), "42");
+        assert.equal(await recordedSetting("Messages read"), "3");
+        assert.equal(await recordedSetting("Ranking weights"), "Semantic 0.6");
+        assert.doesNotMatch(recall, /Limits:|chunks ·|Used:|Weights:|Run parameters|Relevance:/u);
+        assert.doesNotMatch(recall, /No memory/u, "a recall that added a memory needs no explanation");
+        // Candidates are flat rows: no filled box around each one.
+        const candidateBackgrounds = await details
+          .locator("[data-ltm-recalled-note]")
+          .first()
+          .evaluate((link) => getComputedStyle(link.closest("li")!).backgroundColor);
+        assert.equal(candidateBackgrounds, "rgba(0, 0, 0, 0)");
+        assert.match(recall, /Ranked below the 8-memory limit/u);
         for (const reason of [
-          "Token budget reached",
+          "Didn't fit the 2,048-token limit",
           "Duplicate text",
           "Below minimum relevance",
           "Memory chunk unavailable",
@@ -2758,8 +2943,36 @@ async function main() {
         ])
           assert.match(recall, new RegExp(reason, "u"));
         assert.match(recall, /Legacy global memory/u);
-        assert.match(recall, /Fused rank 1[\s\S]*35%/u);
-        assert.match(recall, /Fused rank 2[\s\S]*45%[\s\S]*Cut by the memory limit \(lower fused rank\)/u);
+        assert.match(recall, /35%\s*·\s*Fused rank 1/u);
+        assert.match(recall, /45%\s*·\s*Fused rank 2/u);
+        // The nothing-added explanation names the limit that applied, or the generic fact without one.
+        const rejectedRecall = await operation("recall-rejected");
+        assert.match(rejectedRecall, /No memory was added to this reply\./u);
+        assert.doesNotMatch(rejectedRecall, /minimum relevance\./u);
+        assert.match(rejectedRecall, /What to try: If you expected a memory/u);
+        const thresholdRecall = await operation("recall-rejected-threshold");
+        assert.match(thresholdRecall, /No memory reached the 50% minimum relevance\./u);
+        assert.match(thresholdRecall, /What to try: If you expected a memory/u);
+        // The two paragraphs stack inside the flex callout rather than sitting side by side.
+        const calloutBoxes = await details
+          .locator("[data-ltm-debug-nothing-added] p")
+          .evaluateAll((paragraphs) =>
+            paragraphs.map((p) => p.getBoundingClientRect()).map(({ top, bottom }) => ({ top, bottom })),
+          );
+        assert.equal(calloutBoxes.length, 2);
+        assert.ok(calloutBoxes[1].top >= calloutBoxes[0].bottom - 1, "callout paragraphs are stacked");
+        // Every row names how long ago its operation last logged an event.
+        await showEvents();
+        const rowTimes = await activity.locator("[data-ltm-debug-operation]").evaluateAll((rows) =>
+          rows.map((row) => ({
+            id: row.getAttribute("data-ltm-debug-operation"),
+            datetime: row.querySelector("time")?.getAttribute("datetime"),
+            text: row.querySelector("time")?.textContent?.trim(),
+          })),
+        );
+        assert.ok(rowTimes.length > 0 && rowTimes.every((row) => row.datetime && /\bago$/u.test(row.text ?? "")));
+        assert.equal(rowTimes.find((row) => row.id === "estimated")?.datetime, secondsAfter(75));
+        await operation("recall");
         // M6: the recalled-memory link keeps a 44px touch target.
         const recalledBox = await activity.locator('[data-ltm-recalled-note="world_legacy_global"]').boundingBox();
         assert.ok(recalledBox && recalledBox.height >= 44, "recalled memory links keep a 44px touch target");
@@ -2780,14 +2993,29 @@ async function main() {
         );
         const healthText = await activity.locator("[data-ltm-debug-health]").innerText();
         assert.match(healthText, /\d+ events loaded/u);
-        assert.match(healthText, /Log size unavailable/u);
+        assert.doesNotMatch(healthText, /Log size/u);
         assert.match(healthText, /Index /u);
         assert.match(healthText, /Semantic search /u);
+        // #1304: the source shows on the health line, and the "source changed" note follows
+        // availability (the embedding space), not a label difference.
+        const sourceChangedNote = activity.locator("[data-ltm-embedding-source-changed]");
+        if (navigation === "desktop") {
+          assert.match(healthText, /Semantic search unavailable · Renamed connection \(bge-m3\)/u);
+          assert.equal(await sourceChangedNote.count(), 1, "unavailable vectors with equal labels show the note");
+          assert.match(await sourceChangedNote.innerText(), /different embedding model or endpoint/u);
+        } else {
+          assert.match(healthText, /Semantic search available · Renamed connection \(bge-m3\)/u);
+          assert.equal(await sourceChangedNote.count(), 0, "a renamed connection with usable vectors shows no note");
+        }
         // D21: operation metadata composes with one spaced middle-dot separator.
         assert.match(reported, /Reasoning: 8 tokens · Output: 12 tokens[\s\S]*Total: 60 tokens/u);
         // D20: runtime count/weight names read as localized labels, not camelCase.
-        assert.match(recall, /42 used tokens/u);
-        assert.match(recall, /Semantic weight 0\.6/u);
+        assert.match(breakdown, /12 candidates · 7 units · 2 mutations/u);
+        assert.doesNotMatch(breakdown, /totalCandidates|deduplications/u);
+        assert.match(recall, /Tokens used\s+42/u);
+        assert.doesNotMatch(recall, /42 used tokens/u, "the used-token count is not repeated under Details");
+        assert.match(recall, /Ranking weights\s+Semantic 0\.6/u);
+        assert.doesNotMatch(recall, /Semantic weight/u);
         // D23: a completed operation's start step is Started/Succeeded, never Running.
         assert.match(estimated, /Started/u);
         assert.match(estimated, /Succeeded/u);
@@ -2991,7 +3219,10 @@ async function main() {
             .evaluate((element) => {
               (element as HTMLDetailsElement).open = true;
             });
-          await debugPage.getByRole("button", { name: "Open debug log" }).click();
+          const openDebugLog = debugPage.getByRole("button", { name: "Open debug log" });
+          const openDebugLogBox = await openDebugLog.boundingBox();
+          assert.ok(openDebugLogBox && openDebugLogBox.height >= 44, "Open debug log keeps a 44px target");
+          await openDebugLog.click();
           await activity.waitFor();
           await filterChip.waitFor();
         };
@@ -3106,6 +3337,25 @@ async function main() {
           origin: `http://127.0.0.1:${address.port}`,
         });
         const debugPage = await context.newPage();
+        await debugPage.route("**/api/long-term-memory/status*", async (route) => {
+          // #1304: desktop keeps two equal labels over unavailable vectors (a switched
+          // sidecar model); mobile shows differing labels over available vectors (a renamed connection).
+          const response = await route.fetch();
+          const status = await response.json();
+          const renamed = navigation === "mobile";
+          await route.fulfill({
+            response,
+            json: {
+              ...status,
+              indexes: {
+                ...status.indexes,
+                embeddingsAvailable: renamed,
+                embeddingSource: "Renamed connection (bge-m3)",
+                indexedEmbeddingSource: renamed ? "Old name (bge-m3)" : "Renamed connection (bge-m3)",
+              },
+            },
+          });
+        });
         await debugPage.route("**/api/long-term-memory/drafts/review?*", async (route) => {
           const response = await route.fetch();
           const review = { ...(await response.json()), sources: structuredClone(debugReviewSources) };
