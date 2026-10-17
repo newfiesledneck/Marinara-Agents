@@ -1,5 +1,11 @@
 # Quartermaster changelog
 
+## 0.1.28 — 2026-10-17
+- Build Wardrobe layers clothing properly: when two pieces of an outfit share a layer (tights and a
+  skirt over them), the outer one moves up a layer instead of being left out.
+- New artwork for the clothing layers, socks and Extra Wearable slots; the inner torso and legs
+  icons are now a shirt and leggings.
+
 ## 0.1.27 — 2026-10-16
 - Clothing layers on the portrait ring are now a stack of cards, so the dock stays about as wide as
   before. Use the arrows on the card or tap a layer's tab to switch; worn layers keep their

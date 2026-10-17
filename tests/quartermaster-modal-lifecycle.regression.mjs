@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
 
@@ -889,5 +889,93 @@ await test("clothing layers stack as cards: outermost worn in front, arrows and 
     dock.bagSearchQuery = saved.query;
     dock.equippedSlotBoxRefs = saved.refs;
     context.document.createElement = saved.createElement;
+  }
+});
+
+await test("Build Wardrobe moves a later piece sharing a clothing slot up a layer instead of dropping it", () => {
+  // server.mjs only exports activate(), so run the two functions this needs from its source.
+  const serverPart = (start) => {
+    const from = serverSource.indexOf(start);
+    return serverSource.slice(from, serverSource.indexOf("\n}\n", from) + 2);
+  };
+  let ids = 0;
+  const wardrobeContext = vm.createContext({ randomUUID: () => `id-${++ids}` });
+  vm.runInContext(
+    `${serverPart("function qmNormalizeMatchKey(")}\n${serverPart("const CLOTHING_LAYERS_INSIDE_OUT")}`,
+    wardrobeContext,
+  );
+  const applyGeneratedWardrobe = vm.runInContext("applyGeneratedWardrobe", wardrobeContext);
+  const apply = (items, itemNames) => {
+    const state = { items: [], outfits: [] };
+    const result = applyGeneratedWardrobe(state, {
+      items: items.map(([name, defaultSlot]) => ({ name, defaultSlot, quantity: 1 })),
+      outfits: [{ name: "Look", description: "", itemNames }],
+    });
+    return {
+      slots: Object.fromEntries(Object.entries(state.outfits[0].slots).map(([slot, member]) => [slot, member.name])),
+      skipped: [...result.skipped].map((entry) => entry.itemName),
+      items: state.items,
+    };
+  };
+
+  let look = apply(
+    [
+      ["Black Tights", "clothing_legs"],
+      ["Pencil Skirt", "clothing_legs"],
+    ],
+    ["Black Tights", "Pencil Skirt"],
+  );
+  assert.deepEqual(look.slots, { clothing_legs: "Black Tights", midlayer_legs: "Pencil Skirt" });
+  assert.deepEqual(look.skipped, []);
+  assert.equal(
+    look.items.find((item) => item.name === "Pencil Skirt").defaultSlot,
+    "clothing_legs",
+    "worn on its own, the skirt still goes to the inner layer",
+  );
+
+  look = apply(
+    [
+      ["Shirt", "clothing_torso"],
+      ["Waistcoat", "clothing_torso"],
+      ["Blazer", "clothing_torso"],
+      ["Overcoat", "clothing_torso"],
+    ],
+    ["Shirt", "Waistcoat", "Blazer", "Overcoat"],
+  );
+  assert.deepEqual(look.slots, { clothing_torso: "Shirt", midlayer_torso: "Waistcoat", outerwear_torso: "Blazer" });
+  assert.deepEqual(look.skipped, ["Overcoat"], "a fourth layer has nowhere to go");
+
+  look = apply(
+    [
+      ["Shirt", "clothing_torso"],
+      ["Waistcoat", "midlayer_torso"],
+      ["Jacket", "clothing_torso"],
+    ],
+    ["Shirt", "Waistcoat", "Jacket"],
+  );
+  assert.deepEqual(look.slots, { clothing_torso: "Shirt", midlayer_torso: "Waistcoat", outerwear_torso: "Jacket" });
+
+  look = apply(
+    [
+      ["Boots", "feet"],
+      ["Sandals", "feet"],
+    ],
+    ["Boots", "Sandals"],
+  );
+  assert.deepEqual(look.slots, { feet: "Boots" });
+  assert.deepEqual(look.skipped, ["Sandals"], "other slots still collide as before");
+});
+
+await test("every slot has bundled icon art that exists", async () => {
+  const iconFiles = Object.fromEntries(
+    [...serverSource.match(/const SLOT_ICON_FILES = \{([\s\S]*?)\};/)[1].matchAll(/(\w+): "([^"]+)"/g)].map((match) => [
+      match[1],
+      match[2],
+    ]),
+  );
+  assert.deepEqual(Object.keys(iconFiles).sort(), [...clientSlots].sort());
+  const bundled = new Set(await readdir(new URL("../packages/quartermaster/icons/", import.meta.url)));
+  for (const [slot, file] of Object.entries(iconFiles)) {
+    assert.ok(bundled.has(`${file}.webp`), `${slot} -> icons/${file}.webp`);
   }
 });

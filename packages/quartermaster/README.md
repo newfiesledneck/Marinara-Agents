@@ -217,6 +217,16 @@ overwrite an already-released version's artifact file if you forget to bump `VER
 
 ## Changelog
 
+### 0.1.28
+- **Build Wardrobe layering**: the model now just gives each garment its usual slot and lists an
+  outfit from innermost to outermost; when two pieces of one outfit share a clothing layer (tights
+  and a pencil skirt over them), the later one is moved up to the next free layer instead of being
+  dropped. Each item keeps its own default slot, so the skirt still goes to the inner layer when
+  worn alone. The prompt's layering rule got shorter, which should help less capable models.
+- **New slot artwork**: the clothing layers read as one outfit — shirt, waistcoat and coat for the
+  torso; leggings, shorts and chaps for the legs — plus socks and a ring shared by the three Extra
+  Wearable slots. All gender-neutral, in the same style as the original icons.
+
 ### 0.1.27
 - The clothing layers on the portrait ring are now a stack of cards instead of three boxes side by
   side, so the dock stays about as wide as before. The front layer shows in full and the others as
