@@ -52,8 +52,10 @@ equipped item's own image, or built-in art if it doesn't have one.
 **Layered clothing** goes inside out, one item per layer: **Inner** clothing is the first layer
 over underwear, **Mid** goes over it, and **Outer** over that. A suit is a dress shirt (inner), a
 waistcoat (mid), and a jacket (outer); shorts over tights put the tights in inner and the shorts in
-mid. Something worn on its own just uses the inner slot. When there's room, the mid and outer boxes
-sit beside the inner one on the portrait ring; in a narrower dock they stack above it instead.
+mid. Something worn on its own just uses the inner slot. On the portrait ring each region's three
+layers share one stack of cards: the front layer shows in full, the others as narrow tabs beside it
+(outlined like any slot when something's worn there). Use the arrows on the card, or tap a tab, to
+bring another layer to the front. The outermost worn layer is in front when the dock opens.
 The **Extra Wearable** slots are for anything worn that no other slot fits — a second necklace,
 rings, a coat over a suit jacket.
 
@@ -215,6 +217,12 @@ overwrite an already-released version's artifact file if you forget to bump `VER
 
 ## Changelog
 
+### 0.1.27
+- The clothing layers on the portrait ring are now a stack of cards instead of three boxes side by
+  side, so the dock stays about as wide as before. The front layer shows in full and the others as
+  narrow tabs, outlined when something's worn there; the arrows on the card or a tap on a tab switch
+  layers. The outermost worn layer is in front by default.
+
 ### 0.1.26
 - **Layered clothing**: torso and legs each get three clothing layers — Inner, Mid and Outer — so a
   shirt, waistcoat and jacket (or tights under shorts) can all be worn at once. The existing
@@ -223,8 +231,6 @@ overwrite an already-released version's artifact file if you forget to bump `VER
   elsewhere.
 - The tracker agent and Build Wardrobe know about the new slots and how to layer clothing. If you
   customized the tracker prompt, reset it to the default to pick these up.
-- On the portrait ring, the mid and outer layers sit beside the inner box when there's room and
-  stack above it in a narrower dock.
 
 ### 0.1.25
 - With an Admin Secret saved, each image now loads once and is reused, instead of reloading after

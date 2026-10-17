@@ -1,5 +1,10 @@
 # Quartermaster changelog
 
+## 0.1.27 — 2026-10-16
+- Clothing layers on the portrait ring are now a stack of cards, so the dock stays about as wide as
+  before. Use the arrows on the card or tap a layer's tab to switch; worn layers keep their
+  highlighted outline.
+
 ## 0.1.26 — 2026-10-12 [highlight]
 - Layered clothing: torso and legs each have Inner, Mid and Outer clothing slots, so a shirt,
   waistcoat and jacket (or tights under shorts) can be worn together. Existing clothing becomes the

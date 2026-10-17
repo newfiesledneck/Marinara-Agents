@@ -112,10 +112,9 @@ const QM_OVERLAY_SLOT_PAIRS = [
   ["weapon_left_hand", "weapon_right_hand"],
 ];
 // The clothing layers worn over an inner clothing slot, in order outward
-// from it. Wide, they sit beside their inner box, extending away from the
-// portrait (left of the torso box, right of the legs box); narrow, they stack
-// above it in the same column, outer first, so each column still reads
-// armor → outer → mid → inner → underwear.
+// from it. On the ring the three share one stack of cards (10-dock.js's
+// _buildClothingLayerStack): one in front, the others as spines, always in
+// this inside-out order away from the portrait.
 const QM_OVERLAY_SLOT_LAYERS = {
   clothing_torso: ["midlayer_torso", "outerwear_torso"],
   clothing_legs: ["midlayer_legs", "outerwear_legs"],

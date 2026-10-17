@@ -522,6 +522,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.27",
+          "date": "2026-10-16",
+          "notes": "- Clothing layers on the portrait ring are now a stack of cards, so the dock stays about as wide as\n  before. Use the arrows on the card or tap a layer's tab to switch; worn layers keep their\n  highlighted outline.",
+          "highlight": false
+        },
+        {
           "version": "0.1.26",
           "date": "2026-10-12",
           "notes": "- Layered clothing: torso and legs each have Inner, Mid and Outer clothing slots, so a shirt,\n  waistcoat and jacket (or tights under shorts) can be worn together. Existing clothing becomes the\n  Inner layer.\n- New Socks slot, plus three Extra Wearable slots for anything no other slot fits.\n- The tracker agent and Build Wardrobe use the new slots. If you customized the tracker prompt,\n  reset it to the default to pick them up.",
@@ -633,12 +639,6 @@
           "version": "0.1.8",
           "date": "2026-09-11",
           "notes": "- Confirmed fix: Generate Image no longer shows a person in item images.\n- Bag column now splits into Items, Wearables, and Stored tabs.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.7",
-          "date": "2026-09-09",
-          "notes": "- Attempted fix for Generate Image sending the persona's appearance into item/outfit image\n  requests instead of a clean product shot.\n- Build script now refuses to silently overwrite an already-released version's artifact.",
           "highlight": false
         }
       ]

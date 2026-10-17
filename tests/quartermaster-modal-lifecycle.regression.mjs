@@ -765,58 +765,129 @@ await test("every slot is on the portrait ring once, with labels, an icon, and a
   }
 });
 
-await test("clothing layers sit beside the inner box when they fit, otherwise stack outer first above it", () => {
+await test("clothing layers stack as cards: outermost worn in front, arrows and spines switch it", () => {
   const saved = {
     build: dock._buildOverlaySlotBox,
-    container: dock.equippedContainer,
-    portrait: dock.portraitWrapper,
-    built: dock._layersBesideBuilt,
+    paint: dock._paint,
+    items: QM.state.items,
+    front: dock._clothingFront,
+    move: dock._clothingFrontMove,
+    selected: dock.selectedSlot,
+    mode: dock.bagSearchMode,
+    query: dock.bagSearchQuery,
+    refs: dock.equippedSlotBoxRefs,
     createElement: context.document.createElement,
   };
   // In the real bundle 05-state.js shares the dock's scope; this context loads only the dock files.
-  context.QM_OVERLAY_SLOT_LAYERS = slotValue("QM_OVERLAY_SLOT_LAYERS");
-  dock._buildOverlaySlotBox = (slot) => ({ slot });
-  context.document.createElement = () => ({
+  for (const name of ["QM_OVERLAY_SLOT_LAYERS", "QM_OVERLAY_SLOT_LABELS", "QM_OVERLAY_SLOT_LABEL_LINES"]) {
+    context[name] = slotValue(name);
+  }
+  const node = () => ({
     style: {},
     children: [],
+    listeners: {},
+    animations: [],
     append(...nodes) {
       this.children.push(...nodes);
     },
+    appendChild(child) {
+      this.children.push(child);
+    },
+    setAttribute() {},
+    addEventListener(name, handler) {
+      this.listeners[name] = handler;
+    },
+    animate(frames) {
+      this.animations.push(frames);
+    },
   });
-  // Copied into this realm first: arrays built inside the vm context have a different prototype.
-  const slotsOf = (nodes) => [...nodes].map((node) => node.slot);
+  let paints = 0;
+  dock._buildOverlaySlotBox = (slot) => Object.assign(node(), { slot });
+  dock._paint = () => paints++;
+  context.document.createElement = node;
+  const labels = slotValue("QM_OVERLAY_SLOT_LABELS");
+  const layerOf = (element) =>
+    element.slot
+      ? `card:${element.slot}`
+      : `spine:${Object.keys(labels).find((slot) => element.title.startsWith(`${labels[slot]}:`))}`;
+  const stack = (innerSlot, side) => [...dock._buildClothingLayerStack(innerSlot, side).children];
+  const wear = (...slots) => {
+    QM.state.items = slots.map((slot, index) => ({ id: `item-${index}`, name: slot, location: `equipped:${slot}` }));
+  };
   try {
-    const layers = (slot, side, beside) => dock._withClothingLayers(slot, { slot }, side, beside);
-    assert.deepEqual(slotsOf(layers("clothing_torso", "left", false)), [
-      "outerwear_torso",
-      "midlayer_torso",
-      "clothing_torso",
+    dock._clothingFront = {};
+    dock._clothingFrontMove = null;
+    wear();
+    assert.deepEqual(stack("clothing_legs", "right").map(layerOf), [
+      "card:clothing_legs",
+      "spine:midlayer_legs",
+      "spine:outerwear_legs",
     ]);
-    assert.deepEqual(slotsOf(layers("clothing_legs", "right", false)), [
-      "outerwear_legs",
-      "midlayer_legs",
-      "clothing_legs",
+    assert.deepEqual(stack("clothing_torso", "left").map(layerOf), [
+      "spine:outerwear_torso",
+      "spine:midlayer_torso",
+      "card:clothing_torso",
     ]);
-    const [torsoRow] = layers("clothing_torso", "left", true);
-    assert.deepEqual(slotsOf(torsoRow.children), ["outerwear_torso", "midlayer_torso", "clothing_torso"]);
-    const [legsRow] = layers("clothing_legs", "right", true);
-    assert.deepEqual(slotsOf(legsRow.children), ["clothing_legs", "midlayer_legs", "outerwear_legs"]);
-    assert.deepEqual(slotsOf(layers("armor_torso", "left", true)), ["armor_torso"]);
 
-    // Two sides of 3 * 92 + 2 * 4, the 160px portrait, and two 8px column gaps.
-    dock.portraitWrapper = { offsetWidth: 160 };
-    dock.equippedContainer = { clientWidth: 744 };
-    assert.equal(dock._clothingLayersBeside(), true);
-    dock.equippedContainer = { clientWidth: 743 };
-    assert.equal(dock._clothingLayersBeside(), false);
-    dock.equippedContainer = { clientWidth: 0 };
-    dock._layersBesideBuilt = true;
-    assert.equal(dock._clothingLayersBeside(), true, "nothing measurable keeps the last layout");
+    wear("clothing_torso", "midlayer_torso");
+    const torso = stack("clothing_torso", "left");
+    assert.deepEqual(
+      torso.map(layerOf),
+      ["spine:outerwear_torso", "card:midlayer_torso", "spine:clothing_torso"],
+      "the outermost worn layer is in front",
+    );
+    assert.match(torso[2].style.border, /--primary/, "a worn back layer keeps the equipped outline");
+    assert.match(torso[0].style.border, /rgba/, "an empty back layer keeps the plain outline");
+    assert.deepEqual(
+      torso[1].children.map((arrow) => arrow.title),
+      ["Show Outer Torso Clothing", "Show Inner Torso Clothing"],
+    );
+
+    wear();
+    const [legsCard] = stack("clothing_legs", "right");
+    assert.deepEqual(
+      legsCard.children.map((arrow) => arrow.title),
+      ["Show Mid Legs Clothing"],
+      "arrows only toward existing layers",
+    );
+    let stopped = false;
+    legsCard.children[0].listeners.click({ stopPropagation: () => (stopped = true) });
+    assert.ok(stopped, "an arrow click does not select the card under it");
+    assert.equal(paints, 1);
+    const switched = stack("clothing_legs", "right");
+    assert.deepEqual(switched.map(layerOf), ["spine:clothing_legs", "card:midlayer_legs", "spine:outerwear_legs"]);
+    assert.equal(switched[1].animations.length, 1, "the new front card slides in");
+    assert.equal(stack("clothing_legs", "right")[1].animations.length, 0, "only once");
+
+    dock.selectedSlot = "midlayer_legs";
+    dock.bagSearchMode = "slot";
+    dock.bagSearchQuery = "Mid Clothing (Legs)";
+    switched[2].listeners.click();
+    assert.equal(dock._clothingFrontSlot("clothing_legs"), "outerwear_legs");
+    assert.equal(dock.selectedSlot, null, "a selection in the stack is cleared");
+    assert.equal(dock.bagSearchMode, "name");
+    assert.equal(dock.bagSearchQuery, "");
+    dock.selectedSlot = "head";
+    dock._showClothingLayer("clothing_legs", "clothing_legs");
+    assert.equal(dock.selectedSlot, "head", "a selection outside the stack stays");
+
+    dock.equippedSlotBoxRefs = new Map();
+    const entry = dock._buildSideEntry("clothing_torso", "left");
+    const ref = dock.equippedSlotBoxRefs.get("clothing_torso");
+    assert.equal(ref.element, entry, "the connector anchors to the whole stack");
+    assert.deepEqual([...ref.slots], ["clothing_torso", "midlayer_torso", "outerwear_torso"]);
+    dock._buildSideEntry("armor_torso", "left");
+    assert.deepEqual([...dock.equippedSlotBoxRefs.get("armor_torso").slots], ["armor_torso"]);
   } finally {
     dock._buildOverlaySlotBox = saved.build;
-    dock.equippedContainer = saved.container;
-    dock.portraitWrapper = saved.portrait;
-    dock._layersBesideBuilt = saved.built;
+    dock._paint = saved.paint;
+    QM.state.items = saved.items;
+    dock._clothingFront = saved.front;
+    dock._clothingFrontMove = saved.move;
+    dock.selectedSlot = saved.selected;
+    dock.bagSearchMode = saved.mode;
+    dock.bagSearchQuery = saved.query;
+    dock.equippedSlotBoxRefs = saved.refs;
     context.document.createElement = saved.createElement;
   }
 });
