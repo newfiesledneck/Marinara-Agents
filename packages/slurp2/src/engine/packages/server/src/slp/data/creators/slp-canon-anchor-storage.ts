@@ -9,6 +9,7 @@
 import { createHash } from "node:crypto";
 import type { DB } from "../../../db/connection.js";
 import { logger } from "../../../lib/logger.js";
+import { slpIsAdmissionFailure } from "../../base/host/slp-admission.js";
 import { createAppSettingsStorage } from "../../../services/storage/app-settings.storage.js";
 import type { SlurpCanonAnchors } from "../../modules/feed/slp-post-beat.js";
 import { mergeSlurpCanonAnchors, normalizeSlurpCanonAnchors } from "../../modules/feed/slp-post-brief.js";
@@ -131,6 +132,8 @@ export async function slurpCanonAnchorsFor(
     void storeReading(db, accountId, key, read)
       .then(() => failedUntil.delete(accountId))
       .catch((error: unknown) => {
+        // A busy connection sent nothing: the next post tries again.
+        if (slpIsAdmissionFailure(error)) return;
         failedUntil.set(accountId, at.getTime() + FAILED_WAIT_MS);
         logger.warn(error, "[slurp] Canon anchor extraction failed; posts stay on the classic planner for now");
       })

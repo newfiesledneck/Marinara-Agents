@@ -83,6 +83,7 @@ import {
   type BrowserSpeechRecognition,
 } from "../../lib/browser-speech-recognition";
 import { useTTSConfig } from "../../hooks/use-tts";
+import { useDialogFocusScope } from "../../hooks/use-dialog-focus-scope";
 import { resolveTTSVoiceForSpeaker } from "../../lib/tts-dialogue";
 import { ttsService } from "../../lib/tts-service";
 import {
@@ -91,7 +92,8 @@ import {
   playConversationCallLeaveSound,
   playConversationCallStartSound,
 } from "../../lib/conversation-call-sounds";
-import { useAgentStore } from "../../stores/agent.store";
+import { hostAgentStoreAvailable, useAgentStore } from "../../stores/agent.store";
+import { PackageChatScope } from "../../stores/chat.store";
 import { ReactionAddButton } from "./ReactionAddButton";
 import { MessageReactions } from "./MessageReactions";
 import { toggleReaction, USER_REACTOR } from "../../lib/reactions";
@@ -1201,6 +1203,19 @@ export function ConversationCallSurface({
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const inputBarRef = useRef<HTMLDivElement | null>(null);
+  // The phone Call Chat sheet is a chat-local modal. It mounts only in the mobile layout, so one left open
+  // across the breakpoint cannot hide Engine's floating windows on desktop. Its Connections menu is portaled.
+  // ponytail: the frozen vendored hook predates Engine's stacked-modal guard, so Tab in an Engine dialog opened
+  // above the sheet returns to the sheet. Upgrade path: a package-owned copy of Engine's current hook.
+  const mobileChatSheetOpen = mobileChatOpen && mobileCallLayout;
+  const mobileChatSheetRef = useRef<HTMLDivElement | null>(null);
+  useDialogFocusScope(
+    mobileChatSheetOpen,
+    mobileChatSheetRef,
+    undefined,
+    undefined,
+    '[role="menu"][aria-label="Connections"]',
+  );
   const lastUserActivityAtRef = useRef(0);
   const lastIdleCheckAtRef = useRef(0);
   const playingTurnsRef = useRef(false);
@@ -1633,8 +1648,16 @@ export function ConversationCallSurface({
   );
 
   useEffect(() => {
+    // The TTS service is the Engine's, shared with its read-aloud: change the volume of a clip only while this call is
+    // the one speaking (a call participant's id, joined or not, or this session's own id). Each call clip starts with
+    // the call's volume.
+    const activeId = ttsService.getActiveId();
+    const callSpeaking =
+      activeId !== null &&
+      (participants.some((participant) => participant.id === activeId) || activeId.startsWith(`${session.id}:`));
+    if (!callSpeaking) return;
     ttsService.setCurrentPlaybackVolume(characterVoicePlaybackVolume, characterVoicesMuted);
-  }, [characterVoicePlaybackVolume, characterVoicesMuted]);
+  }, [characterVoicePlaybackVolume, characterVoicesMuted, participants, session.id]);
 
   const toggleCharacterVoicesMuted = useCallback(() => {
     if (characterVoicesMuted) {
@@ -1875,7 +1898,10 @@ export function ConversationCallSurface({
               await playCustomClipByName(turn);
             } else if (commandName === "youtube") {
               const searchQuery = getCommandStringParam(turn.content, "query");
-              if (searchQuery) {
+              if (searchQuery && !hostAgentStoreAvailable) {
+                // The song plays in the Engine's own music player; an Engine without it cannot take one.
+                toast.error("YouTube playback needs a newer Marinara Engine.");
+              } else if (searchQuery) {
                 setYoutubePlay({ searchQuery, mood: "Conversation call music command" });
                 toast(`Playing YouTube: ${searchQuery}`);
               }
@@ -2757,119 +2783,123 @@ export function ConversationCallSurface({
       </div>
     );
 
+  // The call belongs to its chat, so the connection switcher and the sticker and emoji settings in the composer change
+  // that chat, never the one open behind the call (D5, Pasta-Devs/Marinara-Agents#1487).
   const renderCallComposer = () => (
-    <form
-      className="relative border-t border-[var(--marinara-chat-chrome-panel-divider)] bg-[var(--background)] p-2 sm:p-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        submitDraft();
-      }}
-    >
-      {mobilePickerOpen && (
-        <ConversationMediaPickerPanel
-          tabs={MOBILE_CALL_PICKER_TABS}
-          activeTab={mobilePickerTab}
-          onActiveTabChange={(tab) => {
-            if (tab !== "tools") setMobilePickerTab(tab);
-          }}
-          onClose={() => setMobilePickerOpen(false)}
-          onEmojiSelect={handleEmojiSelect}
-          onGifSelect={handleGifSelect}
-          onStickerSelect={handleStickerSelect}
-          className="absolute bottom-full left-2 right-2 z-30 mb-3 sm:hidden"
-        />
-      )}
-      <div
-        ref={inputBarRef}
-        className={getChatInputShellClass({
-          hasContent: draft.trim().length > 0,
-          layout: "conversation",
-          className: "w-full",
-        })}
+    <PackageChatScope chatId={session.chatId}>
+      <form
+        className="relative border-t border-[var(--marinara-chat-chrome-panel-divider)] bg-[var(--background)] p-2 sm:p-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submitDraft();
+        }}
       >
-        <button
-          type="button"
-          disabled
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all sm:h-8 sm:w-8"
-          title="Call file attachments are not available yet"
+        {mobilePickerOpen && (
+          <ConversationMediaPickerPanel
+            tabs={MOBILE_CALL_PICKER_TABS}
+            activeTab={mobilePickerTab}
+            onActiveTabChange={(tab) => {
+              if (tab !== "tools") setMobilePickerTab(tab);
+            }}
+            onClose={() => setMobilePickerOpen(false)}
+            onEmojiSelect={handleEmojiSelect}
+            onGifSelect={handleGifSelect}
+            onStickerSelect={handleStickerSelect}
+            className="absolute bottom-full left-2 right-2 z-30 mb-3 sm:hidden"
+          />
+        )}
+        <div
+          ref={inputBarRef}
+          className={getChatInputShellClass({
+            hasContent: draft.trim().length > 0,
+            layout: "conversation",
+            className: "w-full",
+          })}
         >
-          <Paperclip size="1rem" />
-        </button>
-        <QuickConnectionSwitcher className="h-9 w-9 shrink-0 rounded-xl sm:h-8 sm:w-8" />
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={handleDraftChange}
-          onKeyDown={handleDraftKeyDown}
-          onFocus={() => {
-            if (mobilePickerOpen) setMobilePickerOpen(false);
-          }}
-          placeholder="Message in call"
-          rows={1}
-          className="mari-chat-input-textarea max-h-[12.5rem] min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-[1rem] leading-tight text-foreground outline-none placeholder:text-foreground/30 sm:min-h-0 sm:px-0 sm:py-0 sm:leading-normal"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            const nextOpen = !mobilePickerOpen;
-            setMobilePickerOpen(nextOpen);
-            if (nextOpen) textareaRef.current?.blur();
-            else textareaRef.current?.focus();
-          }}
-          className={cn(
-            "flex h-9 w-9 items-center justify-center rounded-xl transition-colors sm:hidden",
-            mobilePickerOpen
-              ? "bg-foreground/10 text-foreground/75 ring-1 ring-foreground/20"
-              : "text-foreground/40 hover:bg-foreground/10 hover:text-foreground/70",
-          )}
-          title={mobilePickerOpen ? "Show keyboard" : "Emoji, GIFs & stickers"}
-          aria-label={mobilePickerOpen ? "Show keyboard" : "Emoji, GIFs and stickers"}
-        >
-          {mobilePickerOpen ? <Keyboard size="1.25rem" /> : <Smile size="1.25rem" />}
-        </button>
-        <div className="relative hidden shrink-0 sm:block">
+          <button
+            type="button"
+            disabled
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all sm:h-8 sm:w-8"
+            title="Call file attachments are not available yet"
+          >
+            <Paperclip size="1rem" />
+          </button>
+          <QuickConnectionSwitcher className="h-9 w-9 shrink-0 rounded-xl sm:h-8 sm:w-8" />
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={handleDraftChange}
+            onKeyDown={handleDraftKeyDown}
+            onFocus={() => {
+              if (mobilePickerOpen) setMobilePickerOpen(false);
+            }}
+            placeholder="Message in call"
+            rows={1}
+            className="mari-chat-input-textarea max-h-[12.5rem] min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-[1rem] leading-tight text-foreground outline-none placeholder:text-foreground/30 sm:min-h-0 sm:px-0 sm:py-0 sm:leading-normal"
+          />
           <button
             type="button"
             onClick={() => {
-              setMobilePickerOpen((value) => !value);
+              const nextOpen = !mobilePickerOpen;
+              setMobilePickerOpen(nextOpen);
+              if (nextOpen) textareaRef.current?.blur();
+              else textareaRef.current?.focus();
             }}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl transition-colors sm:h-8 sm:w-8 sm:rounded-full",
+              "flex h-9 w-9 items-center justify-center rounded-xl transition-colors sm:hidden",
               mobilePickerOpen
                 ? "bg-foreground/10 text-foreground/75 ring-1 ring-foreground/20"
                 : "text-foreground/40 hover:bg-foreground/10 hover:text-foreground/70",
             )}
-            title="Emoji, GIFs & stickers"
-            aria-label="Emoji, GIFs and stickers"
-            aria-expanded={mobilePickerOpen}
+            title={mobilePickerOpen ? "Show keyboard" : "Emoji, GIFs & stickers"}
+            aria-label={mobilePickerOpen ? "Show keyboard" : "Emoji, GIFs and stickers"}
           >
-            <Smile size="1.25rem" />
+            {mobilePickerOpen ? <Keyboard size="1.25rem" /> : <Smile size="1.25rem" />}
           </button>
-          {mobilePickerOpen && (
-            <ConversationMediaPickerPanel
-              tabs={MOBILE_CALL_PICKER_TABS}
-              activeTab={mobilePickerTab}
-              onActiveTabChange={(tab) => {
-                if (tab !== "tools") setMobilePickerTab(tab);
+          <div className="relative hidden shrink-0 sm:block">
+            <button
+              type="button"
+              onClick={() => {
+                setMobilePickerOpen((value) => !value);
               }}
-              onClose={() => setMobilePickerOpen(false)}
-              onEmojiSelect={handleEmojiSelect}
-              onGifSelect={handleGifSelect}
-              onStickerSelect={handleStickerSelect}
-              className="absolute bottom-full right-0 z-30 mb-4 w-[min(24rem,calc(100vw-1.5rem))]"
-            />
-          )}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl transition-colors sm:h-8 sm:w-8 sm:rounded-full",
+                mobilePickerOpen
+                  ? "bg-foreground/10 text-foreground/75 ring-1 ring-foreground/20"
+                  : "text-foreground/40 hover:bg-foreground/10 hover:text-foreground/70",
+              )}
+              title="Emoji, GIFs & stickers"
+              aria-label="Emoji, GIFs and stickers"
+              aria-expanded={mobilePickerOpen}
+            >
+              <Smile size="1.25rem" />
+            </button>
+            {mobilePickerOpen && (
+              <ConversationMediaPickerPanel
+                tabs={MOBILE_CALL_PICKER_TABS}
+                activeTab={mobilePickerTab}
+                onActiveTabChange={(tab) => {
+                  if (tab !== "tools") setMobilePickerTab(tab);
+                }}
+                onClose={() => setMobilePickerOpen(false)}
+                onEmojiSelect={handleEmojiSelect}
+                onGifSelect={handleGifSelect}
+                onStickerSelect={handleStickerSelect}
+                className="absolute bottom-full right-0 z-30 mb-4 w-[min(24rem,calc(100vw-1.5rem))]"
+              />
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={!draft.trim()}
+            className="mari-chat-send-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-200 disabled:cursor-not-allowed sm:h-8 sm:w-8"
+            title="Send"
+          >
+            <Send size="0.9375rem" />
+          </button>
         </div>
-        <button
-          type="submit"
-          disabled={!draft.trim()}
-          className="mari-chat-send-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-200 disabled:cursor-not-allowed sm:h-8 sm:w-8"
-          title="Send"
-        >
-          <Send size="0.9375rem" />
-        </button>
-      </div>
-    </form>
+      </form>
+    </PackageChatScope>
   );
 
   return (
@@ -3204,8 +3234,15 @@ export function ConversationCallSurface({
           {renderCallComposer()}
         </div>
       </div>
-      {mobileChatOpen && (
-        <div className="absolute inset-0 z-40 flex flex-col bg-[var(--background)] md:hidden">
+      {/* A chat-local modal: Engine hides its floating chat windows and bubbles, which otherwise cover the close button. */}
+      {mobileChatSheetOpen && (
+        <div
+          ref={mobileChatSheetRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Call Chat"
+          className="absolute inset-0 z-40 flex flex-col bg-[var(--background)] md:hidden"
+        >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--marinara-chat-chrome-panel-divider)] px-4 py-3">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-[var(--marinara-chat-chrome-panel-title)]">

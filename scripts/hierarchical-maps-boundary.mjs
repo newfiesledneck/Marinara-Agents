@@ -75,8 +75,9 @@ export async function findHierarchicalMapsPrivateEngineImports(sourceRoot = hier
 export async function readHierarchicalMapsBoundary() {
   const boundary = JSON.parse(await readFile(hierarchicalMapsBoundaryPath, "utf8"));
   if (boundary.schemaVersion !== 1) throw new Error("Unsupported Hierarchical Maps boundary schema");
-  if (boundary.capabilityApi?.major !== 1 || boundary.capabilityApi?.minor !== 4) {
-    throw new Error("Hierarchical Maps must target capability API 1.4");
+  // The host resolves the chat's World Maps reference lorebook through its normal triggers (#1603).
+  if (boundary.capabilityApi?.major !== 1 || boundary.capabilityApi?.minor !== 380) {
+    throw new Error("Hierarchical Maps must target capability API 1.380");
   }
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(boundary.builtAgainst?.engineVersion ?? "")) {
     throw new Error("Hierarchical Maps boundary is missing a valid Engine version");

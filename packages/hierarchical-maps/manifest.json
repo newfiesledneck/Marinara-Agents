@@ -2,18 +2,18 @@
   "schemaVersion": 2,
   "capabilityApi": {
     "major": 1,
-    "minor": 4
+    "minor": 380
   },
   "builtAgainst": {
-    "engineVersion": "2.4.3",
-    "engineCommit": "bb551bf921c006922edac7be06dbea8fe4c999b9"
+    "engineVersion": "2.5.1",
+    "engineCommit": "3f9868540ed9264ddd228cf1b559cf1b7f2ce4de"
   },
   "id": "hierarchical-maps",
   "name": "World Maps",
-  "version": "1.5.1",
+  "version": "1.7.1",
   "description": "Adds world maps to Roleplay and Game, from whole regions down to single rooms, with art and travel between places. Add the Agent in Chat Settings → Agents → Tracker Agents for Roleplay and Game modes.",
   "engine": {
-    "min": "2.4.2",
+    "min": "2.5.1",
     "maxExclusive": "4.0.0"
   },
   "kind": [
@@ -46,13 +46,13 @@
     },
     {
       "path": "server.mjs",
-      "sha256": "836a60d86b548d99d8819b5ff09bcb5cc5fd67d16e85e314a8ed7f5b0a4e2b0f",
-      "bytes": 313196
+      "sha256": "08bad852d9b2193d0106305330e2c92475f854c9ffd0bf11e74bc8abdaeb4646",
+      "bytes": 137268
     },
     {
       "path": "client.js",
-      "sha256": "ec2ab08bcc862cc5be038c5cfe54191691d93fd23c76dfdd898ab4ff7cbb99a9",
-      "bytes": 958255
+      "sha256": "6a38be8b9502cca77da968620c52532a132510e70a398a0ad7e228cfdb1cb330",
+      "bytes": 441581
     }
   ],
   "permissions": [

@@ -6,6 +6,13 @@ import { join } from "node:path";
 // parser. The route list below is the post-rename inventory. BASELINE is derived from it through
 // the explicit mapping table, so a method change or a missing route cannot pass by rebaselining.
 const EXPECTED = [
+  // 0.3.18: edit, delete and write again a DM; copy and sum up a thread (docs/FEEDBACK-2026-10.md R9, R10).
+  "GET /messages/threads/:threadId/export",
+  "POST /messages/sexting",
+  "POST /messages/threads/:threadId/messages/:messageId/delete",
+  "POST /messages/threads/:threadId/messages/:messageId/edit",
+  "POST /messages/threads/:threadId/regenerate",
+  "POST /messages/threads/:threadId/summary",
   // Roleplay scenes from a DM thread (docs/SCENES.md).
   "GET /messages/threads/:threadId/scene/origin",
   "POST /messages/threads/:threadId/scene/invite/:messageId/decline",
@@ -56,6 +63,8 @@ const EXPECTED = [
   "GET /slurp/stir",
   // 7b-c: collabs, rivalries and brand deals in Studio.
   "GET /slurp/ties",
+  // 0.3.44: what is trending, for Discover.
+  "GET /slurp/trends",
   "POST /slurp/ties/collabs",
   "POST /slurp/ties/collabs/:id/push",
   "POST /slurp/ties/collabs/:id/decline",
@@ -115,6 +124,8 @@ const EXPECTED = [
   "GET /backup/jobs/:id",
   "GET /backup/jobs/:id/download",
   "GET /discovery-tags/usage",
+  "GET /extras/offer",
+  "GET /engine-avatars/:fileName",
   "GET /fan-types/rebalance/preview",
   "GET /maintenance/summary",
   "GET /messages/:messageId/media",
@@ -170,6 +181,7 @@ const EXPECTED = [
   "GET /settings",
   "GET /settings/audience-characters",
   "GET /settings/audience-characters/groups",
+  "GET /settings/carryover-reach",
   "GET /settings/defaults",
   "GET /settings/prompt-blocks",
   "POST /settings/prompt-blocks/generate-preview",
@@ -208,6 +220,7 @@ const EXPECTED = [
   "POST /backup/jobs",
   "POST /discovery-tags/delete",
   "POST /discovery-tags/rename",
+  "POST /extras/offer/answer",
   "POST /fan-types/rebalance",
   "POST /fan-types/voice-draft",
   "POST /messages/:messageId/reaction",
@@ -302,9 +315,12 @@ const EXPECTED = [
   "PUT /slurp/accounts/:id/goal",
   "PUT /slurp/accounts/:id/stage-profile",
   "PUT /slurp/accounts/:id/subscription-price",
+  "DELETE /story-packs/:id",
   "DELETE /story/facts/:id",
   "DELETE /story/opportunities/:id",
   "GET /story-packs/bundled",
+  "GET /story/state/:accountId",
+  "POST /story/state/:accountId",
   "GET /story/calendar",
   "GET /story/timeline",
   "POST /story-packs/bundled/:id/preview",
@@ -323,6 +339,8 @@ const RETAINED_OLD_PATHS = new Set([
   "GET /noodler/posts/:id/media/:position",
 ]);
 const ADDED_ROUTES = new Set([
+  // Paid sexting sessions (docs/SPICY.md, item 2).
+  "POST /messages/sexting",
   // Roleplay scenes from a DM thread (docs/SCENES.md).
   "GET /messages/threads/:threadId/scene/origin",
   "POST /messages/threads/:threadId/scene/invite/:messageId/decline",
@@ -370,6 +388,8 @@ const ADDED_ROUTES = new Set([
   "GET /slurp/stir",
   // 7b-c: collabs, rivalries and brand deals in Studio.
   "GET /slurp/ties",
+  // 0.3.44: what is trending, for Discover.
+  "GET /slurp/trends",
   "POST /slurp/ties/collabs",
   "POST /slurp/ties/collabs/:id/push",
   "POST /slurp/ties/collabs/:id/decline",
@@ -437,9 +457,12 @@ const ADDED_ROUTES = new Set([
   "POST /slurp/accounts/:id/wardrobe",
   "POST /slurp/accounts/:id/wardrobe/import",
   "POST /slurp/accounts/:id/wardrobe/import-preview",
+  "DELETE /story-packs/:id",
   "DELETE /story/facts/:id",
   "DELETE /story/opportunities/:id",
   "GET /story-packs/bundled",
+  "GET /story/state/:accountId",
+  "POST /story/state/:accountId",
   "GET /story/timeline",
   "POST /story-packs/bundled/:id/preview",
   "POST /story-packs/export",
@@ -461,6 +484,19 @@ const ADDED_ROUTES = new Set([
   "POST /slurp/desk/offer/answer",
   // 0.3.7: "Rewrite all now" in AI budget settings.
   "POST /model-budget/rewrite-pending",
+  // 0.3.41: small copies of Engine avatars, which the Engine serves only at full size.
+  "GET /engine-avatars/:fileName",
+  // 0.3.42: carryover settings count the Creator chats that let Slurp activity in.
+  "GET /settings/carryover-reach",
+  // 0.3.43: edit, delete and write again a DM; copy and sum up a thread (docs/FEEDBACK-2026-10.md R9, R10).
+  "GET /messages/threads/:threadId/export",
+  "POST /messages/threads/:threadId/messages/:messageId/delete",
+  "POST /messages/threads/:threadId/messages/:messageId/edit",
+  "POST /messages/threads/:threadId/regenerate",
+  "POST /messages/threads/:threadId/summary",
+  // Configurator slice 4: Support offers the extras that are still off.
+  "GET /extras/offer",
+  "POST /extras/offer/answer",
 ]);
 
 // Routes staging had that Slurp2 no longer serves. The share card is now drawn on a canvas in
@@ -490,24 +526,27 @@ const EXPECTED_HANDLER_COUNTS = {
   "features/ads": 24,
   "features/assist": 9,
   "features/audience": 13,
-  "features/creators": 50,
-  "features/discovery": 4,
+  "features/creators": 51,
+  "features/discovery": 5,
   "features/economy": 14,
   "features/feed": 39,
   "features/maintenance": 15,
-  "features/media": 7,
-  "features/messages": 50,
+  "features/media": 8,
+  // 0.3.63: +1 (the sexting session).
+  "features/messages": 56,
   "features/notifications": 4,
   "features/onboarding": 7,
   "features/projects": 31,
-  "features/settings": 8,
-  "features/world": 15,
+  "features/settings": 10,
+  "features/storylines": 2,
+  "features/world": 16,
 } as const;
 // W: +5 POST, +1 GET (Stir). R: +3 POST, +1 GET, +1 PATCH, +1 DELETE (brands).
 // 0.3.4: +1 POST, +1 PUT (Creator Pages). 0.3.5: +1 GET, +3 POST (Support desk). 0.3.7: +1 POST (rewrite all).
 // 0.3.8: +1 GET, +5 POST (Drama: bonds, drama view, choice, start, end). 0.3.11: +1 POST (fan notes).
-// 0.3.28: +1 GET (Deep details for a chat reply).
-const EXPECTED_METHOD_COUNTS = { DELETE: 19, GET: 85, PATCH: 20, POST: 159, PUT: 7 } as const;
+// DM edit tools and thread export: +1 GET, +4 POST. 0.3.28: +1 GET (Deep details for a chat reply). 0.3.42: +1 GET (carryover reach). Story state (Life panel): +1 GET, +1 POST.
+// 0.3.63: +1 POST (sexting session).
+const EXPECTED_METHOD_COUNTS = { DELETE: 20, GET: 91, PATCH: 20, POST: 166, PUT: 7 } as const;
 
 const root = join(import.meta.dirname, "../packages/slurp2/src/engine/packages/server/src/slp");
 const registration = /\bapp\.(get|post|put|patch|delete|addContentTypeParser)(?:<[^()]*?>)?\(\s*["'`]([^"'`]+)["'`]/gu;
@@ -563,7 +602,10 @@ const methodCounts = Object.fromEntries(
 );
 assert.deepEqual(methodCounts, EXPECTED_METHOD_COUNTS, "HTTP method multiset changed from staging");
 // 0.3.5: +4 (the Support desk). 0.3.7: +1 (rewrite all). Roleplay scenes: +4. 0.3.17: +2 (collab drop, post now).
-assert.equal(foundRoutes.filter((route) => !route.startsWith("ADDCONTENTTYPEPARSER ")).length, 290);
+// 0.3.41: +1 (Engine avatar copies).
+// DM edit tools, thread export: +5. Story state (Life panel): +2. Remove an imported pack: +1.
+// 0.3.63: +1 (the sexting session).
+assert.equal(foundRoutes.filter((route) => !route.startsWith("ADDCONTENTTYPEPARSER ")).length, 304);
 assert.deepEqual(handlerCounts, EXPECTED_HANDLER_COUNTS, "handler count changed in a feature");
 assert.ok(foundRoutes.includes("POST /slurp/posts/:id/media"), "the renamed POST media route must remain registered");
 assert.ok(

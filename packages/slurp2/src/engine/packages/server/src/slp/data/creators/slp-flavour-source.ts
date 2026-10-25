@@ -28,6 +28,7 @@ import { slurpCouplePartners } from "../../modules/projects/slp-couple-group.js"
 import { slurpPartnerWord, slurpRelationshipLine } from "../../modules/projects/slp-couple-lines.js";
 import { readSlurpAgentMemoryLines } from "./slp-agent-memory-source.js";
 import { createSlurpStorage } from "../slp-storage.js";
+import { slpWear, type SlpClothingStyle, type SlpGender } from "../../../../../shared/src/slp/slp-gender.js";
 import { resolveSlurpCreatorSpice, type SlurpCreatorSpice } from "./slp-spice-storage.js";
 import {
   slurpDmSpiceLevel,
@@ -113,6 +114,7 @@ export async function resolveSlurpCreatorFlavour(
      * who they are to the Creator (the DM role): a fan, a fellow Creator's page, or Slurp's staff.
      */
     chat?: {
+      /** Talks at her full level: a subscriber, or a regular and up on the rapport ladder. */
       subscribed: boolean;
       player: boolean;
       seed: string;
@@ -199,7 +201,13 @@ export function slurpSpiceCreatorFrom(
 export async function resolveSlurpSpiceCreator(
   db: DB,
   input: {
-    account: Pick<SlpAccount, "id"> & { settings: { strategy?: unknown } };
+    account: Pick<SlpAccount, "id"> & {
+      settings: {
+        strategy?: unknown;
+        profile?: { gender?: SlpGender | null };
+        stage?: { clothingStyle?: SlpClothingStyle };
+      };
+    };
     source: Pick<SlpAccount, "kind" | "entityId"> | null;
     disclosureMode: SlpIdentityDisclosure;
   },
@@ -207,7 +215,8 @@ export async function resolveSlurpSpiceCreator(
   const spice = await resolveSlurpCreatorSpice(db, input.account);
   const card = await readFlavourCard(db, input.source, input.disclosureMode);
   const anchors = await readAnchors(db, input.account.id);
-  return { spice, creator: slurpSpiceCreatorFrom(input.account.id, card?.card ?? {}, anchors, spice) };
+  const wear = slpWear(input.account.settings.profile?.gender, input.account.settings.stage?.clothingStyle);
+  return { spice, creator: { ...slurpSpiceCreatorFrom(input.account.id, card?.card ?? {}, anchors, spice), wear } };
 }
 
 async function flavourSpiceLines(

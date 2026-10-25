@@ -5,11 +5,13 @@ import { createSlurpStorage } from "../../data/slp-storage.js";
 import {
   isFollowUpDue,
   isFollowUpLate,
+  isFollowUpPastAwayLimit,
   formatFollowUpContext,
   slurpAllowsUnsolicitedText,
   type ScheduledFollowUp,
 } from "../../modules/messages/slp-follow-up.js";
-import { generateSlurpMessageReply, SlurpMessageBudgetUnavailableError } from "./slp-message-generation-service.js";
+import { generateSlurpMessageReply } from "./slp-message-generation-service.js";
+import { SlurpMessageBudgetUnavailableError } from "./slp-message-budget-error.js";
 import { resolveSlurpTextConnection } from "../../base/identity/slp-connection.js";
 import { describeSlurpDayVibe } from "../world/slp-world-contract.js";
 import { createConnectionsStorage } from "../../../services/storage/connections.storage.js";
@@ -23,6 +25,8 @@ import { trySlpOperation } from "../../base/locking/slp-operation-lock.js";
 import { tryCreatorAccountOperation } from "../../base/locking/slp-account-operation-lock.js";
 import { incrementFollowUpCount } from "../../modules/messages/slp-thread-notes.js";
 import { slurpCreatorInScene } from "./scenes/slp-roleplay-scene-lock.js";
+import { slurpSextingPhase } from "../../modules/messages/slp-sexting.js";
+import { slurpRapportDoorTier } from "../../modules/messages/slp-rapport.js";
 import { saveSlurpMessageDeepDetails } from "../../data/messages/slp-message-deep-details-storage.js";
 
 const INITIAL_DELAY_MS = 60_000; // Start after 1 minute
@@ -123,7 +127,8 @@ export function startSlurpFollowUpScheduler(app: FastifyInstance, registerStop?:
             // reply path obeys: a cool-off she started, night quiet, and her own offline schedule.
             const coolingOff = Boolean(thread.coolUntil && thread.coolUntil > new Date().toISOString());
             // In a roleplay scene: the follow-up waits a quarter hour at a time until it ends.
-            if (await slurpCreatorInScene(app.db, creator.id)) {
+            // A paid sexting session waits the same way: nothing else interrupts it.
+            if (slurpSextingPhase(thread.sexting) || (await slurpCreatorInScene(app.db, creator.id))) {
               await messages.postponeScheduledFollowUp(
                 threadRow.id,
                 followUp.id,
@@ -144,7 +149,12 @@ export function startSlurpFollowUpScheduler(app: FastifyInstance, registerStop?:
                   settings,
                 )
               : { online: true, activity: null, minutesUntilOnline: 0 };
-            const availability = { ...naturalAvailability, ...details.availability };
+            const availability = {
+              ...naturalAvailability,
+              ...details.availability,
+              // Twelve hours past its first due time it no longer waits for the Creator to be free.
+              ...(isFollowUpPastAwayLimit(followUp.firstDueAt ?? followUp.scheduledAt) ? { online: true } : {}),
+            };
             const quiet = settings.nightQuiet && isCreatorNightQuietTime(new Date());
             if (coolingOff || quiet || (!availability.online && availability.minutesUntilOnline !== null)) {
               const delayMinutes = coolingOff
@@ -263,6 +273,10 @@ export function startSlurpFollowUpScheduler(app: FastifyInstance, registerStop?:
               if (!stored) {
                 await messages.cancelScheduledFollowUp(threadRow.id, followUp.id);
                 return false;
+              }
+              // Its prompt carried any step-up line, as a normal reply's does.
+              if (slurpRapportDoorTier(thread.rapport) !== thread.rapport.said) {
+                await messages.markRapportSaid(threadRow.id, slurpRapportDoorTier(thread.rapport));
               }
               if (reply.deepDetails)
                 await saveSlurpMessageDeepDetails(app.db, {

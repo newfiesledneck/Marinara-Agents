@@ -3,6 +3,8 @@ import {
   CalendarPlus,
   Palette,
   Target,
+  TrendingUp,
+  Compass,
   CalendarHeart,
   Flame,
   Handshake,
@@ -29,6 +31,7 @@ import {
   type SlpActionName,
   type SlpStirCategory,
 } from "../../../../../shared/src/slp/slp-actions.js";
+import { slpActionAllowed, type SlpExtensionSettings } from "../../../../../shared/src/slp/slp-extensions.js";
 
 /**
  * The deck, fed from the action catalog: a card per deck lever (`SLP_ACTION_META`), in its category,
@@ -55,6 +58,8 @@ const ICONS: Partial<Record<SlpActionName, LucideIcon>> = {
   "set-tip-goal": Target,
   "new-look": Palette,
   "invent-event": CalendarPlus,
+  "start-trend": TrendingUp,
+  "steer-trend": Compass,
   "set-bond": Users,
   "start-drama": Clapperboard,
 };
@@ -80,6 +85,10 @@ export const SLP_STIR_DECK = Object.fromEntries(
   ]),
 ) as Record<SlpActionName, SlpStirDeckCard>;
 
+/** A card shows only while its extension is on (settings still loading: shown, the run checks again). */
+export const slpStirDeckOn = (action: SlpActionName, settings: SlpExtensionSettings | undefined) =>
+  !settings || slpActionAllowed(settings, action);
+
 /** The order cards show in, per category (the most fun first). */
 export const SLP_STIR_DECK_ORDER: SlpActionName[] = [
   "set-up-couple",
@@ -102,6 +111,8 @@ export const SLP_STIR_DECK_ORDER: SlpActionName[] = [
   "set-spice",
   "start-event",
   "invent-event",
+  "start-trend",
+  "steer-trend",
   "steer-storyline",
   "run-audience",
 ];

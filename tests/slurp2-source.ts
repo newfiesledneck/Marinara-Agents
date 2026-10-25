@@ -70,6 +70,8 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
   ],
   "packages/client/src/components/slurp/SlurpBackstageOverview.tsx": [
     "packages/client/src/slp/features/backstage/SlpBackstageOverviewPanel.tsx",
+    // Slice 1 of the configurator: the quick switches became the Basic page.
+    "packages/client/src/slp/features/backstage/SlpBasicPanel.tsx",
   ],
   "packages/client/src/components/slurp/SlurpBackstageCreators.tsx": [
     "packages/client/src/slp/features/creators/SlpCreatorsPanel.tsx",
@@ -101,6 +103,8 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
   "packages/client/src/components/slurp/SlurpBackstagePrompts.tsx": [
     "packages/client/src/slp/features/settings/SlpPromptsPanel.tsx",
     "packages/client/src/slp/features/settings/SlpConnectionsPanel.tsx",
+    // Carryover, lorebook context and agent flavour moved to the Engine link page.
+    "packages/client/src/slp/features/settings/SlpEngineLinkPanel.tsx",
   ],
   "packages/client/src/components/slurp/SlurpBackstageMaintenance.tsx": [
     "packages/client/src/slp/features/maintenance/SlpAutopurgePanel.tsx",
@@ -302,6 +306,8 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
     "packages/server/src/slp/data/host/slp-storage-queries.ts",
     "packages/server/src/slp/data/host/slp-storage-mappers.ts",
     "packages/server/src/slp/modules/settings/slp-settings.ts",
+    "packages/server/src/slp/modules/settings/slp-settings-image-prompts.ts",
+    "packages/server/src/slp/modules/settings/slp-settings-guidance.ts",
     "packages/server/src/slp/data/host/slp-storage-context.ts",
     "packages/server/src/slp/data/creators/slp-creators-storage-1.ts",
     "packages/server/src/slp/data/creators/slp-creators-storage-2.ts",
@@ -498,7 +504,7 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
   ],
   "packages/server/src/services/slurp/slurp-generation.service.ts": [
     "packages/server/src/slp/features/feed/slp-generation-service.ts",
-    "packages/server/src/slp/features/feed/slp-post-lore.ts",
+    "packages/server/src/slp/data/host/slp-lore-context.ts",
     "packages/server/src/slp/features/feed/slp-post-beat-service.ts",
     "packages/server/src/slp/features/feed/slp-public-identity.ts",
     "packages/server/src/slp/features/feed/slp-post-prompt.ts",
@@ -513,7 +519,7 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
   // slp-automatic-post-access.ts.
   "packages/server/src/slp/features/feed/slp-generation-service.ts": [
     "packages/server/src/slp/features/feed/slp-generation-service.ts",
-    "packages/server/src/slp/features/feed/slp-post-lore.ts",
+    "packages/server/src/slp/data/host/slp-lore-context.ts",
     "packages/server/src/slp/features/feed/slp-post-prompt.ts",
     "packages/server/src/slp/features/feed/slp-post-picture-briefs.ts",
     "packages/server/src/slp/features/feed/slp-prepared-post.ts",
@@ -873,6 +879,7 @@ export const SLURP2_SOURCE_MODULES: Record<string, readonly string[]> = {
   ],
   "packages/client/src/components/slurp/slurp2-release.ts": [
     "packages/client/src/slp/features/onboarding/slp-release.ts",
+    "packages/client/src/slp/features/onboarding/slp-release-archive.ts",
   ],
   "packages/client/src/components/slurp/SlurpAgeGate.tsx": [
     "packages/client/src/slp/features/onboarding/SlpAgeGate.tsx",

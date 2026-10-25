@@ -8,7 +8,11 @@ const rewrite = read("server/src/slp/base/media/slp-image-prompt-rewrite.ts");
 const imageService = read("server/src/slp/features/media/slp-images-service.ts");
 const publicImageService = read("server/src/slp/features/media/slp-public-images-service.ts");
 const messageService = read("server/src/slp/features/messages/slp-message-generation-service.ts");
-const settings = read("server/src/slp/modules/settings/slp-settings.ts");
+// The image-prompt defaults moved beside the settings (800-line cap); read them as one.
+const settings = [
+  read("server/src/slp/modules/settings/slp-settings.ts"),
+  read("server/src/slp/modules/settings/slp-settings-image-prompts.ts"),
+].join("\n");
 const brief = read("server/src/slp/base/media/slp-visual-brief.ts");
 const briefBuilder = read("server/src/slp/modules/feed/slp-visual-brief.ts");
 const preview = read("client/src/slp/features/settings/SlpPromptPreviewInspector.tsx");
@@ -31,6 +35,26 @@ for (const caller of [
   assert.match(read(caller), /onFailure: \(reason\) => \{\s*rewriteFailure = reason;/u, caller);
   assert.match(read(caller), /rewriteFailure[,:]/u, caller);
 }
+// Every fixed output-token limit yields to the connection's own max-tokens setting (reasoning models spend a small limit thinking).
+for (const file of [
+  "server/src/slp/base/media/slp-image-prompt-rewrite.ts",
+  "server/src/slp/features/creators/slp-creator-page-service.ts",
+  "server/src/slp/features/creators/slp-page-style-service.ts",
+  "server/src/slp/features/media/slp-appearance-service.ts",
+  "server/src/slp/features/audience/slp-fan-voice-draft-service.ts",
+  "server/src/slp/features/assist/slp-stir-service.ts",
+  "server/src/slp/features/assist/slp-assist-service.ts",
+]) {
+  const text = read(file);
+  assert.match(text, /Math\.max\(\s*resolveStoredMaxTokens\([\w.]+\.defaultParameters, [\d_]+\),\s*[\d_]+/u, file);
+  assert.match(text, /maxTokensOverride: \w+\.maxTokensOverride/u, file);
+  assert.doesNotMatch(text, /maxTokens: [\d_]+[,\s}]/u, `${file} sends a fixed maxTokens`);
+}
+assert.match(
+  rewrite,
+  /max output tokens \$\{[^}]*"provider default" : maxTokens\}/u,
+  "the failure names the limit that was sent",
+);
 assert.match(rewrite, /the answer looks cut off after/u);
 assert.match(rewrite, /the JSON answer has no "prompt" text/u);
 assert.match(rewrite, /no text connection:/u);

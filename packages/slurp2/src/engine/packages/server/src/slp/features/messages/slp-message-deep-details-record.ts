@@ -1,4 +1,4 @@
-import type { SlpMessageDeepDetailsRecord } from "../../../../../shared/src/slp/slp-deep-details.js";
+import type { SlpLoreReport, SlpMessageDeepDetailsRecord } from "../../../../../shared/src/slp/slp-deep-details.js";
 import type { SlurpCreatorState, SlurpThreadState } from "../../modules/creators/slp-creator-state.js";
 import type { SlurpRapport } from "../../modules/messages/slp-rapport.js";
 import type { SlurpThreadNote } from "../../modules/messages/slp-thread-notes.js";
@@ -26,6 +26,10 @@ export function buildSlurpMessageDeepDetailsRecord(ctx: {
   options: object;
   /** The model's answer as received, with the Creator's identity protection applied. */
   content: string;
+  /** The lorebook scan behind the reply. */
+  lore?: SlpLoreReport;
+  /** Locked post bodies this fan has not unlocked, as the prompt showed them: the fan seat's view masks them. */
+  paidBodies?: string[];
 }): SlpMessageDeepDetailsRecord {
   const { input } = ctx;
   const options = ctx.options as Record<string, unknown>;
@@ -46,6 +50,7 @@ export function buildSlurpMessageDeepDetailsRecord(ctx: {
       content: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
     })),
     rawResponse: ctx.content,
+    paidBodies: ctx.paidBodies?.filter(Boolean),
     chat: {
       rapport: { tier: input.rapport.tier, score: input.rapport.score },
       subscribed: input.subscribed,
@@ -65,6 +70,7 @@ export function buildSlurpMessageDeepDetailsRecord(ctx: {
           : null,
       creator: input.creatorState ? { emotion: input.creatorState.emotion, intent: input.creatorState.intent } : null,
       memories: (input.notes ?? []).map((note) => ({ tier: note.tier, text: note.text })),
+      ...(ctx.lore ? { lore: ctx.lore } : {}),
     },
   };
 }

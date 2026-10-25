@@ -12,6 +12,8 @@ export interface CallSpeechHost {
     audio: Uint8Array,
     options?: { filename?: string; mimeType?: string; signal?: AbortSignal },
   ): Promise<string | null>;
+  /** The Engine's Local Whisper (capability API 1.341). Rejects with the Engine's message when it is not downloaded. */
+  transcribeLocal?(wav: Uint8Array): Promise<string>;
 }
 
 export interface CallTranscription {

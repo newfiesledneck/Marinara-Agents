@@ -73,10 +73,14 @@ const WHY: Record<
   notInto: [409, "Neither romance nor dating is something they are looking for."],
   noDating: [409, "One of them does not date, and would not start for this."],
   orientation: [409, "They are not each other's type."],
+  family: [409, "Their cards say they are family, so it does not happen on its own."],
   romance: [409, "Their romance settings keep these two apart."],
   pageOpen: [409, "Their shared page is already open."],
   polyOff: [409, "Polyamory is off in Settings › Stir."],
-  mono: [409, "One of them is monogamous and already with someone."],
+  mono: [
+    409,
+    "One of them is monogamous and already with someone. Set Relationships to Polyamorous in Stir for each of them, your own page too.",
+  ],
   notTogether: [409, "They are not dating yet."],
   full: [409, "There is no room for that: the couple is four people, or they have enough close friends."],
 };

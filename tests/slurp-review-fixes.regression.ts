@@ -119,9 +119,8 @@ assert.match(mediaSrc, /observerRef\.current\?\.disconnect\(\);\s*observerRef\.c
 assert.match(mediaSrc, /mediaCache\.delete\(imageUrl\);[\s\S]{0,200}?cached\.promise\.then\(\(objectUrl\) => \{/u);
 assert.match(mediaSrc, /if \(!response\.ok\) \{\s*mediaCache\.delete\(imageUrl\);/u);
 
-const apiClient = read(join(client, "lib/api-client.ts"));
-// A bare `null` or an array error body made `body.error` throw and hid the real HTTP status.
-assert.match(apiClient, /const body = isRecord\(parsed\) \? parsed : \{ error: res\.statusText \}/u);
+// Slurp's requests go through the Engine's API client (sources/host-client-overlay), so its error handling is the
+// Engine's (#1487).
 
 // ── Controls ─────────────────────────────────────────────
 

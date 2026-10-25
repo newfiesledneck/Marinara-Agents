@@ -1,3 +1,6 @@
+import type { APIProvider } from "@marinara-engine/shared";
+import { resolveStoredMaxTokens } from "../../../services/generation/generation-parameters.js";
+import { clampGenerationMaxOutputTokens } from "../../../services/generation/output-token-limits.js";
 import type { DB } from "../../../db/connection.js";
 import type { ChatMessage } from "../../../services/llm/base-provider.js";
 import { logger } from "../../../lib/logger.js";
@@ -22,7 +25,7 @@ function readRewrittenPrompt(value: unknown): { prompt: string } | { failure: st
   if (typeof value !== "string" || !value.trim()) {
     return {
       failure:
-        "the model answered with an empty response (a reasoning model may have spent its tokens thinking; raise the connection's max output tokens)",
+        "the model answered with an empty response (a reasoning model may have spent its whole output-token limit thinking; raise the connection's max tokens)",
     };
   }
   // The default interpretation instruction says "return only the prompt", so a model that obeys it
@@ -212,17 +215,27 @@ export async function rewriteSlpImagePrompt(input: {
       model: String(runtime.model ?? ""),
       messages: messages.map((message) => ({ role: message.role, content: String(message.content) })),
     });
+    // A larger max-tokens setting on the connection raises the default; a smaller one never starves the answer.
+    const maxTokens = clampGenerationMaxOutputTokens({
+      provider: textConnection.provider as APIProvider,
+      model: textConnection.model,
+      // 8192: a reasoning model can think through 4096 and leave no prompt; the clamp still caps it at the model's max.
+      maxTokens: Math.max(resolveStoredMaxTokens(textConnection.defaultParameters, 8_192), 8_192),
+      maxTokensOverride: textConnection.maxTokensOverride,
+    });
     const result = await runtime.provider.chatComplete(messages, {
       model: runtime.model,
       // Headroom for reasoning connections: 2048 was spent entirely on thinking, with no answer.
-      ...(runtime.suppressModelParameters ? {} : { temperature: 0.3, maxTokens: 4_096 }),
+      ...(runtime.suppressModelParameters ? {} : { temperature: 0.3, maxTokens }),
       suppressModelParameters: runtime.suppressModelParameters,
       enableCaching: runtime.enableCaching,
       anthropicExtendedCacheTtl: runtime.anthropicExtendedCacheTtl,
     });
     const answer = readRewrittenPrompt(result.content);
     if ("failure" in answer) {
-      input.onFailure?.(`${answer.failure} [model ${String(runtime.model ?? "unknown")}]`);
+      input.onFailure?.(
+        `${answer.failure} [model ${String(runtime.model ?? "unknown")}, max output tokens ${runtime.suppressModelParameters ? "provider default" : maxTokens}]`,
+      );
       return null;
     }
     return answer.prompt;

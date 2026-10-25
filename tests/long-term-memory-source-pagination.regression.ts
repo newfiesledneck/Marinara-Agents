@@ -7,16 +7,21 @@ import {
   previewPackageInterop,
   previewPackageLorebooks,
   importPackageInterop,
-} from "../packages/long-term-memory/src/engine/packages/server/src/services/long-term-memory/interop.ts";
+} from "../packages/long-term-memory/src/engine/packages/server/src/services/long-term-memory/sources/interop.ts";
 import {
   ltmInteropPreviewResponseSchema,
   ltmLorebookPreviewResponseSchema,
   ltmImportSourceNotesRequestSchema,
 } from "../packages/long-term-memory/src/engine/packages/shared/src/features/agents/long-term-memory/schema.ts";
 import {
+  errorMessage,
+  failedResponseError,
   mergeSourcePreviewPages,
   mergeLorebookPreviewPages,
   fetchSourceDetails,
+  request,
+  requestAllNotes,
+  requestNotesByIds,
 } from "../packages/long-term-memory/src/engine/packages/client/src/features/long-term-memory/api.ts";
 
 async function main() {
@@ -247,15 +252,146 @@ async function main() {
     } finally {
       globalThis.fetch = originalFetch;
     }
+    // #1375: an HTTP status line is not a message for the user; the caller's localized fallback shows instead.
+    globalThis.fetch = async (url) =>
+      String(url).endsWith("/locked")
+        ? Response.json({ error: "Memory is locked." }, { status: 409 })
+        : new Response("", { status: 404, statusText: "Not Found" });
+    try {
+      const statusOnly = await request("/missing").catch((error: unknown) => error);
+      assert.equal((statusOnly as { status?: number }).status, 404);
+      assert.equal(errorMessage(statusOnly, "Could not load."), "Could not load.");
+      assert.equal(
+        errorMessage(await request("/locked").catch((error: unknown) => error), "Could not load."),
+        "Memory is locked.",
+      );
+      // The raw-Response export paths read the body themselves and share the same error construction.
+      assert.equal(
+        errorMessage(
+          await failedResponseError(new Response("", { status: 500, statusText: "Internal Server Error" })),
+          "Could not export.",
+        ),
+        "Could not export.",
+      );
+      assert.equal(
+        errorMessage(
+          await failedResponseError(Response.json({ error: "Export blocked." }, { status: 409 })),
+          "Could not export.",
+        ),
+        "Export blocked.",
+      );
+      // An unexpected server failure has no text for users: LTM's route fallback, or the Engine's generic 500 for a
+      // route without routeError. The caller's localized message shows; the server text stays on the error.
+      const routeFallback = await failedResponseError(
+        Response.json({ error: "Failed to reset settings", code: "ltm_unexpected_failure" }, { status: 500 }),
+      );
+      assert.equal(errorMessage(routeFallback, "Could not reset memory settings."), "Could not reset memory settings.");
+      assert.equal(routeFallback.message, "Failed to reset settings");
+      assert.equal(
+        errorMessage(
+          await failedResponseError(Response.json({ error: "Internal Server Error" }, { status: 500 })),
+          "Could not reset memory settings.",
+        ),
+        "Could not reset memory settings.",
+      );
+      assert.equal(
+        errorMessage(
+          await failedResponseError(
+            Response.json({ error: "Memory not found.", code: "ltm_note_not_found" }, { status: 404 }),
+          ),
+          "Could not load.",
+        ),
+        "Memory not found.",
+      );
+      assert.equal(
+        errorMessage(
+          await failedResponseError(Response.json({ error: "Export fixture failed." }, { status: 500 })),
+          "Could not export.",
+        ),
+        "Export fixture failed.",
+      );
+      assert.equal(errorMessage(new Error("Plain failure"), "Could not load."), "Plain failure");
+      assert.equal(errorMessage("not an error", "Could not load."), "Could not load.");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
     console.log(
-      "Long-Term Memory source pagination passed: scoped cursors, mutation-safe continuation, import status, limits, empty books and split entries.",
+      "Long-Term Memory source pagination passed: scoped cursors, mutation-safe continuation, import status, limits, empty books, split entries, status-only request errors, unexpected server failures and export failures.",
     );
   } finally {
     release();
     await rm(dataDir, { recursive: true, force: true });
   }
 }
-void main().catch((error) => {
+// Client note requests page through the whole vault, send the stored admin secret, and stop at the note limit.
+async function noteRequestPaging() {
+  const originalFetch = globalThis.fetch;
+  const originalWindow = globalThis.window;
+  const requestedOffsets: string[] = [];
+  const requestedHeaders: Headers[] = [];
+  try {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { localStorage: { getItem: () => "  ltm-secret  " } },
+    });
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(
+        typeof input === "string" ? input : input instanceof URL ? input : input.url,
+        "http://localhost",
+      );
+      requestedHeaders.push(new Headers(init?.headers));
+      requestedOffsets.push(url.searchParams.get("offset") ?? "");
+      const offset = Number(url.searchParams.get("offset"));
+      return new Response(JSON.stringify(offset === 0 ? Array.from({ length: 500 }, (_, id) => id) : [500]));
+    }) as typeof fetch;
+    assert.equal((await requestAllNotes<number>("/notes?includeGlobal=true")).length, 501);
+    assert.deepEqual(requestedOffsets, ["0", "500"]);
+    assert.equal(requestedHeaders[0].get("X-Admin-Secret"), "ltm-secret");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalWindow === undefined) delete (globalThis as { window?: Window }).window;
+    else globalThis.window = originalWindow;
+  }
+  try {
+    globalThis.fetch = (async () => new Response(JSON.stringify([]))) as typeof fetch;
+    await assert.rejects(requestNotesByIds<{ id: string }>(["source_missing"]), /context unavailable for 1 note/u);
+    assert.deepEqual(await requestNotesByIds<{ id: string }>(["target_missing"], undefined, true), []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  requestedOffsets.length = 0;
+  requestedHeaders.length = 0;
+  try {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { localStorage: { getItem: () => null } },
+    });
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(
+        typeof input === "string" ? input : input instanceof URL ? input : input.url,
+        "http://localhost",
+      );
+      requestedHeaders.push(new Headers(init?.headers));
+      requestedOffsets.push(url.searchParams.get("offset") ?? "");
+      return new Response(JSON.stringify(Array.from({ length: 500 }, (_, id) => id)));
+    }) as typeof fetch;
+    await assert.rejects(requestAllNotes<number>("/notes"), {
+      message: "Long-Term Memory note limit exceeded (100,000 notes)",
+    });
+    assert.equal(requestedOffsets.length, 201);
+    assert.equal(requestedOffsets.at(-1), "100000");
+    assert.equal(requestedHeaders[0].has("X-Admin-Secret"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalWindow === undefined) delete (globalThis as { window?: Window }).window;
+    else globalThis.window = originalWindow;
+  }
+}
+
+void (async () => {
+  await main();
+  await noteRequestPaging();
+})().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

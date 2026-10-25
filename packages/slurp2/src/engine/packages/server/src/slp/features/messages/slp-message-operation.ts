@@ -15,7 +15,8 @@ import { createSlurpStorage } from "../../data/slp-storage.js";
 import { createSlurpMessagesStorage, type SlurpMessage } from "../../data/slp-storage.js";
 import { createSlurpEventsStorage } from "../../data/notifications/slp-notification-storage.js";
 import { tryCreatorAccountOperation } from "../../base/locking/slp-account-operation-lock.js";
-import { generateSlurpMessageReply, SlurpMessageBudgetUnavailableError } from "./slp-message-generation-service.js";
+import { generateSlurpMessageReply } from "./slp-message-generation-service.js";
+import { SlurpMessageBudgetUnavailableError } from "./slp-message-budget-error.js";
 import { resolveSlurpReplyAvailability, resolveSlurpReplyViewer } from "./slp-thread-stance.js";
 import { describeSlurpDayVibe, dropSlurpPendingText } from "../world/slp-world-contract.js";
 import { recoverSlurpMood } from "../../modules/world/slp-mood.js";
@@ -37,8 +38,14 @@ import {
 } from "../../modules/messages/slp-messaging.js";
 import { generateSlurpCommissionImage } from "./commissions/slp-commission-image-operation.js";
 import { slpStoredMediaSize, slurpMessageMediaUrl } from "../../base/media/slp-media.js";
-import { resolveSlurpMediaOffer, slurpDmPictureSpicy } from "../../modules/economy/slp-media-offer.js";
-import { slurpRapportPartner } from "../../modules/messages/slp-rapport.js";
+import { resolveSlurpMediaOffer, slurpDmPictureSpicy, slurpPpvPrice } from "../../modules/economy/slp-media-offer.js";
+import { slurpSextingGuidance, slurpSextingPhase } from "../../modules/messages/slp-sexting.js";
+import {
+  SLURP_RAPPORT_GIFT_CHANCE,
+  slurpRapportDoors,
+  slurpRapportDoorTier,
+  slurpRapportPartner,
+} from "../../modules/messages/slp-rapport.js";
 import { slurpDmSpiceLevel } from "../../modules/creators/slp-spice.js";
 import { resolveSlurpExplicitLevel } from "../../data/settings/slp-post-guidance-storage.js";
 import { slurpCreatorStateCanUseMedia } from "../../modules/creators/slp-creator-state.js";
@@ -184,6 +191,9 @@ export async function replyToSlurpMessage(
   const triggerObligationCreatedAt = trigger?.createdAt ?? new Date().toISOString();
   const subscriptions = await slurp.listSubscriptionsForViewer(thread.viewerAccountId);
   const subscribed = subscriptions.some((entry) => entry.creatorAccountId === thread.creatorAccountId);
+  // A paid sexting session (docs/SPICY.md, item 2): fast replies, her full level, the phase in the prompt.
+  const sextingPhase = slurpSextingPhase(thread.sexting);
+  const sextingPicture = sextingPhase === "heated" && !thread.sexting?.pictureOffered;
 
   // The generated Conversation Schedule carries how chatty this Creator is.
   const talkativenessProfile = readTalkativenessProfile(
@@ -212,6 +222,7 @@ export async function replyToSlurpMessage(
     talkativeness: talkativenessProfile.talkativeness,
     delays: replyDelays,
     firstContact: !history.some((message) => message.role === "creator"),
+    sexting: sextingPhase !== null,
   });
   const completedReplyId = await messagesStore.getCompletedReply(thread.id, input.triggerMessageId);
   if (completedReplyId) {
@@ -276,6 +287,7 @@ export async function replyToSlurpMessage(
         history,
         rapport: thread.rapport,
         subscribed,
+        sexting: sextingPhase !== null,
         dmPolicy: messaging.dmPolicy,
         isRequest,
         mood: thread.mood,
@@ -291,7 +303,10 @@ export async function replyToSlurpMessage(
         connection,
         availability,
         debugMode: input.debugMode,
-        generationGuidance: input.generationGuidance,
+        generationGuidance:
+          [input.generationGuidance, sextingPhase && slurpSextingGuidance(sextingPhase, sextingPicture)]
+            .filter(Boolean)
+            .join("\n\n") || undefined,
         // The scheduler only calls with `force` after `messagesAwayRepliesEnabled` admitted this
         // thread. That setting is the explicit permission for an unattended reply. Requiring the
         // separate global background-worker switch as well made the default settings contradictory:
@@ -331,6 +346,7 @@ export async function replyToSlurpMessage(
         talkativeness: talkativenessProfile.talkativeness,
         delays: replyDelays,
         firstContact: !history.some((message) => message.role === "creator"),
+        sexting: sextingPhase !== null,
       });
       const typingLeadMs = input.background ? 0 : firstPacing.typingMs;
       let stored = null;
@@ -366,6 +382,10 @@ export async function replyToSlurpMessage(
         delayed: queuedBubbles.map((bubble) => ({ ...bubble, id: `${claim.claimId}:${bubble.sequence}` })),
       });
       if (!stored) return { status: "ineligible" } as const;
+      // Its prompt carried any step-up line (`describeSlurpRapportForDm`): now she has said it.
+      if (slurpRapportDoorTier(thread.rapport) !== thread.rapport.said) {
+        await messagesStore.markRapportSaid(thread.id, slurpRapportDoorTier(thread.rapport));
+      }
       // Deep details, read from the Message menu. Nobody can open an AI fan's thread, so it keeps none.
       if (reply.deepDetails && !aiFan)
         await saveSlurpMessageDeepDetails(db, {
@@ -386,7 +406,7 @@ export async function replyToSlurpMessage(
         const postAccess = reply.sharedPost.access === "locked" ? "locked" : "public";
         const previewLocked =
           postAccess === "locked" ||
-          (reply.sharedPost.access !== "public" && thread.rapport.tier !== "whale" && !subscribed);
+          (reply.sharedPost.access !== "public" && slurpRapportDoorTier(thread.rapport) !== "whale" && !subscribed);
         const sharedMetadata = (await slurp.getNoodlerPostById(reply.sharedPost.id))?.metadata as
           Record<string, unknown> | undefined;
         const sharedSize = slpStoredMediaSize(sharedMetadata?.noodlerMediaPath);
@@ -438,25 +458,57 @@ export async function replyToSlurpMessage(
         // one to somebody who has not subscribed stays a tease.
         // Her partner (or after a fight, still her partner) gets it free, as far as she goes.
         const partner = ["partner", "rocky"].includes(slurpRapportPartner(thread.rapport) ?? "");
-        const offer = resolveSlurpMediaOffer({
-          intent: reply.imageMode === "hostile" ? "hostile" : "friendly",
-          rapportTier: thread.rapport.tier,
-          subscribed,
-          configuredPrice: messaging.ppvPrice,
-          spicy: slurpDmPictureSpicy(image),
-          partner,
-        });
+        // Rapport ladder: a reached tier keeps its doors; a favourite now and then gets a spicy one free.
+        const doorTier = slurpRapportDoorTier(thread.rapport);
+        const doors = slurpRapportDoors(doorTier);
+        const gift =
+          reply.imageMode !== "hostile" &&
+          doors.includes("gifts") &&
+          slurpDmPictureSpicy(image) &&
+          Math.random() < SLURP_RAPPORT_GIFT_CHANCE;
+        // Her one in-session PPV: at her PPV price and full level, even for a subscriber.
+        // Claimed before the picture is drawn, so two quick replies never both send it.
+        const sextingPpv =
+          sextingPicture &&
+          !partner &&
+          !demanded &&
+          reply.imageMode !== "hostile" &&
+          imageAllowedBySettings &&
+          (await messagesStore.markSextingPicture(thread.id, thread.sexting!.startedAt));
+        const offer = sextingPpv
+          ? ({ visibility: "locked", price: slurpPpvPrice(messaging.ppvPrice), reason: "premium_content" } as const)
+          : resolveSlurpMediaOffer({
+              intent: reply.imageMode === "hostile" ? "hostile" : "friendly",
+              rapportTier: doorTier,
+              subscribed,
+              configuredPrice: messaging.ppvPrice,
+              spicy: slurpDmPictureSpicy(image),
+              partner,
+              gift,
+            });
         const creatorLevel = await resolveSlurpExplicitLevel(db, thread.creatorAccountId).catch(
           () => "suggestive" as const,
         );
+        // A picture that never arrives gives the session's one PPV back for a later reply.
+        const releaseSextingPicture = async () => {
+          if (sextingPpv) await messagesStore.markSextingPicture(thread.id, thread.sexting!.startedAt, false);
+        };
         const drawn = imageAllowedBySettings
           ? await generateSlurpCommissionImage(db, {
               creatorAccountId: thread.creatorAccountId,
               brief: `${image.prompt}\nImage mode: ${reply.imageMode}`,
-              // A free picture stays a tease (a subscriber's casual one too); a paid one goes as far as the Creator does.
-              level: (offer.price > 0 || partner) && !demanded ? creatorLevel : slurpDmSpiceLevel(creatorLevel, false),
+              // A free picture stays a tease (a subscriber's casual one too); a paid one goes as far as the Creator does,
+              // and so does a gift or anything for a whale.
+              level:
+                (offer.price > 0 || partner || gift || doors.includes("fullSpice")) && !demanded
+                  ? creatorLevel
+                  : slurpDmSpiceLevel(creatorLevel, false),
+            }).catch(async (error: unknown) => {
+              await releaseSextingPicture();
+              throw error;
             })
           : "unavailable";
+        if (drawn === "unavailable") await releaseSextingPicture();
         if (drawn !== "unavailable") {
           const price = demanded ? 0 : offer.price;
           const imageMessage = await messagesStore.appendMessage(thread.id, {
@@ -473,6 +525,7 @@ export async function replyToSlurpMessage(
             },
           });
           if (!imageMessage) {
+            await releaseSextingPicture();
             drawn.compensate();
           } else {
             drawn.promote();

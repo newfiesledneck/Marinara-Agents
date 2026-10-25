@@ -32,6 +32,12 @@
       "palette": "sunset coral, sky blue, leaf green, warm gold"
     },
     {
+      "id": "blackjack",
+      "name": "Blackjack",
+      "concept": "Mari winks behind a curved blackjack table, holding up an Ace of Spades and a King of Hearts for a natural twenty-one, with chip stacks and one face-down card on the felt.",
+      "palette": "emerald felt, casino gold, heart red, navy"
+    },
+    {
       "id": "card-evolution-auditor",
       "name": "Card Evolution Auditor",
       "concept": "Mari audits two illustrated character profile cards at a desk with a magnifying glass, comparing before-and-after details and marking one precise approved change with a check stamp.",
@@ -240,6 +246,18 @@
       "name": "Relationship Tracker",
       "concept": "Chibi Professor Mari and a friendly red orc sit across one plate of spaghetti, affectionately connected mouth-to-mouth by a single noodle in a Lady and the Tramp parody.",
       "palette": "warm red, golden pasta, navy, candlelight gold"
+    },
+    {
+      "id": "2d-avatars",
+      "name": "2D Avatars",
+      "concept": "Mari holds up a paper-cutout puppet of herself caught mid-blink and mid-word, with layered paper sheets fanning out behind her like animation layers.",
+      "palette": "pastel pink, sky blue, cream, warm gold"
+    },
+    {
+      "id": "3d-avatars",
+      "name": "3D Avatars",
+      "concept": "Mari waves at a glowing holographic figurine of herself spinning on a small turntable pedestal, drawn flat in the same cel-shaded style.",
+      "palette": "cyan, violet, navy, soft white"
     }
   ]
 }

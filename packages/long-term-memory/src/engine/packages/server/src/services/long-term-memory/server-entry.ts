@@ -1,10 +1,16 @@
 import { join } from "node:path";
 import { configurePackageRuntime, type CapabilityRuntimeHost } from "./package-runtime.js";
 import { activateLongTermMemoryStorage, withLongTermMemoryVaultMutation } from "./runtime.js";
-import { refreshLongTermMemoryIndexes } from "./rebuild.js";
-import { prepareGenerationLongTermMemory, recordGenerationLongTermMemoryDispatch } from "./generation-injection.js";
+import { refreshLongTermMemoryIndexes } from "./recall/rebuild.js";
+import { resumeLtmIndexRebuild, stopLtmIndexRebuild } from "./recall/rebuild-job.js";
+import {
+  prepareGenerationLongTermMemory,
+  recordGenerationLongTermMemoryDispatch,
+} from "./recall/generation-injection.js";
 import { createLongTermMemoryRoutes } from "./routes.js";
-import { adoptLegacyLongTermMemoryAgentConfig, adoptLegacyLongTermMemoryChats } from "./legacy-adoption.js";
+import { createLtmRecallService } from "./services/recall.js";
+import { createLtmStorageReadService } from "./services/storage-read.js";
+import { adoptLegacyLongTermMemoryAgentConfig, adoptLegacyLongTermMemoryChats } from "./maintenance/legacy-adoption.js";
 import type { FastifyPluginAsync } from "fastify";
 
 let active: Awaited<ReturnType<typeof activateLongTermMemoryStorage>> | null = null;
@@ -25,16 +31,17 @@ export async function activate({ api, dataDir }: ActivationContext) {
   try {
     active = await activateLongTermMemoryStorage(join(dataDir, "long-term-memory"));
     const activationRoot = active.root;
+    resumeLtmIndexRebuild(activationRoot);
     await adoptLegacyLongTermMemoryAgentConfig(active.root);
     await adoptLegacyLongTermMemoryChats();
     const releaseRoutes = await api.registerPrivilegedRoutes(createLongTermMemoryRoutes(active), {
       prefix: "/api/long-term-memory",
     });
-    const releaseStorageService = api.registerService("long-term-memory:storage", {
-      root: active.root,
-      storage: active.storage,
-      drafts: active.draftStore,
-    });
+    const releaseStorageService = api.registerService(
+      "long-term-memory:storage",
+      createLtmStorageReadService(active.storage),
+    );
+    const releaseRecallService = api.registerService("long-term-memory:recall", createLtmRecallService(active.storage));
     const releaseRuntimeService = api.registerService("long-term-memory:runtime", {
       refresh: async ({ signal }: { signal: AbortSignal }) => {
         await refreshLongTermMemoryIndexes(activationRoot, signal);
@@ -56,6 +63,9 @@ export async function activate({ api, dataDir }: ActivationContext) {
       releaseRoutes();
       releaseRuntimeService();
       releaseStorageService();
+      releaseRecallService();
+      // A scheduled rebuild must not publish after deactivation; the index stays dirty and the next recall rebuilds it.
+      await stopLtmIndexRebuild(activationRoot);
       await active?.cleanup();
       active = null;
       releaseHost();

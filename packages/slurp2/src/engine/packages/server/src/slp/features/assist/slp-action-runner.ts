@@ -15,6 +15,7 @@ import {
   type SlpActionName,
   type SlpActionParsed,
 } from "../../../../../shared/src/slp/slp-actions.js";
+import { slpActionAllowed } from "../../../../../shared/src/slp/slp-extensions.js";
 import {
   drawSlpAssistPicture,
   draftSlpPost,
@@ -29,6 +30,8 @@ import {
   readSlpStirWorld,
   runSlpRunAudience,
   runSlpInventEvent,
+  runSlpStartTrend,
+  runSlpSteerTrend,
   runSlpNewLook,
   runSlpSetSpice,
   runSlpSetTipGoal,
@@ -61,7 +64,11 @@ async function creatorExists(db: DB, accountId: string) {
  */
 export function slpActionService(db: DB) {
   return {
-    list: slpActionCatalog,
+    // Mari and other helpers see only the actions of switched-on extensions.
+    list: async () => {
+      const settings = await createSlurpStorage(db).getSettings();
+      return slpActionCatalog().filter((action) => slpActionAllowed(settings, action.name));
+    },
     run: (name: string, input: unknown) => runSlpAction(db, name, input),
     preview: (name: string, input: unknown) => previewSlpAction(db, name, input),
   };
@@ -83,6 +90,8 @@ export async function runSlpAction(db: DB, name: string, raw: unknown): Promise<
 /** The same run, plus what one Undo needs to take it back (Stir plays keep it in their ledger). */
 export async function runSlpActionWithUndo(db: DB, name: string, raw: unknown): Promise<Ran> {
   if (!isSlpActionName(name)) return { ok: false, status: 404, error: `Slurp has no action called "${name}".` };
+  if (!slpActionAllowed(await createSlurpStorage(db).getSettings(), name))
+    return { ok: false, status: 409, error: "That part of Slurp is switched off in Backstage." };
   const parsed = SLP_ACTIONS[name].schema.safeParse(raw ?? {});
   if (!parsed.success) return { ok: false, status: 400, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   const accountId = (parsed.data as { accountId?: unknown }).accountId;
@@ -130,6 +139,10 @@ async function dispatch(
       return runSlpNewLook(db, input as SlpActionParsed<"new-look">);
     case "invent-event":
       return runSlpInventEvent(db, input as SlpActionParsed<"invent-event">);
+    case "start-trend":
+      return runSlpStartTrend(db, input as SlpActionParsed<"start-trend">);
+    case "steer-trend":
+      return runSlpSteerTrend(db, input as SlpActionParsed<"steer-trend">);
     case "write-text":
       return runSlpAssistText(db, { ...(input as SlpActionParsed<"write-text">), mode: "write" });
     case "improve-text":

@@ -18,6 +18,15 @@ export function useSlurpSettings() {
     staleTime: 10_000,
   });
 }
+/** How many chats with a Creator have "Include Slurp activity" on (Settings → Carryover to chats). */
+export function useSlurpCarryoverReach(enabled: boolean) {
+  return useQuery({
+    queryKey: [...slpKeys.settings(), "carryover-reach"] as const,
+    queryFn: () => api.get<{ on: number; off: number }>("/slurp2/settings/carryover-reach"),
+    enabled,
+    staleTime: 30_000,
+  });
+}
 export function useSlurpSettingsDefaults() {
   return useQuery({
     queryKey: [...slpKeys.settings(), "defaults"] as const,
@@ -78,8 +87,11 @@ export function useUpdateSlurpSettings() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (patch: SlurpSettingsUpdate) => api.patch<SlurpSettings>("/slurp2/settings", patch),
-    onSuccess: (settings) => {
+    onSuccess: (settings, patch) => {
       queryClient.setQueryData(slpKeys.settings(), settings);
+      // An extension or pack switch changes what the feed, trends and Stir may show: drop their cached reads.
+      if (Object.keys(patch).some((key) => key.startsWith("ext") || key === "trendsEnabled" || key === "contentPacks"))
+        void queryClient.invalidateQueries({ queryKey: slpKeys.noodlerRoot() });
       return queryClient.invalidateQueries({ queryKey: slpKeys.noodlerFanStatus() });
     },
   });

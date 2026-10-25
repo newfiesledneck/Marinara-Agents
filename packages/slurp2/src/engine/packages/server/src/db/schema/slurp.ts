@@ -377,6 +377,8 @@ export const slurpThreads = fileTable(
      */
     sceneChatId: text("scene_chat_id"),
     sceneStartedAt: text("scene_started_at"),
+    /** A paid sexting session, JSON `SlurpSexting` (docs/SPICY.md, item 2); kept after its end for the tip prompt. */
+    sexting: text("sexting"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

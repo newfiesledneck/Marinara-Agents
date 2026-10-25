@@ -93,6 +93,15 @@ export function slpStirStepOf(action: SlpActionName, form: Form): Record<string,
     }
     case "new-look":
       return one && text ? { accountId: one, change: text } : null;
+    case "start-trend": {
+      const label = typeof form.title === "string" ? form.title.trim() : "";
+      const lean = typeof form.lean === "string" ? form.lean.trim() : "";
+      return label ? { label, ...(one ? { accountId: one } : {}), ...(lean ? { lean } : {}) } : null;
+    }
+    case "steer-trend":
+      return typeof form.pick === "string" && form.pick
+        ? { trendId: form.pick, lean: typeof form.lean === "string" ? form.lean.trim() : "" }
+        : null;
     case "invent-event": {
       const name = typeof form.title === "string" ? form.title.trim() : "";
       const days = Number(form.days ?? 1);

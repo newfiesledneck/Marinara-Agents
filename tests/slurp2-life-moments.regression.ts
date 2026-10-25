@@ -360,7 +360,7 @@ const agentSource = server("data/creators/slp-agent-memory-source.ts");
 assert.match(agentSource, /eq\(gameStateSnapshots\.committed, 1\)/u, "only the accepted chat state");
 assert.match(agentSource, /getCapabilityService<[^>]+>\(LTM_SERVICE\)/u);
 assert.doesNotMatch(agentSource, /\.(create|update|updateLatest|set|delete|insert|commit)\(/u, "read-only");
-assert.match(client("features/settings/SlpPromptsPanel.tsx"), /update\("flavourFromAgents", value\)/u);
+assert.match(client("features/settings/SlpEngineLinkPanel.tsx"), /update\("flavourFromAgents", value\)/u);
 
 // --- Prepared posts after a steering change: ask, never act unanswered ---------------------------
 const steering = { ...SLP_DEFAULT_STEERING };

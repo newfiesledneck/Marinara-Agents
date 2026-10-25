@@ -7,6 +7,9 @@
  *   with what one Undo needs. Plays are free (a sandbox); only an action that calls the AI costs a call.
  * - `undoSlpStirPlay`, `readSlpStirView`.
  */
+import type { APIProvider } from "@marinara-engine/shared";
+import { resolveStoredMaxTokens } from "../../../services/generation/generation-parameters.js";
+import { clampGenerationMaxOutputTokens } from "../../../services/generation/output-token-limits.js";
 import type { DB } from "../../../db/connection.js";
 import { logger } from "../../../lib/logger.js";
 import { resolveBaseUrl } from "../../../services/generation/connection-base-url.js";
@@ -31,6 +34,7 @@ import { readSlurpCreatorTiesDocument } from "../../data/projects/slp-creator-ti
 import { slurpDealOwesPost } from "../../modules/economy/slp-brand-deals.js";
 import { buildSlpStirPlanMessages, readSlpStirPlanAnswer } from "../../modules/assist/slp-stir-plan.js";
 import { slpStirLive, slpStirSuggestions } from "../../modules/assist/slp-stir-live.js";
+import { slpExtensionOn } from "../../../../../shared/src/slp/slp-extensions.js";
 import { SLP_STIR_CANT_INVALID, slpRunStirSteps, slpSortStirSteps } from "../../modules/assist/slp-stir-play.js";
 import {
   listSlurpBrandCatalog,
@@ -154,6 +158,8 @@ export async function previewSlpStirSteps(
   return { cards, cant };
 }
 
+export const SLP_STIR_OFF = "Stir is switched off in Backstage.";
+
 /**
  * Plain words → a previewed plan. One model call; nothing in the world changes. The player's own
  * request never spends the AI budget (0.3.6); a Creator's DM proposal (`world`) is on the "Plans" row.
@@ -167,6 +173,7 @@ export async function planSlpStir(
 ): Promise<SlpAssistOutcome<SlpStirPlan>> {
   const storage = createSlurpStorage(db);
   const settings = await storage.getSettings();
+  if (!slpExtensionOn(settings, "stir")) return { ok: false, status: 409, error: SLP_STIR_OFF };
   if (origin === "world" && !slurpModelWorkerAllows(settings.modelBudget, "present"))
     return { ok: false, status: 409, error: "Plans need your AI connection. The cards still work." };
   const connection = await resolveSlurpTextConnection(
@@ -209,6 +216,8 @@ export async function planSlpStir(
       connection.claudeFastMode === "true",
       connection.treatAsLocalEndpoint === "true",
       connection.defaultParameters,
+      // The player's own plan is foreground work on the connection; a Creator's proposal runs inside its reply.
+      origin === "player" ? connection.id : undefined,
     ),
   );
   const result = await provider.chatComplete(
@@ -227,6 +236,7 @@ export async function planSlpStir(
         })),
       world,
       brands: catalog.brands,
+      extensions: settings,
       about: about ? { id: about.id, name: about.displayName } : null,
       post: post ? { id: post.id, caption: String((post as { content?: unknown }).content ?? "") } : null,
       recent: plays
@@ -240,7 +250,16 @@ export async function planSlpStir(
       followUp: request.followUp ?? null,
     }),
     // Reasoning headroom, like the writing help: a plan is short, the thinking may not be.
-    { model: connection.model, temperature: 0.3, maxTokens: 3072 },
+    {
+      model: connection.model,
+      temperature: 0.3,
+      maxTokens: clampGenerationMaxOutputTokens({
+        provider: connection.provider as APIProvider,
+        model: connection.model,
+        maxTokens: Math.max(resolveStoredMaxTokens(connection.defaultParameters, 3072), 3072),
+        maxTokensOverride: connection.maxTokensOverride,
+      }),
+    },
   );
   const answer = readSlpStirPlanAnswer(result.content);
   if (!answer) return { ok: false, status: 502, error: "That plan came back garbled. Try again, or play a card." };
@@ -333,16 +352,18 @@ export async function readSlpStirView(
   personaId?: string,
 ): Promise<SlpStirView> {
   const storage = createSlurpStorage(db);
-  const [allAccounts, fullWorld, fullDocument, allPlays, occurrences, dismissed, allTieCreators] = await Promise.all([
-    storage.listNoodlerAccounts() as Promise<Account[]>,
-    readSlpStirWorld(db, at),
-    readSlurpCreatorTiesDocument(db),
-    readSlurpStirPlays(db),
-    storage.listStoryOccurrences(),
-    readSlurpStirDismissed(db, at),
-    // ponytail: every Creator's fit text on each Stir visit, for "they would click"; cache it if a big cast feels slow.
-    loadSlurpTieCreators(db, at),
-  ]);
+  const [allAccounts, fullWorld, fullDocument, allPlays, occurrences, dismissed, allTieCreators, settings] =
+    await Promise.all([
+      storage.listNoodlerAccounts() as Promise<Account[]>,
+      readSlpStirWorld(db, at),
+      readSlurpCreatorTiesDocument(db),
+      readSlurpStirPlays(db),
+      storage.listStoryOccurrences(),
+      readSlurpStirDismissed(db, at),
+      // ponytail: every Creator's fit text on each Stir visit, for "they would click"; cache it if a big cast feels slow.
+      loadSlurpTieCreators(db, at),
+      storage.getSettings(),
+    ]);
   const hidden = new Set(
     allAccounts.filter((account) => !slurpRunsItself(account) && !own(account)).map((account) => account.id),
   );
@@ -415,8 +436,9 @@ export async function readSlpStirView(
     collabs: document.ties.collabs.filter((collab) => world.collabs.some((open) => open.id === collab.id)),
     rivalries: world.rivalries,
     events: world.events.map((event) => ({ ...event, endsAt: endsAt.get(event.id) ?? null })),
+    // Brands & ads off: no owed #ad post to nag about.
     owed: document.deals
-      .filter((deal) => ownIds.has(deal.creatorId) && slurpDealOwesPost(deal, at))
+      .filter((deal) => slpExtensionOn(settings, "ads") && ownIds.has(deal.creatorId) && slurpDealOwesPost(deal, at))
       .map((deal) => ({ id: deal.id, creatorId: deal.creatorId, brand: deal.brand })),
     firstVisit: plays.length === 0,
     matches,

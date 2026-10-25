@@ -21,6 +21,7 @@ import type { SlpCreatorPostPageCursor } from "../host/slp-storage-constants.js"
 import { normalizeSlpAccountSettings } from "../../modules/records/slp-storage-model.js";
 import { mapAccount, mapSubscription } from "../host/slp-storage-mappers.js";
 import type { SlurpStorageContext } from "../host/slp-storage-context.js";
+import { slpLiveEvents } from "../../../../../shared/src/slp/slp-extensions.js";
 
 export function createEconomyStorage1(context: SlurpStorageContext) {
   const {
@@ -209,7 +210,7 @@ export function createEconomyStorage1(context: SlurpStorageContext) {
           ? slurpSubscriptionCharge(
               basePrice,
               createSlpActiveModifierProvider([
-                slurpPlatformEventModifierSource(settings.platformEvents, influenceStory),
+                slurpPlatformEventModifierSource(slpLiveEvents(settings), influenceStory),
               ]),
               at,
             )
@@ -318,7 +319,10 @@ export function createEconomyStorage1(context: SlurpStorageContext) {
       // to `paidThroughAt`; the renewal sweep then ends the subscription for real (`expire`).
       const wallet = readSlurpWallet(await settingsStore.get(slurpWalletKey(viewerAccountId)));
       const current = wallet.subscriptions[creatorAccountId];
-      if (!expire && current && Date.parse(current.paidThroughAt) > Date.now()) {
+      // A removed Creator has nothing left to give access to, so Cancel ends it now. Waiting for the
+      // paid week left an "Unavailable Creator" whose Cancel did nothing (#28).
+      const gone = !expire && current && !(await this.getNoodlerAccountById(creatorAccountId, { includeHidden: true }));
+      if (!expire && !gone && current && Date.parse(current.paidThroughAt) > Date.now()) {
         if (current.cancelled) return;
         await writeWallet(viewerAccountId, {
           ...wallet,

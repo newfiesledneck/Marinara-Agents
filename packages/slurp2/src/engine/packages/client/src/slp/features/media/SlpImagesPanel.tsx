@@ -183,7 +183,7 @@ export function SlpImagesPanel(page: SlpBackstagePageProps) {
         {/* The picture model has one home, Connections; this row only says which one is used. */}
         <button
           type="button"
-          onClick={() => page.onNavigate({ ...page.navigation, section: "models", target: "connections" })}
+          onClick={() => page.onNavigate({ ...page.navigation, section: "basic", target: "connections" })}
           className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-sm font-semibold ring-1 ring-inset ring-[var(--slurp-outline)] hover:bg-[var(--slurp-canvas)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)]"
         >
           {t("ui.slurp.settings.images.changeModel")}
@@ -197,6 +197,13 @@ export function SlpImagesPanel(page: SlpBackstagePageProps) {
           detail={t("ui.slurp.settings.images.enableForNewDetail")}
           value={settings.autoPostingImagesEnabled}
           onChange={(value) => update("autoPostingImagesEnabled", value)}
+        />
+        <Toggle
+          settingKey="autoCreatorArtworkEnabled"
+          label={t("ui.slurp.settings.images.autoArtwork")}
+          detail={t("ui.slurp.settings.images.autoArtworkDetail")}
+          value={settings.autoCreatorArtworkEnabled}
+          onChange={(value) => update("autoCreatorArtworkEnabled", value)}
         />
         <Toggle
           settingKey="allowGalleryImageAttachments"
@@ -341,6 +348,28 @@ export function SlpImagesPanel(page: SlpBackstagePageProps) {
             </select>
           </Field>
         )}
+        {settings.imageContextMode !== "imagePrompt" && (
+          <Field
+            settingKey="imageCaptionPrompt"
+            label={t("ui.slurp.settings.images.captionPrompt")}
+            detail={t("ui.slurp.settings.images.captionPromptDetail")}
+          >
+            {/* Saved on leaving the field, so typing never writes settings per keystroke. */}
+            <textarea
+              key={settings.imageCaptionPrompt}
+              rows={3}
+              maxLength={4000}
+              defaultValue={settings.imageCaptionPrompt}
+              disabled={updateSettings.isPending}
+              placeholder={t("ui.slurp.settings.images.captionPromptPlaceholder")}
+              onBlur={(event) => {
+                const value = event.target.value.trim();
+                if (value !== settings.imageCaptionPrompt) void update("imageCaptionPrompt", value);
+              }}
+              className="min-h-24 w-full rounded-lg border border-[var(--slurp-outline)] bg-[var(--slurp-canvas)] p-3 text-base leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--slurp-focus)] disabled:opacity-50 sm:text-sm"
+            />
+          </Field>
+        )}
       </SettingsGroup>
       <AdvancedGroup
         icon={<Image size={17} className="text-[var(--slurp-violet)]" aria-hidden="true" />}
@@ -392,6 +421,13 @@ export function SlpImagesPanel(page: SlpBackstagePageProps) {
             onChange={(value: SlurpSettings["imageAppearanceMode"]) => void update("imageAppearanceMode", value)}
           />
         )}
+        <Toggle
+          settingKey="imageKeepOriginalFiles"
+          label={t("ui.slurp.settings.images.keepOriginal")}
+          detail={t("ui.slurp.settings.images.keepOriginalDetail")}
+          value={settings.imageKeepOriginalFiles}
+          onChange={(value) => update("imageKeepOriginalFiles", value)}
+        />
       </AdvancedGroup>
     </div>
   );

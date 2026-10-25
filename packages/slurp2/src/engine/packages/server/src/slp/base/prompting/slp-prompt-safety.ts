@@ -143,3 +143,20 @@ export function slpCreatorSourceText(data: unknown): string {
     .filter((line) => line.trim().split(": ").slice(1).join(": ").trim())
     .join("\n");
 }
+
+/**
+ * Shortens over-long model text to at most `maxLength` without ending mid-word ("…QUESTI", #101):
+ * at the last sentence end when that keeps most of the text, else at the last space. A hard cut
+ * only when there is no space at all, and never inside a surrogate pair.
+ */
+export function slpCutAtBoundary(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const lastCodeUnit = text.charCodeAt(maxLength - 1);
+  const head = text.slice(0, lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff ? maxLength - 1 : maxLength);
+  // The character after the cut decides whether the head already ends on a whole word.
+  if (/\s/u.test(text.charAt(head.length))) return head.trimEnd();
+  const sentenceEnd = Math.max(...[...head.matchAll(/[.!?…]["')\]]?(?=\s)/gu)].map((m) => m.index + m[0].length), -1);
+  if (sentenceEnd >= maxLength * 0.6) return head.slice(0, sentenceEnd);
+  const space = head.search(/\s\S*$/u);
+  return space > 0 ? head.slice(0, space).trimEnd() : head.trimEnd();
+}

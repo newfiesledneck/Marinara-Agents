@@ -83,7 +83,7 @@ export type SlurpTiesCouple = {
   moments: { id: string; kind: string; at: string; detail: string; withId?: string; fromId?: string }[];
   page: { accountId: string; openedAt: string; closedAt: string | null } | null;
   /** Set up by the player against a card: whose card, and what it says. */
-  forced?: { misfit: "taken" | "notInto" | "noDating" | "orientation"; byId: string };
+  forced?: { misfit: "taken" | "notInto" | "noDating" | "orientation" | "family"; byId: string };
   /** A couple with the player's own page, kept out of public. */
   secret?: boolean;
   /** #1293: how an ex handles the breakup; none is the usual memory and fallout. Older servers send none. */
@@ -91,8 +91,8 @@ export type SlurpTiesCouple = {
 };
 export type SlurpCoupleSteer =
   "date" | "drama" | "patchUp" | "breakUp" | "reunite" | "official" | "secret" | "public" | "moveOn" | "forget";
-/** Mirrors `SlurpBond` on the server (Drama): friends, roommates, coworkers and exes. */
-export type SlurpTiesBondKind = "friend" | "roommate" | "coworker" | "ex";
+/** Mirrors `SlurpBond` on the server (Drama): friends, roommates, coworkers, exes and family. */
+export type SlurpTiesBondKind = "friend" | "roommate" | "coworker" | "ex" | "family";
 export type SlurpTiesBond = {
   id: string;
   kind: SlurpTiesBondKind;

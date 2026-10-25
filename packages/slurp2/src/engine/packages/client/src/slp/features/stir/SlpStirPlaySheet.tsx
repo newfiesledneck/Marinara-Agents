@@ -24,6 +24,7 @@ import { SlpTextAssist } from "../assist/slp-assist-contract";
 import { useSlurpStirPreview } from "./slp-stir-hooks";
 import { SlpStirCard, slpStirCantLine, useSlpStirDoIt } from "./SlpStirCards";
 import { SlpStirDeskFields } from "./SlpStirDeskFields";
+import { SlpStirTrendFields } from "./SlpStirTrendFields";
 import { SlpStirBrandPick } from "./SlpStirBrandPick";
 import { Choice, CreatorPicker } from "./SlpStirFormParts";
 import { slpStirCoupleSteers, slpStirStepOf, type SlpStirForm } from "./slp-stir-steps";
@@ -319,6 +320,10 @@ export function SlpStirPlaySheet({
       break;
     case "new-look":
       textField(t("ui.slurp.stir.form.lookChange"), t("ui.slurp.stir.form.lookChangePlaceholder"));
+      break;
+    case "start-trend":
+    case "steer-trend":
+      body.push(<SlpStirTrendFields key="trend" action={action} form={form} set={set} creators={creators} />);
       break;
     case "invent-event":
       titleField(t("ui.slurp.stir.form.eventName"), t("ui.slurp.stir.form.eventNamePlaceholder"));

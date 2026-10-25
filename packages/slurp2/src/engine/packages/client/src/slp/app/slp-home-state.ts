@@ -48,12 +48,12 @@ import {
   useUpdateCreatorInteraction,
 } from "../features/feed/slp-feed-viewer-hooks";
 import { useSlurpUnreadCount } from "../features/messages/slp-messages-hooks";
+import { useSyncViewerPersona } from "./slp-viewer-persona-sync";
 import { useSlurpSettings, useUpdateSlurpSettings } from "../features/settings/slp-settings-hooks";
 import { useActivePersona, usePersonas } from "../../hooks/use-creator-personas";
 import { useSlurpConnections } from "../base/state/slp-host-connections";
 import { showConfirmDialog } from "../../lib/app-dialogs";
 import { useSlurpUIStore } from "../base/state/slp-package-store";
-import { api } from "../../lib/api-client";
 import type { SlpPostCardModel } from "../modules/post/SlpPostTypes";
 import {
   type SlpCreatorPostDraft,
@@ -72,6 +72,7 @@ import { SLP_PERSONA_SWITCHER_PAGE_SIZE } from "../base/chrome/SlpChrome";
 import { toast } from "sonner";
 import { slurp2SplashPending } from "../features/onboarding/SlpSplash";
 import type { SlurpHomeProps } from "./slp-home.types";
+import { slpExtensionOn, slpTrendsOn } from "../../../../shared/src/slp/slp-extensions.js";
 export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onLeave }: SlurpHomeProps) {
   const onNavigate = useSlpBackstageLeaveGuard(navigation, navigateRaw);
   const { t: localizeUi } = useUiTranslation();
@@ -96,6 +97,7 @@ export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onL
   }, [onboardingState, setOnboardingState, slurpSettingsQuery.data?.onboarding]);
   const storedPersonaId = useSlurpUIStore((state) => state.viewerPersonaId);
   const setStoredPersonaId = useSlurpUIStore((state) => state.setViewerPersonaId);
+  useSyncViewerPersona(slurpSettingsQuery.data?.viewerPersonaId, updateSlurpSettings.mutate);
   const personas = personasQuery.data ?? [];
   const viewerPersonaId = useSlpViewerPersonaId();
   const activeWalletCoins = viewerWalletsQuery.data?.[viewerPersonaId ?? ""]?.coins ?? null;
@@ -301,6 +303,7 @@ export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onL
   const [creationStep, setCreationStep] = useState<"source" | "disclosure" | "draft" | "automatic" | null>(null);
   const [autoPostSetupId, setAutoPostSetupId] = useState<string | null>(null);
   const [creationDisclosure, setCreationDisclosure] = useState<SlpIdentityDisclosure>("open");
+  const [creationImageNameKnown, setCreationImageNameKnown] = useState(true);
   const [draftGuidance, setDraftGuidance] = useState("");
   const [draftConnectionId, setDraftConnectionId] = useState("");
   const [previousDraft, setPreviousDraft] = useState<SlurpStageProfileInput | null>(null);
@@ -483,7 +486,10 @@ export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onL
   });
   const postCardController = useSlpPostCardController({
     textAssist: ({ story, ...input }) => createElement(SlpTextAssist, { ...input, field: story ? "story" : "caption" }),
-    stir: (post) => openSlpStir({ creatorId: post.authorAccountId, postId: post.id }),
+    stir:
+      slurpSettingsQuery.data && slpExtensionOn(slurpSettingsQuery.data, "stir")
+        ? (post) => openSlpStir({ creatorId: post.authorAccountId, postId: post.id })
+        : undefined,
     postShowMoreLength: slurpSettingsQuery.data?.postShowMoreLength,
     postManagement: false,
     personaAccount: viewerActorAccount,
@@ -525,6 +531,7 @@ export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onL
   const [sharingPost, setSharingPost] = useState<SlpPostCardModel | null>(null);
   const postCardCtx = {
     ...postCardController.ctx,
+    trendsShown: Boolean(slurpSettingsQuery.data && slpTrendsOn(slurpSettingsQuery.data)),
     generatePostImage: handleGeneratePostImage,
     generatingPostImageIds,
     gambleUnlockPost: viewerPersonaId
@@ -565,16 +572,17 @@ export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onL
   };
   useEffect(() => {
     if (
-      slurpSettingsQuery.isSuccess &&
-      slurpSettingsQuery.data.onboarding !== "completed" &&
-      onboardingState === "unseen" &&
-      navigation.mode === "creator" &&
-      navigation.view === "hub" &&
-      !gatePresentedRef.current
-    ) {
-      gatePresentedRef.current = true;
-      setGateOpen(true);
-    }
+      !slurpSettingsQuery.isSuccess ||
+      slurpSettingsQuery.data.onboarding === "completed" ||
+      navigation.mode !== "creator" ||
+      navigation.view !== "hub" ||
+      gatePresentedRef.current
+    )
+      return;
+    gatePresentedRef.current = true;
+    // Past the age gate but the doors are not open yet: the first run picks up where it was.
+    if (onboardingState === "entered") setOnboardingMode("first-run");
+    else if (onboardingState === "unseen") setGateOpen(true);
   }, [
     navigation.mode,
     navigation.view,
@@ -586,15 +594,12 @@ export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onL
     if (navigation.mode !== "creator" || navigation.view !== "hub") return;
     onboardingPresentedRef.current = false;
   }, [navigation.mode, navigation.view, onboardingState]);
-  const enterFromGate = async () => {
+  // The age gate leads into the Basic screen; `completed` is written at the end of the first run.
+  const enterFromGate = () => {
     setGateOpen(false);
-    setOnboardingState("completed");
-    try {
-      await updateSlurpSettings.mutateAsync({ onboarding: "completed" });
-    } catch (error) {
-      toast.error(errorMessage(error, localizeUi("ui.slurp.onboarding.saveError")));
-    }
-    onNavigate({ mode: "creator", view: "hub" });
+    setOnboardingState("entered");
+    onboardingPresentedRef.current = true;
+    setOnboardingMode("first-run");
   };
   useEffect(() => {
     if (!gateCelebrating) return;
@@ -715,6 +720,8 @@ export function useSlurpHomeBaseState({ navigation, onNavigate: navigateRaw, onL
     setAutoPostSetupId,
     creationDisclosure,
     setCreationDisclosure,
+    creationImageNameKnown,
+    setCreationImageNameKnown,
     draftGuidance,
     setDraftGuidance,
     draftConnectionId,

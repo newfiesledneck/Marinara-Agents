@@ -24,6 +24,7 @@ import type {
 } from "../../modules/records/slp-storage-model.js";
 import { snapshotForAccount, mapPost, mapManagedPost, imageClaimIsAvailable } from "../host/slp-storage-mappers.js";
 import type { SlurpStorageContext } from "../host/slp-storage-context.js";
+import { slurpTrendLabelOf, slurpTrendQuoteOf } from "../../modules/discovery/slp-trends.js";
 
 export function createFeedPostStorage1(context: SlurpStorageContext) {
   const {
@@ -122,6 +123,7 @@ export function createFeedPostStorage1(context: SlurpStorageContext) {
           (metadata.imageGenerationFailed !== true && metadata.imageGenerationDeferred !== true)
         )
           continue;
+        if (metadata.imageGenerationRetryable === false) continue;
         if (slpCreatorPostImageRetryAttempts(metadata) >= SLP_CREATOR_POST_IMAGE_RETRY_LIMIT) continue;
         eligible.push(mapManagedPost(row));
         if (eligible.length >= Math.max(1, Math.floor(limit))) break;
@@ -256,6 +258,8 @@ export function createFeedPostStorage1(context: SlurpStorageContext) {
           return (
             creatorMatches.has(row.authorAccountId) ||
             (row.title ?? "").toLowerCase().includes(search) ||
+            // A public post that joined a trend is found by the trend's name.
+            (row.access === "public" && slurpTrendLabelOf(parseRecord(row.metadata)).toLowerCase().includes(search)) ||
             (readable && row.content.toLowerCase().includes(search))
           );
         });
@@ -401,7 +405,7 @@ export function createFeedPostStorage1(context: SlurpStorageContext) {
         imageUrl: input.imageUrl ?? null,
         imagePrompt: input.imagePrompt ?? null,
         parentPostId: null,
-        quotePostId: null,
+        quotePostId: slurpTrendQuoteOf(input.metadata),
         source: input.source ?? "manual",
         projectId: input.projectId ?? null,
         projectChapter: input.projectChapter ?? null,

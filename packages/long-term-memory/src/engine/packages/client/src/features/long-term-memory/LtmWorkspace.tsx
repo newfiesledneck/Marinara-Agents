@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { nextTabIndex } from "./tab-keys";
 
 export type LtmWorkspacePane = "navigator" | "workbench" | "inspector";
 
@@ -79,15 +80,9 @@ export function LtmWorkspace({
   }, [nextAvailablePane, onMobilePaneChange, tabPanes.length]);
 
   const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>, pane: LtmWorkspacePane) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const nextIndex = nextTabIndex(event.key, availablePanes.indexOf(pane), availablePanes.length);
+    if (nextIndex === null) return;
     event.preventDefault();
-    const index = availablePanes.indexOf(pane);
-    const nextIndex =
-      event.key === "Home"
-        ? 0
-        : event.key === "End"
-          ? availablePanes.length - 1
-          : (index + (event.key === "ArrowRight" ? 1 : -1) + availablePanes.length) % availablePanes.length;
     const next = availablePanes[nextIndex];
     if (!next) return;
     onMobilePaneChange(next);
@@ -128,14 +123,27 @@ export function LtmWorkspace({
           display: flex;
           background: var(--marinara-editor-control-bg);
         }
+        /* The Engine's unlayered .mari-editor-tab sets min-height: 2.25rem, which beats min-h-11. */
+        [data-ltm-workspace] [data-ltm-workspace-pane-tab] {
+          min-height: 2.75rem;
+        }
         [data-ltm-workspace] [data-ltm-workspace-pane-tab][data-active="true"] {
           background: var(--background);
           color: var(--foreground);
+        }
+        [data-ltm-workspace] [data-ltm-row-actions="inline"] {
+          display: none;
         }
         @container ltm-workspace (min-width: ${compactBreakpointRem}rem) {
           [data-ltm-workspace] [data-ltm-workspace-pane] {
             min-height: 0;
             overflow: visible;
+          }
+          [data-ltm-workspace] [data-ltm-row-actions="inline"] {
+            display: flex;
+          }
+          [data-ltm-workspace] [data-ltm-row-actions="menu"] {
+            display: none;
           }
           [data-ltm-workspace][data-ltm-workspace-inspector="false"][data-ltm-workspace-navigator="true"] {
             grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);

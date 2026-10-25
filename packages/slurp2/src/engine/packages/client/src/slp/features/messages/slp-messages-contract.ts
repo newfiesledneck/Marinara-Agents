@@ -11,6 +11,8 @@ export type SlurpRapport = {
   score: number;
   tier: "stranger" | "acquaintance" | "regular" | "favourite" | "whale";
   contributions: SlurpRapportContribution[];
+  /** The highest tier reached; its doors stay open. */
+  peak?: SlurpRapport["tier"];
 };
 export type SlurpCreatorMessaging = {
   dmPolicy: SlurpDmPolicy;
@@ -75,6 +77,8 @@ export type SlurpThread = {
   subscribed: boolean;
   /** The Engine scene this thread is in while it runs (docs/SCENES.md): the thread is locked. */
   sceneChatId?: string | null;
+  /** The latest paid sexting session, running or over (docs/SPICY.md, item 2). */
+  sexting?: { startedAt: string; endsAt: string; pictureOffered?: boolean } | null;
 };
 export type SlurpCommission = {
   id: string;

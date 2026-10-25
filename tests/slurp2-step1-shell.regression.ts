@@ -63,26 +63,20 @@ assert.match(hub, /<SlpBalanceChip \/>/u);
 assert.match(shell, /export function SlpBalanceChip[\s\S]*?SLP_BALANCE_CHIP_CLASS/u);
 
 // More is an SlpSheet; Pulse closes it first so Pulse is not hidden under the sheet.
-// Step 7: Pulse is a SlpSheet too, and opening a sheet closes the one that is open (B8).
+// Step 7: Pulse is a SlpSheet too, and opening a sheet closes the one that is open (B8). Only the Stir
+// tab's base sheet (0.3.63) lets the sheets it opens stack on top.
 assert.match(shell, /<SlpSheet\s+open=\{mobileDrawerOpen\}/u);
 assert.match(src("modules/chrome/SlpPulse.tsx"), /<SlpSheet open=\{open\} onClose=\{onClose\}/u);
-assert.match(src("modules/chrome/SlpSheet.tsx"), /closeOpenOverlay\?\.\(\);\s*closeOpenOverlay = close;/u);
+assert.match(src("modules/chrome/SlpSheet.tsx"), /closeOpenOverlay\?\.\(\);\s*if \(!base\) closeOpenOverlay = close;/u);
 
 // Hub header: wordmark left, chip right. Step 3.1 (user): the refresh ⋯ is gone, the feed updates itself.
 assert.match(hub, /<SlpWordmark \/>/u);
 assert.doesNotMatch(hub, /onRefresh|headerMenuRef/u);
 
-// Toasts: the Engine's position and theme, token accents (no richColors), scoped CSS, above the pill.
-assert.doesNotMatch(entry, /richColors/u);
-assert.match(entry, /localStorage\.getItem\("marinara-engine-ui"\)/u);
-assert.match(entry, /position=\{position === "bottom" \? "bottom-center" : "top-center"\}/u);
-assert.match(entry, /theme=\{theme\}/u);
-assert.match(entry, /\[data-slp-toaster\] \[data-sonner-toaster\]\[data-y-position="bottom"\]/u);
-assert.doesNotMatch(
-  entry,
-  /\n {2}\[data-sonner-toaster\]\[data-x-position/u,
-  "no unscoped rule that moves the Engine's toaster",
-);
+// Toasts: Slurp's toasts are the Engine's (one toast stack at the user's position, Pasta-Devs/Marinara-Agents#1487), so
+// Slurp renders no toaster and no dialog renderer of its own, and never restyles the Engine's toaster.
+assert.doesNotMatch(entry, /<Toaster\b|<AppDialogRenderer\b|richColors/u);
+assert.doesNotMatch(entry, /\[data-sonner-toaster\]/u, "no rule that moves or restyles the Engine's toaster");
 
 // Report bug: a small sheet with Discord (the splash's link) and the prefilled GitHub issue.
 const splash = src("features/onboarding/SlpSplash.tsx");

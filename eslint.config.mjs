@@ -5,6 +5,7 @@ import tseslint from "typescript-eslint";
 
 const maintainedSourceFiles = [
   "packages/**/src/**/*.{js,mjs,ts,tsx}",
+  "sources/*-overlay/**/*.{mjs,ts,tsx}",
   "scripts/**/*.{js,mjs}",
   "tests/**/*.{js,mjs,ts,tsx}",
   "eslint.config.mjs",
@@ -143,6 +144,11 @@ export default tseslint.config(
         QM_OVERLAY_SLOT_LABELS: "readonly",
         QM_OVERLAY_SLOT_LABEL_LINES: "readonly",
         qmLocationLabel: "readonly",
+        QM_HIDDEN_ITEM_ACCESS_OPTIONS: "readonly",
+        qmAccessModeShows: "readonly",
+        // 13-pending.js's review card, also used by 10-dock.js's Pending
+        // Item Changes section.
+        qmBuildPendingEntry: "readonly",
       },
     },
   },

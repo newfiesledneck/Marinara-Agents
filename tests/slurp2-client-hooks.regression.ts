@@ -306,7 +306,9 @@ for (const name of EXPORTED_BEFORE) {
 const factories = [...combined.matchAll(/^export const ([A-Za-z0-9_]+Keys) = \{/gmu)].map((m) => m[1]).sort();
 assert.deepEqual(factories, ["messageKeys", "slpKeys"], "exactly two query-key factories may exist");
 const NOODLE_KEYS_BEFORE = `export const slpKeys = {
-  all: ["noodle"] as const,
+  // Slurp shares the Engine's query cache (Pasta-Devs/Marinara-Agents#1487). Its keys used to start with "noodle",
+  // which Noodle's own keys also do, so they start with the package id.
+  all: ["slurp2"] as const,
   bootstrap: () => [...slpKeys.all, "bootstrap"] as const,
   settings: () => ["slurp", "settings"] as const,
   refreshIndicator: () => [...slpKeys.all, "refresh-indicator"] as const,
@@ -358,6 +360,8 @@ const callsBefore = readFileSync(join(import.meta.dirname, "fixtures/slurp2-clie
   .filter(Boolean);
 const mapStagingCall = (call: string) => call.replace("/slurp2/noodler/", "/slurp2/slurp/");
 const addedCalls = [
+  "get /slurp2/extras/offer",
+  "post /slurp2/extras/offer/answer",
   "get /slurp2/messages/unread-count?personaId=${encodeURIComponent(personaId!)}",
   "get /slurp2/slurp/notifications/unseen-count?personaId=${encodeURIComponent(personaId!)}",
   "get /slurp2/slurp/posts/${encodeURIComponent(postId)}/deep-details",
@@ -368,6 +372,9 @@ const addedCalls = [
   "get /slurp2/continuity/${encodeURIComponent(creatorAccountId!)}?${query}",
   "get /slurp2/messages/threads/${encodeURIComponent(threadId!)}/requests?personaId=${encodeURIComponent(personaId!)}",
   "get /slurp2/slurp/tasks",
+  // Paid sexting sessions (docs/SPICY.md, item 2).
+  "post /slurp2/messages/sexting",
+  "get /slurp2/slurp/trends",
   "get /slurp2/slurp/viewer/feed?personaId=${encodeURIComponent(personaId)}&tab=all&limit=20${cursorQuery(current.nextCursor)}",
   "get /slurp2/slurp/viewer/feed?personaId=${encodedPersonaId}&tab=all&limit=20",
   "post /slurp2/slurp/accounts/${encodeURIComponent(input.accountId)}/appearance",
@@ -436,6 +443,8 @@ const addedCalls = [
   "get /slurp2/slurp/wardrobe/lorebooks",
   "get /slurp2/story/calendar?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}",
   "get /slurp2/story/timeline",
+  "delete /slurp2/story-packs/${encodeURIComponent(id)}",
+  "delete /slurp2/story/facts/${encodeURIComponent(factId)}",
   "patch /slurp2/messages/threads/${encodeURIComponent(threadId!)}/details",
   "patch /slurp2/slurp/accounts/${encodeURIComponent(id)}/steering",
   "patch /slurp2/slurp/ads/brands/${encodeURIComponent(id)}",
@@ -458,8 +467,12 @@ const addedCalls = [
   "post /slurp2/messages/creators/${encodeURIComponent(input.creatorAccountId)}/request-fan-reply",
   "post /slurp2/messages/ppv/unlock",
   "post /slurp2/messages/share-post",
+  "post /slurp2/messages/threads/${encodeURIComponent(input.threadId)}/messages/${encodeURIComponent(input.messageId)}/delete",
+  "post /slurp2/messages/threads/${encodeURIComponent(input.threadId)}/messages/${encodeURIComponent(input.messageId)}/edit",
+  "post /slurp2/messages/threads/${encodeURIComponent(input.threadId)}/regenerate",
   "post /slurp2/messages/threads/${encodeURIComponent(input.threadId)}/request-reply",
   "post /slurp2/messages/threads/${encodeURIComponent(input.threadId)}/viewer-image",
+  "post /slurp2/messages/threads/${encodeURIComponent(threadId)}/summary",
   "post /slurp2/refresh",
   "post /slurp2/slurp/accounts/${encodeURIComponent(accountId)}/page/compose",
   "post /slurp2/slurp/accounts/${encodeURIComponent(creatorId)}/wardrobe/import-preview",
@@ -493,6 +506,7 @@ const addedCalls = [
   "put /slurp2/slurp/accounts/${encodeURIComponent(input.accountId)}/page",
   "post /slurp2/slurp/accounts/${encodeURIComponent(accountId)}/strategy/suggest",
   "upload /slurp2/messages/threads/${encodeURIComponent(input.threadId)}/image-upload",
+  "get /slurp2/settings/carryover-reach",
 ];
 const removedCalls = [
   // The staging ads-pool GET went with the removed useSlurpAdPool hook (0.3.9).
@@ -552,20 +566,27 @@ assert.deepEqual(
   {
     // 0.3.27 "Suggest page style": one mutation, its two error states, and the strategy save now
     // refreshes the list when settled (a refused apply also means the list is stale).
-    useMutation: 213,
-    // 0.3.28: +2 (the import and the one query of SlpMessageDeepDetails).
-    useQuery: 284,
+    // 0.3.63: +1 (useStartSlurpSexting buys a sexting session).
+    useMutation: 225,
+    // 0.3.28: +2 (the import and the one query of SlpMessageDeepDetails). 0.3.42: +1 (carryover reach).
+    // 0.3.44: +2 (the import and the trends row query).
+    // 0.3.63: +1 (its useQueryClient).
+    useQuery: 300,
     useInfiniteQuery: 9,
-    invalidateQueries: 151,
-    setQueryData: 26,
+    // 0.3.35: +2 (adding a Creator refreshes the settings, which now hold the image name choice).
+    // Configurator: +1 (an extension switch drops the cached feed, trend and Stir reads).
+    // Life panel: +3 useMutation, +4 useQuery, +1 invalidateQueries, +3 onError.
+    invalidateQueries: 157,
+    setQueryData: 27,
     cancelQueries: 7,
     removeQueries: 1,
     refetchQueries: 0,
     onMutate: 2,
     // SlpConnectionsPanel.tsx moved into the SlurpBackstagePrompts component mapping, so its one
-    // onError no longer counts as state-layer code.
-    onError: 93,
-    onSettled: 37,
+    // onError no longer counts as state-layer code. +1: SlpDeskQuickReplies (R2) toasts a failed save.
+    onError: 98,
+    // 0.3.63: +1 (the sexting buy refreshes the thread when settled).
+    onSettled: 41,
   },
   "query and mutation wiring counts match the monolith plus the later Slurp2 hooks",
 );
@@ -578,7 +599,12 @@ const invalidatorCalls = {
 };
 assert.deepEqual(
   invalidatorCalls,
-  { invalidateSlurpMessages: 32, invalidateSlurpProjects: 5, mergeSlurpViewerShell: 4 },
+  {
+    // 0.3.63: +1 (the sexting buy).
+    invalidateSlurpMessages: 36,
+    invalidateSlurpProjects: 5,
+    mergeSlurpViewerShell: 4,
+  },
   "shared invalidation helpers must stay wired to the same call sites",
 );
 
@@ -620,18 +646,14 @@ for (const [name, path] of [
   assert.deepEqual(exported.get(name), [path], `${name} must live in ${path}`);
 }
 
-// 6. The generic Engine persona hook stays outside Slurp and keeps the package API-client override.
+// 6. The generic Engine persona hook stays outside Slurp, and Slurp uses the Engine's API client.
 const generic = join(clientSrc, "hooks/use-creator-personas.ts");
 assert.ok(existsSync(generic), "the generic persona hook must stay outside the slp roots");
 assert.doesNotMatch(readFileSync(generic, "utf8"), /\/slp\//u, "the generic hook must not reach into Slurp");
 assert.ok(!paths.some((path) => /creator-personas/u.test(path)), "Slurp must not fork the generic persona hook");
-const apiClient = join(clientSrc, "lib/api-client.ts");
-assert.ok(existsSync(apiClient), "the package-owned API client must stay at lib/api-client.ts");
-assert.match(
-  readFileSync(apiClient, "utf8"),
-  /apiBaseUrl|API_BASE|host/iu,
-  "the API-client host override must survive",
-);
+// The feature build stacks sources/host-client-overlay's lib/api-client.ts, which is the Engine's own client
+// (__MARINARA_HOST__.api); a package copy would carry a second ApiError class and its own rules (#1487).
+assert.ok(!existsSync(join(clientSrc, "lib/api-client.ts")), "Slurp must not carry its own API client");
 
 // 7. The Creators panel keeps its filter state and opens the shared settings modal.
 const creatorsPanel = readFileSync(join(slpRoot, "features/creators/SlpCreatorsPanel.tsx"), "utf8");

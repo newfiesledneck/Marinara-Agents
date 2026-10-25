@@ -19,10 +19,7 @@ import { createLLMProvider } from "../../../services/llm/provider-registry.js";
 import { createConnectionsStorage } from "../../../services/storage/connections.storage.js";
 import { createSlurpStorage } from "../../data/slp-storage.js";
 import { resolveSlurpTextConnection } from "../../base/identity/slp-connection.js";
-import {
-  withConnectionAdmissionProvider,
-  type ConnectionAdmissionMode,
-} from "../../../services/generation/connection-admission.js";
+import { type ConnectionAdmissionMode } from "../../../services/generation/connection-admission.js";
 import { SLURP_MODIFIER_KINDS } from "../../modules/creators/slp-creator-state.js";
 import { modelAnswerForCorrection, requireModelAnswer } from "../../base/model/slp-model-answer.js";
 import { slpSamplingOptions } from "../../base/prompting/slp-sampling-options.js";
@@ -147,7 +144,9 @@ export function buildSlurpArcGenerationMessages(input: {
 
 /** Parse the answer, or throw so the caller can retry once. */
 export function parseSlurpGeneratedArc(content: string): Record<string, unknown> {
-  const parsed = parseGameJsonish(requireModelAnswer(content, "an arc"));
+  const answer = parseGameJsonish(requireModelAnswer(content, "an arc"));
+  // Local models often wrap the one arc in a list: `[{...}]`.
+  const parsed = Array.isArray(answer) && answer.length === 1 ? answer[0] : answer;
   if (
     !parsed ||
     typeof parsed !== "object" ||
@@ -210,7 +209,10 @@ export async function generateSlurpArc(
           .map((item) => `- Themes: ${item.storyTags.join(", ")}`),
         ...(await slurp.listStoryFacts().catch(() => []))
           .filter(
-            (fact) => fact.creatorId === creator.id && (!fact.expiresAt || Date.parse(fact.expiresAt) > Date.now()),
+            (fact) =>
+              fact.creatorId === creator.id &&
+              !fact.track &&
+              (!fact.expiresAt || Date.parse(fact.expiresAt) > Date.now()),
           )
           .map((fact) => `- Fact: ${fact.label}`),
       ].slice(0, 10),
@@ -221,7 +223,8 @@ export async function generateSlurpArc(
       promptBlocks: slurpPromptContext(settings).blocks,
     });
     const fallbackConnection = await connections.getFallbackForMain();
-    const fallbackProvider = slpWithProviderRetry(
+    // The Engine admits the call (both legs of the fallback chain) on the arc's admission mode.
+    const provider = slpWithProviderRetry(
       withConnectionFallbackProvider({
         primary: createLLMProvider(
           connection.provider,
@@ -238,9 +241,9 @@ export async function generateSlurpArc(
         fallbackConnection,
         fallbackBaseUrl: fallbackConnection ? resolveBaseUrl(fallbackConnection) : "",
         category: "main",
+        admissionMode,
       }),
     );
-    const provider = withConnectionAdmissionProvider(fallbackProvider, connection.id, admissionMode);
     const options = {
       model: connection.model,
       maxTokens: clampGenerationMaxOutputTokens({

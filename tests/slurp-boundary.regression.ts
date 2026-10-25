@@ -26,10 +26,12 @@ const slurpFanActivity = slurp2Source(
 const slurpServerEntry = slurp2Source(
   join(root, "packages/slurp2/src/engine/packages/server/src/services/slurp/server-entry.ts"),
 );
-assert.match(
+// Creator and post confirmations open in the Engine's own dialog renderer (its topmost layer), so Slurp renders none of
+// its own (Pasta-Devs/Marinara-Agents#1487).
+assert.doesNotMatch(
   slurpEntry,
-  /AppDialogRenderer/u,
-  "Slurp must render the dialog host used by creator and post confirmation actions",
+  /<AppDialogRenderer\b/u,
+  "Slurp must leave its confirmation dialogs to the Engine's one renderer",
 );
 assert.match(
   slurpFanActivity,

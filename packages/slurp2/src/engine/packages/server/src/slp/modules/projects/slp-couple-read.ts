@@ -13,7 +13,7 @@ import type {
 
 const STAGES: readonly SlurpCoupleStage[] = ["sparks", "dating", "together", "rocky", "split"];
 const AFTERMATHS = ["moveOn", "forget"] as const;
-const FORCED: readonly SlurpCoupleForced["misfit"][] = ["taken", "notInto", "noDating", "orientation"];
+const FORCED: readonly SlurpCoupleForced["misfit"][] = ["taken", "notInto", "noDating", "orientation", "family"];
 const KINDS: readonly SlurpCoupleMomentKind[] = [
   "flirt",
   "date",

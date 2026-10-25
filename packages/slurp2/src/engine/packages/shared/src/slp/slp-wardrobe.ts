@@ -3,7 +3,7 @@ import { z } from "zod";
 export const SLP_WARDROBE_LOOK_LIMIT = 64;
 export const SLP_WARDROBE_TAG_LIMIT = 12;
 export const SLP_WARDROBE_SUITABILITIES = ["public", "locked", "both"] as const;
-export const SLP_WARDROBE_SOURCE_KINDS = ["manual", "character", "lorebook", "text", "legacy"] as const;
+export const SLP_WARDROBE_SOURCE_KINDS = ["manual", "character", "lorebook", "text", "legacy", "storyline"] as const;
 
 export const slpWardrobeLookInputSchema = z
   .object({

@@ -41,6 +41,7 @@ export type SlpStirNote = {
     | "awkward"
     | "reluctant"
     | "complicated"
+    | "family"
     | "mayDecline"
     | "noCollabs"
     | "notDramatic"

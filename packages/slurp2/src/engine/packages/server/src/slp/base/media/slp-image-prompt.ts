@@ -22,9 +22,11 @@ const MIN_GUIDANCE_BLOCK_LENGTH = 40;
 export const MAX_FALLBACK_IMAGE_PROMPT_LENGTH = 1_500;
 
 /** Cut to the ceiling on a sentence, then a word boundary — a mid-word cut reads as a typo. */
-export function capFallbackImagePrompt(value: string): string {
-  if (value.length <= MAX_FALLBACK_IMAGE_PROMPT_LENGTH) return value;
-  const head = value.slice(0, MAX_FALLBACK_IMAGE_PROMPT_LENGTH);
+const squash = (value: string) => value.replace(/\s+/gu, " ");
+
+export function capFallbackImagePrompt(value: string, max = MAX_FALLBACK_IMAGE_PROMPT_LENGTH): string {
+  if (value.length <= max) return value;
+  const head = value.slice(0, max);
   const sentenceEnd = Math.max(
     head.lastIndexOf("."),
     head.lastIndexOf("!"),
@@ -33,7 +35,7 @@ export function capFallbackImagePrompt(value: string): string {
   );
   // Only honour a boundary in the last quarter, so a prompt with one early full stop is not
   // truncated down to that sentence.
-  const floor = Math.floor(MAX_FALLBACK_IMAGE_PROMPT_LENGTH * 0.75);
+  const floor = Math.floor(max * 0.75);
   if (sentenceEnd >= floor) return head.slice(0, sentenceEnd + 1).trim();
   const wordEnd = head.lastIndexOf(" ");
   return (wordEnd >= floor ? head.slice(0, wordEnd) : head).trim();
@@ -63,12 +65,15 @@ export function stripAppearanceLabel(value: string): string {
  * clothes are dropped here: only the clothing part of a sentence (V, user), so "Her curvy figure looks
  * great in tight clothing" keeps "Her curvy figure looks great" and "red hair, green eyes and a black
  * hoodie" keeps the hair and eyes. A Creator's own Stage appearance is trusted as written.
+ * A tag list (Danbooru card) is the exception: it goes over whole, outfit tags too (`slurpImageLook`).
  * ponytail: a keyword filter over sentences and clauses. If cards need finer handling, generate a look
  * once per Creator with a language model and store it as Stage appearance.
  */
 const CLOTHING_SENTENCE =
   /\b(?:wear|wears|wearing|worn|dress|dresses|dressed|outfits?|cloth(?:es|ing)|fashion|favou?rs|cosplay|costumes?|accessor(?:y|ies)|carries|carrying|shoes|boots|jewel(?:ry|lery)|hoodies?|shirts?|skirts?|jeans|jackets?|gowns?|couture|heels|lingerie|bikinis?|sweaters?|uniforms?)\b/iu;
 const MAX_LOOK_LENGTH = 600;
+/** Two or more commas and no sentence end: a tag list, not prose. */
+const TAG_LIST = /^[^.!?]*,[^.!?]*,[^.!?]*$/u;
 /** Where a sentence splits into clauses; the separator stays with the clause after it. */
 const CLAUSE_BREAK = /(,\s*|;\s*|\s+(?:and|but|while)\s+|\s+[—–]\s+)/u;
 /** What a kept clause of a clothing sentence must be about: the body, not a mood or a habit. */
@@ -97,14 +102,33 @@ function withoutClothes(sentence: string): string {
   return kept ? `${kept[0]!.toUpperCase()}${kept.slice(1)}${end}` : "";
 }
 
+/** Words that already say who is drawn; the look then needs no "Male." or "Female." of its own. */
+const SEX_WORD =
+  /\b(?:male|female|man|woman|men|women|boy|girl|guy|lady|gentleman|femboy|tomboy|futa\w*|trans(?:gender|woman|man|girl|guy)?|androgynous|non-binary|nonbinary|enby|1girl|1boy|he|she|his|her|him)\b/iu;
+
+/**
+ * "Male." or "Female." in front of a look that does not say it (user, 2026-10-14): without it an
+ * image model mostly draws a woman, whatever the page's gender. Other, no gender, or an empty look:
+ * as written.
+ */
+export function slurpImageSexWord(appearance: string, gender: string | null | undefined): string {
+  if (!appearance.trim() || (gender !== "male" && gender !== "female") || SEX_WORD.test(appearance)) return appearance;
+  // The label goes first, or "Male. Appearance: …" keeps a label stripAppearanceLabel cannot reach.
+  return `${gender === "male" ? "Male" : "Female"}. ${stripAppearanceLabel(appearance)}`;
+}
+
 export function slurpImageLook(appearance: string): string {
   const text = stripAppearanceLabel(appearance).replace(/\s+/gu, " ").trim();
   if (!text) return "";
-  const kept = text
-    .split(/(?<=[.!?])\s+/u)
-    .map(withoutClothes)
-    .filter(Boolean)
-    .join(" ");
+  // A tag list (Danbooru-style card) goes over one-to-one: the clause filter is for prose and dropped every
+  // tag without a body word, even the character's own name.
+  const kept = TAG_LIST.test(text)
+    ? text
+    : text
+        .split(/(?<=[.!?])\s+/u)
+        .map(withoutClothes)
+        .filter(Boolean)
+        .join(" ");
   const look = kept || text;
   return look.length <= MAX_LOOK_LENGTH ? look : `${look.slice(0, look.lastIndexOf(" ", MAX_LOOK_LENGTH))}`;
 }
@@ -230,15 +254,104 @@ export function ensureSlpImageAppearance(prompt: string, appearance: string): st
 export function slurpApplyImageSubject(prompt: string, name: string, family: SlurpPromptFamily = "natural"): string {
   const who = name.replace(/\s+/gu, " ").trim();
   if (!who) return prompt;
+  // A name tag behind other tags (the look Slurp inserted, a writer's line) moves to the front, once
+  // (0.3.47, player report and review).
+  const [rest, written] = slurpWithoutImageSubject(prompt, who, family);
+  if (rest !== prompt) return [written.toLocaleLowerCase(), rest].filter(Boolean).join(", ");
   // Danbooru-style Appearance fields write the name as a tag ("asuka_langley_soryu", "\(eva\)"):
-  // that counts as present too, so a tag prompt never gets the name twice (player report 0.3.5).
-  const plain = (text: string) =>
-    text
-      .toLocaleLowerCase()
-      .replace(/\\([()])/gu, "$1")
-      .replace(/[_\s]+/gu, " ");
-  if (plain(prompt).includes(plain(who))) return prompt;
+  // that counts as present too, so a tag prompt never gets the name twice (player report 0.3.5),
+  // and so does the family name first ("ryuuzaki umi" for "Umi Ryuuzaki", 0.3.47).
+  if (plainTag(prompt).includes(plainTag(who)) || slurpImageNamesPerson(prompt, [who])) return prompt;
   return family === "natural" ? `${who}\n${prompt}` : `${who.toLocaleLowerCase()}, ${prompt}`;
+}
+
+const plainTag = (text: string) =>
+  text
+    .toLocaleLowerCase()
+    .replace(/\\([()])/gu, "$1")
+    .replace(/[_\s]+/gu, " ")
+    .trim();
+
+/**
+ * A tag prompt without the name's own tags, and the name as the prompt spelled it, so
+ * `slurpApplyImageSubject` puts it in front (0.3.47, player report): the writer wrote "1girl, blue
+ * hair, ryuuzaki umi, magic knight rayearth", the name and "Always in their pictures" counted as
+ * present, and the identity tags stayed behind the body tags. A tag in another word order
+ * ("ryuuzaki umi" for the card's "Umi Ryuuzaki") keeps the writer's order, the one a tag model
+ * learned. Only whole tags move; a name inside a longer tag, a weight group or a sentence, and natural
+ * prompts, stay.
+ */
+export function slurpWithoutImageSubject(
+  prompt: string,
+  name: string,
+  family: SlurpPromptFamily,
+): [prompt: string, name: string] {
+  const wanted = name
+    .split(",")
+    .map((tag) => tag.replace(/\s+/gu, " ").trim())
+    .filter(Boolean);
+  if (family === "natural" || wanted.length === 0) return [prompt, name];
+  const keys = new Set(wanted.map(nameKey));
+  const written = new Map<string, string>();
+  const lines = prompt.split("\n").map((line) => {
+    const parts = line.split(",");
+    const kept = parts.filter((part) => {
+      const tag = part.trim().replace(/[.;]+$/u, "");
+      const key = nameKey(tag);
+      // A tag inside a weight group ("(1girl, umi)") stays: moving it would break the brackets.
+      if (!keys.has(key) || /[()[\]{}]/u.test(tag.replace(/\\[()]/gu, ""))) return true;
+      if (!written.has(key)) written.set(key, tag);
+      return false;
+    });
+    return kept.length === parts.length
+      ? line
+      : kept
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join(", ") || null;
+  });
+  if (written.size === 0) return [prompt, name];
+  return [
+    // Only a line the move emptied goes; the prompt's own blank lines stay, so it still ends the same.
+    lines.filter((line) => line !== null).join("\n"),
+    wanted.map((tag) => written.get(nameKey(tag)) ?? tag).join(", "),
+  ];
+}
+
+const nameWords = (text: string) =>
+  text
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/gu, "")
+    .toLocaleLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+const nameKey = (text: string) => nameWords(text).sort().join(" ");
+
+/**
+ * Whether a picture prompt names a person (0.3.47, player report): a tag prompt writes the card name
+ * as a tag, often family name first ("ryuuzaki_umi" for "Umi Ryuuzaki"), so a plain substring check
+ * missed a companion the writer did put in the picture. Whole words, in any order, next to each other
+ * inside one tag or line: "summer, rain" is not "Summer Rain".
+ */
+export function slurpImageNamesPerson(prompt: string, names: readonly string[]): boolean {
+  const tags = prompt.split(/[,;|\n]/u).map(nameWords);
+  return names.some((name) => {
+    const want = nameKey(name);
+    const size = want ? want.split(" ").length : 0;
+    if (!size) return false;
+    return tags.some((tag) => {
+      for (let start = 0; start + size <= tag.length; start++) {
+        if (
+          tag
+            .slice(start, start + size)
+            .sort()
+            .join(" ") === want
+        )
+          return true;
+      }
+      return false;
+    });
+  });
 }
 
 /**
@@ -339,20 +452,16 @@ export function slurpImageCompanionBlocks(
   usedRewrite: boolean,
   own = "",
 ): string {
-  const scene = prompt.toLocaleLowerCase();
   const has = (text: string, part: string) => text.toLocaleLowerCase().includes(part.toLocaleLowerCase());
   const blocks = companions
-    .filter((companion) => companion.name.trim() && scene.includes(companion.name.toLocaleLowerCase()))
+    .filter((companion) => slurpImageNamesPerson(prompt, [companion.name, companion.known]))
     .map(({ name, known, look }) => {
       // ponytail: after a rewrite, a trait the Creator shares ("blue eyes") counts as present for
       // the companion too. Match traits per person if rewritten collab pictures still mix them.
       const added = usedRewrite ? ensureSlpImageAppearance(prompt, look) : `${slurpImageLook(look)}\n${prompt}`;
       const traits = usedRewrite && mode === "writer" ? "" : added.slice(0, added.length - prompt.length).trim();
       if (family !== "natural") {
-        const tag =
-          known && slurpApplyImageSubject(own + prompt, known, family) !== own + prompt
-            ? known.toLocaleLowerCase()
-            : "";
+        const tag = known && !slurpImageNamesPerson(own + prompt, [known]) ? known.toLocaleLowerCase() : "";
         return [tag, traits].filter(Boolean).join(", ");
       }
       const label = has(known, name) ? known : has(name, known) ? name : `${name} (${known})`;
@@ -450,6 +559,8 @@ export function selectSlpImageProviderPrompt(input: {
   rawPrompt: string;
   /** Visual facts that must survive a capped fallback when the rewrite is unavailable. */
   fallbackPrefix?: string;
+  /** The post's own scene. When the fallback overflows the cap it leads, so the look cannot push it out. */
+  fallbackScene?: string;
   /** Never belongs in a visual prompt at any length, so it is matched whole. */
   privateContext?: ReadonlyArray<string | null | undefined>;
   /** Authored to steer the image, so only a copied block counts as a leak. */
@@ -463,7 +574,21 @@ export function selectSlpImageProviderPrompt(input: {
 }): string {
   const fallback = (reason: string) => {
     input.onFallback?.(reason);
-    return capFallbackImagePrompt([input.fallbackPrefix?.trim(), input.rawPrompt].filter(Boolean).join("\n\n"));
+    const prefix = input.fallbackPrefix?.trim() ?? "";
+    const full = [prefix && !squash(input.rawPrompt).includes(squash(prefix)) ? prefix : "", input.rawPrompt]
+      .filter(Boolean)
+      .join("\n\n");
+    if (full.length <= MAX_FALLBACK_IMAGE_PROMPT_LENGTH || (!prefix && !input.fallbackScene)) {
+      return capFallbackImagePrompt(full);
+    }
+    // Over the cap a long look led and used all of it, so the picture was an appearance and no
+    // scene. The look keeps a bounded share and the scene gets the rest.
+    const head = capFallbackImagePrompt(prefix, 900);
+    const scene = capFallbackImagePrompt(
+      input.fallbackScene?.trim() || input.rawPrompt,
+      MAX_FALLBACK_IMAGE_PROMPT_LENGTH - head.length - 2,
+    );
+    return [head, scene].filter(Boolean).join("\n\n");
   };
   const rewrittenPrompt = input.rewrittenPrompt?.trim();
   if (!rewrittenPrompt) {

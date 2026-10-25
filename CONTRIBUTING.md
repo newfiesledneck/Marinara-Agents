@@ -23,7 +23,11 @@ git pull
 git checkout -b feature/short-description
 ```
 
-Open a draft PR against `staging` as soon as implementation starts, then mark it **Ready for review** after validation and self-review. Draft PRs cannot merge and are intentionally skipped by CodeRabbit. Every ready PR must pass the catalog check, CodeQL security analysis, native Code Quality analysis, and CodeRabbit review. Dependency changes must also pass the low-severity dependency audit. PRs from active Pasta-Devs organization members and owners do not require a separate human approval; organization members with repository merge permission may merge internal PRs into `staging` after those gates pass. Outside and first-time contributors require an approving review from repository owner `SpicyMarinara`. Approval from another Pasta-Devs member does not satisfy this gate. Only `SpicyMarinara` may promote this repository's `staging` branch into `main`.
+Open a draft PR against `staging` as soon as implementation starts, then mark it **Ready for review** after validation and self-review. Draft PRs cannot merge, and automatic Dottore review waits until they are ready. Every ready PR must pass the catalog check, CodeQL security analysis, native Code Quality analysis, and Dottore Review. Dependency changes must also pass the low-severity dependency audit. PRs from active Pasta-Devs organization members and owners do not require a separate human approval; organization members with repository merge permission may merge internal PRs into `staging` after those gates pass. Outside and first-time contributors require an approving review from repository owner `SpicyMarinara`. Approval from another Pasta-Devs member does not satisfy this gate. Only `SpicyMarinara` may promote this repository's `staging` branch into `main`.
+
+Dottore is this repository's automated reviewer. The wrapper pins shared Marinara-Engine tooling and uses this repository's model variables, API-key secrets, and base-branch review rules. Automatic reviews run on ready PRs and subsequent pushes. Drafts are withheld for automatic, manual and direct requests; marking a supported PR Ready starts its review through the existing automatic trigger. If a review does not start, an owner, organization member, or collaborator can comment `/dottore`; `/dottore full` requests a full examination. Before merging, verify a **Viable** or **Viable, With Notes** verdict for the current head and resolve all confirmed findings. See the [shared Dottore guide](https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/.github/dottore-review/README.md) for the commands, configuration, and trust boundaries. CodeRabbit's automatic reviews and automatic chat replies are disabled here.
+
+The staging wrapper checks live PR readiness before starting the shared reviewer, including requests from the existing Ready trigger and manual commands. Examination starts without waiting for CI; required checks and the current-head viable review remain merge gates. The automatic dispatcher follows `DOTTORE_AUTO_REVIEW`; marking a PR Ready does not override that setting. Event dispatchers run from GitHub's default branch, so changes to their event subscriptions activate only after a normal `main` release. A staging wrapper update does not change the `main` wrapper.
 
 Marinara Engine automatically follows the matching Agent channel: Engine `staging` reads this repository's `staging` catalog and artifacts, while stable Engine builds read `main`. Test package installs and updates from an Engine staging checkout before promotion.
 
@@ -63,9 +67,29 @@ The root `package.json` pins libraries that feature sources import but that the 
 - `schemas/` — package schema documents
 - `scripts/` — catalog builders and validation
 - `sources/engine/` — captured generic Engine dependencies required to reproduce feature bundles
+- `sources/host-client-overlay/` — stands in for the Engine stores, services and components the Engine hands package clients through `globalThis.__MARINARA_HOST__` (capability API 1.341): the UI, chat, agent, Local Model, dialog, gallery, encounter, game state and backfill stores, TTS, app dialogs, the API client, the emoji catalog and `Modal`. Every feature build stacks it over `sources/engine/`, so package code uses the Engine's live objects; `scripts/esbuild-host-plugins.mjs` takes React, React Query, zustand, sonner, zod, i18next, framer-motion, tailwind-merge and clsx from the host the same way. A package must never bundle a copy of these: the build's client gates (`scripts/client-host-gates.mjs`) refuse one, and `validate-catalog.mjs` refuses a client that writes the Engine's browser storage (`marinara-engine-ui`, the active chat, drafts, pending map moves, pinned gallery images) or opens its audio cache
+- `sources/host-runtime-overlay/` — stands in for the stateful Engine server services Calls, Noodle and Slurp used to bundle: the Local Model, provider routing and fallback, connection admission, the command and service registries, image and video generation, and the logger. Each module calls the Engine through `api.runtime` (capability API 1.341), bound by the generated server entry in `activate()`; a missing host member answers HTTP 501 `host_feature_unavailable` instead of running a copy. The build's server gates (`scripts/server-host-gates.mjs`) refuse a bundled copy, and `scripts/server-engine-modules-baseline.json` lists the Engine storage modules that may stay bundled for reads, with a reason each; that list may only shrink
 - `tests/` — integration proof for package behavior
 
 The catalog contains Writer, Tracker, and Misc Agents. Feature packages such as Maps, Calls, and Conversation games are still represented by Agent definitions so installation and per-chat availability use one consistent lifecycle.
+
+## Using the Engine's host
+
+Since capability API 1.341, Marinara Engine hands every package the code it already runs, so a package never ships a second copy of it. A copy keeps its own state beside the Engine's: the bundled UI store reset Engine settings (#1478), a bundled chat store left game boards playable while a character replied, and bundled server services started a second llama-server or overwrote chat metadata. The Engine documents the contract in [Optional agent packages](https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/development/optional-agent-packages.md#host-client-namespace).
+
+- **Client.** The Engine sets `globalThis.__MARINARA_HOST__ = { version: 1, ... }` before it loads any package client. `scripts/esbuild-host-plugins.mjs` resolves React, React DOM, React Query, zustand, sonner, zod, i18next, react-i18next, framer-motion, tailwind-merge and clsx to the Engine's own modules, and `marinara:host` to the namespace and its one `QueryClient`. `sources/host-client-overlay/` does the same for the Engine's stores, TTS, app dialogs, API client, emoji catalog and `Modal`. Render with the host `QueryClient` and toast through `sonner`'s `toast`; never render your own `<Toaster>`, dialog renderer or `QueryClient`, and keep your own i18next instance inside `<I18nextProvider>` (`initReactI18next` is withheld). Start a new package-owned query key with the package id.
+- **Server.** Calls, Noodle and Slurp reach Engine services through `api.runtime` (`sources/host-runtime-overlay/`). Every server takes `zod`, `adm-zip`, `dotenv`, `nanoid`, `jsonrepair` and the Engine's other externals from the Engine's `packages/server` dependencies, so each must stay a direct dependency there.
+- **Never fall back to a copy.** When the Engine lacks a member, report the feature unavailable ("needs a newer Marinara Engine"). Only the UI and chat store adapters keep a read-only copy, and it never writes.
+- **Never write the Engine's browser storage.** `validate-catalog.mjs` refuses a client that writes `marinara-engine-ui`, the active chat, drafts, pending map moves or pinned gallery images, or opens the TTS audio cache.
+- **Gate on the capability API, not `engine.min`.** A package built this way declares `schemaVersion: 2` and the capability API it needs, so an older Engine never installs it and keeps the version it has.
+- **React majors.** Packages render with the Engine's React. Replacing a host slot with a new React major (or another library major) requires a capability API major, so a package built against one major never runs against another.
+- **Motion slots.** The existing `framer-motion` host slot stays on Motion 13. The Engine may run Motion 14 itself,
+  with the complete legacy namespace retained through its `framer-motion-v13` npm alias. Opt in to Motion 14 by
+  importing `motion/react` and declaring capability API 1.377 or newer. Pass the package's declared `capabilityApi`
+  to `hostModulesPlugin`; it rejects the new slot under an older declaration. Export inventories use
+  `MARINARA_HOST_MODULE_IMPORTS` from the Engine contract, so legacy builds probe the alias, not the primary 14
+  dependency. Engine-backed strict package typechecks apply the same mapping through TypeScript paths. Keep each animation tree on one slot: their presence, config and layout contexts are distinct.
+
 
 ## Building Packages
 
@@ -213,7 +237,7 @@ Also manually install or update affected packages through **Agents → Download 
 - Target `staging`; contributions to `main` are not accepted.
 - Keep the PR focused and explain the user-facing reason for the change.
 - Mark the PR ready for review only after local validation and self-review.
-- Let CodeRabbit review the ready PR and address actionable findings.
+- Let Dottore review the ready PR, address confirmed findings, and verify its viable verdict covers the final head.
 - Outside and first-time contributors must obtain an approving review from `SpicyMarinara`. Approval from another Pasta-Devs member does not satisfy this gate. Active organization members and owners do not require separate owner approval; those with repository merge permission may merge internal PRs after the required automated gates pass.
 - Update the README and linked Engine documentation when catalog membership, compatibility, setup, or user-visible behavior changes.
 - Include the generated package and catalog outputs when payloads change.

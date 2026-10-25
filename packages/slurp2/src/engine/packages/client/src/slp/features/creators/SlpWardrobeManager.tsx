@@ -99,9 +99,11 @@ function LookFields({
         <span className="text-xs font-semibold">{t("ui.slurp.wardrobe.tags", { defaultValue: "Tags" })}</span>
         <input
           className={fieldClass}
-          value={value.tags.join(", ")}
+          // Parsed on blur, not on each key: a controlled split ate the comma as it was typed.
+          key={value.tags.join(", ")}
+          defaultValue={value.tags.join(", ")}
           disabled={disabled}
-          onChange={(event) =>
+          onBlur={(event) =>
             patch({
               tags: event.target.value
                 .split(",")

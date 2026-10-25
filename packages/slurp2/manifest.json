@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "capabilityApi": {
     "major": 1,
-    "minor": 66
+    "minor": 341
   },
   "builtAgainst": {
-    "engineVersion": "2.4.6",
-    "engineCommit": "5a6fafa079c921a3dc1166169f41f318549d595e"
+    "engineVersion": "2.5.0",
+    "engineCommit": "25f8df7b0a388fe36f657d69c6fcaa9f27e066ed"
   },
   "id": "slurp2",
   "name": "Slurp",
-  "version": "0.3.29",
+  "version": "0.4.1",
   "description": "A private social app for your characters. Turn characters and personas into Creators, post public or locked photos, and watch a simulated audience follow, subscribe, unlock, comment, and message them. By default, it is tuned for an adult experience. Install it, restart Marinara Engine when prompted, then open Home → Slurp.",
   "localizations": {
     "de": {
@@ -63,6 +63,8 @@
     },
     "assets": {
       "paths": [
+        "assets/mari/Mari_noodler_teaser_locked.webp",
+        "assets/mari/Mari_noodler_teaser_unlocked.webp",
         "src/engine/packages/client/src/slp/locales/de.json",
         "src/engine/packages/client/src/slp/locales/ko.json",
         "src/engine/packages/client/src/slp/locales/pl.json"
@@ -77,13 +79,13 @@
     },
     {
       "path": "server.mjs",
-      "sha256": "f991880f50dcd9c19ceb31b7c669bb0d52e3dc2bc52a4c99f6a54e675aa0f5b3",
-      "bytes": 3490483
+      "sha256": "2f8f75e42e58f3cb1459307baf3b2d422bf84930e88f705a5309f29f1fb86e20",
+      "bytes": 2008746
     },
     {
       "path": "client.js",
-      "sha256": "dda934cadc4775c61186432adb677d9f197d936c396613fd0b5384a68c07e0d1",
-      "bytes": 4684535
+      "sha256": "5916950ee953da96c8d5c2957ce5ff5fc5e41895e31082df14fae716d85c24c0",
+      "bytes": 2839552
     },
     {
       "path": "slurp2-logo.png",
@@ -96,19 +98,29 @@
       "bytes": 120424
     },
     {
+      "path": "assets/mari/Mari_noodler_teaser_locked.webp",
+      "sha256": "e587f1fd0e9a8ba842af1f2ce8d1a1f84c0960a7737313d6081819a4a89a69da",
+      "bytes": 13598
+    },
+    {
+      "path": "assets/mari/Mari_noodler_teaser_unlocked.webp",
+      "sha256": "6349a29529b7597f16bba9ac3c83480c9b0e6c1b286c8dcdcdc7653e05e29eaf",
+      "bytes": 59402
+    },
+    {
       "path": "src/engine/packages/client/src/slp/locales/de.json",
-      "sha256": "9cdd3915ea57211d64dcf6cfa1e40e7740245344af7128d4e9bd96cfd6c4a6dd",
-      "bytes": 215468
+      "sha256": "1f6bf145d2f707bcf4600bfe9b32a330cfa2314d9772eb14e7d29d928252b65a",
+      "bytes": 231893
     },
     {
       "path": "src/engine/packages/client/src/slp/locales/ko.json",
-      "sha256": "b437fa576fc84b44d7aa10d22251a8e6b21aa1968b5312a6529f6e536d72f0a0",
-      "bytes": 311689
+      "sha256": "af21ea5829363ccbe6999893eb62ef838ef9c02347cd4f2b80c8d0b4a208c8de",
+      "bytes": 328893
     },
     {
       "path": "src/engine/packages/client/src/slp/locales/pl.json",
-      "sha256": "9d746a64e4b5d5caf116aed0022b301add3ee0eaed7e61e01908d8acbb4f68ec",
-      "bytes": 217233
+      "sha256": "2a7eba40377498e64f1ba4ca534e74c1143a6378a309fe517e1ebdb6d5dc8377",
+      "bytes": 233528
     }
   ],
   "permissions": [

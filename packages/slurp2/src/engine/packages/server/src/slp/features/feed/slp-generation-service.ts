@@ -5,7 +5,7 @@ import { prepareSlurpCreatorPost } from "./slp-prepared-post.js";
 import { type APIProvider } from "@marinara-engine/shared";
 import { createSlpPoll } from "../../../../../shared/src/slp/slp-polls.js";
 import { SLP_CREATOR_POST_TITLE_MAX_LENGTH } from "../../../../../shared/src/slp/slp-social.schema.js";
-import { type SlpAccount, type SlpCreatorManagedPost } from "../../../../../shared/src/slp/slp-social.types.js";
+import type { SlpCreatorManagedPost } from "../../../../../shared/src/slp/slp-social.types.js";
 import { isDebugAgentsEnabled } from "../../../config/runtime-config.js";
 import { newId } from "../../../utils/id-generator.js";
 import type { DB } from "../../../db/connection.js";
@@ -15,7 +15,6 @@ import { logger, logDebugOverride } from "../../../lib/logger.js";
 import { clampGenerationMaxOutputTokens } from "../../../services/generation/output-token-limits.js";
 import { resolveStoredChatOptions } from "../../../services/generation/generation-parameters.js";
 import { slpSamplingOptions } from "../../base/prompting/slp-sampling-options.js";
-import { type ConnectionAdmissionMode } from "../../../services/generation/connection-admission.js";
 import { resolveCreatorImageConnectionId } from "../../base/media/slp-image-connections.js";
 import { resolveSlurpCreatorMenu, resolveSlurpPostGuidance } from "../../data/settings/slp-post-guidance-storage.js";
 import { SLURP_BUILT_IN_EXPLICIT_LEVEL, slurpPostLevelInstruction } from "../../modules/feed/slp-post-guidance.js";
@@ -27,10 +26,14 @@ import { type SlurpAccount } from "../../modules/records/slp-storage-model.js";
 import { createPromptOverridesStorage } from "../../../services/storage/prompt-overrides.storage.js";
 import { generateCreatorPostImage, SLURP_SECONDARY_IMAGE_COUNT } from "../media/slp-media-contract.js";
 import { finishSlurpPostImage } from "./slp-post-media-operation.js";
-import { prepareSlurpBeatRun, resolveSlurpBeatCastContext } from "./slp-post-beat-service.js";
+import {
+  prepareSlurpBeatRun,
+  resolveSlurpBeatCastContext,
+  resolveSlurpMentionedCast,
+} from "./slp-post-beat-service.js";
 import { slurpArcBeat, slurpPlannedExplicitLevel } from "../../modules/feed/slp-post-beat.js";
 import { slpCreatorUnlockPriceMetadata } from "../../modules/economy/slp-prices.js";
-import { persistCreatorPostWithUploadedMedia, type SlpCreatorPostMediaUpload } from "../../base/media/slp-media.js";
+import { persistCreatorPostWithUploadedMedia } from "../../base/media/slp-media.js";
 import { slpResponseFormat } from "../../base/prompting/slp-response-format.js";
 import {
   SLURP_TEASER_INSTRUCTION,
@@ -42,20 +45,18 @@ import {
 import { slurpArcPoll, slurpArcRotation, slurpProjectChapter } from "../../modules/projects/slp-arc-progress.js";
 import { slurpPurposeMetadata } from "../../modules/feed/slp-post-purpose.js";
 import { resolveSlurpCreatorScheduleContext } from "../creators/slp-creators-contract.js";
-import { createChatsStorage } from "../../../services/storage/chats.storage.js";
 import { type SlpCreatorContentFormat } from "../../base/prompting/slp-content-format.js";
-import { resolveSlurpPostLore } from "./slp-post-lore.js";
-import { createCharacterGalleryStorage } from "../../../services/storage/character-gallery.storage.js";
-import { createGalleryStorage } from "../../../services/storage/gallery.storage.js";
+import { resolveSlurpLoreContext } from "../../data/host/slp-lore-context.js";
 import { pickGalleryAttachmentForAccount } from "./slp-generated-activity-service.js";
 import { protectCreatorGeneratedIdentity, type PublicIdentity } from "../../base/identity/slp-identity-protection.js";
 import { resolveCreatorCharacterCanon } from "../../data/creators/slp-source-resolve.js";
 import { readSlurpCreatorSteering, removeSlurpCreatorNudge } from "../../data/creators/slp-steering-storage.js";
 import { resolveSlurpCreatorFlavour } from "../../data/creators/slp-flavour-source.js";
 import { resolveSlurpEventInstruction } from "../world/slp-world-contract.js";
+import { loadSlurpStoryState } from "../storylines/slp-storylines-contract.js";
+import { slurpConditionCloset, slurpStoryNow } from "../../modules/storylines/slp-story-state.js";
 import { slpCreatorPublicIdentityFor, protectBoundedCreatorGeneratedText } from "./slp-public-identity.js";
 import {
-  FormattedCreatorGenerationRequest,
   buildNoodlerPostMessages,
   slpCreatorTitleFromContent,
   completeSlurpCreatorPost,
@@ -71,11 +72,7 @@ export {
   containsIdentity,
   type PublicIdentity,
 } from "../../base/identity/slp-identity-protection.js";
-import {
-  slurpPromptContext,
-  type SlurpPromptBlockOverrides,
-  type SlurpReusablePromptInstruction,
-} from "../../base/prompting/slp-prompt-blocks.js";
+import { slurpPromptContext } from "../../base/prompting/slp-prompt-blocks.js";
 import { slurpCameraSourceInstruction, slurpPostCameraSource } from "../../modules/feed/slp-camera-source.js";
 import { slurpPostPictureBriefs } from "./slp-post-picture-briefs.js";
 import { slurpShootContinuity } from "../../modules/feed/slp-image-brief.js";
@@ -87,35 +84,13 @@ import { slurpEffortInstruction, slurpPostEffort } from "../../modules/creators/
 import { slurpCreatorStrategy, slurpStrategyInstruction } from "../../modules/creators/slp-creator-strategy.js";
 import { createSlurpPostProvider } from "../../base/host/slp-generation-integrations.js";
 import { resolveSlurpWardrobeSelection, slurpWardrobePrompt } from "../../modules/feed/slp-wardrobe-selection.js";
-import type { GeneratedCreatorPostResult, PreparedCreatorPostResult } from "./slp-generation-contract.js";
+import type {
+  GeneratedCreatorPostResult,
+  PreparedCreatorPostResult,
+  SlpCreatorPostGenerationInput,
+} from "./slp-generation-contract.js";
+import { slpExtensionOn } from "../../../../../shared/src/slp/slp-extensions.js";
 export type { GeneratedCreatorPostResult, PreparedCreatorPostResult } from "./slp-generation-contract.js";
-
-type GenerationConnection = NonNullable<Awaited<ReturnType<ReturnType<typeof createConnectionsStorage>["getWithKey"]>>>;
-
-export type SlpCreatorPostGenerationInput = {
-  account: SlpAccount;
-  request: FormattedCreatorGenerationRequest;
-  connection: GenerationConnection;
-  media?: SlpCreatorPostMediaUpload;
-  prepareOnly?: boolean;
-  /** Scheduler-owned automatic runs pass background so they yield to user generation. */
-  admissionMode?: ConnectionAdmissionMode;
-  /** Clock captured by the caller so prompt construction and scheduling agree in tests and production. */
-  generatedAt?: Date;
-  /** Scheduled publication time. Omitted for posts generated for immediate publication. */
-  publicationTime?: Date;
-  /** False keeps the Story rotation out: "Create posts now" asks for feed posts, not Stories. */
-  allowStory?: boolean;
-  /** A slot held for a teased drop: the drop wins over the player's idea, which waits for the next slot (U). */
-  heldDrop?: boolean;
-  /** Preview calls use the supplied draft without changing saved settings. */
-  promptBlocks?: SlurpPromptBlockOverrides;
-  promptInstructions?: SlurpReusablePromptInstruction[];
-  /** The scheduled slot this post fills, so its plan and its slot stay one record. */
-  slotId?: string | null;
-  /** Skip continuity writes when `prepareOnly` is used for a settings preview. */
-  previewOnly?: boolean;
-};
 
 const SLP_CREATOR_POST_MAX_TOKENS = 2048;
 
@@ -145,32 +120,29 @@ export async function generateCreatorPost(
     fallbackConnection,
     admissionMode: input.admissionMode ?? { kind: "foreground" },
   });
+  const at = input.generatedAt ?? new Date();
   const recentPosts = await noodle.listNoodlerPostsByAccount(account.id, 8);
-  const otherCreatorSubjects = await listSlurpOtherCreatorSubjects(db, account.id, input.generatedAt ?? new Date());
+  const otherCreatorSubjects = await listSlurpOtherCreatorSubjects(db, account.id, at);
   const disclosureMode = account.settings.privacy.identityDisclosure ?? "open";
   const linkedPublicAccount = await noodle.resolveAccountSource(account as SlurpAccount);
   const scheduleContext = linkedPublicAccount
-    ? await resolveSlurpCreatorScheduleContext(
-        createCharactersStorage(db),
-        linkedPublicAccount,
-        undefined,
-        input.generatedAt ?? new Date(),
-      )
+    ? await resolveSlurpCreatorScheduleContext(createCharactersStorage(db), linkedPublicAccount, undefined, at)
     : undefined;
   // Derive the identity from the row already in hand; resolving it again would re-read it.
   const publicIdentity = await slpCreatorPublicIdentityFor(db, linkedPublicAccount);
-  // Read the card at post time (not the bio and voice frozen at setup), so a sharper character makes a
-  // sharper Creator without a migration. Concealed modes get the stage seed; disclosure limits what, not who.
+  // Read the card at post time, not the bio and voice frozen at setup. Concealed modes get the stage seed.
   const sourceCharacterContext = await resolveCreatorCharacterCanon(db, linkedPublicAccount, disclosureMode);
-  const loreContext = await resolveSlurpPostLore(db, {
+  const { text: loreContext } = await resolveSlurpLoreContext(db, {
     settings,
-    recentPosts,
+    texts: recentPosts.map((post) => post.content).reverse(),
     sourceCharacterContext,
     source: linkedPublicAccount,
   });
   // Rotating angle, skipped for directed posts; one sequence keeps project and variation in step.
   const sequence = await noodle.countNoodlerPostsByAccount(account.id);
-  const wardrobeLooks = await noodle.listWardrobeLooks(account.id).catch(() => []);
+  const story = await loadSlurpStoryState(db, account.id, at); // closet, brief lines and deck beats
+  const looks = await noodle.listWardrobeLooks(account.id).catch(() => []);
+  const wardrobeLooks = slurpConditionCloset(looks, story.state.wardrobe);
   const recentWardrobeIds = recentPosts
     .map((post) => (typeof post.metadata.wardrobeLookId === "string" ? post.metadata.wardrobeLookId : null))
     .filter((id): id is string => Boolean(id));
@@ -188,10 +160,10 @@ export async function generateCreatorPost(
   let variation = directed
     ? null
     : slurpPostVariation(account.id, sequence, settings.storyImagesEnabled ? settings.storyRate : "off");
-  // A project claims this post only if the rotation gives it one. Player direction stands both
-  // rotations down for the same reason: their direction is the subject, and a second one fights it.
+  // A project claims this post only if the rotation gives it one (never with Storylines off, on either
+  // planner). Player direction stands both rotations down: their direction is the subject.
   const project =
-    directed || nudge
+    directed || nudge || !slpExtensionOn(settings, "storylines")
       ? null
       : slurpPostProject(
           account.id,
@@ -216,14 +188,15 @@ export async function generateCreatorPost(
   // Same slot the scheduler used to choose free access, so only its teasers read as one.
   const isTeaser =
     input.request.access === "public" && !directed && slurpTeaserPost(account.id, sequence, settings.teaserRate);
-  const { readingText, day: beatDay } = await prepareSlurpBeatRun(db, {
+  const beatRun = await prepareSlurpBeatRun(db, {
     account,
     canonText: sourceCharacterContext,
     source: linkedPublicAccount,
     disclosureMode,
+    publicIdentity,
     beats: settings.postPlanner === "beats",
     preview: input.previewOnly === true,
-    model: { connection: input.connection, fallbackConnection },
+    model: { connection: input.connection, fallbackConnection, background: input.admissionMode?.kind === "background" },
     recentPosts,
     at: input.generatedAt ?? new Date(),
     publishAt: input.publicationTime,
@@ -258,17 +231,22 @@ export async function generateCreatorPost(
     beats:
       settings.postPlanner === "beats"
         ? {
-            canonText: sourceCharacterContext,
-            readingText,
+            canonText: beatRun.planText,
+            readingText: beatRun.readingText,
             connection: input.connection,
             fallbackConnection,
+            background: input.admissionMode?.kind === "background",
             arc: project ? slurpArcBeat(project) : null,
-            day: beatDay,
+            day: beatRun.day,
             steering,
             nudge,
+            story,
             life: { account, tags: account.settings.profile.tags ?? [], rate: settings.lifeMomentRate },
             shared: settings.sharedPreseed
-              ? { tags: account.settings.profile.tags ?? [], worldEvents: settings.sharedWorldEvents }
+              ? {
+                  tags: account.settings.profile.tags ?? [],
+                  worldEvents: settings.sharedWorldEvents && slpExtensionOn(settings, "world"),
+                }
               : null,
           }
         : null,
@@ -352,8 +330,11 @@ export async function generateCreatorPost(
     variation,
     beat: plannedBeat,
     teasedKind: purpose.spiceKind,
+    at,
   });
   const { postLevel, angle: spiceAngle, beat } = spiced;
+  const mentioned = await resolveSlurpMentionedCast(db, account.id, input.request.noodlerPostGuide ?? "");
+  const castIds = [...new Set([...(beat?.castIds ?? []), ...mentioned.ids])];
   variation = spiced.variation;
   let flavourShaped: SlpDeepDetailsFlavour | null = null;
   const flavourBrief = await resolveSlurpCreatorFlavour(db, {
@@ -370,7 +351,7 @@ export async function generateCreatorPost(
   const messages = buildNoodlerPostMessages({
     account,
     sourceCharacterContext,
-    castContext: await resolveSlurpBeatCastContext(db, beat?.castIds),
+    castContext: await resolveSlurpBeatCastContext(db, castIds),
     flavourBrief,
     stagePersonality: account.settings.privacy.stagePersonality ?? "",
     stageFacts: account.settings.stage,
@@ -416,7 +397,8 @@ export async function generateCreatorPost(
     productionInstruction: slurpStrategyInstruction(strategy),
     beat,
     beatCompany: variation?.company,
-    beatDay: beat ? beatDay : null,
+    beatDay: beat ? beatRun.day : null,
+    storyNow: slurpStoryNow(story.state, account.id, sequence, steering?.avoid, !(beat || directed || project)),
     generatedAt: input.generatedAt ?? new Date(),
     publicationTime: input.publicationTime,
   });
@@ -506,6 +488,8 @@ export async function generateCreatorPost(
   });
 
   // What the picture is and may show, in one place so the two briefs agree on level, shoot and effort.
+  const tagged = await resolveSlurpMentionedCast(db, account.id, protectedGenerated.content, false);
+  const pictureIds = [...new Set([...castIds, ...tagged.ids])];
   const { draftImagePrompt, visualBrief, negativePrompt, shotBriefs, pictureCast } = slurpPostPictureBriefs({
     project,
     variation,
@@ -519,7 +503,7 @@ export async function generateCreatorPost(
     access: input.request.access,
     explicitLevel,
     partner: spiceAngle?.partner?.company ?? null,
-    cast: beat?.cast,
+    cast: [...new Set([...(beat?.cast ?? []), ...mentioned.names, ...tagged.names])],
     modelImagePrompt: generated.imagePrompt,
     stageFacts: account.settings.stage,
     scene: generated.scene,
@@ -628,7 +612,9 @@ export async function generateCreatorPost(
       ...(beat ? { slurpBeat: { type: beat.type, line: beat.line, anchor: beat.anchor } } : {}),
       // A collab, a sponsored post or a rivalry post: labels, the partner's page, the split, the fee.
       ...(beat?.tie ? { slurpTie: beat.tie } : {}),
-      ...(pictureCast && beat?.castIds?.length ? { slurpPictureCast: beat.castIds } : {}),
+      // A trend this post joins: the chip, and the origin post it quotes.
+      ...(beat?.trend ? { slurpTrend: beat.trend } : {}),
+      ...(pictureCast && pictureIds.length ? { slurpPictureCast: pictureIds } : {}),
       // What made it spicy, so unlocks, likes and tips can teach Slurp the player's taste.
       ...spiced.metadata,
       ...(wardrobeSelection.look ? { wardrobeLookId: wardrobeSelection.look.id } : {}),
@@ -665,7 +651,7 @@ export async function generateCreatorPost(
     return {
       account,
       linkedPublicAccount,
-      companionIds: pictureCast ? beat?.castIds : undefined,
+      companionIds: pictureCast && pictureIds.length ? pictureIds : undefined,
       disclosureMode,
       postContent: protectedGenerated.content,
       draftPrompt,
@@ -686,7 +672,7 @@ export async function generateCreatorPost(
 
   if (input.prepareOnly) {
     let providerPrompt: string | null = null;
-    if (input.previewOnly && draftImagePrompt) {
+    if (input.previewOnly && draftImagePrompt && !input.skipImagePromptPreview) {
       const previewInput = await resolveImageInput(draftImagePrompt);
       if (previewInput) {
         providerPrompt = (
@@ -771,10 +757,9 @@ export async function generateCreatorPost(
   const galleryFallback = async (): Promise<{ imageUrl?: string; metadata?: Record<string, unknown> }> => {
     if (textOnly || !settings.allowGalleryImageAttachments || linkedPublicAccount?.kind !== "character") return {};
     const attachment = await pickGalleryAttachmentForAccount({
+      db,
       account: linkedPublicAccount,
-      chats: createChatsStorage(db),
-      gallery: createGalleryStorage(db),
-      characterGallery: createCharacterGalleryStorage(db),
+      postingAccountId: account.id,
     }).catch((error: unknown) => {
       logger.warn(error, "[slurp] Could not attach a gallery image for %s", account.displayName);
       return null;

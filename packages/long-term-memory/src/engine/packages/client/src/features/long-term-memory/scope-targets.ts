@@ -47,6 +47,9 @@ export type ScopeIndexes = {
   chatsByCharacterId: Map<string, ScopeTargetChat[]>;
 };
 
+/** Places a picker list renders before its "Show N more" row, so a hover or keystroke never re-renders thousands. */
+export const placeListLimit = 100;
+
 /** Keeps the first item for each id, in order, without the quadratic `findIndex` scan. */
 export function uniqueById<T extends { id: string }>(items: readonly T[]): T[] {
   const seen = new Set<string>();
@@ -120,10 +123,4 @@ export function deriveScopeConversations(
       !selectedCharacterId ||
       conversation.chatIds.some((id) => indexes.characterIdsByChatId.get(id)?.has(selectedCharacterId)),
   );
-}
-
-export function deriveScopeBranches(conversation: { chatIds: string[] } | undefined, indexes: ScopeIndexes) {
-  return (conversation?.chatIds ?? [])
-    .map((id) => indexes.chatsById.get(id))
-    .filter((chat): chat is ScopeTargetChat => Boolean(chat?.groupId));
 }

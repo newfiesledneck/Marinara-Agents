@@ -21,6 +21,20 @@ const ANCHOR_LIST_MAX = 6;
 const ANCHOR_TEXT_MAX = 60;
 const ESSENTIAL_TEXT_MAX = 140;
 
+/**
+ * What this Creator's page is about, as the beat planner reads it beside the card: the bio and stage
+ * voice the owner wrote. Already identity-protected by the caller. Empty when both are empty, so a
+ * Creator without either plans exactly as before; the anchor cache is keyed by the card plus this.
+ */
+export function slurpPageAboutText(bio: string, stageVoice: string): string {
+  const lines = [bio.trim() && `Bio: ${bio.trim()}`, stageVoice.trim() && `Stage voice: ${stageVoice.trim()}`].filter(
+    Boolean,
+  );
+  return lines.length
+    ? `\n\n# What this page is about (the Creator's own bio and stage voice)\n${lines.join("\n")}`
+    : "";
+}
+
 /** The one cached extraction per Creator. The card is data, never instructions. */
 export function slurpCanonAnchorsPrompt(canonText: string): { system: string; user: string } {
   return {
@@ -207,6 +221,19 @@ export function slurpCompanyAllowsOthers(company: string | null | undefined): bo
   return Boolean(company?.trim()) && !/^alone\b/iu.test(company!.trim());
 }
 
+/** Standing conditions for a post: always true, mentioned only when the post is about them. */
+export function slurpRightNowLine(
+  now: readonly string[],
+  protect: (value: string) => string,
+  /** A small moment of it that this post is about (a post with no beat). */
+  moment?: string | null,
+): string {
+  const lines = now.map(protect).join(" ");
+  return moment
+    ? `Right now: ${lines} This post is about one small moment of it, in your own words: ${protect(moment)}.`
+    : `Right now: ${lines} This stays true in this post; mention it only if this post is about it.`;
+}
+
 export function slurpPostBriefSection(
   beat: SlurpBeat,
   at: Date,
@@ -215,6 +242,8 @@ export function slurpPostBriefSection(
   company?: string | null,
   /** Where the day stands at publication, from the schedule or the card's routine. */
   day?: SlurpDayMoment | null,
+  /** Standing conditions (docs/STORYLINES.md, "State"): true in every post, the subject of few. */
+  now: readonly string[] = [],
 ): string {
   // A named person is there even when the drawn company line says "alone": the beat decides.
   const companyAlone = Boolean(company?.trim()) && /^alone\b/iu.test(company!.trim());
@@ -237,6 +266,7 @@ export function slurpPostBriefSection(
       ? ["That place is not where you are right now: post about it from where you are, as a plan, a memory, or a wish."]
       : []),
     `Time: ${slurpPartOfDay(at)}, just before the publication time.`,
+    ...(now.length ? [slurpRightNowLine(now, protect)] : []),
     // One real earlier thing, as a fact. Mentioning it is optional; inventing more of it is not.
     ...(beat.reference
       ? [
@@ -380,7 +410,9 @@ export function slurpBeatFactFromPost(post: {
   return {
     key: `beat:${post.id}`,
     subject: typeof beat?.anchor === "string" ? beat.anchor : "",
-    text: `Posted about: ${line}`,
+    // Done, not a running topic: "Posted about" read as a fact to build on and pulled the next
+    // posts back to the same chore or shower (#104).
+    text: `Already posted about this earlier in the week: ${line}`,
     audienceScope: post.access === "locked" ? "creator_private" : "creator_public",
     expiresAt: new Date(Date.parse(post.createdAt) + SLURP_BEAT_FACT_DAYS * 24 * 60 * 60 * 1000),
   };

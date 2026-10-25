@@ -8,6 +8,7 @@ import { basename, extname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import {
   CONVERSATION_CALL_CHARACTER_VIDEO_CLIP_KINDS,
+  LOCAL_SIDECAR_CONNECTION_ID,
   VIDEO_GENERATION_SETTINGS_KEY,
   conversationCallIdleSchema,
   conversationCallInterruptionSchema,
@@ -32,13 +33,11 @@ import { createAppSettingsStorage } from "../services/storage/app-settings.stora
 import { createLorebooksStorage } from "../services/storage/lorebooks.storage.js";
 import { createAgentsStorage } from "../services/storage/agents.storage.js";
 import { createCustomEmojisStorage } from "../services/storage/custom-emojis.storage.js";
-import { createGalleryStorage } from "../services/storage/gallery.storage.js";
-import { createCharacterGalleryStorage } from "../services/storage/character-gallery.storage.js";
-import { createPersonaGalleryStorage } from "../services/storage/persona-gallery.storage.js";
 import { createPromptOverridesStorage } from "../services/storage/prompt-overrides.storage.js";
 import { createLLMProvider } from "../services/llm/provider-registry.js";
 import { withConnectionFallbackProvider } from "../services/llm/connection-fallback-provider.js";
-import { sidecarSpeechService } from "../services/sidecar/sidecar-speech.service.js";
+import { LOCAL_SIDECAR_MODEL, getLocalSidecarProvider } from "../services/llm/local-sidecar.js";
+import { withConnectionAdmissionProvider } from "../services/generation/connection-admission.js";
 import {
   transcribeCallAudio,
   type CallSpeechHost,
@@ -56,7 +55,6 @@ import {
 } from "../services/generation/conversation-context-utils.js";
 import {
   parseCharacterCommands,
-  parseDuration,
   type CharacterCommand,
   type CrossPostCommand,
   type HapticCommand,
@@ -80,19 +78,12 @@ import { resolveConnectionImageDefaults } from "../services/image/image-generati
 import { loadImageGenerationUserSettings } from "../services/image/image-generation-settings.js";
 import { compileImagePrompt } from "../services/image/image-prompt-compiler.js";
 import { generateImage, saveImageToDisk } from "../services/image/image-generation.js";
-import { persistGeneratedImageToEntityGalleries } from "../services/image/generated-image-entity-gallery.js";
 import {
   resolveImageConnectionFallback,
   resolveVideoConnectionFallback,
 } from "../services/generation/media-connection-fallback.js";
 import { isNovelAiImageConnection, resolveIllustratorCharacterReferences } from "./generate/illustrator-references.js";
 import { getChatHapticIntifaceUrl } from "../services/generation/haptic-runtime.js";
-import { resolveSpotifyCredentials, spotifyHasScope } from "../services/spotify/spotify.service.js";
-import {
-  ConversationSpotifyCommandError,
-  isSilentConversationSpotifyCommandError,
-  playConversationSpotifyCommand,
-} from "../services/spotify/conversation-spotify-command.service.js";
 import {
   buildPromptMacroContext,
   resolveCharacterMacroData,
@@ -111,6 +102,15 @@ import { DATA_DIR } from "../utils/data-dir.js";
 import { assertInsideDir } from "../utils/security.js";
 import { newId } from "../utils/id-generator.js";
 import { logger, logDebugOverride } from "../lib/logger.js";
+import {
+  HostFeatureUnavailableError,
+  hostFeatureErrorBody,
+  hostIntegrations,
+  hostRuntime,
+  isHostFeatureUnavailableError,
+  requireHostMember,
+  type HostPersistence,
+} from "../lib/host-runtime.js";
 import type { ChatMediaAttachment, ChatMessage } from "../services/llm/base-provider.js";
 
 const SOUNDBOARD_ROOT = join(DATA_DIR, "conversation-call-sounds");
@@ -318,12 +318,19 @@ function parseStoredAgentSettingsValue(value: unknown): Record<string, unknown> 
   return parseJsonRecord(value);
 }
 
-async function conversationSpotifyCommandsAvailable(storage: ReturnType<typeof createAgentsStorage>) {
+/** The Engine's chat-write members (api.runtime.persistence, capability API 1.341), bound to the host. */
+function hostChatWrite<K extends "patchChatMetadata" | "appendMessages" | "createChatNote" | "createChatInfluence">(
+  member: K,
+): NonNullable<HostPersistence[K]> {
+  const persistence = hostRuntime().persistence;
+  const write = requireHostMember("Saving call events to the chat", persistence[member]);
+  return (write as (...args: unknown[]) => unknown).bind(persistence) as NonNullable<HostPersistence[K]>;
+}
+
+/** Spotify through the Engine's own client and login (api.runtime.integrations.spotify). */
+async function conversationSpotifyCommandsAvailable() {
   try {
-    const spotifyCredentials = await resolveSpotifyCredentials(storage, { refreshSkewMs: 60_000 });
-    return (
-      "accessToken" in spotifyCredentials && spotifyHasScope(spotifyCredentials.scopes, "user-modify-playback-state")
-    );
+    return (await hostIntegrations().spotify?.commandsAvailable()) === true;
   } catch (error) {
     logger.debug(error, "[spotify/conversation-call] Failed to check Spotify command availability");
     return false;
@@ -1104,18 +1111,27 @@ async function buildCallPrompt(input: {
     let hapticAvailable = false;
     if (commandToggles.haptic !== false && metadata.enableHapticFeedback === true) {
       try {
-        const { hapticService } = await import("../services/haptic/buttplug-service.js");
-        if (!hapticService.connected) await hapticService.connect(getChatHapticIntifaceUrl(metadata)).catch(() => {});
-        hapticAvailable = hapticService.connected && hapticService.devices.length > 0;
+        // The Engine's one Intiface client (api.runtime.integrations.haptics), shared with the chat.
+        const haptics = requireHostMember("Haptic feedback in calls", hostIntegrations().haptics);
+        let status = haptics.status();
+        if (!status.connected) {
+          await haptics.connect(getChatHapticIntifaceUrl(metadata)).catch(() => {});
+          status = haptics.status();
+        }
+        hapticAvailable = status.connected && status.devices.length > 0;
         if (hapticAvailable) {
-          hapticDeviceNames.push(...hapticService.devices.map((device) => device.name).filter(Boolean));
+          hapticDeviceNames.push(...status.devices.map((device) => device.name).filter(Boolean));
         }
       } catch (error) {
         logger.debug(error, "[conversation-call] Haptic command unavailable while building call prompt");
       }
     }
 
-    if (commandToggles.schedule_update !== false && characterIds.some((id) => schedules[id])) {
+    if (
+      commandToggles.schedule_update !== false &&
+      typeof hostRuntime().persistence.updateCharacterStatus === "function" &&
+      characterIds.some((id) => schedules[id])
+    ) {
       allowedCommands.push("schedule_update");
     }
     if (commandToggles.cross_post !== false && crossPostTargets.length > 0) allowedCommands.push("cross_post");
@@ -1135,7 +1151,7 @@ async function buildCallPrompt(input: {
           : input.musicPlayerSource === "youtube" || input.musicPlayerSource === "custom"
             ? input.musicPlayerSource
             : "spotify";
-      if (activeMusicSource === "spotify" && (await conversationSpotifyCommandsAvailable(agentsStore))) {
+      if (activeMusicSource === "spotify" && (await conversationSpotifyCommandsAvailable())) {
         allowedCommands.push("spotify");
       }
       if (activeMusicSource === "youtube" && (await conversationYoutubeCommandsAvailable(agentsStore))) {
@@ -1349,10 +1365,29 @@ async function createCallTurns(input: {
     logDebugOverride(debugOverrideEnabled, message, ...args);
   };
   if (prompt.characters.length === 0) return { turns: [], fallbackSpeaker };
-  if (!connId) return { turns: [], fallbackSpeaker };
-  const conn = await input.connections.getWithKey(connId);
-  if (!conn) return { turns: [], fallbackSpeaker };
-  const provider = await createConversationCallProvider(input.connections, conn, "main");
+  if (!connId) {
+    logger.warn("[conversation-call] Chat %s has no connection; the call cannot answer", input.chat.id);
+    return { turns: [], fallbackSpeaker };
+  }
+  let conn: { provider: string; model: string };
+  let provider: Awaited<ReturnType<typeof createConversationCallProvider>>;
+  if (connId === LOCAL_SIDECAR_CONNECTION_ID) {
+    // The chat runs on the Local Model: the call answers through the Engine's own llama-server, as the chat does.
+    conn = { provider: "local_sidecar", model: LOCAL_SIDECAR_MODEL };
+    provider = withConnectionAdmissionProvider(getLocalSidecarProvider(), LOCAL_SIDECAR_CONNECTION_ID);
+  } else {
+    const connection = await input.connections.getWithKey(connId);
+    if (!connection) {
+      logger.warn(
+        "[conversation-call] Connection %s of chat %s was not found; the call cannot answer",
+        connId,
+        input.chat.id,
+      );
+      return { turns: [], fallbackSpeaker };
+    }
+    conn = connection;
+    provider = await createConversationCallProvider(input.connections, connection, "main");
+  }
   try {
     if (shouldLogDebug) {
       debugLog(
@@ -1397,67 +1432,37 @@ function parseCharacterDataRecord(row: CharacterRow): Record<string, unknown> {
   return parseCharacterData(row);
 }
 
+/** The Engine's `[schedule_update]` (api.runtime.persistence): a temporary status on the character card. */
+function hostCharacterStatusUpdate() {
+  const persistence = hostRuntime().persistence;
+  const update = requireHostMember("Schedule updates in calls", persistence.updateCharacterStatus);
+  return update.bind(persistence);
+}
+
 async function applyCallScheduleUpdate(input: {
-  chats: ReturnType<typeof createChatsStorage>;
-  chat: NonNullable<ChatRow>;
-  metadata: Record<string, unknown>;
+  chatId: string;
   characterId: string | null;
   command: ScheduleUpdateCommand;
 }) {
-  if (!input.characterId || (!input.command.status && !input.command.activity)) return;
-  const schedules = getEnabledConversationSchedules(input.metadata);
-  const schedule = schedules[input.characterId];
-  if (!schedule || typeof schedule !== "object") return;
-
-  const days = (schedule as Record<string, any>).days;
-  if (!days || typeof days !== "object") return;
-  const nowDate = new Date();
-  const daysList = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const dayName = daysList[(nowDate.getDay() + 6) % 7]!;
-  const daySchedule: Array<{ time: string; activity: string; status: string }> = Array.isArray(days[dayName])
-    ? days[dayName]
-    : [];
-  const currentMinutes = nowDate.getHours() * 60 + nowDate.getMinutes();
-
-  for (const block of daySchedule) {
-    const [startStr, endStr] = block.time.split("-");
-    if (!startStr || !endStr) continue;
-    const [sh, sm] = startStr.split(":").map(Number);
-    const [eh, em] = endStr.split(":").map(Number);
-    const startMin = (sh ?? 0) * 60 + (sm ?? 0);
-    const endMin = (eh ?? 0) * 60 + (em ?? 0);
-    if (startMin > currentMinutes || currentMinutes >= endMin) continue;
-
-    if (input.command.status) block.status = input.command.status;
-    if (input.command.activity) block.activity = input.command.activity;
-
-    if (input.command.duration) {
-      const durationMin = parseDuration(input.command.duration);
-      if (durationMin && currentMinutes + durationMin < endMin) {
-        const splitTime = currentMinutes + durationMin;
-        const splitH = String(Math.floor(splitTime / 60)).padStart(2, "0");
-        const splitM = String(splitTime % 60).padStart(2, "0");
-        const splitAt = `${splitH}:${splitM}`;
-        block.time = `${startStr}-${splitAt}`;
-        const blockIndex = daySchedule.indexOf(block);
-        daySchedule.splice(blockIndex + 1, 0, {
-          time: `${splitAt}-${endStr}`,
-          activity: "free time",
-          status: "online",
-        });
-      }
-    }
-
-    days[dayName] = daySchedule;
-    schedules[input.characterId] = schedule;
-    await input.chats.updateMetadata(input.chat.id, { ...input.metadata, characterSchedules: schedules });
+  const { characterId, command } = input;
+  if (!characterId || (!command.status && !command.activity)) return;
+  try {
+    // The card owns presence, as after a chat reply; the chat's schedule map is a cache the Engine refreshes.
+    const result = await hostCharacterStatusUpdate()(input.chatId, characterId, {
+      ...(command.status ? { status: command.status } : {}),
+      ...(command.activity ? { activity: command.activity } : {}),
+      ...(command.duration ? { duration: command.duration } : {}),
+    });
+    if (!result) return;
     logger.info(
-      "[conversation-call] Schedule updated for %s: status=%s activity=%s",
-      input.characterId,
-      input.command.status ?? "",
-      input.command.activity ?? "",
+      "[conversation-call] Status updated for %s: status=%s activity=%s until %s",
+      characterId,
+      result.status,
+      result.activity ?? "",
+      result.expiresAt,
     );
-    return;
+  } catch (error) {
+    logger.warn(error, "[conversation-call] Schedule update failed");
   }
 }
 
@@ -1546,31 +1551,28 @@ async function applyCallCrossPostCommand(input: {
     return;
   }
 
-  await input.chats.createMessage({
-    chatId: targetChat.id,
-    role: "assistant",
-    characterId: input.characterId,
-    content,
-  });
+  await hostChatWrite("appendMessages")(targetChat.id, [
+    { role: "assistant", characterId: input.characterId, content },
+  ]);
   logger.info("[conversation-call] Cross-posted call message to chat %s", targetChat.id);
 }
 
-async function applyCallMusicCommand(input: {
-  app: FastifyInstance;
-  chat: NonNullable<ChatRow>;
-  command: SpotifyCommand | YouTubeCommand;
-}) {
+/** The Engine's Spotify playback error (ConversationSpotifyCommandError), recognised by name. */
+function spotifyCommandError(error: unknown): { status: number; code: string; message: string } | null {
+  if (!(error instanceof Error) || error.name !== "ConversationSpotifyCommandError") return null;
+  const { status, code } = error as Error & { status?: unknown; code?: unknown };
+  return { status: typeof status === "number" ? status : 0, code: String(code ?? ""), message: error.message };
+}
+
+async function applyCallMusicCommand(input: { chat: NonNullable<ChatRow>; command: SpotifyCommand | YouTubeCommand }) {
   if (input.command.type === "youtube") {
     logger.info('[youtube/conversation-call] Requested "%s" for chat %s', input.command.query, input.chat.id);
     return;
   }
 
   try {
-    const result = await playConversationSpotifyCommand({
-      storage: createAgentsStorage(input.app.db),
-      title: input.command.title,
-      artist: input.command.artist,
-    });
+    const spotify = requireHostMember("Song commands in calls", hostIntegrations().spotify);
+    const result = await spotify.playSong({ title: input.command.title, artist: input.command.artist });
     logger.info(
       '[spotify/conversation-call] Played "%s" by "%s" for chat %s',
       result.track.name,
@@ -1578,22 +1580,23 @@ async function applyCallMusicCommand(input: {
       input.chat.id,
     );
   } catch (error) {
-    if (isSilentConversationSpotifyCommandError(error)) {
+    const spotifyError = spotifyCommandError(error);
+    if (spotifyError?.code === "spotify_unavailable" || spotifyError?.code === "missing_playback_scope") {
       logger.debug(
         '[spotify/conversation-call] Dropped unavailable song command: "%s" by "%s" - %s',
         input.command.title,
         input.command.artist,
-        error.message,
+        spotifyError.message,
       );
       return;
     }
-    if (error instanceof ConversationSpotifyCommandError) {
+    if (spotifyError) {
       logger.warn(
         '[spotify/conversation-call] Song command failed (%d): "%s" by "%s" - %s',
-        error.status,
+        spotifyError.status,
         input.command.title,
         input.command.artist,
-        error.message,
+        spotifyError.message,
       );
     } else {
       logger.warn(error, "[spotify/conversation-call] Song command failed");
@@ -1604,13 +1607,14 @@ async function applyCallMusicCommand(input: {
 async function applyCallHapticCommand(input: { metadata: Record<string, unknown>; command: HapticCommand }) {
   if (input.metadata.enableHapticFeedback !== true) return;
   try {
-    const { hapticService } = await import("../services/haptic/buttplug-service.js");
-    if (!hapticService.connected) await hapticService.connect(getChatHapticIntifaceUrl(input.metadata)).catch(() => {});
-    if (!hapticService.connected || hapticService.devices.length === 0) {
+    const haptics = requireHostMember("Haptic feedback in calls", hostIntegrations().haptics);
+    if (!haptics.status().connected) await haptics.connect(getChatHapticIntifaceUrl(input.metadata)).catch(() => {});
+    const status = haptics.status();
+    if (!status.connected || status.devices.length === 0) {
       logger.debug("[conversation-call] Haptic command skipped because no device is connected");
       return;
     }
-    await hapticService.executeCommand({
+    await haptics.executeCommand({
       deviceIndex: "all",
       action: input.command.action,
       intensity: input.command.intensity,
@@ -1692,6 +1696,11 @@ async function applyCallSelfieCommand(input: {
   const imageConnectionId =
     typeof input.metadata.imageGenConnectionId === "string" ? input.metadata.imageGenConnectionId.trim() : "";
   if (!imageConnectionId || !input.characterId) return [];
+  // The Engine files the picture in the chat and character galleries (api.runtime.integrations.images).
+  const images = hostIntegrations().images;
+  if (typeof images.addToChatGallery !== "function" || typeof images.persistToEntityGalleries !== "function") {
+    throw new HostFeatureUnavailableError("Selfies in calls");
+  }
 
   const connections = createConnectionsStorage(input.app.db);
   const [imageConn, charRow] = await Promise.all([
@@ -1810,7 +1819,7 @@ async function applyCallSelfieCommand(input: {
   const filePath = saveImageToDisk(input.chat.id, imageResult.base64, imageResult.ext);
   const effectiveImageProvider = imageResult.effectiveConnection?.provider ?? imageConn.provider ?? "image_generation";
   const effectiveImageModel = imageResult.effectiveConnection?.model ?? imageConn.model ?? "unknown";
-  const galleryEntry = await createGalleryStorage(input.app.db).create({
+  const galleryEntry = await images.addToChatGallery({
     chatId: input.chat.id,
     filePath,
     prompt: compiledPrompt.prompt,
@@ -1819,11 +1828,9 @@ async function applyCallSelfieCommand(input: {
     width: selfieW || imageSettings.selfie.width,
     height: selfieH || imageSettings.selfie.height,
   });
-  await persistGeneratedImageToEntityGalleries({
+  await images.persistToEntityGalleries({
     sourceFilePath: filePath,
     characterIds: [input.characterId],
-    characterGallery: createCharacterGalleryStorage(input.app.db),
-    personaGallery: createPersonaGalleryStorage(input.app.db),
     prompt: compiledPrompt.prompt,
     provider: effectiveImageProvider,
     model: effectiveImageModel,
@@ -1986,9 +1993,7 @@ async function executeCallConversationCommand(input: {
 
     if (command.type === "schedule_update") {
       await applyCallScheduleUpdate({
-        chats,
-        chat: freshChat,
-        metadata,
+        chatId: freshChat.id,
         characterId: input.characterId,
         command: command as ScheduleUpdateCommand,
       });
@@ -2025,7 +2030,6 @@ async function executeCallConversationCommand(input: {
       });
     } else if (command.type === "spotify" || command.type === "youtube") {
       await applyCallMusicCommand({
-        app: input.app,
         chat: freshChat,
         command: command as SpotifyCommand | YouTubeCommand,
       });
@@ -2035,14 +2039,19 @@ async function executeCallConversationCommand(input: {
       const connectedId = freshChat.connectedChatId;
       const content = stripConversationPromptTimestamps((command as InfluenceCommand).content);
       if (connectedId && content) {
-        await chats.createInfluence(input.chat.id, connectedId, content, input.anchorMessageId ?? undefined);
+        await hostChatWrite("createChatInfluence")(
+          input.chat.id,
+          connectedId,
+          content,
+          input.anchorMessageId ?? undefined,
+        );
         logger.info("[conversation-call] OOC influence queued for connected chat %s", connectedId);
       }
     } else if (command.type === "note") {
       const connectedId = freshChat.connectedChatId;
       const content = stripConversationPromptTimestamps((command as NoteCommand).content);
       if (connectedId && content) {
-        await chats.createNote(input.chat.id, connectedId, content, input.anchorMessageId ?? undefined);
+        await hostChatWrite("createChatNote")(input.chat.id, connectedId, content, input.anchorMessageId ?? undefined);
         logger.info("[conversation-call] Conversation note saved for connected chat %s", connectedId);
       }
     } else {
@@ -2187,13 +2196,12 @@ async function endConversationCallWithSummary(input: {
   session: ConversationCallSession;
 }) {
   if (input.session.status === "ended") return input.session;
-  const chats = createChatsStorage(input.app.db);
   const calls = createConversationCallsStorage(input.app.db);
   const startedAt = getSessionStartedAt(input.session);
   const durationMs = Date.now() - startedAt;
   const ended = await calls.updateStatus(input.session.id, "ended");
   const duration = formatDuration(durationMs);
-  await chats.createMessagesBatch(input.session.chatId, [
+  await hostChatWrite("appendMessages")(input.session.chatId, [
     {
       role: "system",
       characterId: input.session.initiatorCharacterId,
@@ -2228,10 +2236,9 @@ async function finalizeConversationCallSummary(input: {
   const calls = createConversationCallsStorage(input.app.db);
   const existing = await calls.getSession(input.session.id);
   if (!existing || existing.summary) return existing;
-  const chats = createChatsStorage(input.app.db);
   const summary = await summarizeCall(input);
   await calls.updateSummary(input.session.id, summary);
-  await chats.createMessagesBatch(input.session.chatId, [
+  await hostChatWrite("appendMessages")(input.session.chatId, [
     {
       role: "system",
       characterId: null,
@@ -2557,7 +2564,7 @@ export async function conversationCallsRoutes(
     const session = await calls.createSession(input);
     if (!session) return reply.status(500).send({ error: "Failed to create call" });
     const eventContent = session.status === "ringing" ? "Incoming call" : "Started an audio call";
-    await chats.createMessagesBatch(chat.id, [
+    await hostChatWrite("appendMessages")(chat.id, [
       {
         role: "system",
         characterId: input.initiatorCharacterId ?? null,
@@ -2593,7 +2600,7 @@ export async function conversationCallsRoutes(
         ttsSettings: await readTTSSettings(app),
       });
     }
-    await chats.createMessagesBatch(session.chatId, [
+    await hostChatWrite("appendMessages")(session.chatId, [
       {
         role: "system",
         characterId: session.initiatorCharacterId,
@@ -2619,7 +2626,7 @@ export async function conversationCallsRoutes(
     const session = await calls.getSession(req.params.id);
     if (!session) return reply.status(404).send({ error: "Call not found" });
     const updated = await calls.updateStatus(session.id, "declined");
-    await chats.createMessagesBatch(session.chatId, [
+    await hostChatWrite("appendMessages")(session.chatId, [
       {
         role: "system",
         characterId: session.initiatorCharacterId,
@@ -2839,14 +2846,17 @@ export async function conversationCallsRoutes(
       reply.raw.once("close", onClose);
       let transcription: CallTranscription;
       try {
+        const speech = opts.runtime?.integrations?.speech;
         transcription = await transcribeCallAudio(buffer, {
-          speech: opts.runtime?.integrations?.speech,
+          speech,
           signal: disconnected.signal,
-          localWhisper: (wav) => sidecarSpeechService.transcribeWav(wav),
+          // The Engine's Local Whisper (capability API 1.341); never a second copy in the package.
+          localWhisper: (wav) => requireHostMember("Local Whisper in calls", speech?.transcribeLocal).call(speech, wav),
           onSpeechServerError: (error) =>
             logger.warn(error, "[conversation-call] Speech-to-text server failed; trying Local Whisper"),
         });
       } catch (error) {
+        if (isHostFeatureUnavailableError(error)) return reply.status(501).send(hostFeatureErrorBody(error));
         logger.warn(error, "[conversation-call] Call transcription failed");
         return reply.status(400).send({
           error: error instanceof Error ? error.message : "Local Whisper transcription failed",

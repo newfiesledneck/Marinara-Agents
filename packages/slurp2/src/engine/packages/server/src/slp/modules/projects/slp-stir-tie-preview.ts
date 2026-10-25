@@ -30,6 +30,7 @@ import { slurpAddToCouple, slurpCoupleMembers, slurpNameList } from "./slp-coupl
 import type { SlpActionPreview, SlpStirNote } from "../../../../../shared/src/slp/slp-stir.js";
 import { slurpSyncExBonds, slurpEndBond, slurpSetBond, type SlurpBond } from "./slp-creator-bonds.js";
 
+const bondPlural = (kind: string) => (kind === "ex" ? "exes" : kind === "family" ? "family" : `${kind}s`);
 export const SLURP_TIE_LEVERS = [
   "suggest-collab",
   "push-collab",
@@ -65,6 +66,7 @@ const FORCED_NOTE: Record<SlurpCoupleForced["misfit"], SlpStirNote["kind"]> = {
   noDating: "awkward",
   orientation: "awkward",
   romance: "awkward",
+  family: "family",
 };
 
 export type SlurpTiePreview = Pick<SlpActionPreview, "who" | "detail" | "when" | "notes" | "error" | "summary"> &
@@ -229,7 +231,7 @@ export function slurpPreviewTieLever(
         who: people(world, [aId, bId]),
         detail: { kind, level: kind === "friend" ? (level ?? 1) : null },
         error: typeof next === "string" ? next : null,
-        summary: `${a.name} and ${b.name} become ${kind === "ex" ? "exes" : `${kind}s`}.`,
+        summary: `${a.name} and ${b.name} become ${bondPlural(kind)}.`,
       });
     }
     case "end-bond": {
@@ -240,7 +242,9 @@ export function slurpPreviewTieLever(
         who: bond ? people(world, [bond.aId, bond.bId]) : [],
         detail: { kind: bond?.kind ?? null },
         error: typeof next === "string" ? next : null,
-        summary: bond ? `${nameOf(world, bond.aId)} and ${nameOf(world, bond.bId)} are no longer ${bond.kind}s.` : "",
+        summary: bond
+          ? `${nameOf(world, bond.aId)} and ${nameOf(world, bond.bId)} are no longer ${bondPlural(bond.kind)}.`
+          : "",
       });
     }
     case "couple-page": {

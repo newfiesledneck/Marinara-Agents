@@ -1,5 +1,26 @@
 # Noodle release notes
 
+## 1.5.10 — 2026-10-25
+
+- Posts, replies, and expanded prompt editors keep the text you are typing visible above the mobile landscape keyboard. Noodle hides its mobile navigation while the keyboard is open and restores it when you finish typing.
+
+## 1.5.9 — 2026-10-21
+
+- Image failures marked nonretryable by the Engine no longer start automatic replacement requests.
+
+## 1.5.8 — 2026-10-20
+
+- The sticker, emoji, picture and poll menus now open inside Noodle. That hides the chat emoji-selection settings, which 1.5.7 meant to hide but still showed, and the menus are no longer see-through.
+
+## 1.5.7 — 2026-10-20
+
+- Noodle now uses Marinara Engine's own settings, dialogs, notifications, Local Model and connection queue instead of carrying copies of them. It no longer resets your Engine settings or starts a second Local Model, its background refreshes wait while a chat on the same connection is replying, and its notifications appear where you put yours. The download is smaller. It needs a Marinara Engine release after 2.5.0. On 2.5.0 and older, the version you already have keeps working. (#1478, #1487)
+- The sticker and emoji pickers no longer show the chat emoji-selection settings. Those belong to a chat, and Noodle has none.
+
+## 1.5.6 — 2026-10-13
+
+- With a Claude (Subscription) connection, Noodle no longer makes a hidden second request to name each session, and a request now stops with an error if Claude Code turns on claude.ai connectors. With a Marinara Engine release after 2.5.0, Claude Code also no longer adds your account email, the date or this computer's details to the prompt. Engine 2.5.0's Claude Code still adds them, and the server log warns about it until you update Marinara. (#1313)
+
 ## 1.5.5 — 2026-10-11
 
 - Each character can now use their own image generation connection for Noodle images. Open the character's Noodle profile, choose Edit profile and pick it under Image connection. The choice saves right away. Use Noodle image connection keeps the connection from Noodle's settings. Noodle still needs an image connection in its settings or a default image connection before it makes images.

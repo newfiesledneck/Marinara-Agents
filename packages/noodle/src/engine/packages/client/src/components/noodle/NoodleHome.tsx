@@ -1174,11 +1174,8 @@ export function NoodleHome({ navigation, onNavigate, focusPostId, onFocusPostHan
       })
         .then(() => {
           window.localStorage.removeItem("marinara:noodle:legacy-image-size");
-          if (legacyState) {
-            delete legacyState.imageNoodleWidth;
-            delete legacyState.imageNoodleHeight;
-            window.localStorage.setItem("marinara-engine-ui", JSON.stringify(envelope));
-          }
+          // The Engine owns "marinara-engine-ui": writing back this copy, read before the save, could undo
+          // settings the Engine saved meanwhile (#1478). The migration flag keeps this from running again.
           window.localStorage.setItem(migrationKey, "1");
         })
         .catch(() => undefined);

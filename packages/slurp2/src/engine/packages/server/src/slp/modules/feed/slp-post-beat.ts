@@ -123,9 +123,21 @@ export type SlurpBeat = {
    * idea, focus, or pushed topic. Both may change the Creator's life, as their text says. `life`:
    * a day-to-day life moment (see `slp-life-moments.ts`); like a card beat, it changes nothing lasting.
    * `collab`, `sponsor`, `rival`, `couple`: a collab, a brand deal, a rivalry or a couple's story
-   * (see `slp-tie-beats.ts`, `slp-couple-beats.ts`).
+   * (see `slp-tie-beats.ts`, `slp-couple-beats.ts`). `condition`: a small moment of a standing
+   * condition (`world/events/slp-story-state.ts`); like a life moment, it changes nothing lasting.
    */
-  anchorKind: SlurpAnchorKind | "arc" | "steer" | "life" | "collab" | "sponsor" | "rival" | "couple" | "drama";
+  anchorKind:
+    | SlurpAnchorKind
+    | "arc"
+    | "steer"
+    | "life"
+    | "collab"
+    | "sponsor"
+    | "rival"
+    | "couple"
+    | "drama"
+    | "trend"
+    | "condition";
   anchor: string;
   line: string;
   /** Named people in the beat. Empty means alone. */
@@ -145,6 +157,8 @@ export type SlurpBeat = {
   nudgeId?: string;
   /** The collab, deal, rivalry or couple moment this beat carries out, stamped on the post as `slurpTie`. */
   tie?: SlurpTieStamp;
+  /** The trend this post joins (docs/TRENDS.md), stamped on the post as `slurpTrend`; its origin post is quoted. */
+  trend?: { id: string; label: string; originPostId: string | null; starterId?: string };
 };
 
 const TIE_KINDS: readonly string[] = ["collab", "sponsor", "rival", "couple"];
@@ -477,6 +491,8 @@ export function parseSlurpBeat(raw: unknown): SlurpBeat | null {
         beat.anchorKind === "steer" ||
         beat.anchorKind === "life" ||
         beat.anchorKind === "drama" ||
+        beat.anchorKind === "trend" ||
+        beat.anchorKind === "condition" ||
         TIE_KINDS.includes(beat.anchorKind as string) ||
         SLURP_ANCHOR_KINDS.includes(beat.anchorKind as SlurpAnchorKind)
       ) ||
@@ -503,6 +519,19 @@ export function parseSlurpBeat(raw: unknown): SlurpBeat | null {
       ...(() => {
         const tie = readSlurpTieStamp({ slurpTie: beat.tie });
         return tie ? { tie } : {};
+      })(),
+      ...(() => {
+        const trend = (beat.trend ?? null) as Record<string, unknown> | null;
+        return trend && typeof trend.id === "string" && typeof trend.label === "string"
+          ? {
+              trend: {
+                id: trend.id,
+                label: trend.label,
+                originPostId: typeof trend.originPostId === "string" ? trend.originPostId : null,
+                ...(typeof trend.starterId === "string" ? { starterId: trend.starterId } : {}),
+              },
+            }
+          : {};
       })(),
     };
   } catch {

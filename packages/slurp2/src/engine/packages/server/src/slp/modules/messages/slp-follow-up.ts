@@ -239,6 +239,18 @@ export function isFollowUpLate(firstDueAt: string | undefined, now: Date = new D
 }
 
 /**
+ * More than this past its first due time, a follow-up stops waiting for the Creator to be free and
+ * goes out at its next due check, away or not (#1436). Each away check moved it to the next free
+ * time, so a schedule or a guess that kept them away slid it forward forever. Cool-off, night
+ * quiet and an unanswered fan still hold it.
+ */
+export const SLURP_FOLLOW_UP_AWAY_LIMIT_MS = 12 * 60 * 60_000;
+export function isFollowUpPastAwayLimit(firstDueAt: string | undefined, now: Date = new Date()): boolean {
+  const due = Date.parse(firstDueAt ?? "");
+  return Number.isFinite(due) && now.getTime() - due > SLURP_FOLLOW_UP_AWAY_LIMIT_MS;
+}
+
+/**
  * The next try after a failed generation: half the time the promise is already late, between 15
  * minutes and 12 hours. A failure right after it came due retries soon; a promise failing for days
  * costs two model calls a day at most. No attempt count is stored: the lateness is the count.

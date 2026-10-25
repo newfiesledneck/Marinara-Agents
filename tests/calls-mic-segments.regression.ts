@@ -217,14 +217,18 @@ async function main() {
     /^[\s\S]{0,1200}readCallUpload\(\s*req\.parts\(\{ limits: \{ fileSize: MAX_AUDIO_UPLOAD_BYTES, files: 1, fields: 16 \} \}\)/u,
   );
   assert.doesNotMatch(mediaRoute.slice(0, mediaRoute.indexOf("app.post", 10)), /req\.file\(/u);
+  // Minified names may contain "$".
   const server = await readFile(new URL("../packages/conversation-calls/server.mjs", import.meta.url), "utf8");
   assert.ok(
-    /\.parts\(\{limits:\{fileSize:\w+,files:1,fields:16\}\}\)/u.test(server),
+    /\.parts\(\{limits:\{fileSize:[\w$]+,files:1,fields:16\}\}\)/u.test(server),
     "the built server.mjs reads every part",
   );
 
   const client = await readFile(new URL("../packages/conversation-calls/client.js", import.meta.url), "utf8");
-  assert.ok(/Math\.min\(Math\.max\(0,\w+-\w+\),240\)/u.test(client), "the built client.js counts only measured quiet");
+  assert.ok(
+    /Math\.min\(Math\.max\(0,[\w$]+-[\w$]+\),240\)/u.test(client),
+    "the built client.js counts only measured quiet",
+  );
 
   process.stdout.write("Calls mic segments regression passed.\n");
 }

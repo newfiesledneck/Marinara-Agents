@@ -20,13 +20,21 @@ import {
   type SlpActionName,
   type SlpActionParsed,
 } from "../../../../../shared/src/slp/slp-actions.js";
+import { slpActionAllowed } from "../../../../../shared/src/slp/slp-extensions.js";
 import { SLP_STEERING_NUDGES_MAX } from "../../../../../shared/src/slp/slp-creator-steering.js";
 import { SLP_SPICE_LEVELS } from "../../../../../shared/src/slp/slp-spice.js";
 import { SLURP_PLATFORM_EVENTS_MAX } from "../../../../../shared/src/slp/slp-platform-events.js";
+import { slurpMayStartTrend } from "../discovery/slp-discovery-contract.js";
 import type { SlpActionPreview } from "../../../../../shared/src/slp/slp-stir.js";
 import type { SlpAssistOutcome } from "./slp-assist-service.js";
 import { isSlpDeskLever, previewSlpDeskLever, type SlpDeskLever } from "./slp-desk-levers.js";
 import { isSlurpDramaLever, previewSlurpDramaLever, type SlurpDramaLever } from "../world/slp-world-contract.js";
+import {
+  readSlurpTrendList,
+  slurpTrendLabel,
+  slurpTrendMayStart,
+  slurpTrendStage,
+} from "../discovery/slp-discovery-contract.js";
 
 type Account = {
   id: string;
@@ -44,6 +52,8 @@ export async function previewSlpAction(
   at = new Date(),
 ): Promise<SlpAssistOutcome<SlpActionPreview>> {
   if (!isSlpActionName(name)) return { ok: false, status: 404, error: `Slurp has no action called "${name}".` };
+  if (!slpActionAllowed(await createSlurpStorage(db).getSettings(), name))
+    return { ok: false, status: 409, error: "That part of Slurp is switched off in Backstage." };
   const parsed = SLP_ACTIONS[name].schema.safeParse(raw ?? {});
   if (!parsed.success) return { ok: false, status: 400, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   const input = parsed.data as Record<string, unknown>;
@@ -267,6 +277,43 @@ async function previewOther(
         detail: { name: event.name, days: event.days },
         error: settings.platformEvents.length >= SLURP_PLATFORM_EVENTS_MAX ? "eventsFull" : null,
         summary: `${event.name} starts now for ${event.days} day(s); every Creator joins in their own way.`,
+      };
+    }
+    case "start-trend": {
+      const trend = input as SlpActionParsed<"start-trend">;
+      const label = slurpTrendLabel(trend.label);
+      const starter =
+        trend.accountId && (await slurpMayStartTrend(db, trend.accountId))
+          ? await storage.getNoodlerAccountById(trend.accountId)
+          : null;
+      const trends = await readSlurpTrendList(db);
+      return {
+        ...(starter
+          ? { who: [{ id: starter.id, name: starter.displayName, avatarUrl: starter.avatarUrl ?? null }] }
+          : {}),
+        when: "ongoing",
+        detail: { name: label, ...(trend.lean ? { lean: trend.lean } : {}) },
+        // Three at once is the most Slurp holds; the run refuses a fourth, or the same label twice.
+        error:
+          trend.accountId && !starter
+            ? "notFound"
+            : label && slurpTrendMayStart(trends, label, at)
+              ? null
+              : "trendsFull",
+        summary: `"${label}" starts going round Slurp now. The right Creators join over the next days; some never do.`,
+      };
+    }
+    case "steer-trend": {
+      const steer = input as SlpActionParsed<"steer-trend">;
+      const trend = (await readSlurpTrendList(db)).find((entry) => entry.id === steer.trendId);
+      const live = trend && slurpTrendStage(trend, at) !== "dead";
+      return {
+        when: "nextPost",
+        detail: { name: trend?.label ?? "", lean: steer.lean },
+        error: live ? null : "noTrend",
+        summary: steer.lean
+          ? `Creators who join "${trend?.label ?? ""}" lean into: ${steer.lean}.`
+          : `"${trend?.label ?? ""}" goes back to being free.`,
       };
     }
     case "run-audience": {

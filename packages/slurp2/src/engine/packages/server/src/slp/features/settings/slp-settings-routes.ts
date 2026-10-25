@@ -19,6 +19,8 @@ import { createConnectionsStorage } from "../../../services/storage/connections.
 import type { FastifyInstance } from "fastify";
 import type { SlpRouteDeps } from "../viewer/slp-viewer-contract.js";
 import { z } from "zod";
+import { SLP_EXTRAS_OFFER_ORDER } from "../../../../../shared/src/slp/slp-extras-offer.js";
+import { answerSlurpExtrasOffer, readSlurpExtrasOffer } from "../../data/settings/slp-extras-offer-storage.js";
 import { getErrorMessage } from "../../modules/creators/slp-public-support.js";
 import { generateCreatorPost, previewSlurpPromptBlocks } from "../feed/slp-feed-contract.js";
 import { SLURP_PROMPT_IDS } from "../../base/prompting/slp-prompt-blocks.js";
@@ -162,6 +164,13 @@ export async function slpSettingsRoutes(app: FastifyInstance, deps: SlpRouteDeps
       pendingRewrites: await countSlurpPendingText(app.db),
       rewritingAll: slurpRewritingAllPending(),
     };
+  });
+  // Support's offer of an extra that is still off; the client switches it on itself, then answers.
+  app.get("/extras/offer", async () => ({ offer: await readSlurpExtrasOffer(app.db) }));
+  app.post("/extras/offer/answer", async (req, reply) => {
+    const body = z.object({ id: z.enum(SLP_EXTRAS_OFFER_ORDER), add: z.boolean() }).safeParse(req.body ?? {});
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() });
+    return { ok: await answerSlurpExtrasOffer(app.db, body.data.id, body.data.add) };
   });
   // "Rewrite all pending" runs in the background; Settings polls the usage above for progress.
   app.post("/model-budget/rewrite-pending", async () => ({ started: startSlurpRewriteAllPending(app.db) }));

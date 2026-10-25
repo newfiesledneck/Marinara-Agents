@@ -28,6 +28,7 @@ import {
   slurpDealReceipt,
 } from "../../modules/economy/slp-brand-deals.js";
 import { loadSlurpTieCreators, slurpRunsItself } from "./slp-creator-ties-service.js";
+import { SLP_STORYLINES_OFF, slpExtensionOn } from "../../../../../shared/src/slp/slp-extensions.js";
 import { createGarnishAds, garnishAdBrandId, type GarnishAd, type GarnishBrand } from "../ads/slp-ads-contract.js";
 import {
   slurpCoupleActive,
@@ -69,6 +70,7 @@ const COUPLE_ERRORS: Record<SlurpCoupleError, [number, string]> = {
   notInto: [409, "Neither romance nor dating is something they are looking for."],
   noDating: [409, "One of them does not date, and would not start for this."],
   orientation: [409, "They are not each other's type."],
+  family: [409, "Their cards say they are family, so it does not happen on its own."],
   romance: [409, "Their romance settings keep these two apart."],
   pageOpen: [409, "Their shared page is already open."],
   mono: [409, "One of them is monogamous and already with someone."],
@@ -90,6 +92,8 @@ const BOND_ERRORS: Record<SlurpBondError, [number, string]> = {
 export async function slpCreatorTiesRoutes(app: FastifyInstance, deps: SlpRouteDeps) {
   const { noodle, resolveViewerPersona, creatorBelongsToViewer } = deps;
   const personaSchema = z.object({ personaId: z.string().trim().min(1) });
+  // Storylines off: no collab or couple starts or moves on; declining, blocking and cooling still work.
+  const storylinesOff = async () => !slpExtensionOn(await noodle.getSettings(), "storylines");
 
   async function view(viewer: NonNullable<Awaited<ReturnType<typeof resolveViewerPersona>>>) {
     const { pool } = createGarnishAds(app.db);
@@ -201,8 +205,10 @@ export async function slpCreatorTiesRoutes(app: FastifyInstance, deps: SlpRouteD
     return viewer ? view(viewer) : undefined;
   });
 
-  app.post("/slurp/ties/collabs/:id/push", (req, reply) =>
-    change(req, reply, (ties, at) => slurpPushCollab(ties, id(req), at)),
+  app.post("/slurp/ties/collabs/:id/push", async (req, reply) =>
+    (await storylinesOff())
+      ? reply.code(409).send({ error: SLP_STORYLINES_OFF })
+      : change(req, reply, (ties, at) => slurpPushCollab(ties, id(req), at)),
   );
   app.post("/slurp/ties/collabs/:id/decline", (req, reply) =>
     change(req, reply, (ties, at) => slurpDeclineCollab(ties, id(req), at)),
@@ -218,6 +224,8 @@ export async function slpCreatorTiesRoutes(app: FastifyInstance, deps: SlpRouteD
   // One post per collab at a time: a second tap while the first is being written is refused.
   const postingNow = new Set<string>();
   app.post("/slurp/ties/collabs/:id/post-now", async (req, reply) => {
+    // The tie beat takes no collab while off, so "Post it now" would write an ordinary post.
+    if (await storylinesOff()) return reply.code(409).send({ error: SLP_STORYLINES_OFF });
     const collabId = id(req);
     if (postingNow.has(collabId)) return reply.code(409).send({ error: "That collab is being posted already." });
     const hostId = (await readSlurpCreatorTiesDocument(app.db)).ties.collabs.find((c) => c.id === collabId)?.hostId;
@@ -244,6 +252,7 @@ export async function slpCreatorTiesRoutes(app: FastifyInstance, deps: SlpRouteD
   );
 
   app.post("/slurp/ties/collabs", async (req, reply) => {
+    if (await storylinesOff()) return reply.code(409).send({ error: SLP_STORYLINES_OFF });
     const parsed = z
       .object({ aId: z.string().trim().min(1), bId: z.string().trim().min(1) })
       .passthrough()
@@ -335,6 +344,7 @@ export async function slpCreatorTiesRoutes(app: FastifyInstance, deps: SlpRouteD
 
   /** Set two Creators up: they start flirting; against a card it happens anyway, colored by the card. */
   app.post("/slurp/ties/couples", async (req, reply) => {
+    if (await storylinesOff()) return reply.code(409).send({ error: SLP_STORYLINES_OFF });
     const parsed = z
       .object({ aId: z.string().trim().min(1), bId: z.string().trim().min(1) })
       .passthrough()
@@ -358,6 +368,9 @@ export async function slpCreatorTiesRoutes(app: FastifyInstance, deps: SlpRouteD
       .passthrough()
       .safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    // Off, a couple can still end; it cannot date, fight, patch up or get back together.
+    if (["date", "drama", "patchUp", "reunite"].includes(parsed.data.steer) && (await storylinesOff()))
+      return reply.code(409).send({ error: SLP_STORYLINES_OFF });
     const creators = await loadSlurpTieCreators(app.db);
     const before = (await readSlurpCreatorTiesDocument(app.db)).couples;
     const answer = await changeCouples(req, reply, (couples, at) =>
@@ -373,6 +386,8 @@ export async function slpCreatorTiesRoutes(app: FastifyInstance, deps: SlpRouteD
   app.post("/slurp/ties/couples/:id/page", async (req, reply) => {
     const parsed = personaSchema.extend({ open: z.boolean() }).safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    // Off, a shared page can close (its goodbye post too); none opens.
+    if (parsed.data.open && (await storylinesOff())) return reply.code(409).send({ error: SLP_STORYLINES_OFF });
     const viewer = await resolveViewerPersona(parsed.data.personaId);
     if (!viewer) return reply.code(404).send({ error: "Slurp persona not found" });
     const outcome = parsed.data.open

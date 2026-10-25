@@ -1,3 +1,148 @@
+## 1.17.0 — 2026-10-25 [highlight]
+
+- Regenerate an ongoing chapter or the current open Character Story from its bottom action after a named confirmation. Completed chapters remain protected.
+- Discard only the selected chapter’s story, choices and reading progress, then write a fresh plan with current settings and character cards. Preserve other chapters, conversations, characters, inventory and earned rewards.
+- Stop and drain pending story work before resetting. Replaying cleared progress does not award first-clear rewards again; the usual Vigor cost to play still applies.
+
+## 1.16.1 — 2026-10-25 [highlight]
+
+- Restore first-send character replies and keep sent and remembered messages scrollable in the same chat window, without automatic resends.
+- Use current linked character cards’ full Description, Personality, Backstory and Appearance in story prompts, excluding card Scenario, greetings and example dialogue.
+- Keep Writing help buttons compact and preserve tapped explanations through viewport updates.
+- Use “They did not answer.” as the neutral direct-message failure fallback.
+- Hide the neutral story portrait silhouette when the current artwork is loaded, retaining safe loading and missing-art fallbacks.
+- Restore explicit banner animation recovery after playback or stale-clip errors. Failed replacement attempts keep previous saved media; successful replacements receive a fresh immutable URL.
+
+## 1.16.0 — 2026-10-25
+
+- Punctuate choice labels. Keep the correct speaker portrait and prevent fullscreen/mute from advancing.
+- Tap Writing help on mobile; keep daily rewards clear of Claim and animate loaded unit art smoothly.
+- Use the current timezone for resets and new banner periods, including clock changes. Catch up automatic chapter memory on world open; retain manual controls and show compressed/combined counts.
+- Auto-select affordable character, weapon, relic and skill upgrades before confirmation. Auto-equip the best free gear and clear stale Units dots.
+- Open farming domains from upgrade materials and show their next rotation; Mandates open their Login Event.
+- Reuse matching dialogue audio; reveal fresh opening lines while preserving saved reading positions.
+- Generate richer music briefs with world motifs, varied arrangements and musical development.
+
+## 1.15.2 — 2026-10-24 [highlight]
+
+- Show actionable Seedance setup guidance when a banner cannot be animated, and keep Retry visibly busy while generation is pending. Saved clips and the original banner illustration remain available.
+
+## 1.15.1 — 2026-10-24 [highlight]
+
+- Cancel chapter and story generation from the loading screen and return to Gacha Home without deleting the world or saved progress. Active story requests and chapter preforging stop, and late responses cannot reopen the cancelled screen.
+
+## 1.15.0 — 2026-10-24
+
+- Choose a generated song for the Home menu in Settings → Look → Visual. Saved songs remain playable when generation is off.
+- Generate a distinct soundtrack for each summon banner and collect it for Home music when pulling any 5-star from that banner.
+- Keep banner rotations separate and reuse generated songs after reload.
+- Select an optional Animations video connection in Sources to generate saved looping banner clips. Portraits remain still.
+- Reuse clips after reload, keep the illustration on failures or reduced motion, and offer pause, play and explicit generation retry controls.
+
+## 1.14.0 — 2026-10-24
+
+- Automatically remember completed canonical chapters and Character Stories, alongside saved character-chat memories.
+- Maintain a compressed overview within 10% of the generation model's known context, retaining detailed originals for relevant recall.
+- Recall up to three additional chapters plus separate character memories; retain the entire previous chapter and the current chapter so far.
+- Show automatic continuity status and allow retrying failed memory work without blocking gameplay.
+
+## 1.13.1 — 2026-10-24
+
+- Character scenes, banners, portraits and outfits use available character/persona avatar references; provider support and limits still apply.
+- Story artwork starts below its header and preserves the top of the image.
+- Mobile ordinary and expanded editors adapt to the height left by the keyboard; expanded settings drafts survive refreshes.
+- Units explains the Home progression dot and refreshes its recommendation after level, equip and ascension actions.
+- Blocking combat dialogue supports keyboard focus and returns to combat controls afterward.
+
+## 1.13.0 — 2026-10-24
+
+- Added Soldier, Elite and Boss enemy tiers in combat and enemy details.
+- New story chapters build toward a boss confrontation using existing boss mechanics.
+- Significant fights prepare contextual enemy dialogue, with local one-shot triggers and manual or Auto progression.
+- Combat dialogue respects assigned character voices, mute and dialogue volume. Existing saved chapters and Tower encounters remain playable.
+
+## 1.12.2 — 2026-10-24
+
+- Home shows a compact affinity matchup diagram beneath the communication button.
+- Home backgrounds retain the top of the selected artwork below the game header.
+- Combat shows one mute control without overlapping the other toolbar buttons.
+- Autoplay resumes after a small story choice when it was enabled before the choice.
+- Character communication keeps the composer visible when a mobile keyboard reduces the available height.
+
+## 1.12.1 — 2026-10-24
+
+- Chapters and Character Stories generate and play their own music cues instead of reusing the Home track. Loading scenes keep the current track until their cue is ready.
+- Small choices no longer block later shared narration or background pre-forging. Their alternatives remain generated together; playback, canon, replay and big-choice locks are preserved.
+- Completion and compression still wait for pending selections to preserve canonical story history.
+- Short audio notices no longer intercept taps on the game stage. Long reasons remain scrollable and stay visible while focused with a keyboard.
+- Notice scrolling adapts when the panel becomes visible or changes size; replacing a long reason with short text restores dismissal.
+- Recorded the actual merged Engine music-test baseline.
+
+## 1.12.0 — 2026-10-24
+
+### New
+- World-specific soundtrack briefs generated through the narration connection, cached for each music context and translated into original musical qualities.
+
+### Fixed
+- Audio failures show their HTTP status and, on newer Engine hosts, the provider's safe rejection reason while stock audio continues.
+- Unit and relic achievements count every gained level; capped duplicates do not count as gained facets, and Tower-shop facet gains count.
+- Existing worlds recover proven achievement progress without changing claimed rewards or pass progress.
+
+## 1.11.1 — 2026-10-23
+- Fixed generated music and effects for worlds using migrated legacy audio connections.
+- Recorded the merged Engine audio connection baseline.
+
+## 1.11.0 — 2026-10-23
+
+### New
+- Optional dialogue using explicitly assigned Engine character voices, with the current speech connection.
+- Stock Game music and effects, plus opt-in generated audio reused per world and cue.
+- A shared mute control, three precise channel volume sliders and configurable autoplay pacing.
+
+### Fixed
+- Home and story portrait frames include their bottom edge.
+
+## 1.10.2 — 2026-10-23
+
+- New dialogue choices show intent labels instead of revealing the exact spoken line. Selected actions appear as narration; explicitly spoken choices remain protagonist dialogue.
+- Existing untyped saved choices remain playable as narration. First-play canon, replay alternatives and permanent big decisions are preserved.
+
+## 1.10.1 — 2026-10-23
+
+- Fixed: the Welcome Gift rewards no longer overlap Claim on short mobile screens. The event scrolls when needed, and Claim has a larger touch target.
+
+## 1.10.0 — 2026-10-23
+
+- Choose your protagonist's dialogue or actions from two to four themed options above the dialogue box. Player choices are on by default in Settings > Story > Continuity.
+- Small choices include every alternative scene in the same generation and return to the shared story. Your first-play choices become canon; replaying another route does not rewrite them.
+- A chapter or Character Story can end with one optional big choice. That fate is permanent, and later story generation waits for it before continuing from the chosen outcome.
+- Choices survive reloads. Existing linear chapters still work; turning choices off affects newly written scenes and keeps existing decisions.
+
+## 1.9.1 — 2026-10-23
+
+- Chapter fullscreen controls now use a small icon aligned with the top-right header fade, with a usable touch target and visible keyboard focus.
+- Visible unit portraits use eager loading and synchronous decoding on detail updates.
+- Favorite and help icons are centered; unit cards show their existing affinity symbol in the top-right corner.
+
+## 1.9.0 — 2026-10-22
+
+### New
+- The fullscreen control beside Settings expands inside the Engine, hiding Home browser controls while keeping the Engine topbar. Outward/inward arrows show the action, and the button works on iPhone Safari too.
+- Every Forge screen fills the available width and height instead of fitting a fixed 16:9 frame.
+- A floating exit control stays available on screens without the shared toolbar and on the portrait rotation notice. Requires Engine capability API 1.376.
+
+## 1.8.15 — 2026-10-22
+- Fixed: on iPhone and other Safari-based browsers, ticking a cast member or an outfit theme no longer scrolls the list (and, on a phone turned sideways, the whole world-creation page) back to the top.
+
+## 1.8.14 — 2026-10-22
+- On a phone turned sideways, creating a world now uses the whole width of the screen and scrolls as one page: the title and the step tabs scroll away with the fields, and a slim Back and Next row stays at the bottom until you start typing.
+- Fixed: tapping a text field in the game no longer makes iPhone zoom in.
+
+## 1.8.13 — 2026-10-19
+- Fixed: places named in Korean, or in any other non-Latin script, get their background painted. Their names used to come out empty, so the background was never made; places whose names mixed Hangul and numbers could also share one background.
+- Backgrounds already painted for a place keep showing; nothing is painted twice.
+- On a phone held sideways the game uses more of the screen, text no longer grows when you turn the phone, and Settings packs its panels tighter. Where the browser has no fullscreen (iPhone Safari), the fullscreen button is hidden instead of doing nothing.
+
 ## 1.8.12 — 2026-10-02
 - Fixed: Character Stories can be merged too. In Settings > Continuity a compressed Character Story takes a tick like a chapter, and merges with the chapters next to it or with other Character Stories; the merged entry names each one, and the story never sends a merged one twice.
 - Only chapters played to the end can be merged, and a merge that cannot happen says why.

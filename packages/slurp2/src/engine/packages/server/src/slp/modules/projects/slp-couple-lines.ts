@@ -5,13 +5,13 @@
 import { slurpCoupleActive, slurpCoupleFor, slurpCoupleOf, type SlurpCouple } from "./slp-creator-couples.js";
 import { slurpForcedCoupleLine } from "./slp-couple-words.js";
 import { slurpCouplePartners, slurpNameList } from "./slp-couple-group.js";
+import { slpGenderWords } from "../../../../../shared/src/slp/slp-gender.js";
 
 /** An ex stays on a Creator's mind (and in their posts and chats) this long after the breakup. */
 export const SLURP_EX_DAYS = 30;
 
 /** What a Creator calls the one they are with, from that page's gender. */
-export const slurpPartnerWord = (gender: string | null | undefined) =>
-  gender === "male" ? "boyfriend" : gender === "female" ? "girlfriend" : "partner";
+export const slurpPartnerWord = (gender: string | null | undefined) => slpGenderWords(gender).boyfriend;
 
 export type SlurpRelationshipOptions = {
   withId?: string | null;
@@ -171,7 +171,7 @@ export function slurpChatBridgeCoupleLine(
   if (!couple) return "";
   const { her, you } = input;
   const since = (iso: string | null) => (iso ? ` since ${iso.slice(0, 10)}` : "");
-  const hush = couple.secret ? ", kept secret from her fans" : "";
+  const hush = couple.secret ? `, kept secret from ${slpGenderWords(input.herGender).his} fans` : "";
   const fight = [...couple.moments].reverse().find((moment) => moment.kind === "fight" || moment.kind === "jealous");
   // #1293: forgetting overrides whatever the chat's own transcript already shows, so it never stays
   // silent and lets old messages speak for themselves; it says plainly there is nothing unfinished.
@@ -190,6 +190,30 @@ export function slurpChatBridgeCoupleLine(
   return couple.aftermath === "moveOn"
     ? `${her} and ${you} broke up on Slurp ${ago}. ${her} has moved on and does not dwell on it.`
     : `${her} and ${you} broke up on Slurp ${ago}.`;
+}
+
+/**
+ * A character's love life with other Creators, for the chat bridge: one third-person line per
+ * running couple, or none. Couples with the player's own pages are left out; the caller says those
+ * with `slurpChatBridgeCoupleLine`. Secret couples stay secret, and a partner without a known name
+ * is not mentioned.
+ */
+export function slurpChatBridgeLoveLines(
+  couples: readonly SlurpCouple[],
+  creatorId: string,
+  input: { her: string; names: ReadonlyMap<string, string>; playerIds: ReadonlySet<string> },
+): string[] {
+  return couples
+    .filter((couple) => slurpCoupleActive(couple) && !couple.secret)
+    .flatMap((couple) => {
+      const partners = slurpCouplePartners(couple, creatorId);
+      if (partners.length === 0 || partners.some((id) => input.playerIds.has(id))) return [];
+      const who = slurpNameList(partners.flatMap((id) => (input.names.has(id) ? [input.names.get(id)!] : [])));
+      if (!who) return [];
+      if (couple.stage === "sparks") return [`${input.her} is flirting with ${who} on Slurp.`];
+      if (couple.stage === "dating") return [`${input.her} is dating ${who} on Slurp.`];
+      return [`${input.her} is together with ${who} on Slurp${couple.stage === "rocky" ? "; things are rocky" : ""}.`];
+    });
 }
 
 /** The newest breakup of this Creator in the last `SLURP_EX_DAYS` days, or null. */

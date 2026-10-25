@@ -1,4 +1,105 @@
+## Regenerate an ongoing story (1.17.0)
+
+At the bottom of an ongoing chapter or the current open Character Story, choose **Regenerate chapter**. The **Are you sure?** confirmation names the selected story and explains what will be discarded. **Keep chapter** leaves its content, choices, reading position and progress unchanged. Confirming starts that story again using the current story settings and linked character cards.
+
+Completed chapters and completed Character Story parts cannot be regenerated. Finish an open Character Story before resetting the main chapter. Other chapters, your cast, authored cards, conversations and earned items stay saved. First-clear rewards already earned remain claimed; regenerating does not pay them again. Newly generated beats use the usual Vigor costs.
+
+Installing an update never resets a saved story. A reset happens only after you confirm the selected ongoing chapter.
+
+## Soundtrack collection (1.15.0)
+
+Settings → Look → Visual includes **Home page menu music**, listing this world's available generated songs. **Automatic soundtrack** restores the usual Home music. Collected songs remain playable with generation off; mute and volume still apply. If a saved song is missing, the existing soundtrack plays.
+
+With music generation on, opening a summon banner generates its own theme through the selected audio connection. Pulling any 5-star from that banner adds the theme to your Home choices, including an off-banner result or a duplicate. Each featured rotation has its own theme; an unsuccessful pull never unlocks one. No past pulls are guessed from the owned roster.
+
+## Banner animations (1.15.0)
+
+Settings → World → Sources includes an optional **Animations** connection, listing Engine video connections. Selecting one animates generated banner illustrations as those banners are opened. A banner image and connection reuse their saved clip, including after reload. A featured rotation or redrawn image gets its own clip. Portraits remain still.
+
+Clips play muted on a loop, with Pause and Play controls. Reduced-motion preferences keep the illustration and skip automatic generation; hidden banners pause playback. Loading, provider failures and unsupported playback keep the illustration visible. A failed or interrupted generation requires **Retry animation**, which may use provider credits again. Since 1.16.1, playback failures and stale clips also offer that explicit recovery action. A replacement keeps the previous saved clip until the new one succeeds; reopening a banner never automatically retries a failed paid attempt.
+
+The Engine handles video provider settings, credentials, queues and fallback connections. Matching first and last frames are requested where the provider supports them; duration and loop quality depend on the model. This feature requires Engine Capability API 1.384 or newer.
+
 # Gacha Forge
+
+## Story and chat recovery (1.16.1)
+
+Character conversations keep saved messages in the same window after **Close and remember**. Use **Earlier messages** to scroll back through older sessions. Closing still prepares a memory of the current session. A failed reply retains the sent message, and an explicit retry reuses it.
+
+Initial forging and later story writing read the current linked character card’s complete Description, Personality, Backstory and Appearance. Card Scenario, greetings and example dialogue are excluded. Existing saved scenes stay as written.
+
+Writing’s question mark controls keep their compact size. Tap to read an explanation below its label, then tap again to close it.
+
+## Automatic continuity (1.14.0)
+
+Gacha Forge automatically keeps memories from the world's completed canonical chapters, Character Stories and character conversations. Original records stay saved. Later writing receives the constant overview, up to three relevant detailed chapter summaries, separate relevant character memories, the entire previous chapter, and the current chapter so far, in that order. The full previous chapter does not consume a recall slot. Saved first-play choices remain canonical; replaying an alternative does not replace them.
+
+The overview uses at most 10% of the selected generation model's context window, measured with the Engine's token estimator. If the generation or compression connection's context window is unknown, configure it in **Engine Connections**. Gacha Forge reports the missing configuration instead of guessing a model limit.
+
+All saved character memories contribute to the overview. Relevant Character Story and conversation details are recalled separately from the three chapters. When space is tight, whole optional recall blocks are removed in relevance order; the complete previous chapter and current played content remain intact. If required history alone exceeds the model's context, generation reports the overflow instead of silently shortening it.
+
+**Settings → Story → Continuity** shows automatic memory's status and offers a retry when an update needs attention. Memory work runs in the background; a failure keeps previous memories and original records and does not block play. Existing manual compression and editing controls remain optional tools.
+
+## Artwork references and mobile controls (1.13.1)
+
+Character scenes, gacha banners, portraits and outfits now attach available avatar references from their selected Engine character cards or persona. A unit’s own saved artwork is the fallback when its source avatar is unavailable. Reference support and limits still depend on the configured image provider and model. Existing generated artwork remains unchanged; the references apply when generating new art. In 1.16.1, loaded story portraits hide their neutral silhouette correctly; missing or failed artwork still shows the neutral fallback.
+
+Story artwork begins below the chapter controls and retains the top of the image. On short mobile screens, ordinary and expanded text editors adapt to the space left by the keyboard. Expanded editors keep Close available beside the text and preserve their draft when the settings refresh.
+
+The dot beside Home → Units indicates the existing next-step recommendation. Units now explains whether to level a character, equip a signature weapon or ascend, with the relevant Stats or Gear path. The recommendation refreshes after successful progression actions.
+
+Combat dialogue moves keyboard focus to Continue when it blocks the fight and returns focus to the combat controls afterward.
+
+## Story bosses and combat dialogue (1.13.0)
+
+Enemies now have a Soldier, Elite or Boss tier, separate from their combat role and affinity. Enemy cards and details identify that tier. Newly planned chapters reserve their final fight for a boss confrontation before the closing story scene. Story bosses use the existing boss health bar and mechanics, including warned strikes and phase changes.
+
+The encounter writer prepares contextual enemy dialogue alongside a significant fight. Lines can play at its introduction, during attacks or health transitions, and when the player wins or loses. Each line plays once per battle. Combat uses the saved lines without another model request on each turn. Continue advances a line manually; Auto waits for the line and its assigned voice, then resumes with the same combat preference. The pause follows Settings → Look → Visual's autoplay setting.
+
+Enemies matching a known world character can use that character's assigned Engine voice when world TTS is enabled. Muting silences combat dialogue alongside the existing music and effects. Enemies without an assigned voice still display their lines.
+
+Existing generated chapters and encounters keep their saved content and progress. An older ordinary enemy without a tier is shown as a Soldier; existing Tower boss mechanics still identify bosses. New tiers and dialogue appear as encounters are newly generated, without rewriting earlier fights.
+
+In 1.12.2, combat keeps one mute control, Auto resumes after you select a small choice, and character communication keeps its composer available when a mobile keyboard reduces the game height. Home adds a compact affinity matchup diagram below the communication button and frames selected background artwork from its top.
+
+In 1.12.1, Home, story moods and Character Stories use their own music cues. Tracks are generated as those contexts are visited and reused within that world. Loading a scene keeps the current track until its music cue is ready. Short audio notices let taps reach the game stage; long provider reasons can be scrolled and stay visible while focused with a keyboard.
+
+## Soundtrack briefs and achievement repairs (1.12.0)
+
+With generated audio enabled, the world's narration connection writes an original musical brief for each soundtrack context: Home, combat, bosses, happy/tense/sad story scenes and Character Stories. It translates world references into instrumentation and mood rather than requesting existing songs. Briefs are saved per world and reused; writing a new brief uses the configured model connection. Generated music still uses the selected audio connection and its provider credits. A provider can reject a prompt; newer Engine versions show its reason, while older compatible hosts show the HTTP status and keep playing stock audio.
+
+Level and relic achievements now count the levels actually gained, and facet achievements count only successful gains, including Tower-shop duplicates. Existing worlds recover a conservative lifetime minimum from their current units and relics when loaded. Higher saved totals, claimed rewards and pass progress are preserved.
+
+## Audio and pacing (1.11.0)
+
+Gacha Forge 1.11.0 adds optional dialogue using voices assigned in the Engine, stock Game music and sound effects, and optional generated audio through a dedicated audio connection. In world creation, open Lore to opt in. For an existing world, use Settings → World → Sources; Settings → Look → Visual has independent music, dialogue and effects levels and an autoplay pause (three seconds by default). The compact mute button silences all three channels. Autoplay waits for the revealed text and spoken line, and choices still wait for the player. Home and story portraits include their bottom frame edge. This version requires Engine Capability API 1.381 or newer.
+
+Welcome Gift in 1.10.1 keeps its rewards above Claim on short mobile screens. Scroll the event when needed; the Claim button has a full touch target.
+
+## In-app fullscreen and fluid screens (1.9.0)
+
+The fullscreen button beside Settings expands Gacha Forge inside the Engine. Outward arrows enter;
+inward arrows return to the Home browser. Home's tabs, address bar and bookmarks hide while the Engine
+topbar stays available. Screens without the shared Settings bar keep a floating toggle. This also works
+on mobile browsers without native element fullscreen. The game stage fills the available width and
+height in both modes rather than fitting a fixed 16:9 frame. The existing portrait rotation prompt
+remains; landscape phones gain the width previously left in the gutters.
+
+Chapter scenes in 1.9.1 use a small fullscreen icon in the top-right header fade, with a full touch target. Unit cards also show their affinity symbol; unit portrait decoding and favorite/help button alignment are improved.
+
+### Player choices (1.10.0)
+
+In 1.10.2, newly generated dialogue options paraphrase intent, such as “Apologize” or “Say that you trust them”. The selected spoken line then appears as protagonist dialogue; a selected physical action appears as narration. Existing saved choices keep their labels and decisions, with untyped selections displayed as narration rather than guessing that they were spoken.
+
+Settings → Story → Continuity includes **Allow choices**, enabled by default. Newly written chapters and Character Stories can offer two to four dialogue or action intents for your protagonist above the dialogue box, using the current game theme.
+
+Narration is written in sections. Small choices include every alternative branch in the same response, followed by shared narration. Playback pauses for your selection, then plays the stored branch without another model call. In 1.12.1, later shared sections and optional pre-forging can continue before you select a small choice. First-play selections are saved as canon; replay can show the other small branches without changing that history. Reloading or resuming restores the canonical selections. Completion and compression still wait for pending selections so their records and summaries include the chosen branches.
+
+A chapter or Character Story may end with one optional big choice. It is always the final beat, and the model stops before its outcome. Selecting it permanently records your fate; replay cannot change it. Later chapters use the chosen outcome, even after story compression or summary folding, and generation remains locked until it is selected. Pre-forging pauses at unresolved big decisions and lets you enter the chapter to choose.
+
+Turning choices off affects newly written scenes. Existing choice points and saved decisions remain intact. Previously written linear scenes stay playable.
+
+Requires Engine capability API 1.376. Earlier releases described below retain their historical behavior.
 
 Gacha Forge is a standalone gacha game mode: describe a world and it builds the rest — banners to pull on, a cast the model writes and paints for you, and the story, battles and events that grow around them. Lorebooks feed the forge when you have them; a hand-written scenario is enough.
 
@@ -125,11 +226,19 @@ The two side rails of 1.6.0 are gone: Help and the changelog live only in Settin
 
 **1.8.12 is a Character Story that could only be compressed once.** Compressed chapters can be merged into one entry, as long as they are contiguous; Character Stories arrived later, got their own compression, and were left out of the merge — a comment even decided it the other way. Now the Continuity rows come from one builder (`continuityRows`), in the order the story happened: each Character Story after the chapter it followed, and several after the same chapter in the order they were opened (a part stamps `opened` once; older ones keep the previous order). The merge takes the ticked rows by key, rebuilds those rows and refuses anything that is no longer contiguous (`stale`), not compressed, not played to the end (a chapter with a fight still owed), or concurrent in the same world. It anchors on the first chapter it holds, else on the first story's key, and lists every story it swallowed in `bonds`, carried over from merged rows. `absorbedBonds` is built before any walk and asked first by every reader, so a swallowed story is never sent again — not as its summary, and not as its raw beats, which is what a story without a summary falls back to — and is not offered for compression again. The merge prompt labels each piece and names each story once with its part; the merged text must name each story (a whole word of the name, particles aside), or it is refused, the screen says which story was left out, and nothing changes.
 
+**1.8.13 is a world named in Korean, and a phone held sideways.** A location's ID was its name lowercased with everything outside `a-z0-9` turned into dashes (`gs` on the server, `oc` on the client), so `달빛 숲` became an empty ID: the server skipped the place and `/background` refused it, and `숲 1` and `동굴 1` both became `1` and shared one picture. Both sides now keep Unicode letters, marks and digits after NFC (marks too, or Hindi `काला` and `किला` would collide), and cap at 60 code points instead of UTF-16 units; an ASCII name keeps exactly the ID it had. A place already painted under its old lossy ID is still found: the locations document is read through `gsPlaces`, which also answers to each stored place's new ID (from its stored name) without rewriting anything, so nothing is painted twice and two names that used to collide stop sharing. `/background` refuses a slug carrying a path separator, `..` or a control character (`bgSlug`). On iPhone, the package's `:host { all: initial }` undid the Engine's `-webkit-text-size-adjust: 100%`, so Safari enlarged the game's text in landscape; the arena sets it back. The arena caps at `100dvh` (with a `100vh` fallback), a fullscreen arena pads by the safe-area insets, a short landscape screen (`max-height: 500px`) drops the frame's padding, border and shadow and tightens the Settings plates, and a fullscreen toggle the browser cannot honour (iPhone Safari has no element fullscreen) is removed rather than left doing nothing. The 16:9 stage and the orientation handling are unchanged.
+
+**1.8.14 is world creation on a phone held sideways, and a field iPhone zoomed into.** Every screen lives in the 16:9 stage, so on a landscape phone (~874×402) the creator was a 533px-wide box with gutters either side, and its pinned brand row, step tabs, error line and nav took about 250px, leaving the field grid (its only scroll region) 30–70px. On a short landscape screen (`max-height: 500px`) the setup sheet now widens the stage to the arena (`.gf-stage:has(.ob-root)`) and makes `.ob-frame` the one scroll region: the brand and tabs scroll away with the fields, the mark is hidden, the textarea is shorter, and the nav sticks to the bottom on the creator’s `--ink` until a text field has focus (the keyboard is up), when it rejoins the page. Changing step scrolls the frame back to the top and an error scrolls it to the end, where the error sits above the nav (`obScroll`); a desktop frame never scrolls, so both are no-ops there. iOS zooms into any focused field under 16px, and the game’s ramp drew them at 7–9px; the Engine’s own 16px floor stops at the package’s `:host { all: initial }`, so on a coarse pointer the arena sets typed fields to 16px. A mouse keeps the ramp, and the Settings readout and in-game changelog now say 1.8.14.
+
+**1.8.15 is a list that stays where you left it.** Ticking a card for the cast, or a theme for outfits, re-renders the whole list (the cast's `.cs-list` in `bi()`'s `w()`, the theme list in `vi()`) through `innerHTML`. Chromium keeps a scroll box's position across that, but WebKit (every iPhone browser, and Safari on a Mac) resets the list to the top, and every scrolling ancestor with it; on a sideways phone, where 1.8.14 made `.ob-frame` the one scroll region, the whole creator page jumped too. Both renders now note the `scrollTop` of the list and each scrolling ancestor before the rebuild and put them back after it. Changing step still lands at the top (`obScroll`), and the Settings readout and in-game changelog now say 1.8.15.
+
 All generation — world text, cast sheets, portraits, banner art — runs through the Engine profile's own configured model and image connections. The package adds no external services and sends nothing anywhere else.
 
 ## Payloads
 
 `client.js` and `server.mjs` are single-file esbuild bundles contributed from the package's own source tree, which is maintained outside this repository. The artifact zip, manifest hashes, and catalog entry are re-derived from the committed payload bytes by the package builder, so they cannot drift from what ships.
+
+From 1.8.13 on, `client.js` and `server.mjs` have been edited by hand here. For each, `bundle-patches.json` names the last contributed bundle (its commit, sha256 and size) and records each later edit, in order, as a find-and-replace pair; `tests/gacha-forge-location-ids.regression.mjs` undoes them on the committed bundle to reach those base bytes and redoes them to reach the manifest's hash, and fails if a new hand edit is not recorded. A new upstream drop should carry these edits, and then becomes the new base with an empty patch list.
 
 Rebuild the artifact and catalog entry from the repository root:
 

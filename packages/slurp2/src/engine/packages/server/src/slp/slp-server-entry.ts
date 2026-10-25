@@ -42,6 +42,7 @@ import { startSlurpFollowUpScheduler } from "./features/messages/slp-follow-up-s
 import { startSlurpPaymentRecoveryScheduler } from "./features/economy/slp-payment-recovery-scheduler-service.js";
 import { startSlurpWorldScheduler } from "./features/world/slp-world-scheduler-service.js";
 import { slpStoryRoutes } from "./features/world/slp-story-routes.js";
+import { slpStoryStateRoutes } from "./features/storylines/slp-story-state-routes.js";
 import { slpDramaRoutes } from "./features/world/slp-drama-routes.js";
 import { createSlurpActivationLifecycle } from "./base/locking/slp-activation-lifecycle.js";
 import { createSlurpMessagesStorage } from "./data/slp-storage.js";
@@ -75,6 +76,7 @@ export async function mountSlpRoutes(app: FastifyInstance) {
   await slpMaintenanceRoutes(app, deps);
   await slpProjectsRoutes(app, deps);
   await slpStoryRoutes(app, deps);
+  await slpStoryStateRoutes(app, deps);
   await slpDramaRoutes(app, deps);
   await slpDiscoveryRoutes(app, deps);
   await slpCreatorsRoutes(app, deps);

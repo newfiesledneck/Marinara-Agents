@@ -13,6 +13,13 @@ import type {
 import type { SlurpArcType } from "../projects/slp-projects-contract.js";
 
 export type SlurpSettings = {
+  /** Extension switches (shared slp-extensions.ts); read them through `slpExtensionOn`. */
+  extAds: boolean;
+  extStorylines: boolean;
+  extWorld: boolean;
+  extStir: boolean;
+  extSupportDesk: boolean;
+  extEngineLink: boolean;
   inlineAdsEnabled: boolean;
   inlineAdsFrequency: "light" | "standard" | "frequent";
   brandDealsPace: "off" | "rare" | "normal" | "often";
@@ -33,6 +40,8 @@ export type SlurpSettings = {
   pricingMaxWeeklyChangePercent: number;
   walletStipendFloor: number;
   walletDayStartHour: number;
+  /** Collect moves at most a daily allowance; false moves all earnings. */
+  walletPayoutDailyLimit: boolean;
   walletAdReward: number;
   walletAdDailyCap: number;
   walletEngagementReward: number;
@@ -78,6 +87,7 @@ export type SlurpSettings = {
   generationConnectionId: string | null;
   imageContextMode: "auto" | "imagePrompt" | "vision";
   imageContextConnectionId: string | null;
+  imageCaptionPrompt: string;
   pageConnectionId: string | null;
   imagePromptConnectionId: string | null;
   imageStyleProfileId: string | null;
@@ -85,11 +95,13 @@ export type SlurpSettings = {
   imagePromptInterpretation: string;
   enableImageInterpretation: boolean;
   imageGenerationUseAvatarReferences: boolean;
+  imageKeepOriginalFiles: boolean;
   imageGenerationIncludeDescriptions: boolean;
   /** How the look reaches the picture prompt: the prompt writer words it, Slurp inserts it, or both. */
   imageAppearanceMode: "writer" | "insert" | "both";
   appearanceProfileMode: "ask" | "high_confidence" | "always";
   autoPostingImagesEnabled: boolean;
+  autoCreatorArtworkEnabled: boolean;
   allowRandomUsers: boolean;
   allowProfessorMari: boolean;
   /** Characters the user put in the audience. Value is a Fan Type id, or true to derive one. */
@@ -106,6 +118,7 @@ export type SlurpSettings = {
   characterImageInstructions: Record<string, boolean>;
   /** Per Creator: false turns off "The image model knows this character". */
   creatorImageNames: Record<string, boolean>;
+  creatorImagePrefixes: Record<string, string>;
   promptPresets: SlurpPromptPreset[];
   promptBlocks: Record<string, SlurpPromptBlockOverride[]>;
   /** Prompt edits from before Classic generation was removed. Source of the Classic prompt preset. */
@@ -138,6 +151,7 @@ export type SlurpSettings = {
   /** Editable audience personas and their numeric behavior. */
   fanTypes: SlurpFanType[];
   platformEvents: SlurpPlatformEvent[];
+  trendsEnabled: boolean;
   creatorCollabs: { creatorIds: [string, string]; content: string }[];
   /** Creators answer while you are away. Off leaves the background reply loop asleep. */
   messagesAwayRepliesEnabled: boolean;
@@ -169,6 +183,8 @@ export type SlurpSettings = {
   messagesFanOpeners: string[];
   /** The player's own first words for commission requests; empty = the built-in ones. */
   messagesCommissionOpeners: string[];
+  /** The player's own "what the fan wants" for commission requests; empty = the built-in ones. */
+  messagesCommissionAsks: string[];
   /** Creator replies to comments in any 24 hours (1–200). */
   creatorRepliesPerDay: number;
   autopurgeEnabled: boolean;
@@ -191,6 +207,8 @@ export type SlurpSettings = {
   /** Backstage › Drama: level, the situations and dramas switched on, situation dials. */
   drama: SlpDramaSettings;
   onboarding: "not_started" | "in_progress" | "completed";
+  /** The persona browsing Slurp, shared by every device. Null: not picked yet. */
+  viewerPersonaId: string | null;
 };
 export type SlurpSettingsUpdate = Partial<SlurpSettings>;
 export type SlurpPromptBlockDefinition = {

@@ -146,6 +146,27 @@ export function SlpCreatorIdentitySection({
                 {t(appearance.linkedAppearance ? "ui.slurp.appearance.useLinked" : "ui.slurp.appearance.clearOverride")}
               </button>
             )}
+            {appearance.imageAppearance && appearance.imageAppearance !== appearance.text && (
+              <button
+                type="button"
+                disabled={appearanceAction.isPending}
+                onClick={async () => {
+                  // A hand-written appearance is replaced, and nothing brings it back.
+                  if (
+                    appearance.source === "override" &&
+                    !(await showConfirmDialog({
+                      title: t("ui.slurp.appearance.useImageTags"),
+                      message: t("ui.slurp.appearance.useImageTagsConfirm"),
+                    }))
+                  )
+                    return;
+                  runAppearanceAction("edit_override", appearance.imageAppearance);
+                }}
+                className={quietButton}
+              >
+                {t("ui.slurp.appearance.useImageTags")}
+              </button>
+            )}
             {appearance.text && (
               <button type="button" onClick={() => setAppearanceDraft(appearance.text)} className={quietButton}>
                 {t("ui.slurp.appearance.edit")}
@@ -498,6 +519,30 @@ export function SlpCreatorImagesSection({ creator, active }: SlpCreatorSettingsS
           }}
         />
       )}
+      {settings && (
+        <Field
+          settingKey="creatorImagePrefixes"
+          label={t("ui.slurp.settings.creators.imagePrefix")}
+          detail={t("ui.slurp.settings.creators.imagePrefixDetail")}
+        >
+          {/* Saved on leaving the field; blank removes it. */}
+          <input
+            key={`${creator.id}:${settings.creatorImagePrefixes?.[creator.id] ?? ""}`}
+            type="text"
+            maxLength={300}
+            defaultValue={settings.creatorImagePrefixes?.[creator.id] ?? ""}
+            disabled={updateSettings.isPending}
+            placeholder={t("ui.slurp.settings.creators.imagePrefixPlaceholder")}
+            onBlur={(event) => {
+              const value = event.target.value.trim();
+              const { [creator.id]: previous = "", ...rest } = settings.creatorImagePrefixes ?? {};
+              if (value === previous) return;
+              updateSettings.mutate({ creatorImagePrefixes: value ? { ...rest, [creator.id]: value } : rest });
+            }}
+            className={selectClass}
+          />
+        </Field>
+      )}
       {creator.sourceAccountId && !personaBacked && settings && (
         <Field
           settingKey="characterImageInstructions"
@@ -550,7 +595,7 @@ export function SlpCreatorMessagesSection({ creator, onClose }: SlpCreatorSettin
           type="button"
           onClick={() => {
             onClose();
-            setNavigation({ mode: "creator-settings", section: "world", target: "messaging" });
+            setNavigation({ mode: "creator-settings", section: "basic", target: "messaging" });
           }}
           className={quietButton}
         >

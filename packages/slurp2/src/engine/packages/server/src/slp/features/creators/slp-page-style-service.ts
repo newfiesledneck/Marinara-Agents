@@ -1,3 +1,6 @@
+import type { APIProvider } from "@marinara-engine/shared";
+import { resolveStoredMaxTokens } from "../../../services/generation/generation-parameters.js";
+import { clampGenerationMaxOutputTokens } from "../../../services/generation/output-token-limits.js";
 import { jsonrepair } from "jsonrepair";
 import type { SlpPageStyleSuggestion } from "../../../../../shared/src/slp/slp-social.types.js";
 import type { DB } from "../../../db/connection.js";
@@ -96,13 +99,20 @@ export async function suggestSlpPageStyle(db: DB, accountId: string): Promise<Sl
         connection.claudeFastMode === "true",
         connection.treatAsLocalEndpoint === "true",
         connection.defaultParameters,
+        // Only the player's button calls this: booked as foreground work on the connection.
+        connection.id,
       ),
     );
     // Room for a reasoning model's notes, as for the Page (3000 left some answers empty).
     const result = await provider.chatComplete(messages, {
       model: connection.model,
       temperature: 0.7,
-      maxTokens: 4000,
+      maxTokens: clampGenerationMaxOutputTokens({
+        provider: connection.provider as APIProvider,
+        model: connection.model,
+        maxTokens: Math.max(resolveStoredMaxTokens(connection.defaultParameters, 4000), 4000),
+        maxTokensOverride: connection.maxTokensOverride,
+      }),
     });
     answer = result.content ?? "";
   } catch (error) {
