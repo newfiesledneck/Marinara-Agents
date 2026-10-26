@@ -148,6 +148,7 @@ export class ForgeAudioController {
     }
     this.player?.setVolumes({ music: this.settings.musicVolume, sfx: this.settings.sfxVolume });
     this.player?.setMuted(this.settings.muted);
+    this._forgeCombatVoices?.configure();
     if (this.settings.muted || !this.settings.tts || this.settings.dialogueVolume === 0) this.voiceAbort?.abort();
     if (this.tts?.getActiveId()?.startsWith(`gacha-forge:${this.runId}:`)) {
       this.tts.setCurrentPlaybackVolume(this.settings.dialogueVolume, this.settings.muted);
@@ -509,6 +510,7 @@ export class ForgeAudioController {
     clearTimeout(this.noticeTimer);
     this.dismissNotice?.();
     this.voiceAbort?.abort();
+    this._forgeCombatVoices?.dispose();
     for (const request of this.requests) request.abort();
     this.host._root.removeEventListener("click", this.onClick);
     this.player?.dispose();
@@ -530,6 +532,10 @@ export function forgeAudioCue(host) {
       ? "boss"
       : "combat";
   }
+  const eventCue =
+    host._forgeSeasonalBanner?.music?.cue ||
+    (host._forgeEvent?.chapter === host._planChapter ? host._forgeEvent?.music?.cue : null);
+  if (eventCue) return eventCue;
   if (state === "beat")
     return host._beatState === "ready"
       ? host._bondUnit
@@ -631,12 +637,16 @@ export function wireForgeAudio(host) {
 }
 
 export function saveForgeAudioSources(host, sources) {
-  if (!sources?.audio) return host._setSourcesNow(sources);
+  // Story controls write the same world index and must serialize with audio saves too.
+  if (!sources?.audio && !sources?.story) return host._setSourcesNow(sources);
   const runId = host._run?.runId;
   const save = () => {
     if (host._run?.runId !== runId) return;
     return host
-      ._setSourcesNow({ ...sources, audio: normalizeForgeAudio({ ...host._run.audio, ...sources.audio }) })
+      ._setSourcesNow({
+        ...sources,
+        ...(sources.audio ? { audio: normalizeForgeAudio({ ...host._run.audio, ...sources.audio }) } : {}),
+      })
       .finally(() => wireForgeAudio(host));
   };
   const next = (host._forgeAudioSave ?? Promise.resolve()).catch(() => {}).then(save);

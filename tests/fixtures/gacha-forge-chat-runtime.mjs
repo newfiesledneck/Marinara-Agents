@@ -11,7 +11,7 @@ export const chatUnitId = `${chatRunId}:unit:arden`;
 export const chatConnectionId = "same-main-connection";
 const clone = structuredClone;
 
-export async function createChatRuntime({ stored, archived = 0, port = 0 } = {}) {
+export async function createChatRuntime({ stored, archived = 0, port = 0, allowWorldDelete = false } = {}) {
   const docs = new Map(stored ? clone(stored) : []);
   const handlers = new Map();
   const calls = [];
@@ -112,7 +112,12 @@ export async function createChatRuntime({ stored, archived = 0, port = 0 } = {})
     }
     if (url.pathname === "/api/connections")
       return Response.json([
-        { id: chatConnectionId, provider: "custom", model: "controlled-same-main-model", maxContext: 10000 },
+        {
+          id: chatConnectionId,
+          provider: "custom",
+          model: "controlled-same-main-model",
+          maxContext: transport.maxContext ?? 10000,
+        },
       ]);
     assert.equal(url.origin, origin, "No remote provider or user data may be contacted");
     return nativeFetch(input, options);
@@ -134,7 +139,8 @@ export async function createChatRuntime({ stored, archived = 0, port = 0 } = {})
       docs.set(saved.id, saved);
       return clone(saved);
     },
-    remove: async () => {
+    remove: async (_packageId, id, revision) => {
+      if (allowWorldDelete) return docs.get(id)?.revision === revision && docs.delete(id);
       throw new Error("Chat history must never be deleted");
     },
   };
@@ -169,8 +175,10 @@ export async function createChatRuntime({ stored, archived = 0, port = 0 } = {})
               return {
                 connectionId: chatConnectionId,
                 model: "controlled-same-main-model",
-                maxContext: 10000,
+                maxContext: transport.maxContext ?? 10000,
+                maxOutputTokens: transport.maxOutputTokens ?? null,
                 chatComplete: async (messages, options) => {
+                  transport.completionOptions?.push({ ...options });
                   const response = await nativeFetch(`${origin}/v1/chat/completions`, {
                     method: "POST",
                     headers: { "content-type": "application/json" },
@@ -232,6 +240,8 @@ export async function createChatRuntime({ stored, archived = 0, port = 0 } = {})
   }
   return {
     origin,
+    handlers,
+    directory,
     docs,
     persistence,
     calls,
