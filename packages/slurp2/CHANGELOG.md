@@ -1,5 +1,46 @@
 # Slurp release notes
 
+## 0.4.8 — 2026-10-28
+
+- World lens: the canon-anchor reading also returns `world` (era, device, money, festivals). Cache version v4 → v5, so each card is read once more in the background. A modern card has no lens and nothing changes.
+- The Creator brief (posts, DMs, comment replies, scenes, Stir suggestions, rewritten fan lines) and both live show prompts get one "Your world" line for a non-modern lens. Drama and Support desk prompts do not use the brief and are unchanged.
+- Pictures: a non-modern Creator never gets the mirror, desk or screenshot camera source, so no phone or screen appears. The image model gets no world words.
+- Holidays: when events run, a non-modern Creator is told to play them as their world's nearest festival.
+- Culture-shock fans: about 1 in 4 regular fan comments under a non-modern Creator's post comes from a free bank per era.
+- Backstage: the canon-anchor editor shows and edits the world (era, device, money, festivals); a player's fix survives a new reading.
+
+## 0.4.7 — 2026-10-28
+
+- Fan comments see the post: a short title (40 characters or fewer) gets quoted in some questions and reactions, the question bank has 16 more lines, and a fan line is skipped when the same text is already under the post.
+- Fan questions as callbacks: a top-level fan question under the Creator's recent posts (1–30 days old) is a new callback kind, `question`, so a later post may answer it.
+- Five business arcs join the built-in arc library: sale week, burnout and comeback, new gear, leak scare and page anniversary. Saved libraries get them through the existing normalize step.
+
+## 0.4.6 — 2026-10-28
+
+- Niches: the card reading now names each Creator's page niche (main + up to two side niches, from a fixed list). The reading refreshes once for every Creator.
+- Post jobs: each ordinary post gets a kind (try-on haul, gym set, finished commission, stream setup, fan request, teaser, …). The niche weighs the jobs, the main niche keeps at most half of the last 8 posts, and a Creator never repeats one of their last 3 jobs. Spice is not changed.
+- Card notes edits keep the niche.
+- Jobs fit the post: a job with its own place (gym, kitchen, stage) only goes on a post with no place yet, intimate jobs need a card heat of at least flirty, and avoided topics drop the job.
+- The card reading refreshes once for every Creator; on a card you never edited, the heat range may shift a little with the new reading.
+
+## 0.4.5 — 2026-10-28
+
+- Outfits change: a Creator who never had a wardrobe gets one filled from the card once (a closet you emptied stays empty), so pictures stop showing the same clothes.
+- Pictures follow your image style: a painted style no longer gets "personal photograph" words. In the story it is still a photo.
+- Automatic captions are short lines under the picture (about 40–160 characters, cut at a sentence end above 280).
+- Halloween costume contest in October (Settings › Stir › Drama): three Creators post costumes, you pick the winner, the winner posts a reward set.
+- Live recaps are built from the show (what you got, goals, coins, top tipper), so two shows never post the same text.
+- The daily world tick sees the recent themes, so the feed no longer gets "Cozy" trends day after day.
+- Fewer wasted slots: the planner stops adding post slots past posts per day, and one slot opens one campaign.
+
+## 0.4.4 — 2026-10-26
+
+- Live shows, rebuilt: code runs every show minute by minute (fans, tips, menu orders, goals); while you watch, the model writes the host and the chat, and the host answers you by name.
+- Live pictures about once per minute, and private shows at the Backstage price and length.
+- Go live yourself as your persona's Creator, or as any Creator from Stir; the room reacts and suggests your next move.
+- "X is live" notices, a thank-you post after each show, and a Backstage > Live shows page.
+- The cam is told in words on the stage, so a show works without pictures; pictures follow those words. A live Creator's Moments tile opens the show. Live is portrait on every screen, with a slim top bar.
+
 ## 0.4.3 — 2026-10-26
 
 - Slurp starts again on Engine builds with zod 4. The feed post and Creator generation routes no longer stop at load with "Right-hand side of 'instanceof' is not an object" (zod 4 has no `ZodEffects`); they extend the plain object schemas instead.

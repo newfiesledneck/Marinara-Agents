@@ -87,12 +87,15 @@ jobs:
           node tests/gacha-forge-background-witness-client.regression.mjs
           node tests/gacha-forge-background-package.regression.mjs
           node tests/gacha-forge-audio.regression.mjs
+          node tests/gacha-forge-persona-voices.regression.mjs
           node tests/gacha-forge-animation-diagnostics.regression.mjs
           node tests/gacha-forge-animations.regression.mjs
           node tests/gacha-forge-vigor-clock.regression.mjs
           node tests/gacha-forge-music-prompts.regression.mjs
           node tests/gacha-forge-achievements.regression.mjs
           node tests/gacha-forge-bundle-rebuild.regression.mjs
+          node tests/forge-kit-options.regression.mjs
+          node tests/forge-kit-image-references.regression.mjs
           node tests/gacha-forge-story-memory.regression.mjs
           node tests/gacha-forge-story-memory-integration.regression.mjs
           node tests/gacha-forge-story-reset-barrier.regression.mjs
@@ -100,6 +103,7 @@ jobs:
           node tests/gacha-forge-chapter-regeneration-client.regression.mjs
           node tests/gacha-forge-chapter-regeneration-package.regression.mjs
           node tests/gacha-forge-formation-combat.regression.mjs
+          node tests/gacha-forge-formation-balance.regression.mjs
           node tests/gacha-forge-formation-routes.regression.mjs
           node tests/gacha-forge-formation-migration.regression.mjs
           node tests/gacha-forge-formation-package.regression.mjs
@@ -122,6 +126,22 @@ jobs:
           node tests/gacha-forge-story-memory-fit.regression.mjs
           node tests/gacha-forge-story-memory-client.regression.mjs
           node tests/gacha-forge-story-memory-package.regression.mjs
+          node tests/gacha-forge-story-memory-audience.regression.mjs
+          node tests/gacha-forge-background-work.regression.mjs
+          node tests/gacha-forge-play-while-forging.regression.mjs
+          node tests/gacha-forge-battle-load.regression.mjs
+          node tests/gacha-forge-event-preforge.regression.mjs
+          node tests/gacha-forge-event-choice.regression.mjs
+          node tests/gacha-forge-played-history.regression.mjs
+          node tests/gacha-forge-character-card-context.regression.mjs
+          node tests/gacha-forge-chat-continuity.regression.mjs
+          node tests/gacha-forge-dialogue-cache.regression.mjs
+          node tests/gacha-forge-image-avatar-references.regression.mjs
+          node tests/gacha-forge-soundtracks.regression.mjs
+          node tests/gacha-forge-story-expressions.regression.mjs
+          node tests/gacha-forge-story-expressions-safety.regression.mjs
+          node tests/gacha-forge-story-presentation.regression.mjs
+          node tests/gacha-forge-time-zone.regression.mjs
 
           # Prints how much of the reference extension's interface the Beholder package actually
           # renders. It is here so the number is read from a run rather than asserted from
@@ -154,6 +174,12 @@ jobs:
           npx tsx --tsconfig tests/tsconfig.regressions.json tests/slurp2-slice-i.regression.ts
           npx tsx --tsconfig tests/tsconfig.regressions.json tests/slurp2-step1-shell.regression.ts
 
+          # Saucelings simulation and routes.
+          npm run test:saucelings
+
+          # Otome Forge ids, store and the committed server bundle.
+          npm run test:otome-forge
+
           # Package localization catalogs.
           node scripts/tests/ui-translation-retention.regression.mjs
           node scripts/validate-package-locales.mjs
@@ -176,6 +202,9 @@ jobs:
           # Catalog generatedAt determinism and package release notes.
           node scripts/tests/catalog-generatedat-determinism.regression.mjs
           node scripts/tests/catalog-release-notes.regression.mjs
+
+          # Package browser runs decline the live catalog's newer versions of the packages they install.
+          node scripts/tests/package-browser-update-prompt.regression.mjs
 
           # A ruleset package ships no Agent, so the catalog's agent-definition checks
           # are skipped for it and this contract is the only thing holding its shape.

@@ -1,7 +1,7 @@
 import { SLURP2_LEGACY_RELEASES } from "./slp-release-archive";
 
 // The splash screen needs the shipped version and its public notes inside the client bundle.
-export const SLURP2_VERSION = "0.4.3";
+export const SLURP2_VERSION = "0.4.8";
 
 export interface Slurp2ReleaseEntry {
   version: string;
@@ -14,6 +14,50 @@ export interface Slurp2ReleaseEntry {
  * in-universe bullets per release (technical detail lives in CHANGELOG.md).
  */
 export const SLURP2_RELEASES: Slurp2ReleaseEntry[] = [
+  {
+    version: "0.4.8",
+    date: "2026-10-28",
+    notes: [
+      "Creators from other worlds stay in their world: an elf posts through a scrying mirror and gets paid in crowns, a starship pilot in credits. Pictures stay photos, with no phones in them.",
+      'Holidays turn into each world\'s own festivals, and fans react to the culture shock ("is that sword real??").',
+      "Fix a wrong world on the Creator's card in Backstage, next to the other card facts.",
+    ],
+  },
+  {
+    version: "0.4.7",
+    date: "2026-10-28",
+    notes: [
+      "Fans talk about the post: they quote its title, ask where it was taken or when the next drop is, and no fan repeats a line already under the post.",
+      "A fan's question can come back: a Creator may answer it in a later post.",
+      "Five new story arcs in Stir: sale week, burnout and comeback, new gear, a leak scare, and the page anniversary.",
+    ],
+  },
+  {
+    version: "0.4.6",
+    date: "2026-10-28",
+    notes: [
+      "Every Creator page has a niche now: the gym Creator posts workout sets, the artist shows finished pieces, the streamer shows the setup.",
+      "Posts come in many kinds: try-on hauls, outfit polls, fan requests, behind the scenes, teasers. A Creator never posts the same kind three times in a row.",
+    ],
+  },
+  {
+    version: "0.4.5",
+    date: "2026-10-28",
+    notes: [
+      "Creators change their outfits: each Creator now gets a wardrobe from their card, so posts stop looking the same.",
+      "Halloween costume contest in October: three Creators show their costumes and you pick the winner, who posts a reward set. Switch Drama on in Backstage › Stir to start it.",
+      "Shorter captions under pictures, live recaps that tell what happened in the show, and a world that moves on to new themes each day.",
+    ],
+  },
+  {
+    version: "0.4.4",
+    date: "2026-10-26",
+    notes: [
+      "Live shows: Creators stream cam shows with a busy chat, tips and goals. The cam is told in words, with live pictures when you make pictures. Talk to them, tip, or buy a private show.",
+      "Go live yourself from your own page or from Stir: the room reacts to you and suggests your next move.",
+      "Backstage has a Live shows page for how often, how long and how lively the shows are.",
+    ],
+  },
   {
     version: "0.4.3",
     date: "2026-10-26",

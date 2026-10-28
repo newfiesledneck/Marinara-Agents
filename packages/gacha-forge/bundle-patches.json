@@ -189,7 +189,7 @@
             {
               "find": "var ac=`",
               "replaceFrom": [
-                "src/player-choice-text.mjs",
+                "../../sources/forge-kit/player-choice-text.mjs",
                 "src/player-choices-en.mjs",
                 "src/player-choices-client.mjs"
               ],
@@ -290,8 +290,9 @@
             {
               "find": "var pb=48",
               "replaceFrom": [
-                "src/audio-settings.mjs",
+                "../../sources/forge-kit/audio-settings.mjs",
                 "src/audio-en.mjs",
+                "../../sources/forge-kit/voice-picking.mjs",
                 "src/audio-client.mjs",
                 "src/audio-story.mjs"
               ],
@@ -1454,6 +1455,827 @@
               "replace": "var oy=[{version:null,new:[\"Keep playing leaves a chapter that is still forging, and a notice says when it is ready.\",\"Pre-forging with Story and images also paints the places each scene visits when Backgrounds is on.\"],changed:[\"Pre-forged art paints alongside the story, so the chapter menu opens as soon as the text is written.\"],fixed:[\"Pre-forging no longer reports stopped on chapters that take over 20 minutes.\"]},{version:\"1.22.1\",fixed:[\"In Formation, a unit's Skills tab"
             }
           ]
+        },
+        {
+          "version": "1.24.0",
+          "commits": [],
+          "edits": [
+            {
+              "find": "forgeFormationView=createForgeFormationPresentation(t,a)",
+              "replace": "forgeFormationView=createForgeFormationPresentation(t,a,{run:r,choose:ft,card:$,hero:Je,button:Ye,banner:Ge,art:Lt,icons:Mo,actions:ua,relabel:A,silhouette:jt})"
+            },
+            {
+              "find": "function et(y){if(y.options?.formation)return forgeRenderFormationTurn({root:t,container:_e,choice:y,payload:a,onChoice:ft});",
+              "replace": "function et(y){if(y.options?.formation)return forgeFormationView.turn(y,_e);"
+            },
+            {
+              "find": "function me(y){y.addEventListener(\"click\",()=>{",
+              "replace": "function me(y){y.addEventListener(\"click\",()=>{if(forgeFormationView.click(y))return;"
+            },
+            {
+              "find": "function A(){if(!Re)return;",
+              "replace": "function A(){if(!Re||forgeFormationView.label(Re))return;"
+            },
+            {
+              "find": "function p(y){if(!Me)return;",
+              "replace": "function p(y){if(!Me||forgeFormationView.rail(Me,y))return;"
+            },
+            {
+              "find": "(I?'<div class=\"sec\"><div class=\"h\">Boss rules</div><div class=\"fs-rules\">'+I+\"</div></div>\":\"\")+Xu(\"Ultimate &middot; \"+g+\" / 100 energy\",i.skill,c,!1,v)+(i.passive?Xu(\"Passive\",i.passive,c,!0,v):\"\")+Xw(Number(l.gain)||Zu.ENERGY_ATTACK)",
+              "replace": "(i.formation?forgeFormationFoeSheet(i,Jr,Ot):(I?'<div class=\"sec\"><div class=\"h\">Boss rules</div><div class=\"fs-rules\">'+I+\"</div></div>\":\"\")+Xu(\"Ultimate &middot; \"+g+\" / 100 energy\",i.skill,c,!1,v)+(i.passive?Xu(\"Passive\",i.passive,c,!0,v):\"\")+Xw(Number(l.gain)||Zu.ENERGY_ATTACK))"
+            },
+            {
+              "find": "var Co={",
+              "replace": "var Co={...forgeFormationStatusChips,"
+            },
+            {
+              "find": "ke.k===\"marked\")",
+              "replace": "ke.k===\"marked\"||ke.k===\"fmarked\")"
+            },
+            {
+              "find": "I&&(I.disabled=!b);for(let se of t.querySelectorAll(\"[data-slot]\"))",
+              "replace": "I&&(I.disabled=!b);forgeFormationEditor(t,e,c,v);for(let se of t.querySelectorAll(\"[data-slot]\"))"
+            },
+            {
+              "find": "_guideContent(e){if(Or[e])return Or[e];",
+              "replace": "_guideContent(e){if(Or[e])return forgeFormationGuide(this,e)||Or[e];"
+            },
+            {
+              "find": "ds=\"1.23.0\"",
+              "replace": "ds=\"1.24.0\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[\"Keep playing",
+              "replace": "var oy=[{version:null,new:[\"Formation is rebuilt: tap each Front Row fighter, choose its skill, Ultimate, move or Hold and its target, then press Fight to carry out the plan.\",\"Formation teams seat six: three Front Row fighters and three Back Row supports that make energy every turn and cannot be attacked.\",\"Formation combat shows every skill's effect, cost and the energy your plan will spend; tap a support or an enemy to read its kit.\"],changed:[\"Formation kits are remade for the new rules before a world's next battle; the old kits keep fighting until then.\",\"Formation story, event and boss fights are written with front fighters, back-row supports and clearer boss rules.\"]},{version:\"1.23.0\",new:[\"Keep playing"
+            }
+          ]
+        },
+        {
+          "version": "1.24.1",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.24.0\"",
+              "replace": "ds=\"1.24.1\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[\"Formation is rebuilt",
+              "replace": "var oy=[{version:null,fixed:[\"Formation fights can no longer stall on immunity, Retreat Echo or summons.\",\"Remaking older Formation kits no longer locks battles; cancelling keeps your current kits, and a failed kit waits for Retry.\",\"Story, event and boss fights in Formation no longer fail over a slightly wrong kit.\",\"On phones the boss bar no longer covers the row tags, and team editor names are readable.\"]},{version:\"1.24.0\",new:[\"Formation is rebuilt"
+            }
+          ]
+        },
+        {
+          "version": "1.24.2",
+          "commits": [],
+          "edits": [
+            {
+              "find": "_chatWith(e){",
+              "replace": "_chatWith(e){stopForgeChatVoice(this);"
+            },
+            {
+              "find": "_closeChat(){",
+              "replace": "_closeChat(){stopForgeChatVoice(this);"
+            },
+            {
+              "find": "_chatEnd(){",
+              "replace": "_chatEnd(){stopForgeChatVoice(this);"
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[",
+              "replace": "var oy=[{version:null,new:[\"Your persona uses its assigned Engine voice for story dialogue and newly sent character messages when dialogue audio is enabled.\"],changed:[\"Message history and failed, unsaved sends stay silent; confirmed messages queue without cancelling one another.\"]},{version:\"1.24.1\",fixed:["
+            },
+            {
+              "find": "if(!e.retry&&e.ask!==\"photo\"&&!r.trim())return;let s=",
+              "replace": "if(!e.retry&&e.ask!==\"photo\"&&!r.trim())return;let forgeChatVoiceAtSend=forgeChatVoiceSession(this),s="
+            },
+            {
+              "find": "retainForgeChatSuccess(this,{runId:forgeChatRunId,unitId:a.unit.id,previous:",
+              "replace": "retainForgeChatSuccess(this,{runId:forgeChatRunId,unitId:a.unit.id,voiceSession:forgeChatVoiceAtSend,previous:"
+            },
+            {
+              "find": "reconcileForgeChatFailure(this,{runId:forgeChatRunId,unitId:a.unit.id,previous:",
+              "replace": "reconcileForgeChatFailure(this,{runId:forgeChatRunId,unitId:a.unit.id,voiceSession:forgeChatVoiceAtSend,previous:"
+            },
+            {
+              "find": "ds=\"1.24.1\"",
+              "replace": "ds=\"1.24.2\""
+            },
+            {
+              "find": "let forgeChatVoiceAtSend=forgeChatVoiceSession(this),s=",
+              "replace": "let forgeChatVoiceAtSend=forgeChatVoiceSession(this),forgeChatSendAtAdmission=beginForgeChatSend(this),s="
+            },
+            {
+              "find": ".then(o=>{this._chatSending=\"\",o&&o.wallet&&this._adoptFromResponse(o);let n=",
+              "replace": ".then(o=>{o&&o.wallet&&this._adoptFromResponse(o);let n="
+            },
+            {
+              "find": "optimistic:s,error:c,response:o})})}_chatEnd(){",
+              "replace": "optimistic:s,error:c,response:o})}).finally(()=>finishForgeChatSend(this,forgeChatSendAtAdmission))}_chatEnd(){"
+            }
+          ]
+        },
+        {
+          "version": "1.24.3",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.24.2\"",
+              "replace": "ds=\"1.24.3\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[\"Your persona uses its assigned Engine voice",
+              "replace": "var oy=[{version:null,changed:[\"Combat Power (CP) is now called Battle Power (BP).\"],fixed:[\"Retrying a failed Formation kit pays only for the characters that still need one, and kits already paid for are never made twice.\",\"A Front Row fighter whose passive can never fire attacks with its Normal skill again, and an immunity Ultimate lands on the ally you pick.\",\"Retreating a fighter and summoning into its seat works in the same turn.\",\"A battle no longer asks for an element nobody in your world has.\",\"On phones enemy names show in full, an Echo describes itself, and keyboard focus comes back after Fight.\"]},{version:\"1.24.2\",new:[\"Your persona uses its assigned Engine voice"
+            },
+            {
+              "find": "return O?{...O,id:String(y)}:null},w={list:",
+              "replace": "return O?{...O,id:String(y),...(a&&a.combatMode===\"formation\"&&String(O.id)!==String(y)?{name:O.name+\" · Echo\",echoOwner:O.name,tier:\"soldier\",mech:[]}:{})}:null},w={list:"
+            },
+            {
+              "find": "\" CP</span></button>\"}",
+              "replace": "\" BP</span></button>\"}"
+            },
+            {
+              "find": "ot(t.cp)+\" CP &middot; 1/day\"",
+              "replace": "ot(t.cp)+\" BP &middot; 1/day\""
+            },
+            {
+              "find": "\"Opening chapter &middot; no CP asked yet\":`Recommended CP <b>",
+              "replace": "\"Opening chapter &middot; no BP asked yet\":`Recommended BP <b>"
+            },
+            {
+              "find": "q:\"What is CP?\",a:\"A rough score for how strong a unit is with everything it is carrying, counted the same way for your team and for the enemies. Every stage prints the CP it asks -- Materials asks for 2,000, then 60,000, then 110,000 -- and with that CP you win; with a tenth less, about half the time.\"",
+              "replace": "q:\"What is BP?\",a:\"Battle Power (BP) is a rough score for how strong a unit is with everything it is carrying, counted the same way for your team and for the enemies. Every stage prints the BP it asks -- Materials asks for 2,000, then 60,000, then 110,000 -- and with that BP you win; with a tenth less, about half the time.\""
+            },
+            {
+              "find": "{k:\"CP\",a:\"CP sums up how strong a unit is in a single number. The higher, the better.\"}",
+              "replace": "{k:\"BP\",a:\"Battle Power (BP) sums up how strong a unit is in a single number. The higher, the better.\"}"
+            },
+            {
+              "find": "{k:\"Recommended CP\",a:\"The CP beside the difficulties",
+              "replace": "{k:\"Recommended BP\",a:\"The BP beside the difficulties"
+            },
+            {
+              "find": "ask for more CP, and they pay with better materials",
+              "replace": "ask for more BP, and they pay with better materials"
+            },
+            {
+              "find": "[\"cp\",\"CP\"],[\"level\",\"Level\"]",
+              "replace": "[\"cp\",\"BP\"],[\"level\",\"Level\"]"
+            },
+            {
+              "find": "<span class=\"gw-cp\">CP <b>'+Pe(Number(n.cp)||0)",
+              "replace": "<span class=\"gw-cp\">BP <b>'+Pe(Number(n.cp)||0)"
+            },
+            {
+              "find": "+Pe(b)+\" CP</span></div>\"",
+              "replace": "+Pe(b)+\" BP</span></div>\""
+            },
+            {
+              "find": "<span class=\"pw\">CP<b>'",
+              "replace": "<span class=\"pw\">BP<b>'"
+            },
+            {
+              "find": "<span class=\"gw-cp\">CP <b>'+Pe(d)+\"</b>\"",
+              "replace": "<span class=\"gw-cp\">BP <b>'+Pe(d)+\"</b>\""
+            },
+            {
+              "find": "'\">CP '+(s===null?\"&mdash;\"",
+              "replace": "'\">BP '+(s===null?\"&mdash;\""
+            },
+            {
+              "find": "<div class=\"cx-cp\"><span class=\"k\">CP</span>",
+              "replace": "<div class=\"cx-cp\"><span class=\"k\">BP</span>"
+            },
+            {
+              "find": "var vw=[[\"cp\",\"CP gain\"]",
+              "replace": "var vw=[[\"cp\",\"BP gain\"]"
+            },
+            {
+              "find": "(C.equipped?\"Worn now\":B.txt+\" CP\")",
+              "replace": "(C.equipped?\"Worn now\":B.txt+\" BP\")"
+            },
+            {
+              "find": "(g.wears?\"Worn now\":b.txt+\" CP\")",
+              "replace": "(g.wears?\"Worn now\":b.txt+\" BP\")"
+            },
+            {
+              "find": "_o(\"sort\",[[\"cp\",\"CP gain\"],[\"level\",\"Level\"]],n)",
+              "replace": "_o(\"sort\",[[\"cp\",\"BP gain\"],[\"level\",\"Level\"]],n)"
+            },
+            {
+              "find": "<span class=\"figs\"><span>CP <b>${Gt(To(i.n))}",
+              "replace": "<span class=\"figs\"><span>BP <b>${Gt(To(i.n))}"
+            },
+            {
+              "find": "<span class=\"figs\"><span>CP <b>${Gt(To(e))}",
+              "replace": "<span class=\"figs\"><span>BP <b>${Gt(To(e))}"
+            },
+            {
+              "find": "<span class=\"tt-cp\">CP <b>'",
+              "replace": "<span class=\"tt-cp\">BP <b>'"
+            }
+          ]
+        },
+        {
+          "version": "1.24.4",
+          "commits": [],
+          "edits": [
+            {
+              "find": "_chatWith(e){stopForgeChatVoice(this);",
+              "replace": "_chatWith(e){"
+            },
+            {
+              "find": "_closeChat(){stopForgeChatVoice(this);",
+              "replace": "_closeChat(){"
+            },
+            {
+              "find": "_chatEnd(){stopForgeChatVoice(this);",
+              "replace": "_chatEnd(){"
+            },
+            {
+              "find": "let forgeChatVoiceAtSend=forgeChatVoiceSession(this),forgeChatSendAtAdmission=beginForgeChatSend(this),",
+              "replace": "let forgeChatSendAtAdmission=beginForgeChatSend(this),"
+            },
+            {
+              "find": "retainForgeChatSuccess(this,{runId:forgeChatRunId,unitId:a.unit.id,voiceSession:forgeChatVoiceAtSend,previous:",
+              "replace": "retainForgeChatSuccess(this,{runId:forgeChatRunId,unitId:a.unit.id,previous:"
+            },
+            {
+              "find": "reconcileForgeChatFailure(this,{runId:forgeChatRunId,unitId:a.unit.id,voiceSession:forgeChatVoiceAtSend,previous:",
+              "replace": "reconcileForgeChatFailure(this,{runId:forgeChatRunId,unitId:a.unit.id,previous:"
+            },
+            {
+              "find": "ds=\"1.24.3\"",
+              "replace": "ds=\"1.24.4\""
+            },
+            {
+              "find": "var oy=[{version:null,changed:[\"Combat Power (CP) is now called Battle Power (BP).",
+              "replace": "var oy=[{version:null,fixed:[\"Messages you send in character chats are no longer read aloud. Your persona's assigned voice still reads its story dialogue.\"]},{version:\"1.24.3\",changed:[\"Combat Power (CP) is now called Battle Power (BP)."
+            }
+          ]
+        },
+        {
+          "version": "1.24.5",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.24.4\"",
+              "replace": "ds=\"1.24.5\""
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[\"Messages you send in character chats are no longer read aloud. Your persona's assigned voice still reads its story dialogue.\"]}",
+              "replace": "var oy=[{version:null,changed:[\"When a Front Row unit falls in Formation, a Back Row unit on its side steps into the empty seat and acts from its next turn. A fight now ends only when one side has nobody left.\"]},{version:\"1.24.4\",fixed:[\"Messages you send in character chats are no longer read aloud. Your persona's assigned voice still reads its story dialogue.\"]}"
+            }
+          ]
+        },
+        {
+          "version": "1.24.6",
+          "commits": [],
+          "edits": [
+            {
+              "find": "{op:\"death\",id:me.id}),Ke(me,E),pt(p,E)",
+              "replace": "{op:\"death\",id:me.id,killerId:p.id}),Ke(me,E),pt(p,E)"
+            },
+            {
+              "find": "{op:\"death\",id:ee.id}),Ke(ee,E),pt(p,E)",
+              "replace": "{op:\"death\",id:ee.id,killerId:p.id}),Ke(ee,E),pt(p,E)"
+            },
+            {
+              "find": "{op:\"death\",id:j.id}),Ke(j,E),pt(p,E)",
+              "replace": "{op:\"death\",id:j.id,killerId:p.id}),Ke(j,E),pt(p,E)"
+            },
+            {
+              "find": "A.push({op:\"death\",id:p.id});let R=i.get(_.get(p.id+\"|burn\"));",
+              "replace": "A.push({op:\"death\",id:p.id,killerId:i.get(_.get(p.id+\"|burn\"))?.id||\"\"});let R=i.get(_.get(p.id+\"|burn\"));"
+            },
+            {
+              "find": "(R.push({op:\"death\",id:E.id}),Ke(E,R),pt(p,R))",
+              "replace": "(R.push({op:\"death\",id:E.id,killerId:p.id}),Ke(E,R),pt(p,R))"
+            },
+            {
+              "find": "{op:\"death\",id:L.id}),Ke(L,R),pt(p,R)",
+              "replace": "{op:\"death\",id:L.id,killerId:p.id}),Ke(L,R),pt(p,R)"
+            },
+            {
+              "find": "{op:\"death\",id:U.id}),Ke(U,R),pt(p,R)",
+              "replace": "{op:\"death\",id:U.id,killerId:p.id}),Ke(U,R),pt(p,R)"
+            },
+            {
+              "find": "{op:\"death\",id:N.id}),Ke(N,R),pt(p,R)",
+              "replace": "{op:\"death\",id:N.id,killerId:p.id}),Ke(N,R),pt(p,R)"
+            },
+            {
+              "find": "this._combatPhase=\"prebattle\",this._autoStarting=r)",
+              "replace": "this._combatPhase=\"prebattle\",this._autoStarting=r,forgeWarmCombatVoices(this))"
+            },
+            {
+              "find": "ds=\"1.24.5\"",
+              "replace": "ds=\"1.24.6\""
+            },
+            {
+              "find": "var oy=[{version:null,changed:[\"When a Front Row unit falls in Formation, a Back Row unit on its side steps into the empty seat and acts from its next turn. A fight now ends only when one side has nobody left.\"]}",
+              "replace": "var oy=[{version:null,new:[\"Voice other characters, next to Read character dialogue, gives NPCs and units without an assigned voice a voice from the Engine's Random NPC Voices lists, matched to male or female when known. Each name keeps the same voice.\"],fixed:[\"Combat voice lines now play in Classic and Formation, start preparing when the battle screen opens, include your persona's voice, and say when nobody in the team can be voiced.\"]},{version:\"1.24.5\",changed:[\"When a Front Row unit falls in Formation, a Back Row unit on its side steps into the empty seat and acts from its next turn. A fight now ends only when one side has nobody left.\"]}"
+            }
+          ]
+        },
+        {
+          "version": "1.24.7",
+          "commits": [],
+          "edits": [
+            {
+              "sourceId": "story-expressions-client",
+              "replaceFrom": [
+                "../../sources/forge-kit/story-expressions.mjs",
+                "src/story-expressions-en.mjs"
+              ],
+              "find": "var pb=48"
+            },
+            {
+              "find": "it=[...forgeAnimationFields(),...forgeAudioFields(),",
+              "replace": "it=forgeStoryExpressionFields([...forgeAnimationFields(),...forgeAudioFields(),"
+            },
+            {
+              "find": "wide:!0}],Eb=[",
+              "replace": "wide:!0}]),Eb=["
+            },
+            {
+              "find": "{match:/:portrait$/,cost:\"images\",label:()=>\"Painting a portrait\"}",
+              "replace": "{match:/:expressions$/,cost:\"images\",label:()=>forgeStoryExpressionEnglish[\"expressions.busy\"]},{match:/:portrait$/,cost:\"images\",label:()=>\"Painting a portrait\"}"
+            },
+            {
+              "find": "w=k.length?Xl(k,h.speaker):null",
+              "replace": "w=k.length?forgeStoryExpressionArt(Xl(k,h.speaker),h):null"
+            },
+            {
+              "find": "V=Xl(q,a[0].speaker),K=V?V.name:null",
+              "replace": "V=forgeStoryExpressionArt(Xl(q,a[0].speaker),a[0]),K=V?V.name:null,forgeStoryFace=V"
+            },
+            {
+              "find": "let ce=Xl(q,W.speaker),xe=ce?ce.name:null;if(xe===K)return;if(K=xe,",
+              "replace": "let ce=forgeStoryExpressionArt(Xl(q,W.speaker),W),xe=ce?ce.name:null;if(xe===K){forgeStoryFace=ce;ce&&!$&&showForgeStoryExpression(D[Vo(ce)],ce);return}if(K=xe,forgeStoryFace=ce,"
+            },
+            {
+              "find": "$=setTimeout(()=>{$=null,se(Be,ce)},ok)",
+              "replace": "$=setTimeout(()=>{$=null,se(Be,forgeStoryFace)},ok)"
+            },
+            {
+              "find": "ds=\"1.24.6\"",
+              "replace": "ds=\"1.24.7\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[\"Voice other characters, next to Read character dialogue, gives NPCs and units without an assigned voice a voice from the Engine's Random NPC Voices lists, matched to male or female when known. Each name keeps the same voice.\"],fixed:[\"Combat voice lines now play in Classic and Formation, start preparing when the battle screen opens, include your persona's voice, and say when nobody in the team can be voiced.\"]}",
+              "replace": "var oy=[{version:null,new:[\"Expression portraits: turn them on in World → Sources → Images. Story portraits then show anger, fear, sadness or joy line by line, painted in the background for characters who speak.\"],fixed:[\"Your persona keeps its own voice even when another character shares part of its name, and turning Voice other characters off and on again no longer asks to pay again for combat lines that were never made.\"]},{version:\"1.24.6\",new:[\"Voice other characters, next to Read character dialogue, gives NPCs and units without an assigned voice a voice from the Engine's Random NPC Voices lists, matched to male or female when known. Each name keeps the same voice.\"],fixed:[\"Combat voice lines now play in Classic and Formation, start preparing when the battle screen opens, include your persona's voice, and say when nobody in the team can be voiced.\"]}"
+            }
+          ]
+        },
+        {
+          "version": "1.24.8",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.24.7\"",
+              "replace": "ds=\"1.24.8\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[\"Expression portraits: turn them on in World → Sources → Images. Story portraits then show anger, fear, sadness or joy line by line, painted in the background for characters who speak.\"],fixed:[\"Your persona keeps its own voice even when another character shares part of its name, and turning Voice other characters off and on again no longer asks to pay again for combat lines that were never made.\"]},{version:\"1.24.6\"",
+              "replace": "var oy=[{version:null,changed:[\"In character chats, Enter now adds a new line. Only Send sends your message.\"],fixed:[\"Auto in story scenes stays on when something starts or finishes in the background, or when you switch tabs and come back.\",\"While a story is written in the background, Formation changes stick, and screens no longer stutter or redraw every few seconds.\"]},{version:\"1.24.7\",new:[\"Expression portraits: turn them on in World → Sources → Images. Story portraits then show anger, fear, sadness or joy line by line, painted in the background for characters who speak.\"],fixed:[\"Your persona keeps its own voice even when another character shares part of its name, and turning Voice other characters off and on again no longer asks to pay again for combat lines that were never made.\"]},{version:\"1.24.6\""
+            },
+            {
+              "find": "\"|busy:\"+Fm(s);if(this._syncBar(),_a(this._root,this._contextTokens,this._warnTokens),this._drawnView===\"browser\"&&this._renderKey===o)return;",
+              "replace": "(e===\"runs\"?\"|busy:\"+Fm(s):\"\");if(this._syncBar(),_a(this._root,this._contextTokens,this._warnTokens),this._drawnView===\"browser\"&&this._renderKey===o){e===\"chapters\"&&this._busyChipKey!==Fm(s)&&this._loadChapters();syncForgeBusyChip(this,Fm(s),()=>Hm(s));return}"
+            },
+            {
+              "find": "this._renderKey=o,this._stopForge()",
+              "replace": "this._renderKey=o,this._busyChipKey=Fm(s),this._stopForge()"
+            },
+            {
+              "find": "Px=[\"/portrait/select\"]",
+              "replace": "Px=[\"/portrait/select\",\"/beat/mark\"]"
+            },
+            {
+              "find": "this._preforgeRead(e,a).then(s=>{this._renderBrowser(),(!s||!s.running)&&this._stopPreforgeWatch()})",
+              "replace": "let forgeBefore=JSON.stringify(this._preforge);this._preforgeRead(e,a).then(s=>{JSON.stringify(s)!==forgeBefore&&this._renderBrowser(),(!s||!s.running)&&this._stopPreforgeWatch()})"
+            },
+            {
+              "find": "I=!1,M=null,T=!1,C=null;function B(){",
+              "replace": "I=!1,M=null,T=e.autoplay===!0,C=null;T&&v&&v.setAttribute(\"data-on\",\"\");function B(){"
+            },
+            {
+              "find": "T=!(e.choicePlayback&&e.choicePlayback.blocked(_))&&!T,T?v.setAttribute(\"data-on\",\"\"):v.removeAttribute(\"data-on\"),",
+              "replace": "T=!(e.choicePlayback&&e.choicePlayback.blocked(_))&&!T,e.onAutoplay&&e.onAutoplay(T),T?v.setAttribute(\"data-on\",\"\"):v.removeAttribute(\"data-on\"),"
+            },
+            {
+              "find": "P(),T=!1,v&&v.removeAttribute(\"data-on\")",
+              "replace": "P(),T=!1,e.onAutoplay&&e.onAutoplay(!1),v&&v.removeAttribute(\"data-on\")"
+            },
+            {
+              "find": "startAt:Math.max(this._beatStartAt,this._beatAt),",
+              "replace": "startAt:Math.max(this._beatStartAt,this._beatAt),autoplay:!!this._beat&&this._beatAutoFor===this._beat,onAutoplay:S=>{this._beatAutoFor=S?this._beat:null},"
+            },
+            {
+              "find": "_saveFormation(e,a){this._run&&(this._formation&&(this._formation={...this._formation,presets:e,active:a}),this._postJson(\"/formation/save\",{runId:this._run.runId,presets:e,active:a}).then(r=>{r&&r.ok&&Array.isArray(r.presets)&&this._formation&&(this._formation={...this._formation,presets:r.presets,active:r.active})}))}",
+              "replace": "_saveFormation(e,a){this._run&&(this._formation&&(this._formation={...this._formation,presets:e,active:a}),saveForgeFormation(this,e,a))}"
+            },
+            {
+              "find": "_loadBattle(){if(this._battleLoading)return;",
+              "replace": "_loadBattle(){if(this._battleLoading||waitForgeFormationSave(this,()=>this._loadBattle()))return;"
+            },
+            {
+              "find": "this._refreshing=!0,Ze(`${Ia}/state?timeZone=${encodeURIComponent(forgeUserTimeZone())}`)",
+              "replace": "this._refreshing=!0,Ze(`${Ia}/state?timeZone=${encodeURIComponent(forgeUserTimeZone())}&light=1`)"
+            },
+            {
+              "find": "this._stepRefreshing=true;\nZe(`${Ia}/state?timeZone=${encodeURIComponent(forgeUserTimeZone())}`)",
+              "replace": "this._stepRefreshing=true;\nZe(`${Ia}/state?timeZone=${encodeURIComponent(forgeUserTimeZone())}&light=1`)"
+            },
+            {
+              "find": "b.addEventListener(\"input\",()=>i&&i(b.value)),b.addEventListener(\"keydown\",w=>{w.key!==\"Enter\"||w.shiftKey||(w.preventDefault(),r&&r(b.value))}),",
+              "replace": "b.addEventListener(\"input\",()=>i&&i(b.value)),"
+            },
+            {
+              "find": "this._renderBrowser();return}this._postJson(\"/formation\",{runId:this._run.runId})",
+              "replace": "this._renderBrowser();return}if(waitForgeFormationLoad(this))return;this._postJson(\"/formation\",{runId:this._run.runId})"
+            },
+            {
+              "find": "this._chaptersState=\"loading\",this._fillChapters(),this._postJson(\"/chapters\",{runId:e}).then(r=>{",
+              "replace": "this._chaptersState=\"loading\",this._chaptersData||this._fillChapters(),this._postJson(\"/chapters\",{runId:e}).then(r=>{"
+            },
+            {
+              "find": "r&&r.ok&&Array.isArray(r.chapters)?(this._chaptersData=r,this._chaptersFor=e+\"|\"+a,this._chaptersState=\"ready\"):this._chaptersState=\"error\",this._fillChapters(),",
+              "replace": "let forgeSame=!!this._chaptersData&&(!(r&&r.ok&&Array.isArray(r.chapters))||JSON.stringify(this._chaptersData)===JSON.stringify(r));r&&r.ok&&Array.isArray(r.chapters)?(this._chaptersData=r,this._chaptersFor=e+\"|\"+a,this._chaptersState=\"ready\"):this._chaptersState=\"error\",forgeSame||this._fillChapters(),"
+            }
+          ]
+        },
+        {
+          "version": "1.24.9",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.24.8\"",
+              "replace": "ds=\"1.24.9\""
+            },
+            {
+              "find": "var oy=[{version:null,changed:[\"In character chats, Enter now adds a new line. Only Send sends your message.\"],fixed:[\"Auto in story scenes stays on when something starts or finishes in the background, or when you switch tabs and come back.\",\"While a story is written in the background, Formation changes stick, and screens no longer stutter or redraw every few seconds.\"]},{version:\"1.24.7\"",
+              "replace": "var oy=[{version:null,changed:[\"A new chapter opens as soon as its plan is written. Each fight is designed in the background right after the scene before it, so it is ready when you reach it.\"],fixed:[\"Story memory summarizes only in the background, so writing no longer waits for it to catch up, and long chapters can be summarized again, with at least 10k tokens of room for thinking models.\"]},{version:\"1.24.8\",changed:[\"In character chats, Enter now adds a new line. Only Send sends your message.\"],fixed:[\"Auto in story scenes stays on when something starts or finishes in the background, or when you switch tabs and come back.\",\"While a story is written in the background, Formation changes stick, and screens no longer stutter or redraw every few seconds.\"]},{version:\"1.24.7\""
+            },
+            {
+              "find": "\"generation-failed\"),detail:String(i&&i.detail||\"\")})}).then(()=>{if(!(!n()||this._planState===\"error\"||!e))return this._prewarmCombats(e)}).then(()=>{if(n()){",
+              "replace": "\"generation-failed\"),detail:String(i&&i.detail||\"\")})}).then(()=>{if(n()){"
+            },
+            {
+              "find": "_prewarmCombats(e,forgeChapter,forgeVersion){let forgeStoryRevision=this._forgeStoryRevision||0,forgeStoryRunId=this._run?.runId;let a=qa(e);if(!a||!this._run)return Promise.resolve();let r=forgeChapter??this._planChapter,s=Promise.resolve();for(let o=0;o<a;o+=1){let n=o;s=s.then(()=>{if((this._forgeStoryRevision||0)!==forgeStoryRevision||this._run?.runId!==forgeStoryRunId)return;return this._postJson(\"/combat-guide\",{runId:this._run.runId,chapter:r,combatIndex:n,...Number.isSafeInteger(forgeVersion)?{storyRevision:forgeVersion}:{}})})}return s}_preforgeKey(){",
+              "replace": "_preforgeKey(){"
+            },
+            {
+              "find": "It is chapter one: its plan, its fights and its first scene.",
+              "replace": "It is chapter one: its plan and its first scene."
+            },
+            {
+              "find": "Writing it means the plan of chapter one, its fights and its first scene:",
+              "replace": "Writing it means the plan of chapter one and its first scene:"
+            }
+          ]
+        },
+        {
+          "version": "1.24.10",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.24.9\"",
+              "replace": "ds=\"1.24.10\""
+            },
+            {
+              "find": "var oy=[{version:null,changed:[\"A new chapter opens as soon as its plan is written. Each fight is designed in the background right after the scene before it, so it is ready when you reach it.\"],fixed:[\"Story memory summarizes only in the background, so writing no longer waits for it to catch up, and long chapters can be summarized again, with at least 10k tokens of room for thinking models.\"]},{version:\"1.24.8\"",
+              "replace": "var oy=[{version:null,fixed:[\"A seasonal story event can start right after a chapter again: a chapter or Character Story you forged but have not started no longer blocks it, and the event card names what you still need to finish.\"]},{version:\"1.24.9\",changed:[\"A new chapter opens as soon as its plan is written. Each fight is designed in the background right after the scene before it, so it is ready when you reach it.\"],fixed:[\"Story memory summarizes only in the background, so writing no longer waits for it to catch up, and long chapters can be summarized again, with at least 10k tokens of room for thinking models.\"]},{version:\"1.24.8\""
+            },
+            {
+              "find": ":\"That beat could not be started.\",this._renderBrowser()",
+              "replace": ":a&&a.error===\"story-event-open\"?forgeSeasonalEnglish[\"events.mainBlocked\"].replace(\"{title}\",a.title||forgeSeasonalEnglish[\"events.title\"]):\"That beat could not be started.\",this._renderBrowser()"
+            }
+          ]
+        },
+        {
+          "version": "1.25.0",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.24.10\"",
+              "replace": "ds=\"1.25.0\""
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[\"A seasonal story event can start right after a chapter again: a chapter or Character Story you forged but have not started no longer blocks it, and the event card names what you still need to finish.\"]},{version:\"1.24.9\"",
+              "replace": "var oy=[{version:null,new:[\"Story memory now recalls by meaning as well as by words, using the Engine's embeddings, and searches with what was just played or said instead of the chapter plan.\"],changed:[\"Recall keeps only clearly relevant memories: up to three chapter summaries and three side memories, within a share of the model's context.\",\"Private conversations stay private: a unit's chats are remembered only in its own chats and in scenes it is in, and characters only know what they saw, took part in or were told in the story.\"]},{version:\"1.24.10\",fixed:[\"A seasonal story event can start right after a chapter again: a chapter or Character Story you forged but have not started no longer blocks it, and the event card names what you still need to finish.\"]},{version:\"1.24.9\""
+            }
+          ]
+        },
+        {
+          "version": "1.25.1",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.25.0\"",
+              "replace": "ds=\"1.25.1\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[\"Story memory now recalls by meaning as well as by words, using the Engine's embeddings, and searches with what was just played or said instead of the chapter plan.\"],changed:[\"Recall keeps only clearly relevant memories: up to three chapter summaries and three side memories, within a share of the model's context.\",\"Private conversations stay private: a unit's chats are remembered only in its own chats and in scenes it is in, and characters only know what they saw, took part in or were told in the story.\"]},{version:\"1.24.10\"",
+              "replace": "var oy=[{version:null,fixed:[\"Scenes that are already written can be played while pre-forge writes the rest of the chapter, and the next one turns into Play as soon as it is written.\",\"Opening a weapon or relic to upgrade it no longer cuts to an empty screen while it loads, and the relic you are upgrading is no longer faded out.\"]},{version:\"1.25.0\",new:[\"Story memory now recalls by meaning as well as by words, using the Engine's embeddings, and searches with what was just played or said instead of the chapter plan.\"],changed:[\"Recall keeps only clearly relevant memories: up to three chapter summaries and three side memories, within a share of the model's context.\",\"Private conversations stay private: a unit's chats are remembered only in its own chats and in scenes it is in, and characters only know what they saw, took part in or were told in the story.\"]},{version:\"1.24.10\""
+            },
+            {
+              "find": "let C=x?T<b?\"done\":\"locked\":T<b?\"done\":T===b?\"current\":\"locked\"",
+              "replace": "let forgeReady=!x||T<b||T===b&&(M.type!==\"story\"||Number(M.storyIndex)<Number(x.next)),C=forgeReady?T<b?\"done\":T===b?\"current\":\"locked\":\"locked\""
+            },
+            {
+              "find": "<div class=\"node-action\">${x?tb(M,x):Zv(T,M,b)}</div>",
+              "replace": "<div class=\"node-action\">${forgeReady?Zv(T,M,b):tb(M,x)}</div>"
+            },
+            {
+              "find": "<p class=\"notice\"${n||x?\"\":\" hidden\"}>${x?\"\":u(n)}</p>",
+              "replace": "<p class=\"notice\"${n||x?\"\":\" hidden\"}>${u(n)}</p>"
+            },
+            {
+              "find": "_preforgeWatch(){this._stopPreforgeWatch();let e=this._preforgeKey(),a=this._run&&this._run.runId;",
+              "replace": "_preforgeWatch(){this._stopPreforgeWatch(),this._preforgeResume=null;let e=this._preforgeKey(),a=this._run&&this._run.runId;"
+            },
+            {
+              "find": "if(!this._run||this._run.runId!==a||this._preforgeKey()!==e||this._state()!==\"chapter\"){this._stopPreforgeWatch();return}",
+              "replace": "if(!this._run||this._run.runId!==a||this._preforgeKey()!==e||this._state()!==\"chapter\"){this._stopPreforgeWatch(),this._preforgeResume=this._run&&this._run.runId===a&&this._preforgeKey()===e?e:null;return}"
+            },
+            {
+              "find": "_wireChapter(){Qd(this._root,",
+              "replace": "_wireChapter(){this._preforgeResume!=null&&this._preforgeResume===this._preforgeKey()&&(this._preforgeResume=null,this._preforgeRead().then(e=>e&&e.running?this._preforgeWatch():this._renderBrowser()));Qd(this._root,"
+            },
+            {
+              "find": "this._heldSwap===r&&(this._heldSwap=null,a(),this._regionSwap=fs(this._root,e))",
+              "replace": "this._heldSwap===r&&!(this._lastScreen===\"unit\"&&this._unitState===\"loading\")&&!((this._gearView||this._invGear)&&this._relicsState===\"loading\")&&(this._heldSwap=null,a(),this._regionSwap=fs(this._root,e))"
+            },
+            {
+              "find": "this._relicsState=\"loading\",this._renderBrowser(),this._loadRelics(a)}",
+              "replace": "this._relicsState=\"loading\",this._tr=null,this._renderBrowser(),this._loadRelics(a)}"
+            },
+            {
+              "find": "Its menu stays shut until the text is written, and you can cancel it until then.",
+              "replace": "Scenes already written can be played while it writes the rest, and you can cancel it until it finishes."
+            },
+            {
+              "find": "its menu stays shut while it works, and you can cancel.",
+              "replace": "scenes already written can be played while it writes the rest, and you can cancel."
+            },
+            {
+              "find": ".tile[disabled] { cursor: default; opacity: 0.34; }",
+              "replace": ".tile[disabled] { cursor: default; opacity: 0.34; } .tile.target[disabled] { opacity: 1; }"
+            }
+          ]
+        },
+        {
+          "version": "1.25.2",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.25.1\"",
+              "replace": "ds=\"1.25.2\""
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[\"Scenes that are already written can be played while pre-forge writes the rest of the chapter, and the next one turns into Play as soon as it is written.\",\"Opening a weapon or relic to upgrade it no longer cuts to an empty screen while it loads, and the relic you are upgrading is no longer faded out.\"]},{version:\"1.25.0\"",
+              "replace": "var oy=[{version:null,fixed:[\"Backing out of a fight while it loads and entering another one now loads the new fight, instead of showing the one you left.\",\"In Formation, a swap now seats both units before either one's passive fires, so a revive, Swap or Echo it sets off never puts a fourth unit in a row.\",\"On a small model, a reply is much less likely to fail while story memory catches up: the oldest chapters are left out first, only when the reply would not fit otherwise.\",\"Story memory no longer stops for good when a chapter it already remembers reads differently later: it keeps its first memory and goes on.\",\"Seasonal event fights load again in a world where a chapter or Character Story was regenerated, instead of stopping at \\\"Couldn't set up the battle.\\\"\"]},{version:\"1.25.1\",fixed:[\"Scenes that are already written can be played while pre-forge writes the rest of the chapter, and the next one turns into Play as soon as it is written.\",\"Opening a weapon or relic to upgrade it no longer cuts to an empty screen while it loads, and the relic you are upgrading is no longer faded out.\"]},{version:\"1.25.0\""
+            },
+            {
+              "find": "_pickCombatPreset(e){!this._run||this._combatPreset===e||(this._combatPreset=e,this._loadBattle())}",
+              "replace": "_pickCombatPreset(e){!this._run||this._combatPreset===e||(this._combatPreset=e,this._battleLoading=!1,this._loadBattle())}"
+            },
+            {
+              "find": "_enterBattle(){let e=this._pendingCombat;e&&(this._formationBattleMode=!1,",
+              "replace": "_enterBattle(){let e=this._pendingCombat;e&&(this._battleLoading=!1,this._formationBattleMode=!1,"
+            },
+            {
+              "find": "this._combatPhase=\"loading\",this._hudView=\"combat\",this._renderBrowser())}_loadBattle(){",
+              "replace": "this._combatPhase=\"loading\",this._hudView=\"combat\",this._renderBrowser(),this._loadBattle())}_loadBattle(){"
+            },
+            {
+              "find": "_leaveCombat(e){this._stopCombat(),",
+              "replace": "_leaveCombat(e){this._stopCombat(),this._battleLoading=!1,(e===\"farm\"||e===\"events\")&&(this._farmBusy=!1),"
+            },
+            {
+              "find": "this._battleLoading=!0;let e=this._combatNode;",
+              "replace": "let forgeBattleLoad=this._battleLoading={},e=this._combatNode;"
+            },
+            {
+              "find": "a.then(s=>{s&&s.ok&&Array.isArray(s.allies)",
+              "replace": "a.then(s=>{if(this._battleLoading!==forgeBattleLoad)return;s&&s.ok&&Array.isArray(s.allies)"
+            },
+            {
+              "find": "}).then(()=>{this._battleLoading=!1,this._farmBusy=!1,",
+              "replace": "}).then(()=>{if(this._battleLoading!==forgeBattleLoad){this._battleLoading||(this._farmBusy=!1);return}this._battleLoading=!1,this._farmBusy=!1,"
+            },
+            {
+              "find": "forgeFormationErrorLabel(o)||\"Couldn't set up the battle.\")+\"</span>\"",
+              "replace": "forgeFormationErrorLabel(o)||\"Couldn't set up the battle.\"+(o?\" (\"+u(String(o))+\")\":\"\"))+\"</span>\""
+            }
+          ]
+        },
+        {
+          "version": "1.26.0",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.25.2\"",
+              "replace": "ds=\"1.26.0\""
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[",
+              "replace": "var oy=[{version:null,new:[\"What happens next in Chapters can offer the season's story event beside the next chapter and any Character Story. It starts the way a Character Story does: the next chapter waits until you finish it, and while it is open its card takes the chapter's place.\",\"Pre-forge now writes story events too: scenes are written ahead at no Vigor cost, each fight is designed after the scene before it, Story and images paints their art, and the event's map has the pre-forge bar with Cancel.\"],fixed:[\"An event's loader and map show its title instead of \\\"Chapter event-1\\\", and a chapter held by an open event opens the event instead of an error.\",\"Chapters reads the season's event again when your progress changes, so What happens next offers the event as soon as you finish a chapter, without a reload.\"]},{version:\"1.25.2\",fixed:["
+            },
+            {
+              "find": "e.innerHTML=bp(a.chapters,a.nextChapter,a.nextUnlocked,{offers:r,beats:a.bondBeats,heldBy:s})",
+              "replace": "e.innerHTML=bp(a.chapters,a.nextChapter,a.nextUnlocked,{offers:r,beats:a.bondBeats,heldBy:s,event:forgeSeasonalNextStory(this)})"
+            },
+            {
+              "find": "(h.length&&!i&&a?Ly(d,h,n):My(d,!!a,i))",
+              "replace": "(!i&&r&&r.event&&r.event.opened?forgeSeasonalOpenCard(r.event,Zs):(h.length||r&&r.event)&&!i&&a?Ly(d,h,n,r&&r.event):My(d,!!a,i))"
+            },
+            {
+              "find": "function Ly(t,e,a){",
+              "replace": "function Ly(t,e,a,forgeEvent){"
+            },
+            {
+              "find": "\"Begin\")).join(\"\")+\"</div></div></article>\"}",
+              "replace": "\"Begin\")).join(\"\")+(forgeEvent?forgeSeasonalChoiceRow(forgeEvent,tt(t),Zs):\"\")+\"</div></div></article>\"}"
+            },
+            {
+              "find": "else i&&i.error===\"bond-chapter-open\"&&i.heldById&&!this._bondUnit?(this._enterBond(",
+              "replace": "else i&&i.error===\"story-event-open\"&&forgeSeasonalHeld(this,i)?void 0:i&&i.error===\"bond-chapter-open\"&&i.heldById&&!this._bondUnit?(this._enterBond("
+            },
+            {
+              "find": "bondLabel:l=\"\",reading:c=!1,skip:h=!1}){let d=a===\"banner\"?ky(r):a===\"art\"?_y(r):l?c?np(l):Ey(l)",
+              "replace": "bondLabel:l=\"\",reading:c=!1,skip:h=!1,forgeEvent:forgeEventTitle=\"\"}){let d=a===\"banner\"?ky(r):a===\"art\"?_y(r):forgeEventTitle?c?np(forgeEventTitle):forgeSeasonalForging(forgeEventTitle,Ai[0]):l?c?np(l):Ey(l)"
+            },
+            {
+              "find": "bondLabel:this._bondForgeLabel(),reading:this._chapterWritten()",
+              "replace": "bondLabel:this._bondForgeLabel(),reading:this._chapterWritten(),forgeEvent:forgeSeasonalLabel(this)"
+            },
+            {
+              "find": "bondName:l=\"\",bondPart:c=1}){let h=l?u(zt(l,c)):\"Chapter \"+tt(r)",
+              "replace": "bondName:l=\"\",bondPart:c=1,forgeEvent:forgeEventTitle=\"\"}){let h=forgeEventTitle?u(forgeEventTitle):l?u(zt(l,c)):\"Chapter \"+tt(r)"
+            },
+            {
+              "find": "bondName:this._bondName(),bondPart:this._bondPart,",
+              "replace": "bondName:this._bondName(),bondPart:this._bondPart,forgeEvent:forgeSeasonalLabel(this),"
+            },
+            {
+              "find": "{match:/:beat:bond-/,cost:\"tokens\",label:()=>\"Writing the next scene\"},",
+              "replace": "{match:/:beat:bond-/,cost:\"tokens\",label:()=>\"Writing the next scene\"},{match:/:beat:event-/,cost:\"tokens\",label:()=>\"Writing the next scene\"},{match:/:combat:event-/,cost:\"tokens\",label:()=>\"Designing a fight\"},"
+            },
+            {
+              "find": "hint:\"Writes a chapter's beats as soon as it is forged, so they open instantly.",
+              "replace": "hint:\"Writes the beats of a chapter or a story event as soon as it is forged, so they open instantly."
+            },
+            {
+              "find": "a:\"Off until you turn it on, per world, in Settings under Continuity. A forged chapter then writes all of its beats at once,",
+              "replace": "a:\"Off until you turn it on, per world, in Settings under Continuity. A forged chapter or a started story event then writes all of its beats at once,"
+            },
+            {
+              "find": "{k:\"What happens next\",a:\"Sometimes the story lets you choose: carry on with the main story, or follow one of your units for a while.\"}",
+              "replace": "{k:\"What happens next\",a:\"Sometimes the story lets you choose: carry on with the main story, follow one of your units for a while, or play the season's story event.\"}"
+            }
+          ]
+        },
+        {
+          "version": "1.26.1",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.26.0\"",
+              "replace": "ds=\"1.26.1\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[",
+              "replace": "var oy=[{version:null,fixed:[\"A chapter you forged before starting a story event no longer keeps writing ahead while the event holds it, and a big choice it already wrote no longer stops the event from starting or its scenes. Once the event is done, its choice waits for you, and Continue on its map picks it up again.\",\"While story memory catches up, a companion chat, a character message or a Character Story knows only the scenes you have played, not the ones pre-forge wrote ahead or a Compress summary of them.\"]},{version:\"1.26.0\",new:["
+            }
+          ]
+        },
+        {
+          "version": "1.26.2",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.26.1\"",
+              "replace": "ds=\"1.26.2\""
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[",
+              "replace": "var oy=[{version:null,changed:[\"Nothing changes in play. Some story, art and audio helpers can now be reused by other Marinara packages.\"]},{version:\"1.26.1\",fixed:["
+            }
+          ]
+        },
+        {
+          "version": "1.26.3",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.26.2\"",
+              "replace": "ds=\"1.26.3\""
+            },
+            {
+              "find": "var oy=[{version:null,changed:[",
+              "replace": "var oy=[{version:null,fixed:[\"A story event you played now sits in Chapters right after the chapter it followed, as a finished Character Story does. Enter it to read its scenes again. Stories after the same chapter appear in the order you opened them.\",\"A finished story event's map no longer offers Hard and Very Hard, whose fights could never start. A fight that can't start now says why, with Retry, instead of a Start battle button that does nothing.\",\"Start battle no longer stays disabled on a cheaper fight after another was refused for Vigor, and works at once in a world you switched to while a fight was starting.\"]},{version:\"1.26.2\",changed:["
+            },
+            {
+              "find": "heldBy:s,event:forgeSeasonalNextStory(this)})",
+              "replace": "heldBy:s,event:forgeSeasonalNextStory(this),played:this._forgeSeasonalState?.events})"
+            },
+            {
+              "find": "f=b=>c.filter(k=>m(k)===b).map(up).join(\"\"),g=c.filter(b=>m(b)>v).map(up).join(\"\");",
+              "replace": "f=b=>forgeSeasonalTimelineCards(r,k=>k===b,Zs,c,up),g=forgeSeasonalTimelineCards(r,k=>k>v,Zs,c,up);"
+            },
+            {
+              "find": "${x?ab(x):l?\"\":`<div class=\"cap-diff\">",
+              "replace": "${x?ab(x):l?\"\":forgeEventTitle?/* A story event is Normal-only: its progress, fights and rewards have no Hard. Its map keeps the row the grid counts, without pills. */'<div class=\"cap-diff\"></div>':`<div class=\"cap-diff\">"
+            },
+            {
+              "find": ":r&&r.error===\"changed\"?this._combatPhase=\"loading\":this._combatVigorError=r&&r.error===\"no-vigor\"?r:{error:r&&r.error||\"failed\"},this._renderBrowser()",
+              "replace": ":r&&r.error===\"changed\"?this._combatPhase=\"loading\":r&&r.error===\"no-vigor\"?this._combatVigorError=r:/* The briefing draws only no-vigor. Any other refusal shows on the error screen, whose Retry loads the fight again. */(this._combatError=r&&r.error||\"failed\",this._combatPhase=\"error\"),this._renderBrowser()"
+            },
+            {
+              "find": "if(this._combatError=\"\",this._combatPhase=\"loading\",this._renderBrowser(),!this._run||!e){this._battleLoading=!1",
+              "replace": "if(this._combatError=\"\",/* A no-vigor answer belongs to the fight it refused; the next briefing reads its own cost. */this._combatVigorError=null,this._combatPhase=\"loading\",this._renderBrowser(),!this._run||!e){this._battleLoading=!1"
+            },
+            {
+              "find": ",this._storyNotice=\"\",this._storyStarting=!1,this._rosterCount=0,",
+              "replace": ",this._storyNotice=\"\",this._storyStarting=!1,/* A start still in flight belongs to the world it was sent from. */this._combatStarting=!1,this._autoStarting=!1,this._rosterCount=0,"
+            },
+            {
+              "find": "forgeCurrent=this._combatNode?.farm||this._combatNode?.tower?()=>true:forgeChapterCurrent(this);",
+              "replace": "forgeCurrent=this._combatNode?.farm||this._combatNode?.tower?()=>this._run?.runId===forgeOrigin:forgeChapterCurrent(this);"
+            }
+          ]
+        },
+        {
+          "version": "1.27.0",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.26.3\"",
+              "replace": "ds=\"1.27.0\""
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[",
+              "replace": "var oy=[{version:null,new:[\"A finished story event's fights now open on Hard, then Very Hard, while the event runs: the same fights, stronger, each paying once per difficulty as a main chapter's do.\"],fixed:[\"A story event's map no longer lists a chapter's Funds, Aether and rank on Normal, which an event never paid, and a played event's map opens without waiting for a scene being written elsewhere.\"]},{version:\"1.26.3\",fixed:["
+            },
+            {
+              "find": "${x?ab(x):l?\"\":forgeEventTitle?/* A story event is Normal-only: its progress, fights and rewards have no Hard. Its map keeps the row the grid counts, without pills. */'<div class=\"cap-diff\"></div>':`<div class=\"cap-diff\">",
+              "replace": "${x?ab(x):l?\"\":`<div class=\"cap-diff\">"
+            },
+            {
+              "find": "pay:this._nodePay&&this._nodePay[this._difficulty]",
+              "replace": "pay:forgeSeasonalNodePay(this,this._nodePay&&this._nodePay[this._difficulty])"
+            }
+          ]
+        },
+        {
+          "version": "1.27.1",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.27.0\"",
+              "replace": "ds=\"1.27.1\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[",
+              "replace": "var oy=[{version:null,fixed:[\"Scene, banner and Bond art now sends each character's avatar and, when the picture shows them in the outfit they have on, that outfit too, faces first. Banners and Bond backgrounds now paint a unit in the outfit it has on while Outfits is on. A new portrait or outfit is painted from the face alone, so the outfit worn now no longer leaks into it.\"]},{version:\"1.27.0\",new:["
+            }
+          ]
+        },
+        {
+          "version": "1.27.2",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.27.1\"",
+              "replace": "ds=\"1.27.2\""
+            },
+            {
+              "find": "var oy=[{version:null,fixed:[",
+              "replace": "var oy=[{version:null,new:[\"The narrator, chapter planners and characters writing messages now read every character's mind more carefully.\"]},{version:\"1.27.1\",fixed:["
+            }
+          ]
+        },
+        {
+          "version": "1.27.3",
+          "commits": [],
+          "edits": [
+            {
+              "find": "ds=\"1.27.2\"",
+              "replace": "ds=\"1.27.3\""
+            },
+            {
+              "find": "var oy=[{version:null,new:[",
+              "replace": "var oy=[{version:null,fixed:[\"Characters can equip their designated weapons even when an older weapon has a different type from their role. The signature skill still belongs only to its designated character. Gear controls also remain reachable by scrolling on short landscape screens.\"]},{version:\"1.27.2\",new:["
+            },
+            {
+              "find": ".gr-root.gear > .detail.wide { flex: 1 1 auto; min-height: 0; }",
+              "replace": ".gr-root.gear > .detail.wide { flex: 1 0 auto; min-height: min-content; }",
+              "reason": "Keep the Gear detail and its Choose/Change actions inside their clipped card; short landscape views scroll the containing panel instead of shrinking the card below its contents."
+            }
+          ]
         }
       ]
     },
@@ -1492,8 +2314,8 @@
             {
               "find": "async function lT(e){",
               "replaceFrom": [
-                "src/player-choice-text.mjs",
-                "src/player-choices-server.mjs"
+                "../../sources/forge-kit/player-choice-text.mjs",
+                "../../sources/forge-kit/player-choices-server.mjs"
               ],
               "sourceId": "choices-server"
             },
@@ -1609,7 +2431,7 @@
           "edits": [
             {
               "find": "var rb=[",
-              "replaceFrom": "src/audio-settings.mjs",
+              "replaceFrom": "../../sources/forge-kit/audio-settings.mjs",
               "sourceId": "audio-settings"
             },
             {
@@ -1669,7 +2491,7 @@
             },
             {
               "find": "var rb=[",
-              "replaceFrom": "src/audio-prompts.mjs",
+              "replaceFrom": "../../sources/forge-kit/audio-prompts.mjs",
               "sourceId": "audio-prompts",
               "notes": "World-specific soundtrack briefs through the existing narration connection, with session caching and generation logging."
             },
@@ -1754,7 +2576,7 @@
           "edits": [
             {
               "find": "function Rg(",
-              "replaceFrom": "src/image-avatar-references.mjs",
+              "replaceFrom": "../../sources/forge-kit/image-avatar-references.mjs",
               "sourceId": "image-avatar-references"
             },
             {
@@ -1810,17 +2632,17 @@
             },
             {
               "find": "async function lT(e)",
-              "replaceFrom": "src/story-memory.mjs",
+              "replaceFrom": "../../sources/forge-kit/story-memory.mjs",
               "sourceId": "story-memory"
             },
             {
               "find": "async function lT(e)",
-              "replaceFrom": "src/story-memory-integration.mjs",
+              "replaceFrom": "../../sources/forge-kit/story-memory-integration.mjs",
               "sourceId": "story-memory-integration"
             },
             {
               "find": "async function lT(e)",
-              "replaceFrom": "src/story-memory-fit.mjs",
+              "replaceFrom": "../../sources/forge-kit/story-memory-fit.mjs",
               "sourceId": "story-memory-fit"
             },
             {
@@ -1990,7 +2812,7 @@
           "edits": [
             {
               "find": "async function _t(",
-              "replaceFrom": "src/story-cancel-server.mjs",
+              "replaceFrom": "../../sources/forge-kit/story-cancel-server.mjs",
               "sourceId": "story-cancel-server"
             },
             {
@@ -2065,7 +2887,7 @@
             },
             {
               "find": "function Gg(e){",
-              "replaceFrom": "src/time-zone-server.mjs",
+              "replaceFrom": "../../sources/forge-kit/time-zone-server.mjs",
               "sourceId": "time-zone-server"
             },
             {
@@ -2168,7 +2990,7 @@
             },
             {
               "find": "/* forge-audio-settings-source:start */\n",
-              "replaceFrom": "src/chat-continuity-server.mjs",
+              "replaceFrom": "../../sources/forge-kit/chat-continuity-server.mjs",
               "sourceId": "chat-continuity"
             },
             {
@@ -2185,7 +3007,7 @@
             },
             {
               "find": "function vu(e,t=!1){",
-              "replaceFrom": "src/character-card-context.mjs",
+              "replaceFrom": "../../sources/forge-kit/character-card-context.mjs",
               "sourceId": "character-card-context",
               "reason": "Inject the frozen maintained helper before its first caller"
             },
@@ -2775,6 +3597,472 @@
             {
               "find": "v.promise=(async()=>{try{return await forgeStoryWork(c)}finally{",
               "replace": "v.promise=(async()=>{try{await null;return await forgeStoryWork(c)}finally{"
+            }
+          ]
+        },
+        {
+          "version": "1.24.0",
+          "commits": [],
+          "edits": [
+            {
+              "sourceId": "formation-legacy-server",
+              "replaceFrom": "src/formation-combat-legacy.mjs",
+              "find": "async function _t("
+            }
+          ]
+        },
+        {
+          "version": "1.24.1",
+          "commits": [],
+          "edits": [
+            {
+              "find": "combatMode:prepared.combatMode,formationRules:prepared.formationRules}",
+              "replace": "combatMode:prepared.combatMode,formationRules:prepared.formationRules,...(prepared.combatMode===\"formation\"?{formationEngine:FORGE_FORMATION_ENGINE}:{})}"
+            },
+            {
+              "find": "combatMode:s.combatMode,formationRules:s.formationRules}",
+              "replace": "combatMode:s.combatMode,formationRules:s.formationRules,formationEngine:s.formationEngine}"
+            },
+            {
+              "find": "forgeFormationNormalizeGuide(De,ES(De,U0(d),P),",
+              "replace": "forgeFormationNormalizeGuide(De,ES(forgeFormationClassicFields(De),U0(d),P),"
+            }
+          ]
+        },
+        {
+          "version": "1.24.2",
+          "commits": [],
+          "edits": [
+            {
+              "find": "v.push({name:k.name,art:E||null,prota:!0})",
+              "replace": "v.push({name:k.name,art:E||null,prota:!0,characterId:l(k.personaId)||null})"
+            },
+            {
+              "find": "let x=_&&l(u.ask)===\"photo\",L=null;if(!M)",
+              "replace": "let x=_&&l(u.ask)===\"photo\",L=null,forgeChatPlayerMessageId=null;if(!M)"
+            },
+            {
+              "find": ";await xn(o,Ye=>Xt(Ye,o,\"chat-message\",1,Date.now()))}let{data:O}=await Za(o,i)",
+              "replace": ";forgeChatPlayerMessageId=Fe.id;await xn(o,Ye=>Xt(Ye,o,\"chat-message\",1,Date.now()))}let{data:O}=await Za(o,i)"
+            },
+            {
+              "find": "wallet:L,retry:!0};let ee=ov(Y.value)",
+              "replace": "...(forgeChatPlayerMessageId?{playerMessageId:forgeChatPlayerMessageId}:{}),wallet:L,retry:!0};let ee=ov(Y.value)"
+            },
+            {
+              "find": "{ok:!0,wallet:L,said:Z,count:ue.messages.length}",
+              "replace": "{ok:!0,wallet:L,said:Z,count:ue.messages.length,...(forgeChatPlayerMessageId?{playerMessageId:forgeChatPlayerMessageId}:{})}"
+            },
+            {
+              "find": "):{ok:!1,error:\"write-conflict\",wallet:L,retry:!0}})),s.post(\"/chat/close\"",
+              "replace": "):{ok:!1,error:\"write-conflict\",...(forgeChatPlayerMessageId?{playerMessageId:forgeChatPlayerMessageId}:{}),wallet:L,retry:!0}})),s.post(\"/chat/close\""
+            }
+          ]
+        },
+        {
+          "version": "1.24.5",
+          "commits": [],
+          "edits": [
+            {
+              "find": "{formationEngine:FORGE_FORMATION_ENGINE}:{})}",
+              "replace": "{formationEngine:FORGE_FORMATION_ENGINE,formationRevision:FORGE_FORMATION_RULES}:{})}"
+            },
+            {
+              "find": "formationRules:s.formationRules,formationEngine:s.formationEngine}",
+              "replace": "formationRules:s.formationRules,formationEngine:s.formationEngine,formationRevision:s.formationRevision}"
+            }
+          ]
+        },
+        {
+          "version": "1.24.6",
+          "commits": [],
+          "edits": [
+            {
+              "find": "v.push({name:N.name,art:sn(N)||null,prota:!1,characterId:l(N.cardId)||null})",
+              "replace": "v.push({name:N.name,art:sn(N)||null,prota:!1,characterId:l(N.cardId)||null,gender:Er(N)})"
+            },
+            {
+              "find": "characterId:l(he.cardId)||null,isLeader:J===fn",
+              "replace": "characterId:l(J===fn&&u.protagonist&&u.protagonist.personaId||he.cardId)||null,gender:Er(he),isLeader:J===fn"
+            },
+            {
+              "find": "event:await forgeSeasonalEvents.narrationContext(p,w)}",
+              "replace": "event:await forgeSeasonalEvents.narrationContext(p,w),audio:g.audio}"
+            },
+            {
+              "find": "L=async Y=>({ok:!0,resumeAt:await x(),segments:Y.data.segments,",
+              "replace": "L=async Y=>(await forgeRememberSpeakerGenders(()=>pe(p),null,Y.data),{ok:!0,resumeAt:await x(),segments:Y.data.segments,"
+            },
+            {
+              "find": "let Ye=new Date().toISOString();if(await a.create({id:A(p,u,o)",
+              "replace": "await forgeRememberSpeakerGenders(()=>pe(p),forgeSave=>xn(p,forgeSave),ge.value);let Ye=new Date().toISOString();if(await a.create({id:A(p,u,o)"
+            }
+          ]
+        },
+        {
+          "version": "1.24.7",
+          "commits": [],
+          "edits": [
+            {
+              "sourceId": "story-expressions-server",
+              "replaceFrom": [
+                "../../sources/forge-kit/story-expressions.mjs",
+                "../../sources/forge-kit/story-expressions-server.mjs"
+              ],
+              "find": "var rb=["
+            },
+            {
+              "find": "battleBackgrounds:e.battleBackgrounds===!0||e.battleBackgrounds===\"true\",...$r(e)}",
+              "replace": "battleBackgrounds:e.battleBackgrounds===!0||e.battleBackgrounds===\"true\",expressions:e.expressions===!0||e.expressions===\"true\",...(t(e.expressionsSince)?{expressionsSince:t(e.expressionsSince).slice(0,40)}:{}),...$r(e)}"
+            },
+            {
+              "find": "_=du({...S,...M});_&&(w.images=_)",
+              "replace": "_=du({...S,...M});_&&(_.expressions&&S.expressions!==!0&&(_.expressionsSince=new Date().toISOString()),w.images=_)"
+            },
+            {
+              "find": "(G.thought===!0||G.thought===\"true\")&&(ie.thought=!0);let se=T(G.place)",
+              "replace": "(G.thought===!0||G.thought===\"true\")&&(ie.thought=!0);let forgeExpression=ie.speaker&&normalizeForgeStoryExpression(G.expression);forgeExpression&&(ie.expression=forgeExpression);let se=T(G.place)"
+            },
+            {
+              "find": "\"- thought: true when the segment is what that character THINKS without saying it out loud. false (or absent) for anything said aloud and for narration.\",",
+              "replace": "\"- thought: true when the segment is what that character THINKS without saying it out loud. false (or absent) for anything said aloud and for narration.\",'- expression: optional, on a dialogue or thought segment only: \"anger\", \"fear\", \"sadness\" or \"joy\" when the speaker clearly shows that emotion in this line. Omit it for a calm or neutral line and for narration.',"
+            },
+            {
+              "find": "async uploadToGallery({image:h,name:A,prompt:T,provider:R,model:C}){",
+              "replace": "async generateExpression({connectionId:h,name:A,unit:T,base:forgeBase,expression:R,referenceImage:forgeRef,styleProfileId:C,width:I,height:D,debugMode:forgeDebug}){let G=ve(A)||\"Character\",W=await this.portraitProfile(C),te=forgeStoryExpressionPrompt(T,forgeBase,R,W,{tagged:oa(W.promptMode),negative:Hr(W.negativeTags,Ig)}),se=await f(\"/api/characters/avatar-generation\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({connectionId:h,name:G,referenceImages:[forgeRef],appearance:te.prompt,purpose:\"avatar\",styleProfileId:ve(C)||void 0,width:I,height:D,debugMode:forgeDebug===!0,promptOverrides:[{id:Ec(G),prompt:te.prompt,negativePrompt:te.negativePrompt}]})}),le=Lo(se&&se.image);if(!le)throw new Error(\"engine returned no usable image\");let ce=ve(se&&se.prompt);return{...le,width:I,height:D,prompt:ce,overrideTook:ce===te.prompt,sentPrompt:te.prompt}},async uploadToGallery({image:h,name:A,prompt:T,provider:R,model:C}){"
+            },
+            {
+              "find": "Gt=s=>{let c=gn.get(s);return!!c&&Date.now()-c.at<Tn};",
+              "replace": "Gt=s=>{let c=gn.get(s);return!!c&&Date.now()-c.at<Tn},forgeStoryExpressions=createForgeStoryExpressions({documents:a,packageId:n.id,logger:r.logger,readRun:async s=>Ae((await be()).data,s),images:nt,connection:nn,client:Le,slot:mt,dedupe:ze,background:An,update:Wn,base:sn,galleryRef:vn,debug:()=>/^(1|true)$/i.test(process.env.DEBUG_AGENTS||\"\")});"
+            },
+            {
+              "find": "async function dh(s,c){let d=await a.list(n.id,kt),v=[];",
+              "replace": "async function dh(s,c){let d=await a.list(n.id,kt),v=[],forgeStoryPersona=null;"
+            },
+            {
+              "find": "let N=E.data;!N||N.kind!==\"character\"||N.isProtagonist||!N.name||v.push({name:N.name,art:sn(N)||null,prota:!1,characterId:l(N.cardId)||null,gender:Er(N)})",
+              "replace": "let N=E.data;N&&N.isProtagonist&&(forgeStoryPersona=N);!N||N.kind!==\"character\"||N.isProtagonist||!N.name||v.push({name:N.name,art:sn(N)||null,prota:!1,characterId:l(N.cardId)||null,gender:Er(N),...forgeStoryExpressionCast(nt(c),N,sn(N))})"
+            },
+            {
+              "find": "v.push({name:k.name,art:E||null,prota:!0,characterId:l(k.personaId)||null})}return v}",
+              "replace": "v.push({name:k.name,art:E||null,prota:!0,characterId:l(k.personaId)||null}),Object.assign(v[v.length-1],forgeStoryExpressionCast(nt(c),forgeStoryPersona,E))}return v}"
+            },
+            {
+              "find": "cast:await dh(p,g)}),O=await a.getById(",
+              "replace": "cast:forgeStoryExpressions.queue(p,g,await dh(p,g),Y.data)}),O=await a.getById("
+            },
+            {
+              "find": "return{ok:!0,resumeAt:await x(),segments:Fe,",
+              "replace": "forgeStoryExpressions.queue(p,g,ne,ge.value);return{ok:!0,resumeAt:await x(),segments:Fe,"
+            },
+            {
+              "find": "forgeStoryCancellation.dispose();forgeBannerAnimations.dispose()}",
+              "replace": "forgeStoryCancellation.dispose();forgeBannerAnimations.dispose();forgeStoryExpressions.dispose()}"
+            }
+          ]
+        },
+        {
+          "version": "1.24.8",
+          "commits": [],
+          "edits": [
+            {
+              "find": "s.get(\"/state\",async()=>sl())",
+              "replace": "s.get(\"/state\",async p=>sl(p))"
+            },
+            {
+              "find": "async function sl(){",
+              "replace": "async function sl(forgeRequest){"
+            },
+            {
+              "find": "N.contextTokens=await Yr(N.runId);",
+              "replace": "forgeRequest?.query?.light!==\"1\"&&(N.contextTokens=await Yr(N.runId));"
+            },
+            {
+              "find": "let{doc:g,data:m}=await pe(o),w=m&&m.roster||{},b=new Set(Object.keys(w).filter($=>$!==ce(o,\"protagonist\"))),S=($,F)=>$===fn?F.has(fn)?null:(F.add(fn),fn):typeof $==\"string\"&&b.has($)&&!F.has($)?(F.add($),$):null,M=$=>{let F=$&&typeof $==\"object\"?$:{},U=new Set,Q=ee=>{let j=Array.isArray(ee)?ee:[],J=[];for(let he=0;he<3;he+=1)J.push(S(j[he],U));return J},ne=Q(F.front),Y=Q(F.back);return{front:ne,back:Y}},x=(Array.isArray(u.presets)?u.presets:[]).slice(0,50).map(($,F)=>({name:(l($&&$.name)||`Team ${F+1}`).slice(0,40),board:M($&&$.board)}));x.length||x.push({name:\"Team 1\",board:{front:[fn,null,null],back:[null,null,null]}});let L=pt(u.active,0,x.length-1)||0;return m.presets=x,m.activePreset=L,m.party=x[L].board,await Pe(o,g,m)?{ok:!0,presets:x,active:L}:{ok:!1,error:\"write-conflict\"}",
+              "replace": "let x,L;return await xn(o,m=>{let w=m&&m.roster||{},b=new Set(Object.keys(w).filter($=>$!==ce(o,\"protagonist\"))),S=($,F)=>$===fn?F.has(fn)?null:(F.add(fn),fn):typeof $==\"string\"&&b.has($)&&!F.has($)?(F.add($),$):null,M=$=>{let F=$&&typeof $==\"object\"?$:{},U=new Set,Q=ee=>{let j=Array.isArray(ee)?ee:[],J=[];for(let he=0;he<3;he+=1)J.push(S(j[he],U));return J},ne=Q(F.front),Y=Q(F.back);return{front:ne,back:Y}};x=(Array.isArray(u.presets)?u.presets:[]).slice(0,50).map(($,F)=>({name:(l($&&$.name)||`Team ${F+1}`).slice(0,40),board:M($&&$.board)}));x.length||x.push({name:\"Team 1\",board:{front:[fn,null,null],back:[null,null,null]}});L=pt(u.active,0,x.length-1)||0;m.presets=x,m.activePreset=L,m.party=x[L].board})?{ok:!0,presets:x,active:L}:{ok:!1,error:\"write-conflict\"}"
+            },
+            {
+              "find": "async function Cr(p,u,o){return forgeChoices.readOrGenerate(p,forgeCachedOnly=>forgeGenerateBeat(p,u,o,forgeCachedOnly))}",
+              "replace": "async function Cr(p,u,o,forgeQuiet=!1){let forgeBeat=await forgeChoices.readOrGenerate(p,forgeCachedOnly=>forgeGenerateBeat(p,u,o,forgeCachedOnly));return forgeBeat&&forgeBeat.ok&&!forgeQuiet?{...forgeBeat,contextTokens:await Yr(p)}:forgeBeat}"
+            },
+            {
+              "find": "cached:!0,contextTokens:await Yr(p),cast:forgeStoryExpressions",
+              "replace": "cached:!0,cast:forgeStoryExpressions"
+            },
+            {
+              "find": "cg:await _(),contextTokens:await Yr(p),cast:ne}",
+              "replace": "cg:await _(),cast:ne}"
+            },
+            {
+              "find": "S=await Cr(p,u,b);",
+              "replace": "S=await Cr(p,u,b,!0);"
+            }
+          ]
+        },
+        {
+          "version": "1.24.9",
+          "commits": [],
+          "edits": [
+            {
+              "find": "let w=await Yt(p,m,u);if(w.mode===\"off\"||w.cancelled||w.next<0||w.waitingChoice)return;let b=w.next,S=await Cr(p,u,b,!0);",
+              "replace": "let w=await Yt(p,m,u);if(w.mode===\"off\"||w.cancelled||w.waitingChoice)return;let forgeChainOn=async()=>{let e=gn.get(o);e&&(e.at=Date.now());let r=Ae((await be()).data,p),s=r&&await Yt(p,r,u);return!!s&&s.mode!==\"off\"&&!s.cancelled&&!s.waitingChoice},forgePlan=Number.isInteger(u)?await a.getById(n.id,f(p,u)):null;if(!await forgePreforgeFights({nodes:forgePlan&&forgePlan.data?tr(forgePlan.data):[],nextStory:w.next,design:async x=>await forgeChainOn()?forgeDesignFight(p,m,u,x):{ok:!1,error:\"stopped\"}}))return;if(w.next<0||!await forgeChainOn())return;let b=w.next,S=await Cr(p,u,b,!0);"
+            },
+            {
+              "find": "async function Cr(p,u,o,forgeQuiet=!1){",
+              "replace": "function forgeDesignFight(p,m,u,x){return Ph(p,m,u,x).then(g=>(g&&g.ok&&g.guide&&!g.cached&&rt(m,p,g.guide.formation||[],{place:l(g.guide.place)?{name:g.guide.place,tags:g.guide.placeTags}:null}).catch(()=>{}),g))}function forgeFightsAfter(p,u,o,S){return Promise.resolve(S).then(r=>(r&&r.ok&&Number.isInteger(u)&&An(async()=>{let m=Ae((await be()).data,p),k=await a.getById(n.id,f(p,u));m&&k&&k.data&&await forgePreforgeFights({nodes:tr(k.data),nextStory:o+1,design:x=>forgeDesignFight(p,m,u,x)})}).catch(()=>{}),r))}async function Cr(p,u,o,forgeQuiet=!1){"
+            },
+            {
+              "find": "u.background===!0?An(()=>Cr(o,i,g)):Cr(o,i,g)",
+              "replace": "forgeFightsAfter(o,i,g,u.background===!0?An(()=>Cr(o,i,g)):Cr(o,i,g))"
+            }
+          ]
+        },
+        {
+          "version": "1.25.0",
+          "commits": [],
+          "edits": [
+            {
+              "find": "createMemory:createForgeStoryMemory,documents:a,packageId:n.id,",
+              "replace": "createMemory:createForgeStoryMemory,resolveEmbeddings:async()=>(typeof r.resolveEmbeddings===\"function\"?await r.resolveEmbeddings():r.embeddings)??null,documents:a,packageId:n.id,"
+            },
+            {
+              "find": "Q=await _r(p,u,o,{query:U,job:\"narration\"})",
+              "replace": "forgeSceneUnits=await il(p),forgeFocus=forgeIncludeStoryFocusCharacters(forgeSceneUnits,py(forgeSceneUnits.map(B=>B.data),U),w.bondUnitId?[w.bondUnitId]:[]),Q=await _r(p,u,o,{query:{plan:[M.title,M.goal,M.guide,M.setup,F.map(x=>x.title).join(\" \")].filter(Boolean).join(\" \"),cues:$.length?[$[$.length-1].outcome].filter(Boolean):[],speakers:[l(g.protagonist&&g.protagonist.name)].filter(Boolean)},job:\"narration\",cast:forgeFocus.map(B=>(forgeSceneUnits.find(K=>K.data===B)||{}).id).filter(Boolean),listed:Ei(p,{only:forgeFocus.map(B=>l(B&&B.name)).filter(Boolean),limit:4})})"
+            },
+            {
+              "find": "re=await _r(s,d,ae,{query:[E.premise,P.title,P.setup].filter(Boolean).join(\" \"),job:\"structured\"})",
+              "replace": "re=await _r(s,d,ae,{query:{plan:[P.title,P.setup].filter(Boolean).join(\" \")},job:\"structured\",cast:[]})"
+            },
+            {
+              "find": " return [run.scenario,Uo(run,\"chapter\"),Uo(run,\"arc\"),...(eligible?[previous.title,previous.hook,previous.arcNote]:[])].filter(Boolean).join(\" \");",
+              "replace": " return {plan:eligible?[previous.title,previous.arcNote].filter(Boolean).join(\" \"):\"\",speakers:[l(run.protagonist&&run.protagonist.name)].filter(Boolean)};"
+            },
+            {
+              "find": "storySoFar:await _r(o,Q,0,{query:[w.scenario,S.name,Uo(w,\"bond\")].filter(Boolean).join(\" \"),job:\"structured\"})",
+              "replace": "storySoFar:await _r(o,Q,0,{query:{plan:l(S.name)},job:\"structured\",cast:[i],listed:Ei(o,{only:[l(S.name)],limit:6})})"
+            },
+            {
+              "find": "U=await _r(o,await Nr(o)+1,0,{query:[g.unit.name,l(($[$.length-1]||{}).text)].filter(Boolean).join(\" \"),job:\"chat\",current:true})",
+              "replace": "U=await _r(o,await Nr(o)+1,0,{query:forgeChatRecallQuery($,{speakers:[l(g.unit.name),l(g.run.protagonist&&g.run.protagonist.name)]}),job:\"chat\",current:true,reader:i,listed:Ei(o,{only:[l(g.unit.name)]})})"
+            },
+            {
+              "find": "_r(o,i,0,{query:await forgeMemoryPlanQuery(o,i,m),job:\"structured\"})",
+              "replace": "_r(o,i,0,{query:await forgeMemoryPlanQuery(o,i,m),job:\"structured\",listed:Ei(o,{limit:6})})"
+            },
+            {
+              "find": "${l(ie.memory)}`),\"It already happened. You may bring it up where it fits; never replay it or start from it again.\"",
+              "replace": "${l(ie.memory)}${l(ie.quote)?` One line from it: \"${l(ie.quote)}\"`:\"\"}`),\"It already happened. You may bring it up where it fits; never replay it or start from it again.\""
+            },
+            {
+              "find": "async function _r(s,c,d,forgeMemoryOptions){",
+              "replace": "async function _r(s,c,d,forgeMemoryOptions,forgeReader){"
+            },
+            {
+              "find": "if(N&&re.unitId===N.unitId&&re.part===N.part)continue;",
+              "replace": "if(N&&re.unitId===N.unitId&&re.part===N.part||forgeReader&&re.unitId!==forgeReader)continue;"
+            },
+            {
+              "find": "let forgeDecisions=await forgeChoices.continuity(s,c,d);",
+              "replace": "let forgeDecisions=await forgeChoices.continuity(s,c,d,forgeReader);"
+            },
+            {
+              "find": "fate:await forgeChoices.continuity(runId,chapter,storyIndex),fallback:()=>_r(runId,chapter,storyIndex)",
+              "replace": "fate:await forgeChoices.continuity(runId,chapter,storyIndex,options.reader),fallback:()=>_r(runId,chapter,storyIndex,null,options.reader)"
+            },
+            {
+              "find": "\"Honor the story so far: keep established names, facts and open threads; never contradict them.\",",
+              "replace": "\"Honor the story so far: keep established names, facts and open threads; never contradict them.\",forgeKnowledgeBoundary,"
+            },
+            {
+              "find": "\"Do not write prose \\u2014 write guides/instructions for the narrator and short setups for the fights.\",",
+              "replace": "forgeKnowledgeBoundary,\"Do not write prose \\u2014 write guides/instructions for the narrator and short setups for the fights.\","
+            },
+            {
+              "find": "\"- It is part of the SAME story, not a side piece. Everything already played is canon, it continues from there, and it may not undo, retcon or re-stage any of it.\",",
+              "replace": "\"- It is part of the SAME story, not a side piece. Everything already played is canon, it continues from there, and it may not undo, retcon or re-stage any of it.\",\"- \"+forgeKnowledgeBoundary,"
+            },
+            {
+              "find": "\"Narrative fields tie the fight to the story:\",",
+              "replace": "forgeKnowledgeBoundary,\"Narrative fields tie the fight to the story:\","
+            },
+            {
+              "find": "`\nWhat has happened so far. You lived it, and you remember it:\n`",
+              "replace": "`\nWhat has happened in the story so far. You remember what you were there for or were told; anything else you know only as news that reached you, so never claim you were there:\n`"
+            },
+            {
+              "find": "\"has happened and what you feel; you cannot decide events, hand over items or start a journey.\",h?\"HARD RULE: never narrate the story or tell it back. You are one of the people who was there, writing about it afterwards.\":\"\"",
+              "replace": "\"has happened and what you feel; you cannot decide events, hand over items or start a journey.\",forgeKnowledgeBoundary,h?\"HARD RULE: never narrate the story or tell it back. You are one of the people in this story, writing to them afterwards.\":\"\""
+            }
+          ]
+        },
+        {
+          "version": "1.25.2",
+          "commits": [],
+          "edits": [
+            {
+              "find": "async function _r(s,c,d,forgeMemoryOptions,forgeReader){",
+              "replace": "async function _r(s,c,d,forgeMemoryOptions,forgeReader,forgeBlocks){let forgeTurnStarts=[];"
+            },
+            {
+              "find": "let H=1;for(;H<B;){let ae=await rr(s,H);",
+              "replace": "let H=1;for(;forgeTurnStarts[H]=v.length,H<B;){let ae=await rr(s,H);"
+            },
+            {
+              "find": "forgeDecisions&&v.push(forgeDecisions);return v.join(`\n\n`)}",
+              "replace": "forgeDecisions&&v.push(forgeDecisions);return forgeBlocks?{blocks:v,starts:forgeTurnStarts}:v.join(`\n\n`)}"
+            },
+            {
+              "find": "fallback:()=>_r(runId,chapter,storyIndex,null,options.reader)",
+              "replace": "fallback:()=>_r(runId,chapter,storyIndex,null,options.reader,true)"
+            }
+          ]
+        },
+        {
+          "version": "1.26.0",
+          "commits": [],
+          "edits": [
+            {
+              "find": "m=Number.isInteger(i)&&i>=1?i:Ta(g)?g:null",
+              "replace": "m=Number.isInteger(i)&&i>=1?i:Ta(g)||forgeSeasonalChapter(g)?g:null"
+            },
+            {
+              "find": "async function Yt(p,u,o){let i=pd(u),",
+              "replace": "async function Yt(p,u,o){let i=forgeSeasonalChapter(o)&&!await forgeSeasonalEvents.choiceActive(p,o)?\"off\":pd(u),"
+            },
+            {
+              "find": "if(!i||pd(i)!==\"art\"||nt(i).off)return null;",
+              "replace": "if(!i||pd(i)!==\"art\"||nt(i).off||!await forgeSeasonalEvents.choiceActive(p,u))return null;"
+            },
+            {
+              "find": "forgePlan=Number.isInteger(u)?await a.getById(n.id,f(p,u)):null",
+              "replace": "forgePlan=Number.isInteger(u)||forgeSeasonalChapter(u)?await a.getById(n.id,f(p,u)):null"
+            },
+            {
+              "find": "function forgeDesignFight(p,m,u,x){return Ph(p,m,u,x).then(g=>(g&&g.ok&&g.guide&&!g.cached&&rt(",
+              "replace": "function forgeDesignFight(p,m,u,x){return(forgeSeasonalChapter(u)?forgeSeasonalEvents.designFight(p,u,x):Ph(p,m,u,x)).then(async g=>(g&&g.ok&&g.guide&&!g.cached&&(!forgeSeasonalChapter(u)||await forgeSeasonalEvents.choiceActive(p,u))&&rt("
+            }
+          ]
+        },
+        {
+          "version": "1.26.1",
+          "commits": [],
+          "edits": [
+            {
+              "find": "async function Yt(p,u,o){let i=forgeSeasonalChapter(o)&&!await forgeSeasonalEvents.choiceActive(p,o)?\"off\":pd(u),",
+              "replace": "async function Yt(p,u,o){let i=!await forgeSeasonalEvents.choiceActive(p,o)?\"off\":pd(u),"
+            },
+            {
+              "find": "async function _r(s,c,d,forgeMemoryOptions,forgeReader,forgeBlocks){",
+              "replace": "async function _r(s,c,d,forgeMemoryOptions,forgeReader,forgeBlocks,forgePlayed){"
+            },
+            {
+              "find": "let ae=await rr(s,H);if(ae&&ae.to<B){",
+              "replace": "let ae=await rr(s,H);if(ae&&ae.to<B&&(!forgePlayed||ae.to<forgePlayed.chapter)){"
+            },
+            {
+              "find": "let re=[];for(let oe=0;oe<mn;oe+=1){let ye=await nr(s,H,oe);ye&&re.push(jo(ye))}",
+              "replace": "let re=[];for(let oe=0;oe<(!forgePlayed||H<forgePlayed.chapter?mn:H===forgePlayed.chapter?forgePlayed.count:0);oe+=1){let ye=await nr(s,H,oe);ye&&re.push(jo(ye))}"
+            },
+            {
+              "find": ",H=await rr(s,P);if(H){",
+              "replace": ",H=d>=zt&&await rr(s,P);if(H){"
+            },
+            {
+              "find": "async function forgeMemoryHistory(runId,chapter,storyIndex,options){\n let prefix=[];\n if(options.current){\n  let position=await forgeStoryMemory.frontier(runId),plan=(await a.getById(n.id,f(runId,position.chapter)))?.data;\n  let count=tr(plan).slice(0,position.nodeIndex).filter(node=>node.type===\"story\").length;\n  for(let index=0;index<count;index++){let segments=await nr(runId,position.chapter,index);if(segments)prefix.push(jo(segments))}\n",
+              "replace": "// The played frontier: the chapter the player is in and how many of its scenes they finished. Pre-forged scenes past it\n// are not canon yet, so neither the current scene so far nor the legacy history may include them.\nasync function forgePlayedFrontier(runId){\n let position=await forgeStoryMemory.frontier(runId),plan=(await a.getById(n.id,f(runId,position.chapter)))?.data;\n return {chapter:position.chapter,count:tr(plan).slice(0,position.nodeIndex).filter(node=>node.type===\"story\").length};\n}\nasync function forgeMemoryHistory(runId,chapter,storyIndex,options){\n let prefix=[];\n if(options.current){\n  let position=await forgePlayedFrontier(runId);\n  for(let index=0;index<position.count;index++){let segments=await nr(runId,position.chapter,index);if(segments)prefix.push(jo(segments))}\n"
+            },
+            {
+              "find": "fallback:()=>_r(runId,chapter,storyIndex,null,options.reader,true)});",
+              "replace": "fallback:async()=>_r(runId,chapter,storyIndex,null,options.reader,true,await forgePlayedFrontier(runId))});"
+            },
+            {
+              "find": "let L=_.find(Ne=>!Ne.bond&&y(b,Number(Ne.to)||Number(Ne.chapter))<Ic);",
+              "replace": "let L=_.find(Ne=>Ne.bond?yo(b?.bondChapters?.[Ne.unitId],Ne.part)<zt:y(b,Number(Ne.to)||Number(Ne.chapter))<Ic);"
+            }
+          ]
+        },
+        {
+          "version": "1.26.3",
+          "commits": [],
+          "edits": [
+            {
+              "find": "beats:yo(x,M),after:Math.max(0,Math.round(Number(x[M<=1?\"after\":\"after\"+M])||0))})",
+              "replace": "beats:yo(x,M),after:Math.max(0,Math.round(Number(x[M<=1?\"after\":\"after\"+M])||0)),opened:Math.max(0,Number(x[M<=1?\"opened\":\"opened\"+M])||0)})"
+            }
+          ]
+        },
+        {
+          "version": "1.27.1",
+          "commits": [],
+          "edits": [
+            {
+              "find": "if(ma(s)&&k){let N=await Rw(s,c,d);if(N)return N}",
+              "replace": "if(ma(s)&&k){let N=await Rw(s,c,d);if(N)return{...N,worn:!0}}",
+              "reason": "Say when a scene subject is painted in its worn outfit"
+            },
+            {
+              "find": "appearance:re||l(N.appearance),identitySex:l(N.identitySex)}}",
+              "replace": "appearance:re||l(N.appearance),identitySex:l(N.identitySex),wornOutfit:K.worn?l(N.wornOutfit):\"\"}}",
+              "reason": "A scene subject keeps wornOutfit only when its clothes are that outfit, so the outfit reference never contradicts the prompt"
+            },
+            {
+              "find": "let Q=(await Promise.all(L.map(j=>ya(w,j)))).filter(Boolean);",
+              "replace": "let Q=(await Promise.all(L.map(async j=>{let N=await ya(w,j);return N&&l(N.wornOutfit)?ch(w,j,N,\"\",!1,!0):N}))).filter(Boolean);",
+              "reason": "A banner paints a unit that has an outfit on in that outfit, as a chat photo does, so its prompt and outfit reference agree; a unit without one keeps its whole look"
+            },
+            {
+              "find": "let re=await ya(c,d)||H,oe=",
+              "replace": "let re=await ya(c,d)||H;l(re.wornOutfit)&&(re=await ch(c,d,re,\"\",!1,!0));let oe=",
+              "reason": "A Bond background paints a unit that has an outfit on in that outfit, so its prompt and outfit reference agree"
+            }
+          ]
+        },
+        {
+          "version": "1.27.2",
+          "commits": [],
+          "edits": [
+            {
+              "find": "se=[\"You are the narrator of a gacha visual-novel story mode.\",",
+              "replace": "se=[\"You are the narrator of a gacha visual-novel story mode.\",\"Put on your I-Have-Good-Theory-Of-Mind Hat.\",",
+              "reason": "The narrator puts on the theory-of-mind hat"
+            },
+            {
+              "find": "te=[\"You are the chapter planner for a gacha story mode.\",",
+              "replace": "te=[\"You are the chapter planner for a gacha story mode.\",\"Put on your I-Have-Good-Theory-Of-Mind Hat.\",",
+              "reason": "The chapter planner puts on the theory-of-mind hat"
+            },
+            {
+              "find": "te=[\"You are the chapter planner for a gacha story mode, planning a BOND CHAPTER.\",",
+              "replace": "te=[\"You are the chapter planner for a gacha story mode, planning a BOND CHAPTER.\",\"Put on your I-Have-Good-Theory-Of-Mind Hat.\",",
+              "reason": "The bond chapter planner puts on the theory-of-mind hat"
+            },
+            {
+              "find": "W=[`You are ${l(I.name)}. You are writing to the player through ${n}: this is a MESSAGE, not a scene.`,",
+              "replace": "W=[`You are ${l(I.name)}. You are writing to the player through ${n}: this is a MESSAGE, not a scene.`,\"Put on your I-Have-Good-Theory-Of-Mind Hat.\",",
+              "reason": "A character writing a message puts on the theory-of-mind hat"
+            }
+          ]
+        },
+        {
+          "version": "1.27.3",
+          "commits": [],
+          "edits": [
+            {
+              "find": "function bc(e,t,n){",
+              "sourceId": "weapon-eligibility",
+              "replaceFrom": "src/weapon-eligibility.mjs"
+            },
+            {
+              "find": "function bc(e,t,n){if(!e||e.kind!==\"weapon\"||!e.grantedSkill||!t)return null;let r=String(e.dedicatedToId||\"\").trim();if(r)return r===String(n||\"\").trim()?e.grantedSkill:null;let a=String(e.dedicatedTo||\"\").trim().toLowerCase();return a&&a===String(t.name||\"\").trim().toLowerCase()?e.grantedSkill:null}",
+              "replace": "function bc(e,t,n){return e&&e.grantedSkill&&forgeWeaponIsForCharacter(e,t,n)?e.grantedSkill:null}"
+            },
+            {
+              "find": "v&&P.data.weaponType!==v)continue;",
+              "replace": "v&&P.data.weaponType!==v&&!forgeWeaponIsForCharacter(P.data,d,c))continue;"
+            },
+            {
+              "find": "if(U&&F.data.weaponType!==U)return",
+              "replace": "if(U&&F.data.weaponType!==U&&!forgeWeaponIsForCharacter(F.data,S.data,i))return"
             }
           ]
         }

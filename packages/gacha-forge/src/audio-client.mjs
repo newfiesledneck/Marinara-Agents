@@ -1,5 +1,5 @@
 // Package-owned orchestration over the Engine's isolated player and shared voice service.
-/* global normalizeForgeAudio, normalizeForgeMusicMood, forgeAudioEnglish, forgeAudioFields, forgeSoundtrackContextKey, forgeSoundtrackCues, recordForgeSoundtrack, Ze */
+/* global normalizeForgeAudio, normalizeForgeMusicMood, forgeAudioEnglish, forgeAudioFields, forgeSoundtrackContextKey, forgeSoundtrackCues, recordForgeSoundtrack, forgeSpeakerVoice, forgeStoryPersona, Ze */
 const forgeAudioIcons = {
   sound:
     '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 3a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -57,16 +57,28 @@ async function forgeAudioJson(path, options) {
   return response.json();
 }
 
-export function forgeExplicitVoice(config, characterId) {
-  if (!characterId || !config || (!config.connectionId && config.enabled === false)) return null;
-  const profile = config.connectionId ? config.connectionProfiles?.[config.connectionId] : null;
-  const assignments = config.connectionId ? profile?.voiceAssignments : config.voiceAssignments;
-  const rows = (Array.isArray(assignments) ? assignments : []).filter(
-    (row) => row?.characterId === characterId && typeof row.voice === "string" && row.voice.trim(),
-  );
-  // Contradictory duplicate rows must not silently choose a different character's voice.
-  const voices = [...new Set(rows.map((row) => row.voice.trim()))];
-  return voices.length === 1 ? voices[0] : null;
+const forgeConnectionVoiceLists = new Map();
+// ponytail: one provider voice list per connection and source for this page; a reload picks up newly added
+// provider voices. A failed read rejects and is not kept, so callers can tell it from an empty list and retry.
+export function forgeConnectionVoices(config) {
+  const id = config?.connectionId || "";
+  // Without a chosen connection, the Engine lists the legacy source's voices, so a source switch is a new list.
+  const key = JSON.stringify([id, config?.source || "", config?.baseUrl || ""]);
+  if (!forgeConnectionVoiceLists.has(key))
+    forgeConnectionVoiceLists.set(
+      key,
+      forgeAudioJson(`/api/tts/voices${id ? `?connectionId=${encodeURIComponent(id)}` : ""}`).then(
+        (result) =>
+          [
+            ...new Set((Array.isArray(result?.voices) ? result.voices : []).filter((v) => typeof v === "string" && v)),
+          ].sort(),
+        (error) => {
+          forgeConnectionVoiceLists.delete(key);
+          throw error;
+        },
+      ),
+    );
+  return forgeConnectionVoiceLists.get(key);
 }
 
 export function forgeVoiceCacheKey(runId, segment, character, config, voice) {
@@ -465,8 +477,8 @@ export class ForgeAudioController {
       segment.thought
     )
       return;
-    const character = cast;
-    if (!character?.characterId) return;
+    const character = cast || forgeStoryPersona(this.host._run?.protagonist, segment.speaker);
+    if (!character?.characterId && !initial.otherVoices) return;
     const abort = new AbortController();
     this.voiceAbort?.abort();
     this.voiceAbort = abort;
@@ -475,7 +487,16 @@ export class ForgeAudioController {
     if (signal?.aborted) abort.abort();
     try {
       const config = await forgeAudioJson("/api/tts/config", { signal: abort.signal });
-      const voice = forgeExplicitVoice(config, character.characterId);
+      const voice = await forgeSpeakerVoice(
+        config,
+        {
+          characterId: character?.characterId,
+          name: character?.name || segment.speaker,
+          gender: character?.gender || segment.gender,
+          persona: character?.prota === true,
+        },
+        this.settings.otherVoices,
+      );
       if (!voice || abort.signal.aborted || this.disposed) return;
       await this.tts.speakSequence(
         [
@@ -483,8 +504,8 @@ export class ForgeAudioController {
             text: segment.text,
             speaker: segment.speaker,
             voice,
-            characterId: character.characterId,
-            cacheKey: forgeVoiceCacheKey(this.runId, segment, character, config, voice),
+            ...(character?.characterId ? { characterId: character.characterId } : {}),
+            cacheKey: forgeVoiceCacheKey(this.runId, segment, character || {}, config, voice),
           },
         ],
         `gacha-forge:${this.runId}:${this.voiceSession}:${++this.voiceIndex}`,

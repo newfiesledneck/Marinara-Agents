@@ -1,13 +1,15 @@
 /* global createForgeSeasonalEvents, forgeHydrateStoryCharacters, forgeComposeMemoryPrompt, forgeChoicePlanMessages,
 forgeChoicesEnabled, forgeSeasonalChapter, forgeAddCalendarDays, forgeWallDate,
 a, n, r, be, Ae, pe, Gn, Le, _t, It, Vt, uh, gS, yS, Uo, _r, fu, Ei, tr, wy, Ur, Cr,
-nt, nn, vn, ch, P0, Ph, vS, ES, U0, rt, Vr, gc, H0, zo, yu, I, forgeEnemyCombatMetadata,
+nt, nn, vn, ch, P0, Ph, vS, ES, U0, rt, Vr, gc, H0, zo, yu, I, ze, forgeEnemyCombatMetadata,
 forgeEncounterPresentation, dh, W, Gs, ro, Bo, Wf, at, ie, forgeChoices, forgeStoryMemory, forgeStoryCancellation,
-forgeStoryPost, B, k, q, bgSlug, l, Xt, vf, jg, Qn, forgeBannerAnimations, xn */
-/* global forgeFormationEncounterMessages, forgeCanonicalSegments, forgeSeasonalEnabled */
+forgeStoryPost, B, k, q, bgSlug, l, Xt, vf, jg, Qn, forgeBannerAnimations, xn, Bf, cc, ty, Mi, vr, Bn, qn, Xe */
+/* global forgeFormationClassicFields, forgeFormationEncounterMessages, forgeFormationMode, forgeFormationNormalizeGuide, forgeCanonicalSegments, forgeSeasonalEnabled, forgeSeasonalProgress */
 
 // ponytail: this is the narrow adapter for the contributed bundle; move its aliases to imports when that source lands.
 function createForgeSeasonalLegacyAdapter() {
+  // An event's fights scale like the main chapter after the one it followed.
+  const eventScale = (event) => Math.max(1, (Number(event?.after) || 0) + 1);
   const readRun = async (runId) => Ae((await be()).data, runId);
   const readSession = async (runId) => (await pe(runId)).data;
   const cast = async (runId) => {
@@ -228,25 +230,31 @@ function createForgeSeasonalLegacyAdapter() {
     }
     throw new Error("story-event-reward-not-ready");
   };
-  const prepareBattle = async ({ body, target, start }) => {
-    const run = await readRun(target.runId),
-      chapter = target.chapter,
-      combatIndex = Number(body.combatIndex),
-      scale = Math.max(1, target.event.after + 1),
-      combatId = I(target.runId, chapter, combatIndex);
-    let doc = await a.getById(n.id, combatId);
-    if (!doc) {
-      const node = Ur(target.plan)[combatIndex],
-        storyIndex = tr(target.plan)
-          .slice(0, target.nodeIndex)
-          .filter((entry) => entry.type === "story").length,
-        history = await _r(target.runId, chapter, storyIndex, {
-          query: `${target.event.theme} ${node.title} ${node.setup}`,
+  // Designs an event fight once: when its battle opens, or ahead of it while pre-forge writes the event. Both
+  // share the fight's dedupe key, so opening a battle the chain is designing joins that design.
+  const designFight = (runId, chapter, combatIndex) => {
+    const combatId = I(runId, chapter, combatIndex);
+    return ze(combatId, async () => {
+      const saved = await a.getById(n.id, combatId);
+      if (saved?.data) return { ok: true, guide: saved.data, cached: true };
+      const target = await events.selected({ runId, chapter });
+      if (!target.ok) return target;
+      const run = await readRun(runId),
+        plan = (await a.getById(n.id, `${runId}:chapter:${chapter}`))?.data,
+        nodes = tr(plan),
+        node = nodes.filter((entry) => entry.type === "combat")[combatIndex];
+      if (!run || !node) return { ok: false, error: "bad-request" };
+      const scale = eventScale(target.event),
+        storyIndex = nodes.slice(0, nodes.indexOf(node)).filter((entry) => entry.type === "story").length,
+        history = await _r(runId, chapter, storyIndex, {
+          query: { plan: [node.title, node.setup, target.event.theme].filter(Boolean).join(" ") },
           job: "structured",
+          // A fight's design needs no one's private conversations.
+          cast: [],
         });
       let messages = forgeComposeMemoryPrompt(vS, [
         run.scenario,
-        target.plan.premise,
+        plan.premise,
         node,
         history,
         run.protagonist,
@@ -260,37 +268,63 @@ function createForgeSeasonalLegacyAdapter() {
           places: [],
         },
       ]);
-      const characterContext = await events.narrationContext(target.runId, target.plan);
+      const characterContext = await events.narrationContext(runId, plan);
       if (characterContext) messages.push({ role: "user", content: characterContext });
+      let formationElements = null;
       if (typeof forgeFormationEncounterMessages === "function") {
-        const session = await readSession(target.runId),
+        const session = await readSession(runId),
           units = (await a.list(n.id, "unit")).filter(
-            (unit) => unit.id.startsWith(`${target.runId}:unit:`) && session.roster?.[unit.id],
+            (unit) => unit.id.startsWith(`${runId}:unit:`) && session.roster?.[unit.id],
           ),
           available = [
             ...new Set(units.map((unit) => String(unit.data?.affinity || "").toLowerCase()).filter(Boolean)),
           ];
         messages = forgeFormationEncounterMessages(messages, run, available);
+        if (forgeFormationMode(run) === "formation") formationElements = available;
       }
-      const result = await generate(target.runId, run, messages, "story-event-combat", (value) =>
-        ES(value, U0(scale), node),
+      // Classic event fights parse exactly as before; a Formation world also reads the kits and rules it asked for.
+      const result = await generate(runId, run, messages, "story-event-combat", (value) =>
+        formationElements
+          ? forgeFormationNormalizeGuide(
+              value,
+              ES(forgeFormationClassicFields(value), U0(scale), node),
+              formationElements,
+            )
+          : ES(value, U0(scale), node),
       );
       if (!result.ok) return result;
       const at = new Date().toISOString();
-      doc = await a.create({
-        id: combatId,
-        packageId: n.id,
-        kind: "combat",
-        name: node.title,
-        description: target.event.title,
-        data: { chapter, combatIndex, ...result.value },
-        createdAt: at,
-        updatedAt: at,
-      });
-      if (!doc) doc = await a.getById(n.id, combatId);
+      const doc =
+        (await a.create({
+          id: combatId,
+          packageId: n.id,
+          kind: "combat",
+          name: node.title,
+          description: target.event.title,
+          data: { chapter, combatIndex, ...result.value },
+          createdAt: at,
+          updatedAt: at,
+        })) || (await a.getById(n.id, combatId));
+      return doc?.data ? { ok: true, guide: doc.data } : { ok: false, error: "write-conflict" };
+    });
+  };
+  const prepareBattle = async ({ body, target, start }) => {
+    const run = await readRun(target.runId),
+      chapter = target.chapter,
+      combatIndex = Number(body.combatIndex),
+      difficulty = target.difficulty,
+      scale = eventScale(target.event),
+      combatId = I(target.runId, chapter, combatIndex);
+    let designed;
+    if (difficulty === "normal") designed = await designFight(target.runId, chapter, combatIndex);
+    else {
+      // Hard and Very Hard fight what Normal designed (a fight's guide is saved before its first start), so they
+      // never ask a model for one.
+      const guide = (await a.getById(n.id, combatId))?.data;
+      designed = guide ? { ok: true, guide } : { ok: false, error: "event-fight-missing" };
     }
-    if (!doc) return { ok: false, error: "write-conflict" };
-    const guide = doc.data,
+    if (!designed.ok) return designed;
+    const guide = designed.guide,
       party = await Vr(target.runId, run, body.presetIndex);
     if (!party.ok) return party;
     const known = await dh(target.runId, run),
@@ -309,7 +343,8 @@ function createForgeSeasonalLegacyAdapter() {
           ...(enemy.formationKit ? { formationKit: enemy.formationKit } : {}),
           ...forgeEnemyCombatMetadata(enemy, known),
         })),
-        yu(scale, "normal"),
+        // The same fight, calibrated to the difficulty's power, as main us() does; its seed and key stay Normal's.
+        yu(scale, difficulty),
       );
     if (!start) {
       const presentation = await rt(run, target.runId, enemies, {
@@ -328,8 +363,8 @@ function createForgeSeasonalLegacyAdapter() {
         presets: party.presets,
         activePreset: party.usedIdx,
         cost: Bo,
-        cp: yu(scale, "normal"),
-        difficulty: "normal",
+        cp: yu(scale, difficulty),
+        difficulty,
         enemyPower: enemies[0]?.power || 1,
       };
     }
@@ -340,14 +375,16 @@ function createForgeSeasonalLegacyAdapter() {
       const data = structuredClone(doc.data),
         current = await events.selected(body, { live: true, store: documents });
       if (!current.ok) return current;
-      if (!target.replay && current.played !== target.nodeIndex) return { ok: false, error: "event-node-locked" };
+      // Still the fight this difficulty reached (progress only grows, so a match is enough).
+      if (forgeSeasonalProgress(current.data, chapter, difficulty) !== target.nodeIndex)
+        return { ok: false, error: "event-node-locked" };
       const charged = ro(data, target.runId, Bo, Date.now());
       if (!charged.ok) return charged;
       data.combatPending = {
         chapter,
         combatIndex,
         nodeIndex: target.nodeIndex,
-        difficulty: "normal",
+        difficulty,
         fight,
         at: Date.now(),
       };
@@ -366,6 +403,34 @@ function createForgeSeasonalLegacyAdapter() {
       return { ok: true, spent: Bo, loss: { spent: Bo, again: Bo }, wallet: at(charged.wallet, data) };
     });
   };
+  // ponytail: a copy of main /complete's first-clear fight pay (rank XP with its level-up Vigor, the node-clear and
+  // hard-clear counts, and the tier's Funds and Aether; ty pays no Insight). A change to main pay does not reach it:
+  // share one helper once the bundle's source lands.
+  const payFight = ({ data, runId, difficulty, event }) => {
+    const from = { ...Bn(data.account), vigorMax: qn(data) },
+      level = Mi(data, vr.combat),
+      reward = ty(eventScale(event), difficulty),
+      time = Date.now();
+    Xt(data, runId, "node-clear", 1, time);
+    Xt(data, runId, "hard-clear", 1, time);
+    const wallet = data.wallet || { ...Xe };
+    wallet.funds = (Number(wallet.funds) || 0) + reward.funds;
+    wallet.aether = (Number(wallet.aether) || 0) + reward.aether;
+    data.wallet = wallet;
+    return {
+      reward,
+      rank: {
+        gain: vr.combat,
+        levels: level.levels,
+        vigor: level.vigor || 0,
+        ...Bn(data.account),
+        vigorMax: qn(data),
+        from,
+      },
+      account: Bn(data.account),
+      wallet: at(data.wallet, data),
+    };
+  };
   const events = createForgeSeasonalEvents({
     packageId: n.id,
     persistence: r.persistence,
@@ -381,6 +446,8 @@ function createForgeSeasonalLegacyAdapter() {
       const reference = await cast(runId),
         selected = reference.filter((unit) => event.cast.includes(unit.id));
       const context = { pool: JSON.stringify(selected), index: "" };
+      // Only the event's own cast's conversations, both listed and recalled.
+      const conversations = await Ei(runId, { only: selected.map((unit) => unit.name), limit: 6 });
       const messages = forgeChoicePlanMessages(
         forgeComposeMemoryPrompt(gS, [
           run.scenario,
@@ -391,10 +458,17 @@ function createForgeSeasonalLegacyAdapter() {
           "",
           run.language,
           Uo(run, "chapter"),
-          await _r(runId, after + 1, 0, { current: true, query: event.theme, job: "structured" }),
+          await _r(runId, after + 1, 0, {
+            current: true,
+            query: { plan: [event.title, event.theme].filter(Boolean).join(" ") },
+            job: "structured",
+            // The event's own cast are the only units whose private conversations it may draw on.
+            cast: Array.isArray(event.cast) ? event.cast : [],
+            listed: conversations,
+          }),
           "",
           "",
-          fu(await Ei(runId, { limit: 6 })),
+          fu(conversations),
         ]),
         forgeChoicesEnabled(run),
       );
@@ -422,16 +496,17 @@ function createForgeSeasonalLegacyAdapter() {
       return charge.ok ? { ok: true, spent: Wf, wallet: at(charge.wallet, data) } : charge;
     },
     onComplete: (runId) => forgeStoryMemory.schedule(runId),
+    clampDifficulty: cc,
+    payFight,
     log: (error, message) => r.logger.warn(error, `[gacha-forge] ${message}`),
   });
   const post = (path, handler) => forgeStoryPost(path, (request) => handler(request?.body || {}));
   post("/story-events", (body) => events.list(body));
-  post("/story-event/plan", (body) => forgeChoices.generate(body.runId, () => events.plan(body)));
-  post("/story-event/preforge", () => ({
-    ok: true,
-    allowed: false,
-    preforge: { mode: "off", locked: false, running: false },
-  }));
+  post("/story-event/plan", async (body) => {
+    const result = await forgeChoices.readOrGenerate(body.runId, (cachedOnly) => events.plan(body, { cachedOnly }));
+    // The map's Recommended BP per difficulty, as main /chapter-plan answers it.
+    return result?.ok && result.event ? { ...result, cp: Bf(eventScale(result.event)) } : result;
+  });
   post("/story-event/start", (body) => events.startStory(body));
   post("/story-event/complete", (body) => events.complete(body));
   post("/story-event/beat", async (body) => {
@@ -475,5 +550,6 @@ function createForgeSeasonalLegacyAdapter() {
       return { ok: !!saved, ...(saved ? {} : { error: "write-conflict" }) };
     });
   });
-  return events;
+  // Pre-forge uses the main /preforge* and /story/cancel routes, which read an event-N key like a chapter's.
+  return Object.assign(events, { designFight });
 }

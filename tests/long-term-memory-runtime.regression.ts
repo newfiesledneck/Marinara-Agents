@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { appendFile, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { mock } from "node:test";
@@ -8,7 +9,13 @@ import { runRegressionToCompletion, runWithSafeCleanup } from "./regression-help
 async function main() {
   const repoRoot = resolve(dirname(process.argv[1] ?? process.cwd()), "..");
   const packageManifest = JSON.parse(await readFile(join(repoRoot, "packages/long-term-memory/manifest.json"), "utf8"));
-  assert.equal(packageManifest.engine.min, "2.4.1", "Long-Term Memory is gated by its capability API, not engine.min");
+  // engine.min cannot tell Engine staging from the 2.5.1 release; capability API 1.387 (E2 + E3) can.
+  assert.equal(packageManifest.engine.min, "2.5.1");
+  assert.deepEqual(
+    packageManifest.capabilityApi,
+    { major: 1, minor: 387 },
+    "Long-Term Memory is gated by its capability API",
+  );
   const source = "../packages/long-term-memory/src/engine/packages/server/src/services/long-term-memory";
   const { activate } = await import(`${source}/server-entry.ts`);
   const {
@@ -22,10 +29,12 @@ async function main() {
   );
   const { withLtmVaultLock } = await import(`${source}/persistence/vault-lock.ts`);
   const { LongTermMemoryStorage } = await import(`${source}/persistence/storage.ts`);
-  const { createLtmStorageReadService, listLtmPackageReaders } = await import(`${source}/services/storage-read.ts`);
+  const { createLtmStorageReadService, listLtmPackageReaders, recordLtmPackageRead } = await import(
+    `${source}/services/storage-read.ts`
+  );
   const { createLtmRecallService } = await import(`${source}/services/recall.ts`);
   const { updateLtmGlobalSettings } = await import(`${source}/settings.ts`);
-  const { notePathForId } = await import(`${source}/persistence/paths.ts`);
+  const { getLongTermMemoryDirectories, notePathForId } = await import(`${source}/persistence/paths.ts`);
   const { invalidateLtmVaultSnapshot } = await import(`${source}/persistence/vault-snapshot.ts`);
   const { ltmIndexStatePath, readLtmIndexState } = await import(`${source}/persistence/index-state.ts`);
   const { repairLongTermMemory } = await import(`${source}/maintenance/maintenance.ts`);
@@ -438,6 +447,61 @@ async function main() {
           ["noodle", "null", "slurp"],
           "Memory Settings must list the packages that read memories, and one that gave no name",
         );
+        await recordLtmPackageRead(recallRoot, "package_recall", "tally", 3);
+        await recordLtmPackageRead(recallRoot, "package_list", "tally", 2);
+        const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+        for (const [source, memories] of [
+          ["tally", 7],
+          ["stale", 4],
+        ] as const)
+          await appendFile(
+            getLongTermMemoryDirectories(recallRoot).debugLog,
+            `${JSON.stringify({
+              id: randomUUID(),
+              ts: eightDaysAgo,
+              operationId: randomUUID(),
+              phase: "retrieval",
+              action: "package_list",
+              status: "ok",
+              source,
+              counts: { memories },
+            })}\n`,
+          );
+        const readers = (await listLtmPackageReaders(recallRoot)) as Array<{
+          caller: string | null;
+          lastReadAt: string;
+          reads: number;
+          memories: number;
+        }>;
+        assert.deepEqual(
+          readers.find((reader) => reader.caller === "tally"),
+          { caller: "tally", lastReadAt: readers[0].lastReadAt, reads: 2, memories: 5 },
+          "a reader's week must count the reads and returned memories from the last 7 days, not an older read",
+        );
+        assert.equal(readers[0].caller, "tally", "the reader that read last must come first");
+        assert.deepEqual(
+          readers.find((reader) => reader.caller === "stale"),
+          { caller: "stale", lastReadAt: eightDaysAgo, reads: 0, memories: 0 },
+          "a reader whose only read is older than 7 days must still be listed, with no reads this week",
+        );
+        assert.deepEqual(
+          readers.map((reader) => reader.lastReadAt),
+          readers
+            .map((reader) => reader.lastReadAt)
+            .sort()
+            .reverse(),
+          "readers must be ordered by their last read, newest first",
+        );
+        const noodleNotes = await createLtmStorageReadService(recallStorage).storage.listNotes({
+          caller: "noodle",
+          characterIds: ["char-a"],
+        });
+        assert.ok(noodleNotes.length > 0, "the noodle read must return memories for the sum to mean anything");
+        assert.equal(
+          readers.find((reader) => reader.caller === "noodle")?.memories,
+          noodleNotes.length,
+          "a reader's memories must add up what its reads returned",
+        );
         await updateLtmGlobalSettings({ longTermMemoryShareWithPackages: false }, recallRoot);
         assert.equal(
           await recall.recall({ queryText: "cobalt archive", characterIds: ["char-a"] }),
@@ -679,15 +743,10 @@ async function main() {
       assert.ok(runtime, "package activation must register the runtime service");
       assert.deepEqual(
         chats[0].metadata,
-        {
-          enableLongTermMemory: true,
-          longTermMemoryBudgetTokens: 2048,
-          activeAgentIds: ["long-term-memory"],
-          enableAgents: true,
-          longTermMemoryPackageAdopted: true,
-        },
-        "legacy chat settings must be preserved while activating the package agent",
+        { enableLongTermMemory: true, longTermMemoryBudgetTokens: 2048 },
+        "activation must leave legacy chat settings alone; users switch the package on per chat",
       );
+      assert.equal(metadataUpdates, 0, "activation must not write chat metadata");
       assert.deepEqual(
         JSON.parse(await readFile(join(dataDir, "long-term-memory", "config", "agent-settings.json"), "utf8")),
         {
@@ -2119,7 +2178,7 @@ async function main() {
       legacyAgentConfig = null;
       cleanup = await activate({ dataDir, api });
       assert.deepEqual(chats[0].metadata.activeAgentIds, [], "reinstall must not reverse explicit uninstall cleanup");
-      assert.equal(metadataUpdates, 1, "legacy adoption must be idempotent across restarts");
+      assert.equal(metadataUpdates, 0, "reactivation must not write chat metadata");
       assert.equal(
         agentConfigReads,
         1,

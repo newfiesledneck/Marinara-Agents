@@ -1,4 +1,5 @@
 import { buildSlurpDeepDetailsRecord } from "./slp-deep-details-record.js";
+import { readSlurpWorldLens } from "../../data/creators/slp-canon-anchor-storage.js";
 import { saveSlurpNewPostDeepDetails } from "../../data/feed/slp-post-deep-details-storage.js";
 import type { SlpDeepDetailsFlavour } from "../../../../../shared/src/slp/slp-deep-details.js";
 import { prepareSlurpCreatorPost } from "./slp-prepared-post.js";
@@ -44,7 +45,7 @@ import {
 } from "../../modules/feed/slp-post-variation.js";
 import { slurpArcPoll, slurpArcRotation, slurpProjectChapter } from "../../modules/projects/slp-arc-progress.js";
 import { slurpPurposeMetadata } from "../../modules/feed/slp-post-purpose.js";
-import { resolveSlurpCreatorScheduleContext } from "../creators/slp-creators-contract.js";
+import { ensureSlurpCreatorWardrobe, resolveSlurpCreatorScheduleContext } from "../creators/slp-creators-contract.js";
 import { type SlpCreatorContentFormat } from "../../base/prompting/slp-content-format.js";
 import { resolveSlurpLoreContext } from "../../data/host/slp-lore-context.js";
 import { pickGalleryAttachmentForAccount } from "./slp-generated-activity-service.js";
@@ -61,6 +62,7 @@ import {
   slpCreatorTitleFromContent,
   completeSlurpCreatorPost,
   slurpLockedTeaserMetadata,
+  SLURP_FORMAT_CEILING,
 } from "./slp-post-prompt.js";
 export type { SlpCreatorContentFormat } from "../../base/prompting/slp-content-format.js";
 
@@ -73,7 +75,11 @@ export {
   type PublicIdentity,
 } from "../../base/identity/slp-identity-protection.js";
 import { slurpPromptContext } from "../../base/prompting/slp-prompt-blocks.js";
-import { slurpCameraSourceInstruction, slurpPostCameraSource } from "../../modules/feed/slp-camera-source.js";
+import {
+  slurpCameraSourceInstruction,
+  slurpPostCameraSource,
+  slurpScreenFreeCamera,
+} from "../../modules/feed/slp-camera-source.js";
 import { slurpPostPictureBriefs } from "./slp-post-picture-briefs.js";
 import { slurpShootContinuity } from "../../modules/feed/slp-image-brief.js";
 import { slurpContentAxesInstruction, slurpIntentFormat } from "../../modules/feed/slp-content-axes.js";
@@ -141,7 +147,12 @@ export async function generateCreatorPost(
   // Rotating angle, skipped for directed posts; one sequence keeps project and variation in step.
   const sequence = await noodle.countNoodlerPostsByAccount(account.id);
   const story = await loadSlurpStoryState(db, account.id, at); // closet, brief lines and deck beats
-  const looks = await noodle.listWardrobeLooks(account.id).catch(() => []);
+  const looks = await ensureSlurpCreatorWardrobe(db, {
+    accountId: account.id,
+    displayName: account.displayName,
+    connection: input.connection,
+    sourceText: sourceCharacterContext,
+  });
   const wardrobeLooks = slurpConditionCloset(looks, story.state.wardrobe);
   const recentWardrobeIds = recentPosts
     .map((post) => (typeof post.metadata.wardrobeLookId === "string" ? post.metadata.wardrobeLookId : null))
@@ -259,15 +270,17 @@ export async function generateCreatorPost(
   const postImages = imagesEnabled && !textOnly && !reusedMedia;
   // Drawn after the plan: a planned shoot is not photographed at arm's length. A reused shoot
   // keeps its own camera. See `slp-camera-source.ts`.
+  const screens = !(await readSlurpWorldLens(db, account.id));
   const cameraSource = variation
     ? slurpPostCameraSource(account.id, sequence, {
         companyCanHoldCamera: variation.companyCanHoldCamera,
+        screens,
         prefers: production.prefers,
         intent: axes?.intent,
         effort,
       })
     : null;
-  const camera = shoot?.cameraSource ?? cameraSource;
+  const camera = slurpScreenFreeCamera(shoot?.cameraSource, screens) ?? cameraSource;
   const cameraInstruction = camera ? slurpCameraSourceInstruction(camera) : undefined;
   // The shoot rides in the content-type block rather than a block of its own: it is part of what
   // this post is for, and a second block would be dead for every post that is not a callback.
@@ -462,7 +475,10 @@ export async function generateCreatorPost(
     generated.content,
     disclosureMode,
     publicIdentity,
-    settings.postMaxLength,
+    // Models overshoot the caption target (prod median 309 for a 40-220 aim): cut at a sentence end.
+    directed
+      ? settings.postMaxLength
+      : Math.min(settings.postMaxLength, SLURP_FORMAT_CEILING[format] ?? settings.postMaxLength),
   );
   if (!protectedContent) throw new Error("Slurp generation returned no usable post content.");
 

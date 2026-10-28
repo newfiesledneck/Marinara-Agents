@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
-import { recordForgeSoundtrack } from "../packages/gacha-forge/src/audio-settings.mjs";
+import { recordForgeSoundtrack } from "../sources/forge-kit/audio-settings.mjs";
 
 const engineRoot = process.env.MARINARA_ENGINE_ROOT;
 if (!engineRoot) throw new Error("Set MARINARA_ENGINE_ROOT to a compatible Engine checkout");
@@ -64,11 +64,13 @@ async function openForge(
     hostTheme?: "dark" | "light";
     runId?: string;
     connectionId?: string;
+    persona?: { id: string; voice?: string };
   } = {},
 ) {
   const saved: typeof baseRun & { animationConnectionId?: string } = structuredClone(baseRun);
   if (options.runId) saved.runId = options.runId;
   if (options.connectionId) saved.connectionId = options.connectionId;
+  if (options.persona) Object.assign(saved.protagonist, { personaId: options.persona.id });
   saved.audio.tts = options.voice === true;
   if (options.selectedAudio) saved.audio.audioConnectionId = options.selectedAudio;
   if (options.selectedAnimation) saved.animationConnectionId = options.selectedAnimation;
@@ -140,7 +142,12 @@ async function openForge(
         enabled: false,
         connectionId: "speech-fixture",
         connectionProfiles: {
-          "speech-fixture": { voiceAssignments: [{ characterId: "engine-arden", voice: "voice-arden" }] },
+          "speech-fixture": {
+            voiceAssignments: [
+              { characterId: "engine-arden", voice: "voice-arden" },
+              ...(options.persona?.voice ? [{ characterId: options.persona.id, voice: options.persona.voice }] : []),
+            ],
+          },
         },
       },
     }),
@@ -445,6 +452,93 @@ async function seedScene(forge: Locator, theme = "aurora") {
     { theme },
   );
   await expect(forge.locator("[data-vn]")).toBeVisible();
+}
+
+async function openPersonaVoiceProof(page: Page, testInfo: TestInfo, assigned = true) {
+  const { createChapterRuntime, chapterRunId, chapterUnitId } = await import(
+    pathToFileURL(resolve(__dirname, "fixtures/gacha-forge-chapter-runtime.mjs")).href
+  );
+  const runtime = await createChapterRuntime({ port: 7866 + testInfo.parallelIndex });
+  try {
+    const persona = { id: "engine-persona-mari", voice: "voice-persona-mari" };
+    runtime.docs.get("index").data.runs[0].protagonist.personaId = persona.id;
+    runtime.seed(`${chapterRunId}:beat:1:0`, "beat", {
+      chapter: 1,
+      storyIndex: 0,
+      musicMood: "sad",
+      segments: [{ speaker: "Mari", text: "PERSONA_STORY_DIALOGUE" }],
+      places: [],
+    });
+    runtime.transport.stage = "reply";
+    runtime.transport.reply = undefined;
+    await page.route("**/api/gacha-forge/chat/**", async (route) => {
+      const path = new URL(route.request().url()).pathname.replace("/api/gacha-forge", "");
+      const response = await runtime.post(path, route.request().postDataJSON());
+      await route.fulfill({ status: response.status, json: response.body });
+    });
+    const opened = await openForge(page, testInfo, {
+      voice: true,
+      runId: chapterRunId,
+      connectionId: runtime.docs.get("index").data.runs[0].connectionId,
+      persona: { id: persona.id, ...(assigned ? { voice: persona.voice } : {}) },
+    });
+    const beats: Record<string, any>[] = [];
+    for (const path of ["beat", "beat/mark"])
+      await page.route(`**/api/gacha-forge/${path}`, async (route) => {
+        const response = await runtime.post(`/${path}`, route.request().postDataJSON());
+        if (path === "beat") beats.push(response.body);
+        await route.fulfill({ status: response.status, json: response.body });
+      });
+    await page.evaluate((runId) => {
+      const starts: string[] = [];
+      (globalThis as any).__forgePersonaVoiceStarts = starts;
+      // Count real shared-service playback starts too: an unwanted replay may reuse cached audio without a POST.
+      (globalThis as any).__MARINARA_HOST__.services.tts.ttsService.subscribe((state: string, id: string | null) => {
+        if (state === "playing" && id?.startsWith(`gacha-forge:${runId}:`) && !starts.includes(id)) starts.push(id);
+      });
+    }, chapterRunId);
+    const openLetters = async (waitForComposer = true) => {
+      await showHome(opened.forge);
+      await opened.forge.evaluate((node, channel) => {
+        const game = node as any;
+        game._run.chatChannel = channel;
+        game._guidesSeen.add("chat");
+        game._renderBrowser();
+      }, runtime.opened.body.channel);
+      await opened.forge.locator("[data-chat-open]").click();
+      await opened.forge.locator(`[data-chat-with="${chapterUnitId}"]`).click();
+      await expect(opened.forge.locator("[data-chat-log]")).toBeVisible();
+      if (waitForComposer) {
+        await expect(opened.forge.locator("[data-chat-text]")).toBeVisible();
+        await expect(opened.forge.locator("[data-chat-text]")).toBeEnabled();
+      }
+    };
+    return { ...opened, runtime, persona, beats, openLetters };
+  } catch (error) {
+    await runtime.close();
+    throw error;
+  }
+}
+
+const personaVoiceStarts = (page: Page) =>
+  page.evaluate(() => ((globalThis as any).__forgePersonaVoiceStarts as string[]).length);
+
+async function finishPersonaVoice(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as any).__MARINARA_HOST__.services.tts.ttsService.getState()))
+    .toBe("playing");
+  await page.evaluate(async () => {
+    const playback = (globalThis as any).__MARINARA_HOST__.services.tts.ttsService.getPlayback();
+    if (playback.element.readyState < HTMLMediaElement.HAVE_METADATA)
+      await new Promise((resolve) => {
+        playback.element.addEventListener("loadedmetadata", resolve, { once: true });
+        playback.element.addEventListener("error", resolve, { once: true });
+      });
+    playback.element.dispatchEvent(new Event("ended"));
+  });
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as any).__MARINARA_HOST__.services.tts.ttsService.getState()))
+    .toBe("idle");
 }
 
 async function frameBottom(frame: Locator, artSelector: string) {
@@ -815,6 +909,155 @@ test("A first typed character message gets one SDK reply and archived history re
     await runtime.close();
   }
 });
+
+test("Persona story dialogue uses the real SDK cast identity and its saved Engine voice", async ({
+  page,
+}, testInfo) => {
+  const { forge, runtime, persona, speech, beats } = await openPersonaVoiceProof(page, testInfo);
+  try {
+    await seedScene(forge);
+    await expect.poll(() => beats.length).toBe(1);
+    expect(beats[0].ok).toBe(true);
+    expect(beats[0].cast.find((character: any) => character.prota)).toMatchObject({
+      name: "Mari",
+      characterId: persona.id,
+    });
+    await expect.poll(() => speech.length).toBe(1);
+    expect(speech[0]).toMatchObject({
+      text: "PERSONA_STORY_DIALOGUE",
+      voice: persona.voice,
+      audioConnectionId: "speech-fixture",
+    });
+    await expect.poll(() => personaVoiceStarts(page)).toBe(1);
+    expect(
+      await page.evaluate(
+        () => (globalThis as any).__MARINARA_HOST__.services.tts.ttsService.getPlayback().characterId,
+      ),
+    ).toBe(persona.id);
+    await finishPersonaVoice(page);
+    await page.screenshot({ path: testInfo.outputPath("persona-story-assigned-voice.png") });
+  } finally {
+    await runtime.close();
+  }
+});
+
+test("Expression portraits follow each line of the same speaker and fall back to the neutral face", async ({
+  page,
+}, testInfo) => {
+  const { forge } = await openForge(page, testInfo, { reducedMotion: "reduce" });
+  const face = (fill: string) =>
+    `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="${fill}"/></svg>`)}`;
+  const [neutral, anger, joy] = [face("#5c2869"), face("#b3261e"), face("#f2c94c")];
+  await page.route("**/api/gacha-forge/beat", (route) =>
+    route.fulfill({
+      json: {
+        ...scene,
+        cast: [{ name: "Arden", art: neutral, prota: false, characterId: "engine-arden", expressions: { anger, joy } }],
+        segments: [
+          { speaker: "Arden", text: "EXPRESSION_NEUTRAL" },
+          { speaker: "Arden", text: "EXPRESSION_ANGER", expression: "anger" },
+          { speaker: "Arden", text: "EXPRESSION_FEAR", expression: "fear" },
+          { speaker: "Arden", text: "EXPRESSION_JOY", expression: "joy" },
+        ],
+      },
+    }),
+  );
+  await seedScene(forge);
+  const plate = forge.locator('[data-plate="right"][data-open="true"]');
+  const front = () =>
+    plate.evaluate((node) => {
+      const image = node.querySelector(
+        `[data-art="${node.getAttribute("data-front")}"] [data-img]`,
+      ) as HTMLImageElement;
+      return image && !image.hidden && image.naturalWidth > 0 ? image.getAttribute("src") : null;
+    });
+  await expect(forge.locator("[data-text]")).toHaveText("EXPRESSION_NEUTRAL");
+  await expect.poll(front).toBe(neutral);
+  for (const [text, art] of [
+    ["EXPRESSION_ANGER", anger],
+    ["EXPRESSION_FEAR", neutral],
+    ["EXPRESSION_JOY", joy],
+  ]) {
+    await forge.locator("[data-box]").click();
+    await expect(forge.locator("[data-text]")).toHaveText(text);
+    await expect.poll(front).toBe(art);
+    await expect(plate).toBeVisible();
+  }
+});
+
+test("Sent persona letters are never read aloud with an assigned voice and dialogue audio on", async ({
+  page,
+}, testInfo) => {
+  const { forge, runtime, speech, openLetters } = await openPersonaVoiceProof(page, testInfo);
+  try {
+    await openLetters();
+    const log = forge.locator("[data-chat-log]");
+    await expect(log).toContainText("Keep this independent conversation.");
+    const text = "A newly committed persona letter.";
+    await forge.locator("[data-chat-text]").fill(text);
+    await forge.locator("[data-chat-send]").click();
+    await expect(log).toContainText("I heard your first message.");
+    await expect(forge.locator(".ch-msg.mine").filter({ hasText: text })).toHaveCount(1);
+    const revision = await forge.evaluate((node) => (node as any)._chatRev);
+    // A later refresh adopts the same canonical player row again.
+    await forge.evaluate((node) => (node as any)._chatReload());
+    await expect.poll(() => forge.evaluate((node) => (node as any)._chatRev)).toBeGreaterThan(revision);
+    await page.waitForTimeout(350);
+    expect(speech).toHaveLength(0);
+    expect(await personaVoiceStarts(page)).toBe(0);
+    expect(
+      runtime.chatDoc().data.messages.filter((row: any) => row.who === "player" && row.text === text),
+    ).toHaveLength(1);
+    await page.screenshot({ path: testInfo.outputPath("persona-letter-silent.png") });
+  } finally {
+    await runtime.close();
+  }
+});
+
+for (const gate of ["muted", "voices-off", "unassigned"] as const) {
+  test(`Persona story and newly sent letters stay quiet when ${gate}`, async ({ page }, testInfo) => {
+    const { forge, runtime, saved, persona, beats, speech, openLetters } = await openPersonaVoiceProof(
+      page,
+      testInfo,
+      gate !== "unassigned",
+    );
+    try {
+      if (gate === "muted") {
+        await forge.getByRole("button", { name: "Mute all audio", exact: true }).click();
+        await expect.poll(() => saved.audio.muted).toBe(true);
+      }
+      if (gate === "voices-off") {
+        await forge.getByRole("button", { name: "Game settings", exact: true }).click();
+        await forge.locator('[role="tab"][data-view="sources"]').click();
+        await forge.getByRole("checkbox", { name: "Read character dialogue", exact: true }).click();
+        await expect.poll(() => saved.audio.tts).toBe(false);
+        await forge.locator("[data-settings-back]").click();
+      }
+      await seedScene(forge);
+      await expect.poll(() => beats.length).toBe(1);
+      expect(beats[0].cast.find((character: any) => character.prota)?.characterId).toBe(persona.id);
+      await expect(forge.locator("[data-text]")).toHaveText("PERSONA_STORY_DIALOGUE");
+      await page.waitForTimeout(350);
+      expect(speech).toHaveLength(0);
+      expect(await personaVoiceStarts(page)).toBe(0);
+      await forge.locator("[data-exit]").click();
+      await openLetters();
+      const text = `A ${gate} persona letter.`;
+      await forge.locator("[data-chat-text]").fill(text);
+      await forge.locator("[data-chat-send]").click();
+      await expect(forge.locator("[data-chat-log]")).toContainText("I heard your first message.");
+      await expect(forge.locator(".ch-msg.mine").filter({ hasText: text })).toHaveCount(1);
+      expect(
+        runtime.chatDoc().data.messages.filter((row: any) => row.who === "player" && row.text === text),
+      ).toHaveLength(1);
+      await page.waitForTimeout(350);
+      expect(speech).toHaveLength(0);
+      expect(await personaVoiceStarts(page)).toBe(0);
+    } finally {
+      await runtime.close();
+    }
+  });
+}
 
 test("Real story navigation selects distinct home, story and bond music after each scene is ready", async ({
   page,
@@ -2038,6 +2281,65 @@ test("Autoplay waits three seconds after revealed text and voice end, and Skip c
   await expect(forge.locator("[data-count]")).toHaveText("02 / 03");
   await expect(forge.locator("[data-skip]")).toBeDisabled();
   expect(speech).toHaveLength(2);
+});
+
+test("Auto keeps playing while background work starts and ends, and after the tab is hidden", async ({
+  page,
+}, testInfo) => {
+  const now = new Date();
+  await page.clock.install({ time: now });
+  const { forge } = await openForge(page, testInfo);
+  await page.clock.pauseAt(new Date(now.getTime() + 60_000));
+  await seedScene(forge);
+  const auto = forge.locator("[data-auto]");
+  const count = forge.locator("[data-count]");
+  await auto.click();
+  await expect(auto).toHaveAttribute("data-on", "");
+  // The reader that is on screen now must be the one still playing after background work changes.
+  await forge.evaluate((node) => ((node as any)._root.querySelector("[data-vn]").dataset.probe = "kept"));
+  const busy = await forge.evaluate((node) =>
+    (node as any)._busyStart({ cost: "images", label: "Painting expressions" }),
+  );
+  await expect(forge.locator("[data-busy]")).toContainText("Painting expressions");
+  await expect(forge.locator('[data-vn][data-probe="kept"]')).toHaveCount(1);
+  await page.clock.runFor(4000);
+  await expect(count).toHaveText("02 / 05");
+  await forge.evaluate((node, id) => (node as any)._busyEnd(id), busy);
+  await expect(forge.locator("[data-busy]")).toHaveCount(0);
+  await expect(forge.locator('[data-vn][data-probe="kept"]')).toHaveCount(1);
+  await expect(auto).toHaveAttribute("data-on", "");
+
+  // Hiding the tab saves the line without showing a writing chip or rebuilding the scene.
+  const marks: string[] = [];
+  await page.route("**/api/gacha-forge/beat/mark", (route) => {
+    marks.push(route.request().postData() || "");
+    return route.fulfill({ json: { ok: true } });
+  });
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect.poll(() => marks.length).toBe(1);
+  await expect(forge.locator("[data-busy]")).toHaveCount(0);
+  await page.evaluate(() => {
+    delete (document as any).visibilityState;
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(forge.locator('[data-vn][data-probe="kept"]')).toHaveCount(1);
+  await page.clock.runFor(4000);
+  await expect(count).toHaveText("03 / 05");
+
+  // Any other rebuild of the same scene keeps Auto on and keeps advancing.
+  await forge.evaluate((node) => {
+    (node as any)._renderKey = null;
+    (node as any)._renderBrowser();
+  });
+  await expect(forge.locator('[data-vn][data-probe="kept"]')).toHaveCount(0);
+  await expect(auto).toHaveAttribute("data-on", "");
+  await page.clock.runFor(4000);
+  await expect(count).toHaveText("04 / 05");
+  await auto.click();
+  await expect(auto).not.toHaveAttribute("data-on");
 });
 
 test("Story Cancel exits delayed chapter generation without losing progress", async ({ page }, testInfo) => {

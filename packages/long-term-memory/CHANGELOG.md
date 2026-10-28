@@ -1,5 +1,43 @@
 # Long-Term Memory changelog
 
+## 1.5.7 — 2026-10-28
+
+- Memory Settings → Recall → Sharing lists each Agent that has read memories with when it last did, how many times it read this week and how many memories it got, so you can tell whether an Agent such as Slurp is using them. The counts come from the Debug activity log, so clearing it or a very busy install can lower them.
+
+## 1.5.6 — 2026-10-28
+
+- In Sources → Chat Messages, a row with a long chat name cuts the name and keeps the message range visible, so pieces of one chat can be told apart. The range label is also translated (English and Korean).
+
+## 1.5.5 — 2026-10-28
+
+- A long chat imported from Chat Messages is read in order, one piece after another. From the second piece on, the model sees the end of the piece before it, that piece's events and its open threads, so a memory can say what caused an event or continue a thread across the cut. Different chats still import side by side.
+
+## 1.5.4 — 2026-10-28
+
+- Re-extract says why it is waiting while settings load, and Run maintenance keeps your place after it finishes.
+- Loading placeholders stop pulsing when reduced motion is on, source tool results are announced to screen readers, and a save waiting on recall no longer ends in a stray colon.
+
+## 1.5.3 — 2026-10-27
+
+- Long-Term Memory now has a Korean interface. It follows the Engine's language setting and shows English for any text without a Korean version. The translation is machine-made and awaits review by a Korean speaker.
+
+## 1.5.2 — 2026-10-27
+
+- The Chat Messages tab in Sources has a Branch menu for a chat with branches. It starts on this branch, so another branch's messages no longer mix into the list. Choose a branch or All branches; importing still goes to the whole chat.
+
+## 1.5.1 — 2026-10-27
+
+- Sources lists imported memories whose character, lorebook entry, chat summary or chat message was deleted under "Source gone", so you can remove them with their source or leave them as they are.
+
+## 1.5.0 — 2026-10-27
+
+- Sources has a Chat Messages tab that learns from a chat's own messages, so a chat without summaries can have memories too. It warns when the chat also has summaries, because importing both can repeat memories in review.
+- Whispers, and messages hidden from the AI or from some characters, are left out of chat messages, because a memory can reach every character.
+- Needs Marinara Engine 2.5.1 with capability API 1.387, which no longer runs its own memory recall in chats where Long-Term Memory is on.
+- Chats with Long-Term Memory on and nothing imported in Sources have no memories on that Engine. Import their messages or summaries from Sources.
+- If you used the Engine's old built-in memory, switch Long-Term Memory on in each chat's settings; the package no longer turns it on for those chats.
+- The package no longer asks to change chat settings.
+
 ## 1.4.95 — 2026-10-26
 
 - Maintenance, Debug, setup and Chat Settings buttons keep keyboard focus while their work runs, so the result appears where you are.

@@ -182,123 +182,123 @@
     "gacha-forge": {
       "versions": [
         {
-          "version": "1.23.0",
-          "date": "2026-10-26",
-          "notes": "- Keep playing: leave a main chapter that is still forging. It keeps forging, the busy pill shows its progress, and a notice says when it is ready, could not be forged or was interrupted. Pre-forging starts once it is ready. Cancel on any story loader still stops it, and switching worlds waits for it.\n- Pre-forge \"Story and key images\" is now \"Story and images\". With Backgrounds on, it also paints the places each pre-forged scene visits, in main chapters and Character Stories. Worlds already on this setting start painting places ahead after updating.\n- Pre-forged art now paints alongside the text, so the chapter menu opens once the text is written. A scene opened before its art is ready joins the paint in progress. Art may keep painting for a while after the menu opens; switch to Story only or Off, or use the story Cancel, to stop it.\n- Pre-forging no longer reports stopped, or lets Retry start a second chain, on chapters that take over 20 minutes.",
-          "highlight": true
-        },
-        {
-          "version": "1.22.1",
-          "date": "2026-10-26",
-          "notes": "- In Formation, a unit's Skills tab shows its Formation kit (abilities, costs, triggers and special mechanics) instead of the classic skills, and the kit no longer appears as plain text on every tab.\n- Chapter plans, Character Story plans, story beats and event chapters request 16,384 answer tokens on top of the reasoning reserve.",
+          "version": "1.27.3",
+          "date": "2026-10-28",
+          "notes": "- Characters can equip their designated weapons even when a saved weapon has a different type from their role. The intended owner sees it in Gear and can equip it without regenerating the weapon. Signature skills still activate only for their owner; other characters keep the normal weapon-type rules.\n- On short landscape screens, Gear details keep their full height and the panel scrolls, so Choose and Change remain clickable instead of being clipped inside the card.",
           "highlight": false
         },
         {
-          "version": "1.22.0",
-          "date": "2026-10-26",
-          "notes": "- Banner animations say why they failed, play on phones away from the server, and never offer a paid retry for a saved clip.\n- Water beats Fire, Fire beats Earth, Earth beats Wind, Wind beats Water, in both combat modes and on the Home chart.\n- Formation conversion handles five-star traits, converts one character at a time, explains failures and keeps ready kits.\n- The Vigor countdown always shows below full and stops flickering.\n- Story choices appear without reopening the story.\n- Letters fill the screen with a shorter reply box, and Read message lists your bonded units.\n- New messages show as a styled card on Home with the opening lines.\n- The story mute button and help marks match their neighbours.",
-          "highlight": true
-        },
-        {
-          "version": "1.21.2",
-          "date": "2026-10-26",
-          "notes": "- Keep an unchanged, decoded unit portrait mounted while switching unit tabs. Replace it normally when the unit or artwork changes.\n- Preserve cached Units cards when a background refresh returns identical data, while keeping real card updates and loading status current.",
+          "version": "1.27.2",
+          "date": "2026-10-28",
+          "notes": "- The narrator, the chapter planners and characters writing messages are asked to read every character's mind more carefully: what each one knows, wants and feels.",
           "highlight": false
         },
         {
-          "version": "1.21.1",
+          "version": "1.27.1",
+          "date": "2026-10-28",
+          "notes": "- Scenes, key images, story event art, chat photos, Bond backgrounds and banners now send each character's face (their card's avatar, your persona's, or their saved portrait) and, when the picture paints them in the outfit they have on, that outfit's image too. A character card's unit used to send only its card avatar.\n- Banners and Bond backgrounds now paint a unit in the outfit it has on while **Outfits** is on, as chat photos do. Scenes and key images paint and send it only when **The story uses worn outfits** is on (off by default) and the scene does not dress the character itself.\n- Faces go before outfits, at most four images, the Engine's limit: outfits are left out first, and the log says so.\n- A new portrait or outfit is painted from the face alone, so the outfit a unit has on no longer leaks into its new look.",
+          "highlight": false
+        },
+        {
+          "version": "1.27.0",
+          "date": "2026-10-28",
+          "notes": "- A finished story event's fights now open on **Hard**, then **Very Hard**, while the event runs and Seasonal events is on: Hard once the event is done, Very Hard once every fight is won on Hard, as in a main chapter. They are the fights you played, stronger, at 5 Vigor each, and each win pays once per difficulty what a main chapter's Hard and Very Hard fights pay. No new fight is designed, and each difficulty keeps its own progress.\n- In **Chapters** a finished event shows its N, H and V marks, and **Enter event** while its Hard fights are open. **Events → Story events** counts its Hard and Very Hard wins.\n- A story event's map no longer lists a chapter's Funds, Aether and rank on Normal, which an event never paid, and a played event's map opens without waiting for a scene being written elsewhere.",
+          "highlight": true
+        },
+        {
+          "version": "1.26.3",
+          "date": "2026-10-28",
+          "notes": "- A story event you played now sits in **Chapters** right after the chapter it followed, as a finished Character Story does, instead of in a list below the next chapter. Its card says Done, Ended or Paused (Seasonal events off) and opens it to read its scenes again. Stories after the same chapter appear in the order you opened them. **Events → Story events** offers **Revisit played scenes** for a finished event, not **Continue event**.\n- A finished story event's map no longer offers Hard and Very Hard. Events are Normal-only, so those fights could never start, and **Start battle** did nothing. A fight that can't start now says why, with **Retry** and **Back**, in chapters, Character Stories, events, Materials and the Tower, and a cleared event fight is turned away before its briefing.\n- **Start battle** no longer stays disabled on a cheaper fight after another was refused for Vigor, and works at once in a world you switched to while a fight was starting.",
+          "highlight": false
+        },
+        {
+          "version": "1.26.2",
+          "date": "2026-10-28",
+          "notes": "- Nothing changes in play. Expression portraits, choice labels, dialogue voice picking, music briefs, soundtracks and a few log lines now take optional settings, so another package can reuse them. Gacha Forge keeps its own values for all of them.",
+          "highlight": false
+        },
+        {
+          "version": "1.26.1",
+          "date": "2026-10-28",
+          "notes": "- A chapter you forged before starting a story event no longer keeps pre-forging while the event holds it, and a big choice it already wrote no longer stops the event from starting, its scenes or its pre-forge. Once the event is finished, ends or Seasonal events is turned off, **Continue** on the chapter's map picks its pre-forge up again, and its choice waits for you as before. A Character Story's pending choice still stops the event from starting.\n- While story memory catches up, a companion chat, a character message or a Character Story knows only the scenes you have played, not the ones pre-forge wrote ahead or a Compress summary of them.",
+          "highlight": false
+        },
+        {
+          "version": "1.26.0",
+          "date": "2026-10-28",
+          "notes": "- **Chapters → What happens next** can offer the season's story event beside the next chapter and any Character Story, when the next chapter is not forged yet; otherwise **Events → Story events** starts it as before. It starts like a Character Story: its map opens and the next chapter waits. While it is open, its card takes the chapter's place.\n- Pre-forge now writes story events too: scenes ahead at no Vigor cost, each fight designed after the scene before it, art in **Story and images**, and the pre-forge bar with Cancel on the event's map. Written scenes can be played while the rest is written. It stops once the event ends.",
+          "highlight": true
+        },
+        {
+          "version": "1.25.2",
+          "date": "2026-10-28",
+          "notes": "- Backing out of a fight while it loads and entering another now loads the new fight, not the one you left. A fight request that never answers no longer blocks later fights.\n- In Formation, a swap seats both units before either one's passive fires, so a revive, Swap, Shuffle or Echo it sets off never puts a fourth unit in a row, and revived units are drawn where they are. Fights started earlier keep their rules.\n- On a small model, replies are much less likely to fail while memory catches up: the oldest chapter summaries, or the oldest chapters of the full story history, are left out only when the reply would not fit otherwise. The previous chapter, the scene so far and your decisions always stay.\n- Story memory no longer stops for good when a chapter it already remembers reads differently later: it keeps its first memory and goes on.\n- Seasonal event fights load again after a chapter was regenerated, and a fight that can't be set up now says why.",
+          "highlight": false
+        },
+        {
+          "version": "1.25.1",
+          "date": "2026-10-27",
+          "notes": "- Scenes that are already written can be played while pre-forge writes the rest of the chapter. Cleared scenes keep **Read again**, and a fight or a written scene you have reached keeps **Play** or **Start**. Only a scene that is not written yet waits for pre-forge, which writes it at no Vigor cost. Back on the chapter map, it turns into Play as soon as it is written.\n- Opening a weapon's page from Gear, or a relic's **Upgrade**, keeps the current view until the new one has loaded instead of cutting to an empty screen, and the relic you are upgrading is no longer faded out.",
+          "highlight": false
+        },
+        {
+          "version": "1.25.0",
+          "date": "2026-10-27",
+          "notes": "- Story memory recalls by meaning as well as by words, using the Engine's embedding model when one is set, and searches with what was just played or said instead of the chapter plan. Only clearly relevant memories come back: up to three chapter summaries and three side memories.\n- A unit's chats stay private. They are no longer folded into the shared overview, and never reach another unit's chat, a scene or event without that unit, or a fight.\n- Characters in scenes and chats know only what they saw, took part in or were told in the story, and nothing outside it.",
+          "highlight": true
+        },
+        {
+          "version": "1.24.10",
+          "date": "2026-10-27",
+          "notes": "- A seasonal story event can start right after you finish a chapter again. Only a story you are in the middle of keeps an event closed: a main chapter or Character Story part with some, but not all, of it played. One you forged but have not started yet no longer blocks it, and waits until the event is done.\n- The event card now says what to finish first (\"Finish Chapter 3\" or \"Finish Arden's Character Story\"), and starting a chapter while an event is open names the event to finish.",
+          "highlight": false
+        },
+        {
+          "version": "1.24.9",
+          "date": "2026-10-27",
+          "notes": "- A new chapter opens as soon as its plan is written. Its fights are no longer all designed before the chapter map appears: each fight is designed in the background right after the scene before it is written (by pre-forge or when you open it), so it is ready, with its enemy art, when you reach it.\n- Story memory summarizes only in the background, so writing a plan, scene, fight or chat no longer waits for it to catch up. Canon the saved overview does not cover yet is sent beside it as its summary, or as written for a fresh side story or chat. A summary already running on the same connection still finishes first; a separate summary connection avoids that.\n- Long chapters can be summarized again: summaries get at least 10k tokens of output room for thinking models (or the model's maximum, never below 8,192).",
+          "highlight": false
+        },
+        {
+          "version": "1.24.8",
+          "date": "2026-10-27",
+          "notes": "- In character chats, Enter now adds a new line instead of sending. Only **Send** sends your message, so a stray Enter can no longer send it early.\n- Auto in story scenes no longer turns itself off when background work starts or finishes, such as expression portraits, scenes written ahead or portraits painting, or when you switch tabs and come back. The current line's voice no longer replays either.\n- While a story is written in the background, Formation changes stick: a picked unit, a drag or the bench scroll are no longer reset mid-move, saves never land out of order, and a battle waits for your last change. The chapter map no longer redraws every few seconds, and background writing no longer stalls other screens.",
+          "highlight": false
+        },
+        {
+          "version": "1.24.7",
+          "date": "2026-10-27",
+          "notes": "- New **Expression portraits** setting in World → Sources → Images, off by default. Story portraits then show anger, fear, sadness or joy line by line, marked in the same request that writes the scene. Four faces per look are painted in the background, only for characters who speak. A failed set is not retried on its own: turn the setting off and on to try once more.\n- Your persona keeps its own voice even when another character shares part of its name, and turning Voice other characters off and on again no longer asks to pay again for combat lines that were never made.",
+          "highlight": false
+        },
+        {
+          "version": "1.24.6",
+          "date": "2026-10-27",
+          "notes": "- New **Voice other characters** toggle next to Read character dialogue. NPCs and units without an assigned voice speak with a voice from the Engine's Random NPC Voices lists (Connections → Text to Speech), matched to male or female when known. With both lists empty, any voice of the current connection is used. Each name keeps the same voice. Assigned voices still win, and your persona uses only its own.\n- Combat voice lines now play in Classic and Formation fights, start preparing when the battle screen opens, and include your persona's assigned voice. A short notice says when nobody in the team can be voiced.",
+          "highlight": false
+        },
+        {
+          "version": "1.24.5",
           "date": "2026-10-26",
-          "notes": "- Explain banner animation failures with safe recovery hints and the provider HTTP status when available.\n- Keep failed attempts saved across reopening, retain existing clips, and require an explicit retry before another generation request.",
+          "notes": "- When a Front Row unit falls in Formation, a Back Row unit on its side steps into the empty seat at once and acts from its next turn. This works for your team and for enemies, and a fight now ends only when one side has nobody left. Moving and retreating never pull a support forward. A fight started before this update is still scored by the rules it was played under.",
           "highlight": false
         },
         {
-          "version": "1.21.0",
+          "version": "1.24.4",
           "date": "2026-10-26",
-          "notes": "- Download individual images from every Home background picker category without selecting them. Reuse Engine gallery saving, including prepared iPhone sharing.\n- Unlock story and Character Story backgrounds and key images only after viewing their scenes, with a brief unlock notice. Future generated scenes stay out of the picker.\n- Preserve completed scenes, saved artwork and existing background choices across updates and chapter regeneration.",
-          "highlight": true
-        },
-        {
-          "version": "1.20.0",
-          "date": "2026-10-25",
-          "notes": "- Add optional daily messages from randomly selected units with conversations unlocked, configured in setup or Story Continuity and disabled by default.\n- Keep incoming conversations saved, preserve drafts and pace generation within each local day without offline catch-up.\n- Open mobile Writing help above Settings with outside-tap dismissal and compact question-mark controls.\n- Request at least 8,192 output tokens for every text generation, including character messages and Formation kits, while retaining reasoning headroom. Report insufficient connection capacity instead of silently using a smaller output cap.\n- Keep Classic and Formation descriptions readable beside their setup choices.\n- Preserve the paced message deadline when reopening a world or updating its settings.",
-          "highlight": true
-        },
-        {
-          "version": "1.19.0",
-          "date": "2026-10-25",
-          "notes": "- Choose optional Formation combat: frontline actions, protected elemental supports, shared energy, repositioning and generated tactical kits.\n- Convert saved worlds after confirmation with bounded parallel generation, persistent progress and explicit retry, preserving characters and progression.\n- Add creative, validated boss objectives, elemental Ultimate portrait effects and optional fixed, saved combat voice lines for assigned voices.\n- Keep Classic combat, existing boss dialogue and authoritative reward replay.",
-          "highlight": true
-        },
-        {
-          "version": "1.18.0",
-          "date": "2026-10-25",
-          "notes": "- Enable optional Seasonal events beside compact Player choices in setup or Story Continuity.\n- Explore a new, world-specific story and combat adventure every three weeks, with an event banner and optional animation and music. Event themes, familiar cast and rewards are prepared before you start; the chapter is written against current canon when you choose to play.\n- Earn bounded resources, Aether, four-star characters or themed outfits once. Expired events close new progress and rewards; played scenes remain in Chapters. Existing banner minigames stay available.\n- Keep event progress and rewards safe across refresh, restart, opt-out and concurrent requests, using existing chapter, combat and media systems.",
-          "highlight": true
-        },
-        {
-          "version": "1.17.0",
-          "date": "2026-10-25",
-          "notes": "- Regenerate an ongoing chapter or the current open Character Story from its bottom action after a named confirmation. Completed chapters remain protected.\n- Discard only the selected chapter’s story, choices and reading progress, then write a fresh plan with current settings and character cards. Preserve other chapters, conversations, characters, inventory and earned rewards.\n- Stop and drain pending story work before resetting. Replaying cleared progress does not award first-clear rewards again; the usual Vigor cost to play still applies.",
-          "highlight": true
-        },
-        {
-          "version": "1.16.1",
-          "date": "2026-10-25",
-          "notes": "- Restore first-send character replies and keep sent and remembered messages scrollable in the same chat window, without automatic resends.\n- Use current linked character cards’ full Description, Personality, Backstory and Appearance in story prompts, excluding card Scenario, greetings and example dialogue.\n- Keep Writing help buttons compact and preserve tapped explanations through viewport updates.\n- Use “They did not answer.” as the neutral direct-message failure fallback.\n- Hide the neutral story portrait silhouette when the current artwork is loaded, retaining safe loading and missing-art fallbacks.\n- Restore explicit banner animation recovery after playback or stale-clip errors. Failed replacement attempts keep previous saved media; successful replacements receive a fresh immutable URL.",
-          "highlight": true
-        },
-        {
-          "version": "1.16.0",
-          "date": "2026-10-25",
-          "notes": "- Punctuate choice labels. Keep the correct speaker portrait and prevent fullscreen/mute from advancing.\n- Tap Writing help on mobile; keep daily rewards clear of Claim and animate loaded unit art smoothly.\n- Use the current timezone for resets and new banner periods, including clock changes. Catch up automatic chapter memory on world open; retain manual controls and show compressed/combined counts.\n- Auto-select affordable character, weapon, relic and skill upgrades before confirmation. Auto-equip the best free gear and clear stale Units dots.\n- Open farming domains from upgrade materials and show their next rotation; Mandates open their Login Event.\n- Reuse matching dialogue audio; reveal fresh opening lines while preserving saved reading positions.\n- Generate richer music briefs with world motifs, varied arrangements and musical development.",
-          "highlight": true
-        },
-        {
-          "version": "1.15.2",
-          "date": "2026-10-24",
-          "notes": "- Show actionable Seedance setup guidance when a banner cannot be animated, and keep Retry visibly busy while generation is pending. Saved clips and the original banner illustration remain available.",
-          "highlight": true
-        },
-        {
-          "version": "1.15.1",
-          "date": "2026-10-24",
-          "notes": "- Cancel chapter and story generation from the loading screen and return to Gacha Home without deleting the world or saved progress. Active story requests and chapter preforging stop, and late responses cannot reopen the cancelled screen.",
-          "highlight": true
-        },
-        {
-          "version": "1.15.0",
-          "date": "2026-10-24",
-          "notes": "- Choose a generated song for the Home menu in Settings → Look → Visual. Saved songs remain playable when generation is off.\n- Generate a distinct soundtrack for each summon banner and collect it for Home music when pulling any 5-star from that banner.\n- Keep banner rotations separate and reuse generated songs after reload.\n- Select an optional Animations video connection in Sources to generate saved looping banner clips. Portraits remain still.\n- Reuse clips after reload, keep the illustration on failures or reduced motion, and offer pause, play and explicit generation retry controls.",
-          "highlight": true
-        },
-        {
-          "version": "1.14.0",
-          "date": "2026-10-24",
-          "notes": "- Automatically remember completed canonical chapters and Character Stories, alongside saved character-chat memories.\n- Maintain a compressed overview within 10% of the generation model's known context, retaining detailed originals for relevant recall.\n- Recall up to three additional chapters plus separate character memories; retain the entire previous chapter and the current chapter so far.\n- Show automatic continuity status and allow retrying failed memory work without blocking gameplay.",
-          "highlight": true
-        },
-        {
-          "version": "1.13.1",
-          "date": "2026-10-24",
-          "notes": "- Character scenes, banners, portraits and outfits use available character/persona avatar references; provider support and limits still apply.\n- Story artwork starts below its header and preserves the top of the image.\n- Mobile ordinary and expanded editors adapt to the height left by the keyboard; expanded settings drafts survive refreshes.\n- Units explains the Home progression dot and refreshes its recommendation after level, equip and ascension actions.\n- Blocking combat dialogue supports keyboard focus and returns to combat controls afterward.",
+          "notes": "- Messages you send in character chats are no longer read aloud. Your persona's assigned voice still reads its story dialogue.",
           "highlight": false
         },
         {
-          "version": "1.13.0",
-          "date": "2026-10-24",
-          "notes": "- Added Soldier, Elite and Boss enemy tiers in combat and enemy details.\n- New story chapters build toward a boss confrontation using existing boss mechanics.\n- Significant fights prepare contextual enemy dialogue, with local one-shot triggers and manual or Auto progression.\n- Combat dialogue respects assigned character voices, mute and dialogue volume. Existing saved chapters and Tower encounters remain playable.",
-          "highlight": true
-        },
-        {
-          "version": "1.12.2",
-          "date": "2026-10-24",
-          "notes": "- Home shows a compact affinity matchup diagram beneath the communication button.\n- Home backgrounds retain the top of the selected artwork below the game header.\n- Combat shows one mute control without overlapping the other toolbar buttons.\n- Autoplay resumes after a small story choice when it was enabled before the choice.\n- Character communication keeps the composer visible when a mobile keyboard reduces the available height.",
+          "version": "1.24.3",
+          "date": "2026-10-26",
+          "notes": "- Combat Power (CP) is now called Battle Power (BP).\n- Retrying a failed Formation kit pays only for the characters that still need one. Kits you kept after cancelling a remake stay as they are, and kits already paid for in a cancelled or failed remake are never made again.\n- A Front Row fighter whose only damage was a passive that never fires (on its own attack or kill, from the Back Row, or with no power) attacks with its Normal skill again.\n- An immunity Ultimate lands on the ally you pick, and one that can no longer land waits without spending energy. Retreating a fighter and summoning into its seat works in the same turn.\n- A battle saved with an element barrier nobody in your world can meet can now be fought, and a shortened defeat order names the enemies that come first.\n- On phones, enemy names show in full and protection tags no longer cover them. An Echo's sheet describes the Echo, and keyboard focus comes back after Fight.",
           "highlight": false
         },
         {
-          "version": "1.12.1",
-          "date": "2026-10-24",
-          "notes": "- Chapters and Character Stories generate and play their own music cues instead of reusing the Home track. Loading scenes keep the current track until their cue is ready.\n- Small choices no longer block later shared narration or background pre-forging. Their alternatives remain generated together; playback, canon, replay and big-choice locks are preserved.\n- Completion and compression still wait for pending selections to preserve canonical story history.\n- Short audio notices no longer intercept taps on the game stage. Long reasons remain scrollable and stay visible while focused with a keyboard.\n- Notice scrolling adapts when the panel becomes visible or changes size; replacing a long reason with short text restores dismissal.\n- Recorded the actual merged Engine music-test baseline.",
+          "version": "1.24.2",
+          "date": "2026-10-26",
+          "notes": "- Personas use their assigned Engine voice for story dialogue and newly sent character messages when dialogue audio is enabled.",
           "highlight": false
         }
       ]
@@ -374,6 +374,54 @@
     "long-term-memory": {
       "versions": [
         {
+          "version": "1.5.7",
+          "date": "2026-10-28",
+          "notes": "- Memory Settings → Recall → Sharing lists each Agent that has read memories with when it last did, how many times it read this week and how many memories it got, so you can tell whether an Agent such as Slurp is using them. The counts come from the Debug activity log, so clearing it or a very busy install can lower them.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.6",
+          "date": "2026-10-28",
+          "notes": "- In Sources → Chat Messages, a row with a long chat name cuts the name and keeps the message range visible, so pieces of one chat can be told apart. The range label is also translated (English and Korean).",
+          "highlight": false
+        },
+        {
+          "version": "1.5.5",
+          "date": "2026-10-28",
+          "notes": "- A long chat imported from Chat Messages is read in order, one piece after another. From the second piece on, the model sees the end of the piece before it, that piece's events and its open threads, so a memory can say what caused an event or continue a thread across the cut. Different chats still import side by side.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.4",
+          "date": "2026-10-28",
+          "notes": "- Re-extract says why it is waiting while settings load, and Run maintenance keeps your place after it finishes.\n- Loading placeholders stop pulsing when reduced motion is on, source tool results are announced to screen readers, and a save waiting on recall no longer ends in a stray colon.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.3",
+          "date": "2026-10-27",
+          "notes": "- Long-Term Memory now has a Korean interface. It follows the Engine's language setting and shows English for any text without a Korean version. The translation is machine-made and awaits review by a Korean speaker.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.2",
+          "date": "2026-10-27",
+          "notes": "- The Chat Messages tab in Sources has a Branch menu for a chat with branches. It starts on this branch, so another branch's messages no longer mix into the list. Choose a branch or All branches; importing still goes to the whole chat.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.1",
+          "date": "2026-10-27",
+          "notes": "- Sources lists imported memories whose character, lorebook entry, chat summary or chat message was deleted under \"Source gone\", so you can remove them with their source or leave them as they are.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.0",
+          "date": "2026-10-27",
+          "notes": "- Sources has a Chat Messages tab that learns from a chat's own messages, so a chat without summaries can have memories too. It warns when the chat also has summaries, because importing both can repeat memories in review.\n- Whispers, and messages hidden from the AI or from some characters, are left out of chat messages, because a memory can reach every character.\n- Needs Marinara Engine 2.5.1 with capability API 1.387, which no longer runs its own memory recall in chats where Long-Term Memory is on.\n- Chats with Long-Term Memory on and nothing imported in Sources have no memories on that Engine. Import their messages or summaries from Sources.\n- If you used the Engine's old built-in memory, switch Long-Term Memory on in each chat's settings; the package no longer turns it on for those chats.\n- The package no longer asks to change chat settings.",
+          "highlight": true
+        },
+        {
           "version": "1.4.95",
           "date": "2026-10-26",
           "notes": "- Maintenance, Debug, setup and Chat Settings buttons keep keyboard focus while their work runs, so the result appears where you are.\n- Vault and Review controls stay reachable while they save or while identity edits are unsaved, and say why they are locked.\n- Sources re-extract and re-import buttons stay reachable during a run and explain why they are waiting.\n- Debug, Maintenance and source results are announced to screen readers, and Add section explains why a name was not accepted.\n- The setup guide picture and detail header follow the panel's width, and navigation and availability tabs are easier to tap.\n- Loading spinners stop spinning when reduced motion is on, and typing in Debug search stays smooth on long logs.",
@@ -443,54 +491,6 @@
           "version": "1.4.84",
           "date": "2026-10-22",
           "notes": "- Other Agents can now ask Long-Term Memory for memories about the characters they write as, ranked against what they are about to write. They get only memories available to that character everywhere: never memories limited to a chat or group, archived memories or suggestions, and they can't change anything. A new setting in Memory Settings, \"Other Agents can read memories\" (on by default), turns this off, also for Slurp's \"What your other Agents know\", and names the Agents that read memories lately. Each read shows in Activity as \"Read by another Agent\".",
-          "highlight": false
-        },
-        {
-          "version": "1.4.83",
-          "date": "2026-10-22",
-          "notes": "- Other installed Agents can no longer reach the memory vault itself. The storage service Long-Term Memory shares with other packages now offers one read, the memories available to a character everywhere, which is what Slurp's flavour brief uses. Memories limited to a chat or group, imported sources, archived and game-only memories, suggestions and the vault folder stay private.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.82",
-          "date": "2026-10-22",
-          "notes": "- Once the debug log reaches its 2 MB limit, Long-Term Memory now trims it to the newest 1.5 MB instead of to just under 2 MB. Before, every new debug line rewrote the whole file from then on, and saves and recalls waited for each rewrite. Now the lines after a trim are added to the end of the file again. The log keeps between 1.5 and 2 MB of the newest lines.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.81",
-          "date": "2026-10-22",
-          "notes": "- Memory Settings has a new setting beside \"Maximum output tokens\", \"Finish cut-off answers\", off by default. With it on, when the model's extraction answer stops at the output limit, Long-Term Memory asks the model for the rest, with up to 3 extra requests for that source, each sending the source again. With it off, a source cut off this way now says that Retry will stop at the same place and names the setting.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.80",
-          "date": "2026-10-22",
-          "notes": "- No change in what Long-Term Memory does. Internally, the server file that matches names in chats and summaries to memories is split into four files.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.79",
-          "date": "2026-10-22",
-          "notes": "- Extraction from a structured chat summary now reads a character name that starts with \"Char\", such as \"Char Aznable\", or a relationship pair whose first name starts with \"Rel\", as a name instead of an id when the summary writes the name out, as in \"- Char Aznable | …\", \"character: Char Aznable\", \"- Rel Varga, Sayla Mass | …\" or \"characters: Rel Varga, Sayla Mass\". The section the summary gives that character, such as Profile, now reaches their memory, those lines are saved instead of being dropped as not in the chat's roster, and a relationship that only the summary mentions is kept. The event made for a relationship's cause names the pair as the summary wrote it, as in \"Rel Varga and Sayla Mass relationship changed after the hangar fire.\", instead of splitting the names into words. A line that writes an id made from the name instead, such as \"subject: char_aznable\", is still read as an id.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.78",
-          "date": "2026-10-22",
-          "notes": "- Two more places no longer show raw error text, which could include file paths. In the integrity list in memory settings, a note file or event log that cannot be read now says \"Note file vault/… could not be read or validated.\" or \"Event log could not be read.\", followed by \"Details are in the server log.\"; a note whose contents are broken still says what is wrong with it. When importing or re-extracting a source fails because the memory model or its settings could not be loaded for a server reason, Sources and Review show their usual \"could not be imported\" or \"could not be re-extracted\" message and the error goes to the server log. Messages that tell you how to fix the model setup, such as \"Choose a language model connection before generating content.\", show as before.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.77",
-          "date": "2026-10-21",
-          "notes": "- Extraction now saves facts about a character whose name starts with \"Char\", such as \"Char Aznable\", or a relationship whose first name starts with \"Rel\", to the memory chosen for them instead of a second memory under a shorter id, and no longer drops events about them as linked to a missing memory. The same holds for any chosen memory whose id repeats its prefix, such as an imported char_char_mara. A memory already saved under the shorter id keeps receiving facts only while it is linked to the character or titled with its full name; if you have two memories for one character, merge them in the app.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.76",
-          "date": "2026-10-21",
-          "notes": "- A few more unexpected failures no longer show their raw error text, which could include file paths. In Sources, a source that could not be saved or extracted now says \"Failed to write imported source note.\" or \"Failed to extract imported source.\", followed by \"Details are in the server log.\"; this includes the model provider rejecting the request during an import. In Review, a change that could not be checked says \"Long-term memory preflight failed. Details are in the server log.\" An identity repair in settings whose backup could not be restored says so without the cause. The full error is written to the server log. Messages written for you, such as a model reply that was cut off, show as before.",
           "highlight": false
         }
       ]
@@ -713,6 +713,64 @@
           "version": "1.2.20",
           "date": "2026-09-03",
           "notes": "- Added independent image width and height settings to Noodle settings.",
+          "highlight": false
+        }
+      ]
+    },
+    "otome-forge": {
+      "versions": [
+        {
+          "version": "0.0.9",
+          "date": "2026-10-28",
+          "notes": "- Every prompt that writes the story or a character's words asks the model to read each character's mind more carefully: what they know, want and feel.\n- In NSFW mode the content contract opens by stating that the request complies with the adult fiction content policy.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.8",
+          "date": "2026-10-28",
+          "notes": "- Remind Me, from Home: a month of your story's days, with each love interest's birthday, the day your story began, its firsts with each love interest, and your own birthday if you add it (kept only on this device).\n- A period tracker for anyone who has periods, off by default and stored only in this browser. Logged days show as filled hearts, predicted ones as outlined hearts, and it never calls a period late. Export moves it; one click deletes all of it.\n- On a tracked day, Caring message asks the love interest on Home for a note. Only one line about today reaches your model provider, never the history; with Keep it off the model, or while debug logging is on, a comfort line written in advance answers instead. The note stays in this browser for the day only.\n- Home: on the shortest phones the rail tightens so the note keeps a line of its words, and a long name on Him / Me is cut short inside the rail rather than reach over the love interest's tap zones.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.7",
+          "date": "2026-10-28",
+          "notes": "- Dates opens: pick a love interest, then play Read Them, Date Night or the Claw Machine. Every activity pays even when it goes badly; only the day's rewards are capped (400 Starlight from activities, 300 affection per love interest), never play.\n- Read Them: over five moments, read what your love interest really feels behind the face they wear, hear the thought, and learn tells later scenes remember.\n- Date Night: pick a place, even one your story painted, and what you both wear for three scenes of choices judged by what your love interest likes, with an optional keepsake image. During a rupture it becomes Make it right.\n- The Claw Machine makes no model or image call: take turns at a swinging claw, cheer until they cheat in their own way, and line a shelf with six plushies and one of each love interest. It plays by keyboard, with reduced motion and without images.\n- With voices on, their lines are read aloud. Each love interest alone remembers the games you played together.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.6",
+          "date": "2026-10-28",
+          "notes": "- Wish opens: three banners every 14 days (Memories, a love interest's wardrobe, and yours), paid only with Starlight you earn (100 a wish; there is no real money). The pity count is exact (\"5★ in 23\"): a 5★ comes by the 60th wish and is always the featured one, and past banners wait in Echoes on the same pity. Wishing never calls a model, and duplicates refund Starlight.\n- Memories hold a Character Story to read; looks go to the Wardrobe, where your look and theirs make a couple set; Snapshots join that love interest's Love Timeline, and only they remember them.\n- Wear at home puts a look on Home, and the love interest on Home notices a new look of yours. A Memory's CG can stand behind them.\n- At affection 10, each love interest gives a Memory Selector. Banner and item art follows your image settings and is painted once.\n- NSFW mode (18+ only): Explicit Heat and Dark romance are written in full, your Lines and Veils still win, and only CGs of explicit scenes show nudity.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.5",
+          "date": "2026-10-28",
+          "notes": "- Otome Forge is now Otome Hearth.\n- Home now shows the love interest you pick, or you in your own look, before their newest CG or a painted place, tinted by your time of day. A painted look is cut out of its background when the Engine can, and pans slowly when it cannot; with no images, initials on a gradient. Reduced motion stills it.\n- Each love interest leaves one handwritten note a day, with a mood; Reply opens their thread. During a rupture the note is curt and taps get only cold lines.\n- Tap head, hand or heart for lines written ahead in their voice, so a tap never waits; too many pokes annoy them, and their face shows it. Rough day? offers comfort with no model call. With voices on, taps, the note and comfort are read aloud.\n- The phone: one private thread per love interest, with suggested replies and stickers. Close and remember saves the talk as a memory only that love interest recalls (+20 affection, capped daily).",
+          "highlight": false
+        },
+        {
+          "version": "0.0.4",
+          "date": "2026-10-28",
+          "notes": "- Each love interest now has a route: six stages from Mask to Bond, each opened by a free route chapter at an affection level and moved only by its last scene. The fourth reveals a secret; the fifth holds a confrontation and a choice that cannot be undone.\n- Every main chapter builds to a confrontation: three rounds of Press, Hold, Yield or Reveal, ending in the truth, a walkout or a standoff. A walkout can open a rift that shuts their route until you Make it right.\n- With an image connection, places and key moments are painted (or wait for your tap with Ask before painting), CGs join the Album once seen, and faces are painted in the background. Music follows each scene's mood, and dialogue can be voiced.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.3",
+          "date": "2026-10-28",
+          "notes": "- Now offered to Engine `staging` testers. The story begins: pick who leads each main chapter from two love interests, the one you have seen least and the one with the most unresolved between you, and play six to nine scenes that build to a confrontation.\n- Scenes mark each love interest's face line by line (a later build paints the faces), set thoughts apart, and offer choices. Your first choice is canon; replays show the other branches and change nothing, and a choice that matters names who will remember it.\n- Trust, tension and grievances move only through your choices and are never shown. Each love interest remembers only what they saw or were told.\n- Rewrite a scene before choosing (one model call), or Ease off to end it at once with no model call, also when your model declines a scene. Settings → Debug shows the story memory.\n- Reading earns Starlight and affection. Every prompt that writes the story keeps your content settings and the 18+ gate.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.2",
+          "date": "2026-10-28",
+          "notes": "- Still a development build, in no catalog. A story now starts from a setup: a premise, your protagonist from a persona, and two to five love interests from your cards or six original archetypes, each with the pronouns you pick.\n- The forge plans the story's mystery and writes each love interest a hidden bible, which never contradicts their card. Bibles sit behind a spoiler gate, and you can edit them. Love interests are always adults.\n- Content settings: Heat (SFW by default), Darkness (Angst by default), Lines & Veils and an image rating (SFW by default). NSFW Heat, Dark romance and images above SFW need a one-time 18+ confirmation that the server enforces; turning a setting down never asks.\n- Base looks are painted only after you tap to paint them, and a failed paint waits for Retry. Without an image connection everything still works, with initials in each love interest's colour, and one added later can paint them.\n- In debug mode, every prompt sent to the model is logged.",
+          "highlight": false
+        },
+        {
+          "version": "0.0.1",
+          "date": "2026-10-28",
+          "notes": "- First development build, not listed in any catalog yet. It adds a Home tab, Otome Forge, with the game's portrait stage, its Midnight and Pearl looks and its fonts. Every screen still says it arrives in a later build.\n- Otome Forge keeps its saves in its own `otome-forge:` documents, so it works alongside Gacha Forge.",
           "highlight": false
         }
       ]
@@ -957,8 +1015,120 @@
         }
       ]
     },
+    "saucelings": {
+      "versions": [
+        {
+          "version": "0.23.1",
+          "date": "2026-10-27",
+          "notes": "- On a wide screen, Background, Caretaker, Looks and New egg open in their own box under the meters and care buttons, instead of across the bottom of the Nook.",
+          "highlight": false
+        },
+        {
+          "version": "0.23.0",
+          "date": "2026-10-27",
+          "notes": "- One new egg a day. Once one has come, the egg button says what time the next one is ready. Eggs found in chat and saucelings brought back from the Menagerie don't count.\n- On a phone, Background scrolls into view when it opens, like Caretaker, Looks and New egg, and Escape closes it.",
+          "highlight": true
+        },
+        {
+          "version": "0.22.3",
+          "date": "2026-10-27",
+          "notes": "- Background: an error belongs to the last thing you tried and clears once something works. The description box waits while a place is suggested, so it never replaces what you typed.\n- Evolve: Keep works while the new looks are still being written; only a choice already sent has to finish.\n- After a repaint, your sauceling no longer drops to a silhouette while its new pictures load.\n- Settings: a number that fails to save goes back to the saved one, and a picture connection that was deleted shows as missing instead of blank.\n- Album: a sauceling brought back from the Menagerie is no longer shown twice.\n- Moving the egg no longer closes a rename or a hand-over you were in the middle of.\n- Painted sheets with two or three touching rows of drawings are read correctly.\n- An egg find that fails (the writing connection does not answer) no longer uses up the day's find.\n- Talking with the caretaker counts toward an evolution offer on the day the egg hatches or after a hand-over.",
+          "highlight": false
+        },
+        {
+          "version": "0.22.2",
+          "date": "2026-10-27",
+          "notes": "- The Nook's \"⋯\" button also holds Caretaker, Looks and New egg. Each opens its own panel under the Nook; close it with ✕ or Escape.\n- About only describes your sauceling: its look, sauce, traits and who found it.\n- The tour card wraps a long caretaker name instead of pushing its buttons off the screen.",
+          "highlight": false
+        },
+        {
+          "version": "0.22.1",
+          "date": "2026-10-27",
+          "notes": "- On the large Home widget, the caretaker no longer towers over the card: both figures are sized to the card's width.\n- Feed, Play, Rest and Cuddle (or Warm, Talk and Listen for an egg) are behind one \"Care\" button in the bottom-right corner. Tap it and the buttons open to its left; tap it again, or press Escape, to put them away. The button glows when a care would help.",
+          "highlight": false
+        },
+        {
+          "version": "0.22.0",
+          "date": "2026-10-27",
+          "notes": "- The Nook's top bar holds one \"⋯\" button: Rename, Background and Tour are inside it. \"Name it\" stays in view until your sauceling has a name.\n- Ask is one line until you open it, under Check in.\n- When your caretaker has offered an evolution, the reason is written beside the Evolve button instead of behind a \"?\".\n- Settings are grouped under Visits, Writing and Pictures, with shorter notes and a narrower column on a wide screen. On a phone, pickers take the full width instead of being cut off.\n- A caretaker with a long name no longer pushes the buttons in About off the edge of a phone screen.",
+          "highlight": true
+        },
+        {
+          "version": "0.21.5",
+          "date": "2026-10-27",
+          "notes": "- On a narrow screen, the number boxes in Settings no longer shrink until the value is cut off.",
+          "highlight": false
+        },
+        {
+          "version": "0.21.4",
+          "date": "2026-10-26",
+          "notes": "- The Journal says how many entries are new since you last looked.\n- A pet whose Journal is empty now says so, instead of saying there is no sauceling.\n- The meters in the Nook jump to their new level when reduced effects or reduced motion is on, instead of sliding.",
+          "highlight": false
+        },
+        {
+          "version": "0.21.3",
+          "date": "2026-10-26",
+          "notes": "- On the Home widgets, a meter that needs care now shows its amber fill, and the waiting badge on a care button has its colour back.",
+          "highlight": false
+        },
+        {
+          "version": "0.21.2",
+          "date": "2026-10-26",
+          "notes": "- The large Nook widget shows the caretaker's latest line under the stage, with the AI label when a model wrote it. The small widget carries the label too.\n- The widgets open from a real button, so a keyboard or screen reader can reach them. A resting care button on the large widget says when it's ready again instead of doing nothing.\n- Errors, the delete confirmations and the AI label follow your Engine theme's colours, and the Journal uses the same AI label as the rest.",
+          "highlight": false
+        },
+        {
+          "version": "0.21.1",
+          "date": "2026-10-26",
+          "notes": "- The Menagerie explains what comes to it, shows a dot on its tab when a character finds an egg, and picks the finder to look after a found egg.\n- Lock stage has a help tip. Replaying the tour on a hatched sauceling starts with a step about it.\n- The Journal groups lines by day; with no sauceling it offers a button to the Nook.\n- The Album says how to paint the first picture and what a keepsake is. Hiding \"Add instructions\" keeps what you typed.\n- Rename is spelled out, the care window setting reads more plainly, and with no characters the Nook says who looks after the egg.\n- Saved backgrounds say they're shared by all your saucelings, and their delete button is easier to tap.",
+          "highlight": false
+        },
+        {
+          "version": "0.21.0",
+          "date": "2026-10-26",
+          "notes": "- Easier first steps. Mari greets you in an empty nook and gives a short tour after your first egg; the Tour button replays it.\n- Tap a meter's name to see what it does. \"Growing paused\" now shows under Hunger, and an egg says how it hatches.\n- A resting care button, and Bring back in the Menagerie, now say why they can't be used yet.\n- About is split into Caretaker, Looks and New egg. Retiring and handing over to another caretaker ask first.\n- Settings keeps the image options together and shows a Saved tick. Errors read as plain sentences, with the details a tap away.\n- The voice offer comes after the egg arrives, and Esc skips it instead of cancelling the egg. Special saucelings fold away until you want them.",
+          "highlight": true
+        },
+        {
+          "version": "0.20.0",
+          "date": "2026-10-25",
+          "notes": "- First beta of Saucelings, a pet that lives in Home → Saucelings and on the Home widget grid.\n- Pick one of your characters to look after an egg. They care for it on their own schedule and talk in their own voice, drawn from their card, and you cover the gaps they miss.\n- How the two of you care for it shapes its temperament. Retire elders to the Menagerie and bring them back whenever you like.\n- With your image connection: pixel-art paintings for the Album, a figure of your caretaker for the Nook, and backgrounds of your own.\n- Characters you chat with may now and then find an egg of a creature they invent. Not every egg is an ordinary one.\n- Install it, restart Marinara Engine when prompted, then open Home → Saucelings.",
+          "highlight": false
+        }
+      ]
+    },
     "slurp2": {
       "versions": [
+        {
+          "version": "0.4.8",
+          "date": "2026-10-28",
+          "notes": "- World lens: the canon-anchor reading also returns `world` (era, device, money, festivals). Cache version v4 → v5, so each card is read once more in the background. A modern card has no lens and nothing changes.\n- The Creator brief (posts, DMs, comment replies, scenes, Stir suggestions, rewritten fan lines) and both live show prompts get one \"Your world\" line for a non-modern lens. Drama and Support desk prompts do not use the brief and are unchanged.\n- Pictures: a non-modern Creator never gets the mirror, desk or screenshot camera source, so no phone or screen appears. The image model gets no world words.\n- Holidays: when events run, a non-modern Creator is told to play them as their world's nearest festival.\n- Culture-shock fans: about 1 in 4 regular fan comments under a non-modern Creator's post comes from a free bank per era.\n- Backstage: the canon-anchor editor shows and edits the world (era, device, money, festivals); a player's fix survives a new reading.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.7",
+          "date": "2026-10-28",
+          "notes": "- Fan comments see the post: a short title (40 characters or fewer) gets quoted in some questions and reactions, the question bank has 16 more lines, and a fan line is skipped when the same text is already under the post.\n- Fan questions as callbacks: a top-level fan question under the Creator's recent posts (1–30 days old) is a new callback kind, `question`, so a later post may answer it.\n- Five business arcs join the built-in arc library: sale week, burnout and comeback, new gear, leak scare and page anniversary. Saved libraries get them through the existing normalize step.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.6",
+          "date": "2026-10-28",
+          "notes": "- Niches: the card reading now names each Creator's page niche (main + up to two side niches, from a fixed list). The reading refreshes once for every Creator.\n- Post jobs: each ordinary post gets a kind (try-on haul, gym set, finished commission, stream setup, fan request, teaser, …). The niche weighs the jobs, the main niche keeps at most half of the last 8 posts, and a Creator never repeats one of their last 3 jobs. Spice is not changed.\n- Card notes edits keep the niche.\n- Jobs fit the post: a job with its own place (gym, kitchen, stage) only goes on a post with no place yet, intimate jobs need a card heat of at least flirty, and avoided topics drop the job.\n- The card reading refreshes once for every Creator; on a card you never edited, the heat range may shift a little with the new reading.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.5",
+          "date": "2026-10-28",
+          "notes": "- Outfits change: a Creator who never had a wardrobe gets one filled from the card once (a closet you emptied stays empty), so pictures stop showing the same clothes.\n- Pictures follow your image style: a painted style no longer gets \"personal photograph\" words. In the story it is still a photo.\n- Automatic captions are short lines under the picture (about 40–160 characters, cut at a sentence end above 280).\n- Halloween costume contest in October (Settings › Stir › Drama): three Creators post costumes, you pick the winner, the winner posts a reward set.\n- Live recaps are built from the show (what you got, goals, coins, top tipper), so two shows never post the same text.\n- The daily world tick sees the recent themes, so the feed no longer gets \"Cozy\" trends day after day.\n- Fewer wasted slots: the planner stops adding post slots past posts per day, and one slot opens one campaign.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.4",
+          "date": "2026-10-26",
+          "notes": "- Live shows, rebuilt: code runs every show minute by minute (fans, tips, menu orders, goals); while you watch, the model writes the host and the chat, and the host answers you by name.\n- Live pictures about once per minute, and private shows at the Backstage price and length.\n- Go live yourself as your persona's Creator, or as any Creator from Stir; the room reacts and suggests your next move.\n- \"X is live\" notices, a thank-you post after each show, and a Backstage > Live shows page.\n- The cam is told in words on the stage, so a show works without pictures; pictures follow those words. A live Creator's Moments tile opens the show. Live is portrait on every screen, with a slim top bar.",
+          "highlight": false
+        },
         {
           "version": "0.4.3",
           "date": "2026-10-26",
@@ -1047,36 +1217,6 @@
           "version": "0.3.43",
           "date": "2026-10-15",
           "notes": "- Fixed: long DMs end at a sentence or word (up to 2400 characters), and commission quotes use the Creator's own prices.\n- Fixed: Cancel ends a subscription to a removed Creator at once.\n- Fixed: fans react to what a picture shows, not its art style.\n- Fixed: post drift. Tips no longer teach a guessed taste, and a spicy kind or taste that other Creators posted that day steps aside, so the whole feed is not in the shower at once. Spice level is unchanged.\n- Changed: family is never paired up on its own. Cards that say they are lovers, or the player in Stir, still can.\n- Fixed: clearer \"monogamous\" message in Stir, with the Relationships switch on the Creator sheet.\n- Fixed: work mode no longer blurs the coin and G's face; Couples pages are not a missing source; the sign-up scene names an unreachable connection.\n- Fixed: a scheduled post goes up once, and a shared-page post waits its turn.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.42",
-          "date": "2026-10-15",
-          "notes": "- Added: chats with \"Carryover to chats\" on also learn the character's Slurp storyline, love life, how well they know you, and the Slurp memories a chat with you may read.\n- Added: Carryover settings show in how many chats with your Creators \"Include Slurp activity\" is on.\n- Fixed: a scene started from a DM runs on the connection Slurp planned it with, not the Engine's plain default.\n- Fixed: an unreadable scene plan is asked for once more before \"The scene plan got lost\" shows.\n- Fixed: \"Start the scene\" shows an error when the Engine's scene host is missing.\n- Fixed: lorebook entries set to \"At Depth\" reach Slurp DMs and posts.\n- Added: Deep details has a \"Lore\" section with the entries a reply used or had no room for.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.41",
-          "date": "2026-10-14",
-          "notes": "- Faster: Slurp shows character and persona avatars as small copies instead of the full card picture. On opening Slurp the feed downloaded about 16 MB of avatar pictures (1–2.5 MB each, shown 44 px wide), and Discover about 14 MB more; those downloads also held up the feed's other requests. The small copies are made once and kept in Slurp's own media folder.\n- Faster: the \"Report\" sheet of a post or a reply is built only when you open it. Before, every post card and reply built a closed copy, which made the feed and Creator pages slower to open.\n- Faster: the ambient background colour measures the pictures on screen only after the screen has drawn, so opening a screen no longer forces extra layout work.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.40",
-          "date": "2026-10-14",
-          "notes": "- Changed: Slurp follows a Creator's gender instead of calling everyone \"she\". Drama packs use the gender of whoever plays each role (\"{her:he}\" tokens), and pack names and descriptions no longer assume a woman. Post, DM and scene prompts tell the model the Creator's pronouns. A Creator without a gender is \"they\".\n- Added: a \"Clothing style\" choice in the Creator's stage profile: Auto, Feminine, Masculine or Neutral. Auto follows gender. It decides what a \"lingerie\" spice post is: lingerie for feminine, an underwear shoot with briefs for masculine, either for neutral. Male Creators no longer get bra-and-panties shoots unless their style is Feminine. The post prompt also names the style.\n- Added: a picture of a Creator whose appearance text does not say their sex starts with \"Male.\" or \"Female.\" from their gender, so the image model stops defaulting to a woman.\n- Changed: the stage profile field hints read \"he\", \"she\" or \"they\" from the gender you picked.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.39",
-          "date": "2026-10-14",
-          "notes": "- Fixed: on Android, choosing a picture for a post (in the composer, or \"replace\" while editing a post) no longer opens the system photo picker, which lists only a few albums such as Camera, Screenshots and Downloads. Android now offers its full file browser, so every folder is reachable. A file that is not a picture still gets \"Choose an image file.\". Other platforms keep the picture-only file dialog. (#1378)",
-          "highlight": false
-        },
-        {
-          "version": "0.3.38",
-          "date": "2026-10-13",
-          "notes": "- Added: in a Creator's settings, \"Appearance for pictures\" has a new button, \"Use the card's image tags\". It shows only while the linked character or persona has the Image Appearance Override switched on and filled in, and it saves those tags as the Creator's own appearance. It asks first when that replaces an appearance you wrote. \"Use linked appearance\" (or \"Clear override\") removes it again. (#1366)",
           "highlight": false
         }
       ]

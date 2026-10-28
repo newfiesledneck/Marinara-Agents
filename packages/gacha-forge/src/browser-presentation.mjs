@@ -363,6 +363,22 @@ export function syncForgeBrowserPresentation(host) {
   }
 }
 
+// Background work starting or ending updates only its chip. Redrawing the screen for it would restart a story
+// scene with Auto off, restart a fight, and drop a half-made Formation move.
+export function syncForgeBusyChip(host, key, html) {
+  if (host._busyChipKey === key) return;
+  const view = host._root.querySelector(".gf-stage")?.querySelector(":scope > .gf-view");
+  if (!view) return;
+  host._busyChipKey = key;
+  const chip = view.querySelector(":scope > [data-busy]");
+  const markup = key ? html() : "";
+  if (!markup) return void chip?.remove();
+  if (!chip) return void view.insertAdjacentHTML("beforeend", markup);
+  const next = document.createElement("div");
+  next.innerHTML = markup;
+  chip.replaceChildren(...next.firstElementChild.childNodes);
+}
+
 export function wireForgeBrowserFullscreen(host) {
   const root = host._root;
   if (!root.querySelector("[data-forge-browser-layout]")) {
@@ -417,6 +433,8 @@ export function wireForgeBrowserFullscreen(host) {
 export function setForgeStoryPortrait(plate, character) {
   if (!plate) return;
   const url = typeof character?.art === "string" ? character.art : "";
+  const neutral = typeof character?.neutral === "string" ? character.neutral : "";
+  plate.forgeStoryArt = url;
   for (const layer of plate.querySelectorAll("[data-art]")) {
     if (!layer) continue;
     const image = layer.querySelector("[data-img]");
@@ -430,7 +448,11 @@ export function setForgeStoryPortrait(plate, character) {
           if (image.getAttribute("src") === url) image.hidden = false;
         };
         image.onerror = () => {
-          if (image.getAttribute("src") === url && figure) figure.removeAttribute("hidden");
+          if (image.getAttribute("src") !== url) return;
+          // A missing expression image falls back to the neutral portrait before the silhouette.
+          if (neutral && neutral !== url && plate.forgeStoryArt === url)
+            return setForgeStoryPortrait(plate, { ...character, art: neutral, neutral: "" });
+          if (figure) figure.removeAttribute("hidden");
         };
         image.setAttribute("src", url);
         if (image.complete && image.naturalWidth > 0) image.hidden = false;
@@ -440,6 +462,36 @@ export function setForgeStoryPortrait(plate, character) {
     if (figure) figure.toggleAttribute("hidden", !!url);
   }
   plate.setAttribute("data-front", "a");
+}
+
+// The same speaker changed expression: decode the new face in the hidden layer, then bring it to the
+// front, so the plate never blanks between two faces. A face that fails to load leaves the neutral one.
+export function showForgeStoryExpression(plate, character) {
+  if (!plate) return;
+  const url = typeof character?.art === "string" ? character.art : "";
+  const front = plate.getAttribute("data-front") === "b" ? "b" : "a";
+  const shown = plate.querySelector(`[data-art="${front}"] [data-img]`);
+  if (url && shown && !shown.hidden && shown.getAttribute("src") === url) {
+    plate.forgeStoryArt = url; // also drops a swap still decoding
+    return;
+  }
+  const layer = plate.querySelector(`[data-art="${front === "a" ? "b" : "a"}"]`);
+  const image = layer?.querySelector("[data-img]");
+  if (!url || !image) return setForgeStoryPortrait(plate, character);
+  plate.forgeStoryArt = url;
+  image.onload = () => {
+    if (plate.forgeStoryArt !== url || image.getAttribute("src") !== url) return;
+    image.hidden = false;
+    layer.querySelector("[data-figure]")?.toggleAttribute("hidden", true);
+    plate.setAttribute("data-front", layer.getAttribute("data-art"));
+  };
+  image.onerror = () => {
+    if (plate.forgeStoryArt !== url || image.getAttribute("src") !== url) return;
+    const neutral = typeof character.neutral === "string" ? character.neutral : "";
+    if (neutral && neutral !== url) showForgeStoryExpression(plate, { ...character, art: neutral, neutral: "" });
+  };
+  image.setAttribute("src", url);
+  if (image.complete && image.naturalWidth > 0) image.onload();
 }
 
 function wireForgeViewportPresentation(host) {

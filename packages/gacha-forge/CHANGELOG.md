@@ -1,3 +1,126 @@
+## 1.27.3 — 2026-10-28
+
+- Characters can equip their designated weapons even when a saved weapon has a different type from their role. The intended owner sees it in Gear and can equip it without regenerating the weapon. Signature skills still activate only for their owner; other characters keep the normal weapon-type rules.
+- On short landscape screens, Gear details keep their full height and the panel scrolls, so Choose and Change remain clickable instead of being clipped inside the card.
+
+## 1.27.2 — 2026-10-28
+
+- The narrator, the chapter planners and characters writing messages are asked to read every character's mind more carefully: what each one knows, wants and feels.
+
+## 1.27.1 — 2026-10-28
+
+- Scenes, key images, story event art, chat photos, Bond backgrounds and banners now send each character's face (their card's avatar, your persona's, or their saved portrait) and, when the picture paints them in the outfit they have on, that outfit's image too. A character card's unit used to send only its card avatar.
+- Banners and Bond backgrounds now paint a unit in the outfit it has on while **Outfits** is on, as chat photos do. Scenes and key images paint and send it only when **The story uses worn outfits** is on (off by default) and the scene does not dress the character itself.
+- Faces go before outfits, at most four images, the Engine's limit: outfits are left out first, and the log says so.
+- A new portrait or outfit is painted from the face alone, so the outfit a unit has on no longer leaks into its new look.
+
+## 1.27.0 — 2026-10-28
+
+- A finished story event's fights now open on **Hard**, then **Very Hard**, while the event runs and Seasonal events is on: Hard once the event is done, Very Hard once every fight is won on Hard, as in a main chapter. They are the fights you played, stronger, at 5 Vigor each, and each win pays once per difficulty what a main chapter's Hard and Very Hard fights pay. No new fight is designed, and each difficulty keeps its own progress.
+- In **Chapters** a finished event shows its N, H and V marks, and **Enter event** while its Hard fights are open. **Events → Story events** counts its Hard and Very Hard wins.
+- A story event's map no longer lists a chapter's Funds, Aether and rank on Normal, which an event never paid, and a played event's map opens without waiting for a scene being written elsewhere.
+
+## 1.26.3 — 2026-10-28
+
+- A story event you played now sits in **Chapters** right after the chapter it followed, as a finished Character Story does, instead of in a list below the next chapter. Its card says Done, Ended or Paused (Seasonal events off) and opens it to read its scenes again. Stories after the same chapter appear in the order you opened them. **Events → Story events** offers **Revisit played scenes** for a finished event, not **Continue event**.
+- A finished story event's map no longer offers Hard and Very Hard. Events are Normal-only, so those fights could never start, and **Start battle** did nothing. A fight that can't start now says why, with **Retry** and **Back**, in chapters, Character Stories, events, Materials and the Tower, and a cleared event fight is turned away before its briefing.
+- **Start battle** no longer stays disabled on a cheaper fight after another was refused for Vigor, and works at once in a world you switched to while a fight was starting.
+
+## 1.26.2 — 2026-10-28
+
+- Nothing changes in play. Expression portraits, choice labels, dialogue voice picking, music briefs, soundtracks and a few log lines now take optional settings, so another package can reuse them. Gacha Forge keeps its own values for all of them.
+
+## 1.26.1 — 2026-10-28
+
+- A chapter you forged before starting a story event no longer keeps pre-forging while the event holds it, and a big choice it already wrote no longer stops the event from starting, its scenes or its pre-forge. Once the event is finished, ends or Seasonal events is turned off, **Continue** on the chapter's map picks its pre-forge up again, and its choice waits for you as before. A Character Story's pending choice still stops the event from starting.
+- While story memory catches up, a companion chat, a character message or a Character Story knows only the scenes you have played, not the ones pre-forge wrote ahead or a Compress summary of them.
+
+## 1.26.0 — 2026-10-28
+
+- **Chapters → What happens next** can offer the season's story event beside the next chapter and any Character Story, when the next chapter is not forged yet; otherwise **Events → Story events** starts it as before. It starts like a Character Story: its map opens and the next chapter waits. While it is open, its card takes the chapter's place.
+- Pre-forge now writes story events too: scenes ahead at no Vigor cost, each fight designed after the scene before it, art in **Story and images**, and the pre-forge bar with Cancel on the event's map. Written scenes can be played while the rest is written. It stops once the event ends.
+
+## 1.25.2 — 2026-10-28
+
+- Backing out of a fight while it loads and entering another now loads the new fight, not the one you left. A fight request that never answers no longer blocks later fights.
+- In Formation, a swap seats both units before either one's passive fires, so a revive, Swap, Shuffle or Echo it sets off never puts a fourth unit in a row, and revived units are drawn where they are. Fights started earlier keep their rules.
+- On a small model, replies are much less likely to fail while memory catches up: the oldest chapter summaries, or the oldest chapters of the full story history, are left out only when the reply would not fit otherwise. The previous chapter, the scene so far and your decisions always stay.
+- Story memory no longer stops for good when a chapter it already remembers reads differently later: it keeps its first memory and goes on.
+- Seasonal event fights load again after a chapter was regenerated, and a fight that can't be set up now says why.
+
+## 1.25.1 — 2026-10-27
+
+- Scenes that are already written can be played while pre-forge writes the rest of the chapter. Cleared scenes keep **Read again**, and a fight or a written scene you have reached keeps **Play** or **Start**. Only a scene that is not written yet waits for pre-forge, which writes it at no Vigor cost. Back on the chapter map, it turns into Play as soon as it is written.
+- Opening a weapon's page from Gear, or a relic's **Upgrade**, keeps the current view until the new one has loaded instead of cutting to an empty screen, and the relic you are upgrading is no longer faded out.
+
+## 1.25.0 — 2026-10-27
+
+- Story memory recalls by meaning as well as by words, using the Engine's embedding model when one is set, and searches with what was just played or said instead of the chapter plan. Only clearly relevant memories come back: up to three chapter summaries and three side memories.
+- A unit's chats stay private. They are no longer folded into the shared overview, and never reach another unit's chat, a scene or event without that unit, or a fight.
+- Characters in scenes and chats know only what they saw, took part in or were told in the story, and nothing outside it.
+
+## 1.24.10 — 2026-10-27
+
+- A seasonal story event can start right after you finish a chapter again. Only a story you are in the middle of keeps an event closed: a main chapter or Character Story part with some, but not all, of it played. One you forged but have not started yet no longer blocks it, and waits until the event is done.
+- The event card now says what to finish first ("Finish Chapter 3" or "Finish Arden's Character Story"), and starting a chapter while an event is open names the event to finish.
+
+## 1.24.9 — 2026-10-27
+
+- A new chapter opens as soon as its plan is written. Its fights are no longer all designed before the chapter map appears: each fight is designed in the background right after the scene before it is written (by pre-forge or when you open it), so it is ready, with its enemy art, when you reach it.
+- Story memory summarizes only in the background, so writing a plan, scene, fight or chat no longer waits for it to catch up. Canon the saved overview does not cover yet is sent beside it as its summary, or as written for a fresh side story or chat. A summary already running on the same connection still finishes first; a separate summary connection avoids that.
+- Long chapters can be summarized again: summaries get at least 10k tokens of output room for thinking models (or the model's maximum, never below 8,192).
+
+## 1.24.8 — 2026-10-27
+
+- In character chats, Enter now adds a new line instead of sending. Only **Send** sends your message, so a stray Enter can no longer send it early.
+- Auto in story scenes no longer turns itself off when background work starts or finishes, such as expression portraits, scenes written ahead or portraits painting, or when you switch tabs and come back. The current line's voice no longer replays either.
+- While a story is written in the background, Formation changes stick: a picked unit, a drag or the bench scroll are no longer reset mid-move, saves never land out of order, and a battle waits for your last change. The chapter map no longer redraws every few seconds, and background writing no longer stalls other screens.
+
+## 1.24.7 — 2026-10-27
+
+- New **Expression portraits** setting in World → Sources → Images, off by default. Story portraits then show anger, fear, sadness or joy line by line, marked in the same request that writes the scene. Four faces per look are painted in the background, only for characters who speak. A failed set is not retried on its own: turn the setting off and on to try once more.
+- Your persona keeps its own voice even when another character shares part of its name, and turning Voice other characters off and on again no longer asks to pay again for combat lines that were never made.
+
+## 1.24.6 — 2026-10-27
+
+- New **Voice other characters** toggle next to Read character dialogue. NPCs and units without an assigned voice speak with a voice from the Engine's Random NPC Voices lists (Connections → Text to Speech), matched to male or female when known. With both lists empty, any voice of the current connection is used. Each name keeps the same voice. Assigned voices still win, and your persona uses only its own.
+- Combat voice lines now play in Classic and Formation fights, start preparing when the battle screen opens, and include your persona's assigned voice. A short notice says when nobody in the team can be voiced.
+
+## 1.24.5 — 2026-10-26
+
+- When a Front Row unit falls in Formation, a Back Row unit on its side steps into the empty seat at once and acts from its next turn. This works for your team and for enemies, and a fight now ends only when one side has nobody left. Moving and retreating never pull a support forward. A fight started before this update is still scored by the rules it was played under.
+
+## 1.24.4 — 2026-10-26
+
+- Messages you send in character chats are no longer read aloud. Your persona's assigned voice still reads its story dialogue.
+
+## 1.24.3 — 2026-10-26
+
+- Combat Power (CP) is now called Battle Power (BP).
+- Retrying a failed Formation kit pays only for the characters that still need one. Kits you kept after cancelling a remake stay as they are, and kits already paid for in a cancelled or failed remake are never made again.
+- A Front Row fighter whose only damage was a passive that never fires (on its own attack or kill, from the Back Row, or with no power) attacks with its Normal skill again.
+- An immunity Ultimate lands on the ally you pick, and one that can no longer land waits without spending energy. Retreating a fighter and summoning into its seat works in the same turn.
+- A battle saved with an element barrier nobody in your world can meet can now be fought, and a shortened defeat order names the enemies that come first.
+- On phones, enemy names show in full and protection tags no longer cover them. An Echo's sheet describes the Echo, and keyboard focus comes back after Fight.
+
+## 1.24.2 — 2026-10-26
+
+- Personas use their assigned Engine voice for story dialogue and newly sent character messages when dialogue audio is enabled.
+
+## 1.24.1 — 2026-10-26
+
+- Formation fights can no longer stall. An enemy that keeps turning immune can be hit again after two turns, Retreat Echo repeats one real cast only once, and a summon with no free Front Row seat waits without spending energy.
+- Remaking older Formation kits no longer locks battles. Battles wait only while a remake runs, cancelling it keeps your current kits (new characters still get theirs), a kit that failed waits for Retry in Story Continuity, and story work is never cancelled. A game left open from 1.24.0 asks you to reload first.
+- Story, event and boss fights in Formation no longer fail over a slightly wrong kit, keep the boss in the fight, and skip element barriers your team cannot meet.
+- In battle, the boss bar no longer covers row tags on phones, team editor names are readable, Echoes show their own name, Fight with fighters unplanned opens the plan, energy skills pay for later steps, and a keyboard can plan a whole turn.
+
+## 1.24.0 — 2026-10-26
+
+- Formation combat is rebuilt. Tap each Front Row fighter, pick its Normal skill, Ultimate, move/swap or Hold and its target, check the plan and the energy it spends, then press Fight. Every skill shows what it does and costs. Auto still plays a whole turn.
+- Teams seat six: up to three Front Row fighters and three Back Row supports. Supports make one energy of their element each turn, cannot be attacked and carry strong passives. Energy never expires.
+- Kits from older Formation rules are remade automatically before a world's next battle and keep fighting until then. Story, event and boss fights in Formation get front fighters, back-row supports and clearer boss rules.
+- Classic combat is unchanged.
+
 ## 1.23.0 — 2026-10-26
 
 - Keep playing: leave a main chapter that is still forging. It keeps forging, the busy pill shows its progress, and a notice says when it is ready, could not be forged or was interrupted. Pre-forging starts once it is ready. Cancel on any story loader still stops it, and switching worlds waits for it.

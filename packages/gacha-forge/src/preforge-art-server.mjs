@@ -1,14 +1,14 @@
 import { AsyncLocalStorage as ForgePreforgeArtGate } from "node:async_hooks";
 
 // Pre-forge paints a chapter's art on its own chain beside the text. The text chain writes beats back
-// to back and opens the chapter menu when the last one is written; this chain follows it in reading
+// to back (written ones can be played meanwhile) and ends with the last one; this chain follows it in reading
 // order, painting each written beat's new places and then its key image on the image connection's
 // low-priority lane. A scene opened first joins the paint in flight (both share its dedupe key) or
 // paints on open, as before. Painting ahead is not an unlock: Home backgrounds still need
 // /artwork/witness from a played scene.
 // ponytail: only beats a chain run writes are queued. A beat written earlier (Story only, Backgrounds
 // turned on later, or the beat a Cancel interrupted) paints on open, and a paint in flight at a hard
-// Cancel is paid and discarded. Art still queued once the menu opens has no Cancel on the chapter
+// Cancel is paid and discarded. Art still queued once the text is written has no Cancel on the chapter
 // screen; switching to Story only or Off, or the story Cancel, stops it. Upgrades: at chain start, also
 // queue written-but-unpainted beats; report pending art from /preforge and keep its Cancel while it paints.
 const forgePreforgeArtConnectionErrors = new Set(["no-image-connection", "engine-unreachable"]);
@@ -21,6 +21,21 @@ const forgePreforgeArtGate = new ForgePreforgeArtGate();
 export function forgePreforgeArtAllowed() {
   const gate = forgePreforgeArtGate.getStore();
   return gate ? gate() : true;
+}
+
+// Fights are designed in node order beside the scenes written ahead, never before the chapter map opens.
+// Before the text chain writes story node nextStory (-1 once every scene is written), it designs each
+// fight that comes first; one already designed returns from its cache without a model call. A fight with
+// pre-forge off, or one this chain could not design, is still designed when its battle opens.
+export async function forgePreforgeFights({ nodes, nextStory, design }) {
+  let stories = 0,
+    fights = 0;
+  for (const node of nodes) {
+    if (node?.type === "story" && stories++ === nextStory) break;
+    if (node?.type !== "combat") continue;
+    if (!(await design(fights++))?.ok) return false;
+  }
+  return true;
 }
 
 export function createForgePreforgeArt({ settings, paintPlace, paintKeyImage, assertActive, logger }) {

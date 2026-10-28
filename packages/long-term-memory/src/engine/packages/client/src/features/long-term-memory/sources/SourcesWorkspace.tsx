@@ -75,6 +75,7 @@ import {
 import { buildScopeIndexes, type ScopeTargetChat } from "../scope-targets";
 import {
   chatOnlyLtmScope,
+  getLtmScopeGroupIds,
   ltmModeForChatMode,
 } from "../../../../../shared/src/features/agents/long-term-memory/scope.js";
 import { DEFAULT_LTM_IMPORTED_SOURCE_MODE } from "../../../../../shared/src/features/agents/long-term-memory/constants.js";
@@ -115,6 +116,10 @@ const sourceTabs: Array<{ id: Source; labelKey: string }> = [
   {
     id: "chats",
     labelKey: "ui.longTermMemory.sourcesworkspace.chatSummaries",
+  },
+  {
+    id: "messages",
+    labelKey: "ui.longTermMemory.sourcesworkspace.chatMessages",
   },
   {
     id: "characters",
@@ -292,6 +297,7 @@ export default function SourcesWorkspace({
   const importResultLabelId = useId();
   const importReasonId = useId();
   const importLockId = useId();
+  const availabilityWaitId = useId();
   const reimportDescriptionId = `${importReasonId}-reimport`;
   const client = useQueryClient();
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -309,6 +315,8 @@ export default function SourcesWorkspace({
     props.chatId ? [`chat:${props.chatId}`] : [],
   );
   const [modeFilter, setModeFilter] = useState<LtmMode | "all">("all");
+  // Chat Messages branch: null follows the current chat, "" lists every branch, else a chat id.
+  const [branchPick, setBranchPick] = useState<string | null>(null);
   const [customAvailabilityModes, setCustomAvailabilityModes] = useState<LtmMode[] | null>(null);
   const [modesError, setModesError] = useState("");
   const [availabilitySaving, setAvailabilitySaving] = useState(false);
@@ -320,25 +328,34 @@ export default function SourcesWorkspace({
   const [selectionMode, setSelectionMode] = useState(false);
   const [sourceGroupsOpen, setSourceGroupsOpen] = useState<Record<Source, { ready: boolean; imported: boolean }>>({
     chats: { ready: false, imported: false },
+    messages: { ready: false, imported: false },
     characters: { ready: false, imported: false },
     lorebooks: { ready: false, imported: false },
   });
   const sourceGroupsBeforeSearch = useRef<Record<Source, { ready: boolean; imported: boolean }> | null>(null);
   const sourceSearchContext = useRef<Source | null>(null);
-  const sourceQueryByType = useRef<Record<Source, string>>({ chats: "", characters: "", lorebooks: "" });
+  const sourceQueryByType = useRef<Record<Source, string>>({ chats: "", messages: "", characters: "", lorebooks: "" });
   const sourceStatusByType = useRef<Record<Source, SourceStatusFilter>>({
     chats: "all",
+    messages: "all",
     characters: "all",
     lorebooks: "all",
   });
-  const focusedSourceByType = useRef<Record<Source, string | null>>({ chats: null, characters: null, lorebooks: null });
+  const focusedSourceByType = useRef<Record<Source, string | null>>({
+    chats: null,
+    messages: null,
+    characters: null,
+    lorebooks: null,
+  });
   const focusedLorebookByType = useRef<Record<Source, string | null>>({
     chats: null,
+    messages: null,
     characters: null,
     lorebooks: null,
   });
   const openLorebookEntryByType = useRef<Record<Source, string | null>>({
     chats: null,
+    messages: null,
     characters: null,
     lorebooks: null,
   });
@@ -442,7 +459,7 @@ export default function SourcesWorkspace({
   const defaultAvailabilityMode: LtmMode =
     modeFilter !== "all"
       ? modeFilter
-      : source === "chats"
+      : source === "chats" || source === "messages"
         ? ltmModeForChatMode(props.chatMode ?? "conversation")
         : DEFAULT_LTM_IMPORTED_SOURCE_MODE;
   const effectiveAvailabilityModes: LtmMode[] =
@@ -457,7 +474,9 @@ export default function SourcesWorkspace({
   const importActionProps = lockedActionProps(importDisabled, importRunning ? importLockId : undefined);
   // Re-extract shares the import lock: a run of either kind holds it, and the reason line says which.
   const reextractLocked = importRunning || !availabilityReady;
-  const reextractActionProps = lockedActionProps(reextractLocked, importRunning ? importLockId : undefined);
+  // While settings load there is no run, so the reason is the loading line itself.
+  const reextractReasonId = importRunning ? importLockId : !availabilityReady ? availabilityWaitId : undefined;
+  const reextractActionProps = lockedActionProps(reextractLocked, reextractReasonId);
 
   const changeAvailabilityModes = async (nextModes: LtmMode[]) => {
     if (!nextModes.length || !availabilityReady || availabilitySavingRef.current) return;
@@ -615,9 +634,29 @@ export default function SourcesWorkspace({
     ? selectedDestinationTargets.map((target) => targetDisplayLabel(target, true)).join(", ")
     : localizeUi("ui.longTermMemory.sourcesworkspace.chooseDestination");
   const sourceScope = sourceTarget?.sourceScope;
-  const previewScope = source === "chats" ? sourceScope : undefined;
+  const previewScope = source === "chats" || source === "messages" ? sourceScope : undefined;
   const effectiveImportScope = `${sourceTargetId}:${[...selectedDestinationTargetIds].sort().join(",")}`;
-  const previewQueryKey = [...queryKeys.preview, "pages", source, previewScope, modeFilter, committedSourceQuery];
+  // Branches are the chats of one group; the list is the shared history plus the picked branch's own pieces.
+  const branchGroupIds = source === "messages" ? getLtmScopeGroupIds(previewScope) : [];
+  const branchChats = (
+    branchGroupIds.length === 1
+      ? (scopeTargets.data?.groups.find((group) => group.id === branchGroupIds[0])?.chatIds ?? [])
+      : []
+  ).flatMap((id) => scopeIndexes.chatsById.get(id) ?? []);
+  const currentBranchId = branchChats.find((chat) => chat.id === props.chatId)?.id;
+  const branchChatId =
+    branchChats.length < 2 || branchPick === ""
+      ? undefined
+      : (branchChats.find((chat) => chat.id === branchPick)?.id ?? currentBranchId);
+  const previewQueryKey = [
+    ...queryKeys.preview,
+    "pages",
+    source,
+    previewScope,
+    modeFilter,
+    branchChatId,
+    committedSourceQuery,
+  ];
   const lorebookPreviewQueryKey = [
     ...queryKeys.lorebookPreview,
     "pages",
@@ -637,7 +676,15 @@ export default function SourcesWorkspace({
     queryFn: ({ pageParam, signal }) =>
       request<
         LtmInteropPreviewResponse,
-        { source: Source; limit: number; sourceScope?: LtmScope; mode?: LtmMode; query?: string; cursor?: string }
+        {
+          source: Source;
+          limit: number;
+          sourceScope?: LtmScope;
+          mode?: LtmMode;
+          branchChatId?: string;
+          query?: string;
+          cursor?: string;
+        }
       >(
         "/import/preview",
         "POST",
@@ -647,6 +694,7 @@ export default function SourcesWorkspace({
           ...(pageParam ? { cursor: pageParam } : {}),
           ...(previewScope ? { sourceScope: previewScope } : {}),
           ...(modeFilter !== "all" ? { mode: modeFilter } : {}),
+          ...(branchChatId ? { branchChatId } : {}),
           ...(committedSourceQuery.trim() ? { query: committedSourceQuery } : {}),
         },
         signal,
@@ -679,6 +727,18 @@ export default function SourcesWorkspace({
       ),
     enabled: lorebookPreviewEnabled,
   });
+  // Messages and summaries of one chat tell the same story, so the messages list says when summaries exist too.
+  const summaryCheck = useQuery({
+    queryKey: [...queryKeys.preview, "summary-check", previewScope],
+    queryFn: ({ signal }) =>
+      request<LtmInteropPreviewResponse, { source: Source; limit: number; sourceScope?: LtmScope }>(
+        "/import/preview",
+        "POST",
+        { source: "chats", limit: 1, sourceScope: previewScope },
+        signal,
+      ),
+    enabled: previewEnabled && source === "messages" && previewScope !== undefined,
+  });
   const sourceDetails = useQuery({
     queryKey: [...queryKeys.preview, "details", source, previewScope, modeFilter, focusedFlatSourceId],
     queryFn: () =>
@@ -708,7 +768,7 @@ export default function SourcesWorkspace({
   const lorebookPreviewData = sourceContextMatchesProps && sourceTargetResolved ? mergedLorebookPreview : undefined;
   const sourceDetailsData = sourceContextMatchesProps && sourceTargetResolved ? sourceDetails.data : undefined;
   const rows = [...(previewData?.samples ?? [])].sort((left, right) => {
-    if (source !== "chats" || !props.chatId) return 0;
+    if ((source !== "chats" && source !== "messages") || !props.chatId) return 0;
     return (
       Number(!left.sourceId.startsWith(`${props.chatId}:`)) - Number(!right.sourceId.startsWith(`${props.chatId}:`))
     );
@@ -977,6 +1037,7 @@ export default function SourcesWorkspace({
   useEffect(() => {
     setSourceContextKey(props.chatId ?? "all");
     setSourceTargetId(props.chatId ? `chat:${props.chatId}` : "all");
+    setBranchPick(null);
     setSelectedDestinationTargetIds(props.chatId ? [`chat:${props.chatId}`] : []);
   }, [props.chatId]);
 
@@ -1085,6 +1146,13 @@ export default function SourcesWorkspace({
   const changeSourceScope = async (next: string) => {
     if (next === sourceTargetId || !(await confirmSelectionChange())) return;
     setSourceTargetId(next);
+    setBranchPick(null);
+    clearImportResult();
+  };
+
+  const changeBranch = async (next: string) => {
+    if (next === (branchChatId ?? "") || !(await confirmSelectionChange())) return;
+    setBranchPick(next);
     clearImportResult();
   };
 
@@ -1433,6 +1501,7 @@ export default function SourcesWorkspace({
   const renderFlatSourceRow = (row: PreviewRow) => {
     const ready = row.status === "pending" || retryableIdSet.has(row.sourceId);
     const selected = ready ? selectedIds.has(row.sourceId) : selectedImportedIds.has(row.sourceId);
+    const range = row.messageRange;
     return (
       <ClickSurface
         key={row.sourceId}
@@ -1470,10 +1539,30 @@ export default function SourcesWorkspace({
           className="min-w-0 flex-1 text-left focus-visible:outline-none"
         >
           <span className="flex flex-wrap items-center gap-2">
-            <strong className="truncate text-sm">{row.title}</strong>
+            {range ? (
+              <>
+                {/* A long chat name is what gets cut; the range and badge stay whole and wrap before the name drops below 8rem. */}
+                <strong className="min-w-32 flex-1 truncate text-sm" data-ltm-source-chat-name>
+                  {range.chatName}
+                </strong>
+                <span
+                  className="shrink-0 whitespace-nowrap text-xs text-[var(--muted-foreground)]"
+                  data-ltm-source-message-range
+                >
+                  {range.first === range.last
+                    ? localizeUi("ui.longTermMemory.sourcesworkspace.messageValue1", { value1: range.first })
+                    : localizeUi("ui.longTermMemory.sourcesworkspace.messagesValue1ToValue2", {
+                        value1: range.first,
+                        value2: range.last,
+                      })}
+                </span>
+              </>
+            ) : (
+              <strong className="truncate text-sm">{row.title}</strong>
+            )}
             <span
               data-ltm-source-status={row.status}
-              className="rounded-full border border-[var(--border)] bg-[var(--secondary)] px-2 py-0.5 text-[0.625rem] font-semibold uppercase"
+              className={`rounded-full border border-[var(--border)] bg-[var(--secondary)] px-2 py-0.5 text-[0.625rem] font-semibold uppercase ${range ? "shrink-0 whitespace-nowrap" : ""}`}
             >
               {sourceStatusLabel(row, localizeUi)}
             </span>
@@ -1497,6 +1586,52 @@ export default function SourcesWorkspace({
     );
   };
 
+  // Notes whose source is gone. Keeping one needs no action; Remove goes through the delete workbench.
+  const outdatedNotes = (source === "lorebooks" ? lorebookPreviewData?.outdated : previewData?.outdated) ?? [];
+  const outdatedSourcesGroup = outdatedNotes.length ? (
+    <section className="space-y-2 rounded-md border border-[var(--border)] p-2" data-ltm-source-outdated>
+      <h3 className="text-xs font-semibold">
+        {localizeUi("ui.longTermMemory.sourcesworkspace.sourceGone", { value1: outdatedNotes.length })}
+      </h3>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        {localizeUi("ui.longTermMemory.sourcesworkspace.sourceGoneHelp")}
+      </p>
+      <ul className="max-h-52 space-y-1 overflow-y-auto">
+        {outdatedNotes.map((note) => (
+          <li
+            key={note.noteId}
+            className="flex flex-wrap items-center gap-1"
+            data-ltm-source-outdated-note={note.noteId}
+          >
+            <span className="min-w-0 flex-1 break-words text-xs">{note.title}</span>
+            <Button
+              className="mari-editor-action--compact"
+              aria-label={localizeUi("ui.longTermMemory.sourcesworkspace.openSourceMemoryValue1", {
+                value1: note.title,
+              })}
+              onClick={() => onOpenMemory?.(note.noteId)}
+            >
+              {localizeUi("ui.longTermMemory.sourcesworkspace.openSourceMemory")}
+            </Button>
+            <Button
+              className="mari-editor-action--compact"
+              aria-label={localizeUi("ui.longTermMemory.sourcesworkspace.removeGoneSourceValue1", {
+                value1: note.title,
+              })}
+              onClick={(event) => {
+                openSourceOperation({ id: note.noteId, title: note.title, operation: "delete" }, event.currentTarget);
+                setWorkspacePane("workbench");
+              }}
+              data-ltm-source-action="remove-outdated"
+              data-ltm-source-note-id={note.noteId}
+            >
+              {localizeUi("ui.longTermMemory.sourcesworkspace.removeGoneSource")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null;
   const sourceOperationWorkbench = sourceOperation ? (
     <SourceOperationWorkbench
       key={`${sourceOperation.id}:${sourceOperation.operation ?? "copy"}`}
@@ -1746,7 +1881,11 @@ export default function SourcesWorkspace({
           : null}
       </p>
       {!availabilityReady ? (
-        <StatusSurface tone={settingsQuery.isError ? "danger" : "neutral"} busy={!settingsQuery.isError}>
+        <StatusSurface
+          id={availabilityWaitId}
+          tone={settingsQuery.isError ? "danger" : "neutral"}
+          busy={!settingsQuery.isError}
+        >
           {settingsQuery.isError
             ? errorMessage(
                 settingsQuery.error,
@@ -1938,6 +2077,7 @@ export default function SourcesWorkspace({
                         {localizeUi("ui.longTermMemory.sourcesworkspace.reloadList")}
                       </Button>
                     </div>
+                    {outdatedSourcesGroup}
                     <div
                       role="tablist"
                       aria-label={localizeUi("ui.longTermMemory.sourcesworkspace.sourceStatus")}
@@ -2182,7 +2322,7 @@ export default function SourcesWorkspace({
                                 <div role="list" className="space-y-2">
                                   {lorebookDetails.isLoading ? (
                                     <div
-                                      className="h-20 animate-pulse rounded bg-[var(--secondary)]"
+                                      className="h-20 animate-pulse rounded bg-[var(--secondary)] motion-reduce:animate-none"
                                       aria-label={localizeUi("ui.longTermMemory.sourcesworkspace.loadingSourceContent")}
                                     />
                                   ) : lorebookDetails.isError ? (
@@ -2302,7 +2442,7 @@ export default function SourcesWorkspace({
                     <ImportedSourceInspector
                       source={focusedImportedSource}
                       disabled={reextractLocked}
-                      lockReasonId={importRunning ? importLockId : undefined}
+                      lockReasonId={reextractReasonId}
                       bulkActive={bulkSelectionActive}
                       onOpenMemory={onOpenMemory}
                       onOpenReview={onOpenReview}
@@ -2365,6 +2505,11 @@ export default function SourcesWorkspace({
                         </Button>
                       </div>
                     </div>
+                    {source === "messages" && summaryCheck.data?.totals.matches ? (
+                      <p className="text-xs text-[var(--muted-foreground)]" data-ltm-messages-summary-hint>
+                        {localizeUi("ui.longTermMemory.sourcesworkspace.chatAlsoHasSummaries")}
+                      </p>
+                    ) : null}
                     {preview.hasNextPage ? (
                       <Button
                         disabled={preview.isFetching}
@@ -2401,6 +2546,35 @@ export default function SourcesWorkspace({
                       />
                     </label>
                     <div className="flex flex-wrap items-center gap-2">
+                      {source === "messages" && branchChats.length > 1 ? (
+                        <label className="flex min-h-11 items-center gap-2 text-xs font-medium">
+                          {localizeUi("ui.longTermMemory.sourcesworkspace.branch")}
+                          <select
+                            className={`${inputClass} w-44${activeSourceTask ? " opacity-50" : ""}`}
+                            value={branchChatId ?? ""}
+                            aria-disabled={activeSourceTask ? true : undefined}
+                            onChange={(event) => {
+                              if (!activeSourceTask) void changeBranch(event.target.value);
+                            }}
+                            aria-label={localizeUi("ui.longTermMemory.sourcesworkspace.filterSourcesByBranch")}
+                            data-ltm-source-branch
+                          >
+                            {currentBranchId ? (
+                              <option value={currentBranchId}>
+                                {localizeUi("ui.longTermMemory.sourcesworkspace.thisBranch")}
+                              </option>
+                            ) : null}
+                            {branchChats
+                              .filter((chat) => chat.id !== currentBranchId)
+                              .map((chat) => (
+                                <option key={chat.id} value={chat.id}>
+                                  {chat.label}
+                                </option>
+                              ))}
+                            <option value="">{localizeUi("ui.longTermMemory.sourcesworkspace.allBranches")}</option>
+                          </select>
+                        </label>
+                      ) : null}
                       <label className="flex min-h-11 items-center gap-2 text-xs font-medium">
                         {localizeUi("ui.longTermMemory.transferworkbench.mode")}
                         <select
@@ -2438,6 +2612,7 @@ export default function SourcesWorkspace({
                         {localizeUi("ui.longTermMemory.sourcesworkspace.reloadList")}
                       </Button>
                     </div>
+                    {outdatedSourcesGroup}
                     <div
                       role="tablist"
                       aria-label={localizeUi("ui.longTermMemory.sourcesworkspace.sourceStatus")}
@@ -2679,7 +2854,7 @@ export default function SourcesWorkspace({
                         <p className="text-xs text-[var(--muted-foreground)]">{focusedFlatRow.summary}</p>
                         {sourceDetails.isLoading ? (
                           <div
-                            className="h-32 animate-pulse rounded bg-[var(--secondary)]"
+                            className="h-32 animate-pulse rounded bg-[var(--secondary)] motion-reduce:animate-none"
                             aria-label={localizeUi("ui.longTermMemory.sourcesworkspace.loadingSourceContent")}
                           />
                         ) : sourceDetails.isError ? (
@@ -2823,7 +2998,7 @@ export default function SourcesWorkspace({
                     <ImportedSourceInspector
                       source={focusedImportedSource}
                       disabled={reextractLocked}
-                      lockReasonId={importRunning ? importLockId : undefined}
+                      lockReasonId={reextractReasonId}
                       bulkActive={bulkSelectionActive}
                       onOpenMemory={onOpenMemory}
                       onOpenReview={onOpenReview}

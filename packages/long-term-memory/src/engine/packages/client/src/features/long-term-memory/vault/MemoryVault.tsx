@@ -1283,6 +1283,10 @@ export default function MemoryVault({
       return localizeUi("ui.longTermMemory.memoryvault.chatSummary", {
         title: scopeTargetLabel("chat", draft.provenance.sourceId, targets),
       });
+    if (draft.provenance.kind === "chat_transcript")
+      return localizeUi("ui.longTermMemory.memoryvault.chatMessages", {
+        title: scopeTargetLabel("chat", draft.provenance.sourceId, targets),
+      });
     return localizeUi("ui.longTermMemory.memoryvault.lorebook");
   };
 
@@ -1748,7 +1752,9 @@ export default function MemoryVault({
         setDraft((current) => (fingerprint(current) === submittedFingerprint ? next : current));
         setSaveState("idle");
         setWarning(
-          localizeUi("ui.longTermMemory.memoryvault.savedButRecallIsStale", { error: response.rebuild.error ?? "" }),
+          response.rebuild.error
+            ? localizeUi("ui.longTermMemory.memoryvault.savedButRecallIsStale", { error: response.rebuild.error })
+            : localizeUi("ui.longTermMemory.memoryvault.savedButRecallIsStaleNoError"),
         );
         await invalidateLtmQueries(client, [
           queryKeys.notes,
@@ -1925,7 +1931,9 @@ export default function MemoryVault({
         setRenamingSectionKey(null);
         setRenamedSectionKey("");
         setWarning(
-          localizeUi("ui.longTermMemory.memoryvault.savedButRecallIsStale", { error: result.rebuild.error ?? "" }),
+          result.rebuild.error
+            ? localizeUi("ui.longTermMemory.memoryvault.savedButRecallIsStale", { error: result.rebuild.error })
+            : localizeUi("ui.longTermMemory.memoryvault.savedButRecallIsStaleNoError"),
         );
         await invalidate();
         return;
@@ -2872,7 +2880,9 @@ export default function MemoryVault({
                               ? "characters"
                               : draft.provenance?.kind === "lorebook" || draft.tags.includes("imported_lorebook")
                                 ? "lorebooks"
-                                : "chats",
+                                : draft.provenance?.kind === "chat_transcript"
+                                  ? "messages"
+                                  : "chats",
                             draft.id,
                           )
                         }

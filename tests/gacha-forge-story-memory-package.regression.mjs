@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { estimateTextTokens } from "../packages/gacha-forge/src/shared-token-estimator.mjs";
+import { estimateTextTokens } from "../sources/forge-kit/shared-token-estimator.mjs";
 
 const packageId = "gacha-forge";
 const runId = "story-memory-package-proof";
@@ -42,7 +42,7 @@ async function harness({
   summarizeReply,
   denyMetadata = false,
   planChapter = 2,
-  maxContext = 10000,
+  maxContext = 40000,
 } = {}) {
   metadataAvailable = !denyMetadata;
   metadataContext = maxContext;
@@ -260,7 +260,7 @@ test("successful final normal completion automatically remembers canon within it
   assert.equal(status.recordCount, 1);
   assert.ok(status.overviewTokens > 0);
   assert.ok(status.overviewTokens <= status.overviewBudget);
-  assert.equal(status.overviewBudget, 1000);
+  assert.equal(status.overviewBudget, 4000);
   assert.ok(host.calls.some((messages) => JSON.stringify(messages).includes("Canonical scene 10")));
   assert.ok(
     host.calls.every((messages) => !JSON.stringify(messages).includes("UNPLAYED-PLAN-OUTCOME")),
@@ -364,10 +364,13 @@ test("automatic continuity retains every saved conversation, beyond the old late
   const status = await settled(host);
   assert.equal(status.phase, "ready", JSON.stringify(host.warnings));
   assert.equal(status.recordCount, 10);
-  assert.equal(host.data(memoryId).records.filter((record) => record.kind === "chat").length, 9);
-  const prompts = JSON.stringify(host.calls);
-  assert.ok(prompts.includes("Conversation memory 1:"));
-  assert.ok(prompts.includes("Conversation memory 9:"));
+  const chats = host.data(memoryId).records.filter((record) => record.kind === "chat");
+  assert.equal(chats.length, 9);
+  assert.ok(chats.some((record) => record.content.includes("Conversation memory 1:")));
+  assert.ok(chats.some((record) => record.content.includes("Conversation memory 9:")));
+  // A conversation is private to its unit: it stays its own record, never summarized again or folded into the
+  // shared overview.
+  assert.doesNotMatch(JSON.stringify(host.calls), /Conversation memory/u);
   assert.equal(host.data(`${runId}:chat:keeper`).sessions.length, 9);
 });
 
@@ -401,6 +404,68 @@ test("an opened Character Story is excluded until its final completion commits",
   assert.ok(JSON.stringify(host.calls).includes("Promise scene 3."));
 });
 
+test("a covered Character Story that reads differently keeps its first memory, and later chapters are still remembered", async () => {
+  const host = await harness({
+    progress: 10,
+    planChapter: 4,
+    summarizeReply(messages) {
+      const input = JSON.parse(messages[1].content);
+      return input.source ? `SUMMARY ${input.source.id}: ${input.source.content.slice(0, 40)}` : "OVERVIEW so far.";
+    },
+  });
+  const unitId = `${runId}:unit:keeper`;
+  const session = host.data(sessionId);
+  session.roster[unitId] = { level: 20, bondFights: 100 };
+  session.bondChapters = { [unitId]: { after: 1, beats: 3, opened: 123456 } };
+  host.seed(sessionId, "session", session);
+  host.seed(unitId, "unit", { unitId, kind: "character", name: "Keeper", role: "Warrior", affinity: "fire" });
+  host.seed(`${runId}:chapter:bond-keeper`, "chapter-plan", {
+    chapter: "bond-keeper",
+    bondUnitId: unitId,
+    title: "The keeper's promise",
+    nodes: Array.from({ length: 3 }, (_, index) => ({ index: index + 1, type: "story", title: "Promise" })),
+  });
+  const promise = (text) => {
+    for (let index = 0; index < 3; index += 1)
+      host.seed(`${runId}:beat:bond-keeper:${index}`, "beat", {
+        segments: [{ speaker: "Keeper", text: `${text} ${index + 1}.` }],
+      });
+  };
+  promise("Promise scene");
+  ok(await host.post("/story-memory/retry"));
+  assert.equal((await settled(host)).recordCount, 2);
+  const first = host.data(memoryId).records;
+  // Stored data edited, or rendered differently by an update; then two more chapters are played.
+  promise("DRIFTED promise scene");
+  const plan = host.data(`${runId}:chapter:1`);
+  for (const chapter of [2, 3]) {
+    session.progress[chapter] = { normal: 10 };
+    host.seed(`${runId}:chapter:${chapter}`, "chapter-plan", { ...plan, chapter, title: `Chapter ${chapter}` });
+    for (let index = 0; index < 10; index += 1)
+      host.seed(`${runId}:beat:${chapter}:${index}`, "beat", {
+        segments: [{ speaker: "", text: `Chapter ${chapter} scene ${index + 1}: Mari keeps the key.` }],
+      });
+  }
+  host.seed(sessionId, "session", session);
+  ok(await host.post("/story-memory/retry"));
+  const status = await settled(host);
+  assert.equal(status.phase, "ready", JSON.stringify(host.warnings));
+  assert.equal(status.recordCount, 4, "later chapters are summarized");
+  const memory = host.data(memoryId);
+  assert.deepEqual(memory.records.slice(0, 2), first, "first canon is kept");
+  assert.equal(memory.overview.sources.length, 4);
+  // The next chapter is planned from memory, never from the changed text or the full history.
+  const start = host.requests.length;
+  ok(await host.post("/chapter-plan", { chapter: 4 }));
+  const planner = host.requests
+    .slice(start)
+    .find(({ messages }) => messages[0].content.startsWith("You are the chapter planner"));
+  const prompt = planner.messages.map((message) => message.content).join("\n");
+  assert.match(prompt, /# Canon to date\nOVERVIEW so far\./u);
+  assert.doesNotMatch(prompt, /Chapter 2 scene 10: Mari keeps the key/u, "chapter 2 is not sent in full");
+  assert.doesNotMatch(JSON.stringify(host.requests), /DRIFTED/u);
+});
+
 test("new chapter generation includes current legacy chats even when pre-forging gave them a later coarse chapter", async () => {
   // Keep this successful canon-generation request within its explicitly ample configured window.
   const configuredWindow = 262144;
@@ -425,6 +490,9 @@ test("new chapter generation includes current legacy chats even when pre-forging
         index === 0 ? "CURRENT-CHAT-MARKER: Keeper asked Mari to bring a silver bell." : `Later conversation ${index}.`,
     })),
   });
+  // Summaries are written in the background; writing uses them once they are saved.
+  ok(await host.post("/story-memory/retry"));
+  assert.equal((await settled(host)).phase, "ready", JSON.stringify(host.warnings));
   ok(await host.post("/chapter-plan", { chapter: 2 }));
   const planner = host.calls.find(
     (messages) => !messages[0].content.includes("Summarize only the supplied canonical story history"),
@@ -452,7 +520,7 @@ test("protected loopback metadata falls back to the public model facade without 
   ok(await host.post("/complete", { chapter: 1, nodeIndex: 9, difficulty: "normal" }));
   const status = await settled(host);
   assert.equal(status.phase, "ready", JSON.stringify(host.warnings));
-  assert.equal(status.overviewBudget, 1000);
+  assert.equal(status.overviewBudget, 4000);
   assert.equal(status.recordCount, 1);
 });
 
@@ -557,7 +625,7 @@ test("next-chapter and scene prompts keep three older chapters plus separate cha
     assert.ok(request, "The actual shipped writer calls the fixture provider");
     return request.messages.map((message) => message.content).join("\n");
   };
-  const checkRecallPools = (prompt) => {
+  const checkRecallPools = (prompt, { chat = true } = {}) => {
     const sections = [
       ...prompt.matchAll(/# Recalled (chapter|character-story|chat): ([^\n]+)\n([\s\S]*?)(?=\n# |$)/gu),
     ];
@@ -567,9 +635,12 @@ test("next-chapter and scene prompts keep three older chapters plus separate cha
       sections.some((section) => section[1] === "character-story" && section[3].includes("CHARACTER-STORY-MARKER")),
       "Character Story recall has its own quota",
     );
-    assert.ok(
-      sections.some((section) => section[1] === "chat" && section[3].includes("CHAT-MEMORY-MARKER")),
-      "Conversation recall does not displace a chapter",
+    assert.equal(
+      prompt.match(/CHAT-MEMORY-MARKER/gu)?.length ?? 0,
+      chat ? 1 : 0,
+      chat
+        ? "The writer lists the conversation itself, so recall neither repeats it nor spends a side slot on it"
+        : "A unit's private chat stays out of scenes without it",
     );
     assert.ok(
       chapters.every((section) => /^Lighthouse key chapter [1-4]$/u.test(section[2])),
@@ -582,9 +653,19 @@ test("next-chapter and scene prompts keep three older chapters plus separate cha
     );
     assert.ok(prompt.includes("CANON-LAST-CHOICE") && prompt.includes("CANON-LAST-BRANCH"));
     assert.ok(!prompt.includes("UNPLAYED-ALTERNATIVE"), "Only the saved first-choice branch enters recent canon");
+    assert.match(prompt, /KNOWLEDGE BOUNDARY: a character knows only what they saw/u);
   };
+  const summaries = () =>
+    host.requests.filter(({ messages }) =>
+      messages[0].content.includes("Summarize only the supplied canonical story history"),
+    ).length;
+  // Summaries are written in the background; writing uses them once they are saved and never pays for them.
+  ok(await host.post("/story-memory/retry"));
+  assert.equal((await settled(host)).phase, "ready", JSON.stringify(host.warnings));
+  const summarized = summaries();
   ok(await host.post("/chapter-plan", { chapter: 6 }));
   checkRecallPools(requestAfter(0));
+  assert.equal(summaries(), summarized, "the chapter plan neither waits for nor pays for a summary");
   assert.equal((await settled(host)).recordCount, 7, "All five chapters and both character sources remain archived");
 
   session.progress[6] = { normal: 1 };
@@ -594,7 +675,9 @@ test("next-chapter and scene prompts keep three older chapters plus separate cha
     title: "The current lighthouse chapter",
     nodes: [
       { index: 1, type: "story", title: "Arrive", goal: "Recover the lighthouse key." },
-      { index: 2, type: "story", title: "Continue", goal: "Mari recovers the lighthouse key." },
+      // A scene recalls a unit's private conversations only when that unit is in it.
+      { index: 2, type: "story", title: "Continue", goal: "Mari recovers the lighthouse key with the keeper." },
+      { index: 3, type: "story", title: "Alone", goal: "Mari walks alone to the western door." },
     ],
   });
   const currentPrefix = "CURRENT-CHAPTER-PREFIX: Mari raises the lighthouse key above the silver lock.";
@@ -605,4 +688,54 @@ test("next-chapter and scene prompts keep three older chapters plus separate cha
   const scenePrompt = requestAfter(start, "narrator");
   checkRecallPools(scenePrompt);
   assert.ok(scenePrompt.includes(currentPrefix), "The played current chapter stays in addition to recalled history");
+  host.replies.push({ places: [], segments: [{ speaker: "", text: "The western door is cold." }] });
+  const alone = host.requests.length;
+  ok(await host.post("/beat", { chapter: 6, storyIndex: 2 }));
+  checkRecallPools(requestAfter(alone, "narrator"), { chat: false });
+});
+
+test("memory waiting for Retry trims legacy history oldest first, so a long world still writes its scene", async () => {
+  const scene = async (maxContext) => {
+    const host = await harness({ maxContext });
+    const session = host.data(sessionId);
+    for (let chapter = 1; chapter <= 30; chapter += 1) {
+      session.progress[chapter] = { normal: 1 };
+      host.seed(`${runId}:chapter:${chapter}`, "chapter-plan", {
+        chapter,
+        title: `Chapter ${chapter}`,
+        nodes: [{ index: 1, type: "story", title: "Scene", goal: "Tend the lamp." }],
+      });
+      host.seed(`${runId}:beat:${chapter}:0`, "beat", {
+        segments: [
+          {
+            speaker: "",
+            text: `CHAPTER-${chapter}-START ${"The keeper tends the lamp. ".repeat(800)}CHAPTER-${chapter}-END`,
+          },
+        ],
+      });
+    }
+    session.progress[31] = { normal: 1 };
+    host.seed(sessionId, "session", session);
+    host.seed(`${runId}:chapter:31`, "chapter-plan", {
+      chapter: 31,
+      title: "Now",
+      nodes: [0, 1].map((index) => ({ index: index + 1, type: "story", title: "Scene", goal: "Tend the lamp." })),
+    });
+    host.seed(`${runId}:beat:31:0`, "beat", { segments: [{ speaker: "", text: "CURRENT-SCENE-MARKER" }] });
+    host.seed(memoryId, "summary", { status: { phase: "error", retryable: true, reason: "memory-unavailable" } });
+    host.replies.push({ places: [], segments: [{ speaker: "", text: "The lamp holds." }] });
+    const response = await host.post("/beat", { chapter: 31, storyIndex: 1 });
+    const request = host.requests.find(({ messages }) => messages[0].content.startsWith("You are the narrator"));
+    return { response, request, prompt: request?.messages.map((message) => message.content).join("\n") ?? "" };
+  };
+  const tight = await scene(32768);
+  ok(tight.response);
+  for (const kept of ["CHAPTER-30-START", "CHAPTER-30-END", "CURRENT-SCENE-MARKER"])
+    assert.ok(tight.prompt.includes(kept), kept);
+  assert.ok(!tight.prompt.includes("CHAPTER-1-START"), "the oldest chapter goes first");
+  const size = tight.request.messages.reduce((sum, message) => sum + estimateTextTokens(message.content) + 4, 0);
+  assert.ok(tight.request.maxTokens >= 8192 && size + tight.request.maxTokens + 512 <= 32768);
+  const roomy = await scene(400000);
+  ok(roomy.response);
+  assert.ok(roomy.prompt.includes("CHAPTER-1-START"), "a world that fits keeps all of its history");
 });

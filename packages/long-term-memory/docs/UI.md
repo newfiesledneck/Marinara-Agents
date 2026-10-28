@@ -160,6 +160,16 @@ in typing and keeps the current rows, marked busy, until its results arrive.
 Long-running source tasks expose running, completed, cancelled, partial-failure,
 and failed states through the Sources navigation and workspace feedback. A
 running task can be cancelled and its latest result can be revisited.
+The Chat Messages tab imports a chat's own messages in pieces of up to 24,000
+characters; when the selected chat also has summaries, it says that importing
+both can repeat memories in review. A chat with branches adds a Branch menu
+(this branch, each other branch, All branches); it filters the list to a
+branch's history, and the destination stays the whole chat.
+When the unsearched first page finds imported notes whose character, lorebook
+entry, chat summary or message piece no longer exists, a "Source gone (N)" group
+above the source tabs lists them. Each row opens the memory or removes it with
+its source (the usual delete confirmation); leaving a row alone keeps the
+memory and lists it again on the next preview. Searching hides the group.
 
 ### Settings and Chat Settings
 
@@ -171,7 +181,7 @@ and marks the current one. While the global defaults have not arrived, an
 inherited value shows "Loading default…" (or "Default unavailable" after a
 failed load) instead of an invented number, and the controls stay usable. Memory Settings
 has Recall, Extraction, Maintenance, and Debug tabs; Recall is grouped under Budget, Ranking, Text filters, and
-Sharing headings, names the four weights in plain words (Meaning match, Exact words match, Linked memories
+Sharing headings (Sharing lists the Agents that read memories in a table of last read, reads this week and memories returned this week, counted from the Debug activity log), names the four weights in plain words (Meaning match, Exact words match, Linked memories
 match, Stored keywords match; the help keeps "graph weight" and "keyword weight"), and shows "Custom (edited
 weights)" with a Reset to preset button beside the style once an edited weight has flipped it to Custom (the
 button returns to the last named style, Balanced if none); Maintenance holds Backup (export, choose backup), Repair (integrity, selected repairs;
@@ -186,9 +196,9 @@ Success messages (`StatusSurface` with the success tone) use the `--ltm-success`
 the editor text, measured at no less than 10.0:1 in the light and 9.1:1 in the dark default theme) and a check
 icon, never the bare accent color.
 A result that appears after an action (Debug export and clear, each Maintenance group, the source workbench preview
-summary) is read out from a region that is always mounted: `LiveResult` keeps a hidden `role="status"` copy in the
+summary and run result) is read out from a region that is always mounted: `LiveResult` keeps a hidden `role="status"` copy in the
 page and shows the visible `StatusSurface` without its own live role, so one action speaks once (a failure is read politely, not as an alert). A live region that
-mounts together with its text is often not announced. Counts use the One/Other catalog keys with
+mounts together with its text is often not announced. Loading placeholders and spinners carry `motion-reduce:animate-none`. Counts use the One/Other catalog keys with
 `selectLtmPluralForm`, name lists go through `Intl.ListFormat`, and stored codes map to catalog labels instead of
 `replaceAll("_", " ")`. Add section refuses an empty key (a name with no letters A-Z or numbers) or a duplicate on
 the name field itself: the reason is linked with `aria-describedby` and focus returns to the field.

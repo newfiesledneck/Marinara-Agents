@@ -11,7 +11,6 @@ const forgeChapterVersionPaths = new Set([
   "/story-event/choice",
   "/story-event/cg-art",
   "/story-event/beat/mark",
-  "/story-event/preforge",
   "/chapter-plan",
   "/bond-chapter/plan",
   "/beat",
@@ -22,6 +21,8 @@ const forgeChapterVersionPaths = new Set([
   "/beat/mark",
   "/story/start",
   "/bond-chapter/start",
+  // A seasonal fight's preview is posted as /battle; it becomes /story-event/battle only after this check.
+  "/battle",
   "/battle/start",
   "/combat-guide",
   "/background",

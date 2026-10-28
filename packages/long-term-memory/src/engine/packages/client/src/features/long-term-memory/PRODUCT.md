@@ -12,7 +12,7 @@ Primary: Marinara Engine end users — chat and roleplay users who curate durabl
 
 ## Product Purpose
 
-Long-Term Memory extracts durable memories from chat summaries, character records, and lorebooks into a package-owned vault, and recalls relevant context into generation under per-chat enablement; users review proposed memory changes before they land. Success means users can inspect extraction evidence, accept or reject proposed changes with visible diagnostics, and trust that recalled context comes from reviewed, scoped memories — not silent autowrites. It is an Agent capability package (kind `agent`, category `misc`, phase `pre_generation`) published through the Marinara catalog; this record is package-scoped and sits alongside the repo-level PRODUCT.md, which governs the catalog as a whole.
+Long-Term Memory extracts durable memories from chat summaries, chat messages, character records, and lorebooks into a package-owned vault, and recalls relevant context into generation under per-chat enablement; users review proposed memory changes before they land. Success means users can inspect extraction evidence, accept or reject proposed changes with visible diagnostics, and trust that recalled context comes from reviewed, scoped memories — not silent autowrites. It is an Agent capability package (kind `agent`, category `misc`, phase `pre_generation`) published through the Marinara catalog; this record is package-scoped and sits alongside the repo-level PRODUCT.md, which governs the catalog as a whole.
 
 ## Positioning
 
@@ -27,10 +27,10 @@ Three durable mechanisms together: evidence-led human review of proposed memory 
 ## Capabilities and Constraints
 
 - Server-side package runtime (`server.mjs`, capability API per `manifest.json`, engine `>= 2.4.1 < 4.0.0`, `restartRequired: true`) exposing `/api/long-term-memory` routes and registered `long-term-memory:storage` / `long-term-memory:runtime` services; extraction, evidence-unit compilation and validation, dedup, reconciliation, BM25/keyword/metadata/graph retrieval with token budgeting, debug log, backup/restore, legacy adoption and quarantine.
-- Client renders into the Agents panel and chat-settings slot via the capability host (`CapabilityProps`: chat, settings, confirm-action, and dirty-state callbacks; `en` locale is the only shipped locale — localization beyond English is undecided).
+- Client renders into the Agents panel and chat-settings slot via the capability host (`CapabilityProps`: chat, settings, confirm-action, and dirty-state callbacks; shipped locales are `en` and a machine-translated `ko` that awaits review by a Korean speaker; other languages are undecided).
 - Durable constraints: sources live under `src/engine/packages/{client,server,shared}`; `client.js`, `server.mjs`, and `agents.json` at the package root are generated bundles and must never be hand-edited. Catalog rules (engine range, lanes) come from the repo-level product record, which this package record inherits and does not restate.
 - Confirmed scope boundaries: review-always-before-accept is the policy for memory changes; health, freshness, and evidence stay visible ahead of destructive operations.
-- Undecided: localization beyond English; no marketing or testimonial copy exists, so future surfaces must not fabricate it.
+- Undecided: localization beyond English and Korean; no marketing or testimonial copy exists, so future surfaces must not fabricate it.
 
 ## Brand Commitments
 

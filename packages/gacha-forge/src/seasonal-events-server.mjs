@@ -8,6 +8,14 @@ export function forgeSeasonalEnabled(run) {
 export function forgeSeasonalChapter(value) {
   return typeof value === "string" && /^event-[1-9]\d{0,8}$/u.test(value);
 }
+// A finished event's fights also open on Hard, then Very Hard (1.27.0), as a main chapter's do; anything else asked
+// for is Normal, as main reads it.
+const forgeSeasonalDifficulty = (value) => (value === "hard" || value === "veryhard" ? value : "normal");
+// How far an event is played on one difficulty: {normal, hard, veryhard}, like a main chapter's. A save from before
+// 1.27.0 holds only normal, so Hard and Very Hard read 0.
+export function forgeSeasonalProgress(session, chapter, difficulty = "normal") {
+  return forgeEventCount(session?.progress?.[chapter]?.[difficulty]);
+}
 export function forgeValidateSeasonalReward(reward) {
   const limits = { funds: 20000, aether: 800, xp: 12, character: 1, outfit: 1 };
   if (
@@ -123,6 +131,10 @@ export function createForgeSeasonalEvents({
   replayBattle,
   spendVigor,
   onComplete,
+  // The bundle's main-chapter unlock (cc): the highest difficulty open at or below the one asked for.
+  clampDifficulty,
+  // Pays a fight's first win on Hard or Very Hard as a main chapter's (the adapter's payFight).
+  payFight,
   now = Date.now,
   log,
 }) {
@@ -160,7 +172,10 @@ export function createForgeSeasonalEvents({
     (await documents.list(packageId, "story-event"))
       .filter((row) => row.id.startsWith(`${runId}:story-event:`) && Number.isSafeInteger(row.data?.seq))
       .sort((left, right) => right.data.seq - left.data.seq);
-  const progress = (session, chapter) => forgeEventCount(session?.progress?.[chapter]?.normal);
+  const progress = (session, chapter) => forgeSeasonalProgress(session, chapter);
+  const fights = (plan) => allNodes(plan).filter((node) => node.type === "combat");
+  // Only a story in progress closes the window: a main chapter or a Character Story part with some, but not all, of
+  // it played. One forged but not started yet does not; it waits behind the open event (guardMain).
   const frontier = async (runId, session, store = documents) => {
     const plans = (await store.list(packageId, "chapter-plan"))
       .filter((row) => row.id.startsWith(`${runId}:chapter:`))
@@ -169,14 +184,17 @@ export function createForgeSeasonalEvents({
       .sort((left, right) => left.chapter - right.chapter);
     let after = 0;
     for (const row of plans) {
-      if (row.chapter !== after + 1 || progress(session, row.chapter) < allNodes(row.plan).length)
-        return { after, ready: false };
+      const played = progress(session, row.chapter);
+      if (!played) continue;
+      if (row.chapter !== after + 1 || played < allNodes(row.plan).length)
+        return { after, ready: false, blockedBy: { kind: "chapter", chapter: row.chapter } };
       after = row.chapter;
     }
-    const bond = Object.values(session?.bondChapters || {}).some((entry) =>
-      Object.keys(entry || {}).some((key) => /^beats\d*$/u.test(key) && forgeEventCount(entry[key]) < 3),
-    );
-    return { after, ready: !bond && after > 0 };
+    for (const [unitId, entry] of Object.entries(session?.bondChapters || {}))
+      for (const [key, value] of Object.entries(entry || {}))
+        if (/^beats\d*$/u.test(key) && forgeEventCount(value) > 0 && forgeEventCount(value) < 3)
+          return { after, ready: false, blockedBy: { kind: "character-story", unitId } };
+    return after > 0 ? { after, ready: true } : { after, ready: false, blockedBy: { kind: "chapter", chapter: 1 } };
   };
 
   async function ensure(runId, retry = false) {
@@ -272,6 +290,12 @@ export function createForgeSeasonalEvents({
     const session = await readSession(runId),
       boundary = await frontier(runId, session),
       events = [];
+    // The card names what to finish first, so a closed window is never a mystery.
+    if (boundary.blockedBy?.kind === "character-story")
+      boundary.blockedBy.name = forgeEventText(
+        (await documents.getById(packageId, boundary.blockedBy.unitId))?.data?.name,
+        80,
+      );
     for (const row of await rows(runId)) {
       const event = row.data,
         played = progress(session, event.chapter),
@@ -281,8 +305,16 @@ export function createForgeSeasonalEvents({
         ...event,
         rewards: event.rewards?.map(forgePreparedSeasonalReward),
         played,
+        hard: forgeSeasonalProgress(session, event.chapter, "hard"),
+        veryhard: forgeSeasonalProgress(session, event.chapter, "veryhard"),
+        // Very Hard opens once every fight is won on Hard; a plan holds 3 to 6 of them.
+        combats:
+          played || event.opened
+            ? fights((await documents.getById(packageId, planId(runId, event.chapter)))?.data).length
+            : 0,
         live,
         canStart: live && forgeSeasonalEnabled(run) && boundary.ready,
+        ...(boundary.ready ? {} : { blockedBy: boundary.blockedBy }),
         archived: !live,
       });
     }
@@ -317,7 +349,9 @@ export function createForgeSeasonalEvents({
     return { ok: true, runId, chapter, doc, event: doc.data, session, data, played };
   }
 
-  async function plan(body) {
+  // cachedOnly answers null for a plan not written yet, so only writing one waits on the world's generation queue
+  // (forgeChoices.readOrGenerate, as main /chapter-plan): a played event's map opens while a scene is written elsewhere.
+  async function plan(body, { cachedOnly = false } = {}) {
     return serial(`${body?.runId}:plan`, async () => {
       await retireInactiveFight(body?.runId);
       let target = await selected(body);
@@ -326,13 +360,17 @@ export function createForgeSeasonalEvents({
       const cached = await documents.getById(packageId, planId(runId, chapter));
       if (cached)
         return { ok: true, plan: cached.data, progress: target.data.progress, event: target.event, cached: true };
+      if (cachedOnly) return null;
       target = await selected(body, { live: true });
       if (!target.ok) return target;
       const run = await readRun(runId);
       if (!forgeSeasonalEnabled(run)) return { ok: false, error: "events-off" };
       const boundary = await frontier(runId, target.data);
       if (!boundary.ready) return { ok: false, error: "event-needs-chapter-boundary" };
-      const waiting = await choices.guard(runId);
+      // The event follows chapter `after`: a choice in a main chapter after it (forged, not played yet) is held with
+      // that chapter once the event opens, so it does not stop the event from opening. Character Story and event
+      // choices are not held, so they still do.
+      const waiting = await choices.guard(runId, { heldAfter: boundary.after });
       if (waiting) return waiting;
       const result = await generatePlan({ runId, run, event: target.event, after: boundary.after });
       if (!result?.ok || !allNodes(result.plan).length) return result || { ok: false, error: "generation-failed" };
@@ -369,22 +407,37 @@ export function createForgeSeasonalEvents({
     });
   }
 
+  // A node's place on its difficulty's list: every node on Normal; on Hard and Very Hard only the fights, as a main
+  // chapter's Hard map lists them, so there a fight's place is its combat index.
+  const difficultyNodes = (plan, difficulty) => (difficulty === "normal" ? allNodes(plan) : fights(plan));
+  // Refused, never clamped as main /battle does: the client offers only open difficulties, so a locked one comes from
+  // a stale tab, and clamping would start another fight than the one its briefing names.
+  const lockedDifficulty = (data, chapter, plan, difficulty) =>
+    clampDifficulty(difficulty, data.progress?.[chapter] || {}, fights(plan).length) !== difficulty
+      ? { ok: false, error: "locked-difficulty", difficulty }
+      : null;
+
   async function guardNode(body, type, indexField, replay = true) {
     const target = await selected(body);
     if (!target.ok) return target;
+    // Only a fight has Hard and Very Hard: scenes are read on Normal.
+    const difficulty = type === "combat" ? forgeSeasonalDifficulty(body?.difficulty) : "normal";
     const plan = await documents.getById(packageId, planId(target.runId, target.chapter)),
-      nodes = allNodes(plan?.data),
+      nodes = difficultyNodes(plan?.data, difficulty),
       index = Number(body[indexField]);
     const typed = nodes.filter((node) => node.type === type),
       nodeIndex = indexField === "nodeIndex" ? index : nodes.indexOf(typed[index]);
     if (!Number.isInteger(index) || index < 0 || nodeIndex < 0 || nodes[nodeIndex]?.type !== type)
       return { ok: false, error: "bad-request" };
-    if (nodeIndex > target.played) return { ok: false, error: "event-node-locked" };
-    if (nodeIndex === target.played && !forgeSeasonalEnabled(await readRun(target.runId)))
+    const locked = lockedDifficulty(target.data, target.chapter, plan.data, difficulty);
+    if (locked) return locked;
+    const reached = forgeSeasonalProgress(target.data, target.chapter, difficulty);
+    if (nodeIndex > reached) return { ok: false, error: "event-node-locked" };
+    if (nodeIndex === reached && !forgeSeasonalEnabled(await readRun(target.runId)))
       return { ok: false, error: "events-off" };
-    if (nodeIndex === target.played && now() >= target.event.endsAt) return { ok: false, error: "event-expired" };
-    if (!replay && nodeIndex < target.played) return { ok: false, error: "event-already-played" };
-    return { ...target, plan: plan.data, nodeIndex, node: nodes[nodeIndex], replay: nodeIndex < target.played };
+    if (nodeIndex === reached && now() >= target.event.endsAt) return { ok: false, error: "event-expired" };
+    if (!replay && nodeIndex < reached) return { ok: false, error: "event-already-played" };
+    return { ...target, plan: plan.data, nodeIndex, node: nodes[nodeIndex], replay: nodeIndex < reached, difficulty };
   }
 
   async function complete(body) {
@@ -392,27 +445,34 @@ export function createForgeSeasonalEvents({
     const initial = await selected(body);
     if (!initial.ok) return initial;
     const planDoc = await documents.getById(packageId, planId(initial.runId, initial.chapter));
-    const nodeIndex = Number(body.nodeIndex),
-      node = allNodes(planDoc?.data)[nodeIndex];
-    if (!Number.isInteger(nodeIndex) || !node || nodeIndex > initial.played)
-      return { ok: false, error: "event-node-locked" };
-    if (nodeIndex < initial.played)
+    const difficulty = forgeSeasonalDifficulty(body?.difficulty),
+      nodeIndex = Number(body.nodeIndex),
+      node = difficultyNodes(planDoc?.data, difficulty)[nodeIndex];
+    const locked = lockedDifficulty(initial.data, initial.chapter, planDoc?.data, difficulty);
+    if (locked) return locked;
+    const reached = forgeSeasonalProgress(initial.data, initial.chapter, difficulty);
+    if (!Number.isInteger(nodeIndex) || !node || nodeIndex > reached) return { ok: false, error: "event-node-locked" };
+    if (nodeIndex < reached)
       return { ok: true, progress: initial.data.progress, gained: [], reward: null, cached: true };
     const live = await selected(body, { live: true });
     if (!live.ok) return live;
-    const waiting = await choices.completeGuard(initial.runId, initial.chapter, { nodeIndex });
-    if (waiting) return waiting;
-    if (node.type === "story") {
-      const storyIndex = allNodes(planDoc.data)
-        .slice(0, nodeIndex)
-        .filter((entry) => entry.type === "story").length;
-      if (!(await readBeat(initial.runId, initial.chapter, storyIndex))) return { ok: false, error: "beat-missing" };
+    // Hard and Very Hard replay a fight already won on Normal: no choice, scene or event reward rides on them.
+    if (difficulty === "normal") {
+      const waiting = await choices.completeGuard(initial.runId, initial.chapter, { nodeIndex });
+      if (waiting) return waiting;
+      if (node.type === "story") {
+        const storyIndex = allNodes(planDoc.data)
+          .slice(0, nodeIndex)
+          .filter((entry) => entry.type === "story").length;
+        if (!(await readBeat(initial.runId, initial.chapter, storyIndex))) return { ok: false, error: "beat-missing" };
+      }
     }
     const response = await persistence.transaction(async ({ documents: store }) => {
       const current = await selected(body, { store });
       if (!current.ok) return current;
-      if (current.played !== nodeIndex)
-        return current.played > nodeIndex
+      const done = forgeSeasonalProgress(current.data, current.chapter, difficulty);
+      if (done !== nodeIndex)
+        return done > nodeIndex
           ? { ok: true, progress: current.data.progress, gained: [], cached: true }
           : { ok: false, error: "event-node-locked" };
       const active = await selected(body, { live: true, store });
@@ -420,10 +480,28 @@ export function createForgeSeasonalEvents({
       const data = active.data;
       if (node.type === "combat") {
         const pendingFight = data.combatPending;
-        if (pendingFight?.chapter !== current.chapter || pendingFight.nodeIndex !== nodeIndex || !pendingFight.fight)
+        // An event fight started before 1.27.0 stored no difficulty: it was Normal.
+        if (
+          pendingFight?.chapter !== current.chapter ||
+          pendingFight.nodeIndex !== nodeIndex ||
+          (pendingFight.difficulty || "normal") !== difficulty ||
+          !pendingFight.fight
+        )
           return { ok: false, error: "battle-not-started" };
         if (replayBattle(pendingFight.fight, body.log) !== "win") return { ok: false, error: "lost" };
         delete data.combatPending;
+      }
+      if (!current.session) throw new Error("story-event-session-missing");
+      if (difficulty !== "normal") {
+        data.progress = {
+          ...data.progress,
+          [current.chapter]: { ...data.progress?.[current.chapter], [difficulty]: nodeIndex + 1 },
+        };
+        // The first win on each difficulty pays once, as a main chapter's Hard fight does; data.reading is left alone
+        // (no scene was played, and it may mark the player's place in a main chapter).
+        const paid = payFight({ data, runId: current.runId, difficulty, event: current.event });
+        await save(store, current.session, data);
+        return { ok: true, progress: data.progress, gained: [], ...paid };
       }
       const gained = [];
       for (const reward of current.event.rewards
@@ -434,13 +512,16 @@ export function createForgeSeasonalEvents({
           ...(await grantReward({ documents: store, runId: current.runId, event: current.event, data, reward })),
         );
       }
-      data.progress = { ...data.progress, [current.chapter]: { normal: nodeIndex + 1 } };
+      data.progress = {
+        ...data.progress,
+        [current.chapter]: { ...data.progress?.[current.chapter], normal: nodeIndex + 1 },
+      };
       if (data.reading?.chapter === current.chapter) delete data.reading;
-      if (!current.session) throw new Error("story-event-session-missing");
       await save(store, current.session, data);
       return { ok: true, progress: data.progress, gained, reward: null, wallet: data.wallet };
     });
-    if (response.ok) onComplete?.(initial.runId);
+    // Story memory learns from Normal play only, as main schedules it.
+    if (response.ok && difficulty === "normal") onComplete?.(initial.runId);
     return response;
   }
 
@@ -467,6 +548,20 @@ export function createForgeSeasonalEvents({
     });
   }
 
+  // An opened, live, unfinished event holds every main chapter after the one it follows. This only reads, so
+  // pre-forge and the choice guards can ask it; guardMain retires an inactive event fight first.
+  async function mainHold(runId, chapter) {
+    if (!forgeSeasonalEnabled(await readRun(runId))) return null;
+    const session = await readSession(runId);
+    for (const row of await rows(runId)) {
+      const event = row.data,
+        played = progress(session, event.chapter);
+      if (event.opened && now() < event.endsAt && chapter > event.after && played < 10)
+        return { ok: false, error: "story-event-open", eventChapter: event.chapter, title: event.title };
+    }
+    return null;
+  }
+
   return {
     ensure,
     list,
@@ -475,8 +570,10 @@ export function createForgeSeasonalEvents({
     guardNode,
     complete,
     retireInactiveFight,
+    // An event chapter is active while it is live. A main chapter is not while an open event holds it: pre-forge
+    // does not write it, and its pending choice does not stop the event (Pasta-Devs/Marinara-Agents#1786).
     async choiceActive(runId, chapter) {
-      if (!forgeSeasonalChapter(chapter)) return true;
+      if (!forgeSeasonalChapter(chapter)) return !Number.isInteger(chapter) || !(await mainHold(runId, chapter));
       const event = await documents.getById(packageId, eventId(runId, Number(chapter.slice(6))));
       return (
         !!event &&
@@ -505,19 +602,13 @@ export function createForgeSeasonalEvents({
     },
     async guardMain(runId, chapter) {
       await retireInactiveFight(runId);
-      const run = await readRun(runId);
-      if (!forgeSeasonalEnabled(run)) return null;
-      const session = await readSession(runId);
-      for (const row of await rows(runId)) {
-        const event = row.data,
-          played = progress(session, event.chapter);
-        if (event.opened && now() < event.endsAt && chapter > event.after && played < 10)
-          return { ok: false, error: "story-event-open", eventChapter: event.chapter, title: event.title };
-      }
-      return null;
+      return mainHold(runId, chapter);
     },
     async runBattle(body, start = false) {
-      const target = await guardNode(body, "combat", "combatIndex", !start);
+      // A fight cleared on its difficulty is never loaded either: it could not start (each difficulty pays a fight
+      // once), so the fight screen says why at once instead of offering a Start that is refused. Main /battle does not
+      // check this; an event's fights do, since 1.26.3.
+      const target = await guardNode(body, "combat", "combatIndex", false);
       return target.ok ? battle({ body, target, start }) : target;
     },
     async mediaBanner(runId, bannerId) {

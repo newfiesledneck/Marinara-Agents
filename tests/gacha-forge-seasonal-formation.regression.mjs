@@ -9,6 +9,9 @@ import {
   freshMainPlan,
 } from "./fixtures/gacha-forge-chapter-runtime.mjs";
 import {
+  FORGE_FORMATION_ENGINE,
+  FORGE_FORMATION_RULES,
+  FORGE_FORMATION_KIT_PROMPT,
   forgeFormationEnemyKit,
   replayForgeFormationBattle,
 } from "../packages/gacha-forge/src/formation-combat-shared.mjs";
@@ -37,6 +40,7 @@ async function fixture() {
     skill: { name: "Flare", effect: "damage", power: 100, target: "enemy", description: "A clear flame." },
   };
   hero.formationKit = forgeFormationEnemyKit(hero);
+  hero.formationKitPrompt = FORGE_FORMATION_KIT_PROMPT;
   f.seed(unitId, "unit", hero);
   const leaderId = `${runId}:unit:protagonist`;
   f.seed(leaderId, "unit", { ...hero, cardId: "", name: "Mari", isProtagonist: true });
@@ -87,23 +91,24 @@ async function fixture() {
   return f;
 }
 const request = { chapter: "event-1", combatIndex: 0 };
+const engine = { expectedFormationEngine: FORGE_FORMATION_ENGINE, expectedFormationRules: FORGE_FORMATION_RULES };
 
 test("actual event routes freeze Formation mode and rules, replay its choices, and grant the event reward once", async () => {
   const f = await fixture();
   try {
-    const view = (await f.post("/story-event/battle", request)).body;
+    const view = (await f.post("/story-event/battle", { ...request, ...engine })).body;
     assert.equal(view.ok, true, JSON.stringify(view));
     assert.equal(view.combatMode, "formation");
     assert.equal(view.formationRules[0].kind, "element_barrier");
     assert.equal(view.dialogueCues[0].content, "Keep the lantern burning.");
     const wallet = structuredClone(f.session().wallet);
     assert.equal(
-      (await f.post("/story-event/battle/start", { ...request, expectedCombatMode: "classic" })).body.error,
+      (await f.post("/story-event/battle/start", { ...request, ...engine, expectedCombatMode: "classic" })).body.error,
       "changed",
     );
     assert.deepEqual(f.session().wallet, wallet);
     assert.equal(
-      (await f.post("/story-event/battle/start", { ...request, expectedCombatMode: "formation" })).body.ok,
+      (await f.post("/story-event/battle/start", { ...request, ...engine, expectedCombatMode: "formation" })).body.ok,
       true,
     );
     const snapshot = structuredClone(f.session().combatPending.fight);
@@ -130,7 +135,7 @@ for (const reason of ["expired", "disabled"])
   test(`confirmed mode conversion retires the ${reason} event fight without reward or regeneration`, async () => {
     const f = await fixture();
     try {
-      assert.equal((await f.post("/story-event/battle/start", request)).body.ok, true);
+      assert.equal((await f.post("/story-event/battle/start", { ...request, ...engine })).body.ok, true);
       const wallet = structuredClone(f.session().wallet);
       if (reason === "expired") f.docs.get(`${runId}:story-event:1`).data.endsAt = Date.now() - 1;
       else f.docs.get("index").data.runs[0].story.seasonalEvents = false;
@@ -150,3 +155,51 @@ for (const reason of ["expired", "disabled"])
       await f.close();
     }
   });
+
+test("a finished event's Hard fight in Formation is the saved fight, seated and scaled, paid once with no model call", async () => {
+  const f = await fixture();
+  try {
+    // The same fight on Normal (its reached node), for its scale.
+    const normal = (await f.post("/story-event/battle", { ...request, ...engine })).body;
+    assert.equal(normal.ok, true, JSON.stringify(normal));
+    f.session().progress["event-1"] = { normal: 10 };
+    const calls = f.calls.length;
+    f.transport.reply = () => {
+      throw new Error("An event's Hard fight must not call a model");
+    };
+    const hard = { ...request, ...engine, difficulty: "hard" };
+    const view = (await f.post("/story-event/battle", hard)).body;
+    assert.equal(view.ok, true, JSON.stringify(view));
+    assert.deepEqual(
+      { mode: view.combatMode, difficulty: view.difficulty, cp: view.cp, rule: view.formationRules[0].kind },
+      { mode: "formation", difficulty: "hard", cp: 3000, rule: "element_barrier" },
+    );
+    assert.equal(view.enemies[0].name, "Sentinel");
+    assert.ok(view.enemies[0].formation, "Formation seats the scaled enemy");
+    const ratio = view.enemies[0].power / normal.enemies[0].power;
+    assert.ok(ratio > 1.45 && ratio < 1.55, `Hard calibrates the enemy to 1.5 times Normal's power (${ratio})`);
+    const wallet = structuredClone(f.session().wallet);
+    assert.equal(
+      (await f.post("/story-event/battle/start", { ...hard, expectedCombatMode: "formation" })).body.ok,
+      true,
+    );
+    const snapshot = structuredClone(f.session().combatPending.fight);
+    assert.equal(snapshot.combatMode, "formation");
+    assert.equal(f.session().combatPending.difficulty, "hard");
+    const played = replayForgeFormationBattle(snapshot);
+    assert.equal(played.result, "win");
+    const complete = { chapter: "event-1", nodeIndex: 0, difficulty: "hard", log: played.log };
+    const won = (await f.post("/story-event/complete", complete)).body;
+    assert.equal(won.ok, true, JSON.stringify(won));
+    assert.deepEqual({ funds: won.reward.funds, aether: won.reward.aether }, { funds: 750, aether: 150 });
+    assert.equal(f.session().wallet.funds, wallet.funds + 750);
+    assert.deepEqual(f.session().progress["event-1"], { normal: 10, hard: 1 });
+    const finished = structuredClone(f.session());
+    assert.equal((await f.post("/story-event/complete", complete)).body.cached, true);
+    assert.deepEqual(f.session(), finished);
+    assert.equal((await f.post("/story-event/battle", hard)).body.error, "event-already-played");
+    assert.equal(f.calls.length, calls);
+  } finally {
+    await f.close();
+  }
+});

@@ -915,7 +915,7 @@
         },
         "id": "gacha-forge",
         "name": "Gacha Forge",
-        "version": "1.23.0",
+        "version": "1.27.3",
         "description": "A complete gacha game mode. Describe a world and Gacha Forge builds the rest: banners to pull on, a cast the model writes and paints for you, story chapters told by a visual-novel narrator, and the battles, gear and events that grow around them. Install it, restart Marinara Engine when prompted, then open Home → Gacha Forge.",
         "engine": {
           "min": "2.5.1",
@@ -1204,8 +1204,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "68198f2a66116055853a74030ae6923aa2e283ba92d8fa391b3f7b8080f61443",
-            "bytes": 1771292
+            "sha256": "62c2fe141533e8734c7e24436590d74cb1b7c0b107dbdc3744065c6d868580eb",
+            "bytes": 1921399
           },
           {
             "path": "farm-asc.webp",
@@ -1679,8 +1679,8 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "e3f2c6e613bd4b09edde39c7066c2ab3cefebc8706a5bc6b96dfb0cd5794f80c",
-            "bytes": 865240
+            "sha256": "b1590b6fe09cead3571acd2d5ca8971373901e897014dde06be6dde0e2c1d254",
+            "bytes": 1029416
           },
           {
             "path": "skill-aoe_damage-dark.webp",
@@ -2434,38 +2434,38 @@
           },
           {
             "path": "src/formation-combat-client.mjs",
-            "sha256": "056c8d28d5ae11b64b8ac7e177670f1ce0a54680e6c6f1f68876a12aea1da41e",
-            "bytes": 15612
+            "sha256": "691433c1361f2e160bf52875c3dbb74c417baa71c6db0ff1d582aa5fabf9244c",
+            "bytes": 75982
           },
           {
             "path": "src/formation-combat-en.mjs",
-            "sha256": "d1e76dd43e405a29d81464267b6cbbd7aaeba70f42855a0a261cb5f798009323",
-            "bytes": 4869
+            "sha256": "8bbcae90af673a487b764377a0d1d8389a230101d5faac01b190cd542ceb743f",
+            "bytes": 18002
           },
           {
             "path": "src/formation-combat-server.mjs",
-            "sha256": "b940e272327981aca2f12a51ddad5547a5c8f080d0bbaad1817c6ed704f44f34",
-            "bytes": 8701
+            "sha256": "2c679bf29206b90111bb0c54c666ef1caf241e4d833565881838d04092dfc760",
+            "bytes": 24623
           },
           {
             "path": "src/formation-combat-shared.mjs",
-            "sha256": "945bdd7e3716834299ef0cc8f52143633be5110c03040a0047d4d67498ddbc54",
-            "bytes": 38172
+            "sha256": "a032ed3d7073133ce9a18cdc0e0a5af09128b2bc587d5f097813d10ce214b505",
+            "bytes": 71666
           },
           {
             "path": "src/formation-migration-server.mjs",
-            "sha256": "06972eebdc9ba951ba2500f2b2937d77879984fe205b8e567aaa840a2cddb96c",
-            "bytes": 16969
+            "sha256": "c16b905157714c3528604e01edb3c4d67bf8d76e54ac6e30dc9477ff12fd43db",
+            "bytes": 22427
           },
           {
             "path": "src/formation-settings-client.mjs",
-            "sha256": "73bac3bb06dcf520ce51cde6ad343609abd1c92a29c69b18f0f605bc8fbfaba7",
-            "bytes": 8844
+            "sha256": "6741e855b2d704c7c70ad6ae461fd252b822e5b991216437dd588ea287e44a3d",
+            "bytes": 9980
           },
           {
             "path": "src/formation-settings-en.mjs",
-            "sha256": "3b3286cc3eaa06333a6f7610d3628974e720276f40713cf321a5a5206417c6f3",
-            "bytes": 2873
+            "sha256": "5335816230eb2a3dc63dab53abeb25231b0b63c1a87dc981ec851e062d8f91cc",
+            "bytes": 3723
           },
           {
             "path": "src/combat-ultimate-client.mjs",
@@ -2474,8 +2474,8 @@
           },
           {
             "path": "src/combat-voices-client.mjs",
-            "sha256": "1d461cd3b311749b2274de0156f2511c3713d3db03c8731e3f4bb514d7a58a09",
-            "bytes": 12713
+            "sha256": "e2787168d7bc83b95721f83346ca112d2d9a34385863ccfc449d5f824118f51f",
+            "bytes": 16815
           },
           {
             "path": "src/combat-voices-en.mjs",
@@ -2484,8 +2484,8 @@
           },
           {
             "path": "src/combat-voices-server.mjs",
-            "sha256": "4b677f85aad0cf033c2f699573a76c5dcc2b8bb6d5c86dbbe658b7f7238e9635",
-            "bytes": 18271
+            "sha256": "ff04e4d84f59b500d074f7b7833e99ace52e12cbf0700c60bfc742436565f948",
+            "bytes": 19080
           },
           {
             "path": "src/proactive-messages-en.mjs",
@@ -2504,8 +2504,8 @@
           },
           {
             "path": "src/proactive-messages-adapter.mjs",
-            "sha256": "f508d2f3b013f8c0ffac15014c16c26a8787f8887cd5db31b25f46ec04838b01",
-            "bytes": 3158
+            "sha256": "adb2d3f079a7c8f98fb86d8a918fcc91619ba819cc5d91c7418d887ca19e2d9a",
+            "bytes": 3267
           },
           {
             "path": "src/background-download-client.mjs",
@@ -2532,9 +2532,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/gacha-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/gacha-forge-1.23.0.zip",
-        "sha256": "9a0c15442db436ac99530782b5ccd79f8c29670b061bafd03146215c5f489b44",
-        "bytes": 8733542
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/gacha-forge-1.27.3.zip",
+        "sha256": "46e05494b15a6ce278df72dade59cc4b560fd98839889fb404fb0ff498b637bf",
+        "bytes": 9183211
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/gacha-forge/README.md"
     },
@@ -2795,18 +2795,18 @@
         "schemaVersion": 2,
         "capabilityApi": {
           "major": 1,
-          "minor": 341
+          "minor": 387
         },
         "builtAgainst": {
-          "engineVersion": "2.5.0",
-          "engineCommit": "25f8df7b0a388fe36f657d69c6fcaa9f27e066ed"
+          "engineVersion": "2.5.1",
+          "engineCommit": "345cd747cf8e8fd56f3fbdceb625a1edd568b525"
         },
         "id": "long-term-memory",
         "name": "Long-Term Memory",
-        "version": "1.4.95",
-        "description": "Remembers important things from your chat summaries, characters, and lorebooks, and brings them back when they matter. Enable it per chat from Chat Settings → Agents → Long-Term Memory. In Roleplay and Game, you can also add it from Chat Settings → Agents → Misc Agents.",
+        "version": "1.5.7",
+        "description": "Remembers important things from your chats, characters, and lorebooks, and brings them back when they matter. Enable it per chat from Chat Settings → Agents → Long-Term Memory. In Roleplay and Game, you can also add it from Chat Settings → Agents → Misc Agents.",
         "engine": {
-          "min": "2.4.1",
+          "min": "2.5.1",
           "maxExclusive": "4.0.0"
         },
         "kind": [
@@ -2830,24 +2830,23 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "263273cb19dbed76302b12855c9a56df0f5489008a580d24803f7ab9f998e6be",
-            "bytes": 552
+            "sha256": "d0c5a064c4d5cd96064d85ec73ab4c390bf4bfedeaa7237c9e79b599e308c631",
+            "bytes": 543
           },
           {
             "path": "server.mjs",
-            "sha256": "d383cad1bc9c8844d7a348f1808c0af1242ecedfd4fbab513c21f88556405171",
-            "bytes": 489428
+            "sha256": "9121fb89a4d9d0a091e67fd9815f3abc56d40169bbd66af66e9716b5d2e9ddd8",
+            "bytes": 495550
           },
           {
             "path": "client.js",
-            "sha256": "bfd590b6af5c0f8ba8b7556a3674d13b39c31b072ddeaea5e95790f64a19637d",
-            "bytes": 701335
+            "sha256": "5a01564a3389f6e3dc4cdf286744e98942cefa771fe2be20a69488a94c251b19",
+            "bytes": 904086
           }
         ],
         "permissions": [
           "agent-runtime",
           "chat-read",
-          "chat-write",
           "routes",
           "storage",
           "ui"
@@ -2857,9 +2856,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/long-term-memory.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/long-term-memory-1.4.95.zip",
-        "sha256": "e02a5b7ca28eb342a6a74bffd1c1bff990adf6bfdd62fd35fa946ca8389e876a",
-        "bytes": 1193264
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/long-term-memory-1.5.7.zip",
+        "sha256": "cd6ecb2d5f6aeb42f3356d15ddf87ff1858fa863b4807ec3136a42cfbcf36cc8",
+        "bytes": 1402100
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#long-term-memory"
     },
@@ -3265,6 +3264,88 @@
         "bytes": 1302445
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/noodle/README.md"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 386
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.1",
+          "engineCommit": "a3ceb0162b1629c6b99885759b11794aa6274869"
+        },
+        "id": "otome-forge",
+        "name": "Otome Hearth",
+        "version": "0.0.9",
+        "description": "An otome game in its own Home tab, made from your own characters: love interests who remember what you chose, their texts on your phone, dates and mini-games, and wishes for outfits and memories paid for only with Starlight you earn. An early test build. Install it, restart Marinara Engine when prompted, then open Home → Otome Hearth.",
+        "engine": {
+          "min": "2.5.1",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json",
+          "server": "server.mjs",
+          "client": "client.js"
+        },
+        "contributions": {
+          "slots": [
+            "home-browser-tab"
+          ],
+          "homeBrowserTab": {
+            "label": "Otome Hearth",
+            "ariaLabel": "Open Otome Hearth",
+            "iconPaths": [
+              "otome-hearth-icon.png"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "5712b5dc4d2258ca1de9a43017ea35be73b0a4336ddb7360bf7e16d4916c9b99",
+            "bytes": 706
+          },
+          {
+            "path": "server.mjs",
+            "sha256": "0fc3103d7d132944b741f075d8ab70df50c34cdb1eee083a2a827495ceaa82c6",
+            "bytes": 379855
+          },
+          {
+            "path": "client.js",
+            "sha256": "75eaa6e3e3b7446f56a488c8b511f58bc79076a1ddd6707c8364e5f0bc515abd",
+            "bytes": 1078595
+          },
+          {
+            "path": "otome-hearth-icon.png",
+            "sha256": "8a579710820c718e3f3e1a2535fc12a251c5b91569bd7f5bb59961f1e873bce8",
+            "bytes": 141313
+          },
+          {
+            "path": "fonts/OFL.txt",
+            "sha256": "42a08de2370044e2966c8158770a86c67a8b343c9422a1b30b8599d25c05dd5f",
+            "bytes": 4558
+          }
+        ],
+        "permissions": [
+          "routes",
+          "storage",
+          "ui"
+        ],
+        "restartRequired": true
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/otome-forge.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.0.9.zip",
+        "sha256": "b8b6bcde3cfdc42e229c888a8726d40aab432474bd1ea7cdba0afddffd8e1b43",
+        "bytes": 1607580
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/otome-forge/README.md"
     },
     {
       "manifest": {
@@ -3850,11 +3931,404 @@
         },
         "builtAgainst": {
           "engineVersion": "2.5.0",
+          "engineCommit": "2039583caf0288d31a5696ae3546f5b4913e7e6f"
+        },
+        "id": "saucelings",
+        "name": "Saucelings",
+        "version": "0.23.1",
+        "description": "A Tamagotchi-style pet in Home: pick a character to look after an egg, let their personality drive their care schedule, cover the gaps they miss, watch its sauce temperament shift, retire elders to a Menagerie, and let the caretaker find eggs of their own invention while you chat. Install it, restart Marinara Engine when prompted, then open Home → Saucelings.",
+        "engine": {
+          "min": "2.5.0",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json",
+          "server": "server.mjs",
+          "client": "client.js"
+        },
+        "contributions": {
+          "slots": [
+            "home-browser-tab",
+            "home-widget"
+          ],
+          "homeBrowserTab": {
+            "label": "Saucelings",
+            "ariaLabel": "Open Saucelings",
+            "iconPaths": [
+              "saucelings-icon.png"
+            ]
+          },
+          "homeWidgets": [
+            {
+              "id": "sauceling-compact",
+              "label": "Sauceling",
+              "description": "Compact view of your sauceling's meters and caretaker status",
+              "size": "compact",
+              "icon": "heart",
+              "accent": "orange",
+              "surface": "soft",
+              "header": "compact"
+            },
+            {
+              "id": "sauceling-nook",
+              "label": "Sauceling Nook",
+              "description": "Quick Feed and Play actions plus the latest caretaker remark",
+              "size": "large",
+              "icon": "sparkles",
+              "accent": "orange",
+              "surface": "soft",
+              "header": "banner"
+            }
+          ],
+          "assets": {
+            "paths": [
+              "sprites/atlas.json",
+              "sprites/rigamuffin.webp",
+              "sprites/fluttino.webp",
+              "sprites/lentino.webp",
+              "sprites/shellbini.webp",
+              "sprites/tortellump.webp",
+              "sprites/mossaboo.webp",
+              "sprites/puddlepip.webp",
+              "sprites/snufflump.webp",
+              "sprites/burrowl.webp",
+              "sprites/prismite.webp",
+              "sprites/thundrake.webp",
+              "sprites/clockrit.webp",
+              "sprites/wickwisp.webp",
+              "sprites/cauldrop.webp",
+              "sprites/webbit.webp",
+              "sprites/fx-tomato.webp",
+              "sprites/fx-heart.webp",
+              "sprites/fx-sparkle.webp",
+              "sprites/fx-z.webp",
+              "sprites/fx-note.webp",
+              "sprites/fx-question.webp",
+              "sprites/fx-bang.webp",
+              "sprites/scene-nest.webp",
+              "sprites/scene-rigamuffin.webp",
+              "sprites/scene-fluttino.webp",
+              "sprites/scene-lentino.webp",
+              "sprites/scene-shellbini.webp",
+              "sprites/scene-tortellump.webp",
+              "sprites/scene-mossaboo.webp",
+              "sprites/scene-puddlepip.webp",
+              "sprites/scene-snufflump.webp",
+              "sprites/scene-burrowl.webp",
+              "sprites/scene-prismite.webp",
+              "sprites/scene-thundrake.webp",
+              "sprites/scene-clockrit.webp",
+              "sprites/scene-wickwisp.webp",
+              "sprites/scene-cauldrop.webp",
+              "sprites/scene-webbit.webp",
+              "sprites/fx-extras.webp",
+              "sprites/fx-auras.webp",
+              "sprites/fx-moves.webp",
+              "sprites/prismite-live.webp",
+              "sprites/thundrake-live.webp",
+              "sprites/clockrit-live.webp",
+              "sprites/wickwisp-live.webp",
+              "sprites/cauldrop-live.webp",
+              "sprites/webbit-live.webp"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "9bf51fe9ac60152d24db068d2c0025ffef8d36ebc0261c1855f2db9475e28273",
+            "bytes": 730
+          },
+          {
+            "path": "server.mjs",
+            "sha256": "5c9d4640b9a7eef829b33c509603014c0352b23aa853b77591b779a9af6922de",
+            "bytes": 106672
+          },
+          {
+            "path": "client.js",
+            "sha256": "fdeb4f4816ba1269a9e56d8ab543ad5a291e1f8e166a9d10a6a1412d1a47c916",
+            "bytes": 256578
+          },
+          {
+            "path": "saucelings-icon.png",
+            "sha256": "ad9bd2848d94b242e8f19c1427a7d19e61bc3a59561c08fb7155675d9f06d036",
+            "bytes": 2481
+          },
+          {
+            "path": "sprites/atlas.json",
+            "sha256": "0f183a47ea16a10bc3613a244a4674397cd7a366d6e384a1985071b719b757e3",
+            "bytes": 14572
+          },
+          {
+            "path": "sprites/rigamuffin.webp",
+            "sha256": "adf03a4480f579f53fecf8a9a3093c05f80544e1c521e0a1e6a2b22c0a4f8525",
+            "bytes": 10396
+          },
+          {
+            "path": "sprites/fluttino.webp",
+            "sha256": "b3d886262f079a3dcfa92a40364857b527c932858637c7cf01dee91e2774b03b",
+            "bytes": 13972
+          },
+          {
+            "path": "sprites/lentino.webp",
+            "sha256": "bd62de0492d7c92c726294640656a95b2864113908bcfb3e5bc9e85546b0a8b9",
+            "bytes": 9262
+          },
+          {
+            "path": "sprites/shellbini.webp",
+            "sha256": "4b3116be2fdfc3832c61349cf6fc1c6769d1b50640f83fe7b923189323c0195a",
+            "bytes": 13830
+          },
+          {
+            "path": "sprites/tortellump.webp",
+            "sha256": "9b456be0edebdaf8d7f5eba7f3cb50c0262710cd7b87b4ff9f540c31e7a0dcdd",
+            "bytes": 12340
+          },
+          {
+            "path": "sprites/mossaboo.webp",
+            "sha256": "ca9577621a806d65db71988b8adebcd85ef7e9d9770e7c9479c10502981dbf22",
+            "bytes": 10446
+          },
+          {
+            "path": "sprites/puddlepip.webp",
+            "sha256": "3248c75963a7096bd3a587bf2fe9054f081ad063c9f53698adbcd61e3d281c9d",
+            "bytes": 8528
+          },
+          {
+            "path": "sprites/snufflump.webp",
+            "sha256": "a61f691db046c677af97556f6c7dfe2ac79553fda51546e3163dbb938e757d62",
+            "bytes": 9950
+          },
+          {
+            "path": "sprites/burrowl.webp",
+            "sha256": "028219a4df6bb4fa4139808fe78c8ebaa1021f4b87e0865c19eeae7b8b81f726",
+            "bytes": 10066
+          },
+          {
+            "path": "sprites/prismite.webp",
+            "sha256": "e4803f0ab5f38a4689f1a98136bde7410399d5cf6291c663fd7fa6f0c1c01861",
+            "bytes": 11452
+          },
+          {
+            "path": "sprites/thundrake.webp",
+            "sha256": "e878066d98a9f87b30633c32a79cf65f4a625d2d88bf455df321a94b1a4dd5a0",
+            "bytes": 11476
+          },
+          {
+            "path": "sprites/clockrit.webp",
+            "sha256": "9264b3cb65eedc224a38cffd22504a5cd2ed00fa0ab73e58e6caeefbf743acf5",
+            "bytes": 12492
+          },
+          {
+            "path": "sprites/wickwisp.webp",
+            "sha256": "b0926684306a8238c5c52b0301b3f2a60bd3acd0381cd85c0368929e77992c7e",
+            "bytes": 7428
+          },
+          {
+            "path": "sprites/cauldrop.webp",
+            "sha256": "c6f10dcf6950338981ba559c5a0eb4e87b5a0867c02d0889aefe3b317588741f",
+            "bytes": 9834
+          },
+          {
+            "path": "sprites/webbit.webp",
+            "sha256": "7406520e818c0b2eb7502fd0c239cf3fd0d2af04d0025fafe0febe9fa7b80332",
+            "bytes": 13128
+          },
+          {
+            "path": "sprites/fx-tomato.webp",
+            "sha256": "3e4c3dd4a4e816fdd67e06e9b5d25264327bae77a3584e940f69c23831b117b5",
+            "bytes": 138
+          },
+          {
+            "path": "sprites/fx-heart.webp",
+            "sha256": "ed5859c17549280f0134e3c2bc674e9d937bcd63fee93fd38bfc3b78a749f263",
+            "bytes": 92
+          },
+          {
+            "path": "sprites/fx-sparkle.webp",
+            "sha256": "5f07106b524b35ce683211427bb67a15aeea205602a5d7533ca689eecbec1704",
+            "bytes": 96
+          },
+          {
+            "path": "sprites/fx-z.webp",
+            "sha256": "74a91b0cf1914f7e66ecc520a9e0f1fc18c2ab68f01a3c8753ada9185e6bb585",
+            "bytes": 96
+          },
+          {
+            "path": "sprites/fx-note.webp",
+            "sha256": "e831af1f80eb835ffe836554692dfa0f1493aaeb88e23d5fce6b3d232dfa54ba",
+            "bytes": 104
+          },
+          {
+            "path": "sprites/fx-question.webp",
+            "sha256": "42fff62dee53fe232619119959a01ee73c05649048f6a7d7fd11b18683d3e23f",
+            "bytes": 82
+          },
+          {
+            "path": "sprites/fx-bang.webp",
+            "sha256": "f9613a0f554924c75eaaa2c6d1e4f655bdc7d265baff1ae5565ce2b51d65e170",
+            "bytes": 72
+          },
+          {
+            "path": "sprites/scene-nest.webp",
+            "sha256": "f3b7c8f533c67b89d4ddaa1c0d5403fdb7b55f3e66413003dee0b90f8ed0049b",
+            "bytes": 4698
+          },
+          {
+            "path": "sprites/scene-rigamuffin.webp",
+            "sha256": "ffff115c59364e1d59e3a2cabfd302c51d4824f2d468e492ec69c8a075cd2a46",
+            "bytes": 4558
+          },
+          {
+            "path": "sprites/scene-fluttino.webp",
+            "sha256": "fc93fbb3a496ec9a6e27b75326940f3532edf48b01aa010d4279b83fce3a1f72",
+            "bytes": 3986
+          },
+          {
+            "path": "sprites/scene-lentino.webp",
+            "sha256": "0eb4d58b02d0bd76adc4d080737d8bc4b2a49123b3577588d39e893bc9f6c6d2",
+            "bytes": 4428
+          },
+          {
+            "path": "sprites/scene-shellbini.webp",
+            "sha256": "b1482986cb4219dab5161b11d3ea769a8e2af95e459c416df278640de4a8cd18",
+            "bytes": 4362
+          },
+          {
+            "path": "sprites/scene-tortellump.webp",
+            "sha256": "07c9e7e410593ff8b736426ae5a1d37a76f72660c44c21a925e5410129ad19a7",
+            "bytes": 4524
+          },
+          {
+            "path": "sprites/scene-mossaboo.webp",
+            "sha256": "1840087d60b32b7b92768e3fc1b9781ee6c0a62cf9d4514d46787b2559ff41e2",
+            "bytes": 4840
+          },
+          {
+            "path": "sprites/scene-puddlepip.webp",
+            "sha256": "7f34e02b15f074d47f120b6744173044398400d036e66088027c56279cb08f18",
+            "bytes": 4558
+          },
+          {
+            "path": "sprites/scene-snufflump.webp",
+            "sha256": "80d8f6cbfe49e364f53b8e9861a316cc0d43a4f27f01aa8a0d9f8f16c0b7b4e0",
+            "bytes": 3004
+          },
+          {
+            "path": "sprites/scene-burrowl.webp",
+            "sha256": "342016e5653419996deac8d567cd80c0d7db36581379869089e10d7a070a8de1",
+            "bytes": 5842
+          },
+          {
+            "path": "sprites/scene-prismite.webp",
+            "sha256": "c8b0a0bca2f7aed04e721de6fc4a995debc2116f6c83bf5264cedff9255fbc2a",
+            "bytes": 6424
+          },
+          {
+            "path": "sprites/scene-thundrake.webp",
+            "sha256": "84261316310ac725fe3bede49b3e9405019730652d0bcf5dc5c46fcfeb30bd88",
+            "bytes": 3910
+          },
+          {
+            "path": "sprites/scene-clockrit.webp",
+            "sha256": "a47af3f62f04608ab3f5a63b1aef8ba6fab1b9dc285421d2cc19fd798b5461f1",
+            "bytes": 5312
+          },
+          {
+            "path": "sprites/scene-wickwisp.webp",
+            "sha256": "5b227324414aaed2a5cd28d2d1d371c6c33e3efbd1b17747beeb3f550dd27f8a",
+            "bytes": 4968
+          },
+          {
+            "path": "sprites/scene-cauldrop.webp",
+            "sha256": "50b520d73e8fc8f0d736ede75cd0ebaac01b1bc1bdbaf7d323dd39d66b4f448d",
+            "bytes": 5692
+          },
+          {
+            "path": "sprites/scene-webbit.webp",
+            "sha256": "f56f96ea8f09779c7d835d65c87b17faebda3a1e4bb80c1389e662d3f5ad9980",
+            "bytes": 3984
+          },
+          {
+            "path": "sprites/fx-extras.webp",
+            "sha256": "7f0d70adbd00fadbb765492e6448e742af603a84c2673134de88b31147f21ed8",
+            "bytes": 1066
+          },
+          {
+            "path": "sprites/fx-auras.webp",
+            "sha256": "bf9180b5cd1e5aa3f5db64504ae36cc57f8a8ed25bec2a1cc7af2cf557565844",
+            "bytes": 318
+          },
+          {
+            "path": "sprites/fx-moves.webp",
+            "sha256": "dd6d9e7de15b2976d81bf679a9746b26c4c4863d55889db0d83c304d65f2d3f4",
+            "bytes": 3172
+          },
+          {
+            "path": "sprites/prismite-live.webp",
+            "sha256": "097e03dc33bed14d12c38df603034bd94b1f784d9210b26cecfb09081556deb8",
+            "bytes": 60000
+          },
+          {
+            "path": "sprites/thundrake-live.webp",
+            "sha256": "ee524b3ab894bb2f0086af4722af298695fdb54868090236b11bd2eab5998c6e",
+            "bytes": 31670
+          },
+          {
+            "path": "sprites/clockrit-live.webp",
+            "sha256": "26a785d726e2614dd5f085304bc5f5cc423da8e6720cb096dca5bb23fc4429ac",
+            "bytes": 29538
+          },
+          {
+            "path": "sprites/wickwisp-live.webp",
+            "sha256": "2bb3332a0cfe952ec8663e64242e32e2771b6fb4a93bc85ae5037b0d4f5b613f",
+            "bytes": 17620
+          },
+          {
+            "path": "sprites/cauldrop-live.webp",
+            "sha256": "a1302a67a9aaefca7739e8b6c41af5ea773d587629422ed8480130591a65af56",
+            "bytes": 19006
+          },
+          {
+            "path": "sprites/webbit-live.webp",
+            "sha256": "4ccf412b6ac644a6b2812f1d995ba6ccd122b855ee1ece875b97c35a06abe8b2",
+            "bytes": 22194
+          }
+        ],
+        "permissions": [
+          "prompt-context",
+          "routes",
+          "storage",
+          "ui"
+        ],
+        "restartRequired": true
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/saucelings.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/saucelings-0.23.1.zip",
+        "sha256": "4ac87c782c6670d1c53fc332b616fd0516ef221d7b939fc03b6d4ec80474d35b",
+        "bytes": 824273
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#saucelings"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 341
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.0",
           "engineCommit": "25f8df7b0a388fe36f657d69c6fcaa9f27e066ed"
         },
         "id": "slurp2",
         "name": "Slurp",
-        "version": "0.4.3",
+        "version": "0.4.8",
         "description": "A private social app for your characters. Turn characters and personas into Creators, post public or locked photos, and watch a simulated audience follow, subscribe, unlock, comment, and message them. By default, it is tuned for an adult experience. Install it, restart Marinara Engine when prompted, then open Home → Slurp.",
         "localizations": {
           "de": {
@@ -3923,13 +4397,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "41e586cc7d21dfb11ef5a553a65694c472dac4668f78427517a2fade7307fd40",
-            "bytes": 2008648
+            "sha256": "f7fb502e3cb18a9c1ce034ac18038c508179381f86586d6ed9a363e596074b86",
+            "bytes": 2061049
           },
           {
             "path": "client.js",
-            "sha256": "0986ea78793f863cc230558b47ed2f5b153aa922b29687a335ed706c2cc9ec54",
-            "bytes": 2851220
+            "sha256": "67bd2db4c76df48e990fb1f7af12f22f53b519cc244bf566a7c2100ee69ce336",
+            "bytes": 2896890
           },
           {
             "path": "slurp2-logo.png",
@@ -3953,18 +4427,18 @@
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/de.json",
-            "sha256": "1f6bf145d2f707bcf4600bfe9b32a330cfa2314d9772eb14e7d29d928252b65a",
-            "bytes": 231893
+            "sha256": "f2e7f03c58a5d2896634732bcd42c3739fb2e14c36a396508d6e8f8425c5cf43",
+            "bytes": 239281
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/ko.json",
-            "sha256": "af21ea5829363ccbe6999893eb62ef838ef9c02347cd4f2b80c8d0b4a208c8de",
-            "bytes": 328893
+            "sha256": "74f80e54ee7784d247e8f0fef9d64a74dd4070e1cefa5fba08ad6f1e2021fb5a",
+            "bytes": 336839
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/pl.json",
-            "sha256": "2a7eba40377498e64f1ba4ca534e74c1143a6378a309fe517e1ebdb6d5dc8377",
-            "bytes": 233528
+            "sha256": "c2f20a1f1295f96336529421af2d9098e730f76d51011fb104929dc4797c7c26",
+            "bytes": 241032
           }
         ],
         "permissions": [
@@ -3982,9 +4456,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/slurp2.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.3.zip",
-        "sha256": "44f54e50ad71f9b161d47bf1663f73be1f0aabe0f3acbfe4ccf4b65d3a5c11c0",
-        "bytes": 5886193
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.8.zip",
+        "sha256": "1cb3a23dc844f5fa488354768d599796172a8e2b7dbfd7895d3574fd6a5e2915",
+        "bytes": 6007102
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/slurp2/README.md"
     },

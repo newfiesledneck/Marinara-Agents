@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, delimiter, dirname, join, relative, resolve, sep } from "node:path";
@@ -85,6 +85,9 @@ const PACKAGE_BUILT_AGAINST = Object.freeze({
   engineVersion: "2.5.0",
   engineCommit: "25f8df7b0a388fe36f657d69c6fcaa9f27e066ed",
 });
+// Capability API 1.387 ships Engine E2 (no built-in recall where Long-Term Memory is on) with E3, so only an Engine
+// that leaves recall to this package installs the version that learns from chat messages (Pasta-Devs/Marinara-Agents#1744).
+const LONG_TERM_MEMORY_CAPABILITY_API = Object.freeze({ major: 1, minor: 387 });
 const hierarchicalMapsOwnedSourcePaths = [
   "packages/server/src/routes/spatial-context.routes.ts",
   "packages/server/src/services/spatial-context",
@@ -105,6 +108,25 @@ const memoryNagOwnedSourcePaths = [
   "packages/shared/src/features/agents/memory-nag",
   "packages/server/src/services/memory-nag",
   "packages/client/src/features/memory-nag",
+];
+const saucelingsSourceRoot = join(packagesDir, "saucelings/src/engine");
+const saucelingsOwnedSourcePaths = [
+  "packages/shared/src/features/agents/saucelings",
+  "packages/server/src/services/saucelings",
+  "packages/client/src/features/saucelings",
+];
+// The sprite pipeline writes sprites/atlas.json with every species sheet, effect and scene it made; the package
+// ships exactly those, so a new species or view needs no edit here.
+const saucelingsAtlas = JSON.parse(readFileSync(join(packagesDir, "saucelings/sprites/atlas.json"), "utf8"));
+const saucelingsSpritePaths = [
+  "sprites/atlas.json",
+  ...Object.values(saucelingsAtlas.sheets),
+  ...Object.values(saucelingsAtlas.effects).map((effect) => effect.path),
+  ...Object.values(saucelingsAtlas.scenes),
+  saucelingsAtlas.extras.path,
+  saucelingsAtlas.auras.path,
+  saucelingsAtlas.moves.path,
+  ...Object.values(saucelingsAtlas.live.sheets).map((sheet) => sheet.path),
 ];
 const noodleSourceRoot = join(packagesDir, "noodle/src/engine");
 const noodleOwnedSourcePaths = [
@@ -210,6 +232,17 @@ const storyWriterOwnedSourcePaths = [
 ];
 // The reader's artwork and textures, fetched by URL from the package asset route.
 const storyWriterServedAssetPaths = ["story-writer-mari.webp", "wood-desk.webp", "paper-light.webp", "paper-dark.webp"];
+// Otome Forge is written here in Story Writer's layout and keeps its saves through api.runtime.persistence, so it
+// needs no host runtime overlay. Listed in no catalog while it is being built (scripts/catalog-incomplete.mjs).
+const otomeForgeSourceRoot = join(packagesDir, "otome-forge/src/engine");
+const otomeForgeOwnedSourcePaths = [
+  "packages/client/src/features/otome-forge",
+  "packages/server/src/services/otome-forge",
+];
+// The forge kit: plain .mjs modules Gacha Forge pastes into its bundles and Otome Forge imports as
+// `@forge-kit/<module>.mjs`. Package sources are copied into a temporary build root, so a relative import out of it
+// cannot resolve; both bundles alias the name instead. The gates and source capture skip files outside the build root.
+const forgeKitRoot = join(repoRoot, "sources/forge-kit");
 // Package clients use the Engine's stores, services and components through `__MARINARA_HOST__` (capability API 1.341):
 // every feature build stacks these adapters over the vendored modules, so no client bundles a copy that keeps its own
 // state (#1478: the UI store copy reset Engine settings; #1487). scripts/client-host-gates.mjs holds each bundle to it.
@@ -296,9 +329,12 @@ function featurePermissions(feature) {
 async function prepareFeatureBuildRoot(feature) {
   const ownRoot = feature.id === "hierarchical-maps" ? hierarchicalMapsSourceRoot : (feature.packageSourceRoot ?? null);
   if (ownRoot && !existsSync(ownRoot)) throw new Error(`Missing package-owned ${feature.name} source`);
-  // Long-Term Memory, Memory Nag and World Maps carry every Engine file they build from.
+  // Long-Term Memory, Memory Nag, Saucelings and World Maps carry every Engine file they build from.
   const fromVendoredEngine =
-    feature.id !== "long-term-memory" && feature.id !== "memory-nag" && feature.id !== "hierarchical-maps";
+    feature.id !== "long-term-memory" &&
+    feature.id !== "memory-nag" &&
+    feature.id !== "saucelings" &&
+    feature.id !== "hierarchical-maps";
   const buildRoot = await mkdtemp(join(tmpdir(), `marinara-${feature.id}-source-`));
   try {
     if (fromVendoredEngine) await cp(sourceRoot, buildRoot, { recursive: true, force: true });
@@ -456,7 +492,7 @@ const features = [
   },
   {
     id: "slurp2",
-    version: "0.4.3",
+    version: "0.4.8",
     minEngineVersion: "2.4.6",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Slurp",
@@ -531,16 +567,16 @@ const features = [
   },
   {
     id: "long-term-memory",
-    version: "1.4.95",
-    minEngineVersion: "2.4.1",
+    version: "1.5.7",
+    minEngineVersion: "2.5.1",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Long-Term Memory",
     description:
-      "Remembers important things from your chat summaries, characters, and lorebooks, and brings them back when they matter.",
+      "Remembers important things from your chats, characters, and lorebooks, and brings them back when they matter.",
     category: "misc",
     kind: ["agent"],
     modes: ["conversation", "roleplay", "game"],
-    permissions: ["agent-runtime", "chat-read", "chat-write", "routes", "storage", "ui"],
+    permissions: ["agent-runtime", "chat-read", "routes", "storage", "ui"],
     serverImport: "packages/server/src/services/long-term-memory/server-entry.ts",
     serverEntry: true,
     clientImport: "packages/client/src/features/long-term-memory/client-entry.tsx",
@@ -548,7 +584,7 @@ const features = [
     ownedSourcePaths: longTermMemoryOwnedSourcePaths,
     engineBoundaryPath: join(packagesDir, "long-term-memory/engine-boundary.json"),
     boundaryDisplayName: "Long-Term Memory",
-    capabilityApi: PACKAGE_CAPABILITY_API,
+    capabilityApi: LONG_TERM_MEMORY_CAPABILITY_API,
     contributions: {
       agentDetail: { agentIds: ["long-term-memory"] },
       slots: ["chat-settings"],
@@ -607,6 +643,64 @@ const features = [
     },
     contributions: {
       slots: ["chat-settings", "roleplay-tracker", "tracker-panel"],
+    },
+  },
+  {
+    id: "saucelings",
+    version: "0.23.1",
+    // Home widgets need capability API 1.35+, first released in Engine 2.5.0 (2.4.6 shipped 1.18).
+    minEngineVersion: "2.5.0",
+    maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
+    name: "Saucelings",
+    description:
+      "A Tamagotchi-style pet in Home: pick a character to look after an egg, let their personality drive their care schedule, cover the gaps they miss, watch its sauce temperament shift, retire elders to a Menagerie, and let the caretaker find eggs of their own invention while you chat.",
+    category: "misc",
+    kind: ["agent"],
+    modes: ["conversation", "roleplay", "game"],
+    // prompt-context only rolls for egg hunting on each chat reply; it adds nothing to the prompt.
+    permissions: ["prompt-context", "routes", "storage", "ui"],
+    serverImport: "packages/server/src/services/saucelings/server-entry.ts",
+    serverEntry: true,
+    clientImport: "packages/client/src/features/saucelings/client-entry.tsx",
+    packageSourceRoot: saucelingsSourceRoot,
+    ownedSourcePaths: saucelingsOwnedSourcePaths,
+    engineBoundaryPath: join(packagesDir, "saucelings/engine-boundary.json"),
+    boundaryDisplayName: "Saucelings",
+    capabilityApi: PACKAGE_CAPABILITY_API,
+    libraryHidden: true,
+    assetPaths: ["saucelings-icon.png", ...saucelingsSpritePaths],
+    contributions: {
+      slots: ["home-browser-tab", "home-widget"],
+      homeBrowserTab: {
+        label: "Saucelings",
+        ariaLabel: "Open Saucelings",
+        iconPaths: ["saucelings-icon.png"],
+      },
+      homeWidgets: [
+        {
+          id: "sauceling-compact",
+          label: "Sauceling",
+          description: "Compact view of your sauceling's meters and caretaker status",
+          size: "compact",
+          icon: "heart",
+          accent: "orange",
+          surface: "soft",
+          header: "compact",
+        },
+        {
+          id: "sauceling-nook",
+          label: "Sauceling Nook",
+          description: "Quick Feed and Play actions plus the latest caretaker remark",
+          size: "large",
+          icon: "sparkles",
+          accent: "orange",
+          surface: "soft",
+          header: "banner",
+        },
+      ],
+      assets: {
+        paths: saucelingsSpritePaths,
+      },
     },
   },
   {
@@ -767,6 +861,38 @@ const features = [
       assets: { paths: storyWriterServedAssetPaths },
     },
   },
+  {
+    id: "otome-forge",
+    version: "0.0.9",
+    minEngineVersion: "2.5.1",
+    // The browser tab's openConnection prop and the debugMode field of /generate/raw arrived in capability API 1.386.
+    capabilityApi: Object.freeze({ major: 1, minor: 386 }),
+    builtAgainst: { engineVersion: "2.5.1", engineCommit: "a3ceb0162b1629c6b99885759b11794aa6274869" },
+    maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
+    name: "Otome Hearth",
+    description:
+      "An otome game in its own Home tab, made from your own characters: love interests who remember what you chose, their texts on your phone, dates and mini-games, and wishes for outfits and memories paid for only with Starlight you earn. An early test build.",
+    category: "misc",
+    kind: ["agent"],
+    modes: ["conversation", "roleplay", "game"],
+    permissions: ["routes", "storage", "ui"],
+    serverImport: "packages/server/src/services/otome-forge/server-entry.ts",
+    serverEntry: true,
+    clientImport: "packages/client/src/features/otome-forge/client-entry.tsx",
+    packageSourceRoot: otomeForgeSourceRoot,
+    ownedSourcePaths: otomeForgeOwnedSourcePaths,
+    // The fonts are embedded in client.js as data: URIs; their licence ships beside them.
+    assetPaths: ["otome-hearth-icon.png", "fonts/OFL.txt"],
+    libraryHidden: true,
+    contributions: {
+      slots: ["home-browser-tab"],
+      homeBrowserTab: {
+        label: "Otome Hearth",
+        ariaLabel: "Open Otome Hearth",
+        iconPaths: ["otome-hearth-icon.png"],
+      },
+    },
+  },
 ];
 
 const requestedFeatureIds = new Set(process.argv.slice(2));
@@ -796,7 +922,7 @@ const longTermMemoryBoundary = selectedFeatures.some((feature) => feature.id ===
       sourceRoot: longTermMemorySourceRoot,
       boundaryPath: join(packagesDir, "long-term-memory/engine-boundary.json"),
       displayName: "Long-Term Memory",
-      capabilityApi: PACKAGE_CAPABILITY_API,
+      capabilityApi: LONG_TERM_MEMORY_CAPABILITY_API,
     })
   : null;
 const memoryNagBoundary = selectedFeatures.some((feature) => feature.id === "memory-nag")
@@ -804,6 +930,14 @@ const memoryNagBoundary = selectedFeatures.some((feature) => feature.id === "mem
       sourceRoot: memoryNagSourceRoot,
       boundaryPath: join(packagesDir, "memory-nag/engine-boundary.json"),
       displayName: "Memory Nag",
+      capabilityApi: PACKAGE_CAPABILITY_API,
+    })
+  : null;
+const saucelingsBoundary = selectedFeatures.some((feature) => feature.id === "saucelings")
+  ? await assertPackagePrivateImportBoundary({
+      sourceRoot: saucelingsSourceRoot,
+      boundaryPath: join(packagesDir, "saucelings/engine-boundary.json"),
+      displayName: "Saucelings",
       capabilityApi: PACKAGE_CAPABILITY_API,
     })
   : null;
@@ -983,7 +1117,7 @@ export async function selfCheck() {
         js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
       },
       external: HOST_SERVER_EXTERNALS,
-      alias: { "@marinara-engine/shared": sharedBundleEntry },
+      alias: { "@marinara-engine/shared": sharedBundleEntry, "@forge-kit": forgeKitRoot },
       nodePaths: engineNodePath.split(delimiter),
       metafile: true,
       outfile: output,
@@ -1068,7 +1202,7 @@ async function bundleClientEntry(feature, entry, output, metafilePath, buildRoot
       "import.meta.env.PROD": "true",
       "import.meta.env.MODE": '"production"',
     },
-    alias: { "@marinara-engine/shared": sharedBundleEntry },
+    alias: { "@marinara-engine/shared": sharedBundleEntry, "@forge-kit": forgeKitRoot },
     nodePaths: engineNodePath.split(delimiter),
     metafile: true,
     outfile: output,
@@ -1979,7 +2113,9 @@ for (const feature of selectedFeatures) {
         ? longTermMemoryBoundary
         : feature.id === "memory-nag"
           ? memoryNagBoundary
-          : null;
+          : feature.id === "saucelings"
+            ? saucelingsBoundary
+            : null;
   const manifest = {
     schemaVersion: boundary || feature.capabilityApi ? 2 : 1,
     ...(boundary
@@ -2117,7 +2253,7 @@ for (const feature of selectedFeatures) {
           ? "https://github.com/Pasta-Devs/Marinara-Engine/blob/main/docs/agents/hierarchical-maps.md"
           : feature.id === "noodle"
             ? "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/noodle/README.md"
-            : feature.id === "slurp2" || feature.id === "story-writer"
+            : feature.id === "slurp2" || feature.id === "story-writer" || feature.id === "otome-forge"
               ? `https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/${feature.id}/README.md`
               : `https://github.com/Pasta-Devs/Marinara-Agents#${feature.id}`,
     });

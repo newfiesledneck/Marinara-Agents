@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import vm from "node:vm";
 import { setForgeStoryPortrait } from "../packages/gacha-forge/src/browser-presentation.mjs";
-import { forgeChoiceLabel } from "../packages/gacha-forge/src/player-choice-text.mjs";
+import { forgeChoiceLabel } from "../sources/forge-kit/player-choice-text.mjs";
 import { prepareForgeStoryEntry, takeForgeStoryEntry } from "../packages/gacha-forge/src/story-entry.mjs";
 
 test("a speaker change replaces both image buffers and never exposes a previous bitmap while loading", () => {
@@ -128,6 +128,7 @@ test("the shipped typewriter reveals the entire dialogue or narration before sho
       Ql: (segment) => segment.speaker || "Narration",
       createForgeVoiceLine: () => ({ start() {}, reveal() {}, ready: () => true, dispose() {} }),
       forgeVoiceCharacter: () => null,
+      forgeStoryExpressionArt: (character) => character,
       setInterval: (handler) => {
         tick = handler;
         return 1;
