@@ -182,6 +182,18 @@
     "gacha-forge": {
       "versions": [
         {
+          "version": "1.27.5",
+          "date": "2026-10-29",
+          "notes": "- Maintenance rebuild for the shared expression-image lifecycle. Gacha Forge keeps its existing automatic expression behavior; the explicit repaint controls belong to Otome Hearth.",
+          "highlight": false
+        },
+        {
+          "version": "1.27.4",
+          "date": "2026-10-29",
+          "notes": "- Maintenance rebuild for the shared image-reference helper. Gacha Forge keeps its existing avatar and outfit reference behavior.",
+          "highlight": false
+        },
+        {
           "version": "1.27.3",
           "date": "2026-10-28",
           "notes": "- Characters can equip their designated weapons even when a saved weapon has a different type from their role. The intended owner sees it in Gear and can equip it without regenerating the weapon. Signature skills still activate only for their owner; other characters keep the normal weapon-type rules.\n- On short landscape screens, Gear details keep their full height and the panel scrolls, so Choose and Change remain clickable instead of being clipped inside the card.",
@@ -288,18 +300,6 @@
           "date": "2026-10-26",
           "notes": "- Messages you send in character chats are no longer read aloud. Your persona's assigned voice still reads its story dialogue.",
           "highlight": false
-        },
-        {
-          "version": "1.24.3",
-          "date": "2026-10-26",
-          "notes": "- Combat Power (CP) is now called Battle Power (BP).\n- Retrying a failed Formation kit pays only for the characters that still need one. Kits you kept after cancelling a remake stay as they are, and kits already paid for in a cancelled or failed remake are never made again.\n- A Front Row fighter whose only damage was a passive that never fires (on its own attack or kill, from the Back Row, or with no power) attacks with its Normal skill again.\n- An immunity Ultimate lands on the ally you pick, and one that can no longer land waits without spending energy. Retreating a fighter and summoning into its seat works in the same turn.\n- A battle saved with an element barrier nobody in your world can meet can now be fought, and a shortened defeat order names the enemies that come first.\n- On phones, enemy names show in full and protection tags no longer cover them. An Echo's sheet describes the Echo, and keyboard focus comes back after Fight.",
-          "highlight": false
-        },
-        {
-          "version": "1.24.2",
-          "date": "2026-10-26",
-          "notes": "- Personas use their assigned Engine voice for story dialogue and newly sent character messages when dialogue audio is enabled.",
-          "highlight": false
         }
       ]
     },
@@ -374,6 +374,72 @@
     "long-term-memory": {
       "versions": [
         {
+          "version": "1.5.18",
+          "date": "2026-10-30",
+          "notes": "- The memory page now uses the same header as every other agent page: store banner, logo, name, the Active switch for the open chat and Manage package. Add memories and the setup guide stay in that header. This needs a Marinara version with Capability API 1.390; on older versions nothing changes.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.17",
+          "date": "2026-10-30",
+          "notes": "- Other packages can no longer read Long-Term Memory's internal runtime service, which only Marinara itself uses. This needs a Marinara version with Capability API 1.388; on older versions nothing changes. Recall for Slurp and Noodle is unaffected.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.16",
+          "date": "2026-10-30",
+          "notes": "- Review: a later chat piece's thread and relationship updates apply together with the rest of the draft instead of one at a time.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.15",
+          "date": "2026-10-30",
+          "notes": "- Settings → Extraction adds Hide imported messages from the AI, off by default. Once a Chat Messages piece is imported and extracted, its messages stop being sent to the AI, like the chat summary's Hide summarised messages, so a long chat no longer sends the same history twice. The chat's last messages stay visible, as many as its summary keeps. Turning it off, or permanently deleting a piece's source note, shows exactly the messages it hid; messages you show or hide by hand stay as you set them. A branch made while it is on keeps its copies hidden; show those by hand. It needs a Marinara version that lets packages hide chat messages, and the package now asks for the chat-write permission.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.14",
+          "date": "2026-10-30",
+          "notes": "- Settings → Extraction adds Chat import detail. Detailed imports a chat's messages in pieces half the size (12,000 characters instead of 24,000), giving finer memories for about twice the extraction cost. It applies to chats imported from now on; a chat already imported keeps its size.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.13",
+          "date": "2026-10-30",
+          "notes": "- When a chat calls one of Long-Term Memory's own characters by part of their name (\"Preston\" for \"Preston Farraday\", or the other way round), the memory joins that character's note instead of starting a second one. If the name fits more than one character, it waits for you in review.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.12",
+          "date": "2026-10-30",
+          "notes": "- Sources → Chat Summaries keeps the range visible when a chat has a long name: the name is cut, and the message range, day, week or game session stays whole beside it.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.11",
+          "date": "2026-10-30",
+          "notes": "- A memory whose score (salience or confidence) the model writes in quotes (\"0.5\") is kept instead of dropped, and a chat piece whose every memory is malformed fails with Retry instead of reporting success with nothing kept.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.10",
+          "date": "2026-10-29",
+          "notes": "- Long-Term Memory no longer offers the older way other Agents read memories. Slurp 0.4.8 and earlier stop adding memories to Creator posts; update Slurp to keep them.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.9",
+          "date": "2026-10-29",
+          "notes": "- After you turn on \"Other Agents can read memories\" and save, Memory Settings offers to turn on Slurp's \"What your other Agents know\" switch too, since Slurp's Creators need both before they use memories.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.8",
+          "date": "2026-10-29",
+          "notes": "- Other Agents that read memories, such as Slurp and Noodle, can ask for whole memories instead of the parts that fit what they are writing. The same memories are shared either way.",
+          "highlight": false
+        },
+        {
           "version": "1.5.7",
           "date": "2026-10-28",
           "notes": "- Memory Settings → Recall → Sharing lists each Agent that has read memories with when it last did, how many times it read this week and how many memories it got, so you can tell whether an Agent such as Slurp is using them. The counts come from the Debug activity log, so clearing it or a very busy install can lower them.",
@@ -425,72 +491,6 @@
           "version": "1.4.95",
           "date": "2026-10-26",
           "notes": "- Maintenance, Debug, setup and Chat Settings buttons keep keyboard focus while their work runs, so the result appears where you are.\n- Vault and Review controls stay reachable while they save or while identity edits are unsaved, and say why they are locked.\n- Sources re-extract and re-import buttons stay reachable during a run and explain why they are waiting.\n- Debug, Maintenance and source results are announced to screen readers, and Add section explains why a name was not accepted.\n- The setup guide picture and detail header follow the panel's width, and navigation and availability tabs are easier to tap.\n- Loading spinners stop spinning when reduced motion is on, and typing in Debug search stays smooth on long logs.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.94",
-          "date": "2026-10-26",
-          "notes": "- Long-Term Memory loads settings written by a newer version instead of failing to start, on Engines that use zod 4 or check a list's length before its entries.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.93",
-          "date": "2026-10-25",
-          "notes": "- Blocked and running controls in Review and Sources stay reachable by keyboard, so the reason beside them can be read.\n- Memory Settings, the activation switch and the setup guide now follow the panel's width instead of the window, and the Vault and Debug lists fit a zoomed or short screen.\n- The retry and clear actions in Memory Settings are large enough to tap.\n- Typing in Review and the Memory Vault no longer rebuilds every row's text and the whole search index.\n- The activation switch's shadow follows the theme, and the success colour is documented at its measured contrast.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.92",
-          "date": "2026-10-25",
-          "notes": "- Sources tells re-importing from the source apart from reloading the list: \"Re-import from source\" and \"Reload list\".\n- The lorebook tab in Sources reads \"Entries\", and a single entry no longer says \"1 entries\".\n- When Import is blocked for lack of a destination, Sources offers a \"Choose destination\" button.\n- While an import runs, Sources keeps its locked controls focusable and says why they are locked.\n- Tabs, filters and action buttons in Sources, Memory Settings and Debug are 2.75rem tall for touch.\n- Maintenance groups Backup, Repair and Delete or reset, and offers a backup export before Delete all data.\n- Recall settings are grouped under Budget, Ranking, Text filters and Sharing, and show when edits make the style Custom.\n- Maintenance success messages are readable in the light theme and carry a check icon, unsaved Memory Settings tabs show a dot, and an identity repair says which backup it made.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.91",
-          "date": "2026-10-24",
-          "notes": "- Review rows now say what each button does: \"Check\" then \"Apply\" (with a Ready or Blocked chip on narrow panels), and engine terms like preflight and source_deleted read as plain sentences.\n- Reviewing who a memory is about now says \"Skip this memory\" and lists each person by name and a distinguishing detail instead of a raw key.\n- Freshness labels, draft counts and the Change and Source lines in the Review Queue are now easier to read in both themes.\n- The Review Queue drops a redundant frame and duplicate progress line, and shows the run summary inside the workbench on narrow panels.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.90",
-          "date": "2026-10-24",
-          "notes": "- The Undo banner after archiving keeps saying how many memories it will restore, even when you save another memory while it is showing.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.89",
-          "date": "2026-10-24",
-          "notes": "- The Memory Vault shows your memories sooner: rarer filters sit under Refine and open by themselves while in use, and changing several memories happens in one Edit selected sheet, with Archive and Delete kept apart.\n- Changing availability for several memories now says how many will change, stay the same or be blocked, explains why Apply is off, and repeats Apply under the list.\n- Saving a memory now confirms beside the Save button, and a save that waits on a recall rebuild says so as a warning instead of an error.\n- The memory you have open is now marked with an edge bar and announced to screen readers, not only by a tint.\n- The memory info panel now has one name everywhere you open it.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.88",
-          "date": "2026-10-24",
-          "notes": "- Switching Long-Term Memory on or off, changing a chat's recall settings and running Reindex no longer drop keyboard focus while they work.\n- The unsaved-changes prompt now says where you are going, and the Chat Settings panel is shorter, names the right button and no longer shows made-up defaults while loading.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.87",
-          "date": "2026-10-23",
-          "notes": "- The setup guide now stays on the Memory Vault and shrinks to a one-line bar elsewhere, steps out of the way when one of its buttons takes you to another screen, and lets you choose Not now, Don't show again or Done. Later steps follow the source type you picked.\n- The lexical-recall warning now has its own Reindex button you can reach by keyboard, and a failed status load offers Retry instead of a dead end.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.86",
-          "date": "2026-10-23",
-          "notes": "- Keyboard focus now moves somewhere sensible after you act in Review, the Memory Vault, Sources, the setup guide, Settings and Debug, and field errors sit under their fields and are read with them.\n- Results show beside the action that made them. Sources names a failed or partial import as such, and Review and Sources say why Accept or Import is off.\n- Long-Term Memory lays out by the width of its own panel, so a narrow side panel gets the phone layout. Batch bars stay in view while you scroll, and checkboxes, toggles, links and info buttons are easier to tap.\n- Long lists stay responsive: Sources searches once you pause typing and keeps the current rows meanwhile, and place pickers show 100 places at a time with a Show more row.\n- Warning notices show a warning icon and a stronger border instead of relying on color, and error notices show their border and have room inside.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.85",
-          "date": "2026-10-22",
-          "notes": "- Five keyboard and focus fixes. In Sources, Tab now reaches the name of each chat or character source in the list, and Enter or Space opens it, so Re-extract, Manage, Review and Open memory work without a mouse. Accepting a change in the Review Queue no longer hides the queue while the memories it shows reload: the list, your place in it and the keyboard position stay, a small spinner shows beside \"Review Queue\", and Accept waits until the memories have reloaded. On a narrow panel, the Memory Vault's \"Rename details\" and unsaved-changes dialogs now show instead of leaving the screen frozen. Arrow keys in the place picker keep the highlighted place in view. In Memory Settings, Tab after \"Choose backup\" goes straight to \"Reset settings\", and screen readers name \"Choose backup\" once.",
-          "highlight": false
-        },
-        {
-          "version": "1.4.84",
-          "date": "2026-10-22",
-          "notes": "- Other Agents can now ask Long-Term Memory for memories about the characters they write as, ranked against what they are about to write. They get only memories available to that character everywhere: never memories limited to a chat or group, archived memories or suggestions, and they can't change anything. A new setting in Memory Settings, \"Other Agents can read memories\" (on by default), turns this off, also for Slurp's \"What your other Agents know\", and names the Agents that read memories lately. Each read shows in Activity as \"Read by another Agent\".",
           "highlight": false
         }
       ]
@@ -595,6 +595,18 @@
     },
     "noodle": {
       "versions": [
+        {
+          "version": "1.5.12",
+          "date": "2026-10-30",
+          "notes": "- The \"Long-Term Memory isn't sharing memories\" line now clears as soon as sharing is turned back on.\n- Turning on \"Use memories from Long-Term Memory\" now offers to turn on Long-Term Memory's sharing when it is off.",
+          "highlight": false
+        },
+        {
+          "version": "1.5.11",
+          "date": "2026-10-29",
+          "notes": "- New, off by default: Advanced → \"Use memories from Long-Term Memory\". Posts can draw on what Long-Term Memory remembers about each account's character, as whole memories or only the parts that fit the posts. Turning it on asks first, and a note appears if Long-Term Memory isn't installed or isn't sharing memories.",
+          "highlight": false
+        },
         {
           "version": "1.5.10",
           "date": "2026-10-25",
@@ -702,75 +714,129 @@
           "date": "2026-09-13",
           "notes": "- Maintenance: simplify the inline composer's visibility checks and remove unused code.",
           "highlight": false
-        },
-        {
-          "version": "1.2.21",
-          "date": "2026-09-07",
-          "notes": "- Fixed \"Load more\" on the timeline, which failed on every page after the first.\n- Fixed a manually chosen profile avatar being replaced by the character card image.\n- Applying a saved prompt now asks before it discards unsaved prompt changes.\n- Ambient accounts no longer post images.\n- Removed leftover NoodleR wording from the image generation settings.",
-          "highlight": false
-        },
-        {
-          "version": "1.2.20",
-          "date": "2026-09-03",
-          "notes": "- Added independent image width and height settings to Noodle settings.",
-          "highlight": false
         }
       ]
     },
     "otome-forge": {
       "versions": [
         {
-          "version": "0.0.9",
-          "date": "2026-10-28",
-          "notes": "- Every prompt that writes the story or a character's words asks the model to read each character's mind more carefully: what they know, want and feel.\n- In NSFW mode the content contract opens by stating that the request complies with the adult fiction content policy.",
+          "version": "0.6.2",
+          "date": "2026-10-31",
+          "notes": "- After a love interest's finale, the story no longer assumes they already confessed: if you eased off before the words came, they can still say it later.",
           "highlight": false
         },
         {
-          "version": "0.0.8",
-          "date": "2026-10-28",
-          "notes": "- Remind Me, from Home: a month of your story's days, with each love interest's birthday, the day your story began, its firsts with each love interest, and your own birthday if you add it (kept only on this device).\n- A period tracker for anyone who has periods, off by default and stored only in this browser. Logged days show as filled hearts, predicted ones as outlined hearts, and it never calls a period late. Export moves it; one click deletes all of it.\n- On a tracked day, Caring message asks the love interest on Home for a note. Only one line about today reaches your model provider, never the history; with Keep it off the model, or while debug logging is on, a comfort line written in advance answers instead. The note stays in this browser for the day only.\n- Home: on the shortest phones the rail tightens so the note keeps a line of its words, and a long name on Him / Me is cut short inside the rail rather than reach over the love interest's tap zones.",
+          "version": "0.6.1",
+          "date": "2026-10-30",
+          "notes": "- **Banned phrases** in Settings → Content: type the words and phrases you never want to read, separated by commas or one per line, and every scene, message and note avoids them.\n- Love interests no longer stop an intimate scene to check in or offer to stop, sex included. Ease off is still yours.\n- Your protagonist takes a moment to sit with what matters to them, a first kiss, a night together, a quarrel, a secret learned, in thoughts in their own voice, with their doubts and hopes showing, before the story moves on.\n- **Slow burn:** through a love interest's first two stages, neither of you says what you feel. From the third stage they may confess once the story has earned it, and by their route's finale at the latest. Desire can still come first, as your Heat allows.\n- Under NSFW: Explicit, sex scenes are no longer rushed: they take the room they need, from the build-up to the aftermath, with the characters talking, asking for what they want and saying what they feel along the way.",
           "highlight": false
         },
         {
-          "version": "0.0.7",
-          "date": "2026-10-28",
-          "notes": "- Dates opens: pick a love interest, then play Read Them, Date Night or the Claw Machine. Every activity pays even when it goes badly; only the day's rewards are capped (400 Starlight from activities, 300 affection per love interest), never play.\n- Read Them: over five moments, read what your love interest really feels behind the face they wear, hear the thought, and learn tells later scenes remember.\n- Date Night: pick a place, even one your story painted, and what you both wear for three scenes of choices judged by what your love interest likes, with an optional keepsake image. During a rupture it becomes Make it right.\n- The Claw Machine makes no model or image call: take turns at a swinging claw, cheer until they cheat in their own way, and line a shelf with six plushies and one of each love interest. It plays by keyboard, with reduced motion and without images.\n- With voices on, their lines are read aloud. Each love interest alone remembers the games you played together.",
+          "version": "0.6.0",
+          "date": "2026-10-30",
+          "notes": "- Each love interest has their own Claw Machine plush: the animal that fits them best, in their colours (a cyan raven with red eyes, a black cat with violet eyes). Your Planning model draws it once, in the background, the first time you open Dates. Until then their plush wears their look, as before.",
+          "highlight": true
+        },
+        {
+          "version": "0.5.3",
+          "date": "2026-10-30",
+          "notes": "- Your protagonist knows only what the story has shown them: love interests no longer talk as if you already know their past, their habits or the words of their world, and a newcomer learns this world as they go.\n- A story set in an existing world, such as Teyvat from Genshin Impact, stays that world and keeps its canon.\n- Chapters make room for other people, scenes without a love interest, and rest or sleep after a long day.",
           "highlight": false
         },
         {
-          "version": "0.0.6",
-          "date": "2026-10-28",
-          "notes": "- Wish opens: three banners every 14 days (Memories, a love interest's wardrobe, and yours), paid only with Starlight you earn (100 a wish; there is no real money). The pity count is exact (\"5★ in 23\"): a 5★ comes by the 60th wish and is always the featured one, and past banners wait in Echoes on the same pity. Wishing never calls a model, and duplicates refund Starlight.\n- Memories hold a Character Story to read; looks go to the Wardrobe, where your look and theirs make a couple set; Snapshots join that love interest's Love Timeline, and only they remember them.\n- Wear at home puts a look on Home, and the love interest on Home notices a new look of yours. A Memory's CG can stand behind them.\n- At affection 10, each love interest gives a Memory Selector. Banner and item art follows your image settings and is painted once.\n- NSFW mode (18+ only): Explicit Heat and Dark romance are written in full, your Lines and Veils still win, and only CGs of explicit scenes show nudity.",
+          "version": "0.5.2",
+          "date": "2026-10-30",
+          "notes": "- Memories banners follow your Heat: under NSFW: Fade their Memories and Moments mix SFW and suggestive situations, and under NSFW: Explicit explicit ones too. Snapshots stay SFW.\n- An explicit Memory's art can now be explicit under NSFW: Explicit with the Explicit image rating. Lower either setting before it's painted, and it shows the same moment clothed. Other Memory art stays clothed, as before.",
           "highlight": false
         },
         {
-          "version": "0.0.5",
-          "date": "2026-10-28",
-          "notes": "- Otome Forge is now Otome Hearth.\n- Home now shows the love interest you pick, or you in your own look, before their newest CG or a painted place, tinted by your time of day. A painted look is cut out of its background when the Engine can, and pans slowly when it cannot; with no images, initials on a gradient. Reduced motion stills it.\n- Each love interest leaves one handwritten note a day, with a mood; Reply opens their thread. During a rupture the note is curt and taps get only cold lines.\n- Tap head, hand or heart for lines written ahead in their voice, so a tap never waits; too many pokes annoy them, and their face shows it. Rough day? offers comfort with no model call. With voices on, taps, the note and comfort are read aloud.\n- The phone: one private thread per love interest, with suggested replies and stickers. Close and remember saves the talk as a memory only that love interest recalls (+20 affection, capped daily).",
+          "version": "0.5.1",
+          "date": "2026-10-30",
+          "notes": "- Chapters no longer all end the same way. Each one builds differently, and its closing choice is a different kind of decision from the last few, not a love interest stepping in again to ask whom you'll go with. A rival love interest competes over more than just you, too.",
           "highlight": false
         },
         {
-          "version": "0.0.4",
-          "date": "2026-10-28",
-          "notes": "- Each love interest now has a route: six stages from Mask to Bond, each opened by a free route chapter at an affection level and moved only by its last scene. The fourth reveals a secret; the fifth holds a confrontation and a choice that cannot be undone.\n- Every main chapter builds to a confrontation: three rounds of Press, Hold, Yield or Reveal, ending in the truth, a walkout or a standoff. A walkout can open a rift that shuts their route until you Make it right.\n- With an image connection, places and key moments are painted (or wait for your tap with Ask before painting), CGs join the Album once seen, and faces are painted in the background. Music follows each scene's mood, and dialogue can be voiced.",
+          "version": "0.5.0",
+          "date": "2026-10-30",
+          "notes": "- **Read Me**, a new game in Dates: a love interest studies you and makes four guesses about you. Answer Spot on, Close or Not at all, and tell them the truth in your own words if you like.\n- They remember: each answer goes into their notebook of what they know about you (likes, dislikes, habits, fears, dreams), and they bring it up in scenes, Home notes, messages and dates. No other love interest ever sees it.\n- Open the notebook from Read Me to read it, rewrite your words or delete an entry. A delete is final.",
+          "highlight": true
+        },
+        {
+          "version": "0.4.2",
+          "date": "2026-10-30",
+          "notes": "- The Love Timeline shows every 4★ Moment and 5★ Memory you've won, on the day you won it, including ones won before this update. Each Snapshot, Moment and Memory says what it is and opens in the Album.",
           "highlight": false
         },
         {
-          "version": "0.0.3",
-          "date": "2026-10-28",
-          "notes": "- Now offered to Engine `staging` testers. The story begins: pick who leads each main chapter from two love interests, the one you have seen least and the one with the most unresolved between you, and play six to nine scenes that build to a confrontation.\n- Scenes mark each love interest's face line by line (a later build paints the faces), set thoughts apart, and offer choices. Your first choice is canon; replays show the other branches and change nothing, and a choice that matters names who will remember it.\n- Trust, tension and grievances move only through your choices and are never shown. Each love interest remembers only what they saw or were told.\n- Rewrite a scene before choosing (one model call), or Ease off to end it at once with no model call, also when your model declines a scene. Settings → Debug shows the story memory.\n- Reading earns Starlight and affection. Every prompt that writes the story keeps your content settings and the 18+ gate.",
+          "version": "0.4.1",
+          "date": "2026-10-30",
+          "notes": "- The story's **Image description** shows only for a picture that isn't on screen: a painted background or key image no longer has its description under the chapter title, and one whose file fails to load gets it back.\n- NSFW stories now say outright that crude and vulgar words, swearing and dirty talk included, are fine wherever they fit a character's voice. In SFW stories characters may swear too, without the sexual words.\n- A 5★ reveal with a long premise fits on a phone: the card never grows past the screen, so the title shows whole and the premise scrolls inside it.",
           "highlight": false
         },
         {
-          "version": "0.0.2",
-          "date": "2026-10-28",
-          "notes": "- Still a development build, in no catalog. A story now starts from a setup: a premise, your protagonist from a persona, and two to five love interests from your cards or six original archetypes, each with the pronouns you pick.\n- The forge plans the story's mystery and writes each love interest a hidden bible, which never contradicts their card. Bibles sit behind a spoiler gate, and you can edit them. Love interests are always adults.\n- Content settings: Heat (SFW by default), Darkness (Angst by default), Lines & Veils and an image rating (SFW by default). NSFW Heat, Dark romance and images above SFW need a one-time 18+ confirmation that the server enforces; turning a setting down never asks.\n- Base looks are painted only after you tap to paint them, and a failed paint waits for Retry. Without an image connection everything still works, with initials in each love interest's colour, and one added later can paint them.\n- In debug mode, every prompt sent to the model is logged.",
+          "version": "0.4.0",
+          "date": "2026-10-30",
+          "notes": "- **The Closer:** a main chapter can now end on a warm climax instead of a Confrontation. Over three rounds the love interest offers something of themselves, and you answer: **Reassure**, **Tease**, **Mirror** (share something of your own) or **Ask**.\n- It ends **Opened up** (trust grows, and it's a first on your Love Timeline), **Almost** (nothing changes) or **Shut out** if it goes wrong (trust falls, and they hold it against you).\n- In NSFW stories, Opened up can turn intimate, drawing on their tastes and your role.\n- After two main chapters end the same way, the next ends with the other, so a story in progress gets its first Closer soon. Route chapters keep their Confrontations.",
+          "highlight": true
+        },
+        {
+          "version": "0.3.0",
+          "date": "2026-10-30",
+          "notes": "- NSFW stories give each new love interest's bible their tastes in sex and intimacy: what they're into, kinks included, and what draws them. Intimate scenes bring them in when they fit; your content settings still decide what a scene may hold.\n- An older cast gets **Add intimacy preferences** on Your cast (1 call). Read and edit them in the bible.\n- An optional Sub, Dom or Switch preference for your protagonist sits beside Heat.\n- SFW stories never write or send any of it.\n- Story memory keeps an NSFW story as it was written: summaries no longer turn it SFW, and a Veil is remembered as having happened off the page.\n- The planners no longer call every love interest a monster: each is a human, even if inside a monster.\n- A date inside a chapter can go as hoped: it stumbles only when the story gives it a reason, like Date Night.",
+          "highlight": true
+        },
+        {
+          "version": "0.2.2",
+          "date": "2026-10-30",
+          "notes": "- In stories, hide the header's Image description panel while a character sprite is shown; keep the description available without a sprite.\n- Four-star memories include artwork through the existing painting flow alongside their playable memory.\n- Round every corner of story character nameplates.",
           "highlight": false
         },
         {
-          "version": "0.0.1",
-          "date": "2026-10-28",
-          "notes": "- First development build, not listed in any catalog yet. It adds a Home tab, Otome Forge, with the game's portrait stage, its Midnight and Pearl looks and its fonts. Every screen still says it arrives in a later build.\n- Otome Forge keeps its saves in its own `otome-forge:` documents, so it works alongside Gacha Forge.",
+          "version": "0.2.1",
+          "date": "2026-10-30",
+          "notes": "- Make desktop fullscreen fill the available Otome Hearth area across its screens. Leaving fullscreen restores ordinary portrait layouts while preserving drafts and the current reader line.",
+          "highlight": false
+        },
+        {
+          "version": "0.2.0",
+          "date": "2026-10-30",
+          "notes": "- Restore the scrolling mobile Settings category strip, and keep each cast member's repaint actions together.\n- Show progress toward the next Affection level in Between you.\n- Facial expression edits use an adult, nonsexual face-edit policy while preserving the current look, clothing and style. Non-explicit Suggestive images keep concise content exclusions without unrelated graphic boilerplate.\n- Edit a love interest’s image appearance above their spoiler Bible without repainting or changing their story.\n- Choose an existing Assets Music folder in Audio settings when music generation is off.\n- Give chapters and scenes room for ordinary moments, earned emotional payoffs, and character change.",
+          "highlight": true
+        },
+        {
+          "version": "0.1.17",
+          "date": "2026-10-30",
+          "notes": "- Read a love interest’s intended appearance from Your cast or Who’s home without opening Bible spoilers. Wardrobe looks and reached story illustrations also expose their existing visual descriptions, including when no image was painted.\n- After adding an image connection, missing story locations and key moments offer the existing explicit Paint action with its image cost and prompt review. Reading descriptions and saving image settings paint nothing.",
+          "highlight": false
+        },
+        {
+          "version": "0.1.16",
+          "date": "2026-10-30",
+          "notes": "- Automatically painted current-location backgrounds prepare before reading begins, with the existing manual-paint and failure paths retained.\n- Story generation can reuse saved location artwork for recurring settings instead of painting a new numbered visit.\n- Protagonist dialogue, thoughts and performed choices explicitly follow the selected persona’s authored identity and the player’s writing instructions.",
+          "highlight": false
+        },
+        {
+          "version": "0.1.15",
+          "date": "2026-10-29",
+          "notes": "- Opening narration no longer previews the portrait of a love interest whose speaking turn has not been reached. Established speakers can still stay visible during later narration.\n\n- The pre-chapter warning places its Ease off feather after the guidance sentence.\n\n- Harmful story/date choices and Confrontation outcomes can reduce Affection progress within the current level. Unlocked levels stay permanent, and replaying never repeats the deduction or refunds daily earning limits.",
+          "highlight": false
+        },
+        {
+          "version": "0.1.14",
+          "date": "2026-10-29",
+          "notes": "- Album Memories can be filtered by 3★, 4★ or 5★, with unplayed content listed first.\n\n- Owned 3★ Snapshots can be illustrated on first opening through the existing image connection, confirmation and prompt review flow. Paintings are saved and reused; old vignettes and story progress stay intact.",
+          "highlight": false
+        },
+        {
+          "version": "0.1.13",
+          "date": "2026-10-29",
+          "notes": "- Suggestive is an image-content ceiling: neutral portraits and facial expression edits no longer receive mandatory suggestive or sensitive-content tags. Image briefs follow the actual moment, with non-explicit adult intimacy allowed when appropriate.\n- Wish and Wardrobe display cleaned love-interest and persona outfits while retaining the original paintings. Wardrobe banner art is centered and shown whole, and tapping a ready banner image opens a full-image view without making a wish.",
+          "highlight": false
+        },
+        {
+          "version": "0.1.12",
+          "date": "2026-10-29",
+          "notes": "- Desktop settings use the available stage space, with every settings section reachable and long pages scrollable.\n- Text generation can recover when an endpoint rejects the optional JSON-format hint, while retaining reply validation and output budgets.",
           "highlight": false
         }
       ]
@@ -902,6 +968,12 @@
     "relationship-tracker": {
       "versions": [
         {
+          "version": "0.7.3",
+          "date": "2026-10-30",
+          "notes": "- The Relationship Tracker button now opens its relationship web on phones. Close the sheet with its close button, Escape, or a tap outside; focus returns to the button. Changing chats or removing the tracker closes the old sheet.\n- Desktop keeps its existing Trackers drawer and passive preview. Opening the web reads saved relationships without running a model.",
+          "highlight": false
+        },
+        {
           "version": "0.7.2",
           "date": "2026-10-23",
           "notes": "- Korean, Japanese and Chinese now work. A name followed directly by a Korean particle (김민수는) or written without spaces in Japanese (アリスは) or Chinese (张三很信任李四) now counts as naming that character. Before, Update from History and automatic updates rejected these sentences, and Scene-only couldn't tell who was present.\n- A longer card name doesn't count as a shorter one: 김민수 isn't 김민, and アリス isn't リス. Single characters and syllables appear inside ordinary words, so a one-character Chinese or Japanese name still needs a space or punctuation next to it, and a one-syllable Korean name counts only before a particle (준은, but not 준비).\n- When a persona perception is rejected, the message now says which name it expected.",
@@ -1018,6 +1090,12 @@
     "saucelings": {
       "versions": [
         {
+          "version": "0.23.2",
+          "date": "2026-10-30",
+          "notes": "- On a wide screen, an open Background, Caretaker, Looks or New egg panel no longer stretches the stage card beside it.",
+          "highlight": false
+        },
+        {
           "version": "0.23.1",
           "date": "2026-10-27",
           "notes": "- On a wide screen, Background, Caretaker, Looks and New egg open in their own box under the meters and care buttons, instead of across the bottom of the Nook.",
@@ -1099,6 +1177,30 @@
     },
     "slurp2": {
       "versions": [
+        {
+          "version": "0.4.12",
+          "date": "2026-10-30",
+          "notes": "- Wardrobe import finds looks again. It accepts untidy model replies (other list names, extra fields, long summaries, tags as one line) and has room for long replies and thinking models.\n- The \"Legacy wardrobe note\" source says \"(empty)\" when the Creator has no old note, so it is clear why you cannot pick it.\n- Long-Term Memory no longer turns people from your chats into collabs. Creators keep those people out of posts and DMs unless the brief names them, and new installs recall only the relevant memories.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.11",
+          "date": "2026-10-29",
+          "notes": "- Backstage (Engine link) no longer says Long-Term Memory isn't sharing after its \"Other Agents can read memories\" switch is turned on. The line clears at once after Slurp's offer, and the next time the panel loads after Long-Term Memory's offer or Memory Settings.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.10",
+          "date": "2026-10-29",
+          "notes": "- Turning on \"What your other Agents know\" now asks whether to turn on Long-Term Memory's \"Other Agents can read memories\" when that switch is off. \"Turn it on\" changes only that switch; \"Not now\" leaves it alone.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.9",
+          "date": "2026-10-29",
+          "notes": "- Creators' posts and DM replies now use what Long-Term Memory remembers about them, through its recall service. A new \"Long-term memory\" choice in Backstage (Engine link) sets whether they get whole memories (the default) or only the parts that fit the post or message. It shows while \"What your other Agents know\" is on.\n- Backstage says when Long-Term Memory is missing, or is not sharing (\"Other Agents can read memories\" is off in its Memory Settings).\n- A DM brings in the persona's memories only when that persona's Slurp page uses Linked identity. A hinted or concealed page never does.\n- The Creator brief no longer reads Long-Term Memory's storage; the Character Tracker, World State and Persona Stats lines are unchanged.",
+          "highlight": false
+        },
         {
           "version": "0.4.8",
           "date": "2026-10-28",
@@ -1193,30 +1295,6 @@
           "version": "0.3.47",
           "date": "2026-10-16",
           "notes": "- Fixed: in tag mode, a Creator's identity tags (\"Always in their pictures\" or the card name) stayed where the prompt writer put them, often behind the count and body tags. Whole tags now move to the front of the Creator's part, once, in the writer's spelling (#1428).\n- Fixed: \"The image model knows this character\" added the card name a second time when the writer used tag order (\"ryuuzaki umi\" for \"Umi Ryuuzaki\"). Names now match in any word order.\n- Fixed: a companion the writer named by their card or tag name got no look, no reference picture, and kept the one-person rule. Companions now match on display or card name, whole words in any order (#1429).",
-          "highlight": false
-        },
-        {
-          "version": "0.3.46",
-          "date": "2026-10-15",
-          "notes": "- Added: Creators react to each other. Each hour a character Creator may like or comment on another Creator's public post (about two a day), persona Creators' posts included. Free canned copy; no messages, tips or subscriptions between Creators.\n- Fixed: the browsing persona was saved per browser, so one install could show an empty Inbox on one device and 87 unread on another. The pick is now a Slurp setting shared by every device; an older per-browser pick is saved once.\n- Fixed: the custom tag field greyed out with no reason when a draft had filled all eight tags. It now says so.\n- Fixed: Hinted profiles checked tags joined with the bio, so words from separate fields could add up to a copied source detail. Tags are checked one at a time, and the save error names the tag that leaks.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.45",
-          "date": "2026-10-15",
-          "notes": "- Fixed: picture prompts carried the style profile's tags twice. The prompt writer now gets the bare draft; the style is compiled onto its result once.\n- Fixed: the gallery fallback picked the first gallery image every time. It now picks the image this Creator showed least recently.\n- Added: \"Draw missing avatars and banners\" in Settings › Images. Off stops background drawing; Open Creators still copy their card's pictures. On for existing installs; first-run setup sets it from its images choice.\n- Added: \"Caption instructions\" in Settings › Images. Blank uses a Slurp default that describes people, clothes, pose, place and text, and leaves out the art style.\n- Added: \"Always in their pictures\" per Creator. The text opens the Creator's part of every picture prompt, after the style tags, in place of the card name.\n- Fixed: the post writer no longer dresses Creators in worn-out, faded or shabby clothes unless the card or caption asks for it.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.44",
-          "date": "2026-10-15",
-          "notes": "- Added: trends. A post that takes off (shown likes; your likes, unlocks and tips count most), your own page's hits, a platform trend, or Stir \"Start a trend\" (ready-made trends, a starter, what to lean into) starts one. Stir \"Steer a trend\" changes what it leans into. The right Creators join, each at their own spice level and limits, quote the origin post, peak, then cool; some roast it, some never join. The starter gains followers.\n- Added: Discover \"Trending on Slurp\" row, a trend chip on posts, and trend search.\n- Changed: the invented \"silly trend\" daily-life moment is gone; trend posts skip the feed spice damping.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.43",
-          "date": "2026-10-15",
-          "notes": "- Fixed: long DMs end at a sentence or word (up to 2400 characters), and commission quotes use the Creator's own prices.\n- Fixed: Cancel ends a subscription to a removed Creator at once.\n- Fixed: fans react to what a picture shows, not its art style.\n- Fixed: post drift. Tips no longer teach a guessed taste, and a spicy kind or taste that other Creators posted that day steps aside, so the whole feed is not in the shower at once. Spice level is unchanged.\n- Changed: family is never paired up on its own. Cards that say they are lovers, or the player in Stir, still can.\n- Fixed: clearer \"monogamous\" message in Stir, with the Relationships switch on the Creator sheet.\n- Fixed: work mode no longer blurs the coin and G's face; Couples pages are not a missing source; the sign-up scene names an unreachable connection.\n- Fixed: a scheduled post goes up once, and a shared-page post waits its turn.",
           "highlight": false
         }
       ]

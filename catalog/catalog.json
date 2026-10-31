@@ -915,7 +915,7 @@
         },
         "id": "gacha-forge",
         "name": "Gacha Forge",
-        "version": "1.27.3",
+        "version": "1.27.5",
         "description": "A complete gacha game mode. Describe a world and Gacha Forge builds the rest: banners to pull on, a cast the model writes and paints for you, story chapters told by a visual-novel narrator, and the battles, gear and events that grow around them. Install it, restart Marinara Engine when prompted, then open Home → Gacha Forge.",
         "engine": {
           "min": "2.5.1",
@@ -1204,8 +1204,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "62c2fe141533e8734c7e24436590d74cb1b7c0b107dbdc3744065c6d868580eb",
-            "bytes": 1921399
+            "sha256": "08eeacb2f5ee583e532fbfadeef3263ca2aef90531d63b23a85daf548a4c94af",
+            "bytes": 1921764
           },
           {
             "path": "farm-asc.webp",
@@ -1679,8 +1679,8 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "b1590b6fe09cead3571acd2d5ca8971373901e897014dde06be6dde0e2c1d254",
-            "bytes": 1029416
+            "sha256": "02e92280adca3853248a5f09b68c602c8fa510d18f7a4a78dbd2c87301ace168",
+            "bytes": 1032969
           },
           {
             "path": "skill-aoe_damage-dark.webp",
@@ -2532,9 +2532,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/gacha-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/gacha-forge-1.27.3.zip",
-        "sha256": "46e05494b15a6ce278df72dade59cc4b560fd98839889fb404fb0ff498b637bf",
-        "bytes": 9183211
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/gacha-forge-1.27.5.zip",
+        "sha256": "1dda32ac38f9d7f3240065518c6290a5a9c14030c6476340b8c78bac9545d148",
+        "bytes": 9187129
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/gacha-forge/README.md"
     },
@@ -2795,7 +2795,7 @@
         "schemaVersion": 2,
         "capabilityApi": {
           "major": 1,
-          "minor": 387
+          "minor": 390
         },
         "builtAgainst": {
           "engineVersion": "2.5.1",
@@ -2803,7 +2803,7 @@
         },
         "id": "long-term-memory",
         "name": "Long-Term Memory",
-        "version": "1.5.7",
+        "version": "1.5.18",
         "description": "Remembers important things from your chats, characters, and lorebooks, and brings them back when they matter. Enable it per chat from Chat Settings → Agents → Long-Term Memory. In Roleplay and Game, you can also add it from Chat Settings → Agents → Misc Agents.",
         "engine": {
           "min": "2.5.1",
@@ -2821,7 +2821,8 @@
           "agentDetail": {
             "agentIds": [
               "long-term-memory"
-            ]
+            ],
+            "header": "engine"
           },
           "slots": [
             "chat-settings"
@@ -2835,18 +2836,19 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "9121fb89a4d9d0a091e67fd9815f3abc56d40169bbd66af66e9716b5d2e9ddd8",
-            "bytes": 495550
+            "sha256": "45945c82eb5babf5574a8307250abab5a894bb91572487baee1cab7f4b87b84b",
+            "bytes": 501932
           },
           {
             "path": "client.js",
-            "sha256": "5a01564a3389f6e3dc4cdf286744e98942cefa771fe2be20a69488a94c251b19",
-            "bytes": 904086
+            "sha256": "d30efbd11c314a57f42d0a2bb498bfdad0391140b25beea80a3bf0d6c73ee63c",
+            "bytes": 912407
           }
         ],
         "permissions": [
           "agent-runtime",
           "chat-read",
+          "chat-write",
           "routes",
           "storage",
           "ui"
@@ -2856,9 +2858,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/long-term-memory.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/long-term-memory-1.5.7.zip",
-        "sha256": "cd6ecb2d5f6aeb42f3356d15ddf87ff1858fa863b4807ec3136a42cfbcf36cc8",
-        "bytes": 1402100
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/long-term-memory-1.5.18.zip",
+        "sha256": "2edc9af76cc5f502bc12d2d334a9e06d61b08d8fd8806d3cedfaaa090652ce35",
+        "bytes": 1416848
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#long-term-memory"
     },
@@ -3149,7 +3151,7 @@
         },
         "id": "noodle",
         "name": "Noodle",
-        "version": "1.5.10",
+        "version": "1.5.12",
         "description": "A pretend social network where your characters post, share photos, and talk about your chats. Install it, restart Marinara Engine when prompted, then open Home → Noodle.",
         "localizations": {
           "de": {
@@ -3232,13 +3234,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "672f2722cbf0c9126a7ab58b3083e2621646410c0225af6013db464119918ef9",
-            "bytes": 543977
+            "sha256": "71795a663c2b92df08ce28026f031aafe729c5d7b39f375848403b1b40684810",
+            "bytes": 545726
           },
           {
             "path": "client.js",
-            "sha256": "127907c85ac32d487ccd46cfc6498e37ff9ad353b09d4b77a95afc9034367835",
-            "bytes": 725722
+            "sha256": "1c3b726cdb96522d96651849aa6e5fe65fd1b4f7214558574c64040257b00348",
+            "bytes": 733315
           },
           {
             "path": "noodle-klusek.png",
@@ -3259,9 +3261,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/noodle.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/noodle-1.5.10.zip",
-        "sha256": "639671101b28fcf8cfc4de6d94937547cdf70da237d44a6ff1e0828674a75fa6",
-        "bytes": 1302445
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/noodle-1.5.12.zip",
+        "sha256": "6ce0d8812d52d7e63f9a131605ada38a35421c62bc572405953b0deae112f7d6",
+        "bytes": 1311787
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/noodle/README.md"
     },
@@ -3278,8 +3280,8 @@
         },
         "id": "otome-forge",
         "name": "Otome Hearth",
-        "version": "0.0.9",
-        "description": "An otome game in its own Home tab, made from your own characters: love interests who remember what you chose, their texts on your phone, dates and mini-games, and wishes for outfits and memories paid for only with Starlight you earn. An early test build. Install it, restart Marinara Engine when prompted, then open Home → Otome Hearth.",
+        "version": "0.6.2",
+        "description": "An otome game in its own Home tab, made from your own characters: love interests who remember what you chose, their messages to you, dates and mini-games, and wishes for outfits and memories paid for only with Starlight you earn. Install it, restart Marinara Engine when prompted, then open Home → Otome Hearth.",
         "engine": {
           "min": "2.5.1",
           "maxExclusive": "4.0.0"
@@ -3300,30 +3302,35 @@
             "label": "Otome Hearth",
             "ariaLabel": "Open Otome Hearth",
             "iconPaths": [
-              "otome-hearth-icon.png"
+              "otome-hearth-tab-heart.png"
             ]
           }
         },
         "files": [
           {
             "path": "agents.json",
-            "sha256": "5712b5dc4d2258ca1de9a43017ea35be73b0a4336ddb7360bf7e16d4916c9b99",
-            "bytes": 706
+            "sha256": "09424f88d12fdf3e542d3e67a3eb0c88071176658183fc4ead92e5a11d7dfac2",
+            "bytes": 681
           },
           {
             "path": "server.mjs",
-            "sha256": "0fc3103d7d132944b741f075d8ab70df50c34cdb1eee083a2a827495ceaa82c6",
-            "bytes": 379855
+            "sha256": "495b8f33a93f426014d1ec3a5a8bf81d2e0d33db1d65e5cf5b29355f8832e1d8",
+            "bytes": 447166
           },
           {
             "path": "client.js",
-            "sha256": "75eaa6e3e3b7446f56a488c8b511f58bc79076a1ddd6707c8364e5f0bc515abd",
-            "bytes": 1078595
+            "sha256": "202c03170fcd446471d3ee974efe898db4dda8677f35d075aa830aa4ddc18b64",
+            "bytes": 1161245
           },
           {
             "path": "otome-hearth-icon.png",
             "sha256": "8a579710820c718e3f3e1a2535fc12a251c5b91569bd7f5bb59961f1e873bce8",
             "bytes": 141313
+          },
+          {
+            "path": "otome-hearth-tab-heart.png",
+            "sha256": "301ef798d226eff3f2100daa1206b9ee1abe0654a070dd07718d98af4c7070d9",
+            "bytes": 2277
           },
           {
             "path": "fonts/OFL.txt",
@@ -3341,9 +3348,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/otome-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.0.9.zip",
-        "sha256": "b8b6bcde3cfdc42e229c888a8726d40aab432474bd1ea7cdba0afddffd8e1b43",
-        "bytes": 1607580
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.6.2.zip",
+        "sha256": "2eeeb16062df626a4dd2691e75b6c89e83dadeb6297db2f9bb71a59470b95e7e",
+        "bytes": 1760062
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/otome-forge/README.md"
     },
@@ -3739,7 +3746,7 @@
         },
         "id": "relationship-tracker",
         "name": "Relationship Tracker",
-        "version": "0.7.2",
+        "version": "0.7.3",
         "description": "Tracks how the characters and your persona feel about each other. Add the Agent in Chat Settings → Agents → Tracker Agents for Roleplay mode.",
         "engine": {
           "min": "2.4.4",
@@ -3807,8 +3814,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "a76ba1a1284fe7516447a74b0e9336d752c142fb4e15f50708a2985906abb3e8",
-            "bytes": 84902
+            "sha256": "7fad5a6bdb3b48a6241c4089b915c65f387fb295b45d5d8054413c915a774738",
+            "bytes": 89538
           },
           {
             "path": "contracts/relationship-state-v1.schema.json",
@@ -3839,9 +3846,9 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/relationship-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/relationship-tracker-0.7.2.zip",
-        "sha256": "faa02caace5a115aef46b4f9f5f57089bc7a2dad37d03af93242a721d99bc911",
-        "bytes": 251318
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/relationship-tracker-0.7.3.zip",
+        "sha256": "0bebbceccb3ff3068d99e9a8bc62f9e8302223d2c23b43f73e265a89b0e08dd2",
+        "bytes": 255954
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/relationship-tracker/README.md"
     },
@@ -3935,7 +3942,7 @@
         },
         "id": "saucelings",
         "name": "Saucelings",
-        "version": "0.23.1",
+        "version": "0.23.2",
         "description": "A Tamagotchi-style pet in Home: pick a character to look after an egg, let their personality drive their care schedule, cover the gaps they miss, watch its sauce temperament shift, retire elders to a Menagerie, and let the caretaker find eggs of their own invention while you chat. Install it, restart Marinara Engine when prompted, then open Home → Saucelings.",
         "engine": {
           "min": "2.5.0",
@@ -4049,8 +4056,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "fdeb4f4816ba1269a9e56d8ab543ad5a291e1f8e166a9d10a6a1412d1a47c916",
-            "bytes": 256578
+            "sha256": "acb4e38ec88c1d0929920ee4974af175cb1df4679aea9c13ff794b37bf0c5433",
+            "bytes": 256618
           },
           {
             "path": "saucelings-icon.png",
@@ -4309,9 +4316,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/saucelings.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/saucelings-0.23.1.zip",
-        "sha256": "4ac87c782c6670d1c53fc332b616fd0516ef221d7b939fc03b6d4ec80474d35b",
-        "bytes": 824273
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/saucelings-0.23.2.zip",
+        "sha256": "1f886bac6b54d5b97c5edef854b246f2f8a071ca50121a9234fb15a555bd24a8",
+        "bytes": 824313
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#saucelings"
     },
@@ -4328,7 +4335,7 @@
         },
         "id": "slurp2",
         "name": "Slurp",
-        "version": "0.4.8",
+        "version": "0.4.12",
         "description": "A private social app for your characters. Turn characters and personas into Creators, post public or locked photos, and watch a simulated audience follow, subscribe, unlock, comment, and message them. By default, it is tuned for an adult experience. Install it, restart Marinara Engine when prompted, then open Home → Slurp.",
         "localizations": {
           "de": {
@@ -4397,13 +4404,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "f7fb502e3cb18a9c1ce034ac18038c508179381f86586d6ed9a363e596074b86",
-            "bytes": 2061049
+            "sha256": "6006f753cc809ec5bf7a00df5f95ff2f877deabe25ee9cd481e821a49a2afd28",
+            "bytes": 2064234
           },
           {
             "path": "client.js",
-            "sha256": "67bd2db4c76df48e990fb1f7af12f22f53b519cc244bf566a7c2100ee69ce336",
-            "bytes": 2896890
+            "sha256": "d3382cdc4d9c99a5458824235212058c3cbfe0154d80f92047742cbb82a29637",
+            "bytes": 2901084
           },
           {
             "path": "slurp2-logo.png",
@@ -4427,18 +4434,18 @@
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/de.json",
-            "sha256": "f2e7f03c58a5d2896634732bcd42c3739fb2e14c36a396508d6e8f8425c5cf43",
-            "bytes": 239281
+            "sha256": "7adb4d13d62b1a1f17dff05eb7f8c53030a4edb59f582f2069c71f38e0a64599",
+            "bytes": 240657
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/ko.json",
-            "sha256": "74f80e54ee7784d247e8f0fef9d64a74dd4070e1cefa5fba08ad6f1e2021fb5a",
-            "bytes": 336839
+            "sha256": "702f1909004a73d0fb64afff04d3be88572322fce185b4b765124b72758fb41f",
+            "bytes": 338292
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/pl.json",
-            "sha256": "c2f20a1f1295f96336529421af2d9098e730f76d51011fb104929dc4797c7c26",
-            "bytes": 241032
+            "sha256": "78f51a8817f8ab1e3414adc2e85bb66b5947a0cc64ce288d43741fe86aa8901e",
+            "bytes": 242403
           }
         ],
         "permissions": [
@@ -4456,9 +4463,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/slurp2.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.8.zip",
-        "sha256": "1cb3a23dc844f5fa488354768d599796172a8e2b7dbfd7895d3574fd6a5e2915",
-        "bytes": 6007102
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.12.zip",
+        "sha256": "56181f6c0ace8e7ec1456bd9b0c03e80a69cb320bee9d45cd0f9b7b008e9ca29",
+        "bytes": 6018682
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/slurp2/README.md"
     },
