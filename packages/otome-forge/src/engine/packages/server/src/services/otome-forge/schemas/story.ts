@@ -29,6 +29,7 @@ import {
   STANCES,
 } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
 import { LIMIT_IDS } from "../../../../../client/src/features/otome-forge/shared/content.js";
+import { PRESTIGE_KINDS } from "../../../../../client/src/features/otome-forge/shared/economy.js";
 import {
   DATE_PLACE_KINDS,
   type DatePlan,
@@ -48,6 +49,7 @@ export const SegmentSchema: ZodType<Segment> = z.object({
   expression: z.union([z.enum(FACES), z.literal("")]).optional(),
   place: short(120).optional(),
   gender: short(20).optional(),
+  exits: z.array(z.string()).optional(),
 });
 
 const ChoiceSchema: ZodType<ForgeChoice> = z.object({
@@ -227,6 +229,7 @@ export function normalizeChapter(data: unknown): Chapter | null {
         const parsed = DatePlanSchema.safeParse(value);
         return parsed.success ? parsed.data : undefined;
       },
+      prestige: z.object({ kind: z.enum(PRESTIGE_KINDS), premise: short(600) }).optional(),
     },
     () => ({
       key: data.key as string,
@@ -308,8 +311,8 @@ export function normalizeBeat(data: unknown): Beat | null {
 }
 
 /**
- * The plan as the client sees it: no guides, casts, reveals, ledger, the grievance a repair is for, or a date's plan
- * (GET .../dates shows a date).
+ * The plan as the client sees it: no guides, casts, reveals, ledger, the grievance a repair is for, a date's plan
+ * (GET .../dates shows a date) or an extra story's premise (#2025).
  */
 export function toChapterView(chapter: Chapter): ChapterView {
   const {
@@ -318,6 +321,7 @@ export function toChapterView(chapter: Chapter): ChapterView {
     connectionId: _connection,
     grievance: _grievance,
     date: _date,
+    prestige: _prestige,
     music,
     ...rest
   } = chapter;

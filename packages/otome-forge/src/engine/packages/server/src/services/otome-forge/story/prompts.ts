@@ -60,6 +60,7 @@ import { stillToMend } from "../../../../../client/src/features/otome-forge/shar
 import { revealAt } from "../schemas/story-arc.js";
 import { FACES, MUSIC_MOODS } from "../../../../../client/src/features/otome-forge/shared/faces.js";
 import { LIMIT_IDS, intimacyOpen } from "../../../../../client/src/features/otome-forge/shared/content.js";
+import type { PrestigeKind } from "../../../../../client/src/features/otome-forge/shared/economy.js";
 import {
   NOTEBOOK_CATEGORIES,
   type NotebookEntry,
@@ -684,6 +685,17 @@ DATE CHOICE (this node is one scene of a date with ${unit.name}):
 - ${goesWrong ? `This evening is planned to stumble: an option may open a grievance, and on a date it is at most "minor".` : "Nothing on this date opens a grievance: leave grievance out of every option's effects."}`;
 }
 
+/**
+ * How a Confrontation's or Closer's option reads (#2030): the label is the player's own button, so it speaks to them
+ * ("Say what you pay"), never about them ("Say what she pays"); an action selection is narrated to "you" like the scene.
+ */
+const optionVoice = (protagonist: string) =>
+  `label: the pill's short intent, 2 to 6 words, addressed to the player as a bare command or with "you", never with the protagonist's name or "she", "he" or "they" for them (for example "Say what you pay", "Admit you are scared"). selection: what ${protagonist} says (kind dialogue) or does (kind action, narrated to "you", as in "You step closer."), one or two sentences.`;
+
+/** #2024: who is no longer in the scene, so the reader takes them off the stage (S/story/beats.ts exitsOf). */
+const EXITS_RULE =
+  '- exits: only on the segment where love interests leave the scene, or the protagonist leaves them behind: the exact names of those no longer with the protagonist ("exits": ["Name"]). Omit it on every other segment.';
+
 const VOICES_INSTRUCTION = `
 
 SPEAKER VOICES (extend the JSON shape above with an optional top-level "voices" object):
@@ -697,7 +709,7 @@ export interface BeatMessagesInput {
   state: RunState;
   chapter: Pick<
     Chapter,
-    "kind" | "number" | "title" | "lead" | "foil" | "nodes" | "li" | "stage" | "grievance" | "date"
+    "kind" | "number" | "title" | "lead" | "foil" | "nodes" | "li" | "stage" | "grievance" | "date" | "prestige"
   >;
   node: ChapterNode;
   /** The canonical story so far in this chapter, rendered (earlier beats), or "" for its first node. */
@@ -738,6 +750,7 @@ export function beatMessages({
     "- Each segment is one speaker's line or one piece of narration: a sentence or a few. Never put dialogue inside narration, and never mark it with dashes or quotes as prose.",
     `- thought: true for an inner line, in the thinker's own words, with "speaker" set to the thinker. The protagonist may think freely. ${PROTAGONIST_THOUGHTS} A love interest gets at most ONE thought line in this node, and only ${thinkers.length ? `these, who are far enough along: ${thinkers.join(", ")}` : "none of those present: they are still behind their masks"}.`,
     `- expression: on a love interest's dialogue or thought line only: ${FACES.join(", ")}, when the face shows it. A face may contradict the words. Omit it for a neutral line and for narration.`,
+    EXITS_RULE,
     `- musicMood: the soundtrack cue for this node, one of ${MUSIC_MOODS.join(", ")}.`,
     `- places: every place the node happens in, in order (at most ${BEAT_PLACES_MAX}). A place is a room, a street, a garden: never the time of day or the mood. tags: the same place as 4-8 short comma-separated English tags for an image model, with "no humans". place on a segment: which place it happens in; omit it while the scene has not moved.`,
     ...(backgrounds ? [PLACE_REUSE_RULE] : []),
@@ -896,7 +909,9 @@ function chapterLabel(chapter: BeatMessagesInput["chapter"], units: readonly Uni
     return `${owner}'s route chapter, toward stage ${chapter.stage} (${stageTitle(chapter.stage)})`;
   }
   if (chapter.kind === "repair") return `a repair chapter with ${owner}`;
-  if (chapter.kind === "story") return `${owner}'s Character Story`;
+  if (chapter.kind === "story") {
+    return chapter.prestige ? `${owner}'s extra story, imagined together (not canon)` : `${owner}'s Character Story`;
+  }
   return `${chapter.kind} chapter`;
 }
 
@@ -911,6 +926,24 @@ function storyFraming(name: string, nodes: number): string[] {
       ? `This is ${name}'s CHARACTER STORY: a ${nodes}-scene side story between ${name} and the protagonist, outside the main plot. Each node is one of its scenes; it has its own small arc and ends on its last.`
       : `This is a ONE-SCENE side story of ${name}'s: one complete scene between ${name} and the protagonist, outside the main plot, with its own small beginning and end.`,
     `It is private: no other love interest appears in it or learns of it. It does not move ${name}'s stage: how close they are follows the scene card. It never resolves the mystery or reveals a secret before its stage, and it never contradicts the story so far.`,
+  ];
+}
+
+/** How P6 names each kind of extra story (#2025). English, never localized. */
+export const PRESTIGE_FRAMES: Record<PrestigeKind, string> = {
+  kink: "a kink they explore together",
+  "what-if": "a what-if of their life together",
+  au: "a mini AU, the two of them in another world",
+};
+
+/**
+ * #2025: what P6 adds to a node of an extra story (`prestige-<li>-<n>`, S/items/prestige.ts) in place of the Character
+ * Story's framing: something the two of them imagine or play out for fun, which is never canon.
+ */
+function prestigeFraming(name: string, prestige: NonNullable<Chapter["prestige"]>, nodes: number): string[] {
+  return [
+    `This is an EXTRA STORY of ${name}'s, ${PRESTIGE_FRAMES[prestige.kind]}: ${prestige.premise} It is something ${name} and the protagonist imagine or play out together, for fun, and both of them know it. It is NOT canon: nothing in it happens in the main story, and it changes nothing there.`,
+    `It is a ${nodes}-scene story with its own small arc, ending on its last. It is private: no other love interest appears in it. Whatever the frame, both stay themselves at heart; it reveals no secret and resolves nothing of the main story.`,
   ];
 }
 
@@ -947,7 +980,10 @@ function arcFraming({
       `This is a REPAIR chapter: a rupture stands between ${name} and the protagonist${grievance ? ` (${grievance.text})` : ""}. The repair costs ${name} something; it does not erase what happened, and nobody apologizes on the spot.`,
     );
   }
-  if (chapter.kind === "story") lines.push(...storyFraming(name, chapter.nodes.length));
+  if (chapter.kind === "story") {
+    const nodes = chapter.nodes.length;
+    lines.push(...(chapter.prestige ? prestigeFraming(name, chapter.prestige, nodes) : storyFraming(name, nodes)));
+  }
   // #1980: the arc's planned reveal, and its big event on the last chapter. Only a stamped node gets a reveal, so the
   // planner's schedule (normalizeChapterPlan) decides what may come out here; everything else stays hidden.
   if (node.reveal?.kind === "truth") {
@@ -1206,7 +1242,7 @@ export function confrontationMessages(input: ConfrontationMessagesInput): OtomeM
     `{"musicMood": "tense|angst", "places": [{"name": "...", "tags": "..."}], "opening": [${SEGMENT_SHAPE}], "rounds": [{"lines": [${SEGMENT_SHAPE}], "options": {"press": ${option}, "hold": ${option}, "yield": ${option}, "reveal": ${option}}}], "endings": {"truth": [${SEGMENT_SHAPE}], "walkout": [${SEGMENT_SHAPE}], "standoff": [${SEGMENT_SHAPE}]}, "grievance": {"text": "...", "severity": "major"}, "disclosure": "..."${node.cg ? cgShape(world) : ""}}`,
     `- opening: up to ${CONFRONTATION_OPENING_MAX} segments that bring the argument to a head.`,
     `- rounds: exactly ${CONFRONTATION_ROUNDS}. lines: 1 to ${CONFRONTATION_HIS_MAX} segments of ${name} pressing the argument on. Round k's lines must follow naturally from ANY of the four stances the protagonist could have taken in round k-1.`,
-    `- options: the four stances the protagonist may take, every round: press (push ${name}, accuse, demand), hold (stand firm without attacking), yield (give ground, soften), reveal (tell ${name} something true about the protagonist themselves). label: the pill's short intent, 2 to 6 words. selection: what ${protagonist} says (kind dialogue) or does (kind action), one or two sentences. segments: 1 to ${CONFRONTATION_ANSWER_MAX} segments of ${name}'s answer to that stance.`,
+    `- options: the four stances the protagonist may take, every round: press (push ${name}, accuse, demand), hold (stand firm without attacking), yield (give ground, soften), reveal (tell ${name} something true about the protagonist themselves). ${optionVoice(protagonist)} segments: 1 to ${CONFRONTATION_ANSWER_MAX} segments of ${name}'s answer to that stance.`,
     `- composure: how that stance moves ${name}'s guard, from ${name}'s own character and what stands between them: -1 when it gets through and the guard drops, 1 when it makes ${name} close off, 0 when it does neither. Not every press is 1 and not every yield is -1.`,
     `- endings: truth (${name}'s guard is down and something true comes out), walkout (${name} leaves; it leaves a hurt between them), standoff (neither gives; it ends charged). Each 1 to ${CONFRONTATION_ENDING_MAX} segments that close the scene.`,
     `- grievance.text: what a walkout leaves ${name} holding against the protagonist, one short sentence. disclosure: what the protagonist tells ${name} in reveal, as one short third-person sentence ("The protagonist said their brother drowned here.").`,
@@ -1214,6 +1250,7 @@ export function confrontationMessages(input: ConfrontationMessagesInput): OtomeM
     '- speaker: who speaks the segment, written as their exact name every time; "" for narration. Each segment is one speaker\'s line or one piece of narration.',
     `- thought: true for an inner line, with "speaker" set to the thinker. The protagonist may think freely. ${PROTAGONIST_THOUGHTS} A love interest gets at most ONE thought line in the whole confrontation, on any path a player can take through it (the opening, the rounds' lines, the answers to the stances taken and the ending together), and only ${thinkers.length ? `these, who are far enough along: ${thinkers.join(", ")}` : "none of those present: they are still behind their masks"}.`,
     `- expression: on a love interest's dialogue or thought line only: ${FACES.join(", ")}. A face may contradict the words. Omit it for a neutral line and for narration.`,
+    EXITS_RULE,
     `- places: where it happens (at most ${BEAT_PLACES_MAX}); tags: 4-8 short comma-separated English tags for an image model, with "no humans".`,
     ...(backgrounds ? [PLACE_REUSE_RULE] : []),
     ...(node.cg
@@ -1300,7 +1337,7 @@ export function closerMessages(input: ConfrontationMessagesInput): OtomeMessage[
     `{"musicMood": "tender|confession", "places": [{"name": "...", "tags": "..."}], "opening": [${SEGMENT_SHAPE}], "rounds": [{"lines": [${SEGMENT_SHAPE}], "options": {"reassure": ${option}, "tease": ${option}, "mirror": ${option}, "ask": ${option}}}], "endings": {"opened": [${SEGMENT_SHAPE}], "almost": [${SEGMENT_SHAPE}], "shut": [${SEGMENT_SHAPE}]}, "grievance": {"text": "...", "severity": "minor"}, "disclosure": "..."${node.cg ? cgShape(world) : ""}}`,
     `- opening: up to ${CONFRONTATION_OPENING_MAX} segments that bring the two of them somewhere they could let their guard down.`,
     `- rounds: exactly ${CONFRONTATION_ROUNDS}. lines: 1 to ${CONFRONTATION_HIS_MAX} segments in which ${name} offers something of themselves: a memory, a fear, a wish, a touch. Round k's lines must follow naturally from ANY of the four answers the protagonist could have given in round k-1.`,
-    `- options: the four answers the protagonist may give, every round: reassure (steady warmth), tease (playful; it may lighten the moment or slip past it), mirror (the protagonist opens up in return and tells ${name} something true about themselves), ask (a gentle question that may push). label: the pill's short intent, 2 to 6 words. selection: what ${protagonist} says (kind dialogue) or does (kind action), one or two sentences. segments: 1 to ${CONFRONTATION_ANSWER_MAX} segments of ${name}'s answer to it.`,
+    `- options: the four answers the protagonist may give, every round: reassure (steady warmth), tease (playful; it may lighten the moment or slip past it), mirror (the protagonist opens up in return and tells ${name} something true about themselves), ask (a gentle question that may push). ${optionVoice(protagonist)} segments: 1 to ${CONFRONTATION_ANSWER_MAX} segments of ${name}'s answer to it.`,
     `- guard: how that answer moves ${name}'s guard, from ${name}'s own character, wound and what stands between them: -1 when it reaches ${name} and the guard lowers, 1 when it lands wrong and ${name} closes off, 0 when it does neither. Not every reassure is -1 and not every ask is 1: a tease can be exactly right, and warmth at the wrong moment can feel like pity.`,
     `- endings: opened (${name}'s guard comes down and they let the protagonist in, the closest the two have been), almost (warm, but ${name} pulls back at the last second and something stays unsaid), shut (it went wrong: the mask goes back on and ${name} withdraws, hurt). Each 1 to ${CONFRONTATION_ENDING_MAX} segments that close the scene.`,
     intimacyOpen(world.content)
@@ -1311,6 +1348,7 @@ export function closerMessages(input: ConfrontationMessagesInput): OtomeMessage[
     '- speaker: who speaks the segment, written as their exact name every time; "" for narration. Each segment is one speaker\'s line or one piece of narration.',
     `- thought: true for an inner line, with "speaker" set to the thinker. The protagonist may think freely. ${PROTAGONIST_THOUGHTS} A love interest gets at most ONE thought line in the whole closer, on any path a player can take through it (the opening, the rounds' lines, the answers given and the ending together), and only ${thinkers.length ? `these, who are far enough along: ${thinkers.join(", ")}` : "none of those present: they are still behind their masks"}.`,
     `- expression: on a love interest's dialogue or thought line only: ${FACES.join(", ")}. A face may contradict the words. Omit it for a neutral line and for narration.`,
+    EXITS_RULE,
     `- places: where it happens (at most ${BEAT_PLACES_MAX}); tags: 4-8 short comma-separated English tags for an image model, with "no humans".`,
     ...(backgrounds ? [PLACE_REUSE_RULE] : []),
     ...(node.cg
