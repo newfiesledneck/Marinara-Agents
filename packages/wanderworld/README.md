@@ -2,7 +2,7 @@
 
 A walkable, low-poly 3D world for Marinara Engine's Game Mode. The goal is a world built from the chat's
 setting, persona, characters and lorebook, with places bound to World Maps locations. This is an early
-prototype and is not listed in the catalog yet.
+prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
 ## What it does now (0.1.0)
 

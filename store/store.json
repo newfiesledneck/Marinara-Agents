@@ -192,6 +192,10 @@
       "section": "games",
       "tagline": "Play UNO with your characters."
     },
+    "wanderworld": {
+      "section": "adventure",
+      "tagline": "A low-poly 3D world to walk around in."
+    },
     "world-state": {
       "section": "trackers",
       "tagline": "Date, time, weather and place."
