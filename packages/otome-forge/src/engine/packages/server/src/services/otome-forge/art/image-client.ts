@@ -10,7 +10,11 @@
 // wrapper also needs characterCard, personaAvatar and cardAvatarImage. generateImage is one paid image with exactly the
 // references it is given (a place has none; an expression edit has its base) and saves nothing: uploadToGallery keeps
 // it, in the shape the kit's expressions module calls.
-import { forgeSubjectReference, forgeWrapImageReferenceClient } from "@forge-kit/image-avatar-references.mjs";
+import {
+  forgeLocalAvatarPath,
+  forgeSubjectReference,
+  forgeWrapImageReferenceClient,
+} from "@forge-kit/image-avatar-references.mjs";
 import type { CapabilityRuntimeHost } from "@marinara-engine/shared";
 
 /** Whose likeness a look keeps: the fields forgeWrapImageReferenceClient reads to find a reference image. */
@@ -19,9 +23,57 @@ export interface ImageSubject {
   cardId?: string;
   personaId?: string;
   portrait?: string;
+  /** The last likeness the kit tries, after the card or persona avatar and `portrait` (cgSubjects: a worn look). */
+  avatarPath?: string;
   outfits?: unknown[];
   /** The look worn now: the kit sends its image after the faces for scene and banner art. */
   wornOutfit?: string;
+  /**
+   * The person this paint must show as themselves (their name, for the error). When they have a picture to send but
+   * none of it loads, the paint stops before the paid call (MissingLikenessError) instead of painting a stranger.
+   */
+  who?: string;
+}
+
+/** A person's pictures exist but none could be loaded: thrown before the paid call, so the paint fails with Retry. */
+export class MissingLikenessError extends Error {
+  constructor(who: string) {
+    super(`No picture of ${who} could be loaded to send as a reference, so nothing was painted or paid for.`);
+    this.name = "MissingLikenessError";
+  }
+}
+
+/** The look the subject wears, as the kit finds it (sent only with scene art). */
+function wornLookPath(subject: Pick<ImageSubject, "wornOutfit" | "outfits">): string {
+  const id = str(subject.wornOutfit);
+  const outfits = (Array.isArray(subject.outfits) ? subject.outfits : []) as Array<{
+    id?: unknown;
+    url?: unknown;
+  } | null>;
+  return id ? forgeLocalAvatarPath(outfits.find((item) => str(item?.id) === id)?.url) : "";
+}
+
+/**
+ * Whether the subject has a picture the kit could send: a portrait, avatarPath or (for scene art) worn look the Engine
+ * serves, or a card or persona whose avatar it serves. Reads the card or persona only; no image is fetched.
+ */
+export async function hasLikenessSource(
+  client: Pick<ImageClient, "characterCard" | "personaAvatar">,
+  subject: Omit<ImageSubject, "kind">,
+  scene = false,
+): Promise<boolean> {
+  if ([subject.portrait, subject.avatarPath].some((path) => forgeLocalAvatarPath(path))) return true;
+  if (scene && wornLookPath(subject)) return true;
+  try {
+    const avatar = str(subject.cardId)
+      ? (await client.characterCard(str(subject.cardId)))?.avatarPath
+      : str(subject.personaId)
+        ? await client.personaAvatar(str(subject.personaId))
+        : "";
+    return !!forgeLocalAvatarPath(avatar);
+  } catch {
+    return false;
+  }
 }
 
 export interface PortraitRequest {
@@ -86,6 +138,14 @@ export interface StyleProfile {
   tagged?: boolean;
 }
 
+/** An Engine image style profile as Settings → Images lists it (GET /image-style-profiles). */
+export interface StyleProfileOption {
+  id: string;
+  name: string;
+  /** The Engine's promptMode: "natural", "tagged", "danbooru" or "hybrid". */
+  promptMode: string;
+}
+
 export interface ImageClient {
   /** Paints one image and uploads it to the Global Gallery. Throws on any failure; it never retries. */
   generatePortrait(request: PortraitRequest): Promise<PaintedImage>;
@@ -105,6 +165,12 @@ export interface ImageClient {
   }): Promise<{ id: string; url: string }>;
   /** The chosen image style profile, else the Engine's default, else the first; empty when there is none. */
   styleProfile(profileId?: string): Promise<StyleProfile>;
+  /** The Engine's image style profiles and its default, for the picker (empty when they cannot be read). */
+  styleProfiles?(): Promise<{ defaultProfileId: string; profiles: StyleProfileOption[] }>;
+  /** #2147: the card's or persona's Engine sprites, as file paths built here (S/art/engine-art.ts). Throws. */
+  sprites?(ownerId: string): Promise<Array<{ expression: string; url: string }>>;
+  /** #2147: the Engine's background library, the player's and Game Assets' (art/places.ts chooseBackground). Throws. */
+  backgrounds?(): Promise<Array<{ url: string; filename: string; tags: string[] }>>;
   deleteGalleryImage(id: string): Promise<boolean>;
   characterCard(cardId: string): Promise<{ avatarPath: string } | null>;
   personaAvatar(personaId: string): Promise<string>;
@@ -241,10 +307,27 @@ export function createImageClient({
       } catch {
         reason = "";
       }
-      throw new Error(`engine ${path} -> ${response.status}${reason ? `: ${reason}` : ""}`);
+      // #2147: with its status, so a card that is gone (404) is told from a failed read (S/art/engine-art.ts).
+      throw Object.assign(new Error(`engine ${path} -> ${response.status}${reason ? `: ${reason}` : ""}`), {
+        status: response.status,
+      });
     }
     return response.json();
   }
+
+  /** The Engine's image style profiles as its UI settings keep them (either key the Engine has used). */
+  const readStyleProfiles = async () => {
+    const raw = (await request("/api/app-settings/ui")) as { value?: unknown } | null;
+    const value = raw && typeof raw === "object" && "value" in raw ? raw.value : raw;
+    type Profiles = { profiles?: unknown; defaultProfileId?: unknown };
+    const settings = (typeof value === "string" ? parseJson(value) : value) as {
+      imageStyleProfiles?: Profiles;
+      styleProfiles?: Profiles;
+    } | null;
+    const profiles = settings?.imageStyleProfiles ?? settings?.styleProfiles;
+    const list = (Array.isArray(profiles?.profiles) ? profiles.profiles : []) as Array<Record<string, unknown> | null>;
+    return { list, defaultProfileId: str(profiles?.defaultProfileId) };
+  };
 
   const client: ImageClient = {
     async generateImage({ connectionId, name, prompt, negativePrompt, width, height, debugMode, referenceImages }) {
@@ -332,20 +415,9 @@ export function createImageClient({
     async styleProfile(profileId) {
       const empty: StyleProfile = { styleText: "", positiveTags: "", negativeTags: "" };
       try {
-        const raw = (await request("/api/app-settings/ui")) as { value?: unknown } | null;
-        const value = raw && typeof raw === "object" && "value" in raw ? raw.value : raw;
-        type Profiles = { profiles?: unknown; defaultProfileId?: unknown };
-        const settings = (typeof value === "string" ? parseJson(value) : value) as {
-          imageStyleProfiles?: Profiles;
-          styleProfiles?: Profiles;
-        } | null;
-        const profiles = settings?.imageStyleProfiles ?? settings?.styleProfiles;
-        const list = (Array.isArray(profiles?.profiles) ? profiles.profiles : []) as Array<Record<
-          string,
-          unknown
-        > | null>;
+        const { list, defaultProfileId } = await readStyleProfiles();
         const find = (id: string) => (id ? list.find((profile) => str(profile?.id) === id) : undefined);
-        const profile = find(str(profileId)) ?? find(str(profiles?.defaultProfileId)) ?? list[0];
+        const profile = find(str(profileId)) ?? find(defaultProfileId) ?? list[0];
         if (!profile) return empty;
         const mode = str(profile.promptMode);
         return {
@@ -358,6 +430,62 @@ export function createImageClient({
         logger?.warn("[otome-forge] could not read the image style profiles: %s", String(error));
         return empty;
       }
+    },
+
+    async styleProfiles() {
+      try {
+        const { list, defaultProfileId } = await readStyleProfiles();
+        const profiles = list.flatMap((profile): StyleProfileOption[] =>
+          str(profile?.id)
+            ? [
+                {
+                  id: str(profile?.id),
+                  name: str(profile?.name) || str(profile?.id),
+                  promptMode: str(profile?.promptMode),
+                },
+              ]
+            : [],
+        );
+        return { defaultProfileId: defaultProfileId || profiles[0]?.id || "", profiles };
+      } catch (error) {
+        logger?.warn("[otome-forge] could not read the image style profiles: %s", String(error));
+        return { defaultProfileId: "", profiles: [] };
+      }
+    },
+
+    async sprites(ownerId) {
+      const id = str(ownerId);
+      if (!id || id.includes("..") || /[\\/]/u.test(id)) return [];
+      const rows: unknown = await request(`/api/sprites/${encodeURIComponent(id)}`);
+      // Never a URL from the metadata: the file path is built from the id and a filename of a plain stem, never SVG.
+      return (Array.isArray(rows) ? rows : []).flatMap((row) => {
+        const filename = str(row?.filename);
+        const stem = /^([a-z0-9_-]+)\.(?:png|jpe?g|webp|gif|avif)$/iu.exec(filename)?.[1];
+        return stem && str(row?.expression) === stem
+          ? [
+              {
+                expression: stem.toLowerCase(),
+                url: `/api/sprites/${encodeURIComponent(id)}/file/${encodeURIComponent(filename)}`,
+              },
+            ]
+          : [];
+      });
+    },
+
+    async backgrounds() {
+      const rows: unknown = await request("/api/backgrounds");
+      return (Array.isArray(rows) ? rows : []).flatMap((row) => {
+        const url = str(row?.url);
+        const file = /^\/api\/(?:backgrounds|game-assets)\/file\/[^?#\\]+\.(?:png|jpe?g|webp|gif|avif)$/iu.test(url);
+        if (!file || url.split("/").some((part) => part === "." || part === "..")) return [];
+        return [
+          {
+            url,
+            filename: str(row?.filename),
+            tags: Array.isArray(row?.tags) ? row.tags.map(str).filter(Boolean) : [],
+          },
+        ];
+      });
     },
 
     async deleteGalleryImage(id) {
@@ -401,44 +529,63 @@ export function createImageClient({
       }
     },
   };
+  /**
+   * Who he is. A card's neutral full body is the best likeness there is, but the avatar is only replaced by it when one
+   * of the two is all we have: a portrait gets BOTH (the full body first, then the avatar), so the paint has his build
+   * and his face. Scenes keep one per subject, because the four-reference budget is shared across the whole cast.
+   * Never a URL from sprite metadata: the file route is derived from the selected id and a verified filename.
+   */
+  async function likeness(client: ImageClient, subject: Omit<ImageSubject, "kind">, method?: string) {
+    const cardId = str(subject.cardId);
+    const both = method === "generatePortrait" || method === "generateOutfit";
+    if (cardId && !cardId.includes("..") && !/[\\/]/u.test(cardId)) {
+      try {
+        const sprites: unknown = await request(`/api/sprites/${encodeURIComponent(cardId)}`);
+        const neutral = Array.isArray(sprites)
+          ? sprites.find(
+              (sprite) =>
+                str(sprite?.expression).toLowerCase() === "full_neutral" &&
+                /^full_neutral\.(?:png|jpe?g|gif|webp|avif)$/iu.test(str(sprite?.filename)),
+            )
+          : undefined;
+        if (neutral) {
+          const image = await client.cardAvatarImage(
+            `/api/sprites/${encodeURIComponent(cardId)}/file/${encodeURIComponent(str(neutral.filename))}`,
+          );
+          if (image) {
+            const full = `data:${image.mime};base64,${image.base64}`;
+            if (!both) return full;
+            const avatar = await forgeSubjectReference(client, subject);
+            return avatar && avatar !== full ? [full, avatar] : full;
+          }
+        }
+      } catch (error) {
+        // A missing card or sprite does not prevent a paint with this love interest's other retained likenesses.
+        logger?.debug?.("[otome-forge] no neutral full body for %s: %s", cardId, String(error));
+      }
+    }
+    return forgeSubjectReference(client, subject);
+  }
+
   return forgeWrapImageReferenceClient(client, logger, {
     logPrefix: "[otome-forge]",
     /**
-     * Who he is. A card's neutral full body is the best likeness there is, but the avatar is only replaced by it when one
-     * of the two is all we have: a portrait gets BOTH (the full body first, then the avatar), so the paint has his build
-     * and his face. Scenes keep one per subject, because the four-reference budget is shared across the whole cast.
-     * Never a URL from sprite metadata: the file route is derived from the selected id and a verified filename.
+     * Their likeness. A subject with `who` whose pictures exist but none loads stops the paint before the paid call;
+     * with no picture at all it is painted from the description, as before.
      */
     async subjectReference(client, subject, { method } = {}) {
-      const cardId = str(subject.cardId);
-      const both = method === "generatePortrait" || method === "generateOutfit";
-      if (cardId && !cardId.includes("..") && !/[\\/]/u.test(cardId)) {
-        try {
-          const sprites: unknown = await request(`/api/sprites/${encodeURIComponent(cardId)}`);
-          const neutral = Array.isArray(sprites)
-            ? sprites.find(
-                (sprite) =>
-                  str(sprite?.expression).toLowerCase() === "full_neutral" &&
-                  /^full_neutral\.(?:png|jpe?g|gif|webp|avif)$/iu.test(str(sprite?.filename)),
-              )
-            : undefined;
-          if (neutral) {
-            const image = await client.cardAvatarImage(
-              `/api/sprites/${encodeURIComponent(cardId)}/file/${encodeURIComponent(str(neutral.filename))}`,
-            );
-            if (image) {
-              const full = `data:${image.mime};base64,${image.base64}`;
-              if (!both) return full;
-              const avatar = await forgeSubjectReference(client, subject);
-              return avatar && avatar !== full ? [full, avatar] : full;
-            }
-          }
-        } catch (error) {
-          // A missing card or sprite does not prevent a paint with this love interest's other retained likenesses.
-          logger?.debug?.("[otome-forge] no neutral full body for %s: %s", cardId, String(error));
-        }
-      }
-      return forgeSubjectReference(client, subject);
+      const found = await likeness(client, subject, method);
+      const { who, ...rest } = subject as Omit<ImageSubject, "kind">;
+      if (found || !who) return found;
+      // Alone in a scene, the look they wear may still show them (the kit adds it too; one picture is sent once).
+      const scene = method === "generateBannerArt";
+      const worn = scene ? wornLookPath(rest) : "";
+      const image = worn ? await client.cardAvatarImage(worn) : null;
+      if (image?.base64 && /^image\//u.test(image.mime)) return `data:${image.mime};base64,${image.base64}`;
+      // A picture that did not load (a deleted file): a stranger would be painted and paid for instead.
+      if (await hasLikenessSource(client, rest, scene)) throw new MissingLikenessError(who);
+      logger?.warn("[otome-forge] %s: %s has no picture to send; painted from the description", method, who);
+      return null;
     },
   });
 }

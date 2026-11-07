@@ -2,8 +2,9 @@
 // and per chapter, also across a save; a grievance never closes in the beat that opened it, and closes only where its
 // node allows; a rupture never takes anything unlocked back, and moves to another rupture still owed instead of
 // closing; a pick applies once (first play only) and names whom it touched; reading pays each
-// beat and each chapter once; hostile first-play picks cost affection above the reached level's floor; and the daily
-// caps follow the player's own midnight in each zone.
+// beat and each chapter once; hostile first-play picks cost affection above the reached level's floor; a side-with
+// pick (#2046) gains uncapped and loses only above that floor, once; the daily caps follow the player's own
+// midnight in each zone; and Your thoughts… (#2127) survive a save, while a damaged or too long one reads as none.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { forgeTimeZoneRoutes } from "@forge-kit/time-zone-server.mjs";
@@ -13,6 +14,7 @@ import type {
   RunState,
 } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/api-types.ts";
 import * as economy from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/economy.ts";
+import { THOUGHTS_MAX } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/home.ts";
 import {
   normalizeState,
   toRunView,
@@ -24,6 +26,10 @@ import {
   applyChoiceEffects,
   type ChoiceContext,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/state/relationship.ts";
+import {
+  applyTarot,
+  type TarotReading,
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/minigames/tarot.ts";
 import {
   grant,
   readBeatToEnd,
@@ -55,6 +61,7 @@ test("the economy's numbers are pinned", () => {
       levels: [economy.MIN_LEVEL, economy.MAX_LEVEL],
       affection: economy.AFFECTION_EARNINGS,
       outsideCap: economy.OUTSIDE_AFFECTION_DAILY_CAP,
+      sideWith: economy.SIDE_WITH_AFFECTION,
       trust: [economy.TRUST_MIN, economy.TRUST_MAX],
       tension: [economy.TENSION_MIN, economy.TENSION_MAX],
       shifts: [economy.BEAT_SHIFT_MAX, economy.CHAPTER_SHIFT_MAX],
@@ -72,6 +79,7 @@ test("the economy's numbers are pinned", () => {
         date: 120,
         readHim: 40,
         readMe: 40,
+        tarot: 40,
         clawRound: 20,
         clawPlush: 30,
       },
@@ -86,11 +94,14 @@ test("the economy's numbers are pinned", () => {
         readMe: 20,
         readMeRight: 10,
         readMeClose: 5,
+        tarot: 40,
         clawRound: 30,
-        closeAndRemember: 20,
-        showHim: 20,
+        closeAndRemember: 5,
+        showHim: 5,
       },
-      outsideCap: 300,
+      // #2133: the maintainer lowered it from 300 (2026-11-06).
+      outsideCap: 150,
+      sideWith: { backed: 30, passedOver: 10 },
       trust: [-3, 3],
       tension: [0, 3],
       shifts: [1, 2],
@@ -101,6 +112,7 @@ test("the economy's numbers are pinned", () => {
         "date",
         "read-him",
         "read-me",
+        "tarot",
         "claw",
         "close-and-remember",
         "show-him",
@@ -109,9 +121,12 @@ test("the economy's numbers are pinned", () => {
     },
   );
   assert.deepEqual(
-    [0, 299, 300, 599, 600, 2699, 2700, 99_999, -50, Number.NaN].map(economy.levelOf),
+    [0, 199, 200, 449, 450, 3599, 3600, 99_999, -50, Number.NaN].map(economy.levelOf),
     [1, 1, 2, 2, 3, 9, 10, 10, 1, 1],
   );
+  // Each level costs 50 more than the one before, from 200 for level 2 to 600 for level 10 (the maintainer's).
+  assert.deepEqual(economy.LEVEL_COSTS, [200, 250, 300, 350, 400, 450, 500, 550, 600]);
+  assert.equal(economy.MAX_LEVEL_POINTS, 3600);
 });
 
 test("the public run projects current-level affection without exposing private relationship state", () => {
@@ -119,20 +134,20 @@ test("the public run projects current-level affection without exposing private r
   const player = normalizePlayer({});
   const unit = normalizeUnit({ id: KAI, name: "Kai", source: "archetype" });
   assert.ok(unit);
-  for (const [points, level, current] of [
-    [0, 1, 0],
-    [299, 1, 299],
-    [300, 2, 0],
-    [599, 2, 299],
-    [2699, 9, 299],
-    [2700, 10, 300],
-    [99_999, 10, 300],
+  for (const [points, level, current, required] of [
+    [0, 1, 0, 200],
+    [199, 1, 199, 200],
+    [200, 2, 0, 250],
+    [449, 2, 249, 250],
+    [3599, 9, 599, 600],
+    [3600, 10, 600, 600],
+    [99_999, 10, 600, 600],
   ]) {
     const state = normalizeState({ lis: { [KAI]: { points, trust: -2, tension: 3 } } });
     const before = structuredClone(state);
     const view = JSON.parse(JSON.stringify(toRunView("r-affection-abcdef", world, player, [unit], state)));
     assert.equal(view.lis[0].level, level);
-    assert.deepEqual(view.lis[0].affectionProgress, { current, required: 300 });
+    assert.deepEqual(view.lis[0].affectionProgress, { current, required });
     for (const hidden of ["points", "trust", "tension", "grievances", "disclosures", "bible"]) {
       assert.equal(hidden in view.lis[0], false, `${hidden} remains private`);
     }
@@ -288,21 +303,28 @@ test("a grievance never closes in its own beat, and closes only where its node l
 
 test("a rupture opens with its grievance, holds while it festers, and never takes anything unlocked back", () => {
   const before = fresh();
-  before.lis[KAI] = { ...before.lis[KAI]!, points: 1200, stage: 3 };
+  // #2156: a serious break, his trust falling to −2 with it.
+  before.lis[KAI] = { ...before.lis[KAI]!, points: economy.levelFloor(5), stage: 3, trust: -1 };
   const broken = pick(
     before,
     [{ li: KAI, trust: -1, grievance: { by: "li", text: "She sold him out.", severity: "rupture" } }],
     { i: 1 },
   ).state;
   const id = "g-main-1-1-0";
-  assert.deepEqual(broken.lis[KAI]!.rupture, { grievanceId: id, since: AT });
-  assert.deepEqual([broken.lis[KAI]!.points, broken.lis[KAI]!.stage], [1200, 3]);
-  // A second rupture-grade grievance does not replace the open rupture.
+  assert.deepEqual(broken.lis[KAI]!.rupture, { grievanceId: id, since: AT, space: 0 });
+  assert.deepEqual([broken.lis[KAI]!.points, broken.lis[KAI]!.stage], [economy.levelFloor(5), 3]);
+  // A second rupture-grade grievance does not replace the open rupture: #2156 saves it as a major one.
   let state = pick(broken, [{ li: KAI, grievance: { by: "li", text: "Again.", severity: "rupture" } }], {
     i: 1,
     choice: "choice-2",
   }).state;
   assert.equal(state.lis[KAI]!.rupture?.grievanceId, id);
+  assert.equal(state.lis[KAI]!.grievances[1]!.severity, "major");
+  // A save from before #2156 may owe a second rupture: here it does.
+  const owed = state.lis[KAI]!.grievances.map((item, n) =>
+    n === 1 ? { ...item, severity: "rupture" as const } : item,
+  );
+  state = { ...state, lis: { ...state.lis, [KAI]: { ...state.lis[KAI]!, grievances: owed } } };
   state = pick(state, [{ li: KAI, resolve: { id, status: "festering" } }], { i: 2, resolves: [id] }).state;
   assert.equal(state.lis[KAI]!.rupture?.grievanceId, id);
   // Repairing the first leaves the second owed: the rupture moves to it, and his gates stay shut.
@@ -316,7 +338,7 @@ test("a rupture opens with its grievance, holds while it festers, and never take
     resolves: [second],
   }).state;
   assert.equal(state.lis[KAI]!.rupture, null, "no rupture is left once every rupture is repaired");
-  assert.deepEqual([state.lis[KAI]!.points, state.lis[KAI]!.stage], [1200, 3]);
+  assert.deepEqual([state.lis[KAI]!.points, state.lis[KAI]!.stage], [economy.levelFloor(5), 3]);
 });
 
 const chapter = (changes: Partial<ReadChapter> = {}): ReadChapter => ({
@@ -386,6 +408,27 @@ test("reading pays each beat once and the chapter once, saves its ledger and rec
   assert.equal(after.state.lis[KAI]!.lastLead, 1);
 });
 
+test("Tarot night (#2151) is an activity: its pay shares the day's caps with every other activity", () => {
+  let state = fresh();
+  // Read Me and a claw round have used up today's affection with Kai, and all but 30 of today's Starlight.
+  state = grant(state, { source: "read-me", li: KAI, starlight: 340, affection: 100 }, DAY).state;
+  state = grant(state, { source: "claw", li: KAI, starlight: 30, affection: 50 }, DAY).state;
+  const reading = {
+    id: "tr-abc123-aaaaaa",
+    li: KAI,
+    context: "Kai lays three cards on the sea wall.",
+    names: { li: "Kai", player: "Ines" },
+  } as TarotReading;
+  const outcome = applyTarot(state, reading, { at: AT, dayKey: DAY });
+  assert.deepEqual(outcome.grants, [{ source: "tarot", starlight: 30 }]);
+  assert.equal(outcome.state.daily.starlight, economy.ACTIVITY_STARLIGHT_DAILY_CAP);
+  assert.equal(outcome.state.daily.affection[KAI], economy.OUTSIDE_AFFECTION_DAILY_CAP);
+  assert.equal(outcome.state.lis[KAI]!.points, 150);
+  // Mireille still earns her affection; the day's Starlight is spent.
+  const other = applyTarot(outcome.state, { ...reading, li: MIR }, { at: AT, dayKey: DAY });
+  assert.deepEqual(other.grants, [{ source: "tarot", li: MIR, affection: economy.AFFECTION_EARNINGS.tarot }]);
+});
+
 test("reward grants remain earning-only", () => {
   const state = fresh();
   state.lis[KAI] = { ...state.lis[KAI]!, points: 600 };
@@ -398,22 +441,22 @@ test("reward grants remain earning-only", () => {
 });
 
 test("hostile choices lose 15 affection without ever losing a reached level, including after earning a new one", () => {
-  for (const points of [0, 5, 299, 300, 305, 599, 600, 605, 2699, 2700, 2705, 99_999]) {
+  for (const points of [0, 5, 199, 200, 205, 449, 450, 455, 3599, 3600, 3605, 99_999]) {
     const before = fresh();
     before.lis[KAI] = { ...before.lis[KAI]!, points };
     const after = pick(before, [{ li: KAI, trust: -1 }], { i: 0 }).state;
     const expected = new Map([
       [0, 0],
       [5, 0],
-      [299, 284],
-      [300, 300],
-      [305, 300],
-      [599, 584],
-      [600, 600],
-      [605, 600],
-      [2699, 2684],
-      [2700, 2700],
-      [2705, 2700],
+      [199, 184],
+      [200, 200],
+      [205, 200],
+      [449, 434],
+      [450, 450],
+      [455, 450],
+      [3599, 3584],
+      [3600, 3600],
+      [3605, 3600],
       [99_999, 99_984],
     ]).get(points);
     assert.equal(after.lis[KAI]!.points, expected, `loss from ${points}`);
@@ -421,13 +464,13 @@ test("hostile choices lose 15 affection without ever losing a reached level, inc
     assert.equal(saved(after).lis[KAI]!.points, expected, "the next request retains the protected level");
   }
   const before = fresh();
-  before.lis[KAI] = { ...before.lis[KAI]!, points: 299 };
+  before.lis[KAI] = { ...before.lis[KAI]!, points: 199 };
   let state = grant(before, { source: "chapter", li: KAI, affection: 30 }, DAY).state;
   assert.equal(economy.levelOf(state.lis[KAI]!.points), 2);
   state = pick(state, [{ li: KAI, trust: -1 }], { i: 0 }).state;
-  assert.equal(state.lis[KAI]!.points, 314);
+  assert.equal(state.lis[KAI]!.points, 214);
   state = pick(saved(state), [{ li: KAI, trust: -1 }], { i: 1 }).state;
-  assert.equal(state.lis[KAI]!.points, 300, "the newly earned level becomes the next loss floor");
+  assert.equal(state.lis[KAI]!.points, 200, "the newly earned level becomes the next loss floor");
 });
 
 test("harm costs affection once per LI and canonical pick; an existing grievance, tension and replay do not", () => {
@@ -522,10 +565,11 @@ test("daily caps follow the player's own midnight in each time zone", (t) => {
         return result.granted;
       });
     const dates = [1, 2, 3, 4].map(() => earn({ source: "date", starlight: 120, li: KAI, affection: 100 }));
+    // Affection stops at the day's 150 (#2133), Starlight at its 400.
     assert.deepEqual(dates, [
       { starlight: 120, affection: 100 },
-      { starlight: 120, affection: 100 },
-      { starlight: 120, affection: 100 },
+      { starlight: 120, affection: 50 },
+      { starlight: 120, affection: 0 },
       { starlight: 40, affection: 0 },
     ]);
     assert.deepEqual(earn({ source: "read-him", starlight: 40, li: MIR, affection: 40 }), {
@@ -538,7 +582,7 @@ test("daily caps follow the player's own midnight in each time zone", (t) => {
       affection: 150,
     });
     assert.equal(state.wallet.starlight, 2000 + 400 + 160);
-    assert.equal(state.lis[KAI]!.points, 450);
+    assert.equal(state.lis[KAI]!.points, 300);
     assert.equal(state.daily.dayKey, zone === "America/New_York" ? "2026-10-27" : "2026-10-28");
 
     now = late + 60 * 60 * 1000; // 00:30 in New York, a new day; 13:30 in Tokyo, the same day
@@ -548,5 +592,70 @@ test("daily caps follow the player's own midnight in each time zone", (t) => {
       zone === "America/New_York" ? { starlight: 120, affection: 100 } : { starlight: 0, affection: 0 },
       zone,
     );
+  }
+});
+
+test("Side with (#2046): the one backed gains past the daily cap; one passed over never loses a level or a story", () => {
+  const side = (backed: string, over: string): Effect[] => [
+    { li: backed, trust: 1, affection: economy.SIDE_WITH_AFFECTION.backed },
+    { li: over, tension: 1, affection: -economy.SIDE_WITH_AFFECTION.passedOver },
+  ];
+  for (const [points, expected] of [
+    [0, 0],
+    [5, 0],
+    [199, 189],
+    [200, 200],
+    [205, 200],
+    [215, 205],
+    [economy.MAX_LEVEL_POINTS + 5, economy.MAX_LEVEL_POINTS],
+    // At level 10 with one extra story unlocked (three prestige points, 900 past level 10), a loss never takes it back.
+    [economy.MAX_LEVEL_POINTS + 904, economy.MAX_LEVEL_POINTS + 900],
+    [economy.MAX_LEVEL_POINTS + 1400, economy.MAX_LEVEL_POINTS + 1390],
+  ] as const) {
+    const before = fresh();
+    before.lis[MIR] = { ...before.lis[MIR]!, points };
+    const outcome = pick(before, side(KAI, MIR), { i: 0 });
+    assert.equal(outcome.state.lis[MIR]!.points, expected, `loss from ${points}`);
+    assert.equal(economy.levelOf(outcome.state.lis[MIR]!.points), economy.levelOf(points));
+    assert.equal(economy.prestigeOf(outcome.state.lis[MIR]!.points).unlocked, economy.prestigeOf(points).unlocked);
+    assert.deepEqual(outcome.affection, [
+      { li: KAI, amount: 30 },
+      ...(expected !== points ? [{ li: MIR, amount: expected - points }] : []),
+    ]);
+  }
+  // A day's outside affection already spent: the side-with gain is a story's, never capped, and leaves the cap alone.
+  const capped = fresh();
+  capped.daily = { dayKey: DAY, starlight: 0, affection: { [KAI]: economy.OUTSIDE_AFFECTION_DAILY_CAP } };
+  capped.lis[KAI] = { ...capped.lis[KAI]!, points: 290 };
+  const first = pick(capped, side(KAI, MIR), { i: 0 });
+  assert.equal(first.state.lis[KAI]!.points, 320, "a level reached by siding with him");
+  assert.deepEqual(first.state.daily, capped.daily);
+  assert.deepEqual(first.rememberedBy, [KAI, MIR], "both will remember it (his trust, her tension)");
+  // Never a hostile pick: no 15-point loss on top, and trust is never lowered.
+  assert.equal(first.state.lis[MIR]!.trust, 0);
+  const replay = pick(saved(first.state), side(KAI, MIR), { i: 0 });
+  assert.equal(replay.replay, true);
+  assert.deepEqual(replay.affection, []);
+  assert.deepEqual(replay.state, saved(first.state), "a replay changes nothing");
+  assert.equal(saved(first.state).lis[KAI]!.points, 320, "the next request reads it back");
+});
+
+test("Your thoughts… (#2127) survive a save; a damaged or too long one reads as none", () => {
+  assert.equal(fresh().thoughts, null, "none wait in a new story");
+  const thoughts = { text: "I can't stop thinking about the bell.", at: AT };
+  assert.deepEqual(saved({ ...fresh(), thoughts }).thoughts, thoughts);
+  const read = (value: unknown) => normalizeState({ lis: { [KAI]: {} }, thoughts: value }).thoughts;
+  assert.equal(read({ text: "x".repeat(THOUGHTS_MAX), at: AT })?.text.length, THOUGHTS_MAX, "the longest kept whole");
+  assert.deepEqual(read({ ...thoughts, extra: true }), thoughts, "an unknown field is dropped");
+  for (const value of [
+    { text: "x".repeat(THOUGHTS_MAX + 1), at: AT },
+    { text: "", at: AT },
+    { text: 7, at: AT },
+    { text: "Hello." },
+    "Hello.",
+    [thoughts],
+    null,
+  ]) {
+    assert.equal(read(value), null, JSON.stringify(value)?.slice(0, 40));
   }
 });

@@ -3,6 +3,7 @@
 // ──────────────────────────────────────────────
 import { z } from "zod";
 import type { Player } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import { isPlayerSticker } from "../../../../../client/src/features/otome-forge/shared/stickers.js";
 import { BASE_LOOK } from "../../../../../client/src/features/otome-forge/shared/wardrobe.js";
 import {
   OUTFITS_MAX,
@@ -13,6 +14,7 @@ import {
   field,
   isRecord,
   normalizeCutouts,
+  normalizePaints,
   readFields,
   readWornOutfit,
   text,
@@ -42,14 +44,6 @@ const NoticedSchema = z.object({
   at: z.string(),
 });
 
-/** The persona's full authored story fields, as every protagonist block carries them, or "" without them. */
-export function aboutLine(player: Pick<Player, "about">): string {
-  const about = player.about?.trim();
-  return about
-    ? `Who they are (their persona): ${about}\nTreat these authored fields as the protagonist's canon; do not invent conflicting biography or permanent traits. When authoring the protagonist's dialogue, thoughts, reactions, choice-option intents/labels or performed choice selections, ground their voice, motives and behaviour in these fields. Keep choice options meaningfully distinct and preserve the player's agency; never override or rewrite an accepted choice to fit the persona.`
-    : "";
-}
-
 export function normalizePlayer(data: unknown): Player {
   const player = readFields<Player>(
     {
@@ -71,10 +65,13 @@ export function normalizePlayer(data: unknown): Player {
       cutouts: normalizeCutouts,
       wornOutfit: z.string().optional(),
       noticed: NoticedSchema.nullable(),
+      // #2044: absent until the phone first opens with images on (S/art/stickers.ts).
+      stickers: (value) => (isRecord(value) ? normalizePaints(value, isPlayerSticker) : undefined),
     },
     defaultPlayer,
     isRecord(data) ? data : undefined,
   );
+  if (!player.stickers) delete player.stickers;
   const { wornOutfit: _worn, ...rest } = player;
   const worn = readWornOutfit(player.outfits, field(data, "wornOutfit"));
   // A line about a look she no longer wears is not shown (a later wear writes a new one).

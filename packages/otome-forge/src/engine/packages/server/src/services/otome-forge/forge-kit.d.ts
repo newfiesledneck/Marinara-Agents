@@ -15,6 +15,8 @@ declare module "@forge-kit/time-zone-server.mjs" {
   export function forgeWallDate(value?: number | Date, timeZone?: string): Date;
   /** Monday 0 … Sunday 6, in the request's time zone. */
   export function forgeWeekday(value?: number | Date): number;
+  /** Milliseconds from the instant to the next local midnight (or week, or month) in the request's time zone. */
+  export function forgeResetIn(value?: number, period?: "day" | "week" | "month"): number;
 }
 
 declare module "@forge-kit/character-card-context.mjs" {
@@ -263,6 +265,11 @@ declare module "@forge-kit/story-memory.mjs" {
     query?: unknown;
     target?: unknown;
     listed?: string[];
+    /**
+     * Otome's: a prompt that carries no timeline (the Home note, Read Him, Read Me) also takes its love interest's own
+     * Character Stories as recalls (S/memory/memory.ts).
+     */
+    ownStories?: boolean;
     excludeChapterIds?: string[];
     signal?: AbortSignal;
   }
@@ -319,6 +326,87 @@ declare module "@forge-kit/story-memory.mjs" {
     window: string;
     plan: string;
     speakers: string[];
+  };
+  /** A record recall can rank: what the kit saves for a source, or one a package builds live. */
+  export interface ForgeMemoryRecord {
+    id: string;
+    kind: string;
+    key: string;
+    title: string;
+    content: string;
+    order: number;
+  }
+  /** "# Canon to date" and the recalled details, chapters first, each as `# Recalled <kind>: <title>`. */
+  export function forgeStoryMemoryText(memory?: {
+    overview?: string;
+    details?: Array<{ kind: string; title: string; content: string }>;
+  }): string;
+  /** The most relevant records, at most 3 chapters and 3 side memories, within `budgetTokens`; best first. */
+  export function rankForgeStoryMemories<R extends ForgeMemoryRecord>(
+    records: R[],
+    query: unknown,
+    options?: {
+      maxRecalls?: number;
+      maxSideRecalls?: number;
+      budgetTokens?: number;
+      estimateTokens?: (text: string) => number;
+      excludeChapterIds?: string[];
+    },
+  ): R[];
+}
+
+declare module "@forge-kit/story-memory-fit.mjs" {
+  /**
+   * Recalled memory for one prompt (GF's renderContext): the overview and the details, which the fitter leaves out
+   * lowest-ranked first, then `prefix` with its `optional` blocks (left out oldest first, only at the reply floor),
+   * then `fate`, which always stays. `text` is what the prompt carries.
+   */
+  export interface ForgeMemoryContext {
+    readonly text: string;
+    readonly overview: string;
+    readonly details: ReadonlyArray<{ kind: string; title: string; content: string }>;
+    readonly maxContext: number | null | undefined;
+    readonly prefix: string;
+    readonly fate: string;
+    readonly optional: readonly string[];
+  }
+  export function forgeMemoryContext(
+    result: {
+      overview?: string;
+      details?: Array<{ kind: string; title: string; content: string }>;
+      maxContext?: number | null;
+    },
+    options: {
+      prefix?: string;
+      fate?: string;
+      optional?: string[];
+      renderMemory: (memory: {
+        overview: string;
+        details: Array<{ kind: string; title: string; content: string }>;
+      }) => string;
+    },
+  ): ForgeMemoryContext;
+  /** The builder's messages, the first carrying every memory context found in `args` for fitForgeMemoryPrompt. */
+  export function forgeComposeMemoryPrompt<M extends { role: string; content: string }>(
+    builder: (...args: unknown[]) => M[],
+    args: unknown[],
+  ): M[];
+  export function fitForgeMemoryPrompt<M extends { role: string; content: string }>(
+    messages: M[],
+    options: {
+      maxContext: number | null | undefined;
+      maxTokens: number;
+      estimateMessages: (messages: M[]) => number;
+      safetyTokens?: number;
+      minOutputTokens?: number;
+    },
+  ): {
+    messages: M[];
+    maxTokens: number;
+    fits: boolean;
+    droppedDetails: number;
+    droppedSummaries?: number;
+    reason?: "context-unknown" | "memory-context-ambiguous" | "context-too-large";
   };
 }
 

@@ -1,5 +1,6 @@
 // ──────────────────────────────────────────────
-// Otome Forge: one run (GET /runs/:run → {view}), polled every 2 s while forging or free sprite cleanup is working
+// Otome Forge: one run (GET /runs/:run → {view}), polled every 2 s while forging, free sprite cleanup or a sticker
+// (#2044) is working
 // ──────────────────────────────────────────────
 // Polling runs while a step is running, or pending with nothing failed before it (SH/forge.ts forgeIsWorking): the
 // text steps, and a paid paint the player asked for. It stops while the world waits on a failed step's Retry (whose
@@ -11,6 +12,7 @@ import { useOtomeApi } from "../api";
 import { ACCENT_SAMPLER_VERSION, accentIsPlaceholder, castAccentFor, sampleAccent } from "../lib/accent";
 import type { RunView, SettingsInput, WorldView } from "../shared/api-types";
 import { forgeIsWorking } from "../shared/forge";
+import { memoryQueryKey } from "./use-memory";
 
 const POLL_MS = 2_000;
 
@@ -29,7 +31,10 @@ export function useRun(runKey: string | null) {
     enabled: !!runKey,
     queryFn: () => fetchRunView(otome, runKey ?? ""),
     refetchInterval: (query) =>
-      query.state.data && (query.state.data.cutoutsPending || forgeIsWorking(query.state.data.forge)) ? POLL_MS : false,
+      query.state.data &&
+      (query.state.data.cutoutsPending || query.state.data.stickersPending || forgeIsWorking(query.state.data.forge))
+        ? POLL_MS
+        : false,
   });
 }
 
@@ -89,7 +94,7 @@ export function useSampledAccents(view: RunView | undefined) {
 
 /**
  * POST /runs/:run/settings for the Settings screens. Lowering a setting never needs the 18+ gate; raising one without
- * it is refused by the server (403 age-gate), and the screen shows why.
+ * it is refused by the server (403 age-gate), and the screen shows why. A save reads the memory status again.
  */
 export function useSaveSettings(runKey: string | null) {
   const otome = useOtomeApi();
@@ -106,6 +111,8 @@ export function useSaveSettings(runKey: string | null) {
       });
       // The forge too: an image connection added here brings the cast's paint steps.
       patchRun(queryClient, runKey, (view) => ({ ...view, world: { ...view.world, ...world }, forge: world.forge }));
+      // And the story memory's status: a connection given here ends its "no connection" banner at once.
+      void queryClient.invalidateQueries({ queryKey: memoryQueryKey(runKey) });
       setStatus({ error: false, text: savedText });
       return true;
     } catch (failure) {

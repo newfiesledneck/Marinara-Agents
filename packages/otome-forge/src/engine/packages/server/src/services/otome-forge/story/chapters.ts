@@ -5,15 +5,24 @@
 // lastLead; never led counts lowest; ties by cast order), and the one with the ripest open conflict (highest
 // ripeness above 0: tension + 2 × unresolved grievances + 3 for a rupture; ties by cast order). When nobody's conflict
 // is ripe, or the ripest is also the least recent, the second candidate is the next least recent. The player picks
-// one; the planner picks the Foil.
+// one; the planner picks the Foil. #2156: a love interest whose grievance with her stands is never offered or accepted
+// as the Lead (he may still be in the chapter); in a story where every one of them holds one (only from before #2156)
+// the usual pair is offered.
 // A plan is checked before it is saved (normalizeChapterPlan): 6–9 nodes, 1–2 moments, exactly one climax node (a
 // Confrontation, or a Closer with the Lead in it: #1938) as the second-to-last or last node, the other kind after two
 // main chapters in a row ended with the same one (requiredClimax), at most two CG nodes, the Lead and the Foil each in at least one node, every love interest in chapter 1,
 // an off-screen line for each absent one, no tag for a Line, and conflict seeds that never repeat that love interest's
 // last two kinds of angst, counting the seeds planted earlier in the same plan (at most one open misunderstanding
-// each, resolved within two chapters). A failed check is the generation core's one repair turn.
+// each, resolved within two chapters). A failed check is the generation core's one repair turn. A side-with mark
+// (#2046) is kept on the first beat node with two to four love interests while one may come (sideWithOpen), and every
+// other mark is dropped without a repair turn.
+// Your thoughts… (#2127): the thoughts the player left on Home are read as the plan is written, given to it after its
+// cached part, and copied onto the chapter for its scenes (S/story/beats.ts); the write that registers the chapter lets
+// them go, unless newer ones were sent meanwhile. A plan that fails, is cancelled or refused saves nothing and keeps
+// them.
 import type { CapabilityRuntimeHost } from "@marinara-engine/shared";
 import type {
+  ArcJudgment,
   Chapter,
   ChapterDetail,
   ChapterLedger,
@@ -30,8 +39,15 @@ import type {
 import type { ClimaxKind } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
 import { LIS_MAX } from "../../../../../client/src/features/otome-forge/shared/cast.js";
 import { LIMIT_IDS, type LimitId } from "../../../../../client/src/features/otome-forge/shared/content.js";
+import { heldAgainst } from "../../../../../client/src/features/otome-forge/shared/dates.js";
 import { nextPrestige } from "../../../../../client/src/features/otome-forge/shared/economy.js";
-import { generateJson, readOrGenerate, type GenerationDeps } from "../generation.js";
+import {
+  generateJson,
+  readOrGenerate,
+  resolveConnectionId,
+  runForeground,
+  type GenerationDeps,
+} from "../generation.js";
 import { OtomeForgeError } from "../http.js";
 import {
   PROLOGUE_KEY,
@@ -50,20 +66,21 @@ import { defaultLiState, normalizeState, readRun } from "../schemas/state.js";
 import { normalizeBeat, normalizeChapter, toChapterView } from "../schemas/story.js";
 import { repairOffers, routeEntries } from "../state/stages.js";
 import type { OtomeStore } from "../store.js";
-import { withPersonaStoryAbout } from "../setup/prompts.js";
+import { withPersonaStoryAbout } from "../setup/cast.js";
 import { cancellable } from "./beats.js";
+import { hisSideOffers } from "./his-side.js";
 import { removeLoveInterest } from "./introduce.js";
-import { recallText, type StoryMemory } from "./canon.js";
+import { readBeat, recallText, type StoryMemory } from "./canon.js";
+import { chapterPlanMessages, knownRows } from "../prompts.js";
 import {
   ANGST_TYPES,
   CHAPTER_TAGS,
   ChapterPlanSchema,
   NODES_MAX,
   NODES_MIN,
-  chapterPlanMessages,
-  knownRows,
+  sideWithFits,
   type ChapterPlanReply,
-} from "./prompts.js";
+} from "./replies.js";
 
 export interface ChapterDeps extends GenerationDeps {
   runtime: GenerationDeps["runtime"] & Pick<CapabilityRuntimeHost, "resources">;
@@ -84,10 +101,17 @@ export function ripeness(liState: LiState): number {
   return liState.tension + 2 * unresolved(liState).length + (liState.rupture ? 3 : 0);
 }
 
-/** The two Lead candidates for the next main chapter, from `cast` (LI ids in cast order). */
-export function leadCandidates(state: RunState, cast: readonly LiId[]): Array<{ li: LiId; reason: LeadReason }> {
+/** #2156: who may lead the next main chapter: everyone in `cast` whose grievance with her doesn't stand, else all. */
+export function leaders(state: RunState, cast: readonly LiId[]): LiId[] {
+  const free = cast.filter((li) => !heldAgainst(state.lis[li]));
+  return free.length ? free : [...cast];
+}
+
+/** The two Lead candidates for the next main chapter, from `cast` (LI ids in cast order) as leaders() allows. */
+export function leadCandidates(state: RunState, all: readonly LiId[]): Array<{ li: LiId; reason: LeadReason }> {
   const lastLead = (li: LiId) => state.lis[li]?.lastLead ?? -1;
   const ripe = (li: LiId) => ripeness(state.lis[li] ?? defaultLiState());
+  const cast = leaders(state, all);
   const byRecency = cast
     .map((li, order) => ({ li, order }))
     .sort((a, b) => lastLead(a.li) - lastLead(b.li) || a.order - b.order)
@@ -120,6 +144,10 @@ export interface PlanContext {
   climax?: ClimaxKind;
   /** The story arc this chapter belongs to (#1980), when the run has one. */
   arc?: StoryArc | null;
+  /** #2046: this chapter may hold a side-with scene (sideWithOpen); without it every side-with mark is dropped. */
+  sideWith?: boolean;
+  /** The arc's judgment this chapter may close on (#2047, judgmentFor): its question and answers, never which is true. */
+  judgment?: ArcJudgment;
 }
 
 /** How many main chapters in a row may end with the same climax (the maintainer's 2, so the two alternate often). */
@@ -140,6 +168,22 @@ export function requiredClimax(mains: ReadonlyArray<Pick<Chapter, "nodes">>): Cl
   return first === "closer" ? "confrontation" : "closer";
 }
 
+/** #2046: main chapters that complete between two side-with scenes, so there is one every SIDE_WITH_GAP + 1 at most. */
+export const SIDE_WITH_GAP = 3;
+
+/**
+ * Whether main chapter `number` may hold a side-with scene: SIDE_WITH_GAP main chapters have completed since the last
+ * chapter planned with one. The marker is the stored plans themselves, so nothing new is kept in the run's state. A
+ * story with none counts from before chapter 1: chapter 4 is the first that may, and a story already past it (one
+ * begun before this) may in its next chapter. Only when the planner finds a real disagreement there; it is never forced.
+ * ponytail: a planned side-with scene counts even when it was eased off, or declined, before its pick, so that chapter
+ * still spends the gap. Upgrade path: count only chapters whose side-with beat holds a first-play pick.
+ */
+export function sideWithOpen(mains: ReadonlyArray<Pick<Chapter, "number" | "nodes">>, number: number): boolean {
+  const last = mains.filter((chapter) => chapter.nodes.some((node) => node.sideWith)).at(-1)?.number ?? 0;
+  return number - last > SIDE_WITH_GAP;
+}
+
 /** A love interest named by id or, failing that, by exact name (case-insensitive). */
 export function resolveLi(units: PlanContext["units"], value: unknown): LiId | null {
   const key = typeof value === "string" ? value.trim() : "";
@@ -154,14 +198,21 @@ export const clean = (value: unknown, max = 4000) => (typeof value === "string" 
 
 export type PlannedChapter = Pick<Chapter, "title" | "tags" | "foil" | "summary" | "nodes" | "ledger">;
 
-/** The reply's nodes in the chapter's shape: casts resolved to ids, and `resolves` kept only for grievances still owed. */
+/**
+ * The reply's nodes in the chapter's shape: casts resolved to ids, and `resolves` kept only for grievances still owed,
+ * never his grievance with her (#2156: only his repair clears it, and normalizeRepairPlan gives its last node that).
+ */
 export function planNodes(
   reply: Pick<ChapterPlanReply, "nodes">,
   context: Pick<PlanContext, "units" | "state">,
 ): ChapterNode[] {
   const { units, state } = context;
   const grievanceIds = new Set(
-    units.flatMap((unit) => unresolved(state.lis[unit.id] ?? defaultLiState()).map((item) => item.id)),
+    units.flatMap((unit) => {
+      const liState = state.lis[unit.id] ?? defaultLiState();
+      const held = heldAgainst(liState) ? liState.rupture?.grievanceId : undefined;
+      return unresolved(liState).flatMap((item) => (item.id === held ? [] : [item.id]));
+    }),
   );
   return reply.nodes.map((raw, i) => {
     const cast = [...new Set(raw.cast.map((value) => resolveLi(units, value)).filter((li): li is LiId => !!li))];
@@ -210,7 +261,7 @@ export function planLedger(
     const line = clean(row.line, 600);
     if (li && line) ledger.relationship.push({ li, line });
   }
-  // Only the conflicts the planner was shown (prompts.ts knownRows): one from another love interest's own chapter is
+  // Only the conflicts the planner was shown (S/prompts.ts knownRows): one from another love interest's own chapter is
   // neither escalated, resolved nor owed here.
   const openConflicts = knownRows(state.ledgers.conflicts, knows).filter((row) => row.status === "open");
   const resolved = new Set<string>();
@@ -330,6 +381,17 @@ export function normalizeChapterPlan(reply: ChapterPlanReply, context: PlanConte
     if (reply.eventNode !== climax.i) return "this is the arc's last chapter: set eventNode to the climax node's index";
     climax.arcEvent = true;
   }
+  // #2046: one side-with scene at most, on the first marked node it fits, and only while one may come. Any other mark
+  // is dropped, never repaired, so the scene is never forced.
+  const side = context.sideWith
+    ? nodes.find((node) => reply.nodes[node.i]?.sideWith === true && sideWithFits(node, units))
+    : undefined;
+  if (side) side.sideWith = true;
+  // #2047: the last node may close on the arc's judgment, unless it is the climax: a stance game holds no big choice.
+  const final = nodes.at(-1)!;
+  if (context.judgment && final.kind !== "confrontation" && final.kind !== "closer") {
+    final.judgment = { question: context.judgment.question, answers: [...context.judgment.answers] };
+  }
   const tags = planTags(reply, context.world);
   if (typeof tags === "string") return tags;
   const ledger = planLedger(reply, context, present, { main: true, idPrefix: `c${number}`, knows: [context.lead] });
@@ -347,6 +409,35 @@ async function mainChapters(store: OtomeStore, runId: string): Promise<Chapter[]
     .sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
 }
 
+/**
+ * The arc's judgment (#2047) main chapter `number` may close on: only in a chapter the arc planner listed, and only while
+ * no earlier chapter of the arc whose last node carried it ended on a picked big choice. Every earlier chapter is
+ * complete when the next is planned (nextMain), so its canon is settled.
+ */
+export async function judgmentFor(
+  store: Pick<OtomeStore, "readDoc">,
+  runId: string,
+  arc: StoryArc,
+  mains: readonly Chapter[],
+  number: number,
+): Promise<ArcJudgment | null> {
+  const judgment = arc.judgment;
+  if (!judgment?.chapters.includes(number)) return null;
+  // ponytail: any big choice picked on a last node that carried the judgment spends it, because a beat does not record
+  // which kind of big choice it was; that keeps it to once per arc and errs toward offering it less. Upgrade path: the
+  // narrator tags its judgment choice and the beat keeps the tag.
+  for (const chapter of mains) {
+    if ((chapter.number ?? 0) < arc.from || !chapter.nodes.at(-1)?.judgment) continue;
+    const beat = await readBeat(store, runId, chapter.key, chapter.nodes.length - 1);
+    const cut = beat?.easedOff?.at ?? Infinity;
+    const picked = beat?.choices.some(
+      (choice) => choice.kind === "big" && choice.at <= cut && !!beat.choiceCanon[choice.id],
+    );
+    if (picked) return null;
+  }
+  return { question: judgment.question, answers: judgment.answers };
+}
+
 /** The number the next main chapter takes, and whether the player may start it (the latest one is done). */
 function nextMain(chapters: readonly Chapter[], state: RunState): { number: number; open: boolean } {
   const latest = chapters.at(-1);
@@ -356,7 +447,8 @@ function nextMain(chapters: readonly Chapter[], state: RunState): { number: numb
 
 /**
  * Plans the next main chapter with `lead` (POST /chapters/next). Idempotent: the chapter that number already has is
- * returned as it is. 409 `conflict` while the latest chapter is unfinished, 404 for a love interest not in the run.
+ * returned as it is. 409 `conflict` while the latest chapter is unfinished, 404 for a love interest not in the run,
+ * and 409 `locked` for one leaders() refuses (#2156).
  */
 export async function planNextChapter(
   deps: ChapterDeps,
@@ -369,6 +461,9 @@ export async function planNextChapter(
   if (run.world.forge.phase !== "ready") throw new OtomeForgeError(409, "The world is still being forged.", "conflict");
   const cast = Object.keys(run.state.lis).filter((li) => run.units.some((unit) => unit.id === li && unit.bible));
   if (!cast.includes(lead)) throw notFound("love interest");
+  if (!leaders(run.state, cast).includes(lead)) {
+    throw new OtomeForgeError(409, "They need space, and can't lead a chapter until you make it right.", "locked");
+  }
   const mains = await mainChapters(deps.store, runId);
   const { number, open } = nextMain(mains, run.state);
   const key = mainChapterKey(number);
@@ -381,16 +476,24 @@ export async function planNextChapter(
     const units = cast.map((li) => run.units.find((unit) => unit.id === li)!);
     // ponytail: recalls for the Lead only, since the planner picks the Foil (plan M2a "Recall": cast [lead, foil]).
     // The Lead's own route and repair chapters reach the plan; the Foil's and everyone else's never do, in recall
-    // (S/story/canon.ts mayKnow) or in the ledgers (prompts.ts knownTo). Upgrade path: a second recall for the Foil
-    // after the plan names them, or keep [lead] so another love interest's private canon never reaches the node guides.
+    // (S/story/canon.ts mayKnow) or in the ledgers (S/prompts.ts knownTo), but for the last Character Story, whoever's
+    // it is, titled private between the protagonist and its love interest (#2126, `lastStory`). Upgrade path: a
+    // second recall for the Foil after the plan names them, or keep [lead] so another love interest's private canon
+    // never reaches the node guides.
     const memory = await recallText(deps, runId, {
       job: "structured",
       cast: [lead],
+      continues: "main",
+      // The recalls follow the Lead, so they go after the story context the chapter's scenes share (#2066, #2091).
+      cached: {},
+      // As every scene of the chapter is, so the story context stays theirs (S/story/beats.ts generateBeat).
+      lastStory: true,
       query: { plan: units.find((unit) => unit.id === lead)?.bible?.want ?? "", speakers: units.map((u) => u.name) },
       signal,
       debugMode,
     });
     const climax = requiredClimax(mains);
+    const sideWith = sideWithOpen(mains, number);
     // #1980: the arc this chapter belongs to, planned right here when the run has none covering it (the first arc, or
     // the one after a finished one). Planned inline, never through a nested readOrGenerate: that would queue behind
     // this task on the run's serial lane and hang.
@@ -402,6 +505,16 @@ export async function planNextChapter(
     if (!covering && latest && nextMain(mains, run.state).number > latest.endsAt) {
       throw new OtomeForgeError(409, "Choose how the story goes on.", "conflict");
     }
+    const arcMemory = covering
+      ? null
+      : await recallText(deps, runId, {
+          job: "structured",
+          cast: [],
+          continues: "main",
+          query: { plan: run.player.goal ?? "", speakers: units.map((unit) => unit.name) },
+          signal,
+          debugMode,
+        });
     const arc: StoryArc =
       covering ??
       (await planArc(
@@ -412,20 +525,17 @@ export async function planNextChapter(
           player: await withPersonaStoryAbout(deps.runtime, run.player),
           units,
           state: run.state,
-          memory: await recallText(deps, runId, {
-            job: "structured",
-            cast: [],
-            query: { plan: run.player.goal ?? "", speakers: units.map((unit) => unit.name) },
-            signal,
-            debugMode,
-          }),
+          memory: arcMemory!.text,
           previous: arcs,
           chapters: mains,
           number: arcs.length + 1,
           from: number,
         },
-        { debugMode, ...(signal ? { signal } : {}) },
+        { debugMode, ...(signal ? { signal } : {}), memory: arcMemory! },
       ));
+    const judgment = await judgmentFor(deps.store, runId, arc, mains, number);
+    // #2127: the thoughts waiting now, after the arc's plan: `run.state` was read before this task was queued.
+    const thoughts = (await deps.store.readDoc(stateId(runId), normalizeState))?.thoughts ?? null;
     const context: PlanContext = {
       units,
       state: run.state,
@@ -433,7 +543,9 @@ export async function planNextChapter(
       number,
       lead,
       arc,
+      sideWith,
       ...(climax ? { climax } : {}),
+      ...(judgment ? { judgment } : {}),
     };
     const { value, connectionId } = await generateJson(deps, {
       runId,
@@ -446,17 +558,23 @@ export async function planNextChapter(
         state: run.state,
         number,
         lead,
-        memory,
+        memory: memory.text,
+        recalls: memory.recalls?.text ?? "",
         climax,
         lastClimax: climaxOfChapter(mains.at(-1)),
         arc,
+        sideWith,
+        judgment: !!judgment,
+        thoughts: thoughts?.text ?? "",
+        // The scenes read the story context it caches only on the same connection (#2091).
+        sharesCache: resolveConnectionId(run.world, "structured") === resolveConnectionId(run.world, "narration"),
       }),
+      memory,
       schema: ChapterPlanSchema,
       normalize: (reply) => {
         const plan = normalizeChapterPlan(reply, context);
         return typeof plan === "string" ? plan : reply;
       },
-      temperature: 0.8,
       maxTokens: 10000,
       debugMode,
       lane: "foreground",
@@ -473,25 +591,34 @@ export async function planNextChapter(
       ...plan,
       plannedAt: new Date().toISOString(),
       connectionId,
+      ...(thoughts ? { thoughts: thoughts.text } : {}),
     };
     const saved = await deps.store.mutateDoc(
       runDocTarget("chapter", chapterId(runId, key)),
       normalizeChapter,
       (current) => current ?? chapter,
     );
-    await deps.store.updateDoc(runDocTarget("state", stateId(runId)), normalizeState, (state) =>
-      state.chapters[key]
-        ? state
-        : { ...state, chapters: { ...state.chapters, [key]: { beatsRead: 0, completed: null, applied: [] } } },
-    );
+    // ponytail: the thoughts are let go only here, after the chapter is saved, so a state write that gives up on a
+    // conflict (409 after its retries) leaves them waiting for the following chapter too. Ceiling: a rare conflict.
+    // Upgrade path: let them go, by their time, wherever a saved main chapter that carries them is read back.
+    await deps.store.updateDoc(runDocTarget("state", stateId(runId)), normalizeState, (state) => {
+      const chapters = state.chapters[key]
+        ? state.chapters
+        : { ...state.chapters, [key]: { beatsRead: 0, completed: null, applied: [] } };
+      // The ones this plan read, by their time: thoughts sent while it was written wait for the next chapter.
+      const used = !!thoughts && state.thoughts?.at === thoughts.at;
+      return chapters === state.chapters && !used ? state : { ...state, chapters, ...(used ? { thoughts: null } : {}) };
+    });
     return saved ?? chapter;
   });
 }
 
 /**
  * POST /runs/:run/arcs {choice} (#1983 M2): plan the arc that follows a finished one, as the player asked. One document
- * is written and nothing else, so a lost request cannot half-apply; a repeat call returns the arc already there
- * (planArc re-reads inside the run's queue). 409 while the current arc is unfinished or a next arc already exists.
+ * is written and nothing else, so a lost request cannot half-apply. The gates, the newcomer's arrival and the plan are
+ * one task in the run's queue: a repeat call made while the first plans (another tab, a tap after coming back to Story)
+ * waits, then gets the 409 without a model call or a second newcomer. 409 while the current arc is unfinished or a next
+ * arc already exists.
  */
 export async function startArc(
   deps: ChapterDeps,
@@ -510,73 +637,82 @@ export async function startArc(
     arrive?: () => Promise<{ id: LiId; name: string }>;
   },
 ): Promise<StoryArc> {
-  const run = await readRun(deps.store, runId);
-  if (!run) throw notFound("Otome Forge run");
-  if (run.world.forge.phase !== "ready") throw new OtomeForgeError(409, "The world is still being forged.", "conflict");
-  const arcs = await listArcs(deps.store, runId);
-  const latest = arcs.at(-1);
-  if (!latest) throw new OtomeForgeError(409, "This story has no arc yet: plan a chapter first.", "conflict");
-  const mains = await mainChapters(deps.store, runId);
-  if (arcRead(latest, mains, run.state) < latest.plan.length) {
-    throw new OtomeForgeError(409, "Finish the current arc before choosing the next one.", "conflict");
-  }
-  if (arcs.some((arc) => arc.number === latest.number + 1)) {
-    throw new OtomeForgeError(409, "The next arc is already planned.", "conflict");
-  }
-  if (choice === "newcomer" && !newcomer && !arrive) {
-    throw new OtomeForgeError(400, "Say who arrives, or choose another way on.", "bad-request");
-  }
-  const arriving = newcomer ?? (arrive ? await arrive() : undefined);
-  // The newcomer is written before the arc, so a plan that fails, is declined or is cancelled takes them back: nobody
-  // stays in the cast that no arc introduces (#1985 review). A rollback never hides the original failure.
-  const rollback = async () => {
-    if (!arriving || newcomer) return;
-    await removeLoveInterest(deps, runId, arriving.id).catch(() => undefined);
-  };
-  const cast = Object.keys(run.state.lis).filter((li) => run.units.some((unit) => unit.id === li && unit.bible));
-  const units = cast.map((li) => run.units.find((unit) => unit.id === li)!);
-  const from = mains.at(-1) ? (mains.at(-1)!.number ?? mains.length) + 1 : 1;
-  try {
-    return await cancellable(deps, runId, async (stop) =>
-      planArc(
-        deps,
-        runId,
-        {
-          world: run.world,
-          player: await withPersonaStoryAbout(deps.runtime, run.player),
-          units,
-          state: run.state,
-          memory: await recallText(deps, runId, {
-            job: "structured",
-            cast: [],
-            query: { plan: run.player.goal ?? "", speakers: units.map((unit) => unit.name) },
-            signal: stop,
-            debugMode,
-          }),
-          previous: arcs,
-          chapters: mains,
-          number: latest.number + 1,
-          from,
-          choice,
-          ...(arriving && choice === "newcomer" ? { newcomer: arriving } : {}),
-        },
-        { debugMode, signal: stop },
-      ),
-    );
-  } catch (error) {
-    await rollback();
-    throw error;
-  }
+  return runForeground(runId, async () => {
+    const run = await readRun(deps.store, runId);
+    if (!run) throw notFound("Otome Forge run");
+    if (run.world.forge.phase !== "ready")
+      throw new OtomeForgeError(409, "The world is still being forged.", "conflict");
+    const arcs = await listArcs(deps.store, runId);
+    const latest = arcs.at(-1);
+    if (!latest) throw new OtomeForgeError(409, "This story has no arc yet: plan a chapter first.", "conflict");
+    const mains = await mainChapters(deps.store, runId);
+    if (arcRead(latest, mains, run.state) < latest.plan.length) {
+      throw new OtomeForgeError(409, "Finish the current arc before choosing the next one.", "conflict");
+    }
+    if (arcs.some((arc) => arc.number === latest.number + 1)) {
+      throw new OtomeForgeError(409, "The next arc is already planned.", "conflict");
+    }
+    if (choice === "newcomer" && !newcomer && !arrive) {
+      throw new OtomeForgeError(400, "Say who arrives, or choose another way on.", "bad-request");
+    }
+    const arriving = newcomer ?? (arrive ? await arrive() : undefined);
+    // The newcomer is written before the arc, so a plan that fails, is declined or is cancelled takes them back: nobody
+    // stays in the cast that no arc introduces (#1985 review). Their paid bible is kept for the same arrival's next
+    // attempt. A rollback never hides the original failure.
+    const rollback = async () => {
+      if (!arriving || newcomer) return;
+      await removeLoveInterest(deps, runId, arriving.id).catch(() => undefined);
+    };
+    const cast = Object.keys(run.state.lis).filter((li) => run.units.some((unit) => unit.id === li && unit.bible));
+    const units = cast.map((li) => run.units.find((unit) => unit.id === li)!);
+    const from = mains.at(-1) ? (mains.at(-1)!.number ?? mains.length) + 1 : 1;
+    try {
+      return await cancellable(deps, runId, async (stop) => {
+        const memory = await recallText(deps, runId, {
+          job: "structured",
+          cast: [],
+          continues: "main",
+          query: { plan: run.player.goal ?? "", speakers: units.map((unit) => unit.name) },
+          signal: stop,
+          debugMode,
+        });
+        return planArc(
+          deps,
+          runId,
+          {
+            world: run.world,
+            player: await withPersonaStoryAbout(deps.runtime, run.player),
+            units,
+            state: run.state,
+            memory: memory.text,
+            previous: arcs,
+            chapters: mains,
+            number: latest.number + 1,
+            from,
+            choice,
+            ...(arriving && choice === "newcomer" ? { newcomer: arriving } : {}),
+          },
+          { debugMode, signal: stop, memory },
+        );
+      });
+    } catch (error) {
+      await rollback();
+      throw error;
+    }
+  });
 }
 
 // ── The story view ──
 
 /**
  * GET /runs/:run/story: every chapter planned so far but dates, the next main chapter's candidates when it may start,
- * each love interest's stage and next route chapter, and a repair for each rupture.
+ * each love interest's stage and next route chapter, a repair for each rupture, and each side waiting (#2155).
  */
 /** The prologue first, then main chapters by number, then every other chapter. */
 const storyOrder = (key: string) => (key === PROLOGUE_KEY ? 0 : (mainChapterNumber(key) ?? Infinity));
+/** The Story screen's chapter order: storyOrder, then the order planned. The Album's chapter themes keep it too. */
+export const byStoryOrder = (a: Chapter, b: Chapter) =>
+  storyOrder(a.key) - storyOrder(b.key) || a.plannedAt.localeCompare(b.plannedAt);
 
 export async function storyView(deps: { store: OtomeStore }, runId: string): Promise<StoryView> {
   const run = await readRun(deps.store, runId);
@@ -585,7 +721,7 @@ export async function storyView(deps: { store: OtomeStore }, runId: string): Pro
   const chapters = (await deps.store.listRun("chapter", runId))
     .map((record) => normalizeChapter(record.data))
     .filter((chapter): chapter is Chapter => !!chapter && chapter.kind !== "date")
-    .sort((a, b) => storyOrder(a.key) - storyOrder(b.key) || a.plannedAt.localeCompare(b.plannedAt));
+    .sort(byStoryOrder);
   const arcs = await listArcs(deps.store, runId);
   const entries: StoryChapterEntry[] = chapters.map((chapter) => {
     const progress = run.state.chapters[chapter.key];
@@ -636,6 +772,8 @@ export async function storyView(deps: { store: OtomeStore }, runId: string): Pro
           return n ? [{ li, key: prestigeKey(li, n) }] : [];
         })
       : [],
+    // #2155: each love interest's side waiting in Routes, or being read (S/story/his-side.ts).
+    hisSides: ready ? hisSideOffers(chapters, run.state, cast) : [],
   };
 }
 

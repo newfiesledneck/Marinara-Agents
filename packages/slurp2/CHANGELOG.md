@@ -1,5 +1,19 @@
 # Slurp release notes
 
+## 0.4.18 — 2026-11-05
+
+- Added: Backstage > Live shows has a Tip goals group. "Goal size" makes the room's goals and menu prices smaller or bigger. "Own goals" sets up to three goals for one Creator: an amount and what happens. They replace the made goals in that Creator's next shows, and the Creator acts out the text when the room hits the goal. Viewers cannot tip for an own goal's reward directly.
+
+## 0.4.17 — 2026-11-02
+
+- Fixed: refreshing a Creator's conversation schedule read only the card description and personality. An Engine card split (Engine #8543) moves scenario and backstory into their own fields, so the schedule lost them. It now reads description, scenario and backstory (top-level or `extensions.backstory`). The canon reading, picture look and flavour brief already read the split fields.
+
+## 0.4.16 — 2026-11-02
+
+- Fixed: Pulse kept a made first post as "Creating first post… running" for a day. The server reports a made first post as `generated`, and Pulse now counts that as done.
+- Fixed: a second Creator in a picture lost their reference picture when the posting Creator had none of their own (no linked card, or no picture). Their picture now goes along when avatar references are on and the provider takes them.
+- Fixed: Professor Mari's page asked for attention whenever the Engine updated her built-in card, and the player could not act on it. Her page now follows her card without a "card changed" or appearance review flag.
+
 ## 0.4.15 — 2026-11-01
 
 - Slurp can tell Long-Term Memory what is true about your Creators, so chats know it too. A new "Tell Long-Term Memory about your Creators" switch in Backstage (Engine link) is off by default. From then on, facts you write or promote, couples and friendships between Creators, and how storylines end become memories. Nothing from fans or DM threads is sent. Turning it on asks whether to turn on Long-Term Memory's "Other Agents can add memories" when that is off.

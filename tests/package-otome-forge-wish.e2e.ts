@@ -6,9 +6,13 @@
 // toggle moves between a love interest's looks and mine, wears a look at home (his line about it replaces the
 // "noticing" hint in one live region) and shows one of mine; the Album opens a CG large and saves it through the
 // Engine. With the Engine's prompt review on, an open on the 5★ reveal hands focus to Continue, and the review a wish's
-// results open is the dialog on top, and it paints.
+// results open is the dialog on top, and it paints. The Shop tab (#2128) sells a gift once per tap, and a figurine
+// whose scene it then offers; one it cannot afford says how much Starlight is missing. A figurine's Buy says it paints
+// 1 image (#2138), after a tap of Paint it under prompt review; once bought it shows Painting… while the Shop reads
+// itself again, and a failed paint offers Try again, held in place while its tap runs, so a double tap paints it once
+// and hands focus back to Play the scene; the painted figurine shows only cut out of its chroma matte.
 // Run: node scripts/run-package-browser-tests.mjs otome-forge tests/package-otome-forge-wish.e2e.ts
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "./fixtures/package-browser.ts";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { crc32, deflateSync } from "node:zlib";
@@ -280,8 +284,29 @@ interface WishStub {
   view: Json;
   wish: Json;
   pullResponse: Json;
+  /** GET /runs/:run/shop (#2128). */
+  shop: Json;
+  /** #2138: Shop reads since a figurine was bought; its paint is pending for the first, failed from the second. */
+  shopReads: number;
   /** Answer the first pull with a dropped connection (the server applied it). */
   dropFirst?: boolean;
+}
+
+/** The Shop under SFW Heat: three gifts, and each love interest's figurine, neither bought nor painted. */
+function shopView(starlight: number): Json {
+  return {
+    starlight,
+    gifts: [
+      { id: "flowers", price: 200, owned: 0 },
+      { id: "chocolates", price: 300, owned: 0 },
+      { id: "wine", price: 600, owned: 0 },
+    ],
+    figurines: [
+      { li: ILVAR, name: "Ilvar Thorne", accent: "#9DB8F0", art: null, cutting: false, owned: false },
+      { li: CASSIAN, name: "Cassian", accent: "#E6C98A", art: null, cutting: false, owned: false },
+    ],
+    figurineCost: 5000,
+  };
 }
 
 function wishView(starlight: number): Json {
@@ -434,8 +459,18 @@ async function stubRoutes(page: Page, answer: (call: Call) => Answer | undefined
 }
 
 function wishStub(starlight = 2000): { stub: WishStub; answer: (call: Call) => Answer | undefined } {
-  const stub: WishStub = { view: runView(starlight), wish: wishView(starlight), pullResponse: {} };
+  const stub: WishStub = {
+    view: runView(starlight),
+    wish: wishView(starlight),
+    pullResponse: {},
+    shop: shopView(starlight),
+    shopReads: 0,
+  };
   const seen = new Set<string>();
+  const figurine = (li: string, change: Json) => ({
+    ...stub.shop,
+    figurines: stub.shop.figurines.map((entry: Json) => (entry.li === li ? { ...entry, ...change } : entry)),
+  });
   const answer = (call: Call): Answer | undefined => {
     const path = call.path.replace("/api/otome-forge", "");
     if (path === "/index" || path === "/index/opened") return { status: 200, json: { index: index() } };
@@ -464,6 +499,50 @@ function wishStub(starlight = 2000): { stub: WishStub; answer: (call: Call) => A
       // The first answer of a dropped wish is lost on the way back, though the server applied it.
       if (stub.dropFirst && first) return { status: 0, abort: true };
       return { status: 200, json: stub.pullResponse, delay: 150 };
+    }
+    if (path === `/runs/${RUN}/shop` && call.method === "GET") {
+      // A bought figurine paints in the background: the first read after the purchase finds it painting, the next
+      // (the Shop's own poll) finds that it failed.
+      const painting = stub.shop.figurines.find((entry: Json) => entry.art?.state === "pending");
+      if (painting && ++stub.shopReads > 1) {
+        stub.shop = figurine(painting.li, { art: { state: "failed", at: now(), error: "The provider refused." } });
+      }
+      return { status: 200, json: stub.shop };
+    }
+    const tapped = /^\/runs\/[^/]+\/shop\/figurines\/([^/]+)\/art$/u.exec(path)?.[1];
+    if (tapped) {
+      // Painted on a green matte, as figurinePrompt asks; the server's cut-out is not made yet.
+      const painted = ready(RAW_LOOK);
+      stub.shop = figurine(decodeURIComponent(tapped), { art: painted, url: painted.url, cutting: true });
+      return { status: 200, json: { art: painted }, delay: 500 };
+    }
+    const bought = /^\/runs\/[^/]+\/shop\/figurines\/([^/]+)$/u.exec(path)?.[1];
+    if (path === `/runs/${RUN}/shop/gifts` || bought) {
+      // The server's one write per request id: charged once, and a request sent again is answered as before.
+      const id = String(call.body?.requestId ?? "");
+      const li = bought ? decodeURIComponent(bought) : null;
+      const price = li
+        ? stub.shop.figurineCost
+        : stub.shop.gifts.find((gift: Json) => gift.id === call.body?.gift).price;
+      if (!seen.has(id)) {
+        seen.add(id);
+        const starlight = stub.shop.starlight - price;
+        stub.view.starlight = starlight;
+        stub.shop = {
+          ...stub.shop,
+          starlight,
+          gifts: stub.shop.gifts.map((gift: Json) =>
+            gift.id === call.body?.gift ? { ...gift, owned: gift.owned + 1 } : gift,
+          ),
+          figurines: stub.shop.figurines.map((entry: Json) =>
+            entry.li === li
+              ? { ...entry, owned: true, art: { state: "pending", at: now() }, story: { key: `story-figurine-${li}` } }
+              : entry,
+          ),
+        };
+      }
+      const story = li ? { story: { key: `story-figurine-${li}` } } : {};
+      return { status: 200, json: { starlight: stub.shop.starlight, shop: stub.shop, ...story }, delay: 150 };
     }
     if (/\/items\/[^/]+\/open$/u.test(path)) {
       const id = decodeURIComponent(path.split("/").at(-2)!);
@@ -947,6 +1026,88 @@ test("Otome Forge Wish: at reduced motion the keyboard alone opens the letter, a
   await expect(banner.getByRole("button", { name: /^Wish ×1,/u })).toBeFocused();
 });
 
+test("Otome Hearth Shop: a gift is bought once per tap, a figurine offers its scene, and one out of reach says why", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const calls: Call[] = [];
+  const { answer } = wishStub(5600);
+  const cleanup = await stubLookCleanup(page);
+  await stubRoutes(page, answer, calls);
+  const root = await openOtome(page);
+  await openDock(root, "Wish");
+  await root.getByRole("tab", { name: "Shop", exact: true }).click();
+  const gifts = root.getByRole("list", { name: "Gifts" });
+  await expect(gifts.getByRole("listitem")).toHaveCount(3);
+  await expect(gifts.getByText("Aphrodisiac")).toHaveCount(0);
+  // Nothing about banners shows in the Shop.
+  await expect(root.getByRole("button", { name: /^Wish ×1/u })).toHaveCount(0);
+
+  const chocolates = gifts.getByRole("button", { name: "Buy Box of chocolates for 300 Starlight" });
+  await chocolates.dblclick();
+  await expect(starlight(root)).toContainText("5,300");
+  await expect(gifts.getByText("Box of chocolates: 1 owned")).toBeAttached();
+  await expect(gifts.getByText("×1")).toBeVisible();
+  expect(posts(calls, "/shop/gifts").map((call) => call.body)).toEqual([
+    expect.objectContaining({ gift: "chocolates", requestId: expect.stringMatching(/^w-/u) }),
+  ]);
+
+  const figurines = root.getByRole("list", { name: "Figurines" });
+  const ilvar = figurines.getByRole("listitem").filter({ hasText: "Ilvar Thorne figurine" });
+  // With an image connection, a figurine's Buy says what it paints (by itself: neither Ask nor prompt review is on).
+  await expect(ilvar.locator(".of-cost")).toHaveText("Paints 1 image");
+  await figurines.getByRole("button", { name: "Buy Ilvar Thorne figurine for 5,000 Starlight" }).click();
+  await expect(starlight(root)).toHaveText(/^Starlight\s*300$/u);
+  // The Buy button it was bought from is gone: keyboard focus moves to the scene it unlocked, not to the page.
+  const play = figurines.getByRole("button", { name: "Play the scene with Ilvar Thorne" });
+  await expect(play).toBeFocused();
+  await expect(root.getByText("Ilvar Thorne figurine is yours.")).toBeVisible();
+  await expect(ilvar.getByRole("status")).toHaveText("Painting…");
+  const cassian = figurines.getByRole("button", { name: "Buy Cassian figurine for 5,000 Starlight" });
+  await expect(cassian).toHaveAttribute("aria-disabled", "true");
+  await expect(cassian).toHaveAccessibleDescription("4,700 more Starlight");
+  await cassian.click({ force: true });
+  expect(posts(calls, `/shop/figurines/${CASSIAN}`)).toHaveLength(0);
+  expect(posts(calls, `/shop/figurines/${ILVAR}`)).toHaveLength(1);
+
+  // The Shop reads itself again while it paints; this paint failed, and Try again paints it once, on the tap.
+  const retry = ilvar.getByRole("button", { name: "Try painting Ilvar Thorne figurine again" });
+  await expect(retry).toBeVisible({ timeout: 10_000 });
+  await expect(ilvar.getByText("Paints 1 image")).toBeVisible();
+  expect(posts(calls, `/shop/figurines/${ILVAR}/art`)).toHaveLength(0);
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  // The tap holds Try again in place, aria-disabled, so a second press (a double tap, a key repeat) does nothing and
+  // never reaches Play the scene.
+  await expect(retry).toHaveAttribute("aria-disabled", "true");
+  await expect(retry).toBeFocused();
+  await page.keyboard.press("Enter");
+  // The painted image is shown only once its chroma matte is cleaned off for display, never as it was painted.
+  await expect(ilvar.locator("img.of-figurine")).toHaveAttribute("src", CLEAN_LOOK);
+  await expect(root.locator(`img[src="${RAW_LOOK}"]`)).toHaveCount(0);
+  expect(cleanup.length).toBeGreaterThan(0);
+  await expect(retry).toHaveCount(0);
+  await expect(play).toBeFocused();
+  expect(posts(calls, `/shop/figurines/${ILVAR}/art`)).toHaveLength(1);
+  // Still in the Shop: the second press did not open the figurine's scene in the reader.
+  await expect(root.getByRole("heading", { level: 1, name: "Wish", exact: true })).toBeVisible();
+});
+
+test("Otome Hearth Shop: with prompt review on, a figurine's Buy says its paint waits for Paint it", async ({
+  page,
+}) => {
+  const { answer } = wishStub(5600);
+  await stubRoutes(page, answer, []);
+  const root = await openOtome(page, { review: true });
+  await openDock(root, "Wish");
+  await root.getByRole("tab", { name: "Shop", exact: true }).click();
+  const ilvar = root
+    .getByRole("list", { name: "Figurines" })
+    .getByRole("listitem")
+    .filter({ hasText: "Ilvar Thorne figurine" });
+  await expect(ilvar.locator(".of-cost")).toHaveText("Paints 1 image · after you tap Paint it");
+});
+
 test("Otome Forge Wardrobe: the toggle moves between their looks and mine, wears one at home and shows one of mine", async ({
   page,
 }) => {
@@ -974,7 +1135,7 @@ test("Otome Forge Wardrobe: the toggle moves between their looks and mine, wears
           status: 200,
           json: {
             line: "Blue suits you. Don't make me say it twice.",
-            grants: [{ source: "show-him", li: ILVAR, affection: 20 }],
+            grants: [{ source: "show-him", li: ILVAR, affection: 5 }],
           },
         };
       }
@@ -1018,7 +1179,7 @@ test("Otome Forge Wardrobe: the toggle moves between their looks and mine, wears
   await dialog.getByRole("button", { name: "Show Ilvar Thorne" }).click();
   await expect(page.getByRole("dialog", { name: "Ilvar Thorne sees Starlit Gown" })).toBeVisible();
   await expect(page.getByText("“Blue suits you. Don't make me say it twice.”")).toBeFocused();
-  await expect(page.getByText("+20 affection with Ilvar Thorne")).toBeVisible();
+  await expect(page.getByText("+5 affection with Ilvar Thorne")).toBeVisible();
   expect(posts(calls, "/wardrobe/show").map((call) => call.body)).toEqual([
     expect.objectContaining({ li: ILVAR, look: "my-wardrobe-0-f" }),
   ]);
@@ -1143,6 +1304,184 @@ test("Otome Forge Album: a CG opens large and saves through the Engine; the Time
   await expect(page.getByRole("button", { name: "Open it" })).toBeVisible();
   await expect(page.getByRole("dialog").getByText("Paints 1 image")).toBeVisible();
   await expect(page.getByRole("dialog").getByText("Writes its story")).toHaveCount(0);
+});
+
+test("Otome Hearth Album: the Stickers tab shows hers and his cut out, saves one under its name, and paints a waiting one", async ({
+  page,
+}, testInfo) => {
+  // #2044: her five (one painted, one the built-in set), his unlocked ones, and one of his waiting for the tap.
+  const calls: Call[] = [];
+  const view = runView(2000);
+  const LAUGH = "/api/gallery/file/sticker-mira-laugh.png";
+  const SMUG = "/api/gallery/file/sticker-ilvar-smug.png";
+  const PENSIVE = "/api/gallery/file/sticker-ilvar-pensive.png";
+  for (const url of [LAUGH, SMUG, PENSIVE]) {
+    await page.route(`**${url}`, (route) => route.fulfill({ body: PNG, contentType: "image/png" }));
+  }
+  let painted = false;
+  const album = () => ({
+    ...albumView(),
+    stickers: [
+      { id: "you:laugh", owner: "you", emotion: "laugh", name: "mira_vale_laugh", url: LAUGH },
+      { id: "you:love", owner: "you", emotion: "love", name: "mira_vale_love" },
+      {
+        id: `${ILVAR}:smug`,
+        owner: ILVAR,
+        emotion: "smug",
+        name: "ilvar_thorne_smug",
+        label: "Smug",
+        level: 2,
+        url: SMUG,
+      },
+      {
+        id: `${ILVAR}:pensive`,
+        owner: ILVAR,
+        emotion: "pensive",
+        name: "ilvar_thorne_pensive",
+        label: "Pensive",
+        level: 3,
+        ...(painted ? { url: PENSIVE } : { art: { state: "waiting-consent", at: "2026-11-02T10:00:00.000Z" } }),
+      },
+    ],
+  });
+  await stubRoutes(
+    page,
+    (call) => {
+      const path = call.path.replace("/api/otome-forge", "");
+      if (path === "/index" || path === "/index/opened") return { status: 200, json: { index: index() } };
+      if (path === `/runs/${RUN}`) return { status: 200, json: { view } };
+      if (path === `/runs/${RUN}/album`) return { status: 200, json: album() };
+      if (path === `/runs/${RUN}/art/sticker`) {
+        painted = true;
+        return {
+          status: 200,
+          json: { art: { state: "ready", at: "2026-11-02T10:01:00.000Z", url: PENSIVE } },
+          delay: 300,
+        };
+      }
+      return undefined;
+    },
+    calls,
+  );
+  const reduced = testInfo.project.name.startsWith("mobile");
+  await page.emulateMedia({
+    colorScheme: reduced ? "light" : "dark",
+    reducedMotion: reduced ? "reduce" : "no-preference",
+  });
+  const root = await openOtome(page);
+  await openDock(root, "Album");
+  // By keyboard: the Stickers tab comes right after CGs.
+  const tabs = root.getByRole("tablist", { name: "Album" });
+  await tabs.getByRole("tab", { name: "CGs" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(tabs.getByRole("tab", { name: "Stickers" })).toHaveAttribute("aria-selected", "true");
+  const panel = root.getByRole("tabpanel");
+  await expect(panel.getByRole("heading", { name: "Yours" })).toBeVisible();
+  await expect(panel.getByRole("heading", { name: "Ilvar Thorne" })).toBeVisible();
+  // The built-in one has nothing to save; the painted ones open large.
+  await expect(panel.getByText("Mira Vale · In love")).toBeVisible();
+  await expect(panel.getByRole("button", { name: "View: Mira Vale · In love" })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("album-stickers.png") });
+  await panel.getByRole("button", { name: "View: Mira Vale · Laughing" }).click();
+  await expect(page.getByRole("dialog", { name: "Mira Vale · Laughing" })).toContainText("A chat sticker");
+  await page.keyboard.press("ArrowRight");
+  const viewer = page.getByRole("dialog", { name: "Ilvar Thorne · Smug" });
+  await expect(viewer.getByText("2 of 2")).toBeVisible();
+  const download = page.waitForEvent("download");
+  await viewer.getByRole("button", { name: "Save image" }).click();
+  // Saved through the Engine's image saving, under the sticker's own name.
+  expect((await download).suggestedFilename()).toBe("ilvar_thorne_smug.png");
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  // His level 3 sticker waits for the tap (Ask before painting): Paint it paints that one sticker, then it opens.
+  const paint = panel.getByRole("button", { name: "Paint it" });
+  await expect(paint).toHaveAccessibleDescription("Ilvar Thorne · Pensive");
+  await expect(panel.getByText("Paints 1 image")).toBeVisible();
+  const box = await paint.boundingBox();
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  await paint.click();
+  await expect(panel.getByRole("button", { name: "View: Ilvar Thorne · Pensive" })).toBeVisible();
+  expect(posts(calls, "/art/sticker").map((call) => call.body?.sticker)).toEqual([`${ILVAR}:pensive`]);
+  const width = page.viewportSize()!.width;
+  const overflow = await root.evaluate((element) => element.scrollWidth - element.clientWidth);
+  expect(overflow, `no sideways scroll at ${width} px`).toBeLessThanOrEqual(0);
+});
+
+// With a mouse the Album's seven tabs wrap inside the strip, whose scrollbar is hidden; a phone keeps one native swipe
+// strip. Measured before any click: Playwright would otherwise scroll an off-screen tab into view for the test.
+test("Otome Hearth Album: every tab is in reach with a mouse, and a phone keeps one swipeable strip", async ({
+  page,
+  isMobile,
+}, testInfo) => {
+  const calls: Call[] = [];
+  const { answer } = wishStub();
+  await stubRoutes(
+    page,
+    (call) => (call.path.endsWith("/album") ? { status: 200, json: albumView() } : answer(call)),
+    calls,
+  );
+  const root = await openOtome(page);
+  await openDock(root, "Album");
+  const tabs = root.getByRole("tablist", { name: "Album" });
+  const names = ["CGs", "Stickers", "Photos", "Memories", "Love Timeline", "Favourite lines", "Soundtrack", "Tells"];
+  for (const [colorScheme, look] of [
+    ["dark", "midnight"],
+    ["light", "pearl"],
+  ] as const) {
+    // At reduced motion the look changes at once, so its screenshot is the look itself, not a transition.
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await expect(root).toHaveAttribute("data-look", look);
+    const bounds = await tabs.evaluate((element) => {
+      const strip = element.getBoundingClientRect();
+      return {
+        wrap: getComputedStyle(element).flexWrap,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        tabs: [...element.querySelectorAll('[role="tab"]')].map((tab) => {
+          const box = tab.getBoundingClientRect();
+          return { left: box.left - strip.left, right: box.right - strip.right, top: box.top };
+        }),
+      };
+    });
+    await page.screenshot({ path: testInfo.outputPath(`album-tabs-${look}.png`) });
+    expect(bounds.tabs).toHaveLength(names.length);
+    if (isMobile) {
+      expect(bounds.wrap).toBe("nowrap");
+      expect(
+        Math.max(...bounds.tabs.map((tab) => tab.top)) - Math.min(...bounds.tabs.map((tab) => tab.top)),
+      ).toBeLessThanOrEqual(1);
+      expect(bounds.scrollWidth).toBeGreaterThan(bounds.clientWidth + 1);
+      const strip = (await tabs.boundingBox())!;
+      await page.mouse.move(strip.x + strip.width / 2, strip.y + strip.height / 2);
+      await page.mouse.wheel(bounds.scrollWidth, 0);
+      await expect
+        .poll(() => tabs.evaluate((element) => element.scrollWidth - element.clientWidth - element.scrollLeft))
+        .toBeLessThanOrEqual(1);
+      const last = (await tabs.getByRole("tab", { name: "Tells" }).boundingBox())!;
+      expect(last.x).toBeGreaterThanOrEqual(strip.x - 1);
+      expect(last.x + last.width).toBeLessThanOrEqual(strip.x + strip.width + 1);
+    } else {
+      expect(bounds.wrap).toBe("wrap");
+      expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.clientWidth + 1);
+      for (const tab of bounds.tabs) {
+        expect(tab.left).toBeGreaterThanOrEqual(-1);
+        expect(tab.right).toBeLessThanOrEqual(1);
+      }
+    }
+  }
+  for (const name of names) {
+    const tab = tabs.getByRole("tab", { name, exact: true });
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await expect(root.getByRole("tabpanel")).toBeVisible();
+  }
+  // The arrow keys still move along the row, wrapped or not.
+  await page.keyboard.press("ArrowRight");
+  await expect(tabs.getByRole("tab", { name: "CGs" })).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(tabs.getByRole("tab", { name: "Tells" })).toHaveAttribute("aria-selected", "true");
+  const overflow = await root.evaluate((element) => element.scrollWidth - element.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test("Otome Hearth Wish: a long 5★ premise fits a phone: the title shows whole and Continue is reachable (#1944)", async ({

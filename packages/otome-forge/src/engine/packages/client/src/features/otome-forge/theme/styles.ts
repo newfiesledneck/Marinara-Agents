@@ -4,10 +4,13 @@
 // client-entry.tsx injects it as one <style> while an Otome Forge element is on the page. The look comes from
 // `.of-root[data-look]` (tokens.ts); the stage sizes itself from the panel the Engine gives it (container queries), not
 // from the window, because the Engine may show its sidebar beside the tab. Motion is calm (400–700 ms) and all of it
-// stops under prefers-reduced-motion.
+// stops under prefers-reduced-motion or the Engine's "Reduce Ambient Animations & Effects" (reducedRules).
+import { REDUCED_EFFECTS, reducedRules } from "../lib/reduced-motion";
 import { DATE_NIGHT_RULES } from "../screens/dates/date-night-styles";
 import { READ_HIM_RULES } from "../screens/dates/ReadHim";
 import { READ_ME_RULES } from "../screens/dates/ReadMe";
+import { TAROT_RULES } from "../screens/dates/TarotNight";
+import { SHOP_RULES } from "../screens/wish/ShopPanel";
 import { fontFaceCss, FONT_STACKS } from "./fonts";
 import { LOOK_TOKENS, PALETTE, RARITY, type Look } from "./tokens";
 
@@ -118,17 +121,36 @@ ${R} .of-scene-stars {
     radial-gradient(1.4px 1.4px at 60% 74%, var(--of-star) 50%, transparent 52%);
   animation: of-twinkle 7s ease-in-out infinite alternate;
 }
-/* Two slow, soft glows drifting behind everything. */
+/* Two slow, soft glows drifting behind everything. #2141: each glow's blur is on a still ::before inside it, so it is
+   drawn once with the glow and the drift only moves the result; on the drifting glow itself the 46px blur was redone
+   every frame. The glow keeps a blur(0px), which draws nothing: with no filter on it at all, Chromium layers the
+   Engine's own header another way and its 1-px borders shift by a few shades. */
 ${R} .of-scene-glow {
-  position: absolute; width: 85%; aspect-ratio: 1; border-radius: 50%; filter: blur(46px); opacity: 0.55;
-  background: radial-gradient(circle, var(--of-glow) 0%, transparent 68%);
+  position: absolute; width: 85%; aspect-ratio: 1; opacity: 0.55; filter: blur(0px);
   inset-inline-start: -30%; top: 6%; animation: of-drift 22s ease-in-out infinite alternate;
+}
+${R} .of-scene-glow::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; filter: blur(46px);
+  background: radial-gradient(circle, var(--of-glow) 0%, transparent 68%);
 }
 ${R} .of-scene-glow + .of-scene-glow {
   inset-inline-start: auto; inset-inline-end: -34%; top: 48%; opacity: 0.4;
-  background: radial-gradient(circle, rgb(230 201 138 / 0.5) 0%, transparent 68%);
   animation-duration: 28s; animation-direction: alternate-reverse;
 }
+${R} .of-scene-glow + .of-scene-glow::before {
+  background: radial-gradient(circle, rgb(230 201 138 / 0.5) 0%, transparent 68%);
+}
+/* #2141: Home's room and the reader's scene are opaque and fill the stage, so under them the glows and stars hold still
+   instead of being drawn again every frame unseen. Paused, not stopped: they go on from where they were. A memory
+   banner takes a strip above the reader, where the scene shows, so they keep moving while one is there. */
+${R} .of-stage:has(.of-home) :is(.of-scene-glow, .of-scene-stars),
+${R} .of-stage:has(.of-reader):not(:has(.of-memory-banner)) :is(.of-scene-glow, .of-scene-stars) {
+  animation-play-state: paused;
+}
+/* Once Home has faded in (--of-fade), the scene under its room is not drawn at all: opacity 0, which leaves the layers
+   as they were (hiding them makes Chromium layer the Engine's header another way, shifting its 1-px borders). */
+${R} .of-stage:has(.of-home) .of-scene { animation: of-covered 0s calc(var(--of-fade) + 100ms) forwards; }
+@keyframes of-covered { to { opacity: 0; } }
 ${R} .of-scene-veil {
   position: absolute; inset: 0;
   background:
@@ -153,6 +175,12 @@ ${R} .of-glass--strong { background: var(--of-surface-strong); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   ${R} .of-glass { background: var(--of-surface-solid); }
 }
+/* The Engine's "Reduce Ambient Animations & Effects" drops every backdrop blur, as it does its own (each one is
+   repainted over the moving layers behind it), and glass takes the fallback's solid surface. */
+${REDUCED_EFFECTS} ${R} { --of-glass-blur: none; }
+:where(${REDUCED_EFFECTS}) ${R} .of-glass { background: var(--of-surface-solid); }
+${REDUCED_EFFECTS} ${R} .of-reveal-card,
+${REDUCED_EFFECTS} ${R} .of-dialog-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
 ${R} .of-card { border-radius: 22px; padding: 18px 18px 16px; }`;
 
 const TOPBAR_RULES = `
@@ -198,7 +226,30 @@ ${R} .of-icon-button {
   flex: none; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border-radius: 50%;
   cursor: pointer;
 }
-${R} .of-icon-button:hover { background: var(--of-surface-strong); color: var(--of-accent-text); }`;
+${R} .of-icon-button:hover { background: var(--of-surface-strong); color: var(--of-accent-text); }
+/* A failed summary (components/MemoryBanner.tsx): in the stage's flow below the top bar, or first on a full-stage
+   screen (the reader), so it pushes the screen down and covers none of its controls. Its actions go below the text
+   when the row is too narrow for both, sharing one row; the provider's words keep to two lines (Settings → Connections
+   has them whole). A Retry request that failed itself says so on a row of its own, below both. */
+${R} .of-memory-banner {
+  position: relative; z-index: 3; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin: 0 12px 6px; padding: 8px 10px 8px 12px; border-radius: 16px; border-color: var(--of-danger);
+  font-size: 0.84rem; line-height: 1.35;
+}
+${R} .of-memory-banner:first-child { margin-top: max(12px, env(safe-area-inset-top)); }
+/* First on a full-stage screen, it has taken the safe area: the reader's header below it does not take it again. */
+${R} .of-memory-banner:first-child ~ .of-screen { --of-reader-top: 6px; }
+${R} .of-memory-banner-text { flex: 1 1 15rem; min-width: 0; display: flex; align-items: flex-start; gap: 8px; }
+${R} .of-memory-banner-text svg { flex: none; margin-top: 1px; color: var(--of-danger); }
+${R} .of-memory-banner-said {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  color: var(--of-text-soft); overflow-wrap: anywhere;
+}
+${R} .of-memory-banner-actions { flex: 1 1 15rem; display: flex; gap: 6px; min-width: 0; }
+${R} .of-memory-banner-actions .of-button {
+  flex: 1 1 0; min-width: 0; min-height: 36px; padding: 4px 8px; font-size: 0.8rem; white-space: normal; line-height: 1.2;
+}
+${R} .of-memory-banner-error { flex: 1 0 100%; min-width: 0; color: var(--of-text-soft); overflow-wrap: anywhere; }`;
 
 const DOCK_RULES = `
 ${R} .of-dock {
@@ -747,17 +798,18 @@ ${R} .of-bible-list { margin: 0; padding-inline-start: 18px; }
 ${R} .of-bible-secret, ${R} .of-bible-stage {
   display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--of-surface-hover);
 }
-/* Settings. */
+/* Settings, and the tab rows Wish and the Album share (BannerTabs.tsx TabList). */
 ${R} .of-tabs {
   display: flex; gap: 4px; padding: 4px; border-radius: 18px; overflow-x: auto; scrollbar-width: none; flex: none;
 }
-/* Keep the phone's categories in one scrolling strip; wide Settings can show them all at once. A mouse shows them all at
-   any width: the strip hides its scrollbar, so a cut-off tab (wider system fonts, a narrow window) had no way in. */
+/* Keep a phone's tabs in one scrolling strip; a wide stage can show them all at once. A mouse shows them all at any
+   width: the strip hides its scrollbar, so a cut-off tab (the Album's seven, wider system fonts, a narrow window) had
+   no way in. */
 @container of-stage (min-width: 960px) {
-  ${R} .of-settings .of-tabs { flex-wrap: wrap; overflow: visible; }
+  ${R} .of-tabs { flex-wrap: wrap; overflow: visible; }
 }
 @media (pointer: fine) {
-  ${R} .of-settings .of-tabs { flex-wrap: wrap; overflow: visible; }
+  ${R} .of-tabs { flex-wrap: wrap; overflow: visible; }
 }
 ${R} .of-settings .of-tab { min-height: 44px; }
 ${R} .of-tabs::-webkit-scrollbar { display: none; }
@@ -1254,12 +1306,14 @@ ${R} .of-couple[data-complete="true"] { border-color: rgb(230 201 138 / 0.6); }
 ${R} .of-couple-title {
   display: flex; align-items: center; gap: 8px; font-family: var(--of-font-display); font-weight: 600; font-size: 1.12rem;
 }
-${R} .of-couple-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+/* Both halves start at the top, so a look name that wraps to two lines never lifts its picture above the other's; the
+   heart sits level with the middle of the 64px pictures (832 x 1216). */
+${R} .of-couple-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 8px; }
 ${R} .of-couple-half { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
 ${R} .of-couple-half[data-owned="false"] .of-ward-frame { opacity: 0.45; filter: grayscale(0.6); }
 ${R} .of-couple-name { font-size: 0.82rem; font-weight: 700; overflow-wrap: anywhere; }
 ${R} .of-couple-state { display: inline-flex; align-items: center; gap: 3px; font-size: 0.7rem; color: var(--of-text-soft); }
-${R} .of-couple-heart { color: var(--of-li-accent, var(--of-rose)); filter: drop-shadow(0 0 6px var(--of-glow)); }
+${R} .of-couple-heart { margin-top: calc(64px * 1216 / 832 / 2 - 8px); color: var(--of-li-accent, var(--of-rose)); filter: drop-shadow(0 0 6px var(--of-glow)); }
 ${R} .of-couple-portrait { width: 100%; border-radius: 14px; aspect-ratio: 9 / 16; max-height: 320px; object-fit: cover; }
 /* "{name} noticed: …", in their colour and her handwriting. */
 ${R} .of-noticed {
@@ -1278,6 +1332,8 @@ ${R} .of-show-line .of-avatar--hero { width: 84px; height: 84px; font-size: 2rem
 ${R} .of-show-who { font-family: var(--of-font-display); font-weight: 600; font-size: 1.2rem; }
 ${R} .of-show-text { font-family: var(--of-font-display); font-style: italic; font-size: 1.22rem; line-height: 1.35; }
 ${R} .of-show-text:focus { outline: none; }
+/* The quote takes focus after the player's own press (Wardrobe, Who said what?): a keyboard player still sees where. */
+${R} .of-show-text:focus-visible { outline: 2px solid var(--of-focus); outline-offset: 3px; border-radius: 6px; }
 
 /* The Album. */
 ${R} .of-album-cgs {
@@ -1298,6 +1354,23 @@ ${R} .of-album-cg-caption {
 }
 ${R} .of-album-cg-title { font-family: var(--of-font-display); font-weight: 600; font-size: 0.98rem; line-height: 1.1; }
 ${R} .of-album-cg-date { font-size: 0.68rem; opacity: 0.8; }
+/* #2044: stickers, square and whole (they are cut-outs) on a soft surface. */
+${R} .of-album-stickers { display: flex; flex-direction: column; gap: 12px; }
+${R} .of-album-stickers-title { margin: 0; font-family: var(--of-font-display); font-weight: 600; font-size: 1.15rem; }
+/* #2087: Photo Shoot photos are square prints. */
+${R} .of-album-cgs--photo .of-album-cg { aspect-ratio: 1; }
+${R} .of-album-cgs--sticker { grid-template-columns: repeat(auto-fill, minmax(min(132px, 42%), 1fr)); }
+${R} .of-album-cgs--sticker .of-album-cg {
+  aspect-ratio: 1; background: var(--of-tint); box-shadow: inset 0 0 0 1px var(--of-border);
+}
+${R} .of-album-cgs--sticker .of-album-cg img { inset: 8px 8px 30px; width: calc(100% - 16px); height: calc(100% - 38px); object-fit: contain; }
+${R} .of-album-sticker--quiet {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px;
+  text-align: center; cursor: default; color: var(--of-text);
+}
+${R} .of-album-sticker--quiet svg { color: var(--of-accent-text); }
+${R} .of-album-sticker--quiet .of-button { min-height: 44px; }
+${R} .of-album-sticker--quiet .of-cost { justify-content: center; }
 ${R} .of-viewer { display: flex; flex-direction: column; gap: 10px; }
 ${R} .of-viewer-figure { display: flex; flex-direction: column; gap: 6px; margin: 0; }
 ${R} .of-viewer-img {
@@ -1407,11 +1480,12 @@ ${R} .of-tells-item::before {
 @keyframes of-gather { from { opacity: 0; scale: 1.6; } to { opacity: 0.9; scale: 0.4; } }
 @keyframes of-flash { 0% { opacity: 0.95; scale: 0.4; } 40% { opacity: 1; scale: 1.1; } 100% { opacity: 0; scale: 1.5; } }
 @keyframes of-bars { from { background-size: 4px 30%, 4px 90%, 4px 60%; } to { background-size: 4px 90%, 4px 40%, 4px 100%; } }
-@media (prefers-reduced-motion: reduce) {
-  ${R} .of-reveal-card { opacity: 1; translate: none; }
-  ${R} .of-reveal-art { opacity: 1; }
-  ${R} .of-reveal-glow { display: none; }
-}`;
+${reducedRules(
+  (root) => `
+  ${root} .of-reveal-card { opacity: 1; translate: none; }
+  ${root} .of-reveal-art { opacity: 1; }
+  ${root} .of-reveal-glow { display: none; }`,
+)}`;
 
 // The Story screen: the next chapter, each love interest's affection, and every chapter as a path of its scenes.
 const STORY_RULES = `
@@ -1515,7 +1589,18 @@ ${R} .of-candidate-level {
   display: inline-flex; align-items: center; gap: 4px; font-size: 0.74rem; font-weight: 800; color: var(--of-accent-text);
 }
 ${R} .of-candidate-reason { font-size: 0.82rem; line-height: 1.35; font-style: italic; color: var(--of-text-soft); }
-${R} .of-planning { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0; text-align: center; }`;
+${R} .of-planning { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0; text-align: center; }
+/* "What happened so far…" while a chapter is planned (#2040): it scrolls on its own, and on a short screen it gives up
+   its height first (down to about three lines), so the status and Cancel stay on screen. */
+${R} .of-dialog-body:has(> .of-so-far) { min-height: 0; }
+${R} .of-so-far { display: flex; flex-direction: column; gap: 6px; min-height: 0; text-align: start; }
+${R} .of-so-far-text {
+  min-height: 6.6em; max-height: 16rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: var(--of-border-strong) transparent; padding: 10px 12px; border-radius: 14px;
+  border: 1px solid var(--of-border); background: var(--of-surface-hover); color: var(--of-text);
+  font-size: 0.92rem; line-height: 1.55; overflow-wrap: anywhere;
+}
+${R} .of-so-far-text > p + p { margin-top: 0.7em; }`;
 
 // Moods: each music cue's scene, until M2b paints places. Midnight's are deep; Pearl's are light.
 const MOODS: Record<Look, Record<string, string>> = {
@@ -1561,7 +1646,8 @@ ${R} .of-reader-secondary[data-expanded="true"] {
   /* Keep the focus padding outside the More button's column. */
   position: absolute; top: calc(100% + 6px); inset-inline-end: -4px;
   display: flex; flex-direction: column; gap: 6px; padding: 4px;
-  max-height: max(44px, calc(100cqh - 120px - max(12px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom))));
+  /* --of-memory-banner-h: a memory banner above the reader (components/MemoryBanner.tsx) takes that much more. */
+  max-height: max(44px, calc(100cqh - 120px - var(--of-memory-banner-h, 0px) - var(--of-reader-top, max(12px, env(safe-area-inset-top))) - max(10px, env(safe-area-inset-bottom))));
   overflow-y: auto; overscroll-behavior: contain;
   scrollbar-width: none;
 }
@@ -1610,7 +1696,7 @@ ${R}[data-look="pearl"] .of-reader-vignette {
 /* The header: the way out, the chapter's title, and the tools. */
 ${R} .of-reader-head {
   position: relative; z-index: 3; display: flex; flex-direction: column; gap: 6px;
-  padding: max(12px, env(safe-area-inset-top)) 12px 4px;
+  padding: var(--of-reader-top, max(12px, env(safe-area-inset-top))) 12px 4px;
 }
 ${R} .of-reader-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 ${R} .of-reader-row--sub { align-items: flex-start; }
@@ -1644,8 +1730,9 @@ ${R} .of-reader-tool[aria-pressed="true"] {
 ${R} .of-reader-tool[aria-disabled="true"] { opacity: 0.45; cursor: default; }
 ${R} .of-reader-tool[aria-disabled="true"]:hover { background: var(--of-surface); color: inherit; }
 /* The scene's chips stay on one line and scroll sideways, fading at the end. */
+/* #2147: its 10px of padding (taken back by the margin, so the row keeps its place) holds the action chips' 44px taps. */
 ${R} .of-reader-chips {
-  flex: 1; min-width: 0; display: flex; gap: 5px; margin: 0; padding: 4px 0; overflow-x: auto; list-style: none;
+  flex: 1; min-width: 0; display: flex; gap: 5px; margin: -6px 0; padding: 10px 0; overflow-x: auto; list-style: none;
   scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
 }
@@ -1769,6 +1856,15 @@ ${R} .of-toast--remember {
 }
 ${R} .of-toast--remember svg { color: var(--of-accent-text); }
 ${R} .of-toast--starlight { font-weight: 800; font-size: 0.86rem; color: var(--of-champagne-text); }
+/* #2044's "You unlocked a new sticker", over any screen, below the top bar; StickerNotice moves it below a taller
+   header (his thread's, the reader's) so his name, Close and the reader's tools stay in view. */
+${R} .of-toasts--app { top: 64px; z-index: 8; }
+/* #2046: what a side-with pick moved with one love interest, in his colour. */
+${R} .of-toast--affection {
+  font-weight: 800; font-size: 0.86rem; color: var(--of-text);
+  border-color: color-mix(in srgb, var(--of-li-accent, var(--of-rose)) 55%, var(--of-border-strong));
+}
+${R} .of-toast--affection svg { flex: none; color: var(--of-li-accent, var(--of-rose)); }
 /* The bottom third: the dialogue box and its choices, or the panel that stands in for them. */
 ${R} .of-reader-bottom {
   position: relative; z-index: 2; min-height: 30%; display: flex; flex-direction: column; justify-content: flex-end;
@@ -1799,8 +1895,12 @@ ${R} .of-nameplate-tag {
 }
 ${R} .of-line {
   max-height: 9.8em; margin: 0; padding-inline-end: 34px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere;
-  font-size: 1.02rem; line-height: 1.62; color: var(--of-text);
+  font-size: 1.02rem; line-height: 1.62; color: var(--of-text); scrollbar-gutter: stable;
 }
+/* While the box follows a line it clips, and DialogueBox lifts the text instead of scrolling (iOS undid the scrolls).
+   The gutter stays, so the text keeps its width when the box scrolls again. */
+${R} .of-line[data-lifting="true"] { overflow-y: hidden; }
+${R} .of-line > [aria-hidden="true"] { display: block; }
 ${R} .of-line-rest { visibility: hidden; }
 ${R} .of-line--thought { font-style: italic; color: var(--of-text-soft); }
 ${R} .of-line--thought > [aria-hidden="true"]::before { content: "("; }
@@ -1850,8 +1950,30 @@ ${R} .of-choice-first {
   flex: none; padding: 2px 8px; border-radius: 999px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--of-accent-text); background: var(--of-tint-strong);
 }
+/* #2046: whom a side-with option backs. On a replay "Your first choice" sits beside it; where the two would squeeze the
+   label (a phone, the desktop frame), the label keeps room for a few words and the badge that does not fit wraps under
+   it, at the end. A one-line pill keeps its capsule (24px is half its 48px); a taller one rounds its corners only, so
+   a capsule's curve never cuts into that badge. */
+${R} .of-choice-backs {
+  flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 8px;
+  border-radius: 999px; font-size: 0.7rem; font-weight: 800; color: var(--of-accent-text); background: var(--of-tint-strong);
+}
+${R} .of-choices-panel[data-side="true"] .of-choice-pill { flex-wrap: wrap; row-gap: 4px; border-radius: 24px; }
+${R} .of-choices-panel[data-side="true"] .of-choice-pill-text { flex-basis: 10ch; }
+${R} .of-choices-panel[data-side="true"] .of-choice-first { margin-inline-start: auto; }
 ${R} .of-choices-panel[data-kind="big"] .of-choice-pill {
   border-color: rgb(230 201 138 / 0.85); box-shadow: inset 0 0 0 1px rgb(230 201 138 / 0.35), 0 0 20px rgb(230 201 138 / 0.22);
+}
+/* #2146: a closing decision's four options and Write your own… sit a little closer, so on a 375 × 667 phone the
+   heading stays clear of the header (the pills keep a 44px tap target). */
+${R} .of-choices-panel[data-kind="big"] .of-choice-pills:has(> li:nth-child(5)) { gap: 6px; }
+${R} .of-choices-panel[data-kind="big"] .of-choice-pills:has(> li:nth-child(5)) .of-choice-pill { min-height: 44px; padding-block: 8px; }
+/* On a short phone the line above the decision keeps only its own height and the panel tightens, so the five pills fit
+   under the header whatever the system font (CI's taller Linux fonts overlapped it by 18px). */
+@container of-frame (max-height: 760px) {
+  ${R} .of-reader-bottom:has(.of-choices-panel[data-kind="big"] .of-choice-pills > li:nth-child(5)) { gap: 6px; padding-top: 6px; }
+  ${R} .of-reader-bottom:has(.of-choices-panel[data-kind="big"] .of-choice-pills > li:nth-child(5)) .of-dialogue { min-height: 0; }
+  ${R} .of-choices-panel[data-kind="big"]:has(.of-choice-pills > li:nth-child(5)) { gap: 4px; }
 }
 ${R} .of-choices-status { min-height: 1.2em; margin: 0; font-size: 0.8rem; text-align: center; color: var(--of-text-soft); }
 ${R} .of-choices-status:empty { min-height: 0; }
@@ -1860,6 +1982,18 @@ ${R} .of-reader-panel {
   text-align: center;
 }
 ${R} .of-reader-panel .of-body { max-width: 36ch; }
+/* Who said what? (#2041) under the writing panel: it scrolls on its own when the bottom third runs out of room, and
+   while it plays the panel keeps only its title and Cancel. */
+${R} .of-wsw {
+  gap: 8px; min-height: 0; max-height: 62cqh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: var(--of-border-strong) transparent;
+}
+${R} .of-wsw-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; }
+${R} .of-wsw-line { margin: 0; font-size: 1.1rem; overflow-wrap: anywhere; }
+${R} .of-wsw-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+${R} .of-wsw-choices > li { display: flex; min-width: 0; }
+${R} .of-wsw-play { align-self: center; }
+${R} .of-reader-bottom:has(.of-wsw) .of-writing :is(.of-quill, .of-hint) { display: none; }
 ${R} .of-quill {
   display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: var(--of-accent-text);
   background: var(--of-tint); animation: of-write 1.8s ease-in-out infinite;
@@ -2013,6 +2147,8 @@ ${R} .of-home-stars {
     radial-gradient(1.2px 1.2px at 47% 44%, var(--of-star) 50%, transparent 52%);
   animation: of-home-twinkle 7s ease-in-out infinite alternate;
 }
+/* #2141: at dawn and by day the stars are hidden (opacity 0), so their twinkle holds still until dusk. */
+${R} .of-home:is([data-sky="dawn"], [data-sky="day"]) .of-home-stars { animation-play-state: paused; }
 /* An arched window onto the sky: the room's only light, in the colour of the hour. */
 ${R} .of-home-window {
   position: absolute; top: 12%; inset-inline-end: 9%; width: 36%; aspect-ratio: 3 / 4.6; opacity: 0.5;
@@ -2032,16 +2168,38 @@ ${R} .of-home-backdrop {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.78) saturate(0.92);
 }
 ${R}[data-look="pearl"] .of-home-backdrop { filter: brightness(0.96) saturate(0.9); }
+/* #2128: the figurines bought in the Shop, on a small wall ledge of their own at the room's inline end, under the
+   window and over a painted backdrop alike: low enough to clear the note, high enough to clear the nameplate and the
+   dock, and behind him. */
+${R} .of-home-figurines {
+  position: absolute; inset-inline-end: calc(24px + 4%); bottom: calc(24px + 30%); max-width: 44%;
+  display: flex; align-items: flex-end; justify-content: flex-end; gap: 2px; padding: 0 8px 1px;
+  border-bottom: 6px solid color-mix(in srgb, ${PALETTE.champagne} 62%, #8a5a3c); border-radius: 0 0 3px 3px;
+  box-shadow: 0 8px 10px -7px rgb(10 8 26 / 0.55);
+}
+${R} .of-home-figurine {
+  display: block; flex: 0 1 auto; min-width: 0; width: clamp(30px, 9cqw, 52px); aspect-ratio: 2 / 3; height: auto;
+  object-fit: contain; filter: drop-shadow(0 3px 2px rgb(43 34 54 / 0.35));
+}
+/* #2138: a figurine that is still being painted holds its place as a faint, breathing stand-in. */
+${R} .of-home-figurine--painting {
+  border-radius: 40% 40% 12% 12%; background: color-mix(in srgb, ${PALETTE.champagne} 35%, transparent);
+  filter: none; animation: of-breathe 2.4s ease-in-out infinite;
+}
 ${R} .of-home-l1 { position: absolute; inset: 0; background: var(--of-home-tint); }
 ${R}[data-look="pearl"] .of-home[data-sky="night"] {
   --of-home-tint: linear-gradient(180deg, rgb(110 110 190 / 0.24) 0%, rgb(140 120 200 / 0.1) 62%, transparent 100%);
 }
 ${R} .of-home-l3 {
-  position: absolute; inset: -30px; mix-blend-mode: screen;
+  position: absolute; inset: -30px;
   transform: translate3d(calc(var(--of-px) * 20px), calc(var(--of-py) * 12px), 0);
   transition: transform 900ms var(--of-ease);
 }
-${R}[data-look="pearl"] .of-home-l3 { mix-blend-mode: normal; opacity: 0.8; }
+${R}[data-look="pearl"] .of-home-l3 { opacity: 0.8; }
+/* #2141: Midnight's light layer screen-blended, but it is the first thing drawn in the front's own group (a stacking
+   context), over nothing, where screen draws the same as normal; the blend cost a compositing pass every frame. The
+   front keeps the no-op filter that stands in for the group the blend gave it, so its edges are drawn as before. */
+${R}[data-look="midnight"] .of-home-front { filter: blur(0px); }
 ${R} .of-home-beam {
   position: absolute; top: -6%; inset-inline-end: 2%; width: 66%; height: 92%; filter: blur(22px);
   background: linear-gradient(196deg, var(--of-home-light) 0%, transparent 58%); transform: skewX(-12deg);
@@ -2136,16 +2294,17 @@ ${R} .of-figure[data-art="look"][data-cut="false"] .of-figure-img {
 ${R} .of-figure[data-mood="cold"] .of-figure-breathe { filter: saturate(0.7) brightness(0.93); }
 ${R} .of-figure[data-mood="annoyed"] .of-figure-drift { animation: of-pout 420ms ease-in-out 2; }
 /* Without a full-body look the medallion or cameo and its pills fill the cell's middle: the medallion leaves room for
-   its ring above (12 px), the 18 px gap its ring reaches into and the pills (54 px), 84 px in all. */
+   its ring above (12 px), the 18 px gap its ring reaches into and up to two rows of pills (#2152: four or five of
+   them, 30 px a row, 6 px apart), 96 px in all. */
 ${R} .of-figure:is([data-art="none"], [data-art="avatar"]) {
-  --of-medallion: min(220px, 100cqw - 32px, 100cqh - 84px);
+  --of-medallion: min(220px, 100cqw - 32px, 100cqh - 96px);
   inset: 0; width: auto; aspect-ratio: auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
 }
 ${R} .of-figure:is([data-art="none"], [data-art="avatar"]) :is(.of-figure-parallax, .of-figure-drift, .of-figure-breathe) {
   position: relative; inset: auto; width: 100%;
 }
-${R} .of-figure[data-art="avatar"] { --of-medallion: min(220px, 100cqw - 32px, (100cqh - 84px) * 0.8); }
+${R} .of-figure[data-art="avatar"] { --of-medallion: min(220px, 100cqw - 32px, (100cqh - 96px) * 0.8); }
 ${R} .of-figure:is([data-art="none"], [data-art="avatar"]) .of-figure-parallax { flex: none; width: var(--of-medallion); }
 ${R} .of-figure[data-art="none"] .of-figure-breathe { aspect-ratio: 1; }
 ${R} .of-figure[data-art="avatar"] .of-figure-breathe { aspect-ratio: 4 / 5; }
@@ -2177,7 +2336,13 @@ ${R} .of-figure[data-art="avatar"] .of-figure-img {
   box-shadow: 0 0 0 3px var(--of-wish-ring), 0 0 0 9px rgb(230 201 138 / 0.22), 0 24px 50px rgb(0 0 0 / 0.3);
 }
 /* His tap zones: invisible over the art (a soft glow on hover, a dashed ring on focus), labelled pills without it.
-   A zone stops at the cell's inline start (--of-cell-start, in the art's own box), so the rail never covers one. */
+   A zone stops at the cell's inline start (--of-cell-start, in the art's own box), so the rail never covers one.
+   #2152: head and cheek split the head down to the chest, each tall enough for a 24 px target on the smallest stage
+   (11 % of a 230 px figure); the crotch (NSFW Heat only) sits over the middle of the hand band and
+   takes the taps there, so Hand takes its two sides (and every keyboard or assistive press). All stay above the art's
+   58 % line. ponytail: fixed regions of the 832 × 1216 art, right for Otome's looks (always painted standing, LOOK_POSE)
+   and not for a look painted another way; the upgrade is per-look hotspots, or measuring the plain look's cut-out
+   alpha box (never a face's, which changes under the finger on each tap). */
 ${R} .of-tap-zones {
   position: absolute; inset: 0;
   --of-cell-start: max((100% - 100cqw) / 2, 100% - 100cqw - 12px);
@@ -2186,23 +2351,28 @@ ${R} .of-tap-zone {
   position: absolute; padding: 0; border: 0; border-radius: 46%; background: transparent; cursor: pointer;
   pointer-events: auto;
 }
-${R} .of-tap-zone[data-zone="head"] { inset-inline: max(33%, var(--of-cell-start)) 33%; top: 2%; height: 16%; }
+${R} .of-tap-zone[data-zone="head"] { inset-inline: max(33%, var(--of-cell-start)) 33%; top: 1%; height: 11%; }
+${R} .of-tap-zone[data-zone="cheek"] { inset-inline: max(33%, var(--of-cell-start)) 33%; top: 12%; height: 11%; }
 ${R} .of-tap-zone[data-zone="heart"] { inset-inline: max(34%, var(--of-cell-start)) 34%; top: 23%; height: 15%; }
 ${R} .of-tap-zone[data-zone="hand"] { inset-inline: max(14%, var(--of-cell-start)) 14%; top: 42%; height: 14%; }
+${R} .of-tap-zone[data-zone="crotch"] {
+  inset-inline: max(37%, var(--of-cell-start)) 37%; top: 45%; height: 11%; z-index: 1;
+}
 ${R} .of-tap-zone:hover { background: radial-gradient(closest-side, rgb(255 255 255 / 0.14), transparent); }
 ${R} .of-tap-zone:focus-visible {
   outline: 2px dashed var(--of-focus); outline-offset: 0;
   background: radial-gradient(closest-side, var(--of-glow-soft), transparent);
 }
+/* #2152: labelled chips, so four or five fit the narrowest cell (about 150 px, on a desktop) in at most two rows: three
+   to a row even with Linux's wider fonts, where "Head", "Cheek" and "Chest" at 6 px padding needed 155 px. */
 ${R} .of-tap-pills {
-  position: relative; display: flex; justify-content: center; gap: 6px; max-width: 100%; pointer-events: auto;
+  position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 3px; max-width: 100%;
+  pointer-events: auto;
 }
 ${R} .of-tap-pill {
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  width: 60px; min-width: 0; min-height: 54px; padding: 6px 4px; border-radius: 18px; overflow-wrap: anywhere;
-  font-weight: 700; font-size: 0.72rem; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; min-width: 42px; min-height: 30px;
+  padding: 4px; border-radius: 999px; font-weight: 700; font-size: 0.72rem; cursor: pointer;
 }
-${R} .of-tap-pill svg { color: var(--of-accent-text); }
 ${R} .of-tap-pill:hover { background: var(--of-surface-strong); }
 /* Hidden at rest (opacity 0): the animation shows it, so with motion reduced it never stays over him. */
 ${R} .of-tap-burst {
@@ -2211,8 +2381,11 @@ ${R} .of-tap-burst {
   box-shadow: 0 0 18px rgb(255 182 202 / 0.8), inset 0 0 12px rgb(255 214 228 / 0.6);
   animation: of-tap-burst 900ms var(--of-ease) both;
 }
+${R} .of-tap-burst[data-zone="head"] { top: 6%; }
+${R} .of-tap-burst[data-zone="cheek"] { top: 17%; }
 ${R} .of-tap-burst[data-zone="heart"] { top: 30%; }
 ${R} .of-tap-burst[data-zone="hand"] { top: 49%; }
+${R} .of-tap-burst[data-zone="crotch"] { top: 50%; }
 ${R} .of-tap-pills .of-tap-burst { top: -60%; }
 
 /* The note, the rail and the nameplate sit over the art; only what they hold takes the pointer. */
@@ -2232,6 +2405,12 @@ ${R} .of-home-rail > * { max-width: 100%; }
 /* M6's Remind Me and Caring message: round, side by side at the rail's foot; only the buttons take the pointer. */
 ${R} .of-home-rail-row { display: flex; gap: 8px; pointer-events: none; }
 ${R} .of-home-rail-row > * { pointer-events: auto; }
+/* Your thoughts… (#2127): Wish's new-tab dot at its top end corner while thoughts wait for the next chapter. */
+${R} :is(.of-home-thoughts, .of-home-remind) { position: relative; }
+${R} :is(.of-home-thoughts, .of-home-remind) .of-tab-dot { position: absolute; top: 3px; inset-inline-end: 3px; }
+/* #2153: Remind Me's dot is its only visible sign of a birthday: on Pearl's pale glass it takes the deeper accent ink,
+   for 3:1 or more (tests/package-otome-forge-birthday.e2e.ts). */
+${R}[data-look="pearl"] .of-home-remind .of-tab-dot { background: var(--of-accent-text); }
 /* A short stage (a 360 × 600 phone under the Engine's own bars leaves about 500 px): the rail tightens by 30 px, every
    button still at least 30 px tall, so the note keeps a line of its words above M6's row. */
 @container of-frame (max-height: 540px) {
@@ -2340,8 +2519,8 @@ ${R} .of-note-fold:hover { background: rgb(160 77 107 / 0.1); }
 ${R} .of-note-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; margin-top: 6px; }
 ${R} .of-note-body[hidden] { display: none; }
 ${R} .of-note-text {
-  min-height: 0; overflow-y: auto; font-family: var(--of-font-hand); font-weight: 500; font-size: 1.5rem;
-  line-height: 1.14; overflow-wrap: anywhere;
+  min-height: 0; overflow-x: hidden; overflow-y: auto; font-family: var(--of-font-hand); font-weight: 500;
+  font-size: 1.5rem; line-height: 1.14; overflow-wrap: anywhere;
 }
 ${R} .of-note-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 ${R} .of-note-sign {
@@ -2362,6 +2541,25 @@ ${R} .of-note-quill { flex: none; color: #a04d6b; animation: of-write 1.8s ease-
 ${R} .of-note .of-hint { color: #5a4060; }
 ${R} .of-note-failed, ${R} .of-note--alert { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 ${R} .of-note-voice-error { font-size: 0.76rem; font-weight: 700; color: #8e3f5e; }
+/* #2087: the newest Photo Shoot photo, a small print taped into the note. It floats inside the scrolling text (as a
+   flex child it would not float, and beside the scroll box it would narrow the box), so the words wrap around it and
+   it scrolls with them; its top margin keeps the tape inside the box. inline-end mirrors it in RTL. */
+${R} .of-note-text p { margin: 0; }
+${R} .of-note-photo {
+  position: relative; float: inline-end; width: clamp(64px, 30%, 96px); margin: 10px 6px 6px;
+  margin-inline-start: 10px; padding: 4px 4px 10px; background: #fbf7f1; rotate: 3deg;
+  box-shadow: 0 3px 8px rgb(8 4 24 / 0.22);
+}
+${R} .of-note-photo img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+${R} .of-note-photo::before {
+  content: ""; position: absolute; top: -7px; left: 50%; width: 40px; height: 12px; translate: -50% 0; rotate: -5deg;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--of-li-accent) 62%, transparent),
+    color-mix(in srgb, var(--of-li-accent) 44%, transparent));
+  clip-path: polygon(3% 0, 97% 5%, 100% 100%, 0 95%);
+}
+@container of-frame (max-height: 640px) {
+  ${R} .of-note-photo { width: 56px; padding-bottom: 6px; }
+}
 
 /* Rough day? and Who's home? */
 ${R} .of-comfort { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0; text-align: center; }
@@ -2398,11 +2596,12 @@ ${R} .of-home-pick-mark { flex: none; color: var(--of-champagne-text); }
 @keyframes of-note-in {
   from { opacity: 0; transform: translateY(-10px) rotate(-3deg); } to { opacity: 1; transform: rotate(-1.2deg); }
 }
-@media (prefers-reduced-motion: reduce) {
-  ${R} :is(.of-home-l0, .of-home-l3, .of-figure-parallax) { transform: none !important; }
-}`;
+${reducedRules(
+  (root) => `
+  ${root} :is(.of-home-l0, .of-home-l3, .of-figure-parallax) { transform: none !important; }`,
+)}`;
 
-// The phone: the thread list, and one thread with bubbles in his accent colour, stickers, suggestions and the composer.
+// The phone: the thread list, and one thread with bubbles in his accent colour, stickers and the composer.
 const PHONE_RULES = `
 ${R} .of-threads { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 ${R} .of-thread-row {
@@ -2422,18 +2621,19 @@ ${R} .of-thread {
   flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px;
   padding: 0 10px max(10px, env(safe-area-inset-bottom));
 }
-/* At phone width Close and remember wraps under his name rather than cutting it short. */
+/* One row at every width: Close stays beside his name, and a long name ends in an ellipsis instead of wrapping. */
 ${R} .of-thread-head {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 8px; border-radius: 22px;
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 22px;
   border-bottom: 2px solid color-mix(in srgb, var(--of-li-accent) 55%, transparent);
 }
 ${R} .of-thread-title {
-  flex: 1 1 8rem; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font-family: var(--of-font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.1;
 }
 ${R} .of-thread-title:focus { outline: none; }
 ${R} .of-thread-title:focus-visible { outline: 2px solid var(--of-focus); outline-offset: 3px; border-radius: 6px; }
-${R} .of-thread-close { flex: none; margin-inline-start: auto; padding: 0 12px; }
+${R} .of-thread-head .of-icon-button { width: 44px; height: 44px; }
+${R} .of-thread-close { flex: none; margin-inline-start: auto; padding: 0 12px; min-height: 44px; }
 ${R} .of-thread-close[aria-disabled="true"] { opacity: 0.55; cursor: default; }
 ${R} .of-thread-log {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 4px;
@@ -2480,9 +2680,37 @@ ${R} .of-bubble-quote {
   background: rgb(255 255 255 / 0.22); font-family: var(--of-font-hand); font-size: 1.1rem; line-height: 1.12; opacity: 0.9;
 }
 ${R} .of-bubble-time { padding: 0 6px; font-size: 0.68rem; color: var(--of-text-faint); font-variant-numeric: tabular-nums; }
+/* #2154: the group chat. Its portraits overlap in one slot; each member's bubble sits beside a 24 px portrait gap, the
+   portrait on the last of their run, their name over the first, in the column of the time under it (gap + 6 px). */
+${R} .of-avatar-cluster { position: relative; flex: none; display: block; }
+${R} .of-avatar-cluster-item { position: absolute; display: block; }
+${R} .of-avatar-cluster-more {
+  position: absolute; inset-inline-end: -4px; bottom: -4px; min-width: 20px; height: 20px; padding: 0 5px;
+  display: grid; place-items: center; border-radius: 999px; font-size: 0.66rem; font-weight: 800;
+  color: var(--of-text); background: var(--of-surface-solid); box-shadow: 0 0 0 2px var(--of-wish-ring);
+}
+${R} .of-thread-titles { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+${R} .of-thread-titles .of-thread-title { flex: none; }
+${R} .of-thread-subtitle {
+  margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 0.78rem;
+  color: var(--of-text-soft);
+}
+${R} .of-bubble-name {
+  padding-inline-start: 38px; font-size: 0.74rem; font-weight: 700; color: var(--of-text-soft);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 88%;
+}
+${R} .of-bubble-line { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; min-width: 0; }
+${R} .of-bubble-line .of-bubble { max-width: calc(100% - 32px); }
+${R} .of-bubble-line > .of-avatar, ${R} .of-bubble-gap { flex: none; width: 24px; }
+${R} .of-bubble-row[data-group="true"] { margin-top: 2px; }
+${R} .of-bubble-row[data-group="true"] .of-bubble-time { padding-inline-start: 38px; }
 ${R} .of-sticker {
   display: block; width: 112px; height: 112px; object-fit: cover; object-position: 50% 12%; border-radius: 22px;
   box-shadow: 0 0 0 3px var(--of-wish-ring), 0 8px 18px rgb(0 0 0 / 0.2);
+}
+/* #2044: a chibi sticker is a cut-out, shown whole on both looks with a soft shadow instead of a frame. */
+${R} .of-sticker[data-kind="chibi"] {
+  object-fit: contain; border-radius: 0; box-shadow: none; filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.22));
 }
 ${R} .of-sticker--quiet {
   display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 96px;
@@ -2498,19 +2726,11 @@ ${R} .of-typing-dot {
 }
 ${R} .of-typing-dot:nth-child(2) { animation-delay: 0.15s; }
 ${R} .of-typing-dot:nth-child(3) { animation-delay: 0.3s; }
-${R} .of-memory-text { font-size: 0.86rem; color: var(--of-text-soft); }
 ${R} .of-memory-quote { font-family: var(--of-font-hand); font-size: 1.22rem; line-height: 1.12; color: var(--of-accent-text); }
-${R} .of-suggestions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin: 0; padding: 0; list-style: none; }
-${R} .of-suggestion {
-  min-height: 34px; padding: 0 14px; border-radius: 999px; font-weight: 700; font-size: 0.84rem; cursor: pointer;
-  border-color: color-mix(in srgb, var(--of-li-accent) 55%, transparent);
-}
-${R} .of-suggestion:hover { background: var(--of-surface-strong); }
-${R} .of-suggestion[aria-disabled="true"] { opacity: 0.6; cursor: default; }
 ${R} .of-composer { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 24px; }
 ${R} .of-composer-row { display: flex; align-items: flex-end; gap: 6px; }
 ${R} .of-composer-input {
-  flex: 1; min-width: 0; min-height: 40px; max-height: 7.6em; resize: none; padding: 9px 14px; border-radius: 18px;
+  flex: 1; min-width: 0; min-height: 44px; max-height: 7.6em; resize: none; padding: 11px 14px; border-radius: 18px;
   field-sizing: content;
 }
 ${R} .of-send {
@@ -2532,17 +2752,31 @@ ${R} .of-quote-label {
 ${R} .of-quote-chip q { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--of-font-hand); font-size: 1.15rem; }
 ${R} .of-quote-chip .of-icon-button { width: 32px; height: 32px; }
 ${R} .of-stickers { position: relative; flex: none; }
+/* 44px touch targets: the Stickers button, and Send and the box beside it so the row stays even. */
+${R} .of-stickers > .of-icon-button, ${R} .of-composer-row > .of-send { width: 44px; height: 44px; }
 ${R} .of-stickers .of-icon-button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+/* #2044: her stickers, then his, four 56px choices a row (fits a 320px phone), scrolling when there are many. Solid,
+   not glass: inside the composer's own backdrop filter its blur never reaches the messages, which would show through
+   its titles and the cut-outs. */
 ${R} .of-sticker-panel {
-  position: absolute; bottom: calc(100% + 8px); inset-inline-start: 0; z-index: 5; display: grid;
-  grid-template-columns: repeat(3, 64px); gap: 6px; padding: 8px; border-radius: 18px;
-  animation: of-rise 300ms var(--of-ease) both;
+  position: absolute; bottom: calc(100% + 8px); inset-inline-start: 0; z-index: 5; display: flex;
+  flex-direction: column; gap: 8px; max-height: min(300px, 52vh); overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px; border-radius: 18px; animation: of-rise 300ms var(--of-ease) both;
+  background: var(--of-surface-solid); -webkit-backdrop-filter: none; backdrop-filter: none;
 }
+${R} .of-sticker-group { display: flex; flex-direction: column; gap: 4px; }
+${R} .of-sticker-group-title {
+  margin: 0; padding-inline: 2px; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--of-text-soft);
+}
+${R} .of-sticker-grid { display: grid; grid-template-columns: repeat(4, 56px); gap: 6px; }
 ${R} .of-sticker-choice {
-  width: 64px; height: 64px; padding: 0; border: 0; border-radius: 16px; overflow: hidden; cursor: pointer;
-  background: transparent; transition: transform 300ms var(--of-ease);
+  display: grid; place-items: center; width: 56px; height: 56px; padding: 0; border: 0; border-radius: 16px;
+  overflow: hidden; cursor: pointer; color: var(--of-accent-text); background: transparent;
+  transition: transform 300ms var(--of-ease);
 }
-${R} .of-sticker-choice img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+${R} .of-sticker-choice[data-kind="builtin"] { background: var(--of-tint); box-shadow: inset 0 0 0 1px var(--of-border); }
+${R} .of-sticker-choice img { width: 100%; height: 100%; object-fit: contain; }
 ${R} .of-sticker-choice:hover { transform: scale(1.05); }
 @keyframes of-bubble-in { from { opacity: 0; transform: translateY(6px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes of-typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }`;
@@ -2583,8 +2817,11 @@ ${R} .of-cg-img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%;
   transform: scale(1.04); transition: transform 1200ms var(--of-ease);
 }
-${R} .of-cg[data-intro="true"] .of-cg-img { animation: of-cg-pan 6s cubic-bezier(0.32, 0.06, 0.3, 1) both; }
-/* A CG is painted portrait (9:16, S/art/prompts.ts SCENE_SIZE). In a box wider than 2:3, such as the stage in fullscreen
+/* The pan plays from the moment the picture has loaded, together with the 6 s timer it matches (CgTakeover). */
+${R} .of-cg[data-intro="true"][data-loaded="true"] .of-cg-img {
+  animation: of-cg-pan 6s cubic-bezier(0.32, 0.06, 0.3, 1) both;
+}
+/* A CG is painted portrait (9:16, S/prompts.ts SCENE_SIZE). In a box wider than 2:3, such as the stage in fullscreen
    on a PC, cover would keep only a thin band of it and cut heads off (#2000), so the CG is shown whole there, over a
    blurred copy of itself so the sides are not bare. The windowed 9:16 stage and a phone keep the full-bleed cover. The
    query is the CG's own box: the frame around a windowed stage is wide while the stage itself is not. */
@@ -2626,6 +2863,31 @@ ${R} .of-reader-chip--paint {
 }
 ${R} .of-reader-chip--paint:hover { background: var(--of-surface-strong); }
 ${R} .of-reader-chip--paint[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
+${R} .of-reader-chip--background { cursor: pointer; font-family: inherit; }
+${R} .of-reader-chip--background:hover { background: var(--of-surface-strong); }
+${R} :is(.of-reader-chip--paint, .of-reader-chip--background) { position: relative; min-height: 24px; }
+${R} :is(.of-reader-chip--paint, .of-reader-chip--background)::before { content: ""; position: absolute; inset: -11px 0; }
+/* #2147: the Engine's backgrounds for a place, two across in a phone-sized stage and four in a wide one (the stage, not
+   the window: a desktop's stage can be phone-sized). The picker keeps its width while loading, empty or unmatched.
+   16px keeps iOS from zooming into the search field. */
+${R} .of-dialog:has(.of-bg-note) { width: min(100%, 640px); }
+${R} .of-dialog-body:has(> .of-bg-grid) { container-type: inline-size; }
+${R} .of-bg-search.of-input { font-size: 16px; }
+${R} .of-bg-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none;
+}
+@container (min-width: 520px) { ${R} .of-bg-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+${R} .of-bg-tile {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; min-height: 44px; padding: 4px; border-radius: 12px;
+  border: 1px solid var(--of-border); background: var(--of-surface); color: var(--of-text); font: inherit;
+  text-align: start; cursor: pointer;
+}
+${R} .of-bg-tile:hover { border-color: var(--of-border-strong); }
+${R} .of-bg-tile[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
+${R} .of-bg-tile img {
+  display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--of-tint);
+}
+${R} .of-bg-name { overflow: hidden; padding: 0 2px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
 /* The Confrontation: four stances in his colour, a round marker, and the ending's card. */
 ${R} .of-stances { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; animation: of-rise 480ms var(--of-ease) both; }
 ${R} .of-stances-round {
@@ -2731,6 +2993,36 @@ ${R} .of-route-lock {
 }
 ${R} .of-route-lock svg { flex: none; }
 ${R} .of-route[data-state="rupture"] .of-route-lock svg { color: var(--of-danger); }
+/* #2156: "I'm upset with them" under each route, the space his grievance still needs, and his invitation in Messages. */
+${R} .of-route-upset { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+${R} .of-upset-toggle { min-height: 44px; }
+${R} .of-upset-toggle svg { color: var(--of-text-soft); }
+${R} .of-upset-toggle[aria-pressed="true"] {
+  color: var(--of-text); border-color: var(--of-danger); background: color-mix(in srgb, var(--of-danger) 18%, var(--of-surface));
+}
+${R} .of-upset-toggle[aria-pressed="true"] svg { color: var(--of-danger); }
+${R} .of-space .of-route-lock svg, ${R} .of-lead-held svg { color: var(--of-danger); }
+${R} .of-lead-held { display: flex; align-items: flex-start; gap: 6px; }
+${R} .of-lead-held svg { flex: none; margin-top: 3px; }
+${R} .of-affection-paused { grid-column: 2 / -1; font-size: 0.72rem; font-weight: 700; color: var(--of-text-soft); }
+${R} .of-invite-row { display: flex; justify-content: flex-start; }
+${R} .of-invite {
+  display: flex; flex-direction: column; gap: 8px; max-width: min(100%, 320px); padding: 10px 12px; border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--of-li-accent) 52%, transparent);
+}
+${R} .of-invite-text { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 0.88rem; font-weight: 700; }
+${R} .of-invite-text svg { flex: none; margin-top: 2px; color: var(--of-champagne-text); }
+${R} .of-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+${R} .of-invite-actions .of-button { min-height: 44px; }
+/* #2155: his side of a big moment, waiting under his route; never greyed with a locked or broken route. */
+${R} .of-route-side {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, var(--of-li-accent, ${PALETTE.rose}) 50%, var(--of-border));
+  background: color-mix(in srgb, var(--of-li-accent, ${PALETTE.rose}) 9%, transparent);
+}
+${R} .of-route-side-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-weight: 800; }
+${R} .of-route-side-head svg { flex: none; color: color-mix(in srgb, var(--of-li-accent, ${PALETTE.rose}) 60%, var(--of-text)); }
+${R} .of-route-side-line { margin: 0; font-size: 0.84rem; color: var(--of-text-soft); overflow-wrap: anywhere; }
 /* Settings → Audio: volume sliders with a filled track. */
 ${R} .of-volume-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 ${R} .of-volume-value { font-size: 0.8rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--of-accent-text); }
@@ -2820,6 +3112,17 @@ ${R} :is(.of-day-events, .of-upcoming) li {
 }
 ${R} .of-day-events li > span, ${R} .of-upcoming-what { overflow-wrap: anywhere; font-weight: 600; }
 ${R} .of-upcoming-when { font-size: 0.78rem; font-weight: 800; white-space: nowrap; color: var(--of-champagne-text); }
+/* #2153: Celebrate, a birthday to a row: his cake, the words, and its button beside them, or under them full width
+   (44 px, a touch target) on a phone. */
+${R} .of-celebrate { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+${R} .of-celebrate li {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 0.92rem;
+}
+${R} .of-celebrate-text { overflow-wrap: anywhere; font-weight: 600; }
+@container of-stage (max-width: 420px) {
+  ${R} .of-celebrate li { grid-template-columns: 18px minmax(0, 1fr); }
+  ${R} .of-celebrate li > .of-button { grid-column: 1 / -1; width: 100%; min-height: 44px; }
+}
 ${R} .of-cycle-card .of-section-title { display: flex; align-items: center; gap: 8px; }
 ${R} .of-cycle-card .of-section-title svg, ${R} .of-cycle-today svg { flex: none; color: var(--of-accent-text); }
 ${R} .of-cycle-card > .of-button { align-self: flex-start; }
@@ -3290,11 +3593,23 @@ const MOTION_RULES = `
   0% { opacity: 0; transform: translateY(8px) scale(0.97); } 12% { opacity: 1; transform: none; }
   82% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-6px); }
 }
-@media (prefers-reduced-motion: reduce) {
-  ${R}, ${R} *, ${R} *::before, ${R} *::after {
+${reducedRules((root, engine) =>
+  engine
+    ? // The Engine's ambient setting stops decoration, not play: the claw machine keeps its game feedback (a shake,
+      // a prize tumbling out, a plush landing) and loses only its idle loops.
+      `
+  ${root}, ${root} *:not(.of-claw, .of-claw *), ${root} *:not(.of-claw, .of-claw *)::before,
+  ${root} *:not(.of-claw, .of-claw *)::after {
     animation: none !important; transition: none !important; scroll-behavior: auto !important;
   }
-}`;
+  ${root} .of-claw-bulbs, ${root} .of-claw-hearts, ${root} .of-claw-pip[data-state="current"] {
+    animation: none !important;
+  }`
+    : `
+  ${root}, ${root} *, ${root} *::before, ${root} *::after {
+    animation: none !important; transition: none !important; scroll-behavior: auto !important;
+  }`,
+)}`;
 
 /** The whole stylesheet, fonts first. */
 export function otomeForgeStyles(): string {
@@ -3312,6 +3627,7 @@ export function otomeForgeStyles(): string {
     FORM_RULES,
     SETUP_RULES,
     COLLECTION_RULES,
+    SHOP_RULES,
     STORY_RULES,
     READER_RULES,
     PRESENTATION_RULES,
@@ -3322,6 +3638,7 @@ export function otomeForgeStyles(): string {
     DATE_NIGHT_RULES,
     READ_HIM_RULES,
     READ_ME_RULES,
+    TAROT_RULES,
     CLAW_RULES,
     DIALOG_RULES,
     MOTION_RULES,

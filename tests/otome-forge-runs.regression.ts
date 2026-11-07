@@ -1,6 +1,8 @@
 // Otome Forge's run routes (M1): the 18+ gate is stored with a timestamp and enforced by the server (raising a gated
 // setting needs it, lowering never does, revoking drops every world), bibles stay behind the spoiler gate and are
 // validated on edit, and deleting a run removes every one of its documents and gallery images and nothing else.
+// Settings → Connections' love interests who message you each day (#2044) is 0 to 24, off by default, kept by every
+// other save, and its quota never reaches the client.
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Bible } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/api-types.ts";
@@ -413,6 +415,37 @@ test("settings: raising a gated setting needs the gate, lowering never does, and
   assert.equal((await call("POST", "/runs/:run/settings", { params: { run: "../index" }, body: {} })).status, 404);
 });
 
+test("settings: love interests who message you each day is 0 to 24, off by default, kept by other saves, its quota hidden", async () => {
+  const { call, world, run, store } = await setup();
+  assert.equal((await world())!.dailyMessages, undefined, "off by default");
+  assert.equal((await call("GET", "/runs/:run", { params: run })).body.view.world.dailyMessages, undefined);
+  for (const value of [24, 3]) {
+    const saved = await call("POST", "/runs/:run/settings", { params: run, body: { dailyMessages: value } });
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+    assert.equal(saved.body.world.dailyMessages, value);
+  }
+  for (const bad of [25, -1, 1.5, "3", null]) {
+    const refused = await call("POST", "/runs/:run/settings", { params: run, body: { dailyMessages: bad } });
+    assert.deepEqual([refused.status, refused.body.code], [400, "bad-request"], String(bad));
+  }
+  assert.equal((await world())!.dailyMessages, 3);
+  // Other saves keep it, and S/phone/daily.ts's quota stays on the server.
+  await store.mutateDoc(runDocTarget("world", worldId(runIdOf(RUN_KEY))), normalizeWorld, (current) => ({
+    ...current,
+    phoneDaily: { days: { "2026-11-02": { attempts: 1, nextAt: 1 } }, last: { li: KAI, at } },
+  }));
+  const other = await call("POST", "/runs/:run/settings", {
+    params: run,
+    body: { language: "Deutsch", connections: { narration: "conn-b" } },
+  });
+  assert.equal(other.body.world.dailyMessages, 3);
+  assert.equal(other.body.world.phoneDaily, undefined);
+  assert.equal((await call("GET", "/runs/:run", { params: run })).body.view.world.phoneDaily, undefined);
+  const off = await call("POST", "/runs/:run/settings", { params: run, body: { dailyMessages: 0 } });
+  assert.equal(off.body.world.dailyMessages, 0);
+  assert.equal((await world())!.phoneDaily!.days["2026-11-02"]!.attempts, 1, "turning it off keeps today's count");
+});
+
 test("revoking the gate drops every world to SFW, Angst at most and SFW images; changes after it lower without asking", async () => {
   const { call, world, run, store } = await setup();
   await call("POST", "/age-gate", { body: { confirm: true } });
@@ -574,6 +607,25 @@ test("bibles: only behind the spoiler gate, validated on edit, and an edit is ma
   assert.equal(await store.readDoc(unitId(runIdOf(RUN_KEY), "li-nobody-zz99"), normalizeUnit), null, "nothing created");
 });
 
+test("a bible edit keeps no web row for a newcomer kept out of the cast after a failed arc plan", async () => {
+  const { call, store, run } = await setup();
+  // As a failed or cancelled arc plan leaves them (S/story/introduce.ts removeLoveInterest): a unit, not in state.lis.
+  const wren = "li-wren-ef56";
+  await store.mutateDoc(runDocTarget("unit", unitId(runIdOf(RUN_KEY), wren)), normalizeUnit, (unit) => ({
+    ...unit,
+    id: wren,
+    name: "Wren",
+    bible: bible(),
+  }));
+  const row = { history: "a duel", stance: "rivals", debt: "a life" };
+  const saved = await call("POST", "/runs/:run/lis/:li/bible", {
+    params: { ...run, li: KAI },
+    body: { bible: { ...bible(), web: { [MIR]: row, [wren]: row, Wren: row } } },
+  });
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.deepEqual(saved.body.bible.web, { [MIR]: row }, "only rows for the cast, by id or by name");
+});
+
 test("accent: a hex colour, saved upper-case on the unit and shown in the run view", async () => {
   const { call, run } = await setup();
   const kai = { ...run, li: KAI };
@@ -644,3 +696,64 @@ test("delete: the typed title must match; then every document of the run and its
     [[RUN_KEY, 2]],
   );
 });
+
+test("delete sweeps Tarot night's readings and deck, and the deck's painted cards (#2151)", async () => {
+  const { call, fake, run, deleted, store } = await setup();
+  const runId = runIdOf(RUN_KEY);
+  const card = { state: "ready", at, url: "/api/global-gallery/file/card-1.png", ref: "global-gallery:card-1" };
+  await store.mutateDoc(
+    runDocTarget("deck", `${runId}:deck`),
+    (data) => data,
+    () => ({ version: 1, cards: { fool: { card: "fool", figure: "you", art: card } } }),
+  );
+  await store.mutateDoc(
+    runDocTarget("tarot", `${runId}:tarot:tr-abc123-aaaaaa`),
+    (data) => data,
+    () => ({ id: "tr-abc123-aaaaaa" }),
+  );
+  const removed = await call("POST", "/runs/:run/delete", { params: run, body: { confirmTitle: "Moonlit Court" } });
+  assert.equal(removed.status, 200);
+  assert.deepEqual(
+    [...fake.rows.keys()].filter((id) => id.startsWith(`${runId}:`)),
+    [],
+  );
+  assert.deepEqual(deleted.sort(), ["card-1", "kai-1", "player-1"]);
+});
+
+for (const stop of ["a storage error", "a restart"]) {
+  test(`delete: one that stops part-way (${stop}) has deleted the images it let go of, and the next delete finishes it`, async () => {
+    const { call, fake, run, deleted } = await setup();
+    const mine = (id: string) => id.startsWith(`${runIdOf(RUN_KEY)}:`);
+    // It stops once while removing Kai's unit, after the world and the protagonist are gone. A restart is a remove that
+    // never returns: nothing after it in that delete runs.
+    const kai = unitId(runIdOf(RUN_KEY), KAI);
+    const remove = fake.documents.remove;
+    let failed = false;
+    let stopped = () => {};
+    const reached = new Promise<void>((resolve) => (stopped = resolve));
+    fake.documents.remove = async (...args) => {
+      if (args[1] === kai && !failed) {
+        failed = true;
+        stopped();
+        if (stop === "a restart") return new Promise<never>(() => {});
+        throw new Error("storage is down");
+      }
+      return remove(...args);
+    };
+    const confirm = { params: run, body: { confirmTitle: "Moonlit Court" } };
+    const first = call("POST", "/runs/:run/delete", confirm);
+    if (stop === "a storage error") assert.equal((await first).status, 500);
+    else await reached;
+    assert.deepEqual(deleted, ["player-1"], "the protagonist's portrait went with her; Kai's stays with his unit");
+    assert.ok(fake.rows.has(kai));
+    // Still listed, so the picker's delete (the same dialog, or after a restart) can finish it.
+    const retry = await call("POST", "/runs/:run/delete", confirm);
+    assert.equal(retry.status, 200, JSON.stringify(retry.body));
+    assert.deepEqual(
+      retry.body.index.runs.map((entry: { runKey: string }) => entry.runKey),
+      [OTHER_KEY, "r-empty-mnopqr"],
+    );
+    assert.deepEqual([...fake.rows.keys()].filter(mine), []);
+    assert.deepEqual(deleted, ["player-1", "kai-1"]);
+  });
+}

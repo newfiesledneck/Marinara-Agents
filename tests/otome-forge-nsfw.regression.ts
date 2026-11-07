@@ -28,24 +28,28 @@ import {
 } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/content.ts";
 import { cgPromptFor } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/cg.ts";
 import {
+  ADULT_SENTENCE,
+  type ContractKind,
+  type ImagePrompt,
+  bannerPlanMessages,
+  beatMessages,
   cgPrompt,
+  chapterPlanMessages,
+  chatMemoryMessages,
+  closerMessages,
+  confrontationMessages,
   expressionPrompt,
   keepsakePrompt,
   lookPrompt,
-  placePrompt,
-  type ImagePrompt,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/prompts.ts";
-import {
-  ADULT_SENTENCE,
   otomeContentContract,
-  type ContractKind,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/content-contract.ts";
+  placePrompt,
+  routePlanMessages,
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import {
   runDocTarget,
   unitId,
   worldId,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/ids.ts";
-import { chatMemoryMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/phone/prompts.ts";
 import { registerRunRoutes } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/runs.ts";
 import { normalizePlayer } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/player.ts";
 import {
@@ -55,14 +59,6 @@ import {
 import { normalizeUnit } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/unit.ts";
 import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
 import { normalizeBeatReply } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/beats.ts";
-import {
-  beatMessages,
-  chapterPlanMessages,
-  closerMessages,
-  confrontationMessages,
-  routePlanMessages,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/prompts.ts";
-import { bannerPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/prompts.ts";
 import { KEY, artWorld, beat, routesOf, saveBeat } from "./fixtures/otome-forge-art.ts";
 import {
   CAST,
@@ -105,7 +101,12 @@ const stored = (heat: Heat, darkness: Darkness, limits: Partial<Record<LimitId, 
 const contract = (content: ContentSettings, kind: ContractKind = "scene", lis: ReadonlyArray<{ name: string }> = LIS) =>
   otomeContentContract({ world: worldOf(content), lis, kind });
 const bulletIndex = (text: string, pattern: RegExp) => text.split("\n").findIndex((line) => pattern.test(line));
-const systemOf = (messages: Array<{ content: string }>) => messages[0]!.content;
+// #2066: a story prompt opens with the shared story context, then its own instructions: both are system messages.
+const systemOf = (messages: Array<{ content: string }>) =>
+  messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
 
 test("each Heat and Darkness adds only its own wording, and only in NSFW mode (NSFW Heat or Dark romance)", () => {
   for (const heat of HEATS) {
@@ -226,7 +227,7 @@ test("under NSFW: Explicit, sex is never rushed: room to unfold, dialogue throug
     const input = storyInputs(content);
     const node = { ...cgNode("closer"), cg: false };
     const chapter = { kind: "main" as const, number: 2, title: "Rain", lead: KAI, foil: MIR, nodes: [node] };
-    return systemOf(closerMessages({ ...input, chapter, node, storySoFar: "", memory: "", li: KAI }));
+    return systemOf(closerMessages({ ...input, chapter, node, storySoFar: [], memory: "", li: KAI }));
   };
   const ROOM = /When it reaches sex, opened may run to 20 segments, so it is never rushed\./;
   assert.match(closer(stored("explicit", "angst")), ROOM);
@@ -319,8 +320,11 @@ function beatPrompt(content: ContentSettings, rating: ImageRating, kind: Chapter
   const input = storyInputs(content, rating);
   const node = cgNode(kind);
   const chapter = { kind: "main" as const, number: 2, title: "Rain", lead: KAI, foil: MIR, nodes: [node] };
-  const args = { ...input, chapter, node, storySoFar: "", memory: "" };
-  return systemOf(kind === "confrontation" ? confrontationMessages({ ...args, li: KAI }) : beatMessages(args));
+  const args = { ...input, chapter, node, storySoFar: [], memory: "" };
+  // #2066: the node's own rules (a beat's key image among them) go with its task, after the cached part.
+  return (kind === "confrontation" ? confrontationMessages({ ...args, li: KAI }) : beatMessages(args))
+    .map((message) => message.content)
+    .join("\n\n");
 }
 
 test("NSFW Heat and Dark romance reach the story prompts only with the 18+ confirmation and those settings", async () => {
@@ -340,9 +344,14 @@ test("NSFW Heat and Dark romance reach the story prompts only with the 18+ confi
   const scenePrompt = async () => {
     const run = (await readRun(t.store, t.runId))!;
     const chapter = { kind: "main" as const, number: 1, title: "Rain", lead: KAI, foil: MIR, nodes: [node] };
-    return systemOf(beatMessages({ ...run, chapter, node, storySoFar: "", memory: "" }));
+    return systemOf(beatMessages({ ...run, chapter, node, storySoFar: [], memory: "" }));
   };
-  const sfw = contract(defaultContent(), "scene", [{ name: "Kai" }]);
+  // #2066: the story context's contract names the whole cast, as every story prompt shares it.
+  const sfw = contract(
+    defaultContent(),
+    "scene",
+    (await readRun(t.store, t.runId))!.units.map((unit) => ({ name: unit.name })),
+  );
 
   // No gate: the raise is refused, the world keeps the SFW defaults, and so does every prompt built from it.
   const refused = await runs("POST", "/runs/:run/settings", { content: asked, images: { rating: "explicit" } });
@@ -424,7 +433,7 @@ test("P20: premises span the Heat; Memory art may be explicit only under Explici
   );
   assert.match(
     explicit,
-    /"cgCast": \[[^\]]*\], "explicit": false, "clothedBrief": "<English, 1–2 sentences, only when explicit is true>"\}, "four"/,
+    /"cgCast": \[[^\]]*\], "explicit": false, "clothedBrief": "<English, 1–4 sentences, only when explicit is true>"\}, "four"/,
     "the shape carries the mark and its clothed twin",
   );
   assert.match(
@@ -436,7 +445,7 @@ test("P20: premises span the Heat; Memory art may be explicit only under Explici
     /IMAGE TAGS every outfit line and 4★ brief must fit: [^\n]*\. The featured key image brief follows its rule above\./,
   );
   // Each 4★ Moment gets its own brief, held to clothed art whatever its premise holds.
-  assert.match(explicit, /"premise": "<1–2 sentences>", "cgBrief": "<English, 1–2 sentences>", "cgCast"/);
+  assert.match(explicit, /"premise": "<1–2 sentences>", "cgBrief": "<English, 1–4 sentences>", "cgCast"/);
   assert.match(
     explicit,
     /Each 4★'s cgBrief [^\n]*Whatever its premise holds, the picture follows this: follow the actual scene/,
@@ -681,6 +690,30 @@ test("the adult-only negatives stay on every image, at every rating and after an
   const { prompt } = cgPrompt({ brief, people: [KAI_LOOK], world, style: PLAIN, use: "cg", explicit: true });
   assert.doesNotMatch(prompt, /16-year-old|schoolgirl/);
   assert.match(prompt, /in the lamp room, candlelight/);
+  // An explicit CG draws each person from who they are: its references give their faces and builds, never the
+  // clothing of the clothed looks it is sent (2026-11-03).
+  const two = cgPrompt({
+    brief: "In the lamp room",
+    people: [KAI_LOOK, INES_LOOK],
+    world,
+    style: PLAIN,
+    use: "cg",
+    explicit: true,
+    references: ["Kai", "Ines"],
+  }).prompt;
+  assert.match(two, /Reference images, in order: Kai; Ines\. Use them only for each person's face, hair and build,/u);
+  assert.doesNotMatch(two, /clothing/u);
+  // Only an explicit scene does: an ordinary CG in the same Explicit world keeps their outfits, in words and pictures.
+  const clothed = cgPrompt({
+    brief: "In the lamp room",
+    people: [KAI_LOOK, INES_LOOK],
+    world,
+    style: PLAIN,
+    use: "cg",
+    references: ["Kai", "Ines"],
+  }).prompt;
+  assert.match(clothed, /Use them only for each person's face, hair, build and clothing,/u);
+  assert.ok(clothed.includes(KAI_LOOK.outfitLine), "its outfit lines stay");
 });
 
 test("the explicit tags appear only at the Explicit rating, on a story CG marked explicit under Explicit Heat", () => {

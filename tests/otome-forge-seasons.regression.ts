@@ -3,7 +3,12 @@
 // month and theme (a world without the holiday takes its own version of it), the banner keeps it as `season`, and its
 // view shows it, as an Echo too. The theme's earlier banners of the kind are named even once they are past the last
 // twelve, so next year's October is not this year's again. Any other rotation's P20 prompt is byte for byte the one it
-// was before: its digests were taken from the 0.6.3 builder before seasons were written.
+// was before: its digests were taken from the 0.6.3 builder before seasons were written, with 0.6.17's one change: the
+// story is headed "THE STORY SO FAR", no longer "(what everyone knows)", since its overview now tells every love
+// interest's own chapters too, titled private (#2039); and 0.6.22's (#2054): the shared writing rules say a love interest
+// may be genuinely evil, that taming them is the point, that they keep whatever red lines they have, and that love does
+// not make a monster good at once; Angst no longer sanitizes cruelty.
+// 0.6.25 (#2061): the maintainer's own edit of the shared writing rules.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test, { mock } from "node:test";
@@ -29,7 +34,7 @@ import {
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/wish.ts";
 import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
 import { readBanner } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/banners.ts";
-import { bannerPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/prompts.ts";
+import { bannerPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import { CAST, HE, SHE, bible } from "./fixtures/otome-forge-story.ts";
 import { KAI, MIR, SOL, rotationReplies, wishWorld } from "./fixtures/otome-forge-wish.ts";
 
@@ -152,9 +157,9 @@ const digest = (messages: Array<{ role: string; content: string }>) =>
 
 /** Taken from the 0.6.3 builder, before seasons. */
 const BEFORE_SEASONS: Record<wish.BannerKind, string> = {
-  memories: "3d9a629fa21ccb04",
-  "his-wardrobe": "171c5b72a8a57171",
-  "my-wardrobe": "ec3c399ca14160c3",
+  memories: "e75bc92590d80aa3",
+  "his-wardrobe": "7fdd86907403669a",
+  "my-wardrobe": "cdd24db38cc846a9",
 };
 
 test("a rotation that is not seasonal sends the P20 prompt it sent before seasons", () => {

@@ -8,7 +8,11 @@
 // chapter (its next scene, or its gate's end): the reader says with whom, and leads back to the story to make it right.
 // M2b: a painted story CG takes over the stage when its line comes (components/CgTakeover.tsx); the beat's music cue
 // plays and each spoken line is voiced (hooks/use-otome-audio.ts), and Auto waits for the voice. Everything works the
-// same with no image, music or voice connection.
+// same with no image, music or voice connection. While a scene is written, Who said what? may be played under the
+// panel (#2041, WhoSaidWhat.tsx). A side-with choice (#2046) is marked as one, each option names whom it backs, and its
+// pick shows the affection it moved with each love interest. A chapter's closing decision (its big choice, #2146) may be
+// answered in the player's own words (OwnAnswerDialog.tsx); the draft outlives the dialog until it is sent. A big
+// moment's side (#2155) is announced at the chapter's end, waiting in Routes.
 // ──────────────────────────────────────────────
 import {
   useCallback,
@@ -25,6 +29,8 @@ import {
   BookHeart,
   Eye,
   Feather,
+  Heart,
+  HeartCrack,
   HeartHandshake,
   House,
   Images,
@@ -36,6 +42,7 @@ import {
   X,
 } from "lucide-react";
 import { Avatar } from "../../components/Avatar";
+import { BackgroundPicker } from "../../components/BackgroundPicker";
 import { CgTakeover } from "../../components/CgTakeover";
 import { usePaintsByItself } from "../../components/CostHint";
 import { DeclinedPanel } from "../../components/DeclinedPanel";
@@ -51,7 +58,8 @@ import { useReader, useReducedMotion, type ReaderState } from "../../hooks/use-r
 import { accentOf } from "../../lib/accent";
 import { canonOption, readyUrl, sumGrants, voiceOf, type Voice } from "../../lib/reader-state";
 import { useOtomeProps } from "../../props";
-import type { Grant, RunLiView, RunView } from "../../shared/api-types";
+import type { Grant, LiId, RunLiView, RunView } from "../../shared/api-types";
+import { OWN_OPTION } from "../../shared/arcs";
 import { FACES, MUSIC_MOODS, type MusicMood } from "../../shared/faces";
 import { Backlog } from "./Backlog";
 import { ChoicePills, RememberToast } from "./ChoicePills";
@@ -59,9 +67,11 @@ import { ConfrontationEnd, StancePills } from "./Confrontation";
 import { ContentTagsCard } from "./ContentTagsCard";
 import { DialogueBox } from "./DialogueBox";
 import { EaseOffDialog } from "./EaseOffDialog";
+import { OwnAnswerDialog, type OwnAnswer } from "./OwnAnswerDialog";
 import { FACE_LABEL_KEYS, FacePlate, QuietCg } from "./FacePlate";
-import { ReaderControls } from "./ReaderControls";
+import { ReaderControls, chapterTitle } from "./ReaderControls";
 import { SpeakerPlate, useSpeakerSprite } from "./SpeakerPlate";
+import { WhoSaidWhat } from "./WhoSaidWhat";
 import { stageNameKey } from "../story/StoryHome";
 
 interface ReaderProps {
@@ -129,7 +139,9 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
   );
   // The last beat's music, kept while the next beat opens; none until the first beat is ready.
   const lastMood = useRef<MusicMood | undefined>(undefined);
-  const [dialog, setDialog] = useState<"log" | "ease" | null>(null);
+  const [dialog, setDialog] = useState<"log" | "ease" | "own" | "background" | null>(null);
+  // #2146: the player's own words for a closing decision, kept until sent (`at`: the choice they answer).
+  const [ownDraft, setOwnDraft] = useState<OwnAnswer & { at: string }>({ at: "", kind: "dialogue", text: "" });
   // Each love interest's level (and extra stories unlocked, #2025) when the chapter opened, so the end card can say
   // which one rose.
   const [levelsBefore] = useState<LevelsBefore>(() => new Map(view.lis.map((li) => [li.id, li])));
@@ -154,6 +166,8 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
   const reading = !!current && !!beat && !reader.finished && !reader.askTags;
   const showUi = !hidden || !reading;
   const pending = reader.pendingChoice;
+  const ownAt = `${chapterKey}/${reader.node}/${pending?.id ?? ""}`;
+  const ownAnswer: OwnAnswer = ownDraft.at === ownAt ? ownDraft : { kind: "dialogue", text: "" };
 
   // When the focused control leaves (Next gives way to the choices, a panel is replaced), focus lands on what took
   // its place, so a keyboard or screen reader never falls out of the story. Only while focus was in the reader. A CG's
@@ -204,7 +218,7 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
     advance();
   };
 
-  const openDialog = (next: "log" | "ease") => {
+  const openDialog = (next: "log" | "ease" | "own" | "background") => {
     reader.setAuto(false);
     setDialog(next);
   };
@@ -249,8 +263,13 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
   // Whom a Confrontation faces: the opponent the server set (not whoever spoke last), else the chapter's own.
   const facingId = reader.confrontation?.li ?? chapter?.li ?? chapter?.lead;
   const facing = view.lis.find((li) => li.id === facingId) ?? null;
-  // Phone stickers may use uncut originals. The stage accepts only faces authorized by the run's cutout metadata.
-  const stageLi = reader.onStage.li;
+  // Phone stickers may use uncut originals. The stage accepts only faces authorized by the run's cutout metadata. A
+  // look's first-wear scene stands him in that look, with its own faces and cut-outs, whatever he wears now. Until that
+  // look is painted there is no picture of him in it: his worn look stands in, and the scene's art polls (lookComing)
+  // until the new one lands; a look left waiting for Paint keeps the worn look for the whole scene.
+  // ponytail: until the scene's art read answers (made only with an image connection), he stands in his worn look; the
+  // upgrade path is the first-wear look on the chapter view.
+  const stageLi = reader.onStage.li && { ...reader.onStage.li, ...reader.sceneArt?.looks?.[reader.onStage.li.id] };
   const onStageLi = stageLi
     ? {
         ...stageLi,
@@ -378,6 +397,7 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
       {showUi ? (
         <ReaderControls
           chapter={chapter}
+          lis={view.lis}
           node={reader.node}
           nodeCount={reader.nodeCount}
           replay={!!reader.position?.replay && reading}
@@ -392,6 +412,7 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
               : undefined
           }
           placePaint={placePaint}
+          onPlaceBackground={() => openDialog("background")}
           tags={reader.tags}
           reading={reading}
           auto={reader.auto}
@@ -443,6 +464,8 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
                   <span className="of-toast-note"> · {t("ui.otomeForge.reader.cgNewNote")}</span>
                 </span>
               </p>
+            ) : toast.kind === "affection" ? (
+              <AffectionToast key={toast.id} li={view.lis.find((li) => li.id === toast.li)} amount={toast.amount} />
             ) : toast.kind === "audio" ? (
               <p key={toast.id} className="of-toast of-toast--audio">
                 <VolumeX size={14} strokeWidth={2} aria-hidden="true" />
@@ -482,12 +505,14 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
             firstChoice={firstChoice}
             levelsBefore={levelsBefore}
             facing={facing}
+            cgIntro={cgIntro}
             onAdvance={advance}
             onExit={onExit}
             exitLabel={exitLabel}
             onHome={onHome}
             ownEnding={!!onFinished}
             onEaseOff={() => openDialog("ease")}
+            onOwnAnswer={() => openDialog("own")}
           />
         )}
       </div>
@@ -516,8 +541,31 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
           onClose={() => setDialog(null)}
         />
       ) : null}
+      {dialog === "background" && place ? (
+        <BackgroundPicker
+          place={place}
+          onChoose={(url) => reader.chooseBackground(place, url)}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
       {dialog === "ease" ? (
         <EaseOffDialog onEaseOff={reader.easeOff} onVeil={reader.veil} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog === "own" && pending?.kind === "big" ? (
+        <OwnAnswerDialog
+          draft={ownAnswer}
+          onDraft={(next) => setOwnDraft({ ...next, at: ownAt })}
+          busy={reader.choosing === pending.id}
+          error={reader.choiceError}
+          onSend={(selection) =>
+            void reader.choose(pending, { id: OWN_OPTION, text: "", selection, segments: [] }).then((chosen) => {
+              if (!chosen) return;
+              setDialog(null);
+              setOwnDraft({ at: "", kind: "dialogue", text: "" });
+            })
+          }
+          onClose={() => setDialog(null)}
+        />
       ) : null}
       {reader.review ? (
         <PromptReviewDialog
@@ -535,6 +583,32 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
   );
 }
 
+/** #2046: the name of the love interest each option of a side-with choice backs. */
+function sideWithNames(backs: Record<string, LiId>, view: RunView): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(backs).flatMap(([option, id]) => {
+      const name = view.lis.find((li) => li.id === id)?.name;
+      return name ? [[option, name]] : [];
+    }),
+  );
+}
+
+/** "+30 affection with Kai" or "−10 affection with Sol": what a side-with pick moved, in his colour (#2046). */
+function AffectionToast({ li, amount }: { li: RunLiView | undefined; amount: number }) {
+  const { t } = useTranslation();
+  if (!li) return null;
+  const Icon = amount > 0 ? Heart : HeartCrack;
+  return (
+    <p className="of-toast of-toast--affection" style={{ "--of-li-accent": accentOf(li) } as CSSProperties}>
+      <Icon size={15} strokeWidth={2} aria-hidden="true" />
+      {t(amount > 0 ? "ui.otomeForge.reader.affectionGained" : "ui.otomeForge.reader.affectionLost", {
+        name: li.name,
+        amount: Math.abs(amount),
+      })}
+    </p>
+  );
+}
+
 interface BottomPanelProps {
   reader: ReaderState;
   view: RunView;
@@ -547,6 +621,8 @@ interface BottomPanelProps {
   levelsBefore: LevelsBefore;
   /** The love interest a Confrontation faces (its opponent, as the server set it). */
   facing: RunView["lis"][number] | null;
+  /** A story CG's pan hides the box: its line waits to type until the pan ends (#2051). */
+  cgIntro: boolean;
   /** Goes on (ends a CG's pan first). */
   onAdvance: () => void;
   onExit: () => void;
@@ -555,6 +631,8 @@ interface BottomPanelProps {
   /** The screen that opened the reader shows the ending itself. */
   ownEnding: boolean;
   onEaseOff: () => void;
+  /** #2146: opens Write your own… for a closing decision. */
+  onOwnAnswer: () => void;
 }
 
 /** The bottom third: the dialogue box and its choices, or the panel that stands in for them. */
@@ -590,7 +668,7 @@ function BottomPanel(props: BottomPanelProps) {
   if (reader.finished && chapter) {
     return (
       <ChapterEnd
-        title={chapter.title}
+        title={chapterTitle(t, chapter, view.lis)}
         prologue={chapter.kind === "prologue"}
         grants={reader.chapterGrants}
         arcNews={reader.arcNews}
@@ -678,26 +756,31 @@ function BottomPanel(props: BottomPanelProps) {
   }
   if (!beat || !current || !props.voice || load?.status !== "ready") {
     const writing = load?.status === "loading" && load.writing;
+    // Who said what? comes after the panel, so focus that falls back into the reader lands on Cancel, never on the
+    // game; the game goes the moment the scene is ready.
     return (
-      <section className="of-reader-panel of-writing of-glass of-glass--strong" role="status">
-        <span className="of-quill" aria-hidden="true">
-          <Feather size={22} strokeWidth={1.7} />
-        </span>
-        <p className="of-section-title">
-          {writing ? t("ui.otomeForge.reader.writing") : t("ui.otomeForge.reader.opening")}
-        </p>
-        {writing ? <p className="of-hint">{t("ui.otomeForge.reader.writingHint")}</p> : null}
-        {writing ? (
-          <button
-            type="button"
-            className="of-button of-button--quiet of-glass of-button--small"
-            onClick={() => void reader.cancel()}
-          >
-            <X size={15} strokeWidth={2} aria-hidden="true" />
-            {t("ui.otomeForge.reader.cancel")}
-          </button>
-        ) : null}
-      </section>
+      <>
+        <section className="of-reader-panel of-writing of-glass of-glass--strong" role="status">
+          <span className="of-quill" aria-hidden="true">
+            <Feather size={22} strokeWidth={1.7} />
+          </span>
+          <p className="of-section-title">
+            {writing ? t("ui.otomeForge.reader.writing") : t("ui.otomeForge.reader.opening")}
+          </p>
+          {writing ? <p className="of-hint">{t("ui.otomeForge.reader.writingHint")}</p> : null}
+          {writing ? (
+            <button
+              type="button"
+              className="of-button of-button--quiet of-glass of-button--small"
+              onClick={() => void reader.cancel()}
+            >
+              <X size={15} strokeWidth={2} aria-hidden="true" />
+              {t("ui.otomeForge.reader.cancel")}
+            </button>
+          ) : null}
+        </section>
+        {writing ? <WhoSaidWhat runKey={view.runKey} lis={view.lis} /> : null}
+      </>
     );
   }
 
@@ -737,7 +820,9 @@ function BottomPanel(props: BottomPanelProps) {
           firstChoice={props.firstChoice}
           busy={reader.choosing === pending.id}
           error={reader.choiceError}
+          backs={beat.sideWith?.choice === pending.id ? sideWithNames(beat.sideWith.backs, view) : undefined}
           onChoose={(option) => void reader.choose(pending, option)}
+          onOwn={props.onOwnAnswer}
         />
       ) : null}
       <div className="of-dialogue-wrap" onClick={props.onAdvance}>
@@ -749,6 +834,7 @@ function BottomPanel(props: BottomPanelProps) {
           lineKey={reader.lineKey}
           instant={reader.instant}
           finishToken={reader.finishToken}
+          paused={props.cgIntro}
           onTyped={reader.markTyped}
           aftermath={props.aftermath}
           canAdvance={!(pending && reader.typed)}
@@ -792,6 +878,7 @@ function ChapterEnd({
   const { starlight, affection } = sumGrants(grants);
   const raised = arcNews.stageUp ? view.lis.find((li) => li.id === arcNews.stageUp?.li) : undefined;
   const mended = arcNews.repaired ? view.lis.find((li) => li.id === arcNews.repaired) : undefined;
+  const told = arcNews.hisSide ? view.lis.find((li) => li.id === arcNews.hisSide) : undefined;
   const number = (value: number) => new Intl.NumberFormat(locale).format(value);
   return (
     <section className="of-reader-panel of-chapter-end of-glass of-glass--strong" aria-labelledby="of-chapter-end">
@@ -818,6 +905,13 @@ function ChapterEnd({
         <p className="of-arc-news" style={{ "--of-li-accent": accentOf(mended) } as CSSProperties}>
           <HeartHandshake size={16} strokeWidth={2} aria-hidden="true" />
           <span>{t("ui.otomeForge.arcs.repaired", { name: mended.name })}</span>
+        </p>
+      ) : null}
+      {/* #2155: a big moment's side, told from the love interest's point of view, now waits in Routes. */}
+      {told ? (
+        <p className="of-arc-news" style={{ "--of-li-accent": accentOf(told) } as CSSProperties}>
+          <Eye size={16} strokeWidth={2} aria-hidden="true" />
+          <span>{t("ui.otomeForge.arcs.sideUnlocked", { name: told.name })}</span>
         </p>
       ) : null}
       {starlight || affection.length ? (

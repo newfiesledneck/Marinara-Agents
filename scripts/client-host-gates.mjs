@@ -57,8 +57,11 @@ export const HOST_PROVIDED_LIBRARIES = [
   "use-sync-external-store",
 ];
 
-/** node_modules a client bundle may still carry: tree-shaken per icon, or not in the Engine at all. */
-export const BUNDLED_CLIENT_LIBRARIES = ["lucide-react", "chess.js"];
+/**
+ * node_modules a client bundle may still carry: tree-shaken per icon, or not handed to packages by the Engine. The
+ * Engine runs three.js for its own 3D avatars but does not expose it through `__MARINARA_HOST__.modules`.
+ */
+export const BUNDLED_CLIENT_LIBRARIES = ["lucide-react", "chess.js", "three"];
 
 const normalize = (path) => path.split("\\").join("/");
 

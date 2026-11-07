@@ -2,7 +2,8 @@
 // Otome Forge: the story's queries (GET /story, GET /chapters/:key) and the reader's state. The reader asks for one
 // beat at a time (POST .../beats/:i writes it if it is missing; the server then writes the next one ahead), plays it
 // line by line, saves first-play choices, tells the server how far it was read (Starlight and affection come back),
-// and handles Ease off, Rewrite beat and Cancel. A Confrontation node (M2b) is played as a beat whose choices are the
+// and handles Ease off, Rewrite beat and Cancel. A side-with pick (#2046) shows the affection it moved with each love
+// interest instead of "They'll remember that.". A Confrontation node (M2b) is played as a beat whose choices are the
 // four stances (lib/reader-state.ts confrontationBeat): each stance is sent once, and the server reveals the next round
 // or, after the third, the ending, which closes on its own card. A key image is marked seen once it has been shown,
 // after the server has heard the read reached it; a paint that waits for consent is painted on a tap.
@@ -32,7 +33,9 @@ import {
   type Picks,
   type ReaderLine,
 } from "../lib/reader-state";
+import { REDUCED_EFFECTS_ATTRIBUTE, REDUCED_MOTION_QUERY, reducedFrom } from "../lib/reduced-motion";
 import type {
+  AffectionChange,
   BeatView,
   ChapterDetail,
   ChoiceOption,
@@ -43,6 +46,7 @@ import type {
   Grant,
   LiId,
   Paint,
+  PlaceArt,
   ReadResult,
   RunView,
   SceneArt,
@@ -51,8 +55,10 @@ import type {
   WorldView,
 } from "../shared/api-types";
 import { useOtomeProps } from "../props";
+import { OWN_OPTION } from "../shared/arcs";
 import { LIMIT_IDS, type LimitId } from "../shared/content";
 import { placeKey } from "../shared/places";
+import { memoryQueryKey } from "./use-memory";
 import type { SpeakOutcome } from "./use-otome-audio";
 import { patchRun, runQueryKey } from "./use-run";
 
@@ -89,26 +95,36 @@ export async function cancelStoryWork(post: ReturnType<typeof useOtomeApi>["post
   }
 }
 
-const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+function reducedMotionQuery() {
+  try {
+    return typeof window.matchMedia === "function" ? window.matchMedia(REDUCED_MOTION_QUERY) : null;
+  } catch {
+    return null;
+  }
+}
 
-/** True while the system asks for reduced motion: lines then appear whole instead of typing themselves out. */
-export function useReducedMotion(): boolean {
-  const query = () => {
-    try {
-      return typeof window.matchMedia === "function" ? window.matchMedia(REDUCED_MOTION) : null;
-    } catch {
-      return null;
-    }
-  };
-  const [reduced, setReduced] = useState(() => query()?.matches ?? false);
+const readReducedMotion = (ambient: boolean) =>
+  reducedFrom(reducedMotionQuery()?.matches ?? false, ambient ? document.documentElement.dataset : undefined);
+
+/**
+ * True while the system asks for reduced motion or the Engine's "Reduce Ambient Animations & Effects" is on: lines
+ * then appear whole instead of typing themselves out. `{ ambient: false }` follows only the system, for motion that
+ * is play rather than decoration (the claw machine), which the Engine's setting does not promise to stop.
+ */
+export function useReducedMotion({ ambient = true }: { ambient?: boolean } = {}): boolean {
+  const [reduced, setReduced] = useState(() => readReducedMotion(ambient));
   useEffect(() => {
-    const media = query();
-    if (!media) return;
-    const update = () => setReduced(media.matches);
+    const media = reducedMotionQuery();
+    const update = () => setReduced(readReducedMotion(ambient));
     update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
+    media?.addEventListener("change", update);
+    const flag = ambient ? new MutationObserver(update) : null;
+    flag?.observe(document.documentElement, { attributes: true, attributeFilter: [REDUCED_EFFECTS_ATTRIBUTE] });
+    return () => {
+      media?.removeEventListener("change", update);
+      flag?.disconnect();
+    };
+  }, [ambient]);
   return reduced;
 }
 
@@ -138,6 +154,8 @@ interface Position {
 type ToastInput =
   | { kind: "remember"; li: LiId | null }
   | { kind: "starlight"; amount: number }
+  /** #2046: what a side-with pick moved with one love interest (+ for the one backed, − for each one passed over). */
+  | { kind: "affection"; li: LiId; amount: number }
   /** A key image unlocked in the Album. */
   | { kind: "cg" }
   /** Music or a voice could not play (the scene goes on without it). */
@@ -155,9 +173,12 @@ export interface LogEntry {
 }
 
 const TOAST_MS = 3_200;
-/** How often, and how long, a key image being painted is looked for again (3 minutes). */
+/**
+ * How often, and how long, a key image being painted is looked for again: 12 minutes, past the server's 10-minute
+ * deadline for one image (S/art/paint.ts PAINT_DEADLINE_MS), so a paint that fails there shows its Retry here.
+ */
 const PAINT_POLL_MS = 5_000;
-const PAINT_POLL_TRIES = 36;
+const PAINT_POLL_TRIES = 144;
 /** Auto's pause after a voiced line ends. */
 const AFTER_VOICE_MS = 900;
 
@@ -223,8 +244,13 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
   const [auto, setAuto] = useState(false);
   const [finished, setFinished] = useState(false);
   const [chapterGrants, setChapterGrants] = useState<Grant[]>([]);
-  /** What this read changed in the arcs: a stage a route chapter's gate opened, a rupture a repair closed. */
-  const [arcNews, setArcNews] = useState<{ stageUp?: { li: LiId; stage: number }; repaired?: LiId }>({});
+  /**
+   * What this read changed in the arcs: a stage a route chapter's gate opened, a rupture a repair closed, a big moment
+   * whose side waits in Routes (#2155).
+   */
+  const [arcNews, setArcNews] = useState<{ stageUp?: { li: LiId; stage: number }; repaired?: LiId; hisSide?: LiId }>(
+    {},
+  );
   const [toasts, setToasts] = useState<ReaderToast[]>([]);
   const [choosing, setChoosing] = useState<string | null>(null);
   const [choiceError, setChoiceError] = useState<string | null>(null);
@@ -453,10 +479,15 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
       if (beatStarlight > 0) pushToast({ kind: "starlight", amount: beatStarlight });
       const chapterOnes = grants.filter((grant) => grant.source !== "beat");
       if (chapterOnes.length) setChapterGrants((list) => [...list, ...chapterOnes]);
-      const { stageUp, repaired } = result;
-      if (stageUp || repaired) {
-        setArcNews((news) => ({ ...news, ...(stageUp ? { stageUp } : {}), ...(repaired ? { repaired } : {}) }));
-        // The story screen's routes and repairs follow from it.
+      const { stageUp, repaired, hisSide } = result;
+      if (stageUp || repaired || hisSide) {
+        setArcNews((news) => ({
+          ...news,
+          ...(stageUp ? { stageUp } : {}),
+          ...(repaired ? { repaired } : {}),
+          ...(hisSide ? { hisSide } : {}),
+        }));
+        // The story screen's routes, repairs and sides follow from it.
         void queryClient.invalidateQueries({ queryKey: storyQueryKey(runKey) });
       }
       if (typeof result.starlight === "number") {
@@ -553,7 +584,10 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
       art.cg?.art?.state === "pending" ||
       (Array.isArray(art.places) && art.places.some((place) => place.art?.state === "pending")) ||
       // Painting and free cleanup both settle; failed or stopped work is never waited for.
-      waitingForFaces(art);
+      waitingForFaces(art) ||
+      // A first-wear look is waited for with expressions off too, while it paints and then its cut-out: only this read
+      // brings it, as the run's own reads stand him in his worn look.
+      art.lookComing === true;
     const look = async () => {
       tries += 1;
       try {
@@ -705,6 +739,31 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
     [chapterKey, node, paint],
   );
   const paintPlace = useCallback((place: string) => paint({ kind: "place", place }), [paint]);
+  /** #2147: a background from the Engine's library as the place's picture (nothing painted); rejects on failure. */
+  const chooseBackground = useCallback(
+    async (place: string, url: string) => {
+      const chosen = await otome.post<{ place: PlaceArt; world: WorldView }>(
+        `${runPath(runKey)}/art/place/background`,
+        { place, url },
+      );
+      patchRun(queryClient, runKey, (shown) => ({ ...shown, world: { ...shown.world, ...chosen.world } }));
+      // The scene's own copy of the place too, so a painted picture it replaced never stands in meanwhile.
+      setScene(
+        (shown) =>
+          shown && {
+            ...shown,
+            art: {
+              ...shown.art,
+              places: shown.art.places.map((entry) =>
+                placeKey(entry.name) === placeKey(place) ? chosen.place : entry,
+              ),
+            },
+          },
+      );
+      setSceneTick((tick) => tick + 1);
+    },
+    [otome, queryClient, runKey],
+  );
   const sendReview = useCallback(
     (edited: ImagePrompt) => {
       if (!review || review.busy) return;
@@ -743,6 +802,9 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
     } else {
       setAuto(false);
       setFinished(true);
+      // A finished chapter queues its summary: the memory banner asks now rather than at its 30 s poll, so the upkeep
+      // (polled every 2 s while it runs) and a failure show at once.
+      void queryClient.invalidateQueries({ queryKey: memoryQueryKey(runKey) });
     }
   }, [cg, current, markCgSeen, node, nodeCount, position, queryClient, refBase, refreshStory, report, runKey]);
 
@@ -792,16 +854,18 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
 
   // ── Choices ──
 
-  // Two quick presses share the render's `choosing`: the ref lets only the first one through.
+  // Two quick presses share the render's `choosing`: the ref lets only the first one through. Resolves whether the
+  // pick went through (#2146: the own-words dialog closes only then). An option OWN_OPTION carries the player's own
+  // words as its selection (a chapter's closing decision), which the server appends to the choice.
   const choosingRef = useRef(false);
   const choose = useCallback(
-    async (choice: ForgeChoice, option: ChoiceOption) => {
-      if (preparingBackground || !beat || !position || node === null || choosing || choosingRef.current) return;
+    async (choice: ForgeChoice, option: ChoiceOption): Promise<boolean> => {
+      if (preparingBackground || !beat || !position || node === null || choosing || choosingRef.current) return false;
       setChoiceError(null);
       // Picked on an earlier read: this read shows the other branch, and nothing changes.
       if (canonOption(beat, choice)) {
         setPosition({ ...position, picks: { ...position.picks, [choice.id]: option.id }, line: lineIndex + 1 });
-        return;
+        return true;
       }
       setChoosing(choice.id);
       choosingRef.current = true;
@@ -821,19 +885,26 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
           );
           const by = Array.isArray(result.rememberedBy) ? result.rememberedBy : [];
           if (result.remembered) pushToast({ kind: "remember", li: by.length === 1 ? by[0]! : null });
+          return true;
         } catch (error) {
           setChoiceError(otome.errorMessage(error));
+          return false;
         } finally {
           choosingRef.current = false;
           setChoosing(null);
         }
-        return;
       }
       try {
-        const result = await otome.post<{ beat: BeatView; remembered: boolean; rememberedBy?: LiId[] }>(
-          `${base}/beats/${node}/choose`,
-          { choice: choice.id, option: option.id },
-        );
+        const result = await otome.post<{
+          beat: BeatView;
+          remembered: boolean;
+          rememberedBy?: LiId[];
+          affection?: AffectionChange[];
+        }>(`${base}/beats/${node}/choose`, {
+          choice: choice.id,
+          option: option.id,
+          ...(option.id === OWN_OPTION ? { own: option.selection } : {}),
+        });
         const picked = result.beat.choiceCanon[choice.id] ?? option.id;
         setLoad({ status: "ready", node, beat: result.beat });
         // A big choice at the last line adds its selection after it: the new end is reported again.
@@ -842,17 +913,37 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
             ? { ...current, picks: { ...current.picks, [choice.id]: picked }, line: lineIndex + 1, ended: false }
             : current,
         );
+        // #2046: a side-with pick shows what it moved with each love interest, and the levels follow from it.
+        const moved =
+          result.beat.sideWith?.choice === choice.id && Array.isArray(result.affection) ? result.affection : [];
+        for (const { li, amount } of moved) pushToast({ kind: "affection", li, amount });
+        if (moved.length) void queryClient.invalidateQueries({ queryKey: runQueryKey(runKey) });
         // Named only when the pick touched one love interest; "They'll remember that." otherwise.
         const by = Array.isArray(result.rememberedBy) ? result.rememberedBy : [];
-        if (result.remembered) pushToast({ kind: "remember", li: by.length === 1 ? by[0]! : null });
+        if (result.remembered && !moved.length) pushToast({ kind: "remember", li: by.length === 1 ? by[0]! : null });
+        return true;
       } catch (error) {
         setChoiceError(otome.errorMessage(error));
+        return false;
       } finally {
         choosingRef.current = false;
         setChoosing(null);
       }
     },
-    [base, beat, choosing, confrontation, lineIndex, node, otome, position, preparingBackground, pushToast],
+    [
+      base,
+      beat,
+      choosing,
+      confrontation,
+      lineIndex,
+      node,
+      otome,
+      position,
+      preparingBackground,
+      pushToast,
+      queryClient,
+      runKey,
+    ],
   );
 
   // ── Ease off and veils ──
@@ -1076,6 +1167,7 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
     markCgSeen,
     paintCg,
     paintPlace,
+    chooseBackground,
     painting,
     review,
     sendReview,

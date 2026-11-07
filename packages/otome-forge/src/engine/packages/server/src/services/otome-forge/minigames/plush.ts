@@ -13,17 +13,16 @@
 // ponytail: a plush is drawn once and kept; a look or accent changed later keeps the plush it had. The upgrade path is a
 // Redraw on the shelf. The cool-down lives in this process only, as the line packs' does.
 import { z } from "zod";
-import type { LiId, PlushArt, Unit } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
-import { PLUSH_INK } from "../../../../../client/src/features/otome-forge/shared/claw.js";
-import { PLUSH_ATTRIBUTES, PLUSH_ELEMENTS, PLUSH_SVG_MAX, sanitizePlushSvg } from "../art/plush-svg.js";
+import type { LiId, PlushArt } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import { sanitizePlushSvg } from "../art/plush-svg.js";
 import type { BackgroundQueue } from "../background-queue.js";
-import { generateJson, resolveConnectionId, type GenerationDeps, type OtomeMessage } from "../generation.js";
+import { generateJson, resolveConnectionId, type GenerationDeps } from "../generation.js";
 import { runDocTarget, unitId } from "../ids.js";
 import { readRun } from "../schemas/state.js";
 import { PLUSH_ANIMAL_MAX, normalizeUnit } from "../schemas/unit.js";
 import type { OtomeStore } from "../store.js";
+import { plushMessages } from "../prompts.js";
 
-export const PLUSH_TEMPERATURE = 0.7;
 /** What the reply itself needs: an SVG of up to PLUSH_SVG_MAX characters in a JSON string. */
 export const PLUSH_MAX_TOKENS = 5000;
 /** How long a love interest whose plush failed is left alone before another attempt. */
@@ -41,51 +40,6 @@ export function normalizePlushReply(reply: PlushReply, at: string): PlushArt | s
   return "svg" in clean ? { animal, svg: clean.svg, at } : clean.error;
 }
 
-/** The plush prompt: who they are and how they look, and the SVG the allow-list will take. */
-export function plushMessages({ unit }: { unit: Unit }): OtomeMessage[] {
-  const bible = unit.bible;
-  const look = [unit.identityLine || bible?.look.identityLine, unit.outfitLine || bible?.look.outfitLine]
-    .map((line) => line?.trim())
-    .filter(Boolean)
-    .join("; ");
-  const who = bible
-    ? [
-        bible.role && `Role: ${bible.role}`,
-        bible.publicFace && `How they come across: ${bible.publicFace}`,
-        bible.archetype && `Archetype: ${bible.archetype}`,
-        bible.mask.presents && `Manner: ${bible.mask.presents}`,
-        bible.voice.register && `Voice: ${bible.voice.register}`,
-      ].filter(Boolean)
-    : [];
-  const system = [
-    "You design one plush toy for the Claw Machine of an otome game: the love interest below as the animal that fits them best, made as a soft toy in their colours.",
-    'Reply with ONLY a JSON object: {"animal": "...", "svg": "<svg ...>...</svg>"}',
-    "FIELDS",
-    "- animal: the animal, in one or two English words (for example raven, black cat, red fox, snow leopard).",
-    "- svg: the plush, as one small SVG image.",
-    "RULES",
-    "- Pick the animal from who they are: their personality, role and manner first, their look second. A fitting animal, never a pun on their name.",
-    "- Colour it from their look: the main colours of their hair and clothes, eyes in their own eye colour, and their accent colour somewhere on it.",
-    "- A plush, not a real animal: a seated chibi toy with a big round head on a small round body, stubby limbs, soft rounded shapes, simple eyes with a white glint, a little blush and dashed stitch seams. Cute, and still recognisably them.",
-    `- The SVG: viewBox "0 0 64 64", the plush centred and filling most of it, with no background. Use only these elements: ${PLUSH_ELEMENTS.join(", ")}. Use only these attributes: ${Object.keys(PLUSH_ATTRIBUTES).join(", ")} (transform: translate, rotate or scale only). Colours as #rrggbb. No text, style, gradients, filters, ids, links, images or comments.`,
-    `- Outline the shapes in ${PLUSH_INK} at a stroke-width of 1 to 1.5, as the machine's other plushies are. At most ${PLUSH_SVG_MAX} characters.`,
-  ].join("\n");
-  const user = [
-    `LOVE INTEREST: ${unit.name} (${unit.pronouns.subject}/${unit.pronouns.object})`,
-    `Accent colour: ${unit.accent}`,
-    look ? `Look: ${look}` : "",
-    ...who,
-    "",
-    `Design ${unit.name}'s plush now.`,
-  ]
-    .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
-    .join("\n");
-  return [
-    { role: "system", content: system },
-    { role: "user", content: user },
-  ];
-}
-
 export interface PlushDeps extends GenerationDeps {
   store: Pick<OtomeStore, "readDoc" | "listRun" | "updateDoc">;
   background?: Pick<BackgroundQueue, "ensure">;
@@ -98,9 +52,9 @@ const debugWanted = new Set<string>();
 const jobKey = (runId: string, li: LiId) => `${unitId(runId, li)}#plush`;
 
 /**
- * Queues the drawing of each listed love interest's missing plush on the background lane; returns the ones queued. A
- * love interest with no bible, a plush already, no connection to draw with, a job already waiting or running, or a
- * failure within PLUSH_RETRY_MS is skipped.
+ * Queues the drawing of each listed love interest's missing plush on the background lane; returns the ones whose
+ * drawing now waits or runs. A love interest with no bible, a plush already, no connection to draw with, or a failure
+ * within PLUSH_RETRY_MS is skipped.
  */
 export async function ensurePlushArt(
   deps: PlushDeps,
@@ -113,7 +67,7 @@ export async function ensurePlushArt(
   const run = await readRun(deps.store, runId);
   const connectionId = resolveConnectionId(run?.world ?? null, "structured");
   if (!run || !connectionId) return [];
-  const queued: LiId[] = [];
+  const waiting: LiId[] = [];
   for (const li of lis) {
     const unit = run.units.find((entry) => entry.id === li);
     const key = jobKey(runId, li);
@@ -136,10 +90,10 @@ export async function ensurePlushArt(
         }
       },
     });
-    if (fresh) queued.push(li);
-    else if (debugMode) debugWanted.add(key);
+    waiting.push(li);
+    if (!fresh && debugMode) debugWanted.add(key);
   }
-  return queued;
+  return waiting;
 }
 
 /**
@@ -166,7 +120,6 @@ export async function writePlushArt(
       const art = normalizePlushReply(reply, at);
       return typeof art === "string" ? art : reply;
     },
-    temperature: PLUSH_TEMPERATURE,
     maxTokens: PLUSH_MAX_TOKENS,
     debugMode,
     lane: "background",

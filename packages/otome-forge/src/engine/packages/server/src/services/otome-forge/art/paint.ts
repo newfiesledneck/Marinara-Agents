@@ -25,7 +25,7 @@ import { isLiId, playerId, runDocTarget, unitId, worldId } from "../ids.js";
 import { normalizePlayer } from "../schemas/player.js";
 import { normalizeUnit } from "../schemas/unit.js";
 import { normalizeWorld } from "../schemas/world.js";
-import { readPersona } from "../setup/prompts.js";
+import { readPersona } from "../setup/cast.js";
 import type { DocTarget, Normalize, OtomeStore } from "../store.js";
 import {
   GALLERY_REF_PREFIX,
@@ -36,7 +36,7 @@ import {
   worldStyle,
   type PaintedImage,
 } from "./image-client.js";
-import { LOOK_SIZE, lookPrompt, type ImagePrompt } from "./prompts.js";
+import { type ImagePrompt, LOOK_SIZE, lookPrompt } from "../prompts.js";
 
 /** Whose look: the protagonist, or `li:<li id>`. */
 export type LookOwner = "player" | `li:${LiId}`;
@@ -65,10 +65,21 @@ const notFound = () => new OtomeForgeError(404, "No such Otome Forge run.", "not
 // ── Live paints in this process ──
 
 /**
- * Whose paint: a look (`player`, `li:<id>`), a place (`place:<key>`), a story CG (`cg:<key>/<i>@<written at>`), or (M4,
- * S/art/outfits.ts) an item's art (`item:<item id>`) or a couple set's pair portrait (`item:<her look's id>/pair`).
+ * Whose paint: a look (`player`, `li:<id>`), a place (`place:<key>`), a story CG (`cg:<key>/<i>@<written at>`), (M4,
+ * S/art/outfits.ts) an item's art (`item:<item id>`) or a couple set's pair portrait (`item:<her look's id>/pair`),
+ * (#2044, S/art/stickers.ts) a chat sticker (`sticker:<sticker id>`), (#2087, S/minigames/photo-shoot.ts) a Photo
+ * Shoot photo (`photo:<photo id>`), (#2138, S/art/figurine.ts) a love interest's Shop figurine (`figurine:<li id>`),
+ * or (#2151, S/art/tarot-deck.ts) a card of the Tarot deck (`tarot:<deckKey>`).
  */
-export type PaintOwner = LookOwner | `place:${string}` | `cg:${string}` | `item:${string}`;
+export type PaintOwner =
+  | LookOwner
+  | `place:${string}`
+  | `cg:${string}`
+  | `item:${string}`
+  | `sticker:${string}`
+  | `photo:${string}`
+  | `figurine:${string}`
+  | `tarot:${string}`;
 
 const live = new Map<string, { settled: Promise<void>; settle: () => void }>();
 const liveKey = (runId: string, owner: PaintOwner) => `${runId}|${owner}`;
@@ -230,18 +241,56 @@ export interface PaintRecordJob {
   save: (art: Paint) => Promise<boolean>;
   /** False once the art service is torn down: nothing more is paid for. */
   active?: () => boolean;
+  /** The connection's lane: `high` by default; background stickers (S/art/stickers.ts) wait in `low`, as faces do. */
+  lane?: PaintLane;
 }
 
 const failure = (error: unknown) => (error instanceof Error ? error.message : String(error)).slice(0, ERROR_MAX);
 
 /**
- * One paid image for a record its caller has just marked pending, in the connection's `high` lane. Resolves the record
- * as left: `ready`, `failed` (never repainted without a tap), `stopped` or `waiting-consent` (nothing was paid for), or
- * null when the record is gone. An image that could not be saved onto its record is deleted from the gallery.
+ * The longest one paid image may take before it counts as failed. A call that never answers held its connection's
+ * queue, so every place and key image behind it said "painting" for good; at this point it is saved as failed, with
+ * Retry, and the next paint starts. Generous, because a slow model or a busy local server can take minutes.
+ */
+export const PAINT_DEADLINE_MS = 10 * 60_000;
+
+/**
+ * `task`, or a rejection once `ms` pass first. The task itself is not stopped: a result that arrives after the
+ * deadline goes to `onLate`, so a late image can be deleted instead of left in the gallery.
+ */
+export function withDeadline<T>(
+  task: () => Promise<T>,
+  ms: number,
+  what: string,
+  onLate?: (value: T) => unknown,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let expired = false;
+  const running = task();
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      expired = true;
+      reject(new Error(`${what} took longer than ${Math.round(ms / 60_000)} minutes`));
+    }, ms);
+  });
+  void running.then(
+    (value) => {
+      if (expired) void Promise.resolve(onLate?.(value)).catch(() => undefined);
+    },
+    () => undefined,
+  );
+  return Promise.race([running, late]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * One paid image for a record its caller has just marked pending, in the job's lane (`high` unless it names one).
+ * Resolves the record as left: `ready`, `failed` (never repainted without a tap), `stopped` or `waiting-consent`
+ * (nothing was paid for), or null when the record is gone. An image that could not be saved onto its record is deleted
+ * from the gallery.
  */
 export function paintRecord(deps: ArtDeps, job: PaintRecordJob): Promise<Paint | null> {
   const images = imagesOf(deps);
-  return paintSlot(job.connectionId, async () => {
+  const paint = async (): Promise<Paint | null> => {
     const check = job.active && !job.active() ? "stopped" : await job.check();
     if (check !== "paint") {
       if (check === "gone") return null;
@@ -250,7 +299,9 @@ export function paintRecord(deps: ArtDeps, job: PaintRecordJob): Promise<Paint |
     }
     let image: PaintedImage;
     try {
-      image = await job.paint();
+      image = await withDeadline(job.paint, PAINT_DEADLINE_MS, "The image service", (late) =>
+        late.id ? images.deleteGalleryImage(late.id) : undefined,
+      );
     } catch (error) {
       const message = failure(error);
       deps.runtime.logger.warn("[otome-forge] painting %s failed: %s", job.label, message);
@@ -267,7 +318,8 @@ export function paintRecord(deps: ArtDeps, job: PaintRecordJob): Promise<Paint |
       if (!kept && image.id) await images.deleteGalleryImage(image.id);
     }
     return kept ? ready : null;
-  });
+  };
+  return paintSlot(job.connectionId, paint, job.lane);
 }
 
 // ── Whose look, and how it reads ──

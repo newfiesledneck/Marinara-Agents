@@ -1,10 +1,16 @@
 // Otome Forge's generation core (M1): a JSON reply is parsed, checked by its schema and `normalize`, and gets exactly
 // one repair turn; a refusal is a 422; every prompt is logged through debugOverride with care lines redacted; the
 // per-run queue reads the cache again, so a request behind the writer never writes twice; and the background queue
-// requeues a job only when admission refused it, so an admitted job never calls the model twice.
+// requeues a job only when admission refused it, so an admitted job never calls the model twice. #2039: a prompt
+// that fits is sent as it is; on overflow its story memory gives way as GF's fitForgeMemoryPrompt has it (recalled
+// details first, then only at the reply floor the oldest uncovered summaries), and one that still cannot fit, or that
+// the Engine would trim, is a 413 `capacity` that sends nothing. A call sends its output size alone: no temperature,
+// no JSON mode, nothing else, so the connection's own saved settings are what the Engine sends.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { z } from "zod";
+import { forgeMemoryContext } from "@forge-kit/story-memory-fit.mjs";
+import { forgeStoryMemoryText } from "@forge-kit/story-memory.mjs";
 import type { CapabilityRuntimeHost } from "@marinara-engine/shared";
 import {
   BACKGROUND_RETRY_MAX_MS,
@@ -46,7 +52,12 @@ delete process.env.DEBUG_AGENTS;
 
 async function setup(
   replies: FakeReply[],
-  options: { debugAgents?: boolean; enabledLevels?: string[]; maxOutputTokens?: number | null } = {},
+  options: {
+    debugAgents?: boolean;
+    enabledLevels?: string[];
+    maxOutputTokens?: number | null;
+    maxContext?: number | null;
+  } = {},
 ) {
   const fake = createFakeDocuments();
   const store = createOtomeStore(fake.documents);
@@ -68,7 +79,6 @@ function request(overrides: Partial<GenerateJsonRequest<Premise>> = {}): Generat
       { role: "user", content: "A premise, please." },
     ],
     schema: Premise,
-    temperature: 0.9,
     maxTokens: 600,
     debugMode: false,
     lane: "foreground",
@@ -78,7 +88,41 @@ function request(overrides: Partial<GenerateJsonRequest<Premise>> = {}): Generat
 
 const failsWith = (status: number, code: string) => (error: unknown) =>
   error instanceof OtomeForgeError && error.statusCode === status && error.code === code;
-const httpError = (status: number, message: string) => Object.assign(new Error(message), { status });
+
+test("a cache mark is sent as it is, through the fit and the repair turn, for an hour, and debug mode logs what was cached (#2066)", async () => {
+  const usage = { promptTokens: 40, cachedPromptTokens: 9000, cacheWritePromptTokens: 120 };
+  const { deps, calls, logs } = await setup([
+    { content: "not json", finishReason: "stop", usage },
+    { content: '{"premise":"A masked ball."}', finishReason: "stop", usage },
+  ]);
+  const messages = [
+    { role: "system" as const, content: "THE STORY: the shared context.", cacheBreakpoint: true },
+    { role: "system" as const, content: "Reply with {premise}.", cacheBreakpoint: true },
+    { role: "user" as const, content: "A premise, please." },
+  ];
+  await generateJson(deps, request({ messages, debugMode: true }));
+  for (const call of calls) {
+    assert.deepEqual(
+      call.messages.slice(0, 3),
+      messages,
+      "both marks reach the Engine, and the part that changes has none",
+    );
+    // #2091: a chapter's calls come minutes apart, so a marked prompt asks for the hour-long cache.
+    assert.equal((call.options as { cacheTtl?: string }).cacheTtl, "1h");
+  }
+  assert.equal(calls[1]!.messages.length, 5, "the repair turn adds its two messages after them");
+  const cached = logs.filter((entry) => entry.level === "debugOverride" && /Prompt cache/u.test(entry.message));
+  assert.equal(cached.length, 2);
+  assert.deepEqual(cached[0]!.args, ["premise-suggest", 9000, 120, 40]);
+  assert.equal(cached[0]!.override, true);
+
+  // A prompt without marks is sent as before: no field added.
+  const plain = await setup(['{"premise":"A masked ball."}']);
+  await generateJson(plain.deps, request());
+  assert.ok(plain.calls[0]!.messages.every((message) => !("cacheBreakpoint" in message)));
+  assert.ok(!("cacheTtl" in plain.calls[0]!.options!), "nor a cache lifetime");
+  assert.ok(!plain.logs.some((entry) => /Prompt cache/u.test(entry.message)), "nothing reported, nothing logged");
+});
 
 test("a reply is parsed, checked by its schema and normalize, and gets exactly one repair turn", async () => {
   const { deps, calls } = await setup(['Sure! ```json\n{"premise": 42}\n```', '{"premise":"A masked ball."}']);
@@ -90,8 +134,8 @@ test("a reply is parsed, checked by its schema and normalize, and gets exactly o
   });
   assert.equal(calls.length, 2);
   assert.equal(calls[0]!.connectionId, "conn-structured", "the job's own connection wins over narration");
-  assert.deepEqual(calls[0]!.options?.responseFormat, { type: "json_object" });
-  assert.equal(calls[0]!.options?.temperature, 0.9);
+  // The output size alone (debugMode and signal are the Engine's own): the connection's settings decide the rest.
+  assert.deepEqual(Object.keys(calls[0]!.options ?? {}).sort(), ["debugMode", "maxTokens", "signal"]);
   assert.equal(calls[0]!.options?.maxTokens, 4096, "the budget, within the connection's own output cap");
   const repair = calls[1]!.messages;
   assert.deepEqual(repair.slice(0, 2), request().messages, "the repair turn keeps the prompt");
@@ -115,170 +159,6 @@ test("a reply is parsed, checked by its schema and normalize, and gets exactly o
   const bad = await setup(['{"premise":""}', "not json at all"]);
   await assert.rejects(generateJson(bad.deps, request()), failsWith(502, "bad-format"));
   assert.equal(bad.calls.length, 2);
-});
-
-test("an endpoint rejecting json_object retries the same premise request once without the JSON hint", async () => {
-  const unsupported = Object.assign(
-    new Error("Custom OpenAI-compatible endpoint error 400: 'response_format.type' must be 'json_schema' or 'text'"),
-    { status: 400 },
-  );
-  const { deps, calls } = await setup([unsupported, '{"premise":"A masked ball."}'], { maxOutputTokens: null });
-  const controller = new AbortController();
-  const result = await generateJson(
-    deps,
-    request({ runId: null, connectionId: "conn-custom", signal: controller.signal, debugMode: true }),
-  );
-  assert.equal(result.value.premise, "A masked ball.");
-  assert.equal(calls.length, 2, "one rejected hint followed by one completion, without another model or connection");
-  assert.deepEqual(calls[0]!.messages, calls[1]!.messages);
-  assert.deepEqual(calls[0]!.options?.responseFormat, { type: "json_object" });
-  const { responseFormat: _hint, ...unchanged } = calls[0]!.options!;
-  assert.deepEqual(calls[1]!.options, unchanged, "only the optional JSON hint changes");
-  assert.equal(calls[1]!.connectionId, "conn-custom");
-  assert.equal(calls[1]!.options?.signal, controller.signal);
-  assert.equal(calls[1]!.options?.maxTokens, OUTPUT_FLOOR + REASONING_HEADROOM, "no arbitrary output cap is added");
-});
-
-test("explicit HTTP 422 format rejections recover while a repeated rejection is propagated without another retry", async () => {
-  for (const message of [
-    "Unsupported parameter:response_format",
-    "Invalid value for response_format.type",
-    "This endpoint does not support JSON mode",
-  ]) {
-    const t = await setup([httpError(422, message), '{"premise":"Recovered."}']);
-    assert.equal((await generateJson(t.deps, request({ label: "world-plan" }))).value.premise, "Recovered.");
-    assert.equal(t.calls.length, 2);
-    assert.equal(t.calls[1]!.options?.responseFormat, undefined);
-  }
-  const repeated = httpError(400, "response_format is not supported");
-  const t = await setup([repeated, repeated, '{"premise":"Must not be reached."}']);
-  await assert.rejects(generateJson(t.deps, request()), (error) => error === repeated);
-  assert.equal(t.calls.length, 2, "the compatibility retry is bounded even when omission cannot satisfy the endpoint");
-});
-
-test("format fallback preserves exactly one content repair and omits the hint for the rest of that generation", async () => {
-  const unsupported = httpError(400, "response_format.type must be json_schema or text");
-  for (const replies of [
-    [unsupported, "not JSON", '{"premise":"Repaired."}'],
-    ["not JSON", unsupported, '{"premise":"Repaired."}'],
-  ]) {
-    const t = await setup(replies);
-    assert.equal((await generateJson(t.deps, request())).value.premise, "Repaired.");
-    assert.equal(t.calls.length, 3, "one rejected request and at most two completed replies");
-    assert.deepEqual(t.calls.at(-1)!.options?.responseFormat, undefined);
-    const repair = t.calls.at(-1)!.messages;
-    assert.equal(repair.at(-2)!.content, "not JSON");
-    assert.match(repair.at(-1)!.content, /Reply again with ONLY the JSON object/);
-    const rejected = replies[0] === unsupported ? 0 : 1;
-    assert.deepEqual(t.calls[rejected]!.messages, t.calls[rejected + 1]!.messages);
-  }
-  const bad = await setup([unsupported, "not JSON", "still not JSON", '{"premise":"No third content turn."}']);
-  await assert.rejects(generateJson(bad.deps, request()), failsWith(502, "bad-format"));
-  assert.equal(bad.calls.length, 3);
-});
-
-test("unrelated provider, authentication, quota, network and statusless failures never authorize a format retry", async () => {
-  const formatMessage = "response_format.type must be json_schema or text";
-  const errors = [
-    ...[401, 403, 404, 408, 409, 413, 429, 500, 502, 503, 504, 529].map((status) => httpError(status, formatMessage)),
-    httpError(400, "Invalid API key; request response_format=json_object"),
-    httpError(400, "Invalid prompt content; request response_format=json_object"),
-    httpError(400, "Invalid schema in prompt; request response_format=json_object"),
-    httpError(400, "max_tokens invalid; request response_format=json_object"),
-    httpError(422, "Input too long; request response_format=json_object"),
-    new Error(`Custom endpoint error 400: ${formatMessage}`),
-    Object.assign(new Error("Connection reset"), { code: "ECONNRESET" }),
-  ];
-  for (const original of errors) {
-    const t = await setup([original, '{"premise":"Must not be reached."}']);
-    await assert.rejects(generateJson(t.deps, request()), (error) => error === original, original.message);
-    assert.equal(t.calls.length, 1, original.message);
-  }
-});
-
-test("abort and permission changes stop a format retry before another call or fallback prompt log", async () => {
-  const unsupported = httpError(400, "response_format.type must be json_schema or text");
-  const controller = new AbortController();
-  const stopped = new Error("Stopped while the endpoint rejected the hint");
-  const aborted = await setup([
-    () => {
-      controller.abort(stopped);
-      throw unsupported;
-    },
-  ]);
-  await assert.rejects(
-    generateJson(aborted.deps, request({ signal: controller.signal, debugMode: true })),
-    (error) => error === stopped,
-  );
-  assert.equal(aborted.calls.length, 1);
-  assert.equal(aborted.logs.length, 1, "only the original prompt was logged");
-
-  let allowed = true;
-  const held = await setup([
-    () => {
-      allowed = false;
-      throw unsupported;
-    },
-  ]);
-  await assert.rejects(
-    generateJson(held.deps, request({ mayCall: () => allowed, debugMode: true })),
-    (error) => error instanceof OtomeForgeError && error.statusCode === 503,
-  );
-  assert.equal(held.calls.length, 1);
-  assert.equal(held.logs.length, 1);
-
-  const alreadyAborted = await setup([]);
-  await assert.rejects(
-    generateJson(alreadyAborted.deps, request({ signal: controller.signal, debugMode: true })),
-    (error) => error === stopped,
-  );
-  assert.deepEqual(alreadyAborted.calls, []);
-  assert.deepEqual(alreadyAborted.logs, []);
-});
-
-test("format fallback logs a fixed debug notice without echoing private upstream text", async () => {
-  const secret = "PRIVATE CYCLE DETAIL";
-  const t = await setup([
-    httpError(400, `response_format.type must be json_schema or text. The provider echoed: ${secret}`),
-    '{"premise":"A masked ball."}',
-  ]);
-  await generateJson(
-    t.deps,
-    request({ messages: [{ role: "user", content: secret }], redact: [secret], debugMode: true }),
-  );
-  assert.equal(t.calls.length, 2);
-  assert.ok(t.calls.every((call) => call.messages[0]!.content === secret));
-  assert.ok(t.logs.some((entry) => entry.message.includes("Endpoint rejected response_format")));
-  assert.ok(!JSON.stringify(t.logs).includes(secret), "neither prompt logs nor the compatibility notice leak it");
-
-  // Older logger hosts omit this optional level query; the logger still decides whether to emit debug messages.
-  const olderLogger = await setup([
-    httpError(400, "response_format.type must be json_schema or text"),
-    '{"premise":"A masked ball."}',
-  ]);
-  delete olderLogger.deps.runtime.logger.isLevelEnabled;
-  await generateJson(olderLogger.deps, request());
-  assert.equal(olderLogger.calls.length, 2);
-  assert.ok(
-    olderLogger.logs.some((entry) => entry.message.includes("Endpoint rejected response_format") && !entry.override),
-  );
-});
-
-test("format-shaped errors from content normalization are not mistaken for rejected provider requests", async () => {
-  const original = httpError(400, "response_format is unsupported");
-  const t = await setup(['{"premise":"A masked ball."}']);
-  await assert.rejects(
-    generateJson(
-      t.deps,
-      request({
-        normalize: () => {
-          throw original;
-        },
-      }),
-    ),
-    (error) => error === original,
-  );
-  assert.equal(t.calls.length, 1);
 });
 
 test("a refusal on both attempts is a 422 `declined`; anything else is a 502", async () => {
@@ -350,6 +230,169 @@ test("every call asks for GF's output floor plus reasoning headroom, within the 
     [24_192, 24_192],
     "the repair turn gets the same room",
   );
+});
+
+// ── #2039: the story memory gives way as GF's fitForgeMemoryPrompt has it, and a prompt too big is a 413 ──
+
+/** About `tokens` tokens of Latin text after a marker (the kit's estimate: a quarter of a token per character). */
+const sized = (mark: string, tokens: number) => `${mark} ${"lamp ".repeat(Math.round((tokens * 4) / 5))}`.trim();
+
+/**
+ * A memory context as recallText builds it: the overview, the ranked details (Read Me's pick last), the recent canon
+ * around the previous chapter (older summaries optional), and the decisions.
+ */
+function memoryOf({
+  details = [] as Array<{ title: string; content: string; kind?: string }>,
+  recent = [] as string[],
+  optional = [] as string[],
+  previous = "",
+}) {
+  return forgeMemoryContext(
+    {
+      overview: sized("OVERVIEW-MARK", 400),
+      details: details.map(({ kind = "chapter", ...detail }) => ({ kind, ...detail })),
+    },
+    {
+      prefix: [...recent, `# Previous chapter in full: Night 9\n${previous}`].join("\n\n"),
+      optional,
+      fate: `${"# Irrevocable player decisions"}\n- FATE-MARK: she kept his secret.`,
+      renderMemory: (memory) => forgeStoryMemoryText(memory).trim(),
+    },
+  );
+}
+
+const withMemory = (memory: ReturnType<typeof memoryOf>) =>
+  request({
+    messages: [
+      { role: "system", content: "Reply with {premise}." },
+      { role: "user", content: `STORY MEMORY\n${memory.text}\n\nA premise, please.` },
+    ],
+    memory,
+  });
+
+test("a prompt that fits is sent as it is, with the whole reply budget; a long previous chapter goes in whole", async () => {
+  const small = await setup(['{"premise":"x"}']);
+  const memory = memoryOf({ details: [{ title: "A", content: sized("DETAIL-A", 500) }], previous: "PREVIOUS" });
+  const sent = withMemory(memory);
+  await generateJson(small.deps, sent);
+  assert.deepEqual(small.calls[0]!.messages, sent.messages, "byte for byte");
+  assert.equal(small.calls[0]!.options?.maxTokens, 4096, "the reply budget, the connection's own cap");
+  // 15k tokens of previous chapter on a 128k model: no fixed cap cuts it any more.
+  const wide = await setup(['{"premise":"x"}'], { maxOutputTokens: null, maxContext: 131_072 });
+  const long = memoryOf({ previous: sized("PREVIOUS-START", 15_000) + " PREVIOUS-END" });
+  await generateJson(wide.deps, withMemory(long));
+  const user = wide.calls[0]!.messages.at(-1)!.content;
+  assert.ok(user.includes(long.text), "the previous chapter in full");
+  assert.equal(wide.calls[0]!.options?.maxTokens, OUTPUT_FLOOR + REASONING_HEADROOM);
+});
+
+test("on overflow the recalled details give way first, the lowest-ranked first, and the rest stays", async () => {
+  // 32768 tokens, a 4096-token reply and the Engine's margin leave about 27950 for the prompt: 30500 asks two to go.
+  const t = await setup(['{"premise":"x"}']);
+  const memory = memoryOf({
+    details: [
+      { title: "A", content: sized("DETAIL-A", 2000) },
+      { title: "B", content: sized("DETAIL-B", 2000) },
+      { title: "Read Me", content: sized("READ-ME-C", 2000), kind: "chat" },
+    ],
+    previous: sized("PREVIOUS-MARK", 24_000),
+  });
+  await generateJson(t.deps, withMemory(memory));
+  const user = t.calls[0]!.messages.at(-1)!.content;
+  for (const kept of ["OVERVIEW-MARK", "DETAIL-A", "PREVIOUS-MARK", "FATE-MARK", "A premise, please."]) {
+    assert.ok(user.includes(kept), `${kept} stays`);
+  }
+  assert.ok(!user.includes("READ-ME-C") && !user.includes("DETAIL-B"), "the Read Me pick, then the lowest-ranked");
+  assert.equal(t.calls[0]!.options?.maxTokens, 4096, "with the whole reply budget");
+  assert.ok(!Object.getOwnPropertySymbols(t.calls[0]!.messages[0]!).length, "the provider gets plain messages");
+});
+
+test("at the reply floor the oldest uncovered summary gives way, never the newest or the previous chapter", async () => {
+  const t = await setup(['{"premise":"x"}'], { maxOutputTokens: null });
+  const summaries = [1, 2, 3].map((n) => `# Recent canon summary: Night ${n + 5}\n${sized(`SUMMARY-${n}`, 3000)}`);
+  const memory = memoryOf({
+    recent: summaries,
+    optional: summaries.slice(0, -1),
+    previous: sized("PREVIOUS-MARK", 15_500),
+  });
+  await generateJson(t.deps, withMemory(memory));
+  const user = t.calls[0]!.messages.at(-1)!.content;
+  assert.ok(!user.includes("SUMMARY-1"), "the oldest summary went");
+  for (const kept of ["SUMMARY-2", "SUMMARY-3", "PREVIOUS-MARK", "OVERVIEW-MARK", "FATE-MARK"]) {
+    assert.ok(user.includes(kept), `${kept} stays`);
+  }
+  const maxTokens = t.calls[0]!.options!.maxTokens!;
+  assert.ok(maxTokens >= OUTPUT_FLOOR && maxTokens < OUTPUT_FLOOR + REASONING_HEADROOM, `the floor kept: ${maxTokens}`);
+});
+
+test("a cached prompt's own canon gives way before the cached part's summaries (#2091)", async () => {
+  const t = await setup(['{"premise":"x"}'], { maxOutputTokens: null });
+  const older = `# Recent canon summary: Night 6\n${sized("MAIN-OLD", 3000)}`;
+  const main = memoryOf({
+    recent: [older, `# Recent canon summary: Night 8\n${sized("MAIN-NEW", 3000)}`],
+    optional: [older],
+    previous: sized("PREVIOUS-MARK", 15_500),
+  });
+  // The recalls' context (S/story/canon.ts `cached`): another love interest's own summaries, after the cached part.
+  const own = `# Recent canon summary: Mireille's own route chapter\n${sized("OWN-OLD", 3000)}`;
+  const recalls = forgeMemoryContext(
+    { overview: "", details: [] },
+    {
+      prefix: [own, "# Recent canon summary: Mireille's next\nOWN-NEW"].join("\n\n"),
+      optional: [own],
+      renderMemory: (memory) => forgeStoryMemoryText(memory).trim(),
+    },
+  );
+  await generateJson(
+    t.deps,
+    request({
+      messages: [
+        { role: "system", content: `STORY MEMORY\n${main.text}`, cacheBreakpoint: true },
+        { role: "user", content: `${recalls.text}\n\nA premise, please.` },
+      ],
+      memory: { ...main, recalls },
+    }),
+  );
+  const [context, task] = t.calls[0]!.messages.map((message) => message.content);
+  assert.ok(!task!.includes("OWN-OLD"), "the own canon's older summary went first");
+  assert.ok(task!.includes("OWN-NEW"));
+  for (const kept of ["MAIN-OLD", "MAIN-NEW", "PREVIOUS-MARK"]) assert.ok(context!.includes(kept), `${kept} stays`);
+});
+
+test("a prompt whose required story cannot fit is a 413 `capacity` and is never sent", async () => {
+  const t = await setup(['{"premise":"x"}']);
+  const memory = memoryOf({ previous: sized("PREVIOUS-MARK", 30_000) });
+  await assert.rejects(generateJson(t.deps, withMemory(memory)), failsWith(413, "capacity"));
+  // Without any memory to give way the same holds: the Engine would cut the rules or the reply, so nothing goes.
+  await assert.rejects(
+    generateJson(t.deps, request({ messages: [{ role: "user", content: sized("HUGE", 30_000) }] })),
+    failsWith(413, "capacity"),
+  );
+  // And a prompt the Engine's own fit would still trim is never sent either.
+  const trimmed = await setup(['{"premise":"x"}']);
+  const models = trimmed.runtime.languageModels as {
+    resolveForRequest: typeof trimmed.runtime.languageModels.resolveForRequest;
+  };
+  const resolve = models.resolveForRequest.bind(models);
+  models.resolveForRequest = async (value) => ({
+    ...(await resolve(value)),
+    fitContext: (messages, options) => ({
+      messages,
+      maxTokens: options?.maxTokens,
+      estimatedTokensBefore: 2,
+      estimatedTokensAfter: 1,
+      trimmed: true,
+    }),
+  });
+  await assert.rejects(generateJson(trimmed.deps, request()), failsWith(413, "capacity"));
+  assert.equal(t.calls.length + trimmed.calls.length, 0, "no request was sent");
+});
+
+test("a repair turn that cannot fit reports the malformed reply, not `capacity`", async () => {
+  // The first call fits; its long, malformed reply makes the repair turn too big for the window.
+  const t = await setup([sized("NOT-JSON", 30_000)]);
+  await assert.rejects(generateJson(t.deps, request()), failsWith(502, "bad-format"));
+  assert.equal(t.calls.length, 1, "the repair turn that cannot fit is never sent");
 });
 
 test("a job without a connection is a 503 `no-connection`, and jobs fall back to narration", async () => {
@@ -602,5 +645,55 @@ test("an admitted background job never calls the model twice, and one connection
   release();
   await settle();
   assert.deepEqual(order, ["first", "elsewhere", "second"]);
+  queue.dispose();
+});
+
+test("a foreground job (the memory's Retry) goes ahead of the background jobs waiting on its connection", async () => {
+  // Memory shares the queue with line packs, stickers, plush and the phone's daily: a Retry that joined the tail waited
+  // for every one of them that admission let through, its banner already gone.
+  const host = createFakeRuntime();
+  const modes: string[] = [];
+  const admission = {
+    async run<T>(_connectionId: string, mode: { kind: string }, operation: () => Promise<T>): Promise<T> {
+      modes.push(mode.kind);
+      return operation();
+    },
+    isFailure: () => false,
+  };
+  const runtime = { logger: host.runtime.logger, integrations: { admission } } as unknown as Pick<
+    CapabilityRuntimeHost,
+    "integrations" | "logger"
+  >;
+  const queue = createBackgroundQueue(runtime);
+  const order: string[] = [];
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const job = (key: string, foreground = false) => ({
+    key,
+    connectionId: "conn-bg",
+    foreground,
+    run: async () => void order.push(key),
+  });
+  queue.ensure({ key: "running", connectionId: "conn-bg", run: async () => (order.push("running"), held) });
+  for (const key of ["lines", "sticker", "memory"]) queue.ensure(job(key));
+  await settle();
+  assert.deepEqual(order, ["running"]);
+  assert.deepEqual(
+    ["running", "lines", "memory"].map((key) => queue.waiting(key)),
+    [false, true, true],
+    "a job admitted is not waiting; ones in the lane are",
+  );
+
+  // A Retry: a new foreground job goes ahead of the waiting ones; one already waiting, asked for, moves ahead too.
+  assert.equal(queue.ensure(job("retry", true)), true);
+  assert.equal(queue.ensure(job("memory", true)), false, "already queued");
+  assert.deepEqual(
+    ["retry", "memory"].map((key) => queue.waiting(key)),
+    [false, false],
+  );
+  release();
+  await settle();
+  assert.deepEqual(order, ["running", "retry", "memory", "lines", "sticker"], "the running job finishes first");
+  assert.deepEqual(modes, ["background", "foreground", "foreground", "background", "background"]);
   queue.dispose();
 });

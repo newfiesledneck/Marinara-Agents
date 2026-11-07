@@ -8,6 +8,13 @@
 // M6 adds none: the period tracker and caring messages never reach a server document (plan §1.9).
 // 0.5.0 (#1945): each love interest's notebook (`known`, what they know about the protagonist) and the newest paid
 // Read Me sets (`readMe.paid`), written in the same write.
+// 0.9.0 (#2128): the Shop's gifts and figurines (`owned.gifts`, `owned.figurines`) and the newest purchases by request
+// id (`purchases`), written in the same write as the Starlight they cost (S/routes/shop.ts).
+// 0.11.0 (#2151): the newest paid Tarot night readings (`tarot.paid`), written in the same write as their pay.
+// 0.15.0 (#2155): each love interest's big moment of each story arc his side may retell (`hisSide`, S/story/his-side.ts),
+// written in the same write as the read that made it.
+// 0.8.12 (#2127): Your thoughts… waiting for the next main chapter (`thoughts`, S/routes/home.ts writes them and
+// S/story/chapters.ts lets them go); a damaged or too long one reads as none.
 import { forgeStoryExpressionCast, forgeStoryExpressionsOn } from "@forge-kit/story-expressions-server.mjs";
 import { z, type ZodType } from "zod";
 import type {
@@ -19,8 +26,10 @@ import type {
   Ledgers,
   LiState,
   Player,
+  PlayerThoughts,
   RunState,
   RunView,
+  ShopPurchaseRecord,
   TimelineEntry,
   Unit,
   WishPullRecord,
@@ -51,6 +60,11 @@ import {
   type ReadMePaid,
 } from "../../../../../client/src/features/otome-forge/shared/read-me.js";
 import {
+  TAROT_PAID_KEPT,
+  TAROT_READING_ID,
+  type TarotPaid,
+} from "../../../../../client/src/features/otome-forge/shared/tarot.js";
+import {
   STARTING_STARLIGHT,
   TENSION_MAX,
   TENSION_MIN,
@@ -61,7 +75,10 @@ import {
   levelOf,
   prestigeOf,
 } from "../../../../../client/src/features/otome-forge/shared/economy.js";
+import { isEngineArt } from "../../../../../client/src/features/otome-forge/shared/engine-art.js";
 import { FACES, type Face } from "../../../../../client/src/features/otome-forge/shared/faces.js";
+import { isGiftId } from "../../../../../client/src/features/otome-forge/shared/shop.js";
+import { THOUGHTS_MAX } from "../../../../../client/src/features/otome-forge/shared/home.js";
 import {
   BANNER_KINDS,
   FOUR_STAR_EVERY,
@@ -75,6 +92,8 @@ import { readChapterDelta } from "../state/relationship.js";
 import type { OtomeStore } from "../store.js";
 import { field, isRecord, readFields, validItems, wornLookUrl } from "./common.js";
 import { normalizePlayer } from "./player.js";
+import { ARCS_MAX } from "./story-arc.js";
+import { HisSideNoteSchema } from "./story.js";
 import { normalizeUnit } from "./unit.js";
 import { normalizeWorld, toWorldView } from "./world.js";
 
@@ -92,6 +111,8 @@ const FAVORITES_MAX = 300;
 const ALBUM_MAX = 500;
 /** Pulls remembered for a retried request id (S/wish/pull.ts). */
 const PULLS_MAX = 20;
+/** Shop purchases remembered for a retried request id (S/routes/shop.ts). */
+const PURCHASES_MAX = 20;
 /** Tells are 3–5 per bible; the room covers a hand-edited one. */
 const TELLS_MAX = 20;
 
@@ -108,9 +129,12 @@ const GrievanceSchema: ZodType<Grievance> = z.object({
   severity: z.enum(["minor", "major", "rupture"]),
   opened: short(120),
   status: z.enum(["open", "addressed", "forgiven", "festering"]),
+        // #2156: the chapter whose resolve closed it (see Grievance in api-types).
+        closedBy: z.string().max(160).optional(),
 });
 
 const DisclosureSchema = z.object({ text: short(), at: z.string(), ref: short(120) });
+const ThoughtsSchema: ZodType<PlayerThoughts> = z.object({ text: z.string().min(1).max(THOUGHTS_MAX), at: short(40) });
 
 const RelationshipLineSchema = z.object({ key: short(120), li: z.string(), line: short() });
 const ConflictSchema: ZodType<Ledgers["conflicts"][number]> = z.object({
@@ -166,6 +190,12 @@ const ReadHimPaidSchema: ZodType<ReadHimPaid> = z.object({
 });
 const ReadMePaidSchema: ZodType<ReadMePaid> = z.object({
   setId: z.string().regex(READ_ME_SET_ID),
+  li: z.string(),
+  starlight: z.number().int().min(0),
+  affection: z.number().int().min(0),
+});
+const TarotPaidSchema: ZodType<TarotPaid> = z.object({
+  id: z.string().regex(TAROT_READING_ID),
   li: z.string(),
   starlight: z.number().int().min(0),
   affection: z.number().int().min(0),
@@ -226,6 +256,9 @@ export const defaultLiState = (): LiState => ({
   chapterDelta: {},
   grievances: [],
   rupture: null,
+  grievanceArc: null,
+  upset: null,
+  asked: null,
   disclosures: [],
   revealed: [],
   lastLead: null,
@@ -233,6 +266,7 @@ export const defaultLiState = (): LiState => ({
   firsts: {},
   tellsLearned: [],
   known: [],
+  hisSide: [],
 });
 
 function normalizeLiState(raw: unknown): LiState {
@@ -244,7 +278,13 @@ function normalizeLiState(raw: unknown): LiState {
       tension: (value) => wholeNumber(value, 0, TENSION_MIN, TENSION_MAX),
       chapterDelta: readChapterDelta,
       grievances: (value) => validItems(GrievanceSchema, value, LIST_MAX),
-      rupture: z.object({ grievanceId: short(80), since: z.string() }).nullable(),
+      // #2156: a rupture without `space` (saved before it) has its space waived.
+      rupture: z
+        .object({ grievanceId: short(80), since: z.string(), space: z.number().int().min(0).optional() })
+        .nullable(),
+      grievanceArc: z.number().int().min(0).nullable(),
+      upset: z.object({ since: z.string().max(40) }).nullable(),
+      asked: z.string().max(40).nullable(),
       disclosures: (value) => validItems(DisclosureSchema, value, LIST_MAX),
       revealed: (value) => validItems(short(80), value, LIST_MAX),
       lastLead: z.number().int().min(0).nullable(),
@@ -252,6 +292,7 @@ function normalizeLiState(raw: unknown): LiState {
       firsts: z.record(z.string(), z.string()),
       tellsLearned: normalizeTells,
       known: (value) => keepNewest(validItems(NotebookEntrySchema, value), NOTEBOOK_MAX),
+      hisSide: (value) => keepNewest(validItems(HisSideNoteSchema, value), ARCS_MAX + 1),
     },
     defaultLiState,
     isRecord(raw) ? raw : undefined,
@@ -276,6 +317,8 @@ const PullRecordSchema: ZodType<WishPullRecord> = z.object({
     .max(10),
 });
 
+const PurchaseRecordSchema: ZodType<ShopPurchaseRecord> = z.object({ id: short(80), what: short(80), at: z.string() });
+
 /** Each banner kind's pity (M4): counts below the 5★ guarantee; a damaged counter starts again from 0. */
 function normalizePity(raw: unknown): Record<BannerKind, PityCounter> {
   const pity = {} as Record<BannerKind, PityCounter>;
@@ -290,8 +333,9 @@ function normalizePity(raw: unknown): Record<BannerKind, PityCounter> {
 }
 
 /**
- * The owned item ids (M4), each once, in the order won, and when each was won (kept only for an owned id), and the
- * plush shelf (M5): plush id → how many. Never capped: ownership is never dropped.
+ * The owned item ids (M4), each once, in the order won, and when each was won (kept only for an owned id), the plush
+ * shelf (M5): plush id → how many, and the Shop's (#2128): gift id → how many, and love interest → when their figurine
+ * was bought. Never capped: ownership is never dropped.
  */
 function normalizeOwned(raw: unknown): RunState["owned"] {
   const rawItems = field(raw, "items");
@@ -309,7 +353,22 @@ function normalizeOwned(raw: unknown): RunState["owned"] {
       if (isPlushId(id) && value > 0) plush[id] = value;
     }
   }
-  return { items, at, plush };
+  const gifts: RunState["owned"]["gifts"] = {};
+  const rawGifts = field(raw, "gifts");
+  if (isRecord(rawGifts)) {
+    for (const [id, count] of Object.entries(rawGifts)) {
+      const value = wholeNumber(count, 0, 0);
+      if (isGiftId(id) && value > 0) gifts[id] = value;
+    }
+  }
+  const figurines: RunState["owned"]["figurines"] = {};
+  const rawFigurines = field(raw, "figurines");
+  if (isRecord(rawFigurines)) {
+    for (const [li, bought] of Object.entries(rawFigurines)) {
+      if (isLiId(li) && typeof bought === "string" && bought.length <= 40) figurines[li] = bought;
+    }
+  }
+  return { items, at, plush, gifts, figurines };
 }
 
 /** Who Home shows (M3): a love interest of the run, else the first in cast order; him unless the player picked Me. */
@@ -319,6 +378,12 @@ function normalizeHome(raw: unknown, lis: RunState["lis"]): HomeState {
     li: typeof li === "string" && lis[li] ? li : null,
     show: field(raw, "show") === "me" ? "me" : "him",
   };
+}
+
+/** Your thoughts… waiting (#2127), or null: none, a damaged one, or one longer than the player may write. */
+function normalizeThoughts(raw: unknown): PlayerThoughts | null {
+  const parsed = ThoughtsSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
 
 export function normalizeState(data: unknown): RunState {
@@ -387,6 +452,7 @@ export function normalizeState(data: unknown): RunState {
     owned: normalizeOwned(field(data, "owned")),
     selector,
     pulls: validItems(PullRecordSchema, field(data, "pulls"), PULLS_MAX),
+    purchases: keepNewest(validItems(PurchaseRecordSchema, field(data, "purchases")), PURCHASES_MAX),
     claw: { rounds: keepClawRounds(validItems(ClawRoundSchema, field(field(data, "claw"), "rounds"))) },
     readHim: {
       paid: keepNewest(validItems(ReadHimPaidSchema, field(field(data, "readHim"), "paid")), READ_HIM_PAID_KEPT),
@@ -394,6 +460,10 @@ export function normalizeState(data: unknown): RunState {
     readMe: {
       paid: keepNewest(validItems(ReadMePaidSchema, field(field(data, "readMe"), "paid")), READ_ME_PAID_KEPT),
     },
+    tarot: {
+      paid: keepNewest(validItems(TarotPaidSchema, field(field(data, "tarot"), "paid")), TAROT_PAID_KEPT),
+    },
+    thoughts: normalizeThoughts(field(data, "thoughts")),
   };
 }
 
@@ -432,17 +502,31 @@ export const STATE_LIMITS = {
   list: LIST_MAX,
   album: ALBUM_MAX,
   pulls: PULLS_MAX,
+  purchases: PURCHASES_MAX,
   /** A timeline entry's text and the other short texts, in UTF-16 units (clipText). */
   text: TEXT_MAX,
 };
 
 /**
- * His painted faces for the look he wears now (the kit's forgeStoryExpressionCast: a ready set only, and only while
- * expressions are on): his worn outfit (M4), else his portrait, the base art/expressions.ts paints them on.
+ * His painted faces for `look` (the kit's forgeStoryExpressionCast: a ready set only, and only while expressions are
+ * on); by default the look he wears now, his worn outfit (M4) else his portrait, the base art/expressions.ts paints
+ * them on. Sets are kept per look, so a look he wore before keeps its faces. #2147: otherwise the set's faces that are
+ * his Engine sprites (S/art/engine-art.ts), whatever its state or the switch, since they cost nothing; a painted face
+ * of a set that is not ready stays hidden.
  */
-export function readyFaces(world: Pick<World, "images">, unit: Unit): Partial<Record<Face, string>> | undefined {
-  const { expressions } = forgeStoryExpressionCast(world.images, unit, wornLookUrl(unit), FACES);
-  return expressions as Partial<Record<Face, string>> | undefined;
+export function readyFaces(
+  world: Pick<World, "images">,
+  unit: Unit,
+  look = wornLookUrl(unit),
+): Partial<Record<Face, string>> | undefined {
+  const { expressions } = forgeStoryExpressionCast(world.images, unit, look, FACES);
+  if (expressions) return expressions as Partial<Record<Face, string>>;
+  const set = (look ? unit.expressions[look] : undefined) as { images?: Record<string, { url?: unknown }> } | undefined;
+  const engine = FACES.flatMap((face) => {
+    const url = set?.images?.[face]?.url;
+    return isEngineArt(url) ? [[face, url] as const] : [];
+  });
+  return engine.length ? (Object.fromEntries(engine) as Partial<Record<Face, string>>) : undefined;
 }
 
 /** The cut-out of `url`, keeping an older derivative visible while a free replacement is pending. */
@@ -452,8 +536,12 @@ export function readyCutout(unit: Pick<Unit, "cutouts">, url: string | undefined
 }
 
 /** Stage faces use only cleaned derivatives; missing or failed cleanup keeps the neutral look on stage. */
-export function cleanedFaces(world: Pick<World, "images">, unit: Unit): Partial<Record<Face, string>> | undefined {
-  const faces = readyFaces(world, unit);
+export function cleanedFaces(
+  world: Pick<World, "images">,
+  unit: Unit,
+  look?: string,
+): Partial<Record<Face, string>> | undefined {
+  const faces = readyFaces(world, unit, look);
   return faces
     ? (Object.fromEntries(
         Object.entries(faces).flatMap(([face, url]) => {
@@ -464,10 +552,14 @@ export function cleanedFaces(world: Pick<World, "images">, unit: Unit): Partial<
     : undefined;
 }
 
-/** Every image he stands on stage in (base look, worn look, ready faces): what the cut-outs are made of. */
-export function stageArtUrls(world: Pick<World, "images">, unit: Unit): string[] {
-  const worn = unit.wornOutfit ? unit.outfits.find((outfit) => outfit.id === unit.wornOutfit)?.url : undefined;
-  return [unit.portrait, worn, ...Object.values(readyFaces(world, unit) ?? {})].filter((url): url is string => !!url);
+/**
+ * Every image he stands on stage in (base look, the look he stands in, by default the one worn now, and its ready
+ * faces): what the cut-outs are made of.
+ */
+export function stageArtUrls(world: Pick<World, "images">, unit: Unit, look = wornLookUrl(unit)): string[] {
+  return [unit.portrait, look, ...Object.values(readyFaces(world, unit, look) ?? {})].filter(
+    (url): url is string => !!url,
+  );
 }
 
 /**
@@ -597,11 +689,24 @@ export async function readRun(store: Pick<OtomeStore, "readDoc">, runId: string)
   ]);
   if (!world) return null;
   const state = stored ?? normalizeState(undefined);
-  const units = await Promise.all(Object.keys(state.lis).map((li) => store.readDoc(unitId(runId, li), normalizeUnit)));
   return {
     world,
     player: player ?? normalizePlayer(undefined),
-    units: units.filter((unit): unit is Unit => !!unit),
+    units: await readCastUnits(store, runId, state),
     state,
   };
+}
+
+/**
+ * The cast's units, in cast order (`state.lis`). Every caller that means the love interests reads these, never every
+ * stored unit: a newcomer whose arc plan failed keeps their unit and bible out of the cast (S/story/introduce.ts).
+ */
+export async function readCastUnits(
+  store: Pick<OtomeStore, "readDoc">,
+  runId: string,
+  state?: RunState | null,
+): Promise<Unit[]> {
+  const lis = (state ?? (await store.readDoc(stateId(runId), normalizeState)))?.lis ?? {};
+  const units = await Promise.all(Object.keys(lis).map((li) => store.readDoc(unitId(runId, li), normalizeUnit)));
+  return units.filter((unit): unit is Unit => !!unit);
 }

@@ -6,10 +6,20 @@
 // Routes (S/routes/phone.ts): GET /runs/:run/phone → PhoneListView; GET .../phone/:li?page= → PhoneHistoryPage (the
 // kit's forgeChatHistoryPage, page 1 newest); POST .../phone/:li/send {text?, quote?, sticker?, id?, retry?} →
 // PhoneSendResult (409 busy while his reply or a close is being written); POST .../close → PhoneCloseResult;
-// POST .../seen {last?} → {}.
+// POST .../seen {last?} → {}; POST /runs/:run/phone/due {open?} → PhoneDueResult (useDailyMessages, #2044).
+// #2044: the first time the phone opens with images on, POST /runs/:run/stickers starts the protagonist's five chibi
+// stickers (S/art/stickers.ts), and the run view is read again so it polls until they land.
+// #2154: the group chat, "Everyone", opens as the thread named GROUP_THREAD (GET .../phone/group, and so on); the same
+// heartbeat answers for its squabbles.
 import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useOtomeApi } from "../../api";
+import { imagesOn } from "../../hooks/use-items";
 import { runPath } from "../../hooks/use-reader";
-import type { LiId, RunView } from "../../shared/api-types";
+import { runQueryKey } from "../../hooks/use-run";
+import type { LiId, PhoneDueResult, RunView } from "../../shared/api-types";
+import { GROUP_THREAD } from "../../shared/home";
+import { homeQueryKey } from "../home/HomeScreen";
 import { Thread } from "./Thread";
 import { ThreadList } from "./ThreadList";
 
@@ -25,6 +35,74 @@ export const BUSY_POLL_MS = 2_000;
 export const threadQueryKey = (runKey: string, li: LiId) => ["otome-forge", "thread", runKey, li] as const;
 export const phonePath = (runKey: string, li?: LiId) =>
   li ? `${runPath(runKey)}/phone/${encodeURIComponent(li)}` : `${runPath(runKey)}/phone`;
+/** How often the open app asks whether a love interest writes first (GF's heartbeat; the server spaces the messages). */
+export const DAILY_POLL_MS = 60_000;
+/** Each run's newest daily message as this page last heard it, kept across remounts and restarts of the heartbeat. */
+const heardDaily = new Map<string, string | null>();
+/** The same for each run's newest group chat squabble (#2154). */
+const heardGroup = new Map<string, string | null>();
+
+/** Whether `latest` is new beside the mark `heard` keeps for this run (see useDailyMessages); keeps it as the mark. */
+function heardNew(heard: Map<string, string | null>, runKey: string, latest: { li: LiId; at: string } | null) {
+  const key = latest ? `${latest.li} ${latest.at}` : null;
+  const before = heard.get(runKey);
+  heard.set(runKey, key);
+  return !!latest && before !== undefined && key !== before;
+}
+
+/**
+ * Settings → Connections' daily messages (S/phone/daily.ts) and group chat squabbles (#2154, S/phone/group.ts): while
+ * the story is forged, either number is above 0 and the page is visible, asks POST .../phone/due every minute (the first
+ * a minute after it starts), naming the thread the player has open, which never gets one. A new squabble reads the
+ * list, Home's unread count and the group chat again, as a daily message does his thread. When a new daily message has landed, the thread list, Home's unread count
+ * and his thread are read again, so it shows unread like a reply that landed after she left. A message is new when it
+ * differs from the newest this page heard (heardDaily), so a remount or a restart (a language or debug change) reads
+ * nothing again for one it already heard.
+ * ponytail: the first answer since the page loaded only sets that mark, as the screens read fresh when they mounted; a
+ * message landing in the minute before that answer (a job queued before a reload) shows the next time Home, the list
+ * or his thread opens. Upgrade path: the run view names the newest daily message, and the mark starts from it.
+ */
+export function useDailyMessages(runKey: string | null, view: RunView | null, open: LiId | null) {
+  const otome = useOtomeApi();
+  const queryClient = useQueryClient();
+  const openRef = useRef(open);
+  openRef.current = open;
+  const on =
+    !!runKey &&
+    view?.forge.phase === "ready" &&
+    ((view.world.dailyMessages ?? 0) > 0 || (view.world.groupSquabbles ?? 0) > 0);
+  useEffect(() => {
+    if (!on || !runKey) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (document.visibilityState === "visible") {
+        try {
+          const due = await otome.post<PhoneDueResult>(`${phonePath(runKey)}/due`, { open: openRef.current });
+          if (stopped) return;
+          const landed = [
+            heardNew(heardDaily, runKey, due.latest) ? due.latest!.li : null,
+            heardNew(heardGroup, runKey, due.group?.latest ?? null) ? GROUP_THREAD : null,
+          ].filter((thread) => thread !== null);
+          if (landed.length) {
+            void queryClient.invalidateQueries({ queryKey: phoneQueryKey(runKey) });
+            void queryClient.invalidateQueries({ queryKey: homeQueryKey(runKey) });
+            for (const thread of landed)
+              void queryClient.invalidateQueries({ queryKey: threadQueryKey(runKey, thread) });
+          }
+        } catch {
+          // The server spends an attempt before any work, so a failed heartbeat simply waits for the next one.
+        }
+      }
+      if (!stopped) timer = setTimeout(() => void poll(), DAILY_POLL_MS);
+    };
+    timer = setTimeout(() => void poll(), DAILY_POLL_MS);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [on, otome, queryClient, runKey]);
+}
 
 interface PhoneScreenProps {
   runKey: string;
@@ -32,9 +110,30 @@ interface PhoneScreenProps {
   /** The thread shown (Home's Reply opens one with the note quoted); null, or one not in the cast, shows the list. */
   open: PhoneOpen | null;
   onOpenChange: (open: PhoneOpen | null) => void;
+  /** #2156: she accepted his invitation to clear the air in his thread: Date Night with him. */
+  onDate?: (li: LiId) => void;
 }
 
-export function PhoneScreen({ runKey, view, open, onOpenChange }: PhoneScreenProps) {
+/** Starts the protagonist's stickers once, the first time the phone opens with images on (#2044). */
+function useStartStickers(runKey: string, view: RunView) {
+  const otome = useOtomeApi();
+  const queryClient = useQueryClient();
+  const asked = useRef<string | null>(null);
+  const due = imagesOn(view) && !view.player.stickers && view.forge.phase === "ready";
+  useEffect(() => {
+    if (!due || asked.current === runKey) return;
+    asked.current = runKey;
+    otome
+      .post<{ started: boolean }>(`${runPath(runKey)}/stickers`)
+      .then(({ started }) => {
+        if (started) void queryClient.invalidateQueries({ queryKey: runQueryKey(runKey) });
+      })
+      .catch((failure: unknown) => console.warn("Otome Forge could not start the protagonist's stickers", failure));
+  }, [due, otome, queryClient, runKey]);
+}
+
+export function PhoneScreen({ runKey, view, open, onOpenChange, onDate }: PhoneScreenProps) {
+  useStartStickers(runKey, view);
   // Focus follows the player inside the phone: into a thread they opened here, back to its row when they leave it.
   // A thread opened from Home's Reply leaves for a list read for the first time, whose rows come after it loads: the
   // list's heading holds focus meanwhile, and the row takes it as it is drawn.
@@ -58,12 +157,28 @@ export function PhoneScreen({ runKey, view, open, onOpenChange }: PhoneScreenPro
     } else heading.current?.focus({ preventScroll: true });
   }, [open]);
 
+  if (open?.li === GROUP_THREAD) {
+    return (
+      <Thread
+        key={GROUP_THREAD}
+        runKey={runKey}
+        view={view}
+        focusHeading={openedHere.current}
+        onBack={() => {
+          returnTo.current = GROUP_THREAD;
+          onOpenChange(null);
+        }}
+        onQuoteChange={() => undefined}
+      />
+    );
+  }
   const li = open ? (view.lis.find((item) => item.id === open.li) ?? null) : null;
   if (open && li) {
     return (
       <Thread
         key={li.id}
         runKey={runKey}
+        view={view}
         li={li}
         quote={open.quote}
         focusHeading={openedHere.current}
@@ -74,6 +189,7 @@ export function PhoneScreen({ runKey, view, open, onOpenChange }: PhoneScreenPro
         onQuoteChange={(quote) => {
           if ((open.quote?.trim() || null) !== quote) onOpenChange({ li: li.id, ...(quote ? { quote } : {}) });
         }}
+        onDate={onDate}
       />
     );
   }

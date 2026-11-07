@@ -8,6 +8,7 @@ import { createImageClient } from "../packages/otome-forge/src/engine/packages/s
 import {
   paintSlot,
   startPaint,
+  withDeadline,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/paint.ts";
 import { placeKey } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/places.ts";
 import {
@@ -19,6 +20,7 @@ import {
   worldId,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/ids.ts";
 import { registerArtRoutes } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/art.ts";
+import { registerSetupRoutes } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/setup.ts";
 import { registerRunRoutes } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/runs.ts";
 import { normalizePlayer } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/player.ts";
 import { normalizeState } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/state.ts";
@@ -308,6 +310,63 @@ test("unknown background references use only the existing content repair and sav
   assert.equal(t.paid.length, 0);
 });
 
+test("a scene written ahead paints its CG as soon as it is written, so it is ready when the reader gets there", async (context) => {
+  // The maintainer's, 2026-11-03: the key image should be waiting when its moment comes, as before 0.6.27. An Ease off
+  // that drops the scene written ahead lets its CG go, and the scene written again paints its own.
+  for (const easeOff of [false, true]) {
+    const runKey = easeOff ? "r-cgahead-bbbbbb" : "r-cgahead-aaaaaa";
+    const t = await artWorld({
+      runKey,
+      images: { expressions: false },
+      // Its CG opens on the first segment, so a readThrough of 0 alone would count as shown.
+      replies: Array.from({ length: 4 }, () => json(beatReply({ cg: { ...CG, at: 0 } }))),
+    });
+    await seedChapter(t.store, t.runId);
+    const art = createOtomeArt(t.deps);
+    context.after(() => art.dispose());
+    const call = storyRoutes({ ...t.deps, art }, runKey);
+    const beatPath = "/runs/:run/chapters/:key/beats/:i";
+    const cgs = () => t.paid.filter((paid) => paid.method === "generateBannerArt").length;
+    assert.equal((await call("POST", beatPath, {}, { key: KEY, i: "0" })).status, 200);
+    await t.settle();
+    assert.ok(await readStoredBeat(t.store, t.runId, 1), "the lookahead wrote the scene with the CG");
+    await until(
+      async () => (await readStoredBeat(t.store, t.runId, 1))?.cg?.art?.state === "ready",
+      "the CG painted as its scene was written, before it is served",
+    );
+    assert.equal(cgs(), 1);
+    // Ready on its first segment, it is still not the scene being read: it cannot reach the album yet.
+    const early = await routesOf(registerArtRoutes, t.deps, runKey)("POST", "/runs/:run/art/cg/seen", {
+      key: KEY,
+      i: 1,
+    });
+    assert.equal(early.status, 409, "a CG written ahead is not seen before its scene is read");
+    if (easeOff) {
+      const eased = await call("POST", `${beatPath}/ease-off`, { segment: 1 }, { key: KEY, i: "0" });
+      assert.equal(eased.status, 200, JSON.stringify(eased.body));
+      await until(() => t.deleted.length === 1, "the dropped scene's CG let go");
+    }
+    const served = await call("POST", beatPath, {}, { key: KEY, i: "1" });
+    assert.equal(served.status, 200);
+    // The reader reads the scene's art once as it opens and polls again only while something is pending, so the CG's
+    // record is there before the scene answers: without it the reader offers Paint while the paint runs unseen.
+    const scene = await routesOf(registerArtRoutes, t.deps, runKey)("GET", "/runs/:run/art/scene", {
+      key: KEY,
+      i: "1",
+    });
+    assert.ok(scene.body.cg?.art, "the reader's first art read already finds the CG's record");
+    assert.ok(served.body.beat.cg?.art, "and so does the scene served");
+    if (!easeOff) assert.equal(served.body.beat.cg.art.state, "ready", "ready when the reader gets there");
+    await until(
+      async () => (await readStoredBeat(t.store, t.runId, 1))?.cg?.art?.state === "ready",
+      "the scene's CG painted",
+    );
+    // Served, it is not painted again; the scene an Ease off wrote again paints its own, once.
+    assert.equal(cgs(), easeOff ? 2 : 1);
+    assert.equal(t.deleted.length, easeOff ? 1 : 0);
+  }
+});
+
 test("genuinely different numbered rooms keep separate backgrounds even with identical tags", async () => {
   const t = await sceneWorld("r-bgrooms-aaaaaa");
   for (const [i, name] of ["Room 4", "Room 5"].entries()) {
@@ -422,6 +481,12 @@ test("a CG unlocks only once it is ready and shown, exactly once", async () => {
 
   const stored = (await readStoredBeat(t.store, t.runId, 1))!;
   await saveBeat(t.store, t.runId, { ...stored, readThrough: CG.at });
+  // Read through its segment, but not the scene being read yet (written ahead, #2095): still not seen.
+  assert.equal((await t.call("POST", "/runs/:run/art/cg/seen", { key: KEY, i: 1 })).status, 409);
+  await t.store.updateDoc(runDocTarget("state", stateId(t.runId)), normalizeState, (current) => ({
+    ...current,
+    chapters: { ...current.chapters, [KEY]: { ...current.chapters[KEY], beatsRead: 1 } },
+  }));
   const seen = await t.call("POST", "/runs/:run/art/cg/seen", { key: KEY, i: 1 });
   assert.equal(seen.status, 200);
   assert.equal(seen.body.unlocked, true);
@@ -558,7 +623,7 @@ test("a CG's loopback request carries the override and at most four references, 
   assert.equal((await readStoredBeat(t.store, t.runId, 1))?.cg?.art?.state, "ready");
   const generation = requests.find((request) => request.path === "/api/characters/avatar-generation");
   const body = JSON.parse(String(generation?.body));
-  assert.equal(body.referenceImages.length, 4, "one reference per person, four at most");
+  assert.equal(body.referenceImages.length, 3, "one reference per person, three people at most");
   assert.equal(body.promptOverrides.length, 1);
   assert.equal(body.promptOverrides[0].id, "avatar:kai", "the override is matched by the first person's first name");
   assert.equal(body.name, "Kai");
@@ -566,9 +631,16 @@ test("a CG's loopback request carries the override and at most four references, 
   assert.deepEqual([body.width, body.height], [768, 1344]);
   const { prompt, negativePrompt } = body.promptOverrides[0];
   assert.match(prompt, /^All of them at the lamp\. Kai: tall man, grey eyes; keeper's coat\./);
-  assert.match(prompt, /Ines: short dark hair; oilskin\./);
-  assert.match(prompt, /adult man, adult woman, adult person/);
-  assert.doesNotMatch(prompt, /Harbour Master/, "four people at most");
+  assert.doesNotMatch(prompt, /Ines|Harbour Master/, "three people at most");
+  // Which picture is whose, and how many people to draw, so nobody is drawn twice or merged (2026-11-03).
+  assert.match(
+    prompt,
+    /Reference images, in order: Kai; Mireille; Sol\. Use them only for each person's face, hair, build and clothing, never for the pose, framing or background\./,
+  );
+  assert.match(
+    prompt,
+    /Draw exactly three people, each appearing once, with two arms, two legs and five fingers on each visible hand\./,
+  );
   assert.doesNotMatch(negativePrompt, /extra people/);
   assert.match(negativePrompt, /child, childlike/);
 });
@@ -734,4 +806,92 @@ test("a paint a restart left pending reads as stopped in the run view and the be
   );
   assert.equal(served.body.beat.cg.art.state, "stopped");
   assert.equal((await readStoredBeat(t.store, t.runId, 2))!.cg?.art?.state, "pending", "only the view changes");
+});
+
+test("Settings → Images lists the Engine's image style profiles, and the one picked is the one pictures follow (2026-11-03)", async () => {
+  const profiles = {
+    defaultProfileId: "anime",
+    profiles: [
+      {
+        id: "anime",
+        name: "Anime",
+        baseStyle: "anime",
+        promptMode: "tagged",
+        styleText: "anime art",
+        positiveTags: "anime",
+        negativeTags: "",
+      },
+      {
+        id: "auto",
+        name: "Auto",
+        baseStyle: "auto",
+        promptMode: "natural",
+        styleText: "",
+        positiveTags: "",
+        negativeTags: "",
+      },
+    ],
+  };
+  const fetch = (async (url: string | URL) => {
+    const path = String(url).replace("http://127.0.0.1:7860", "");
+    if (path === "/api/app-settings/ui")
+      return Response.json({ value: JSON.stringify({ imageStyleProfiles: profiles }) });
+    return new Response("{}", { status: 404 });
+  }) as typeof globalThis.fetch;
+  const images = createImageClient({ baseUrl: "http://127.0.0.1:7860", fetch });
+  const t = await sceneWorld("r-profiles-aaaaaa");
+  const listed = await routesOf(
+    registerSetupRoutes,
+    { ...t.deps, images },
+    "r-profiles-aaaaaa",
+  )("GET", "/image-style-profiles");
+  assert.equal(listed.status, 200);
+  assert.deepEqual(listed.body, {
+    defaultProfileId: "anime",
+    profiles: [
+      { id: "anime", name: "Anime", promptMode: "tagged" },
+      { id: "auto", name: "Auto", promptMode: "natural" },
+    ],
+  });
+  // Unpicked, the Engine's default writes tags; picking Auto makes the story's prompts sentences.
+  assert.equal((await images.styleProfile(undefined)).tagged, true);
+  assert.equal((await images.styleProfile("auto")).tagged, false);
+  // A list the Engine cannot give reads as empty, never as an error.
+  const broken = createImageClient({
+    baseUrl: "http://127.0.0.1:7860",
+    fetch: (async () => new Response("{}", { status: 500 })) as typeof globalThis.fetch,
+  });
+  assert.deepEqual(await broken.styleProfiles!(), { defaultProfileId: "", profiles: [] });
+});
+
+test("a paid image that never answers ends at its deadline, frees its connection's queue, and its late image is deleted", async () => {
+  // The maintainer's, 2026-11-05: a key image said "Painting this moment" for 30 minutes. One call that never answers
+  // held the connection's queue, so every paint behind it waited too.
+  let answer: (value: { id: string }) => void = () => undefined;
+  const hung = new Promise<{ id: string }>((resolve) => (answer = resolve));
+  const late: string[] = [];
+  const first = paintSlot("conn-deadline", () =>
+    withDeadline(
+      () => hung,
+      30,
+      "The image service",
+      (image) => late.push(image.id),
+    ),
+  );
+  const second = paintSlot("conn-deadline", async () => "painted");
+  await assert.rejects(first, /The image service took longer than/);
+  assert.equal(await second, "painted", "the next paint on the connection runs");
+  answer({ id: "g-late" });
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(late, ["g-late"], "the image that came after the deadline goes to onLate, to be deleted");
+  // An answer in time is returned as is, and nothing is called late.
+  assert.equal(
+    await withDeadline(
+      async () => "ok",
+      1_000,
+      "x",
+      () => assert.fail("not late"),
+    ),
+    "ok",
+  );
 });

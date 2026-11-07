@@ -15,6 +15,13 @@
 //   `${R}:state` (S/state/relationship.ts applyChoiceEffects), whose `applied` entry makes it exactly once. A replay
 //   changes nothing, and a big choice never changes. A pick whose effects never landed (its request stopped between
 //   the two writes) is applied when the beat is counted as read, in that same write.
+// - Your own words (#2146): a chapter's closing decision (its one big choice, on its last node's last segment, after
+//   which nothing is written) may be answered in the player's own words instead of an offered option. The same write
+//   that makes it canon appends them to that choice as one more option (OWN_OPTION, labelled OWN_ANSWER_LABEL, the
+//   words as its selection, no branch), so its canon, the next chapter's prompts and story memory carry them as any
+//   pick. It has no effects (no trust, tension, grievance, disclosure, resolve or affection); the rest of the read
+//   (Starlight, ledgers, a gate, a repair, memory upkeep) is as for any pick. Every other choice takes only its
+//   options.
 // - Reading a beat to its end for the first time grants its Starlight; reading the chapter's last node completes it
 //   (Starlight, Lead and Foil affection, ledgers, lastLead), then starts memory upkeep in the background.
 // - Ease off: no model call. The beat's canon is cut at the segment on screen and closed with EASE_OFF_MARKER, the
@@ -25,6 +32,11 @@
 //   (−1/0/1, how the date's love interest takes it; at least one scores 1), read by index like the effects and saved
 //   as `beat.scores`. A date never ends on a big choice, and an option opens a grievance only on a date planned to go
 //   wrong, and then at most a minor one. S/minigames/date-night.ts totals the scores of the first-play picks.
+// - A side-with node (#2046, a main chapter's node its plan marked: S/story/chapters.ts) has exactly one small choice
+//   with one option per love interest present, each naming in a raw `backs` whom it sides with, read by index and saved
+//   as `beat.sideWith`. Its effects are the game's (sideWithEffects), never the reply's: the one backed gains affection
+//   and trust, each one passed over loses some affection (never below the level reached) and the tension rises. It is
+//   a first-play pick like any other, so a replay changes nothing.
 // M2b:
 // - A confrontation node with a love interest in it is written by P12 as a stance game (S/story/confrontation.ts):
 //   the beat's segments are its opening. Each stance is saved on the beat once (chooseStance) and its effects reach
@@ -35,6 +47,14 @@
 //   stands, none of his route chapters opens a beat (409 `locked`) and his gate is not counted read (stages.ts
 //   gateShut); a beat already on screen can still be finished, and what was read still replays. A stage-5 gate must
 //   end on one big choice.
+// - #2156: a pick lands in a story arc (the main chapter's own, else the newest; 0 before arcs), looked up only when it
+//   may open his grievance with her, which opens once an arc (S/state/relationship.ts). Only his repair clears that
+//   grievance: any other node's `resolves`, planned before #2156 too, never closes it. His repair read to its end pays
+//   its clearing (S/state/rewards.ts payClearing) in the read's write, once the grievance is closed.
+// - #2155, his side (S/story/his-side.ts): a read that counts a big moment notes it for his side of the arc, in that
+//   same state write, unless that side is written already, and the read that finishes its chapter says it waits. His
+//   side's own scene (a story chapter with `hisSide`) is written against what he may know, as things stood between them
+//   then, from the scene it retells; only he thinks and it has no choice.
 // - The art (RouteDeps.art, S/art/expressions.ts createOtomeArt): each beat served queues its speakers' faces; each
 //   beat written queues its places and CG (which wait for a tap under Ask before painting, or while the player
 //   reviews image prompts); a beat replaced by a rewrite, or removed after it, releases its CG. All of it in the
@@ -44,9 +64,11 @@ import { forgeNormalizeChoiceBeat, forgePendingChoice } from "@forge-kit/player-
 import type { ForgeStoryCancellation } from "@forge-kit/story-cancel-server.mjs";
 import { normalizeForgeStoryExpression } from "@forge-kit/story-expressions.mjs";
 import type {
+  AffectionChange,
   Beat,
   Chapter,
   ChapterNode,
+  ChoiceOption,
   Effect,
   ForgeChoice,
   LiId,
@@ -57,8 +79,14 @@ import type {
   Unit,
   World,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
-import { stageRow, type ClimaxMove } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
-import type { DateScore } from "../../../../../client/src/features/otome-forge/shared/dates.js";
+import {
+  OWN_OPTION,
+  hisSideKey,
+  stageRow,
+  type ClimaxMove,
+} from "../../../../../client/src/features/otome-forge/shared/arcs.js";
+import { heldAgainst, type DateScore } from "../../../../../client/src/features/otome-forge/shared/dates.js";
+import { SIDE_WITH_AFFECTION } from "../../../../../client/src/features/otome-forge/shared/economy.js";
 import { LIMIT_IDS, type LimitId } from "../../../../../client/src/features/otome-forge/shared/content.js";
 import {
   FACES,
@@ -68,20 +96,29 @@ import {
 } from "../../../../../client/src/features/otome-forge/shared/faces.js";
 import { generateJson, readOrGenerate, runForeground } from "../generation.js";
 import type { OtomeArt } from "../art/expressions.js";
-import { explicitCgAllowed } from "../content-contract.js";
+import { beatMessages, closerMessages, confrontationMessages, explicitCgAllowed, prologueEnding } from "../prompts.js";
 import { OtomeForgeError } from "../http.js";
 import { PROLOGUE_KEY, beatId, mainChapterKey, runDocTarget, stateId, unitId, worldId } from "../ids.js";
 import { normalizeState, readRun, type RunDocuments } from "../schemas/state.js";
 import { normalizeBeat } from "../schemas/story.js";
 import { normalizeUnit } from "../schemas/unit.js";
 import { normalizeWorld } from "../schemas/world.js";
-import { withPersonaStoryAbout } from "../setup/prompts.js";
+import { withPersonaStoryAbout } from "../setup/cast.js";
 import { applyChoiceEffects } from "../state/relationship.js";
-import { readBeatToEnd } from "../state/rewards.js";
+import { payClearing, readBeatToEnd } from "../state/rewards.js";
 import { countedNow, gateShut, healRupture, passGate } from "../state/stages.js";
+import { arcCovering, listArcs } from "./arc.js";
 import type { ChapterDeps } from "./chapters.js";
-import { chapterSoFar, readBeat, readChapter, recallText } from "./canon.js";
-import { prologueEnding, prologueProblem } from "./prologue.js";
+import {
+  OWN_ANSWER_LABEL,
+  type StoryContext,
+  chapterScenes,
+  chapterSoFar,
+  readBeat,
+  readChapter,
+  recallText,
+} from "./canon.js";
+import { prologueProblem } from "./prologue.js";
 import {
   afterRound,
   applyConfrontation,
@@ -95,15 +132,22 @@ import {
   type SegmentLists,
 } from "./confrontation.js";
 import {
+  hisSideArc,
+  hisSideMomentOf,
+  hisSideSource,
+  momentCandidate,
+  momentChapterKey,
+  noteHisSide,
+  stateAtMoment,
+} from "./his-side.js";
+import {
   BEAT_PLACES_MAX,
   BEAT_SEGMENTS_MAX,
   BeatReplySchema,
   ConfrontationReplySchema,
-  beatMessages,
-  closerMessages,
-  confrontationMessages,
+  sideWithCast,
   type BeatReply,
-} from "./prompts.js";
+} from "./replies.js";
 
 export interface BeatDeps extends ChapterDeps {
   /** The run-scoped Cancel (forge-kit story-cancel-server); without one, writes simply run. */
@@ -139,7 +183,7 @@ const nameKey = (value: unknown) => str(value, NAME_MAX).normalize("NFKC").toLow
 /** What normalizing a reply needs to know about the node and its cast. */
 export interface BeatContext {
   node: ChapterNode;
-  /** The world allowed an explicit key image as the beat was written (content-contract.ts explicitCgAllowed). */
+  /** The world allowed an explicit key image as the beat was written (S/prompts.ts explicitCgAllowed). */
   cgExplicit?: boolean;
   /** Every love interest, so a speaker's name can be matched to his stage. */
   units: ReadonlyArray<Pick<Unit, "id" | "name">>;
@@ -151,6 +195,10 @@ export interface BeatContext {
   mustChoose?: boolean;
   /** A date's beat (M5): one scored choice, no big choice, and a grievance only when the date was planned to go wrong. */
   date?: { goesWrong: boolean };
+  /** #2046: a side-with node's love interests (S/story/replies.ts sideWithCast): one small choice, an option backing each. */
+  sideWith?: ReadonlyArray<Pick<Unit, "id" | "name">>;
+  /** #2155: his side: told from this love interest's point of view, so only he has thoughts, and no choice is offered. */
+  pov?: LiId;
 }
 
 interface NormalizeOptions {
@@ -203,6 +251,13 @@ function speakerLi(context: BeatContext, speaker: string) {
   return context.units.find((unit) => sameName(speaker, unit.name));
 }
 
+/** A love interest present in the node, named by id or, failing that, by name (as a speaker is); else undefined. */
+function presentLi(context: BeatContext, value: unknown): LiId | undefined {
+  const key = str(value, NAME_MAX);
+  const present = context.units.filter((unit) => context.node.cast.includes(unit.id));
+  return (present.find((unit) => unit.id === key) ?? present.find((unit) => sameName(key, unit.name)))?.id;
+}
+
 /** The love interests a segment's raw `exits` names (#2024), as their ids, by id or name; anyone else is dropped. */
 function exitsOf(context: BeatContext, raw: unknown): LiId[] {
   const ids = new Set<LiId>();
@@ -215,8 +270,9 @@ function exitsOf(context: BeatContext, raw: unknown): LiId[] {
 }
 
 /**
- * Why the reply's thoughts break the rules (a love interest's thought before stage 2, or two in one scene), or "".
- * `counts` holds each love interest's thoughts read on the way to these segments, and gets theirs added.
+ * Why the reply's thoughts break the rules (a love interest's thought before stage 2, or two in one scene; in his side,
+ * anyone's thought but his), or "". `counts` holds each love interest's thoughts read on the way to these segments, and
+ * gets theirs added.
  */
 function thoughtProblem(context: BeatContext, segments: unknown[], counts = new Map<string, number>()): string {
   for (const raw of segments) {
@@ -224,6 +280,13 @@ function thoughtProblem(context: BeatContext, segments: unknown[], counts = new 
     const segment = raw as Record<string, unknown>;
     if (segment.thought !== true && segment.thought !== "true") continue;
     const li = speakerLi(context, str(segment.speaker, NAME_MAX));
+    // #2155: his thoughts, as many as the scene needs. A thought with no speaker is the protagonist's
+    // (C/lib/reader-state.ts), so it is refused too.
+    if (context.pov) {
+      if (li?.id === context.pov) continue;
+      const name = context.units.find((unit) => unit.id === context.pov)?.name ?? "the love interest";
+      return `only ${name} thinks in this scene: every thought line has "speaker" set to ${name}, and nobody else, the protagonist included, has one`;
+    }
     if (!li) continue;
     if ((context.state.lis[li.id]?.stage ?? 1) < 2)
       return `${li.name} is still behind their mask: no thought lines yet`;
@@ -303,7 +366,7 @@ export function normalizeBeatBody(raw: unknown, options: NormalizeOptions): Beat
   return body;
 }
 
-type NormalizedBeat = BeatBody & { choices: ForgeChoice[] };
+type NormalizedBeat = BeatBody & { choices: ForgeChoice[]; sideWith?: Beat["sideWith"] };
 
 /** The reply as a beat body with its choices, or the reason it is refused (the repair turn names it). */
 export function normalizeBeatReply(reply: BeatReply, context: BeatContext): NormalizedBeat | string {
@@ -314,7 +377,8 @@ export function normalizeBeatReply(reply: BeatReply, context: BeatContext): Norm
   let counts = new Map<string, number>();
   const thoughts = thoughtProblem(context, reply.segments, counts);
   if (thoughts) return thoughts;
-  for (const choice of Array.isArray(reply.choices) ? reply.choices : []) {
+  // His side offers no choice (#2155): its options are dropped, so their thoughts never count.
+  for (const choice of !context.pov && Array.isArray(reply.choices) ? reply.choices : []) {
     const most = new Map(counts);
     for (const option of Array.isArray((choice as { options?: unknown })?.options)
       ? (choice as { options: unknown[] }).options
@@ -331,7 +395,7 @@ export function normalizeBeatReply(reply: BeatReply, context: BeatContext): Norm
     reply,
     { start: context.node.place, cgOpen: !!context.node.cg, context } as NormalizeOptions,
     normalizeBeatBody,
-    { enabled: true, terminal: context.last && !context.date, label: forgeChoiceLabel },
+    { enabled: !context.pov, terminal: context.last && !context.date, label: forgeChoiceLabel },
   );
   if (!beat) {
     return "the segments or choices did not follow the format (check the PLAYER CHOICES rules: 2-4 options, a selection each, branches of 1-8 segments, distinct `at` indexes)";
@@ -341,7 +405,10 @@ export function normalizeBeatReply(reply: BeatReply, context: BeatContext): Norm
     return "this node must end on ONE big choice (see the PLAYER CHOICES rules for a big choice)";
   }
   const dateProblem = context.date ? dateChoiceProblem(reply, choices) : "";
-  return dateProblem || { ...beat, choices };
+  if (dateProblem) return dateProblem;
+  const sideWith = context.sideWith ? readSideWith(reply, choices, context) : undefined;
+  if (typeof sideWith === "string") return sideWith;
+  return { ...beat, choices, ...(sideWith ? { sideWith } : {}) };
 }
 
 /** P6's segment rules, lent to P12 (S/story/confrontation.ts normalizes each of its lists with them). */
@@ -382,6 +449,40 @@ function dateChoiceProblem(reply: BeatReply, choices: readonly ForgeChoice[]): s
   return "";
 }
 
+/**
+ * #2046: a side-with beat's choice and whom each option backs, read from the raw reply at the indexes the kit numbered
+ * them by; or why the reply breaks its rules (exactly one choice carries "backs", a small one, with one option per love
+ * interest present, each backing a different one of them).
+ */
+function readSideWith(
+  reply: BeatReply,
+  choices: readonly ForgeChoice[],
+  context: BeatContext,
+): NonNullable<Beat["sideWith"]> | string {
+  const side = context.sideWith ?? [];
+  const rule = `this node is a side-with scene: it needs ONE small choice with exactly ${side.length} options, one per love interest present (${side.map((unit) => unit.name).join(", ")}), each with "backs" set to the id of the one it sides with`;
+  // A choice counts only when an option names someone: an empty "backs" (null, "") on another choice's options is noise.
+  const marked = (Array.isArray(reply.choices) ? reply.choices : []).flatMap((_, c) =>
+    rawOptionsOf(reply, c).some((option) => str((option as { backs?: unknown } | null)?.backs, NAME_MAX)) ? [c] : [],
+  );
+  if (marked.length !== 1)
+    return `${rule}; ${marked.length ? 'only one choice may carry "backs"' : 'no option carries "backs"'}`;
+  const c = marked[0]!;
+  const choice = choices.find((entry) => entry.id === `choice-${c + 1}`);
+  if (choice?.kind !== "small") return `${rule}; that choice must be a small one`;
+  const backs: Record<string, LiId> = {};
+  for (const [o, option] of rawOptionsOf(reply, c).entries()) {
+    const li = presentLi(context, (option as { backs?: unknown } | null)?.backs);
+    if (!li || Object.values(backs).includes(li)) {
+      return `${rule}; option ${o + 1} must back a love interest present that no other option backs`;
+    }
+    backs[`option-${o + 1}`] = li;
+  }
+  const missing = side.filter((unit) => !Object.values(backs).includes(unit.id)).map((unit) => unit.name);
+  if (missing.length) return `${rule}; missing: ${missing.join(", ")}`;
+  return { choice: choice.id, backs };
+}
+
 /** A date beat's hidden scores, read from the raw reply at the indexes the kit numbered the choices and options by. */
 export function scoresOf(reply: BeatReply, choices: readonly ForgeChoice[]): NonNullable<Beat["scores"]> {
   const scores: NonNullable<Beat["scores"]> = {};
@@ -409,11 +510,6 @@ const unitSign = (value: unknown): -1 | 0 | 1 => {
  * for a grievance the node may resolve; an option with nothing left has no entry.
  */
 export function effectsOf(reply: BeatReply, choices: readonly ForgeChoice[], context: BeatContext): Beat["effects"] {
-  const present = context.units.filter((unit) => context.node.cast.includes(unit.id));
-  const li = (value: unknown): LiId | undefined => {
-    const key = str(value, NAME_MAX);
-    return (present.find((unit) => unit.id === key) ?? present.find((unit) => sameName(key, unit.name)))?.id;
-  };
   const resolvable = new Set(context.node.resolves ?? []);
   const result: Beat["effects"] = {};
   const rawChoices = Array.isArray(reply.choices) ? reply.choices : [];
@@ -429,7 +525,7 @@ export function effectsOf(reply: BeatReply, choices: readonly ForgeChoice[], con
       for (const raw of rawEffects.slice(0, 6)) {
         if (!raw || typeof raw !== "object") continue;
         const source = raw as Record<string, unknown>;
-        const target = li(source.li);
+        const target = presentLi(context, source.li);
         if (!target) continue;
         const effect: Effect = { li: target };
         const trust = unitSign(source.trust);
@@ -464,6 +560,26 @@ export function effectsOf(reply: BeatReply, choices: readonly ForgeChoice[], con
     }
   }
   return result;
+}
+
+/**
+ * #2046: what each option of a side-with choice changes, set by the game: the one backed gains affection and trust;
+ * each one passed over loses some affection (never below the level reached, S/state/relationship.ts) and the tension
+ * between them rises. Trust is never lowered, as that is a hostile pick's (it would cost the hostile loss as well).
+ */
+export function sideWithEffects(side: NonNullable<Beat["sideWith"]>): Record<string, Effect[]> {
+  const lis = Object.values(side.backs);
+  return Object.fromEntries(
+    Object.entries(side.backs).map(([option, backed]): [string, Effect[]] => [
+      option,
+      [
+        { li: backed, trust: 1, affection: SIDE_WITH_AFFECTION.backed },
+        ...lis
+          .filter((li) => li !== backed)
+          .map((li): Effect => ({ li, tension: 1, affection: -SIDE_WITH_AFFECTION.passedOver })),
+      ],
+    ]),
+  );
 }
 
 // ── Writing a beat ──
@@ -536,25 +652,45 @@ async function generateBeat(
   const basis = i > 0 ? await readBeat(deps.store, runId, key, i - 1) : null;
   const sameBasis = (current: Beat | null) =>
     !basis || (!!current && current.written.at === basis.written.at && cutShort(current) === cutShort(basis));
-  const storySoFar = await chapterSoFar(deps.store, runId, key, i, run.player.name);
+  const storySoFar = await chapterScenes(deps.store, runId, key, i, run.player.name);
   if (storySoFar === null) throw conflict("An earlier beat of this chapter is not settled yet.");
   const units = castUnits(run);
   const present = units.filter((unit) => node.cast.includes(unit.id));
-  const memory = await recallText(deps, runId, {
-    job: "narration",
-    cast: node.cast,
-    query: {
-      cues: [storySoFar.slice(-2000), node.guide].filter(Boolean),
-      plan: node.guide,
-      speakers: [run.player.name, ...present.map((unit) => unit.name)].filter(Boolean),
-    },
-    signal,
-    debugMode,
-  });
+  // #2155: his side tells one scene again, from his point of view, with only what he may know.
+  const pov = chapter.hisSide && chapter.li ? chapter.li : undefined;
+  const told = chapter.hisSide && pov ? await hisSideSource(deps.store, runId, chapter.hisSide, run.player.name) : null;
+  if (chapter.hisSide && !told) throw conflict("The scene this side tells again cannot be read.");
+  // The previous chapter in full is the one this chapter's storyline continues: the main story's for a main chapter,
+  // his own for his route or repair chapter; a date or a story takes the newest the scene may know. The story context
+  // is what every scene of the chapter may know (and a main chapter's plan, #2091): his own canon too in his own
+  // chapter, where he is in every node. What only some may know follows who is in this one, with the recalls. A
+  // storyline's chapter (main, route, repair) is also given the last Character Story, whoever is in the scene (#2126),
+  // as its plan is; a date's or a story's scenes are not.
+  // A side chapter tells a scene of a chapter before it again, so the story's memory, which is the story as it is now,
+  // would hand it chapters that came after the moment it retells: it gets the scene itself (hisSideSource) and none.
+  const memory: StoryContext = told
+    ? { text: "", overview: "", details: [], maxContext: null, prefix: "", fate: "", optional: [] }
+    : await recallText(deps, runId, {
+        job: "narration",
+        cast: node.cast,
+        ...(pov ? { reader: pov } : {}),
+        cached: chapter.kind === "main" ? {} : { li: chapter.li ?? chapter.lead },
+        ...(chapter.kind === "main" ? { continues: "main" as const } : {}),
+        ...((chapter.kind === "route" || chapter.kind === "repair") && chapter.li ? { continues: chapter.li } : {}),
+        lastStory: chapter.kind === "main" || chapter.kind === "route" || chapter.kind === "repair",
+        query: {
+          cues: [storySoFar.join("\n\n").slice(-2000), node.guide].filter(Boolean),
+          plan: node.guide,
+          speakers: [run.player.name, ...present.map((unit) => unit.name)].filter(Boolean),
+        },
+        signal,
+        debugMode,
+      });
   const last = i === chapter.nodes.length - 1;
   const mustChoose =
     chapter.kind === "route" && !!node.gate && !!chapter.stage && stageRow(chapter.stage).gate === "confrontation";
   const cgExplicit = explicitCgAllowed(run.world);
+  const side = sideWithCast(chapter, node, units);
   const context: BeatContext = {
     node,
     units,
@@ -564,6 +700,8 @@ async function generateBeat(
     mustChoose,
     cgExplicit,
     ...(chapter.kind === "date" ? { date: { goesWrong: chapter.date?.goesWrong ?? false } } : {}),
+    ...(side ? { sideWith: side } : {}),
+    ...(pov ? { pov } : {}),
   };
   const opponent = confrontationOpponent(chapter, node, units);
   // Chapter 1 opens where the prologue ended, with the choices taken in it.
@@ -578,12 +716,19 @@ async function generateBeat(
     world: run.world,
     player: run.player,
     units,
-    state: run.state,
+    state: pov && chapter.hisSide ? stateAtMoment(run.state, pov, chapter.hisSide) : run.state,
     chapter,
     node,
     storySoFar,
-    memory,
+    memory: memory.text,
+    recalls: memory.recalls?.text ?? "",
+    // The arc's line for a main chapter goes in the story context, as P5 sends it (#2066).
+    arc:
+      chapter.kind === "main" && chapter.number
+        ? (arcCovering(await listArcs(deps.store, runId), chapter.number) ?? null)
+        : null,
     prologue,
+    ...(told ? { hisSide: told.text } : {}),
   };
   let body: Omit<Beat, "key" | "i" | "kind" | "choiceCanon" | "applied" | "readThrough" | "written" | "rewrites">;
   let written: { connectionId: string; model: string };
@@ -598,12 +743,12 @@ async function generateBeat(
       job: "narration",
       label: `${climax}/${key}/${i}`,
       messages: (climax === "closer" ? closerMessages : confrontationMessages)({ ...input, li: opponent }),
+      memory,
       schema: ConfrontationReplySchema,
       normalize: (reply) => {
         const game = normalizeConfrontationReply(reply, shape, lists);
         return typeof game === "string" ? game : reply;
       },
-      temperature: 0.9,
       maxTokens: 7000,
       debugMode,
       lane: "foreground",
@@ -630,13 +775,13 @@ async function generateBeat(
       job: "narration",
       label: `beat/${key}/${i}`,
       messages: beatMessages(input),
+      memory,
       schema: BeatReplySchema,
       normalize: (reply) => {
         const beat = normalizeBeatReply(reply, context);
         if (typeof beat === "string") return beat;
         return (chapter.kind === "prologue" && prologueProblem(beat, units)) || reply;
       },
-      temperature: 0.9,
       maxTokens: 6000,
       debugMode,
       lane: "foreground",
@@ -649,9 +794,16 @@ async function generateBeat(
       segments: scene.segments,
       choices: scene.choices,
       // #2025: an extra story is imagined, never canon: its picks move nothing between them (no trust, tension,
-      // grievance, disclosure or affection loss).
-      effects: chapter.prestige ? {} : effectsOf(value, scene.choices, context),
+      // grievance, disclosure or affection loss). #2046: a side-with choice's effects are the game's, replacing any the
+      // reply gave it.
+      effects: chapter.prestige
+        ? {}
+        : {
+            ...effectsOf(value, scene.choices, context),
+            ...(scene.sideWith ? { [scene.sideWith.choice]: sideWithEffects(scene.sideWith) } : {}),
+          },
       ...(context.date ? { scores: scoresOf(value, scene.choices) } : {}),
+      ...(scene.sideWith ? { sideWith: scene.sideWith } : {}),
       musicMood: scene.musicMood,
       ...(scene.cg ? { cg: scene.cg } : {}),
     };
@@ -693,8 +845,8 @@ async function generateBeat(
     await deps.store.removeDoc(beatId(runId, key, i));
     throw basisChanged();
   }
-  // Only the write that was saved paints: a request that lost the race to another write hands nothing on. The beat a
-  // rewrite replaced lets its CG go.
+  // Only the write that was saved paints its places and its CG: a request that lost the race to another write hands
+  // nothing on. The beat a rewrite replaced lets its CG go.
   if (saved?.written.at === beat.written.at) {
     paintScene(deps, runId, saved, { debugMode, review });
     if (replaced) releaseArt(deps, runId, replaced);
@@ -720,10 +872,32 @@ function inBackground(deps: BeatDeps, beat: Pick<Beat, "key" | "i">, what: strin
   }
 }
 
-/** A written beat's places and CG (S/art/cg.ts queueScenePaints): painted now, or left waiting for the tap. */
+/**
+ * A written beat's places and CG (S/art/cg.ts queueScenePaints): painted now, or left waiting for the tap. The scene
+ * the lookahead writes ahead is painted too, so its CG is ready by the time the reader reaches it (the maintainer's,
+ * 2026-11-03). An Ease off or a Rewrite that drops it lets its CG go: a paint still waiting in the lane stops, and one
+ * already painted is deleted again, so only that one was paid for.
+ */
 function paintScene(deps: BeatDeps, runId: string, beat: Beat, mode: PaintMode): void {
   const art = deps.art;
   if (art) inBackground(deps, beat, "scene", () => art.queueScenePaints(runId, beat, mode));
+}
+
+/**
+ * The CG of a beat being read, as it is served: a written beat's paint has usually written its record already; one
+ * that has none yet (it is still starting, or this process restarted since) gets it now. Only its record is awaited,
+ * so the reader's first art read sees it pending or waiting; the paid paint goes on in the background. Resolves the
+ * beat with that record. A CG with a record is left as it is.
+ */
+async function prepareCg(deps: BeatDeps, runId: string, beat: Beat, mode: PaintMode): Promise<Beat> {
+  const art = deps.art;
+  if (!art?.prepareSceneCg || !beat.cg || beat.cg.art) return beat;
+  try {
+    return await art.prepareSceneCg(runId, beat, mode);
+  } catch (error) {
+    artFailed(deps, beat, "cg")(error);
+    return beat;
+  }
 }
 
 /** The faces of the love interests who speak in a beat served (a stance game's every line counts). */
@@ -877,6 +1051,7 @@ export async function serveBeat(
     // generateBeat may itself run inside the foreground queue. Await its place registration only after that lock
     // has been released; the reader's first art response must distinguish pending from no image/description.
     await deps.art?.prepareScenePlaces?.(runId, beat, { debugMode, review });
+    beat = await prepareCg(deps, runId, beat, { debugMode, review });
   }
   queueFaces(deps, runId, beat, debugMode);
   if (!run.state.chapters[key]?.completed) queueLookahead(deps, runId, chapter, beat, { debugMode, review });
@@ -893,15 +1068,54 @@ interface Remembered {
 
 const NOTHING_REMEMBERED: Remembered = { remembered: false, rememberedBy: [] };
 
+/** What a choice's pick changed: as Remembered, and how far it moved each love interest's affection (#2046). */
+interface Picked extends Remembered {
+  affection: AffectionChange[];
+}
+
+const NOTHING_PICKED: Picked = { ...NOTHING_REMEMBERED, affection: [] };
+
+/** #2156: the node's `resolves`, without a grievance he holds against her unless this is that grievance's repair. */
+function resolvesIn(state: RunState, chapter: Chapter, i: number): string[] {
+  const held = Object.values(state.lis).flatMap((li) => (heldAgainst(li) ? [li.rupture!.grievanceId] : []));
+  return (chapter.nodes[i]?.resolves ?? []).filter(
+    (id) => !held.includes(id) || (chapter.kind === "repair" && id === chapter.grievance),
+  );
+}
+
 /** A pick's effects on the state, in its chapter and beat (applyChoiceEffects; a pick already applied is a no-op). */
-const applyPickTo = (state: RunState, chapter: Chapter, beat: Beat, choice: string, option: string, at: string) =>
+const applyPickTo = (
+  state: RunState,
+  chapter: Chapter,
+  beat: Beat,
+  choice: string,
+  option: string,
+  at: string,
+  arc?: number,
+) =>
   applyChoiceEffects(state, beat.effects[choice]?.[option] ?? [], {
     key: chapter.key,
     i: beat.i,
     choice,
-    resolves: chapter.nodes[beat.i]?.resolves ?? [],
+    resolves: resolvesIn(state, chapter, beat.i),
     at,
+    arc,
   });
+
+/** #2156: a rupture-severity grievance he would hold, which may open his grievance with her. */
+const mayOpenGrievance = (effects: readonly Effect[]) =>
+  effects.some((effect) => effect.grievance?.by === "li" && effect.grievance.severity === "rupture");
+
+/**
+ * #2156: the story arc a pick in `chapter` lands in (his grievance opens once an arc): a main chapter's own, else the
+ * newest arc, 0 before arcs. Looked up only when `may` (a pick could open one), so every other pick reads no arcs.
+ */
+async function arcOfPick(deps: BeatDeps, runId: string, chapter: Chapter, may: boolean): Promise<number | undefined> {
+  if (!may) return undefined;
+  const arcs = await listArcs(deps.store, runId);
+  const own = chapter.arc ?? (chapter.number != null ? arcCovering(arcs, chapter.number)?.number : undefined);
+  return own ?? arcs.at(-1)?.number ?? 0;
+}
 
 /** Applies a canonical pick's effects to the state once (the pick's `applied` entry). */
 async function applyPick(
@@ -911,12 +1125,18 @@ async function applyPick(
   beat: Beat,
   choiceId: string,
   optionId: string,
-): Promise<Remembered> {
-  let outcome = NOTHING_REMEMBERED;
+): Promise<Picked> {
+  let outcome = NOTHING_PICKED;
   const at = new Date().toISOString();
+  const arc = await arcOfPick(deps, runId, chapter, mayOpenGrievance(beat.effects[choiceId]?.[optionId] ?? []));
   const state = await deps.store.updateDoc(runDocTarget("state", stateId(runId)), normalizeState, (current) => {
-    const { state: next, remembered, rememberedBy } = applyPickTo(current, chapter, beat, choiceId, optionId, at);
-    outcome = { remembered, rememberedBy };
+    const {
+      state: next,
+      remembered,
+      rememberedBy,
+      affection,
+    } = applyPickTo(current, chapter, beat, choiceId, optionId, at, arc);
+    outcome = { remembered, rememberedBy, affection };
     return next;
   });
   if (!state) throw runNotFound();
@@ -929,8 +1149,10 @@ async function applyPick(
 }
 
 /**
- * POST .../beats/:i/choose {choice, option}. The first pick of the first pending choice on the beat being read is
- * canon; its effects reach the state once. A replay of a small choice changes nothing; a big choice never changes.
+ * POST .../beats/:i/choose {choice, option, own?}. The first pick of the first pending choice on the beat being read
+ * is canon; its effects reach the state once. A replay of a small choice changes nothing; a big choice never changes.
+ * `own` (#2146, with option OWN_OPTION) answers a big choice in the player's own words: a 400 on any other choice or
+ * when blank, appended to the choice as its own option in the write that makes it canon, with no effects.
  */
 export async function chooseOption(
   deps: BeatDeps,
@@ -939,12 +1161,25 @@ export async function chooseOption(
   i: number,
   choiceId: string,
   optionId: string,
-): Promise<{ beat: Beat } & Remembered> {
+  own?: ChoiceOption["selection"],
+): Promise<{ beat: Beat } & Picked> {
   const { run, chapter } = await load(deps, runId, key);
   let beat = await readBeat(deps.store, runId, key, i);
   if (!beat) throw beatNotFound();
   const choice = beat.choices.find((entry) => entry.id === choiceId);
-  if (!choice || !choice.options.some((option) => option.id === optionId)) {
+  if (choice && own && choice.kind !== "big") {
+    throw new OtomeForgeError(400, "Only a chapter's closing decision takes your own words.", "bad-request");
+  }
+  const words: ChoiceOption | null = own
+    ? {
+        id: OWN_OPTION,
+        text: OWN_ANSWER_LABEL,
+        selection: { kind: own.kind, text: own.text.replace(/\s+/gu, " ").trim() },
+        segments: [],
+      }
+    : null;
+  if (words && !words.selection.text) throw new OtomeForgeError(400, "Write what you say or do.", "bad-request");
+  if (!choice || (!words && !choice.options.some((option) => option.id === optionId))) {
     throw new OtomeForgeError(404, "No such choice.", "not-found");
   }
   const progress = run.state.chapters[key];
@@ -953,7 +1188,7 @@ export async function chooseOption(
     if (choice.kind === "big" && canon !== optionId) throw new OtomeForgeError(409, "That choice is made.", "locked");
     // A pick saved by a request that stopped before its effects: apply them now (exactly once by `applied`).
     const pending = !progress?.applied.includes(`${i}/${choiceId}`);
-    const outcome = pending ? await applyPick(deps, runId, chapter, beat, choiceId, canon) : NOTHING_REMEMBERED;
+    const outcome = pending ? await applyPick(deps, runId, chapter, beat, choiceId, canon) : NOTHING_PICKED;
     return { beat: (await readBeat(deps.store, runId, key, i)) ?? beat, ...outcome };
   }
   // A choice past an Ease off cut is never canon, even while the cut beat is not counted as read yet.
@@ -961,7 +1196,7 @@ export async function chooseOption(
   const closed = !!progress?.completed || (progress?.beatsRead ?? 0) > i || pastCut(beat);
   if (closed) {
     if (choice.kind === "big") throw new OtomeForgeError(409, "That choice is made.", "locked");
-    return { beat, ...NOTHING_REMEMBERED };
+    return { beat, ...NOTHING_PICKED };
   }
   if ((progress?.beatsRead ?? 0) !== i) throw conflict("Choices are made on the beat being read.");
   if (forgePendingChoice(beat)?.id !== choiceId) throw conflict("An earlier choice in this beat comes first.");
@@ -971,15 +1206,19 @@ export async function chooseOption(
       if (!current) throw beatNotFound();
       // A rewrite saved since this beat was read has other choices: the pick was made on a scene that is gone.
       if (current.written.at !== checked.written.at) throw conflict("This scene changed. Open it again.");
-      return current.choiceCanon[choiceId] || pastCut(current)
-        ? current
-        : { ...current, choiceCanon: { ...current.choiceCanon, [choiceId]: optionId } };
+      if (current.choiceCanon[choiceId] || pastCut(current)) return current;
+      const choices = words
+        ? current.choices.map((entry) =>
+            entry.id === choiceId ? { ...entry, options: [...entry.options, words] } : entry,
+          )
+        : current.choices;
+      return { ...current, choices, choiceCanon: { ...current.choiceCanon, [choiceId]: optionId } };
     })) ?? beat;
   const picked = beat.choiceCanon[choiceId];
   // No pick saved: an Ease off cut the scene before this choice meanwhile, and the choice is closed as above.
   if (!picked || (picked !== optionId && choice.kind === "big")) {
     if (choice.kind === "big") throw new OtomeForgeError(409, "That choice is made.", "locked");
-    return { beat, ...NOTHING_REMEMBERED };
+    return { beat, ...NOTHING_PICKED };
   }
   const outcome = await applyPick(deps, runId, chapter, beat, choiceId, picked);
   return { beat: (await readBeat(deps.store, runId, key, i)) ?? beat, ...outcome };
@@ -991,8 +1230,9 @@ export async function chooseOption(
 async function applyStances(deps: BeatDeps, runId: string, chapter: Chapter, beat: Beat): Promise<Remembered> {
   let outcome = NOTHING_REMEMBERED;
   const at = new Date().toISOString();
+  const arc = await arcOfPick(deps, runId, chapter, beat.confrontation?.ending === "walkout");
   const state = await deps.store.updateDoc(runDocTarget("state", stateId(runId)), normalizeState, (current) => {
-    const { state: next, remembered, rememberedBy } = applyConfrontation(current, chapter, beat, at);
+    const { state: next, remembered, rememberedBy } = applyConfrontation(current, chapter, beat, at, arc);
     outcome = { remembered, rememberedBy };
     return next;
   });
@@ -1109,19 +1349,33 @@ async function finishBeat(
   let outcome: Omit<ReturnType<typeof readBeatToEnd>, "state"> = { grants: [], chapterDone: false };
   let stageUp: ReadResult["stageUp"];
   let repaired: ReadResult["repaired"];
+  let hisSide: ReadResult["hisSide"];
   let completedNow = false;
   const at = new Date().toISOString();
   // His secrets, for the gate (the stage it opens reveals each secret due by then). Bibles are not edited mid-read.
   const owner = chapter.kind === "route" && chapter.li ? await readUnit(deps, runId, chapter.li) : null;
+  const canon = canonPicks(beat);
+  // #2156: the arc a pick here opens a grievance in (none when a walkout or a grievance pick may open one).
+  const arcOfGrievance = await arcOfPick(
+    deps,
+    runId,
+    chapter,
+    beat.confrontation?.ending === "walkout" ||
+      mayOpenGrievance(canon.flatMap(([choice, option]) => beat.effects[choice]?.[option] ?? [])),
+  );
+  // #2155: the arc a big moment here would be his side's, and whether that side is written already (it spends the arc).
+  const candidate = momentCandidate(chapter, beat);
+  const arc = candidate ? hisSideArc(chapter, await listArcs(deps.store, runId)) : 0;
+  const spent = !candidate || !!(await readChapter(deps.store, runId, hisSideKey(candidate, arc)));
   const state = await deps.store.updateDoc(runDocTarget("state", stateId(runId)), normalizeState, (current) => {
     // A pick saved on the beat whose effects never reached the state (its request stopped between the two writes, and
     // a reload shows it as made) lands in this same write, so no beat counts as read with a canon pick unapplied.
     // The pick's `applied` entry makes this a no-op for every other pick; the same goes for a Confrontation's stances.
-    const picked = canonPicks(beat).reduce(
-      (state, [choice, option]) => applyPickTo(state, chapter, beat, choice, option, at).state,
+    const picked = canon.reduce(
+      (state, [choice, option]) => applyPickTo(state, chapter, beat, choice, option, at, arcOfGrievance).state,
       current,
     );
-    const caughtUp = applyConfrontation(picked, chapter, beat, at).state;
+    const caughtUp = applyConfrontation(picked, chapter, beat, at, arcOfGrievance).state;
     // A rupture shuts his gate: it is not counted (no stage, no chapter grants) until a repair, whichever way it was
     // reached (a lookahead written before the rupture, an Ease off), unless the rupture opened in this very scene.
     if (gateShut(caughtUp, chapter, beat.i)) throw locked(ROUTE_LOCKED);
@@ -1130,15 +1384,35 @@ async function finishBeat(
     let next = read;
     stageUp = undefined;
     repaired = undefined;
+    hisSide = undefined;
     if (countedNow(caughtUp, read, chapter.key, beat.i)) {
       const gate = passGate(next, chapter, beat.i, { secrets: owner?.bible?.secrets ?? [], at });
-      const picks = canonPicks(beat).flatMap(([choice, option]) => beat.effects[choice]?.[option] ?? []);
+      const picks = canon.flatMap(([choice, option]) => beat.effects[choice]?.[option] ?? []);
       const heal = healRupture(gate.state, chapter, beat.i, at, picks);
       next = heal.state;
       if (gate.stageUp) stageUp = gate.stageUp;
       if (heal.repaired) repaired = heal.repaired;
+      // #2156: a repair completed now pays its clearing, after the heal has closed his grievance.
+      if (!caughtUp.chapters[chapter.key]?.completed && next.chapters[chapter.key]?.completed) {
+        const cleared = payClearing(next, chapter);
+        next = cleared.state;
+        outcome = { ...outcome, grants: [...outcome.grants, ...cleared.grants] };
+      }
+      const moment = spent ? null : hisSideMomentOf(chapter, beat, { stageUp: gate.stageUp, repaired: heal.repaired });
+      const his = moment?.li === candidate ? next.lis[moment.li] : undefined;
+      if (moment && his) {
+        const ref = `${chapter.key}/${beat.i}`;
+        next = noteHisSide(next, moment.li, { arc, ref, moment: moment.moment, at });
+        hisSide = moment.li;
+      }
     }
     completedNow = !current.chapters[chapter.key]?.completed && !!next.chapters[chapter.key]?.completed;
+    // #2155: the read that finishes the chapter says when a side of it waits, though its moment came on an earlier node
+    // (the reader may have been left in between). A side is written only once its chapter is finished, so none is yet.
+    if (completedNow && !hisSide) {
+      const notes = Object.entries(next.lis);
+      hisSide = notes.find(([, his]) => his.hisSide.some(({ ref }) => momentChapterKey(ref) === chapter.key))?.[0];
+    }
     return next;
   });
   if (!state) throw runNotFound();
@@ -1157,6 +1431,7 @@ async function finishBeat(
     chapterDone: outcome.chapterDone,
     ...(stageUp ? { stageUp } : {}),
     ...(repaired ? { repaired } : {}),
+    ...(hisSide ? { hisSide } : {}),
   };
 }
 

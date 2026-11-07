@@ -64,8 +64,8 @@
         },
         "id": "3d-avatars",
         "name": "3D Avatars",
-        "version": "0.1.1",
-        "description": "Shows your characters and personas as animated 3D models that blink, talk, and change faces with each reply. Uses VRM model files. Set up each avatar on the agent's page in Agents, then add the Agent in Chat Settings → Agents → Misc Agents for Roleplay and Game modes.",
+        "version": "0.1.2",
+        "description": "Shows your characters and personas as animated 3D models that blink, talk, and change faces with each reply. Uses VRM model files; Marinara Engine versions after 2.5.1 also take MMD PMX models and rigged GLB and FBX models. Set up each avatar on the agent's page in Agents, then add the Agent in Chat Settings → Agents → Misc Agents for Roleplay and Game modes.",
         "engine": {
           "min": "2.5.0",
           "maxExclusive": "4.0.0"
@@ -79,8 +79,8 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "69f4979c0272d438ddbff9fbef7b71b7451f32fe32c58a31d6103ec9d5ac496a",
-            "bytes": 465
+            "sha256": "9f2af90ad2b4a3e7b637c94d53b898f324484195be23394d586465981badb9ac",
+            "bytes": 558
           }
         ],
         "permissions": [
@@ -94,9 +94,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatars.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatars-0.1.1.zip",
-        "sha256": "11b8622eacc3dd249ecf0a25759bd36b89ea1bae122adbc689919e6064636f69",
-        "bytes": 1033
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatars-0.1.2.zip",
+        "sha256": "e6a628cf9722768737db5a992b17bca6476fb576d6dff5e73d7a53a57ef3c72c",
+        "bytes": 1146
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/agents/built-in-agents.md#3d-avatars"
     },
@@ -565,7 +565,7 @@
         },
         "id": "conversation-calls",
         "name": "Calls",
-        "version": "1.1.7",
+        "version": "1.1.8",
         "description": "Adds live audio and video calls with Conversation characters. Add as both a Command and an Agent in Chat Settings → Agents → Commands/Calls for Conversation mode.",
         "engine": {
           "min": "2.4.1",
@@ -595,13 +595,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "e7a7b0769ceda5d542206626dc775488c49ebbcfe9bed766dd429873a6f2d7b1",
-            "bytes": 405456
+            "sha256": "75849ff5da2351e5f3df02bfd33748c267c3a3e4e4fe68cbc9485ed1a23a686f",
+            "bytes": 405479
           },
           {
             "path": "client.js",
-            "sha256": "0ef7a269f2a7cffa68858c56d7a7611c78f26abacd07018aa8e7bcecabd46e93",
-            "bytes": 167433
+            "sha256": "1e5acfa3919839ab71f9b8315c2a67c62770e659abf41d1ccbef545bffa5d3c0",
+            "bytes": 170673
           }
         ],
         "permissions": [
@@ -618,9 +618,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/conversation-calls.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/conversation-calls-1.1.7.zip",
-        "sha256": "cee31728db5f6463553f29edb28cfde9ae98ae88399b47ccfd0d6b85e25e79ed",
-        "bytes": 575188
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/conversation-calls-1.1.8.zip",
+        "sha256": "51865dcfbdc27976300f6388d80a26a39ca63c4342ff2f38220542574a5184c8",
+        "bytes": 578451
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#conversation-calls"
     },
@@ -2802,7 +2802,7 @@
         "schemaVersion": 1,
         "id": "inventory-tracker",
         "name": "Inventory Tracker",
-        "version": "1.2.1",
+        "version": "1.2.2",
         "description": "Keeps track of your money, gear, and what you're carrying. Add the Agent in Chat Settings → Agents → Tracker Agents for Roleplay mode.",
         "engine": {
           "min": "2.4.3",
@@ -2817,8 +2817,8 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "10500c42d20f26509061b3288c34affdadb51b67ac804990e4562f3881ac4c50",
-            "bytes": 2819
+            "sha256": "930bba3eae1b5b4c403a777ca10ee894fe5c43044bf5e72e3dac428667975c21",
+            "bytes": 3240
           }
         ],
         "permissions": [
@@ -2833,9 +2833,9 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/inventory-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/inventory-tracker-1.2.1.zip",
-        "sha256": "fc9fe24ed1c6e7e23d3bb75de19b6bc206d626498d1ac99595bae539521c7afc",
-        "bytes": 1977
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/inventory-tracker-1.2.2.zip",
+        "sha256": "b9682cb9adb9a383d0caaa63e2ace4919e66382df4780c5831370e405dff48b9",
+        "bytes": 2109
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/agents/built-in-agents.md#inventory-tracker"
     },
@@ -3413,7 +3413,7 @@
         },
         "id": "otome-forge",
         "name": "Otome Hearth",
-        "version": "0.6.15",
+        "version": "0.16.0",
         "description": "An otome game in its own Home tab, made from your own characters: love interests who remember what you chose, their messages to you, dates and mini-games, and wishes for outfits and memories paid for only with Starlight you earn. Install it, restart Marinara Engine when prompted, then open Home → Otome Hearth.",
         "engine": {
           "min": "2.5.1",
@@ -3447,13 +3447,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "a46865ee48fd526ee1fffd8726a901e1fd1ee0681e371c020a797dad3710a61f",
-            "bytes": 480579
+            "sha256": "53d87e202740cbc37162b00a714325232e6884824f2979780e63ea6a2012216c",
+            "bytes": 629444
           },
           {
             "path": "client.js",
-            "sha256": "68778d1b3146e1784d935251cedcfaa5ee941776da2ca15bea9c8b0ba80c1512",
-            "bytes": 1179048
+            "sha256": "c5af3660b8e6c39c8af6e4948cfeba13408cf20b0c3ff491320c5215d7a38033",
+            "bytes": 1347887
           },
           {
             "path": "otome-hearth-icon.png",
@@ -3481,9 +3481,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/otome-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.6.15.zip",
-        "sha256": "8a01f854b368ec3cdb525785b17c5451955c850295a0e2cd959f8c3c63278d86",
-        "bytes": 1811279
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.16.0.zip",
+        "sha256": "d4b7c3a3c32631d397978467548854c8c6502976c525e6b84f19ff9b7326ef6c",
+        "bytes": 2128983
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/otome-forge/README.md"
     },
@@ -4468,7 +4468,7 @@
         },
         "id": "slurp2",
         "name": "Slurp",
-        "version": "0.4.15",
+        "version": "0.4.18",
         "description": "A private social app for your characters. Turn characters and personas into Creators, post public or locked photos, and watch a simulated audience follow, subscribe, unlock, comment, and message them. By default, it is tuned for an adult experience. Install it, restart Marinara Engine when prompted, then open Home → Slurp.",
         "localizations": {
           "de": {
@@ -4537,13 +4537,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "d160fb8764b587e8b48400d0dc4c74165686789a2d9714d24f4b86a16247830d",
-            "bytes": 2163725
+            "sha256": "71054a56bfdb8cd4d28a09c99a00f8dd180ce740cf606371d0ecc22acf3c8a2c",
+            "bytes": 2164536
           },
           {
             "path": "client.js",
-            "sha256": "836d7c16715e86e29d2721b5db016629f269b1dc56cc5c888a215be5578ef6b3",
-            "bytes": 2906425
+            "sha256": "174f826104ba12aaf20b12599a572bd5cb927d93a1031717fd0bf02b9aa748c6",
+            "bytes": 2910591
           },
           {
             "path": "slurp2-logo.png",
@@ -4567,18 +4567,18 @@
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/de.json",
-            "sha256": "23f217da32ed5dcf4fae281cf82fbd98f04909f5d1455c401b91a296342a7011",
-            "bytes": 241336
+            "sha256": "5f84b47b173de6433d1e3638797d96e1923d13263b049ef98cbddb62b302d9cf",
+            "bytes": 242224
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/ko.json",
-            "sha256": "7fbe728fc6fb8d11b393b9d656f3393714119accdfef2237e2ae318623a919e4",
-            "bytes": 339010
+            "sha256": "51715d63f9adf86922fb92dae91baba6604c83a1f5734c7622f67baa9ead6eb6",
+            "bytes": 339947
           },
           {
             "path": "src/engine/packages/client/src/slp/locales/pl.json",
-            "sha256": "582ad9c4d40aedfec37f475aca53186b3c27d13d4d657bb30962217c2ece0ad7",
-            "bytes": 243072
+            "sha256": "09c99b2a79c9eeedcb3fc2965bddfc77567f34612a12247cb031f8d6e77cb0e2",
+            "bytes": 243945
           }
         ],
         "permissions": [
@@ -4596,9 +4596,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/slurp2.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.15.zip",
-        "sha256": "fe174ed318111d4c53a06716f07f7c7bf19c0f850ef96b86011080c6cdf0edc4",
-        "bytes": 6125580
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.18.zip",
+        "sha256": "be13c0f314f58580bebf3f264589af4ffb0d346d8393967c4b8bdb38423008ef",
+        "bytes": 6133255
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/slurp2/README.md"
     },
@@ -4615,7 +4615,7 @@
         },
         "id": "story-writer",
         "name": "Story Writer",
-        "version": "0.1.1",
+        "version": "0.2.0",
         "description": "A co-writing book. Pick a connection, your characters, personas and lorebooks, describe the story, and the model writes it chapter by chapter while you guide it with an author's note and edit anything on the page. Install it, restart Marinara Engine when prompted, then open Home → Story Writer.",
         "engine": {
           "min": "2.5.1",
@@ -4657,13 +4657,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "ca6300129f178a7f32aa5eadd587a5a7c885ffc4a202c617e70ee235731d3974",
-            "bytes": 13665
+            "sha256": "51b0d291c248e9f0eca322233ad1a57de6a2fe69e592b4a1fbfbda053eb05d98",
+            "bytes": 14027
           },
           {
             "path": "client.js",
-            "sha256": "4a745b679a777d1d71dd8a17f441a9b621784a8b5c0b6579619b6a1ba9a71438",
-            "bytes": 210075
+            "sha256": "c16ce04d42c33c3aa28ff58e78a4a4ea4f451d395a92b960dac87ba76656353a",
+            "bytes": 219920
           },
           {
             "path": "story-writer-icon.png",
@@ -4701,9 +4701,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/story-writer.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/story-writer-0.1.1.zip",
-        "sha256": "ba901a101a3094af030ea08e1d3ea6bc68301e74351ebf6340a5f4480fee99ff",
-        "bytes": 614064
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/story-writer-0.2.0.zip",
+        "sha256": "af14d99ff9780d9d344fc83c7d73b304c355e9125df4fa7e3f73b4c68ed821ba",
+        "bytes": 624271
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/story-writer/README.md"
     },
@@ -4901,6 +4901,67 @@
         "bytes": 59861
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#uno"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 12
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.2",
+          "engineCommit": "11489b413135fb2850c3a4b10df2610244712178"
+        },
+        "id": "wanderworld",
+        "name": "Wanderworld",
+        "version": "0.1.0",
+        "description": "A walkable low-poly 3D world for Game Mode. Early prototype: walk around a seeded landscape with WASD or the on-screen stick, and see where World Maps says your party is.",
+        "engine": {
+          "min": "2.4.5",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json",
+          "client": "client.js"
+        },
+        "contributions": {
+          "slots": [
+            "game-surface"
+          ],
+          "gameSurface": {
+            "surfaceClass": "wanderworld-surface"
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "fda0f26c1ba7bde0b204bc9b24f22c4e86c0d3a13b3d0491debcb9b18eb840e6",
+            "bytes": 581
+          },
+          {
+            "path": "client.js",
+            "sha256": "da53644eb12c5dbe1261f46d8f9552061a3c791f441ad4cdf980dfddefe8c9e2",
+            "bytes": 556423
+          }
+        ],
+        "permissions": [
+          "chat-read",
+          "ui"
+        ],
+        "restartRequired": false
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.1.0.zip",
+        "sha256": "eabe6e5c89fea24c3b942d2a61d5473685ea7f94e3c08a8be721ba804de3283c",
+        "bytes": 558483
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
     {
       "manifest": {

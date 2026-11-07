@@ -4,12 +4,17 @@
 // A date is a chapter `date-<n>` of kind "date": a place, two looks, three beats of choices that the date's love
 // interest scores against their likes and dislikes, and an outcome from the total over the first-play picks. Every
 // outcome pays (SH/economy.ts, within the daily activity caps). During a rupture the date is "Make it right": a good or
-// great outcome with every scene's choice made mends it. Pure TypeScript: types, constants and pure functions.
+// great outcome with every scene's choice made mends it. #2128: the protagonist may bring one gift bought in the Shop
+// (SH/shop.ts), given in the date's first scene (GIFT_BEAT); it earns its own affection when the date is counted.
+// Pure TypeScript: types, constants and pure functions.
 import type { ActivityGrant, Grievance, LiId, LiState, Paint } from "./api-types";
 import type { MusicMood } from "./faces";
+import type { GiftId } from "./shop";
 
 /** A date is three beats, each with one scored choice. */
 export const DATE_BEATS = 3;
+/** #2128: the scene (node index) a gift brought on the date is given in: the first, as the evening opens. */
+export const GIFT_BEAT = 0;
 
 /** The places the player can pick; the planner adapts each to the world while keeping its spirit. */
 export const DATE_PLACE_IDS = [
@@ -76,6 +81,14 @@ export function standingRupture(liState: Pick<LiState, "rupture" | "grievances">
 }
 
 /**
+ * #2156: his grievance with her stands (a rupture he holds): he can't lead a chapter, earns no affection, and his
+ * dates wait until his repair clears it.
+ */
+export function heldAgainst(liState: Pick<LiState, "rupture" | "grievances"> | undefined): boolean {
+  return standingRupture(liState)?.by === "li";
+}
+
+/**
  * The rupture a Make it right date still tries to mend: its grievance while the rupture stands on it, else null. A
  * date's scenes are written as they are read, so one whose rupture was mended (or moved on) elsewhere since it was
  * planned goes on as an ordinary date: its later scenes, the hub and its finish all follow this.
@@ -102,6 +115,10 @@ export interface DatePlan {
   makeItRight: string | null;
   /** The keepsake image: an English brief, and its paint once the player asks for it. */
   keepsake: { brief: string; art?: Paint };
+  /** #2128: the gift the protagonist brought and gives in scene GIFT_BEAT; absent on a date without one. */
+  gift?: GiftId;
+  /** #2156: the evening he asked her out on to clear the air, after she told him she was upset with him. */
+  clearAir?: true;
 }
 
 /** One date as the client sees it. */
@@ -125,12 +142,20 @@ export interface DateEntry {
   completedAt: string | null;
   /** The keepsake's paint (a pending one no paint here owns reads as stopped), or null before any was asked for. */
   keepsake: Paint | null;
+  /** #2128: the gift the protagonist gave on it, when there was one. */
+  gift?: GiftId;
 }
 
 /** GET /runs/:run/dates */
 export interface DatesView {
   /** Each love interest with a bible, in cast order: a rupture makes the next date "Make it right". */
-  lis: Array<{ li: LiId; rupture: boolean; open: DateEntry | null }>;
+  lis: Array<{
+    li: LiId;
+    rupture: boolean;
+    open: DateEntry | null;
+    /** #2156: she accepted his invitation to clear the air: the next date with him is that evening (his choice of place). */
+    asked?: boolean;
+  }>;
   /** Finished dates, newest first. */
   dates: DateEntry[];
 }
@@ -143,6 +168,8 @@ export interface DateStartInput {
   storyPlace?: string;
   herLook: string;
   hisLook: string;
+  /** #2128: one gift she owns (and the story's Heat offers) to give on the date; spent once the date is planned. */
+  gift?: GiftId;
 }
 
 /** A first-play pick of the date and how it landed, shown once the date is over. */

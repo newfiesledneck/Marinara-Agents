@@ -1,11 +1,18 @@
 // ──────────────────────────────────────────────
 // Otome Forge: Close and remember, and the phone's memory sources (plan M3 "Phone server", design: Private memory)
 // ──────────────────────────────────────────────
-// Close and remember turns the open conversation into a session: P18 writes what he will remember of it (a few
-// sentences and one line quoted from it), the session is appended once, and he earns Close and remember's affection
-// (SH/economy.ts, within the per-LI daily cap for everything outside the story; S/state/rewards.ts grant).
+// Close and remember turns the open conversation into a session: P18 writes what he will remember of it (2 to 4
+// sentences, for his prompts; the thread shows only that he remembers it and the line quoted from it), the session is
+// appended once, and he earns Close and remember's affection (SH/economy.ts, within the per-LI daily cap for
+// everything outside the story; S/state/rewards.ts grant).
 // - It holds the thread's one write in flight, as a send does (S/phone/chat.ts inThreadLock), so no reply lands while
-//   it is summarized.
+//   it is summarized. It does not wait in the run's foreground queue: it reads nothing a beat, a plan or the lookahead
+//   writes; its thread's other writers are a send (held off by the lock) and a seen mark (a revision-checked write
+//   applied again to the latest thread, as this one is); and its affection is the state's own revision-checked write,
+//   applied again to the latest state, so a story write meanwhile is never lost. The player waits for the summary
+//   alone, never behind a lookahead beat, and the next beat never waits behind it.
+// - P18 is a summary: like every summary it gets generateJson's output room (at least 10240 tokens when the connection
+//   allows it); its wanted length is in its prompt's wording.
 // - The session covers the messages that were summarized, and only a request whose write appended it earns the
 //   affection: a replay (nothing left open) returns the newest memory with no grant. A conversation with nothing from
 //   one of them earns nothing. The grant is the state's own revision-checked write; one that still fails after the
@@ -15,6 +22,9 @@
 // readers, and scenes he is in, recall it, and it never reaches the shared overview. Its title says it is private, so a
 // scene with others in it knows they were not there. S/memory/sources.ts adds it to the run's sources. Care data is
 // never a source.
+// The group chat (#2154, S/phone/group.ts) closes through the same summarizeOpen, with P18's group wording, and earns
+// nothing. Its sessions are `chat` sources with `audience: [...members, "group"]`: each member's own readers and scenes
+// with a member in them recall it, and so does the group's own prompt (reader "group"), never anyone else.
 import type { ForgeMemorySource } from "@forge-kit/story-memory.mjs";
 import type {
   LiId,
@@ -25,7 +35,8 @@ import type {
   RunState,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import { AFFECTION_EARNINGS } from "../../../../../client/src/features/otome-forge/shared/economy.js";
-import { generateJson, runForeground } from "../generation.js";
+import { GROUP_THREAD } from "../../../../../client/src/features/otome-forge/shared/home.js";
+import { generateJson, type OtomeMessage } from "../generation.js";
 import { chatId, runDocTarget, stateId } from "../ids.js";
 import { normalizeState } from "../schemas/state.js";
 import { grant } from "../state/rewards.js";
@@ -42,66 +53,25 @@ import {
   sessionSourceId,
   type PhoneDeps,
 } from "./chat.js";
-import { ChatMemorySchema, chatMemoryMessages, normalizeChatMemory, renderThread } from "./prompts.js";
+import { chatMemoryMessages, renderThread } from "../prompts.js";
+import { ChatMemorySchema, normalizeChatMemory, type ChatMemoryRaw } from "./replies.js";
+import { stickerLookup } from "../art/stickers.js";
 
 const said = (message: PhoneMessage) => !!message.text.trim() || !!message.sticker;
 
 async function close(deps: PhoneDeps, runId: string, li: LiId, debugMode: boolean): Promise<PhoneCloseResult> {
   const { run, unit } = await loadThreadRun(deps, runId, li);
-  const thread = await readThread(deps.store, runId, li);
-  const start = thread ? archivedCount(thread) : 0;
-  const open = thread?.messages.slice(start) ?? [];
-  if (!open.some(said)) {
-    // Nothing open: a Close sent again after it landed gets the memory it made, and earns nothing.
-    const newest = thread?.sessions.at(-1);
-    if (!newest) throw conflict("There is no conversation to remember yet.");
-    return { memory: newest.memory, grants: [] };
-  }
-  const end = start + open.length;
   const names = { li: unit.name, player: run.player.name || "the protagonist" };
-  const conversation = renderThread(open, names, "told");
-  const { value } = await runForeground(runId, () =>
-    generateJson(deps, {
-      runId,
-      job: "compress",
-      label: `phone-memory/${li}`,
-      messages: chatMemoryMessages({ world: run.world, names, conversation }),
-      schema: ChatMemorySchema,
-      normalize: (raw) => normalizeChatMemory(raw, names, conversation),
-      temperature: 0.5,
-      maxTokens: 600,
-      debugMode,
-      lane: "foreground",
-    }),
-  );
-  // generateJson returns what normalizeChatMemory made of the reply.
-  const memory = { text: value.memory, quote: value.quote ?? "" };
-  const session: PhoneSession = {
-    start,
-    count: end - start,
-    memory,
-    closedAt: new Date().toISOString(),
+  const closed = await summarizeOpen(deps, runId, li, debugMode, {
+    label: `phone-memory/${li}`,
+    render: (open) => renderThread(open, names, "told", stickerLookup(run)),
+    messages: (conversation) => chatMemoryMessages({ world: run.world, names, conversation }),
+    normalize: (raw, conversation) => normalizeChatMemory(raw, names, conversation),
     // A card's name has no length limit; the session keeps what its schema reads back.
-    name: [...unit.name].slice(0, SESSION_NAME_MAX).join(""),
-  };
-  // Set by the write that was saved (mutateDoc applies the change again after a stale revision).
-  let appended = false as boolean;
-  let saved = session;
-  await saveThread(deps, runId, li, (current) => {
-    const at = archivedCount(current);
-    if (at === start && current.messages.length >= end) {
-      appended = true;
-      saved = session;
-      return { ...current, sessions: [...current.sessions, session], suggestions: [] };
-    }
-    // Another writer closed it first: its session is the one that counts.
-    const theirs = current.sessions.find((entry) => entry.start === start);
-    if (!theirs) throw conflict("The thread changed while it was being remembered.");
-    appended = false;
-    saved = theirs;
-    return current;
+    session: { name: sessionName(unit.name) },
   });
-  if (!appended) return { memory: saved.memory, grants: [] };
+  if (!closed.open) return { memory: closed.memory, grants: [] };
+  const open = closed.open;
 
   const grants: PhoneGrant[] = [];
   const exchange =
@@ -130,7 +100,82 @@ async function close(deps: PhoneDeps, runId: string, li: LiId, debugMode: boolea
     if (affection) grants.push({ source: "close-and-remember", li, affection });
   }
   void Promise.resolve(deps.memory?.maintain({ runId, debugMode })).catch(() => undefined);
-  return { memory: saved.memory, grants };
+  return { memory: closed.memory, grants };
+}
+
+/** A name as a session keeps it: at most SESSION_NAME_MAX characters. */
+export const sessionName = (name: string) => [...name].slice(0, SESSION_NAME_MAX).join("");
+
+/** How a close summarizes its thread's open conversation (summarizeOpen): P18's wording, and what its session keeps. */
+export interface Summarizing {
+  label: string;
+  render: (open: PhoneMessage[]) => string;
+  messages: (conversation: string) => OtomeMessage[];
+  normalize: (raw: ChatMemoryRaw, conversation: string) => { memory: string; quote: string } | string;
+  session: Pick<PhoneSession, "name" | "members">;
+}
+
+/**
+ * Close and remember's shared part (see the header) for thread `key`: P18 on the open conversation, and its session
+ * appended once. `open` is the conversation remembered, only when this request's write appended its session; a replay
+ * with nothing open, or a close another writer landed first, returns that memory alone.
+ */
+export async function summarizeOpen(
+  deps: PhoneDeps,
+  runId: string,
+  key: string,
+  debugMode: boolean,
+  how: Summarizing,
+): Promise<{ memory: PhoneSession["memory"]; open?: PhoneMessage[] }> {
+  const thread = await readThread(deps.store, runId, key);
+  const start = thread ? archivedCount(thread) : 0;
+  const open = thread?.messages.slice(start) ?? [];
+  if (!open.some(said)) {
+    // Nothing open: a Close sent again after it landed gets the memory it made, and earns nothing.
+    const newest = thread?.sessions.at(-1);
+    if (!newest) throw conflict("There is no conversation to remember yet.");
+    return { memory: newest.memory };
+  }
+  const end = start + open.length;
+  const conversation = how.render(open);
+  const { value } = await generateJson(deps, {
+    runId,
+    job: "compress",
+    label: how.label,
+    messages: how.messages(conversation),
+    schema: ChatMemorySchema,
+    normalize: (raw) => how.normalize(raw, conversation),
+    maxTokens: 600,
+    debugMode,
+    lane: "foreground",
+  });
+  // generateJson returns what normalizeChatMemory made of the reply.
+  const memory = { text: value.memory, quote: value.quote ?? "" };
+  const session: PhoneSession = {
+    start,
+    count: end - start,
+    memory,
+    closedAt: new Date().toISOString(),
+    ...how.session,
+  };
+  // Set by the write that was saved (mutateDoc applies the change again after a stale revision).
+  let appended = false as boolean;
+  let saved = session;
+  await saveThread(deps, runId, key, (current) => {
+    const at = archivedCount(current);
+    if (at === start && current.messages.length >= end) {
+      appended = true;
+      saved = session;
+      return { ...current, sessions: [...current.sessions, session] };
+    }
+    // Another writer closed it first: its session is the one that counts.
+    const theirs = current.sessions.find((entry) => entry.start === start);
+    if (!theirs) throw conflict("The thread changed while it was being remembered.");
+    appended = false;
+    saved = theirs;
+    return current;
+  });
+  return appended ? { memory: saved.memory, open } : { memory: saved.memory };
 }
 
 /** POST .../close: Close and remember (P18). One send or close per thread at a time (409 `busy`). */
@@ -185,6 +230,22 @@ export async function phoneMemorySources(
         audience: [li],
       });
     }
+  }
+  // #2154: the group chat's, private to the members it had when it closed (and the group's own prompt).
+  const group = await store.readDoc(chatId(runId, GROUP_THREAD), normalizeThread);
+  for (const session of group?.sessions ?? []) {
+    if (!session.memory.text.trim() || !session.members?.length) continue;
+    const who = session.name || "the love interests in it";
+    sources.push({
+      id: sessionSourceId(GROUP_THREAD, session),
+      kind: "chat",
+      title: `A group chat with ${who} (private: only they and the protagonist know what was said)`,
+      content: [session.memory.text, session.memory.quote ? `"${session.memory.quote}"` : ""]
+        .filter(Boolean)
+        .join("\n"),
+      order: orderOf(state, session.closedAt),
+      audience: [...session.members, GROUP_THREAD],
+    });
   }
   return sources;
 }

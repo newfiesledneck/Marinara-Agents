@@ -2,6 +2,7 @@
 // story and arc routes on a fake router, scripted model replies, and builders for a chapter plan, a beat reply, a
 // Confrontation reply and a Closer's (#1938).
 import assert from "node:assert/strict";
+import { estimateTextTokens } from "@forge-kit/shared-token-estimator.mjs";
 import { createForgeStoryCancellation } from "@forge-kit/story-cancel-server.mjs";
 import type {
   Bible,
@@ -18,6 +19,7 @@ import {
 } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/http.ts";
 import {
   INDEX_TARGET,
+  memoryId,
   playerId,
   runDocTarget,
   runIdOf,
@@ -25,6 +27,10 @@ import {
   unitId,
   worldId,
 } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/ids.ts";
+import {
+  serializeTimeline,
+  type TimelineEntry,
+} from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/timeline.ts";
 import { registerArcRoutes } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/arcs.ts";
 import { registerStoryRoutes } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/story.ts";
 import { normalizeIndex } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/index.ts";
@@ -38,8 +44,16 @@ import {
   normalizeUnit,
 } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/unit.ts";
 import { normalizeWorld } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
-import { createOtomeStore } from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/store.ts";
-import { createFakeDocuments, createFakeRuntime, type FakeReply } from "./otome-forge-fakes.ts";
+import {
+  createOtomeStore,
+  type OtomeStore,
+} from "../../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/store.ts";
+import {
+  createFakeDocuments,
+  createFakeRuntime,
+  type FakeReply,
+  type FakeRuntimeOptions,
+} from "./otome-forge-fakes.ts";
 
 export const at = "2026-10-28T10:00:00.000Z";
 export const HE = { subject: "he", object: "him", possessive: "his" };
@@ -83,6 +97,7 @@ export async function storyWorld({
   cancellation = false,
   personas = [],
   arcReply,
+  model = {},
 }: {
   runKey: string;
   replies?: FakeReply[];
@@ -92,6 +107,8 @@ export async function storyWorld({
   personas?: Array<{ id: string; data: unknown }>;
   /** #1983 M4: the arc plan the fake writes, when a test needs one that differs from the default. */
   arcReply?: (prompt: string) => string;
+  /** The fake connection's context window, output cap and background admission (#2039). */
+  model?: Pick<FakeRuntimeOptions, "maxContext" | "maxOutputTokens" | "admissionRun">;
 }) {
   const fake = createFakeDocuments();
   const store = createOtomeStore(fake.documents);
@@ -100,6 +117,7 @@ export async function storyWorld({
     replies,
     personas,
     ...(arcReply ? { arcReply } : {}),
+    ...model,
   });
   const runId = runIdOf(runKey);
   await store.mutateDoc(INDEX_TARGET, normalizeIndex, (index) => ({
@@ -255,12 +273,16 @@ export const MIREILLE_ONLY = [
   "MIR-REPAIR-OFFSCREEN",
 ];
 export const RUPTURE_ID = "g-3";
-export function withMireillesPrivateRows(state: RunState, { rupture = false } = {}): RunState {
+/** `holder` "protagonist": the rupture is one she holds (from before #2156), so his dates stay open. */
+export function withMireillesPrivateRows(
+  state: RunState,
+  { rupture = false, holder = "li" as "li" | "protagonist" } = {},
+): RunState {
   const kai = state.lis[KAI]!;
   const grievance = (id: string, text: string, opened: string, severity: "minor" | "rupture" = "minor") => ({
     id,
     li: KAI,
-    by: "li" as const,
+    by: severity === "rupture" ? holder : ("li" as const),
     text,
     severity,
     opened,
@@ -316,11 +338,11 @@ export function closerPlanReply(changes: Record<string, unknown> = {}): Record<s
 
 /** True for a P12 call (the Confrontation narrator). */
 export const isConfrontationPrompt = (messages: Array<{ content: string }>) =>
-  messages[0]!.content.includes("stance game");
+  messages.some((message) => message.content.includes("stance game"));
 
 /** True for a P12c call (the Closer narrator, #1938). */
 export const isCloserPrompt = (messages: Array<{ content: string }>) =>
-  messages[0]!.content.includes("the warm climax of a chapter");
+  messages.some((message) => message.content.includes("the warm climax of a chapter"));
 
 type Move = -1 | 0 | 1;
 
@@ -405,5 +427,71 @@ export function closerReply(
     grievance: { text: "She laughed when he finally spoke of his mother.", severity: "minor" },
     disclosure: "Ines said she is afraid of the dark.",
     ...changes,
+  };
+}
+
+/**
+ * Saves a run's story memory as the kit keeps it (`${R}:memory`, read by S/memory/timeline.ts savedStory): a timeline of
+ * `head` and `entries`, covering each entry and each of `covered`, and a summary record for each of `summaries`, every
+ * one by the kit's source key JSON [kind, id]. What a story prompt reads is what is saved, whatever the phase.
+ */
+export async function saveStoryMemory(
+  store: Pick<OtomeStore, "mutateDoc">,
+  runId: string,
+  {
+    head = "",
+    entries = [],
+    covered = [],
+    summaries = {},
+  }: { head?: string; entries?: TimelineEntry[]; covered?: string[]; summaries?: Record<string, string> },
+) {
+  const stamp = (key: string) => [key, `fp-${key}`];
+  await store.mutateDoc(
+    runDocTarget("memory", memoryId(runId)),
+    (data) => data,
+    () => ({
+      version: 1,
+      records: Object.entries(summaries).map(([key, content]) => ({ key, fingerprint: `fp-${key}`, content })),
+      work: [],
+      overview: {
+        content: serializeTimeline({ head, entries }),
+        sources: [...entries.map((entry) => entry.key), ...covered].map(stamp),
+      },
+      overviewStyle: 4,
+      status: { phase: "ready", retryable: false },
+    }),
+  );
+}
+
+/**
+ * A ready memory recalled for a reader whose window is `maxContext`, with one recall of about 40000 tokens, and the
+ * run's timeline saved: only the fit the memory is handed to can leave that recall out, so a prompt sent on a far
+ * larger connection shows whether its caller handed it over (#2066: also when the recalls go after the cached part, as
+ * their own context).
+ */
+export async function squeezedMemory(t: { store: Pick<OtomeStore, "mutateDoc">; runId: string }, maxContext: number) {
+  await saveStoryMemory(t.store, t.runId, { head: "SQUEEZED-OVERVIEW: the lights of the quay fail one by one." });
+  const recalls = [
+    {
+      id: "phone-old",
+      title: "Kai's phone conversation",
+      content: `SQUEEZED-DETAIL ${Array.from({ length: 40_000 }, (_, n) => `tide${n % 97}`).join(" ")}`,
+      order: 1,
+    },
+  ];
+  assert.ok(estimateTextTokens(recalls[0]!.content) > 38_000);
+  return {
+    async recall() {
+      return {
+        status: { phase: "ready" as const, retryable: false },
+        lagging: false,
+        overview: "",
+        details: [],
+        recalls,
+        maxContext,
+        text: "",
+      };
+    },
+    maintain: async () => true,
   };
 }

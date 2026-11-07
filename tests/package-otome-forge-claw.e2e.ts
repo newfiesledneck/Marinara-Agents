@@ -12,7 +12,7 @@
 // sounds play at the world's sound-effect volume and never while Mute everything is on; during a rupture his lines are
 // Home's cold ones, voiced under Home's own ref; and the Date Night card says what it may paint.
 // Run: node scripts/run-package-browser-tests.mjs otome-forge tests/package-otome-forge-claw.e2e.ts
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "./fixtures/package-browser.ts";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -505,7 +505,7 @@ test("Otome Forge Dates and a Claw round at phone width: the cheer meter, his ch
   await expect(activities.getByRole("heading", { name: "Read Kai Ardent" })).toBeVisible();
   await expect(activities.getByRole("heading", { name: "Date Night with Kai Ardent" })).toBeVisible();
   await expect(activities.getByRole("heading", { name: "Claw Machine with Kai Ardent" })).toBeVisible();
-  await expect(activities.getByRole("button", { name: /^Play: / })).toHaveCount(4);
+  await expect(activities.getByRole("button", { name: /^Play: / })).toHaveCount(5);
   await expect(activities).toContainText("No model calls");
   // Date Night's card says what it may paint besides the keepsake: its scenes paint places and faces as any scene does.
   await expect(activities).toContainText(
@@ -708,9 +708,10 @@ test("Otome Forge Claw Machine in motion: held arrows steer, the claw swings, dr
   const clawX = async () =>
     Number(await glass.evaluate((element) => getComputedStyle(element).getPropertyValue("--cx")));
   const start = await clawX();
-  // Holding → moves the claw; letting go, it swings on its cable.
+  // Holding → moves the claw; letting go, it swings on its cable. Held until it has gone far enough, not for a fixed
+  // time: ClawMachine.tsx caps each frame's step, so a runner drawing fewer frames covers less ground per second (#2140).
   await page.keyboard.down("ArrowRight");
-  await page.waitForTimeout(700);
+  await expect.poll(clawX, { timeout: 5_000, intervals: [50] }).toBeGreaterThan(start + 0.15);
   await page.keyboard.up("ArrowRight");
   const moved = await clawX();
   expect(moved).toBeGreaterThan(start + 0.15);

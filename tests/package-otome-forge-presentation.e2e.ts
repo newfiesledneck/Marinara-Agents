@@ -11,7 +11,7 @@
 // only saved audio settings generate music (an unsaved Mute or music level never does), an unsaved Mute stays silent
 // when a cue's track lands, and a recorded track the Engine no longer lists is made again while stock music plays.
 // Run: node scripts/run-package-browser-tests.mjs otome-forge tests/package-otome-forge-presentation.e2e.ts
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "./fixtures/package-browser.ts";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { normalizeBible } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/unit";
@@ -3742,6 +3742,9 @@ test("Otome Hearth affection shows per-level progress below Level beside its hea
   ).toEqual([]);
 });
 
+/** The story so far (#2040), as GET /runs/:run/memory/overview serves it. */
+const SO_FAR = ["Marin taught you to read the tide tables.", "You kept the lighthouse key he left on the sill."];
+
 test("Otome Hearth shows prestige past level 10 and writes an unlocked extra story on its tap (#2025)", async ({
   page,
   isMobile,
@@ -3768,6 +3771,9 @@ test("Otome Hearth shows prestige past level 10 and writes an unlocked extra sto
     if (call.method === "POST" && call.path === `/api/otome-forge/runs/${RUN}/prestige/${MARIN}`) {
       // As S/items/prestige.ts answers when the story is no longer unlocked: the dialog says why.
       return { status: 409, json: { error: "No extra story with Marin is unlocked yet.", code: "locked" }, wait };
+    }
+    if (call.method === "GET" && call.path === `/api/otome-forge/runs/${RUN}/memory/overview`) {
+      return { status: 200, json: { paragraphs: SO_FAR } };
     }
     const reply = fixture.answer(call);
     if (call.method === "GET" && call.path === `/api/otome-forge/runs/${RUN}/story` && reply?.json) {
@@ -3803,8 +3809,13 @@ test("Otome Hearth shows prestige past level 10 and writes an unlocked extra sto
   await row.getByRole("button", { name: "A new story with Marin", exact: true }).click();
   const dialog = root.getByRole("dialog", { name: "A new story with Marin", exact: true });
   await expect(dialog.getByText("Imagining something new with Marin…", { exact: true })).toBeVisible();
+  // What happened so far… (#2040) in the planning dialog every route, repair and extra story shares; Cancel keeps focus.
+  const soFar = dialog.getByRole("region", { name: "What happened so far…", exact: true });
+  await expect(soFar.locator("p")).toHaveText(SO_FAR);
+  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
   release();
   await expect(dialog.getByRole("alert")).toContainText("No new story with Marin is unlocked yet.");
+  await expect(soFar).toHaveCount(0);
   expect(posts(calls, `/prestige/${MARIN}`)).toHaveLength(1);
 });
 

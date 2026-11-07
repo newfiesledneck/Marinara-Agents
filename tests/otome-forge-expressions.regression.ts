@@ -5,7 +5,7 @@ import test from "node:test";
 import type { Unit } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/api-types.ts";
 import { FACES } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/faces.ts";
 import { createOtomeArt } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/expressions.ts";
-import { expressionPrompt } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/prompts.ts";
+import { expressionPrompt } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import {
   runDocTarget,
   unitId,
@@ -162,6 +162,29 @@ test("a speaking love interest gets his five faces once, nonsexual adult edits o
   assert.equal(t.paid.length, 5);
   const warnings = t.logs.filter((entry) => entry.level === "warn").map((entry) => entry.message);
   assert.ok(!warnings.some((message) => /ReferenceError|is not defined/.test(message)), warnings.join("\n"));
+  t.art.dispose();
+});
+
+test("a newcomer kept out of the cast never makes a cast member's first name ambiguous to the faces", async () => {
+  const t = await facesWorld("r-m2bexpr0-aaaaaa");
+  await t.store.updateDoc(runDocTarget("unit", unitId(t.runId, KAI)), normalizeUnit, (unit) => ({
+    ...unit,
+    name: "Kai Lune",
+  }));
+  // As a failed or cancelled arc plan leaves them (S/story/introduce.ts removeLoveInterest): a unit, not in state.lis.
+  const kept = "li-kai-brand-ef56";
+  await t.store.mutateDoc(runDocTarget("unit", unitId(t.runId, kept)), normalizeUnit, (unit) => ({
+    ...unit,
+    id: kept,
+    name: "Kai Brand",
+    portrait: "/api/global-gallery/file/kai-brand-look.png",
+  }));
+  // The beat's line is spoken by "Kai": only Kai Lune is in the cast.
+  t.art.queueExpressions(t.runId, beat(0), { debugMode: false });
+  await until(async () => settled(await t.set()), "Kai Lune's faces");
+  assert.equal((await t.set())!.state, "ready");
+  assert.equal(t.paid.length, 5, "his five faces, and none for someone the story never introduced");
+  assert.equal(Object.keys((await t.unit(kept)).expressions).length, 0);
   t.art.dispose();
 });
 

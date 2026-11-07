@@ -7,13 +7,21 @@
 // opened it, and closes only on a node whose plan lists it in `resolves`. A grievance of severity `rupture` opens a
 // rupture, which shuts his gates until a scene forgives or addresses it; while another rupture-severity grievance is
 // still owed, the rupture moves to it instead of closing. A hostile pick costs 15 affection once per love interest,
-// stopping at the floor of the level already reached (at level 10, of the last extra story unlocked: #2025). Nothing
-// here lowers a level or stage, or takes an unlocked extra story back.
+// stopping at the floor of the level already reached (at level 10, of the last extra story unlocked: #2025). A
+// side-with pick (#2046) moves affection by its effects' `affection`, which only the game sets: the one backed gains, a
+// story earning never capped, and each one passed over loses, stopping at that same floor. Nothing here lowers a level
+// or stage, or takes an unlocked extra story back.
+// #2156: a rupture he holds is his grievance with her, and only a serious break earns it: it opens when no rupture
+// stands with him, his trust after the pick is at or below WALKOUT_RUPTURE_TRUST (a walkout always is), none opened
+// with him in this story arc yet, and someone else could still lead a chapter. Otherwise, and for any rupture the
+// protagonist would hold, the grievance is saved as major (still remembered, still −15). While his stands he gains no
+// affection here either (a side-with backing); losses still apply.
 //
 // Every function is pure. The choose route applies a pick inside one revision-checked write of `${R}:state`, and the
 // pick's `${i}/${choiceId}` in `chapters[key].applied` makes a replay, or a request that lost a race, change nothing.
 import { z, type ZodType } from "zod";
 import type {
+  AffectionChange,
   ChapterProgress,
   ChapterShift,
   Effect,
@@ -22,6 +30,8 @@ import type {
   LiState,
   RunState,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import { WALKOUT_RUPTURE_TRUST } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
+import { heldAgainst } from "../../../../../client/src/features/otome-forge/shared/dates.js";
 import {
   BEAT_SHIFT_MAX,
   CHAPTER_SHIFT_MAX,
@@ -84,6 +94,8 @@ export interface ChoiceContext {
   resolves?: readonly string[];
   /** ISO time of the pick. */
   at: string;
+  /** #2156: the story arc the pick lands in (0 before arcs, and when not given): his grievance opens once an arc. */
+  arc?: number;
 }
 
 export interface ChoiceOutcome {
@@ -95,6 +107,8 @@ export interface ChoiceOutcome {
   remembered: boolean;
   /** The love interests that pick changed something with, in the order of its effects (the toast names a lone one). */
   rememberedBy: LiId[];
+  /** How far it moved each love interest's affection points, in the order of its effects; none when nothing moved. */
+  affection: AffectionChange[];
   /** True when this pick was applied before: the state is returned unchanged. */
   replay: boolean;
 }
@@ -149,13 +163,15 @@ function boundGrievances(grievances: Grievance[]): Grievance[] {
 /**
  * Applies the effects of a first-play pick, clamped, in one pure step, and records the pick in `chapters[key].applied`.
  * Effects for a love interest the state does not have are skipped. A pick already in `applied` changes nothing.
- * A hostile pick loses affection once per love interest, without losing a level or stage.
+ * A hostile pick loses affection once per love interest, without losing a level or stage; so does a side-with pick's
+ * loss, while its gain is never capped.
  */
 export function applyChoiceEffects(state: RunState, effects: readonly Effect[], context: ChoiceContext): ChoiceOutcome {
   const { key, i, choice, at } = context;
   const pick = `${i}/${choice}`;
   const progress: ChapterProgress = state.chapters[key] ?? { beatsRead: 0, completed: null, applied: [] };
-  if (progress.applied.includes(pick)) return { state, remembered: false, rememberedBy: [], replay: true };
+  if (progress.applied.includes(pick))
+    return { state, remembered: false, rememberedBy: [], affection: [], replay: true };
 
   const here = `${key}/${i}`;
   const resolvable = new Set(context.resolves ?? []);
@@ -166,6 +182,8 @@ export function applyChoiceEffects(state: RunState, effects: readonly Effect[], 
   );
   const rememberedBy = new Set<LiId>();
   const harmed = new Set<LiId>();
+  /** #2046: a side-with pick's affection per love interest, from its game-made effects. */
+  const moved = new Map<LiId, number>();
 
   for (const effect of effects) {
     const current = lis[effect.li];
@@ -173,6 +191,7 @@ export function applyChoiceEffects(state: RunState, effects: readonly Effect[], 
     const delta = deltaFor(current, key, i);
     const li: LiState = { ...current, grievances: [...current.grievances], disclosures: [...current.disclosures] };
     if (effect.trust === -1) harmed.add(effect.li);
+    if (effect.affection) moved.set(effect.li, (moved.get(effect.li) ?? 0) + effect.affection);
 
     const trust = shift(effect.trust ?? 0, li.trust, delta.trust, delta.beat.trust, TRUST_MIN, TRUST_MAX);
     const tension = shift(effect.tension ?? 0, li.tension, delta.tension, delta.beat.tension, TENSION_MIN, TENSION_MAX);
@@ -186,12 +205,21 @@ export function applyChoiceEffects(state: RunState, effects: readonly Effect[], 
     if (trust || tension) rememberedBy.add(effect.li);
 
     if (effect.grievance && effect.grievance.text.trim()) {
+      const arc = context.arc ?? 0;
+      // #2156: only a serious break opens his grievance (the header); anything milder is a major one.
+      const opens =
+        effect.grievance.by === "li" &&
+        effect.grievance.severity === "rupture" &&
+        !li.rupture &&
+        li.trust <= WALKOUT_RUPTURE_TRUST &&
+        li.grievanceArc !== arc &&
+        Object.entries(lis).some(([id, other]) => id !== effect.li && !heldAgainst(other));
       const grievance: Grievance = {
         id: `g-${key}-${i}-${opened}`,
         li: effect.li,
         by: effect.grievance.by,
         text: clip(effect.grievance.text),
-        severity: effect.grievance.severity,
+        severity: effect.grievance.severity === "rupture" && !opens ? "major" : effect.grievance.severity,
         opened: here,
         status: "open",
       };
@@ -202,7 +230,10 @@ export function applyChoiceEffects(state: RunState, effects: readonly Effect[], 
         harmed.add(effect.li);
       opened += 1;
       li.grievances.push(grievance);
-      if (grievance.severity === "rupture" && !li.rupture) li.rupture = { grievanceId: grievance.id, since: at };
+      if (opens) {
+        li.rupture = { grievanceId: grievance.id, since: at, space: 0 };
+        li.grievanceArc = arc;
+      }
       rememberedBy.add(effect.li);
     }
 
@@ -217,7 +248,9 @@ export function applyChoiceEffects(state: RunState, effects: readonly Effect[], 
     const target = resolve && resolvable.has(resolve.id) ? li.grievances.find((item) => item.id === resolve.id) : null;
     // Never in the beat that opened it, and only once (a closed grievance stays closed).
     if (resolve && target && isUnresolved(target) && target.opened !== here && target.status !== resolve.status) {
-      li.grievances = li.grievances.map((item) => (item === target ? { ...item, status: resolve.status } : item));
+      li.grievances = li.grievances.map((item) =>
+        item === target ? { ...item, status: resolve.status, closedBy: key } : item,
+      );
       if (resolve.status !== "festering" && li.rupture?.grievanceId === target.id) {
         // Another rupture still owed keeps his gates shut (grievances carry no time, so it stands from this pick).
         const next = li.grievances.find((item) => item.severity === "rupture" && isUnresolved(item));
@@ -238,6 +271,22 @@ export function applyChoiceEffects(state: RunState, effects: readonly Effect[], 
       rememberedBy.add(id);
     }
   }
+  for (const [id, amount] of moved) {
+    const li = lis[id]!;
+    // #2156: no gain while his grievance stands.
+    const points =
+      amount > 0
+        ? li.points + (heldAgainst(li) ? 0 : amount)
+        : Math.max(affectionFloorOf(li.points), li.points + amount);
+    if (points !== li.points) {
+      lis[id] = { ...li, points };
+      rememberedBy.add(id);
+    }
+  }
+  const affection = [...new Set(effects.map((effect) => effect.li))].flatMap((id) => {
+    const amount = (lis[id]?.points ?? 0) - (state.lis[id]?.points ?? 0);
+    return state.lis[id] && amount ? [{ li: id, amount }] : [];
+  });
 
   return {
     state: {
@@ -247,6 +296,7 @@ export function applyChoiceEffects(state: RunState, effects: readonly Effect[], 
     },
     remembered: rememberedBy.size > 0,
     rememberedBy: [...rememberedBy],
+    affection,
     replay: false,
   };
 }

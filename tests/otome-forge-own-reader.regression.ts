@@ -1,7 +1,9 @@
 // Otome Forge's knowledge boundary across M2b and M3: another love interest's route or repair chapter never reaches a
 // love interest's message of the day (P16), line pack (P15) or chat reply (P17), through recall, the ledgers or the
-// grievances and disclosures it left behind, while the shared story and their own chapters do; a closed phone session
-// stays a `chat` source for its own love interest beside the private chapters, and never reaches another one's reply.
+// grievances and disclosures it left behind, while the shared story and their own chapters do; since 0.6.17 a route or
+// repair chapter is summarized into the overview of the whole timeline, titled private, and reaches another love
+// interest's chat reply only there; a closed phone session stays a `chat` source for its own love interest beside the
+// private chapters, out of the overview, and never reaches another one's reply.
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { CapabilityLanguageModelMessage } from "@marinara-engine/shared";
@@ -24,10 +26,7 @@ import {
   type OtomeMemory,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/memory.ts";
 import { readMemorySources } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/sources.ts";
-import {
-  CHAT_CANON_BUDGET,
-  sendMessage,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/phone/chat.ts";
+import { sendMessage } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/phone/chat.ts";
 import { closeAndRemember } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/phone/memory.ts";
 import { normalizeState } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/state.ts";
 import {
@@ -38,7 +37,12 @@ import { recallText } from "../packages/otome-forge/src/engine/packages/server/s
 import { KAI, MIR, json, storyWorld } from "./fixtures/otome-forge-story.ts";
 
 type Messages = CapabilityLanguageModelMessage[];
-const system = (messages: Messages) => messages[0]!.content;
+// #2066: a story prompt opens with the shared story context, then its own instructions: both are system messages.
+const system = (messages: Messages) =>
+  messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
 const text = (messages: Messages) => messages.map((message) => message.content).join("\n");
 const kindOf = (messages: Messages) =>
   system(messages).includes("message of the day")
@@ -58,7 +62,10 @@ const times = (prefix: string) => ({
 });
 const many = (prefix: string, count: number) => Array.from({ length: count }, (_, i) => `${prefix} ${i + 1}.`);
 
-/** Answers each prompt by its kind; the summarizer echoes its source, so its text stands for its summary too. */
+/**
+ * Answers each prompt by its kind. The summarizer keeps a source's marked lines (`MARKER: …`), never its prose, so its
+ * text stands for its summary; an overview adds each record to the one before.
+ */
 function reply(messages: Messages): string {
   switch (kindOf(messages)) {
     case "note":
@@ -69,7 +76,7 @@ function reply(messages: Messages): string {
       });
     case "pack":
       return json({
-        tap: { head: times("Head"), hand: times("Hand"), heart: times("Heart") },
+        tap: { head: times("Head"), cheek: times("Cheek"), hand: times("Hand"), heart: times("Heart") },
         annoyed: many("Enough", 4),
         cold: many("Cold", 6),
         comfort: many("Rest", 8),
@@ -87,11 +94,22 @@ function reply(messages: Messages): string {
       return json({ memory: "PRIVATE-PHONE-KAI: Kai admitted the bell keeps him up.", quote: "Awake. Barely." });
     default: {
       const input = JSON.parse(messages.at(-1)!.content);
-      if (input.source) return json({ summary: `${input.source.title}: ${input.source.content}` });
-      return json({ summary: input.records.map((record: { content: string }) => record.content).join(" ") });
+      const marked = (text: string) =>
+        text
+          .split("\n")
+          .filter((line) => /^[A-Z][A-Z-]+:/u.test(line))
+          .join(" ");
+      if (input.source) return json({ summary: `${input.source.title}: ${marked(input.source.content)}` });
+      const records = input.records.map((record: { content: string }) => record.content);
+      return json({ summary: [input.previousOverview, ...records].filter(Boolean).join(" ") });
     }
   }
 }
+
+/** The prompt without its "# Canon to date" timeline, which tells everyone the storyline (#2066: up to the next block). */
+const beyondOverview = (prompt: string) => prompt.replace(/# Canon to date\n[^]*?(?=\n\n# |\n\n[A-Z]{2}|$)/u, "");
+/** The timeline alone. */
+const overviewOf = (prompt: string) => /# Canon to date\n([^]*?)(?=\n\n# |\n\n[A-Z]{2}|$)/u.exec(prompt)?.[1] ?? "";
 
 const at = (hour: number) => `2026-10-28T${String(hour).padStart(2, "0")}:00:00.000Z`;
 
@@ -278,11 +296,11 @@ test("another love interest's route or repair chapter never reaches a note, a li
       sources.map((source) => [source.id, source.kind, source.audience ?? null]),
       [
         ["main-1", "chapter", null],
-        [`route-${MIR}-2`, "chat", [MIR]],
-        [`repair-${MIR}-1`, "chat", [MIR]],
-        [`route-${KAI}-2`, "chat", [KAI]],
+        [`route-${MIR}-2`, "chapter", [MIR]],
+        [`repair-${MIR}-1`, "chapter", [MIR]],
+        [`route-${KAI}-2`, "chapter", [KAI]],
       ],
-      "Mireille's own chapters are private to her",
+      "Mireille's own chapters are hers",
     );
 
     // P16: Kai's note. His latest off-screen line is the shared story's, never one Mireille's route left behind.
@@ -313,29 +331,39 @@ test("another love interest's route or repair chapter never reaches a note, a li
     assert.deepEqual(leaked(pack), [], "nothing of Mireille's own chapters in Kai's line pack");
     assert.ok(!pack.includes("KAI-OWN-ROUTE") && !pack.includes("SHARED-QUAY"), "a pack reads no story at all");
 
-    // P17: Kai's reply knows the shared story and his own route, never Mireille's; hers knows her own. His route is
-    // longer than P17's small budget, so its end goes in rather than nothing.
+    // P17: Kai's reply knows the shared story and his own route, Mireille's only as the overview tells it; hers knows
+    // her own. His route, his newest chapter, goes in whole as the previous chapter, as GF's chat gets it.
     await sendMessage(t.deps, t.runId, KAI, { text: "Are you awake?" }, { debugMode: false });
     const [kaiChat] = t.prompts("chat");
-    assert.deepEqual(leaked(kaiChat!), [], "nothing of Mireille's own chapters in Kai's reply");
+    assert.deepEqual(leaked(beyondOverview(kaiChat!)), [], "nothing of Mireille's own chapters beyond the overview");
+    assert.match(overviewOf(kaiChat!), /Mireille's Ledger[^]*PRIVATE-LEDGER/u, "hers, titled private");
     assert.ok(kaiChat!.includes("SHARED-QUAY") && kaiChat!.includes("KAI-OWN-ROUTE"), "the shared story and his own");
-    assert.ok(kaiChat!.includes("# The end of: ") && !kaiChat!.includes("KAI-ROUTE-OPENING"), "his route's end");
+    assert.ok(
+      kaiChat!.includes('# Previous chapter in full: Kai\'s own route chapter "The Bell Tower"') &&
+        kaiChat!.includes("KAI-ROUTE-OPENING") &&
+        kaiChat!.includes("tower210"),
+      "his route in full",
+    );
     assert.ok(kaiChat!.includes("MAIN-OFFSCREEN-KAI") && kaiChat!.includes("KAI-MAIN-GRIEVANCE"));
     await sendMessage(t.deps, t.runId, MIR, { text: "Still up?" }, { debugMode: false });
     const mirChat = t.prompts("chat")[1]!;
     assert.ok(mirChat.includes("PRIVATE-LEDGER") && mirChat.includes("PRIVATE-REPAIR"), "her own chapters reach her");
-    assert.ok(!mirChat.includes("KAI-OWN-ROUTE") && !mirChat.includes("tower"), "and Kai's own route does not");
+    const mirBeyond = beyondOverview(mirChat);
+    assert.ok(!mirBeyond.includes("KAI-OWN-ROUTE") && !mirBeyond.includes("tower"), "Kai's own route only in it");
+    assert.ok(!mirChat.includes("tower210"), "and never his route's scenes");
 
-    // With memory not ready, the canonical history keeps the same rule on the same budget.
-    const unready = { ...t.deps, memory: undefined };
-    const history = (reader: string) =>
-      recallText(unready, t.runId, { job: "chat", reader, query: { cues: [] }, budget: CHAT_CANON_BUDGET });
-    const kaiHistory = await history(KAI);
-    assert.ok(kaiHistory.includes("KAI-OWN-ROUTE") && kaiHistory.includes("SHARED-QUAY"), "his route's end, unready");
-    assert.ok(!kaiHistory.includes("KAI-ROUTE-OPENING"), "cut from its end");
-    assert.deepEqual(leaked(kaiHistory), []);
-    const mirHistory = await history(MIR);
-    assert.ok(mirHistory.includes("PRIVATE-REPAIR") && !mirHistory.includes("tower"), "hers, never his");
+    // With no recall at all, the story context is the same saved story and keeps the same rule: hers only in the
+    // timeline, his route whole.
+    const unrecalled = { ...t.deps, memory: undefined };
+    const story = async (reader: string) =>
+      (await recallText(unrecalled, t.runId, { job: "chat", reader, query: { cues: [] } })).text;
+    const kaiStory = await story(KAI);
+    assert.ok(kaiStory.includes("KAI-OWN-ROUTE") && kaiStory.includes("SHARED-QUAY"), "his route, unrecalled");
+    assert.ok(kaiStory.includes("KAI-ROUTE-OPENING"), "whole");
+    assert.deepEqual(leaked(beyondOverview(kaiStory)), []);
+    const mirStory = await story(MIR);
+    assert.ok(mirStory.includes("PRIVATE-REPAIR") && !beyondOverview(mirStory).includes("tower"), "hers, never his");
+    assert.ok(!mirStory.includes("tower210"), "and never his route's scenes");
 
     // Kai's closed conversation is a `chat` source for him alone, and never reaches Mireille's next reply.
     await closeAndRemember(t.deps, t.runId, KAI, { debugMode: false });
@@ -348,7 +376,7 @@ test("another love interest's route or repair chapter never reaches a note, a li
     await runForeground(t.runId, async () => undefined);
     await sendMessage(t.deps, t.runId, MIR, { text: "Tell me something." }, { debugMode: false });
     const later = t.prompts("chat").at(-1)!;
-    assert.ok(!later.includes("PRIVATE-PHONE-KAI"), "Kai's phone memory never reaches Mireille");
+    assert.ok(!later.includes("PRIVATE-PHONE-KAI"), "Kai's phone memory never reaches Mireille, not even the overview");
     await sendMessage(t.deps, t.runId, KAI, { text: "Remember?" }, { debugMode: false });
     assert.ok(t.prompts("chat").at(-1)!.includes("PRIVATE-PHONE-KAI"), "it reaches Kai's own reply");
   } finally {

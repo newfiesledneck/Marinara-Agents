@@ -41,6 +41,9 @@ import {
 import { createOtomeMemory } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/memory.ts";
 import {
   READ_HIM_WORDS,
+  otomeSceneCard,
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
+import {
   ReadHimReplySchema,
   checkReadHimReply,
   normalizeSet,
@@ -50,7 +53,6 @@ import {
   type ReadHimReply,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/minigames/read-him.ts";
 import { registerReadHimRoutes } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/read-him.ts";
-import { otomeSceneCard } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/scene-card.ts";
 import { normalizeState } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/state.ts";
 import { normalizeUnit } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/unit.ts";
 import type { FakeReply } from "./fixtures/otome-forge-fakes.ts";
@@ -507,8 +509,19 @@ test("a finished set is a chat source for its love interest only: recalled by hi
   for (let turn = 0; turn < 2000 && (await memory.status(t.runId)).phase === "pending"; turn += 1) await tick();
   assert.equal((await memory.status(t.runId)).phase, "ready");
   const recall = async (who: { reader?: string; cast?: string[] }) =>
-    (await memory.recall({ runId: t.runId, job: "chat", query: { cues: ["the bell on the quay"] }, ...who })).text;
+    // #2066: a closed conversation comes back among the recalls.
+    (
+      (await memory.recall({ runId: t.runId, job: "chat", query: { cues: ["the bell on the quay"] }, ...who }))
+        .recalls ?? []
+    )
+      .map((item) => `${item.title}\n${item.content}`)
+      .join("\n");
   assert.ok((await recall({ reader: KAI })).includes("THOUGHT-KAI"));
+  // A small side memory, as it was written: its few lines, never a summary of a summary or a chapter's prose.
+  assert.ok(
+    (await recall({ reader: KAI })).includes(`${own.title}\n${own.content}`),
+    "recalled as its own short record",
+  );
   assert.ok(!(await recall({ reader: KAI })).includes("THOUGHT-MIR"));
   assert.ok((await recall({ reader: MIR })).includes("THOUGHT-MIR"));
   assert.ok(!(await recall({ reader: MIR })).includes("THOUGHT-KAI"));
@@ -527,14 +540,15 @@ test("P25 carries the boundary and the home contract, his tells by index, never 
   assert.ok(user!.includes("flinches at the bell"), "a hidden secret shows only as its tells");
   const sent = JSON.stringify(call!.messages);
   assert.ok(!sent.includes("HIDDEN-TRUTH") && !sent.includes("MYSTERY-TRUTH"), "never an unrevealed truth");
-  assert.equal(call!.options?.temperature, 0.9);
+  assert.equal(call!.options?.temperature, undefined);
   assert.ok(t.logs.some((entry) => entry.level === "debugOverride" && entry.args[0] === `read-him/${KAI}`));
 });
 
 test("P25 sees him as his own reader may: nothing another love interest's own chapter left on his rows", async () => {
   const t = await readHimWorld("r-readhim9-aaaaaa");
   await t.store.updateDoc(runDocTarget("state", stateId(t.runId)), normalizeState, (state) =>
-    withMireillesPrivateRows(state, { rupture: true }),
+    // One the protagonist holds (from before #2156): his own grievance would keep the set waiting.
+    withMireillesPrivateRows(state, { rupture: true, holder: "protagonist" }),
   );
   assert.equal((await t.start()).status, 200);
   const [call] = t.setCalls();

@@ -9,6 +9,12 @@
 // - memory5: P21 plans 3–5 nodes and the voiced line the Memory's card plays (one structured call).
 // - moment4: one node from the Moment's premise, with no planning call.
 // - his-look5: one node, the first time he wears the look, with no planning call.
+// - her-look5: the same for the protagonist's 5★ look, with the love interest whose look it is a couple set with (the
+//   item's `li`, the wearer of the his-look5 it names), who sees it first.
+// - #2128, a figurine bought in the Shop: one node, `story-figurine-<li>` (SH/shop.ts figurineSceneKey), written on
+//   the purchase with no planning call and no banner item behind it: the love interest finds out about the figurine.
+// - #2153, a birthday celebrated from Remind Me: one node, `story-birthday-<li>-<year>` (SH/birthdays.ts), built the
+//   same way (S/home/birthday.ts): his birthday, how late it is, and the Shop gift given, if any.
 // Every node holds only its love interest: the chapter is his own (kind "story", `li`), so its canon reaches only his
 // own prompts and scenes he is in (S/story/canon.ts), like a route chapter. Writing it is idempotent: planning runs
 // in the run's foreground queue, which reads the chapter again first, so two opens plan once, and the item's `story`
@@ -20,6 +26,12 @@ import type {
   RunState,
   Unit,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import { birthdaySceneKey } from "../../../../../client/src/features/otome-forge/shared/birthdays.js";
+import {
+  GIFT_PROMPT_NAMES,
+  figurineSceneKey,
+  type GiftId,
+} from "../../../../../client/src/features/otome-forge/shared/shop.js";
 import { NOTICED_WORDS_MAX } from "../../../../../client/src/features/otome-forge/shared/wardrobe.js";
 import type { Item } from "../../../../../client/src/features/otome-forge/shared/wish.js";
 import { updateIfChanged } from "../art/paint.js";
@@ -31,19 +43,18 @@ import { normalizeChapter } from "../schemas/story.js";
 import { normalizeItem } from "../schemas/wish.js";
 import { recallText } from "../story/canon.js";
 import { clean, planLedger, planNodes, planTags, type ChapterDeps, type PlannedChapter } from "../story/chapters.js";
+import { storyPlanMessages } from "../prompts.js";
 import {
   STORY_NODES_MAX,
   STORY_NODES_MIN,
-  STORY_PLAN_TEMPERATURE,
   STORY_PLAN_TOKENS,
   StoryPlanSchema,
   checkLine,
-  storyPlanMessages,
   type StoryPlanReply,
-} from "./prompts.js";
+} from "./replies.js";
 
 /** The item kinds whose first open writes a chapter. */
-export const STORY_KINDS: ReadonlySet<Item["kind"]> = new Set(["memory5", "moment4", "his-look5"]);
+export const STORY_KINDS: ReadonlySet<Item["kind"]> = new Set(["memory5", "moment4", "his-look5", "her-look5"]);
 
 const notFound = (what: string) => new OtomeForgeError(404, `No such ${what}.`, "not-found");
 
@@ -105,7 +116,7 @@ export function normalizeStoryPlan(
   const line = checkLine(reply.voicedLine, NOTICED_WORDS_MAX);
   if (typeof line === "string") return `voicedLine: ${line}`;
   // Only his rows are kept: a ledger row of a `story-` chapter is read as private to the love interest it names
-  // (S/story/prompts.ts knownTo), so a row about anyone else would carry his private story into their plans.
+  // (S/prompts.ts knownTo), so a row about anyone else would carry his private story into their plans.
   const own = {
     relationship: ledger.relationship.filter((row) => row.li === li),
     conflict: ledger.conflict.filter((row) => row.li === li),
@@ -124,16 +135,31 @@ export function normalizeStoryPlan(
 /** One node holding him alone, for an item with no planning call. */
 const singleNode = (li: LiId, guide: string): ChapterNode[] => [{ i: 0, kind: "beat", guide, cast: [li] }];
 
-/** The one-node chapter a Moment or a first-wear beat is, built from the item with no model call. */
-export function singleStoryChapter(item: Item, unit: Pick<Unit, "id" | "name">, at: string): Chapter | null {
+/**
+ * The one-node chapter a Moment or a first-wear beat is, built from the item with no model call. `coupleLook`: for a
+ * her-look5, the name of his look it is a couple set with (none when that look cannot be read).
+ */
+export function singleStoryChapter(
+  item: Item,
+  unit: Pick<Unit, "id" | "name">,
+  at: string,
+  coupleLook?: string,
+): Chapter | null {
   const { name } = unit;
   const premise = item.premise?.trim() || item.title;
+  // In this scene her look replaces whatever she wears now. He keeps his: the reader pins no look for a her-look5
+  // (S/routes/art.ts), and his half of the set may not be won.
+  const couple = coupleLook
+    ? ` It is a couple set with ${name}'s look "${coupleLook}"; ${name} wears what "How ${name} looks now" says.`
+    : "";
   const guide =
     item.kind === "moment4"
       ? `A MOMENT between ${name} and the protagonist: ${premise} One complete scene, with its own small turn.`
       : item.kind === "his-look5" && item.look
         ? `${name} wears a new look for the first time: "${item.look.name}" (${item.look.outfitLine}). The protagonist sees ${name} in it: one short scene of how ${name} carries it, why ${name} wore it now, and what it changes between them for a moment.`
-        : "";
+        : item.kind === "her-look5" && item.look
+          ? `The protagonist wears a new look for the first time, in place of what they wear now: "${item.look.name}" (${item.look.outfitLine}).${couple} ${name} sees the protagonist in it: one short scene of how the protagonist came to have it, how the protagonist carries it, and what it changes between them for a moment.`
+          : "";
   if (!guide) return null;
   return {
     key: itemStoryKey(item.id),
@@ -148,6 +174,85 @@ export function singleStoryChapter(item: Item, unit: Pick<Unit, "id" | "name">, 
     plannedAt: at,
     connectionId: "",
   };
+}
+
+/**
+ * #2128: the one-node scene a figurine bought in the Shop unlocks, built with no model call: funny and cute, the love
+ * interest finding out the protagonist bought a figurine of them. Its title is English, as its guide is: the story's own,
+ * for prompts and memory. The player reads it in their language (C/screens/reader/ReaderControls.tsx chapterTitle).
+ */
+export function figurineStoryChapter(unit: Pick<Unit, "id" | "name">, at: string): Chapter {
+  const { name } = unit;
+  const guide = `A FIGURINE SCENE between ${name} and the protagonist: ${name} finds out the protagonist bought a small collectible figurine of ${name} (a chibi ${name} on a round display base, in ${name}'s own look) and reacts in character. Make it funny and cute: how ${name} takes being made into a figurine, what ${name} thinks of the likeness, and where it ends up at home. One complete scene, with its own small turn.`;
+  return {
+    key: figurineSceneKey(unit.id),
+    kind: "story",
+    li: unit.id,
+    lead: unit.id,
+    title: `${name} in Miniature`,
+    tags: [],
+    summary: "",
+    nodes: singleNode(unit.id, guide),
+    ledger: { relationship: [], conflict: [], offscreen: [] },
+    plannedAt: at,
+    connectionId: "",
+  };
+}
+
+/** Saves a love interest's figurine scene, unless it is saved already (the first save wins); returns its key. */
+export async function ensureFigurineStory(
+  deps: Pick<ChapterDeps, "store">,
+  runId: string,
+  unit: Pick<Unit, "id" | "name">,
+): Promise<string> {
+  const chapter = figurineStoryChapter(unit, new Date().toISOString());
+  await deps.store.mutateDoc(
+    runDocTarget("chapter", chapterId(runId, chapter.key)),
+    normalizeChapter,
+    (current) => current ?? chapter,
+  );
+  return chapter.key;
+}
+
+/**
+ * #2153: the one-node scene a birthday celebrated from Remind Me opens, built with no model call: his birthday (or how
+ * many days ago it was), and its special moment, the gift given (or none). Its title is English, as its guide is, and
+ * the player reads it in their language (C/screens/reader/ReaderControls.tsx chapterTitle). `gift` stays on the
+ * chapter, so its affection is paid when the scene is read to its end (S/state/rewards.ts).
+ */
+export function birthdayStoryChapter(
+  unit: Pick<Unit, "id" | "name">,
+  { year, daysLate, gift }: { year: number; daysLate: number; gift?: GiftId },
+  at: string,
+): Chapter {
+  const { name } = unit;
+  const day = daysLate
+    ? `${name}'s birthday was ${daysLate} ${daysLate === 1 ? "day" : "days"} ago, and the protagonist celebrates it late; ${name} takes that as ${name} would.`
+    : `today is ${name}'s birthday.`;
+  const given = gift
+    ? `THE GIFT: the protagonist gives ${name} ${GIFT_PROMPT_NAMES[gift]}. Write it as the scene's special moment: ${name}'s reaction in their own voice and a real exchange of dialogue between them.${gift === "aphrodisiac" ? " It is an aphrodisiac, and it works: desire builds between them from here, as far as the content contract allows." : ""}`
+    : `The protagonist brings no gift; remembering the day is the gift, and ${name} reacts to that in character.`;
+  const guide = `A BIRTHDAY SCENE between ${name} and the protagonist: ${day} The protagonist marks the day with ${name}: how ${name} feels about birthdays, in character, and what the day becomes between them. ${given} One complete scene, with its own small turn.`;
+  return {
+    key: birthdaySceneKey(unit.id, year),
+    kind: "story",
+    li: unit.id,
+    lead: unit.id,
+    title: `${name}'s Birthday`,
+    tags: [],
+    summary: "",
+    nodes: singleNode(unit.id, guide),
+    ledger: { relationship: [], conflict: [], offscreen: [] },
+    plannedAt: at,
+    connectionId: "",
+    ...(gift ? { gift } : {}),
+  };
+}
+
+/** The his-look5 of `li` a her-look5 is a couple set with, or null when it is not stored as one. */
+async function readPair(deps: ChapterDeps, runId: string, id: string, li: LiId): Promise<Item | null> {
+  const pair = await deps.store.readDoc(itemId(runId, id), normalizeItem);
+  return pair?.kind === "his-look5" && pair.li === li ? pair : null;
 }
 
 /** Saves the chapter (one another request saved first wins), then names it on the item with its voiced line. */
@@ -174,7 +279,7 @@ async function linkStory(deps: ChapterDeps, runId: string, item: string, key: st
 
 /**
  * The item's own chapter, written now if it has none: P21 for a Memory, one node for a Moment or a first-wear beat.
- * Null for an item with no story (a Snapshot, a look other than his 5★, an item with no love interest). May fail as any
+ * Null for an item with no story (a Snapshot, a 4★ look, an item with no love interest). May fail as any
  * plan does (503 `no-connection`, 422 `declined`, 502 `bad-format`); nothing is saved then, and the next open tries
  * again.
  */
@@ -199,7 +304,9 @@ export async function ensureItemStory(
   const unit = run.units.find((candidate) => candidate.id === li && candidate.bible);
   if (!unit) throw notFound("love interest");
   if (item.kind !== "memory5") {
-    const chapter = singleStoryChapter(item, unit, new Date().toISOString());
+    // A her-look5's scene names his look it is a couple set with (SH/wish.ts `coupleWith`), when it can be read.
+    const pair = item.kind === "her-look5" && item.coupleWith ? await readPair(deps, runId, item.coupleWith, li) : null;
+    const chapter = singleStoryChapter(item, unit, new Date().toISOString(), pair?.look?.name);
     return chapter ? saveStory(deps, runId, item.id, chapter) : null;
   }
   return readOrGenerate(runId, read, async () => {
@@ -207,7 +314,7 @@ export async function ensureItemStory(
     // Read again in the queue: the state the story is written against is the one of this moment.
     const now = (await readRun(deps.store, runId)) ?? run;
     const memory = await recallText(deps, runId, {
-      job: "structured",
+      job: "narration",
       cast: [li],
       query: { plan: item.premise ?? item.title, speakers: [unit.name] },
       signal,
@@ -216,7 +323,7 @@ export async function ensureItemStory(
     const context: StoryPlanContext = { units: now.units, state: now.state, world: now.world, li, key };
     const { value, connectionId } = await generateJson(deps, {
       runId,
-      job: "structured",
+      job: "narration",
       label: `story-plan/${key}`,
       messages: storyPlanMessages({
         world: now.world,
@@ -224,14 +331,14 @@ export async function ensureItemStory(
         unit,
         state: now.state,
         item,
-        memory,
+        memory: memory.text,
       }),
+      memory,
       schema: StoryPlanSchema,
       normalize: (reply) => {
         const plan = normalizeStoryPlan(reply, context);
         return typeof plan === "string" ? plan : reply;
       },
-      temperature: STORY_PLAN_TEMPERATURE,
       maxTokens: STORY_PLAN_TOKENS,
       debugMode,
       lane: "foreground",

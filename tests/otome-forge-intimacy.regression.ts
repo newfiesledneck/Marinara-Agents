@@ -13,7 +13,11 @@ import {
   normalizeContent,
   type ContentSettings,
 } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/content.ts";
-import { otomeContentContract } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/content-contract.ts";
+import {
+  bannerPlanMessages,
+  bibleMessages,
+  otomeContentContract,
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import { createHandle } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/http.ts";
 import {
   runDocTarget,
@@ -29,8 +33,6 @@ import {
 import { readRun } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/state.ts";
 import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
 import { checkBible } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/setup/bible.ts";
-import { bibleMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/setup/prompts.ts";
-import { bannerPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/prompts.ts";
 import { KAI, MIR, bible, beatReply, json, planReply, storyWorld } from "./fixtures/otome-forge-story.ts";
 
 const text = (messages: CapabilityLanguageModelMessage[]) => messages.map((message) => message.content).join("\n");
@@ -145,7 +147,9 @@ test("an older bible gains only its intimacy block, once, on request; the run vi
       calls += 1;
       return json({ intimacy: { ...INTIMACY, preferences: [...INTIMACY.preferences, ...OVERSHOOT] } });
     }
-    return messages[0]!.content.includes("chapter planner") ? json(planReply()) : json(beatReply());
+    return messages.some((message) => message.content.includes("chapter planner"))
+      ? json(planReply())
+      : json(beatReply());
   });
   const t = await storyWorld({ runKey, replies });
   const call = runRoutes(t, runKey);
@@ -232,7 +236,7 @@ test("scenes draw on the block now and then in an NSFW story; an SFW story's pro
     const replies = Array.from(
       { length: 30 },
       () => (messages: CapabilityLanguageModelMessage[]) =>
-        messages[0]!.content.includes("chapter planner") ? json(planReply()) : json(beatReply()),
+        messages.some((message) => message.content.includes("chapter planner")) ? json(planReply()) : json(beatReply()),
     );
     const t = await storyWorld({ runKey, replies, content });
     // A block kept from before Heat was lowered must not reach an SFW story's prompts.

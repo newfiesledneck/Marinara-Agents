@@ -1,12 +1,25 @@
 // ──────────────────────────────────────────────
 // Otome Forge: Home's numbers and words shared by both bundles (plan M3 "Home server", P15, P16)
 // ──────────────────────────────────────────────
-// Pure TypeScript. The server writes line packs and notes by these counts and limits (S/home) and reads the time of day
-// with timeOfDayOf; the client picks a tap line by the same zones and times of day (C/lib/tap-mood.ts, which also holds
-// the catalog's fallback lines until his own pack exists).
+// Pure TypeScript. The server writes line packs and notes by these counts and limits (S/home), checks Your thoughts… by
+// THOUGHTS_MAX and reads the time of day with timeOfDayOf; the client picks a tap line by the same zones and times of
+// day (C/lib/tap-mood.ts, which also holds the catalog's fallback lines until his own pack exists), and counts the
+// thoughts' characters by THOUGHTS_MAX.
+import { intimacyOpen, type ContentSettings } from "./content";
 
-export const TAP_ZONES = ["head", "hand", "heart"] as const;
+/**
+ * Home's touch zones (#2152), top to bottom, which is also their Tab order. The chest keeps its stored key `heart`, so
+ * packs written before 0.14.0 still read.
+ */
+export const TAP_ZONES = ["head", "cheek", "heart", "hand", "crotch"] as const;
 export type TapZone = (typeof TAP_ZONES)[number];
+/** The zones only NSFW Heat opens (intimacyOpen, which enforceContent keeps behind the 18+ confirmation). */
+export const INTIMATE_ZONES: readonly TapZone[] = ["crotch"];
+
+/** The zones a world's Heat opens: all of them under NSFW Heat, the rest otherwise. */
+export function tapZonesFor(content: Pick<ContentSettings, "heat">): TapZone[] {
+  return TAP_ZONES.filter((zone) => intimacyOpen(content) || !INTIMATE_ZONES.includes(zone));
+}
 
 export const TIMES_OF_DAY = ["morning", "day", "night"] as const;
 export type TimeOfDay = (typeof TIMES_OF_DAY)[number];
@@ -32,6 +45,21 @@ export const NOTE_CURT_WORDS_MAX = 14;
  * scripts written without spaces (Thai, Khmer, …), so the note and its quote share this one limit.
  */
 export const NOTE_TEXT_MAX = 600;
+/**
+ * Settings → Connections (#2044): the most love interests the player may let write first each day. A story has fewer,
+ * so any number above its cast means all of them (S/phone/daily.ts).
+ */
+export const DAILY_MESSAGES_MAX = 24;
+/**
+ * #2154: the group chat's thread name (`${R}:chat:group`, and the phone's `open` for it). LI ids always start with
+ * "li-", so it never names a love interest. Settings → Connections' squabbles a day share DAILY_MESSAGES_MAX.
+ */
+export const GROUP_THREAD = "group";
+/**
+ * Your thoughts… on Home (#2127): the most characters the player may write. The server refuses longer (S/routes/home.ts)
+ * and reads a longer stored one as none (S/schemas/state.ts); the next main chapter's plan and scenes carry them.
+ */
+export const THOUGHTS_MAX = 1000;
 /** The mood chip's reason: this many words or fewer. */
 export const MOOD_REASON_WORDS_MAX = 4;
 /** The notes before today that the note prompt sees, so he does not repeat himself. */

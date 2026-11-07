@@ -34,8 +34,8 @@ import { OtomeForgeError } from "../http.js";
 import { chapterId, mainChapterNumber, runDocTarget, stateId } from "../ids.js";
 import { defaultLiState, normalizeState, readRun, type RunDocuments } from "../schemas/state.js";
 import { normalizeChapter } from "../schemas/story.js";
-import { repairOffers } from "../state/stages.js";
-import { withPersonaStoryAbout } from "../setup/prompts.js";
+import { needsSpace, repairOffers } from "../state/stages.js";
+import { withPersonaStoryAbout } from "../setup/cast.js";
 import { recallText } from "./canon.js";
 import {
   clean,
@@ -46,7 +46,8 @@ import {
   type PlanContext,
   type PlannedChapter,
 } from "./chapters.js";
-import { ChapterPlanSchema, repairPlanMessages, routePlanMessages, type ChapterPlanReply } from "./prompts.js";
+import { repairPlanMessages, routePlanMessages } from "../prompts.js";
+import { ChapterPlanSchema, type ChapterPlanReply } from "./replies.js";
 
 const notFound = (what: string) => new OtomeForgeError(404, `No such ${what}.`, "not-found");
 const locked = (message: string) => new OtomeForgeError(409, message, "locked");
@@ -216,6 +217,9 @@ export async function planRouteChapter(
     const memory = await recallText(deps, runId, {
       job: "structured",
       cast: [li],
+      continues: li,
+      // The last Character Story, whoever's it is, as the route chapter's scenes are given it (#2126).
+      lastStory: true,
       query: {
         plan: unit.bible?.arc[String(next.stage) as ArcStageKey]?.seed ?? unit.bible?.want ?? "",
         speakers: [unit.name],
@@ -243,14 +247,14 @@ export async function planRouteChapter(
         state,
         li,
         stage: next.stage,
-        memory,
+        memory: memory.text,
       }),
+      memory,
       schema: ChapterPlanSchema,
       normalize: (reply) => {
         const plan = normalizeRoutePlan(reply, context);
         return typeof plan === "string" ? plan : reply;
       },
-      temperature: 0.8,
       maxTokens: 3500,
       debugMode,
       lane: "foreground",
@@ -281,7 +285,8 @@ async function repairChapters(deps: Pick<ChapterDeps, "store">, runId: string): 
 
 /**
  * POST /runs/:run/repairs/:li ("Make it right"): the repair for the rupture with him. The unfinished one already
- * planned for that grievance is returned as it is; 409 `conflict` when no rupture stands.
+ * planned for that grievance is returned as it is; 409 `conflict` when no rupture stands, and 409 `locked` while his
+ * grievance with her still needs its space (#2156, S/state/stages.ts needsSpace).
  */
 export async function planRepairChapter(
   deps: ChapterDeps,
@@ -296,6 +301,7 @@ export async function planRepairChapter(
   const read = () => deps.store.readDoc(chapterId(runId, offer.key), normalizeChapter);
   const stored = await read();
   if (stored) return stored;
+  if (needsSpace(run.state.lis[li])) throw new OtomeForgeError(409, `${unit.name} needs space first.`, "locked");
   return readOrGenerate(runId, read, async () => {
     signal?.throwIfAborted();
     const state = (await deps.store.readDoc(stateId(runId), normalizeState)) ?? run.state;
@@ -308,6 +314,9 @@ export async function planRepairChapter(
     const memory = await recallText(deps, runId, {
       job: "structured",
       cast: [li],
+      continues: li,
+      // The last Character Story, whoever's it is, as the repair chapter's scenes are given it (#2126).
+      lastStory: true,
       query: { plan: grievance.text, speakers: [unit.name] },
       signal,
       debugMode,
@@ -325,13 +334,21 @@ export async function planRepairChapter(
       runId,
       job: "structured",
       label: `repair-plan/${offer.key}`,
-      messages: repairPlanMessages({ world: run.world, player: run.player, units, state, li, grievance, memory }),
+      messages: repairPlanMessages({
+        world: run.world,
+        player: run.player,
+        units,
+        state,
+        li,
+        grievance,
+        memory: memory.text,
+      }),
+      memory,
       schema: ChapterPlanSchema,
       normalize: (reply) => {
         const plan = normalizeRepairPlan(reply, context);
         return typeof plan === "string" ? plan : reply;
       },
-      temperature: 0.7,
       maxTokens: 2500,
       debugMode,
       lane: "foreground",

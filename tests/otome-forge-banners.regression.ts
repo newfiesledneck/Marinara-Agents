@@ -30,7 +30,7 @@ import {
   normalizeItem,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/wish.ts";
 import { enforceContent } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/content.ts";
-import { memoryArtBrief } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/content-contract.ts";
+import { memoryArtBrief } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
 import {
   paintBannerArtNow,
@@ -41,7 +41,7 @@ import {
   BannerPlanSchema,
   normalizeBannerPlan,
   type BannerPlan,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/prompts.ts";
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/replies.ts";
 import { pullWish } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/pull.ts";
 import { setImages, until } from "./fixtures/otome-forge-art.ts";
 import {
@@ -388,7 +388,7 @@ test("P20 keeps the knowledge boundary, the contracts and only what the whole ca
     assert.doesNotMatch(text, /PRIVATE-GRIEVANCE/, "no love interest's own chapter");
     assert.match(user!.content, /SHARED-GRIEVANCE/);
     assert.match(user!.content, /Keep to the CONTENT CONTRACT above, silently\.$/);
-    assert.equal(call.options?.temperature, 0.8);
+    assert.equal(call.options?.temperature, undefined, "the connection's own temperature, never one of Otome's");
   }
 });
 

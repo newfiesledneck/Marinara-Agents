@@ -13,19 +13,26 @@
 //                                                                 then the next node is queued (M2b: a confrontation
 //                                                                 node carries its stance game; S/routes/arcs.ts
 //                                                                 takes its stances)
-// POST /runs/:run/chapters/:key/beats/:i/choose {choice, option} → {beat: BeatView, remembered, rememberedBy}
+// POST /runs/:run/chapters/:key/beats/:i/choose {choice, option, own?} → {beat: BeatView, remembered, rememberedBy,
+//                                                                 affection} (#2046: how far the pick moved each love
+//                                                                 interest's affection points); option "own" with
+//                                                                 own {kind, text} answers a chapter's closing
+//                                                                 decision in the player's own words (#2146)
 // POST /runs/:run/chapters/:key/beats/:i/read {segment}        → ReadResult {grants, starlight, chapterDone}
 // POST /runs/:run/chapters/:key/beats/:i/ease-off {segment}    → {beat: BeatView, veilSuggestions} & ReadResult
 // POST /runs/:run/veil {limits}                                → {world: WorldView}; only ever lowers allow → veil
 // POST /runs/:run/cancel                                       → {ok}
 // POST /runs/:run/favorites {text, ref, li?, keep?}            → {favorites}; keeps the line (keep: false lets it go),
 //                                                                 so sending it twice changes nothing
+// GET  /runs/:run/who-said-what                                → WhoSaidWhatView (#2041, S/minigames/who-said-what.ts):
+//                                                                 no model call, no write
 // Writing a plan or a beat may fail with 503 `no-connection`, 422 `declined` (nothing is written) or 502
 // `bad-format`; a Cancel while it runs is a 409 `conflict`; a beat of a route chapter while a rupture stands is a 409
 // `locked`. Hidden parts (node guides, the ledger, effects, trust and tension, a confrontation's composure and the
 // endings not reached) never leave the server.
 import { z } from "zod";
 import type { Beat, BeatView, Favorite } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import { OWN_ANSWER_MAX, OWN_OPTION } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
 import { LIMIT_IDS } from "../../../../../client/src/features/otome-forge/shared/content.js";
 import {
   OtomeForgeError,
@@ -48,6 +55,7 @@ import { chapterDetail, planNextChapter, startArc, storyView } from "../story/ch
 import { ARC_CHOICES, toArcView } from "../schemas/story-arc.js";
 import { ensurePrologue } from "../story/prologue.js";
 import { introduceLoveInterest } from "../story/introduce.js";
+import { whoSaidWhat } from "../minigames/who-said-what.js";
 
 const NextBody = z.object({ lead: z.string().min(1).max(80) });
 const ArcBody = z.object({
@@ -79,7 +87,12 @@ const ArcBody = z.object({
     .optional(),
 });
 const BeatBody = z.object({ rewrite: z.boolean().optional() });
-const ChooseBody = z.object({ choice: z.string().min(1).max(40), option: z.string().min(1).max(40) });
+const ChooseBody = z.object({
+  choice: z.string().min(1).max(40),
+  option: z.string().min(1).max(40),
+  /** #2146: what the player says or does in their own words, with option OWN_OPTION alone. */
+  own: z.object({ kind: z.enum(["dialogue", "action"]), text: z.string().max(OWN_ANSWER_MAX) }).optional(),
+});
 const SegmentBody = z.object({ segment: z.number().int().min(0).max(10_000) });
 const VeilBody = z.object({ limits: z.array(z.enum(LIMIT_IDS)).max(LIMIT_IDS.length) });
 const FavoriteBody = z.object({
@@ -119,6 +132,11 @@ export const registerStoryRoutes: RegisterRoutes = (router, deps) => {
   router.get(
     "/runs/:run/story",
     handle(async (request) => storyView(deps, runParam(request).runId)),
+  );
+
+  router.get(
+    "/runs/:run/who-said-what",
+    handle(async (request) => whoSaidWhat(deps, runParam(request).runId)),
   );
 
   router.post(
@@ -205,11 +223,26 @@ export const registerStoryRoutes: RegisterRoutes = (router, deps) => {
   router.post(
     "/runs/:run/chapters/:key/beats/:i/choose",
     handle(async (request) => {
-      const { choice, option } = parseBody(ChooseBody, request.body);
+      const { choice, option, own } = parseBody(ChooseBody, request.body);
+      if ((option === OWN_OPTION) !== !!own) {
+        throw new OtomeForgeError(
+          400,
+          `Only the option "${OWN_OPTION}" takes your own words, and it needs them.`,
+          "bad-request",
+        );
+      }
       const { runId } = runParam(request);
       const { key, i } = beatParams(request);
-      const { beat, remembered, rememberedBy } = await chooseOption(deps, runId, key, i, choice, option);
-      return { beat: beatView(runId, beat), remembered, rememberedBy };
+      const { beat, remembered, rememberedBy, affection } = await chooseOption(
+        deps,
+        runId,
+        key,
+        i,
+        choice,
+        option,
+        own,
+      );
+      return { beat: beatView(runId, beat), remembered, rememberedBy, affection };
     }),
   );
 

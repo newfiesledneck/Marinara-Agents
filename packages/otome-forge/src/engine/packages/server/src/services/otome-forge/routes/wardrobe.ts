@@ -2,15 +2,19 @@
 // Otome Forge: the Wardrobe (plan M4 "Wardrobe"): complete looks for each love interest and the protagonist, Wear at
 // home, Show {{name}}, couple sets and their pair portrait
 // ──────────────────────────────────────────────
-// GET  /runs/:run/wardrobe                                   → WardrobeView {him, me, couples, noticed, noticing}
+// GET  /runs/:run/wardrobe                                   → WardrobeView {him, me, couples, noticed, noticing,
+//                                                               gifts, figurines}: #2128, her Shop gifts (those her
+//                                                               Heat offers) and figurines, each with its paint
+//                                                               and picture (#2138, S/art/figurine.ts)
 // POST /runs/:run/wardrobe/wear {owner, look, li?}           → {wardrobe}; owner "me" or a love interest's id (also
 //                                                               "player" or "li:<id>"); look "base" or an owned,
 //                                                               painted look item. Her new look is noticed (P19, by `li`,
 //                                                               else the love interest on Home) in the background; his
 //                                                               new look gets its faces (M2b expressions), in the
 //                                                               background
-// POST /runs/:run/wardrobe/show {li, look}                   → ShowResult {line, face?, grants}; P24, and +20 affection
-//                                                               the first time she shows him that look
+// POST /runs/:run/wardrobe/show {li, look}                   → ShowResult {line, face?, grants}; P24 (on the Messages
+//                                                               connection, job "chat"), and +5 affection the first
+//                                                               time she shows him that look
 // POST /runs/:run/wardrobe/pair {hers, prompt?, negativePrompt?} → {art}; paints the set's pair portrait (1 image)
 // POST /runs/:run/wardrobe/pair/prompt {hers}                → {prompt, negativePrompt}
 // A look is worn once painted: only its image can stand on Home. Wearing is idempotent. A Show is a model call each time;
@@ -20,7 +24,6 @@
 // Home (S/routes/home.ts) shows what is worn: wornLookUrl(unit) on him, cut out there as M3 cuts out every worn look,
 // and wornLookUrl(player) on Me with `player.noticed` (P19, written here) under it; `noticingLooks` tells it the line
 // is on its way.
-import { forgeStoryExpressionCast } from "@forge-kit/story-expressions-server.mjs";
 import { z } from "zod";
 import type {
   LiId,
@@ -31,7 +34,8 @@ import type {
   World,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import { AFFECTION_EARNINGS } from "../../../../../client/src/features/otome-forge/shared/economy.js";
-import { FACES, isFace, type Face } from "../../../../../client/src/features/otome-forge/shared/faces.js";
+import { isFace, type Face } from "../../../../../client/src/features/otome-forge/shared/faces.js";
+import { figurineSceneKey, giftsFor } from "../../../../../client/src/features/otome-forge/shared/shop.js";
 import {
   BASE_LOOK,
   NOTICED_WORDS_MAX,
@@ -58,23 +62,17 @@ import {
   pairView,
   paintPairNow,
 } from "../art/outfits.js";
+import { figurinePicture, queueFigurineCutouts, type FigurineDeps } from "../art/figurine.js";
 import { paintView, updateIfChanged } from "../art/paint.js";
 import { generateJson, runForeground } from "../generation.js";
 import { OtomeForgeError, debugModeOf, parseBody, runParam, type RegisterRoutes, type RouteDeps } from "../http.js";
 import { isLiId, playerId, runDocTarget, stateId, unitId } from "../ids.js";
 import { STORY_KINDS } from "../items/character-story.js";
 import { couplesOf, ownedItems, readItem, readItems, readOwnedItem } from "../items/open.js";
-import {
-  LINE_TEMPERATURE,
-  LINE_TOKENS,
-  LineReplySchema,
-  ShowReplySchema,
-  checkLine,
-  noticedMessages,
-  showMessages,
-} from "../items/prompts.js";
+import { noticedMessages, showMessages } from "../prompts.js";
+import { LINE_TOKENS, LineReplySchema, ShowReplySchema, checkLine } from "../items/replies.js";
 import { normalizePlayer } from "../schemas/player.js";
-import { normalizeState, readRun, type RunDocuments } from "../schemas/state.js";
+import { normalizeState, readRun, readyFaces, type RunDocuments } from "../schemas/state.js";
 import { normalizeUnit } from "../schemas/unit.js";
 import { grant } from "../state/rewards.js";
 
@@ -145,15 +143,8 @@ function itemLook(runId: string, item: Item, owner: "me" | LiId, worn: string | 
     worn: worn === item.id,
     wearable: !!outfit,
     unopened: (STORY_KINDS.has(item.kind) && !item.story) || (hasArt(item) && !item.art && !!world.images.connectionId),
-    ...(item.kind === "his-look5" ? { story: item.story } : {}),
+    ...(STORY_KINDS.has(item.kind) ? { story: item.story } : {}),
   };
-}
-
-/** His ready faces on `url`, while expressions are on (the kit's forgeStoryExpressionCast). */
-function facesOn(world: World, unit: Unit, url: string | undefined): Partial<Record<Face, string>> | undefined {
-  if (!url) return undefined;
-  return forgeStoryExpressionCast(world.images, unit, url, FACES).expressions as
-    Partial<Record<Face, string>> | undefined;
 }
 
 /** Love interests noticing her look right now, by `${runId}|${look}` (P19 runs in the background). */
@@ -166,7 +157,7 @@ const noticing = new Set<string>();
 export const noticingLooks = (runId: string) =>
   [...noticing].filter((key) => key.startsWith(`${runId}|`)).map((key) => key.slice(runId.length + 1));
 
-export async function wardrobeView(deps: Pick<RouteDeps, "store">, runId: string): Promise<WardrobeView> {
+export async function wardrobeView(deps: FigurineDeps, runId: string): Promise<WardrobeView> {
   // Asked before the reads: a line that lands while they run then answers "on its way", never "none and done".
   const noticingNow = noticingLooks(runId);
   const run = await readRun(deps.store, runId);
@@ -183,7 +174,7 @@ export async function wardrobeView(deps: Pick<RouteDeps, "store">, runId: string
         .map((item) => itemLook(runId, item, unit.id, unit.wornOutfit, run.world)),
     ];
     him[unit.id] = views.map((view) => {
-      const faces = facesOn(run.world, unit, view.url);
+      const faces = view.url ? readyFaces(run.world, unit, view.url) : undefined;
       return faces ? { ...view, faces } : view;
     });
   }
@@ -228,18 +219,48 @@ export async function wardrobeView(deps: Pick<RouteDeps, "store">, runId: string
     couples,
     noticed: run.player.noticed,
     noticing: noticingNow.includes(run.player.wornOutfit ?? ""),
+    // An aphrodisiac bought under NSFW Heat stays owned, and is listed (and given) only while Heat is NSFW.
+    gifts: Object.fromEntries(
+      giftsFor(run.world.content).flatMap((gift) => {
+        const count = run.state.owned.gifts[gift] ?? 0;
+        return count > 0 ? [[gift, count]] : [];
+      }),
+    ),
+    // A painted figurine's cut-out is queued here too, as Home and the Shop do (no model or image call): without it a
+    // figurine whose cut-out was never queued reads as still being cut out, and the Wardrobe would poll for it.
+    figurines: (
+      await queueFigurineCutouts(
+        deps,
+        runId,
+        castOf(run).filter((unit) => run.state.owned.figurines[unit.id]),
+      )
+    ).map((unit) => ({ li: unit.id, ...figurinePicture(runId, unit), story: { key: figurineSceneKey(unit.id) } })),
   };
 }
 
 // ── Wear at home ──
 
-/** A look item `owner` may wear: owned, theirs, and painted (made wearable now if its image was not added yet). */
-async function wearableItem(deps: RouteDeps, runId: string, look: string, wearer: "player" | `li:${string}`) {
+/**
+ * A look item `wearer` may wear, read without writing anything: owned (409 `locked`), theirs (400) and painted (409
+ * `conflict`). The Photo Shoot (S/minigames/photo-shoot.ts) dresses its photo in it without wearing it.
+ */
+export async function wearableLook(
+  deps: Pick<RouteDeps, "store">,
+  runId: string,
+  look: string,
+  wearer: "player" | `li:${string}`,
+) {
   if (!isItemId(look)) throw notFound("look");
   const { item } = await readOwnedItem(deps, runId, look);
   if (!isLookKind(item.kind) || lookWearer(item) !== wearer) throw badRequest("That look is not theirs to wear.");
   const outfit = outfitOf(item);
   if (!outfit) throw new OtomeForgeError(409, "That look is not painted yet.", "conflict");
+  return { item, outfit };
+}
+
+/** A look item `owner` may wear: owned, theirs, and painted (made wearable now if its image was not added yet). */
+async function wearableItem(deps: RouteDeps, runId: string, look: string, wearer: "player" | `li:${string}`) {
+  const { item, outfit } = await wearableLook(deps, runId, look, wearer);
   await addOutfit(deps, runId, item);
   return { item, outfit };
 }
@@ -284,7 +305,6 @@ function noticeLook(deps: RouteDeps, runId: string, look: string, li: string | u
       messages: noticedMessages({ world: run.world, player: run.player, unit, state: run.state, look: item.look }),
       schema: LineReplySchema,
       normalize: (reply) => checkLine(reply.text, NOTICED_WORDS_MAX),
-      temperature: LINE_TEMPERATURE,
       maxTokens: LINE_TOKENS,
       debugMode,
       lane: "foreground",
@@ -375,7 +395,6 @@ export async function showLook(
           const line = checkLine(raw.text, SHOW_WORDS_MAX);
           return typeof line === "string" ? line : { text: line.text, face: raw.face };
         },
-        temperature: LINE_TEMPERATURE,
         maxTokens: LINE_TOKENS,
         debugMode,
         lane: "foreground",

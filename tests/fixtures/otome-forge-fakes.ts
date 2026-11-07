@@ -4,6 +4,7 @@
 import type {
   CapabilityDocumentRecord,
   CapabilityDocumentStore,
+  CapabilityLanguageModelCompletion,
   CapabilityLanguageModelCompletionOptions,
   CapabilityLanguageModelMessage,
   CapabilityResolvedLanguageModel,
@@ -138,10 +139,13 @@ export interface FakeLogEntry {
   override?: boolean;
 }
 
-/** One scripted model reply: text, text with its finish reason, an error to throw, or a function of the request. */
+/**
+ * One scripted model reply: text, text with its finish reason (and the usage the provider reports), an error to throw,
+ * or a function of the request.
+ */
 export type FakeReply =
   | string
-  | { content: string; finishReason: string }
+  | { content: string; finishReason: string; usage?: CapabilityLanguageModelCompletion["usage"] }
   | Error
   | ((messages: CapabilityLanguageModelMessage[], options?: CapabilityLanguageModelCompletionOptions) => string);
 
@@ -155,12 +159,14 @@ export interface FakeRuntimeOptions {
   enabledLevels?: string[];
   /** Errors the fake admission treats as its own (`admission.isFailure`). */
   admissionFailures?: Set<unknown>;
-  /** How the fake admission runs an admitted operation; by default it just runs it. */
-  admissionRun?: <T>(operation: () => Promise<T>) => Promise<T>;
+  /** How the fake admission runs an admitted operation, in its mode; by default it just runs it. */
+  admissionRun?: <T>(operation: () => Promise<T>, mode: { kind: string }) => Promise<T>;
   characters?: Array<{ id: string; data: unknown; comment?: string }>;
   personas?: Array<{ id: string; data: unknown }>;
   /** The connection's own output cap (the resolved model's maxOutputTokens); 4096 by default, null for none. */
   maxOutputTokens?: number | null;
+  /** The connection's context window (the resolved model's maxContext); 32768 by default, null for unknown. */
+  maxContext?: number | null;
 }
 
 /**
@@ -211,7 +217,7 @@ export function createFakeRuntime(options: FakeRuntimeOptions = {}) {
     name: `Fake ${connectionId}`,
     connectionId,
     model: "fake-model",
-    maxContext: 32768,
+    maxContext: options.maxContext === undefined ? 32768 : options.maxContext,
     maxOutputTokens: options.maxOutputTokens === undefined ? 4096 : options.maxOutputTokens,
     async chatComplete(messages, completionOptions) {
       calls.push({ connectionId, messages: structuredClone(messages), options: completionOptions });
@@ -293,7 +299,7 @@ export function createFakeRuntime(options: FakeRuntimeOptions = {}) {
       admission: notInFake<Admission>("runtime.integrations.admission", {
         async run<T>(connectionId: string, mode: unknown, operation: () => Promise<T>) {
           admissions.push({ connectionId, mode });
-          return options.admissionRun ? options.admissionRun(operation) : operation();
+          return options.admissionRun ? options.admissionRun(operation, mode as { kind: string }) : operation();
         },
         isFailure: (error: unknown) => admissionFailures.has(error),
       }),

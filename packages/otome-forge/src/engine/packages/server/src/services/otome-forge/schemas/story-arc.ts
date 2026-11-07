@@ -3,15 +3,22 @@
 // ──────────────────────────────────────────────
 // One document per arc, read only by the arc path and storyView, never sent raw. The hidden story lives here (goal, the
 // big event, the reveal schedule, the antagonist), so only toArcView may describe it, and only with the few fields a
-// player may see. Chapter numbers are absolute main chapter numbers and never reset: an arc says which it covers, and
-// nothing is renumbered. An arc has ended when main chapter `endsAt` is completed in the state; that is derived, never
-// written here, so the plan and the progress cannot drift.
+// player may see. Outside the story, only Tarot night's roadAhead (S/minigames/tarot.ts) reads it: the covering arc's
+// goal and the next two chapters' purposes, as hints for the Future card, never a reveal, the ending, the antagonist,
+// the judgment or a newcomer. Chapter numbers are absolute main chapter numbers and never reset: an arc says which it
+// covers, and nothing is renumbered. An arc has ended when main chapter `endsAt` is completed in the state; that is
+// derived, never written here, so the plan and the progress cannot drift.
 //
 // The model never writes a chapter number: a reply gives purposes and reveal positions as 1-based indices and
 // normalizeArcPlan stamps `from + index - 1`. Off-by-one in a twelve-chapter schedule is the likeliest structural
-// failure, and this removes it. Brevity is part of the shape: one short sentence per purpose, and the schema caps it.
+// failure, and this removes it. The prompt asks for one short sentence per purpose; a longer one is kept, not refused.
 import { z, type ZodType } from "zod";
-import type { LiId, StoryArc, StoryArcView } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import type {
+  ArcJudgment,
+  LiId,
+  StoryArc,
+  StoryArcView,
+} from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 export type { StoryArc, StoryArcView };
 import { isRecord, readFields, validItems } from "./common.js";
 
@@ -21,9 +28,13 @@ export const ARC_LENGTH_MAX = 12;
 export const BREATHING_LENGTH_MIN = 3;
 export const BREATHING_LENGTH_MAX = 5;
 
-/** A purpose is a moment, not prose: one short sentence (the cap keeps a planner from writing a chapter in the outline). */
+/** A purpose is a moment, not prose: the prompt asks for one short sentence of at most this many words. */
 export const ARC_PURPOSE_WORDS = 20;
-const PURPOSE = 240;
+/**
+ * The longest purpose kept, in characters. Far above what the prompt asks for: a planner that writes a few sentences
+ * still plans the arc, because refusing it cost the player the whole arc (a thinking model often runs long).
+ */
+const PURPOSE = 1200;
 
 /** The three ways a player may ask for the next arc (S/story/arcs #1983 M2). */
 export const ARC_CHOICES = ["continue", "breathe", "newcomer"] as const;
@@ -31,7 +42,35 @@ export const ARC_CHOICES = ["continue", "breathe", "newcomer"] as const;
 /** How many arcs a run may hold (each is 8–12 chapters, so this is far beyond any played story). */
 export const ARCS_MAX = 40;
 
+/** A judgment's question and each answer (#2047): one short line each, as a big choice's labels are. */
+export const JUDGMENT_QUESTION = 300;
+export const JUDGMENT_ANSWER = 160;
+
 const text = (max = 600) => z.string().max(max);
+
+/**
+ * An arc's judgment (#2047), or undefined when it breaks a rule: a question, 2–4 distinct answers, and at least one
+ * chapter left once those outside [from, endsAt] or not before the truth's chapter are dropped (`offset` turns a
+ * reply's 1-based positions into chapter numbers). The answers are sorted so their order never says which is true (a
+ * planner tends to list it first, and the narrator keeps the order it is given).
+ */
+function judgmentOf(
+  raw: unknown,
+  { from, endsAt, truthAt, offset }: { from: number; endsAt: number; truthAt?: number; offset: number },
+): (ArcJudgment & { chapters: number[] }) | undefined {
+  if (!isRecord(raw) || typeof raw.question !== "string" || !Array.isArray(raw.answers)) return undefined;
+  const question = raw.question.trim();
+  const answers = raw.answers.map((answer) => (typeof answer === "string" ? answer.trim() : ""));
+  if (!question || question.length > JUDGMENT_QUESTION || answers.length < 2 || answers.length > 4) return undefined;
+  if (answers.some((answer) => !answer || answer.length > JUDGMENT_ANSWER)) return undefined;
+  if (new Set(answers.map((answer) => answer.toLowerCase())).size !== answers.length) return undefined;
+  const last = truthAt === undefined ? endsAt : Math.min(endsAt, truthAt - 1);
+  const chapters = (Array.isArray(raw.chapters) ? raw.chapters : [])
+    .map((value) => (typeof value === "number" ? value + offset : NaN))
+    .filter((n) => Number.isInteger(n) && n >= from && n <= last);
+  if (!chapters.length) return undefined;
+  return { question, answers: answers.sort(), chapters: [...new Set(chapters)].sort((a, b) => a - b) };
+}
 
 const PlanEntrySchema: ZodType<StoryArc["plan"][number]> = z.object({
   n: z.number().int().min(1),
@@ -78,6 +117,8 @@ export function normalizeArc(data: unknown): StoryArc | null {
         isRecord(value) && typeof value.li === "string"
           ? { li: value.li, how: typeof value.how === "string" ? value.how.slice(0, 600) : "" }
           : null,
+      // Read below, once the arc's range and its truth's chapter are known.
+      judgment: () => undefined,
       plannedAt: z.string(),
       connectionId: z.string(),
     },
@@ -116,6 +157,13 @@ export function normalizeArc(data: unknown): StoryArc | null {
     arc.newcomer = null;
   }
   if (arc.kind === "story" && !arc.endsWith) arc.endsWith = { n: arc.endsAt, what: arc.goal };
+  const truthAt = arc.reveals.find((reveal) => reveal.kind === "truth")?.n;
+  const judgment =
+    arc.kind === "story"
+      ? judgmentOf(data.judgment, { from: arc.from, endsAt: arc.endsAt, truthAt, offset: 0 })
+      : undefined;
+  if (judgment) arc.judgment = judgment;
+  else delete arc.judgment;
   if (!arc.label.trim()) arc.label = String(arc.number);
   return arc;
 }
@@ -134,6 +182,8 @@ export interface ArcPlanReply {
   antagonist: { name: string; want: string; whyNow: string } | null;
   /** When a newcomer arrives, the one sentence naming the scene they are met in. */
   newcomer?: { how: string } | null;
+  /** #2047, optional: a question the protagonist may answer wrong, its 2–4 answers, and the 1-based chapters it fits. */
+  judgment?: { question: string; answers: string[]; chapters: number[] } | null;
 }
 
 export const ArcPlanSchema = z.object({
@@ -152,18 +202,18 @@ export const ArcPlanSchema = z.object({
         what: text().min(1),
       }),
     )
-    .max(24),
-  antagonist: z.object({ name: text(200).min(1), want: text(400), whyNow: text(400) }).nullable(),
+    .max(24)
+    // Missing means none, as null does: the prompt asks for an optional field to be omitted rather than null, and a
+    // planner told to leave reveals empty (or with no antagonist) may leave the key out (#2172).
+    .nullish(),
+  antagonist: z.object({ name: text(200).min(1), want: text(400), whyNow: text(400) }).nullish(),
   newcomer: z
     .object({ how: text(600) })
     .nullable()
     .optional(),
+  // Checked by normalizeArcPlan, never here: a broken judgment is dropped, not a reason to plan the arc again.
+  judgment: z.unknown().optional(),
 });
-
-/** The words a string holds (the purpose cap, the same counting the pack's prompts use). */
-export function wordCountOf(value: string): number {
-  return value.trim().split(/\s+/u).filter(Boolean).length;
-}
 
 export interface ArcPlanContext {
   number: number;
@@ -194,9 +244,7 @@ export function normalizeArcPlan(reply: z.infer<typeof ArcPlanSchema>, context: 
     kind === "breathing" ? [BREATHING_LENGTH_MIN, BREATHING_LENGTH_MAX] : [ARC_LENGTH_MIN, ARC_LENGTH_MAX];
   if (count < min || count > max) return `a ${kind} arc needs ${min} to ${max} chapters, not ${count}`;
   const endsAt = context.from + count - 1;
-  const long = chapters.findIndex((purpose) => wordCountOf(purpose) > ARC_PURPOSE_WORDS);
   if (!reply.label.trim()) return "the arc needs a short label the player will see";
-  if (long >= 0) return `chapter purposes must be ${ARC_PURPOSE_WORDS} words or fewer (chapter ${context.from + long})`;
   const from = context.from;
 
   const plan = chapters.map((purpose, index) => ({ n: from + index, purpose }));
@@ -204,7 +252,7 @@ export function normalizeArcPlan(reply: z.infer<typeof ArcPlanSchema>, context: 
   const how = (reply.newcomer?.how ?? "").trim();
   if (context.newcomer && !how) return "say how the newcomer meets the protagonist, in one sentence (newcomer.how)";
   if (kind === "breathing") {
-    if (reply.reveals.length) return "a breathing arc reveals nothing: leave reveals empty";
+    if (reply.reveals?.length) return "a breathing arc reveals nothing: leave reveals empty";
     if (reply.antagonist) return "a breathing arc has no antagonist";
     return {
       version: 1,
@@ -227,6 +275,9 @@ export function normalizeArcPlan(reply: z.infer<typeof ArcPlanSchema>, context: 
   }
 
   // Story arc: one ending, scheduled reveals in order, no repeat, nothing before its chapter, at most one per chapter.
+  // A reveal the run already holds (a piece told before, the truth once told, the same piece or the truth twice in this
+  // arc) is dropped, never refused: the player already knows it, so the arc loses nothing, and refusing it cost the
+  // player the whole arc when the planner could not fix it in its one repair turn (#2172).
   // The big event is always the arc's last chapter (chapters.ts carries it there), so its position is not the model's.
   const endsWith = reply.endsWith?.what.trim() ? { n: endsAt, what: reply.endsWith.what.trim() } : null;
   if (!endsWith) return "a story arc needs endsWith: how the arc ends, in one sentence";
@@ -234,24 +285,24 @@ export function normalizeArcPlan(reply: z.infer<typeof ArcPlanSchema>, context: 
   const seenChapters = new Set<number>();
   const scheduled = new Set<LiId>();
   let sawTruth = false;
-  for (const reveal of [...reply.reveals].sort((a, b) => a.chapter - b.chapter)) {
+  for (const reveal of [...(reply.reveals ?? [])].sort((a, b) => a.chapter - b.chapter)) {
     const n = from + reveal.chapter - 1;
     if (reveal.chapter > count)
       return `a reveal is scheduled past the arc's last chapter (in chapter ${reveal.chapter})`;
-    if (seenChapters.has(n)) return `chapter ${n} is scheduled to reveal twice; one reveal per chapter`;
-    seenChapters.add(n);
     if (reveal.kind === "truth") {
-      if (context.truthTold) return "the mystery's truth was already told: a new arc cannot reveal it again";
-      if (sawTruth) return "the truth is revealed once per arc";
+      if (context.truthTold || sawTruth) continue;
+      if (seenChapters.has(n)) return `chapter ${n} is scheduled to reveal twice; one reveal per chapter`;
+      seenChapters.add(n);
       sawTruth = true;
       reveals.push({ n, kind: "truth", what: reveal.what.trim() });
       continue;
     }
     const li = context.resolveLi(reveal.li);
     if (!li) return `a piece reveal must name one of the cast (got ${JSON.stringify(reveal.li ?? null)})`;
-    if (context.revealed.has(li)) return `${li}'s piece of the mystery was already revealed; schedule another piece`;
-    // A love interest holds one piece: scheduling it twice in the same arc would ask two chapters to say it once.
-    if (scheduled.has(li)) return `${li}'s piece is already scheduled in this arc`;
+    // A love interest holds one piece: told before, or already scheduled earlier in this arc, it is said once.
+    if (context.revealed.has(li) || scheduled.has(li)) continue;
+    if (seenChapters.has(n)) return `chapter ${n} is scheduled to reveal twice; one reveal per chapter`;
+    seenChapters.add(n);
     scheduled.add(li);
     reveals.push({ n, kind: "piece", li, what: reveal.what.trim() });
   }
@@ -262,6 +313,7 @@ export function normalizeArcPlan(reply: z.infer<typeof ArcPlanSchema>, context: 
     if (late) return "the truth is revealed before one of the pieces; schedule the pieces first";
     if (truthAt !== endsAt) return "the truth is revealed in the arc's last chapter";
   }
+  const judgment = judgmentOf(reply.judgment, { from, endsAt, truthAt, offset: from - 1 });
   return {
     version: 1,
     number: context.number,
@@ -283,6 +335,7 @@ export function normalizeArcPlan(reply: z.infer<typeof ArcPlanSchema>, context: 
       : null,
     newcomer: context.newcomer ? { li: context.newcomer.id, how } : null,
     choice: { kind: context.choice ?? "continue" },
+    ...(judgment ? { judgment } : {}),
     plannedAt: "",
     connectionId: "",
   };
@@ -293,7 +346,7 @@ export function revealAt(arc: StoryArc, n: number): StoryArc["reveals"][number] 
   return arc.reveals.find((reveal) => reveal.n === n);
 }
 
-/** The arc as a player sees it: never its goal, plan, ending, antagonist, reveals or any hidden text. */
+/** The arc as a player sees it: never its goal, plan, ending, antagonist, reveals, judgment or any hidden text. */
 export function toArcView(arc: StoryArc, read: number): StoryArcView {
   return {
     number: arc.number,

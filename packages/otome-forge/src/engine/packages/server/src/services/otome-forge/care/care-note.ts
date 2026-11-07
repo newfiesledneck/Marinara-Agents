@@ -20,21 +20,20 @@ import type { LiId, Player, Unit, World } from "../../../../../client/src/featur
 import { sentenceCount, wordCount } from "../../../../../client/src/features/otome-forge/shared/home.js";
 import { generateJson, runForeground, type GenerationDeps } from "../generation.js";
 import { OtomeForgeError } from "../http.js";
-import { QUESTION_MARK, mentionsAbsence } from "../home/prompts.js";
+import { QUESTION_MARK, mentionsAbsence } from "../home/replies.js";
 import { field } from "../schemas/common.js";
 import { readRun } from "../schemas/state.js";
 import type { OtomeStore } from "../store.js";
+import { careNoteMessages } from "../prompts.js";
 import {
   CARE_NOTE_SENTENCES_MAX,
   CARE_NOTE_WORDS_MAX,
   CareNoteReplySchema,
   allowedCareLines,
-  careNoteMessages,
   soundsMedical,
   type CareNoteReply,
-} from "./prompts.js";
+} from "./care-line.js";
 
-export const CARE_NOTE_TEMPERATURE = 0.8;
 /** What the reply itself needs: forty words. */
 export const CARE_NOTE_MAX_TOKENS = 300;
 
@@ -131,7 +130,6 @@ export async function writeCareNote(deps: GenerationDeps, input: CareNoteInput):
     messages: careNoteMessages(input),
     schema: CareNoteReplySchema,
     normalize: checkCareNote,
-    temperature: CARE_NOTE_TEMPERATURE,
     maxTokens: CARE_NOTE_MAX_TOKENS,
     debugMode: false,
     lane: "foreground",

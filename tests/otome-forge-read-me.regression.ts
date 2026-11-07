@@ -8,7 +8,8 @@
 // one) and refuse medical words with nothing saved, and the set's copy of the words follows; the prompt carries the
 // knowledge boundary and the `chat` contract (it follows the Heat), the love interest's own notebook and never
 // another's, sees them as their own reader may, and is logged in debug mode; a run deleted while the set is written
-// keeps no set, deleting a run sweeps sets, and a set is never a story-memory source.
+// keeps no set, deleting a run sweeps sets, and a set is never a story-memory source; what the notebook holds beyond
+// the newest entries comes back as a small recalled memory in his own prompts, read live, so a delete is final (#2039).
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { CapabilityLanguageModelMessage } from "@marinara-engine/shared";
@@ -35,14 +36,17 @@ import {
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/http.ts";
 import {
   RUN_DOC_KINDS,
+  memoryId,
   runDocTarget,
   stateId,
   unitId,
   worldId,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/ids.ts";
+import { createOtomeMemory } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/memory.ts";
 import { readMemorySources } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/sources.ts";
+import { recallText } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/canon.ts";
+import { READ_ME_WORDS } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import {
-  READ_ME_WORDS,
   ReadMeReplySchema,
   applyReadMe,
   checkReadMeReply,
@@ -587,7 +591,7 @@ test("the prompt carries the boundary, the chat contract, their own notebook onl
     "nothing of Mireille's own chapters",
   );
   for (const marker of KAI_SHARED) assert.ok(sent.includes(marker), `his own ${marker}`);
-  assert.equal(call!.options?.temperature, 0.9);
+  assert.equal(call!.options?.temperature, undefined);
   assert.ok(t.logs.some((entry) => entry.level === "debugOverride" && entry.args[0] === `read-me/${KAI}`));
 
   // An empty notebook: no ALREADY KNOWN, and no rule naming it.
@@ -654,5 +658,59 @@ test("a bad reply gets one repair turn; a run deleted mid-write keeps no set; se
   const sources = JSON.stringify(await readMemorySources(repaired.store, repaired.runId));
   for (const marker of ["readme", "FACT-", "GUESS-", "REACT-", "CONTEXT-", "MY-OWN-WORDS"]) {
     assert.ok(!sources.includes(marker), `no ${marker} in the story's memory`);
+  }
+});
+
+test("what he learned in Read Me long ago comes back as a small memory in his prompts, never once it is deleted", async () => {
+  const t = await readMeWorld("r-readme8-aaaaaa");
+  // Fourteen entries in four sets, newest last: the oldest set holds the lighthouse; knowsAboutYou carries the newest.
+  const entry = (set: string, i: number, text: string): NotebookEntry => ({
+    id: `${set}/${i}`,
+    category: CATEGORIES[i % CATEGORIES.length]!,
+    text,
+    verdict: "right",
+    at,
+  });
+  const known = [
+    entry("rmold1", 0, "LIGHTHOUSE-NOTE: Ines climbs to the lighthouse lamp when she cannot sleep."),
+    ...[1, 2, 3].map((i) => entry("rmold1", i, `OLD-${i}: Ines hums an old harbour song.`)),
+    ...["rmset2", "rmset3"].flatMap((set) => [0, 1, 2, 3].map((i) => entry(set, i, `${set}-${i}: Ines likes tea.`))),
+    ...[0, 1].map((i) => entry("rmset4", i, `rmset4-${i}: Ines likes rain.`)),
+  ];
+  await t.store.updateDoc(runDocTarget("state", stateId(t.runId)), normalizeState, (state) => ({
+    ...state,
+    lis: { ...state.lis, [KAI]: { ...state.lis[KAI]!, known } },
+  }));
+  const memory = createOtomeMemory({ runtime: t.runtime, store: t.store });
+  try {
+    // P6's recall for a scene, cued by what was just played.
+    const scene = async (cast: string[]) =>
+      (
+        await recallText({ store: t.store, memory, runtime: t.runtime }, t.runId, {
+          job: "narration",
+          cast,
+          query: { cues: ["Ines cannot sleep, so she climbs toward the lighthouse lamp."] },
+        })
+      ).text;
+    const kai = await scene([KAI]);
+    const OLDEST =
+      "# Recalled memory: What Kai learned about the protagonist in a Read Me (private: Kai's alone)\nlikes: LIGHTHOUSE-NOTE";
+    assert.ok(kai.includes(OLDEST), kai);
+    // #2066: the newest small memories within 5000 tokens, told in story order: here every older set fits.
+    assert.ok(kai.indexOf(OLDEST) < kai.indexOf("rmset2-0"), "oldest first");
+    assert.ok(!kai.includes("rmset4"), "what knowsAboutYou carries is never recalled again");
+    assert.ok(!(await scene([MIR])).includes("LIGHTHOUSE"), "his notebook never reaches a scene without him");
+
+    // Deleted: gone from the next prompt, and no copy of it was ever kept in the story's memory.
+    const removed = await t.remove("rmold1/0");
+    assert.equal(removed.status, 200, JSON.stringify(removed.body));
+    assert.ok(!(await scene([KAI])).includes("LIGHTHOUSE"), "a deleted entry never comes back");
+    for (let turn = 0; turn < 2000 && (await memory.status(t.runId)).phase === "pending"; turn += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    const kept = await t.fake.documents.getById("otome-forge", memoryId(t.runId));
+    assert.ok(!JSON.stringify(kept?.data ?? {}).includes("LIGHTHOUSE"), "the notebook is never stored as memory");
+  } finally {
+    memory.dispose();
   }
 });

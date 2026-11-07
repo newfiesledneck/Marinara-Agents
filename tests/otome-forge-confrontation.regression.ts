@@ -32,7 +32,7 @@ import {
   readBeat,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/canon.ts";
 import { normalizeConfrontationReply } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/confrontation.ts";
-import type { ConfrontationReply } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/prompts.ts";
+import type { ConfrontationReply } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/replies.ts";
 import {
   KAI,
   beatReply,
@@ -47,7 +47,12 @@ type World = Awaited<ReturnType<typeof storyWorld>>;
 type Messages = CapabilityLanguageModelMessage[];
 type Stance = "press" | "hold" | "yield" | "reveal";
 
-const system = (messages: Messages) => messages[0]!.content;
+// #2066: a story prompt opens with the shared story context, then its own instructions: both are system messages.
+const system = (messages: Messages) =>
+  messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
 const beatPath = "/runs/:run/chapters/:key/beats/:i";
 const node = (i: number) => ({ key: "main-1", i: String(i) });
 const labels = (t: World, label: string) =>
@@ -356,13 +361,13 @@ test("a walkout opens a major grievance, or a rupture at low trust; a standoff c
   assert.deepEqual(read.body.grants, [{ source: "beat", starlight: 30 }]);
   assert.equal((await walkout.state()).lis[KAI]!.points, 930, "the argument's read keeps its normal reward only");
 
-  const cold = await fightWorld("r-cold-aaaaaa", { kai: { trust: -2, points: 900, stage: 2 } });
+  const cold = await fightWorld("r-cold-aaaaaa", { kai: { trust: -2, points: 750, stage: 2 } });
   await play(cold, ["press", "press", "press"]);
   kai = (await cold.state()).lis[KAI]!;
   assert.equal(kai.grievances[0]!.severity, "rupture");
   assert.equal(kai.rupture?.grievanceId, kai.grievances[0]!.id);
   assert.equal(kai.stage, 2, "nothing unlocked is taken back");
-  assert.equal(kai.points, 900, "the reached level's floor survives a rupture");
+  assert.equal(kai.points, 750, "the reached level's floor (level 4) survives a rupture");
   const story = await cold.call("GET", "/runs/:run/story");
   assert.equal(story.body.routes[0].next.blockedBy, "rupture");
   assert.equal(story.body.repairs[0].li, KAI);

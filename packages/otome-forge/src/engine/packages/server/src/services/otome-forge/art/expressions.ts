@@ -7,13 +7,13 @@
 // image and each face is filed as it lands; a failed set, or one a restart left pending, is never repainted until
 // expressions are turned on again after it (images.expressionsSince), and then only its missing faces; turning
 // expressions off parks the set as stopped before the next paid call. Only love interests get faces in R1, so the
-// cast holds no protagonist. Every face carries the world's image rating and an adult tag (art/prompts.ts).
+// cast holds no protagonist. Every face carries the world's image rating and an adult tag (S/prompts.ts expressionPrompt).
 //
 // The kit builds one paint per unit; its client is made per run here, so each face's prompt reads that run's world
 // (rating, style) right before the call. createOtomeArt is created once per activation: queueExpressions after each
-// beat is served, queueScenePaints after each beat is written (art/cg.ts), dispose on teardown, after which nothing
-// more is paid for.
-import { forgeLocalAvatarPath } from "@forge-kit/image-avatar-references.mjs";
+// beat is served, queueScenePaints for a beat's places and CG once written and prepareSceneCg for a CG still without
+// a record once served (art/cg.ts), dispose on teardown, after which nothing more is paid for. queueStickers (#2044, art/stickers.ts) runs
+// each run's sticker chain from GET /runs/:run.
 import { createForgeStoryExpressions, type ForgeStoryExpressions } from "@forge-kit/story-expressions-server.mjs";
 import type { Beat, Paint, Unit, World } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import { FACE_LOOKS, FACES, type Face } from "../../../../../client/src/features/otome-forge/shared/faces.js";
@@ -21,12 +21,15 @@ import { OTOME_FORGE_PACKAGE_ID, runDocTarget, unitId, worldId } from "../ids.js
 import { OtomeForgeError } from "../http.js";
 import { wornLookUrl } from "../schemas/common.js";
 import { normalizeUnit } from "../schemas/unit.js";
+import { readCastUnits } from "../schemas/state.js";
 import { normalizeWorld } from "../schemas/world.js";
-import { queueScenePaints, releaseBeatArt } from "./cg.js";
+import { queueScenePaints, releaseBeatArt, startBeatCg } from "./cg.js";
+import { engineArtPath } from "./engine-art.js";
 import { galleryRef, worldStyle, type GeneratedImage } from "./image-client.js";
 import { imagesOf, paintSlot, updateIfChanged, type ArtDeps } from "./paint.js";
 import { paintBeatPlaces, type PaintOptions } from "./places.js";
-import { LOOK_SIZE, expressionPrompt, type ImagePrompt } from "./prompts.js";
+import { type ImagePrompt, LOOK_SIZE, expressionPrompt } from "../prompts.js";
+import { queueStickers, type StickerQueueOptions } from "./stickers.js";
 
 export type ExpressionPrompts = Partial<Record<Face, ImagePrompt>>;
 
@@ -40,7 +43,7 @@ export async function expressionPromptsFor(deps: ArtDeps, runId: string, li: str
   if (!world.images.connectionId) throw new OtomeForgeError(503, "Choose an image connection first.", "no-connection");
   if (!world.images.expressions) throw new OtomeForgeError(409, "Turn expressions on first.", "conflict");
   const base = baseOf(unit);
-  if (!base || !forgeLocalAvatarPath(base)) throw new OtomeForgeError(409, "Paint this look first.", "conflict");
+  if (!base || !engineArtPath(base)) throw new OtomeForgeError(409, "Paint this look first.", "conflict");
   const style = await worldStyle(imagesOf(deps), world.images);
   return {
     base,
@@ -67,11 +70,22 @@ export interface OtomeArt {
   queueExpressions(runId: string, beat: ExpressionBeat, options: { debugMode: boolean }): void;
   /**
    * Paints the beat's new places and its CG in the background, or leaves them waiting for the tap (Ask before
-   * painting, or `review`). Call it once after a beat is written or rewritten; do not await it. It never rejects.
+   * painting, or `review`). The beat writer calls it with the places once a beat is written or rewritten; do not await
+   * it. It never rejects.
    */
   queueScenePaints(runId: string, beat: Beat, options: Omit<PaintOptions, "active">): Promise<void>;
   /** Called outside the run queue before a fresh scene answers; only registration is awaited, never paid images. */
   prepareScenePlaces?(runId: string, beat: Beat, options: Omit<PaintOptions, "active">): Promise<void>;
+  /**
+   * Called as a beat being read is served: writes its CG's record (pending, or waiting for the tap) and resolves the
+   * beat with it, the paid paint going on in the background. A CG with a record is left as it is; it never rejects.
+   */
+  prepareSceneCg?(runId: string, beat: Beat, options: Omit<PaintOptions, "active">): Promise<Beat>;
+  /**
+   * #2044: paints the run's owed stickers one at a time in the background (or leaves them waiting for the tap). Call
+   * it on each read of the run; it never rejects, and resolves once the chain ends.
+   */
+  queueStickers?(runId: string, options: Omit<StickerQueueOptions, "active">): Promise<void>;
   /** A beat replaced by a rewrite or removed: deletes its CG's gallery image unless the album keeps it. */
   releaseBeatArt(runId: string, beat: Pick<Beat, "cg">): Promise<void>;
   /** False once torn down: an item's paint (M4, S/art/outfits.ts) still waiting in its lane stops before its paid call. */
@@ -154,10 +168,7 @@ export function createOtomeArt(deps: ArtDeps): OtomeArt {
           return unit ? { id, data: unit } : null;
         },
         async list() {
-          return (await store.listRun("unit", runId)).map((record) => ({
-            id: record.id,
-            data: normalizeUnit(record.data),
-          }));
+          return (await readCastUnits(store, runId)).map((unit) => ({ id: unitId(runId, unit.id), data: unit }));
         },
       },
       packageId: OTOME_FORGE_PACKAGE_ID,
@@ -192,7 +203,8 @@ export function createOtomeArt(deps: ArtDeps): OtomeArt {
       debug: () => debugMode.get(runId) === true || runtime.isDebugAgentsEnabled(),
       names: FACES,
       looks: FACE_LOOKS,
-      localAvatarPath: forgeLocalAvatarPath,
+      // #2147: an Engine sprite base too, so only its missing faces are painted (S/art/engine-art.ts).
+      localAvatarPath: engineArtPath,
       logPrefix: "[otome-forge]",
       scopeName: "otome-forge-expressions",
     });
@@ -219,7 +231,7 @@ export function createOtomeArt(deps: ArtDeps): OtomeArt {
         const run = await readRun(runId);
         if (!run || disposed) return;
         // Love interests only: the kit matches each line's speaker to these names.
-        const cast = (await store.listRun("unit", runId)).map((record) => ({ name: normalizeUnit(record.data).name }));
+        const cast = (await readCastUnits(store, runId)).map((unit) => ({ name: unit.name }));
         expressionsOf(runId).queue(runId, run, cast, beat);
       })().catch((error: unknown) =>
         runtime.logger.warn(
@@ -234,7 +246,11 @@ export function createOtomeArt(deps: ArtDeps): OtomeArt {
       disposed
         ? Promise.resolve()
         : paintBeatPlaces(deps, runId, beat.places, { ...options, active, registrationOnly: true }),
+    prepareSceneCg: async (runId, beat, options) =>
+      disposed ? beat : (await startBeatCg(deps, runId, beat, { ...options, active })).beat,
     releaseBeatArt: (runId, beat) => releaseBeatArt(deps, runId, beat),
+    queueStickers: (runId, options) =>
+      disposed ? Promise.resolve() : queueStickers(deps, runId, { ...options, active }),
     active,
     dispose() {
       disposed = true;

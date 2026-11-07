@@ -27,6 +27,19 @@
 // them behind (`exits`), so the beat, CG beat, confrontation and closer digests moved.
 // #2030: a Confrontation's and a Closer's option labels speak to the player as "you", never "she", so the confrontation
 // and closer digests moved.
+// 0.6.22 (#2054): the shared writing rules say a love interest may be genuinely evil, as dark as the story's Darkness
+// allows, and that taming them is the point,
+// and keeps whatever red lines they have (they may have none); falling for the protagonist does not make a monster good
+// at once. Angst no longer sanitizes cruelty and lets a love interest be a villain to everyone else; the planners read
+// "even if a monster", not "inside" one. Every story and banner digest moved once.
+// 0.6.25 (#2061): the maintainer's own edit of the shared writing rules (a love interest wants something besides the
+// protagonist in every chapter; the knowledge and canon rules shortened), so every story and banner digest moved once.
+// #2066: the chapter plan, beat, CG beat, confrontation and closer use the cached layout (the shared story context first,
+// with the whole cast's contract; each node's own rules after the cached part), so those digests moved once; the
+// route, repair and banner prompts are untouched.
+// 0.8.7: the arc and chapter planners read the player's premise in one line after the setting (the maintainer's: only
+// they get it), so the chapter, route and repair plan digests moved, by that line alone; the scenes, Confrontations,
+// Closers and banners are untouched (otome-forge-knowledge's 0.8.7 world test pins both).
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -40,28 +53,26 @@ import {
   type ContentSettings,
 } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/content.ts";
 import {
+  type BeatMessagesInput,
+  bannerPlanMessages,
+  beatMessages,
   cgPrompt,
+  chapterPlanMessages,
+  closerMessages,
+  confrontationMessages,
+  datePlanMessages,
   expressionPrompt,
   lookPrompt,
+  otomeContentContract,
   placePrompt,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/prompts.ts";
-import { otomeContentContract } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/content-contract.ts";
-import { storyPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/items/prompts.ts";
-import { datePlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/minigames/date-night.ts";
+  repairPlanMessages,
+  routePlanMessages,
+  storyPlanMessages,
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import { normalizePlayer } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/player.ts";
 import { normalizeState } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/state.ts";
 import { normalizeUnit } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/unit.ts";
 import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
-import {
-  beatMessages,
-  chapterPlanMessages,
-  closerMessages,
-  confrontationMessages,
-  repairPlanMessages,
-  routePlanMessages,
-  type BeatMessagesInput,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/prompts.ts";
-import { bannerPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/prompts.ts";
 import { CAST, HE, KAI, MIR, SHE, bible } from "./fixtures/otome-forge-story.ts";
 
 const gentle: ContentSettings = { ...defaultContent(), darkness: "gentle", limits: { ...LIMIT_DEFAULTS.gentle } };
@@ -105,7 +116,7 @@ function storyPrompts(content: ContentSettings): Record<string, string> {
   const beat = (changes: Partial<ChapterNode>) => {
     const one = node(changes);
     return text(
-      beatMessages({ world, player, units, state, chapter: chapter([one]), node: one, storySoFar: "", memory: "" }),
+      beatMessages({ world, player, units, state, chapter: chapter([one]), node: one, storySoFar: [], memory: "" }),
     );
   };
   const fight = node({ kind: "confrontation", cg: true });
@@ -137,7 +148,7 @@ function storyPrompts(content: ContentSettings): Record<string, string> {
         state,
         chapter: chapter([fight]),
         node: fight,
-        storySoFar: "",
+        storySoFar: [],
         memory: "",
         li: KAI,
       }),
@@ -150,7 +161,7 @@ function storyPrompts(content: ContentSettings): Record<string, string> {
         state,
         chapter: chapter([close]),
         node: close,
-        storySoFar: "",
+        storySoFar: [],
         memory: "",
         li: KAI,
       }),
@@ -180,7 +191,7 @@ test("chapter and scene prompts keep emotional payoffs occasional and permit cha
       cast: [KAI],
     }));
     const scene = (chapter: BeatMessagesInput["chapter"]) =>
-      text(beatMessages({ ...input, chapter, node: chapter.nodes[0]!, storySoFar: "", memory: "" }));
+      text(beatMessages({ ...input, chapter, node: chapter.nodes[0]!, storySoFar: [], memory: "" }));
     const sideStory = { kind: "story" as const, li: KAI, lead: KAI, title: "Rain", nodes };
     const prompts = {
       ...storyPrompts(content),
@@ -243,28 +254,28 @@ test("chapter and scene prompts keep emotional payoffs occasional and permit cha
 });
 
 const EXPECTED_ANGST: Record<string, string> = {
-  bannerHis: "fb4747abddc9e10f",
-  bannerMemories: "46835995ce89e296",
-  bannerMine: "a2a84917627d0a0e",
-  beat: "b9d41f52d74d34e5",
-  beatWithCg: "e11fb5968884ff3e",
-  chapterPlan: "74761bd5e5df5cd5",
-  closer: "02a539da5c6abab6",
-  confrontation: "ec2661b784e78c25",
-  repairPlan: "d7ab0afffa32c5c2",
-  routePlan: "2c67d3b53c9ef867",
+  bannerHis: "e8a06d181974c9ca",
+  bannerMemories: "71bad70b6fa3842a",
+  bannerMine: "109b0762d8bcf329",
+  beat: "26d7ba0dafc6c0bf",
+  beatWithCg: "8161431cbc12789d",
+  chapterPlan: "020f09a8fbf3bacb",
+  closer: "a1a09309945e9e5d",
+  confrontation: "d0a05079393b602d",
+  repairPlan: "e46599b2cc16decd",
+  routePlan: "84b3db7e07fa321b",
 };
 const EXPECTED_GENTLE: Record<string, string> = {
-  bannerHis: "4f63a1ffaf1a18d3",
-  bannerMemories: "b1bef6f3499c9204",
-  bannerMine: "9e5c84b88c22c555",
-  beat: "1605bd5618584203",
-  beatWithCg: "ac045989ddd56ba0",
-  chapterPlan: "6bcb0a19cd26c4fe",
-  closer: "580321b73773a580",
-  confrontation: "cbe64f0437cb7488",
-  repairPlan: "2b00d0b73698377e",
-  routePlan: "b103900d16ec32e9",
+  bannerHis: "5b01874fc4fabd17",
+  bannerMemories: "da2465bc6853ef39",
+  bannerMine: "75d0bd9aebbf79ad",
+  beat: "7ec97d9b201b895e",
+  beatWithCg: "ce1e12d2113f4eab",
+  chapterPlan: "98b6824c925d752b",
+  closer: "54aafc5f0e85bc63",
+  confrontation: "76c943bb55171273",
+  repairPlan: "1128337cb3714cf0",
+  routePlan: "88c0dfed048e180b",
 };
 
 test("the SFW defaults pin scene pacing and earned character change in story and banner prompts", () => {
@@ -294,7 +305,9 @@ test("the SFW defaults' content contracts are the ones every prompt carried befo
     otomeContentContract({ world: inputs(content).world, lis, kind });
   const lines = (...rules: string[]) => [...FIXED, ...rules, ...CLOSING].join("\n");
   const angst = lines(
-    "- Darkness: Angst. Danger is aimed at the world, at the love interests' pasts and at their enemies, never at the protagonist. A love interest may be cold, ruthless with others or frightening, but never threatens or harms the protagonist.",
+    // 0.6.22 (#2054): Angst no longer sanitizes cruelty (within the Lines and Veils), and a love interest may be a
+    // villain to everyone else; the protagonist stays out of harm's way, as before.
+    "- Darkness: Angst. Danger is aimed at the world, at the love interests' pasts and at their enemies, never at the protagonist. Cruelty and violence are not sanitized within the Lines and Veils below, and always have consequences. A love interest may be a villain to everyone else: cold, ruthless with others or frightening, but never threatens or harms the protagonist.",
     SWEAR,
     "- Lines (never written, not even implied): a love interest's violence toward the protagonist; dubious consent; non-consent; pregnancy.",
     "- Veils (may happen only off the page; cut away and show at most the aftermath): gore; captivity; stalking; torture; self-harm.",
@@ -369,7 +382,9 @@ test("SFW images keep their safety prompts and negatives, and tagged faces retai
   };
   const scenery =
     "harbour, night, lanterns, no humans, scenery, wide establishing shot, detailed background, atmospheric lighting";
-  const two = "Kai: tall man, grey eyes; keeper's coat. Ines: short dark hair; oilskin.";
+  // Sentence prompts say how many people to draw (the maintainer's anatomy report, 2026-11-03).
+  const two =
+    "Kai: tall man, grey eyes; keeper's coat. Ines: short dark hair; oilskin. Draw exactly two people, each appearing once, with two arms, two legs and five fingers on each visible hand.";
   const cgTail =
     "cinematic composition, detailed background, dramatic lighting, emotional moment, safe for work, fully clothed";
   assert.deepEqual(

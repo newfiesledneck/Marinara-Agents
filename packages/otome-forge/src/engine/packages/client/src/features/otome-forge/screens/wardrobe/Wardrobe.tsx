@@ -8,6 +8,9 @@
 // {wardrobe} (her new look is noticed by a love interest: P19, written in the background while `noticing`); POST
 // .../wardrobe/show {li, look} → ShowResult (P24). An unopened look is opened here as anywhere else (hooks/use-items).
 // Home (M3) shows the worn looks and HeNoticed (components/HeNoticed.tsx) too; useWearLook is exported for it.
+// #2128: My Wardrobe also lists the gifts bought in Wish's Shop, with how many of each (Date Night gives them), and the
+// figurines bought, each with Play the scene and (#2138) its paint: Painting…, or Paint / Try again as in the Shop
+// (ShopPanel.tsx FigurinePaint); the view's `gifts` and `figurines`, absent from an older server.
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +18,7 @@ import { BookOpen, Check, Heart, House, Paintbrush, RotateCcw, Sparkle, Sparkles
 import { useOtomeApi } from "../../api";
 import { CostHint } from "../../components/CostHint";
 import { Dialog } from "../../components/Dialog";
+import { FigurineArt, GIFT_NAME_KEYS, GiftArt } from "../../components/GiftArt";
 import { HeNoticed } from "../../components/HeNoticed";
 import { LookImage } from "../../components/LookImage";
 import { ImageDescription } from "../../components/ImageDescription";
@@ -34,26 +38,30 @@ import { runPath } from "../../hooks/use-reader";
 import { accentOf, initialsOf } from "../../lib/accent";
 import type { LiId, RunLiView, RunView } from "../../shared/api-types";
 import { FACES } from "../../shared/faces";
-import type { CoupleSet, LookView, ShowResult, WardrobeOwner, WardrobeView, WearResult } from "../../shared/wardrobe";
+import { GIFT_IDS } from "../../shared/shop";
+import {
+  wardrobeWorking,
+  type CoupleSet,
+  type LookView,
+  type ShowResult,
+  type WardrobeOwner,
+  type WardrobeView,
+  type WearResult,
+} from "../../shared/wardrobe";
 import type { ItemView } from "../../shared/wish";
 import { FACE_LABEL_KEYS } from "../reader/FacePlate";
+import { FigurinePaint } from "../wish/ShopPanel";
 import { OpenCost, PaintReviewDialog, RarityStars } from "../wish/TenPullGrid";
 
-/** While a look paints or a love interest is noticing hers, the wardrobe is read again this often. */
+/** While something in the wardrobe is still on its way (SH/wardrobe.ts wardrobeWorking), it is read again this often. */
 const POLL_MS = 3_000;
-
-const working = (wardrobe: WardrobeView | undefined) =>
-  !!wardrobe &&
-  (wardrobe.noticing ||
-    [...Object.values(wardrobe.him).flat(), ...wardrobe.me].some((look) => look.art?.state === "pending") ||
-    wardrobe.couples.some((couple) => couple.pair?.state === "pending"));
 
 export function useWardrobe(runKey: string) {
   const otome = useOtomeApi();
   return useQuery({
     queryKey: wardrobeQueryKey(runKey),
     queryFn: () => otome.get<WardrobeView>(`${runPath(runKey)}/wardrobe`),
-    refetchInterval: (query) => (working(query.state.data) ? POLL_MS : false),
+    refetchInterval: (query) => (wardrobeWorking(query.state.data) ? POLL_MS : false),
   });
 }
 
@@ -105,20 +113,24 @@ interface WardrobeProps {
   view: RunView;
   /** Opens a look's first-wear scene in the reader. */
   onOpenStory: (key: string) => void;
-  /** Whose looks show first: a love interest, or "me". */
+  /** Whose looks show first: a love interest, or "me" (the first love interest when it names no one in this story). */
   initialOwner?: WardrobeOwner;
+  /** The player picked whose looks to show, so a look's scene read in the reader comes back to them. */
+  onOwnerChange?: (owner: WardrobeOwner) => void;
 }
 
-export function Wardrobe({ runKey, view, onOpenStory, initialOwner }: WardrobeProps) {
+export function Wardrobe({ runKey, view, onOpenStory, initialOwner, onOwnerChange }: WardrobeProps) {
   const { t } = useTranslation();
   const otome = useOtomeApi();
   const group = useId();
   const wardrobe = useWardrobe(runKey);
   const actions = useItemActions(runKey);
   const wearing = useWearLook(runKey);
-  const [owner, setOwner] = useState<WardrobeOwner>(initialOwner ?? view.lis[0]?.id ?? "me");
-  const [showing, setShowing] = useState<LookView | null>(null);
   const owners: WardrobeOwner[] = [...view.lis.map((li) => li.id), "me"];
+  const [owner, setOwner] = useState<WardrobeOwner>(
+    initialOwner && owners.includes(initialOwner) ? initialOwner : (owners[0] ?? "me"),
+  );
+  const [showing, setShowing] = useState<LookView | null>(null);
 
   const head = (
     <div className="of-page-head of-page-head--tight">
@@ -181,7 +193,10 @@ export function Wardrobe({ runKey, view, onOpenStory, initialOwner }: WardrobePr
                 name={group}
                 value={value}
                 checked={checked}
-                onChange={() => setOwner(value)}
+                onChange={() => {
+                  setOwner(value);
+                  onOwnerChange?.(value);
+                }}
               />
               <span className="of-ward-owner-dot" aria-hidden="true">
                 {person ? initialsOf(person.name) : <Sparkles size={12} strokeWidth={2} />}
@@ -238,6 +253,17 @@ export function Wardrobe({ runKey, view, onOpenStory, initialOwner }: WardrobePr
         <p className="of-hint">{t("ui.otomeForge.wardrobe.hint")}</p>
       </section>
 
+      {owner === "me" && (data.gifts || data.figurines) ? (
+        <OwnedGifts
+          runKey={runKey}
+          view={view}
+          wardrobe={data}
+          labelId={`${group}-gifts`}
+          actions={actions}
+          onOpenStory={onOpenStory}
+        />
+      ) : null}
+
       {couples.length ? (
         <section className="of-section of-glass" aria-labelledby={`${group}-couples`}>
           <h2 id={`${group}-couples`} className="of-section-title">
@@ -257,6 +283,85 @@ export function Wardrobe({ runKey, view, onOpenStory, initialOwner }: WardrobePr
       {showing ? <ShowDialog runKey={runKey} view={view} look={showing} onClose={() => setShowing(null)} /> : null}
       <PaintReviewDialog actions={actions} />
     </div>
+  );
+}
+
+/** #2128: the gifts and figurines bought in the Shop, on the Shop's shelf. */
+function OwnedGifts({
+  runKey,
+  view,
+  wardrobe,
+  labelId,
+  actions,
+  onOpenStory,
+}: {
+  runKey: string;
+  view: RunView;
+  wardrobe: WardrobeView;
+  labelId: string;
+  actions: ItemActions;
+  onOpenStory: (key: string) => void;
+}) {
+  const { t } = useTranslation();
+  const gifts = GIFT_IDS.flatMap((gift) => {
+    const count = wardrobe.gifts?.[gift] ?? 0;
+    return count > 0 ? [{ gift, count }] : [];
+  });
+  const figurines = (wardrobe.figurines ?? []).flatMap((entry) => {
+    const li = view.lis.find((candidate) => candidate.id === entry.li);
+    return li ? [{ ...entry, li }] : [];
+  });
+  return (
+    <section className="of-section of-glass" aria-labelledby={labelId}>
+      <h2 id={labelId} className="of-section-title">
+        {t("ui.otomeForge.wardrobe.giftsTitle")}
+      </h2>
+      {gifts.length || figurines.length ? (
+        <ul className="of-shop-shelf of-shop-shelf--tall" aria-labelledby={labelId}>
+          {gifts.map(({ gift, count }) => {
+            const name = t(GIFT_NAME_KEYS[gift]);
+            return (
+              <li key={gift} className="of-shop-slot">
+                <span className="of-shop-stand">
+                  <GiftArt gift={gift} className="of-shop-item" />
+                  <span className="of-shelf-count" aria-hidden="true">
+                    ×{count}
+                  </span>
+                </span>
+                <span className="of-shop-name" aria-hidden="true">
+                  {name}
+                </span>
+                <span className="of-visually-hidden">{t("ui.otomeForge.shop.ownedCount", { name, count })}</span>
+              </li>
+            );
+          })}
+          {figurines.map(({ li, story, ...picture }) => {
+            const name = t("ui.otomeForge.shop.figurineOf", { name: li.name });
+            return (
+              <li key={li.id} className="of-shop-slot" style={{ "--of-li-accent": accentOf(li) } as CSSProperties}>
+                <span className="of-shop-stand">
+                  <FigurineArt li={li} url={picture.url} className="of-shop-item" />
+                </span>
+                <span className="of-shop-name">{name}</span>
+                <button
+                  type="button"
+                  className="of-button of-button--quiet of-glass of-button--small of-shop-buy"
+                  aria-label={t("ui.otomeForge.shop.playSceneLabel", { name: li.name })}
+                  onClick={() => onOpenStory(story.key)}
+                >
+                  <BookOpen size={14} strokeWidth={2} aria-hidden="true" />
+                  {t("ui.otomeForge.shop.playScene")}
+                </button>
+                <FigurinePaint runKey={runKey} view={view} li={li.id} name={name} picture={picture} actions={actions} />
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="of-empty">{t("ui.otomeForge.wardrobe.giftsNone")}</p>
+      )}
+      <p className="of-hint">{t("ui.otomeForge.wardrobe.giftsHint")}</p>
+    </section>
   );
 }
 

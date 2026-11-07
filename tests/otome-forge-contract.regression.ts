@@ -33,10 +33,10 @@ import {
 import {
   COMFORT_RULE,
   CONTRACT_KINDS,
+  type ContractKind,
   otomeContentContract,
   otomeContractReminder,
-  type ContractKind,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/content-contract.ts";
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 
 const LIS = [
   { name: "Kai", presentation: "man" as const },
@@ -102,6 +102,15 @@ test("planner, scene and chat prompts get the full contract; the Dark addition a
     assert.match(dark, /Veils \(may happen only off the page[^\n]*dubious consent/);
   }
   assert.match(contract("scene", { darkness: "angst" }), /never threatens or harms the protagonist/);
+  // #2054: Angst does not sanitize cruelty and lets a love interest be a villain to everyone else; Dark lets one be the
+  // villain; Gentle keeps no menace on the page.
+  assert.match(
+    contract("scene", { darkness: "angst" }),
+    /Cruelty and violence are not sanitized within the Lines and Veils below, and always have consequences\. A love interest may be a villain to everyone else: cold, ruthless with others or frightening, but never threatens or harms the protagonist\./,
+  );
+  assert.match(contract("scene", { darkness: "dark" }), /even a love interest can be a villain, have a dark side/);
+  assert.match(contract("scene", { darkness: "gentle" }), /No menace on the page\./);
+  assert.doesNotMatch(contract("scene", { darkness: "gentle" }), /villain|not sanitized/);
 });
 
 test("every text contract keeps the fixed rules, and the reminder points back at it", () => {

@@ -15,8 +15,11 @@ import type {
   LinePacks,
   PlushArt,
   StageLines,
+  StickerSet,
   Unit,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import { STICKER_EMOTION, STICKERS_PER_LI } from "../../../../../client/src/features/otome-forge/shared/stickers.js";
+import { FACES } from "../../../../../client/src/features/otome-forge/shared/faces.js";
 import {
   BIRTHDAY_PATTERN,
   MASK_TELLS_MAX,
@@ -34,6 +37,7 @@ import {
   defaultPronouns,
   field,
   isRecord,
+  normalizePaints,
   normalizeCutouts,
   readFields,
   readWornOutfit,
@@ -194,19 +198,30 @@ export function normalizeBible(data: unknown): Bible | null {
 const LineList = z.array(z.string().min(1).max(300)).max(12);
 
 const TimesSchema = z.object({ morning: LineList, day: LineList, night: LineList });
+const ZoneFace = z.enum(FACES).optional();
 
+// #2152: cheek, crotch, the contract and faces are optional, so a pack written before 0.14.0 still reads.
 export const StageLinesSchema: ZodType<StageLines> = z.object({
   stage: z.number().int().min(1).max(6),
-  tap: z.object({ head: TimesSchema, hand: TimesSchema, heart: TimesSchema }),
+  tap: z.object({
+    head: TimesSchema,
+    cheek: TimesSchema.optional(),
+    heart: TimesSchema,
+    hand: TimesSchema,
+    crotch: TimesSchema.optional(),
+  }),
   annoyed: LineList,
   cold: LineList,
   at: z.string(),
+  contract: z.string().max(40).optional(),
+  faces: z.object({ head: ZoneFace, cheek: ZoneFace, heart: ZoneFace, hand: ZoneFace, crotch: ZoneFace }).optional(),
 });
 
 export const FixedLinesSchema: ZodType<FixedLines> = z.object({
   comfort: LineList,
   claw: z.object({ cheer: LineList, cheat: LineList, win: LineList, miss: LineList, plush: LineList }),
   at: z.string(),
+  contract: z.string().max(40).optional(),
 });
 
 const STAGE_KEYS: readonly ArcStageKey[] = ["1", "2", "3", "4", "5", "6"];
@@ -218,6 +233,31 @@ export function normalizePlushArt(value: unknown): PlushArt | undefined {
   const animal = value.animal.trim().slice(0, PLUSH_ANIMAL_MAX);
   if (!("svg" in clean) || !animal) return undefined;
   return { animal, svg: clean.svg, at: typeof value.at === "string" ? value.at : "" };
+}
+
+/** His sticker set's design, at most STICKERS_PER_LI. A label counts characters (code points), as the reply's check does. */
+export const STICKER_LABEL_MAX = 24;
+export const STICKER_LOOK_MAX = 160;
+const StickerDesignSchema = z.object({
+  emotion: z.string().regex(STICKER_EMOTION),
+  label: z
+    .string()
+    .min(1)
+    .refine((label) => [...label].length <= STICKER_LABEL_MAX),
+  look: z.string().min(1).max(STICKER_LOOK_MAX),
+});
+
+/** A stored sticker set (#2044): its valid designs in order, and the paints of the emotions it holds. */
+export function normalizeStickerSet(value: unknown): StickerSet | undefined {
+  if (!isRecord(value)) return undefined;
+  const set = validItems(StickerDesignSchema, value.set, STICKERS_PER_LI);
+  if (!set.length) return undefined;
+  const emotions = new Set(set.map((entry) => entry.emotion));
+  return {
+    set,
+    at: typeof value.at === "string" ? value.at : "",
+    art: normalizePaints(value.art, (emotion) => emotions.has(emotion)),
+  };
 }
 
 /** Stored line packs, each stage on its own: one damaged pack is dropped (and written again), the others kept. */
@@ -280,13 +320,18 @@ export function normalizeUnit(data: unknown): Unit {
       lines: normalizeLinePacks,
       cutouts: normalizeCutouts,
       plushArt: normalizePlushArt,
+      figurine: PaintSchema.optional(),
+      stickers: normalizeStickerSet,
     },
     defaultUnit,
     isRecord(data) ? data : undefined,
   );
-  // An LI with no pack yet has no `lines` key at all, as before M3; one with no plush drawn, no `plushArt`.
+  // An LI with no pack yet has no `lines` key at all, as before M3; one with no plush drawn, no `plushArt`; one whose
+  // figurine was never set to paint, no `figurine` (#2138; a 0.9.0 SVG `figurineArt` is not read, so it is dropped).
   if (!unit.lines) delete unit.lines;
   if (!unit.plushArt) delete unit.plushArt;
+  if (!unit.figurine) delete unit.figurine;
+  if (!unit.stickers) delete unit.stickers;
   // A worn look that is not one of theirs (a damaged document) wears the base portrait.
   const { wornOutfit: _worn, ...rest } = unit;
   const worn = readWornOutfit(unit.outfits, field(data, "wornOutfit"));

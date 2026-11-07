@@ -28,7 +28,7 @@ import {
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/ids.ts";
 import { normalizeStoryPlan } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/items/character-story.ts";
 import { withCoupleTimeline } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/items/open.ts";
-import type { StoryPlanReply } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/items/prompts.ts";
+import type { StoryPlanReply } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/items/replies.ts";
 import { readMemorySources } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/sources.ts";
 import { registerAlbumRoutes } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/album.ts";
 import { registerItemRoutes } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/routes/items.ts";
@@ -333,7 +333,13 @@ test("an existing owned Snapshot paints its saved vignette once without rewritin
   assert.equal(t.paid.length, 1, "concurrent opens share one paid picture");
   assert.equal(t.paid[0]!.method, "generateBannerArt");
   assert.ok(t.paid[0]!.request.prompt.includes(original.text!), "the legacy vignette remains the scene context");
-  assert.equal(t.paid[0]!.request.units?.length, 2, "only its love interest and protagonist are references");
+  // Only its love interest and protagonist, and only who has a picture to send: this world's love interest has no
+  // card, portrait or look, so only her persona goes (2026-11-03).
+  assert.deepEqual(
+    t.paid[0]!.request.units,
+    [{ kind: "character", personaId: "persona-ines", outfits: [], who: "Ines" }],
+    "only its love interest and protagonist are references",
+  );
   const saved = await t.stored(original.id);
   assert.deepEqual({ ...saved, art: null }, original, "only the saved illustration changes the reward");
   assert.deepEqual(
@@ -585,10 +591,14 @@ test("a Character Story plays privately, and an already-read four-star Moment ga
 
   const written = await t.call("POST", "/runs/:run/chapters/:key/beats/:i", {}, { key, i: "0" });
   assert.equal(written.status, 200, JSON.stringify(written.body));
-  const [system, user] = t.calls[0]!.messages.map((message) => message.content);
+  // #2066: the story context and the narrator's instructions, then the node's task.
+  const system = t.calls[0]!.messages.filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
+  const user = t.calls[0]!.messages.at(-1)!.content;
   assert.ok(user!.includes("Mireille's Character Story"), "P23 names whose side story it is");
   assert.ok(user!.includes("ONE-SCENE side story of Mireille's"));
-  assert.ok(user!.includes("no other love interest appears"));
+  assert.ok(user!.includes("another love interest may appear only when the story truly calls for it"));
   assert.ok(system!.includes(forgeKnowledgeBoundary));
 
   const read = await t.call("POST", "/runs/:run/chapters/:key/beats/:i/read", { segment: 2 }, { key, i: "0" });
@@ -603,8 +613,9 @@ test("a Character Story plays privately, and an already-read four-star Moment ga
   const sources = await readMemorySources(t.store, t.runId);
   const story = sources.find((source) => source.id === key);
   assert.ok(story, "the finished Moment is canon");
-  assert.equal(story.kind, "chat");
-  assert.deepEqual(story.audience, [MIR], "only Mireille may recall it");
+  assert.equal(story.kind, "character-story", "a side story of his, as GF's Character Story");
+  // The fixture's scene has Kai speak in it, so he appears in her Moment and may recall it too (0.8.5 cameos).
+  assert.deepEqual(story.audience, [MIR, KAI], "Mireille, and Kai who speaks in it");
   const snapshot = sources.find((source) => source.content.includes("SNAP-KAI"));
   assert.ok(snapshot, "the owned Snapshot is canon");
   assert.deepEqual(snapshot.audience, [KAI], "a Snapshot is recalled only by its love interest");
@@ -695,6 +706,95 @@ test("Ask before painting and prompt review hold a first open's paint for the ta
   assert.ok(sent.prompt.startsWith("MY OWN WORDS") && sent.prompt.includes("safe for work"));
   assert.ok(sent.negativePrompt.includes("child"), "the adult negatives stay");
   assert.equal(sent.unit.personaId, "persona-ines", "her persona keeps her likeness");
+});
+
+test("her 5★ look gets a first-wear scene with the love interest of its couple set, once, also when opened before", async () => {
+  const t = await itemsWorld("r-herwear-aaaaaa", { images: { ask: true }, replies: [json(beatReply())] });
+  const key = itemStoryKey(ITEMS.herLook.id);
+  const herLook = async (world = t) =>
+    (await world.call("GET", "/runs/:run/wardrobe")).body.me.find(
+      (look: { id: string }) => look.id === ITEMS.herLook.id,
+    );
+  assert.deepEqual([(await herLook()).unopened, (await herLook()).story], [true, null], "its scene waits for its open");
+
+  const opened = await t.open(ITEMS.herLook.id);
+  assert.equal(opened.status, 200, JSON.stringify(opened.body));
+  assert.deepEqual(opened.body.story, { key });
+  assert.deepEqual([t.calls.length, t.paid.length], [0, 0], "no planning call, and Ask holds the look's paint");
+  const chapter = (await t.store.readDoc(chapterId(t.runId, key), normalizeChapter))!;
+  assert.deepEqual([chapter.kind, chapter.li, chapter.lead, chapter.nodes.length], ["story", KAI, KAI, 1]);
+  assert.deepEqual(chapter.nodes[0]!.cast, [KAI], "Kai, whose look it is a couple set with, is in it");
+  const guide = chapter.nodes[0]!.guide;
+  // Her look takes the place of whatever she wears now; Kai keeps his own (the reader pins no look on him).
+  assert.ok(
+    guide.startsWith(
+      'The protagonist wears a new look for the first time, in place of what they wear now: "Lantern Dress" (amber silk dress, lantern earrings).',
+    ),
+    guide,
+  );
+  assert.ok(
+    guide.includes(`It is a couple set with Kai's look "Harbour Night"; Kai wears what "How Kai looks now" says.`),
+    guide,
+  );
+  assert.ok(guide.includes("Kai sees the protagonist in it") && guide.includes("came to have it"), guide);
+  assert.deepEqual(
+    [(await herLook()).story, (await herLook()).unopened],
+    [{ key }, false],
+    "the Wardrobe offers its scene",
+  );
+
+  const written = await t.call("POST", "/runs/:run/chapters/:key/beats/:i", {}, { key, i: "0" });
+  assert.equal(written.status, 200, JSON.stringify(written.body));
+  assert.ok(t.calls[0]!.messages.at(-1)!.content!.includes('"Lantern Dress"'), "P6 writes it from its guide");
+  const read = await t.call("POST", "/runs/:run/chapters/:key/beats/:i/read", { segment: 2 }, { key, i: "0" });
+  assert.equal(read.body.chapterDone, true, JSON.stringify(read.body));
+  const story = (await readMemorySources(t.store, t.runId)).find((source) => source.id === key);
+  assert.ok(story, "the finished scene is canon");
+  assert.deepEqual([story.kind, story.audience], ["character-story", [KAI]], "private to Kai, as his look's beat is");
+
+  const saved = await t.store.readDoc(chapterId(t.runId, key), normalizeChapter);
+  assert.deepEqual((await t.open(ITEMS.herLook.id)).body.story, { key });
+  assert.deepEqual(await t.store.readDoc(chapterId(t.runId, key), normalizeChapter), saved, "a reopen writes nothing");
+  assert.deepEqual([t.calls.length, t.paid.length], [1, 0], "and pays for nothing");
+
+  // Its couple set names only Kai's own his-look5: a pair that is gone, of another kind, or another love interest's is
+  // left out, and the scene is still Kai's.
+  const pairs: Array<Item | null> = [null, { ...ITEMS.hisLook, kind: "his-look4" }, { ...ITEMS.hisLook, li: SOL }];
+  for (const [n, pair] of pairs.entries()) {
+    const lone = await itemsWorld(`r-herpair${n}-aaaaaa`);
+    const id = itemId(lone.runId, ITEMS.hisLook.id);
+    await (pair ? lone.store.mutateDoc(runDocTarget("item", id), normalizeItem, () => pair) : lone.store.removeDoc(id));
+    const reply = await lone.open(ITEMS.herLook.id);
+    assert.deepEqual([reply.status, reply.body.story], [200, { key }], JSON.stringify(reply.body));
+    const scene = (await lone.store.readDoc(chapterId(lone.runId, key), normalizeChapter))!;
+    assert.deepEqual([scene.li, scene.nodes[0]!.cast], [KAI, [KAI]], `pair ${n}`);
+    const text = scene.nodes[0]!.guide;
+    assert.ok(!text.includes("couple set") && !text.includes("Harbour Night"), `pair ${n}: ${text}`);
+    assert.ok(text.includes("in place of what they wear now") && text.includes("Kai sees the protagonist"), text);
+  }
+
+  // Opened before her 5★ look had a scene: painted, with no story. The next open writes it, and paints nothing.
+  const old = await itemsWorld("r-herold-aaaaaa");
+  const art = {
+    state: "ready" as const,
+    at,
+    url: "/api/global-gallery/file/lantern.png",
+    ref: "global-gallery:lantern",
+  };
+  await old.store.mutateDoc(runDocTarget("item", itemId(old.runId, ITEMS.herLook.id)), normalizeItem, () => ({
+    ...ITEMS.herLook,
+    art,
+  }));
+  assert.deepEqual([(await herLook(old)).unopened, (await herLook(old)).wearable], [true, true]);
+  const late = await old.open(ITEMS.herLook.id);
+  assert.equal(late.status, 200, JSON.stringify(late.body));
+  assert.deepEqual(late.body.story, { key });
+  assert.deepEqual([old.calls.length, old.paid.length, old.outfitCalls.length], [0, 0, 0], "nothing is charged again");
+  assert.deepEqual((await old.stored(ITEMS.herLook.id)).art, art, "its painted look is kept");
+  assert.ok(
+    (await old.store.readDoc(chapterId(old.runId, key), normalizeChapter))!.nodes[0]!.guide.includes("couple set"),
+  );
+  assert.deepEqual([(await herLook(old)).story, (await herLook(old)).unopened], [{ key }, false]);
 });
 
 test("without an image connection nothing is claimed or paid, and the Wardrobe still lists every look", async () => {
@@ -803,13 +903,18 @@ test("Wear at home: his new look gets its faces, her new look is noticed once (P
   );
 });
 
-test("Show {{name}}: a line each time, and +20 affection once per look and love interest, within the day's cap", async () => {
+test("Show {{name}}: a line each time on the Messages connection, and +5 affection once per look and love interest, within the day's cap", async () => {
   const lines = ["You chose amber on purpose.", "Again? It still suits you.", "The lamp approves.", "Hm."];
   const t = await itemsWorld("r-m4bshow-aaaaaa", {
     images: { connectionId: null },
     heat: "fade",
     replies: lines.map((text, i) => json({ text, ...(i === 0 ? { face: "flustered" } : { face: "smug" }) })),
   });
+  // Messages has a connection of its own: the line is written on it, not on the story's.
+  await t.store.updateDoc(runDocTarget("world", worldId(t.runId)), normalizeWorld, (world) => ({
+    ...world,
+    connections: { ...world.connections, chat: "conn-messages" },
+  }));
   const show = (li: string, look = ITEMS.herLook.id) => t.call("POST", "/runs/:run/wardrobe/show", { li, look });
 
   const first = await show(KAI);
@@ -817,12 +922,13 @@ test("Show {{name}}: a line each time, and +20 affection once per look and love 
   assert.deepEqual(first.body, {
     line: "You chose amber on purpose.",
     face: "flustered",
-    grants: [{ source: "show-him", li: KAI, affection: 20 }],
+    grants: [{ source: "show-him", li: KAI, affection: 5 }],
   });
+  assert.equal(t.calls[0]!.connectionId, "conn-messages", "on the Messages connection");
   const second = await show(KAI);
   assert.deepEqual(second.body, { line: "Again? It still suits you.", grants: [] }, "an unknown face is dropped");
   let state = await t.state();
-  assert.equal(state.lis[KAI]!.points, 20, "paid once");
+  assert.equal(state.lis[KAI]!.points, 5, "paid once");
   assert.ok(state.lis[KAI]!.firsts["show:my-wardrobe-0-f"]);
 
   const [x, y] = await Promise.all([show(MIR), show(MIR)]);
@@ -991,9 +1097,10 @@ test("the Album lists only what is unlocked: owned Memories, seen and painted CG
   assert.deepEqual(
     album.cgs.map((cg: { key: string; source: string }) => [cg.key, cg.source]),
     [
-      ["main-1/1", "story"],
       [`item:${ITEMS.memory.id}`, "memory"],
+      ["main-1/1", "story"],
     ],
+    "the CGs newest first, the oldest at the bottom",
   );
   assert.deepEqual(album.tells[KAI], ["flinches at the bell"], "the tells of a secret she has learned");
   assert.deepEqual(album.tells[MIR], [], "no tell of a secret still hidden");

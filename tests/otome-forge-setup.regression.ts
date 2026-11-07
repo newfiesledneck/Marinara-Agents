@@ -33,7 +33,10 @@ import type {
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/image-client.ts";
 import { createImageClient } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/image-client.ts";
 import { paintView } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/paint.ts";
-import { lookPrompt } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/art/prompts.ts";
+import {
+  bannedPhrasesRule,
+  lookPrompt,
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import {
   createHandle,
   type OtomeReply,
@@ -61,8 +64,7 @@ import {
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/unit.ts";
 import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
 import { checkBible } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/setup/bible.ts";
-import { WorldPlanSchema } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/setup/prompts.ts";
-import { bannedPhrasesRule } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/writing-rules.ts";
+import { WorldPlanSchema } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/setup/cast.ts";
 import {
   forgeSettled,
   initialForge,
@@ -392,7 +394,7 @@ test("the forge writes the world plan and every bible from the cards and archety
   assert.equal(t.calls.length, 4);
   for (const call of t.calls) {
     assert.equal(call.connectionId, "conn-text");
-    assert.equal(call.options?.temperature, 0.8);
+    assert.equal(call.options?.temperature, undefined, "the connection's own temperature, never one of Otome's");
     assert.match(text(call.messages), /CONTENT CONTRACT/);
     assert.ok(!text(call.messages).includes(forgeKnowledgeBoundary), "planners author the hidden truth");
   }
@@ -655,7 +657,7 @@ test("premise suggestions use the connection the player picked, in their languag
   const suggested = await t.post("/premise/suggest", { language: "Polski", connectionId: "conn-picked" });
   assert.deepEqual(suggested.body, { premise: "Latarnie gasną jedna po drugiej." });
   assert.equal(t.calls[0].connectionId, "conn-picked");
-  assert.equal(t.calls[0].options?.temperature, 0.9);
+  assert.equal(t.calls[0].options?.temperature, undefined);
   assert.equal(t.calls[0].options?.maxTokens, 4096, "GF's floor and headroom, within the connection's cap");
   assert.match(text(t.calls[0].messages), /written in Polski/);
   assert.match(text(t.calls[0].messages), /No real people/);

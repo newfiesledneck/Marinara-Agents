@@ -26,14 +26,27 @@ import {
   READ_ME_WORDS_MAX,
   type NotebookEntry,
 } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/read-me.ts";
-import { careNoteMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/care/prompts.ts";
+import {
+  type BeatMessagesInput,
+  KNOWN_TOKENS,
+  bannerPlanMessages,
+  beatMessages,
+  careNoteMessages,
+  chapterPlanMessages,
+  chatReplyMessages,
+  closerMessages,
+  confrontationMessages,
+  datePlanMessages,
+  knowsAboutYou,
+  noteMessages,
+  ownView,
+  readHimMessages,
+  repairPlanMessages,
+  routePlanMessages,
+  storyPlanMessages,
+} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import { serveNote } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/home/note.ts";
-import { noteMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/home/prompts.ts";
-import { storyPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/items/prompts.ts";
-import { datePlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/minigames/date-night.ts";
-import { readHimMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/minigames/read-him.ts";
 import { sendMessage } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/phone/chat.ts";
-import { chatReplyMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/phone/prompts.ts";
 import { normalizePlayer } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/player.ts";
 import {
   defaultLiState,
@@ -41,19 +54,6 @@ import {
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/state.ts";
 import { normalizeUnit } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/unit.ts";
 import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/schemas/world.ts";
-import {
-  beatMessages,
-  chapterPlanMessages,
-  closerMessages,
-  confrontationMessages,
-  KNOWN_TOKENS,
-  knowsAboutYou,
-  ownView,
-  repairPlanMessages,
-  routePlanMessages,
-  type BeatMessagesInput,
-} from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/prompts.ts";
-import { bannerPlanMessages } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/wish/prompts.ts";
 import {
   CAST,
   HE,
@@ -134,7 +134,7 @@ function ownPrompts(li: LiId, notebooks?: Partial<Record<LiId, NotebookEntry[]>>
   const unit = unitOf(units, li);
   const own = ownView(state, li).liState;
   const scene = (chapter: BeatMessagesInput["chapter"]) =>
-    text(beatMessages({ ...input, chapter, node: chapter.nodes[0]!, storySoFar: "", memory: "" }));
+    text(beatMessages({ ...input, chapter, node: chapter.nodes[0]!, storySoFar: [], memory: "" }));
   const arc = { ...input, li, memory: "" };
   const fight: ChapterNode = { i: 0, kind: "confrontation", guide: "Ines confronts them.", cast: [KAI, MIR] };
   return {
@@ -196,7 +196,7 @@ function ownPrompts(li: LiId, notebooks?: Partial<Record<LiId, NotebookEntry[]>>
         ...input,
         chapter: { kind: "main", number: 2, title: "Rain", lead: li, foil: li === KAI ? MIR : KAI, nodes: [fight] },
         node: fight,
-        storySoFar: "",
+        storySoFar: [],
         memory: "",
         li,
       }),
@@ -214,7 +214,7 @@ function ownPrompts(li: LiId, notebooks?: Partial<Record<LiId, NotebookEntry[]>>
           nodes: [{ ...fight, kind: "closer" }],
         },
         node: { ...fight, kind: "closer" },
-        storySoFar: "",
+        storySoFar: [],
         memory: "",
         li,
       }),
@@ -246,7 +246,7 @@ test("a main-chapter scene carries each present love interest's own notebook bes
   const input = inputs();
   const node: ChapterNode = { i: 0, kind: "beat", guide: "Rain on the quay.", cast: [KAI, MIR] };
   const chapter = { kind: "main" as const, number: 2, title: "Rain", lead: KAI, foil: MIR, nodes: [node] };
-  const prompt = text(beatMessages({ ...input, chapter, node, storySoFar: "", memory: "" }));
+  const prompt = text(beatMessages({ ...input, chapter, node, storySoFar: [], memory: "" }));
   // Each card block (id line, card, what stands between them, then their notebook) is its own paragraph.
   const block = (li: LiId) => prompt.split("\n\n").find((part) => `\n${part}`.includes(`\nid ${li}:\n`)) ?? "";
   const kai = block(KAI);
@@ -379,7 +379,7 @@ test("the story routes, the Home note and a Messages reply pass each love intere
   const replies = Array.from(
     { length: 20 },
     () => (messages: CapabilityLanguageModelMessage[]) =>
-      messages[0]!.content.includes("chapter planner")
+      messages.some((message) => message.content.includes("chapter planner"))
         ? json(planReply())
         : messages[0]!.content.includes("message of the day")
           ? json({ text: "The lamp room was warm today.", face: "tender", mood: { word: "calm", reason: "quiet" } })

@@ -21,7 +21,7 @@
 // plus Lines and Veils, whatever the Heat). It sees his scene card (never an unrevealed secret's truth), his mask tells
 // by index, what stands between them, his own notebook (Read Me, #1945: what he has come to know about the
 // protagonist), one thing he may know from his own recall, and the moments of his last sets so none repeats. The state
-// reaches it as his own reader may know it (story/prompts.ts ownView, M3's rule): no grievance, disclosure or ledger
+// reaches it as his own reader may know it (S/prompts.ts ownView, M3's rule): no grievance, disclosure or ledger
 // line another love interest's own chapter left behind. Prompts are English and never localized;
 // the set is written in the world's language.
 import { randomInt } from "node:crypto";
@@ -32,17 +32,14 @@ import { z, type ZodType } from "zod";
 import type {
   ActivityGrant,
   LiId,
-  LiState,
-  Player,
   RunState,
   Unit,
-  World,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import {
   AFFECTION_EARNINGS,
   STARLIGHT_EARNINGS,
 } from "../../../../../client/src/features/otome-forge/shared/economy.js";
-import { FACES, isFace, type Face } from "../../../../../client/src/features/otome-forge/shared/faces.js";
+import { isFace, type Face } from "../../../../../client/src/features/otome-forge/shared/faces.js";
 import { wordCount } from "../../../../../client/src/features/otome-forge/shared/home.js";
 import {
   READINGS_MAX,
@@ -54,26 +51,19 @@ import {
   type ReadHimPaid,
   type ReadHimSetView,
 } from "../../../../../client/src/features/otome-forge/shared/read-him.js";
-import { otomeContentContract, otomeContractReminder } from "../content-contract.js";
-import { generateJson, readOrGenerate, type GenerationDeps, type OtomeMessage } from "../generation.js";
-import { NO_ABSENCE_RULE } from "../home/prompts.js";
+import { generateJson, readOrGenerate, type GenerationDeps } from "../generation.js";
 import { OtomeForgeError } from "../http.js";
 import { runDocTarget, stateId, unitId, worldId } from "../ids.js";
 import type { OtomeMemory } from "../memory/memory.js";
-import { otomeSceneCard } from "../scene-card.js";
 import { STATE_LIMITS, clipText, keepNewest, keepTimeline, normalizeState, readRun } from "../schemas/state.js";
 import { normalizeUnit } from "../schemas/unit.js";
 import { normalizeWorld } from "../schemas/world.js";
 import { grant } from "../state/rewards.js";
 import type { OtomeStore } from "../store.js";
-import { betweenYou, knowsAboutYou, ownView } from "../story/prompts.js";
-import { otomeWritingRules } from "../writing-rules.js";
-import { aboutLine } from "../schemas/player.js";
+import { READ_HIM_WORDS, ownView, readHimMessages } from "../prompts.js";
+import { assertFreeToDate, assertNotHeld } from "./date-night.js";
 
-export const READ_HIM_TEMPERATURE = 0.9;
 export const READ_HIM_MAX_TOKENS = 2400;
-/** Word limits a round's fields keep (P25); a reply over them gets the repair turn. */
-export const READ_HIM_WORDS = { context: 60, line: 40, reading: 16, thought: 60 } as const;
 /** His earlier sets whose moments P25 sees, so a new set never repeats them. */
 const RECENT_SETS = 2;
 /** One recalled line: about this many tokens of his top memory. */
@@ -334,96 +324,6 @@ export function shuffleRound(round: ReadHimReplyRound, random: (below: number) =
   };
 }
 
-export interface ReadHimPromptInput {
-  world: Pick<World, "content" | "images" | "language" | "setting" | "premise" | "writingStyle" | "bannedPhrases">;
-  player: Pick<Player, "name" | "pronouns" | "about">;
-  unit: Pick<Unit, "name" | "pronouns" | "bible">;
-  /** His state as his own reader may know it (ownView). */
-  liState: LiState;
-  /** One thing he may know, from his own recall (reader: him), or "". */
-  recalled: string;
-  /** His newest relationship and off-screen ledger lines among those he may know (ownView). */
-  lately: string[];
-  /** The moments of his last sets, newest first, so none repeats. */
-  recent: readonly string[];
-}
-
-const pronounText = (pronouns: Unit["pronouns"]) => `${pronouns.subject}/${pronouns.object}/${pronouns.possessive}`;
-
-/** P25: the five rounds of one Read Him set, as `messages` in the plan's order (§1.7). */
-export function readHimMessages({
-  world,
-  player,
-  unit,
-  liState,
-  recalled,
-  lately,
-  recent,
-}: ReadHimPromptInput): OtomeMessage[] {
-  const name = unit.name;
-  const tells = unit.bible?.mask.tells ?? [];
-  const known = knowsAboutYou(unit, liState);
-  const system = [
-    `You write one set of "Read ${name}", a mini-game in an otome visual novel. Each round is a small moment with ${name}: what ${name} says and the face ${name} wears saying it. The player picks which of three or four readings is what ${name} really feels; then ${name}'s private thought is revealed.`,
-    "Reply with ONLY a JSON object of this shape:",
-    `{"rounds": [{"context": "...", "line": "...", "face": "${FACES.join("|")}|", "readings": ["...", "...", "..."], "trueIndex": 0, "thought": "...", "tell": 0}]}`,
-    "FIELDS",
-    `- rounds: exactly ${READ_HIM_ROUNDS} rounds, each a different small moment.`,
-    `- context: the moment in one or two sentences, to "you" (the protagonist), present tense, at most ${READ_HIM_WORDS.context} words. When the round has a tell, the context shows it plainly in your own words, without calling it a tell.`,
-    `- line: what ${name} says to the protagonist, at most ${READ_HIM_WORDS.line} words, in ${name}'s own voice.`,
-    `- face: the face ${name} wears saying it, one of ${FACES.join(", ")}, or "" for a plain look. It may contradict the line.`,
-    `- readings: ${READINGS_MIN} or ${READINGS_MAX} short readings of what ${name} really feels, each at most ${READ_HIM_WORDS.reading} words, all different. Exactly one is true; the others are plausible decoys: what the words, the face or the mask would make someone believe.`,
-    "- trueIndex: the index, from 0, of the true reading in readings.",
-    `- thought: ${name}'s private thought in that moment, in the first person and ${name}'s own register, at most ${READ_HIM_WORDS.thought} words. It shows the true reading without quoting it.`,
-    "- tell: the index of the mask tell (from the MASK TELLS list) that gives the true feeling away in this round, or null. Use at least two different tells across the set.",
-    "RULES",
-    "- The decoys are believable: a player who reads the moment closely can find the truth, and one who skims cannot.",
-    "- Vary the truths: in at least one round the plain meaning of the words is the true one, and in another the face is what lies.",
-    `- The truth is a feeling of this moment, never a fact the card or the bible already states: a round the player can answer from what was already said about ${name} is a bad round.`,
-    `- Fit stage ${liState.stage}: only what ${name} lets show at this stage, and only feelings ${name} would have.`,
-    "- No spoilers: a thought never states a hidden secret or anything the protagonist has not learned; a hidden secret may show only as a tell.",
-    "- Small moments only: nothing in a round changes the story, and no new event happens because of it.",
-    `- ${NO_ABSENCE_RULE}`,
-    `- Write every field in ${world.language}.`,
-    "",
-    otomeWritingRules({ story: true, style: world.writingStyle, banned: world.bannedPhrases }),
-    "",
-    otomeContentContract({ world, lis: [{ name }], kind: "home" }),
-  ].join("\n");
-  const user = [
-    "WORLD",
-    world.setting.trim() || world.premise.trim(),
-    "",
-    "PROTAGONIST",
-    `${player.name || "The protagonist"} (${pronounText(player.pronouns)}), addressed as "you". Never assume a gender the pronouns do not state.`,
-    aboutLine(player),
-    "",
-    "LOVE INTEREST",
-    otomeSceneCard(unit, liState),
-    betweenYou(unit, liState),
-    ...(known ? [known] : []),
-    "",
-    "MASK TELLS (by index)",
-    ...tells.map((tell, index) => `${index}: ${tell}`),
-    lately.length ? `\nLately: ${lately.join(" ")}` : "",
-    recalled.trim()
-      ? `\nWhat ${name} may know of the story (${name} remembers only what ${name} was there for or was told):\n${recalled.trim()}`
-      : "",
-    recent.length
-      ? `\nRECENT MOMENTS (from earlier sets; do not repeat)\n${recent.map((moment) => `- ${moment}`).join("\n")}`
-      : "",
-    "",
-    `Write the ${READ_HIM_ROUNDS} rounds of Read ${name} now.`,
-    otomeContractReminder("home"),
-  ]
-    .filter((line, index, all) => line !== "" || all[index - 1] !== "")
-    .join("\n");
-  return [
-    { role: "system", content: system },
-    { role: "user", content: user },
-  ];
-}
-
 // ── Start, answer, finish ──
 
 export interface ReadHimDeps extends GenerationDeps {
@@ -455,12 +355,15 @@ export async function recalledLine(
   try {
     const result = await memory.recall({
       runId,
-      job: "structured",
+      job: "narration",
       reader: unit.id,
+      // No timeline here: his own Character Stories come as recalls (S/memory/memory.ts).
+      ownStories: true,
       query: { cues, speakers: [unit.name] },
     });
     if (result.lagging) void Promise.resolve(memory.maintain({ runId, debugMode })).catch(() => undefined);
-    const top = result.status.phase === "ready" ? (result.details[0]?.content ?? "").trim() : "";
+    // #2066: the newest small memory he holds (recalls come in story order).
+    const top = result.status.phase === "ready" ? (result.recalls?.at(-1)?.content ?? "").trim() : "";
     return top ? sliceTextToTokenBudget(top, RECALLED_TOKENS) : "";
   } catch {
     return "";
@@ -505,7 +408,7 @@ export async function startReadHim(
     const tells = unit.bible.mask.tells;
     const { value, connectionId, model } = await generateJson(deps, {
       runId,
-      job: "structured",
+      job: "narration",
       label: `read-him/${li}`,
       messages: readHimMessages({
         world: run.world,
@@ -518,7 +421,6 @@ export async function startReadHim(
       }),
       schema: ReadHimReplySchema,
       normalize: checkReadHimReply(tells.length),
-      temperature: READ_HIM_TEMPERATURE,
       maxTokens: READ_HIM_MAX_TOKENS,
       debugMode,
       lane: "foreground",
@@ -560,7 +462,11 @@ export async function answerReadHim(
   round: number,
   pick: number,
 ): Promise<ReadHimAnswer> {
-  const saved = await deps.store.updateDoc(readHimTarget(runId, setId), normalizeSet, (current) => {
+  const target = readHimTarget(runId, setId);
+  // #2156: an open set waits too while his grievance with her stands (S/minigames/date-night.ts assertFreeToDate).
+  const open = await deps.store.readDoc(target.id, normalizeSet);
+  if (open) await assertFreeToDate(deps.store, runId, open.li);
+  const saved = await deps.store.updateDoc(target, normalizeSet, (current) => {
     if (!current) throw setNotFound();
     const shown = current.rounds[round];
     if (!shown || pick >= shown.readings.length) {
@@ -671,6 +577,8 @@ export async function finishReadHim(
   const state = await deps.store.updateDoc(runDocTarget("state", stateId(runId)), normalizeState, (current) => {
     paid = current.readHim.paid.find((entry) => entry.setId === setId) ?? null;
     if (paid) return current;
+    // #2156: a set waits, unpaid and open, while his grievance with her stands.
+    assertNotHeld(current, set.li);
     const outcome = applyReadHim(current, set, currentTells, { at });
     const amount = (key: "starlight" | "affection") =>
       outcome.grants.reduce((sum, entry) => sum + (entry[key] ?? 0), 0);
@@ -700,7 +608,7 @@ export async function finishReadHim(
  * Where a finished set sits in story order: after the main chapters completed before it, among the side stories by
  * time (S/phone/memory.ts orders a closed phone session the same way).
  */
-function orderOf(state: RunState, finishedAt: string): number {
+export function orderOf(state: RunState, finishedAt: string): number {
   const mainDone = Object.entries(state.chapters).filter(
     ([key, progress]) => key.startsWith("main-") && progress.completed && progress.completed < finishedAt,
   ).length;

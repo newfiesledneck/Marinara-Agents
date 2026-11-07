@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 2,
+  "capabilityApi": {
+    "major": 1,
+    "minor": 12
+  },
+  "builtAgainst": {
+    "engineVersion": "2.5.2",
+    "engineCommit": "11489b413135fb2850c3a4b10df2610244712178"
+  },
+  "id": "wanderworld",
+  "name": "Wanderworld",
+  "version": "0.1.0",
+  "description": "A walkable low-poly 3D world for Game Mode. Early prototype: walk around a seeded landscape with WASD or the on-screen stick, and see where World Maps says your party is.",
+  "engine": {
+    "min": "2.4.5",
+    "maxExclusive": "4.0.0"
+  },
+  "kind": [
+    "agent"
+  ],
+  "entrypoints": {
+    "agents": "agents.json",
+    "client": "client.js"
+  },
+  "contributions": {
+    "slots": [
+      "game-surface"
+    ],
+    "gameSurface": {
+      "surfaceClass": "wanderworld-surface"
+    }
+  },
+  "files": [
+    {
+      "path": "agents.json",
+      "sha256": "fda0f26c1ba7bde0b204bc9b24f22c4e86c0d3a13b3d0491debcb9b18eb840e6",
+      "bytes": 581
+    },
+    {
+      "path": "client.js",
+      "sha256": "da53644eb12c5dbe1261f46d8f9552061a3c791f441ad4cdf980dfddefe8c9e2",
+      "bytes": 556423
+    }
+  ],
+  "permissions": [
+    "chat-read",
+    "ui"
+  ],
+  "restartRequired": false
+}

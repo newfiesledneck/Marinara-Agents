@@ -10,7 +10,7 @@
 // nothing answers only a pointer, nothing animates at reduced motion, new lines reach a polite live region, and dialogs
 // hold focus and give it back.
 // Run: node scripts/run-package-browser-tests.mjs otome-forge tests/package-otome-forge-loop.e2e.ts
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "./fixtures/package-browser.ts";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -433,7 +433,6 @@ function createLoopStub({ seeded = false } = {}) {
     busy: false,
     retry: false,
     sessions: [],
-    suggestions: [],
     seenAt: null,
   });
 
@@ -597,9 +596,28 @@ function createLoopStub({ seeded = false } = {}) {
       const li = lis().find((entry) => entry.id === bibleMatch[1])!;
       return { status: 200, json: { bible: bible(li.name, li.pronouns) } };
     }
+    // A failed summary: Settings → Connections (#2039) and Debug show it with its Retry.
     if (path === `${base}/memory/status`) {
-      return { status: 200, json: { status: { phase: "ready", retryable: false, recordCount: 3 } } };
+      return {
+        status: 200,
+        json: { status: { phase: "error", retryable: true, reason: "generation-failed", recordCount: 3 } },
+      };
     }
+    if (path === `${base}/memory/retry`) {
+      return { status: 200, json: { status: { phase: "pending", retryable: false, recordCount: 3 } } };
+    }
+    // Settings → Connections (#2044): the connections and the daily messages, saved as the server does.
+    if (path === `${base}/settings`) {
+      const { connections, dailyMessages } = call.body!;
+      view.world = {
+        ...view.world,
+        ...(connections ? { connections } : {}),
+        ...(dailyMessages === undefined ? {} : { dailyMessages }),
+      };
+      return { status: 200, json: { world: structuredClone(view.world) } };
+    }
+    // Their heartbeat, once the number is above 0: nothing due in this walk.
+    if (path === `${base}/phone/due`) return { status: 200, json: { status: "waiting", latest: null } };
     if (path === `${base}/favorites`) return { status: 200, json: { favorites: [] } };
 
     // ── Home and the phone ──
@@ -656,7 +674,7 @@ function createLoopStub({ seeded = false } = {}) {
         const mine = { id, who: "player", text, at: now(), ...(quote ? { quote } : {}) };
         const his = { id: `m-r${messages.length}`, who: "li", text: REPLY, at: now() };
         messages.push(mine, his);
-        return { status: 200, json: { messages: [mine, his], suggestions: [] } };
+        return { status: 200, json: { messages: [mine, his] } };
       }
     }
 
@@ -1269,8 +1287,8 @@ test("Otome Hearth's whole loop, by keyboard and pointer: setup, a chapter, Home
       connections: { narration: "conn-text" },
     });
     await expect(root.getByRole("heading", { name: "Your story is ready" })).toBeVisible({ timeout: 30_000 });
-    // Without an image connection the cast stays as initials, and the ready world says so.
-    await expect(root.getByText(/No image connection: your cast appears as initials/u)).toBeVisible();
+    // Without an image connection the cast keeps their Engine art or initials, and the ready world says so.
+    await expect(root.getByText(/Not painting: your cast appears in their Engine avatars and sprites/u)).toBeVisible();
     await auditScreen(page, root, "forge: ready");
     await expect(root.getByText(/Begin plays your prologue first/u)).toBeVisible();
     await root.getByRole("button", { name: "Begin" }).click();
@@ -1372,7 +1390,7 @@ test("Otome Hearth's whole loop, by keyboard and pointer: setup, a chapter, Home
     await expect(root.locator(".of-quote-chip")).toContainText(NOTE);
     await auditScreen(page, root, "phone: thread");
     await root.getByRole("textbox", { name: "Message Ilvar Thorne" }).fill("I left it on for you.");
-    await page.keyboard.press("Enter");
+    await root.getByRole("button", { name: "Send", exact: true }).click();
     const log = root.getByRole("list", { name: "Messages with Ilvar Thorne" });
     await expect(log.getByText(REPLY)).toBeVisible();
     // His reply is said in the thread's polite live region.
@@ -1684,6 +1702,48 @@ test("Otome Hearth's screens around the loop, by keyboard: the cast, a bible, ev
       await expect(tab).toHaveAttribute("aria-selected", "true");
       await expect(root.getByRole("tabpanel")).toBeVisible();
       await auditScreen(page, root, `settings: ${name}`, tab);
+      if (name === "Connections") {
+        // The story memory's status and Retry sit beside the connection that writes the summaries, outside Debug.
+        const memory = root.getByRole("tabpanel").getByRole("region", { name: "Story memory" });
+        await expect(memory).toContainText("A summary failed. Retry when you’re ready.");
+        await memory.getByRole("button", { name: "Retry memory upkeep" }).click();
+        await expect.poll(() => posts(stub, "/memory/retry").length).toBe(1);
+        // Love interests who message you each day (#2044): 0, off, until the player sets it; by keyboard, 0 to 24 only.
+        const panel = root.getByRole("tabpanel");
+        const daily = panel.getByRole("spinbutton", { name: "Love interests who message you each day" });
+        const save = panel.getByRole("button", { name: "Save changes" });
+        await expect(daily).toHaveValue("0");
+        await expect(daily).toHaveAccessibleDescription(/0 turns it off/u);
+        await expect(daily).not.toHaveAttribute("aria-invalid");
+        await expect(save).toHaveAttribute("aria-disabled", "true");
+        await daily.focus();
+        await page.keyboard.type("30");
+        await expect(daily).toHaveAccessibleDescription("Enter a whole number from 0 to 24.");
+        await expect(daily).toHaveAttribute("aria-invalid", "true");
+        await expect(save).toHaveAttribute("aria-disabled", "true");
+        for (let press = 0; press < 4; press += 1) await page.keyboard.press("Backspace");
+        await expect(daily).toHaveValue("");
+        await expect(save).toHaveAttribute("aria-disabled", "true");
+        await page.keyboard.type("2");
+        await page.keyboard.press("ArrowUp");
+        await expect(daily).toHaveValue("3");
+        await expect(daily).not.toHaveAttribute("aria-invalid");
+        await expect(save).toHaveAttribute("aria-disabled", "false");
+        await save.focus();
+        await page.keyboard.press("Enter");
+        await expect
+          .poll(() => posts(stub, "/settings").at(-1)?.body)
+          .toMatchObject({
+            dailyMessages: 3,
+            connections: { narration: "conn-text" },
+          });
+        // Only the daily number changed: its own note, not the connections' one about scenes.
+        await expect(panel.getByText("Saved. Love interests follow it from now on.")).toBeVisible();
+        await expect(daily).toHaveValue("3");
+        await expect(save).toBeFocused();
+        await expect(save).toHaveAttribute("aria-disabled", "true");
+        await auditScreen(page, root, "settings: Connections, saved", tab);
+      }
     }
     await page.screenshot({ path: testInfo.outputPath("settings-debug.png") });
     await root.getByRole("button", { name: "Back", exact: true }).click();

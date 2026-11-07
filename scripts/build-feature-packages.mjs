@@ -203,6 +203,7 @@ const conversationCallsOwnedSourcePaths = [
   "packages/client/src/lib/call-mic-segmenter.ts",
   "packages/client/src/lib/call-speech-queue.ts",
   "packages/server/src/routes/conversation-calls.routes.ts",
+  "packages/server/src/services/conversation/call-character-videos.service.ts",
   "packages/server/src/services/conversation/call-command.ts",
   "packages/server/src/services/conversation/call-transcription.ts",
   "packages/server/src/services/conversation/call-upload.ts",
@@ -495,7 +496,7 @@ const features = [
   },
   {
     id: "slurp2",
-    version: "0.4.15",
+    version: "0.4.18",
     minEngineVersion: "2.4.6",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Slurp",
@@ -725,7 +726,7 @@ const features = [
   {
     id: "conversation-calls",
     name: "Calls",
-    version: "1.1.7",
+    version: "1.1.8",
     minEngineVersion: "2.4.1",
     capabilityApi: PACKAGE_CAPABILITY_API,
     builtAgainst: PACKAGE_BUILT_AGAINST,
@@ -834,7 +835,7 @@ const features = [
   },
   {
     id: "story-writer",
-    version: "0.1.1",
+    version: "0.2.0",
     minEngineVersion: "2.5.1",
     // The browser tab's openConnection prop and the debugMode field of /generate/raw arrived in capability API 1.386.
     capabilityApi: Object.freeze({ major: 1, minor: 386 }),
@@ -866,7 +867,7 @@ const features = [
   },
   {
     id: "otome-forge",
-    version: "0.6.15",
+    version: "0.16.0",
     minEngineVersion: "2.5.1",
     // The browser tab's openConnection prop and the debugMode field of /generate/raw arrived in capability API 1.386.
     capabilityApi: Object.freeze({ major: 1, minor: 386 }),

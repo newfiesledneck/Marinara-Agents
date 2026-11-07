@@ -1,7 +1,8 @@
 // ──────────────────────────────────────────────
 // Otome Forge: the reader's title, scene count, place and content tags. Desktop shows its tools inline; mobile keeps
 // mute, fullscreen and the disclosure visible, with the secondary tools stacked below. Rewrite names its call cost.
-// A place waiting for "Ask before painting" (or failed) offers its paint beside its name, with its cost.
+// A place waiting for "Ask before painting" (or failed) offers its paint beside its name, with its cost, and every place
+// offers a background from the Engine's library (#2147), which paints nothing.
 // ──────────────────────────────────────────────
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +11,7 @@ import {
   EyeOff,
   FastForward,
   Feather,
+  Image as ImageIcon,
   MapPin,
   MoreHorizontal,
   Paintbrush,
@@ -22,7 +24,10 @@ import {
   VolumeX,
   type LucideIcon,
 } from "lucide-react";
-import type { ChapterKind, ChapterView, MomentKind, NodeKind } from "../../shared/api-types";
+import type { ChapterKind, ChapterView, MomentKind, NodeKind, RunLiView } from "../../shared/api-types";
+import { hisSideLiOf } from "../../shared/arcs";
+import { birthdayOfKey } from "../../shared/birthdays";
+import { figurineLiOf } from "../../shared/shop";
 import { FullscreenButton } from "../../components/Stage";
 import { ImageDescription } from "../../components/ImageDescription";
 import { useAudioSnapshot, useOtomeAudio } from "../../hooks/use-otome-audio";
@@ -35,6 +40,28 @@ const KIND_KEYS: Record<Exclude<ChapterKind, "main">, string> = {
   story: "ui.otomeForge.story.kindStory",
   date: "ui.otomeForge.story.kindDate",
 };
+
+/**
+ * A chapter's title as the player reads it. A figurine scene (#2128) or a birthday scene (#2153) has no banner item to
+ * name it, so it is titled in the player's language from its love interest's name (and the birthday's year); its saved
+ * English title is the story's own, for prompts and memory (S/items/character-story.ts). His side (#2155) keeps the
+ * title of the chapter it tells again, and is named as his side of it.
+ */
+export function chapterTitle(
+  t: ReturnType<typeof useTranslation>["t"],
+  chapter: Pick<ChapterView, "key" | "title">,
+  lis: ReadonlyArray<Pick<RunLiView, "id" | "name">>,
+): string {
+  const birthday = birthdayOfKey(chapter.key);
+  const li = birthday?.li ?? figurineLiOf(chapter.key);
+  const name = li ? lis.find((entry) => entry.id === li)?.name : undefined;
+  if (name && birthday) return t("ui.otomeForge.birthday.sceneTitle", { name, year: birthday.year });
+  if (name) return t("ui.otomeForge.shop.sceneTitle", { name });
+  const side = hisSideLiOf(chapter.key);
+  const his = side ? lis.find((entry) => entry.id === side)?.name : undefined;
+  const title = chapter.title || t("ui.otomeForge.story.untitled");
+  return his ? t("ui.otomeForge.arcs.sideChapterTitle", { name: his, title }) : title;
+}
 
 /** A chapter's eyebrow: "Chapter 3", or its kind. */
 export function chapterEyebrowKey(
@@ -92,6 +119,8 @@ function Tool({ label, Icon, onClick, pressed, disabled, className = "" }: ToolP
 
 interface ReaderControlsProps {
   chapter: ChapterView | null;
+  /** The cast, to name a figurine scene (chapterTitle). */
+  lis: ReadonlyArray<Pick<RunLiView, "id" | "name">>;
   node: number | null;
   nodeCount: number;
   replay: boolean;
@@ -101,6 +130,8 @@ interface ReaderControlsProps {
   imageDescription?: string;
   /** The place's picture waits for a tap (consent, or a retry after a failure). */
   placePaint?: { retry: boolean; busy: boolean; onPaint: () => void };
+  /** #2147: opens the Engine's backgrounds for the place, with or without an image connection. */
+  onPlaceBackground?: () => void;
   tags: string[];
   /** The scene is showing (not loading, not the tags card or the end card). */
   reading: boolean;
@@ -238,7 +269,7 @@ export function ReaderControls(props: ReaderControlsProps) {
             ) : null}
           </span>
           <span className="of-reader-name">
-            {chapter ? chapter.title || t("ui.otomeForge.story.untitled") : t("ui.otomeForge.common.loading")}
+            {chapter ? chapterTitle(t, chapter, props.lis) : t("ui.otomeForge.common.loading")}
           </span>
         </h1>
         <div className="of-reader-tools of-reader-primary">
@@ -314,6 +345,22 @@ export function ReaderControls(props: ReaderControlsProps) {
               >
                 <Paintbrush size={12} strokeWidth={2.2} aria-hidden="true" />
                 {t(props.placePaint.retry ? "ui.otomeForge.reader.placeRetry" : "ui.otomeForge.reader.placePaint")}
+              </button>
+            </li>
+          ) : null}
+          {place && props.onPlaceBackground ? (
+            <li className="of-reader-chip-slot">
+              <button
+                type="button"
+                className="of-reader-chip of-reader-chip--background"
+                aria-label={t("ui.otomeForge.reader.placeBackgroundLabel", { place })}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  props.onPlaceBackground?.();
+                }}
+              >
+                <ImageIcon size={12} strokeWidth={2.2} aria-hidden="true" />
+                {t("ui.otomeForge.reader.placeBackground")}
               </button>
             </li>
           ) : null}

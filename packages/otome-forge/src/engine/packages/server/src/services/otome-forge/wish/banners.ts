@@ -8,7 +8,7 @@
 // A month's first rotation (its start day the 1st to the 14th, SH/wish.ts rotationSeason) is seasonal: its three banners
 // are planned on that month's theme and keep it as `season`, which their views (Echoes too) carry for the badge. Any
 // later rotation that month is the planner's free choice, as before; a banner written before 0.6.5 has no season.
-// Creating a banner is one P20 call (S/wish/prompts.ts) in the run's foreground queue (readOrGenerate), so two opens at
+// Creating a banner is one P20 call (S/prompts.ts bannerPlanMessages) in the run's foreground queue (readOrGenerate), so two opens at
 // once write it once: the second finds it stored. Its items are written first and the banner last, so a banner that
 // exists always has its items; ids follow the banner (`memories-3-f`), so a retry after a failed write rewrites the
 // same documents. A run deleted meanwhile gets nothing back: what was written is removed again.
@@ -50,7 +50,7 @@ import {
   type WishOpenResult,
   type WishView,
 } from "../../../../../client/src/features/otome-forge/shared/wish.js";
-import { cgSubjects } from "../art/cg.js";
+import { cgReferences, cgSubjects, warnUnmatched } from "../art/cg.js";
 import { worldStyle, type ImageSubject, type PaintedImage } from "../art/image-client.js";
 import { bannerArtOwner, itemArtOwner } from "../art/outfits.js";
 import {
@@ -63,8 +63,17 @@ import {
   updateIfChanged,
   type PaintCheck,
 } from "../art/paint.js";
-import { LOOK_SIZE, SCENE_SIZE, cgPrompt, lookPrompt, type ImagePrompt } from "../art/prompts.js";
-import { memoryArtBrief } from "../content-contract.js";
+import {
+  type ImagePrompt,
+  LOOK_SIZE,
+  SCENE_SIZE,
+  bannerPlanMessages,
+  cgPrompt,
+  explicitMemoryArt,
+  lookPrompt,
+  memoryArtBrief,
+  momentBriefs,
+} from "../prompts.js";
 import { generateJson, readOrGenerate } from "../generation.js";
 import { itemView } from "../items/open.js";
 import { OtomeForgeError, type RouteDeps } from "../http.js";
@@ -73,20 +82,11 @@ import { normalizeState, readRun, type RunDocuments } from "../schemas/state.js"
 import { normalizeUnit } from "../schemas/unit.js";
 import { normalizeBanner, normalizeItem } from "../schemas/wish.js";
 import { normalizeWorld } from "../schemas/world.js";
-import { withPersonaImageAppearance } from "../setup/prompts.js";
+import { withPersonaImageAppearance } from "../setup/cast.js";
 import type { OtomeStore } from "../store.js";
 import { cancellable } from "../story/beats.js";
 import { recallText } from "../story/canon.js";
-import {
-  BANNER_PLAN_TEMPERATURE,
-  BANNER_PLAN_TOKENS,
-  BannerPlanSchema,
-  bannerPlanMessages,
-  explicitMemoryArt,
-  momentBriefs,
-  normalizeBannerPlan,
-  type BannerPlan,
-} from "./prompts.js";
+import { BANNER_PLAN_TOKENS, BannerPlanSchema, normalizeBannerPlan, type BannerPlan } from "./replies.js";
 
 export type WishDeps = Pick<RouteDeps, "runtime" | "store" | "images" | "memory" | "cancellation">;
 
@@ -385,10 +385,12 @@ async function createBanner(
     featured = wearer;
   }
 
-  // Shared canon only: recall as a scene with nobody in it, so no love interest's own chapter reaches the plan.
+  // Recall as a scene with nobody in it: the overview of the whole timeline (a love interest's own chapter only as the
+  // overview tells it, titled private) and the main story's previous chapter, never his own details.
   const memory = await recallText(deps, runId, {
-    job: "structured",
+    job: "narration",
     cast: [],
+    continues: "main",
     query: { plan: featured.bible?.want ?? "", speakers: cast.map((unit) => unit.name) },
     debugMode: options.debugMode,
     signal: options.signal,
@@ -418,7 +420,7 @@ async function createBanner(
   };
   const { value, connectionId, model } = await generateJson(deps, {
     runId,
-    job: "structured",
+    job: "narration",
     label: `banner-plan/${key}`,
     messages: bannerPlanMessages({
       kind,
@@ -429,15 +431,15 @@ async function createBanner(
       featured,
       ...(partner?.look ? { partnerLook: { ...partner.look, title: partner.title } } : {}),
       earlierTitles,
-      memory,
+      memory: memory.text,
       ...(season ? { season: { id: season, earlierTitles: seasonTitles } } : {}),
     }),
+    memory,
     schema: BannerPlanSchema,
     normalize: (reply) => {
       const plan = normalizeBannerPlan(reply, context);
       return typeof plan === "string" ? plan : reply;
     },
-    temperature: BANNER_PLAN_TEMPERATURE,
     maxTokens: BANNER_PLAN_TOKENS,
     debugMode: options.debugMode,
     lane: "foreground",
@@ -567,22 +569,25 @@ async function buildBannerArt(deps: WishDeps, runId: string, banner: Banner, edi
         style,
         use: explicit ? "cg" : "clothed",
         explicit,
+        references: cgReferences(subjects).labels,
       },
       edited,
     );
     return {
       ...prompt,
-      paint: (connectionId: string, debugMode: boolean): Promise<PaintedImage> =>
-        images.generateBannerArt({
+      paint: (connectionId: string, debugMode: boolean): Promise<PaintedImage> => {
+        warnUnmatched(deps.runtime.logger, `banner ${banner.key}`, subjects);
+        return images.generateBannerArt({
           connectionId,
           // The Engine matches the override as `avatar:<slug of the first person's first name>`.
           name: subjects[0]?.person.name.split(/\s+/)[0] || "Memory",
-          units: subjects.flatMap((subject) => (subject.image ? [subject.image] : [])),
+          units: cgReferences(subjects).units,
           prompt: prompt.prompt,
           negativePrompt: prompt.negativePrompt,
           ...SCENE_SIZE,
           debugMode,
-        }),
+        });
+      },
     };
   }
   // A look on its wearer: his (His Wardrobe) or the protagonist's (My Wardrobe), with the look's outfit line.
@@ -620,7 +625,7 @@ async function buildBannerArt(deps: WishDeps, runId: string, banner: Banner, edi
       images.generatePortrait({
         connectionId,
         name: person.name,
-        unit: subject,
+        unit: { ...subject, who: person.name },
         prompt: prompt.prompt,
         negativePrompt: prompt.negativePrompt,
         ...LOOK_SIZE,

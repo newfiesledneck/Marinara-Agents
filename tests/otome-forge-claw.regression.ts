@@ -361,6 +361,8 @@ test("the play view: today's caps, the shelf, and how each love interest plays",
     style: "Careful and patient, lines it up twice.",
     rupture: false,
     makeItRight: false,
+    held: false,
+    asked: false,
     lines: { claw: { cheer: ["c"], cheat: ["x"], win: ["w"], miss: ["m"], plush: [PLUSH_LINE] }, cold: [] },
   });
   assert.deepEqual(view.lis[MIR], {
@@ -368,6 +370,8 @@ test("the play view: today's caps, the shelf, and how each love interest plays",
     style: "",
     rupture: false,
     makeItRight: false,
+    held: false,
+    asked: false,
     lines: { claw: null, cold: [] },
   });
   // A new local day shows nothing earned yet.
@@ -512,8 +516,14 @@ test("each round is his private memory, recalled only by him, and upkeep makes n
   for (let turn = 0; turn < 2000 && (await memory.status(t.runId)).phase === "pending"; turn += 1) {
     await new Promise((resolve) => setImmediate(resolve));
   }
+  // #2066: a round comes back among the recalls, the newest small memories the prompt may know.
   const recall = async (who: { reader?: string; cast?: string[] }) =>
-    (await memory.recall({ runId: t.runId, job: "chat", query: { cues: ["claw machine plush"] }, ...who })).text;
+    (
+      (await memory.recall({ runId: t.runId, job: "chat", query: { cues: ["claw machine plush"] }, ...who })).recalls ??
+      []
+    )
+      .map((item) => `${item.title}\n${item.content}`)
+      .join("\n");
   assert.match(await recall({ reader: KAI }), /bunny plush/u);
   assert.doesNotMatch(await recall({ reader: KAI }), /Neither of them won/u);
   assert.match(await recall({ reader: MIR }), /Neither of them won/u);

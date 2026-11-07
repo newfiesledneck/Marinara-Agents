@@ -14,7 +14,7 @@
 // a phone thread, a date, a route or a repair chapter of another love interest never reaches it; shared canon is
 // framed as news unless he was there), his latest off-screen line, and his last RECENT_NOTES notes so he does not
 // repeat himself. The ledger lines and his grievances and disclosures are the ones his own reader may know
-// (story/prompts.ts ownView, M2b's rule): none from another love interest's own chapter. Care data is never part of
+// (S/prompts.ts ownView, M2b's rule): none from another love interest's own chapter. Care data is never part of
 // a note.
 import { sliceTextToTokenBudget } from "@forge-kit/shared-token-estimator.mjs";
 import { forgeDayKey, forgeWallDate, forgeWeekday } from "@forge-kit/time-zone-server.mjs";
@@ -27,6 +27,7 @@ import type {
   Unit,
   World,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import { birthdayIn } from "../../../../../client/src/features/otome-forge/shared/birthdays.js";
 import { isFace } from "../../../../../client/src/features/otome-forge/shared/faces.js";
 import {
   MOOD_REASON_WORDS_MAX,
@@ -44,17 +45,9 @@ import type { OtomeMemory } from "../memory/memory.js";
 import { normalizeState, readRun } from "../schemas/state.js";
 import { normalizeWorld } from "../schemas/world.js";
 import type { OtomeStore } from "../store.js";
-import { ownView } from "../story/prompts.js";
-import {
-  NoteReplySchema,
-  QUESTION_MARK,
-  mentionsAbsence,
-  noteMessages,
-  type NoteDay,
-  type NoteReply,
-} from "./prompts.js";
+import { type NoteDay, noteMessages, ownView } from "../prompts.js";
+import { NoteReplySchema, QUESTION_MARK, mentionsAbsence, type NoteReply } from "./replies.js";
 
-export const NOTE_TEMPERATURE = 0.9;
 export const NOTE_MAX_TOKENS = 400;
 /** One recalled line: about this many tokens of his top memory. */
 const RECALLED_TOKENS = 120;
@@ -119,7 +112,10 @@ export function noteDay(
   const wall = forgeWallDate(now);
   const today = forgeDayKey(now);
   const special: string[] = [];
-  if (unit.bible?.birthday === today.slice(5)) special.push(`Today is ${unit.name}'s birthday.`);
+  // #2153: on the day Remind Me shows and celebrates (02-29 on 02-28 in a common year).
+  if (unit.bible && birthdayIn(unit.bible.birthday, Number(today.slice(0, 4))) === today) {
+    special.push(`Today is ${unit.name}'s birthday.`);
+  }
   const began = Date.parse(world.createdAt);
   if (Number.isFinite(began)) {
     const start = forgeDayKey(began);
@@ -180,10 +176,13 @@ async function recalledLine(
       runId,
       job: "chat",
       reader: unit.id,
+      // No timeline here: his own Character Stories come as recalls (S/memory/memory.ts).
+      ownStories: true,
       query: { cues, speakers: [unit.name] },
     });
     if (result.lagging) void Promise.resolve(memory.maintain({ runId, debugMode })).catch(() => undefined);
-    const top = result.status.phase === "ready" ? (result.details[0]?.content ?? "") : "";
+    // #2066: the newest small memory he holds (recalls come in story order).
+    const top = result.status.phase === "ready" ? (result.recalls?.at(-1)?.content ?? "") : "";
     return top.trim() ? sliceTextToTokenBudget(top.trim(), RECALLED_TOKENS) : "";
   } catch {
     return "";
@@ -246,7 +245,6 @@ export async function serveNote(
       }),
       schema: NoteReplySchema,
       normalize: checkNote(curt, recent),
-      temperature: NOTE_TEMPERATURE,
       maxTokens: NOTE_MAX_TOKENS,
       debugMode,
       lane: "foreground",
