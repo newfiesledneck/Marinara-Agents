@@ -166,6 +166,14 @@ Answered during M0 (checked against Agents staging and Engine 2.5.2, 2026-11-07)
 
 Still open:
 
+- **Blocker: the Engine no longer installs code-running Experiences from the catalog.** Since capability
+  API 1.373 (Engine 2.5.x, 2026-10-22), `installCatalogPackage` refuses any catalog entry with a
+  `game-surface` slot unless it is a data-only `.experience.json` file ("no entrypoints, permissions or
+  code"). The only other install route, `POST /api/capability-packages/experience-file`, also takes only
+  data-only Experiences. The Engine still *runs* an installed Experience that has a client entrypoint,
+  but there is no way to install a new one. Pixelforge is in the same position. Found on the first
+  real install attempt (Engine 2.5.2 @ `11489b4`): "Wanderworld is an Experience packaged as a zip."
+  Needs a maintainer answer before M1.
 - Asset source: CC0 low-poly kits (Kenney, Quaternius) bundled, or fully procedural meshes?
 - Talk to thetopham (World Maps) about the XYZ plan, and to kolacheee about Pixelforge's status
   and whether the two should share a brief format.
