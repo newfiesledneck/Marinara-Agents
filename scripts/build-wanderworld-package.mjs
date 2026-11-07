@@ -1,7 +1,7 @@
-// Build the Wanderworld package: bundle its client (with three.js) into one client.js, stamp the
-// manifest, agent stub and English locale, write a reproducible artifact zip, and update the catalog
-// family. Wanderworld is client-only and needs no Engine checkout to build: three.js and esbuild are
-// pinned in this repository's package.json.
+// Build the Wanderworld package, a Home screen game: bundle its client (with three.js) into one
+// client.js, stamp the manifest, agent stub and English locale, write a reproducible artifact zip, and
+// update the catalog family. It is client-only and needs no Engine checkout to build: three.js and
+// esbuild are pinned in this repository's package.json.
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -19,15 +19,15 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.1.0";
-// 1.12: spatial transition commit/reject/refresh events reach the game's own package.
-const CAPABILITY_API = Object.freeze({ major: 1, minor: 12 });
-// The same floor as Pixelforge, which uses every host seam Wanderworld does.
-const ENGINE_MIN = "2.4.5";
+const VERSION = "0.2.0";
+// A client-only Home tab with its own icon, the same floor as Modern Life Sim's Home tab.
+const CAPABILITY_API = Object.freeze({ major: 1, minor: 9 });
+const ENGINE_MIN = "2.4.4";
 const MAX_ENGINE_EXCLUSIVE = "4.0.0";
 const THREE_VERSION = "0.186.1"; // matches the Engine's own three.js
+const TAB_ICON = "wanderworld-icon.webp";
 const BASE_DESCRIPTION =
-  "A walkable low-poly 3D world for Game Mode. Early prototype: walk around a seeded landscape with WASD or the on-screen stick, and see where World Maps says your party is.";
+  "A walkable low-poly 3D world on its own Home tab. Early prototype: walk around a seeded landscape with WASD or the on-screen stick.";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -70,6 +70,7 @@ assertClientHostGates({
   overlayRoot: join(repoRoot, "sources/host-client-overlay"),
 });
 const clientBuffer = Buffer.from(bundled.outputFiles[0].contents);
+const iconBuffer = await readFile(join(packageRoot, TAB_ICON));
 
 // ── Agent definition stub: satisfies the catalog loader; runtime-inert ───────
 const description = withPackageActivationGuidance("wanderworld", BASE_DESCRIPTION);
@@ -83,7 +84,7 @@ const agentDefinition = {
   category: "misc",
   runtimeDisabled: true,
   libraryHidden: true,
-  modeAllowlist: ["game"],
+  modeAllowlist: ["conversation", "roleplay", "game"],
   defaultTools: [],
   defaultSettings: {},
   defaultPromptTemplate: "",
@@ -103,15 +104,16 @@ const manifest = {
   kind: ["agent"],
   entrypoints: { agents: "agents.json", client: "client.js" },
   contributions: {
-    slots: ["game-surface"],
-    gameSurface: { surfaceClass: "wanderworld-surface" },
+    slots: ["home-browser-tab"],
+    homeBrowserTab: { label: "Wanderworld", ariaLabel: "Open Wanderworld", iconPaths: [TAB_ICON] },
   },
   files: [
     { path: "agents.json", sha256: sha256(agentsBuffer), bytes: agentsBuffer.byteLength },
     { path: "client.js", sha256: sha256(clientBuffer), bytes: clientBuffer.byteLength },
+    { path: TAB_ICON, sha256: sha256(iconBuffer), bytes: iconBuffer.byteLength },
   ],
-  // chat-read: the client reads the chat's World Maps state. ui: it draws the Game Mode surface.
-  permissions: ["chat-read", "ui"],
+  // ui: it draws its own Home tab. It reads and writes nothing else.
+  permissions: ["ui"],
   restartRequired: false,
 };
 
@@ -126,6 +128,7 @@ const archive = createDeterministicZip([
   { name: "manifest.json", data: manifestBuffer },
   { name: "agents.json", data: agentsBuffer },
   { name: "client.js", data: clientBuffer },
+  { name: TAB_ICON, data: iconBuffer },
 ]);
 await mkdir(artifactsDir, { recursive: true });
 const artifactName = `wanderworld-${VERSION}.zip`;

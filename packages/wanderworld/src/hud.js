@@ -1,43 +1,73 @@
-// The top-layer overlay: where the party is, a performance readout, and a status line.
-// The Engine's top mount lets clicks through by default, so only the controls take pointer events.
+// The overlay on top of the world: a title bar with the game's buttons, a performance readout, a
+// controls hint and a status line. Only the buttons take pointer events; the rest lets touches through.
 
 const CHIP = "background:rgba(10,14,20,0.62);color:#f3f5f7;border-radius:8px;padding:4px 10px;";
+const BUTTON = `${CHIP}font:600 13px system-ui,sans-serif;border:0;cursor:pointer;pointer-events:auto;`;
 
-export function createHud(root, { onCycleDensity }) {
+function button(label, title, onClick) {
+  const element = document.createElement("button");
+  element.type = "button";
+  element.textContent = label;
+  element.title = title;
+  element.style.cssText = BUTTON;
+  element.addEventListener("click", onClick);
+  return element;
+}
+
+export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen }) {
   const layer = document.createElement("div");
   layer.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif;";
 
   const top = document.createElement("div");
   top.style.cssText =
-    "position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;" +
-    "align-items:center;gap:4px;max-width:calc(100% - 32px);";
+    "position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;";
 
-  const location = document.createElement("div");
-  location.setAttribute("role", "status");
-  location.style.cssText = `${CHIP}font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;`;
+  const title = document.createElement("div");
+  title.textContent = "Wanderworld";
+  title.style.cssText = `${CHIP}font-size:14px;font-weight:700;`;
 
-  const stats = document.createElement("button");
-  stats.type = "button";
-  stats.title = "Frame rate, draw calls and triangles. Tap to change how many trees and rocks are drawn.";
-  stats.style.cssText = `${CHIP}font:12px ui-monospace,monospace;white-space:nowrap;border:0;cursor:pointer;pointer-events:auto;`;
-  stats.addEventListener("click", onCycleDensity);
+  const stats = button(
+    "…",
+    "Frame rate, draw calls and triangles. Tap to change how many trees and rocks are drawn.",
+    onCycleDensity,
+  );
+  stats.style.font = "12px ui-monospace,monospace";
+  stats.style.whiteSpace = "nowrap";
+
+  const spacer = document.createElement("div");
+  spacer.style.flex = "1";
+
+  const fresh = button("New world", "Walk a different seeded world", onNewWorld);
+  const fullscreen = button("Fullscreen", "Fill the screen with the world", onToggleFullscreen);
+  fullscreen.style.display = "none";
+
+  top.append(title, stats, spacer, fresh, fullscreen);
+
+  const hint = document.createElement("div");
+  hint.textContent = "WASD or arrows to walk · Shift runs · Q / E turn the camera";
+  hint.style.cssText = `${CHIP}position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.8;`;
+  // Touch screens get the stick instead of a keyboard hint.
+  if (window.matchMedia?.("(pointer: coarse)").matches) hint.style.display = "none";
 
   const status = document.createElement("div");
   status.style.cssText = `${CHIP}position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;display:none;max-width:80%;text-align:center;`;
 
-  top.append(location, stats);
-  layer.append(top, status);
-  root.replaceChildren(layer);
+  layer.append(top, hint, status);
+  root.append(layer);
 
   return {
     layer,
-    /** `undefined` while the first read is in flight, `null` when there is no World Maps location. */
-    setLocation(name) {
-      location.textContent = name === undefined ? "Finding where you are…" : (name ?? "No World Maps location");
-      location.style.opacity = name ? "1" : "0.7";
-    },
     setStats({ fps, calls, triangles, density }) {
       stats.textContent = `${fps} fps · ${calls} draws · ${Math.round(triangles / 1000)}k tris · ${density}× props`;
+    },
+    /** `control` is the Engine's fullscreen toggle, or null when this Engine has none. */
+    setFullscreen(control) {
+      fullscreen.style.display = control ? "" : "none";
+      if (!control) return;
+      // The Engine passes its own translated labels; fall back to English.
+      fullscreen.textContent = control.active
+        ? (control.exitLabel ?? "Exit fullscreen")
+        : (control.enterLabel ?? "Fullscreen");
     },
     setStatus(text) {
       status.textContent = text ?? "";

@@ -1,32 +1,8 @@
-// Wanderworld M0 logic that runs without a browser: reading the location name out of World Maps replies,
-// trunk collision, and a seeded world that builds at every density.
+// Wanderworld logic that runs without a browser: trunk collision, and a seeded world that builds at
+// every density.
 // Run: node tests/wanderworld.regression.mjs
 import assert from "node:assert/strict";
 import { createCollider, createWorld, DENSITIES } from "../packages/wanderworld/src/world.js";
-import { locationName } from "../packages/wanderworld/src/spatial.js";
-
-// ── locationName ─────────────────────────────────────────────────────────────
-const definition = {
-  revision: 2,
-  locations: [
-    { id: "town", name: "Oakvale" },
-    { id: "inn", name: "The Rusty Anchor" },
-  ],
-};
-assert.equal(
-  locationName({ definition, currentLocationId: "inn", breadcrumb: [{ name: "Oakvale" }, { name: "Market" }] }),
-  "Market",
-  "the breadcrumb's last entry names where the party is",
-);
-assert.equal(
-  locationName({ definition, currentLocationId: "inn" }),
-  "The Rusty Anchor",
-  "without a breadcrumb the current location is looked up in the definition",
-);
-assert.equal(locationName(null), null, "World Maps not installed");
-assert.equal(locationName({ definition: null, currentLocationId: null }), null, "World Maps off for this chat");
-assert.equal(locationName({ definition, currentLocationId: null }), null, "no current location yet");
-assert.equal(locationName({ definition, currentLocationId: "gone" }), null, "an unknown id names nothing");
 
 // ── Collision ────────────────────────────────────────────────────────────────
 const collider = createCollider([

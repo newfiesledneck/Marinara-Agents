@@ -45,7 +45,7 @@ export function createInput() {
   const base = document.createElement("div");
   base.setAttribute("aria-hidden", "true");
   base.style.cssText =
-    `position:absolute;left:16px;bottom:30%;width:${STICK_SIZE}px;height:${STICK_SIZE}px;border-radius:50%;` +
+    `position:absolute;left:24px;bottom:24px;width:${STICK_SIZE}px;height:${STICK_SIZE}px;border-radius:50%;` +
     "background:rgba(0,0,0,0.22);border:2px solid rgba(255,255,255,0.35);pointer-events:auto;touch-action:none;";
   const knob = document.createElement("div");
   knob.style.cssText =

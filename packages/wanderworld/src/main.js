@@ -1,17 +1,16 @@
-// Wanderworld M0: a Game Mode surface that draws a low-poly three.js world and walks a capsule.
+// Wanderworld M0: a Home screen game that draws a low-poly three.js world and walks a capsule.
 //
-// The Engine mounts the same element twice with view="surface" (see Pixelforge's 90-element.js):
-// an underlay behind the narration (props.layer === "underlay") and a main mount above it with the
-// full surface props. The canvas lives in the underlay and the HUD and touch stick in the main
-// mount. Both share this module's one renderer, so a remount never creates a second WebGL context.
+// The Engine mounts this element once, with view="browser", as the package's Home tab. The canvas, the
+// HUD and the touch stick all live inside it. The renderer is created once per page and reused when the
+// tab is closed and reopened, so switching tabs never piles up WebGL contexts.
 import { PerspectiveCamera, Vector3, WebGLRenderer } from "three";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
-import { createSpatial } from "./spatial.js";
 import { createWorld, DENSITIES, hashString, heightAt, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
+const FIRST_SEED = "wanderworld";
 const MAX_PIXEL_RATIO = 1.5; // phones run at up to 3×; 1.5 keeps the fill rate affordable
 const WALK_SPEED = 5; // metres per second
 const RUN_SPEED = 9;
@@ -23,14 +22,14 @@ const STATS_INTERVAL_MS = 500;
 const NO_INPUT = { x: 0, y: 0, run: false, turn: 0 };
 
 const core = {
-  chatId: null,
-  host: null,
-  underlayEl: null,
-  mainEl: null,
+  element: null,
+  props: null,
+  stage: null,
   resizeObserver: null,
   renderer: null,
   camera: null,
   world: null,
+  seed: FIRST_SEED,
   hud: null,
   input: null,
   densityIndex: 0,
@@ -39,19 +38,10 @@ const core = {
   lastTime: 0,
   statsFrames: 0,
   statsSince: 0,
-  narrationDoneWas: true,
-  location: undefined,
-  eventsBound: false,
   failed: null,
 };
 
 const cameraTarget = new Vector3();
-
-core.spatial = createSpatial((chatId, name) => {
-  if (chatId !== core.chatId) return;
-  core.location = name;
-  core.hud?.setLocation(name);
-});
 
 function reportError(element, error) {
   console.error("[wanderworld]", error);
@@ -73,19 +63,17 @@ function ensureRenderer() {
   } catch (error) {
     console.warn("[wanderworld] WebGL unavailable", error);
     core.failed = "This device can't draw the 3D world (WebGL is unavailable).";
-    core.hud?.setStatus(core.failed);
     return false;
   }
-  core.renderer.domElement.style.cssText = "display:block;width:100%;height:100%;";
+  core.renderer.domElement.style.cssText = "position:absolute;inset:0;display:block;width:100%;height:100%;";
   core.camera = new PerspectiveCamera(60, 1, 0.1, 160);
   return true;
 }
 
 function resize() {
-  const element = core.underlayEl;
-  if (!element || !core.renderer) return;
-  const width = element.clientWidth;
-  const height = element.clientHeight;
+  if (!core.stage || !core.renderer) return;
+  const width = core.stage.clientWidth;
+  const height = core.stage.clientHeight;
   if (!width || !height) return;
   core.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO));
   core.renderer.setSize(width, height, false);
@@ -93,45 +81,33 @@ function resize() {
   core.camera.updateProjectionMatrix();
 }
 
-function switchChat(chatId) {
-  core.chatId = chatId;
+function buildWorld(seed) {
+  core.seed = seed;
   core.world?.dispose();
-  core.world = createWorld(hashString(chatId));
+  core.world = createWorld(hashString(seed));
   core.world.setDensity(DENSITIES[core.densityIndex]);
   core.cameraYaw = 0;
   core.camera?.position.set(0, CAMERA_HEIGHT, CAMERA_DISTANCE);
-  core.location = undefined;
-  core.hud?.setLocation(undefined);
-  core.spatial.reset();
-  void core.spatial.refresh(chatId);
 }
 
-function onMainProps(props) {
-  if (!props || typeof props.chatId !== "string") return;
-  if (props.chatId !== core.chatId) switchChat(props.chatId);
-  core.host = props;
-  // A finished turn may have moved the party (the GM narrated travel), so read the location again.
-  const narrationDone = props.narrationDone !== false;
-  if (narrationDone && !core.narrationDoneWas) void core.spatial.refresh(core.chatId);
-  core.narrationDoneWas = narrationDone;
-}
-
-function bindHostEvents() {
-  if (core.eventsBound) return;
-  core.eventsBound = true;
-  // Capability API 1.12: World Maps changes for this chat arrive addressed to the game's package.
-  window.addEventListener("marinara-capability-server-event", (event) => {
-    const detail = event?.detail;
-    if (!detail || !core.chatId || detail.chatId !== core.chatId) return;
-    const packageId = typeof core.host?.packageId === "string" ? core.host.packageId : PACKAGE_ID;
-    if (detail.packageId !== packageId || typeof detail.type !== "string") return;
-    if (detail.type.startsWith("spatial_")) void core.spatial.refresh(core.chatId);
-  });
+function newWorld() {
+  buildWorld(`world-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
 }
 
 function cycleDensity() {
   core.densityIndex = (core.densityIndex + 1) % DENSITIES.length;
   core.world?.setDensity(DENSITIES[core.densityIndex]);
+}
+
+/** The Engine's fullscreen control for Home tabs (capability API 1.376); absent on older Engines. */
+function fullscreenControl() {
+  const control = core.props?.browserFullscreen;
+  return control && typeof control.setActive === "function" ? control : null;
+}
+
+function toggleFullscreen() {
+  const control = fullscreenControl();
+  control?.setActive(!control.active);
 }
 
 /** Moves `current` toward `target` along the shorter way round the circle. */
@@ -168,7 +144,7 @@ function step(dt) {
 }
 
 function frame(time) {
-  if (!core.underlayEl || !core.renderer) {
+  if (!core.element || !core.renderer) {
     core.raf = 0;
     return;
   }
@@ -194,66 +170,49 @@ function frame(time) {
   }
 }
 
-function ensureLoop() {
-  if (core.raf || !core.underlayEl || !core.renderer) return;
+function attach(element) {
+  core.element = element;
+  element.style.cssText += ";display:block;position:relative;overflow:hidden;width:100%;height:100%;";
+  core.stage = document.createElement("div");
+  core.stage.style.cssText = "position:absolute;inset:0;background:#bfd9ee;touch-action:none;";
+  element.replaceChildren(core.stage);
+
+  core.hud = createHud(core.stage, {
+    onCycleDensity: cycleDensity,
+    onNewWorld: newWorld,
+    onToggleFullscreen: toggleFullscreen,
+  });
+  core.input = createInput();
+  core.hud.layer.append(core.input.stickElement);
+
+  if (!ensureRenderer()) {
+    core.hud.setStatus(core.failed);
+    return;
+  }
+  core.stage.prepend(core.renderer.domElement);
+  if (!core.world) buildWorld(core.seed);
+  core.resizeObserver = new ResizeObserver(resize);
+  core.resizeObserver.observe(core.stage);
+  resize();
   core.lastTime = 0;
   core.statsSince = 0;
   core.statsFrames = 0;
-  core.raf = requestAnimationFrame(frame);
-}
-
-function attachUnderlay(element) {
-  if (core.underlayEl === element) return;
-  core.underlayEl = element;
-  element.style.display = "block";
-  if (!ensureRenderer()) return;
-  element.replaceChildren(core.renderer.domElement);
-  core.resizeObserver?.disconnect();
-  core.resizeObserver = new ResizeObserver(resize);
-  core.resizeObserver.observe(element);
-  resize();
-  ensureLoop();
-}
-
-function attachMain(element, props) {
-  if (core.mainEl !== element) {
-    core.mainEl = element;
-    element.style.display = "block";
-    core.hud?.destroy();
-    core.input?.dispose();
-    core.hud = createHud(element, { onCycleDensity: cycleDensity });
-    core.input = createInput();
-    core.hud.layer.append(core.input.stickElement);
-    core.hud.setLocation(core.location);
-    if (core.failed) core.hud.setStatus(core.failed);
-    bindHostEvents();
-  }
-  onMainProps(props);
-  ensureLoop();
+  if (!core.raf) core.raf = requestAnimationFrame(frame);
 }
 
 function detach(element) {
-  if (element === core.underlayEl) {
-    core.underlayEl = null;
-    core.resizeObserver?.disconnect();
-    core.resizeObserver = null;
-  }
-  if (element === core.mainEl) {
-    core.mainEl = null;
-    core.hud?.destroy();
-    core.hud = null;
-    core.input?.dispose();
-    core.input = null;
-  }
-  if (!core.underlayEl && !core.mainEl) {
-    // Both mounts gone: free the world but keep the renderer, so remounts reuse one WebGL context.
-    if (core.raf) cancelAnimationFrame(core.raf);
-    core.raf = 0;
-    core.world?.dispose();
-    core.world = null;
-    core.chatId = null;
-    core.spatial.reset();
-  }
+  if (element !== core.element) return;
+  if (core.raf) cancelAnimationFrame(core.raf);
+  core.raf = 0;
+  core.resizeObserver?.disconnect();
+  core.resizeObserver = null;
+  core.input?.dispose();
+  core.input = null;
+  core.hud?.destroy();
+  core.hud = null;
+  core.stage = null;
+  core.element = null;
+  // The world stays built, so reopening the tab returns to the same spot.
 }
 
 class WanderworldElement extends HTMLElement {
@@ -280,9 +239,13 @@ class WanderworldElement extends HTMLElement {
   }
   sync() {
     try {
-      if (this.getAttribute("view") !== "surface" || !this.props) return;
-      if (this.props.layer === "underlay") attachUnderlay(this);
-      else if (typeof this.props.chatId === "string") attachMain(this, this.props);
+      if (this.getAttribute("view") !== "browser" || !this.isConnected) return;
+      if (core.element !== this) {
+        if (core.element) detach(core.element);
+        attach(this);
+      }
+      core.props = this.props;
+      core.hud?.setFullscreen(fullscreenControl());
     } catch (error) {
       reportError(this, error);
     }
