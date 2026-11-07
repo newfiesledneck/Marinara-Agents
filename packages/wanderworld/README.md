@@ -1,33 +1,30 @@
 # Wanderworld
 
-A walkable, low-poly 3D world for Marinara Engine's Game Mode. The goal is a world built from the chat's
-setting, persona, characters and lorebook, with places bound to World Maps locations. This is an early
-prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
+A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal is a world built from your
+characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
+not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.1.0)
+## What it does now (0.2.0)
 
-- Draws a seeded low-poly landscape behind the narration. The same chat always gets the same layout.
+- Draws a seeded low-poly landscape. **New world** walks a different one.
 - Walks a capsule with WASD or the arrow keys, or the on-screen stick on touch screens. Shift runs; Q and E
   turn the camera. Trees block your way.
-- Shows the party's current World Maps location at the top of the screen, and reads it again after each
-  turn. Without World Maps it says so and keeps working.
 - Shows frames per second, draw calls and triangles. Tap the readout to draw 1×, 4× or 10× the trees and
   rocks, to check how a device copes.
+- **Fullscreen** fills the screen, on Engines whose Home tabs offer it.
 
-It reads World Maps but never changes it, and it does not send chat turns.
+It reads and writes nothing outside its own tab, and saves nothing yet.
 
 ## Using it
 
-Install it, then choose Wanderworld as the Experience when you create a Game Mode chat.
+Install it, then open the **Wanderworld** tab on Home.
 
 ## How it works
 
-- `src/main.js` mounts in the Engine's `game-surface` slot. The Engine mounts the element twice: the canvas
-  goes in the layer behind the narration, and the HUD and touch stick in the layer above it. Both share one
-  WebGL renderer.
+- `src/main.js` mounts as the package's Home tab (`home-browser-tab` slot, `view="browser"`). The canvas,
+  HUD and touch stick all live in that one element, and the WebGL renderer is reused when the tab reopens.
 - `src/world.js` builds the scene: one ground mesh and instanced trees and rocks, so the whole world is a
   handful of draw calls. Collision is the capsule against tree trunks in a 2D grid, not a physics engine.
-- `src/spatial.js` reads `GET /api/chats/:chatId/spatial-context`.
 - three.js 0.186.1 (the version the Engine itself uses) is bundled into `client.js`, because the Engine does
   not hand its copy to packages.
 

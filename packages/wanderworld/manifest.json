@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "capabilityApi": {
     "major": 1,
-    "minor": 12
+    "minor": 9
   },
   "builtAgainst": {
     "engineVersion": "2.5.2",
@@ -10,10 +10,10 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.1.0",
-  "description": "A walkable low-poly 3D world for Game Mode. Early prototype: walk around a seeded landscape with WASD or the on-screen stick, and see where World Maps says your party is.",
+  "version": "0.2.0",
+  "description": "A walkable low-poly 3D world on its own Home tab. Early prototype: walk around a seeded landscape with WASD or the on-screen stick.",
   "engine": {
-    "min": "2.4.5",
+    "min": "2.4.4",
     "maxExclusive": "4.0.0"
   },
   "kind": [
@@ -25,26 +25,34 @@
   },
   "contributions": {
     "slots": [
-      "game-surface"
+      "home-browser-tab"
     ],
-    "gameSurface": {
-      "surfaceClass": "wanderworld-surface"
+    "homeBrowserTab": {
+      "label": "Wanderworld",
+      "ariaLabel": "Open Wanderworld",
+      "iconPaths": [
+        "wanderworld-icon.webp"
+      ]
     }
   },
   "files": [
     {
       "path": "agents.json",
-      "sha256": "fda0f26c1ba7bde0b204bc9b24f22c4e86c0d3a13b3d0491debcb9b18eb840e6",
-      "bytes": 581
+      "sha256": "5eba474ccdcfab5fdb73519ffc4bf0f46563224d5396b2237ca622b371bdecca",
+      "bytes": 582
     },
     {
       "path": "client.js",
-      "sha256": "da53644eb12c5dbe1261f46d8f9552061a3c791f441ad4cdf980dfddefe8c9e2",
-      "bytes": 556423
+      "sha256": "0f9d657933f27510284ed792244d7e5b0b9effb6c28d8463b0b8c8d25aa5d361",
+      "bytes": 555591
+    },
+    {
+      "path": "wanderworld-icon.webp",
+      "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
+      "bytes": 5236
     }
   ],
   "permissions": [
-    "chat-read",
     "ui"
   ],
   "restartRequired": false
