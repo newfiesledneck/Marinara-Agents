@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.7 — 2026-11-08
+
+- Recorded animations: walking, running, standing, sitting down and up, and talking now play motion from Quaternius's free Universal Animation Library (public domain), on every model. Feet stay planted at any speed, and waving and looking at people still play on top. Settings → Animation switches back to the hand-made motion.
+- Walking is now 1.4 m/s, a natural pace for the recorded walk; raise it in Settings if you like.
+
 ## 0.4.6 — 2026-11-08
 
 - Smoother walking: the body rises and falls in a gentle wave (about 2 cm) instead of dropping and popping up with each step, the swinging leg bends at the knee as it comes through, and the arms swing more freely.

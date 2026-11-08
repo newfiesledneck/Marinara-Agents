@@ -8,7 +8,7 @@
 // or going through a door. "Space" is wherever they are: the town, or the room inside a building; both
 // offer the same collision, camera and seat calls.
 import { Frustum, Group, Matrix4, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3, WebGLRenderer } from "three";
-import { blobShadow, listCharacters, listPersonas } from "./character.js";
+import { blobShadow, listCharacters, listPersonas, setAnimationStyle } from "./character.js";
 import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
@@ -23,7 +23,7 @@ import { createWorld, hashString, heightAt, SPAWN, WORLD_SIZE } from "./world.js
 const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
 const FIRST_SEED = "wanderworld";
-const WALK_SPEED = 1.8; // metres per second: a brisk, natural walk (times the walk speed setting)
+const WALK_SPEED = 1.4; // metres per second: a natural walking pace (times the walk speed setting)
 const RUN_SPEED = 5; // with Shift
 const CAMERA_DISTANCE = 8; // the starting zoom
 const CAMERA_HEIGHT = 4.2; // the starting height, which sets the starting tilt
@@ -236,6 +236,7 @@ function applySettings() {
     core.camera.far = settings.drawDistance + 20;
     core.camera.updateProjectionMatrix();
   }
+  setAnimationStyle(settings.animation);
   core.shadow.visible = settings.shadows;
   core.crowd.setShadows(settings.shadows);
   core.crowd.setNamesVisible(settings.names);

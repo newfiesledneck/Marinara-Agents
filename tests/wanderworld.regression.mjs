@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { Box3, Vector3 } from "three";
 import { buildBuilding, KINDS, makeSpec } from "../packages/wanderworld/src/buildings.js";
+import { setAnimationStyle } from "../packages/wanderworld/src/character.js";
 import { createFigure } from "../packages/wanderworld/src/figure.js";
 import { createInterior } from "../packages/wanderworld/src/interiors.js";
 import { createMotion } from "../packages/wanderworld/src/motion.js";
@@ -145,6 +146,8 @@ for (const kind of KINDS) {
 }
 
 // ── The built-in person, and how bodies move ─────────────────────────────────
+// The hand-made motion first (Settings → Animation → Built-in); the recorded clips are checked after.
+setAnimationStyle("builtin");
 const figure = createFigure("Aria");
 let skinned = 0;
 figure.object.traverse((object) => object.isSkinnedMesh && skinned++);
@@ -256,6 +259,68 @@ for (let i = 0; i < 600; i++) {
 }
 assert.ok(wander < 0.03, `standing, the feet stay put (${(wander * 100).toFixed(1)} cm over 20 s)`);
 figure.dispose();
+
+// ── Recorded motion (the Universal Animation Library clips) ──────────────────
+// On any body the clips keep a planted foot moving back at the walking speed (so it doesn't skate),
+// move smoothly, keep the knees bending the right way, and sit down and stand up again.
+setAnimationStyle("recorded");
+{
+  const body = createFigure("Tam");
+  const find = (name) => {
+    let found = null;
+    body.object.traverse((object) => {
+      if (object.isBone && object.name === name) found = object;
+    });
+    return found;
+  };
+  const point = (name) => find(name).getWorldPosition(new Vector3());
+  for (const speed of [0.8, 1.8, 5]) {
+    const frames = [];
+    for (let i = 0; i < 300; i++) {
+      body.update(1 / 60, speed);
+      body.object.updateMatrixWorld(true);
+      if (i > 90) frames.push({ feet: [point("leftFoot"), point("rightFoot")], head: point("head").y });
+    }
+    const lowest = Math.min(...frames.flatMap((frame) => frame.feet.map((foot) => foot.y)));
+    let sum = 0;
+    let count = 0;
+    for (let i = 1; i < frames.length; i++) {
+      for (const side of [0, 1]) {
+        const now = frames[i].feet[side];
+        const was = frames[i - 1].feet[side];
+        if (now.y > lowest + 0.02 || was.y > lowest + 0.02) continue;
+        sum += -(now.z - was.z) * 60;
+        count++;
+      }
+    }
+    const planted = sum / count;
+    assert.ok(
+      Math.abs(planted - speed) < speed * 0.15,
+      `recorded at ${speed} m/s, the planted foot keeps pace (${planted.toFixed(2)} m/s)`,
+    );
+    assert.ok(
+      Math.abs(lowest - 0.075) < 0.035,
+      `recorded at ${speed} m/s, feet stay at the ground (${lowest.toFixed(3)})`,
+    );
+    let jolt = 0;
+    for (let i = 2; i < frames.length; i++) {
+      jolt = Math.max(jolt, Math.abs(frames[i].head - 2 * frames[i - 1].head + frames[i - 2].head) * 3600);
+    }
+    assert.ok(
+      jolt < (speed > 3 ? 60 : 15), // a runner landing is a real jolt; 0.4.5 hit 337
+      `recorded at ${speed} m/s, the body moves smoothly (${jolt.toFixed(1)} m/s²)`,
+    );
+  }
+  // Sitting down and standing up again.
+  for (let i = 0; i < 120; i++) body.update(1 / 60, 0, { sit: true });
+  body.object.updateMatrixWorld(true);
+  const seatedHips = point("hips").y;
+  for (let i = 0; i < 150; i++) body.update(1 / 60, 0, { sit: false });
+  body.object.updateMatrixWorld(true);
+  assert.ok(seatedHips < point("hips").y - 0.25, "recorded: sitting lowers the hips, and standing raises them again");
+  body.dispose();
+}
+setAnimationStyle("builtin");
 
 // The motion on its own: a standing body still breathes, and a body that stops comes back to rest.
 const motion = createMotion({ seed: 7 });

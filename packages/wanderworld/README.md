@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.6)
+## What it does now (0.4.7)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -17,7 +17,10 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   about in its own 3D model or a built-in person: out and about, on benches, or inside houses, shops, the
   tavern and the temple, where you find them in the room when you walk in. They stop to face you when you
   walk up and have their name overhead.
-- **Natural movement.** Everyone walks heel to toe with turning hips, swinging arms and a foot that stays
+- **Recorded animations** from Quaternius's free Universal Animation Library (CC0): idle, walk, jog,
+  sprint, sitting and talking, played on any model with planted feet. Settings → Animation switches to
+  the hand-made motion below. See `src/clips/CREDITS.md`.
+- **Natural movement (hand-made).** Everyone walks heel to toe with turning hips, swinging arms and a foot that stays
   on the ground, leans into a run, and when standing breathes, shifts their weight and glances around.
   VRM models blink.
 - **Use things** with E, a click, or a tap: sit on benches and chairs, open doors and go inside (every
@@ -56,6 +59,9 @@ for that persona in 3D Avatars first.
 - `src/motion.js` is how bodies move: a walk-to-run cycle and an idle, as angles for three-vrm's
   normalized humanoid bones. The hips drop as far as the legs' angles need to keep the standing foot on the
   ground, which is also what makes a body rise and fall as it walks.
+- `src/clips.js` plays the recorded clips (`src/clips/ual.json`, made by
+  `scripts/build-wanderworld-clips.mjs`): each frame is every bone's turn from the T-pose in model space,
+  so it plays on any rig, timed by each body's own measured footfall so feet don't skate.
 - `src/character.js` applies that motion to any humanoid, and reads `GET /api/characters/personas/list`
   and `GET /api/characters`.
 - `src/npcs.js` runs the townsfolk: each follows a small plan (walk somewhere, sit, go inside, wait), heads

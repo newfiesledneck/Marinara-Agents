@@ -12,6 +12,8 @@ export const SETTINGS = {
   /** Trees and rocks outside town, as a multiple of the usual. */
   density: { value: 1, options: [1, 4, 10] },
   shadows: { value: true },
+  /** "recorded" plays the Universal Animation Library clips; "builtin" the hand-made motion. */
+  animation: { value: "recorded", options: ["recorded", "builtin"] },
   /** Your walking and running speed, as a multiple. */
   walkSpeed: { value: 1, min: 0.5, max: 2 },
   /** How fast dragging and the arrow keys turn the camera. */

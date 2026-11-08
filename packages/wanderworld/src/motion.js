@@ -328,6 +328,15 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
       if (crossed(before, advance, HEEL_DOWN)) footstep = "left";
       else if (crossed(before, advance, HEEL_DOWN + Math.PI)) footstep = "right";
     }
-    return { bones, hips: [sway, drop, 0], blink: stepBlink(dt), footstep, running: run > 0.5 };
+    // `waving` and `lookYaw` let recorded motion (clips.js) layer the wave and the head turn on top.
+    return {
+      bones,
+      hips: [sway, drop, 0],
+      blink: stepBlink(dt),
+      footstep,
+      running: run > 0.5,
+      waving,
+      lookYaw: look.yaw,
+    };
   };
 }

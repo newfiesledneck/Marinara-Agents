@@ -159,6 +159,7 @@ export function createHud(root, handlers) {
   choice("density", "Trees and rocks", { 1: "Normal", 4: "4×", 10: "10×" });
   toggle("shadows", "Shadows under people");
   heading("Moving");
+  choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });
   slider("walkSpeed", "Walk and run speed", 0.1, times);
   slider("lookSpeed", "Camera turn speed", 0.1, times);
   toggle("invertLook", "Invert up and down");
