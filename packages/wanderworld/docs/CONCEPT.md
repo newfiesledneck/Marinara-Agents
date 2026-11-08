@@ -317,6 +317,11 @@ treatment (image generation, backgrounds, agents, memory).
 - A world document per world: seed, brief, cast, player state (position, persona), conversation logs and
   world events. The client's localStorage choices move here.
 - Routes: list, read, create and delete worlds; save player state (throttled).
+- **Scene requests (client side in 0.4.26, `interactions.js`):** using a door, a cave or the fountain
+  builds `{ version, thing: { kind, name, chain }, action, verb, line, inside, party, persona, hour, at }`
+  and its sentence (`describeScene`); the last 30 are kept in the world's `scenes`. The server part turns
+  one into a role-play scene with everyone there in context. New kinds of things and actions are entries
+  in `ACTIONS`.
 
 ### S2. World from lore
 

@@ -26,6 +26,7 @@ import { createSaves } from "./saves.js";
 import { createNoticeboard, createSign } from "./signs.js";
 import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
 import { landscapeWith } from "./land.js";
+import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
 import { checkTraits, createRelationships, KINDS, phraseOf, tierOf, TRAITS } from "./relationships.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, waterAt, WORLD_SIZE } from "./world.js";
 
@@ -639,6 +640,37 @@ function namedZones(residents) {
   return names;
 }
 
+/**
+ * What the Lore panel shows: every entry active here, nearest place first, with the place it's tied to,
+ * its lorebook and (once the lorebooks are read) its text.
+ */
+function activeLore(zone, names) {
+  const lore = core.save?.lore ?? {};
+  const books = new Map((core.lorebooks ?? []).map((book) => [book.id, book]));
+  const entries = chainOf(core.zones, zone).flatMap((at) =>
+    (lore[at.id] ?? []).map((entry) => {
+      const book = books.get(entry.lorebookId);
+      const found = book?.entries.find((item) => item.id === entry.entryId);
+      return {
+        title: found?.title ?? entry.title,
+        book: book?.name ?? "",
+        from: names[at.id],
+        content: found?.content ?? null,
+      };
+    }),
+  );
+  return { place: names[zone.id], entries, loading: !core.lorebooks };
+}
+
+/** Opens the Lore panel: the lore active where the player is (reading the lorebooks' text if needed). */
+function openLore() {
+  core.zoneCheck = 0;
+  if (!core.lorebooks)
+    readLorebooks()
+      .then(() => (core.zoneCheck = 0))
+      .catch((error) => console.warn("[wanderworld] couldn't read lorebooks", error));
+}
+
 /** Lorebook entries tied to a zone or the zones it sits in. */
 function loreAt(zone) {
   const lore = core.save?.lore ?? {};
@@ -671,6 +703,7 @@ function stepPlaces(dt) {
   const lore = loreAt(zone).map((entry) => entry.title);
   const town = names.town;
   core.hud?.setPlace(zone.id === "town" ? town : `${town} · ${names[zone.id]}`, lore);
+  if (core.hud?.loreOpen()) core.hud.setLore(activeLore(zone, names));
   if (core.journalAt <= 0) {
     core.journalAt = 0.5;
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
@@ -714,6 +747,7 @@ function journalData(zone, snapshot, residents, names) {
         .join(" · "),
       lore: loreAt(zone),
       nearby,
+      scenes: (core.save?.scenes ?? []).slice(-3).reverse().map(describeScene),
     },
     people: lines.map((entry) => {
       const toYou = core.relations.get(entry.person.id, "player");
@@ -776,6 +810,7 @@ async function readLorebooks() {
           title: String(
             entry.name || entry.comment || (Array.isArray(entry.keys) ? entry.keys.join(", ") : "") || "Entry",
           ),
+          content: typeof entry.content === "string" ? entry.content.slice(0, 4000) : "",
         }));
       } catch (error) {
         console.warn(`[wanderworld] couldn't read lorebook ${book.name}`, error);
@@ -1131,24 +1166,80 @@ function enterBuilding(door) {
 }
 
 /**
- * Going into a building, for now: the door opens and a card says who's in there. Starting a scene with
- * them (a role-play scene in the chat, with its own pictures) comes with Wanderworld's server part; the
- * walk-in rooms are still there behind a setting while that's worked out.
+ * A card for using a place or thing (a door, a cave's mouth, the fountain): who's there, what can be
+ * done (interactions.js), the player's own line and who comes along. Choosing sets up a scene request,
+ * saved with the world, for the AI part to play out (docs/CONCEPT.md, S1).
+ * `thing`: { kind, zone (where it is), title, inside: [{ id, name }], empty (said when nobody's there) }.
  */
+function openScene(thing) {
+  const names = core.zones ? namedZones(residentsOf(core.crowd.snapshot())) : {};
+  const chain =
+    core.zones && thing.zone
+      ? chainOf(core.zones, thing.zone)
+          .slice(1)
+          .map((zone) => names[zone.id])
+      : [];
+  const party = core.crowd
+    .party()
+    .filter((member) => !member.waiting)
+    .map((member) => ({ id: member.id, name: member.name }));
+  const title = thing.title.charAt(0).toUpperCase() + thing.title.slice(1);
+  core.hud.setScene(
+    {
+      title,
+      people: thing.inside.map((person) => person.name),
+      empty: thing.empty,
+      party,
+      actions: (ACTIONS[thing.kind] ?? []).map(({ id, label }) => ({ id, label })),
+    },
+    (action, line, along) => {
+      const request = sceneRequest({
+        thing: { kind: thing.kind, name: thing.title, chain },
+        action,
+        line,
+        inside: thing.inside,
+        party: party.filter((member) => along.includes(member.id)),
+        persona: { id: "player", name: personaName() },
+        hour: core.hour,
+      });
+      if (!request) return null;
+      if (core.save) {
+        core.save = { ...core.save, scenes: [...(core.save.scenes ?? []), request].slice(-30) };
+        core.saves.write(core.save);
+      }
+      core.journalAt = 0;
+      return describeScene(request);
+    },
+  );
+}
+
+/** A building's door: it opens, and its card says who's inside. */
 function knock(door) {
   core.world.setDoor(door.index, true, 4);
   core.sound.door();
-  const names = core.crowd.inside(door).map((person) => person.name);
   core.sceneDoor = door;
   const zone = core.zones?.byId.get(`building:${door.index}`);
-  const title = zone ? zoneName(zone, residentsOf(core.crowd.snapshot())) : (PLACE_NAMES[door.kind] ?? "A house");
-  core.hud.setScene({
-    title: title.charAt(0).toUpperCase() + title.slice(1),
-    people: names,
-    party: core.crowd
-      .party()
-      .filter((member) => !member.waiting)
-      .map((member) => member.name),
+  openScene({
+    kind: "door",
+    zone,
+    title: zone ? zoneName(zone, residentsOf(core.crowd.snapshot())) : (PLACE_NAMES[door.kind] ?? "a house"),
+    inside: core.crowd.inside(door).map((person) => ({ id: person.id, name: person.name })),
+    empty: "Nobody seems to be in.",
+  });
+}
+
+/** The fountain on the market square. */
+function useFountain(spot) {
+  core.sceneDoor = spot;
+  const zone = core.zones?.zones.find((at) => at.kind === "fountain");
+  const near = core.crowd
+    .snapshot()
+    .filter((person) => person.state !== "inside" && Math.hypot(person.x - spot.x, person.z - spot.z) < 8);
+  openScene({
+    kind: "fountain",
+    zone,
+    title: zone ? zoneName(zone) : "the fountain",
+    inside: near.map((person) => ({ id: person.id, name: person.name })),
   });
 }
 
@@ -1223,14 +1314,7 @@ function enterCave(cave) {
   const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
   const title = zone ? zoneName(zone) : "A cave";
   core.sceneDoor = cave;
-  core.hud.setScene({
-    title: title.charAt(0).toUpperCase() + title.slice(1),
-    people: [],
-    party: core.crowd
-      .party()
-      .filter((member) => !member.waiting)
-      .map((member) => member.name),
-  });
+  openScene({ kind: "cave", zone, title, inside: [], empty: "It's dark in there, and quiet." });
 }
 
 /** Back out to the street in front of the door (at once when `now`, e.g. for a new world). */
@@ -1295,6 +1379,17 @@ function usable() {
       y: 2.2,
       act: openNoticeboard,
     });
+  }
+  const fountain = core.interior ? null : core.world?.fountain;
+  if (fountain) {
+    // Wherever the player is round the rim: the nearest point on it.
+    const { x, z } = core.player.position;
+    const away = Math.hypot(x - fountain.x, z - fountain.z) || 1;
+    const spot = {
+      x: fountain.x + ((x - fountain.x) / away) * (fountain.r + 0.6),
+      z: fountain.z + ((z - fountain.z) / away) * (fountain.r + 0.6),
+    };
+    list.push({ kind: "thing", label: "Use the fountain", ...spot, y: 1.6, act: () => useFountain(spot) });
   }
   for (const cave of core.interior ? [] : (core.world?.caves ?? [])) {
     list.push({
@@ -1801,6 +1896,7 @@ function attach(element) {
       partyChanged();
     },
     onZoneLore: editZoneLore,
+    onOpenLore: openLore,
     onToggleFullscreen: toggleFullscreen,
     onPickPersona: (id) => void choosePersona(id),
     onToggleCharacter: toggleCharacter,

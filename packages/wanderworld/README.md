@@ -66,6 +66,10 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   rival, enemy and more, each with levels), and each character's temperament (passive to aggressive)
   and manner (shy to outgoing). Townsfolk act on them: a friend comes over to say hello, someone who
   dislikes you keeps away, a sworn enemy comes to have words.
+- **Scenes:** doors, caves and the fountain offer things to do and a box for your own line; choosing sets
+  up a scene request (who's there, who came with you, the time) for the AI part to play out.
+- **Lore:** tie lorebook entries to places in Journal → Places (choose which lorebooks to list); the Lore
+  button shows what's active where you are.
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster). A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the

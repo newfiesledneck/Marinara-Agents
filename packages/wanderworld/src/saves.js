@@ -8,6 +8,7 @@
 // on the way in, so an old or damaged copy falls back to defaults instead of breaking the game; `version`
 // lets later fields arrive with defaults.
 
+import { checkScene } from "./interactions.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
 
 export const SAVE_VERSION = 1;
@@ -92,6 +93,8 @@ export function checkWorld(raw) {
       : [],
     // Kept as they are for now; W3 and W4 give them their checks.
     party: Array.isArray(raw.party) ? raw.party.filter((id) => typeof id === "string") : [],
+    // Scenes set up from doors and things, newest last, for the AI part to play out.
+    scenes: Array.isArray(raw.scenes) ? raw.scenes.map(checkScene).filter(Boolean).slice(-30) : [],
     // Characters' temperaments (aggression, sociability), by id.
     traits: checkTraitMap(raw.traits),
     relationships: Array.isArray(raw.relationships)
