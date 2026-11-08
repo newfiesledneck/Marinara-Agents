@@ -13,17 +13,20 @@ const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
 const FIRST_SEED = "wanderworld";
 const MAX_PIXEL_RATIO = 1.5; // phones run at up to 3×; 1.5 keeps the fill rate affordable
-const WALK_SPEED = 5; // metres per second
-const RUN_SPEED = 9;
+const WALK_SPEED = 2.5; // metres per second: an unhurried walk
+const RUN_SPEED = 5; // with Shift
 const TURN_SPEED = 1.8; // camera radians per second
-const CAMERA_DISTANCE = 8;
+const CAMERA_DISTANCE = 8; // the starting zoom; the camera's angle stays the same at every zoom
 const CAMERA_HEIGHT = 4.2;
+const MIN_ZOOM = 2.5;
+const MAX_ZOOM = 18;
+const KEY_ZOOM_RATE = 1; // how fast + and - zoom, per second
 const LOOK_HEIGHT = 1.4;
 const MIN_CAMERA_DISTANCE = 2;
 const PERSONA_KEY = "wanderworld.persona"; // this package's own browser storage key
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
-const NO_INPUT = { x: 0, y: 0, run: false, turn: 0 };
+const NO_INPUT = { x: 0, y: 0, run: false, turn: 0, zoom: 0 };
 
 const core = {
   element: null,
@@ -43,6 +46,8 @@ const core = {
   input: null,
   densityIndex: 0,
   cameraYaw: 0,
+  zoom: CAMERA_DISTANCE,
+  pinch: new Map(), // touch pointers on the world, for pinch-to-zoom
   raf: 0,
   lastTime: 0,
   statsFrames: 0,
@@ -167,6 +172,39 @@ function newWorld() {
   buildWorld(`world-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
 }
 
+/** Multiplies the camera distance by `factor` (below 1 zooms in), within the zoom limits. */
+function zoomBy(factor) {
+  core.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, core.zoom * factor));
+}
+
+/** Mouse wheel and two-finger pinch on the world zoom the camera. */
+function bindZoom(stage) {
+  stage.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault(); // zoom the world, don't scroll the Home panel
+      zoomBy(Math.exp(event.deltaY * 0.0015));
+    },
+    { passive: false },
+  );
+  const spread = () => {
+    const [a, b] = [...core.pinch.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+  stage.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "touch") core.pinch.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  });
+  stage.addEventListener("pointermove", (event) => {
+    if (!core.pinch.has(event.pointerId)) return;
+    const before = core.pinch.size === 2 ? spread() : 0;
+    core.pinch.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (core.pinch.size === 2 && before > 0) zoomBy(before / Math.max(1, spread()));
+  });
+  const release = (event) => core.pinch.delete(event.pointerId);
+  stage.addEventListener("pointerup", release);
+  stage.addEventListener("pointercancel", release);
+}
+
 function cycleDensity() {
   core.densityIndex = (core.densityIndex + 1) % DENSITIES.length;
   core.world?.setDensity(DENSITIES[core.densityIndex]);
@@ -192,8 +230,9 @@ function approachAngle(current, target, amount) {
 function step(dt) {
   const { resolveCollisions } = core.world;
   const player = core.player;
-  const { x, y, run, turn } = core.input?.read() ?? NO_INPUT;
+  const { x, y, run, turn, zoom } = core.input?.read() ?? NO_INPUT;
   core.cameraYaw += turn * TURN_SPEED * dt;
+  if (zoom) zoomBy(Math.exp(zoom * KEY_ZOOM_RATE * dt));
   const sin = Math.sin(core.cameraYaw);
   const cos = Math.cos(core.cameraYaw);
   // The camera sits behind the player, so "forward" points away from it.
@@ -221,10 +260,10 @@ function step(dt) {
   const reach = core.world.clearSight(
     position.x,
     position.z,
-    position.x + sin * CAMERA_DISTANCE,
-    position.z + cos * CAMERA_DISTANCE,
+    position.x + sin * core.zoom,
+    position.z + cos * core.zoom,
   );
-  const distance = Math.max(MIN_CAMERA_DISTANCE, CAMERA_DISTANCE * reach);
+  const distance = Math.max(Math.min(MIN_CAMERA_DISTANCE, core.zoom), core.zoom * reach);
   const height = LOOK_HEIGHT + (CAMERA_HEIGHT - LOOK_HEIGHT) * (distance / CAMERA_DISTANCE);
   cameraTarget.set(position.x + sin * distance, position.y + height, position.z + cos * distance);
   core.camera.position.lerp(cameraTarget, 1 - Math.exp(-8 * dt));
@@ -264,6 +303,8 @@ function attach(element) {
   core.stage = document.createElement("div");
   core.stage.style.cssText = "position:absolute;inset:0;background:#bfd9ee;touch-action:none;";
   element.replaceChildren(core.stage);
+  core.pinch.clear();
+  bindZoom(core.stage);
 
   core.hud = createHud(core.stage, {
     onCycleDensity: cycleDensity,

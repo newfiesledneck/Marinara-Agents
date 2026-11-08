@@ -19,7 +19,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.3.1";
+const VERSION = "0.3.2";
 // A client-only Home tab with its own icon, the same floor as Modern Life Sim's Home tab.
 const CAPABILITY_API = Object.freeze({ major: 1, minor: 9 });
 const ENGINE_MIN = "2.4.4";

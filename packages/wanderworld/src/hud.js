@@ -53,7 +53,7 @@ export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen
   top.append(title, stats, spacer, personaLabel, fresh, fullscreen);
 
   const hint = document.createElement("div");
-  hint.textContent = "WASD or arrows to walk · Shift runs · Q / E turn the camera";
+  hint.textContent = "WASD or arrows to walk · Shift runs · Q / E turn · scroll or + / − to zoom";
   hint.style.cssText = `${CHIP}position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.8;`;
   // Touch screens get the stick instead of a keyboard hint.
   if (window.matchMedia?.("(pointer: coarse)").matches) hint.style.display = "none";

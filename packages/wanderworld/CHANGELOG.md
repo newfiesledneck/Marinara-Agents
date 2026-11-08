@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.3.2 — 2026-11-07
+
+- Walking is slower and more natural: an unhurried walk, and Shift runs at what used to be the walking pace. Strides lengthen with speed, so legs no longer spin quickly at a run.
+- Zoom in close to your character or out for a wide view, with the mouse wheel, a two-finger pinch, or the + and − keys.
+
 ## 0.3.1 — 2026-11-07
 
 - VRM and GLB models now show their colours and textures instead of plain white. Models load the way 3D Avatars loads them, and only with the pictures inside the model file.

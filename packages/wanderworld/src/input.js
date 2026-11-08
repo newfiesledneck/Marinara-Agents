@@ -13,6 +13,10 @@ const KEYS = {
   q: "turnLeft",
   e: "turnRight",
   shift: "run",
+  "=": "zoomIn",
+  "+": "zoomIn",
+  "-": "zoomOut",
+  _: "zoomOut",
 };
 
 const STICK_SIZE = 116;
@@ -77,6 +81,7 @@ export function createInput() {
     base.setPointerCapture(event.pointerId);
     moveStick(event);
     event.preventDefault();
+    event.stopPropagation(); // the stick's finger is not half of a pinch
   });
   base.addEventListener("pointermove", (event) => {
     if (event.pointerId === stick.pointerId) moveStick(event);
@@ -103,7 +108,9 @@ export function createInput() {
     }
     // Positive turns the camera to the left (Q), negative to the right (E).
     const turn = (held.has("turnLeft") ? 1 : 0) - (held.has("turnRight") ? 1 : 0);
-    return { x, y, run: held.has("run"), turn };
+    // Positive zooms out (-), negative zooms in (+).
+    const zoom = (held.has("zoomOut") ? 1 : 0) - (held.has("zoomIn") ? 1 : 0);
+    return { x, y, run: held.has("run"), turn, zoom };
   }
 
   function dispose() {
