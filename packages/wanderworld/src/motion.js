@@ -140,7 +140,9 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
     // of the cycle on the ground and more in the air.
     const cycle = mix(0.85 + 0.4 * pace, strideAt(pace));
     const duty = mix(Math.max(0.5, 0.62 - 0.03 * pace), 0.27);
-    const travel = Math.min(1.45 * legLength, duty * cycle); // how far a planted foot goes, front to back
+    // How far a planted ankle goes, front to back: the body's travel while the foot is down, less what the
+    // foot itself rolls through from heel to toe.
+    const travel = Math.min(1.45 * legLength, Math.max(0.2, duty * cycle - mix(0.07, 0.03) * legLength));
     const centre = mix(0.04, 0.0) * legLength; // walking feet land a little further ahead than they leave
     const advance = (dt * pace * TAU) / Math.max(0.5, cycle);
     const before = phase;
@@ -176,9 +178,14 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
     // shin kicking up behind.
     const footLength = 0.17 * legLength;
     const heelRise = w * mix(0.06, 0.09) * legLength; // how high the ankle rolls up before the foot lifts
-    const clearance = w * mix(0.07, 0.24) * legLength; // how high the ankle swings
-    const crouch = w * standing * mix(0.02, 0.07) * legLength; // hips a little lower than standing
-    const hipHeight = legLength - crouch;
+    const clearance = w * mix(0.12, 0.3) * legLength; // how high the ankle swings (early, as the knee folds)
+    const crouch = w * standing * mix(0.03, 0.07) * legLength; // hips a little lower than standing
+    // The hips rise and fall in one smooth wave per step: lowest just after each heel lands (walking) or in
+    // the middle of each stance (running). The legs reach for the ground from wherever the hips are.
+    const bob = w * standing * mix(0.024 * (0.6 + 0.4 * stride), 0.05) * legLength;
+    const lowAt = mix(Math.max(0, duty - 0.5) / 2 + 0.02, duty / 2);
+    const stepPoint = ((((phase - Math.PI / 2) / TAU - lowAt) % 0.5) + 0.5) % 0.5; // 0 at each low point
+    const hipHeight = legLength - crouch - bob * (0.5 + 0.5 * Math.cos(stepPoint * 2 * TAU));
     /** How far ahead of the hip the ankle is at stride point `u` (0 heel down … 1 the next heel down). */
     function footAhead(u) {
       const front = centre + travel / 2;
@@ -195,7 +202,9 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
     function footHeight(u) {
       if (u < duty) return heelRise * smoothstep(duty * 0.55, duty, u); // rolling up onto the toes
       const t = (u - duty) / (1 - duty);
-      return heelRise * (1 - t) * (1 - t) + clearance * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (1 - 0.5 * t);
+      // Up early in the swing while the foot is still behind (so the knee folds), then skimming low as it
+      // reaches forward to land.
+      return heelRise * (1 - t) * (1 - t) + clearance * Math.sin(Math.PI * Math.min(1, t / 0.72));
     }
     /** Hip and knee angles that put the ankle `ahead` in front of and `down` below the hip joint. */
     function reachFor(ahead, down) {
@@ -240,13 +249,14 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
     }
     const left = leg(phase, idleBendLeft, 1);
     const right = leg(phase + Math.PI, idleBendRight, -1);
-    // Rolling lifts one hip joint and lowers the other. The hips sit at their walking height unless no foot
-    // on the ground can reach that far; in a running stride's flight, they stay up.
+    // Standing or sitting, the hips rest on the leg that reaches lowest (rolling lifts one hip joint and
+    // lowers the other). Walking and running, they follow their smooth wave, and the legs reach from there.
     const lift = hipWidth * Math.sin(hipsRoll);
     const reaches = [left.grounded ? left.reach - lift : -Infinity, right.grounded ? right.reach + lift : -Infinity];
     const lowest = Math.max(...reaches);
-    const standingHeight = w > 0.5 && s < 0.5 ? hipHeight : legLength;
-    const drop = (Number.isFinite(lowest) ? Math.min(standingHeight, lowest) : standingHeight) - legLength;
+    const resting = (Number.isFinite(lowest) ? Math.min(legLength, lowest) : legLength) - legLength;
+    const moving = w * standing;
+    const drop = resting + (hipHeight - legLength - resting) * moving;
 
     // ── Upper body: shoulders turn against the hips, the head stays level and looks about ──
     const forwardLean = w * mix(0.04, 0.16) + s * 0.06;
@@ -260,7 +270,7 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
     const head = [-forwardLean * 0.5 + look.pitch * 0.6 + nod, look.yaw * 0.6 - shouldersYaw * 0.5, 0.02 * lean];
 
     // ── Arms: swing against the legs, a beat behind, elbows bending more as they come forward ──
-    const armSwing = w * mix(0.12 + 0.25 * stride, 0.5) * standing;
+    const armSwing = w * mix(0.2 + 0.3 * stride, 0.55) * standing;
     const armForward = w * mix(0.04, 0.12) + still * 0.02 * Math.sin((time * TAU) / 5.3);
     // Talking, the hands move with the words: the right one more than the left.
     const gesture = talking * (1 - w);
@@ -268,8 +278,9 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
       toSeat(armForward - armSwing * Math.sin(phase - 0.25), 0.3) + gesture * 0.12 * (1 + Math.sin(time * 1.3));
     const rightArm =
       toSeat(armForward + armSwing * Math.sin(phase - 0.25), 0.3) + gesture * (0.3 + 0.15 * Math.sin(time * 1.7));
-    const down = toSeat(armDown - run * w * 0.12, armDown - 0.1) - breath * 0.012;
-    const elbow = (swing) => toSeat(ELBOW + w * mix(0.1 + 0.35 * Math.max(0, swing), 1.15 + 0.3 * swing), 0.6);
+    // Walking, the arms hang a little away from the body so they swing clear of it.
+    const down = toSeat(armDown - w * 0.06 - run * w * 0.1, armDown - 0.1) - breath * 0.012;
+    const elbow = (swing) => toSeat(ELBOW + w * mix(0.15 + 0.45 * Math.max(0, swing), 1.15 + 0.3 * swing), 0.6);
     const leftElbow = elbow(leftArm) + gesture * 0.35 * (1 + Math.sin(time * 1.9));
     const rightElbow = elbow(rightArm) + gesture * (0.75 + 0.3 * Math.sin(time * 2.3));
     const curl = 0.32 + run * w * 0.6;

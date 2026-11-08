@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.6 — 2026-11-08
+
+- Smoother walking: the body rises and falls in a gentle wave (about 2 cm) instead of dropping and popping up with each step, the swinging leg bends at the knee as it comes through, and the arms swing more freely.
+
 ## 0.4.5 — 2026-11-08
 
 - Up to 30 characters can live in town.

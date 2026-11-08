@@ -228,6 +228,21 @@ assert.ok(
   `the planted foot keeps pace with the ground (slips ${(slip / contact).toFixed(2)} m/s)`,
 );
 
+// The body rises and falls gently and smoothly as it walks: a small bob, and no jolt where the hips
+// suddenly drop as the legs spread (0.4.5 jolted at about 80 m/s² every step).
+const heights = [];
+for (let i = 0; i < 120; i++) {
+  pose(1 / 60, 1.8);
+  heights.push(at("head").y);
+}
+const bounce = Math.max(...heights) - Math.min(...heights);
+let jolt = 0;
+for (let i = 2; i < heights.length; i++) {
+  jolt = Math.max(jolt, Math.abs(heights[i] - 2 * heights[i - 1] + heights[i - 2]) * 3600);
+}
+assert.ok(bounce < 0.035, `walking, the head bobs only a little (${(bounce * 100).toFixed(1)} cm)`);
+assert.ok(jolt < 8, `and smoothly, without jolts (${jolt.toFixed(1)} m/s²)`);
+
 // Standing, weight shifts from foot to foot without the feet sliding about.
 for (let i = 0; i < 60; i++) pose(1 / 30, 0);
 const planted = { left: at("leftFoot"), right: at("rightFoot") };
