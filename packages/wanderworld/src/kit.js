@@ -9,6 +9,7 @@ import {
   DoubleSide,
   FrontSide,
   MeshLambertMaterial,
+  RepeatWrapping,
   SRGBColorSpace,
   TextureLoader,
 } from "three";
@@ -72,17 +73,26 @@ function part(set, mesh) {
     ),
   );
   geometry.setAttribute("uv", new BufferAttribute(unbox(mesh.uv, mesh.uvBox, 2), 2));
+  if (mesh.colours) geometry.setAttribute("color", new BufferAttribute(view(Uint8Array, mesh.colours), 3, true));
   geometry.setIndex(new BufferAttribute(mesh.wide ? view(Uint32Array, mesh.index) : view(Uint16Array, mesh.index), 1));
   geometry.computeBoundingSphere();
   geometry.userData.shared = true;
   const material = new MeshLambertMaterial({
     map: mesh.texture ? texture(set, mesh.texture) : null,
     color: mesh.colour ? new Color(...mesh.colour) : 0xffffff,
+    vertexColors: !!mesh.colours,
     alphaTest: mesh.cutout ? 0.5 : 0,
     side: mesh.cutout || mesh.doubleSided ? DoubleSide : FrontSide,
   });
   material.userData.shared = true;
   return { geometry, material };
+}
+
+/** A kit texture for tiling across the ground (its own copy, repeating; the image is shared). */
+export function kitTexture(set, name) {
+  const map = texture(set, name).clone();
+  map.wrapS = map.wrapT = RepeatWrapping;
+  return map;
 }
 
 /** A kit model as its parts ([{ geometry, material }]), loaded once. Rejects if it can't be loaded. */

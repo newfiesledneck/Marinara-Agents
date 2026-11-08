@@ -272,6 +272,22 @@
         0.21
       ],
       "triangles": 1120
+    },
+    "prop-vine1": {
+      "size": [
+        1.54,
+        2.6,
+        0.22
+      ],
+      "triangles": 82
+    },
+    "prop-vine4": {
+      "size": [
+        1.02,
+        1.59,
+        0.15
+      ],
+      "triangles": 31
     }
   }
 }

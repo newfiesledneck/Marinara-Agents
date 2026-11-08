@@ -1,6 +1,6 @@
 // Default people: for anyone without a 3D model, a person put together from Quaternius's Universal Base
-// Characters and Modular Character Outfits - Fantasy (CC0): an outfit, a head, a hairstyle, skin and hair
-// tones and a height, all chosen from the name. Made by scripts/build-wanderworld-people.mjs into
+// Characters and Modular Character Outfits - Fantasy (CC0): everyday clothes in one of several colours, a
+// head, a hairstyle, skin and hair tones and a height, all chosen from the name. Made by scripts/build-wanderworld-people.mjs into
 // kit/people/, served as package assets, and loaded only when needed (then cached).
 //
 // Every part keeps its own joints' inverse bind matrices and binds to one shared skeleton (the outfit's),
@@ -163,8 +163,7 @@ export function lookFor(name, index, body = "auto") {
     sex,
     outfit: outfit.name,
     colourway: pick(outfit.colourways),
-    hood: outfit.hood,
-    hair: outfit.hood ? null : pick(HAIRSTYLES[sex]),
+    hair: pick(HAIRSTYLES[sex]),
     beard: sex === "male" && random() < 0.3,
     skin: pick(SKIN),
     hairColour: pick(HAIR),
@@ -178,8 +177,7 @@ export function lookFor(name, index, body = "auto") {
 export async function createPerson(name, build = "auto") {
   const index = await load("index.json");
   const look = lookFor(name, index, build);
-  const parts = [look.outfit, `head-${look.sex}`];
-  if (look.hair) parts.push(`hair-${look.hair}`);
+  const parts = [look.outfit, `head-${look.sex}`, `hair-${look.hair}`];
   if (look.beard) parts.push("hair-beard");
   const [body, ...rest] = await Promise.all(parts.map((part) => load(`${part}.json`)));
 
@@ -209,7 +207,7 @@ export async function createPerson(name, build = "auto") {
   const materialFor = (name) => {
     const isSkin = name.startsWith("skin-") || name.startsWith("head-");
     const isHair = name.startsWith("hair-");
-    const map = texture(name === look.outfit.split("-")[1] ? look.colourway : name);
+    const map = texture(name === "clothes" ? look.colourway : name);
     return new MeshLambertMaterial({ map, color: isSkin ? skinTint : isHair ? hairTint : 0xffffff });
   };
   for (const part of [body, ...rest]) {

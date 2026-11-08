@@ -185,6 +185,72 @@ function skeletonOf(gltf) {
   return { names, parents };
 }
 
+/**
+ * Where the tunic and sleeves lie on the outfit texture: the texture coordinates of the pack's separate
+ * Body and Arms pieces (both sexes), drawn into a greyscale mask file and grown by a pixel against seams.
+ * The colourways below change only this, so trousers and boots keep their own colours.
+ */
+function tunicMask(partsDir, size) {
+  const mask = new Uint8Array(size * size);
+  for (const sex of ["Male", "Female"]) {
+    for (const piece of ["Body", "Arms"]) {
+      for (const primitive of skinnedPrimitives(readGltf(join(partsDir, `${sex}_Peasant_${piece}.gltf`)))) {
+        if (!/Peasant/iu.test(primitive.texture ?? "")) continue; // bare arms are skin
+        const uv = primitive.uv.values;
+        const index = primitive.index.values;
+        for (let t = 0; t < index.length; t += 3) {
+          const corners = [0, 1, 2].map((k) => {
+            const v = index[t + k];
+            const wrap = (value) => value - Math.floor(value);
+            return [wrap(uv[v * 2]) * size, wrap(uv[v * 2 + 1]) * size];
+          });
+          const [[ax, ay], [bx, by], [cx, cy]] = corners;
+          const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+          if (!area) continue;
+          const minX = Math.max(0, Math.floor(Math.min(ax, bx, cx)) - 1);
+          const maxX = Math.min(size - 1, Math.ceil(Math.max(ax, bx, cx)) + 1);
+          const minY = Math.max(0, Math.floor(Math.min(ay, by, cy)) - 1);
+          const maxY = Math.min(size - 1, Math.ceil(Math.max(ay, by, cy)) + 1);
+          for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+              const px = x + 0.5;
+              const py = y + 0.5;
+              const w0 = ((bx - px) * (cy - py) - (by - py) * (cx - px)) / area;
+              const w1 = ((cx - px) * (ay - py) - (cy - py) * (ax - px)) / area;
+              const w2 = 1 - w0 - w1;
+              const slack = 1.5 / Math.sqrt(Math.abs(area)); // about a pixel's worth outside the edge
+              if (w0 >= -slack && w1 >= -slack && w2 >= -slack) mask[y * size + x] = 255;
+            }
+          }
+        }
+      }
+    }
+  }
+  const file = join(OUT, "tunic-mask.pgm"); // a scratch file: removed once the colourways are made
+  writeFileSync(file, Buffer.concat([Buffer.from(`P5 ${size} ${size} 255\n`), Buffer.from(mask)]));
+  return file;
+}
+
+/** `source` with `filter` (a colour change) applied only where `mask` is white. */
+function recolour(source, name, filter, mask, size = TEXTURE_SIZE) {
+  execFileSync(FFMPEG, [
+    "-v",
+    "error",
+    "-y",
+    "-i",
+    source,
+    "-i",
+    mask,
+    "-filter_complex",
+    `[0]scale=${size}:${size},format=gbrp,split[a][b];[b]${filter},format=gbrp[c];[1]format=gray,format=gbrp[m];[a][c][m]maskedmerge`,
+    "-quality",
+    "82",
+    join(OUT, `${name}.webp`),
+  ]);
+  return name;
+}
+
+/** A texture shrunk to its size. */
 function texture(source, name, size = TEXTURE_SIZE) {
   execFileSync(FFMPEG, [
     "-v",
@@ -219,14 +285,24 @@ function main() {
     hair: {},
   };
 
-  // Textures: skin, eyes, hair, and each outfit in its two colourways.
+  // Textures: skin, eyes, hair, and the everyday (peasant) clothes in the pack's two colourways plus a few
+  // more made by turning their colours, so a town of people isn't all in brown.
   texture(join(bodies, "T_Eye_Brown.png"), "eyes", 128);
   texture(join(bodies, "T_Hair_1_BaseColor.png"), "hair-1");
   texture(join(bodies, "T_Hair_2_BaseColor.png"), "hair-2");
-  texture(join(outfitTextures, "Peasant/T_Peasant_BaseColor.png"), "peasant-a");
-  texture(join(outfitTextures, "Peasant/T_Peasant_2_BaseColor.png"), "peasant-b");
-  texture(join(outfitTextures, "Ranger/T_Ranger_BaseColor.png"), "ranger-a");
-  texture(join(outfitTextures, "Ranger/T_Ranger_3_BaseColor.png"), "ranger-b");
+  const peasant = join(outfitTextures, "Peasant/T_Peasant_BaseColor.png");
+  const peasant2 = join(outfitTextures, "Peasant/T_Peasant_2_BaseColor.png");
+  const mask = tunicMask(join(outfitDir, "Exports/glTF (Godot-Unreal)/Modular Parts"), TEXTURE_SIZE);
+  const colourways = [
+    texture(peasant, "clothes-a"),
+    texture(peasant2, "clothes-b"),
+    recolour(peasant, "clothes-blue", "hue=h=190:s=1.3", mask),
+    recolour(peasant, "clothes-red", "hue=h=-25:s=1.5", mask),
+    recolour(peasant2, "clothes-teal", "hue=h=110:s=1.4", mask),
+    recolour(peasant, "clothes-plum", "hue=h=-65:s=0.75", mask),
+    recolour(peasant, "clothes-grey", "hue=s=0.25,eq=brightness=0.04", mask),
+  ];
+  rmSync(mask);
 
   for (const [sex, Sex] of [
     ["male", "Male"],
@@ -257,21 +333,18 @@ function main() {
     });
     writeFileSync(join(OUT, `head-${sex}.json`), JSON.stringify(head));
 
-    // Outfits: the whole clothed body (hands and arms in the skin texture), with the skeleton.
+    // Outfits: the whole clothed body (hands and arms in the skin texture), with the skeleton. Only the
+    // everyday clothes: the pack's ranger outfit reads as an adventurer, not a townsperson.
     index.sexes[sex] = { outfits: [] };
-    for (const outfit of ["Peasant", "Ranger"]) {
+    for (const outfit of ["Peasant"]) {
       const gltf = readGltf(join(outfits, `${Sex}_${outfit}.gltf`));
       const part = packPart(skinnedPrimitives(gltf), {
-        texture: (primitive) => (/Regular/iu.test(primitive.texture ?? "") ? `skin-${sex}` : outfit.toLowerCase()),
+        texture: (primitive) => (/Regular/iu.test(primitive.texture ?? "") ? `skin-${sex}` : "clothes"),
         skeleton: skeletonOf(gltf),
       });
       const name = `${sex}-${outfit.toLowerCase()}`;
       writeFileSync(join(OUT, `${name}.json`), JSON.stringify(part));
-      index.sexes[sex].outfits.push({
-        name,
-        colourways: [`${outfit.toLowerCase()}-a`, `${outfit.toLowerCase()}-b`],
-        hood: outfit === "Ranger",
-      });
+      index.sexes[sex].outfits.push({ name, colourways });
     }
   }
 

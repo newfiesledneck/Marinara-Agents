@@ -6,6 +6,7 @@
 import {
   BoxGeometry,
   Color,
+  DataTexture,
   DoubleSide,
   ConeGeometry,
   CylinderGeometry,
@@ -20,12 +21,15 @@ import {
   Mesh,
   MeshLambertMaterial,
   Object3D,
+  LinearFilter,
   PlaneGeometry,
+  RepeatWrapping,
   Scene,
+  SRGBColorSpace,
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { housePieces } from "./houses.js";
+import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
 import {
   barrel,
   bench,
@@ -74,18 +78,50 @@ export const TOWN_PROPS = [
   "stall-empty",
   "farmcrate-apple",
   "farmcrate-carrot",
+  "farmcrate-empty",
+  "bag",
+  "bucket-wooden-1",
+  "bucket-metal",
+  "prop-wagon",
+  "prop-woodenfence-single",
 ];
-/** Detailed trees, rocks and plants (the kit) grow this far out from the town's edge; cones beyond. */
+/** Clutter by a door: model, simple stand-in, collision radius. */
+const DOORSTEP_CLUTTER = [
+  ["barrel", () => barrel(), 0.34],
+  ["barrel-apples", () => barrel(), 0.34],
+  ["bag", () => crate(0.5), 0.3],
+  ["bucket-wooden-1", () => crate(0.35), 0.22],
+  ["bucket-metal", () => crate(0.35), 0.24],
+  ["farmcrate-empty", () => crate(0.45), 0.3],
+];
+/** Plants by the town's walls and in its gardens: model, size. */
+const GARDEN_PLANTS = [
+  ["bush-common", 0.55],
+  ["bush-common-flowers", 0.55],
+  ["flower-3-group", 0.35],
+  ["flower-4-group", 0.3],
+  ["plant-7", 0.6],
+  ["fern-1", 0.5],
+];
+/** The kit's wooden fence: one 2 m length. */
+const FENCE_LENGTH = 2;
+/** The kit door: hinged at its left edge, 1.12 m wide. */
+const KIT_DOOR_WIDTH = 1.12;
+/** Undergrowth (the kit's plants) grows this far out from the town's edge. */
 const NATURE_RING = 45;
+/** Of the trees, how many have a bush or fern at their foot. */
+const TREE_UNDERGROWTH = 0.35;
 const UNDERGROWTH = 700;
 /** Kit trees, with how often each grows and how big it is drawn (its own size is 7–17 m). */
 const KIT_TREES = [
   ["commontree-1", 3, 0.8],
   ["commontree-2", 3, 0.8],
   ["commontree-3", 2, 0.7],
+  ["commontree-4", 2, 0.8],
   ["pine-1", 3, 0.9],
   ["pine-2", 3, 0.9],
   ["pine-3", 2, 0.9],
+  ["pine-4", 2, 0.9],
   ["twistedtree-1", 1, 0.4],
   ["deadtree-1", 0.4, 0.7],
 ];
@@ -96,6 +132,10 @@ const KIT_PLANTS = [
   ["bush-common-flowers", 2, 0.8],
   ["fern-1", 3, 0.7],
   ["plant-1", 2, 0.8],
+  ["plant-7", 1.5, 0.7],
+  ["clover-1", 2, 0.6],
+  ["mushroom-common", 0.6, 0.5],
+  ["grass-common-short", 4, 0.5],
   ["flower-3-group", 2, 0.45],
   ["flower-4-group", 1.5, 0.4],
   ["grass-common-tall", 5, 0.45],
@@ -115,6 +155,11 @@ const DUSK_SKY = new Color(0xe0a27a);
 const DAY_SKY = new Color(SKY);
 const ROAD = 0xb3a184;
 const PAVING = 0xc7bba5;
+/** Metres per repeat of the road and paving textures. */
+const ROAD_TILE = 2.6;
+const PAVING_TILE = 2;
+/** The paved edge round each block, inside its kerb. */
+const SIDEWALK = 1.2;
 const STONE_GREY = 0x9a9a94;
 const WATER = 0x5b8fb8;
 
@@ -212,7 +257,8 @@ export function createCollider(circles, boxes = []) {
 
   return {
     /** True when (x, z) is inside a box grown by `margin`: the camera uses it to stay out of buildings. */
-    insideBox(x, z, margin = 0) {
+    /** Whether (x, z) is inside a box (with `margin`); `tallOnly` skips low ones (fences, benches, wagons). */
+    insideBox(x, z, margin = 0, tallOnly = false) {
       // The 3×3 cells around the point, so a box just across a cell boundary still counts within the margin.
       const cx = Math.floor(x / GRID_CELL);
       const cz = Math.floor(z / GRID_CELL);
@@ -221,6 +267,7 @@ export function createCollider(circles, boxes = []) {
           for (const shape of grid.get(cellKey(cx + dx, cz + dz)) ?? []) {
             if (
               shape.kind === "box" &&
+              !(tallOnly && shape.low) &&
               x > shape.minX - margin &&
               x < shape.maxX + margin &&
               z > shape.minZ - margin &&
@@ -292,6 +339,12 @@ function placeKitProp(town, fallback, { model, x, z, angle = 0, scale = 1, y = 0
   town.propSlots.push({ model, x, y, z, angle, scale: Array.isArray(scale) ? scale : [scale, scale, scale] });
 }
 
+/** A plant the nature kit can draw (`model`, at (x, z)); its simple stand-in shows until then. */
+function placeKitPlant(town, fallback, { model, x, z, angle = 0, scale = 1 }) {
+  if (fallback) town.naturePieces.push(fallback.translate(x, 0, z));
+  town.natureSlots.push({ model, x, z, angle, scale });
+}
+
 /** Builds a building from its spec at (x, z) facing `facing`, with its door, collision box and street clutter. */
 function placeBuilding(random, town, spec, x, z, facing) {
   const { geometry, doorX, footprint } = buildBuilding(random, spec);
@@ -320,23 +373,43 @@ function placeBuilding(random, town, spec, x, z, facing) {
     centre: { x, z },
     angle: (facing * Math.PI) / 2, // the way the front faces
     hinge: toWorld(x, z, facing, doorX - DOOR_WIDTH / 2, d + DOOR_INSET),
+    // Where the kit's door hangs: in the wall's doorway, under its frame (houses.js).
+    kitHinge: toWorld(x, z, facing, doorX - KIT_DOOR_WIDTH / 2, d - WALL_FACE),
     step: toWorld(x, z, facing, doorX, d + 0.35), // on the step, right in the doorway
   });
-  if (spec.kind === "shop" || spec.kind === "tavern" || spec.kind === "smithy") {
-    // Barrels and crates by the door, on the side away from the sign.
-    const side = doorX > 0 ? 1 : -1;
-    for (let i = 0; i < 1 + Math.floor(random() * 3); i++) {
-      const local = { x: doorX + side * (1.2 + i * 0.75), z: d + 0.55 };
-      const at = toWorld(x, z, facing, local.x, local.z);
-      const angle = Math.floor(random() * 4) * (Math.PI / 2) + (random() - 0.5) * 0.4;
-      if (random() < 0.5) {
-        const model = random() < 0.4 ? "barrel-apples" : "barrel";
-        placeKitProp(town, barrel(), { model, x: at.x, z: at.z, angle });
-        town.circles.push({ x: at.x, z: at.z, r: 0.34 });
-      } else {
+  // Along the front, either side of the door: plants against the wall, and barrels, sacks and buckets
+  // (more of them, and no plants, at a shop, the tavern or the smithy).
+  const trade = spec.kind === "shop" || spec.kind === "tavern" || spec.kind === "smithy";
+  const room = spec.width / 2 - 0.5;
+  for (const side of [-1, 1]) {
+    let along = 1.15;
+    const things = (trade ? 1 : 0) + Math.floor(random() * 3);
+    for (let i = 0; i < things; i++) {
+      const lx = doorX + side * along;
+      if (Math.abs(lx) > room) break;
+      const at = toWorld(x, z, facing, lx, d + 0.45);
+      const angle = random() * Math.PI * 2;
+      if (!trade && random() < 0.6) {
+        const [model, size] = GARDEN_PLANTS[Math.floor(random() * GARDEN_PLANTS.length)];
+        placeKitPlant(town, bush(random, 0.45), {
+          model,
+          x: at.x,
+          z: at.z,
+          angle,
+          scale: size * (0.8 + random() * 0.4),
+        });
+        town.circles.push({ x: at.x, z: at.z, r: 0.3 });
+        along += 0.9;
+      } else if (random() < 0.3) {
         const size = 0.55 + random() * 0.2;
         placeKitProp(town, crate(size), { model: "crate-wooden", x: at.x, z: at.z, angle, scale: size / 0.85 });
         town.circles.push({ x: at.x, z: at.z, r: 0.4 });
+        along += 0.85;
+      } else {
+        const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * DOORSTEP_CLUTTER.length)];
+        placeKitProp(town, fallback(), { model, x: at.x, z: at.z, angle });
+        town.circles.push({ x: at.x, z: at.z, r });
+        along += 0.75;
       }
     }
   }
@@ -346,7 +419,7 @@ function placeBuilding(random, town, spec, x, z, facing) {
 function placeBench(town, x, z, facing) {
   // The kit's bench is 2.8 m long; drawn at the town's 1.8 m.
   placeKitProp(town, bench(), { model: "bench", x, z, angle: (facing * Math.PI) / 2, scale: [0.66, 0.9, 0.95] });
-  town.boxes.push(footprintBox(x, z, facing, { minX: -0.9, maxX: 0.9, minZ: -0.25, maxZ: 0.25 }));
+  town.boxes.push({ ...footprintBox(x, z, facing, { minX: -0.9, maxX: 0.9, minZ: -0.25, maxZ: 0.25 }), low: true });
   for (const side of [-0.45, 0.45]) {
     town.seats.push({
       ...toWorld(x, z, facing, side, -0.02),
@@ -358,27 +431,132 @@ function placeBench(town, x, z, facing) {
   }
 }
 
-/** A fenced garden on an empty lot: bushes, a small tree and a bench. */
-function placeGarden(random, town, x, z, size) {
-  placeProp(town, fence(size, size), x, z, Math.floor(random() * 4));
-  for (let i = 0; i < 3 + Math.floor(random() * 4); i++) {
-    placeProp(town, bush(random), x + (random() - 0.5) * (size - 1.5), z + (random() - 0.5) * (size - 1.5));
+/**
+ * A fenced garden on an empty lot (`size` metres square, a whole number of fence lengths), its gate facing
+ * `facing`: a tree in a back corner, bushes and flowers along the fence, and a bench at the back facing
+ * the gate.
+ */
+function placeGarden(random, town, x, z, size, facing) {
+  const at = (lx, lz) => toWorld(x, z, facing, lx, lz);
+  const turn = (facing * Math.PI) / 2;
+  const half = size / 2;
+  const lengths = size / FENCE_LENGTH;
+  const gate = Math.floor(lengths / 2);
+  for (let side = 0; side < 4; side++) {
+    for (let i = 0; i < lengths; i++) {
+      if (side === 0 && i === gate) continue; // the way in
+      const along = -half + FENCE_LENGTH * (i + 0.5);
+      // Side 0 is the front (+z), then the right (+x), the back and the left; each length runs along its side.
+      const [lx, lz, angle] = [
+        [along, half, 0],
+        [half, along, Math.PI / 2],
+        [along, -half, 0],
+        [-half, along, Math.PI / 2],
+      ][side];
+      const spot = at(lx, lz);
+      placeKitProp(town, null, { model: "prop-woodenfence-single", x: spot.x, z: spot.z, angle: turn + angle });
+    }
   }
-  const tx = x + (random() - 0.5) * (size - 3);
-  const tz = z + (random() - 0.5) * (size - 3);
+  town.propPieces.push(fence(size, size).rotateY(turn).translate(x, 0, z)); // the simple fence, till the kit's
+  // The fence blocks like a wall: a thin box along each side, with the gate left open.
+  const gateFrom = -half + FENCE_LENGTH * gate;
+  for (const [minX, maxX, minZ, maxZ] of [
+    [-half, gateFrom, half - 0.1, half + 0.1],
+    [gateFrom + FENCE_LENGTH, half, half - 0.1, half + 0.1],
+    [-half, half, -half - 0.1, -half + 0.1],
+    [-half - 0.1, -half + 0.1, -half, half],
+    [half - 0.1, half + 0.1, -half, half],
+  ]) {
+    if (maxX - minX > 0.05) town.boxes.push({ ...footprintBox(x, z, facing, { minX, maxX, minZ, maxZ }), low: true });
+  }
+
+  const corner = random() < 0.5 ? -1 : 1;
+  const tree = at(corner * (half - 1.2), -half + 1.2);
   const height = 2.5 + random() * 1.5;
-  placeProp(
+  placeKitPlant(
     town,
     mergeGeometries([
       painted(new CylinderGeometry(0.12, 0.18, height * 0.45, 5).translate(0, height * 0.22, 0), 0x6b4a2f),
       painted(new IcosahedronGeometry(height * 0.32, 0).translate(0, height * 0.65, 0), 0x4f7f3f),
     ]),
-    tx,
-    tz,
+    {
+      model: random() < 0.5 ? "commontree-3" : "commontree-4",
+      x: tree.x,
+      z: tree.z,
+      angle: random() * Math.PI * 2,
+      scale: 0.42,
+    },
   );
-  town.circles.push({ x: tx, z: tz, r: 0.25 });
-  // The bench sits on the garden's front edge, clear of the tree.
-  placeBench(town, x, z + size / 2 - 0.9, 0);
+  town.circles.push({ x: tree.x, z: tree.z, r: 0.3 });
+  // Plants along the fence inside (the sides and the back, not across the gate), and short grass on the lawn.
+  for (let i = 0; i < 9 + Math.floor(random() * 5); i++) {
+    const t = (random() * 2 - 1) * (half - 0.6);
+    const [lx, lz] = [
+      [half - 0.55, t],
+      [t, -half + 0.55],
+      [-half + 0.55, t],
+    ][Math.floor(random() * 3)];
+    const spot = at(lx, lz);
+    const [model, size] = GARDEN_PLANTS[Math.floor(random() * GARDEN_PLANTS.length)];
+    placeKitPlant(town, bush(random, 0.5), {
+      model,
+      x: spot.x,
+      z: spot.z,
+      angle: random() * Math.PI * 2,
+      scale: size * (1.1 + random() * 0.4),
+    });
+  }
+  for (let i = 0; i < 8; i++) {
+    const spot = at((random() * 2 - 1) * (half - 0.8), (random() * 2 - 1) * (half - 0.8));
+    placeKitPlant(town, null, {
+      model: "grass-common-short",
+      x: spot.x,
+      z: spot.z,
+      angle: random() * Math.PI * 2,
+      scale: 0.4,
+    });
+  }
+  const seat = at(-corner, -half + 0.9);
+  placeBench(town, seat.x, seat.z, facing);
+  town.waypoints.push(at(0, half + 0.8)); // in front of the gate, so people find the way in to the bench
+}
+
+/** An empty block at the town's edge, left as a meadow: a few trees, wildflowers and long grass. */
+function placeMeadow(random, town, cx, cz) {
+  const spot = (margin) => ({
+    x: cx + (random() * 2 - 1) * (BLOCK / 2 - margin),
+    z: cz + (random() * 2 - 1) * (BLOCK / 2 - margin),
+  });
+  for (let i = 0; i < 2 + Math.floor(random() * 3); i++) {
+    const at = spot(2.5);
+    const model = ["commontree-1", "commontree-2", "commontree-4"][Math.floor(random() * 3)];
+    placeKitPlant(town, null, { model, x: at.x, z: at.z, angle: random() * Math.PI * 2, scale: 0.6 + random() * 0.2 });
+    town.circles.push({ x: at.x, z: at.z, r: 0.35 });
+  }
+  for (let i = 0; i < 18; i++) {
+    const at = spot(1);
+    const [model, size] = [...GARDEN_PLANTS, ["grass-wispy-tall", 0.45], ["grass-common-tall", 0.45]][
+      Math.floor(random() * (GARDEN_PLANTS.length + 2))
+    ];
+    placeKitPlant(town, null, { model, x: at.x, z: at.z, angle: random() * Math.PI * 2, scale: size * 1.2 });
+  }
+}
+
+/** A wagon left at the side of a street at (x, z), lying along x (`alongX`) or z. */
+function placeWagon(random, town, x, z, alongX) {
+  const angle = (alongX ? Math.PI / 2 : 0) + (random() < 0.5 ? 0 : Math.PI);
+  placeKitProp(town, crate(1.4).scale(1.2, 1, 2.6), {
+    model: "prop-wagon",
+    x,
+    z,
+    angle,
+    scale: 0.9,
+  });
+  town.boxes.push(
+    alongX
+      ? { minX: x - 1.8, maxX: x + 1.8, minZ: z - 0.9, maxZ: z + 0.9, low: true }
+      : { minX: x - 0.9, maxX: x + 0.9, minZ: z - 1.8, maxZ: z + 1.8, low: true },
+  );
 }
 
 /**
@@ -388,6 +566,17 @@ function placeGarden(random, town, x, z, size) {
  */
 function fillBlock(random, town, cx, cz, role) {
   const half = BLOCK / 2;
+  // A paved edge round the block, inside the kerb.
+  for (const [w, d, ox, oz] of [
+    [BLOCK, SIDEWALK, 0, half - SIDEWALK / 2],
+    [BLOCK, SIDEWALK, 0, -half + SIDEWALK / 2],
+    [SIDEWALK, BLOCK - 2 * SIDEWALK, half - SIDEWALK / 2, 0],
+    [SIDEWALK, BLOCK - 2 * SIDEWALK, -half + SIDEWALK / 2, 0],
+  ]) {
+    town.pavingPieces.push(
+      painted(new PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(cx + ox, 0.045, cz + oz), PAVING),
+    );
+  }
   const toPlaza = facingFor(-cx, -cz);
   if (role === "hall" || role === "temple" || role === "tavern") {
     const width = role === "tavern" ? 11 + random() * 2 : 13 + random() * 2;
@@ -406,7 +595,7 @@ function fillBlock(random, town, cx, cz, role) {
     // Lots on the plaza side of a shop block face the plaza and hold the shops.
     const facesPlaza = role === "shops" && Math.sign(lx) * Math.sign(-cx) + Math.sign(lz) * Math.sign(-cz) > 0;
     if (!facesPlaza && random() < 0.16) {
-      placeGarden(random, town, x, z, 7);
+      placeGarden(random, town, x, z, 6, random() < 0.5 ? (lz > 0 ? 0 : 2) : lx > 0 ? 1 : 3);
       continue;
     }
     const kind = facesPlaza
@@ -435,6 +624,11 @@ function buildTown(random) {
     buildings: [],
     propPieces: [],
     propSlots: [],
+    naturePieces: [],
+    natureSlots: [],
+    roadPieces: [],
+    pavingPieces: [],
+    waypoints: [],
     boxes: [],
     circles: [],
     doors: [],
@@ -457,7 +651,10 @@ function buildTown(random) {
       if (cx === 0 && cz === 0) continue; // the plaza
       const nearPlaza = Math.abs(cx) <= PITCH && Math.abs(cz) <= PITCH;
       const edge = Math.max(Math.abs(cx), Math.abs(cz)) === outer;
-      if (edge && random() < 0.3) continue; // a ragged edge reads as a town, not a grid
+      if (edge && random() < 0.3) {
+        placeMeadow(random, town, cx, cz); // a ragged edge reads as a town, not a grid
+        continue;
+      }
       const corner = Math.abs(cx) === outer && Math.abs(cz) === outer;
       const role = nearPlaza ? plazaRoles[ring++] : corner && edgeIndex++ === smithyBlock ? "smithy" : "homes";
       fillBlock(random, town, cx, cz, role);
@@ -468,10 +665,26 @@ function buildTown(random) {
   const length = BLOCKS_PER_SIDE * PITCH + STREET;
   for (let i = 0; i <= BLOCKS_PER_SIDE; i++) {
     const line = (i - BLOCKS_PER_SIDE / 2) * PITCH;
-    town.pieces.push(painted(new PlaneGeometry(length, STREET).rotateX(-Math.PI / 2).translate(0, 0.03, line), ROAD));
-    town.pieces.push(painted(new PlaneGeometry(STREET, length).rotateX(-Math.PI / 2).translate(line, 0.035, 0), ROAD));
+    town.roadPieces.push(
+      painted(new PlaneGeometry(length, STREET).rotateX(-Math.PI / 2).translate(0, 0.03, line), ROAD),
+    );
+    town.roadPieces.push(
+      painted(new PlaneGeometry(STREET, length).rotateX(-Math.PI / 2).translate(line, 0.035, 0), ROAD),
+    );
   }
-  town.pieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
+  town.pavingPieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
+  // Now and then a wagon left at the side of a street, halfway along a block (clear of the crossings'
+  // lamps), never next to the plaza.
+  for (let i = 1; i < BLOCKS_PER_SIDE; i++) {
+    const line = (i - BLOCKS_PER_SIDE / 2) * PITCH;
+    for (let j = 0; j < BLOCKS_PER_SIDE; j++) {
+      const middle = (j - (BLOCKS_PER_SIDE - 1) / 2) * PITCH;
+      if ((Math.abs(middle) < PITCH / 2 && Math.abs(line) < PITCH) || random() > 0.15) continue;
+      const kerb = line + (random() < 0.5 ? -1 : 1) * (STREET / 2 - 1);
+      if (random() < 0.5) placeWagon(random, town, middle, kerb, true);
+      else placeWagon(random, town, kerb, middle, false);
+    }
+  }
   town.pieces.push(
     painted(new CylinderGeometry(FOUNTAIN_RADIUS, FOUNTAIN_RADIUS + 0.2, 0.7, 12).translate(0, 0.35, 0), STONE_GREY),
   );
@@ -479,7 +692,7 @@ function buildTown(random) {
     painted(new CylinderGeometry(FOUNTAIN_RADIUS - 0.3, FOUNTAIN_RADIUS - 0.3, 0.1, 12).translate(0, 0.66, 0), WATER),
   );
   town.pieces.push(painted(new CylinderGeometry(0.35, 0.5, 2.2, 6).translate(0, 1.1, 0), STONE_GREY));
-  town.circles.push({ x: 0, z: 0, r: FOUNTAIN_RADIUS + 0.2 });
+  town.circles.push({ x: 0, z: 0, r: FOUNTAIN_RADIUS + 0.7 }); // the stone rim and the plants round it
 
   // Market day on the plaza: stalls in the corners facing the fountain, benches beside it.
   for (const [x, z] of [
@@ -503,6 +716,19 @@ function buildTown(random) {
       });
     }
     town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
+    // A barrel or a sack at the stall's side.
+    const beside = toWorld(x, z, facing, random() < 0.5 ? -1.6 : 1.6, 0);
+    const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * 3)];
+    placeKitProp(town, fallback(), { model, x: beside.x, z: beside.z, angle: random() * Math.PI * 2 });
+    town.circles.push({ x: beside.x, z: beside.z, r });
+  }
+  // Bushes and flowers round the fountain.
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    const [model, size] = GARDEN_PLANTS[i % 4];
+    const px = Math.cos(angle) * (FOUNTAIN_RADIUS + 0.45);
+    const pz = Math.sin(angle) * (FOUNTAIN_RADIUS + 0.45);
+    placeKitPlant(town, bush(random, 0.45), { model, x: px, z: pz, angle, scale: size * 0.8 });
   }
   for (const [x, z, facing] of [
     [-4, 0, 1],
@@ -537,10 +763,19 @@ function buildTown(random) {
     mergeGeometries(town.buildingPieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   );
+  const natureMesh = new Mesh(
+    mergeGeometries(town.naturePieces),
+    new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+  );
   return {
     mesh,
     props,
     buildingMesh,
+    natureMesh,
+    natureSlots: town.natureSlots,
+    waypoints: town.waypoints,
+    roads: groundMesh(town.roadPieces, ROAD_TILE),
+    paving: groundMesh(town.pavingPieces, PAVING_TILE),
     buildings: town.buildings,
     propSlots: town.propSlots,
     boxes: town.boxes,
@@ -549,6 +784,64 @@ function buildTown(random) {
     doors: town.doors,
     seats: town.seats,
   };
+}
+
+/** Flat pieces (roads, paving) merged into one mesh, with texture coordinates in metres / `tile`. */
+function groundMesh(pieces, tile) {
+  const geometry = mergeGeometries(pieces);
+  const position = geometry.attributes.position;
+  const uv = new Float32Array(position.count * 2);
+  for (let i = 0; i < position.count; i++) {
+    uv[i * 2] = position.getX(i) / tile;
+    uv[i * 2 + 1] = position.getZ(i) / tile;
+  }
+  geometry.setAttribute("uv", new Float32BufferAttribute(uv, 2));
+  return new Mesh(geometry, new MeshLambertMaterial({ vertexColors: true }));
+}
+
+/**
+ * Soft light and dark patches for the grass, tiling: value noise over a few octaves, made as data (no
+ * canvas needed). It's multiplied over the ground's colours, so the grass isn't one flat green.
+ */
+function grassTexture(random) {
+  const size = 64;
+  const octaves = [
+    [4, 0.5],
+    [8, 0.3],
+    [16, 0.2],
+  ].map(([cells, weight]) => ({ cells, weight, values: Array.from({ length: cells * cells }, random) }));
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let value = 0;
+      for (const { cells, weight, values } of octaves) {
+        const fx = (x / size) * cells;
+        const fy = (y / size) * cells;
+        const x0 = Math.floor(fx);
+        const y0 = Math.floor(fy);
+        const at = (i, j) => values[(j % cells) * cells + (i % cells)];
+        const tx = smooth(fx - x0);
+        const ty = smooth(fy - y0);
+        const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx;
+        const bottom = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx;
+        value += (top + (bottom - top) * ty) * weight;
+      }
+      const i = (y * size + x) * 4;
+      // Light patches lean yellow, dark ones blue-green.
+      data[i] = Math.round(255 * (0.74 + value * 0.3));
+      data[i + 1] = Math.round(255 * (0.78 + value * 0.24));
+      data[i + 2] = Math.round(255 * (0.74 + value * 0.18));
+      data[i + 3] = 255;
+    }
+  }
+  const texture = new DataTexture(data, size, size);
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.repeat.set(WORLD_SIZE / 14, WORLD_SIZE / 14);
+  texture.colorSpace = SRGBColorSpace;
+  texture.magFilter = LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function buildGround(random) {
@@ -568,7 +861,10 @@ function buildGround(random) {
   }
   geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
-  return new Mesh(geometry, new MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  return new Mesh(
+    geometry,
+    new MeshLambertMaterial({ vertexColors: true, flatShading: true, map: grassTexture(rng(7)) }),
+  );
 }
 
 /** Random points across the ground outside town. */
@@ -617,7 +913,7 @@ export function createWorld(seed) {
 
   scene.add(buildGround(random));
   const town = buildTown(random);
-  scene.add(town.mesh, town.props, town.buildingMesh);
+  scene.add(town.mesh, town.props, town.buildingMesh, town.natureMesh, town.roads, town.paving);
 
   const trees = scatter(random, BASE_TREES * MAX_DENSITY, 1.6, 1.6);
   const rocks = scatter(random, BASE_ROCKS * MAX_DENSITY, 0.8, 1.4);
@@ -684,12 +980,14 @@ export function createWorld(seed) {
   );
   doorPanels.count = town.doors.length;
   const doors = town.doors.map((door, index) => ({ ...door, index, open: 0, target: 0, closeIn: Infinity }));
+  // The simple panel, or once the village kit has loaded, its door's parts (addBuildings).
+  let doorMeshes = [doorPanels];
   const placeDoor = (door) => {
     dummy.position.set(door.hinge.x, 0, door.hinge.z);
     dummy.rotation.set(0, door.angle - DOOR_SWING * door.open, 0);
     dummy.scale.setScalar(1);
     dummy.updateMatrix();
-    doorPanels.setMatrixAt(door.index, dummy.matrix);
+    for (const mesh of doorMeshes) mesh.setMatrixAt(door.index, dummy.matrix);
   };
   for (const door of doors) placeDoor(door);
   scene.add(doorPanels);
@@ -703,6 +1001,35 @@ export function createWorld(seed) {
   const fixedBoxes = town.boxes.map((b) => ({ id: nextId++, ...b }));
   const treeCircles = trees.map((tree) => ({ id: nextId++, x: tree.x, z: tree.z, r: 0.25 * tree.scale }));
 
+  // Detailed nature (addNature): every tree, rock and plant as instances of kit models, each model's
+  // instances rewritten to just those within sight of the player and allowed by the density whenever the
+  // player has moved a little way.
+  const natureLayers = []; // { meshes: InstancedMesh[], items: [{ x, z, need, matrix }] }
+  const view = { x: Infinity, z: Infinity, radius: 200, density: DENSITIES[0] };
+  function refreshNature() {
+    const reach = (view.radius + 15) ** 2;
+    for (const { meshes, items } of natureLayers) {
+      let count = 0;
+      for (const item of items) {
+        if (item.need > view.density) continue;
+        if ((item.x - view.x) ** 2 + (item.z - view.z) ** 2 > reach) continue;
+        for (const mesh of meshes) mesh.setMatrixAt(count, item.matrix);
+        count++;
+      }
+      for (const mesh of meshes) {
+        mesh.count = count;
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+    }
+  }
+  /** Where the player is, so the detailed nature near them is the nature drawn. Cheap to call every frame. */
+  function follow(x, z) {
+    if (!natureLayers.length || (x - view.x) ** 2 + (z - view.z) ** 2 < 64) return;
+    view.x = x;
+    view.z = z;
+    refreshNature();
+  }
+
   let collider = createCollider([], []);
   function setDensity(density) {
     const treeCount = BASE_TREES * density;
@@ -710,6 +1037,8 @@ export function createWorld(seed) {
     crowns.count = treeCount;
     stones.count = BASE_ROCKS * density;
     collider = createCollider([...fixedCircles, ...treeCircles.slice(0, treeCount)], fixedBoxes);
+    view.density = density;
+    refreshNature();
   }
   setDensity(DENSITIES[0]);
   const resolveCollisions = (position, radius) => collider.resolve(position, radius);
@@ -722,7 +1051,7 @@ export function createWorld(seed) {
     const steps = 24;
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
-      if (collider.insideBox(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t, ROOF_OVERHANG))
+      if (collider.insideBox(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t, ROOF_OVERHANG, true))
         return (i - 1) / steps;
     }
     return 1;
@@ -752,13 +1081,15 @@ export function createWorld(seed) {
       placeDoor(door);
       moved = true;
     }
-    if (moved) doorPanels.instanceMatrix.needsUpdate = true;
+    if (moved) for (const mesh of doorMeshes) mesh.instanceMatrix.needsUpdate = true;
   }
 
   /** How far you can see: the fog closes in from 40% of `distance` to all of it. */
   function setDrawDistance(distance) {
     scene.fog.near = distance * 0.4;
     scene.fog.far = distance;
+    view.radius = distance;
+    refreshNature();
   }
 
   const sunDirection = new Vector3();
@@ -791,19 +1122,16 @@ export function createWorld(seed) {
   }
 
   /**
-   * Swaps in detailed trees, rocks and plants near town once the kit has loaded (`models`: a Map from
-   * model name to parts). The cones and boxes they replace are hidden; further out they stay, where the
-   * haze hides the difference and they cost almost nothing.
+   * Swaps every simple tree and rock for a detailed one once the kit has loaded (`models`: a Map from
+   * model name to parts), adds undergrowth round the town and at the foot of some trees, and the plants
+   * in the town's gardens and by its doors. The simple ones are hidden, so only kit nature shows; how
+   * much of it is drawn follows the density and the draw distance (refreshNature).
    */
   function addNature(models) {
-    const nearTown = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < TOWN_HALF + NATURE_RING;
-    const hidden = new Object3D();
-    hidden.scale.setScalar(0);
-    hidden.updateMatrix();
-    const placements = new Map(); // model name → matrices
-    const place = (name, matrix) => {
+    const placements = new Map(); // model name → [{ x, z, need, matrix }]
+    const place = (name, x, z, need) => {
       if (!placements.has(name)) placements.set(name, []);
-      placements.get(name).push(matrix.clone());
+      placements.get(name).push({ x, z, need, matrix: dummy.matrix.clone() });
     };
     const pickWeighted = (list, value) => {
       const total = list.reduce((sum, entry) => sum + entry[1], 0);
@@ -814,28 +1142,42 @@ export function createWorld(seed) {
       }
       return list[list.length - 1];
     };
-    trees.slice(0, BASE_TREES).forEach((tree, i) => {
-      if (!nearTown(tree.x, tree.z)) return;
+    // A tree or rock is drawn once the density reaches the first setting whose count includes it.
+    const needFor = (i, base) => DENSITIES.find((density) => i < base * density) ?? MAX_DENSITY;
+    const growth = rng(seed ^ 0x5bd1e995);
+    trees.forEach((tree, i) => {
       const [name, , size] = pickWeighted(KIT_TREES, tree.tint);
+      const need = needFor(i, BASE_TREES);
       dummy.position.set(tree.x, heightAt(tree.x, tree.z) - 0.1, tree.z);
       dummy.rotation.set(0, tree.turn, 0);
       dummy.scale.setScalar(size * (0.75 + tree.scale * 0.15));
       dummy.updateMatrix();
-      place(name, dummy.matrix);
-      trunks.setMatrixAt(i, hidden.matrix);
-      crowns.setMatrixAt(i, hidden.matrix);
+      place(name, tree.x, tree.z, need);
+      if (growth() < TREE_UNDERGROWTH) {
+        const [plant, , plantSize] = pickWeighted(KIT_PLANTS.slice(0, 5), growth());
+        const angle = growth() * Math.PI * 2;
+        const x = tree.x + Math.cos(angle) * 1.3;
+        const z = tree.z + Math.sin(angle) * 1.3;
+        dummy.position.set(x, heightAt(x, z) - 0.03, z);
+        dummy.rotation.set(0, angle, 0);
+        dummy.scale.setScalar(plantSize);
+        dummy.updateMatrix();
+        place(plant, x, z, need);
+      }
     });
-    rocks.slice(0, BASE_ROCKS).forEach((rock, i) => {
-      if (!nearTown(rock.x, rock.z)) return;
+    rocks.forEach((rock, i) => {
       dummy.position.set(rock.x, heightAt(rock.x, rock.z) - 0.15, rock.z);
       dummy.rotation.set(0, rock.turn, 0);
       dummy.scale.setScalar(rock.scale * 0.35);
       dummy.updateMatrix();
-      place(KIT_ROCKS[Math.floor(rock.tint * KIT_ROCKS.length) % KIT_ROCKS.length], dummy.matrix);
-      stones.setMatrixAt(i, hidden.matrix);
+      place(
+        KIT_ROCKS[Math.floor(rock.tint * KIT_ROCKS.length) % KIT_ROCKS.length],
+        rock.x,
+        rock.z,
+        needFor(i, BASE_ROCKS),
+      );
     });
     // Undergrowth on the grass around town: between the town's edge and the forest.
-    const growth = rng(seed ^ 0x5bd1e995);
     for (let placed = 0, tries = 0; placed < UNDERGROWTH && tries < UNDERGROWTH * 6; tries++) {
       const x = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
       const z = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
@@ -845,20 +1187,46 @@ export function createWorld(seed) {
       dummy.rotation.set(0, growth() * Math.PI * 2, 0);
       dummy.scale.setScalar(size * (0.8 + growth() * 0.5));
       dummy.updateMatrix();
-      place(name, dummy.matrix);
+      place(name, x, z, 1);
       placed++;
     }
-    trunks.instanceMatrix.needsUpdate = true;
-    crowns.instanceMatrix.needsUpdate = true;
-    stones.instanceMatrix.needsUpdate = true;
-    for (const [name, matrices] of placements) {
-      for (const { geometry, material } of models.get(name) ?? []) {
-        const instanced = new InstancedMesh(geometry, material, matrices.length);
-        matrices.forEach((matrix, i) => instanced.setMatrixAt(i, matrix));
-        instanced.computeBoundingSphere();
+    // The town's own plants: gardens, doorsteps, round the fountain.
+    for (const slot of town.natureSlots) {
+      dummy.position.set(slot.x, heightAt(slot.x, slot.z), slot.z);
+      dummy.rotation.set(0, slot.angle, 0);
+      dummy.scale.setScalar(slot.scale);
+      dummy.updateMatrix();
+      place(slot.model, slot.x, slot.z, 1);
+    }
+    if ([...placements.keys()].some((name) => !models.has(name))) return; // something missing: keep the simple ones
+    trunks.visible = false;
+    crowns.visible = false;
+    stones.visible = false;
+    town.natureMesh.visible = false;
+    for (const [name, items] of placements) {
+      const meshes = models.get(name).map(({ geometry, material }) => {
+        const instanced = new InstancedMesh(geometry, material, items.length);
+        instanced.frustumCulled = false; // round the player anyway, and its instances change as they move
         instanced.userData.kit = true;
+        instanced.userData.model = name;
         scene.add(instanced);
-      }
+        return instanced;
+      });
+      natureLayers.push({ meshes, items });
+    }
+    view.x = Infinity; // drawn from wherever the player is on the next follow()
+    refreshNature();
+  }
+
+  /** Roads in cobbles and paving in brick (`textures`: { road, paving }, from the village kit). */
+  function addGround({ road, paving }) {
+    for (const [mesh, map] of [
+      [town.roads, road],
+      [town.paving, paving],
+    ]) {
+      mesh.material.map = map;
+      mesh.material.vertexColors = false;
+      mesh.material.needsUpdate = true;
     }
   }
 
@@ -873,8 +1241,22 @@ export function createWorld(seed) {
         groups.get(model).push(at.clone().multiply(matrix));
       }
     });
-    if ([...groups.keys()].some((model) => !models.has(model))) return; // something missing: keep the simple ones
+    if ([...groups.keys(), DOOR_PIECE].some((model) => !models.has(model))) return; // something missing: keep the simple ones
     town.buildingMesh.visible = false;
+    // The kit's door in each doorway, in place of the simple panel.
+    doorPanels.visible = false;
+    doorMeshes = models.get(DOOR_PIECE).map(({ geometry, material }) => {
+      const instanced = new InstancedMesh(geometry, material, Math.max(1, doors.length));
+      instanced.count = doors.length;
+      instanced.frustumCulled = false;
+      instanced.userData.kit = true;
+      scene.add(instanced);
+      return instanced;
+    });
+    for (const door of doors) {
+      door.hinge = door.kitHinge;
+      placeDoor(door);
+    }
     for (const [model, matrices] of groups) {
       for (const { geometry, material } of models.get(model)) {
         const instanced = new InstancedMesh(geometry, material, matrices.length);
@@ -926,18 +1308,20 @@ export function createWorld(seed) {
     resolveCollisions,
     clearSight,
     dispose,
-    buildingCount: town.boxes.length,
+    buildingCount: town.buildings.length,
     /** Each building's door: `x`/`z` is where to stand to use it, `step` the doorway, `open` 0–1. */
     doors,
     /** Bench seats: { x, z, angle, approach, height, taken }. */
     seats: town.seats,
     /** Points along the middle of every street (crossings and halfway between), for finding a way round
      *  buildings. */
-    waypoints: streetWaypoints(),
+    waypoints: [...streetWaypoints(), ...town.waypoints],
     setDoor,
     addNature,
     addProps,
     addBuildings,
+    addGround,
+    follow,
     update,
     setDrawDistance,
     setTime,

@@ -89,28 +89,50 @@ world.setTime(12);
     NATURE_MODELS.map((name) => [name, [{ geometry: new BoxGeometry(1, 1, 1), material: new MeshLambertMaterial() }]]),
   );
   nature.addNature(stand);
+  nature.follow(SPAWN.x, SPAWN.z);
   const kit = [];
-  let hidden = 0;
+  const simple = [];
   nature.scene.traverse((object) => {
     if (object.userData.kit) kit.push(object);
-    if (object.isInstancedMesh && !object.userData.kit) {
-      for (let i = 0; i < object.count; i++) {
-        const matrix = new Matrix4();
-        object.getMatrixAt(i, matrix);
-        if (matrix.elements[0] === 0 && matrix.elements[5] === 0) hidden++;
-      }
-    }
+    else if (object.isInstancedMesh && object.count > 100) simple.push(object);
   });
   assert.ok(kit.length >= 15, `kit trees, rocks and plants are added (${kit.length} kinds)`);
-  assert.ok(hidden > 50, `the simple trees and rocks they replace are hidden (${hidden})`);
-  for (const mesh of kit) {
+  assert.ok(
+    simple.length >= 3 && simple.every((mesh) => !mesh.visible),
+    "the simple trees and rocks are all hidden: only kit nature shows",
+  );
+  const treeNames = new Set(NATURE_MODELS.filter((name) => /tree|pine/u.test(name)));
+  const trees = kit.filter((mesh) => treeNames.has(mesh.userData.model));
+  const drawn = () => trees.reduce((sum, mesh) => sum + mesh.count, 0);
+  const near = drawn();
+  assert.ok(near > 100, `detailed trees stand all round, not only by the town (${near})`);
+  let townTrees = 0;
+  for (const mesh of trees) {
     for (let i = 0; i < mesh.count; i++) {
       const matrix = new Matrix4();
       mesh.getMatrixAt(i, matrix);
       const at = new Vector3().setFromMatrixPosition(matrix);
-      assert.ok(Math.max(Math.abs(at.x), Math.abs(at.z)) > 60, "nothing grows inside the town");
+      if (Math.max(Math.abs(at.x), Math.abs(at.z)) < 60) townTrees++; // a garden's or a meadow's
+      assert.ok(Math.hypot(at.x - SPAWN.x, at.z - SPAWN.z) < 200 + 16, "only trees within sight are drawn");
     }
   }
+  assert.ok(townTrees < 40, `only gardens and meadows have trees in town, not the forest (${townTrees})`);
+  nature.setDensity(DENSITIES[1]);
+  assert.ok(drawn() > near * 2, `more density means more detailed trees (${near} → ${drawn()})`);
+  nature.setDrawDistance(90);
+  nature.setDensity(DENSITIES[0]);
+  assert.ok(drawn() < near, `a shorter draw distance draws fewer of them (${drawn()})`);
+  const plants = kit.filter((mesh) => /bush|flower/u.test(mesh.userData.model));
+  const inTown = plants.some((mesh) => {
+    for (let i = 0; i < mesh.count; i++) {
+      const matrix = new Matrix4();
+      mesh.getMatrixAt(i, matrix);
+      const at = new Vector3().setFromMatrixPosition(matrix);
+      if (Math.max(Math.abs(at.x), Math.abs(at.z)) < 50) return true;
+    }
+    return false;
+  });
+  assert.ok(inTown, "bushes and flowers grow in the town's gardens and by its doors");
   nature.dispose();
 }
 world.setDensity(DENSITIES[0]);
