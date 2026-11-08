@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.26",
+          "date": "2026-11-08",
+          "notes": "- Doors, caves and the fountain open a card of things to do (go in, knock, toss a coin…), a box for your own line, and who comes along. Choosing sets up a scene for the AI part to play out; recent ones show in the Journal.\n- Iron lamp posts with glass lanterns that glow at night, pool light on the cobbles and light the streets near you.\n- A stone fountain with a tiered bowl and water falling into the basin.\n- Name tags are tinted by how each person sees you: red for enemies, green for friends, pink for romance, grey to yellow as acquaintances get to know you, deeper the stronger it is.\n- A Lore button shows the lore active where you are, with its text. In Places, choose which lorebooks to list, each folding open to its entries.",
+          "highlight": false
+        },
+        {
           "version": "0.4.25",
           "date": "2026-11-08",
           "notes": "- Swimming: walk into the river and you wade through the shallows, then swim where it's deep, treading water when you stop (Shift swims faster). Recorded swimming animations from the Universal Animation Library.\n- The river is deeper in the middle, and its water reaches the banks everywhere instead of leaving dry gaps.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.7",
           "date": "2026-11-08",
           "notes": "- Recorded animations: walking, running, standing, sitting down and up, and talking now play motion from Quaternius's free Universal Animation Library (public domain), on every model. Feet stay planted at any speed, and waving and looking at people still play on top. Settings → Animation switches back to the hand-made motion.\n- Walking is now 1.4 m/s, a natural pace for the recorded walk; raise it in Settings if you like.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.6",
-          "date": "2026-11-08",
-          "notes": "- Smoother walking: the body rises and falls in a gentle wave (about 2 cm) instead of dropping and popping up with each step, the swinging leg bends at the knee as it comes through, and the arms swing more freely.",
           "highlight": false
         }
       ]
