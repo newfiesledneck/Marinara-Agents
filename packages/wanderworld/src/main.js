@@ -14,6 +14,7 @@ import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
 import { findModel, loadModelCharacter } from "./models.js";
+import { createPerson } from "./people.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
@@ -240,6 +241,7 @@ function applySettings() {
   core.shadow.visible = settings.shadows;
   core.crowd.setShadows(settings.shadows);
   core.crowd.setNamesVisible(settings.names);
+  core.crowd.setDressed(settings.people === "kit");
   core.sound.setEnabled(settings.sound);
   core.sound.setVolume(settings.volume);
   core.hud?.setSettings(settings);
@@ -251,6 +253,7 @@ function changeSetting(name, value) {
   if (checked === undefined) return;
   core.settings = { ...core.settings, [name]: checked };
   if (name === "resolution") core.autoScale = 1;
+  if (name === "people") void choosePersona(core.personaId); // redress the player too
   saveSettings(core.settings);
   applySettings();
 }
@@ -344,12 +347,13 @@ async function choosePersona(id) {
   if (persona) store(PERSONA_KEY, persona.id);
   const load = ++core.personaLoad;
   setCharacter(createFigure(persona?.name ?? ""));
-  if (!persona) return;
-  const model = await findModel({ type: "persona", id: persona.id });
-  if (!model || load !== core.personaLoad) return;
-  core.hud?.setStatus(`Loading ${persona.name}'s model…`);
+  const model = persona ? await findModel({ type: "persona", id: persona.id }) : null;
+  if (load !== core.personaLoad) return;
+  if (!model && core.settings.people !== "kit") return;
+  if (model) core.hud?.setStatus(`Loading ${persona.name}'s model…`);
   try {
-    const character = await loadModelCharacter(model);
+    // Their own 3D model, or else a person dressed from the kit.
+    const character = model ? await loadModelCharacter(model) : await createPerson(persona?.name ?? "");
     if (load !== core.personaLoad) {
       character.dispose();
       return;

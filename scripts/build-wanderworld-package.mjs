@@ -3,7 +3,7 @@
 // update the catalog family. It is client-only and needs no Engine checkout to build: three.js and
 // esbuild are pinned in this repository's package.json.
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -19,9 +19,9 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.4.7";
-// A client-only Home tab with its own icon, the same floor as Modern Life Sim's Home tab.
-const CAPABILITY_API = Object.freeze({ major: 1, minor: 9 });
+const VERSION = "0.4.8";
+// A client-only Home tab with its own icon, serving its own asset files (the kit: people, props).
+const CAPABILITY_API = Object.freeze({ major: 1, minor: 10 });
 const ENGINE_MIN = "2.4.4";
 const MAX_ENGINE_EXCLUSIVE = "4.0.0";
 const THREE_VERSION = "0.186.1"; // matches the Engine's own three.js
@@ -72,6 +72,23 @@ assertClientHostGates({
 const clientBuffer = Buffer.from(bundled.outputFiles[0].contents);
 const iconBuffer = await readFile(join(packageRoot, TAB_ICON));
 
+// ── The kit: asset files the game loads when it needs them (people, props …) ─
+// Made from free CC0 packs by scripts/build-wanderworld-people.mjs and friends, and served by the Engine
+// at /api/capability-packages/wanderworld/assets/<path> because contributions.assets.paths names them.
+async function filesUnder(directory, prefix) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const found = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const path = `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) found.push(...(await filesUnder(join(directory, entry.name), path)));
+    else if (/\.(?:json|webp|png)$/u.test(entry.name)) found.push(path);
+  }
+  return found;
+}
+const kitPaths = await filesUnder(join(packageRoot, "kit"), "kit");
+const kitPayloads = [];
+for (const path of kitPaths) kitPayloads.push({ path, buffer: await readFile(join(packageRoot, path)) });
+
 // ── Agent definition stub: satisfies the catalog loader; runtime-inert ───────
 const description = withPackageActivationGuidance("wanderworld", BASE_DESCRIPTION);
 const agentDefinition = {
@@ -106,11 +123,13 @@ const manifest = {
   contributions: {
     slots: ["home-browser-tab"],
     homeBrowserTab: { label: "Wanderworld", ariaLabel: "Open Wanderworld", iconPaths: [TAB_ICON] },
+    assets: { paths: kitPaths },
   },
   files: [
     { path: "agents.json", sha256: sha256(agentsBuffer), bytes: agentsBuffer.byteLength },
     { path: "client.js", sha256: sha256(clientBuffer), bytes: clientBuffer.byteLength },
     { path: TAB_ICON, sha256: sha256(iconBuffer), bytes: iconBuffer.byteLength },
+    ...kitPayloads.map((asset) => ({ path: asset.path, sha256: sha256(asset.buffer), bytes: asset.buffer.byteLength })),
   ],
   // ui: it draws its own Home tab. It also reads your persona and character lists and their 3D Avatars
   // models through the Engine's same-origin routes, which no other permission name describes; it writes
@@ -131,6 +150,7 @@ const archive = createDeterministicZip([
   { name: "agents.json", data: agentsBuffer },
   { name: "client.js", data: clientBuffer },
   { name: TAB_ICON, data: iconBuffer },
+  ...kitPayloads.map((asset) => ({ name: asset.path, data: asset.buffer })),
 ]);
 await mkdir(artifactsDir, { recursive: true });
 const artifactName = `wanderworld-${VERSION}.zip`;
@@ -156,4 +176,6 @@ catalog.packages.sort((left, right) => left.manifest.name.localeCompare(right.ma
 await writeCatalogFamily(repoRoot, catalog);
 
 console.log(`built wanderworld ${VERSION}`);
-console.log(`  client.js ${clientBuffer.byteLength} bytes, artifact ${archive.byteLength} bytes`);
+console.log(
+  `  client.js ${clientBuffer.byteLength} bytes, ${kitPayloads.length} kit files, artifact ${archive.byteLength} bytes`,
+);

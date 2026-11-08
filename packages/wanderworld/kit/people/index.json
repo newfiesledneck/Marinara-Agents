@@ -1,0 +1,53 @@
+{
+  "source": "Universal Base Characters and Modular Character Outfits - Fantasy by Quaternius, CC0 1.0",
+  "sexes": {
+    "male": {
+      "outfits": [
+        {
+          "name": "male-peasant",
+          "colourways": [
+            "peasant-a",
+            "peasant-b"
+          ],
+          "hood": false
+        },
+        {
+          "name": "male-ranger",
+          "colourways": [
+            "ranger-a",
+            "ranger-b"
+          ],
+          "hood": true
+        }
+      ]
+    },
+    "female": {
+      "outfits": [
+        {
+          "name": "female-peasant",
+          "colourways": [
+            "peasant-a",
+            "peasant-b"
+          ],
+          "hood": false
+        },
+        {
+          "name": "female-ranger",
+          "colourways": [
+            "ranger-a",
+            "ranger-b"
+          ],
+          "hood": true
+        }
+      ]
+    }
+  },
+  "hair": {
+    "buns": "hair-buns",
+    "buzzed": "hair-buzzed",
+    "buzzedfemale": "hair-buzzedfemale",
+    "long": "hair-long",
+    "simpleparted": "hair-simpleparted",
+    "beard": "hair-beard"
+  }
+}
