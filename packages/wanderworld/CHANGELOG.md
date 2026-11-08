@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.4.5 — 2026-11-08
+
+- Up to 30 characters can live in town.
+- Townsfolk are inside buildings: walk into a house, the tavern or a shop and whoever is there is in the room, sitting or standing about, and you can talk to them. They come and go through the door while you're inside.
+- Townsfolk visit shops, the tavern, the temple, the hall and the smithy, find their way round buildings along the streets, and no longer hop up and down from benches or pop straight back indoors.
+- A more natural walk: much less bounce (about half), no more marching kick, and the back foot rolls onto its toes. Walking is now 1.8 m/s; raise it in Settings if you like it faster.
+- If your browser is drawing without the graphics card, Wanderworld says so and how to turn hardware acceleration on.
+
 ## 0.4.4 — 2026-11-08
 
 - Use things with E, a click or a tap: sit on benches and chairs, open doors and go inside (each kind of building has a furnished room), and talk to people. Click further away to walk there.

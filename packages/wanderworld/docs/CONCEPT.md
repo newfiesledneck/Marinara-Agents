@@ -4,14 +4,14 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.4, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
-without the AI yet), with your characters living their day in it, day and night, sound and settings.**
+Status: **0.4.5, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
+without the AI yet), with up to thirty of your characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
 
 As built: a 5 × 5-block town (about 60 buildings) around a plaza, forest outside; the player and up to
-twelve townsfolk walk in their own 3D Avatars model (VRM, GLB, FBX or MMD) or a low-poly figure.
+thirty townsfolk walk in their own 3D Avatars model (VRM, GLB, FBX or MMD) or a built-in person.
 1.01 MB `client.js` (three.js, GLTF/FBX/TGA loaders, three-vrm, mmd-parser). About 13 draw calls and
 58k triangles with four townsfolk; 120 fps in a desktop browser test. Not yet measured on a phone or in a
 real Engine. The store banner is a placeholder screenshot and needs real art before a PR.
@@ -249,6 +249,31 @@ call below.*
     `getContext`), image generation, backgrounds, agents and memory. `release` brings back the recap, which
     becomes a world event (flags, relationship notes) so the world remembers.
 - Scenes need the `scenes` permission and capability API 1.66.
+
+### S5. Lives of their own (the AI decides what townsfolk do)
+
+Today townsfolk follow simple rules (wander, sit, visit a building, go home at night) with cool-downs so
+they don't bob up and down. That reads as busy, not as people with reasons. With the server part, the AI
+plans their days from who they are:
+
+- **A daily plan per character**, written once per in-game day by one structured call per character (or
+  one batched call for the cast): a list of activities with times and places, each from a fixed menu the
+  client can act out: `work` at a building, `visit` a place or person, `sit` somewhere, `eat` at the
+  tavern, `walk` to a place, `talk` with another character, `stay home`. The inputs are the character
+  card (personality, occupation, scenario), their home and workplace from the world brief (S2), the
+  time of day, and recent world events (S4) and conversations (S3).
+- **Grounded in the world:** the plan names real places by id (the bakery, the north bench, Mira's
+  house), so the client only walks people to places that exist. Unknown places or activities fall back
+  to the rules, never fail.
+- **Characters together:** two characters whose plans meet (lunch at the tavern) walk there and sit
+  together, with an occasional in-world beat (S4's speech bubbles) written for them.
+- **Reacting:** a conversation can change someone's plan ("meet me at the fountain at noon"), and the
+  server rewrites the rest of their day.
+- **Cost:** plans are made ahead (the next few hours) and cached in the world document, so walking around
+  never waits on a call; with no connection or a failed call, the rules carry on.
+- **Client side now:** the rules already run on plans (lists of steps like walk, sit, enter, wait), and
+  townsfolk can enter buildings, sit, and find their way along the streets, so an AI plan becomes the
+  same steps.
 
 ### Decisions for later
 

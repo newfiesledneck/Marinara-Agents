@@ -287,6 +287,8 @@ export function createInterior(door, seed) {
   return {
     scene,
     kind,
+    halfWidth: hx,
+    halfDepth: hz,
     entry: { x: 0, z: hz - 0.8, angle: Math.PI },
     exit: { x: 0, z: hz - 0.6 },
     seats,

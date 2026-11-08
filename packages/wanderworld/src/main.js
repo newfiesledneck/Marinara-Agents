@@ -23,7 +23,7 @@ import { createWorld, hashString, heightAt, SPAWN, WORLD_SIZE } from "./world.js
 const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
 const FIRST_SEED = "wanderworld";
-const WALK_SPEED = 2.5; // metres per second: an unhurried walk (times the walk speed setting)
+const WALK_SPEED = 1.8; // metres per second: a brisk, natural walk (times the walk speed setting)
 const RUN_SPEED = 5; // with Shift
 const CAMERA_DISTANCE = 8; // the starting zoom
 const CAMERA_HEIGHT = 4.2; // the starting height, which sets the starting tilt
@@ -107,6 +107,8 @@ const core = {
   statsFrames: 0,
   statsSince: 0,
   savedAt: 0,
+  software: false, // drawing without the graphics card
+  softwareTold: false,
   failed: null,
 };
 core.player.add(core.shadow);
@@ -169,7 +171,21 @@ function ensureRenderer() {
   }
   core.renderer.domElement.style.cssText = "position:absolute;inset:0;display:block;width:100%;height:100%;";
   core.camera = new PerspectiveCamera(60, 1, 0.1, 160);
+  core.software = drawsInSoftware(core.renderer);
   return true;
+}
+
+/** True when the browser draws WebGL on the processor instead of the graphics card (hardware acceleration
+ *  off, or no usable driver): then everything is many times slower, and no setting here can fix it. */
+function drawsInSoftware(renderer) {
+  try {
+    const gl = renderer.getContext();
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+    return /swiftshader|llvmpipe|softpipe|software|basic render/iu.test(name);
+  } catch {
+    return false; // can't tell: say nothing
+  }
 }
 
 /** The render resolution, as a pixel ratio. "Auto" aims for about 1080p worth of pixels, lowered further
@@ -506,6 +522,7 @@ function enterBuilding(door) {
     const room = createInterior(door, core.seed);
     core.interior = { door, room };
     core.space = room;
+    core.crowd.showRoom(door, room);
     core.player.removeFromParent();
     room.scene.add(core.player);
     core.player.position.set(room.entry.x, 0, room.entry.z);
@@ -521,6 +538,7 @@ function leaveInterior(now = false) {
   const inside = core.interior;
   if (!inside) return;
   const out = () => {
+    core.crowd.hideRoom();
     core.interior = null;
     core.player.removeFromParent();
     inside.room.dispose();
@@ -557,6 +575,16 @@ function usable() {
       act: () => sit(seat),
     });
   }
+  for (const person of core.crowd.present(space)) {
+    list.push({
+      kind: "person",
+      label: `Talk to ${person.name}`,
+      x: person.position.x,
+      z: person.position.z,
+      y: 2.45,
+      act: () => talkTo(person),
+    });
+  }
   if (core.interior) {
     const { exit } = core.interior.room;
     list.push({ kind: "exit", label: "Leave", x: exit.x, z: exit.z, y: 1.6, act: () => leaveInterior() });
@@ -577,16 +605,6 @@ function usable() {
             core.sound.door();
           }
         },
-      });
-    }
-    for (const person of core.crowd.present()) {
-      list.push({
-        kind: "person",
-        label: `Talk to ${person.name}`,
-        x: person.position.x,
-        z: person.position.z,
-        y: 2.45,
-        act: () => talkTo(person),
       });
     }
   }
@@ -829,7 +847,7 @@ function movePlayer(dt, input) {
       position.x += moveX * speed * dt;
       position.z += moveZ * speed * dt;
       space.resolveCollisions(position, PLAYER_RADIUS);
-      if (!core.interior) core.crowd.pushOut(position, PLAYER_RADIUS);
+      core.crowd.pushOut(position, PLAYER_RADIUS, space);
       const edge = WORLD_SIZE / 2 - 2;
       position.x = Math.max(-edge, Math.min(edge, position.x));
       position.z = Math.max(-edge, Math.min(edge, position.z));
@@ -941,11 +959,12 @@ function step(dt) {
   frustum.setFromProjectionMatrix(viewProjection);
   const inside = !!core.interior;
   core.crowd.update(dt, {
-    player: inside ? core.interior.door : core.player.position,
+    player: core.player.position,
+    space: core.space,
     playerSitting: core.mode === "sit",
     hour: core.hour,
     time: core.clock,
-    isVisible: (position) => !inside && frustum.containsPoint(projected.set(position.x, position.y + 1, position.z)),
+    isVisible: (position) => frustum.containsPoint(projected.set(position.x, position.y + 1, position.z)),
     onFootstep: (position, running, distance) => core.sound.footstep(distance, running),
   });
   core.talk?.update(dt);
@@ -1029,6 +1048,12 @@ function attach(element) {
     return;
   }
   core.stage.prepend(core.renderer.domElement);
+  if (core.software && !core.softwareTold) {
+    core.softwareTold = true; // once per page
+    core.hud.setNotice(
+      'Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called "graphics acceleration") in your browser\'s settings, then restart the browser.',
+    );
+  }
   if (!core.world) {
     const place = readPlace();
     if (place) core.hour = place.hour;
