@@ -10,7 +10,6 @@ import {
   DataTexture,
   DoubleSide,
   ConeGeometry,
-  CircleGeometry,
   CylinderGeometry,
   DirectionalLight,
   DodecahedronGeometry,
@@ -21,19 +20,19 @@ import {
   InstancedMesh,
   Matrix4,
   Mesh,
-  MeshBasicMaterial,
   MeshLambertMaterial,
+  MeshPhongMaterial,
   Object3D,
   LinearFilter,
   PlaneGeometry,
   RepeatWrapping,
   Scene,
-  RingGeometry,
   SRGBColorSpace,
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
+import { caveGeometry } from "./caves.js";
 import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand } from "./land.js";
 import {
   barrel,
@@ -809,38 +808,60 @@ function buildTown(random, land) {
 
 const DIRT = 0x8f7350;
 const BRIDGE_WOOD = 0x7a5634;
-const CAVE_ROCK = 0x7d776d;
-const CAVE_DARK = 0x16120f;
 
-/** A ribbon `width` wide along `points`, lying on the ground (`lift` above it), as one geometry. */
-function ribbon(points, width, lift, heightOf) {
-  // Points every metre or so, so the ribbon follows the ground between them.
+/**
+ * One continuous strip along `points`, lying on the ground (`lift` above `heightOf`): every point is
+ * shared by the pieces either side of it and turned to the bend (mitred), so there are no gaps or
+ * overlaps at corners. `columns` lay it out across: [{ at (−1 … 1 across `width`), colour, lift }],
+ * so edges can fade into the grass. Texture coordinates match the ground's, so its grass texture lines
+ * up across the join. `wobble` varies the width a little along the way, so edges aren't ruler-straight.
+ */
+function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
   const dense = [];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
     const b = points[i];
-    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 1.2));
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 1));
     for (let k = 0; k < steps; k++)
       dense.push({ x: a.x + ((b.x - a.x) * k) / steps, z: a.z + ((b.z - a.z) * k) / steps });
   }
   dense.push(points[points.length - 1]);
-  const vertices = [];
+  const positions = [];
+  const colours = [];
+  const uvs = [];
+  let travelled = 0;
+  dense.forEach((point, i) => {
+    const before = dense[Math.max(0, i - 1)];
+    const after = dense[Math.min(dense.length - 1, i + 1)];
+    const tx = after.x - before.x;
+    const tz = after.z - before.z;
+    const length = Math.hypot(tx, tz) || 1;
+    if (i > 0) travelled += Math.hypot(point.x - before.x, point.z - before.z);
+    const half = (width / 2) * (1 + wobble * (Math.sin(travelled * 0.45) * 0.6 + Math.sin(travelled * 1.3 + 2) * 0.4));
+    for (const column of columns) {
+      const x = point.x + (-tz / length) * half * column.at;
+      const z = point.z + (tx / length) * half * column.at;
+      positions.push(x, heightOf(x, z) + lift + (column.lift ?? 0), z);
+      colours.push(column.colour.r, column.colour.g, column.colour.b);
+      uvs.push((x + WORLD_SIZE / 2) / WORLD_SIZE, (WORLD_SIZE / 2 - z) / WORLD_SIZE);
+    }
+  });
+  const across = columns.length;
+  const index = [];
   for (let i = 1; i < dense.length; i++) {
-    const a = dense[i - 1];
-    const b = dense[i];
-    const length = Math.hypot(b.x - a.x, b.z - a.z) || 1;
-    const nx = (-(b.z - a.z) / length) * (width / 2);
-    const nz = ((b.x - a.x) / length) * (width / 2);
-    const corner = (point, side) => {
-      const x = point.x + nx * side;
-      const z = point.z + nz * side;
-      return [x, heightOf(x, z) + lift, z];
-    };
-    const [a0, a1, b0, b1] = [corner(a, -1), corner(a, 1), corner(b, -1), corner(b, 1)];
-    vertices.push(...a0, ...a1, ...b0, ...a1, ...b1, ...b0); // counter-clockwise from above, so it faces up
+    for (let c = 1; c < across; c++) {
+      const a0 = (i - 1) * across + c - 1;
+      const a1 = a0 + 1;
+      const b0 = i * across + c - 1;
+      const b1 = b0 + 1;
+      index.push(a0, a1, b0, a1, b1, b0); // counter-clockwise from above, so it faces up
+    }
   }
   const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new Float32BufferAttribute(colours, 3));
+  geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(index);
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -854,113 +875,50 @@ function buildCountry(random, town, land) {
   const meshes = [];
   const caves = [];
   const doorOf = new Map(); // outpost index → door index
-  const caveParts = [];
-  const caveDark = []; // the inside of caves, drawn from both sides and unlit-looking
+  const caveRock = [];
+  const caveFloor = [];
+  const seedOf = (outpost) => Math.round(outpost.x * 131 + outpost.z * 977) | 0;
   for (const outpost of land.outposts) {
     if (outpost.kind === "cave") {
-      const mouth = { x: outpost.x, z: outpost.z };
-      const turn = (geometry) => geometry.rotateY(outpost.angle).translate(mouth.x, outpost.ground, mouth.z);
-      // A tunnel into the hill: an arched rock roof (rock outside, dark inside) over the cut floor, a
-      // dark back wall, and a ring of rock round the mouth. Its local +z is out of the hill.
-      const roof = () =>
-        new CylinderGeometry(CAVE_RADIUS, CAVE_RADIUS, CAVE_DEPTH, 14, 1, true, -Math.PI / 2, Math.PI)
-          .rotateX(-Math.PI / 2)
-          .translate(0, 0, -CAVE_DEPTH / 2);
-      // The hill over the tunnel is a rock shell as wide as the floor cut (land.js), faced round the mouth.
-      const shell = CAVE_RADIUS + 3;
-      caveParts.push(
-        turn(
-          painted(
-            new CylinderGeometry(shell, shell, CAVE_DEPTH + 5, 9, 1, true, -Math.PI / 2, Math.PI)
-              .rotateX(-Math.PI / 2)
-              .translate(0, -0.3, -(CAVE_DEPTH + 5) / 2),
-            CAVE_ROCK,
-          ),
-        ),
-        turn(painted(new RingGeometry(CAVE_RADIUS, shell, 12, 1, 0, Math.PI).translate(0, -0.3, 0), CAVE_ROCK)),
-      );
-      caveDark.push(
-        turn(painted(roof().scale(0.98, 0.98, 1), CAVE_DARK)),
-        turn(painted(new CircleGeometry(CAVE_RADIUS, 14, 0, Math.PI), CAVE_DARK).translate(0, 0, -CAVE_DEPTH + 0.05)),
-        turn(
-          painted(new PlaneGeometry(CAVE_RADIUS * 2, CAVE_DEPTH).rotateX(-Math.PI / 2), CAVE_DARK).translate(
-            0,
-            0.03,
-            -CAVE_DEPTH / 2,
-          ),
-        ),
-      );
-      // The entrance is built of boulders (the nature kit's rocks): a rough ring of them round the mouth,
-      // more piled over the top and heaped either side, every one its own size and turn. Simple
-      // grey stones stand in until the kit loads.
-      const local = (lx, lz) => ({
-        x: mouth.x + lx * Math.cos(outpost.angle) + lz * Math.sin(outpost.angle),
-        z: mouth.z - lx * Math.sin(outpost.angle) + lz * Math.cos(outpost.angle),
+      // One mass of rock with the entrance pushed into it (caves.js), set into the hill (land.js).
+      const cave = caveGeometry(seedOf(outpost), { depth: CAVE_DEPTH, mouth: [CAVE_RADIUS, 3] });
+      const place = (geometry) => geometry.rotateY(outpost.angle).translate(outpost.x, outpost.ground, outpost.z);
+      caveRock.push(place(cave.rock));
+      caveFloor.push(place(cave.floor));
+      const toWorld = ({ x, z }) => ({
+        x: outpost.x + x * Math.cos(outpost.angle) + z * Math.sin(outpost.angle),
+        z: outpost.z - x * Math.sin(outpost.angle) + z * Math.cos(outpost.angle),
       });
-      const boulder = (lx, ly, lz, size) => {
-        const at = local(lx, lz);
-        const model = KIT_ROCKS[Math.floor(random() * KIT_ROCKS.length)];
-        const fallback = painted(new DodecahedronGeometry(size * 1.4, 0), CAVE_ROCK).rotateY(random() * 6.3);
-        placeKitPlant(town, fallback, {
+      for (const collider of cave.colliders) town.circles.push({ ...toWorld(collider), r: collider.r });
+      // Ferns, bushes and long grass along the foot of the rock face, and a few hanging over its top edge.
+      const foot = ["fern-1", "grass-common-short", "grass-wispy-tall", "grass-common-tall", "plant-7", "fern-1"];
+      for (let i = 0; i < 16; i++) {
+        const side = i % 2 ? 1 : -1;
+        const across = side * (CAVE_RADIUS + 1 + random() * 8);
+        const at = toWorld({ x: across, z: 0.8 + random() * 1.4 - (across / 11) ** 2 * 4 });
+        const model = foot[Math.floor(random() * foot.length)];
+        placeKitPlant(town, null, {
           model,
           x: at.x,
           z: at.z,
-          y: ly - size * 0.35,
           angle: random() * Math.PI * 2,
-          scale: size,
-          tilt: [(random() - 0.5) * 0.6, (random() - 0.5) * 0.6],
+          scale: 0.55 + random() * 0.35,
         });
-      };
-      // Two rough rings round the arch (right side to left over the top), covering the rock face behind.
-      for (const [count, out, size] of [
-        [9, 0.6, 0.32],
-        [10, 2.2, 0.42],
-      ]) {
-        for (let i = 0; i <= count; i++) {
-          const around = (i / count) * Math.PI + (random() - 0.5) * 0.15;
-          const reach = CAVE_RADIUS + out + random() * 0.6;
-          boulder(Math.cos(around) * reach, Math.sin(around) * reach, 0.1 + random() * 0.5, size + random() * 0.2);
-        }
       }
       for (let i = 0; i < 6; i++) {
-        // Piled over the top and back along the roof.
-        boulder((random() - 0.5) * 6, CAVE_RADIUS + 1.2 + random() * 1.6, -0.5 - random() * 4, 0.45 + random() * 0.3);
-      }
-      for (const side of [-1, 1]) {
-        for (let i = 0; i < 3; i++) {
-          boulder(
-            side * (CAVE_RADIUS + 1.8 + random() * 2.2),
-            random() * 0.6,
-            -random() * 2 + 0.5,
-            0.4 + random() * 0.35,
-          );
-        }
-      }
-      // The tunnel's walls and back block like walls (outposts face a quarter turn, so boxes line up).
-      const wall = (minX, maxX, minZ, maxZ) => {
-        const corners = [
-          [minX, minZ],
-          [maxX, maxZ],
-        ].map(([lx, lz]) => ({
-          x: mouth.x + lx * Math.cos(outpost.angle) + lz * Math.sin(outpost.angle),
-          z: mouth.z - lx * Math.sin(outpost.angle) + lz * Math.cos(outpost.angle),
-        }));
-        town.boxes.push({
-          minX: Math.min(corners[0].x, corners[1].x),
-          maxX: Math.max(corners[0].x, corners[1].x),
-          minZ: Math.min(corners[0].z, corners[1].z),
-          maxZ: Math.max(corners[0].z, corners[1].z),
-          low: true,
+        const across = (random() * 2 - 1) * 6;
+        const at = toWorld({ x: across, z: -0.8 - random() * 1.5 });
+        const y = cave.top - heightAt(at.x, at.z) - 0.4;
+        placeKitPlant(town, null, {
+          model: random() < 0.5 ? "fern-1" : "grass-wispy-tall",
+          x: at.x,
+          z: at.z,
+          y,
+          angle: random() * 6.3,
+          scale: 0.6 + random() * 0.3,
         });
-      };
-      wall(-CAVE_RADIUS - 0.4, -CAVE_RADIUS + 0.3, -CAVE_DEPTH, 0);
-      wall(CAVE_RADIUS - 0.3, CAVE_RADIUS + 0.4, -CAVE_DEPTH, 0);
-      wall(-CAVE_RADIUS, CAVE_RADIUS, -CAVE_DEPTH - 0.4, -CAVE_DEPTH + 0.3);
-      // Where to stand to use it: well inside, near the back.
-      const inside = {
-        x: mouth.x - Math.sin(outpost.angle) * (CAVE_DEPTH - 2),
-        z: mouth.z - Math.cos(outpost.angle) * (CAVE_DEPTH - 2),
-      };
+      }
+      const inside = toWorld(cave.use);
       caves.push({ x: inside.x, z: inside.z, angle: outpost.angle, mouth: inside, outpost: outpost.index });
       continue;
     }
@@ -969,18 +927,66 @@ function buildCountry(random, town, land) {
     doorOf.set(outpost.index, town.doors.length);
     placeBuilding(random, town, makeSpec(random, kind, size), outpost.x, outpost.z, outpost.facing);
   }
-  if (caveParts.length) {
-    meshes.push(
-      new Mesh(mergeGeometries(caveParts), new MeshLambertMaterial({ vertexColors: true, flatShading: true })),
-    );
-    meshes.push(new Mesh(mergeGeometries(caveDark), new MeshBasicMaterial({ vertexColors: true, side: DoubleSide })));
+  if (caveRock.length) {
+    meshes.push(new Mesh(mergeGeometries(caveRock), new MeshLambertMaterial({ vertexColors: true })));
+    meshes.push(new Mesh(mergeGeometries(caveFloor), new MeshLambertMaterial({ vertexColors: true })));
   }
-  const roads = land.roads.map((road) => painted(ribbon(road.points, road.width, 0.07, heightAt), DIRT));
-  if (roads.length) meshes.push(new Mesh(mergeGeometries(roads), new MeshLambertMaterial({ vertexColors: true })));
-  if (land.river) {
-    const water = ribbon(land.river.points, land.river.width + 1, 0, () => land.waterLevel);
+  // Dirt roads: worn earth down the middle, fading through trodden grass into the meadow at the edges,
+  // drawn just over the ground (polygon offset) so the ground's facets never poke through.
+  const dirt = new Color(DIRT);
+  const worn = new Color(DIRT).lerp(new Color(0x6f8a45), 0.55);
+  const meadow = new Color().setHSL(0.28, 0.42, 0.37);
+  const roadColumns = [
+    { at: -1.35, colour: meadow, lift: -0.04 },
+    { at: -1, colour: worn },
+    { at: -0.55, colour: dirt },
+    { at: 0.55, colour: dirt },
+    { at: 1, colour: worn },
+    { at: 1.35, colour: meadow, lift: -0.04 },
+  ];
+  const roads = land.roads.map((road) =>
+    ribbon(road.points, road.width, { lift: 0.06, heightOf: heightAt, columns: roadColumns, wobble: 0.12 }),
+  );
+  if (roads.length) {
     meshes.push(
-      new Mesh(water, new MeshLambertMaterial({ color: WATER, transparent: true, opacity: 0.85, depthWrite: false })),
+      new Mesh(
+        mergeGeometries(roads),
+        new MeshLambertMaterial({
+          vertexColors: true,
+          map: grassTexture(rng(7)),
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        }),
+      ),
+    );
+  }
+  if (land.river) {
+    // The water: deeper blue down the middle, lighter and clearer at the banks, with a soft sheen.
+    const deep = new Color(0x3f7499);
+    const shallow = new Color(0x6fa5b8);
+    const water = ribbon(land.river.points, land.river.width + 1.2, {
+      heightOf: () => land.waterLevel,
+      columns: [
+        { at: -1, colour: shallow },
+        { at: -0.4, colour: deep },
+        { at: 0.4, colour: deep },
+        { at: 1, colour: shallow },
+      ],
+      wobble: 0.06,
+    });
+    meshes.push(
+      new Mesh(
+        water,
+        new MeshPhongMaterial({
+          vertexColors: true,
+          specular: 0x9fc3d6,
+          shininess: 70,
+          transparent: true,
+          opacity: 0.86,
+          depthWrite: false,
+        }),
+      ),
     );
   }
   for (const bridge of land.bridges) {
