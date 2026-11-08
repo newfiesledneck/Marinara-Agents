@@ -38,6 +38,26 @@ function button(label, css, onClick) {
  * onPartyWait(id, wait), onPartyLeave(id), onSetRelation(from, to, fields | null, both),
  * onSetTraits(id, { aggression, sociability }).
  */
+const SHOWN_BOOKS = "wanderworld-lorebooks-shown";
+
+/** The lorebooks chosen to show in the lore picker, as saved in this browser; null when none saved. */
+function readShownBooks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SHOWN_BOOKS) ?? "null");
+    return Array.isArray(saved) ? new Set(saved.filter((id) => typeof id === "string")) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveShownBooks(ids) {
+  try {
+    localStorage.setItem(SHOWN_BOOKS, JSON.stringify([...ids]));
+  } catch {
+    // private window or blocked storage: it just isn't remembered
+  }
+}
+
 export function createJournal(panelCss, handlers) {
   const panel = element("div", panelCss);
   panel.setAttribute("data-wanderworld-ui", "");
@@ -76,6 +96,10 @@ export function createJournal(panelCss, handlers) {
     body.append(section("Nearby"));
     if (here.nearby.length) for (const text of here.nearby) body.append(line(text));
     else body.append(line("Nobody close by.", MUTED));
+    if (here.scenes?.length) {
+      body.append(section("Scenes set up"));
+      for (const text of here.scenes) body.append(line(text));
+    }
   }
 
   function drawPeople() {
@@ -219,6 +243,11 @@ export function createJournal(panelCss, handlers) {
     }
   }
 
+  // The Places lore picker: which lorebooks it lists, and which are folded open.
+  let shownBooks = null;
+  const openBooks = new Set();
+  let keepChooserOpen = false;
+
   function drawPlaces() {
     if (picker) return drawPicker();
     body.append(line("Rename a place, or tie lorebook entries to it. Shops show their name on the sign.", MUTED));
@@ -257,18 +286,75 @@ export function createJournal(panelCss, handlers) {
     body.append(
       line("Ticked entries are active while you're here. (Sending them to the AI comes with the AI part.)", MUTED),
     );
+    // Which lorebooks to list: chosen in a dropdown at the top (remembered in this browser); at first,
+    // the ones with an entry ticked for this place.
+    const ticked = (book) => book.entries.filter((entry) => chosen.has(`${book.id}/${entry.id}`)).length;
+    if (!shownBooks)
+      shownBooks = readShownBooks() ?? new Set(lorebooks.filter((book) => ticked(book)).map((book) => book.id));
+    const choose = element(
+      "details",
+      "border:1px solid rgba(110,80,40,0.35);border-radius:6px;padding:4px 8px;background:rgba(255,250,235,0.5);",
+    );
+    const shown = lorebooks.filter((book) => shownBooks.has(book.id));
+    choose.append(
+      element(
+        "summary",
+        "cursor:pointer;font-size:13px;font-weight:600;",
+        `Lorebooks shown: ${shown.length ? `${shown.length} of ${lorebooks.length}` : "none"}`,
+      ),
+    );
     for (const book of lorebooks) {
-      body.append(element("div", "font-weight:600;margin-top:6px;font-size:13px;", book.name));
-      if (!book.entries.length) body.append(line("No entries.", MUTED));
+      const label = element(
+        "label",
+        "display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;padding:1px 0;",
+      );
+      const box = element("input");
+      box.type = "checkbox";
+      box.checked = shownBooks.has(book.id);
+      box.addEventListener("change", () => {
+        if (box.checked) shownBooks.add(book.id);
+        else shownBooks.delete(book.id);
+        saveShownBooks(shownBooks);
+        keepChooserOpen = true;
+        draw();
+      });
+      label.append(box, element("span", "", book.name));
+      choose.append(label);
+    }
+    choose.open = keepChooserOpen || !shown.length;
+    keepChooserOpen = false;
+    body.append(choose);
+    if (!shown.length) return body.append(line("Choose the lorebooks to show above.", MUTED));
+    // Each shown lorebook folds open to its entries.
+    for (const book of shown) {
+      const fold = element("details", "border-top:1px solid rgba(110,80,40,0.25);padding:4px 0;");
+      const count = element("span", "font-weight:400;opacity:0.7;", "");
+      const recount = () => (count.textContent = ` (${ticked(book)} of ${book.entries.length} ticked)`);
+      recount();
+      const summary = element("summary", "cursor:pointer;font-weight:600;font-size:13px;", book.name);
+      summary.append(count);
+      fold.append(summary);
+      fold.open = openBooks.has(book.id);
+      fold.addEventListener("toggle", () => (fold.open ? openBooks.add(book.id) : openBooks.delete(book.id)));
+      if (!book.entries.length) fold.append(line("No entries.", MUTED));
       for (const entry of book.entries) {
-        const label = element("label", "display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;");
+        const label = element(
+          "label",
+          "display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;padding-left:12px;",
+        );
         const box = element("input");
         box.type = "checkbox";
         box.checked = chosen.has(`${book.id}/${entry.id}`);
-        box.addEventListener("change", () => onToggle(book, entry, box.checked));
+        box.addEventListener("change", () => {
+          onToggle(book, entry, box.checked);
+          if (box.checked) chosen.add(`${book.id}/${entry.id}`);
+          else chosen.delete(`${book.id}/${entry.id}`);
+          recount();
+        });
         label.append(box, element("span", "", entry.title));
-        body.append(label);
+        fold.append(label);
       }
+      body.append(fold);
     }
   }
 

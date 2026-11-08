@@ -229,10 +229,20 @@ export function createHud(root, handlers) {
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>
     togglePanel(journal.panel),
   );
+  // Lore: every lorebook entry active where you are, from the place and the places it's in.
+  const lorePanel = document.createElement("div");
+  lorePanel.setAttribute("data-wanderworld-ui", "");
+  lorePanel.style.cssText = PANEL;
+  lorePanel.style.display = "none";
+  panels.push(lorePanel);
+  const loreButton = button("Lore", "The lore active where you are", () => {
+    togglePanel(lorePanel);
+    if (lorePanel.style.display !== "none") handlers.onOpenLore?.();
+  });
   const fresh = button("Menu", "Save and go back to the main menu", handlers.onMenu);
   const fullscreen = button("Fullscreen", "Fill the screen with the world", handlers.onToggleFullscreen);
   fullscreen.style.display = "none";
-  controls.append(personaLabel, peopleButton, journalButton, settingsButton, fresh, fullscreen);
+  controls.append(personaLabel, peopleButton, journalButton, loreButton, settingsButton, fresh, fullscreen);
 
   const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
   menuButton.setAttribute("aria-label", "Menu");
@@ -296,28 +306,23 @@ export function createHud(root, handlers) {
   fade.style.cssText =
     "position:absolute;inset:0;background:#000;opacity:0;transition:opacity 0.35s;pointer-events:none;";
 
-  // The card a door shows: the building, who is in it, and (later) a button to start a scene with them.
+  // The card a door (or a cave, the fountain…) shows: the place, who is there, what you can do, your own
+  // line, who comes along; then the scene that sets up, for the AI to play out.
   const scene = document.createElement("div");
   scene.setAttribute("data-wanderworld-ui", "");
   scene.style.cssText = `${PARCHMENT_EDGED}position:absolute;left:50%;bottom:48px;transform:translateX(-50%);width:min(420px,calc(100% - 24px));display:none;flex-direction:column;gap:8px;padding:20px 24px;font-size:14px;pointer-events:auto;`;
   const sceneTitle = document.createElement("div");
   sceneTitle.style.cssText = `font:700 17px ${SERIF};`;
-  const scenePeople = document.createElement("div");
-  const sceneNote = document.createElement("div");
-  sceneNote.style.cssText = "font-size:12px;opacity:0.75;";
-  sceneNote.textContent =
-    "Starting a scene here, with everyone inside taking part, comes with the AI part of Wanderworld.";
-  const sceneButtons = document.createElement("div");
-  sceneButtons.style.cssText = "display:flex;gap:8px;justify-content:flex-end;";
-  const sceneStart = button("Start scene", "Coming with the AI part", () => {});
-  sceneStart.style.cssText = INK_BUTTON;
-  sceneStart.disabled = true;
-  sceneStart.style.opacity = "0.5";
-  sceneStart.style.cursor = "default";
+  const sceneBody = document.createElement("div");
+  sceneBody.style.cssText = "display:flex;flex-direction:column;gap:8px;";
   const sceneClose = button("Close", "Close this card", () => (scene.style.display = "none"));
   sceneClose.style.cssText = INK_BUTTON;
-  sceneButtons.append(sceneStart, sceneClose);
-  scene.append(sceneTitle, scenePeople, sceneNote, sceneButtons);
+  const sceneButtons = document.createElement("div");
+  sceneButtons.style.cssText = "display:flex;gap:8px;justify-content:flex-end;";
+  sceneButtons.append(sceneClose);
+  scene.append(sceneTitle, sceneBody, sceneButtons);
+  // Keys typed into the card's line stay out of the game's controls.
+  scene.addEventListener("keydown", (event) => event.stopPropagation());
 
   // A place's name, large for a moment, on walking into it.
   const zoneTitle = document.createElement("div");
@@ -338,6 +343,7 @@ export function createHud(root, handlers) {
     top,
     peoplePanel,
     journal.panel,
+    lorePanel,
     settingsPanel,
     notice,
     scene,
@@ -430,6 +436,50 @@ export function createHud(root, handlers) {
       place.style.display = text ? "" : "none";
       place.textContent = lore.length ? `${text} · 📜 ${lore.join(", ")}` : text;
     },
+    /** Whether the Lore panel is open. */
+    loreOpen() {
+      return lorePanel.style.display !== "none";
+    },
+    /** The Lore panel's contents: { place, entries: [{ title, book, from, content }], loading }. */
+    setLore(info) {
+      const key = JSON.stringify(info);
+      if (lorePanel.dataset.key === key) return; // unchanged: keep folds as they are
+      lorePanel.dataset.key = key;
+      const text = (content, style) => {
+        const node = document.createElement("div");
+        node.style.cssText = style;
+        node.textContent = content;
+        return node;
+      };
+      const nodes = [text(`Lore here: ${info.place}`, `font:700 15px ${SERIF};`)];
+      if (!info.entries.length)
+        nodes.push(
+          text(
+            "No lore is active here. Tie lorebook entries to places in Journal → Places.",
+            "font-size:12px;opacity:0.75;",
+          ),
+        );
+      for (const entry of info.entries) {
+        const fold = document.createElement("details");
+        fold.style.cssText = "border-top:1px solid rgba(110,80,40,0.25);padding:4px 0;";
+        const summary = document.createElement("summary");
+        summary.style.cssText = "cursor:pointer;font-size:13px;font-weight:600;";
+        summary.textContent = `📜 ${entry.title}`;
+        fold.append(
+          summary,
+          text(
+            [entry.book, `from ${entry.from}`].filter(Boolean).join(" · "),
+            "font-size:11px;opacity:0.65;margin:2px 0 4px 18px;",
+          ),
+          text(
+            entry.content ?? (info.loading ? "Reading the lorebook…" : "(This entry has no text.)"),
+            "font-size:12px;line-height:1.45;white-space:pre-wrap;margin-left:18px;max-height:220px;overflow:auto;",
+          ),
+        );
+        nodes.push(fold);
+      }
+      lorePanel.replaceChildren(...nodes);
+    },
     /** Shows a place's name large for a few seconds. */
     showZone(name) {
       zoneTitle.textContent = name;
@@ -521,13 +571,71 @@ export function createHud(root, handlers) {
       });
       board.replaceChildren(header, grid, hint, form);
     },
-    /** The card for a building: { title, people: [names], party: [names coming in with you] }, or null. */
-    setScene(info) {
+    /**
+     * The card for a place or thing, or null: { title, people: [names there], party: [{ id, name }],
+     * actions: [{ id, label }], placeholder }. `onStart(actionId, line, partyIds)` sets up the scene and
+     * returns its words, which the card then shows.
+     */
+    setScene(info, onStart) {
       scene.style.display = info ? "flex" : "none";
       if (!info) return;
       sceneTitle.textContent = info.title;
-      const inside = info.people.length ? `Inside: ${info.people.join(", ")}` : "Nobody seems to be in.";
-      scenePeople.textContent = info.party?.length ? `${inside} With you: ${info.party.join(", ")}.` : inside;
+      const text = (content, style = "") => {
+        const node = document.createElement("div");
+        node.style.cssText = style;
+        node.textContent = content;
+        return node;
+      };
+      const there = info.people.length ? `There: ${info.people.join(", ")}.` : (info.empty ?? "");
+      const nodes = there ? [text(there)] : [];
+      // Who comes along: everyone in the party who's with you, ticked.
+      const along = new Set(info.party.map((member) => member.id));
+      if (info.party.length) {
+        const row = text("", "display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px;");
+        row.append(text("With you:", "opacity:0.75;"));
+        for (const member of info.party) {
+          const label = document.createElement("label");
+          label.style.cssText = "display:flex;gap:4px;align-items:center;cursor:pointer;";
+          const box = document.createElement("input");
+          box.type = "checkbox";
+          box.checked = true;
+          box.addEventListener("change", () => (box.checked ? along.add(member.id) : along.delete(member.id)));
+          label.append(box, text(member.name));
+          row.append(label);
+        }
+        nodes.push(row);
+      }
+      const line = document.createElement("textarea");
+      line.rows = 2;
+      line.maxLength = 600;
+      line.placeholder = info.placeholder ?? "Your own line: what you do or say (optional)";
+      line.style.cssText = `${INK_INPUT}resize:vertical;font:13px system-ui,sans-serif;`;
+      const start = (id) => {
+        const words = onStart?.(id, line.value, [...along]);
+        if (!words) return;
+        sceneBody.replaceChildren(
+          text("The scene is set:", `font:700 13px ${SERIF};`),
+          text(words, `${NOTE_PAPER}padding:8px 10px;font-size:13px;line-height:1.45;`),
+          text(
+            "The AI part of Wanderworld will play it out from here, with everyone there taking part. It's kept in the Journal (Here).",
+            "font-size:12px;opacity:0.75;",
+          ),
+        );
+      };
+      const actions = text("", "display:flex;gap:6px;flex-wrap:wrap;");
+      for (const action of info.actions) {
+        const go = button(action.label, `${action.label}, with your line if you wrote one`, () => start(action.id));
+        go.style.cssText = INK_BUTTON;
+        actions.append(go);
+      }
+      const own = button("Just my line", "Start the scene from your own line alone", () => {
+        if (line.value.trim()) start("own");
+        else line.focus();
+      });
+      own.style.cssText = INK_BUTTON;
+      actions.append(own);
+      nodes.push(line, actions);
+      sceneBody.replaceChildren(...nodes);
     },
     /** A notice with `text` and a Close button, or null to take it away. */
     setNotice(text) {

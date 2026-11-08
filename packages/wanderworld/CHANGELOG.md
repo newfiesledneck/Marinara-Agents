@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.4.26 — 2026-11-08
+
+- Doors, caves and the fountain open a card of things to do (go in, knock, toss a coin…), a box for your own line, and who comes along. Choosing sets up a scene for the AI part to play out; recent ones show in the Journal.
+- Iron lamp posts with glass lanterns that glow at night, pool light on the cobbles and light the streets near you.
+- A stone fountain with a tiered bowl and water falling into the basin.
+- Name tags are tinted by how each person sees you: red for enemies, green for friends, pink for romance, grey to yellow as acquaintances get to know you, deeper the stronger it is.
+- A Lore button shows the lore active where you are, with its text. In Places, choose which lorebooks to list, each folding open to its entries.
+
 ## 0.4.25 — 2026-11-08
 
 - Swimming: walk into the river and you wade through the shallows, then swim where it's deep, treading water when you stop (Shift swims faster). Recorded swimming animations from the Universal Animation Library.

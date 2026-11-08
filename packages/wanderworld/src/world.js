@@ -33,6 +33,7 @@ import {
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
 import { caveGeometry } from "./caves.js";
+import { createFountain, createLamps } from "./fixtures.js";
 import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand } from "./land.js";
 import {
   barrel,
@@ -759,13 +760,7 @@ function buildTown(random, land, ground) {
       else placeWagon(random, town, kerb, middle, false);
     }
   }
-  town.pieces.push(
-    painted(new CylinderGeometry(FOUNTAIN_RADIUS, FOUNTAIN_RADIUS + 0.2, 0.7, 12).translate(0, 0.35, 0), STONE_GREY),
-  );
-  town.pieces.push(
-    painted(new CylinderGeometry(FOUNTAIN_RADIUS - 0.3, FOUNTAIN_RADIUS - 0.3, 0.1, 12).translate(0, 0.66, 0), WATER),
-  );
-  town.pieces.push(painted(new CylinderGeometry(0.35, 0.5, 2.2, 6).translate(0, 1.1, 0), STONE_GREY));
+  // The fountain itself is built in createWorld (fixtures.js); here, only room for it.
   town.circles.push({ x: 0, z: 0, r: FOUNTAIN_RADIUS + 0.7 }); // the stone rim and the plants round it
 
   // The noticeboard: on the square's south side, facing the fountain, near where people arrive.
@@ -1655,17 +1650,12 @@ export function createWorld(seed, landscape = null) {
     new MeshLambertMaterial({ color: 0x8a8d8f, flatShading: true }),
     rocks.length,
   );
-  const lampPosts = new InstancedMesh(
-    new CylinderGeometry(0.08, 0.1, 3.4, 5).translate(0, 1.7, 0),
-    new MeshLambertMaterial({ color: 0x2f3438, flatShading: true }),
-    town.lamps.length,
-  );
-  const lampGlow = new MeshLambertMaterial({ color: 0xffe3a0, emissive: 0xffc860, emissiveIntensity: 0 });
-  const lampHeads = new InstancedMesh(
-    new BoxGeometry(0.45, 0.45, 0.45).translate(0, 3.55, 0),
-    lampGlow,
-    town.lamps.length,
-  );
+  // Lamp posts with lanterns that light up at night, and the fountain on the square (fixtures.js).
+  const lamps = createLamps(town.lamps);
+  const fountain = createFountain(FOUNTAIN_RADIUS, {
+    stone: cliffMaterial(ground, { texture: "tplaza", vertexColors: false, scale: 1.8, boost: 1.0 }),
+    water: waterMaterial(ground),
+  });
 
   const dummy = new Object3D();
   const crownColor = new Color();
@@ -1685,15 +1675,8 @@ export function createWorld(seed, landscape = null) {
     dummy.updateMatrix();
     stones.setMatrixAt(i, dummy.matrix);
   });
-  town.lamps.forEach((lamp, i) => {
-    dummy.position.set(lamp.x, 0, lamp.z);
-    dummy.rotation.set(0, 0, 0);
-    dummy.scale.setScalar(1);
-    dummy.updateMatrix();
-    lampPosts.setMatrixAt(i, dummy.matrix);
-    lampHeads.setMatrixAt(i, dummy.matrix);
-  });
-  scene.add(trunks, crowns, stones, lampPosts, lampHeads);
+  scene.add(trunks, crowns, stones);
+  scene.add(...lamps.objects, ...fountain.objects);
 
   // Doors: one instanced panel each, hinged on its left edge, swinging out onto the street.
   const doorPanels = new InstancedMesh(
@@ -1748,6 +1731,7 @@ export function createWorld(seed, landscape = null) {
   }
   /** Where the player is, so the detailed nature near them is the nature drawn. Cheap to call every frame. */
   function follow(x, z) {
+    lamps.follow(x, z);
     if (!natureLayers.length || (x - view.x) ** 2 + (z - view.z) ** 2 < 64) return;
     view.x = x;
     view.z = z;
@@ -1793,6 +1777,7 @@ export function createWorld(seed, landscape = null) {
   /** Moves the doors on: each swings about a second to open or shut. */
   function update(dt) {
     ground.uTime.value += dt;
+    fountain.update(dt);
     let moved = false;
     for (const door of doors) {
       if (door.target === 1 && Number.isFinite(door.closeIn)) {
@@ -1842,7 +1827,7 @@ export function createWorld(seed, landscape = null) {
     scene.background.copy(skyColor);
     scene.fog.color.copy(skyColor);
     const dark = 1 - daylight;
-    lampGlow.emissiveIntensity = dark > 0.35 ? Math.min(1.4, (dark - 0.35) * 3) : 0;
+    lamps.setDark(dark);
     return dark;
   }
 
@@ -1968,7 +1953,10 @@ export function createWorld(seed, landscape = null) {
     if (textures.road) ground.tcobbles.value = textures.road;
     if (textures.paving) ground.tsetts.value = textures.paving;
     if (textures.plaza) ground.tplaza.value = textures.plaza;
-    if (textures.water) ground.tWater.value = textures.water;
+    if (textures.water) {
+      ground.tWater.value = textures.water;
+      fountain.setWater(textures.water);
+    }
     if (textures.cliff) ground.tCliff.value = textures.cliff;
     for (const name of ["planks", "beams"]) {
       const material = country.wood[name];
@@ -2086,6 +2074,8 @@ export function createWorld(seed, landscape = null) {
     doors,
     /** The noticeboard on the square: { x, z, angle, use (where to stand to read it) }. Later the world
      *  brief can place boards (and other things to use) wherever it likes. */
+    /** The fountain on the square: its centre and rim radius. */
+    fountain: { x: 0, z: 0, r: FOUNTAIN_RADIUS },
     noticeboard: town.noticeboard,
     /** Cave mouths: { x, z (where to stand), angle, outpost }. */
     caves: country.caves,

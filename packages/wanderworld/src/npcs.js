@@ -10,6 +10,7 @@ import { blobShadow } from "./character.js";
 import { createFigure } from "./figure.js";
 import { findModel, loadModelCharacter } from "./models.js";
 import { createPerson } from "./people.js";
+import { tagColourOf } from "./relationships.js";
 import { hashString, heightAt, rng } from "./world.js";
 
 export const MAX_PEOPLE = 30; // far-off and out-of-sight people animate less often, so thirty stays smooth
@@ -67,7 +68,7 @@ const CHATTER = {
 const NIGHT_FROM = 21;
 const NIGHT_TO = 6.5;
 
-/** A name floating over someone's head. */
+/** A name floating over someone's head; `sprite.paint(colour)` redraws its box in a colour. */
 function nameTag(name) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
@@ -76,20 +77,28 @@ function nameTag(name) {
   const width = Math.ceil(context.measureText(name).width) + 28;
   canvas.width = width;
   canvas.height = 48;
-  context.font = font;
-  context.fillStyle = "rgba(10, 14, 20, 0.62)";
-  context.beginPath();
-  context.roundRect(0, 0, width, 48, 14);
-  context.fill();
-  context.fillStyle = "#f3f5f7";
-  context.textBaseline = "middle";
-  context.fillText(name, 14, 25);
+  const paint = (colour) => {
+    context.clearRect(0, 0, width, 48);
+    context.font = font;
+    context.fillStyle = colour;
+    context.beginPath();
+    context.roundRect(0, 0, width, 48, 14);
+    context.fill();
+    context.fillStyle = "#f3f5f7";
+    context.textBaseline = "middle";
+    context.fillText(name, 14, 25);
+  };
+  paint(tagColourOf(null));
   const texture = new CanvasTexture(canvas);
   texture.minFilter = LinearFilter;
   const sprite = new Sprite(new SpriteMaterial({ map: texture, depthWrite: false, transparent: true }));
   sprite.scale.set((width / 48) * 0.32, 0.32, 1);
   sprite.position.y = TAG_HEIGHT;
   sprite.renderOrder = 10;
+  sprite.paint = (colour) => {
+    paint(colour);
+    texture.needsUpdate = true;
+  };
   return sprite;
 }
 
@@ -1154,7 +1163,19 @@ export function createCrowd() {
       if (!world) return;
       clock = view.time;
       viewNow = view;
-      for (const person of people.values()) stepPerson(person, dt, view);
+      for (const person of people.values()) {
+        stepPerson(person, dt, view);
+        // The name tag's colour: how they see the player (checked now and then; redrawn when it changes).
+        if (clock > (person.tagAt ?? 0)) {
+          person.tagAt = clock + 0.6;
+          const toPlayer = feeling(person.id, "player");
+          const colour = tagColourOf(toPlayer.kind, toPlayer.level);
+          if (colour !== person.tagColour) {
+            person.tagColour = colour;
+            person.tag.paint(colour);
+          }
+        }
+      }
     },
     /** Keeps the player from walking through anyone in `space`. Mutates `position`. */
     pushOut(position, radius, space) {

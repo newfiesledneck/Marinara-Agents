@@ -154,6 +154,34 @@ export function warmthOf(kind, level) {
   return base * (0.35 + 0.65 * (clampLevel(level) / 100));
 }
 
+/** Each kind's hue (0–360) for name tags: friends green, romance and partners pink, enemies red… */
+const HUES = {
+  acquaintance: 50,
+  friend: 128,
+  romance: 330,
+  partner: 318,
+  family: 190,
+  colleague: 215,
+  mentor: 268,
+  rival: 28,
+  enemy: 0,
+  fear: 285,
+};
+
+/**
+ * The colour of someone's name tag for how they see the player: a dark grey box for a stranger, grey
+ * warming to yellow for an acquaintance as they get to know you, and each kind's own colour, deeper and
+ * stronger the higher the level. A CSS colour.
+ */
+export function tagColourOf(kind, level) {
+  if (!KINDS[kind]) return "rgba(10, 14, 20, 0.62)";
+  const amount = clampLevel(level) / 100;
+  if (kind === "acquaintance") {
+    return `hsla(${HUES.acquaintance}, ${Math.round(8 + amount * 62)}%, ${Math.round(30 + amount * 6)}%, 0.72)`;
+  }
+  return `hsla(${HUES[kind]}, ${Math.round(45 + amount * 40)}%, ${Math.round(44 - amount * 20)}%, 0.78)`;
+}
+
 /**
  * A set of relationships (a world's), with lookups. `records` are checked as they come in; `names`
  * (id → name) is for describing them in words.
