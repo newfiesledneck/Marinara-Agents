@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.20 — 2026-11-08
+
+- A low stone kerb runs between the streets and the sidewalks, and round the market square.
+- Sidewalks fade into the lawns instead of stopping in a hard line, and every block's corners are rounded.
+- At the edge of town the cobbled streets fade into the meadow.
+
 ## 0.4.19 — 2026-11-08
 
 - Painted ground: grass across the land, dirt on the country roads, round cobbles on the streets, stone setts on the sidewalks and sandstone slabs on the market square.
