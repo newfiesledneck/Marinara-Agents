@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.19 — 2026-11-08
+
+- Painted ground: grass across the land, dirt on the country roads, round cobbles on the streets, stone setts on the sidewalks and sandstone slabs on the market square.
+- The land blends grass into rock on steep slopes and high ground, snow on the peaks and pebbles in the riverbed, with no tiling showing.
+- Shop signs are painted wooden boards.
+
 ## 0.4.18 — 2026-11-08
 
 - New art: the main menu has a painted hilltop view of the village (a tall version on phones held upright) and a carved Wanderworld logo.

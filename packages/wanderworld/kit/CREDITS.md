@@ -11,7 +11,7 @@ licence file says so). No credit is required; this note is a courtesy.
 | `people/` | Universal Base Characters (Standard), Modular Character Outfits - Fantasy (Standard) | `scripts/build-wanderworld-people.mjs` |
 | `nature/` | Stylized Nature MegaKit (Standard), its `glTF` folder | `scripts/build-wanderworld-kit.mjs nature` |
 | `village/` | Medieval Village MegaKit (Standard), its `glTF` folder | `scripts/build-wanderworld-kit.mjs village` |
-| `art/` | Original art for Wanderworld (menu backdrops, logo, loading screen), made by the package's author with an image generator | converted to WebP by hand |
+| `art/` | Original art for Wanderworld (menu backdrops, logo, loading screen, ground textures, the sign board), made by the package's author with an image generator | converted to WebP by hand |
 | `props/` | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF` | `scripts/build-wanderworld-kit.mjs props` |
 
 The packs themselves are not in the repository. To rebuild, unzip them and run the script named above
