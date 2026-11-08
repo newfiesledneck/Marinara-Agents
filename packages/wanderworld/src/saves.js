@@ -78,6 +78,14 @@ export function checkWorld(raw) {
     names: checkNames(raw.names),
     // The land round the town (land.js checks it when the world is built): hills, mountains, river, outposts.
     landscape: isRecord(raw.landscape) ? raw.landscape : null,
+    // The New world choices it was made with (hills, mountains, river, places), for regenerating it.
+    choices: isRecord(raw.choices)
+      ? Object.fromEntries(
+          ["hills", "mountains", "river", "places"]
+            .filter((key) => typeof raw.choices[key] === "string")
+            .map((key) => [key, raw.choices[key].slice(0, 20)]),
+        )
+      : null,
     lore: checkLore(raw.lore),
     // Notes pinned to the noticeboard by the player (later the AI pins quests and news there too).
     notices: Array.isArray(raw.notices)

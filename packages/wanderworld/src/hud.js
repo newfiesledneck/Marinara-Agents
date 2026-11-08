@@ -204,12 +204,50 @@ export function createHud(root, handlers) {
   heading("World");
   choice("time", "Time", TIME_LABELS);
   toggle("interiors", "Walk into buildings (unfinished)");
+  slider("approach", "People coming up to you", 0.1, (value) => (value === 0 ? "never" : times(value)));
+  choice("approachMax", "At most at once", { 1: "1", 2: "2", 3: "3", 5: "5" });
   choice("combat", "Confrontations and combat", {
     anywhere: "Anywhere",
     outsideTowns: "Outside towns",
     outsideSafe: "Outside safe places",
     off: "Off",
   });
+  // Regenerate: the world on screen built afresh from its setup (red, and asked twice: it's for good).
+  const regenerate = document.createElement("div");
+  regenerate.style.cssText = "display:flex;flex-direction:column;gap:6px;margin:4px 0;";
+  const DANGER = `${INK_BUTTON}background:#8e2a20;color:#fff4e8;border-color:#5e1a12;`;
+  const drawRegenerate = (asking) => {
+    if (!asking) {
+      const open = button("Regenerate this world…", "Build this world again with this version's land", () =>
+        drawRegenerate(true),
+      );
+      open.style.cssText = DANGER;
+      regenerate.replaceChildren(open);
+      return;
+    }
+    const warning = document.createElement("div");
+    warning.style.cssText = "font-size:12px;line-height:1.4;";
+    warning.textContent =
+      "This builds this world again from its setup, with everything this version adds. Your people, relationships, party, notes and lore stay; you start again at the square. It can't be undone.";
+    const label = document.createElement("label");
+    label.style.cssText = "display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;";
+    const reshuffle = document.createElement("input");
+    reshuffle.type = "checkbox";
+    label.append(reshuffle, document.createTextNode("A new town layout too (place names and place lore are cleared)"));
+    const yes = button("Regenerate", "Rebuild this world now", () => {
+      drawRegenerate(false);
+      handlers.onRegenerate(reshuffle.checked);
+    });
+    yes.style.cssText = DANGER;
+    const no = button("Cancel", "Keep the world as it is", () => drawRegenerate(false));
+    no.style.cssText = INK_BUTTON;
+    const buttons = document.createElement("div");
+    buttons.style.cssText = "display:flex;gap:6px;";
+    buttons.append(yes, no);
+    regenerate.replaceChildren(warning, label, buttons);
+  };
+  drawRegenerate(false);
+  settingsPanel.append(regenerate);
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
   heading("Display");
@@ -492,6 +530,10 @@ export function createHud(root, handlers) {
     /** Opens or closes the Journal. */
     toggleJournal() {
       togglePanel(journal.panel);
+    },
+    /** Closes whichever panel is open. */
+    closePanels() {
+      for (const panel of panels) panel.style.display = "none";
     },
     /** Opens the Settings panel (from the main menu). */
     openSettings() {

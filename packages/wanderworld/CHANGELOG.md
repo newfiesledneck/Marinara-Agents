@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.28 — 2026-11-08
+
+- Settings → Regenerate this world: builds the world again from its setup with everything new, keeping your people, relationships, party, notes and lore. Optionally a new town layout too.
+- Settings: how often people come up to you (or never), and at most how many at once, so you aren't surrounded.
+- The river's banks always stand above the water, so it no longer floats with gaps over low ground in hilly worlds.
+
 ## 0.4.27 — 2026-11-08
 
 - Townsfolk hold real little conversations with each other, taking turns, warmer between friends and family and short between enemies.

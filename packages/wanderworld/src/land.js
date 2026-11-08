@@ -345,6 +345,12 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     if (river && inBounds(river.bounds, x, z)) {
       const { distance } = toLine(river.points, x, z);
       const half = river.width / 2;
+      // The banks always stand above the water: a hollow beside the river is filled up to a little over
+      // its level (else the water would show its edges, floating over the low ground).
+      const reach = half + BANK + 8;
+      if (distance < reach && height < WATER_LEVEL + 0.35) {
+        height += (WATER_LEVEL + 0.35 - height) * smooth((reach - distance) / 6);
+      }
       if (distance < half + BANK) height = RIVER_BED + (height - RIVER_BED) * smooth((distance - half) / BANK);
     }
     // Earth banked up under each end of a bridge, so its deck rests on the ground and walks off level.
