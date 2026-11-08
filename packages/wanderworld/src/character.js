@@ -4,8 +4,18 @@
 //
 // Every body is a three-vrm humanoid, moved by motion.js on its normalized humanoid bones: a model in any
 // of the Engine's 3D avatar formats (loaded by models.js), or the built-in person (figure.js).
-import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3 } from "three";
+import { CanvasTexture, Euler, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3 } from "three";
+import { createClipPlayer } from "./clips.js";
 import { createMotion } from "./motion.js";
+
+/** "recorded" plays the recorded clips (clips.js); "builtin" the hand-made motion (motion.js). */
+let animationStyle = "recorded";
+export function setAnimationStyle(style) {
+  animationStyle = style === "builtin" ? "builtin" : "recorded";
+}
+const WAVE_BONES = ["rightUpperArm", "rightLowerArm", "rightHand"];
+const overlay = new Quaternion();
+const overlayEuler = new Euler(0, 0, 0, "YXZ");
 
 let shadowParts = null;
 /** A soft dark patch on the ground under someone, so they stand on it instead of floating. Shared
@@ -89,9 +99,16 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
   };
   const upperLeg = span("leftUpperLeg", "leftLowerLeg") || 0.42;
   const unit = (bone("leftLowerLeg")?.position.length() || upperLeg) / upperLeg;
+  const lowerLeg = span("leftLowerLeg", "leftFoot") || 0.42;
+  const player = createClipPlayer({
+    present: (name) => !!bone(name),
+    // Normalized bones rest with no turn, so a bone's position is its offset from its parent; in metres.
+    offset: (name) => bone(name).position.clone().divideScalar(unit),
+    legLength: upperLeg + lowerLeg,
+  });
   const motion = createMotion({
     upperLeg,
-    lowerLeg: span("leftLowerLeg", "leftFoot") || 0.42,
+    lowerLeg,
     hipWidth: span("leftUpperLeg", "rightUpperLeg") / 2 || 0.09,
     seed: seed ?? Math.floor(Math.random() * 2 ** 32),
   });
@@ -99,6 +116,33 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
     object,
     update(dt, speed, options) {
       const pose = motion(dt, speed, options);
+      if (animationStyle === "recorded") {
+        const clip = player(dt, speed, options);
+        for (const [name, local] of clip.locals) {
+          const node = bone(name);
+          node.quaternion.copy(local);
+          if (mirror < 0) node.quaternion.set(-local.x, local.y, -local.z, local.w);
+        }
+        // On top: the hand-made wave (the clips have none) and turning the head to look at someone.
+        if (pose.waving > 0.01) {
+          for (const name of WAVE_BONES) {
+            const [x, y, z] = pose.bones[name];
+            overlay.setFromEuler(overlayEuler.set(x * mirror, y, z * mirror));
+            bone(name)?.quaternion.slerp(overlay, pose.waving);
+          }
+        }
+        if (Math.abs(pose.lookYaw) > 0.001) {
+          bone("neck")?.quaternion.multiply(overlay.setFromEuler(overlayEuler.set(0, pose.lookYaw * 0.4, 0)));
+          bone("head")?.quaternion.multiply(overlay.setFromEuler(overlayEuler.set(0, pose.lookYaw * 0.6, 0)));
+        }
+        if (hips && rest) {
+          const [x, y, z] = clip.hips;
+          hips.position.set(rest.x + x * unit * mirror, rest.y + y * unit, rest.z + z * unit * mirror);
+        }
+        blink?.(pose.blink);
+        afterPose(dt);
+        return { ...pose, footstep: clip.footstep, running: clip.running };
+      }
       for (const [name, [x, y, z]] of Object.entries(pose.bones)) bone(name)?.rotation.set(x * mirror, y, z * mirror);
       if (hips && rest) {
         const [x, y, z] = pose.hips;
