@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.9",
+          "date": "2026-11-08",
+          "notes": "- Choose a body for each character in People, and for your persona next to Play as: Auto, Male or Female. It decides which default person they get when they have no 3D model, and is remembered. Later the AI will set it from the character card.",
+          "highlight": false
+        },
+        {
           "version": "0.4.8",
           "date": "2026-11-08",
           "notes": "- People without a 3D model are now dressed: a peasant or ranger outfit in one of two colourways, a hairstyle (and sometimes a beard), skin and hair tones and a height, all chosen from their name, from Quaternius's free character packs (public domain). They walk and sit with the recorded animations.\n- Settings → People without a model switches back to the simple built-in look, which is lighter on slow devices.",
