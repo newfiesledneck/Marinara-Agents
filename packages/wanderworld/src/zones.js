@@ -359,3 +359,62 @@ export function describe(zones, who, names = {}) {
   if (who.state === "chat") doing = who.with ? `chatting with ${who.with}` : "chatting";
   return `${who.name} is ${doing} ${place}`;
 }
+
+// ── Place groups ─────────────────────────────────────────────────────────────
+// Groups gather places that belong together however they lie: every home in town, or the forest, the
+// mountains, a shepherd's cottage and the meadows as "the wilds". Lore tied to a group is active anywhere
+// in it, on top of each place's own. A world's groups are plain data ({ id, name, members: [zone ids] })
+// in its save, so the player edits them in the Journal and the AI can make or change them later.
+
+const GROUP_PREFIX = "group:";
+const WILD_KINDS = new Set(["forest", "outskirts", "mountains", "river", "road", "cave", "outpost"]);
+
+/** A world's groups before anyone has changed them: the wilds round the town, and the town's homes. */
+export function defaultGroups(zones) {
+  const members = (test) => zones.zones.filter(test).map((zone) => zone.id);
+  return [
+    { id: `${GROUP_PREFIX}wilds`, name: "The wilds", members: members((zone) => WILD_KINDS.has(zone.kind)) },
+    {
+      id: `${GROUP_PREFIX}homes`,
+      name: "Homes",
+      members: members((zone) => zone.kind === "building" && zone.buildingKind === "home"),
+    },
+  ].filter((group) => group.members.length);
+}
+
+/** Groups read back from a save (or written by the AI), checked; null when there are none saved yet. */
+export function checkGroups(raw) {
+  if (!Array.isArray(raw)) return null;
+  const seen = new Set();
+  return raw
+    .filter((group) => group && typeof group.id === "string" && group.id.startsWith(GROUP_PREFIX))
+    .filter((group) => !seen.has(group.id) && seen.add(group.id))
+    .slice(0, 60)
+    .map((group) => ({
+      id: group.id.slice(0, 80),
+      name: (typeof group.name === "string" ? group.name.trim() : "").slice(0, 60) || "A group",
+      members: [
+        ...new Set((Array.isArray(group.members) ? group.members : []).filter((id) => typeof id === "string")),
+      ].slice(0, 1000),
+    }));
+}
+
+/** A new group's id, unused among `groups`. */
+export function newGroupId(groups, name) {
+  const base = `${GROUP_PREFIX}${
+    String(name || "group")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gu, "-")
+      .replace(/^-|-$/gu, "")
+      .slice(0, 30) || "group"
+  }`;
+  let id = base;
+  for (let n = 2; groups.some((group) => group.id === id); n++) id = `${base}-${n}`;
+  return id;
+}
+
+/** The groups that hold any of `zones` (a place and the places it sits in). */
+export function groupsAt(groups, zones) {
+  const ids = new Set(zones.map((zone) => zone.id));
+  return groups.filter((group) => group.members.some((id) => ids.has(id)));
+}

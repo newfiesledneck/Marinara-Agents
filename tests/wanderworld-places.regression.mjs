@@ -3,7 +3,17 @@
 import assert from "node:assert/strict";
 import { createSaves, checkWorld } from "../packages/wanderworld/src/saves.js";
 import { createWorld, SPAWN } from "../packages/wanderworld/src/world.js";
-import { buildZones, describe, nameOf, signOf, zoneAt } from "../packages/wanderworld/src/zones.js";
+import {
+  buildZones,
+  checkGroups,
+  defaultGroups,
+  describe,
+  groupsAt,
+  nameOf,
+  newGroupId,
+  signOf,
+  zoneAt,
+} from "../packages/wanderworld/src/zones.js";
 
 // ── Zones ──
 const world = createWorld(777);
@@ -108,5 +118,32 @@ assert.deepEqual([legacy.cast, legacy.persona, legacy.hour], [["c1"], "p1", 14])
 assert.equal(createSaves(oldStorage).last().id, legacy.id, "it's the one to continue");
 assert.equal(old.has("wanderworld.place"), false, "the old keys are cleared");
 assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once");
+
+// Place groups: by default the wilds round the town and its homes; lore on a group reaches every place in
+// it; groups from a save (or the AI) are checked.
+{
+  const world = createWorld(31);
+  const zones = buildZones(world.layout, 31);
+  const groups = defaultGroups(zones);
+  const wilds = groups.find((group) => group.id === "group:wilds");
+  assert.ok(wilds.members.includes("forest"), "the forest is in the wilds");
+  assert.ok(groups.find((group) => group.id === "group:homes")?.members.length > 5, "the homes are grouped");
+  const home = zones.zones.find((zone) => zone.kind === "building" && zone.buildingKind === "home");
+  assert.deepEqual(
+    groupsAt(groups, [home]).map((group) => group.id),
+    ["group:homes"],
+    "a home is in the homes group",
+  );
+  assert.equal(newGroupId(groups, "The wilds"), "group:the-wilds");
+  assert.equal(newGroupId([...groups, { id: "group:the-wilds" }], "The wilds"), "group:the-wilds-2");
+  const checked = checkGroups([
+    { id: "group:a", name: "  Coast  ", members: ["forest", "forest", 7] },
+    { id: "group:a", name: "twice" },
+    { id: "wilds", name: "no prefix" },
+  ]);
+  assert.deepEqual(checked, [{ id: "group:a", name: "Coast", members: ["forest"] }]);
+  assert.equal(checkGroups(undefined), null, "no groups saved yet: the defaults apply");
+  assert.deepEqual(checkWorld({ id: "w", seed: "s", groups: checked }).groups, checked, "groups are saved");
+}
 
 console.log("wanderworld places regression: OK");

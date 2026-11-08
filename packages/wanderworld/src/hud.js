@@ -259,6 +259,10 @@ export function createHud(root, handlers) {
   const journal = createJournal(PANEL, {
     onRename: (id, name) => handlers.onRenameZone(id, name),
     onLore: (id) => handlers.onZoneLore(id),
+    onGroupCreate: (name) => handlers.onGroupCreate(name),
+    onGroupRename: (id, name) => handlers.onGroupRename(id, name),
+    onGroupDelete: (id) => handlers.onGroupDelete(id),
+    onGroupMember: (id, zoneId, on) => handlers.onGroupMember(id, zoneId, on),
     onPartyWait: (id, wait) => handlers.onPartyWait(id, wait),
     onPartyLeave: (id) => handlers.onPartyLeave(id),
     onSetRelation: (from, to, fields, both) => handlers.onSetRelation(from, to, fields, both),

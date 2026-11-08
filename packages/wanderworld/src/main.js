@@ -24,7 +24,7 @@ import { kitModels, kitTexture } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
 import { createHangingSign, createNoticeboard, createSign } from "./signs.js";
-import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
+import { buildZones, chainOf, defaultGroups, describe, groupsAt, nameOf, newGroupId, signOf, zoneAt } from "./zones.js";
 import { landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
@@ -584,7 +584,7 @@ function regenerateWorld(reshuffle = false) {
   const seed = reshuffle ? `world-${Date.now().toString(36)}` : core.save.seed;
   const landscape = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
   const next = { ...core.save, seed, landscape, choices, place: null };
-  if (reshuffle) Object.assign(next, { names: {}, lore: {} });
+  if (reshuffle) Object.assign(next, { names: {}, lore: {}, groups: null });
   core.saves.write(next);
   // Drop the world in memory so playing builds it again from the save.
   core.save = null;
@@ -701,10 +701,14 @@ function namedZones(residents) {
  * What the Lore panel shows: every entry active here, nearest place first, with the place it's tied to,
  * its lorebook and (once the lorebooks are read) its text.
  */
-function activeLore(zone, names) {
+function activeLore(zone, placeNamesHere) {
+  let names = placeNamesHere;
   const lore = core.save?.lore ?? {};
   const books = new Map((core.lorebooks ?? []).map((book) => [book.id, book]));
-  const entries = chainOf(core.zones, zone).flatMap((at) =>
+  const chain = chainOf(core.zones, zone);
+  const groups = groupsAt(placeGroups(), chain);
+  for (const group of groups) names = { ...names, [group.id]: `${group.name} (group)` };
+  const entries = [...chain, ...groups].flatMap((at) =>
     (lore[at.id] ?? []).map((entry) => {
       const book = books.get(entry.lorebookId);
       const found = book?.entries.find((item) => item.id === entry.entryId);
@@ -731,8 +735,54 @@ function openLore() {
 /** Lorebook entries tied to a zone or the zones it sits in. */
 function loreAt(zone) {
   const lore = core.save?.lore ?? {};
-  return chainOf(core.zones, zone).flatMap((at) => lore[at.id] ?? []);
+  const chain = chainOf(core.zones, zone);
+  return [...chain, ...groupsAt(placeGroups(), chain)].flatMap((at) => lore[at.id] ?? []);
 }
+
+/** This world's place groups: the saved ones, or the defaults until they're changed. */
+function placeGroups() {
+  if (!core.zones) return [];
+  return core.save?.groups ?? defaultGroups(core.zones);
+}
+
+/** Changes the place groups with `change(groups)` → new groups, and saves them. */
+function editGroups(change) {
+  if (!core.save) return;
+  core.save = { ...core.save, groups: change(placeGroups().map((group) => ({ ...group }))) };
+  core.saves.write(core.save);
+  core.placesChanged = true;
+  core.journalAt = 0;
+  core.zoneCheck = 0;
+}
+
+const groupHandlers = {
+  onGroupCreate: (name) =>
+    editGroups((groups) => [...groups, { id: newGroupId(groups, name), name: name || "New group", members: [] }]),
+  onGroupRename: (id, name) =>
+    editGroups((groups) => groups.map((group) => (group.id === id ? { ...group, name: name || group.name } : group))),
+  onGroupDelete: (id) => {
+    editGroups((groups) => groups.filter((group) => group.id !== id));
+    if (core.save?.lore[id]) {
+      const lore = { ...core.save.lore };
+      delete lore[id];
+      core.save = { ...core.save, lore };
+      core.saves.write(core.save);
+    }
+  },
+  onGroupMember: (id, zoneId, on) =>
+    editGroups((groups) =>
+      groups.map((group) =>
+        group.id !== id
+          ? group
+          : {
+              ...group,
+              members: on
+                ? [...new Set([...group.members, zoneId])]
+                : group.members.filter((member) => member !== zoneId),
+            },
+      ),
+    ),
+};
 
 /** Keeps the place line, the big place name and (when open) the Journal up to date. */
 function stepPlaces(dt) {
@@ -766,6 +816,7 @@ function stepPlaces(dt) {
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
     core.partyChanged = false;
     core.relationsChanged = false;
+    core.placesChanged = false;
   }
 }
 
@@ -799,9 +850,10 @@ function journalData(zone, snapshot, residents, names) {
   return {
     here: {
       place: say(playerWho),
-      chain: chainOf(zones, zone)
-        .map((at) => names[at.id])
-        .join(" · "),
+      chain: [
+        ...chainOf(zones, zone).map((at) => names[at.id]),
+        ...groupsAt(placeGroups(), chainOf(zones, zone)).map((group) => group.name),
+      ].join(" · "),
       lore: loreAt(zone),
       nearby,
       scenes: (core.save?.scenes ?? []).slice(-3).reverse().map(describeScene),
@@ -823,6 +875,8 @@ function journalData(zone, snapshot, residents, names) {
       defaultName: zoneName(at, residents, false),
       lore: (lore[at.id] ?? []).length,
     })),
+    groups: placeGroups().map((group) => ({ ...group, lore: (lore[group.id] ?? []).length })),
+    placesChanged: core.placesChanged,
     world: {
       name: core.save?.name ?? "",
       town: names.town,
@@ -881,8 +935,9 @@ async function readLorebooks() {
 /** Opens the lore picker for a place: tick entries to make them active there. */
 function editZoneLore(id) {
   const zone = core.zones?.byId.get(id);
-  if (!zone || !core.save) return;
-  const title = zoneName(zone, residentsOf(core.crowd.snapshot()));
+  const group = placeGroups().find((entry) => entry.id === id);
+  if ((!zone && !group) || !core.save) return;
+  const title = group ? group.name : zoneName(zone, residentsOf(core.crowd.snapshot()));
   const chosen = () => new Set((core.save.lore[id] ?? []).map((entry) => `${entry.lorebookId}/${entry.entryId}`));
   const toggle = (book, entry, on) => {
     const kept = (core.save.lore[id] ?? []).filter((at) => !(at.lorebookId === book.id && at.entryId === entry.id));
@@ -2004,6 +2059,7 @@ function attach(element) {
       partyChanged();
     },
     onZoneLore: editZoneLore,
+    ...groupHandlers,
     onOpenLore: openLore,
     onToggleFullscreen: toggleFullscreen,
     onPickPersona: (id) => void choosePersona(id),

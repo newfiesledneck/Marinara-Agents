@@ -9,6 +9,7 @@
 // lets later fields arrive with defaults.
 
 import { checkScene } from "./interactions.js";
+import { checkGroups } from "./zones.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
 
 export const SAVE_VERSION = 1;
@@ -87,6 +88,8 @@ export function checkWorld(raw) {
         )
       : null,
     lore: checkLore(raw.lore),
+    // Place groups ({ id, name, members }); null until the player (or the AI) changes the defaults.
+    groups: checkGroups(raw.groups),
     // Notes pinned to the noticeboard by the player (later the AI pins quests and news there too).
     notices: Array.isArray(raw.notices)
       ? raw.notices
