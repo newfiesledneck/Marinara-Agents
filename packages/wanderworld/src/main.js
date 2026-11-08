@@ -382,6 +382,8 @@ function buildWorld(seed, place = null) {
     rock: groundTexture("ground-rock"),
     cliff: groundTexture("cliff-rock"),
     sand: groundTexture("ground-riverbed"),
+    snow: groundTexture("ground-snow"),
+    forest: groundTexture("ground-forest"),
     water: groundTexture("water"),
     road: groundTexture("street-cobbles"),
     paving: groundTexture("sidewalk-setts"),

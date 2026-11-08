@@ -1010,9 +1010,31 @@ function buildCountry(random, town, land, ground) {
     { at: 1, colour: plain, splat: [0.55, 0.45, 0, 0] },
     { at: 1.4, colour: plain, splat: [1, 0, 0, 0], lift: -0.04 },
   ];
-  const roads = land.roads.map((road) =>
-    ribbon(road.points, road.width, { lift: 0.06, heightOf: heightAt, columns: roadColumns, wobble: 0.12 }),
-  );
+  // Each road in stretches, broken where it crosses a bridge: the deck carries it over the water.
+  const roads = [];
+  for (const road of land.roads) {
+    let stretch = [];
+    const finish = () => {
+      if (stretch.length > 1) {
+        roads.push(
+          ribbon(stretch, road.width, { lift: 0.06, heightOf: land.groundAt, columns: roadColumns, wobble: 0.12 }),
+        );
+      }
+      stretch = [];
+    };
+    for (let i = 0; i < road.points.length; i++) {
+      const a = road.points[i];
+      const b = road.points[i + 1] ?? a;
+      // Finer steps than the road's own points, so the break lands right at the bridge's ends.
+      const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5));
+      for (let k = 0; k < (i + 1 < road.points.length ? steps : 1); k++) {
+        const point = { x: a.x + ((b.x - a.x) * k) / steps, z: a.z + ((b.z - a.z) * k) / steps };
+        if (land.onBridge(point.x, point.z, 0.3)) finish();
+        else stretch.push(point);
+      }
+    }
+    finish();
+  }
   if (roads.length) {
     meshes.push(
       new Mesh(
@@ -1173,6 +1195,7 @@ const GROUND_LAYERS = {
   cobbles: { scale: 4, colour: 0x8a8278 },
   setts: { scale: 3, colour: 0xa49a8c },
   plaza: { scale: 3.2, colour: 0xcbb99a },
+  forest: { scale: 6, colour: 0x4f3e2a },
 };
 
 /** A 1 × 1 texture of one colour: a layer's stand-in until its painted texture loads. */
@@ -1207,7 +1230,8 @@ function terrainUniforms() {
 
 /**
  * The ground's material: each point blends grass, dirt, rock, sand and snow by its weights (the
- * `splatA` (grass, dirt, rock, sand) and `splatB` (snow, cobbles, setts, plaza slabs) attributes), every texture laid out in world
+ * `splatA` (grass, dirt, rock, sand), `splatB` (snow, cobbles, setts, plaza slabs) and `splatC` (forest
+ * floor) attributes), every texture laid out in world
  * metres and sampled twice at different sizes so its repeats don't show, under large soft light and dark
  * patches. The vertex colour adds a little brightness per facet, keeping the low-poly look.
  */
@@ -1221,8 +1245,10 @@ function terrainMaterial(uniforms, options = {}) {
         `#include <common>
 attribute vec4 splatA;
 attribute vec4 splatB;
+attribute vec4 splatC;
 varying vec4 vSplatA;
 varying vec4 vSplatB;
+varying vec4 vSplatC;
 varying vec2 vGround;`,
       )
       .replace(
@@ -1230,16 +1256,18 @@ varying vec2 vGround;`,
         `#include <begin_vertex>
 vSplatA = splatA;
 vSplatB = splatB;
+vSplatC = splatC;
 vGround = (modelMatrix * vec4(transformed, 1.0)).xz;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
         `#include <common>
-uniform sampler2D tMacro, tgrass, tdirt, trock, tsand, tsnow, tcobbles, tsetts, tplaza;
-uniform float sgrass, sdirt, srock, ssand, ssnow, scobbles, ssetts, splaza;
+uniform sampler2D tMacro, tgrass, tdirt, trock, tsand, tsnow, tcobbles, tsetts, tplaza, tforest;
+uniform float sgrass, sdirt, srock, ssand, ssnow, scobbles, ssetts, splaza, sforest;
 varying vec4 vSplatA;
 varying vec4 vSplatB;
+varying vec4 vSplatC;
 varying vec2 vGround;
 vec3 groundLayer(sampler2D map, float scale) {
   vec2 uv = vGround / scale;
@@ -1252,11 +1280,12 @@ vec3 groundLayer(sampler2D map, float scale) {
       .replace(
         "#include <map_fragment>",
         `{
-  float total = max(0.0001, dot(vSplatA, vec4(1.0)) + dot(vSplatB, vec4(1.0)));
+  float total = max(0.0001, dot(vSplatA, vec4(1.0)) + dot(vSplatB, vec4(1.0)) + vSplatC.x);
   vec3 ground = (groundLayer(tgrass, sgrass) * vSplatA.x + groundLayer(tdirt, sdirt) * vSplatA.y
     + groundLayer(trock, srock) * vSplatA.z + groundLayer(tsand, ssand) * vSplatA.w
     + groundLayer(tsnow, ssnow) * vSplatB.x + groundLayer(tcobbles, scobbles) * vSplatB.y
-    + groundLayer(tsetts, ssetts) * vSplatB.z + groundLayer(tplaza, splaza) * vSplatB.w) / total;
+    + groundLayer(tsetts, ssetts) * vSplatB.z + groundLayer(tplaza, splaza) * vSplatB.w
+    + groundLayer(tforest, sforest) * vSplatC.x) / total;
   float patches = texture2D(tMacro, vGround / 52.0).r;
   diffuseColor.rgb *= ground * (0.78 + patches * 0.3);
 }`,
@@ -1353,16 +1382,58 @@ varying vec3 vCliffNormal;`,
 }
 
 /** Layer weights at a point of the land from its height and how steep it is there: [grass, dirt, rock, sand, snow]. */
-function groundWeights(y, steep) {
+function groundWeights(y, steep, fromRiver = Infinity) {
   const smooth = (t) => {
     const c = Math.max(0, Math.min(1, t));
     return c * c * (3 - 2 * c);
   };
   const snow = smooth((y - 27) / 6);
   const rock = Math.max(smooth((y - 10) / 8), smooth((steep - 1.1) / 0.9)) * (1 - snow);
-  const sand = smooth((-0.15 - y) / 0.5) * (1 - rock);
+  // Sand and mud only in the river's bed and on its banks, not in every hollow of the hills.
+  const sand = smooth((3.5 - fromRiver) / 2) * (1 - rock);
   const grass = Math.max(0, 1 - rock - sand - snow);
   return [grass, 0, rock, sand, snow];
+}
+
+/**
+ * Leaves and needles under the trees: where trees stand close together (the usual density's trees, so
+ * it's the same at any density), the ground's grass gives way to forest floor, fading out into clearings.
+ * Only grass changes; rock, snow and riverbeds stay as they are.
+ */
+function paintForestFloor(mesh, trees) {
+  const cell = 6;
+  const grid = new Map();
+  for (const tree of trees) {
+    const key = `${Math.floor(tree.x / cell)},${Math.floor(tree.z / cell)}`;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(tree);
+  }
+  const position = mesh.geometry.attributes.position;
+  const splatA = mesh.geometry.attributes.splatA;
+  const forest = new Float32Array(position.count * 4);
+  const reach = 6.5;
+  for (let i = 0; i < position.count; i++) {
+    const x = position.getX(i);
+    const z = position.getZ(i);
+    const cx = Math.floor(x / cell);
+    const cz = Math.floor(z / cell);
+    let cover = 0;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        for (const tree of grid.get(`${cx + dx},${cz + dz}`) ?? []) {
+          const distance = Math.hypot(tree.x - x, tree.z - z);
+          if (distance < reach) cover += 1 - distance / reach;
+        }
+      }
+    }
+    const thick = Math.min(1, Math.max(0, (cover - 0.75) / 1.4));
+    const grass = splatA.getX(i);
+    const floor = grass * thick * thick * (3 - 2 * thick) * 0.85; // a little grass always shows through
+    splatA.setX(i, grass - floor);
+    forest[i * 4] = floor;
+  }
+  splatA.needsUpdate = true;
+  mesh.geometry.setAttribute("splatC", new Float32BufferAttribute(forest, 4));
 }
 
 function buildGround(random, uniforms) {
@@ -1370,7 +1441,7 @@ function buildGround(random, uniforms) {
   geometry.rotateX(-Math.PI / 2);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
-    position.setY(i, heightAt(position.getX(i), position.getZ(i)));
+    position.setY(i, land.groundAt(position.getX(i), position.getZ(i))); // the ground runs on under bridges
   }
   // Per facet: a little brightness of its own (the low-poly look), and its layers by height and slope,
   // so grass gives way to rock on steep slopes and high up, snow on the peaks, sand in the riverbed.
@@ -1382,7 +1453,11 @@ function buildGround(random, uniforms) {
     const steep = Math.max(...heights) - Math.min(...heights);
     const shade = 1.02 + random() * 0.12;
     for (let k = 0; k < 3; k++) {
-      const [grass, dirt, rock, sand, snow] = groundWeights(heights[k], steep);
+      const [grass, dirt, rock, sand, snow] = groundWeights(
+        heights[k],
+        steep,
+        land.toRiverBank(position.getX(i + k), position.getZ(i + k)),
+      );
       colors.set([shade, shade, shade], (i + k) * 3);
       splatA.set([grass, dirt, rock, sand], (i + k) * 4);
       splatB[(i + k) * 4] = snow;
@@ -1466,7 +1541,8 @@ export function createWorld(seed, landscape = null) {
   scene.add(sun);
 
   const ground = terrainUniforms();
-  scene.add(buildGround(random, ground));
+  const groundMesh = buildGround(random, ground);
+  scene.add(groundMesh);
   const town = buildTown(random, land, ground);
   const { country } = town;
   scene.add(
@@ -1481,6 +1557,7 @@ export function createWorld(seed, landscape = null) {
   );
 
   const trees = scatter(random, BASE_TREES * MAX_DENSITY, 1.6, 1.6);
+  paintForestFloor(groundMesh, trees.slice(0, BASE_TREES));
   const rocks = scatter(random, BASE_ROCKS * MAX_DENSITY, 0.8, 1.4);
 
   const trunkGeometry = new CylinderGeometry(0.15, 0.22, 1.2, 5).translate(0, 0.6, 0);
