@@ -1,0 +1,173 @@
+{
+  "source": "Stylized Nature MegaKit (Standard) by Quaternius, CC0 1.0",
+  "models": {
+    "commontree-1": {
+      "size": [
+        4.31,
+        7.26,
+        4.58
+      ],
+      "triangles": 6265
+    },
+    "commontree-2": {
+      "size": [
+        4.46,
+        7.64,
+        4.28
+      ],
+      "triangles": 5648
+    },
+    "commontree-3": {
+      "size": [
+        4.06,
+        9.43,
+        4.24
+      ],
+      "triangles": 3505
+    },
+    "pine-1": {
+      "size": [
+        4.94,
+        7.32,
+        4.54
+      ],
+      "triangles": 3947
+    },
+    "pine-2": {
+      "size": [
+        5.73,
+        7.38,
+        5.22
+      ],
+      "triangles": 3648
+    },
+    "pine-3": {
+      "size": [
+        3.61,
+        7.39,
+        4
+      ],
+      "triangles": 4964
+    },
+    "twistedtree-1": {
+      "size": [
+        13.52,
+        16.73,
+        11.55
+      ],
+      "triangles": 9564
+    },
+    "deadtree-1": {
+      "size": [
+        6.15,
+        9.5,
+        5.75
+      ],
+      "triangles": 6169
+    },
+    "bush-common": {
+      "size": [
+        1.91,
+        1.58,
+        1.97
+      ],
+      "triangles": 900
+    },
+    "bush-common-flowers": {
+      "size": [
+        1.91,
+        1.58,
+        1.97
+      ],
+      "triangles": 1368
+    },
+    "fern-1": {
+      "size": [
+        2.83,
+        0.84,
+        2.65
+      ],
+      "triangles": 288
+    },
+    "plant-1": {
+      "size": [
+        1.27,
+        1.01,
+        1.39
+      ],
+      "triangles": 120
+    },
+    "flower-3-group": {
+      "size": [
+        1.49,
+        2.05,
+        1.59
+      ],
+      "triangles": 755
+    },
+    "flower-4-group": {
+      "size": [
+        1.78,
+        2.49,
+        1.37
+      ],
+      "triangles": 1690
+    },
+    "grass-common-tall": {
+      "size": [
+        0.9,
+        1.87,
+        0.99
+      ],
+      "triangles": 326
+    },
+    "grass-wispy-tall": {
+      "size": [
+        1.54,
+        1.67,
+        1.59
+      ],
+      "triangles": 622
+    },
+    "rock-medium-1": {
+      "size": [
+        3.23,
+        2.26,
+        2.99
+      ],
+      "triangles": 342
+    },
+    "rock-medium-2": {
+      "size": [
+        3.05,
+        1.9,
+        2.48
+      ],
+      "triangles": 244
+    },
+    "rock-medium-3": {
+      "size": [
+        3.42,
+        2.32,
+        3.48
+      ],
+      "triangles": 522
+    },
+    "pebble-round-1": {
+      "size": [
+        0.5,
+        0.1,
+        0.37
+      ],
+      "triangles": 136
+    },
+    "pebble-round-3": {
+      "size": [
+        0.45,
+        0.1,
+        0.48
+      ],
+      "triangles": 128
+    }
+  }
+}

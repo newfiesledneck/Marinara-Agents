@@ -2,14 +2,22 @@
 // sight check, the seeded town, and the built-in person and how bodies move.
 // Run: node tests/wanderworld.regression.mjs
 import assert from "node:assert/strict";
-import { Box3, Vector3 } from "three";
+import { Box3, Matrix4, Vector3 } from "three";
 import { buildBuilding, KINDS, makeSpec } from "../packages/wanderworld/src/buildings.js";
 import { setAnimationStyle } from "../packages/wanderworld/src/character.js";
 import { createFigure } from "../packages/wanderworld/src/figure.js";
 import { createInterior } from "../packages/wanderworld/src/interiors.js";
 import { createMotion } from "../packages/wanderworld/src/motion.js";
 import { checkSetting, loadSettings, SETTINGS } from "../packages/wanderworld/src/settings.js";
-import { createCollider, createWorld, DENSITIES, rng, SPAWN } from "../packages/wanderworld/src/world.js";
+import {
+  createCollider,
+  createWorld,
+  DENSITIES,
+  NATURE_MODELS,
+  rng,
+  SPAWN,
+} from "../packages/wanderworld/src/world.js";
+import { BoxGeometry, MeshLambertMaterial } from "three";
 
 // ── Collision: circles ───────────────────────────────────────────────────────
 const collider = createCollider(
@@ -71,6 +79,39 @@ for (const seat of world.seats) {
 assert.ok(world.setTime(12) < 0.05, "noon is bright");
 assert.ok(world.setTime(0) > 0.95, "midnight is dark");
 world.setTime(12);
+
+// Detailed nature: once the kit is in, trees and rocks near town become kit models and the cones and
+// boxes they replace are hidden; undergrowth grows round the town but not in it.
+{
+  const nature = createWorld(777);
+  const stand = new Map(
+    NATURE_MODELS.map((name) => [name, [{ geometry: new BoxGeometry(1, 1, 1), material: new MeshLambertMaterial() }]]),
+  );
+  nature.addNature(stand);
+  const kit = [];
+  let hidden = 0;
+  nature.scene.traverse((object) => {
+    if (object.userData.kit) kit.push(object);
+    if (object.isInstancedMesh && !object.userData.kit) {
+      for (let i = 0; i < object.count; i++) {
+        const matrix = new Matrix4();
+        object.getMatrixAt(i, matrix);
+        if (matrix.elements[0] === 0 && matrix.elements[5] === 0) hidden++;
+      }
+    }
+  });
+  assert.ok(kit.length >= 15, `kit trees, rocks and plants are added (${kit.length} kinds)`);
+  assert.ok(hidden > 50, `the simple trees and rocks they replace are hidden (${hidden})`);
+  for (const mesh of kit) {
+    for (let i = 0; i < mesh.count; i++) {
+      const matrix = new Matrix4();
+      mesh.getMatrixAt(i, matrix);
+      const at = new Vector3().setFromMatrixPosition(matrix);
+      assert.ok(Math.max(Math.abs(at.x), Math.abs(at.z)) > 60, "nothing grows inside the town");
+    }
+  }
+  nature.dispose();
+}
 world.setDensity(DENSITIES[0]);
 const [trunks, crowns, rocks] = meshes;
 assert.equal(trunks.count, crowns.count, "every trunk has a crown");

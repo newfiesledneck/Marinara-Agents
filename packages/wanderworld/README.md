@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.9)
+## What it does now (0.4.10)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -17,6 +17,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   about in its own 3D model or a built-in person: out and about, on benches, or inside houses, shops, the
   tavern and the temple, where you find them in the room when you walk in. They stop to face you when you
   walk up and have their name overhead.
+- **Detailed nature** near town (trees, rocks, bushes, flowers, grass) from Quaternius's free Stylized Nature
+  MegaKit; simple trees further out. Settings can turn it off.
 - **Dressed default people:** anyone without a 3D model is put together from Quaternius's free
   character packs (outfit, head, hairstyle, skin and hair tones, height), chosen from their name. A
   body picker (Auto, Male, Female) next to each character in People and next to Play as sets which body. The
@@ -76,6 +78,8 @@ for that persona in 3D Avatars first.
   Audio; `src/settings.js` keeps the settings, checking each value as it is read back.
 - `src/people.js` builds a default person from the kit: every part keeps its own joints' bind data and
   binds to the outfit's skeleton, then becomes a humanoid like a GLB model.
+- `src/kit.js` loads static kit models (shared geometry and materials, never disposed with a world);
+  `world.addNature` swaps them in near town as instanced meshes.
 - `src/figure.js` is the built-in person: simple shapes on a humanoid skeleton in one skinned mesh, so it
   moves exactly like a 3D model. It uses no outside art.
 - `src/models.js` reads a persona's or character's `GET /api/avatar-models/:type/:id` and loads its model
