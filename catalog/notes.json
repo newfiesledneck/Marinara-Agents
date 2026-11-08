@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.1",
+          "date": "2026-11-07",
+          "notes": "- Buildings are much more detailed, assembled from a kit of parts: timber-framed, plastered, plank, stone and brick walls; gable, hipped and flat roofs; chimneys, porches, balconies, shutters, flower boxes, shop windows, awnings and hanging signs.\n- The plaza now has a town hall, a temple with a spire, a tavern and a row of shops around it, with market stalls and benches. Barrels and crates sit by shop doors, a smithy stands at the edge of town, and empty lots are fenced gardens with bushes and a tree.",
+          "highlight": false
+        },
+        {
           "version": "0.4.0",
           "date": "2026-11-07",
           "notes": "- Choose characters under People to live in town, up to twelve. Each lives in a house near the plaza, wanders nearby, stops to face you when you walk up, and has its name over its head. You can't walk through them. Your choice is remembered.\n- Every 3D model format 3D Avatars uses now walks, for you and for your characters: VRM, GLB, FBX and MMD (PMX). GLB and FBX models walk on the bones 3D Avatars matched for them, as VRM models do.",
