@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.4)
+## What it does now (0.4.5)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -13,9 +13,10 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
 - **Play as** picks one of your personas. A persona with a 3D model set up in 3D Avatars walks in that
   model (VRM, GLB, FBX or MMD); any other persona gets a built-in low-poly person (face, hair, build and
   clothes chosen from its name). The choice is remembered.
-- **People** picks up to twelve characters to live in town. Each lives in a house near the plaza, wanders
-  nearby in its own 3D model or a built-in person, stops to face you when you walk up, and has its name
-  overhead.
+- **People** picks up to thirty characters to live in town. Each lives in a house near the plaza and goes
+  about in its own 3D model or a built-in person: out and about, on benches, or inside houses, shops, the
+  tavern and the temple, where you find them in the room when you walk in. They stop to face you when you
+  walk up and have their name overhead.
 - **Natural movement.** Everyone walks heel to toe with turning hips, swinging arms and a foot that stays
   on the ground, leans into a run, and when standing breathes, shifts their weight and glances around.
   VRM models blink.
@@ -23,8 +24,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   kind of building has a furnished room), and talk to people. A conversation turns you to face each other,
   moves the camera to the side, and opens a chat box with speech bubbles; replies are placeholder lines
   until the AI update. Click a spot on the ground to walk there.
-- **A living town:** townsfolk sit on benches, pop in and out of their houses, head home at night, look
-  at you and wave. A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
+- **A living town:** townsfolk sit on benches, visit shops and the tavern, find their way along the
+  streets, head home at night, look at you and wave. A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the
   stick walks (all the way out runs), dragging anywhere else looks around, pinching zooms, and the Use

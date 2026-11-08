@@ -139,10 +139,9 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
     // hips at exactly the walking speed so it never skates, then swings forward again. Running spends less
     // of the cycle on the ground and more in the air.
     const cycle = mix(0.85 + 0.4 * pace, strideAt(pace));
-    const duty = mix(Math.max(0.5, 0.62 - 0.03 * pace), 0.32);
+    const duty = mix(Math.max(0.5, 0.62 - 0.03 * pace), 0.27);
     const travel = Math.min(1.45 * legLength, duty * cycle); // how far a planted foot goes, front to back
-    const centre = mix(0.04, 0.1) * legLength; // feet land a little further ahead than they leave
-    const pushAt = Math.PI / 2 + TAU * (duty - 0.06); // the toes push off just before the foot lifts
+    const centre = mix(0.04, 0.0) * legLength; // walking feet land a little further ahead than they leave
     const advance = (dt * pace * TAU) / Math.max(0.5, cycle);
     const before = phase;
     phase = (phase + advance) % TAU;
@@ -170,75 +169,84 @@ export function createMotion({ upperLeg = 0.42, lowerLeg = 0.42, hipWidth = 0.09
     const legRoll = -hipsRoll - sway / legLength;
 
     // ── Legs ──
-    const kneeSwing = w * mix(0.55 + 0.45 * stride, 1.75);
-    const kneeBase = w * mix(0.05, 0.22);
-    const kneeLoad = w * mix(0.18, 0.32);
-    const push = w * mix(0.32, 0.55);
-    /** How far ahead of the hip the ankle is at stride point `u` (0 heel down … 1 the next heel down):
-     *  straight back at the ground's speed while planted, then a smooth swing that leaves and lands
-     *  moving with the ground. */
+    // Each foot has a path: planted, it slides straight back under the hips at the ground's speed (so it
+    // never skates) and rolls up onto its toes before it lifts; then it swings forward in a low arc and
+    // lands heel first. The hip and knee angles are worked out from where the ankle should be (two-bone
+    // IK), so the planted leg keeps a soft knee and the swinging foot clears the ground instead of the
+    // shin kicking up behind.
+    const footLength = 0.17 * legLength;
+    const heelRise = w * mix(0.06, 0.09) * legLength; // how high the ankle rolls up before the foot lifts
+    const clearance = w * mix(0.07, 0.24) * legLength; // how high the ankle swings
+    const crouch = w * standing * mix(0.02, 0.07) * legLength; // hips a little lower than standing
+    const hipHeight = legLength - crouch;
+    /** How far ahead of the hip the ankle is at stride point `u` (0 heel down … 1 the next heel down). */
     function footAhead(u) {
       const front = centre + travel / 2;
       const back = centre - travel / 2;
       if (u < duty) return front - (u / duty) * travel;
       const t = (u - duty) / (1 - duty);
-      // A runner's foot leaves the ground fast; following that speed through the swing would fling it far
-      // behind and in front, so the swing eases it.
-      const slope = (-travel / duty) * (1 - duty) * (1 - run * 0.8);
+      // Leaving the ground the foot still drifts back a little, then swings through and reaches forward.
+      const slope = (-travel / duty) * (1 - duty) * mix(0.3, 0.15);
       const t2 = t * t;
       const t3 = t2 * t;
       return (2 * t3 - 3 * t2 + 1) * back + (t3 - 2 * t2 + t) * slope + (3 * t2 - 2 * t3) * front + (t3 - t2) * slope;
     }
-    /** The thigh angle that puts the ankle `ahead` metres in front of the hip with the knee bent `knee`. */
-    function thighFor(ahead, knee) {
-      let angle = Math.asin(Math.max(-0.95, Math.min(0.95, ahead / legLength)));
-      for (let i = 0; i < 3; i++) {
-        const error = upperLeg * Math.sin(angle) + lowerLeg * Math.sin(angle - knee) - ahead;
-        angle -= error / (upperLeg * Math.cos(angle) + lowerLeg * Math.cos(angle - knee));
-      }
-      return Number.isFinite(angle) ? angle : 0;
+    /** How high the ankle is above where it rests on the ground, at stride point `u`. */
+    function footHeight(u) {
+      if (u < duty) return heelRise * smoothstep(duty * 0.55, duty, u); // rolling up onto the toes
+      const t = (u - duty) / (1 - duty);
+      return heelRise * (1 - t) * (1 - t) + clearance * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (1 - 0.5 * t);
+    }
+    /** Hip and knee angles that put the ankle `ahead` in front of and `down` below the hip joint. */
+    function reachFor(ahead, down) {
+      const longest = (upperLeg + lowerLeg) * 0.9995;
+      const distance = Math.min(longest, Math.max(0.05, Math.hypot(ahead, down)));
+      const cosKnee = (upperLeg ** 2 + lowerLeg ** 2 - distance ** 2) / (2 * upperLeg * lowerLeg);
+      const cosHip = (upperLeg ** 2 + distance ** 2 - lowerLeg ** 2) / (2 * upperLeg * distance);
+      const knee = Math.PI - Math.acos(Math.max(-1, Math.min(1, cosKnee)));
+      const thigh = Math.atan2(ahead, down) + Math.acos(Math.max(-1, Math.min(1, cosHip)));
+      return { thigh, knee };
     }
     function leg(p, idleBend, outward) {
       // A resting leg bends at the knee with its foot where it was: the thigh comes forward just enough
       // to keep the ankle over the same spot.
       const rest = Math.atan2(lowerLeg * Math.sin(idleBend), upperLeg + lowerLeg * Math.cos(idleBend));
-      const stepBend =
-        kneeBase +
-        kneeSwing * bump(p, -0.35, 1.65) + // folds as the foot leaves the ground and swings through
-        kneeLoad * bump(p, Math.PI / 2 + 0.6, 0.7); // gives a little as the heel lands
-      const bend = stepBend + idleBend;
-      // Where the ankle should be, ahead of the hip, at this point of the stride; then the thigh angle
-      // that puts it there with the knee bent as it is.
       const u = ((((p - Math.PI / 2) / TAU) % 1) + 1) % 1; // 0 as the heel lands
-      const walking = w * thighFor(footAhead(u), stepBend) + rest;
+      const height = footHeight(u);
+      const step = reachFor(footAhead(u), hipHeight - height);
       // Seated: thighs level, shins straight down, feet a little apart.
-      const forward = toSeat(walking, 1.45);
-      const knee = toSeat(bend, 1.5);
-      // The foot stays level with the ground while it carries weight, hangs a little in the swing, pushes
-      // off with the toes, and lands heel first.
-      const carrying = w * (1 - smoothstep(duty - 0.04, duty + 0.08, u) + smoothstep(0.92, 1, u)) + (1 - w);
-      const ankle = toSeat(
-        (walking - bend) * (0.5 + 0.5 * carrying) +
-          push * bump(p, pushAt, 0.9) -
-          0.18 * w * bump(p, Math.PI / 2 - 0.1, 0.55),
-        forward - knee,
-      );
-      const toes = -push * 0.9 * bump(p, pushAt + 0.1, 0.6) * standing;
-      // How far the ankle hangs below the hip joint.
-      const reach = upperLeg * Math.cos(forward) + lowerLeg * Math.cos(forward - knee);
+      const forward = toSeat(w * step.thigh + rest, 1.45);
+      const knee = toSeat(w * step.knee + idleBend, 1.5);
+      // The foot stays level while planted, tips onto its toes as the heel rises, hangs a little after it
+      // lifts, and turns its toes up to land on the heel.
+      const roll = height > 0 && u < duty ? Math.asin(Math.min(0.9, height / footLength)) : 0;
+      const t = u < duty ? 0 : (u - duty) / (1 - duty);
+      const swingTip = u < duty ? 0 : 0.45 * (1 - t) * (1 - t) - 0.22 * smoothstep(0.65, 1, t);
+      const landing = -0.15 * (1 - smoothstep(0, 0.08, u)) * (u < duty ? 1 : 0);
+      const ankle = toSeat(forward - knee + w * (roll + swingTip + landing), forward - knee);
+      const toes = -w * roll * standing;
+      // How far the ankle hangs below the hip joint, and whether this foot is (nearly) on the ground: an
+      // ankle rolled onto the toes, or about to land on the heel, still counts as standing on it.
+      const reach = upperLeg * Math.cos(forward) + lowerLeg * Math.cos(forward - knee) + w * height;
+      const grounded = w < 0.5 || s > 0.5 || u < duty + 0.02 || u > 0.96;
       return {
         thigh: [-forward, -hipsYaw, legRoll * standing + outward * 0.07 * s],
         knee: [knee, 0, 0],
         ankle: [ankle, 0, 0],
         toes: [toes, 0, 0],
         reach,
+        grounded,
       };
     }
     const left = leg(phase, idleBendLeft, 1);
     const right = leg(phase + Math.PI, idleBendRight, -1);
-    // Rolling lifts one hip joint and lowers the other; the lower-reaching foot is the one on the ground.
+    // Rolling lifts one hip joint and lowers the other. The hips sit at their walking height unless no foot
+    // on the ground can reach that far; in a running stride's flight, they stay up.
     const lift = hipWidth * Math.sin(hipsRoll);
-    const drop = Math.max(left.reach - lift, right.reach + lift) - legLength;
+    const reaches = [left.grounded ? left.reach - lift : -Infinity, right.grounded ? right.reach + lift : -Infinity];
+    const lowest = Math.max(...reaches);
+    const standingHeight = w > 0.5 && s < 0.5 ? hipHeight : legLength;
+    const drop = (Number.isFinite(lowest) ? Math.min(standingHeight, lowest) : standingHeight) - legLength;
 
     // ── Upper body: shoulders turn against the hips, the head stays level and looks about ──
     const forwardLean = w * mix(0.04, 0.16) + s * 0.06;

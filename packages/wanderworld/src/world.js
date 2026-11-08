@@ -243,7 +243,8 @@ function placeBuilding(random, town, spec, x, z, facing) {
   town.boxes.push(footprintBox(x, z, facing, footprint));
   const d = spec.depth / 2;
   town.doors.push({
-    ...toWorld(x, z, facing, doorX, d + 1.2), // where someone stands to use the door
+    // Where someone stands to use the door: in front of it, or in front of the porch when there is one.
+    ...toWorld(x, z, facing, doorX, Math.max(d + 1.2, footprint.maxZ + 0.6)),
     kind: spec.kind,
     spec,
     centre: { x, z },
@@ -468,6 +469,22 @@ function scatter(random, count, scaleMin, scaleRange) {
   return points;
 }
 
+function streetWaypoints() {
+  const points = [];
+  const lines = [];
+  for (let i = 0; i <= BLOCKS_PER_SIDE; i++) lines.push((i - BLOCKS_PER_SIDE / 2) * PITCH);
+  for (const a of lines) {
+    for (let j = 0; j < lines.length; j++) {
+      points.push({ x: a, z: lines[j] });
+      if (j < lines.length - 1) {
+        const middle = (lines[j] + lines[j + 1]) / 2;
+        points.push({ x: a, z: middle }, { x: middle, z: a });
+      }
+    }
+  }
+  return points;
+}
+
 /**
  * Builds the scene for one seed. Instanced meshes are allocated at the highest density once;
  * changing density only changes how many instances are drawn.
@@ -677,6 +694,9 @@ export function createWorld(seed) {
     doors,
     /** Bench seats: { x, z, angle, approach, height, taken }. */
     seats: town.seats,
+    /** Points along the middle of every street (crossings and halfway between), for finding a way round
+     *  buildings. */
+    waypoints: streetWaypoints(),
     setDoor,
     update,
     setDrawDistance,

@@ -215,6 +215,15 @@ export function createHud(root, handlers) {
   const status = document.createElement("div");
   status.style.cssText = `${CHIP}position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;display:none;max-width:80%;text-align:center;`;
 
+  // A notice that stays until it's closed, for advice like turning on hardware acceleration.
+  const notice = document.createElement("div");
+  notice.setAttribute("data-wanderworld-ui", "");
+  notice.style.cssText = `${CHIP}position:absolute;top:48px;left:50%;transform:translateX(-50%);width:min(520px,calc(100% - 24px));display:none;gap:10px;align-items:flex-start;padding:10px 12px;font-size:13px;pointer-events:auto;`;
+  const noticeText = document.createElement("div");
+  noticeText.style.flex = "1";
+  const noticeClose = button("Close", "Close this notice", () => (notice.style.display = "none"));
+  notice.append(noticeText, noticeClose);
+
   const loading = document.createElement("div");
   loading.style.cssText =
     "position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;" +
@@ -223,7 +232,7 @@ export function createHud(root, handlers) {
   fade.style.cssText =
     "position:absolute;inset:0;background:#000;opacity:0;transition:opacity 0.35s;pointer-events:none;";
 
-  layer.append(top, peoplePanel, settingsPanel, prompt, use, hint, status, fade, loading);
+  layer.append(top, peoplePanel, settingsPanel, notice, prompt, use, hint, status, fade, loading);
   root.append(layer);
 
   return {
@@ -292,6 +301,11 @@ export function createHud(root, handlers) {
       prompt.textContent = `E  ${label}`;
       prompt.style.left = `${x}px`;
       prompt.style.top = `${y}px`;
+    },
+    /** A notice with `text` and a Close button, or null to take it away. */
+    setNotice(text) {
+      noticeText.textContent = text ?? "";
+      notice.style.display = text ? "flex" : "none";
     },
     setStatus(text) {
       status.textContent = text ?? "";
