@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.25 — 2026-11-08
+
+- Swimming: walk into the river and you wade through the shallows, then swim where it's deep, treading water when you stop (Shift swims faster). Recorded swimming animations from the Universal Animation Library.
+- The river is deeper in the middle, and its water reaches the banks everywhere instead of leaving dry gaps.
+
 ## 0.4.24 — 2026-11-08
 
 - Relationships: set how each person sees everyone else, and you, in the Journal's new Relationships tab. Friend, family, partner, rival, enemy and more, each with levels: a low-level friend is just friendly, a high one a best friend; a low-level enemy dislikes you, a high one is a sworn enemy.

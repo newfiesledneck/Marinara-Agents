@@ -4,7 +4,7 @@
 // mouth, and every one of them a name.
 import assert from "node:assert/strict";
 import { checkLandscape, landscapeFor, landscapeWith } from "../packages/wanderworld/src/land.js";
-import { createWorld, heightAt } from "../packages/wanderworld/src/world.js";
+import { createWorld, heightAt, waterAt } from "../packages/wanderworld/src/world.js";
 import { buildZones, zoneAt } from "../packages/wanderworld/src/zones.js";
 
 // ── Checking ──
@@ -98,6 +98,14 @@ assert.ok(heightAt(bridge.x, bridge.z) > -0.5, "on a bridge, not down in the riv
 const crossing = { ...bridge };
 world.resolveCollisions(crossing, 0.35);
 assert.ok(Math.hypot(crossing.x - bridge.x, crossing.z - bridge.z) < 0.5, "the bridge can be walked across");
+
+// Swimming: the middle of the river is deep enough to swim in; a bridge's deck and the town are dry.
+assert.ok(waterAt(middle.x, middle.z).depth > 1.3, "mid-river is deep enough to swim");
+assert.equal(waterAt(bridge.x, bridge.z).depth, 0, "on a bridge, out of the water");
+assert.equal(waterAt(0, 0).depth, 0, "the town square is dry");
+const wader = { x: middle.x, z: middle.z };
+world.resolveCollisions(wader, 0.35, true);
+assert.ok(Math.hypot(wader.x - middle.x, wader.z - middle.z) < 0.01, "a swimmer may go into the water");
 
 const inn = world.layout.outposts.find((outpost) => outpost.kind === "inn");
 assert.ok(inn.door !== null && world.doors[inn.door], "the inn has a door");

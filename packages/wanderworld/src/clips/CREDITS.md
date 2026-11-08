@@ -6,7 +6,7 @@
 in the download says so). No credit is required; this note is a courtesy.
 
 Clips used: Idle_Loop, Walk_Loop, Jog_Fwd_Loop, Sprint_Loop, Idle_Talking_Loop, Sitting_Enter,
-Sitting_Idle_Loop, Sitting_Talking_Loop, Sitting_Exit.
+Sitting_Idle_Loop, Sitting_Talking_Loop, Sitting_Exit, Swim_Fwd_Loop, Swim_Idle_Loop.
 
 Rebuild from the free download (its `Unreal-Godot` folder):
 

@@ -50,7 +50,7 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   body picker (Auto, Male, Female) next to each character in People and next to Play as sets which body. The
   files are package assets in `kit/people/`, loaded only when needed. See `kit/CREDITS.md`.
 - **Recorded animations** from Quaternius's free Universal Animation Library (CC0): idle, walk, jog,
-  sprint, sitting and talking, played on any model with planted feet. Settings → Animation switches to
+  sprint, sitting, talking and swimming, played on any model with planted feet. Settings → Animation switches to
   the hand-made motion below. See `src/clips/CREDITS.md`.
 - **Natural movement (hand-made).** Everyone walks heel to toe with turning hips, swinging arms and a foot that stays
   on the ground, leans into a run, and when standing breathes, shifts their weight and glances around.
@@ -65,7 +65,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
 - **Relationships:** the Journal sets how each person sees the others and you (friend, family, partner,
   rival, enemy and more, each with levels), and each character's temperament (passive to aggressive)
   and manner (shy to outgoing). Townsfolk act on them: a friend comes over to say hello, someone who
-  dislikes you keeps away, a sworn enemy comes to have words. A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
+  dislikes you keeps away, a sworn enemy comes to have words.
+- **Swimming:** wade into the river and swim where it's deep (Shift swims faster). A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the
   stick walks (all the way out runs), dragging anywhere else looks around, pinching zooms, and the Use

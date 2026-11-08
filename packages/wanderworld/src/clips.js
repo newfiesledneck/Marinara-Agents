@@ -42,6 +42,9 @@ for (const side of ["left", "right"]) {
   PARENT[`${side}ThumbDistal`] = `${side}ThumbProximal`;
 }
 
+/** Leg lengths the swimming stroke is raised by, so the swimmer's back breaks the surface. */
+const SWIM_LIFT = 0.3;
+
 /** Running clips whose up-and-down is calmed, and by how much. */
 const CALMER = new Set(["jog", "sprint"]);
 const CALM = 0.6;
@@ -186,6 +189,8 @@ export function createClipPlayer({ present, offset, legLength }) {
   // Sitting: "none" → "down" (sitting down) → "seated" → "up" (standing up) → "none".
   let seat = "none";
   let seatTime = 0;
+  let swimming = 0;
+  let stroke = 0; // through the swimming stroke, 0…1
 
   /**
    * How to play walking and running at a pace: the walk clip is a slow stroll, so a faster walk both
@@ -232,7 +237,9 @@ export function createClipPlayer({ present, offset, legLength }) {
   const jogSpeed = footSpeed("jog");
   const sprintSpeed = Math.max(jogSpeed * 1.2, footSpeed("sprint"));
 
-  return function step(dt, speed, { sit = false, talk = false } = {}) {
+  const swimSpeed = Math.max(0.3, CLIPS.swim.speed * legLength);
+
+  return function step(dt, speed, { sit = false, talk = false, swim = false } = {}) {
     dt = Math.min(0.1, Math.max(0, Number.isFinite(dt) ? dt : 0));
     speed = Math.max(0, Number.isFinite(speed) ? speed : 0);
     pace = ease(pace, speed, dt, 0.12);
@@ -293,6 +300,21 @@ export function createClipPlayer({ present, offset, legLength }) {
       blend(out, seated, amount);
     }
 
+    // Swimming: treading water, blending into the stroke as they move, at the rate that matches the pace.
+    swimming = ease(swimming, swim ? 1 : 0, dt, 0.25);
+    if (swimming > 0.01) {
+      const water = sample(CLIPS.swimIdle, (idleTime / CLIPS.swimIdle.duration) % 1, poses.c);
+      if (moving > 0.01) {
+        stroke = (stroke + (dt * Math.max(pace, 0.4)) / swimSpeed / CLIPS.swim.duration) % 1;
+        const swimPose = sample(CLIPS.swim, stroke, poses.a);
+        swimPose.hips[1] += SWIM_LIFT; // the stroke lies a little deep in the pack: back and head at the surface
+        blend(water, swimPose, moving);
+      }
+      water.hips[0] = 0;
+      water.hips[2] = 0;
+      blend(out, water, swimming);
+    }
+
     // Local turns for this rig: each bone's turn relative to its nearest present parent's.
     for (const bone of used) {
       const own = out.rotations[index[bone]];
@@ -304,7 +326,7 @@ export function createClipPlayer({ present, offset, legLength }) {
     const hips = out.hips.map((value) => value * legLength);
     // Heels land at the start and halfway through each walk and run cycle (the clips start on the left foot).
     let footstep = null;
-    if (moving > 0.5 && seat === "none") {
+    if (moving > 0.5 && seat === "none" && swimming < 0.5) {
       const crossed = (mark) => (before <= phase ? before < mark && mark <= phase : mark > before || mark <= phase);
       if (crossed(0.02)) footstep = "left";
       else if (crossed(0.52)) footstep = "right";

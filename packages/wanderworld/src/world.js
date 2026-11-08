@@ -198,6 +198,11 @@ export function heightAt(x, z) {
   return land ? land.heightAt(x, z) : 0;
 }
 
+/** How deep the water is at (x, z) in the world built last (0 on dry land), and where its surface is. */
+export function waterAt(x, z) {
+  return land ? { depth: land.depthAt(x, z), level: land.waterLevel } : { depth: 0, level: 0 };
+}
+
 /** Street lines: the middle of each street, the same along x and z. */
 const STREET_LINES = Array.from({ length: BLOCKS_PER_SIDE + 1 }, (_, i) => (i - BLOCKS_PER_SIDE / 2) * PITCH);
 
@@ -291,7 +296,8 @@ export function createCollider(circles, boxes = []) {
       return false;
     },
     /** Pushes a circle at `position` (x, z) with `radius` out of anything it overlaps. Mutates `position`. */
-    resolve(position, radius) {
+    /** Pushes `position` out of everything; a `swimmer` goes on into the water. */
+    resolve(position, radius, swimmer = false) {
       const cx = Math.floor(position.x / GRID_CELL);
       const cz = Math.floor(position.z / GRID_CELL);
       const seen = new Set();
@@ -300,6 +306,7 @@ export function createCollider(circles, boxes = []) {
           for (const shape of grid.get(cellKey(cx + dx, cz + dz)) ?? []) {
             if (seen.has(shape.id)) continue;
             seen.add(shape.id);
+            if (swimmer && shape.water) continue;
             if (shape.kind === "circle") pushOutOfCircle(position, radius, shape);
             else pushOutOfBox(position, radius, shape);
           }
@@ -1090,12 +1097,13 @@ function buildCountry(random, town, land, ground) {
     // The water: deeper blue down the middle, lighter and clearer at the banks, with a soft sheen.
     const deep = new Color(0x3f7499);
     const shallow = new Color(0x6fa5b8);
-    const water = ribbon(land.river.points, land.river.width + 1.2, {
+    // Out to the top of each bank, so the water always meets the slope (its edges run under the ground).
+    const water = ribbon(land.river.points, land.river.width + land.river.bank * 2, {
       heightOf: () => land.waterLevel,
       columns: [
         { at: -1, colour: shallow },
-        { at: -0.4, colour: deep },
-        { at: 0.4, colour: deep },
+        { at: -0.25, colour: deep },
+        { at: 0.25, colour: deep },
         { at: 1, colour: shallow },
       ],
       wobble: 0.06,
@@ -1712,7 +1720,7 @@ export function createWorld(seed, landscape = null) {
   const fixedCircles = [
     ...town.circles.map((circle) => ({ id: nextId++, ...circle })),
     ...town.lamps.map((lamp) => ({ id: nextId++, x: lamp.x, z: lamp.z, r: 0.15 })),
-    ...land.waterCircles().map((circle) => ({ id: nextId++, ...circle })),
+    ...land.waterCircles().map((circle) => ({ id: nextId++, water: true, ...circle })), // townsfolk stay dry
   ];
   const fixedBoxes = town.boxes.map((b) => ({ id: nextId++, ...b }));
   const treeCircles = trees.map((tree) => ({ id: nextId++, x: tree.x, z: tree.z, r: 0.25 * tree.scale }));
@@ -1757,7 +1765,7 @@ export function createWorld(seed, landscape = null) {
     refreshNature();
   }
   setDensity(DENSITIES[0]);
-  const resolveCollisions = (position, radius) => collider.resolve(position, radius);
+  const resolveCollisions = (position, radius, swimmer) => collider.resolve(position, radius, swimmer);
 
   /**
    * How far the camera can sit from (fromX, fromZ) toward (toX, toZ) before a building is in the way,

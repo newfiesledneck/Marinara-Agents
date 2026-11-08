@@ -13,7 +13,7 @@ export const HILLS = ["flat", "gentle", "rolling", "rugged"];
 export const OUTPOST_KINDS = ["inn", "cottage", "cave"];
 const HILL_SCALE = { flat: 0.15, gentle: 0.6, rolling: 1.2, rugged: 2.1 };
 const RIVER_WIDTH = 7;
-const RIVER_BED = -1.5;
+const RIVER_BED = -2.4; // deep enough to swim in mid-stream, wading near the banks
 const WATER_LEVEL = -0.45;
 const BANK = 4; // metres over which the ground slopes down into the river
 const ROAD_WIDTH = 3.2;
@@ -182,7 +182,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       const out = offset + wobble;
       points.push(dx !== 0 ? { x: dx * out, z: t } : { x: t, z: dz * out });
     }
-    river = { points, width: RIVER_WIDTH, bounds: boundsOf(points, RIVER_WIDTH / 2 + BANK + 2) };
+    river = { points, width: RIVER_WIDTH, bank: BANK, bounds: boundsOf(points, RIVER_WIDTH / 2 + BANK + 2) };
   }
 
   // Places out in the country, each at the end of a road from the nearest street leaving town. Two on
@@ -298,6 +298,13 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       if (Math.abs(along) <= bridge.length / 2 && Math.abs(across) <= BRIDGE_HALF_WIDTH) return bridge.deck;
     }
     return null;
+  }
+
+  /** How deep the river's water is at (x, z): 0 out of it (or on a bridge). */
+  function depthAt(x, z) {
+    if (!river || !inBounds(river.bounds, x, z) || onBridge(x, z) !== null) return 0;
+    if (toLine(river.points, x, z).distance > river.width / 2 + BANK) return 0;
+    return Math.max(0, WATER_LEVEL - groundAt(x, z));
   }
 
   /** Where someone stands at (x, z): on a bridge's deck where there is one, else on the ground. */
@@ -422,6 +429,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       }),
     clear,
     waterCircles,
+    depthAt,
     river,
     roads,
     outposts,

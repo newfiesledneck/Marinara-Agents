@@ -27,13 +27,17 @@ import { createNoticeboard, createSign } from "./signs.js";
 import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
 import { landscapeWith } from "./land.js";
 import { checkTraits, createRelationships, KINDS, phraseOf, tierOf, TRAITS } from "./relationships.js";
-import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
+import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, waterAt, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
 const FIRST_SEED = "wanderworld";
 const WALK_SPEED = 1.4; // metres per second: a natural walking pace (times the walk speed setting)
 const RUN_SPEED = 5; // with Shift
+const SWIM_DEPTH = 1.3; // metres of water from which the player swims instead of wading
+const WADE_DEPTH = 0.35; // from here up to swimming depth, wading slows them
+const SWIM_SPEED = 1.5; // metres per second swimming (Shift: SWIM_SPRINT)
+const SWIM_SPRINT = 2.4;
 const CAMERA_DISTANCE = 8; // the starting zoom
 const CAMERA_HEIGHT = 4.2; // the starting height, which sets the starting tilt
 const MIN_ZOOM = 2.5;
@@ -1543,6 +1547,10 @@ function movePlayer(dt, input) {
     if (keyed) core.walkTo = null;
     const walkTo = core.walkTo;
     let speedFactor = input.run ? RUN_SPEED : WALK_SPEED * input.amount;
+    // In the river: swimming in deep water, wading slower where it's shallower.
+    const water = core.interior ? null : waterAt(position.x, position.z);
+    if (water?.depth > SWIM_DEPTH) speedFactor = input.run ? SWIM_SPRINT : SWIM_SPEED * input.amount;
+    else if (water?.depth > WADE_DEPTH) speedFactor *= 0.55;
     let moveX;
     let moveZ;
     if (keyed) {
@@ -1570,7 +1578,7 @@ function movePlayer(dt, input) {
       const speed = speedFactor * core.settings.walkSpeed;
       position.x += moveX * speed * dt;
       position.z += moveZ * speed * dt;
-      space.resolveCollisions(position, PLAYER_RADIUS);
+      space.resolveCollisions(position, PLAYER_RADIUS, true); // the player may go into the water
       core.crowd.pushOut(position, PLAYER_RADIUS, space);
       const edge = WORLD_SIZE / 2 - 2;
       position.x = Math.max(-edge, Math.min(edge, position.x));
@@ -1586,7 +1594,11 @@ function movePlayer(dt, input) {
   } else if (core.mode === "sit" && (input.x || input.y)) {
     standUp();
   }
-  position.y = core.interior ? 0 : heightAt(position.x, position.z);
+  // Swimming, the body floats at the surface (the swim clips hold the head just above it).
+  const water = core.interior ? null : waterAt(position.x, position.z);
+  core.swimming = !!water && water.depth > SWIM_DEPTH && core.mode === "walk";
+  position.y = core.interior ? 0 : core.swimming ? water.level : heightAt(position.x, position.z);
+  core.shadow.visible = core.settings.shadows && !core.swimming;
   return dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
 }
 
@@ -1635,7 +1647,8 @@ function placeCamera(dt) {
   const cameraX = position.x + sin * distance * across;
   const cameraZ = position.z + cos * distance * across;
   // Never below the ground: looking up from low down stops just above the grass.
-  const ground = core.interior ? 0 : heightAt(cameraX, cameraZ);
+  const overWater = core.interior ? null : waterAt(cameraX, cameraZ);
+  const ground = core.interior ? 0 : overWater.depth > 0 ? overWater.level : heightAt(cameraX, cameraZ);
   const cameraY = Math.max(lookY + distance * up, ground + 0.4);
   cameraTarget.set(cameraX, cameraY, cameraZ);
   core.camera.position.lerp(cameraTarget, 1 - Math.exp(-CAMERA_FOLLOW * dt));
@@ -1673,7 +1686,12 @@ function step(dt) {
       Math.atan2(other.x - core.player.position.x, other.z - core.player.position.z) - core.player.rotation.y;
     lookAt = Math.atan2(Math.sin(turn), Math.cos(turn));
   }
-  const pose = core.character?.update(dt, speed, { sit: core.mode === "sit", lookAt, talk: false });
+  const pose = core.character?.update(dt, speed, {
+    sit: core.mode === "sit",
+    lookAt,
+    talk: false,
+    swim: core.swimming,
+  });
   if (pose?.footstep) core.sound.footstep(0, pose.running);
 
   // The town lives on while the player is indoors: doors, people, the clock. An open door stays open

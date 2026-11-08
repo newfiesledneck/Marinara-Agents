@@ -77,6 +77,8 @@ const CLIPS = {
   sit: "Sitting_Idle_Loop",
   sitTalk: "Sitting_Talking_Loop",
   standUp: "Sitting_Exit",
+  swim: "Swim_Fwd_Loop",
+  swimIdle: "Swim_Idle_Loop",
 };
 
 async function load(path) {
