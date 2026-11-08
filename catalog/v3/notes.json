@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.18",
+          "date": "2026-11-08",
+          "notes": "- New art: the main menu has a painted hilltop view of the village (a tall version on phones held upright) and a carved Wanderworld logo.\n- Loading a world shows a lantern-lit street while it builds, and opens once its trees, buildings and props are in.\n- A new store banner.",
+          "highlight": false
+        },
+        {
           "version": "0.4.17",
           "date": "2026-11-08",
           "notes": "- Caves are one weathered rock face set into the hillside, with the entrance carved into it: no loose boulders or gaps. Inside the passage goes dark, and ferns and grass grow along the foot and over the top.\n- Dirt roads are one smooth strip that fades into the grass at its edges, with no gaps at bends and no ground poking through.\n- The river is one smooth surface, deeper blue in the middle, with a soft sheen.",
@@ -1519,12 +1525,6 @@
           "version": "0.3.2",
           "date": "2026-11-07",
           "notes": "- Walking is slower and more natural: an unhurried walk, and Shift runs at what used to be the walking pace. Strides lengthen with speed, so legs no longer spin quickly at a run.\n- Zoom in close to your character or out for a wide view, with the mouse wheel, a two-finger pinch, or the + and − keys.",
-          "highlight": false
-        },
-        {
-          "version": "0.3.1",
-          "date": "2026-11-07",
-          "notes": "- VRM and GLB models now show their colours and textures instead of plain white. Models load the way 3D Avatars loads them, and only with the pictures inside the model file.",
           "highlight": false
         }
       ]

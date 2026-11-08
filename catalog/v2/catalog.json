@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.4.17",
+        "version": "0.4.18",
         "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
         "engine": {
           "min": "2.4.4",
@@ -4941,6 +4941,10 @@
           },
           "assets": {
             "paths": [
+              "kit/art/loading-bg.webp",
+              "kit/art/logo.webp",
+              "kit/art/menu-bg-portrait.webp",
+              "kit/art/menu-bg.webp",
               "kit/nature/bark-deadtree.webp",
               "kit/nature/bark-normaltree.webp",
               "kit/nature/bark-twistedtree.webp",
@@ -5118,13 +5122,33 @@
           },
           {
             "path": "client.js",
-            "sha256": "a77cbd285cce1b9f0cc04d3e8031d10c42fb59eb4206e5912d60443a84b7a52c",
-            "bytes": 1423989
+            "sha256": "b2ce3436dd23fae07fbb7230ab4006b31d5052f4b39d8f45f0fea7b5c2d4d5e3",
+            "bytes": 1425146
           },
           {
             "path": "wanderworld-icon.webp",
             "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
             "bytes": 5236
+          },
+          {
+            "path": "kit/art/loading-bg.webp",
+            "sha256": "d3cb745a47bf4e642442b28cf8aa15f1dfcb8aedc415d3c27db6bf0f5416d053",
+            "bytes": 67492
+          },
+          {
+            "path": "kit/art/logo.webp",
+            "sha256": "3ba07c49379b6b6edd60b9f434ae37ff8a8af07bcb842c6e5d616dc8c2f638fe",
+            "bytes": 93512
+          },
+          {
+            "path": "kit/art/menu-bg-portrait.webp",
+            "sha256": "b0c3695649b2db03af21caa4e894e77eecc60d90971a1b5083397e57ec960202",
+            "bytes": 45546
+          },
+          {
+            "path": "kit/art/menu-bg.webp",
+            "sha256": "e10509ac353dcab21eac6a699528c11bed619889d70ec9a8db3ebafbcf4ad6fa",
+            "bytes": 40422
           },
           {
             "path": "kit/nature/bark-deadtree.webp",
@@ -5965,9 +5989,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.17.zip",
-        "sha256": "471d8603632ac4d9d102f8e97cae15e704ed960a7dc8f54fe989b463c19ad983",
-        "bytes": 9268458
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.18.zip",
+        "sha256": "f0fdbcf6a3ca40bb63ffb8f9e3e4bb4b517175fedb5134a91fb6af58c2cb3d59",
+        "bytes": 9517839
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
