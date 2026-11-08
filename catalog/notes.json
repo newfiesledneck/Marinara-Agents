@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.21",
+          "date": "2026-11-08",
+          "notes": "- A noticeboard on the market square: read the town's notes, and pin up your own (they're saved with the world). Quests and news from the AI will go here later.\n- Parchment for the menu, conversations, building cards, the noticeboard and the Journal, with wooden buttons.\n- Painted water that ripples as it flows, sandy riverbeds, rock on the mountains, and cracked rock on cave faces.\n- No more grass wedges at street corners.",
+          "highlight": false
+        },
+        {
           "version": "0.4.20",
           "date": "2026-11-08",
           "notes": "- A low stone kerb runs between the streets and the sidewalks, and round the market square.\n- Sidewalks fade into the lawns instead of stopping in a hard line, and every block's corners are rounded.\n- At the edge of town the cobbled streets fade into the meadow.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.2",
           "date": "2026-11-07",
           "notes": "- New controls, the same on every screen size. On a computer: WASD walks, Shift runs, drag with the left or middle mouse button (or use the arrow keys) to look around, and scroll or press + and − to zoom. On a touch screen: the stick walks (push it all the way to run), drag anywhere else to look around, and pinch to zoom.\n- The camera tilts: look up at towers from street level, or tilt up to nearly overhead. It never goes below the ground.\n- Q and E no longer turn the camera; E is kept for using things.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.1",
-          "date": "2026-11-07",
-          "notes": "- Buildings are much more detailed, assembled from a kit of parts: timber-framed, plastered, plank, stone and brick walls; gable, hipped and flat roofs; chimneys, porches, balconies, shutters, flower boxes, shop windows, awnings and hanging signs.\n- The plaza now has a town hall, a temple with a spire, a tavern and a row of shops around it, with market stalls and benches. Barrels and crates sit by shop doors, a smithy stands at the edge of town, and empty lots are fenced gardens with bushes and a tree.",
           "highlight": false
         }
       ]
