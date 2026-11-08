@@ -1,12 +1,13 @@
-// Wanderworld M0: a Home screen game that draws a low-poly three.js world and walks a capsule.
+// Wanderworld: a Home screen game that draws a low-poly three.js town and walks your persona around it.
 //
 // The Engine mounts this element once, with view="browser", as the package's Home tab. The canvas, the
 // HUD and the touch stick all live inside it. The renderer is created once per page and reused when the
 // tab is closed and reopened, so switching tabs never piles up WebGL contexts.
-import { PerspectiveCamera, Vector3, WebGLRenderer } from "three";
+import { Group, PerspectiveCamera, Vector3, WebGLRenderer } from "three";
+import { createFigure, findPersonaModel, listPersonas, loadModelCharacter } from "./character.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
-import { createWorld, DENSITIES, hashString, heightAt, WORLD_SIZE } from "./world.js";
+import { createWorld, DENSITIES, hashString, heightAt, SPAWN, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
@@ -15,8 +16,11 @@ const MAX_PIXEL_RATIO = 1.5; // phones run at up to 3×; 1.5 keeps the fill rate
 const WALK_SPEED = 5; // metres per second
 const RUN_SPEED = 9;
 const TURN_SPEED = 1.8; // camera radians per second
-const CAMERA_DISTANCE = 11;
-const CAMERA_HEIGHT = 7;
+const CAMERA_DISTANCE = 8;
+const CAMERA_HEIGHT = 4.2;
+const LOOK_HEIGHT = 1.4;
+const MIN_CAMERA_DISTANCE = 2;
+const PERSONA_KEY = "wanderworld.persona"; // this package's own browser storage key
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
 const NO_INPUT = { x: 0, y: 0, run: false, turn: 0 };
@@ -30,6 +34,11 @@ const core = {
   camera: null,
   world: null,
   seed: FIRST_SEED,
+  player: new Group(), // position and facing; the persona's body sits inside it
+  character: null,
+  personas: null,
+  personaId: null,
+  personaLoad: 0,
   hud: null,
   input: null,
   densityIndex: 0,
@@ -83,11 +92,75 @@ function resize() {
 
 function buildWorld(seed) {
   core.seed = seed;
+  // Take the player out first: disposing the old world frees everything still in its scene.
+  core.player.removeFromParent();
   core.world?.dispose();
   core.world = createWorld(hashString(seed));
   core.world.setDensity(DENSITIES[core.densityIndex]);
+  core.world.scene.add(core.player);
+  core.player.position.set(SPAWN.x, heightAt(SPAWN.x, SPAWN.z), SPAWN.z);
+  core.player.rotation.y = 0;
   core.cameraYaw = 0;
-  core.camera?.position.set(0, CAMERA_HEIGHT, CAMERA_DISTANCE);
+  core.camera?.position.set(SPAWN.x, CAMERA_HEIGHT, SPAWN.z + CAMERA_DISTANCE);
+}
+
+function setCharacter(character) {
+  if (core.character) {
+    core.player.remove(core.character.object);
+    core.character.dispose();
+  }
+  core.character = character;
+  core.player.add(character.object);
+}
+
+function readStoredPersona() {
+  try {
+    return globalThis.localStorage?.getItem(PERSONA_KEY) ?? null;
+  } catch {
+    return null; // storage can be blocked; the first persona is a fine default
+  }
+}
+
+function storePersona(id) {
+  try {
+    globalThis.localStorage?.setItem(PERSONA_KEY, id);
+  } catch {
+    // remembering the choice is a convenience only
+  }
+}
+
+/** Shows the persona's own 3D model when it has one, and a low-poly figure until then or instead. */
+async function choosePersona(id) {
+  const persona = core.personas?.find((entry) => entry.id === id) ?? null;
+  core.personaId = persona?.id ?? null;
+  if (persona) storePersona(persona.id);
+  const load = ++core.personaLoad;
+  setCharacter(createFigure(persona?.name ?? ""));
+  if (!persona) return;
+  const model = await findPersonaModel(persona.id);
+  if (!model || load !== core.personaLoad) return;
+  core.hud?.setStatus(`Loading ${persona.name}'s model…`);
+  try {
+    const character = await loadModelCharacter(model);
+    if (load !== core.personaLoad) {
+      character.dispose();
+      return;
+    }
+    setCharacter(character);
+  } catch (error) {
+    console.warn("[wanderworld] persona model failed to load", error);
+  } finally {
+    if (load === core.personaLoad) core.hud?.setStatus(null);
+  }
+}
+
+async function loadPersonas() {
+  if (core.personas) return;
+  core.personas = await listPersonas();
+  const stored = readStoredPersona();
+  const selected = core.personas.find((entry) => entry.id === stored) ?? core.personas[0] ?? null;
+  core.hud?.setPersonas(core.personas, selected?.id);
+  await choosePersona(selected?.id ?? null);
 }
 
 function newWorld() {
@@ -117,7 +190,8 @@ function approachAngle(current, target, amount) {
 }
 
 function step(dt) {
-  const { player, resolveCollisions } = core.world;
+  const { resolveCollisions } = core.world;
+  const player = core.player;
   const { x, y, run, turn } = core.input?.read() ?? NO_INPUT;
   core.cameraYaw += turn * TURN_SPEED * dt;
   const sin = Math.sin(core.cameraYaw);
@@ -126,6 +200,8 @@ function step(dt) {
   const moveX = -sin * y + cos * x;
   const moveZ = -cos * y - sin * x;
   const position = player.position;
+  const startX = position.x;
+  const startZ = position.z;
   if (moveX || moveZ) {
     const speed = run ? RUN_SPEED : WALK_SPEED;
     position.x += moveX * speed * dt;
@@ -137,10 +213,22 @@ function step(dt) {
     player.rotation.y = approachAngle(player.rotation.y, Math.atan2(moveX, moveZ), 12 * dt);
   }
   position.y = heightAt(position.x, position.z);
+  // Animate by how far the body really moved, so walking into a wall doesn't run on the spot.
+  const speed = dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
+  core.character?.update(dt, speed);
 
-  cameraTarget.set(position.x + sin * CAMERA_DISTANCE, position.y + CAMERA_HEIGHT, position.z + cos * CAMERA_DISTANCE);
+  // Slide in closer when a building stands between the player and the camera.
+  const reach = core.world.clearSight(
+    position.x,
+    position.z,
+    position.x + sin * CAMERA_DISTANCE,
+    position.z + cos * CAMERA_DISTANCE,
+  );
+  const distance = Math.max(MIN_CAMERA_DISTANCE, CAMERA_DISTANCE * reach);
+  const height = LOOK_HEIGHT + (CAMERA_HEIGHT - LOOK_HEIGHT) * (distance / CAMERA_DISTANCE);
+  cameraTarget.set(position.x + sin * distance, position.y + height, position.z + cos * distance);
   core.camera.position.lerp(cameraTarget, 1 - Math.exp(-8 * dt));
-  core.camera.lookAt(position.x, position.y + 1.2, position.z);
+  core.camera.lookAt(position.x, position.y + LOOK_HEIGHT, position.z);
 }
 
 function frame(time) {
@@ -181,6 +269,7 @@ function attach(element) {
     onCycleDensity: cycleDensity,
     onNewWorld: newWorld,
     onToggleFullscreen: toggleFullscreen,
+    onPickPersona: (id) => void choosePersona(id),
   });
   core.input = createInput();
   core.hud.layer.append(core.input.stickElement);
@@ -191,6 +280,8 @@ function attach(element) {
   }
   core.stage.prepend(core.renderer.domElement);
   if (!core.world) buildWorld(core.seed);
+  if (core.personas) core.hud.setPersonas(core.personas, core.personaId);
+  else void loadPersonas();
   core.resizeObserver = new ResizeObserver(resize);
   core.resizeObserver.observe(core.stage);
   resize();
@@ -253,3 +344,10 @@ class WanderworldElement extends HTMLElement {
 }
 
 if (!customElements.get(TAG)) customElements.define(TAG, WanderworldElement);
+
+// Debug handle for playtests, the same opt-in as Pixelforge's: set localStorage "wanderworld-debug" to "1".
+try {
+  if (globalThis.localStorage?.getItem("wanderworld-debug") === "1") globalThis.__wanderworld = core;
+} catch {
+  // storage can be blocked; the handle just stays off
+}

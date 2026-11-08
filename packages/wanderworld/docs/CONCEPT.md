@@ -4,13 +4,15 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **M0 rebuilt as a Home screen game, 2026-11-07 (0.2.0).** Package id `wanderworld`, branch
+Status: **0.3.0, 2026-11-07: a seeded town, walked as your persona.** Package id `wanderworld`, branch
 `feat/wanderworld`. No issue or PR yet; those come once there is a working concept worth proposing. Held
 in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it; tested through a dev catalog.
 
-M0 as built: three.js 0.186.1 bundled (556 KB `client.js`); 6 draw calls and 56k triangles at 1× props
-(204k at 4×, 499k at 10×); 60–120 fps in a desktop browser test. Not yet measured on a phone or in a real
-Engine. The store banner is a placeholder screenshot of the M0 world and needs real art before a PR.
+As built: a 5 × 5-block town (about 60 buildings) around a plaza, forest outside; the player is the
+chosen persona's VRM model (procedural walk), GLB model, or a low-poly figure. 796 KB `client.js`
+(three.js + GLTF loader + three-vrm). 7 draw calls and 58k triangles at 1× props with the town (14 with
+the figure, whose limbs are separate meshes); 120 fps in a desktop browser test. Not yet measured on a
+phone or in a real Engine. The store banner is a placeholder screenshot and needs real art before a PR.
 
 ### Why a Home game, not a Game Mode Experience
 
@@ -117,7 +119,8 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 | # | Milestone | Done when |
 | --- | --- | --- |
 | M0 | **Spike** ✅ | A Home tab renders a three.js scene and walks a capsule with WASD and a touch stick, with an fps readout. Measure fps on a phone. |
-| M1 | **Walkable town, fixed kit** | A seeded, hand-tuned town (no model call) in chunks, with named zones; entering one shows its name. Position and seed saved. |
+| M0.5 | **Persona and town** ✅ | The player is the chosen persona's 3D Avatars model (VRM walks, GLB shows) or a low-poly figure; a seeded town of houses, streets and a plaza; buildings block movement and the camera. |
+| M1 | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. |
 | M2 | **Town from lore** | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part. |
 | M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. |
 | M4 | **People** | Cast characters placed at their homes and workplaces, as billboards or simple figures. |
@@ -144,8 +147,21 @@ Answered (checked against Agents staging and Engine 2.5.2, 2026-11-07):
 - ~~Store data.~~ A dev catalog build leaves out a package with no store entry, banner and icon:
   section `adventure`, the Home tab icon `wanderworld-icon.webp`, and a placeholder banner.
 
+- ~~The player's body?~~ **The persona's own 3D Avatars model.** The Engine stores one per character or
+  persona under `avatar-models/<ownerType>/<ownerId>/`. `GET /api/avatar-models/persona/:id` returns its
+  config (`activeKind`, `kinds.vrm.file`, `kinds["glb-fbx"]`) or `null`, and
+  `GET /api/avatar-models/persona/:id/files/:kind/:name` serves the file. Personas come from
+  `GET /api/characters/personas/list`. VRM and GLB load; MMD, FBX and the Engine's own `.mavatar` mesh
+  avatars fall back to the low-poly figure for now.
+
 Still open:
 
+- Which permission, if any, should disclose reading the persona list and avatar models. None of the
+  Engine's permission names describes it; the manifest declares only `ui` and the builder says why.
+- GLB models don't walk yet: their bone names vary, though 3D Avatars stores a humanoid bone map for them
+  (`kinds["glb-fbx"].bones`) that a walk could use. FBX needs three's FBX loader.
+- The camera still frames tight gaps between houses awkwardly; fading or hiding a wall in the way would
+  read better than moving closer.
 - **M2:** how a Home game's server part reads characters, persona and lorebooks and calls the model.
   Study Otome Hearth and Modern Life Sim before designing it.
 - Asset source: CC0 low-poly kits (Kenney, Quaternius) bundled, or fully procedural meshes?

@@ -59,9 +59,10 @@ export const HOST_PROVIDED_LIBRARIES = [
 
 /**
  * node_modules a client bundle may still carry: tree-shaken per icon, or not handed to packages by the Engine. The
- * Engine runs three.js for its own 3D avatars but does not expose it through `__MARINARA_HOST__.modules`.
+ * Engine runs three.js and @pixiv/three-vrm for its own 3D avatars but exposes neither through
+ * `__MARINARA_HOST__.modules`.
  */
-export const BUNDLED_CLIENT_LIBRARIES = ["lucide-react", "chess.js", "three"];
+export const BUNDLED_CLIENT_LIBRARIES = ["lucide-react", "chess.js", "three", "@pixiv/three-vrm"];
 
 const normalize = (path) => path.split("\\").join("/");
 

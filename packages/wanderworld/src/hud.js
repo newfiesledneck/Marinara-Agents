@@ -14,7 +14,7 @@ function button(label, title, onClick) {
   return element;
 }
 
-export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen }) {
+export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen, onPickPersona }) {
   const layer = document.createElement("div");
   layer.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif;";
 
@@ -37,11 +37,20 @@ export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen
   const spacer = document.createElement("div");
   spacer.style.flex = "1";
 
+  // "Play as": which persona's body walks the world. Hidden until the persona list arrives.
+  const personaLabel = document.createElement("label");
+  personaLabel.style.cssText = `${CHIP}font-size:13px;display:none;align-items:center;gap:6px;pointer-events:auto;`;
+  personaLabel.textContent = "Play as";
+  const persona = document.createElement("select");
+  persona.style.cssText = "font:13px system-ui,sans-serif;max-width:160px;border-radius:6px;border:0;padding:2px 4px;";
+  persona.addEventListener("change", () => onPickPersona(persona.value));
+  personaLabel.append(persona);
+
   const fresh = button("New world", "Walk a different seeded world", onNewWorld);
   const fullscreen = button("Fullscreen", "Fill the screen with the world", onToggleFullscreen);
   fullscreen.style.display = "none";
 
-  top.append(title, stats, spacer, fresh, fullscreen);
+  top.append(title, stats, spacer, personaLabel, fresh, fullscreen);
 
   const hint = document.createElement("div");
   hint.textContent = "WASD or arrows to walk · Shift runs · Q / E turn the camera";
@@ -68,6 +77,19 @@ export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen
       fullscreen.textContent = control.active
         ? (control.exitLabel ?? "Exit fullscreen")
         : (control.enterLabel ?? "Fullscreen");
+    },
+    /** Fills the "Play as" menu; an empty list hides it. */
+    setPersonas(personas, selectedId) {
+      persona.replaceChildren(
+        ...personas.map((entry) => {
+          const option = document.createElement("option");
+          option.value = entry.id;
+          option.textContent = entry.name;
+          return option;
+        }),
+      );
+      persona.value = selectedId ?? "";
+      personaLabel.style.display = personas.length ? "flex" : "none";
     },
     setStatus(text) {
       status.textContent = text ?? "";
