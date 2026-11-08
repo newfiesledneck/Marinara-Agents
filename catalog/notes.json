@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.17",
+          "date": "2026-11-08",
+          "notes": "- Caves are one weathered rock face set into the hillside, with the entrance carved into it: no loose boulders or gaps. Inside the passage goes dark, and ferns and grass grow along the foot and over the top.\n- Dirt roads are one smooth strip that fades into the grass at its edges, with no gaps at bends and no ground poking through.\n- The river is one smooth surface, deeper blue in the middle, with a soft sheen.",
+          "highlight": false
+        },
+        {
           "version": "0.4.16",
           "date": "2026-11-08",
           "notes": "- The land round town has shape: hills from gentle to rugged, mountain ranges along some edges with rock and snow, and a winding river with sandy banks.\n- Places out in the country: a roadside inn, cottages and caves in hillsides, each at the end of its own dirt road, with a wooden bridge where a road crosses the river.\n- Every world's land is its own. New world can choose hills, mountains, a river and how much is out in the country, or let the seed surprise you. The world keeps it.\n- The river, roads, mountains, inns and caves have names, and a cave can be used like a door.",
@@ -1520,12 +1526,6 @@
           "date": "2026-11-07",
           "notes": "- VRM and GLB models now show their colours and textures instead of plain white. Models load the way 3D Avatars loads them, and only with the pictures inside the model file.",
           "highlight": false
-        },
-        {
-          "version": "0.3.0",
-          "date": "2026-11-07",
-          "notes": "- Walk as one of your personas: pick one under Play as. A persona with a VRM model set up in 3D Avatars walks the world in that model, with a walking animation; a GLB model is shown as it is. A persona without one gets a simple low-poly figure that walks too.\n- A seeded town now stands around a plaza with a fountain: streets, lamp posts, and houses and halls of different sizes, colours and roofs, with doors and windows. You can't walk through the buildings.\n- Trees are much bigger and grow only outside town.\n- The camera moves in closer when a building would hide you.",
-          "highlight": true
         }
       ]
     },
