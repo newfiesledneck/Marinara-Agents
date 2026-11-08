@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.5, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
+Status: **0.4.6, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
 without the AI yet), with up to thirty of your characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
