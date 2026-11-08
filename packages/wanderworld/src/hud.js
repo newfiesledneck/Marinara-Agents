@@ -1,8 +1,14 @@
-// The overlay on top of the world: a title bar with the game's buttons, a performance readout, a
-// controls hint and a status line. Only the buttons take pointer events; the rest lets touches through.
+// The overlay on top of the world: a title bar with the game's buttons (folded into a menu on narrow
+// screens), the People and Settings panels, a performance readout, a clock, the "use" prompt, a controls
+// hint, a status line and a loading screen. Only controls take pointer events; the rest lets touches through.
+import { SETTINGS } from "./settings.js";
 
 const CHIP = "background:rgba(10,14,20,0.62);color:#f3f5f7;border-radius:8px;padding:4px 10px;";
 const BUTTON = `${CHIP}font:600 13px system-ui,sans-serif;border:0;cursor:pointer;pointer-events:auto;`;
+const PANEL =
+  `${CHIP}position:absolute;top:48px;right:8px;display:none;flex-direction:column;gap:4px;max-height:calc(100% - 64px);` +
+  "overflow-y:auto;min-width:220px;max-width:min(340px,calc(100% - 16px));padding:10px 12px;pointer-events:auto;font-size:13px;";
+const NARROW = "(max-width: 640px)";
 
 function button(label, title, onClick) {
   const element = document.createElement("button");
@@ -14,82 +20,225 @@ function button(label, title, onClick) {
   return element;
 }
 
-export function createHud(
-  root,
-  { onCycleDensity, onNewWorld, onToggleFullscreen, onPickPersona, onToggleCharacter, maxPeople },
-) {
+const RESOLUTION_LABELS = { auto: "Auto (keeps it smooth)", 100: "Full", 75: "75%", 50: "50%" };
+const DISTANCE_LABELS = { 90: "Near", 140: "Medium", 200: "Far" };
+const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always night" };
+
+/**
+ * `handlers`: onNewWorld, onToggleFullscreen, onPickPersona(id), onToggleCharacter(id, chosen),
+ * onSetting(name, value), onUse(), and `maxPeople`.
+ */
+export function createHud(root, handlers) {
+  const { maxPeople } = handlers;
   const layer = document.createElement("div");
   layer.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif;";
+  const touch = window.matchMedia?.("(pointer: coarse)").matches;
 
   const top = document.createElement("div");
   top.style.cssText =
     "position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;";
-
   const title = document.createElement("div");
   title.textContent = "Wanderworld";
   title.style.cssText = `${CHIP}font-size:14px;font-weight:700;`;
-
-  const stats = button(
-    "…",
-    "Frame rate, draw calls and triangles. Tap to change how many trees and rocks are drawn.",
-    onCycleDensity,
-  );
-  stats.style.font = "12px ui-monospace,monospace";
-  stats.style.whiteSpace = "nowrap";
-
+  const clock = document.createElement("div");
+  clock.style.cssText = `${CHIP}font:12px ui-monospace,monospace;`;
+  clock.title = "Time of day in town";
+  const stats = document.createElement("div");
+  stats.style.cssText = `${CHIP}font:12px ui-monospace,monospace;white-space:nowrap;`;
+  stats.title = "Frame rate, draw calls, triangles and render resolution";
   const spacer = document.createElement("div");
   spacer.style.flex = "1";
 
-  // "Play as": which persona's body walks the world. Hidden until the persona list arrives.
+  // The game's controls: in the bar on wide screens, in a drop-down menu on narrow ones.
+  const controls = document.createElement("div");
+  controls.setAttribute("data-wanderworld-ui", "");
   const personaLabel = document.createElement("label");
   personaLabel.style.cssText = `${CHIP}font-size:13px;display:none;align-items:center;gap:6px;pointer-events:auto;`;
   personaLabel.textContent = "Play as";
   const persona = document.createElement("select");
   persona.style.cssText = "font:13px system-ui,sans-serif;max-width:160px;border-radius:6px;border:0;padding:2px 4px;";
-  persona.addEventListener("change", () => onPickPersona(persona.value));
+  persona.addEventListener("change", () => handlers.onPickPersona(persona.value));
   personaLabel.append(persona);
 
-  // "People": which characters live in town. A checklist that opens under the button.
-  const peopleButton = button("People", "Choose characters to live in town", () => {
-    peoplePanel.style.display = peoplePanel.style.display === "none" ? "flex" : "none";
-  });
-  peopleButton.style.display = "none";
+  const panels = [];
+  const togglePanel = (panel) => {
+    const opening = panel.style.display === "none";
+    for (const other of panels) other.style.display = "none";
+    panel.style.display = opening ? "flex" : "none";
+    if (narrow.matches) setMenu(false);
+  };
+
+  // People: which characters live in town.
   const peoplePanel = document.createElement("div");
   peoplePanel.setAttribute("data-wanderworld-ui", "");
-  peoplePanel.style.cssText =
-    `${CHIP}position:absolute;top:48px;right:8px;display:none;flex-direction:column;gap:2px;max-height:60%;` +
-    "overflow-y:auto;min-width:200px;max-width:min(320px,calc(100% - 16px));padding:8px 10px;pointer-events:auto;font-size:13px;";
+  peoplePanel.style.cssText = PANEL;
   const peopleNote = document.createElement("div");
   peopleNote.style.cssText = "opacity:0.75;font-size:12px;margin-bottom:4px;";
   peopleNote.textContent = `Up to ${maxPeople} characters live in town, in their 3D Avatars model when they have one.`;
   const peopleList = document.createElement("div");
   peopleList.style.cssText = "display:flex;flex-direction:column;gap:2px;";
   peoplePanel.append(peopleNote, peopleList);
+  panels.push(peoplePanel);
+  const peopleButton = button("People", "Choose characters to live in town", () => togglePanel(peoplePanel));
+  peopleButton.style.display = "none";
 
-  const fresh = button("New world", "Walk a different seeded world", onNewWorld);
-  const fullscreen = button("Fullscreen", "Fill the screen with the world", onToggleFullscreen);
+  // Settings.
+  const settingsPanel = document.createElement("div");
+  settingsPanel.setAttribute("data-wanderworld-ui", "");
+  settingsPanel.style.cssText = PANEL;
+  panels.push(settingsPanel);
+  const settingsButton = button("Settings", "Resolution, speed, camera, sound and more", () =>
+    togglePanel(settingsPanel),
+  );
+  const fields = {};
+  const heading = (text) => {
+    const element = document.createElement("div");
+    element.textContent = text;
+    element.style.cssText = "font-weight:700;margin-top:6px;opacity:0.85;";
+    settingsPanel.append(element);
+  };
+  const row = (label, control) => {
+    const element = document.createElement("label");
+    element.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
+    const text = document.createElement("span");
+    text.textContent = label;
+    element.append(text, control);
+    settingsPanel.append(element);
+  };
+  const choice = (name, label, labels) => {
+    const select = document.createElement("select");
+    select.style.cssText = "font:13px system-ui,sans-serif;border-radius:6px;border:0;padding:2px 4px;";
+    for (const option of SETTINGS[name].options) {
+      const element = document.createElement("option");
+      element.value = String(option);
+      element.textContent = labels[option] ?? String(option);
+      select.append(element);
+    }
+    select.addEventListener("change", () => {
+      const raw = select.value;
+      handlers.onSetting(name, typeof SETTINGS[name].value === "number" ? Number(raw) : raw);
+    });
+    fields[name] = { set: (value) => (select.value = String(value)) };
+    row(label, select);
+  };
+  const toggle = (name, label) => {
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.addEventListener("change", () => handlers.onSetting(name, box.checked));
+    fields[name] = { set: (value) => (box.checked = value) };
+    row(label, box);
+  };
+  const slider = (name, label, step, format) => {
+    const wrap = document.createElement("span");
+    wrap.style.cssText = "display:flex;align-items:center;gap:6px;";
+    const range = document.createElement("input");
+    range.type = "range";
+    range.min = String(SETTINGS[name].min);
+    range.max = String(SETTINGS[name].max);
+    range.step = String(step);
+    range.style.width = "110px";
+    const value = document.createElement("span");
+    value.style.cssText = "min-width:38px;text-align:right;font:12px ui-monospace,monospace;";
+    range.addEventListener("input", () => {
+      value.textContent = format(Number(range.value));
+      handlers.onSetting(name, Number(range.value));
+    });
+    wrap.append(range, value);
+    fields[name] = {
+      set: (next) => {
+        range.value = String(next);
+        value.textContent = format(next);
+      },
+    };
+    row(label, wrap);
+  };
+  const times = (value) => `${value.toFixed(1)}×`;
+  heading("Graphics");
+  choice("resolution", "Resolution", RESOLUTION_LABELS);
+  choice("drawDistance", "Draw distance", DISTANCE_LABELS);
+  choice("density", "Trees and rocks", { 1: "Normal", 4: "4×", 10: "10×" });
+  toggle("shadows", "Shadows under people");
+  heading("Moving");
+  slider("walkSpeed", "Walk and run speed", 0.1, times);
+  slider("lookSpeed", "Camera turn speed", 0.1, times);
+  toggle("invertLook", "Invert up and down");
+  heading("World");
+  choice("time", "Time", TIME_LABELS);
+  toggle("sound", "Sound");
+  slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
+  heading("Display");
+  toggle("names", "Names over people");
+  toggle("hint", "Controls hint");
+  toggle("stats", "Frame rate");
+
+  const fresh = button("New world", "Walk a different seeded world", handlers.onNewWorld);
+  const fullscreen = button("Fullscreen", "Fill the screen with the world", handlers.onToggleFullscreen);
   fullscreen.style.display = "none";
+  controls.append(personaLabel, peopleButton, settingsButton, fresh, fullscreen);
 
-  top.append(title, stats, spacer, personaLabel, peopleButton, fresh, fullscreen);
+  const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
+  menuButton.setAttribute("aria-label", "Menu");
+  const narrow = window.matchMedia?.(NARROW) ?? { matches: false };
+  function setMenu(open) {
+    controls.dataset.open = open ? "1" : "0";
+    if (!narrow.matches) {
+      controls.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;gap:6px;";
+      menuButton.style.display = "none";
+      return;
+    }
+    menuButton.style.display = "";
+    controls.style.cssText =
+      `${CHIP}position:absolute;top:40px;right:0;display:${open ? "flex" : "none"};flex-direction:column;` +
+      "align-items:stretch;gap:6px;padding:8px;pointer-events:auto;";
+  }
+  const onNarrow = () => setMenu(false);
+  narrow.addEventListener?.("change", onNarrow);
+  setMenu(false);
+  top.append(title, clock, stats, spacer, menuButton, controls);
+
+  // The "use" prompt over whatever you could use, and on touch screens a Use button by the stick.
+  const prompt = document.createElement("div");
+  prompt.style.cssText = `${CHIP}position:absolute;left:0;top:0;transform:translate(-50%,-100%);font:600 13px system-ui,sans-serif;display:none;white-space:nowrap;`;
+  const use = button("Use", "Use what's in front of you", () => handlers.onUse());
+  // Bottom right, under the thumb that isn't on the stick.
+  use.style.cssText += "position:absolute;bottom:32px;right:20px;padding:16px 20px;font-size:15px;display:none;";
 
   const hint = document.createElement("div");
-  // Touch screens get their own hint: the stick, dragging and pinching instead of keys and a mouse.
-  const touch = window.matchMedia?.("(pointer: coarse)").matches;
   hint.textContent = touch
-    ? "Stick to walk (all the way to run) · drag to look · pinch to zoom"
-    : "WASD walk · Shift run · drag or arrow keys to look · scroll or + / − to zoom";
-  hint.style.cssText = `${CHIP}position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.8;max-width:min(60%,520px);`;
+    ? "Stick to walk · drag to look · pinch to zoom · tap someone or something to use it"
+    : "WASD walk · Shift run · drag or arrows to look · scroll to zoom · E or click to use · Esc to leave";
+  // On touch screens the hint sits under the bar, clear of the stick and the Use button.
+  hint.style.cssText = touch
+    ? `${CHIP}position:absolute;top:84px;left:8px;font-size:12px;opacity:0.8;max-width:min(80%,420px);`
+    : `${CHIP}position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.8;max-width:min(60%,560px);`;
 
   const status = document.createElement("div");
   status.style.cssText = `${CHIP}position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;display:none;max-width:80%;text-align:center;`;
 
-  layer.append(top, peoplePanel, hint, status);
+  const loading = document.createElement("div");
+  loading.style.cssText =
+    "position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;" +
+    "background:linear-gradient(#bfd9ee,#e9e1cf);color:#2b3440;font:600 18px system-ui,sans-serif;pointer-events:auto;";
+  const fade = document.createElement("div");
+  fade.style.cssText =
+    "position:absolute;inset:0;background:#000;opacity:0;transition:opacity 0.35s;pointer-events:none;";
+
+  layer.append(top, peoplePanel, settingsPanel, prompt, use, hint, status, fade, loading);
   root.append(layer);
 
   return {
     layer,
-    setStats({ fps, calls, triangles, density }) {
-      stats.textContent = `${fps} fps · ${calls} draws · ${Math.round(triangles / 1000)}k tris · ${density}× props`;
+    setStats({ fps, calls, triangles, scale }) {
+      stats.textContent = `${fps} fps · ${calls} draws · ${Math.round(triangles / 1000)}k tris · ${Math.round(scale * 100)}% res`;
+    },
+    setClock(text) {
+      clock.textContent = text;
+    },
+    /** Shows each setting's current value, and applies the display ones. */
+    setSettings(settings) {
+      for (const [name, field] of Object.entries(fields)) field.set(settings[name]);
+      hint.style.display = settings.hint ? "" : "none";
+      stats.style.display = settings.stats ? "" : "none";
     },
     /** `control` is the Engine's fullscreen toggle, or null when this Engine has none. */
     setFullscreen(control) {
@@ -119,25 +268,52 @@ export function createHud(
       peopleButton.textContent = chosen.size ? `People (${chosen.size})` : "People";
       peopleList.replaceChildren(
         ...characters.map((character) => {
-          const row = document.createElement("label");
-          row.style.cssText = "display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;";
+          const entry = document.createElement("label");
+          entry.style.cssText = "display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;";
           const box = document.createElement("input");
           box.type = "checkbox";
           box.checked = chosen.has(character.id);
           box.disabled = !box.checked && chosen.size >= maxPeople;
-          box.addEventListener("change", () => onToggleCharacter(character.id, box.checked));
+          box.addEventListener("change", () => handlers.onToggleCharacter(character.id, box.checked));
           const name = document.createElement("span");
           name.textContent = character.name;
-          row.append(box, name);
-          return row;
+          entry.append(box, name);
+          return entry;
         }),
       );
+    },
+    /** The use prompt: `label` ("Sit", "Talk to Mira") at screen point (x, y), or null to hide it. */
+    setPrompt(label, x, y) {
+      const show = !!label;
+      use.style.display = show && touch ? "" : "none";
+      prompt.style.display = show && !touch && Number.isFinite(x) ? "" : "none";
+      if (!show) return;
+      use.textContent = label;
+      prompt.textContent = `E  ${label}`;
+      prompt.style.left = `${x}px`;
+      prompt.style.top = `${y}px`;
     },
     setStatus(text) {
       status.textContent = text ?? "";
       status.style.display = text ? "block" : "none";
     },
+    /** A full-screen loading card with `text`, or null to hide it. */
+    setLoading(text) {
+      loading.textContent = text ?? "";
+      loading.style.display = text ? "flex" : "none";
+    },
+    /** Fades the view to black (true) or back (false), for going through doors. */
+    setFade(dark) {
+      fade.style.opacity = dark ? "1" : "0";
+    },
+    /** Hides the bar and hint while a conversation has the screen. */
+    setBusy(busy) {
+      top.style.visibility = busy ? "hidden" : "";
+      hint.style.visibility = busy ? "hidden" : "";
+      if (busy) for (const panel of panels) panel.style.display = "none";
+    },
     destroy() {
+      narrow.removeEventListener?.("change", onNarrow);
       layer.remove();
     },
   };

@@ -5,7 +5,9 @@ import assert from "node:assert/strict";
 import { Box3, Vector3 } from "three";
 import { buildBuilding, KINDS, makeSpec } from "../packages/wanderworld/src/buildings.js";
 import { createFigure } from "../packages/wanderworld/src/figure.js";
+import { createInterior } from "../packages/wanderworld/src/interiors.js";
 import { createMotion } from "../packages/wanderworld/src/motion.js";
+import { checkSetting, loadSettings, SETTINGS } from "../packages/wanderworld/src/settings.js";
 import { createCollider, createWorld, DENSITIES, rng, SPAWN } from "../packages/wanderworld/src/world.js";
 
 // ── Collision: circles ───────────────────────────────────────────────────────
@@ -51,7 +53,23 @@ const world = createWorld(12345);
 for (const density of DENSITIES) world.setDensity(density);
 const meshes = [];
 world.scene.traverse((object) => object.isInstancedMesh && meshes.push(object));
-assert.equal(meshes.length, 4, "trunks, crowns, rocks and lamp posts are one instanced mesh each");
+assert.equal(meshes.length, 6, "trunks, crowns, rocks, lamp posts, lamp heads and doors are one instanced mesh each");
+
+// Doors swing open and shut; benches have seats; the day turns to night.
+assert.ok(world.doors.length >= 30, `every building has a door (${world.doors.length})`);
+world.setDoor(0, true);
+for (let i = 0; i < 30; i++) world.update(0.05);
+assert.equal(world.doors[0].open, 1, "a door opens fully");
+world.setDoor(0, false);
+for (let i = 0; i < 30; i++) world.update(0.05);
+assert.equal(world.doors[0].open, 0, "and shuts again");
+assert.ok(world.seats.length >= 12, `the plaza and gardens have benches to sit on (${world.seats.length} seats)`);
+for (const seat of world.seats) {
+  assert.ok(!world.blocked(seat.approach.x, seat.approach.z, 0.1), "you can stand in front of every seat");
+}
+assert.ok(world.setTime(12) < 0.05, "noon is bright");
+assert.ok(world.setTime(0) > 0.95, "midnight is dark");
+world.setTime(12);
 world.setDensity(DENSITIES[0]);
 const [trunks, crowns, rocks] = meshes;
 assert.equal(trunks.count, crowns.count, "every trunk has a crown");
@@ -98,6 +116,33 @@ for (const kind of KINDS) {
   geometry.dispose();
 }
 assert.equal(makeSpec(random, "spaceship").kind, "home", "an unknown kind falls back to a home");
+
+// ── Inside buildings ─────────────────────────────────────────────────────────
+// Every kind of building opens onto a furnished room you can walk into, sit down in and walk out of.
+for (const kind of KINDS) {
+  for (let i = 0; i < 4; i++) {
+    const spec = makeSpec(rng(100 + i), kind, { width: 6 + i * 2.5, depth: 5 + i * 1.5 });
+    const room = createInterior({ index: i, spec }, "test-seed");
+    assert.equal(room.kind, kind, "the room is the building's kind");
+    assert.ok(!room.blocked(room.entry.x, room.entry.z, 0.3), `${kind}: you can stand where you come in`);
+    assert.ok(!room.blocked(room.exit.x, room.exit.z, 0.3), `${kind}: you can reach the way out`);
+    for (const seat of room.seats) {
+      assert.ok(!room.blocked(seat.approach.x, seat.approach.z, 0.1), `${kind}: you can stand in front of every seat`);
+    }
+    if (kind !== "smithy") assert.ok(room.seats.length > 0, `${kind}: there's somewhere to sit`);
+    // Walk straight at the back wall and out of the front door: the walls stop you both ways.
+    const halfDepth = room.entry.z + 0.8;
+    for (const direction of [-1, 1]) {
+      const walker = { x: room.entry.x + 0.2, z: room.entry.z };
+      for (let step = 0; step < 300; step++) {
+        walker.z += direction * 0.05;
+        room.resolveCollisions(walker, 0.35);
+      }
+      assert.ok(Math.abs(walker.z) < halfDepth, `${kind}: the walls keep you in (${walker.z.toFixed(2)})`);
+    }
+    room.dispose();
+  }
+}
 
 // ── The built-in person, and how bodies move ─────────────────────────────────
 const figure = createFigure("Aria");
@@ -149,6 +194,52 @@ for (let i = 0; i < 80; i++) {
   }
 }
 assert.ok(deepest > 0.5, `knees fold as the feet swing through (deepest ${deepest.toFixed(2)})`);
+
+// Feet stay planted. Walking straight ahead, each foot keeps to its own line instead of swinging side to
+// side with the hips; and the foot carrying the body moves back at the walking speed, so it doesn't skate.
+const WALK = 2.5;
+const sideways = { left: [Infinity, -Infinity], right: [Infinity, -Infinity] };
+let slip = 0;
+let contact = 0;
+let previous = null;
+for (let i = 0; i < 120; i++) {
+  pose(1 / 60, WALK);
+  const feet = { left: at("leftFoot"), right: at("rightFoot") };
+  for (const side of ["left", "right"]) {
+    sideways[side][0] = Math.min(sideways[side][0], feet[side].x);
+    sideways[side][1] = Math.max(sideways[side][1], feet[side].x);
+  }
+  if (previous) {
+    // The lower foot is the one on the ground; it should slide back at the walking speed.
+    const side = feet.left.y < feet.right.y ? "left" : "right";
+    if (Math.abs(feet.left.y - feet.right.y) > 0.01) {
+      slip += Math.abs((feet[side].z - previous[side].z) * 60 + WALK);
+      contact++;
+    }
+  }
+  previous = feet;
+}
+for (const side of ["left", "right"]) {
+  const range = sideways[side][1] - sideways[side][0];
+  assert.ok(range < 0.04, `walking, the ${side} foot keeps to its line (sways ${(range * 100).toFixed(1)} cm)`);
+}
+assert.ok(
+  slip / contact < WALK * 0.3,
+  `the planted foot keeps pace with the ground (slips ${(slip / contact).toFixed(2)} m/s)`,
+);
+
+// Standing, weight shifts from foot to foot without the feet sliding about.
+for (let i = 0; i < 60; i++) pose(1 / 30, 0);
+const planted = { left: at("leftFoot"), right: at("rightFoot") };
+let wander = 0;
+for (let i = 0; i < 600; i++) {
+  pose(1 / 30, 0);
+  for (const side of ["left", "right"]) {
+    const foot = at(`${side}Foot`);
+    wander = Math.max(wander, Math.hypot(foot.x - planted[side].x, foot.z - planted[side].z));
+  }
+}
+assert.ok(wander < 0.03, `standing, the feet stay put (${(wander * 100).toFixed(1)} cm over 20 s)`);
 figure.dispose();
 
 // The motion on its own: a standing body still breathes, and a body that stops comes back to rest.
@@ -168,5 +259,17 @@ for (const value of Object.values(rested.bones).flat().concat(rested.hips, reste
   assert.ok(Number.isFinite(value), "every pose value is a number");
 }
 assert.ok(Number.isFinite(createMotion()(NaN, Infinity).hips[1]), "bad input never breaks the pose");
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+// Saved settings come back from storage: anything odd falls back to the default instead of breaking.
+assert.equal(checkSetting("walkSpeed", 9), SETTINGS.walkSpeed.max, "speeds are kept within their range");
+assert.equal(checkSetting("walkSpeed", "fast"), SETTINGS.walkSpeed.value, "a non-number speed is the default");
+assert.equal(checkSetting("resolution", "8k"), "auto", "an unknown resolution is Auto");
+assert.equal(checkSetting("drawDistance", 140), 140, "a listed choice is kept");
+assert.equal(checkSetting("shadows", "yes"), true, "a non-boolean switch is the default");
+assert.equal(checkSetting("nonsense", 1), undefined, "unknown settings are ignored");
+globalThis.localStorage = { getItem: () => "{not json" };
+assert.deepEqual(loadSettings().resolution, "auto", "a damaged saved copy loads the defaults");
+delete globalThis.localStorage;
 
 console.log("wanderworld regression: OK");
