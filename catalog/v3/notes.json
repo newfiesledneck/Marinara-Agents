@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.25",
+          "date": "2026-11-08",
+          "notes": "- Swimming: walk into the river and you wade through the shallows, then swim where it's deep, treading water when you stop (Shift swims faster). Recorded swimming animations from the Universal Animation Library.\n- The river is deeper in the middle, and its water reaches the banks everywhere instead of leaving dry gaps.",
+          "highlight": false
+        },
+        {
           "version": "0.4.24",
           "date": "2026-11-08",
           "notes": "- Relationships: set how each person sees everyone else, and you, in the Journal's new Relationships tab. Friend, family, partner, rival, enemy and more, each with levels: a low-level friend is just friendly, a high one a best friend; a low-level enemy dislikes you, a high one is a sworn enemy.\n- Townsfolk act on them: friends seek each other out, chat, and sit or walk together; people keep away from someone they dislike or fear; someone fond of you comes over and says hello; a sworn enemy marches up to have words.\n- Temperament and manner for each character, from passive to aggressive and from shy to outgoing: how readily they confront someone, or come over to greet you and seek company.\n- Settings → Confrontations and combat: anywhere, outside towns, outside safe places (towns, inns and cottages), or off.\n- Bridges have plank decks on beams and piers, and reach from bank to bank.\n- Dirt roads fade out of the cobbles where they leave town instead of starting in a hard line.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.6",
           "date": "2026-11-08",
           "notes": "- Smoother walking: the body rises and falls in a gentle wave (about 2 cm) instead of dropping and popping up with each step, the swinging leg bends at the knee as it comes through, and the arms swing more freely.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.5",
-          "date": "2026-11-08",
-          "notes": "- Up to 30 characters can live in town.\n- Townsfolk are inside buildings: walk into a house, the tavern or a shop and whoever is there is in the room, sitting or standing about, and you can talk to them. They come and go through the door while you're inside.\n- Townsfolk visit shops, the tavern, the temple, the hall and the smithy, find their way round buildings along the streets, and no longer hop up and down from benches or pop straight back indoors.\n- A more natural walk: much less bounce (about half), no more marching kick, and the back foot rolls onto its toes. Walking is now 1.8 m/s; raise it in Settings if you like it faster.\n- If your browser is drawing without the graphics card, Wanderworld says so and how to turn hardware acceleration on.",
           "highlight": false
         }
       ]
