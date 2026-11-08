@@ -2,7 +2,7 @@
   {
     "id": "wanderworld",
     "name": "Wanderworld",
-    "description": "A walkable low-poly 3D world on its own Home tab. Early prototype: walk around a seeded landscape with WASD or the on-screen stick.",
+    "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town and forest as one of your personas, in the 3D model you set up for it in 3D Avatars.",
     "author": "Pasta Devs",
     "phase": "pre_generation",
     "enabledByDefault": false,
