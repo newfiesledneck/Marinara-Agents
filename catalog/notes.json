@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.29",
+          "date": "2026-11-08",
+          "notes": "- Place groups: gather places under a name, like every home in town, or the forest, mountains, cottages and river as the wilds. Lore tied to a group is active anywhere in it, along with each place's own.\n- Every world starts with two groups, The wilds and Homes. Add, rename, fill or remove groups in Journal → Places; later the AI can make them too.\n- The Lore panel and Journal → Here show the groups you're in.\n- The \"Lorebooks shown\" list stays open while you tick several, until you close it.",
+          "highlight": false
+        },
+        {
           "version": "0.4.28",
           "date": "2026-11-08",
           "notes": "- Settings → Regenerate this world: builds the world again from its setup with everything new, keeping your people, relationships, party, notes and lore. Optionally a new town layout too.\n- Settings: how often people come up to you (or never), and at most how many at once, so you aren't surrounded.\n- The river's banks always stand above the water, so it no longer floats with gaps over low ground in hilly worlds.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.10",
           "date": "2026-11-08",
           "notes": "- Detailed nature around town: leafy trees, pines, twisted and dead trees, rocks, bushes, ferns, flowers, grass and pebbles from Quaternius's free Stylized Nature MegaKit (public domain). Further out, the simple trees stay, where the haze hides the difference.\n- Settings → Detailed trees and plants turns them off on slow devices.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.9",
-          "date": "2026-11-08",
-          "notes": "- Choose a body for each character in People, and for your persona next to Play as: Auto, Male or Female. It decides which default person they get when they have no 3D model, and is remembered. Later the AI will set it from the character card.",
           "highlight": false
         }
       ]
