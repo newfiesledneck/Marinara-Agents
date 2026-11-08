@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.3 — 2026-11-07
+
+- A more natural walk: the heel lands first and the toes push off, knees fold as each foot swings through, hips turn and sway with the steps, shoulders turn against them, and arms swing a beat behind with relaxed elbows and fingers. The standing foot stays on the ground, so the body rises and falls with each step instead of bobbing on its own. At a run, people lean in and pump their arms.
+- Standing still is no longer stiff: people breathe, shift their weight from foot to foot, glance around now and then, and VRM models blink.
+- People without a 3D model look like people: a face, one of several hairstyles, different builds and heights, and shirts with trousers, shorts, skirts or dresses. They walk and stand the same way 3D models do.
+- Fixed: a GLB or FBX model that faces away in its file raised its arms above its head instead of lowering them, and a VRM 0.x model would have too.
+
 ## 0.4.2 — 2026-11-07
 
 - New controls, the same on every screen size. On a computer: WASD walks, Shift runs, drag with the left or middle mouse button (or use the arrow keys) to look around, and scroll or press + and − to zoom. On a touch screen: the stick walks (push it all the way to run), drag anywhere else to look around, and pinch to zoom.
