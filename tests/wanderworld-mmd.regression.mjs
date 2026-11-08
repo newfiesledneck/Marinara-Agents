@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { Box3, Vector3 } from "three";
 import { loadModelCharacter } from "../packages/wanderworld/src/models.js";
 
-function humanoidPmx() {
+/** `backwards`: the model faces -z instead (its left on -x), as some exports do, so it gets turned round. */
+function humanoidPmx(backwards = false) {
   const parts = [];
   const f32 = (...v) => {
     const b = Buffer.alloc(4 * v.length);
@@ -54,6 +55,7 @@ function humanoidPmx() {
     ["右ひざ", [-1, 5.6, 0], 14],
     ["右足首", [-1, 1, 0], 15],
   ];
+  if (backwards) for (const bone of bones) bone[1][0] = -bone[1][0];
   // One cube per bone, 0.6 units across, centred on the bone and skinned to it.
   const vertices = [];
   const indices = [];
@@ -178,9 +180,51 @@ character.object.traverse((object) => {
   if (object.isBone && object.name === "左ひざ") leftKnee = object;
 });
 leftKnee.getWorldPosition(before);
-for (let i = 0; i < 6; i++) character.update(0.1, 2.5);
-character.object.updateMatrixWorld(true);
-assert.ok(leftKnee.getWorldPosition(new Vector3()).distanceTo(before) > 0.02, "walking moves the knees");
+let travelled = 0;
+for (let i = 0; i < 30; i++) {
+  character.update(1 / 30, 2.5);
+  character.object.updateMatrixWorld(true);
+  travelled = Math.max(travelled, leftKnee.getWorldPosition(new Vector3()).distanceTo(before));
+}
+assert.ok(travelled > 0.1, `walking moves the knees (${travelled.toFixed(2)} m)`);
+
+checkPose(character, "MMD");
 character.dispose();
+
+// A model that faces -z is turned round, and the pose is mirrored into its own bone space.
+globalThis.fetch = async () => new Response(humanoidPmx(true));
+const backwards = await loadModelCharacter({
+  owner: { type: "persona", id: "test" },
+  kind: "mmd",
+  data: { file: "mmd/test.pmx", texturePaths: {} },
+});
+backwards.update(0.1, 0);
+backwards.object.updateMatrixWorld(true);
+checkPose(backwards, "turned round");
+backwards.dispose();
+
+/** The pose reads the right way round: arms hang down (not up) and knees bend back (not forward). */
+function checkPose(character, label) {
+  const bone = (name) => {
+    let found = null;
+    character.object.traverse((object) => {
+      if (object.isBone && object.name === name) found = object;
+    });
+    return found.getWorldPosition(new Vector3());
+  };
+  assert.ok(bone("左手首").y < bone("左腕").y - 0.2, `${label}: the left arm hangs down`);
+  assert.ok(bone("右手首").y < bone("右腕").y - 0.2, `${label}: the right arm hangs down`);
+  let deepest = -1;
+  for (let i = 0; i < 40; i++) {
+    character.update(1 / 30, 2.5);
+    character.object.updateMatrixWorld(true);
+    const thigh = bone("左ひざ").sub(bone("左足")).normalize();
+    const shin = bone("左足首").sub(bone("左ひざ")).normalize();
+    const bend = thigh.y * shin.z - thigh.z * shin.y;
+    assert.ok(bend > -0.02, `${label}: the knee never bends forward (${bend.toFixed(3)})`);
+    deepest = Math.max(deepest, bend);
+  }
+  assert.ok(deepest > 0.4, `${label}: the knee folds in the swing (deepest ${deepest.toFixed(2)})`);
+}
 
 console.log("wanderworld MMD regression: OK");

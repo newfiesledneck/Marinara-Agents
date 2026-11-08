@@ -2,7 +2,7 @@
 // pause, and turn to face the player who comes close. Each walks in its own 3D model from 3D Avatars
 // when it has one, and as a low-poly figure otherwise.
 import { CanvasTexture, Group, LinearFilter, Sprite, SpriteMaterial } from "three";
-import { createFigure } from "./character.js";
+import { createFigure } from "./figure.js";
 import { findModel, loadModelCharacter } from "./models.js";
 import { hashString, heightAt, rng } from "./world.js";
 

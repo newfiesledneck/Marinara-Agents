@@ -173,6 +173,7 @@ function humanoidFromSkeleton(loaded, nodes, scaleFor) {
     humanoid,
     afterPose: () => humanoid.update(),
     dispose: () => disposeTree(loaded),
+    mirror: facing, // a model turned round to face +z still faces -z in its own bone space
   });
 }
 
@@ -238,6 +239,8 @@ async function loadVrm({ owner, data }) {
     humanoid: vrm.humanoid,
     afterPose: (dt) => vrm.update(dt), // the pose, spring bones (hair, clothes) and constraints
     dispose: () => VRMUtils.deepDispose(vrm.scene),
+    mirror: vrm.meta?.metaVersion === "0" ? -1 : 1, // rotateVRM0 turns the model, not its bone space
+    blink: (amount) => vrm.expressionManager?.setValue("blink", amount),
   });
 }
 

@@ -4,7 +4,8 @@
 // HUD and the touch stick all live inside it. The renderer is created once per page and reused when the
 // tab is closed and reopened, so switching tabs never piles up WebGL contexts.
 import { Group, PerspectiveCamera, Vector3, WebGLRenderer } from "three";
-import { createFigure, listCharacters, listPersonas } from "./character.js";
+import { listCharacters, listPersonas } from "./character.js";
+import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { findModel, loadModelCharacter } from "./models.js";

@@ -4,8 +4,8 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.2, 2026-11-07: a detailed seeded town (parts kit), walked as your persona, with your characters
-living in it, and one set of controls for computer and touch.**
+Status: **0.4.3, 2026-11-07: a detailed seeded town (parts kit), walked as your persona, with your characters
+living in it, one set of controls for computer and touch, and natural walking and standing.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
@@ -281,8 +281,16 @@ Answered (checked against Agents staging and Engine 2.5.2, 2026-11-07):
   mesh itself, mapping the standard Japanese bone names (センター, 上半身, 左腕, 左ひじ, 左足, 左ひざ …)
   to a humanoid. MMD textures come from `kinds.mmd.texturePaths`; sphere maps and toon ramps are skipped.
   `.mavatar` mesh avatars are 2D, so they stay on the figure.
+- ~~How people without a model look?~~ **A built-in person, made in code from simple shapes** (0.4.3):
+  face, hairstyle, build, height and clothes chosen from the name, on a humanoid skeleton so it moves like
+  any 3D model. No outside art, because the repository has no written rule for third-party art, and
+  package assets may only be images, JSON and audio (a model would have to ride inside a JSON file).
 
 Still open:
+
+- May a package ship outside CC0 art, such as 3D people? Candidates if the maintainer agrees: Quaternius
+  "Universal Base Characters" (six humanoid bodies, twenty hairstyles, glTF, CC0 per the pack page) or
+  VRoid Studio's CC0 sample avatars (VRM 0.x, larger files).
 
 - Which permission, if any, should disclose reading the persona list and avatar models. None of the
   Engine's permission names describes it; the manifest declares only `ui` and the builder says why.

@@ -4,17 +4,21 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.2)
+## What it does now (0.4.3)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
   beyond. Buildings come from a kit of parts (walls, roofs, chimneys, porches, balconies, shutters, signs,
   awnings). **New world** walks a different one.
 - **Play as** picks one of your personas. A persona with a 3D model set up in 3D Avatars walks in that
-  model (VRM, GLB, FBX or MMD) with a walking animation; any other persona gets a simple low-poly figure,
-  coloured from its name. The choice is remembered.
+  model (VRM, GLB, FBX or MMD); any other persona gets a built-in low-poly person (face, hair, build and
+  clothes chosen from its name). The choice is remembered.
 - **People** picks up to twelve characters to live in town. Each lives in a house near the plaza, wanders
-  nearby in its own 3D model or a figure, stops to face you when you walk up, and has its name overhead.
+  nearby in its own 3D model or a built-in person, stops to face you when you walk up, and has its name
+  overhead.
+- **Natural movement.** Everyone walks heel to toe with turning hips, swinging arms and a foot that stays
+  on the ground, leans into a run, and when standing breathes, shifts their weight and glances around.
+  VRM models blink.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, and the wheel or + / − zoom. Touch screen: the stick walks (all the way out runs), dragging
   anywhere else looks around, and pinching zooms. The camera orbits and tilts, from looking up at towers
@@ -41,8 +45,13 @@ for that persona in 3D Avatars first.
   merged into one vertex-coloured mesh, and trees, rocks and lamp posts are instanced, so the whole world is under ten
   draw calls. Collision is the player against trunk circles and building boxes in a 2D grid, not a
   physics engine.
-- `src/character.js` holds the walk and the low-poly figure, and reads `GET /api/characters/personas/list`
+- `src/motion.js` is how bodies move: a walk-to-run cycle and an idle, as angles for three-vrm's
+  normalized humanoid bones. The hips drop as far as the legs' angles need to keep the standing foot on the
+  ground, which is also what makes a body rise and fall as it walks.
+- `src/character.js` applies that motion to any humanoid, and reads `GET /api/characters/personas/list`
   and `GET /api/characters`.
+- `src/figure.js` is the built-in person: simple shapes on a humanoid skeleton in one skinned mesh, so it
+  moves exactly like a 3D model. It uses no outside art.
 - `src/models.js` reads a persona's or character's `GET /api/avatar-models/:type/:id` and loads its model
   the way 3D Avatars does: VRM with `@pixiv/three-vrm`, GLB and FBX with three.js's loaders and the bones
   3D Avatars matched, and MMD (PMX) with `mmd-parser` into a plain toon-shaded skinned mesh (the Engine's

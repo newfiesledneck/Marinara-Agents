@@ -1,9 +1,11 @@
 // Wanderworld logic that runs without a browser: collision against trunks and buildings, the camera's
-// sight check, the seeded town, and the low-poly figure.
+// sight check, the seeded town, and the built-in person and how bodies move.
 // Run: node tests/wanderworld.regression.mjs
 import assert from "node:assert/strict";
+import { Box3, Vector3 } from "three";
 import { buildBuilding, KINDS, makeSpec } from "../packages/wanderworld/src/buildings.js";
-import { createFigure } from "../packages/wanderworld/src/character.js";
+import { createFigure } from "../packages/wanderworld/src/figure.js";
+import { createMotion } from "../packages/wanderworld/src/motion.js";
 import { createCollider, createWorld, DENSITIES, rng, SPAWN } from "../packages/wanderworld/src/world.js";
 
 // ── Collision: circles ───────────────────────────────────────────────────────
@@ -97,13 +99,74 @@ for (const kind of KINDS) {
 }
 assert.equal(makeSpec(random, "spaceship").kind, "home", "an unknown kind falls back to a home");
 
-// ── Figure ───────────────────────────────────────────────────────────────────
+// ── The built-in person, and how bodies move ─────────────────────────────────
 const figure = createFigure("Aria");
-let meshCount = 0;
-figure.object.traverse((object) => object.isMesh && meshCount++);
-assert.ok(meshCount >= 8, "the figure has a head, body and four limbs");
-figure.update(0.1, 5);
-figure.update(0.1, 0);
+let skinned = 0;
+figure.object.traverse((object) => object.isSkinnedMesh && skinned++);
+assert.equal(skinned, 1, "the person is one skinned mesh");
+const joint = (name) => {
+  let found = null;
+  figure.object.traverse((object) => {
+    if (object.isBone && object.name === name) found = object;
+  });
+  return found;
+};
+const at = (name) => joint(name).getWorldPosition(new Vector3());
+const pose = (dt, speed) => {
+  figure.update(dt, speed);
+  figure.object.updateMatrixWorld(true);
+};
+/** Positive when the shin is turned back from the thigh: a knee bending the way knees do. */
+const kneeBend = (side) => {
+  const thigh = at(`${side}LowerLeg`)
+    .sub(at(`${side}UpperLeg`))
+    .normalize();
+  const shin = at(`${side}Foot`)
+    .sub(at(`${side}LowerLeg`))
+    .normalize();
+  return thigh.y * shin.z - thigh.z * shin.y;
+};
+for (let i = 0; i < 30; i++) pose(0.05, 0);
+const standing = new Box3().setFromObject(figure.object, true);
+assert.ok(standing.max.y > 1.5 && standing.max.y < 1.95, `person-sized (${standing.max.y.toFixed(2)} m)`);
+assert.ok(Math.abs(standing.min.y) < 0.03, `standing on the ground (lowest ${standing.min.y.toFixed(3)} m)`);
+for (const side of ["left", "right"]) {
+  assert.ok(at(`${side}Hand`).y < at(`${side}UpperArm`).y - 0.35, `the ${side} arm hangs down at rest`);
+  assert.ok(at(`${side}Hand`).z > at(`${side}LowerArm`).z, `the ${side} elbow bends forward, not back`);
+}
+// Walking: knees only ever bend back, they fold well in the swing, and a foot stays on the ground.
+let deepest = 0;
+for (let i = 0; i < 80; i++) {
+  pose(1 / 30, 2.5);
+  for (const side of ["left", "right"]) {
+    const bend = kneeBend(side);
+    assert.ok(bend > -0.02, `the ${side} knee never bends forward (${bend.toFixed(3)})`);
+    deepest = Math.max(deepest, bend);
+  }
+  if (i > 20) {
+    const floor = new Box3().setFromObject(figure.object, true).min.y;
+    assert.ok(Math.abs(floor) < 0.06, `walking, a foot stays on the ground (lowest ${floor.toFixed(3)} m)`);
+  }
+}
+assert.ok(deepest > 0.5, `knees fold as the feet swing through (deepest ${deepest.toFixed(2)})`);
 figure.dispose();
+
+// The motion on its own: a standing body still breathes, and a body that stops comes back to rest.
+const motion = createMotion({ seed: 7 });
+const chestAt = (frames, speed) => {
+  let last;
+  for (let i = 0; i < frames; i++) last = motion(1 / 30, speed);
+  return last;
+};
+const a = chestAt(30, 0).bones.chest[0];
+const b = chestAt(45, 0).bones.chest[0];
+assert.notEqual(a, b, "standing still, the chest still moves (breathing)");
+chestAt(60, 5);
+const rested = chestAt(90, 0);
+assert.ok(Math.abs(rested.bones.leftUpperLeg[0]) < 0.12, "a body that stops stands back up");
+for (const value of Object.values(rested.bones).flat().concat(rested.hips, rested.blink)) {
+  assert.ok(Number.isFinite(value), "every pose value is a number");
+}
+assert.ok(Number.isFinite(createMotion()(NaN, Infinity).hips[1]), "bad input never breaks the pose");
 
 console.log("wanderworld regression: OK");
