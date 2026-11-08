@@ -4,15 +4,16 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.3.0, 2026-11-07: a seeded town, walked as your persona.** Package id `wanderworld`, branch
-`feat/wanderworld`. No issue or PR yet; those come once there is a working concept worth proposing. Held
-in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it; tested through a dev catalog.
+Status: **0.4.0, 2026-11-07: a seeded town, walked as your persona, with your characters living in it.**
+Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
+working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
+tested through a dev catalog.
 
-As built: a 5 × 5-block town (about 60 buildings) around a plaza, forest outside; the player is the
-chosen persona's VRM model (procedural walk), GLB model, or a low-poly figure. 796 KB `client.js`
-(three.js + GLTF loader + three-vrm). 7 draw calls and 58k triangles at 1× props with the town (14 with
-the figure, whose limbs are separate meshes); 120 fps in a desktop browser test. Not yet measured on a
-phone or in a real Engine. The store banner is a placeholder screenshot and needs real art before a PR.
+As built: a 5 × 5-block town (about 60 buildings) around a plaza, forest outside; the player and up to
+twelve townsfolk walk in their own 3D Avatars model (VRM, GLB, FBX or MMD) or a low-poly figure.
+1.01 MB `client.js` (three.js, GLTF/FBX/TGA loaders, three-vrm, mmd-parser). About 13 draw calls and
+58k triangles with four townsfolk; 120 fps in a desktop browser test. Not yet measured on a phone or in a
+real Engine. The store banner is a placeholder screenshot and needs real art before a PR.
 
 ### Why a Home game, not a Game Mode Experience
 
@@ -123,7 +124,7 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 | M1 | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. |
 | M2 | **Town from lore** | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part. |
 | M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. |
-| M4 | **People** | Cast characters placed at their homes and workplaces, as billboards or simple figures. |
+| M4 | **People** | Cast characters placed at their homes and workplaces, as billboards or simple figures. *0.4.0 has the picker, their own models, homes near the plaza and wandering; homes and workplaces from the brief come with M2.* |
 
 **Out of scope for the prototype:** changes to other packages, Game Mode, VRM or 3D avatars, survival
 or daily-life rules, combat, building, and the parametric character builder.
@@ -153,13 +154,19 @@ Answered (checked against Agents staging and Engine 2.5.2, 2026-11-07):
   `GET /api/avatar-models/persona/:id/files/:kind/:name` serves the file. Personas come from
   `GET /api/characters/personas/list`. VRM and GLB load; MMD, FBX and the Engine's own `.mavatar` mesh
   avatars fall back to the low-poly figure for now.
+- ~~The other 3D formats?~~ **All four walk** (0.4.0). GLB and FBX follow the Engine's
+  `glb-fbx-renderer.ts`: the bones 3D Avatars matched (`kinds["glb-fbx"].bones`) become a three-vrm
+  `VRMHumanoid` after straightening the arms into a T-pose. MMD can't use the Engine's
+  `@takahirox/three-mmd`: its materials are TSL node materials that import `three/webgpu` (megabytes,
+  and a second renderer). Wanderworld reads the PMX with `mmd-parser` and builds a toon-shaded skinned
+  mesh itself, mapping the standard Japanese bone names (センター, 上半身, 左腕, 左ひじ, 左足, 左ひざ …)
+  to a humanoid. MMD textures come from `kinds.mmd.texturePaths`; sphere maps and toon ramps are skipped.
+  `.mavatar` mesh avatars are 2D, so they stay on the figure.
 
 Still open:
 
 - Which permission, if any, should disclose reading the persona list and avatar models. None of the
   Engine's permission names describes it; the manifest declares only `ui` and the builder says why.
-- GLB models don't walk yet: their bone names vary, though 3D Avatars stores a humanoid bone map for them
-  (`kinds["glb-fbx"].bones`) that a walk could use. FBX needs three's FBX loader.
 - The camera still frames tight gaps between houses awkwardly; fading or hiding a wall in the way would
   read better than moving closer.
 - **M2:** how a Home game's server part reads characters, persona and lorebooks and calls the model.

@@ -225,7 +225,7 @@ function gableRoof(width, depth, height) {
  * One house: walls, a gable roof, a door on the street side and a row of windows per floor. Built
  * facing +z with its long side along x, then turned to face `facing` (0 = +z, 1 = +x, 2 = -z, 3 = -x).
  */
-function buildHouse(random, { x, z, width, depth, floors, facing }) {
+function buildHouse(random, { x, z, width, depth, floors, facing }, doors) {
   const height = floors * FLOOR_HEIGHT;
   const wall = pick(random, WALLS);
   const pieces = [box(width, height, depth, 0, height / 2, 0, wall)];
@@ -245,13 +245,21 @@ function buildHouse(random, { x, z, width, depth, floors, facing }) {
     }
   }
   const house = mergeGeometries(pieces);
-  house.rotateY((facing * Math.PI) / 2);
+  const angle = (facing * Math.PI) / 2;
+  house.rotateY(angle);
   house.translate(x, 0, z);
+  // Where someone stands outside the front door, turned the same way as the house.
+  const outX = doorX;
+  const outZ = depth / 2 + 1.2;
+  doors?.push({
+    x: x + outX * Math.cos(angle) + outZ * Math.sin(angle),
+    z: z - outX * Math.sin(angle) + outZ * Math.cos(angle),
+  });
   return house;
 }
 
 /** Buildings for one 18 m block: either one large hall, or up to four houses on its corner lots. */
-function fillBlock(random, cx, cz, buildings, boxes) {
+function fillBlock(random, cx, cz, buildings, boxes, doors) {
   const half = BLOCK / 2;
   const facingFor = (dx, dz) => (Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 1 : 3) : dz > 0 ? 0 : 2);
   const nearPlaza = Math.abs(cx) <= PITCH && Math.abs(cz) <= PITCH;
@@ -262,7 +270,7 @@ function fillBlock(random, cx, cz, buildings, boxes) {
     const across = 9 + random() * 2;
     const [width, depth] = facing % 2 === 0 ? [along, across] : [across, along];
     buildings.push(
-      buildHouse(random, { x: cx, z: cz, width: along, depth: across, floors: 2 + (random() < 0.4), facing }),
+      buildHouse(random, { x: cx, z: cz, width: along, depth: across, floors: 2 + (random() < 0.4), facing }, doors),
     );
     boxes.push({ minX: cx - width / 2, maxX: cx + width / 2, minZ: cz - depth / 2, maxZ: cz + depth / 2 });
     return;
@@ -282,7 +290,7 @@ function fillBlock(random, cx, cz, buildings, boxes) {
     const x = cx + lx * (half / 2 + (random() - 0.5));
     const z = cz + lz * (half / 2 + (random() - 0.5));
     const floors = random() < 0.35 ? 2 : 1;
-    buildings.push(buildHouse(random, { x, z, width: along, depth: across, floors, facing }));
+    buildings.push(buildHouse(random, { x, z, width: along, depth: across, floors, facing }, doors));
     boxes.push({ minX: x - width / 2, maxX: x + width / 2, minZ: z - depth / 2, maxZ: z + depth / 2 });
   }
 }
@@ -290,6 +298,7 @@ function fillBlock(random, cx, cz, buildings, boxes) {
 function buildTown(random) {
   const buildings = [];
   const boxes = [];
+  const doors = [];
   const centres = [];
   for (let i = 0; i < BLOCKS_PER_SIDE; i++) centres.push((i - (BLOCKS_PER_SIDE - 1) / 2) * PITCH);
   for (const cx of centres) {
@@ -297,7 +306,7 @@ function buildTown(random) {
       if (cx === 0 && cz === 0) continue; // the plaza
       const edge = Math.max(Math.abs(cx), Math.abs(cz)) === centres[centres.length - 1];
       if (edge && random() < 0.3) continue; // a ragged edge reads as a town, not a grid
-      fillBlock(random, cx, cz, buildings, boxes);
+      fillBlock(random, cx, cz, buildings, boxes, doors);
     }
   }
 
@@ -332,7 +341,7 @@ function buildTown(random) {
       });
     }
   }
-  return { mesh, boxes, lamps };
+  return { mesh, boxes, lamps, doors };
 }
 
 function buildGround(random) {
@@ -481,5 +490,16 @@ export function createWorld(seed) {
     });
   }
 
-  return { scene, setDensity, resolveCollisions, clearSight, dispose, buildingCount: town.boxes.length };
+  return {
+    scene,
+    setDensity,
+    resolveCollisions,
+    clearSight,
+    dispose,
+    buildingCount: town.boxes.length,
+    /** Points just outside each building's front door, where its people start. */
+    doors: town.doors,
+    /** True when (x, z) is inside a building (with `margin`), so someone walking there would be stopped. */
+    blocked: (x, z, margin = 0.3) => collider.insideBox(x, z, margin),
+  };
 }

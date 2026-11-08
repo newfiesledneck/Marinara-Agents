@@ -4,13 +4,15 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.3.2)
+## What it does now (0.4.0)
 
 - Draws a seeded town around a plaza and fountain, with streets, lamp posts and houses of different sizes,
   colours and roofs, surrounded by forest. **New world** walks a different one.
-- **Play as** picks one of your personas. A persona with a VRM model set up in 3D Avatars walks in that
-  model with a walking animation; a GLB model is shown as it is. Any other persona gets a simple
-  low-poly figure, coloured from its name. The choice is remembered.
+- **Play as** picks one of your personas. A persona with a 3D model set up in 3D Avatars walks in that
+  model (VRM, GLB, FBX or MMD) with a walking animation; any other persona gets a simple low-poly figure,
+  coloured from its name. The choice is remembered.
+- **People** picks up to twelve characters to live in town. Each lives in a house near the plaza, wanders
+  nearby in its own 3D model or a figure, stops to face you when you walk up, and has its name overhead.
 - Walk with WASD or the arrow keys, or the on-screen stick on touch screens. Shift runs; Q and E turn the
   camera. Zoom with the mouse wheel, a pinch, or + and −. Buildings, trees and lamp posts block your way, and the camera moves in when a building would
   hide you.
@@ -18,7 +20,7 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   rocks, to check how a device copes.
 - **Fullscreen** fills the screen, on Engines whose Home tabs offer it.
 
-It reads your persona list and the chosen persona's 3D Avatars model, and saves nothing yet.
+It reads your persona and character lists and their 3D Avatars models, and saves nothing yet.
 
 ## Using it
 
@@ -33,11 +35,16 @@ for that persona in 3D Avatars first.
   vertex-coloured mesh, and trees, rocks and lamp posts are instanced, so the whole world is under ten
   draw calls. Collision is the player against trunk circles and building boxes in a 2D grid, not a
   physics engine.
-- `src/character.js` reads `GET /api/characters/personas/list` and the persona's
-  `GET /api/avatar-models/persona/:id`, and loads its model file from the Engine with three.js's GLTF
-  loader and `@pixiv/three-vrm`. VRM models walk by turning their humanoid bones.
-- three.js 0.186.1 and `@pixiv/three-vrm` 3.5.5 (the versions the Engine itself uses) are bundled into
-  `client.js`, because the Engine does not hand its copies to packages.
+- `src/character.js` holds the walk and the low-poly figure, and reads `GET /api/characters/personas/list`
+  and `GET /api/characters`.
+- `src/models.js` reads a persona's or character's `GET /api/avatar-models/:type/:id` and loads its model
+  the way 3D Avatars does: VRM with `@pixiv/three-vrm`, GLB and FBX with three.js's loaders and the bones
+  3D Avatars matched, and MMD (PMX) with `mmd-parser` into a plain toon-shaded skinned mesh (the Engine's
+  MMD materials need three's WebGPU renderer). Every format becomes a three-vrm humanoid, so one walk
+  drives them all.
+- `src/npcs.js` places the chosen characters at doors near the plaza and walks them around.
+- three.js 0.186.1, `@pixiv/three-vrm` 3.5.5 and `mmd-parser` 1.1.4 (the versions the Engine itself uses)
+  are bundled into `client.js`, because the Engine does not hand its copies to packages.
 
 Performance targets: about 30 fps on a mid-range phone and 60 on a desktop, under 150 draw calls and 200k
 visible triangles. The pixel ratio is capped at 1.5, there are no real-time shadows, and fog hides the far

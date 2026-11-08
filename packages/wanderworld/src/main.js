@@ -4,9 +4,11 @@
 // HUD and the touch stick all live inside it. The renderer is created once per page and reused when the
 // tab is closed and reopened, so switching tabs never piles up WebGL contexts.
 import { Group, PerspectiveCamera, Vector3, WebGLRenderer } from "three";
-import { createFigure, findPersonaModel, listPersonas, loadModelCharacter } from "./character.js";
+import { createFigure, listCharacters, listPersonas } from "./character.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
+import { findModel, loadModelCharacter } from "./models.js";
+import { createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createWorld, DENSITIES, hashString, heightAt, SPAWN, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
@@ -23,7 +25,8 @@ const MAX_ZOOM = 18;
 const KEY_ZOOM_RATE = 1; // how fast + and - zoom, per second
 const LOOK_HEIGHT = 1.4;
 const MIN_CAMERA_DISTANCE = 2;
-const PERSONA_KEY = "wanderworld.persona"; // this package's own browser storage key
+const PERSONA_KEY = "wanderworld.persona"; // this package's own browser storage keys
+const CAST_KEY = "wanderworld.cast";
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
 const NO_INPUT = { x: 0, y: 0, run: false, turn: 0, zoom: 0 };
@@ -42,6 +45,9 @@ const core = {
   personas: null,
   personaId: null,
   personaLoad: 0,
+  characters: null, // [{ id, name }] from the Engine
+  cast: new Set(), // the character ids living in town
+  crowd: createCrowd(),
   hud: null,
   input: null,
   densityIndex: 0,
@@ -97,12 +103,14 @@ function resize() {
 
 function buildWorld(seed) {
   core.seed = seed;
-  // Take the player out first: disposing the old world frees everything still in its scene.
+  // Take the player and townsfolk out first: disposing the old world frees everything still in its scene.
   core.player.removeFromParent();
+  core.crowd.detach();
   core.world?.dispose();
   core.world = createWorld(hashString(seed));
   core.world.setDensity(DENSITIES[core.densityIndex]);
   core.world.scene.add(core.player);
+  core.crowd.setWorld(core.world);
   core.player.position.set(SPAWN.x, heightAt(SPAWN.x, SPAWN.z), SPAWN.z);
   core.player.rotation.y = 0;
   core.cameraYaw = 0;
@@ -118,17 +126,18 @@ function setCharacter(character) {
   core.player.add(character.object);
 }
 
-function readStoredPersona() {
+/** This package's own remembered choices. Storage can be blocked; then nothing is remembered. */
+function readStored(key) {
   try {
-    return globalThis.localStorage?.getItem(PERSONA_KEY) ?? null;
+    return globalThis.localStorage?.getItem(key) ?? null;
   } catch {
-    return null; // storage can be blocked; the first persona is a fine default
+    return null;
   }
 }
 
-function storePersona(id) {
+function store(key, value) {
   try {
-    globalThis.localStorage?.setItem(PERSONA_KEY, id);
+    globalThis.localStorage?.setItem(key, value);
   } catch {
     // remembering the choice is a convenience only
   }
@@ -138,11 +147,11 @@ function storePersona(id) {
 async function choosePersona(id) {
   const persona = core.personas?.find((entry) => entry.id === id) ?? null;
   core.personaId = persona?.id ?? null;
-  if (persona) storePersona(persona.id);
+  if (persona) store(PERSONA_KEY, persona.id);
   const load = ++core.personaLoad;
   setCharacter(createFigure(persona?.name ?? ""));
   if (!persona) return;
-  const model = await findPersonaModel(persona.id);
+  const model = await findModel({ type: "persona", id: persona.id });
   if (!model || load !== core.personaLoad) return;
   core.hud?.setStatus(`Loading ${persona.name}'s model…`);
   try {
@@ -159,12 +168,37 @@ async function choosePersona(id) {
   }
 }
 
-async function loadPersonas() {
+function updateCast() {
+  const chosen = (core.characters ?? []).filter((character) => core.cast.has(character.id));
+  core.crowd.setCast(chosen);
+  core.hud?.setCharacters(core.characters ?? [], core.cast);
+  store(CAST_KEY, JSON.stringify([...core.cast]));
+}
+
+function toggleCharacter(id, chosen) {
+  if (chosen && core.cast.size < MAX_PEOPLE) core.cast.add(id);
+  else core.cast.delete(id);
+  updateCast();
+}
+
+/** Reads the Engine's personas and characters once, then restores the remembered persona and cast. */
+async function loadPeople() {
   if (core.personas) return;
-  core.personas = await listPersonas();
-  const stored = readStoredPersona();
-  const selected = core.personas.find((entry) => entry.id === stored) ?? core.personas[0] ?? null;
-  core.hud?.setPersonas(core.personas, selected?.id);
+  const [personas, characters] = await Promise.all([listPersonas(), listCharacters()]);
+  core.personas = personas;
+  core.characters = characters;
+  let stored;
+  try {
+    stored = JSON.parse(readStored(CAST_KEY) ?? "[]");
+  } catch {
+    stored = []; // a damaged saved cast starts empty
+  }
+  const known = new Set(characters.map((character) => character.id));
+  core.cast = new Set((Array.isArray(stored) ? stored : []).filter((id) => known.has(id)).slice(0, MAX_PEOPLE));
+  updateCast();
+  const remembered = readStored(PERSONA_KEY);
+  const selected = personas.find((entry) => entry.id === remembered) ?? personas[0] ?? null;
+  core.hud?.setPersonas(personas, selected?.id);
   await choosePersona(selected?.id ?? null);
 }
 
@@ -246,6 +280,7 @@ function step(dt) {
     position.x += moveX * speed * dt;
     position.z += moveZ * speed * dt;
     resolveCollisions(position, PLAYER_RADIUS);
+    core.crowd.pushOut(position, PLAYER_RADIUS);
     const edge = WORLD_SIZE / 2 - 2;
     position.x = Math.max(-edge, Math.min(edge, position.x));
     position.z = Math.max(-edge, Math.min(edge, position.z));
@@ -255,6 +290,7 @@ function step(dt) {
   // Animate by how far the body really moved, so walking into a wall doesn't run on the spot.
   const speed = dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
   core.character?.update(dt, speed);
+  core.crowd.update(dt, position);
 
   // Slide in closer when a building stands between the player and the camera.
   const reach = core.world.clearSight(
@@ -311,6 +347,8 @@ function attach(element) {
     onNewWorld: newWorld,
     onToggleFullscreen: toggleFullscreen,
     onPickPersona: (id) => void choosePersona(id),
+    onToggleCharacter: toggleCharacter,
+    maxPeople: MAX_PEOPLE,
   });
   core.input = createInput();
   core.hud.layer.append(core.input.stickElement);
@@ -321,8 +359,12 @@ function attach(element) {
   }
   core.stage.prepend(core.renderer.domElement);
   if (!core.world) buildWorld(core.seed);
-  if (core.personas) core.hud.setPersonas(core.personas, core.personaId);
-  else void loadPersonas();
+  if (core.personas) {
+    core.hud.setPersonas(core.personas, core.personaId);
+    core.hud.setCharacters(core.characters ?? [], core.cast);
+  } else {
+    void loadPeople();
+  }
   core.resizeObserver = new ResizeObserver(resize);
   core.resizeObserver.observe(core.stage);
   resize();

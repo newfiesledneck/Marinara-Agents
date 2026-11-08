@@ -14,7 +14,10 @@ function button(label, title, onClick) {
   return element;
 }
 
-export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen, onPickPersona }) {
+export function createHud(
+  root,
+  { onCycleDensity, onNewWorld, onToggleFullscreen, onPickPersona, onToggleCharacter, maxPeople },
+) {
   const layer = document.createElement("div");
   layer.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif;";
 
@@ -46,11 +49,27 @@ export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen
   persona.addEventListener("change", () => onPickPersona(persona.value));
   personaLabel.append(persona);
 
+  // "People": which characters live in town. A checklist that opens under the button.
+  const peopleButton = button("People", "Choose characters to live in town", () => {
+    peoplePanel.style.display = peoplePanel.style.display === "none" ? "flex" : "none";
+  });
+  peopleButton.style.display = "none";
+  const peoplePanel = document.createElement("div");
+  peoplePanel.style.cssText =
+    `${CHIP}position:absolute;top:48px;right:8px;display:none;flex-direction:column;gap:2px;max-height:60%;` +
+    "overflow-y:auto;min-width:200px;max-width:min(320px,calc(100% - 16px));padding:8px 10px;pointer-events:auto;font-size:13px;";
+  const peopleNote = document.createElement("div");
+  peopleNote.style.cssText = "opacity:0.75;font-size:12px;margin-bottom:4px;";
+  peopleNote.textContent = `Up to ${maxPeople} characters live in town, in their 3D Avatars model when they have one.`;
+  const peopleList = document.createElement("div");
+  peopleList.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+  peoplePanel.append(peopleNote, peopleList);
+
   const fresh = button("New world", "Walk a different seeded world", onNewWorld);
   const fullscreen = button("Fullscreen", "Fill the screen with the world", onToggleFullscreen);
   fullscreen.style.display = "none";
 
-  top.append(title, stats, spacer, personaLabel, fresh, fullscreen);
+  top.append(title, stats, spacer, personaLabel, peopleButton, fresh, fullscreen);
 
   const hint = document.createElement("div");
   hint.textContent = "WASD or arrows to walk · Shift runs · Q / E turn · scroll or + / − to zoom";
@@ -61,7 +80,7 @@ export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen
   const status = document.createElement("div");
   status.style.cssText = `${CHIP}position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;display:none;max-width:80%;text-align:center;`;
 
-  layer.append(top, hint, status);
+  layer.append(top, peoplePanel, hint, status);
   root.append(layer);
 
   return {
@@ -90,6 +109,26 @@ export function createHud(root, { onCycleDensity, onNewWorld, onToggleFullscreen
       );
       persona.value = selectedId ?? "";
       personaLabel.style.display = personas.length ? "flex" : "none";
+    },
+    /** Fills the People checklist; `chosen` is a Set of character ids. An empty list hides the button. */
+    setCharacters(characters, chosen) {
+      peopleButton.style.display = characters.length ? "" : "none";
+      peopleButton.textContent = chosen.size ? `People (${chosen.size})` : "People";
+      peopleList.replaceChildren(
+        ...characters.map((character) => {
+          const row = document.createElement("label");
+          row.style.cssText = "display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;";
+          const box = document.createElement("input");
+          box.type = "checkbox";
+          box.checked = chosen.has(character.id);
+          box.disabled = !box.checked && chosen.size >= maxPeople;
+          box.addEventListener("change", () => onToggleCharacter(character.id, box.checked));
+          const name = document.createElement("span");
+          name.textContent = character.name;
+          row.append(box, name);
+          return row;
+        }),
+      );
     },
     setStatus(text) {
       status.textContent = text ?? "";
