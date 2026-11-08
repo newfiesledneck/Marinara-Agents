@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.4.26",
+  "version": "0.4.27",
   "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
   "engine": {
     "min": "2.4.4",
@@ -54,6 +54,10 @@
         "kit/art/plaza-stone.webp",
         "kit/art/sidewalk-setts.webp",
         "kit/art/sign-wood.webp",
+        "kit/art/sign-wood1.webp",
+        "kit/art/sign-wood2.webp",
+        "kit/art/sign-wood3.webp",
+        "kit/art/sign-wood4.webp",
         "kit/art/street-cobbles.webp",
         "kit/art/water.webp",
         "kit/art/wood-beam.webp",
@@ -234,8 +238,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "0a3e864cd07848787fd112500d06d028252e8894a72aa2f00051cdc24fc2ba3d",
-      "bytes": 1546789
+      "sha256": "176126a37a37f869306ac6cd207c13749897e13a14cf521b9b223a3335ddc7a9",
+      "bytes": 1560410
     },
     {
       "path": "wanderworld-icon.webp",
@@ -331,6 +335,26 @@
       "path": "kit/art/sign-wood.webp",
       "sha256": "a4af15b6d70e353ccdaa5e990d52330f63ba29938210899e6a4086261be6d6ad",
       "bytes": 43670
+    },
+    {
+      "path": "kit/art/sign-wood1.webp",
+      "sha256": "654683b2b6364be3261a13e43002dd522a91e6d1d8221235716a0ba2b9ea8c3d",
+      "bytes": 46910
+    },
+    {
+      "path": "kit/art/sign-wood2.webp",
+      "sha256": "8c6066c96592cbfc656d24bd2148e62ddeb1bd3ec31ecaca7a1ba8cce3126949",
+      "bytes": 40648
+    },
+    {
+      "path": "kit/art/sign-wood3.webp",
+      "sha256": "d7a1f68156310233fdd973badee3f4979f07da30363d112f53363a825ced2e7f",
+      "bytes": 33384
+    },
+    {
+      "path": "kit/art/sign-wood4.webp",
+      "sha256": "4c29fae287944af52caf705911c218a2148e1109ad10adad60db61bbb256564a",
+      "bytes": 43796
     },
     {
       "path": "kit/art/street-cobbles.webp",

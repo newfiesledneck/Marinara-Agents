@@ -23,10 +23,11 @@ import { HOUSE_PIECES } from "./houses.js";
 import { kitModels, kitTexture } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
-import { createNoticeboard, createSign } from "./signs.js";
+import { createHangingSign, createNoticeboard, createSign } from "./signs.js";
 import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
 import { landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
+import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import { checkTraits, createRelationships, KINDS, phraseOf, tierOf, TRAITS } from "./relationships.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, waterAt, WORLD_SIZE } from "./world.js";
 
@@ -589,6 +590,9 @@ function zoneName(zone, residents = null, renamed = true) {
   return zone.name;
 }
 
+/** Buildings that hang a sign out from the wall as well as the one over the door. */
+const HANGING_SIGNS = new Set(["tavern", "shop", "smithy"]);
+
 /** A sign over the door of every shop, the tavern, the temple, the hall and the smithy. */
 function placeSigns() {
   for (const sign of core.signs) sign.dispose();
@@ -611,6 +615,23 @@ function placeSigns() {
     sign.zone = zone;
     core.world.scene.add(sign.mesh);
     core.signs.push(sign);
+    // The tavern, shops and smithy also hang a sign out over the sidewalk beside the door, on one of
+    // the painted boards.
+    if (!HANGING_SIGNS.has(zone.buildingKind)) continue;
+    const side = hashString(zone.id) % 2 ? 1 : -1;
+    const along = 1.05 * side; // at the edge of the door's segment, clear of its windows and awnings
+    const hanging = createHangingSign({
+      x: door.step.x - Math.sin(door.angle) * back + Math.cos(door.angle) * along,
+      y: heightAt(door.step.x, door.step.z) + 3.3,
+      z: door.step.z - Math.cos(door.angle) * back - Math.sin(door.angle) * along,
+      angle: door.angle,
+      words: signOf(zone, placeNames()),
+      boardUrl: `${ART}sign-wood${1 + (hashString(`${zone.id}:board`) % 4)}.webp`,
+    });
+    if (!hanging) continue;
+    hanging.zone = zone;
+    core.world.scene.add(hanging.mesh);
+    core.signs.push(hanging);
   }
 }
 
@@ -997,12 +1018,14 @@ function talkTo(person) {
   const distance = Math.hypot(dx, dz) || 1;
   const x = group.position.x + (dx / distance) * TALK_DISTANCE;
   const z = group.position.z + (dz / distance) * TALK_DISTANCE;
-  core.talking = { id: person.id, name: person.name, group, said: 0 };
+  core.talking = { id: person.id, name: person.name, group, said: 0, asked: [] };
   glideTo(x, z, Math.atan2(-dx, -dz), 0.5);
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
   core.talk.start(person.name);
   core.talk.setInParty(core.crowd.inParty(person.id));
+  core.talk.setChoices(choicesFor(), choose);
+  later(0.6, () => answer(core.talking, "greet"));
 }
 
 /** The person you're talking to joins the party, or leaves it. */
@@ -1107,15 +1130,59 @@ function say(text) {
     core.talk.say(talking.group, "…", 1.2);
     core.crowd.setSpeaking(talking.id, true);
   });
-  later(1.6, () => {
-    if (core.talking !== talking) return;
-    const reply = core.talk.placeholderReply(talking.said++);
-    core.talk.say(talking.group, reply, 4.5);
-    core.talk.line(talking.name, reply);
-  });
-  later(4.2, () => {
+  later(1.6, () => answer(talking, "answer"));
+}
+
+/** The words a conversation's lines can use: who's talking, the town and a few of its places. */
+function talkWords(name) {
+  const names = core.zones ? namedZones(residentsOf(core.crowd.snapshot())) : {};
+  const find = (test) => core.zones?.zones.find(test);
+  const title = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
+  const tavern = find((zone) => zone.buildingKind === "tavern");
+  const wild = find((zone) => zone.kind === "forest") ?? find((zone) => zone.kind === "mountains");
+  const street = find((zone) => zone.kind === "street");
+  return {
+    name,
+    you: personaName(),
+    town: names.town ?? "town",
+    tavern: tavern ? title(names[tavern.id]) : "The tavern",
+    wild: wild ? names[wild.id] : "the woods",
+    street: street ? names[street.id] : "the high street",
+    greeting: greetingFor(core.hour),
+  };
+}
+
+/** The one you're talking to answers (`what`: "greet", "bye", "answer" or a topic, dialogue.js). */
+function answer(talking, what) {
+  if (core.talking !== talking) return;
+  const mood = moodOf(core.relations.feeling(talking.id, "player"));
+  const reply = lineFor(what, mood, talkWords(talking.name));
+  core.crowd.setSpeaking(talking.id, true);
+  core.talk.say(talking.group, reply, 4.5);
+  core.talk.line(talking.name, reply);
+  later(2.6, () => {
     if (core.talking === talking) core.crowd.setSpeaking(talking.id, false);
   });
+}
+
+/** The player picks something to say from the choices. */
+function choose(id) {
+  const talking = core.talking;
+  if (!talking) return;
+  const text = labelOf(id);
+  core.talk.line(personaName(), text);
+  core.talk.say(core.player, text, 3);
+  if (id === "bye") {
+    core.talk.setChoices([], () => {});
+    later(0.7, () => answer(talking, "bye"));
+    later(2.4, () => {
+      if (core.talking === talking) endTalk();
+    });
+    return;
+  }
+  talking.asked.push(id);
+  core.talk.setChoices(choicesFor(talking.asked), choose);
+  later(0.8, () => answer(talking, id));
 }
 
 function endTalk() {
@@ -1670,7 +1737,9 @@ function movePlayer(dt, input) {
       }
     }
     if (moveX || moveZ) {
-      const speed = speedFactor * core.settings.walkSpeed;
+      // Walking and running each have their own speed setting (a tap's walk is a walk).
+      const running = input.run && !walkTo;
+      const speed = speedFactor * (running ? core.settings.runSpeed : core.settings.walkSpeed);
       position.x += moveX * speed * dt;
       position.z += moveZ * speed * dt;
       space.resolveCollisions(position, PLAYER_RADIUS, true); // the player may go into the water
@@ -1798,6 +1867,7 @@ function step(dt) {
     }
   }
   core.world.update(dt);
+  for (const sign of core.signs) sign.update?.(dt);
   if (!core.interior) core.world.follow(core.player.position.x, core.player.position.z);
   // Walking away from a door closes its card.
   const card = core.sceneDoor;

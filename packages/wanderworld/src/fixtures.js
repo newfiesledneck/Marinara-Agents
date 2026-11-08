@@ -300,3 +300,224 @@ export function createFountain(radius, { stone, water }) {
     },
   };
 }
+
+/** A soft-edged warm pane, for a lit window seen from outside (shared; null without a canvas). */
+let paneTexture;
+function pane() {
+  if (paneTexture !== undefined) return paneTexture;
+  paneTexture = null;
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  const gradient = context.createRadialGradient(32, 40, 4, 32, 36, 40);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.6, "rgba(255,255,255,0.7)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 64, 64);
+  paneTexture = new CanvasTexture(canvas);
+  return paneTexture;
+}
+
+/**
+ * Warm light in the windows at night. `windows`: [{ matrix (the window piece's place), box (its
+ * bounding box in its own space, facing +z) }]. Each window comes on at its own point as dusk falls, and
+ * about half go out again late at night. Returns { mesh, setTime(dark, hour) }.
+ */
+export function createWindowLights(windows) {
+  const mesh = new InstancedMesh(
+    new PlaneGeometry(1, 1),
+    new MeshBasicMaterial({
+      map: pane(),
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+    Math.max(1, windows.length),
+  );
+  mesh.count = windows.length;
+  const place = new Object3D();
+  const local = new Object3D();
+  const ranks = windows.map((_, i) => ((i * 2654435761) >>> 0) / 2 ** 32); // when each comes on, 0…1
+  windows.forEach(({ matrix, box }, i) => {
+    local.position.set((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, box.max.z + 0.015);
+    local.scale.set((box.max.x - box.min.x) * 0.72, (box.max.y - box.min.y) * 0.78, 1);
+    local.updateMatrix();
+    place.matrix.copy(matrix).multiply(local.matrix);
+    mesh.setMatrixAt(i, place.matrix);
+  });
+  const warm = new Color(0xffa94d);
+  const off = new Color(0x000000);
+  const shade = new Color();
+  let last = "";
+  return {
+    mesh,
+    setTime(dark, hour) {
+      const late = hour >= 23 || hour < 5;
+      const key = `${Math.round(dark * 20)}:${late}`;
+      if (key === last) return;
+      last = key;
+      windows.forEach((_, i) => {
+        const on = dark > 0.3 + ranks[i] * 0.4 && !(late && ranks[i] > 0.5);
+        mesh.setColorAt(i, on ? shade.copy(warm).multiplyScalar(0.55 + ranks[i] * 0.35) : off);
+      });
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    },
+  };
+}
+
+const PUFFS = 10; // smoke puffs rising from each chimney at once
+const RISE = 7; // seconds a puff lasts
+
+/**
+ * Smoke curling up from chimneys (`tops`: [{ x, y, z }]), drifting with a light breeze, growing and
+ * fading as it rises. Returns { object, update(dt) }.
+ */
+export function createSmoke(tops) {
+  const count = Math.max(1, tops.length * PUFFS);
+  const geometry = new BufferGeometry();
+  // (Float32BufferAttribute copies its array: write into the attributes' own.)
+  geometry.setAttribute("position", new Float32BufferAttribute(new Float32Array(count * 3), 3));
+  geometry.setAttribute("color", new Float32BufferAttribute(new Float32Array(count * 4), 4));
+  const positions = geometry.attributes.position.array;
+  const colours = geometry.attributes.color.array;
+  const object = new Points(
+    geometry,
+    new PointsMaterial({
+      map: glow(),
+      size: 2.6,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+    }),
+  );
+  object.frustumCulled = false;
+  // Each puff's age, spread over its chimney's cycle so the column is continuous.
+  const ages = Float32Array.from({ length: count }, (_, i) => ((i % PUFFS) / PUFFS) * RISE);
+  const wobble = Float32Array.from({ length: count }, (_, i) => ((i * 40503) % 997) / 997);
+  let time = 0;
+  return {
+    object,
+    update(dt) {
+      time += dt;
+      for (let i = 0; i < tops.length * PUFFS; i++) {
+        ages[i] = (ages[i] + dt) % RISE;
+        const top = tops[Math.floor(i / PUFFS)];
+        const t = ages[i] / RISE;
+        const drift = t * t * 2.4;
+        positions[i * 3] = top.x + drift + Math.sin(time * 0.7 + wobble[i] * 9) * 0.25 * t;
+        positions[i * 3 + 1] = top.y + t * 4.5;
+        positions[i * 3 + 2] = top.z + drift * 0.5 + Math.cos(time * 0.6 + wobble[i] * 7) * 0.25 * t;
+        const grey = 0.58 + wobble[i] * 0.12 + t * 0.15;
+        colours[i * 4] = grey;
+        colours[i * 4 + 1] = grey;
+        colours[i * 4 + 2] = grey + 0.02;
+        colours[i * 4 + 3] = Math.min(1, t * 6) * (1 - t) * 0.8; // fades in at the top of the chimney, out as it rises
+      }
+      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes.color.needsUpdate = true;
+    },
+  };
+}
+
+/** Awning cloth: each pair is a stripe colour and the cream between. */
+const AWNING_COLOURS = [
+  [0xa8392f, 0xefe3c4],
+  [0x3f7d4e, 0xefe6cc],
+  [0x31598c, 0xece4cf],
+  [0xc08a2c, 0xf1e6c8],
+  [0x7b3f6e, 0xeee2cd],
+];
+const AWNING_LOW = 2.28; // height of the front edge
+const AWNING_HIGH = 2.72; // where it meets the wall
+const AWNING_OUT = 1.3; // how far it reaches over the sidewalk
+const STRIPE = 0.42;
+
+/** One awning along local x from `x0` to `x1`, on a wall at z = 0 facing +z, into `parts`. */
+function awning(parts, x0, x1, [stripe, cream]) {
+  const quads = [];
+  const colours = [];
+  const colour = new Color();
+  const quad = (a, b, c, d, hex) => {
+    quads.push(...a, ...b, ...c, ...a, ...c, ...d);
+    colour.setHex(hex);
+    for (let i = 0; i < 6; i++) colours.push(colour.r, colour.g, colour.b);
+  };
+  const tri = (a, b, c, hex) => {
+    quads.push(...a, ...b, ...c);
+    colour.setHex(hex);
+    for (let i = 0; i < 3; i++) colours.push(colour.r, colour.g, colour.b);
+  };
+  const count = Math.max(2, Math.round((x1 - x0) / STRIPE));
+  const step = (x1 - x0) / count;
+  const valance = 0.2;
+  for (let i = 0; i < count; i++) {
+    const a = x0 + i * step;
+    const b = a + step;
+    const hex = i % 2 ? cream : stripe;
+    // The sloping cloth, then the hanging valance with a scalloped point under each stripe.
+    quad([a, AWNING_HIGH, 0], [a, AWNING_LOW, AWNING_OUT], [b, AWNING_LOW, AWNING_OUT], [b, AWNING_HIGH, 0], hex);
+    quad(
+      [a, AWNING_LOW, AWNING_OUT],
+      [a, AWNING_LOW - valance, AWNING_OUT],
+      [b, AWNING_LOW - valance, AWNING_OUT],
+      [b, AWNING_LOW, AWNING_OUT],
+      hex,
+    );
+    tri(
+      [a, AWNING_LOW - valance, AWNING_OUT],
+      [(a + b) / 2, AWNING_LOW - valance - 0.1, AWNING_OUT],
+      [b, AWNING_LOW - valance, AWNING_OUT],
+      hex,
+    );
+  }
+  // The cheeks at each end.
+  for (const x of [x0, x1]) {
+    tri([x, AWNING_HIGH, 0], [x, AWNING_LOW, AWNING_OUT], [x, AWNING_LOW - valance, AWNING_OUT], stripe);
+  }
+  const cloth = new BufferGeometry();
+  cloth.setAttribute("position", new Float32BufferAttribute(quads, 3));
+  cloth.setAttribute("color", new Float32BufferAttribute(colours, 3));
+  cloth.computeVertexNormals();
+  parts.push(cloth);
+  // Iron arms holding it out from the wall.
+  for (const x of [x0 + 0.05, x1 - 0.05]) {
+    const length = Math.hypot(AWNING_OUT, AWNING_HIGH - AWNING_LOW);
+    const arm = new CylinderGeometry(0.015, 0.015, length, 5)
+      .rotateX(Math.PI / 2 - Math.atan2(AWNING_HIGH - AWNING_LOW, AWNING_OUT))
+      .translate(x, (AWNING_HIGH + AWNING_LOW) / 2 - 0.03, AWNING_OUT / 2);
+    parts.push(tint(arm, IRON));
+  }
+}
+
+/**
+ * Striped awnings over shop fronts, either side of the door. `fronts`: [{ x, z, facing (quarter
+ * turns), width, depth, doorX, colour (index) }], each a building's place and size (the front faces +z
+ * before turning). Returns a mesh, or null when there are none.
+ */
+export function createAwnings(fronts) {
+  const parts = [];
+  for (const front of fronts) {
+    const local = [];
+    const half = front.width / 2;
+    const colours = AWNING_COLOURS[front.colour % AWNING_COLOURS.length];
+    // Either side of the door's 2 m segment, where there's room.
+    if (half - 0.2 - (front.doorX + 1.1) >= 1.6) awning(local, front.doorX + 1.1, half - 0.2, colours);
+    if (front.doorX - 1.1 - (-half + 0.2) >= 1.6) awning(local, -half + 0.2, front.doorX - 1.1, colours);
+    for (const geometry of local) {
+      parts.push(
+        geometry
+          .translate(0, 0, front.depth / 2 + 0.02)
+          .rotateY((front.facing * Math.PI) / 2)
+          .translate(front.x, 0, front.z),
+      );
+    }
+  }
+  if (!parts.length) return null;
+  return new Mesh(mergeGeometries(parts), new MeshLambertMaterial({ vertexColors: true, side: DoubleSide }));
+}

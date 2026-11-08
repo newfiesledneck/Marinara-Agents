@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.4.27 — 2026-11-08
+
+- Townsfolk hold real little conversations with each other, taking turns, warmer between friends and family and short between enemies.
+- Talking to someone: they greet you by how they feel about you, and you can pick what to say (how they are, news, about them, somewhere to eat, goodbye) or type your own.
+- Lit windows at night, smoke rising from chimneys, striped awnings over shops, and signs hanging out over the street on painted boards.
+- Settings: walk speed and run speed are separate sliders.
+- Best friends look further for each other, so they meet up more often.
+
 ## 0.4.26 — 2026-11-08
 
 - Doors, caves and the fountain open a card of things to do (go in, knock, toss a coin…), a box for your own line, and who comes along. Choosing sets up a scene for the AI part to play out; recent ones show in the Journal.

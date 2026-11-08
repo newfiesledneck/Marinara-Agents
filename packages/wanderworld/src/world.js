@@ -4,6 +4,7 @@
 // Draw calls stay flat however big the town is: every building, road and fountain is merged into one
 // vertex-coloured mesh, and trees, rocks and lamps are instanced.
 import {
+  Box3,
   BoxGeometry,
   BufferGeometry,
   Color,
@@ -33,7 +34,7 @@ import {
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
 import { caveGeometry } from "./caves.js";
-import { createFountain, createLamps } from "./fixtures.js";
+import { createAwnings, createFountain, createLamps, createSmoke, createWindowLights } from "./fixtures.js";
 import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand } from "./land.js";
 import {
   barrel,
@@ -1652,6 +1653,11 @@ export function createWorld(seed, landscape = null) {
   );
   // Lamp posts with lanterns that light up at night, and the fountain on the square (fixtures.js).
   const lamps = createLamps(town.lamps);
+  // Added with the kit's buildings (addBuildings): lit windows and chimney smoke.
+  let windowLights = null;
+  let smoke = null;
+  let lastDark = 0;
+  let lastHour = 12;
   const fountain = createFountain(FOUNTAIN_RADIUS, {
     stone: cliffMaterial(ground, { texture: "tplaza", vertexColors: false, scale: 1.8, boost: 1.0 }),
     water: waterMaterial(ground),
@@ -1677,6 +1683,22 @@ export function createWorld(seed, landscape = null) {
   });
   scene.add(trunks, crowns, stones);
   scene.add(...lamps.objects, ...fountain.objects);
+  // Striped awnings over the shops' fronts (and some taverns').
+  const awnings = createAwnings(
+    town.buildings
+      .map((building, i) => ({ building, i }))
+      .filter(({ building, i }) => building.spec.kind === "shop" || (building.spec.kind === "tavern" && i % 2 === 0))
+      .map(({ building, i }) => ({
+        x: building.x,
+        z: building.z,
+        facing: building.facing,
+        width: building.spec.width,
+        depth: building.spec.depth,
+        doorX: building.doorX,
+        colour: (seed + i * 7) >>> 0,
+      })),
+  );
+  if (awnings) scene.add(awnings);
 
   // Doors: one instanced panel each, hinged on its left edge, swinging out onto the street.
   const doorPanels = new InstancedMesh(
@@ -1778,6 +1800,7 @@ export function createWorld(seed, landscape = null) {
   function update(dt) {
     ground.uTime.value += dt;
     fountain.update(dt);
+    smoke?.update(dt);
     let moved = false;
     for (const door of doors) {
       if (door.target === 1 && Number.isFinite(door.closeIn)) {
@@ -1828,6 +1851,9 @@ export function createWorld(seed, landscape = null) {
     scene.fog.color.copy(skyColor);
     const dark = 1 - daylight;
     lamps.setDark(dark);
+    lastDark = dark;
+    lastHour = hour;
+    windowLights?.setTime(dark, hour);
     return dark;
   }
 
@@ -2002,6 +2028,32 @@ export function createWorld(seed, landscape = null) {
         instanced.userData.kit = true;
         scene.add(instanced);
       }
+    }
+    // Lit windows at night, and smoke from the chimneys (fixtures.js).
+    const boxOf = (model) => {
+      const box = new Box3();
+      for (const { geometry } of models.get(model)) {
+        geometry.computeBoundingBox();
+        box.union(geometry.boundingBox);
+      }
+      return box;
+    };
+    const windows = [];
+    for (const model of ["window-wide-round1", "window-thin-round1"]) {
+      if (!groups.has(model)) continue;
+      const box = boxOf(model);
+      for (const matrix of groups.get(model)) windows.push({ matrix, box });
+    }
+    windowLights = createWindowLights(windows);
+    scene.add(windowLights.mesh);
+    windowLights.setTime(lastDark, lastHour);
+    if (groups.has("prop-chimney")) {
+      const box = boxOf("prop-chimney");
+      const top = new Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2);
+      // About two chimneys in three have a fire lit.
+      const lit = groups.get("prop-chimney").filter((_, i) => (i * 7919) % 3 !== 0);
+      smoke = createSmoke(lit.map((matrix) => top.clone().applyMatrix4(matrix)));
+      scene.add(smoke.object);
     }
   }
 

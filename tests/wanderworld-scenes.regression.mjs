@@ -1,5 +1,6 @@
 // Wanderworld scene requests: using a door, a cave or the fountain makes a request for the AI part to play
-// out, with the player's own line; it reads back as words and survives a save.
+// out, with the player's own line; it reads back as words and survives a save. And the placeholder
+// conversations (dialogue.js): whole exchanges between townsfolk, and the player's choices.
 import assert from "node:assert/strict";
 import {
   ACTIONS,
@@ -52,5 +53,33 @@ for (const [kind, actions] of Object.entries(ACTIONS)) {
 const saved = JSON.parse(JSON.stringify(enter));
 assert.deepEqual(checkScene(saved), saved, "a saved scene reads back the same");
 assert.equal(checkScene({ action: "enter" }), null);
+
+// ── Placeholder conversations ──
+const { choicesFor, EXCHANGES, fill, lineFor, moodOf, pickExchange } =
+  await import("../packages/wanderworld/src/dialogue.js");
+assert.equal(moodOf({ kind: null, warmth: 0 }), "stranger");
+assert.equal(moodOf({ kind: "enemy", warmth: -0.9 }), "cold");
+assert.equal(moodOf({ kind: "friend", warmth: 0.8 }), "close");
+assert.equal(moodOf({ kind: "family", warmth: 0.8 }), "family");
+for (const [mood, exchanges] of Object.entries(EXCHANGES)) {
+  for (const lines of exchanges)
+    assert.ok(lines.length >= 2 && lines.length % 2 === 0, `${mood}: each exchange ends on a reply`);
+}
+assert.ok(pickExchange("stranger", () => 0).length, "strangers make small talk");
+assert.equal(fill("{greeting}, {B}.", { greeting: "Morning", B: "Jake" }), "Morning, Jake.");
+const words = {
+  name: "Hank",
+  you: "Zoey",
+  town: "Briarwood",
+  tavern: "The Pony",
+  wild: "Elmwood",
+  street: "Mill Lane",
+  greeting: "Evening",
+};
+assert.ok(!/[{}]/u.test(lineFor("eat", "warm", words, () => 0)), "every word in a line is filled");
+assert.ok(lineFor("greet", "warm", words, () => 0).includes("Zoey"), "a friend greets you by name");
+const first = choicesFor();
+assert.equal(first.at(-1).id, "bye", "there's always a way to say goodbye");
+assert.ok(!choicesFor(["news"]).some((choice) => choice.id === "news"), "asked topics drop off");
 
 console.log("wanderworld scenes regression: OK");
