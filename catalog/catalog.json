@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.3.1",
+        "version": "0.3.2",
         "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town and forest as one of your personas, in the 3D model you set up for it in 3D Avatars.",
         "engine": {
           "min": "2.4.4",
@@ -4948,8 +4948,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "4505454c428646eebb94f203cb78f4a310ddd275a6383f722f9d9098d4371b67",
-            "bytes": 796639
+            "sha256": "930bee8a6f74e7eeec8a411e87bac9a66a39e2eb09d6b6f15260f4af4d483d9b",
+            "bytes": 797600
           },
           {
             "path": "wanderworld-icon.webp",
@@ -4965,9 +4965,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.3.1.zip",
-        "sha256": "f57a6d4b6565b74287634b7086ee3f0efc43c9e0c8304a73034548c63e3a9854",
-        "bytes": 804322
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.3.2.zip",
+        "sha256": "9bce1141601da0697d52cae76bbcc2ebaf0bda452bf3c075cde597fec0e71a20",
+        "bytes": 805283
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
