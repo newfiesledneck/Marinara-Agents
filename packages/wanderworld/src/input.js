@@ -1,17 +1,19 @@
-// Keyboard (WASD or arrows, Shift to run, Q/E to turn the camera) and an on-screen touch stick.
-// `read()` returns { x, y, run, turn }: x is right, y is forward, both in [-1, 1].
+// The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, and
+// + / - zoom. E is left free for "activate". Camera dragging and pinching live in main.js.
+//
+// `read()` returns { x, y, amount, run, yaw, pitch, zoom }: (x, y) is the walking direction (x right,
+// y forward, a unit vector or zero), `amount` how hard (the stick walks gently when pushed a little),
+// `yaw` and `pitch` the arrow keys' look direction, and `zoom` the + / - keys.
 
 const KEYS = {
   w: "forward",
-  arrowup: "forward",
   s: "back",
-  arrowdown: "back",
   a: "left",
-  arrowleft: "left",
   d: "right",
-  arrowright: "right",
-  q: "turnLeft",
-  e: "turnRight",
+  arrowleft: "lookLeft",
+  arrowright: "lookRight",
+  arrowup: "lookUp",
+  arrowdown: "lookDown",
   shift: "run",
   "=": "zoomIn",
   "+": "zoomIn",
@@ -22,6 +24,8 @@ const KEYS = {
 const STICK_SIZE = 116;
 const KNOB_SIZE = 48;
 const STICK_REACH = (STICK_SIZE - KNOB_SIZE) / 2;
+const STICK_WALK = 0.8; // pushed this far (of the reach) walks at full walking speed
+const STICK_RUN = 0.95; // pushed past this, all the way out, runs
 
 function isTyping(target) {
   return !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
@@ -34,7 +38,9 @@ export function createInput() {
   const onKeyDown = (event) => {
     if (isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
     const action = KEYS[String(event.key).toLowerCase()];
-    if (action) held.add(action);
+    if (!action) return;
+    held.add(action);
+    if (action.startsWith("look")) event.preventDefault(); // look around; don't scroll the Home panel
   };
   const onKeyUp = (event) => {
     const action = KEYS[String(event.key).toLowerCase()];
@@ -99,18 +105,26 @@ export function createInput() {
   coarse?.addEventListener?.("change", showStick);
 
   function read() {
-    let x = (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0) + stick.x;
-    let y = (held.has("forward") ? 1 : 0) - (held.has("back") ? 1 : 0) + stick.y;
+    const keyX = (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0);
+    const keyY = (held.has("forward") ? 1 : 0) - (held.has("back") ? 1 : 0);
+    const keyboard = keyX !== 0 || keyY !== 0;
+    let x = keyX + stick.x;
+    let y = keyY + stick.y;
     const length = Math.hypot(x, y);
-    if (length > 1) {
+    if (length > 0) {
       x /= length;
       y /= length;
     }
-    // Positive turns the camera to the left (Q), negative to the right (E).
-    const turn = (held.has("turnLeft") ? 1 : 0) - (held.has("turnRight") ? 1 : 0);
+    // The stick is analogue: a little push strolls, most of the way walks, all the way out runs.
+    const pushed = Math.hypot(stick.x, stick.y);
+    const amount = keyboard ? 1 : Math.min(1, pushed / STICK_WALK);
+    const run = held.has("run") || (!keyboard && pushed > STICK_RUN);
+    // Positive yaw turns the view left; positive pitch raises the camera to look down.
+    const yaw = (held.has("lookLeft") ? 1 : 0) - (held.has("lookRight") ? 1 : 0);
+    const pitch = (held.has("lookDown") ? 1 : 0) - (held.has("lookUp") ? 1 : 0);
     // Positive zooms out (-), negative zooms in (+).
     const zoom = (held.has("zoomOut") ? 1 : 0) - (held.has("zoomIn") ? 1 : 0);
-    return { x, y, run: held.has("run"), turn, zoom };
+    return { x, y, amount: length > 0 ? amount : 0, run, yaw, pitch, zoom };
   }
 
   function dispose() {

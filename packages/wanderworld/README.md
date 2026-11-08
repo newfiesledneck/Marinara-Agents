@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.1)
+## What it does now (0.4.2)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -15,9 +15,11 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   coloured from its name. The choice is remembered.
 - **People** picks up to twelve characters to live in town. Each lives in a house near the plaza, wanders
   nearby in its own 3D model or a figure, stops to face you when you walk up, and has its name overhead.
-- Walk with WASD or the arrow keys, or the on-screen stick on touch screens. Shift runs; Q and E turn the
-  camera. Zoom with the mouse wheel, a pinch, or + and −. Buildings, trees and lamp posts block your way, and the camera moves in when a building would
-  hide you.
+- **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
+  around, and the wheel or + / − zoom. Touch screen: the stick walks (all the way out runs), dragging
+  anywhere else looks around, and pinching zooms. The camera orbits and tilts, from looking up at towers
+  to nearly overhead. Buildings, trees and lamp posts block your way, and the camera moves in when a
+  building would hide you. E is kept for using things.
 - Shows frames per second, draw calls and triangles. Tap the readout to draw 1×, 4× or 10× the trees and
   rocks, to check how a device copes.
 - **Fullscreen** fills the screen, on Engines whose Home tabs offer it.

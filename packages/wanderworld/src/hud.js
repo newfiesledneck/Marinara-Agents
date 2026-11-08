@@ -55,6 +55,7 @@ export function createHud(
   });
   peopleButton.style.display = "none";
   const peoplePanel = document.createElement("div");
+  peoplePanel.setAttribute("data-wanderworld-ui", "");
   peoplePanel.style.cssText =
     `${CHIP}position:absolute;top:48px;right:8px;display:none;flex-direction:column;gap:2px;max-height:60%;` +
     "overflow-y:auto;min-width:200px;max-width:min(320px,calc(100% - 16px));padding:8px 10px;pointer-events:auto;font-size:13px;";
@@ -72,10 +73,12 @@ export function createHud(
   top.append(title, stats, spacer, personaLabel, peopleButton, fresh, fullscreen);
 
   const hint = document.createElement("div");
-  hint.textContent = "WASD or arrows to walk · Shift runs · Q / E turn · scroll or + / − to zoom";
-  hint.style.cssText = `${CHIP}position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.8;`;
-  // Touch screens get the stick instead of a keyboard hint.
-  if (window.matchMedia?.("(pointer: coarse)").matches) hint.style.display = "none";
+  // Touch screens get their own hint: the stick, dragging and pinching instead of keys and a mouse.
+  const touch = window.matchMedia?.("(pointer: coarse)").matches;
+  hint.textContent = touch
+    ? "Stick to walk (all the way to run) · drag to look · pinch to zoom"
+    : "WASD walk · Shift run · drag or arrow keys to look · scroll or + / − to zoom";
+  hint.style.cssText = `${CHIP}position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.8;max-width:min(60%,520px);`;
 
   const status = document.createElement("div");
   status.style.cssText = `${CHIP}position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;display:none;max-width:80%;text-align:center;`;
