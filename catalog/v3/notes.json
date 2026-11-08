@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.0",
+          "date": "2026-11-07",
+          "notes": "- Choose characters under People to live in town, up to twelve. Each lives in a house near the plaza, wanders nearby, stops to face you when you walk up, and has its name over its head. You can't walk through them. Your choice is remembered.\n- Every 3D model format 3D Avatars uses now walks, for you and for your characters: VRM, GLB, FBX and MMD (PMX). GLB and FBX models walk on the bones 3D Avatars matched for them, as VRM models do.",
+          "highlight": true
+        },
+        {
           "version": "0.3.2",
           "date": "2026-11-07",
           "notes": "- Walking is slower and more natural: an unhurried walk, and Shift runs at what used to be the walking pace. Strides lengthen with speed, so legs no longer spin quickly at a run.\n- Zoom in close to your character or out for a wide view, with the mouse wheel, a two-finger pinch, or the + and − keys.",
