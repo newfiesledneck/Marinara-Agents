@@ -213,6 +213,8 @@ export function createHud(root, handlers) {
   const journal = createJournal(PANEL, {
     onRename: (id, name) => handlers.onRenameZone(id, name),
     onLore: (id) => handlers.onZoneLore(id),
+    onPartyWait: (id, wait) => handlers.onPartyWait(id, wait),
+    onPartyLeave: (id) => handlers.onPartyLeave(id),
   });
   panels.push(journal.panel);
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>
@@ -429,12 +431,13 @@ export function createHud(root, handlers) {
         zoneTitle.style.opacity = "0";
       }
     },
-    /** The card for a building: { title, people: [names] }, or null to close it. */
+    /** The card for a building: { title, people: [names], party: [names coming in with you] }, or null. */
     setScene(info) {
       scene.style.display = info ? "flex" : "none";
       if (!info) return;
       sceneTitle.textContent = info.title;
-      scenePeople.textContent = info.people.length ? `Inside: ${info.people.join(", ")}` : "Nobody seems to be in.";
+      const inside = info.people.length ? `Inside: ${info.people.join(", ")}` : "Nobody seems to be in.";
+      scenePeople.textContent = info.party?.length ? `${inside} With you: ${info.party.join(", ")}.` : inside;
     },
     /** A notice with `text` and a Close button, or null to take it away. */
     setNotice(text) {

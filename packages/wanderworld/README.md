@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.14)
+## What it does now (0.4.15)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the cobbled
@@ -20,6 +20,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
 - **The Journal** (J): Here (where you are, the lore active here, who's nearby), People (where everyone
   is and what they're doing, in the words the AI will get), Places (rename any place; tie lorebook
   entries to it) and World.
+- **A party:** ask someone in a conversation to come with you ("Come with me"); they follow, run to
+  keep up, go round buildings, sit near you, and can wait somewhere or part ways (Journal → Party).
 - **Play as** picks one of your personas. A persona with a 3D model set up in 3D Avatars walks in that
   model (VRM, GLB, FBX or MMD); any other persona gets a built-in low-poly person (face, hair, build and
   clothes chosen from its name). The choice is remembered.
