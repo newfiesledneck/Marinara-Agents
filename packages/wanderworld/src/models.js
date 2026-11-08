@@ -139,7 +139,7 @@ function aimBone(bone, child, goal) {
  * T-pose (the pose a humanoid walk starts from), turned to face +z, scaled by `scaleFor`, and stood on
  * the ground under its hips.
  */
-function humanoidFromSkeleton(loaded, nodes, scaleFor) {
+export function humanoidFromSkeleton(loaded, nodes, scaleFor, seed) {
   const missing = REQUIRED_BONES.filter((bone) => !nodes[bone]);
   if (missing.length) throw new Error(`The model has no ${missing.join(", ")} bone`);
   const root = new Group();
@@ -174,6 +174,7 @@ function humanoidFromSkeleton(loaded, nodes, scaleFor) {
     afterPose: () => humanoid.update(),
     dispose: () => disposeTree(loaded),
     mirror: facing, // a model turned round to face +z still faces -z in its own bone space
+    seed,
   });
 }
 

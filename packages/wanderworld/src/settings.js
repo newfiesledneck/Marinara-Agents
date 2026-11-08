@@ -12,6 +12,9 @@ export const SETTINGS = {
   /** Trees and rocks outside town, as a multiple of the usual. */
   density: { value: 1, options: [1, 4, 10] },
   shadows: { value: true },
+  /** People without a 3D model: "kit" dresses them from the Quaternius characters; "simple" uses the
+   *  built-in low-poly person (lighter on slow devices). */
+  people: { value: "kit", options: ["kit", "simple"] },
   /** "recorded" plays the Universal Animation Library clips; "builtin" the hand-made motion. */
   animation: { value: "recorded", options: ["recorded", "builtin"] },
   /** Your walking and running speed, as a multiple. */

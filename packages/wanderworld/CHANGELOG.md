@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.8 — 2026-11-08
+
+- People without a 3D model are now dressed: a peasant or ranger outfit in one of two colourways, a hairstyle (and sometimes a beard), skin and hair tones and a height, all chosen from their name, from Quaternius's free character packs (public domain). They walk and sit with the recorded animations.
+- Settings → People without a model switches back to the simple built-in look, which is lighter on slow devices.
+
 ## 0.4.7 — 2026-11-08
 
 - Recorded animations: walking, running, standing, sitting down and up, and talking now play motion from Quaternius's free Universal Animation Library (public domain), on every model. Feet stay planted at any speed, and waving and looking at people still play on top. Settings → Animation switches back to the hand-made motion.

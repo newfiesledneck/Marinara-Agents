@@ -19,6 +19,7 @@ const { createWorld } = await import("../packages/wanderworld/src/world.js");
 assert.equal(MAX_PEOPLE, 30, "up to thirty characters live in town");
 const world = createWorld(4242);
 const crowd = createCrowd();
+crowd.setDressed(false); // no kit files without the Engine: everyone keeps the simple figure
 crowd.setWorld(world);
 crowd.setCast(Array.from({ length: 40 }, (_, i) => ({ id: `c-${i}`, name: `Person ${i}` })));
 assert.equal(crowd.size, 30, "a cast larger than thirty is cut to thirty");

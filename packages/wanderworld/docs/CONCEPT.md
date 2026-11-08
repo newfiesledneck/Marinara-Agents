@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.7, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
+Status: **0.4.8, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
 without the AI yet), with up to thirty of your characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
@@ -321,6 +321,10 @@ Answered (checked against Agents staging and Engine 2.5.2, 2026-11-07):
 
 Still open:
 
+- **Quaternius people are in, for testing (0.4.8):** Universal Base Characters and Modular Character
+  Outfits - Fantasy (both CC0) as package assets in `kit/people/` (3.3 MB, loaded per person). Costly: a
+  dressed person is about 25–30k triangles and 7–10 draw calls, so with many on screen this needs merging
+  and simpler versions before phones (Settings → People without a model → Simple meanwhile).
 - **Recorded animations are in, for testing (0.4.7):** Quaternius's Universal Animation Library (CC0,
   per the licence file in the download), converted to `src/clips/ual.json`. Before a PR, confirm with
   the maintainer that CC0 animation data is welcome in a package; `src/clips/CREDITS.md` says how to

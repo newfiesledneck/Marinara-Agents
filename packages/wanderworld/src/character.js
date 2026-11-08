@@ -56,7 +56,8 @@ export function disposeTree(root) {
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
       if (!material) continue;
-      for (const value of Object.values(material)) if (value?.isTexture) value.dispose();
+      // Textures shared by many people (the default people's kit) stay loaded.
+      for (const value of Object.values(material)) if (value?.isTexture && !value.userData.shared) value.dispose();
       material.dispose();
     }
   });

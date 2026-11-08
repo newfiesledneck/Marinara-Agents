@@ -9,6 +9,7 @@ import { CanvasTexture, Group, LinearFilter, Sprite, SpriteMaterial } from "thre
 import { blobShadow } from "./character.js";
 import { createFigure } from "./figure.js";
 import { findModel, loadModelCharacter } from "./models.js";
+import { createPerson } from "./people.js";
 import { hashString, heightAt, rng } from "./world.js";
 
 export const MAX_PEOPLE = 30; // far-off and out-of-sight people animate less often, so thirty stays smooth
@@ -68,6 +69,7 @@ export function createCrowd() {
   let room = null; // { door, room } while the player is inside a building
   let namesVisible = true;
   let shadowsVisible = true;
+  let dressPeople = true; // people without a model get a kit person (people.js), else the simple figure
   let clock = 0;
 
   /** Where someone is standing now: the town or the room. */
@@ -101,9 +103,11 @@ export function createCrowd() {
 
   async function loadModel(person) {
     const model = await findModel({ type: "character", id: person.id });
-    if (!model || !people.has(person.id)) return;
+    if (!people.has(person.id)) return;
+    person.hasModel = !!model;
+    if (!model && !dressPeople) return;
     try {
-      const character = await loadModelCharacter(model);
+      const character = model ? await loadModelCharacter(model) : await createPerson(person.name);
       if (people.get(person.id) !== person) {
         character.dispose();
         return;
@@ -614,6 +618,16 @@ export function createCrowd() {
     setNamesVisible(visible) {
       namesVisible = visible;
       for (const person of people.values()) person.tag.visible = visible;
+    },
+    /** Whether people without a 3D model are dressed from the kit (true) or drawn simply (false). */
+    setDressed(dressed) {
+      if (dressed === dressPeople) return;
+      dressPeople = dressed;
+      for (const person of people.values()) {
+        if (person.hasModel) continue;
+        if (dressed) void loadModel(person);
+        else setBody(person, createFigure(person.name));
+      }
     },
     setShadows(visible) {
       shadowsVisible = visible;
