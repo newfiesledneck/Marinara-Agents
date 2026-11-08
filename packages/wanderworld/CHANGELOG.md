@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.10 — 2026-11-08
+
+- Detailed nature around town: leafy trees, pines, twisted and dead trees, rocks, bushes, ferns, flowers, grass and pebbles from Quaternius's free Stylized Nature MegaKit (public domain). Further out, the simple trees stay, where the haze hides the difference.
+- Settings → Detailed trees and plants turns them off on slow devices.
+
 ## 0.4.9 — 2026-11-08
 
 - Choose a body for each character in People, and for your persona next to Play as: Auto, Male or Female. It decides which default person they get when they have no 3D model, and is remembered. Later the AI will set it from the character card.

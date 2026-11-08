@@ -185,6 +185,7 @@ export function createHud(root, handlers) {
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
   choice("density", "Trees and rocks", { 1: "Normal", 4: "4×", 10: "10×" });
   toggle("shadows", "Shadows under people");
+  toggle("nature", "Detailed trees and plants");
   choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
   heading("Moving");
   choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });

@@ -58,6 +58,36 @@ const FOUNTAIN_RADIUS = 2.4;
 export const SPAWN = Object.freeze({ x: 0, z: FOUNTAIN_RADIUS + 4 });
 
 const SEAT_HEIGHT = 0.45;
+/** Detailed trees, rocks and plants (the kit) grow this far out from the town's edge; cones beyond. */
+const NATURE_RING = 45;
+const UNDERGROWTH = 700;
+/** Kit trees, with how often each grows and how big it is drawn (its own size is 7–17 m). */
+const KIT_TREES = [
+  ["commontree-1", 3, 0.8],
+  ["commontree-2", 3, 0.8],
+  ["commontree-3", 2, 0.7],
+  ["pine-1", 3, 0.9],
+  ["pine-2", 3, 0.9],
+  ["pine-3", 2, 0.9],
+  ["twistedtree-1", 1, 0.4],
+  ["deadtree-1", 0.4, 0.7],
+];
+const KIT_ROCKS = ["rock-medium-1", "rock-medium-2", "rock-medium-3"];
+/** Undergrowth: model, weight, size. */
+const KIT_PLANTS = [
+  ["bush-common", 3, 0.8],
+  ["bush-common-flowers", 2, 0.8],
+  ["fern-1", 3, 0.7],
+  ["plant-1", 2, 0.8],
+  ["flower-3-group", 2, 0.45],
+  ["flower-4-group", 1.5, 0.4],
+  ["grass-common-tall", 5, 0.45],
+  ["grass-wispy-tall", 4, 0.45],
+  ["pebble-round-1", 1, 1.4],
+  ["pebble-round-3", 1, 1.4],
+];
+/** Every kit model the nature uses, for loading. */
+export const NATURE_MODELS = [...KIT_TREES.map(([name]) => name), ...KIT_ROCKS, ...KIT_PLANTS.map(([name]) => name)];
 /** How far a door swings open, outward onto the street (radians). */
 const DOOR_SWING = 1.7;
 
@@ -674,11 +704,84 @@ export function createWorld(seed) {
     return dark;
   }
 
+  /**
+   * Swaps in detailed trees, rocks and plants near town once the kit has loaded (`models`: a Map from
+   * model name to parts). The cones and boxes they replace are hidden; further out they stay, where the
+   * haze hides the difference and they cost almost nothing.
+   */
+  function addNature(models) {
+    const nearTown = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < TOWN_HALF + NATURE_RING;
+    const hidden = new Object3D();
+    hidden.scale.setScalar(0);
+    hidden.updateMatrix();
+    const placements = new Map(); // model name → matrices
+    const place = (name, matrix) => {
+      if (!placements.has(name)) placements.set(name, []);
+      placements.get(name).push(matrix.clone());
+    };
+    const pickWeighted = (list, value) => {
+      const total = list.reduce((sum, entry) => sum + entry[1], 0);
+      let at = value * total;
+      for (const entry of list) {
+        at -= entry[1];
+        if (at <= 0) return entry;
+      }
+      return list[list.length - 1];
+    };
+    trees.slice(0, BASE_TREES).forEach((tree, i) => {
+      if (!nearTown(tree.x, tree.z)) return;
+      const [name, , size] = pickWeighted(KIT_TREES, tree.tint);
+      dummy.position.set(tree.x, heightAt(tree.x, tree.z) - 0.1, tree.z);
+      dummy.rotation.set(0, tree.turn, 0);
+      dummy.scale.setScalar(size * (0.75 + tree.scale * 0.15));
+      dummy.updateMatrix();
+      place(name, dummy.matrix);
+      trunks.setMatrixAt(i, hidden.matrix);
+      crowns.setMatrixAt(i, hidden.matrix);
+    });
+    rocks.slice(0, BASE_ROCKS).forEach((rock, i) => {
+      if (!nearTown(rock.x, rock.z)) return;
+      dummy.position.set(rock.x, heightAt(rock.x, rock.z) - 0.15, rock.z);
+      dummy.rotation.set(0, rock.turn, 0);
+      dummy.scale.setScalar(rock.scale * 0.35);
+      dummy.updateMatrix();
+      place(KIT_ROCKS[Math.floor(rock.tint * KIT_ROCKS.length) % KIT_ROCKS.length], dummy.matrix);
+      stones.setMatrixAt(i, hidden.matrix);
+    });
+    // Undergrowth on the grass around town: between the town's edge and the forest.
+    const growth = rng(seed ^ 0x5bd1e995);
+    for (let placed = 0, tries = 0; placed < UNDERGROWTH && tries < UNDERGROWTH * 6; tries++) {
+      const x = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
+      const z = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
+      if (inTown(x, z, 1.5)) continue;
+      const [name, , size] = pickWeighted(KIT_PLANTS, growth());
+      dummy.position.set(x, heightAt(x, z) - 0.03, z);
+      dummy.rotation.set(0, growth() * Math.PI * 2, 0);
+      dummy.scale.setScalar(size * (0.8 + growth() * 0.5));
+      dummy.updateMatrix();
+      place(name, dummy.matrix);
+      placed++;
+    }
+    trunks.instanceMatrix.needsUpdate = true;
+    crowns.instanceMatrix.needsUpdate = true;
+    stones.instanceMatrix.needsUpdate = true;
+    for (const [name, matrices] of placements) {
+      for (const { geometry, material } of models.get(name) ?? []) {
+        const instanced = new InstancedMesh(geometry, material, matrices.length);
+        matrices.forEach((matrix, i) => instanced.setMatrixAt(i, matrix));
+        instanced.computeBoundingSphere();
+        instanced.userData.kit = true;
+        scene.add(instanced);
+      }
+    }
+  }
+
   function dispose() {
     scene.traverse((object) => {
-      object.geometry?.dispose();
+      // Kit geometry and materials are shared by every world (kit.js keeps them).
+      if (!object.geometry?.userData.shared) object.geometry?.dispose();
       const materials = Array.isArray(object.material) ? object.material : [object.material];
-      for (const material of materials) material?.dispose();
+      for (const material of materials) if (!material?.userData.shared) material?.dispose();
       object.dispose?.();
     });
   }
@@ -698,6 +801,7 @@ export function createWorld(seed) {
      *  buildings. */
     waypoints: streetWaypoints(),
     setDoor,
+    addNature,
     update,
     setDrawDistance,
     setTime,

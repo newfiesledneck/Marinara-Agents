@@ -9,6 +9,7 @@ licence file says so). No credit is required; this note is a courtesy.
 | Folder | From | Made by |
 | --- | --- | --- |
 | `people/` | Universal Base Characters (Standard), Modular Character Outfits - Fantasy (Standard) | `scripts/build-wanderworld-people.mjs` |
+| `nature/` | Stylized Nature MegaKit (Standard), its `glTF` folder | `scripts/build-wanderworld-kit.mjs nature` |
 
 The packs themselves are not in the repository. To rebuild, unzip them and run the script named above
 (it prints its usage). To drop a folder, delete it and the code that loads it; the game falls back to its
