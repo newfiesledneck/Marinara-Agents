@@ -4915,8 +4915,8 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.2.0",
-        "description": "A walkable low-poly 3D world on its own Home tab. Early prototype: walk around a seeded landscape with WASD or the on-screen stick.",
+        "version": "0.3.0",
+        "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town and forest as one of your personas, in the 3D model you set up for it in 3D Avatars.",
         "engine": {
           "min": "2.4.4",
           "maxExclusive": "4.0.0"
@@ -4943,13 +4943,13 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "5eba474ccdcfab5fdb73519ffc4bf0f46563224d5396b2237ca622b371bdecca",
-            "bytes": 582
+            "sha256": "d6fb58361d20e1af1431117aeb14c7433a173e97c8c275867651d1eba445f331",
+            "bytes": 620
           },
           {
             "path": "client.js",
-            "sha256": "0f9d657933f27510284ed792244d7e5b0b9effb6c28d8463b0b8c8d25aa5d361",
-            "bytes": 555591
+            "sha256": "dcefe963131d9e63eccd67d434d781ffeb8b39a365223e3fd25b74e5f004b8ef",
+            "bytes": 796236
           },
           {
             "path": "wanderworld-icon.webp",
@@ -4965,9 +4965,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.2.0.zip",
-        "sha256": "734674ee28748bb031f2df103cd6bfea6762301beb02a566f867c3fe8cec06b4",
-        "bytes": 563198
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.3.0.zip",
+        "sha256": "548187607386021f0ed96a9b3bca8f90828794ec289ceb0782d7c3addac9bd03",
+        "bytes": 803919
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
