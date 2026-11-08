@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.10",
+          "date": "2026-11-08",
+          "notes": "- Detailed nature around town: leafy trees, pines, twisted and dead trees, rocks, bushes, ferns, flowers, grass and pebbles from Quaternius's free Stylized Nature MegaKit (public domain). Further out, the simple trees stay, where the haze hides the difference.\n- Settings → Detailed trees and plants turns them off on slow devices.",
+          "highlight": false
+        },
+        {
           "version": "0.4.9",
           "date": "2026-11-08",
           "notes": "- Choose a body for each character in People, and for your persona next to Play as: Auto, Male or Female. It decides which default person they get when they have no 3D model, and is remembered. Later the AI will set it from the character card.",

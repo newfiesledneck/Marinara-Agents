@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.4.9",
+        "version": "0.4.10",
         "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
         "engine": {
           "min": "2.4.4",
@@ -4941,6 +4941,39 @@
           },
           "assets": {
             "paths": [
+              "kit/nature/bark-deadtree.webp",
+              "kit/nature/bark-normaltree.webp",
+              "kit/nature/bark-twistedtree.webp",
+              "kit/nature/bush-common-flowers.json",
+              "kit/nature/bush-common.json",
+              "kit/nature/commontree-1.json",
+              "kit/nature/commontree-2.json",
+              "kit/nature/commontree-3.json",
+              "kit/nature/deadtree-1.json",
+              "kit/nature/fern-1.json",
+              "kit/nature/flower-3-group.json",
+              "kit/nature/flower-4-group.json",
+              "kit/nature/flowers.webp",
+              "kit/nature/grass-common-tall.json",
+              "kit/nature/grass-wispy-tall.json",
+              "kit/nature/grass.webp",
+              "kit/nature/index.json",
+              "kit/nature/leaf-pine-c.webp",
+              "kit/nature/leaves-normaltree-c.webp",
+              "kit/nature/leaves-twistedtree-c.webp",
+              "kit/nature/leaves.webp",
+              "kit/nature/pathrocks-diffuse.webp",
+              "kit/nature/pebble-round-1.json",
+              "kit/nature/pebble-round-3.json",
+              "kit/nature/pine-1.json",
+              "kit/nature/pine-2.json",
+              "kit/nature/pine-3.json",
+              "kit/nature/plant-1.json",
+              "kit/nature/rock-medium-1.json",
+              "kit/nature/rock-medium-2.json",
+              "kit/nature/rock-medium-3.json",
+              "kit/nature/rocks-diffuse.webp",
+              "kit/nature/twistedtree-1.json",
               "kit/people/eyes.webp",
               "kit/people/female-peasant.json",
               "kit/people/female-ranger.json",
@@ -4976,13 +5009,178 @@
           },
           {
             "path": "client.js",
-            "sha256": "81945986304fea717abb5de44d4a59b1af5770a272318a0b8071270733231819",
-            "bytes": 1359214
+            "sha256": "9e63bb203305a874476b3a9a7cc5295010c5c60d17255d0b64ec29928e291af2",
+            "bytes": 1363197
           },
           {
             "path": "wanderworld-icon.webp",
             "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
             "bytes": 5236
+          },
+          {
+            "path": "kit/nature/bark-deadtree.webp",
+            "sha256": "b2b8ac1369583e0b440284fe674692eac3196f4a8488307c3b462624922a62da",
+            "bytes": 2984
+          },
+          {
+            "path": "kit/nature/bark-normaltree.webp",
+            "sha256": "85fb5a9084102eeb7c17e9016b64f91e595be26bef1a6e3d2fbcbb56c347b15d",
+            "bytes": 3248
+          },
+          {
+            "path": "kit/nature/bark-twistedtree.webp",
+            "sha256": "366e13799c95c499b831bf8f91dd4681b8dc61a584aeae244668d48648fa6879",
+            "bytes": 3660
+          },
+          {
+            "path": "kit/nature/bush-common-flowers.json",
+            "sha256": "74af41afd7cd01812916994c86a3ca1e863d0b9f59e4f060e42c14e8111396c7",
+            "bytes": 55043
+          },
+          {
+            "path": "kit/nature/bush-common.json",
+            "sha256": "86e322931616a3e6fec3adf0e765afe655b80f5eb758a814400fe1c4fc0e8d19",
+            "bytes": 38666
+          },
+          {
+            "path": "kit/nature/commontree-1.json",
+            "sha256": "eba84733baf976ad8b4549d4d5b58cb594db866a80a5c5597d72ebcdf55bfa69",
+            "bytes": 214574
+          },
+          {
+            "path": "kit/nature/commontree-2.json",
+            "sha256": "f27b30d2559335f254ccba72c830fa65f1f582ac9762e39c9bc8ec0861741647",
+            "bytes": 186222
+          },
+          {
+            "path": "kit/nature/commontree-3.json",
+            "sha256": "2c1a2579f145db22b0e29cc1bd1a50ece0f309e2ac8b4abad04881133721336b",
+            "bytes": 128207
+          },
+          {
+            "path": "kit/nature/deadtree-1.json",
+            "sha256": "2f68ee952d7cfbd01b4e420594bf17891db4ee049ce1e536e4039dd80e472b43",
+            "bytes": 188905
+          },
+          {
+            "path": "kit/nature/fern-1.json",
+            "sha256": "65709ea0ca84cdac997bc3f9730b3dd3e2eb3c91dcc7cc3858567d2db1eadbe1",
+            "bytes": 6767
+          },
+          {
+            "path": "kit/nature/flower-3-group.json",
+            "sha256": "3905475d8e26d5cfe69fc15f4e1a5a722a06e2eb0c58c17f8282f542c4d7c9e6",
+            "bytes": 16596
+          },
+          {
+            "path": "kit/nature/flower-4-group.json",
+            "sha256": "1263e09e51840a7404c9af443ab637370577c86c6bf47e35ec8689328a7dd6ca",
+            "bytes": 36581
+          },
+          {
+            "path": "kit/nature/flowers.webp",
+            "sha256": "95d09d4c5405be26a157b707d7de6b2ef837dcd8b6572c8afbf6a7a863b684b5",
+            "bytes": 11866
+          },
+          {
+            "path": "kit/nature/grass-common-tall.json",
+            "sha256": "d53adcb7af85898ad1ef13cb6e982c2e0b3ce7aa524e84a2180fa6c9cd97e97a",
+            "bytes": 8110
+          },
+          {
+            "path": "kit/nature/grass-wispy-tall.json",
+            "sha256": "5f1a43869d3bf97712c30e20c9f85724a6abca6c047cc337c45b8b5175e9a73e",
+            "bytes": 16391
+          },
+          {
+            "path": "kit/nature/grass.webp",
+            "sha256": "5d369c2dafb46945d2ac826367f744510f18cee651aa43c70071ff80d2bb1ede",
+            "bytes": 378
+          },
+          {
+            "path": "kit/nature/index.json",
+            "sha256": "192e0ca0d800aa4cad24004e172159a1579c3b9c03f0de381e1d0fb8ddf9f38e",
+            "bytes": 2571
+          },
+          {
+            "path": "kit/nature/leaf-pine-c.webp",
+            "sha256": "95726161a2b62479e7c7849ed09ffef5d44b531f45879fa127bae5800c221914",
+            "bytes": 2570
+          },
+          {
+            "path": "kit/nature/leaves-normaltree-c.webp",
+            "sha256": "b4929508a572aed6ab702a368da14b8219cc901e78dd21545c36ec07c659dda7",
+            "bytes": 7704
+          },
+          {
+            "path": "kit/nature/leaves-twistedtree-c.webp",
+            "sha256": "a38e9d9904c741dd55c003b3d389a31cd854169dc2d3289247aca2b67ec4aae3",
+            "bytes": 6056
+          },
+          {
+            "path": "kit/nature/leaves.webp",
+            "sha256": "16b9e9e02fef3a475cf143cf122bc95f9280f470ec483875e8c094d7c3ed0ab3",
+            "bytes": 17832
+          },
+          {
+            "path": "kit/nature/pathrocks-diffuse.webp",
+            "sha256": "efed38183836aab9797670d20ddbf69619f9730aee4ccef804731fb2cfefffaf",
+            "bytes": 7686
+          },
+          {
+            "path": "kit/nature/pebble-round-1.json",
+            "sha256": "b20c2922b953713460edaad77e1c4fe82d144851e9ed762ff69c36995ae75126",
+            "bytes": 6414
+          },
+          {
+            "path": "kit/nature/pebble-round-3.json",
+            "sha256": "7a8c679748f275bdab640305fb3bafd6283a70ec0c4b3667b45d39c955958efa",
+            "bytes": 5517
+          },
+          {
+            "path": "kit/nature/pine-1.json",
+            "sha256": "10139b7cbf90badfe4907f1dfef461fbe77ca305e5bc33f254ae5832213ecd37",
+            "bytes": 123014
+          },
+          {
+            "path": "kit/nature/pine-2.json",
+            "sha256": "0b47fbd7675c563db2bdcfa15afef366dc5b5ce951f10491f0cad55670cecb6a",
+            "bytes": 115076
+          },
+          {
+            "path": "kit/nature/pine-3.json",
+            "sha256": "1cfd557ec1912eae557df98c35e213420f274cfddcbf776c257949ec7e36cdda",
+            "bytes": 154149
+          },
+          {
+            "path": "kit/nature/plant-1.json",
+            "sha256": "5955219e16f00040dfcb7f2f468d2615d472e65add0657fe2a90435ee617ae68",
+            "bytes": 3288
+          },
+          {
+            "path": "kit/nature/rock-medium-1.json",
+            "sha256": "c73bbcf0449d94096570808c01058571a0bbe04c0e538d365e4c36977cb8e381",
+            "bytes": 9079
+          },
+          {
+            "path": "kit/nature/rock-medium-2.json",
+            "sha256": "f40af560bd037298a9288a513c48de5faf71603a4f33cba250f9fd37d6c6879a",
+            "bytes": 6527
+          },
+          {
+            "path": "kit/nature/rock-medium-3.json",
+            "sha256": "39b6153071583fe7788d1cb2d2e3c943eb73720009097db988a3afeb5f54e50a",
+            "bytes": 13638
+          },
+          {
+            "path": "kit/nature/rocks-diffuse.webp",
+            "sha256": "e43a436d4443054a919bf73b1eed4328fb104c832b365b95bed2672bfecafe07",
+            "bytes": 8440
+          },
+          {
+            "path": "kit/nature/twistedtree-1.json",
+            "sha256": "e6df2df38d94344afb0ae0a8d9de2c649d52421f96c77feffdda5f41fae615d7",
+            "bytes": 320806
           },
           {
             "path": "kit/people/eyes.webp",
@@ -5113,9 +5311,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.9.zip",
-        "sha256": "42121a9ba662e98d7b3d84cbea8e2c506b3d81ce43c8dc787bc01bb1a694dfad",
-        "bytes": 4754932
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.10.zip",
+        "sha256": "322919a519992c01a6dc4561f1756400100098bf5fb53c375c1a6dc1d5d34297",
+        "bytes": 6498555
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
