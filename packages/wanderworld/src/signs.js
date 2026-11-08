@@ -11,24 +11,27 @@ const DEPTH = 0.05;
 const PIXELS = 512; // canvas width; height follows the board's shape
 const WOOD = 0x6b4426;
 
-/** The painted board every sign is drawn on (kit/art/sign-wood), loaded once and shared. */
-let board = null;
-const waiting = new Set(); // signs to repaint once the board has loaded
+/** The painted boards signs are drawn on (kit/art/sign-wood…), each loaded once and shared, by URL. */
+const boards = new Map(); // url → { image, waiting: Set of redraws for once it has loaded }
 function loadBoard(url) {
-  if (board || !url) return;
-  board = new Image();
-  board.onload = () => {
-    for (const redraw of waiting) redraw();
-    waiting.clear();
-  };
-  board.src = url;
+  if (!url) return null;
+  if (!boards.has(url)) {
+    const entry = { image: new Image(), waiting: new Set() };
+    entry.image.onload = () => {
+      for (const redraw of entry.waiting) redraw();
+      entry.waiting.clear();
+    };
+    entry.image.src = url;
+    boards.set(url, entry);
+  }
+  return boards.get(url);
 }
 
 /**
  * The board drawn nine-slice: its framed corners and edges at their own proportions, the planks in the
  * middle stretched, so a square painting makes a long sign without squashing its frame.
  */
-function drawBoard(context, width, height) {
+function drawBoard(context, width, height, board) {
   const source = board.naturalWidth;
   const edge = source * 0.1; // the frame in the painting
   const frame = height * 0.2; // the frame on the sign
@@ -53,11 +56,11 @@ function drawBoard(context, width, height) {
 }
 
 /** Paints the board's face: planks, a dark frame, the words fitted to the room left, and the picture. */
-function paint(canvas, words, picture) {
+function paint(canvas, words, picture, board) {
   const context = canvas.getContext("2d");
   const { width, height } = canvas;
   const painted = board?.complete && board.naturalWidth > 0;
-  if (painted) drawBoard(context, width, height);
+  if (painted) drawBoard(context, width, height, board);
   const planks = context.createLinearGradient(0, 0, 0, height);
   planks.addColorStop(0, "#8a5a32");
   planks.addColorStop(1, "#6e4527");
@@ -109,7 +112,8 @@ function paint(canvas, words, picture) {
  */
 export function createNoticeboard({ x, y, z, angle, boardUrl, noteUrl, notes = 3 }) {
   if (typeof document === "undefined") return null;
-  loadBoard(boardUrl);
+  const loaded = loadBoard(boardUrl);
+  const board = loaded?.image ?? null;
   const canvas = document.createElement("canvas");
   canvas.width = 512;
   canvas.height = 340;
@@ -121,7 +125,7 @@ export function createNoticeboard({ x, y, z, angle, boardUrl, noteUrl, notes = 3
   const draw = () => {
     const context = canvas.getContext("2d");
     const painted = board?.complete && board.naturalWidth > 0;
-    if (painted) drawBoard(context, canvas.width, canvas.height);
+    if (painted) drawBoard(context, canvas.width, canvas.height, board);
     else {
       context.fillStyle = "#7a5230";
       context.fillRect(0, 0, canvas.width, canvas.height);
@@ -161,7 +165,7 @@ export function createNoticeboard({ x, y, z, angle, boardUrl, noteUrl, notes = 3
   };
   paper.onload = draw;
   paper.src = noteUrl;
-  if (board && !board.complete) waiting.add(draw);
+  if (board && !board.complete) loaded.waiting.add(draw);
   draw();
 
   const wood = new MeshLambertMaterial({ color: 0x5b3d24 });
@@ -208,7 +212,8 @@ export function createNoticeboard({ x, y, z, angle, boardUrl, noteUrl, notes = 3
  */
 export function createSign({ x, y, z, angle, words, picture = null, boardUrl = null }) {
   if (typeof document === "undefined") return null;
-  loadBoard(boardUrl);
+  const loaded = loadBoard(boardUrl);
+  const board = loaded?.image ?? null;
   const canvas = document.createElement("canvas");
   canvas.width = PIXELS;
   canvas.height = Math.round((PIXELS * HEIGHT) / WIDTH);
@@ -224,7 +229,7 @@ export function createSign({ x, y, z, angle, words, picture = null, boardUrl = n
   let current = words;
   let image = null;
   const redraw = () => {
-    paint(canvas, current, image);
+    paint(canvas, current, image, board);
     texture.needsUpdate = true;
   };
   const sign = {
@@ -256,7 +261,80 @@ export function createSign({ x, y, z, angle, words, picture = null, boardUrl = n
     },
   };
   redraw();
-  if (board && !board.complete) waiting.add(redraw);
+  if (board && !board.complete) loaded.waiting.add(redraw);
   if (picture) sign.setPicture(picture);
   return sign;
+}
+
+/**
+ * A sign hanging from an iron bracket out from a wall, square to the street so it reads from both ways
+ * along it: the bracket at (x, y, z) on the wall, which faces `angle`; the board (on the painted wood at
+ * `boardUrl`) swings a little in the breeze. Returns { mesh (a group), setWords(words), update(dt),
+ * dispose() }, or null without a browser canvas.
+ */
+export function createHangingSign({ x, y, z, angle, words, boardUrl = null }) {
+  if (typeof document === "undefined") return null;
+  const loaded = loadBoard(boardUrl);
+  const board = loaded?.image ?? null;
+  const canvas = document.createElement("canvas");
+  canvas.width = 384;
+  canvas.height = 256;
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  const iron = new MeshLambertMaterial({ color: 0x25282b });
+  const wood = new MeshLambertMaterial({ color: WOOD });
+  const face = new MeshLambertMaterial({ map: texture });
+  const group = new Group();
+  group.position.set(x, y, z);
+  group.rotation.y = angle;
+  // The bracket: a bar straight out from the wall with a brace below it, and a plate on the wall.
+  const reach = 1.05;
+  const bracket = [
+    new Mesh(new BoxGeometry(0.05, 0.05, reach).translate(0, 0, reach / 2), iron),
+    new Mesh(new BoxGeometry(0.03, 0.03, 0.62).rotateX(Math.PI / 4).translate(0, -0.22, 0.22), iron),
+    new Mesh(new BoxGeometry(0.12, 0.4, 0.03).translate(0, -0.12, 0.015), iron),
+  ];
+  group.add(...bracket);
+  // The board hangs from two short chains under the bar, its faces turned along the wall.
+  const swing = new Group();
+  swing.position.set(0, -0.03, 0.62);
+  const width = 0.78;
+  const height = 0.52;
+  for (const along of [-width / 2 + 0.08, width / 2 - 0.08]) {
+    swing.add(new Mesh(new BoxGeometry(0.015, 0.14, 0.015).translate(0, -0.07, along), iron));
+  }
+  // Box faces: +x and −x carry the painting (seen from either way along the street).
+  const plank = new Mesh(new BoxGeometry(0.05, height, width), [face, face, wood, wood, wood, wood]);
+  plank.position.y = -0.14 - height / 2;
+  swing.add(plank);
+  group.add(swing);
+  let current = words;
+  let time = Math.random() * 10;
+  const redraw = () => {
+    paint(canvas, current, null, board);
+    texture.needsUpdate = true;
+  };
+  redraw();
+  if (board && !board.complete) loaded.waiting.add(redraw);
+  return {
+    mesh: group,
+    setWords(next) {
+      if (next === current) return;
+      current = next;
+      redraw();
+    },
+    update(dt) {
+      time += dt;
+      swing.rotation.z = Math.sin(time * 1.3) * 0.035 + Math.sin(time * 0.47) * 0.02;
+    },
+    dispose() {
+      group.removeFromParent();
+      group.traverse((object) => object.geometry?.dispose());
+      iron.dispose();
+      wood.dispose();
+      face.dispose();
+      texture.dispose();
+    },
+  };
 }

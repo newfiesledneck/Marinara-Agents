@@ -11,6 +11,7 @@ import { createFigure } from "./figure.js";
 import { findModel, loadModelCharacter } from "./models.js";
 import { createPerson } from "./people.js";
 import { tagColourOf } from "./relationships.js";
+import { fill, greetingFor, moodOf, pickExchange } from "./dialogue.js";
 import { hashString, heightAt, rng } from "./world.js";
 
 export const MAX_PEOPLE = 30; // far-off and out-of-sight people animate less often, so thirty stays smooth
@@ -46,25 +47,8 @@ const GREET_WARMTH = 0.35;
 const GREET_AGAIN = 150; // seconds
 const HOSTILE_WARMTH = -0.85; // a sworn enemy confronts the player
 const BUBBLE_DISTANCE = 18; // metres from the player within which townsfolk's chatter shows
-/** Placeholder chatter until the AI writes it (docs/CONCEPT.md, S5), by how warm the two are. */
-const CHATTER = {
-  cold: ["Hmph.", "Oh. It's you.", "Can't stop, sorry."],
-  neutral: [
-    "Morning.",
-    "Busy day at the market.",
-    "Did you hear the news?",
-    "Looks like rain later.",
-    "How's the family?",
-  ],
-  warm: [
-    "There you are!",
-    "You have to hear this…",
-    "Ha! Best thing I've heard all week.",
-    "Same time at the tavern tonight?",
-  ],
-  close: ["I was hoping I'd see you.", "Walk with me?", "Missed you today.", "Come and sit with me a while."],
-  family: ["Don't forget supper tonight.", "Mum's asking after you.", "You look tired. Eating properly?"],
-};
+/** What someone says as they move off from a person they dislike (conversations are in dialogue.js). */
+const COLD_REMARKS = ["Hmph.", "Oh. It's you.", "Can't stop, sorry."];
 const NIGHT_FROM = 21;
 const NIGHT_TO = 6.5;
 
@@ -372,7 +356,7 @@ export function createCrowd() {
       const distance = Math.hypot(other.group.position.x - here.x, other.group.position.z - here.z);
       const warmth = feeling(person.id, other.id).warmth;
       // Friends look further for each other, and much prefer each other's company to a passing neighbour's.
-      if (distance > SOCIAL_SEARCH * (1 + Math.max(0, warmth))) continue;
+      if (distance > SOCIAL_SEARCH * (1 + 3 * Math.max(0, warmth))) continue; // a best friend: across town
       const weight = Math.max(0, warmth + 0.12) ** 2;
       if (weight <= 0) continue;
       choices.push([other, weight]);
@@ -447,7 +431,10 @@ export function createCrowd() {
       if (!chatting) continue; // gone indoors or off with someone else: leave them to it
       who.state = "idle";
       who.wait = 0.5 + who.random();
-      who.socialUntil = clock + 60 + who.random() * 90;
+      // A word with a neighbour leaves them free to look for a friend soon; time with a friend lasts.
+      const fond =
+        other && who === person ? feeling(person.id, other.id).warmth : other ? feeling(other.id, person.id).warmth : 0;
+      who.socialUntil = clock + (fond > 0.3 ? 60 + who.random() * 90 : 15 + who.random() * 20);
     }
     if (!other || person.space !== world) return;
     const warmth = Math.min(feeling(person.id, other.id).warmth, feeling(other.id, person.id).warmth);
@@ -483,19 +470,36 @@ export function createCrowd() {
   }
 
   /** Something to say in a chat with `other`, by how they feel about each other. */
+  /**
+   * Two people's conversation (dialogue.js): a whole exchange, taking turns, the one who began first;
+   * when it's done, the next to speak begins another. Returns whether it's `person`'s turn to speak.
+   */
+  function conversationOf(person, other) {
+    let talk = person.conversation;
+    // A new exchange when there's none between them, the last one is over, or it went quiet a while ago.
+    if (!talk || talk !== other.conversation || talk.at >= talk.lines.length || clock - talk.lastAt > 25) {
+      const first = talk && talk === other.conversation ? (talk.at % 2 ? talk.second : talk.first) : person;
+      const second = first === person ? other : person;
+      const lines = pickExchange(moodOf(feeling(first.id, second.id)), first.random);
+      talk = { lines, at: 0, first, second, lastAt: clock };
+      person.conversation = other.conversation = talk;
+    }
+    return talk;
+  }
+  const turnOf = (person, other) => {
+    const talk = conversationOf(person, other);
+    return (talk.at % 2 ? talk.second : talk.first) === person;
+  };
+  /** `person`'s next line in their conversation with `other` (it must be their turn). */
   function chatLine(person, other) {
-    const how = feeling(person.id, other.id);
-    const pool =
-      how.kind === "family"
-        ? CHATTER.family
-        : how.warmth < -0.15
-          ? CHATTER.cold
-          : how.warmth > 0.65
-            ? CHATTER.close
-            : how.warmth > 0.3
-              ? CHATTER.warm
-              : CHATTER.neutral;
-    return pool[Math.floor(person.random() * pool.length)];
+    const talk = conversationOf(person, other);
+    const line = talk.lines[talk.at++];
+    talk.lastAt = clock;
+    return fill(line, {
+      A: talk.first.name,
+      B: talk.second.name,
+      greeting: greetingFor(viewNow?.hour ?? 12),
+    });
   }
 
   /**
@@ -554,7 +558,7 @@ export function createCrowd() {
       const dislikes = toPlayer.warmth < AVOID_WARMTH && (toPlayer.warmth > hostileAt || !allowed);
       if (dislikes && playerDistance < AVOID_DISTANCE && person.state !== "sit") {
         if (flee(view.player)) {
-          if (person.random() < 0.5) say(person, view, CHATTER.cold[Math.floor(person.random() * CHATTER.cold.length)]);
+          if (person.random() < 0.5) say(person, view, COLD_REMARKS[Math.floor(person.random() * COLD_REMARKS.length)]);
           return true;
         }
       }
@@ -872,11 +876,11 @@ export function createCrowd() {
           Math.atan2(op.x - position.x, op.z - position.z),
           6 * dt,
         );
-        if (clock > person.nextLine) {
+        if (clock > person.nextLine && turnOf(person, other)) {
           person.speaking = true;
           other.speaking = false;
-          person.nextLine = clock + 3 + person.random() * 3;
-          other.nextLine = Math.max(other.nextLine, clock + 2.2);
+          person.nextLine = clock + 3 + person.random() * 2;
+          other.nextLine = Math.max(other.nextLine, clock + 2.6);
           say(person, view, chatLine(person, other));
         }
       }
@@ -904,9 +908,14 @@ export function createCrowd() {
       person.wait -= dt;
       const beside = person.together;
       if (beside && beside.state === "sit" && clock > person.nextLine) {
-        person.speaking = !person.speaking && person.random() < 0.5;
-        person.nextLine = clock + 4 + person.random() * 6;
-        if (person.speaking) say(person, view, chatLine(person, beside));
+        // Sitting together: talking a while, then quiet for a while.
+        const quiet = person.conversation?.at >= person.conversation?.lines.length && person.random() < 0.6;
+        person.nextLine = clock + (quiet ? 10 + person.random() * 10 : 3 + person.random() * 2);
+        person.speaking = !quiet && turnOf(person, beside);
+        if (person.speaking) {
+          say(person, view, chatLine(person, beside));
+          beside.nextLine = Math.max(beside.nextLine, clock + 2.6);
+        }
       }
       if (person.wait <= 0 || (space === world && isNight(view.hour))) {
         const seat = person.seat;

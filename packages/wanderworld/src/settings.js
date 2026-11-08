@@ -30,6 +30,7 @@ export const SETTINGS = {
   animation: { value: "recorded", options: ["recorded", "builtin"] },
   /** Your walking and running speed, as a multiple. */
   walkSpeed: { value: 1, min: 0.5, max: 2 },
+  runSpeed: { value: 1, min: 0.5, max: 2 },
   /** How fast dragging and the arrow keys turn the camera. */
   lookSpeed: { value: 1, min: 0.4, max: 2.5 },
   invertLook: { value: false },

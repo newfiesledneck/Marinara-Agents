@@ -197,7 +197,8 @@ export function createHud(root, handlers) {
   choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
   heading("Moving");
   choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });
-  slider("walkSpeed", "Walk and run speed", 0.1, times);
+  slider("walkSpeed", "Walk speed", 0.1, times);
+  slider("runSpeed", "Run speed", 0.1, times);
   slider("lookSpeed", "Camera turn speed", 0.1, times);
   toggle("invertLook", "Invert up and down");
   heading("World");

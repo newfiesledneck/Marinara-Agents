@@ -8,14 +8,6 @@ import { INK_BUTTON, INK_INPUT, INK_SOFT, PARCHMENT_EDGED, SERIF } from "./ui.js
 
 const BUBBLE_HEIGHT = 2.5;
 const BUBBLE_WIDTH = 420; // canvas pixels a line wraps at
-const PLACEHOLDER_REPLIES = [
-  "Oh, hello there!",
-  "Nice day for a walk, isn't it?",
-  "Mm, I was just thinking the same.",
-  "Ha! You don't say.",
-  "Good to see you around town.",
-  "I'll have to remember that.",
-];
 
 /** A speech bubble: wrapped text on a rounded card, drawn once to a canvas. */
 function bubbleSprite(text) {
@@ -111,7 +103,10 @@ export function createTalk(layer, handlers) {
     input.value = "";
     handlers.onSend(text);
   });
-  panel.append(header, log, note, form);
+  // Things to say: a few choices (dialogue.js), above the box for your own words.
+  const choices = document.createElement("div");
+  choices.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+  panel.append(header, log, note, choices, form);
   layer.append(panel);
 
   function line(who, text, muted = false) {
@@ -145,7 +140,7 @@ export function createTalk(layer, handlers) {
     start(name) {
       title.textContent = `Talking with ${name}`;
       log.replaceChildren();
-      note.textContent = `Preview: ${name} answers with placeholder lines for now. Real replies, in character, come with Wanderworld's AI update.`;
+      note.textContent = `Preview: simple set conversations for now. Real replies, in character, come with Wanderworld's AI update.`;
       panel.style.display = "flex";
       setTimeout(() => input.focus(), 0);
     },
@@ -155,16 +150,25 @@ export function createTalk(layer, handlers) {
     },
     /** Adds a line to the log. */
     line,
+    /** The things the player can say: [{ id, label }], each calling `onChoose(id)`; empty for none. */
+    setChoices(list, onChoose) {
+      choices.replaceChildren(
+        ...list.map(({ id, label }) => {
+          const choice = document.createElement("button");
+          choice.type = "button";
+          choice.textContent = label;
+          choice.style.cssText = `${INK_BUTTON}font-size:13px;padding:4px 10px;`;
+          choice.addEventListener("click", () => onChoose(id));
+          return choice;
+        }),
+      );
+    },
     /** A bubble over `group` (someone's group) saying `text` for `seconds`. */
     say(group, text, seconds = 4) {
       removeBubble(group);
       const sprite = bubbleSprite(text);
       group.add(sprite);
       bubbles.set(group, { sprite, left: seconds });
-    },
-    /** A stand-in reply until the server part writes real ones. */
-    placeholderReply(count) {
-      return PLACEHOLDER_REPLIES[count % PLACEHOLDER_REPLIES.length];
     },
     /** Counts bubbles down and takes them away when their time is up. */
     update(dt) {
