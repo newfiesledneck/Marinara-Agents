@@ -273,10 +273,16 @@ export function createHud(root, handlers) {
   const noticeClose = button("Close", "Close this notice", () => (notice.style.display = "none"));
   notice.append(noticeText, noticeClose);
 
+  // The loading screen: the painted lantern-lit street (its sign already says Loading…), with what's
+  // happening in small type at the bottom.
   const loading = document.createElement("div");
   loading.style.cssText =
-    "position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;" +
-    "background:linear-gradient(#bfd9ee,#e9e1cf);color:#2b3440;font:600 18px system-ui,sans-serif;pointer-events:auto;";
+    "position:absolute;inset:0;display:none;align-items:flex-end;justify-content:center;padding-bottom:6vh;" +
+    "background:#1b2338 center/cover;color:#f3f5f7;font:600 15px system-ui,sans-serif;pointer-events:auto;";
+  if (handlers.loadingArt) loading.style.backgroundImage = `url("${handlers.loadingArt}")`;
+  const loadingText = document.createElement("div");
+  loadingText.style.cssText = `${CHIP}padding:6px 14px;`;
+  loading.append(loadingText);
   const fade = document.createElement("div");
   fade.style.cssText =
     "position:absolute;inset:0;background:#000;opacity:0;transition:opacity 0.35s;pointer-events:none;";
@@ -450,7 +456,7 @@ export function createHud(root, handlers) {
     },
     /** A full-screen loading card with `text`, or null to hide it. */
     setLoading(text) {
-      loading.textContent = text ?? "";
+      loadingText.textContent = text ?? "";
       loading.style.display = text ? "flex" : "none";
     },
     /** Fades the view to black (true) or back (false), for going through doors. */

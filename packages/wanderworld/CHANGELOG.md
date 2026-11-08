@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.18 — 2026-11-08
+
+- New art: the main menu has a painted hilltop view of the village (a tall version on phones held upright) and a carved Wanderworld logo.
+- Loading a world shows a lantern-lit street while it builds, and opens once its trees, buildings and props are in.
+- A new store banner.
+
 ## 0.4.17 — 2026-11-08
 
 - Caves are one weathered rock face set into the hillside, with the entrance carved into it: no loose boulders or gaps. Inside the passage goes dark, and ferns and grass grow along the foot and over the top.
