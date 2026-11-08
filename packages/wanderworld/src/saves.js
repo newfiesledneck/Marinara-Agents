@@ -73,6 +73,8 @@ export function checkWorld(raw) {
     persona: typeof raw.persona === "string" ? raw.persona : null,
     cast: Array.isArray(raw.cast) ? raw.cast.filter((id) => typeof id === "string").slice(0, 100) : [],
     names: checkNames(raw.names),
+    // The land round the town (land.js checks it when the world is built): hills, mountains, river, outposts.
+    landscape: isRecord(raw.landscape) ? raw.landscape : null,
     lore: checkLore(raw.lore),
     // Kept as they are for now; W3 and W4 give them their checks.
     party: Array.isArray(raw.party) ? raw.party.filter((id) => typeof id === "string") : [],

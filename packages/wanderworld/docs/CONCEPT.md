@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.15, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
+Status: **0.4.16, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
 that you can walk round, sit down in and talk in (a preview, without the AI yet), with up to thirty of your
 characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
@@ -225,6 +225,27 @@ The first version is small; the shape is meant to take a lot more later without 
 - **Set by hand now** (a Relationships panel per character, and for the persona); **set by the AI
   later** from character cards and lore, and changed by what happens (conversations, scene recaps,
   world events), with `history` keeping why.
+
+### W6. The land and the shape of the town
+
+*In 0.4.16 (`land.js`): a world's `landscape` (hills, mountain sides, a river, outposts: inn, cottage,
+cave) builds hills, ranges, the river with its banks and bridges, and dirt roads out to each outpost.
+The seed fills it in, New world can choose each part, and the save keeps it.*
+
+- **The AI chooses the land:** the world brief (S2) writes the landscape like any other part of the
+  world: whether there are mountains, a river, a lone tavern on a forest road, a cave in a hillside, and
+  names for them. Every part is optional and checked, so worlds differ and a partial answer still works.
+- **More outposts:** a mill, a farmstead, ruins, a shrine, a watchtower, a campsite; more cave kinds (a
+  mine, a grotto by water); lakes and ponds; a coast.
+- **Town shapes, not only the square grid:** a single row of houses along a winding road through the
+  map, a crossroads village, a scattered hamlet, a town on both banks of the river with bridges in it, a
+  walled town with gates. The layout is a set of plots along roads, so zones, signs, waypoints and the
+  townsfolk keep working whatever the shape. The brief picks the shape and the plots' kinds.
+- **A world builder:** an editor mode with an item menu (buildings by kind, props, trees, rocks, roads,
+  water, outposts) to place, move, turn and remove things, either from an empty map or on top of a
+  generated world, then save it as a world to play. Because a world is a list of parts (landscape,
+  plots, placed things), the editor and the AI write the same thing, and a built world can still be
+  filled with people and lore by the AI.
 
 ### W5. Scene setup (the request, before there's anything to send it to)
 

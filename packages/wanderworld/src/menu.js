@@ -94,14 +94,69 @@ export function createMenu(layer, handlers, background = null) {
     const seed = element("input", INPUT);
     seed.placeholder = "Seed (optional: the same seed builds the same town)";
     seed.maxLength = 80;
+    // The land round the town: each choice, or Surprise me (the seed decides).
+    const choices = {};
+    const pickers = element(
+      "div",
+      "display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:13px;",
+    );
+    for (const [key, label, options] of [
+      [
+        "hills",
+        "Hills",
+        [
+          ["flat", "Flat"],
+          ["gentle", "Gentle"],
+          ["rolling", "Rolling"],
+          ["rugged", "Rugged"],
+        ],
+      ],
+      [
+        "mountains",
+        "Mountains",
+        [
+          ["none", "None"],
+          ["one", "On one side"],
+          ["two", "On two sides"],
+          ["three", "On three sides"],
+        ],
+      ],
+      [
+        "river",
+        "River",
+        [
+          ["yes", "Yes"],
+          ["no", "No"],
+        ],
+      ],
+      [
+        "places",
+        "Out in the country",
+        [
+          ["none", "Nothing"],
+          ["few", "A few places"],
+          ["several", "Several places"],
+        ],
+      ],
+    ]) {
+      const select = element("select", `${INPUT}padding:5px 8px;`);
+      for (const [value, text] of [["surprise", "Surprise me"], ...options]) {
+        const option = element("option", "", text);
+        option.value = value;
+        select.append(option);
+      }
+      select.addEventListener("change", () => (choices[key] = select.value));
+      pickers.append(element("span", "opacity:0.8;", label), select);
+    }
     const create = button("Create and play", BIG, () =>
-      handlers.onCreate({ name: name.value.trim(), seed: seed.value.trim() }),
+      handlers.onCreate({ name: name.value.trim(), seed: seed.value.trim(), choices }),
     );
     card.append(
       element("div", "font:700 17px system-ui;", "New world"),
       element("div", "font:12px system-ui;opacity:0.75;", "Name"),
       name,
       seed,
+      pickers,
       element(
         "div",
         "font:12px system-ui;opacity:0.7;",

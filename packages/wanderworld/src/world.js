@@ -5,10 +5,12 @@
 // vertex-coloured mesh, and trees, rocks and lamps are instanced.
 import {
   BoxGeometry,
+  BufferGeometry,
   Color,
   DataTexture,
   DoubleSide,
   ConeGeometry,
+  CircleGeometry,
   CylinderGeometry,
   DirectionalLight,
   DodecahedronGeometry,
@@ -19,17 +21,20 @@ import {
   InstancedMesh,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   Object3D,
   LinearFilter,
   PlaneGeometry,
   RepeatWrapping,
   Scene,
+  RingGeometry,
   SRGBColorSpace,
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
+import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand } from "./land.js";
 import {
   barrel,
   bench,
@@ -184,12 +189,18 @@ export function rng(seed) {
   };
 }
 
-/** Ground height at (x, z). Gentle hills outside town; the town and its edge are flat. */
+// ponytail: one land at a time, module-wide, so every heightAt() caller (the player, townsfolk, signs)
+// reads the world being played without passing it around. Ceiling: two worlds alive at once would share
+// the newer one's ground; give each world its own heightAt if that's ever needed.
+let land = null;
+
+/** Ground height at (x, z) in the world built last: level in town, then its hills, mountains and river. */
 export function heightAt(x, z) {
-  const hills = Math.sin(x * 0.05) * 1.6 + Math.cos(z * 0.04) * 1.3 + Math.sin((x + z) * 0.11) * 0.5;
-  const fromTown = Math.max(Math.abs(x), Math.abs(z)) - TOWN_HALF - 4;
-  return hills * Math.min(1, Math.max(0, fromTown / 24));
+  return land ? land.heightAt(x, z) : 0;
 }
+
+/** Street lines: the middle of each street, the same along x and z. */
+const STREET_LINES = Array.from({ length: BLOCKS_PER_SIDE + 1 }, (_, i) => (i - BLOCKS_PER_SIDE / 2) * PITCH);
 
 /** True when (x, z) is inside the town's footprint plus a margin, where no trees or rocks grow. */
 const inTown = (x, z, margin = 6) => Math.abs(x) < TOWN_HALF + margin && Math.abs(z) < TOWN_HALF + margin;
@@ -340,9 +351,9 @@ function placeKitProp(town, fallback, { model, x, z, angle = 0, scale = 1, y = 0
 }
 
 /** A plant the nature kit can draw (`model`, at (x, z)); its simple stand-in shows until then. */
-function placeKitPlant(town, fallback, { model, x, z, angle = 0, scale = 1 }) {
-  if (fallback) town.naturePieces.push(fallback.translate(x, 0, z));
-  town.natureSlots.push({ model, x, z, angle, scale });
+function placeKitPlant(town, fallback, { model, x, z, angle = 0, scale = 1, y = 0, tilt = null }) {
+  if (fallback) town.naturePieces.push(fallback.translate(x, heightAt(x, z) + y, z));
+  town.natureSlots.push({ model, x, z, angle, scale, y, tilt });
 }
 
 /** Builds a building from its spec at (x, z) facing `facing`, with its door, collision box and street clutter. */
@@ -620,7 +631,7 @@ function fillBlock(random, town, cx, cz, role) {
   }
 }
 
-function buildTown(random) {
+function buildTown(random, land) {
   const town = {
     pieces: [],
     buildingPieces: [],
@@ -746,6 +757,8 @@ function buildTown(random) {
     placeBench(town, x, z, facing);
   }
 
+  // The country round it (inns and cottages join the town's buildings before they're merged).
+  const country = buildCountry(random, town, land);
   const mesh = new Mesh(
     mergeGeometries(town.pieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
@@ -773,6 +786,7 @@ function buildTown(random) {
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   );
   return {
+    country,
     mesh,
     props,
     buildingMesh,
@@ -791,6 +805,204 @@ function buildTown(random) {
     doors: town.doors,
     seats: town.seats,
   };
+}
+
+const DIRT = 0x8f7350;
+const BRIDGE_WOOD = 0x7a5634;
+const CAVE_ROCK = 0x7d776d;
+const CAVE_DARK = 0x16120f;
+
+/** A ribbon `width` wide along `points`, lying on the ground (`lift` above it), as one geometry. */
+function ribbon(points, width, lift, heightOf) {
+  // Points every metre or so, so the ribbon follows the ground between them.
+  const dense = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 1.2));
+    for (let k = 0; k < steps; k++)
+      dense.push({ x: a.x + ((b.x - a.x) * k) / steps, z: a.z + ((b.z - a.z) * k) / steps });
+  }
+  dense.push(points[points.length - 1]);
+  const vertices = [];
+  for (let i = 1; i < dense.length; i++) {
+    const a = dense[i - 1];
+    const b = dense[i];
+    const length = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const nx = (-(b.z - a.z) / length) * (width / 2);
+    const nz = ((b.x - a.x) / length) * (width / 2);
+    const corner = (point, side) => {
+      const x = point.x + nx * side;
+      const z = point.z + nz * side;
+      return [x, heightOf(x, z) + lift, z];
+    };
+    const [a0, a1, b0, b1] = [corner(a, -1), corner(a, 1), corner(b, -1), corner(b, 1)];
+    vertices.push(...a0, ...a1, ...b0, ...a1, ...b1, ...b0); // counter-clockwise from above, so it faces up
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/**
+ * The country round the town (land.js): inns and cottages with their doors, cave mouths in hillsides,
+ * dirt roads out to them, the river's water and the bridges over it. Inns and cottages are ordinary
+ * town buildings (so they get kit walls, doors, signs and collision like any other).
+ */
+function buildCountry(random, town, land) {
+  const meshes = [];
+  const caves = [];
+  const doorOf = new Map(); // outpost index → door index
+  const caveParts = [];
+  const caveDark = []; // the inside of caves, drawn from both sides and unlit-looking
+  for (const outpost of land.outposts) {
+    if (outpost.kind === "cave") {
+      const mouth = { x: outpost.x, z: outpost.z };
+      const turn = (geometry) => geometry.rotateY(outpost.angle).translate(mouth.x, outpost.ground, mouth.z);
+      // A tunnel into the hill: an arched rock roof (rock outside, dark inside) over the cut floor, a
+      // dark back wall, and a ring of rock round the mouth. Its local +z is out of the hill.
+      const roof = () =>
+        new CylinderGeometry(CAVE_RADIUS, CAVE_RADIUS, CAVE_DEPTH, 14, 1, true, -Math.PI / 2, Math.PI)
+          .rotateX(-Math.PI / 2)
+          .translate(0, 0, -CAVE_DEPTH / 2);
+      // The hill over the tunnel is a rock shell as wide as the floor cut (land.js), faced round the mouth.
+      const shell = CAVE_RADIUS + 3;
+      caveParts.push(
+        turn(
+          painted(
+            new CylinderGeometry(shell, shell, CAVE_DEPTH + 5, 9, 1, true, -Math.PI / 2, Math.PI)
+              .rotateX(-Math.PI / 2)
+              .translate(0, -0.3, -(CAVE_DEPTH + 5) / 2),
+            CAVE_ROCK,
+          ),
+        ),
+        turn(painted(new RingGeometry(CAVE_RADIUS, shell, 12, 1, 0, Math.PI).translate(0, -0.3, 0), CAVE_ROCK)),
+      );
+      caveDark.push(
+        turn(painted(roof().scale(0.98, 0.98, 1), CAVE_DARK)),
+        turn(painted(new CircleGeometry(CAVE_RADIUS, 14, 0, Math.PI), CAVE_DARK).translate(0, 0, -CAVE_DEPTH + 0.05)),
+        turn(
+          painted(new PlaneGeometry(CAVE_RADIUS * 2, CAVE_DEPTH).rotateX(-Math.PI / 2), CAVE_DARK).translate(
+            0,
+            0.03,
+            -CAVE_DEPTH / 2,
+          ),
+        ),
+      );
+      // The entrance is built of boulders (the nature kit's rocks): a rough ring of them round the mouth,
+      // more piled over the top and heaped either side, every one its own size and turn. Simple
+      // grey stones stand in until the kit loads.
+      const local = (lx, lz) => ({
+        x: mouth.x + lx * Math.cos(outpost.angle) + lz * Math.sin(outpost.angle),
+        z: mouth.z - lx * Math.sin(outpost.angle) + lz * Math.cos(outpost.angle),
+      });
+      const boulder = (lx, ly, lz, size) => {
+        const at = local(lx, lz);
+        const model = KIT_ROCKS[Math.floor(random() * KIT_ROCKS.length)];
+        const fallback = painted(new DodecahedronGeometry(size * 1.4, 0), CAVE_ROCK).rotateY(random() * 6.3);
+        placeKitPlant(town, fallback, {
+          model,
+          x: at.x,
+          z: at.z,
+          y: ly - size * 0.35,
+          angle: random() * Math.PI * 2,
+          scale: size,
+          tilt: [(random() - 0.5) * 0.6, (random() - 0.5) * 0.6],
+        });
+      };
+      // Two rough rings round the arch (right side to left over the top), covering the rock face behind.
+      for (const [count, out, size] of [
+        [9, 0.6, 0.32],
+        [10, 2.2, 0.42],
+      ]) {
+        for (let i = 0; i <= count; i++) {
+          const around = (i / count) * Math.PI + (random() - 0.5) * 0.15;
+          const reach = CAVE_RADIUS + out + random() * 0.6;
+          boulder(Math.cos(around) * reach, Math.sin(around) * reach, 0.1 + random() * 0.5, size + random() * 0.2);
+        }
+      }
+      for (let i = 0; i < 6; i++) {
+        // Piled over the top and back along the roof.
+        boulder((random() - 0.5) * 6, CAVE_RADIUS + 1.2 + random() * 1.6, -0.5 - random() * 4, 0.45 + random() * 0.3);
+      }
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 3; i++) {
+          boulder(
+            side * (CAVE_RADIUS + 1.8 + random() * 2.2),
+            random() * 0.6,
+            -random() * 2 + 0.5,
+            0.4 + random() * 0.35,
+          );
+        }
+      }
+      // The tunnel's walls and back block like walls (outposts face a quarter turn, so boxes line up).
+      const wall = (minX, maxX, minZ, maxZ) => {
+        const corners = [
+          [minX, minZ],
+          [maxX, maxZ],
+        ].map(([lx, lz]) => ({
+          x: mouth.x + lx * Math.cos(outpost.angle) + lz * Math.sin(outpost.angle),
+          z: mouth.z - lx * Math.sin(outpost.angle) + lz * Math.cos(outpost.angle),
+        }));
+        town.boxes.push({
+          minX: Math.min(corners[0].x, corners[1].x),
+          maxX: Math.max(corners[0].x, corners[1].x),
+          minZ: Math.min(corners[0].z, corners[1].z),
+          maxZ: Math.max(corners[0].z, corners[1].z),
+          low: true,
+        });
+      };
+      wall(-CAVE_RADIUS - 0.4, -CAVE_RADIUS + 0.3, -CAVE_DEPTH, 0);
+      wall(CAVE_RADIUS - 0.3, CAVE_RADIUS + 0.4, -CAVE_DEPTH, 0);
+      wall(-CAVE_RADIUS, CAVE_RADIUS, -CAVE_DEPTH - 0.4, -CAVE_DEPTH + 0.3);
+      // Where to stand to use it: well inside, near the back.
+      const inside = {
+        x: mouth.x - Math.sin(outpost.angle) * (CAVE_DEPTH - 2),
+        z: mouth.z - Math.cos(outpost.angle) * (CAVE_DEPTH - 2),
+      };
+      caves.push({ x: inside.x, z: inside.z, angle: outpost.angle, mouth: inside, outpost: outpost.index });
+      continue;
+    }
+    const kind = outpost.kind === "inn" ? "tavern" : "home";
+    const size = outpost.kind === "inn" ? { width: 10, depth: 8 } : { width: 6, depth: 6 };
+    doorOf.set(outpost.index, town.doors.length);
+    placeBuilding(random, town, makeSpec(random, kind, size), outpost.x, outpost.z, outpost.facing);
+  }
+  if (caveParts.length) {
+    meshes.push(
+      new Mesh(mergeGeometries(caveParts), new MeshLambertMaterial({ vertexColors: true, flatShading: true })),
+    );
+    meshes.push(new Mesh(mergeGeometries(caveDark), new MeshBasicMaterial({ vertexColors: true, side: DoubleSide })));
+  }
+  const roads = land.roads.map((road) => painted(ribbon(road.points, road.width, 0.07, heightAt), DIRT));
+  if (roads.length) meshes.push(new Mesh(mergeGeometries(roads), new MeshLambertMaterial({ vertexColors: true })));
+  if (land.river) {
+    const water = ribbon(land.river.points, land.river.width + 1, 0, () => land.waterLevel);
+    meshes.push(
+      new Mesh(water, new MeshLambertMaterial({ color: WATER, transparent: true, opacity: 0.85, depthWrite: false })),
+    );
+  }
+  for (const bridge of land.bridges) {
+    const [ax, az] = bridge.along;
+    const angle = Math.atan2(ax, az);
+    const half = land.bridgeHalfWidth;
+    const parts = [
+      box(half * 2 + 0.2, 0.25, bridge.length, 0, -0.12, 0, BRIDGE_WOOD),
+      box(0.12, 0.12, bridge.length, -half, 0.85, 0, BRIDGE_WOOD),
+      box(0.12, 0.12, bridge.length, half, 0.85, 0, BRIDGE_WOOD),
+    ];
+    for (let t = -bridge.length / 2; t <= bridge.length / 2 + 0.01; t += bridge.length / 4) {
+      parts.push(box(0.16, 0.95, 0.16, -half, 0.45, t, BRIDGE_WOOD), box(0.16, 0.95, 0.16, half, 0.45, t, BRIDGE_WOOD));
+    }
+    meshes.push(
+      new Mesh(
+        mergeGeometries(parts).rotateY(angle).translate(bridge.x, bridge.deck, bridge.z),
+        new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+      ),
+    );
+  }
+  return { meshes, caves, doorOf };
 }
 
 /** Flat pieces (roads, paving) merged into one mesh, with texture coordinates in metres / `tile`. */
@@ -852,7 +1064,7 @@ function grassTexture(random) {
 }
 
 function buildGround(random) {
-  const geometry = new PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 80, 80).toNonIndexed();
+  const geometry = new PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 160, 160).toNonIndexed();
   geometry.rotateX(-Math.PI / 2);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
@@ -863,7 +1075,15 @@ function buildGround(random) {
   const color = new Color();
   for (let i = 0; i < position.count; i += 3) {
     const y = (position.getY(i) + position.getY(i + 1) + position.getY(i + 2)) / 3;
-    color.setHSL(0.27 + random() * 0.03, 0.42, 0.36 + y * 0.025 + random() * 0.04);
+    const steep =
+      Math.max(...[0, 1, 2].map((k) => position.getY(i + k))) - Math.min(...[0, 1, 2].map((k) => position.getY(i + k)));
+    if (y < -0.3)
+      color.setHSL(0.1, 0.32, 0.42 + random() * 0.05); // riverbed and banks: sand and mud
+    else if (y > 30)
+      color.setHSL(0.6, 0.05, 0.86 + random() * 0.06); // snow on the peaks
+    else if (y > 12 || steep > 1.6)
+      color.setHSL(0.08, 0.1, 0.42 + random() * 0.08 + Math.min(0.1, y * 0.003)); // rock
+    else color.setHSL(0.27 + random() * 0.03, 0.42, 0.36 + y * 0.012 + random() * 0.04);
     for (let k = 0; k < 3; k++) color.toArray(colors, (i + k) * 3);
   }
   geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
@@ -881,7 +1101,7 @@ function scatter(random, count, scaleMin, scaleRange) {
   while (points.length < count) {
     const x = (random() * 2 - 1) * half;
     const z = (random() * 2 - 1) * half;
-    if (inTown(x, z)) continue;
+    if (inTown(x, z) || land?.clear(x, z, 1) || heightAt(x, z) > 26) continue;
     points.push({ x, z, scale: scaleMin + random() * scaleRange, turn: random() * Math.PI * 2, tint: random() });
   }
   return points;
@@ -927,8 +1147,13 @@ function streetWaypoints() {
  * Builds the scene for one seed. Instanced meshes are allocated at the highest density once;
  * changing density only changes how many instances are drawn.
  */
-export function createWorld(seed) {
+export function createWorld(seed, landscape = null) {
   const random = rng(seed);
+  land = createLand(checkLandscape(landscape, seed), seed, {
+    townHalf: TOWN_HALF,
+    worldHalf: WORLD_SIZE / 2,
+    streetLines: STREET_LINES,
+  });
   const scene = new Scene();
   scene.background = new Color(SKY);
   scene.fog = new Fog(SKY, 60, 170);
@@ -939,8 +1164,9 @@ export function createWorld(seed) {
   scene.add(sun);
 
   scene.add(buildGround(random));
-  const town = buildTown(random);
-  scene.add(town.mesh, town.props, town.buildingMesh, town.natureMesh, town.roads, town.paving);
+  const town = buildTown(random, land);
+  const { country } = town;
+  scene.add(town.mesh, town.props, town.buildingMesh, town.natureMesh, town.roads, town.paving, ...country.meshes);
 
   const trees = scatter(random, BASE_TREES * MAX_DENSITY, 1.6, 1.6);
   const rocks = scatter(random, BASE_ROCKS * MAX_DENSITY, 0.8, 1.4);
@@ -1024,6 +1250,7 @@ export function createWorld(seed) {
   const fixedCircles = [
     ...town.circles.map((circle) => ({ id: nextId++, ...circle })),
     ...town.lamps.map((lamp) => ({ id: nextId++, x: lamp.x, z: lamp.z, r: 0.15 })),
+    ...land.waterCircles().map((circle) => ({ id: nextId++, ...circle })),
   ];
   const fixedBoxes = town.boxes.map((b) => ({ id: nextId++, ...b }));
   const treeCircles = trees.map((tree) => ({ id: nextId++, x: tree.x, z: tree.z, r: 0.25 * tree.scale }));
@@ -1208,7 +1435,7 @@ export function createWorld(seed) {
     for (let placed = 0, tries = 0; placed < UNDERGROWTH && tries < UNDERGROWTH * 6; tries++) {
       const x = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
       const z = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
-      if (inTown(x, z, 1.5)) continue;
+      if (inTown(x, z, 1.5) || land.clear(x, z)) continue;
       const [name, , size] = pickWeighted(KIT_PLANTS, growth());
       dummy.position.set(x, heightAt(x, z) - 0.03, z);
       dummy.rotation.set(0, growth() * Math.PI * 2, 0);
@@ -1219,8 +1446,8 @@ export function createWorld(seed) {
     }
     // The town's own plants: gardens, doorsteps, round the fountain.
     for (const slot of town.natureSlots) {
-      dummy.position.set(slot.x, heightAt(slot.x, slot.z), slot.z);
-      dummy.rotation.set(0, slot.angle, 0);
+      dummy.position.set(slot.x, heightAt(slot.x, slot.z) + (slot.y ?? 0), slot.z);
+      dummy.rotation.set(slot.tilt?.[0] ?? 0, slot.angle, slot.tilt?.[1] ?? 0);
       dummy.scale.setScalar(slot.scale);
       dummy.updateMatrix();
       place(slot.model, slot.x, slot.z, 1);
@@ -1344,11 +1571,28 @@ export function createWorld(seed) {
       fountainRadius: FOUNTAIN_RADIUS,
       streets: streetStrips(),
       buildings: town.buildings.map((building) => ({ kind: building.spec.kind, box: building.box })),
+      // Out in the country: the river, each road (to its outpost), the mountain ranges, the outposts
+      // (`door` is the door of an inn or cottage) and caves.
+      river: land.river ? { points: land.river.points, width: land.river.width } : null,
+      roads: land.roads.map((road) => ({ points: road.points, width: road.width, to: road.to })),
+      mountains: land.mountains.map((ridge) => ridge.side),
+      worldHalf: WORLD_SIZE / 2,
+      outposts: land.outposts.map((outpost) => ({
+        kind: outpost.kind,
+        name: outpost.name ?? null,
+        x: outpost.x,
+        z: outpost.z,
+        door: country.doorOf.get(outpost.index) ?? null,
+      })),
       gardens: town.gardens,
       meadows: town.meadows,
     },
     /** Each building's door: `x`/`z` is where to stand to use it, `step` the doorway, `open` 0–1. */
     doors,
+    /** Cave mouths: { x, z (where to stand), angle, outpost }. */
+    caves: country.caves,
+    /** The world's landscape, as built (land.js), for saving with it. */
+    landscape: land.landscape,
     /** Bench seats: { x, z, angle, approach, height, taken }. */
     seats: town.seats,
     /** Points along the middle of every street (crossings and halfway between), for finding a way round

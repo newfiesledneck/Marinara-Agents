@@ -4,13 +4,16 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.15)
+## What it does now (0.4.16)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the cobbled
   streets beyond, with brick sidewalks, flowers and clutter by the doors, ivy on walls, parked wagons and
   meadows on empty lots. Buildings come from a kit of parts (walls, roofs, chimneys, balconies, shutters,
   signs, awnings). **New world** walks a different one.
+- **The land:** hills, mountain ranges along some edges, a winding river with bridges, and places out in
+  the country (a roadside inn, cottages, caves in hillsides) at the end of their own dirt roads. Each world
+  has its own, chosen in New world or left to the seed, and saved with it (`src/land.js`).
 - **Main menu and saves:** Continue, New world (a name and an optional seed), Load world (thumbnails,
   Rename, Delete) and Settings. Each world keeps where you were, the time, the persona, the cast, its
   place names and their lore, in this package's browser storage for now.
