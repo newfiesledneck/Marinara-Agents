@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.5",
+          "date": "2026-11-08",
+          "notes": "- Up to 30 characters can live in town.\n- Townsfolk are inside buildings: walk into a house, the tavern or a shop and whoever is there is in the room, sitting or standing about, and you can talk to them. They come and go through the door while you're inside.\n- Townsfolk visit shops, the tavern, the temple, the hall and the smithy, find their way round buildings along the streets, and no longer hop up and down from benches or pop straight back indoors.\n- A more natural walk: much less bounce (about half), no more marching kick, and the back foot rolls onto its toes. Walking is now 1.8 m/s; raise it in Settings if you like it faster.\n- If your browser is drawing without the graphics card, Wanderworld says so and how to turn hardware acceleration on.",
+          "highlight": false
+        },
+        {
           "version": "0.4.4",
           "date": "2026-11-08",
           "notes": "- Use things with E, a click or a tap: sit on benches and chairs, open doors and go inside (each kind of building has a furnished room), and talk to people. Click further away to walk there.\n- Talking is a preview: you face each other, the camera moves to the side, and a chat box and speech bubbles open. Replies are placeholders until the AI update.\n- Townsfolk sit on benches, go in and out of their houses, head home at night, look at you and wave.\n- Day and night (20 minutes a day), with lamps at night, and sound: footsteps, doors, wind, birds and crickets.\n- Settings: resolution (Auto keeps 4K screens smooth), draw distance, shadows, walk speed, camera, time of day, sound and the HUD.\n- Feet stay planted while walking and standing, and legs no longer sway walking towards the camera.\n- Remembers where you were; a loading screen; a ☰ menu on phones.",
