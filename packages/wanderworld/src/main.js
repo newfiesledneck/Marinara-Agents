@@ -20,7 +20,7 @@ import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { kitModels } from "./kit.js";
-import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, WORLD_SIZE } from "./world.js";
+import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
@@ -257,7 +257,7 @@ function changeSetting(name, value) {
   core.settings = { ...core.settings, [name]: checked };
   if (name === "resolution") core.autoScale = 1;
   if (name === "people") void choosePersona(core.personaId); // redress the player too
-  if (name === "nature" && core.world) buildWorld(core.seed, currentPlace()); // the same world, redrawn
+  if ((name === "nature" || name === "props") && core.world) buildWorld(core.seed, currentPlace()); // redrawn
   saveSettings(core.settings);
   applySettings();
 }
@@ -297,6 +297,14 @@ function buildWorld(seed, place = null) {
         if (core.world === world) world.addNature(models);
       })
       .catch((error) => console.warn("[wanderworld] detailed nature failed to load", error));
+  }
+  if (core.settings.props) {
+    const world = core.world;
+    kitModels("props", TOWN_PROPS)
+      .then((models) => {
+        if (core.world === world) world.addProps(models);
+      })
+      .catch((error) => console.warn("[wanderworld] detailed props failed to load", error));
   }
 }
 
@@ -578,6 +586,13 @@ function enterBuilding(door) {
     core.interior = { door, room };
     core.space = room;
     core.crowd.showRoom(door, room);
+    if (core.settings.props) {
+      kitModels("props", room.propNames)
+        .then((models) => {
+          if (core.interior?.room === room) room.addProps(models);
+        })
+        .catch((error) => console.warn("[wanderworld] detailed furniture failed to load", error));
+    }
     core.player.removeFromParent();
     room.scene.add(core.player);
     core.player.position.set(room.entry.x, 0, room.entry.z);

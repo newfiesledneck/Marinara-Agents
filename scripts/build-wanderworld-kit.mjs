@@ -6,6 +6,7 @@
 //
 // Usage (unzip the pack first; ffmpeg must be on PATH, or set FFMPEG):
 //   node scripts/build-wanderworld-kit.mjs nature "<…>/Stylized Nature MegaKit[Standard]/glTF"
+//   node scripts/build-wanderworld-kit.mjs props "<…>/Fantasy Props MegaKit[Standard]/Exports/glTF" "<…>/Medieval Village MegaKit[Standard]/glTF"
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -43,6 +44,63 @@ const SETS = {
       "Pebble_Round_3",
     ],
     textureSize: (name) => (/grass/iu.test(name) ? 128 : 256),
+  },
+  props: {
+    source: "Fantasy Props MegaKit (Standard) and Medieval Village MegaKit (Standard) by Quaternius, CC0 1.0",
+    models: [
+      // Furniture
+      "Bed_Twin1",
+      "Bed_Twin2",
+      "Table_Large",
+      "Chair_1",
+      "Stool",
+      "Bench",
+      "Bookcase_2",
+      "Shelf_Simple",
+      "Shelf_Small_Bottles",
+      "Cabinet",
+      "Chest_Wood",
+      "Nightstand_Shelf",
+      "Workbench",
+      "Workbench_Drawers",
+      "BookStand",
+      "Peg_Rack",
+      "WeaponStand",
+      "Dummy",
+      // Lights
+      "CandleStick_Stand",
+      "CandleStick_Triple",
+      "Chandelier",
+      "Lantern_Wall",
+      "Torch_Metal",
+      // Work and storage
+      "Anvil",
+      "Cauldron",
+      "Barrel",
+      "Barrel_Apples",
+      "Crate_Wooden",
+      "FarmCrate_Apple",
+      "FarmCrate_Carrot",
+      "Bucket_Wooden_1",
+      "Stall_Empty",
+      "Stall_Cart_Empty",
+      // Small things on tables and shelves
+      "Mug",
+      "Bottle_1",
+      "Pot_1",
+      "Vase_2",
+      "Table_Plate",
+      "Book_Stack_1",
+      "BookGroup_Medium_1",
+      "Coin_Pile",
+      "Banner_1",
+      // From the village kit
+      "Prop_Wagon",
+      "Prop_Crate",
+      "Prop_WoodenFence_Single",
+      "Prop_WoodenFence_Extension1",
+    ],
+    textureSize: () => 512,
   },
 };
 
@@ -177,10 +235,13 @@ function packModel(path, textureName) {
 }
 
 function main() {
-  const [setName, sourceDir] = process.argv.slice(2);
+  const [setName, ...sourceDirs] = process.argv.slice(2);
   const set = SETS[setName];
-  if (!set || !sourceDir)
-    throw new Error(`Usage: build-wanderworld-kit.mjs <${Object.keys(SETS).join("|")}> <pack glTF folder>`);
+  if (!set || !sourceDirs.length) {
+    throw new Error(
+      `Usage: build-wanderworld-kit.mjs <${Object.keys(SETS).join("|")}> <pack glTF folder> [more folders]`,
+    );
+  }
   const out = join(ROOT, "packages/wanderworld/kit", setName);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
@@ -192,8 +253,8 @@ function main() {
   const images = new Set();
   const index = { source: set.source, models: {} };
   for (const model of set.models) {
-    const path = join(sourceDir, `${model}.gltf`);
-    if (!existsSync(path)) throw new Error(`The pack has no ${model}.gltf`);
+    const path = sourceDirs.map((dir) => join(dir, `${model}.gltf`)).find((candidate) => existsSync(candidate));
+    if (!path) throw new Error(`No pack has ${model}.gltf`);
     const packed = packModel(path, textureName);
     for (const image of packed.textures) images.add(image);
     const name = model.toLowerCase().replace(/_/gu, "-");
@@ -216,7 +277,9 @@ function main() {
     };
   }
   for (const image of images) {
-    const source = [join(sourceDir, image), join(sourceDir, "../Textures", image)].find((path) => existsSync(path));
+    const source = sourceDirs
+      .flatMap((dir) => [join(dir, image), join(dir, "../Textures", image), join(dir, "../../Textures", image)])
+      .find((path) => existsSync(path));
     if (!source) throw new Error(`Missing texture ${image}`);
     const size = set.textureSize(image);
     execFileSync(FFMPEG, [

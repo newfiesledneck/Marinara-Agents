@@ -182,6 +182,21 @@ for (const kind of KINDS) {
       }
       assert.ok(Math.abs(walker.z) < halfDepth, `${kind}: the walls keep you in (${walker.z.toFixed(2)})`);
     }
+    // With the kit, kit props take the simple furniture's places.
+    assert.ok(room.propNames.length > 0, `${kind}: the room has kit props to show`);
+    const before = [];
+    room.scene.traverse((object) => object.isMesh && object.visible && before.push(object));
+    room.addProps(
+      new Map(
+        room.propNames.map((name) => [
+          name,
+          [{ geometry: new BoxGeometry(0.3, 0.3, 0.3), material: new MeshLambertMaterial() }],
+        ]),
+      ),
+    );
+    let props = 0;
+    room.scene.traverse((object) => object.isMesh && object.geometry.parameters?.width === 0.3 && props++);
+    assert.ok(props >= room.propNames.length, `${kind}: kit props are placed (${props})`);
     room.dispose();
   }
 }

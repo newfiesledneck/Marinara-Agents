@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.11 — 2026-11-08
+
+- Detailed furniture and props from Quaternius's free Fantasy Props and Medieval Village kits (public domain): market stalls with crates of apples and carrots, benches, barrels and crates in town; beds, tables, chairs, stools, bookcases, chests, an anvil and workbench, candle stands, banners, and mugs and plates on tables indoors.
+- Settings → Detailed furniture and props turns them off on slow devices.
+
 ## 0.4.10 — 2026-11-08
 
 - Detailed nature around town: leafy trees, pines, twisted and dead trees, rocks, bushes, ferns, flowers, grass and pebbles from Quaternius's free Stylized Nature MegaKit (public domain). Further out, the simple trees stay, where the haze hides the difference.

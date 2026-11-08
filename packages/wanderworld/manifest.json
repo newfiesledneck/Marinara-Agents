@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.4.10",
+  "version": "0.4.11",
   "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
   "engine": {
     "min": "2.4.4",
@@ -92,7 +92,59 @@
         "kit/people/ranger-a.webp",
         "kit/people/ranger-b.webp",
         "kit/people/skin-female.webp",
-        "kit/people/skin-male.webp"
+        "kit/people/skin-male.webp",
+        "kit/props/anvil.json",
+        "kit/props/banner-1.json",
+        "kit/props/barrel-apples.json",
+        "kit/props/barrel.json",
+        "kit/props/bed-twin1.json",
+        "kit/props/bed-twin2.json",
+        "kit/props/bench.json",
+        "kit/props/book-stack-1.json",
+        "kit/props/bookcase-2.json",
+        "kit/props/bookgroup-medium-1.json",
+        "kit/props/bookstand.json",
+        "kit/props/bottle-1.json",
+        "kit/props/bucket-wooden-1.json",
+        "kit/props/cabinet.json",
+        "kit/props/candlestick-stand.json",
+        "kit/props/candlestick-triple.json",
+        "kit/props/cauldron.json",
+        "kit/props/chair-1.json",
+        "kit/props/chandelier.json",
+        "kit/props/chest-wood.json",
+        "kit/props/coin-pile.json",
+        "kit/props/crate-wooden.json",
+        "kit/props/dummy.json",
+        "kit/props/farmcrate-apple.json",
+        "kit/props/farmcrate-carrot.json",
+        "kit/props/index.json",
+        "kit/props/lantern-wall.json",
+        "kit/props/mug.json",
+        "kit/props/nightstand-shelf.json",
+        "kit/props/peg-rack.json",
+        "kit/props/pot-1.json",
+        "kit/props/prop-crate.json",
+        "kit/props/prop-wagon.json",
+        "kit/props/prop-woodenfence-extension1.json",
+        "kit/props/prop-woodenfence-single.json",
+        "kit/props/shelf-simple.json",
+        "kit/props/shelf-small-bottles.json",
+        "kit/props/stall-cart-empty.json",
+        "kit/props/stall-empty.json",
+        "kit/props/stool.json",
+        "kit/props/t-trim-cloth-basecolor.webp",
+        "kit/props/t-trim-furniture-basecolor.webp",
+        "kit/props/t-trim-metal-basecolor.webp",
+        "kit/props/t-trim-props-basecolor.webp",
+        "kit/props/t-woodtrim-basecolor.webp",
+        "kit/props/table-large.json",
+        "kit/props/table-plate.json",
+        "kit/props/torch-metal.json",
+        "kit/props/vase-2.json",
+        "kit/props/weaponstand.json",
+        "kit/props/workbench-drawers.json",
+        "kit/props/workbench.json"
       ]
     }
   },
@@ -104,8 +156,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "9e63bb203305a874476b3a9a7cc5295010c5c60d17255d0b64ec29928e291af2",
-      "bytes": 1363197
+      "sha256": "b839623e78936e9bc261001a244eff1cf93ddc1e8b4360a4d17535ef5875b08e",
+      "bytes": 1366723
     },
     {
       "path": "wanderworld-icon.webp",
@@ -396,6 +448,266 @@
       "path": "kit/people/skin-male.webp",
       "sha256": "4bd6587e066fac73c9ae043ec4504c21fcf3fbb2f7653de67fc4aa07f510d52e",
       "bytes": 8790
+    },
+    {
+      "path": "kit/props/anvil.json",
+      "sha256": "837cd0d944c551d64a49b688d078dce8df329455f4706b9f8a77a2e04199bdf2",
+      "bytes": 16844
+    },
+    {
+      "path": "kit/props/banner-1.json",
+      "sha256": "fc12354ad1a96b7ce2206430b834170cbfb2f07334160a6cf948564d96dd3010",
+      "bytes": 10957
+    },
+    {
+      "path": "kit/props/barrel-apples.json",
+      "sha256": "f4d1523eb3f8329518a27ca4eb089453804fcdab8afe8f905d1562129ecfb04e",
+      "bytes": 59501
+    },
+    {
+      "path": "kit/props/barrel.json",
+      "sha256": "79ffa335300ebc0eccbdce837164cfdc4372846ee14d0e86f9ce465e72322346",
+      "bytes": 29737
+    },
+    {
+      "path": "kit/props/bed-twin1.json",
+      "sha256": "8dcdaf19d1d7cb41863c6b0d8e4ed5e265ba701ecb4e7d7d2873c9eb8d9c8d51",
+      "bytes": 42942
+    },
+    {
+      "path": "kit/props/bed-twin2.json",
+      "sha256": "3850f9c2678d40ef10dd80821c09ae7e21780c081add295f2d11b988133932ac",
+      "bytes": 42538
+    },
+    {
+      "path": "kit/props/bench.json",
+      "sha256": "11badc4a9eb2c3f611504ffd19c464a33c275420380a227724f1b1e4d0097b8b",
+      "bytes": 11072
+    },
+    {
+      "path": "kit/props/book-stack-1.json",
+      "sha256": "1518cb7b90cce8fcebbf94e98d01d4f0d40347c72407b44f023f97b6e83a7a36",
+      "bytes": 6923
+    },
+    {
+      "path": "kit/props/bookcase-2.json",
+      "sha256": "e3d62779cab1aaa756e3f2b2846f168dd3b924428d28deabf77ba4b4a4af5a20",
+      "bytes": 52405
+    },
+    {
+      "path": "kit/props/bookgroup-medium-1.json",
+      "sha256": "df172f016908883eb8ecdff703a2fc8a1e0b48fdbe4c011c89b3e6eec5a16431",
+      "bytes": 13580
+    },
+    {
+      "path": "kit/props/bookstand.json",
+      "sha256": "89db8984440c95d56aa2ee54e839893e95fcf204a454ffa39a5e75021b25757c",
+      "bytes": 41103
+    },
+    {
+      "path": "kit/props/bottle-1.json",
+      "sha256": "2facb196178c36c7bf38ae1d7c8a3fc60a16d5f794d9c0f34d3b04a952fb2f56",
+      "bytes": 7991
+    },
+    {
+      "path": "kit/props/bucket-wooden-1.json",
+      "sha256": "49c6a75b4003d37a2335eb7bc3b63897e9e38ffbbbd2d7015a6903c568bb8212",
+      "bytes": 22792
+    },
+    {
+      "path": "kit/props/cabinet.json",
+      "sha256": "031d04cce6225c3a34a07ee8ce07958a1cbe196f37db173c1ce744f56db65e99",
+      "bytes": 63145
+    },
+    {
+      "path": "kit/props/candlestick-stand.json",
+      "sha256": "507a9e3e6a8f4baa1f3d1b7d916764560965f522803f095fbfcb4a9e61d9432c",
+      "bytes": 129545
+    },
+    {
+      "path": "kit/props/candlestick-triple.json",
+      "sha256": "ddfc573bb964ba1360d99b3eedd536a8d9b5dcc1f9b5c96691bdfd24dfb50b45",
+      "bytes": 52814
+    },
+    {
+      "path": "kit/props/cauldron.json",
+      "sha256": "1299040ddf3116f639febb10d23636bdc82347cb71ae72bd5ea5b70658c75080",
+      "bytes": 43833
+    },
+    {
+      "path": "kit/props/chair-1.json",
+      "sha256": "d98ff53883053ba59f53d80f82c931ce03a35a21a00590d60d2e9bfbc163cfcc",
+      "bytes": 15378
+    },
+    {
+      "path": "kit/props/chandelier.json",
+      "sha256": "4bda561d929b43262037076c1fc162d9890201a1a50125b2a9b8990853ed2c3f",
+      "bytes": 147021
+    },
+    {
+      "path": "kit/props/chest-wood.json",
+      "sha256": "1b5a8a2f2ec0c4aa62635fa9207f34f75560c5520a08dcb0a2f7bc2e24ad8a2d",
+      "bytes": 76356
+    },
+    {
+      "path": "kit/props/coin-pile.json",
+      "sha256": "f548cb582eb048e0064806bac8ce20fcca18b55279114f12f6ce1b6896ad5cbb",
+      "bytes": 26045
+    },
+    {
+      "path": "kit/props/crate-wooden.json",
+      "sha256": "e66fdf68ba531a6053552ef150726127114e48d4a00cf20a3259e961f1308fa7",
+      "bytes": 37854
+    },
+    {
+      "path": "kit/props/dummy.json",
+      "sha256": "4eebf50da2114407dcbf37bd49031e82d243daf82316b5ac4f57ca86d85cebdd",
+      "bytes": 58225
+    },
+    {
+      "path": "kit/props/farmcrate-apple.json",
+      "sha256": "4aed7579c51e711061ab2c4d105bed49c6892c76cbb872bf1279a0ae230786a0",
+      "bytes": 80811
+    },
+    {
+      "path": "kit/props/farmcrate-carrot.json",
+      "sha256": "d9923f370fc85e804446d5a31d10077c1a68e374d37bbb066e8490b391241305",
+      "bytes": 117721
+    },
+    {
+      "path": "kit/props/index.json",
+      "sha256": "8f721d92439dc06f6ae81396f8da9506e505be68737f28691a4d945fedcc2c2a",
+      "bytes": 5524
+    },
+    {
+      "path": "kit/props/lantern-wall.json",
+      "sha256": "6ed0ac90abaaf335339e0c40ab0e485a47b3c1398fd8e8d1fc9ca3b10df0193d",
+      "bytes": 78686
+    },
+    {
+      "path": "kit/props/mug.json",
+      "sha256": "b52444ef29faf0b889561298146e6b8188ea71b63ed2d452e6ff2c6e679e6937",
+      "bytes": 8564
+    },
+    {
+      "path": "kit/props/nightstand-shelf.json",
+      "sha256": "852200bcad0e03ed40ff9d5e0f42bb11d131d04be8100431b88df5127e885a2a",
+      "bytes": 10968
+    },
+    {
+      "path": "kit/props/peg-rack.json",
+      "sha256": "97817b4372313cfaefbe22fe1137a6a9a191bb2e08ce320f984de2619c3ddbc1",
+      "bytes": 18351
+    },
+    {
+      "path": "kit/props/pot-1.json",
+      "sha256": "d3c0bb30f08efa66a017411c402272dce6768a3a8c1842f62619f2b1454e6d56",
+      "bytes": 25460
+    },
+    {
+      "path": "kit/props/prop-crate.json",
+      "sha256": "e2799b9df512e8d0e7b1955752fd3fb9cd6fd90a7dde30c46eceac2dd20f34c2",
+      "bytes": 10069
+    },
+    {
+      "path": "kit/props/prop-wagon.json",
+      "sha256": "f638c76a73a236435e874b55c500f1c8bccbe0e59da3fe3bde040c1237468cd2",
+      "bytes": 54045
+    },
+    {
+      "path": "kit/props/prop-woodenfence-extension1.json",
+      "sha256": "af5f5171781294b5a22a62c21898475cd18af7689d847c3c61048c0654504458",
+      "bytes": 1622
+    },
+    {
+      "path": "kit/props/prop-woodenfence-single.json",
+      "sha256": "15f3189a3f7e9983e0c4154636ab0c322c2bd92a273e357142892214fbd597aa",
+      "bytes": 1961
+    },
+    {
+      "path": "kit/props/shelf-simple.json",
+      "sha256": "8b98061b07bf1a686c2e885e3fac2815d940e33ca7eb854c137c69decc250f51",
+      "bytes": 14471
+    },
+    {
+      "path": "kit/props/shelf-small-bottles.json",
+      "sha256": "0aec9aa28f7c474a6d431218bba67cb6a3047cfb68ae5984de4df610f2711b9b",
+      "bytes": 128474
+    },
+    {
+      "path": "kit/props/stall-cart-empty.json",
+      "sha256": "5b79fa895167450e6824ab2584ec5b8c29db7bc0532acb599eabf348a6e64347",
+      "bytes": 109412
+    },
+    {
+      "path": "kit/props/stall-empty.json",
+      "sha256": "3e51e29cf20371de8abdc5481cbfd82a28e8269b0f04d3d8af95e09f0dbf4efb",
+      "bytes": 41344
+    },
+    {
+      "path": "kit/props/stool.json",
+      "sha256": "51cf7547d229466d7bdf83874bfc337d9f628db6e574956c04f9aedc5f7691cf",
+      "bytes": 6060
+    },
+    {
+      "path": "kit/props/t-trim-cloth-basecolor.webp",
+      "sha256": "1384d589bb0e3781bf928abcb907c57b6b31137ba454893c096f7e5d1e463639",
+      "bytes": 16888
+    },
+    {
+      "path": "kit/props/t-trim-furniture-basecolor.webp",
+      "sha256": "51a1958f03924302902445549a02300a566c6d22d897112d596eb947e10ff83d",
+      "bytes": 21116
+    },
+    {
+      "path": "kit/props/t-trim-metal-basecolor.webp",
+      "sha256": "e1991361b92c3f8b9c2359fff2a154b44370997c3240e30c39027a3e8e9a12db",
+      "bytes": 16558
+    },
+    {
+      "path": "kit/props/t-trim-props-basecolor.webp",
+      "sha256": "7e40395ccb932616c250b0b7467e4713db1b258d02482bdadb9c0438476b1eb4",
+      "bytes": 27378
+    },
+    {
+      "path": "kit/props/t-woodtrim-basecolor.webp",
+      "sha256": "224477f956a9fdb494721b043421156364b6d3d881fef832ba056cca5f8265fa",
+      "bytes": 19352
+    },
+    {
+      "path": "kit/props/table-large.json",
+      "sha256": "2522f48819e42598eb275bae8cd4218819156fe83046b894840e223ad3aa67f9",
+      "bytes": 30292
+    },
+    {
+      "path": "kit/props/table-plate.json",
+      "sha256": "1c799b06338fddb2e5b0822eab6a0d505bcb31bf68b904fbcb20783757893448",
+      "bytes": 4751
+    },
+    {
+      "path": "kit/props/torch-metal.json",
+      "sha256": "4a431dc5a4bece8d840bc0e45ffdb4f204932f5edb08d8083a7c133bed64272d",
+      "bytes": 26055
+    },
+    {
+      "path": "kit/props/vase-2.json",
+      "sha256": "50b4ea0616d5ff364f96c07befdd02e21def3b128cf9dd6ad257ca5902206071",
+      "bytes": 12680
+    },
+    {
+      "path": "kit/props/weaponstand.json",
+      "sha256": "bbf8863337fdb03e6f07607c96b591ff6af14211cdc08dd330db6f018f50efe4",
+      "bytes": 51758
+    },
+    {
+      "path": "kit/props/workbench-drawers.json",
+      "sha256": "72c2bf4303cdf283c64fc3e6ccaad9857c24ea36d75aa81ee8f1249919e58fc1",
+      "bytes": 9783
+    },
+    {
+      "path": "kit/props/workbench.json",
+      "sha256": "78a726ae3320a5c0b5279f5dd03ae075766479750a3c37b40d696efc8107cfe3",
+      "bytes": 35380
     }
   ],
   "permissions": [
