@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.27",
+          "date": "2026-11-08",
+          "notes": "- Townsfolk hold real little conversations with each other, taking turns, warmer between friends and family and short between enemies.\n- Talking to someone: they greet you by how they feel about you, and you can pick what to say (how they are, news, about them, somewhere to eat, goodbye) or type your own.\n- Lit windows at night, smoke rising from chimneys, striped awnings over shops, and signs hanging out over the street on painted boards.\n- Settings: walk speed and run speed are separate sliders.\n- Best friends look further for each other, so they meet up more often.",
+          "highlight": false
+        },
+        {
           "version": "0.4.26",
           "date": "2026-11-08",
           "notes": "- Doors, caves and the fountain open a card of things to do (go in, knock, toss a coin…), a box for your own line, and who comes along. Choosing sets up a scene for the AI part to play out; recent ones show in the Journal.\n- Iron lamp posts with glass lanterns that glow at night, pool light on the cobbles and light the streets near you.\n- A stone fountain with a tiered bowl and water falling into the basin.\n- Name tags are tinted by how each person sees you: red for enemies, green for friends, pink for romance, grey to yellow as acquaintances get to know you, deeper the stronger it is.\n- A Lore button shows the lore active where you are, with its text. In Places, choose which lorebooks to list, each folding open to its entries.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.8",
           "date": "2026-11-08",
           "notes": "- People without a 3D model are now dressed: a peasant or ranger outfit in one of two colourways, a hairstyle (and sometimes a beard), skin and hair tones and a height, all chosen from their name, from Quaternius's free character packs (public domain). They walk and sit with the recorded animations.\n- Settings → People without a model switches back to the simple built-in look, which is lighter on slow devices.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.7",
-          "date": "2026-11-08",
-          "notes": "- Recorded animations: walking, running, standing, sitting down and up, and talking now play motion from Quaternius's free Universal Animation Library (public domain), on every model. Feet stay planted at any speed, and waving and looking at people still play on top. Settings → Animation switches back to the hand-made motion.\n- Walking is now 1.4 m/s, a natural pace for the recorded walk; raise it in Settings if you like.",
           "highlight": false
         }
       ]
