@@ -39,16 +39,25 @@ function ago(time) {
 /**
  * `handlers`: list() → saved worlds, last() → the last played or null, onPlay(id), onCreate({ name, seed }),
  * onRename(id, name), onDelete(id), onSettings(), suggestName() → a name for a new world.
- * `background`: an image URL for the backdrop, or null for the painted gradient.
+ * `art`: { background, portrait (the backdrop on tall screens), logo } image URLs, or null for the painted
+ * gradient and a lettered title.
  */
-export function createMenu(layer, handlers, background = null) {
+export function createMenu(layer, handlers, art = null) {
   const screen = element(
     "div",
     "position:absolute;inset:0;display:none;align-items:center;justify-content:flex-start;padding:0 6vw;" +
       `font-family:${FONT};pointer-events:auto;background:linear-gradient(180deg,#9cc4e4 0%,#e8d9b8 62%,#9fbf7c 100%) center/cover;`,
   );
   screen.setAttribute("data-wanderworld-ui", "");
-  if (background) screen.style.backgroundImage = `url("${background}")`;
+  // The painted backdrop, the tall one on a phone held upright; the gradient shows until it loads.
+  const tall = window.matchMedia?.("(orientation: portrait)");
+  const backdrop = () => {
+    const url = tall?.matches ? art?.portrait : art?.background;
+    if (url)
+      screen.style.backgroundImage = `url("${url}"), linear-gradient(180deg,#9cc4e4 0%,#e8d9b8 62%,#9fbf7c 100%)`;
+  };
+  backdrop();
+  tall?.addEventListener?.("change", backdrop);
   const column = element(
     "div",
     "display:flex;flex-direction:column;gap:14px;align-items:stretch;width:min(420px,100%);",
@@ -58,9 +67,16 @@ export function createMenu(layer, handlers, background = null) {
     `font:800 clamp(34px,6vw,58px) Georgia,"Times New Roman",serif;color:#fff8e6;text-shadow:0 3px 14px rgba(40,25,10,0.55);letter-spacing:0.5px;`,
     "Wanderworld",
   );
+  // The carved logo in place of the lettering, once it has loaded.
+  if (art?.logo) {
+    const logo = element("img", "width:min(460px,100%);height:auto;filter:drop-shadow(0 4px 14px rgba(30,18,6,0.45));");
+    logo.alt = "Wanderworld";
+    logo.addEventListener("load", () => title.replaceWith(logo));
+    logo.src = art.logo;
+  }
   const tagline = element(
     "div",
-    "font:500 15px system-ui,sans-serif;color:#fff8e6;text-shadow:0 1px 6px rgba(0,0,0,0.5);margin-top:-8px;",
+    "font:600 15px system-ui,sans-serif;color:#fff8e6;text-shadow:0 1px 3px rgba(0,0,0,0.85),0 0 14px rgba(0,0,0,0.5);margin-top:-8px;",
     "Your characters, living their days in a world of their own.",
   );
   const card = element("div", PANEL);

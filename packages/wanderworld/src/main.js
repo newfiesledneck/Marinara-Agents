@@ -59,6 +59,8 @@ const NEARBY = 12; // metres: who counts as nearby
 const ZONE_SETTLE = 0.6; // seconds in a new place before its name shows
 const THUMBNAIL = { width: 192, height: 108 };
 const THUMBNAIL_EVERY = 90; // seconds between thumbnail refreshes while playing
+const ART = "/api/capability-packages/wanderworld/assets/kit/art/"; // the menu and loading art
+const BUILD_WAIT = 10; // seconds the loading screen waits at most for the detailed kit
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
 const NO_INPUT = { x: 0, y: 0, amount: 0, run: false, yaw: 0, pitch: 0, zoom: 0 };
@@ -92,6 +94,7 @@ const core = {
   space: null, // the town, or the interior the player is in
   interior: null, // { door, room } while inside a building
   sceneDoor: null, // the door whose card is showing
+  worldLoad: 0, // counts world loads, so a slow one that was replaced doesn't show itself
   saves: createSaves(),
   save: null, // the world being played (saves.js record)
   menu: null,
@@ -329,23 +332,28 @@ function buildWorld(seed, place = null) {
   savePlace(true);
   // Detailed trees, rocks and plants arrive when the kit has loaded; until then (or without it) the
   // simple ones stand in.
+  const loads = [];
   if (core.settings.nature) {
     const world = core.world;
-    kitModels("nature", NATURE_MODELS)
-      .then((models) => {
-        if (core.world === world) world.addNature(models);
-      })
-      .catch((error) => console.warn("[wanderworld] detailed nature failed to load", error));
+    loads.push(
+      kitModels("nature", NATURE_MODELS)
+        .then((models) => {
+          if (core.world === world) world.addNature(models);
+        })
+        .catch((error) => console.warn("[wanderworld] detailed nature failed to load", error)),
+    );
   }
   if (core.settings.buildings) {
     const world = core.world;
-    kitModels("village", HOUSE_PIECES)
-      .then((models) => {
-        if (core.world !== world) return;
-        world.addBuildings(models);
-        placeSigns();
-      })
-      .catch((error) => console.warn("[wanderworld] detailed buildings failed to load", error));
+    loads.push(
+      kitModels("village", HOUSE_PIECES)
+        .then((models) => {
+          if (core.world !== world) return;
+          world.addBuildings(models);
+          placeSigns();
+        })
+        .catch((error) => console.warn("[wanderworld] detailed buildings failed to load", error)),
+    );
     // Cobbled roads and brick paving, in the same kit's textures.
     core.world.addGround({
       road: kitTexture("village", "t-unevenbrick-basecolor"),
@@ -354,12 +362,15 @@ function buildWorld(seed, place = null) {
   }
   if (core.settings.props) {
     const world = core.world;
-    kitModels("props", TOWN_PROPS)
-      .then((models) => {
-        if (core.world === world) world.addProps(models);
-      })
-      .catch((error) => console.warn("[wanderworld] detailed props failed to load", error));
+    loads.push(
+      kitModels("props", TOWN_PROPS)
+        .then((models) => {
+          if (core.world === world) world.addProps(models);
+        })
+        .catch((error) => console.warn("[wanderworld] detailed props failed to load", error)),
+    );
   }
+  return Promise.allSettled(loads);
 }
 
 /** Where the player is now, as buildWorld takes a remembered spot. */
@@ -459,15 +470,29 @@ function playWorld(id) {
     null;
   core.hud?.setPersonas(core.personas ?? [], persona?.id, core.bodies);
   void choosePersona(persona?.id ?? null);
-  buildWorld(save.seed, checkedPlace(save.place));
-  updateCast();
-  core.crowd.restoreParty(save.party, core.player.position);
-  resume();
+  // The loading screen first (building blocks for a moment), then the world, shown once its detailed
+  // trees, buildings and props are in (or after a while regardless).
+  core.menu?.hide();
+  core.hud?.setLoading(`Building ${save.name}…`);
+  const load = ++core.worldLoad;
+  setTimeout(() => {
+    if (load !== core.worldLoad) return;
+    const detail = buildWorld(save.seed, checkedPlace(save.place));
+    updateCast();
+    core.crowd.restoreParty(save.party, core.player.position);
+    const shown = () => {
+      if (load !== core.worldLoad) return;
+      core.hud?.setLoading(null);
+      resume();
+    };
+    Promise.race([detail, new Promise((done) => setTimeout(done, BUILD_WAIT * 1000))]).then(shown);
+  }, 60);
 }
 
 function resume() {
   core.menu?.hide();
   core.hud?.setMenuOpen(false);
+  if (core.input) core.input.stickElement.style.visibility = "";
   core.paused = false;
   core.lastTime = 0;
 }
@@ -478,6 +503,7 @@ function openMenu() {
   if (core.save && core.world) savePlace(true, captureThumbnail());
   core.paused = true;
   core.hud?.setMenuOpen(true);
+  if (core.input) core.input.stickElement.style.visibility = "hidden"; // no walking stick over the menu
   core.menu?.show();
 }
 
@@ -1572,6 +1598,7 @@ function attach(element) {
       use();
     },
     maxPeople: MAX_PEOPLE,
+    loadingArt: `${ART}loading-bg.webp`,
   });
   core.talk = createTalk(core.hud.layer, { onSend: say, onLeave: endTalk, onParty: toggleParty });
   core.input = createInput();
@@ -1589,19 +1616,27 @@ function attach(element) {
       'Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called "graphics acceleration") in your browser\'s settings, then restart the browser.',
     );
   }
-  core.menu = createMenu(core.hud.layer, {
-    list: () => core.saves.list(),
-    last: () => core.saves.last(),
-    onPlay: playWorld,
-    onCreate: createNewWorld,
-    onRename: (id, name) => {
-      core.saves.rename(id, name);
-      if (core.save?.id === id) core.save = { ...core.save, name };
+  core.menu = createMenu(
+    core.hud.layer,
+    {
+      list: () => core.saves.list(),
+      last: () => core.saves.last(),
+      onPlay: playWorld,
+      onCreate: createNewWorld,
+      onRename: (id, name) => {
+        core.saves.rename(id, name);
+        if (core.save?.id === id) core.save = { ...core.save, name };
+      },
+      onDelete: deleteWorld,
+      onSettings: () => core.hud?.openSettings(),
+      suggestName,
     },
-    onDelete: deleteWorld,
-    onSettings: () => core.hud?.openSettings(),
-    suggestName,
-  });
+    {
+      background: `${ART}menu-bg.webp`,
+      portrait: `${ART}menu-bg-portrait.webp`,
+      logo: `${ART}logo.webp`,
+    },
+  );
   core.saves.migrate(); // the one world from before saves becomes the first saved world
   if (core.personas) {
     core.hud.setPersonas(core.personas, core.personaId, core.bodies);
