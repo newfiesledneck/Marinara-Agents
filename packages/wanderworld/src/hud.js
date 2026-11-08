@@ -10,6 +10,26 @@ const PANEL =
   "overflow-y:auto;min-width:220px;max-width:min(340px,calc(100% - 16px));padding:10px 12px;pointer-events:auto;font-size:13px;";
 const NARROW = "(max-width: 640px)";
 
+/** Auto / Male / Female: the default body for someone without a 3D model. */
+function bodyPicker(onChange) {
+  const select = document.createElement("select");
+  select.title = "Default body when there's no 3D model";
+  select.setAttribute("aria-label", "Default body");
+  select.style.cssText = "font:12px system-ui,sans-serif;border-radius:6px;border:0;padding:1px 2px;";
+  for (const [value, label] of [
+    ["auto", "Auto"],
+    ["male", "Male"],
+    ["female", "Female"],
+  ]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    select.append(option);
+  }
+  select.addEventListener("change", () => onChange(select.value));
+  return select;
+}
+
 function button(label, title, onClick) {
   const element = document.createElement("button");
   element.type = "button";
@@ -26,6 +46,7 @@ const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always 
 
 /**
  * `handlers`: onNewWorld, onToggleFullscreen, onPickPersona(id), onToggleCharacter(id, chosen),
+ * onSetBody(id, body),
  * onSetting(name, value), onUse(), and `maxPeople`.
  */
 export function createHud(root, handlers) {
@@ -57,8 +78,14 @@ export function createHud(root, handlers) {
   personaLabel.textContent = "Play as";
   const persona = document.createElement("select");
   persona.style.cssText = "font:13px system-ui,sans-serif;max-width:160px;border-radius:6px;border:0;padding:2px 4px;";
-  persona.addEventListener("change", () => handlers.onPickPersona(persona.value));
-  personaLabel.append(persona);
+  // Which default body the persona gets when it has no 3D model.
+  const personaBody = bodyPicker((body) => handlers.onSetBody(persona.value, body));
+  persona.addEventListener("change", () => {
+    handlers.onPickPersona(persona.value);
+    personaBody.value = bodies[persona.value] ?? "auto";
+  });
+  personaLabel.append(persona, personaBody);
+  let bodies = {};
 
   const panels = [];
   const togglePanel = (panel) => {
@@ -261,7 +288,8 @@ export function createHud(root, handlers) {
         : (control.enterLabel ?? "Fullscreen");
     },
     /** Fills the "Play as" menu; an empty list hides it. */
-    setPersonas(personas, selectedId) {
+    setPersonas(personas, selectedId, chosenBodies = {}) {
+      bodies = chosenBodies;
       persona.replaceChildren(
         ...personas.map((entry) => {
           const option = document.createElement("option");
@@ -271,10 +299,13 @@ export function createHud(root, handlers) {
         }),
       );
       persona.value = selectedId ?? "";
+      personaBody.value = bodies[selectedId] ?? "auto";
       personaLabel.style.display = personas.length ? "flex" : "none";
     },
-    /** Fills the People checklist; `chosen` is a Set of character ids. An empty list hides the button. */
-    setCharacters(characters, chosen) {
+    /** Fills the People checklist; `chosen` is a Set of character ids, `chosenBodies` their default bodies.
+     *  An empty list hides the button. */
+    setCharacters(characters, chosen, chosenBodies = {}) {
+      bodies = chosenBodies;
       peopleButton.style.display = characters.length ? "" : "none";
       peopleButton.textContent = chosen.size ? `People (${chosen.size})` : "People";
       peopleList.replaceChildren(
@@ -288,7 +319,10 @@ export function createHud(root, handlers) {
           box.addEventListener("change", () => handlers.onToggleCharacter(character.id, box.checked));
           const name = document.createElement("span");
           name.textContent = character.name;
-          entry.append(box, name);
+          name.style.flex = "1";
+          const body = bodyPicker((value) => handlers.onSetBody(character.id, value));
+          body.value = bodies[character.id] ?? "auto";
+          entry.append(box, name, body);
           return entry;
         }),
       );

@@ -107,7 +107,7 @@ export function createCrowd() {
     person.hasModel = !!model;
     if (!model && !dressPeople) return;
     try {
-      const character = model ? await loadModelCharacter(model) : await createPerson(person.name);
+      const character = model ? await loadModelCharacter(model) : await createPerson(person.name, person.body);
       if (people.get(person.id) !== person) {
         character.dispose();
         return;
@@ -118,10 +118,11 @@ export function createCrowd() {
     }
   }
 
-  function add({ id, name }) {
+  function add({ id, name, body = "auto" }) {
     const person = {
       id,
       name,
+      body, // "male", "female" or "auto": which default body they get without a 3D model
       group: new Group(),
       character: null,
       home: null,
@@ -552,7 +553,15 @@ export function createCrowd() {
     setCast(characters) {
       const wanted = new Map(characters.slice(0, MAX_PEOPLE).map((entry) => [entry.id, entry]));
       for (const id of [...people.keys()]) if (!wanted.has(id)) remove(id);
-      for (const entry of wanted.values()) if (!people.has(entry.id)) add(entry);
+      for (const entry of wanted.values()) {
+        const person = people.get(entry.id);
+        if (!person) add(entry);
+        else if ((entry.body ?? "auto") !== person.body) {
+          // A new body choice: redress them (only matters without their own 3D model).
+          person.body = entry.body ?? "auto";
+          if (!person.hasModel && dressPeople) void loadModel(person);
+        }
+      }
     },
     /**
      * Moves everyone on by `dt`. `view`: { player (position), space (where the player is: the town or a

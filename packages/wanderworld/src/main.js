@@ -48,6 +48,7 @@ const UI_SELECTOR = "button, select, input, label, textarea, form, [data-wanderw
 const PERSONA_KEY = "wanderworld.persona"; // this package's own browser storage keys
 const CAST_KEY = "wanderworld.cast";
 const PLACE_KEY = "wanderworld.place";
+const BODIES_KEY = "wanderworld.bodies"; // { [character or persona id]: "male" | "female" }
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
 const NO_INPUT = { x: 0, y: 0, amount: 0, run: false, yaw: 0, pitch: 0, zoom: 0 };
@@ -80,6 +81,7 @@ const core = {
   personaLoad: 0,
   characters: null, // [{ id, name }] from the Engine
   cast: new Set(), // the character ids living in town
+  bodies: {}, // chosen default bodies by id ("male" | "female"; missing means auto)
   crowd: createCrowd(),
   sound: createSound(),
   settings: loadSettings(),
@@ -353,7 +355,9 @@ async function choosePersona(id) {
   if (model) core.hud?.setStatus(`Loading ${persona.name}'s model…`);
   try {
     // Their own 3D model, or else a person dressed from the kit.
-    const character = model ? await loadModelCharacter(model) : await createPerson(persona?.name ?? "");
+    const character = model
+      ? await loadModelCharacter(model)
+      : await createPerson(persona?.name ?? "", core.bodies[persona?.id] ?? "auto");
     if (load !== core.personaLoad) {
       character.dispose();
       return;
@@ -367,12 +371,23 @@ async function choosePersona(id) {
 }
 
 function updateCast() {
-  const chosen = (core.characters ?? []).filter((character) => core.cast.has(character.id));
+  const chosen = (core.characters ?? [])
+    .filter((character) => core.cast.has(character.id))
+    .map((character) => ({ ...character, body: core.bodies[character.id] ?? "auto" }));
   core.crowd.setCast(chosen);
   core.crowd.setShadows(core.settings.shadows);
   core.crowd.setNamesVisible(core.settings.names);
-  core.hud?.setCharacters(core.characters ?? [], core.cast);
+  core.hud?.setCharacters(core.characters ?? [], core.cast, core.bodies);
   store(CAST_KEY, JSON.stringify([...core.cast]));
+}
+
+/** Sets which default body `id` (a character or persona) gets: "male", "female" or "auto". */
+function setBody(id, body) {
+  if (body === "male" || body === "female") core.bodies[id] = body;
+  else delete core.bodies[id];
+  store(BODIES_KEY, JSON.stringify(core.bodies));
+  if (id === core.personaId) void choosePersona(id);
+  else updateCast();
 }
 
 function toggleCharacter(id, chosen) {
@@ -394,12 +409,22 @@ async function loadPeople() {
   } catch {
     stored = []; // a damaged saved cast starts empty
   }
+  try {
+    const bodies = JSON.parse(readStored(BODIES_KEY) ?? "{}");
+    core.bodies = Object.fromEntries(
+      Object.entries(bodies && typeof bodies === "object" ? bodies : {}).filter(
+        ([, body]) => body === "male" || body === "female",
+      ),
+    );
+  } catch {
+    core.bodies = {}; // a damaged saved copy: everyone is auto
+  }
   const known = new Set(characters.map((character) => character.id));
   core.cast = new Set((Array.isArray(stored) ? stored : []).filter((id) => known.has(id)).slice(0, MAX_PEOPLE));
   updateCast();
   const remembered = readStored(PERSONA_KEY);
   const selected = personas.find((entry) => entry.id === remembered) ?? personas[0] ?? null;
-  core.hud?.setPersonas(personas, selected?.id);
+  core.hud?.setPersonas(personas, selected?.id, core.bodies);
   // The loading card stays up until the persona's own model is in, so the first view is the real one.
   const slow = setTimeout(() => core.hud?.setLoading(null), 10000);
   await choosePersona(selected?.id ?? null);
@@ -1036,6 +1061,7 @@ function attach(element) {
     onToggleFullscreen: toggleFullscreen,
     onPickPersona: (id) => void choosePersona(id),
     onToggleCharacter: toggleCharacter,
+    onSetBody: setBody,
     onSetting: changeSetting,
     onUse: () => {
       core.sound.unlock();
@@ -1065,8 +1091,8 @@ function attach(element) {
     buildWorld(place?.seed ?? core.seed, place);
   }
   if (core.personas) {
-    core.hud.setPersonas(core.personas, core.personaId);
-    core.hud.setCharacters(core.characters ?? [], core.cast);
+    core.hud.setPersonas(core.personas, core.personaId, core.bodies);
+    core.hud.setCharacters(core.characters ?? [], core.cast, core.bodies);
   } else {
     void loadPeople();
   }

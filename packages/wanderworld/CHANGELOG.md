@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.9 — 2026-11-08
+
+- Choose a body for each character in People, and for your persona next to Play as: Auto, Male or Female. It decides which default person they get when they have no 3D model, and is remembered. Later the AI will set it from the character card.
+
 ## 0.4.8 — 2026-11-08
 
 - People without a 3D model are now dressed: a peasant or ranger outfit in one of two colourways, a hairstyle (and sometimes a beard), skin and hair tones and a height, all chosen from their name, from Quaternius's free character packs (public domain). They walk and sit with the recorded animations.
