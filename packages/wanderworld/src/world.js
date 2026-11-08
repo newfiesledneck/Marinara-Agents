@@ -350,8 +350,9 @@ function placeBuilding(random, town, spec, x, z, facing) {
   const { geometry, doorX, footprint } = buildBuilding(random, spec);
   // The simple building goes into its own mesh, hidden once the village kit's version stands in its place.
   town.buildingPieces.push(geometry.rotateY((facing * Math.PI) / 2).translate(x, 0, z));
-  town.buildings.push({ spec, doorX, x, z, facing });
-  town.boxes.push(footprintBox(x, z, facing, footprint));
+  const outline = footprintBox(x, z, facing, footprint);
+  town.buildings.push({ spec, doorX, x, z, facing, box: outline });
+  town.boxes.push(outline);
   const d = spec.depth / 2;
   // Dark behind the doorway: unseen inside the simple building, it's what an open kit door shows.
   placeProp(
@@ -437,6 +438,7 @@ function placeBench(town, x, z, facing) {
  * the gate.
  */
 function placeGarden(random, town, x, z, size, facing) {
+  town.gardens.push({ x, z, size });
   const at = (lx, lz) => toWorld(x, z, facing, lx, lz);
   const turn = (facing * Math.PI) / 2;
   const half = size / 2;
@@ -523,6 +525,7 @@ function placeGarden(random, town, x, z, size, facing) {
 
 /** An empty block at the town's edge, left as a meadow: a few trees, wildflowers and long grass. */
 function placeMeadow(random, town, cx, cz) {
+  town.meadows.push({ x: cx, z: cz, half: BLOCK / 2 });
   const spot = (margin) => ({
     x: cx + (random() * 2 - 1) * (BLOCK / 2 - margin),
     z: cz + (random() * 2 - 1) * (BLOCK / 2 - margin),
@@ -629,6 +632,8 @@ function buildTown(random) {
     roadPieces: [],
     pavingPieces: [],
     waypoints: [],
+    gardens: [],
+    meadows: [],
     boxes: [],
     circles: [],
     doors: [],
@@ -774,6 +779,8 @@ function buildTown(random) {
     natureMesh,
     natureSlots: town.natureSlots,
     waypoints: town.waypoints,
+    gardens: town.gardens,
+    meadows: town.meadows,
     roads: groundMesh(town.roadPieces, ROAD_TILE),
     paving: groundMesh(town.pavingPieces, PAVING_TILE),
     buildings: town.buildings,
@@ -878,6 +885,26 @@ function scatter(random, count, scaleMin, scaleRange) {
     points.push({ x, z, scale: scaleMin + random() * scaleRange, turn: random() * Math.PI * 2, tint: random() });
   }
   return points;
+}
+
+/** Each street: one strip per grid line in each direction, with an id that stays the same. */
+function streetStrips() {
+  const length = BLOCKS_PER_SIDE * PITCH + STREET;
+  const strips = [];
+  for (let i = 0; i <= BLOCKS_PER_SIDE; i++) {
+    const line = (i - BLOCKS_PER_SIDE / 2) * PITCH;
+    // The street with its sidewalks and doorsteps: someone at a front door is on the street.
+    const across = { min: line - STREET / 2 - 2.5, max: line + STREET / 2 + 2.5 };
+    strips.push({
+      id: `street:x${i}`,
+      box: { minX: -length / 2, maxX: length / 2, minZ: across.min, maxZ: across.max },
+    });
+    strips.push({
+      id: `street:z${i}`,
+      box: { minX: across.min, maxX: across.max, minZ: -length / 2, maxZ: length / 2 },
+    });
+  }
+  return strips;
 }
 
 function streetWaypoints() {
@@ -1309,6 +1336,17 @@ export function createWorld(seed) {
     clearSight,
     dispose,
     buildingCount: town.buildings.length,
+    /** The town's plan for naming places (zones.js): buildings (door i is building i), gardens, meadows,
+     *  streets and the square. */
+    layout: {
+      townHalf: TOWN_HALF,
+      plaza: { x: 0, z: 0, half: BLOCK / 2 },
+      fountainRadius: FOUNTAIN_RADIUS,
+      streets: streetStrips(),
+      buildings: town.buildings.map((building) => ({ kind: building.spec.kind, box: building.box })),
+      gardens: town.gardens,
+      meadows: town.meadows,
+    },
     /** Each building's door: `x`/`z` is where to stand to use it, `step` the doorway, `open` 0–1. */
     doors,
     /** Bench seats: { x, z, angle, approach, height, taken }. */

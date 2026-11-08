@@ -1,6 +1,7 @@
 // The overlay on top of the world: a title bar with the game's buttons (folded into a menu on narrow
 // screens), the People and Settings panels, a performance readout, a clock, the "use" prompt, a controls
 // hint, a status line and a loading screen. Only controls take pointer events; the rest lets touches through.
+import { createJournal } from "./journal.js";
 import { SETTINGS } from "./settings.js";
 
 const CHIP = "background:rgba(10,14,20,0.62);color:#f3f5f7;border-radius:8px;padding:4px 10px;";
@@ -45,9 +46,9 @@ const DISTANCE_LABELS = { 90: "Near", 140: "Medium", 200: "Far" };
 const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always night" };
 
 /**
- * `handlers`: onNewWorld, onToggleFullscreen, onPickPersona(id), onToggleCharacter(id, chosen),
- * onSetBody(id, body),
- * onSetting(name, value), onUse(), and `maxPeople`.
+ * `handlers`: onMenu, onToggleFullscreen, onPickPersona(id), onToggleCharacter(id, chosen),
+ * onSetBody(id, body), onSetting(name, value), onUse(), onRenameZone(id, name), onZoneLore(id), and
+ * `maxPeople`.
  */
 export function createHud(root, handlers) {
   const { maxPeople } = handlers;
@@ -64,6 +65,10 @@ export function createHud(root, handlers) {
   const clock = document.createElement("div");
   clock.style.cssText = `${CHIP}font:12px ui-monospace,monospace;`;
   clock.title = "Time of day in town";
+  // Where you are: the place, and the lore active there.
+  const place = document.createElement("div");
+  place.style.cssText = `${CHIP}font-size:12px;display:none;max-width:min(360px,60vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+  place.title = "Where you are, and the lore that's active here";
   const stats = document.createElement("div");
   stats.style.cssText = `${CHIP}font:12px ui-monospace,monospace;white-space:nowrap;`;
   stats.title = "Frame rate, draw calls, triangles and render resolution";
@@ -204,10 +209,19 @@ export function createHud(root, handlers) {
   toggle("hint", "Controls hint");
   toggle("stats", "Frame rate");
 
-  const fresh = button("New world", "Walk a different seeded world", handlers.onNewWorld);
+  // The Journal: where everyone is, places and their lore.
+  const journal = createJournal(PANEL, {
+    onRename: (id, name) => handlers.onRenameZone(id, name),
+    onLore: (id) => handlers.onZoneLore(id),
+  });
+  panels.push(journal.panel);
+  const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>
+    togglePanel(journal.panel),
+  );
+  const fresh = button("Menu", "Save and go back to the main menu", handlers.onMenu);
   const fullscreen = button("Fullscreen", "Fill the screen with the world", handlers.onToggleFullscreen);
   fullscreen.style.display = "none";
-  controls.append(personaLabel, peopleButton, settingsButton, fresh, fullscreen);
+  controls.append(personaLabel, peopleButton, journalButton, settingsButton, fresh, fullscreen);
 
   const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
   menuButton.setAttribute("aria-label", "Menu");
@@ -227,7 +241,7 @@ export function createHud(root, handlers) {
   const onNarrow = () => setMenu(false);
   narrow.addEventListener?.("change", onNarrow);
   setMenu(false);
-  top.append(title, clock, stats, spacer, menuButton, controls);
+  top.append(title, clock, place, stats, spacer, menuButton, controls);
 
   // The "use" prompt over whatever you could use, and on touch screens a Use button by the stick.
   const prompt = document.createElement("div");
@@ -286,7 +300,28 @@ export function createHud(root, handlers) {
   sceneButtons.append(sceneStart, sceneClose);
   scene.append(sceneTitle, scenePeople, sceneNote, sceneButtons);
 
-  layer.append(top, peoplePanel, settingsPanel, notice, scene, prompt, use, hint, status, fade, loading);
+  // A place's name, large for a moment, on walking into it.
+  const zoneTitle = document.createElement("div");
+  zoneTitle.style.cssText =
+    "position:absolute;top:18%;left:50%;transform:translateX(-50%);font:700 clamp(22px,3.4vw,34px) Georgia,'Times New Roman',serif;" +
+    "color:#fff8e6;text-shadow:0 2px 10px rgba(0,0,0,0.6);opacity:0;transition:opacity 0.6s;pointer-events:none;text-align:center;white-space:nowrap;";
+  let zoneTimer = 0;
+
+  layer.append(
+    top,
+    peoplePanel,
+    journal.panel,
+    settingsPanel,
+    notice,
+    scene,
+    prompt,
+    use,
+    hint,
+    zoneTitle,
+    status,
+    fade,
+    loading,
+  );
   root.append(layer);
 
   return {
@@ -362,6 +397,37 @@ export function createHud(root, handlers) {
       prompt.textContent = `E  ${label}`;
       prompt.style.left = `${x}px`;
       prompt.style.top = `${y}px`;
+    },
+    /** The place line: `text` ("Briarwood · Mill Lane") and the titles of the lore active there. */
+    setPlace(text, lore = []) {
+      place.style.display = text ? "" : "none";
+      place.textContent = lore.length ? `${text} · 📜 ${lore.join(", ")}` : text;
+    },
+    /** Shows a place's name large for a few seconds. */
+    showZone(name) {
+      zoneTitle.textContent = name;
+      zoneTitle.style.opacity = "1";
+      clearTimeout(zoneTimer);
+      zoneTimer = setTimeout(() => (zoneTitle.style.opacity = "0"), 2600);
+    },
+    journal,
+    /** Opens or closes the Journal. */
+    toggleJournal() {
+      togglePanel(journal.panel);
+    },
+    /** Opens the Settings panel (from the main menu). */
+    openSettings() {
+      if (settingsPanel.style.display === "none") togglePanel(settingsPanel);
+    },
+    /** While the main menu is up: the bar, hint and panels go. */
+    setMenuOpen(open) {
+      top.style.display = open ? "none" : "flex";
+      hint.style.visibility = open ? "hidden" : "";
+      for (const panel of panels) panel.style.display = "none";
+      if (open) {
+        scene.style.display = "none";
+        zoneTitle.style.opacity = "0";
+      }
     },
     /** The card for a building: { title, people: [names] }, or null to close it. */
     setScene(info) {
