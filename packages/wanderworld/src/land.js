@@ -292,9 +292,14 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     return null;
   }
 
+  /** Where someone stands at (x, z): on a bridge's deck where there is one, else on the ground. */
   function heightAt(x, z) {
     const deck = bridges.length ? onBridge(x, z) : null;
-    if (deck !== null) return deck;
+    return deck !== null ? deck : groundAt(x, z);
+  }
+
+  /** The ground itself at (x, z): under a bridge it's the riverbed, with the water over it. */
+  function groundAt(x, z) {
     let height = natural(x, z);
     // Level ground round inns and cottages; a cave's hill rises behind its mouth.
     for (const outpost of outposts) {
@@ -378,6 +383,21 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
   return {
     landscape,
     heightAt,
+    groundAt,
+    /** How far (x, z) is from the river's banks: 0 or less in the riverbed, Infinity with no river. */
+    toRiverBank: (x, z) =>
+      river && inBounds(river.bounds, x, z) ? toLine(river.points, x, z).distance - river.width / 2 : Infinity,
+    /** Whether (x, z) is on (or within `margin` of) a bridge's deck. */
+    onBridge: (x, z, margin = 0) =>
+      bridges.some((bridge) => {
+        const [ax, az] = bridge.along;
+        const rx = x - bridge.x;
+        const rz = z - bridge.z;
+        return (
+          Math.abs(rx * ax + rz * az) <= bridge.length / 2 + margin &&
+          Math.abs(-rx * az + rz * ax) <= BRIDGE_HALF_WIDTH + margin
+        );
+      }),
     clear,
     waterCircles,
     river,

@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.4.21",
+  "version": "0.4.22",
   "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
   "engine": {
     "min": "2.4.4",
@@ -38,9 +38,11 @@
       "paths": [
         "kit/art/cliff-rock.webp",
         "kit/art/ground-dirt.webp",
+        "kit/art/ground-forest.webp",
         "kit/art/ground-grass.webp",
         "kit/art/ground-riverbed.webp",
         "kit/art/ground-rock.webp",
+        "kit/art/ground-snow.webp",
         "kit/art/loading-bg.webp",
         "kit/art/logo.webp",
         "kit/art/menu-bg-portrait.webp",
@@ -230,8 +232,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "3527021777d4671d3f0ecea4da3611fb88b4a8966602ea24c12b3f60fe1f3def",
-      "bytes": 1438996
+      "sha256": "d32d5bd206b5b3a7a4a45e5deafaa5149a1117f141f0e363122c50c1475ae675",
+      "bytes": 1440479
     },
     {
       "path": "wanderworld-icon.webp",
@@ -249,6 +251,11 @@
       "bytes": 146640
     },
     {
+      "path": "kit/art/ground-forest.webp",
+      "sha256": "04c9771a0816f0d35caf46169ccf245935fe09c19e685738365a82ac716a3588",
+      "bytes": 281656
+    },
+    {
       "path": "kit/art/ground-grass.webp",
       "sha256": "58ab5b0a305c9c726be604ad830c8d404aff312ea97b869df11dbea8e4ff6820",
       "bytes": 262932
@@ -262,6 +269,11 @@
       "path": "kit/art/ground-rock.webp",
       "sha256": "9a4a5e9aa6f4de587d2dc3655a84f56c75c0965c18dbd62ac318c4e9f2de4d21",
       "bytes": 173314
+    },
+    {
+      "path": "kit/art/ground-snow.webp",
+      "sha256": "7b4d75a8eb7b7c5ba6071ff13e97e61d77ed27e794887d4606e2a503a50e0a96",
+      "bytes": 14868
     },
     {
       "path": "kit/art/loading-bg.webp",

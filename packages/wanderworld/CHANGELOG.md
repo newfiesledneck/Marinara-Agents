@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.22 — 2026-11-08
+
+- Leaves and needles under thick stands of trees, and painted snow on the high peaks.
+- Bridges cross over the water: the river and its bed run underneath, and the dirt road stops at each end.
+- Sand and mud only along the river now, not in every hollow of the hills.
+
 ## 0.4.21 — 2026-11-08
 
 - A noticeboard on the market square: read the town's notes, and pin up your own (they're saved with the world). Quests and news from the AI will go here later.
