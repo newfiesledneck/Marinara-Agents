@@ -33,6 +33,37 @@ const FOLLOW_RUN = 3.5; // further behind than this: run to catch up
 const RUN_SPEED = 4.8;
 const FOLLOW_LOST = 35; // further than this (or stuck a while): catch up out of sight
 const FOLLOW_SEAT = 9; // metres from a seated player a follower looks for a seat
+// Getting on with each other (relationships.js): who seeks out whom, who keeps away.
+const SOCIAL_SEARCH = 35; // metres within which someone looks for company
+const SOCIAL_CHANCE = 0.35; // of a new plan being to see someone
+const CHAT_SECONDS = [10, 22];
+const TOGETHER = 0.45; // warmth at which two who've chatted go and sit or walk together
+const AVOID_DISTANCE = 7; // metres: someone they dislike this close, they move off
+const AVOID_WARMTH = -0.3;
+const GREET_DISTANCE = 9; // metres: someone fond of the player comes over to say hello
+const GREET_WARMTH = 0.35;
+const GREET_AGAIN = 150; // seconds
+const HOSTILE_WARMTH = -0.85; // a sworn enemy confronts the player
+const BUBBLE_DISTANCE = 18; // metres from the player within which townsfolk's chatter shows
+/** Placeholder chatter until the AI writes it (docs/CONCEPT.md, S5), by how warm the two are. */
+const CHATTER = {
+  cold: ["Hmph.", "Oh. It's you.", "Can't stop, sorry."],
+  neutral: [
+    "Morning.",
+    "Busy day at the market.",
+    "Did you hear the news?",
+    "Looks like rain later.",
+    "How's the family?",
+  ],
+  warm: [
+    "There you are!",
+    "You have to hear this…",
+    "Ha! Best thing I've heard all week.",
+    "Same time at the tavern tonight?",
+  ],
+  close: ["I was hoping I'd see you.", "Walk with me?", "Missed you today.", "Come and sit with me a while."],
+  family: ["Don't forget supper tonight.", "Mum's asking after you.", "You look tired. Eating properly?"],
+};
 const NIGHT_FROM = 21;
 const NIGHT_TO = 6.5;
 
@@ -79,6 +110,12 @@ export function createCrowd() {
   let shadowsVisible = true;
   let dressPeople = true; // people without a model get a kit person (people.js), else the simple figure
   let clock = 0;
+  let viewNow = null; // the last frame's view, for steps that speak
+  // How one person sees another (relationships.js feeling()): { kind, level, warmth }. "player" is the
+  // persona being played. Until a world gives one, everyone is a neighbour.
+  let feeling = () => ({ kind: "acquaintance", level: 20, warmth: 0.12 });
+  // Each person's temperament (relationships.js): aggression and sociability, 0–100.
+  let traitsOf = () => ({ aggression: 50, sociability: 50 });
   const party = []; // ids of followers, in order (their place in the line)
 
   /** Where someone is standing now: the town or the room. */
@@ -148,6 +185,12 @@ export function createCrowd() {
       visitUntil: 0, // no going indoors again before this
       lastWave: -Infinity,
       following: false, // in the party: walks with the player instead of following a plan
+      partner: null, // the person they're chatting with, or meeting, or sitting or walking alongside
+      chatUntil: 0,
+      nextLine: 0, // when they next say something in a chat
+      socialUntil: 0, // no seeking company again before this
+      greetedAt: -Infinity, // when they last came over to greet the player
+      watchAt: 0, // when they next look round for people to greet or avoid
       waiting: null, // in the party but told to wait here: { x, z }
       speaking: false,
       animate: 0, // seconds of animation owed while updates are spaced out
@@ -264,6 +307,13 @@ export function createCrowd() {
       return;
     }
     if (isNight(hour) && person.home) return goInto(person, person.home, Infinity);
+    if (
+      clock > person.socialUntil &&
+      // a shy person seeks company half as often as most, an outgoing one half as often again
+      person.random() < SOCIAL_CHANCE * (0.5 + traitsOf(person.id).sociability / 100) * (1 + warmestFriend(person)) &&
+      seekCompany(person)
+    )
+      return;
     const home = person.home ?? { x: 0, z: 0 };
     const roll = person.random();
     if (roll < 0.3 && clock > person.restUntil) {
@@ -292,6 +342,254 @@ export function createCrowd() {
     person.plan = [{ wait: 2 }];
   }
 
+  // ── Company ──
+
+  /** Whether someone is free to be sought out: out in town, not busy with the player or anyone else. */
+  const available = (other) =>
+    other.space === world && !other.following && !other.partner && (other.state === "idle" || other.state === "walk");
+
+  /**
+   * Looks for someone to see, warmer company more likely: walks over to them (they wait), and they chat.
+   * Returns true when a plan was made.
+   */
+  function seekCompany(person) {
+    const here = person.group.position;
+    const choices = [];
+    let total = 0;
+    for (const other of people.values()) {
+      const seated =
+        other.state === "sit" && other.seat && !other.together && other.space === world && clock > person.restUntil;
+      if (other === person || (!available(other) && !seated)) continue;
+      const distance = Math.hypot(other.group.position.x - here.x, other.group.position.z - here.z);
+      const warmth = feeling(person.id, other.id).warmth;
+      // Friends look further for each other, and much prefer each other's company to a passing neighbour's.
+      if (distance > SOCIAL_SEARCH * (1 + Math.max(0, warmth))) continue;
+      const weight = Math.max(0, warmth + 0.12) ** 2;
+      if (weight <= 0) continue;
+      choices.push([other, weight]);
+      total += weight;
+    }
+    if (!choices.length) return false;
+    let at = person.random() * total;
+    const [other] = choices.find(([, weight]) => (at -= weight) <= 0) ?? choices[0];
+    if (other.state === "sit") {
+      // Sitting: join them on their bench, when the seat beside them is free.
+      const index = world.seats.indexOf(other.seat);
+      const beside = world.seats[index ^ 1];
+      if (!beside || beside.taken) return false;
+      takeSeat(person, beside, Math.max(10, other.wait));
+      person.together = other;
+      other.together = person;
+      person.socialUntil = clock + 60 + person.random() * 60;
+      return true;
+    }
+    // They wait where they are, turned to the one coming over.
+    person.partner = other;
+    other.partner = person;
+    other.plan = [{ wait: 40 }];
+    other.state = "idle";
+    other.wait = 40;
+    leaveSeat(other);
+    const there = other.group.position;
+    const away = Math.hypot(here.x - there.x, here.z - there.z) || 1;
+    person.plan = [
+      {
+        walk: { x: there.x + ((here.x - there.x) / away) * 1.15, z: there.z + ((here.z - there.z) / away) * 1.15 },
+        direct: away < 14, // close by: straight over; further: by the streets
+      },
+      { chat: other },
+    ];
+    person.socialUntil = clock + 60 + person.random() * 60;
+    return true;
+  }
+
+  /** How warm someone is toward the person they like best in town (0 when there's nobody special). */
+  function warmestFriend(person) {
+    let best = 0;
+    for (const other of people.values())
+      if (other !== person) best = Math.max(best, feeling(person.id, other.id).warmth);
+    return best;
+  }
+
+  /** Two people stop and chat for a while, facing each other, taking turns to speak. */
+  function startChat(person, other) {
+    const seconds = CHAT_SECONDS[0] + person.random() * (CHAT_SECONDS[1] - CHAT_SECONDS[0]);
+    for (const [a, b] of [
+      [person, other],
+      [other, person],
+    ]) {
+      a.partner = b;
+      a.state = "chat";
+      a.plan = [];
+      a.chatUntil = clock + seconds;
+      a.nextLine = clock + (a === person ? 0.3 : 2.2);
+      a.speaking = false;
+    }
+  }
+
+  /** A chat has ended: warm company goes on together (to a bench, or a stroll); the rest part ways. */
+  function endChat(person) {
+    const other = person.partner;
+    for (const who of [person, other]) {
+      if (!who) continue;
+      const chatting = who.state === "chat";
+      who.partner = null;
+      who.speaking = false;
+      if (!chatting) continue; // gone indoors or off with someone else: leave them to it
+      who.state = "idle";
+      who.wait = 0.5 + who.random();
+      who.socialUntil = clock + 60 + who.random() * 90;
+    }
+    if (!other || person.space !== world) return;
+    const warmth = Math.min(feeling(person.id, other.id).warmth, feeling(other.id, person.id).warmth);
+    if (warmth < TOGETHER || person.random() < 0.3) return;
+    // Two seats side by side on one bench (each bench's two seats sit next to each other in the list).
+    const benches = [];
+    for (let i = 0; i + 1 < world.seats.length; i += 2) {
+      const [a, b] = [world.seats[i], world.seats[i + 1]];
+      if (a.taken || b.taken) continue;
+      const distance = Math.hypot(a.x - person.group.position.x, a.z - person.group.position.z);
+      if (distance < SEAT_SEARCH) benches.push([distance, a, b]);
+    }
+    benches.sort((p1, p2) => p1[0] - p2[0]);
+    const seconds = 30 + person.random() * 40;
+    if (benches.length && person.random() < 0.6) {
+      const [, a, b] = benches[0];
+      takeSeat(person, a, seconds);
+      takeSeat(other, b, seconds);
+    } else {
+      // A stroll side by side to a spot nearby.
+      const angle = person.random() * Math.PI * 2;
+      const spot = {
+        x: person.group.position.x + Math.cos(angle) * 10,
+        z: person.group.position.z + Math.sin(angle) * 10,
+      };
+      if (world.blocked(spot.x, spot.z)) return;
+      const side = { x: -Math.sin(angle) * 0.9, z: Math.cos(angle) * 0.9 };
+      person.plan = [{ walk: spot }, { wait: 4 }];
+      other.plan = [{ walk: { x: spot.x + side.x, z: spot.z + side.z } }, { wait: 4 }];
+    }
+    person.together = other;
+    other.together = person;
+  }
+
+  /** Something to say in a chat with `other`, by how they feel about each other. */
+  function chatLine(person, other) {
+    const how = feeling(person.id, other.id);
+    const pool =
+      how.kind === "family"
+        ? CHATTER.family
+        : how.warmth < -0.15
+          ? CHATTER.cold
+          : how.warmth > 0.65
+            ? CHATTER.close
+            : how.warmth > 0.3
+              ? CHATTER.warm
+              : CHATTER.neutral;
+    return pool[Math.floor(person.random() * pool.length)];
+  }
+
+  /**
+   * Keeping away from people they dislike or fear (and the player, when that's who), and coming over to
+   * greet a player they're fond of. Checked about once a second while they're out and about.
+   */
+  function watchOthers(person, view, playerDistance) {
+    if (clock < person.watchAt || person.space !== world || person.following) return false;
+    person.watchAt = clock + 0.8 + person.random() * 0.4; // about once a second, whatever the frame rate
+    const here = person.group.position;
+    const flee = (from) => {
+      const dx = here.x - from.x;
+      const dz = here.z - from.z;
+      const away = Math.hypot(dx, dz) || 1;
+      const spot = { x: here.x + (dx / away) * 12, z: here.z + (dz / away) * 12 };
+      if (world.blocked(spot.x, spot.z)) return false;
+      if (person.state === "sit" && person.seat) {
+        const { approach } = person.seat;
+        person.group.position.set(approach.x, groundY(person, approach.x, approach.z), approach.z);
+      }
+      leaveSeat(person);
+      person.together = null;
+      person.plan = [{ walk: spot, direct: true }, { wait: 3 }];
+      person.state = "idle";
+      person.wait = 0;
+      return true;
+    };
+    // The player first. (Hostility toward the player comes before any company; the rest waits for it.)
+    if (Number.isFinite(playerDistance)) {
+      const toPlayer = feeling(person.id, "player");
+      // Temperament moves the lines: an aggressive person comes at someone they merely dislike, a passive
+      // one never does (keeping away instead); an outgoing one greets acquaintances from further off.
+      const traits = traitsOf(person.id);
+      const aggression = traits.aggression / 100;
+      const sociability = traits.sociability / 100;
+      const hostileAt = HOSTILE_WARMTH + (aggression - 0.5); // −0.35 (aggressive) … −1.35 (passive: never)
+      const allowed = view.aggressionAllowed ? view.aggressionAllowed(view.player.x, view.player.z) : true;
+      if (
+        allowed &&
+        toPlayer.warmth <= hostileAt &&
+        playerDistance < GREET_DISTANCE * 1.5 &&
+        clock - person.greetedAt > 40
+      ) {
+        // A sworn enemy marches up to have it out (a fight, once there's combat), dropping whatever else.
+        person.greetedAt = clock;
+        if (person.partner?.partner === person) person.partner.partner = null;
+        person.partner = null;
+        leaveSeat(person);
+        person.plan = [{ walk: towardSpot(here, view.player, 2.4), direct: true }, { confront: true }];
+        person.state = "idle";
+        person.wait = 0;
+        return true;
+      }
+      if (person.partner) return false; // busy with someone: greeting and keeping away wait
+      // Keeping away from a player they dislike (a sworn enemy doesn't back off: it comes at them).
+      const dislikes = toPlayer.warmth < AVOID_WARMTH && (toPlayer.warmth > hostileAt || !allowed);
+      if (dislikes && playerDistance < AVOID_DISTANCE && person.state !== "sit") {
+        if (flee(view.player)) {
+          if (person.random() < 0.5) say(person, view, CHATTER.cold[Math.floor(person.random() * CHATTER.cold.length)]);
+          return true;
+        }
+      }
+      if (
+        toPlayer.warmth >= GREET_WARMTH - 0.3 * (sociability - 0.5) &&
+        playerDistance < GREET_DISTANCE * (0.6 + 0.8 * sociability) &&
+        playerDistance > STOP_DISTANCE + 0.5 &&
+        clock - person.greetedAt > GREET_AGAIN &&
+        person.state !== "sit"
+      ) {
+        person.greetedAt = clock;
+        person.plan = [{ walk: towardSpot(here, view.player, 1.8), direct: true }, { greet: true }];
+        person.greeting = true; // walking over: not stopping short when the player is close
+        person.state = "idle";
+        person.wait = 0;
+        return true;
+      }
+    }
+    if (person.partner) return false;
+    // Then anyone else nearby they'd rather not be near.
+    for (const other of people.values()) {
+      if (other === person || other.space !== world || other.state === "inside") continue;
+      const distance = Math.hypot(other.group.position.x - here.x, other.group.position.z - here.z);
+      if (distance > AVOID_DISTANCE) continue;
+      if (feeling(person.id, other.id).warmth < AVOID_WARMTH) return flee(other.group.position); // up off a bench too
+    }
+    return false;
+  }
+
+  /** A spot `gap` metres short of `target`, on the way from `from`. */
+  function towardSpot(from, target, gap) {
+    const dx = from.x - target.x;
+    const dz = from.z - target.z;
+    const away = Math.hypot(dx, dz) || 1;
+    return { x: target.x + (dx / away) * gap, z: target.z + (dz / away) * gap };
+  }
+
+  /** A speech bubble over someone, when they're near enough to the player to be seen saying it. */
+  function say(person, view, text) {
+    if (!view.onSay) return;
+    const distance = Math.hypot(person.group.position.x - view.player.x, person.group.position.z - view.player.z);
+    if (person.space === view.space && distance < BUBBLE_DISTANCE) view.onSay(person.group, text);
+  }
+
   /** Starts the next step of someone's plan. */
   function startStep(person, hour) {
     if (!person.plan.length) nextPlan(person, hour);
@@ -302,10 +600,31 @@ export function createCrowd() {
       person.target = step.walk;
       person.straight = !!step.straight;
       person.visited = new Set();
-      person.next = step.straight ? step.walk : nextPoint(person, step.walk);
+      // Straight (a doorstep, no collisions) or direct (a short way to someone: straight at them, stepping
+      // round what's in the way) skip the street points.
+      person.next = step.straight || step.direct ? step.walk : nextPoint(person, step.walk);
       person.stuck = 0;
       person.tries = 0;
       person.detour = null;
+    } else if (step.chat) {
+      // Arrived: if they're still waiting, chat; if not, never mind.
+      if (step.chat.partner === person && step.chat.space === world) startChat(person, step.chat);
+      else {
+        person.partner = null;
+        person.state = "idle";
+        person.wait = 0.5;
+      }
+    } else if (step.greet) {
+      person.greeting = false;
+      person.state = "idle";
+      person.wait = 3;
+      person.lastWave = -Infinity; // a wave as they say hello
+      say(person, viewNow, `Hey, ${viewNow?.playerName ?? "you"}!`);
+    } else if (step.confront) {
+      person.state = "idle";
+      person.wait = 6;
+      person.confronting = clock + 6;
+      say(person, viewNow, "You! You've got some nerve showing your face here.");
     } else if (step.door !== undefined) {
       world.setDoor(step.door, true, 3);
       person.state = "idle";
@@ -519,18 +838,72 @@ export function createCrowd() {
     const toPlayerZ = player.z - position.z;
     const playerDistance = together ? Math.hypot(toPlayerX, toPlayerZ) : Infinity;
     const towardPlayer = Math.atan2(toPlayerX, toPlayerZ);
-    const near = playerDistance < STOP_DISTANCE && !view.playerSitting && !person.leaving;
+    const near =
+      playerDistance < STOP_DISTANCE &&
+      !view.playerSitting &&
+      !person.leaving &&
+      !person.greeting &&
+      feeling(person.id, "player").warmth >= AVOID_WARMTH;
     const space = person.space;
 
+    if (person.state !== "talk" && person.state !== "chat" && watchOthers(person, view, playerDistance)) {
+      // A new plan to greet, keep away or confront: it starts on the next step below.
+    }
     if (person.state === "talk") {
+      person.group.rotation.y = approachAngle(person.group.rotation.y, towardPlayer, 6 * dt);
+    } else if (person.state === "chat") {
+      // Chatting: facing each other, taking turns to say something.
+      const other = person.partner;
+      if (!other || other.partner !== person || other.space !== person.space || clock > person.chatUntil) {
+        endChat(person);
+      } else {
+        const op = other.group.position;
+        person.group.rotation.y = approachAngle(
+          person.group.rotation.y,
+          Math.atan2(op.x - position.x, op.z - position.z),
+          6 * dt,
+        );
+        if (clock > person.nextLine) {
+          person.speaking = true;
+          other.speaking = false;
+          person.nextLine = clock + 3 + person.random() * 3;
+          other.nextLine = Math.max(other.nextLine, clock + 2.2);
+          say(person, view, chatLine(person, other));
+        }
+      }
+    } else if (
+      person.partner &&
+      person.partner.partner === person &&
+      person.partner.state === "walk" &&
+      person.state === "idle"
+    ) {
+      // Waiting for someone coming over: turned to them.
+      const op = person.partner.group.position;
+      person.group.rotation.y = approachAngle(
+        person.group.rotation.y,
+        Math.atan2(op.x - position.x, op.z - position.z),
+        4 * dt,
+      );
+      person.wait -= dt;
+      if (person.wait <= 0) person.partner = null;
+    } else if (person.confronting && clock < person.confronting) {
+      // Squaring up to the player.
       person.group.rotation.y = approachAngle(person.group.rotation.y, towardPlayer, 6 * dt);
     } else if (person.following) {
       if (follow(person, dt, view, playerDistance)) return;
     } else if (person.state === "sit") {
       person.wait -= dt;
+      const beside = person.together;
+      if (beside && beside.state === "sit" && clock > person.nextLine) {
+        person.speaking = !person.speaking && person.random() < 0.5;
+        person.nextLine = clock + 4 + person.random() * 6;
+        if (person.speaking) say(person, view, chatLine(person, beside));
+      }
       if (person.wait <= 0 || (space === world && isNight(view.hour))) {
         const seat = person.seat;
         leaveSeat(person);
+        person.together = null;
+        person.speaking = false;
         if (seat) position.set(seat.approach.x, groundY(person, seat.approach.x, seat.approach.z), seat.approach.z);
         person.restUntil = clock + 60 + person.random() * 90; // not straight back down again
         person.state = "idle";
@@ -632,7 +1005,7 @@ export function createCrowd() {
     const pose = person.character.update(person.animate, speed, {
       sit: person.state === "sit",
       lookAt,
-      talk: person.state === "talk" && person.speaking,
+      talk: (person.state === "talk" || person.state === "chat" || person.state === "sit") && person.speaking,
       wave,
     });
     person.animate = 0;
@@ -673,8 +1046,22 @@ export function createCrowd() {
         inDoor: person.inDoor?.index ?? null,
         home: person.home?.index ?? null,
         seated: !!person.seat && person.state === "sit",
+        with:
+          person.state === "chat"
+            ? (person.partner?.name ?? null)
+            : person.state === "sit" && person.together?.state === "sit"
+              ? person.together.name
+              : null,
         inRoom: !!person.space && person.space !== world,
       }));
+    },
+    /** Each person's temperament: `fn(id)` → { aggression, sociability } (0–100). */
+    setTraits(fn) {
+      traitsOf = fn;
+    },
+    /** How people see each other: `fn(fromId, toId)` → { kind, level, warmth } ("player" is the persona). */
+    setRelations(fn) {
+      feeling = fn;
     },
     /** The party, in order: [{ id, name, waiting }]. */
     party() {
@@ -702,7 +1089,7 @@ export function createCrowd() {
       leaveSeat(person);
       person.plan = [];
       person.next = null;
-      if (person.state !== "talk") person.state = "idle";
+      if (person.state !== "talk" && person.state !== "inside") person.state = "idle";
       person.wait = following ? 0 : 1;
     },
     /** A follower waits where they stand (`wait` true) or comes along again. */
@@ -766,6 +1153,7 @@ export function createCrowd() {
     update(dt, view) {
       if (!world) return;
       clock = view.time;
+      viewNow = view;
       for (const person of people.values()) stepPerson(person, dt, view);
     },
     /** Keeps the player from walking through anyone in `space`. Mutates `position`. */

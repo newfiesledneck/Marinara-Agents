@@ -26,6 +26,7 @@ import { createSaves } from "./saves.js";
 import { createNoticeboard, createSign } from "./signs.js";
 import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
 import { landscapeWith } from "./land.js";
+import { checkTraits, createRelationships, KINDS, phraseOf, tierOf, TRAITS } from "./relationships.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
@@ -108,6 +109,7 @@ const core = {
   journalAt: 0,
   thumbnailAt: 0,
   lorebooks: null, // the Engine's lorebooks with their entries, once read
+  relations: createRelationships(), // how everyone in this world sees each other (relationships.js)
   seed: FIRST_SEED,
   player: new Group(), // position and facing; the persona's body sits inside it
   shadow: blobShadow(),
@@ -388,6 +390,8 @@ function buildWorld(seed, place = null) {
     road: groundTexture("street-cobbles"),
     paving: groundTexture("sidewalk-setts"),
     plaza: groundTexture("plaza-stone"),
+    planks: groundTexture("bridge-planks"),
+    beams: groundTexture("wood-beam"),
   });
   if (core.settings.props) {
     const world = core.world;
@@ -490,6 +494,7 @@ function playWorld(id) {
   savePlace(true);
   core.save = save;
   core.hour = save.hour;
+  useRelations(createRelationships(save.relationships));
   const known = new Set((core.characters ?? []).map((character) => character.id));
   core.cast = new Set(save.cast.filter((id) => known.has(id)).slice(0, MAX_PEOPLE));
   const persona =
@@ -666,6 +671,7 @@ function stepPlaces(dt) {
     core.journalAt = 0.5;
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
     core.partyChanged = false;
+    core.relationsChanged = false;
   }
 }
 
@@ -705,8 +711,15 @@ function journalData(zone, snapshot, residents, names) {
       lore: loreAt(zone),
       nearby,
     },
-    people: lines.map((entry) => entry.line),
+    people: lines.map((entry) => {
+      const toYou = core.relations.get(entry.person.id, "player");
+      return toYou
+        ? `${entry.line}. ${core.relations.describe(entry.person.id, "player", { ...nameIds(), player: "you" })}.`
+        : entry.line;
+    }),
+    relations: relationsData(),
     party: core.crowd.party(),
+    relationsChanged: core.relationsChanged,
     partyChanged: core.partyChanged,
     places: zones.zones.map((at) => ({
       id: at.id,
@@ -966,6 +979,75 @@ function toggleParty() {
     true,
   );
   partyChanged();
+}
+
+/** This world's relationships: the crowd behaves by them and they're saved with the world. */
+function useRelations(relations) {
+  core.relations = relations;
+  core.crowd.setRelations((from, to) => relations.feeling(from, to));
+  core.crowd.setTraits((id) => checkTraits(core.save?.traits?.[id]));
+}
+
+/** Everyone who can have relationships here, id → name: the player's persona ("player") and the cast. */
+function nameIds() {
+  const names = { player: personaName() };
+  for (const character of core.characters ?? []) if (core.cast?.has(character.id)) names[character.id] = character.name;
+  return names;
+}
+
+/** What the Journal's Relationships tab shows: the kinds, everyone, and every record. */
+function relationsData() {
+  const names = nameIds();
+  return {
+    kinds: Object.entries(KINDS).map(([id, kind]) => ({ id, label: kind.label, roles: kind.roles ?? [] })),
+    traitKinds: Object.entries(TRAITS).map(([id, trait]) => ({ id, ...trait })),
+    traits: Object.fromEntries(
+      Object.keys(names)
+        .filter((id) => id !== "player")
+        .map((id) => [id, checkTraits(core.save?.traits?.[id])]),
+    ),
+    people: Object.entries(names).map(([id, name]) => ({ id, name: id === "player" ? `${name} (you)` : name })),
+    records: core.relations.all.map((record) => ({
+      ...record,
+      tier: tierOf(record.kind, record.level),
+      words: `${names[record.from] ?? record.from} ${phraseOf(record.kind, record.level)} ${names[record.to] ?? record.to}`,
+    })),
+  };
+}
+
+/** Sets (or with null clears) how `from` sees `to`; `both` sets the other way too. Saved with the world. */
+function setRelation(from, to, fields, both = false) {
+  core.relations.set(from, to, fields);
+  if (both) core.relations.set(to, from, fields ? { kind: fields.kind, level: fields.level, role: "" } : null);
+  if (core.save) {
+    core.save = { ...core.save, relationships: core.relations.all };
+    core.saves.write(core.save);
+  }
+  core.relationsChanged = true;
+  core.journalAt = 0;
+  core.zoneCheck = 0;
+}
+
+/** Sets a character's temperament (saved with the world). */
+function setTraits(id, traits) {
+  if (!core.save) return;
+  core.save = { ...core.save, traits: { ...core.save.traits, [id]: checkTraits(traits) } };
+  core.saves.write(core.save);
+  core.relationsChanged = true;
+  core.journalAt = 0;
+}
+
+/**
+ * Whether confronting (and, later, fighting) may happen at (x, z), by Settings: anywhere, only outside
+ * towns, only outside safe places (the town and the inns and cottages out in the country), or nowhere.
+ */
+function aggressionAllowed(x, z) {
+  const rule = core.settings.combat;
+  if (rule === "anywhere") return true;
+  if (rule === "off" || !core.zones) return false;
+  const chain = chainOf(core.zones, zoneAt(core.zones, x, z));
+  if (chain.some((zone) => zone.kind === "town")) return false;
+  return rule === "outsideTowns" || !chain.some((zone) => zone.kind === "outpost");
 }
 
 /** Saves the party and redraws its Journal tab. */
@@ -1624,6 +1706,9 @@ function step(dt) {
     time: core.clock,
     isVisible: (position) => frustum.containsPoint(projected.set(position.x, position.y + 1, position.z)),
     onFootstep: (position, running, distance) => core.sound.footstep(distance, running),
+    onSay: (group, text) => core.talk?.say(group, text, 3.5),
+    playerName: personaName(),
+    aggressionAllowed,
   });
   core.talk?.update(dt);
   core.sound.tick(dt, { dark: core.dark, inside });
@@ -1691,6 +1776,8 @@ function attach(element) {
       core.crowd.setWaiting(id, wait);
       partyChanged();
     },
+    onSetRelation: setRelation,
+    onSetTraits: setTraits,
     onPartyLeave: (id) => {
       core.crowd.setFollowing(id, false);
       partyChanged();

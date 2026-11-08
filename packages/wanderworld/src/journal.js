@@ -11,6 +11,7 @@ const TABS = [
   ["here", "Here"],
   ["people", "People"],
   ["party", "Party"],
+  ["relations", "Relationships"],
   ["places", "Places"],
   ["world", "World"],
 ];
@@ -34,7 +35,8 @@ function button(label, css, onClick) {
 
 /**
  * `handlers`: onRename(zoneId, name) (empty name puts the default back), onLore(zoneId),
- * onPartyWait(id, wait), onPartyLeave(id).
+ * onPartyWait(id, wait), onPartyLeave(id), onSetRelation(from, to, fields | null, both),
+ * onSetTraits(id, { aggression, sociability }).
  */
 export function createJournal(panelCss, handlers) {
   const panel = element("div", panelCss);
@@ -95,6 +97,124 @@ export function createJournal(panelCss, handlers) {
         ),
         button("Part ways", SMALL, () => handlers.onPartyLeave(member.id)),
       );
+      body.append(row);
+    }
+  }
+
+  let whose = "player"; // whose relationships the tab shows
+  let both = true; // a change goes both ways (from them to the other and back)
+
+  function drawRelations() {
+    const { kinds, people, records } = data.relations;
+    if (people.length < 2) {
+      body.append(line("Add characters in People to set how they see each other and you.", MUTED));
+      return;
+    }
+    if (!people.some((person) => person.id === whose)) whose = people[0].id;
+    const top = element("div", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;");
+    const pick = element(
+      "select",
+      "font:13px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;padding:2px 4px;",
+    );
+    for (const person of people) {
+      const option = element("option", "", person.name);
+      option.value = person.id;
+      pick.append(option);
+    }
+    pick.value = whose;
+    pick.addEventListener("change", () => {
+      whose = pick.value;
+      draw();
+    });
+    const mirror = element("label", "display:flex;gap:4px;align-items:center;font-size:12px;cursor:pointer;");
+    const box = element("input");
+    box.type = "checkbox";
+    box.checked = both;
+    box.addEventListener("change", () => (both = box.checked));
+    mirror.append(box, element("span", "", "Both ways"));
+    top.append(element("span", "font-size:12px;", "How"), pick, element("span", "font-size:12px;", "sees…"), mirror);
+    body.append(top);
+    body.append(
+      line(
+        "Friends seek each other out, sit and walk together; enemies keep away (a sworn enemy confronts you). Later the AI sets and changes these.",
+        MUTED,
+      ),
+    );
+    // Their temperament (not for the player, who acts for themselves).
+    const traits = data.relations.traits[whose];
+    if (traits) {
+      for (const trait of data.relations.traitKinds) {
+        const row = element("div", "display:flex;gap:6px;align-items:center;font-size:12px;");
+        const range = element("input", "flex:1;");
+        range.type = "range";
+        range.min = "0";
+        range.max = "100";
+        range.value = String(traits[trait.id]);
+        range.addEventListener("change", () =>
+          handlers.onSetTraits(whose, { ...traits, [trait.id]: Number(range.value) }),
+        );
+        row.append(
+          element("span", "width:70px;font-weight:600;", trait.label),
+          element("span", "width:60px;text-align:right;", trait.low),
+          range,
+          element("span", "width:70px;", trait.high),
+        );
+        body.append(row);
+      }
+    }
+    for (const other of people) {
+      if (other.id === whose) continue;
+      const record = records.find((entry) => entry.from === whose && entry.to === other.id);
+      const row = element(
+        "div",
+        "display:flex;flex-direction:column;gap:3px;padding:6px 0;border-top:1px solid rgba(110,80,40,0.25);",
+      );
+      const head = element("div", "display:flex;gap:6px;align-items:center;");
+      const kind = element(
+        "select",
+        "font:12px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;padding:1px 3px;",
+      );
+      for (const [value, label] of [["", "— none —"], ...kinds.map((entry) => [entry.id, entry.label])]) {
+        const option = element("option", "", label);
+        option.value = value;
+        kind.append(option);
+      }
+      kind.value = record?.kind ?? "";
+      head.append(element("span", "flex:1;font-weight:600;font-size:13px;", other.name), kind);
+      row.append(head);
+      kind.addEventListener("change", () => {
+        handlers.onSetRelation(
+          whose,
+          other.id,
+          kind.value ? { kind: kind.value, level: record?.level ?? 40 } : null,
+          both,
+        );
+      });
+      if (record) {
+        const level = element("input", "flex:1;");
+        level.type = "range";
+        level.min = "0";
+        level.max = "100";
+        level.value = String(record.level);
+        const tier = element("span", "font-size:12px;font-style:italic;min-width:96px;text-align:right;", record.tier);
+        level.addEventListener("input", () => (tier.textContent = "…"));
+        level.addEventListener("change", () =>
+          handlers.onSetRelation(whose, other.id, { kind: record.kind, level: Number(level.value) }, both),
+        );
+        const slider = element("div", "display:flex;gap:6px;align-items:center;");
+        slider.append(level, tier);
+        row.append(slider);
+        const roles = kinds.find((entry) => entry.id === record.kind)?.roles ?? [];
+        const role = element(
+          "input",
+          "font:12px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;padding:2px 5px;",
+        );
+        role.placeholder = roles.length ? `Role (${roles.slice(0, 3).join(", ")}…)` : "Role (optional)";
+        role.value = record.role ?? "";
+        role.maxLength = 40;
+        role.addEventListener("change", () => handlers.onSetRelation(whose, other.id, { role: role.value }, false));
+        row.append(role, line(record.words, MUTED));
+      }
       body.append(row);
     }
   }
@@ -174,7 +294,14 @@ export function createJournal(panelCss, handlers) {
     drawTabs();
     body.replaceChildren();
     if (!data) return;
-    ({ here: drawHere, people: drawPeople, party: drawParty, places: drawPlaces, world: drawWorld })[tab]();
+    ({
+      here: drawHere,
+      people: drawPeople,
+      party: drawParty,
+      relations: drawRelations,
+      places: drawPlaces,
+      world: drawWorld,
+    })[tab]();
   }
 
   return {
@@ -184,7 +311,8 @@ export function createJournal(panelCss, handlers) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
       // No redraw under the cursor in the lists with buttons and fields.
-      if ((tab === "places" || tab === "party") && !picker && body.childElementCount && !next.partyChanged) return;
+      const lists = tab === "places" || tab === "party" || tab === "relations";
+      if (lists && !picker && body.childElementCount && !next.partyChanged && !next.relationsChanged) return;
       draw();
     },
     /** Shows the lore picker for a place; call again with `lorebooks` once they've loaded. */

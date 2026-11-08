@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.4.24 — 2026-11-08
+
+- Relationships: set how each person sees everyone else, and you, in the Journal's new Relationships tab. Friend, family, partner, rival, enemy and more, each with levels: a low-level friend is just friendly, a high one a best friend; a low-level enemy dislikes you, a high one is a sworn enemy.
+- Townsfolk act on them: friends seek each other out, chat, and sit or walk together; people keep away from someone they dislike or fear; someone fond of you comes over and says hello; a sworn enemy marches up to have words.
+- Temperament and manner for each character, from passive to aggressive and from shy to outgoing: how readily they confront someone, or come over to greet you and seek company.
+- Settings → Confrontations and combat: anywhere, outside towns, outside safe places (towns, inns and cottages), or off.
+- Bridges have plank decks on beams and piers, and reach from bank to bank.
+- Dirt roads fade out of the cobbles where they leave town instead of starting in a hard line.
+
 ## 0.4.23 — 2026-11-08
 
 - Rocks and boulders have the same painted rock texture as the mountains.

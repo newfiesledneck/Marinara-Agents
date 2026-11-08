@@ -873,7 +873,7 @@ const BRIDGE_WOOD = 0x7a5634;
  * so edges can fade into the grass. Texture coordinates match the ground's, so its grass texture lines
  * up across the join. `wobble` varies the width a little along the way, so edges aren't ruler-straight.
  */
-function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
+function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0, fadeFrom = null }) {
   const dense = [];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
@@ -904,8 +904,12 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
       colours.push(column.colour.r, column.colour.g, column.colour.b);
       uvs.push((x + WORLD_SIZE / 2) / WORLD_SIZE, (WORLD_SIZE / 2 - z) / WORLD_SIZE);
       if (column.splat) {
-        splats.push(...column.splat);
-        splatsB.push(...(column.splatB ?? [0, 0, 0, 0]));
+        // `fadeFrom`: { length, splat, splatB }: over its first metres the strip blends in from these weights.
+        const t = fadeFrom ? Math.min(1, travelled / fadeFrom.length) : 1;
+        const mix = (from, to) => to.map((value, i) => from[i] + (value - from[i]) * t);
+        splats.push(...(t < 1 ? mix(fadeFrom.splat, column.splat) : column.splat));
+        const b = column.splatB ?? [0, 0, 0, 0];
+        splatsB.push(...(t < 1 ? mix(fadeFrom.splatB, b) : b));
       }
     }
   });
@@ -938,6 +942,36 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
  * dirt roads out to them, the river's water and the bridges over it. Inns and cottages are ordinary
  * town buildings (so they get kit walls, doors, signs and collision like any other).
  */
+/**
+ * A wooden box with its texture laid in metres (`tile` metres to a repeat) and the grain along its
+ * longest side, as beams and posts have it; `across` turns the top's grain the other way (deck planks
+ * laid across a bridge).
+ */
+function woodBox(width, height, depth, x, y, z, { across = false, tile = 1.5 } = {}) {
+  const geometry = new BoxGeometry(width, height, depth);
+  const uv = geometry.getAttribute("uv");
+  // BoxGeometry's faces, four corners each: ±x (depth by height), ±y (width by depth), ±z (width by height).
+  const sides = [
+    [depth, height],
+    [depth, height],
+    [width, depth],
+    [width, depth],
+    [width, height],
+    [width, height],
+  ];
+  sides.forEach(([du, dv], face) => {
+    // The texture's grain runs along v: put v along the longer side (or the shorter, for planks on top).
+    const flip = du > dv !== (face === 2 && across);
+    for (let corner = face * 4; corner < face * 4 + 4; corner++) {
+      const u = uv.getX(corner);
+      const v = uv.getY(corner);
+      if (flip) uv.setXY(corner, (v * dv) / tile, (u * du) / tile);
+      else uv.setXY(corner, (u * du) / tile, (v * dv) / tile);
+    }
+  });
+  return geometry.translate(x, y, z);
+}
+
 function buildCountry(random, town, land, ground) {
   const meshes = [];
   const caves = [];
@@ -1014,10 +1048,18 @@ function buildCountry(random, town, land, ground) {
   const roads = [];
   for (const road of land.roads) {
     let stretch = [];
+    const firstStretch = stretch;
     const finish = () => {
       if (stretch.length > 1) {
         roads.push(
-          ribbon(stretch, road.width, { lift: 0.06, heightOf: land.groundAt, columns: roadColumns, wobble: 0.12 }),
+          ribbon(stretch, road.width, {
+            lift: 0.06,
+            heightOf: land.groundAt,
+            columns: roadColumns,
+            wobble: 0.12,
+            // Leaving town, the road starts as the street's cobbles and turns to dirt over a few metres.
+            fadeFrom: stretch === firstStretch ? { length: 4, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] } : null,
+          }),
         );
       }
       stretch = [];
@@ -1039,7 +1081,8 @@ function buildCountry(random, town, land, ground) {
     meshes.push(
       new Mesh(
         mergeGeometries(roads),
-        terrainMaterial(ground, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+        // Over the town's edge strip (−3), so the road reads on top where it leaves the street.
+        terrainMaterial(ground, { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
       ),
     );
   }
@@ -1059,26 +1102,51 @@ function buildCountry(random, town, land, ground) {
     });
     meshes.push(new Mesh(water, waterMaterial(ground)));
   }
+  // Bridges: a plank deck (the planks run across it) on rails and posts of beams, textured in metres.
+  const planks = [];
+  const beams = [];
   for (const bridge of land.bridges) {
     const [ax, az] = bridge.along;
     const angle = Math.atan2(ax, az);
     const half = land.bridgeHalfWidth;
-    const parts = [
-      box(half * 2 + 0.2, 0.25, bridge.length, 0, -0.12, 0, BRIDGE_WOOD),
-      box(0.12, 0.12, bridge.length, -half, 0.85, 0, BRIDGE_WOOD),
-      box(0.12, 0.12, bridge.length, half, 0.85, 0, BRIDGE_WOOD),
-    ];
-    for (let t = -bridge.length / 2; t <= bridge.length / 2 + 0.01; t += bridge.length / 4) {
-      parts.push(box(0.16, 0.95, 0.16, -half, 0.45, t, BRIDGE_WOOD), box(0.16, 0.95, 0.16, half, 0.45, t, BRIDGE_WOOD));
-    }
-    meshes.push(
-      new Mesh(
-        mergeGeometries(parts).rotateY(angle).translate(bridge.x, bridge.deck, bridge.z),
-        new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-      ),
+    const place = (geometry) => geometry.rotateY(angle).translate(bridge.x, bridge.deck, bridge.z);
+    planks.push(place(woodBox(half * 2 + 0.2, 0.25, bridge.length, 0, -0.12, 0, { across: true, tile: 2 })));
+    beams.push(
+      place(woodBox(0.12, 0.12, bridge.length, -half, 0.85, 0)),
+      place(woodBox(0.12, 0.12, bridge.length, half, 0.85, 0)),
+      // stringers under the deck, so its edge isn't a bare slab
+      place(woodBox(0.22, 0.3, bridge.length + 0.2, -half + 0.1, -0.3, 0)),
+      place(woodBox(0.22, 0.3, bridge.length + 0.2, half - 0.1, -0.3, 0)),
     );
+    for (let t = -bridge.length / 2; t <= bridge.length / 2 + 0.01; t += bridge.length / 4) {
+      beams.push(place(woodBox(0.16, 0.95, 0.16, -half, 0.45, t)), place(woodBox(0.16, 0.95, 0.16, half, 0.45, t)));
+    }
+    // Piers down to the riverbed wherever the deck stands well above the ground, with a crossbeam.
+    for (let t = -bridge.length / 2 + 2.5; t <= bridge.length / 2 - 2.5; t += 2.5) {
+      const below = Math.min(
+        ...[-1, 1].map((side) => {
+          const x = bridge.x + ax * t + az * side * (half - 0.1);
+          const z = bridge.z + az * t - ax * side * (half - 0.1);
+          return land.groundAt(x, z);
+        }),
+      );
+      const drop = bridge.deck - below;
+      if (drop < 0.8) continue;
+      const tall = drop + 0.2; // a little into the bed
+      for (const side of [-1, 1]) beams.push(place(woodBox(0.26, tall, 0.26, side * (half - 0.1), -tall / 2, t)));
+      beams.push(place(woodBox(half * 2, 0.2, 0.22, 0, -0.55, t)));
+    }
   }
-  return { meshes, caves, doorOf };
+  const wood = { planks: null, beams: null };
+  for (const [name, parts] of [
+    ["planks", planks],
+    ["beams", beams],
+  ]) {
+    if (!parts.length) continue;
+    wood[name] = new MeshLambertMaterial({ color: BRIDGE_WOOD });
+    meshes.push(new Mesh(mergeGeometries(parts), wood[name]));
+  }
+  return { meshes, caves, doorOf, wood };
 }
 
 /**
@@ -1894,6 +1962,13 @@ export function createWorld(seed, landscape = null) {
     if (textures.plaza) ground.tplaza.value = textures.plaza;
     if (textures.water) ground.tWater.value = textures.water;
     if (textures.cliff) ground.tCliff.value = textures.cliff;
+    for (const name of ["planks", "beams"]) {
+      const material = country.wood[name];
+      if (!material || !textures[name]) continue;
+      material.map = textures[name];
+      material.color.set(0xffffff);
+      material.needsUpdate = true;
+    }
   }
 
   /** Swaps the town's simple buildings for ones assembled from the village kit, once it has loaded. */

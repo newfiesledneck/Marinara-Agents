@@ -8,6 +8,8 @@
 // on the way in, so an old or damaged copy falls back to defaults instead of breaking the game; `version`
 // lets later fields arrive with defaults.
 
+import { checkRelationship, checkTraitMap } from "./relationships.js";
+
 export const SAVE_VERSION = 1;
 const INDEX_KEY = "wanderworld.worlds";
 const WORLD_KEY = (id) => `wanderworld.world.${id}`;
@@ -90,7 +92,11 @@ export function checkWorld(raw) {
       : [],
     // Kept as they are for now; W3 and W4 give them their checks.
     party: Array.isArray(raw.party) ? raw.party.filter((id) => typeof id === "string") : [],
-    relationships: Array.isArray(raw.relationships) ? raw.relationships.filter(isRecord) : [],
+    // Characters' temperaments (aggression, sociability), by id.
+    traits: checkTraitMap(raw.traits),
+    relationships: Array.isArray(raw.relationships)
+      ? raw.relationships.map(checkRelationship).filter(Boolean).slice(0, 2000)
+      : [],
   };
 }
 

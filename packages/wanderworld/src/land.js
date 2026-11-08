@@ -21,6 +21,8 @@ const OUTPOST_FLAT = 11; // metres round an inn or cottage that are level
 const OUTPOST_BLEND = 12; // and then blend back into the hills
 const MOUNTAIN_REACH = 62; // how far in from the edge a range rises
 const BRIDGE_HALF_WIDTH = 1.6;
+const BRIDGE_END = 2.4; // metres of each bridge's end that rest on banked-up earth
+const BRIDGE_RAMP = 3.5; // metres beyond each end over which that earth eases back into the land
 /** A cave: a tunnel this deep into its hill and this wide (world.js builds the rock round it). */
 export const CAVE_DEPTH = 7.5;
 export const CAVE_RADIUS = 2.5;
@@ -146,7 +148,9 @@ function crossing(a, b) {
       const u = ((q.x - p.x) * r.z - (q.z - p.z) * r.x) / denominator;
       if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
         const length = Math.hypot(r.x, r.z) || 1;
-        return { x: p.x + r.x * t, z: p.z + r.z * t, along: [r.x / length, r.z / length] };
+        // `sine`: of the angle between them (1 square across, small when they cross at a slant).
+        const sine = Math.abs(denominator) / (length * (Math.hypot(s.x, s.z) || 1));
+        return { x: p.x + r.x * t, z: p.z + r.z * t, along: [r.x / length, r.z / length], sine };
       }
     }
   }
@@ -204,7 +208,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     const line = streetLines.reduce((best, value) =>
       Math.abs(value - lateral) < Math.abs(best - lateral) ? value : best,
     );
-    const start = dx !== 0 ? { x: dx * (townHalf + 1), z: line } : { x: line, z: dz * (townHalf + 1) };
+    // From just inside the end of the street (its cobbles reach townHalf + 3), so the road can fade out of them.
+    const out0 = townHalf + 2.2;
+    const start = dx !== 0 ? { x: dx * out0, z: line } : { x: line, z: dz * out0 };
     const front = { x: outpost.x + Math.sin(outpost.angle) * 8, z: outpost.z + Math.cos(outpost.angle) * 8 };
     const bend = {
       x: dx !== 0 ? (start.x + front.x) / 2 : start.x + (front.x - start.x) * 0.2,
@@ -230,7 +236,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     for (const road of roads) {
       const at = crossing(road.points, river.points);
       if (!at) continue;
-      bridges.push({ x: at.x, z: at.z, along: at.along, length: RIVER_WIDTH + BANK * 2 + 2, deck: 0 });
+      // Long enough to reach past both banks onto level ground, however slanted the crossing.
+      const length = Math.min(34, (RIVER_WIDTH + BANK * 2) / Math.max(0.45, at.sine) + 3);
+      bridges.push({ x: at.x, z: at.z, along: at.along, length, deck: 0 });
     }
   }
 
@@ -331,6 +339,19 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       const { distance } = toLine(river.points, x, z);
       const half = river.width / 2;
       if (distance < half + BANK) height = RIVER_BED + (height - RIVER_BED) * smooth((distance - half) / BANK);
+    }
+    // Earth banked up under each end of a bridge, so its deck rests on the ground and walks off level.
+    for (const bridge of bridges) {
+      const rx = x - bridge.x;
+      const rz = z - bridge.z;
+      const along = Math.abs(rx * bridge.along[0] + rz * bridge.along[1]) - bridge.length / 2;
+      const across = Math.abs(-rx * bridge.along[1] + rz * bridge.along[0]);
+      if (along < -BRIDGE_END || along > BRIDGE_RAMP || across > BRIDGE_HALF_WIDTH + 2.5) continue;
+      const weight =
+        smooth((along + BRIDGE_END) / 1.2) *
+        smooth((BRIDGE_RAMP - along) / BRIDGE_RAMP) *
+        smooth((BRIDGE_HALF_WIDTH + 2.5 - across) / 2);
+      height += (bridge.deck - 0.15 - height) * weight;
     }
     return height;
   }

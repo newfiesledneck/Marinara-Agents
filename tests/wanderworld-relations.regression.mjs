@@ -1,0 +1,197 @@
+// Wanderworld relationships: kinds and their tiers read as words, records are checked, and townsfolk act
+// on how they feel: friends seek each other out and chat, someone who dislikes another keeps away, a
+// townsperson fond of the player comes over to say hello, and a sworn enemy marches up to them.
+// Name tags draw on a canvas, so a small stand-in canvas is supplied.
+import assert from "node:assert/strict";
+
+const context = new Proxy(
+  { measureText: (text) => ({ width: String(text).length * 14 }) },
+  { get: (target, key) => target[key] ?? (() => ({ addColorStop() {} })), set: () => true },
+);
+globalThis.document = { createElement: () => ({ getContext: () => context, width: 0, height: 0 }) };
+globalThis.fetch = async () => new Response("null", { status: 404 });
+
+const { checkRelationship, checkTraitMap, createRelationships, phraseOf, tierOf, warmthOf } =
+  await import("../packages/wanderworld/src/relationships.js");
+const { createCrowd } = await import("../packages/wanderworld/src/npcs.js");
+const { createWorld } = await import("../packages/wanderworld/src/world.js");
+
+// ── The records ──
+assert.equal(tierOf("friend", 10), "friendly");
+assert.equal(tierOf("friend", 90), "best friend");
+assert.equal(tierOf("enemy", 80), "sworn enemy");
+assert.equal(phraseOf("romance", 60), "is smitten with");
+assert.ok(warmthOf("enemy", 90) < warmthOf("enemy", 10), "a sworn enemy is colder than someone who merely dislikes");
+assert.ok(warmthOf("partner", 100) > warmthOf("friend", 30));
+assert.equal(
+  checkRelationship({ from: "a", to: "a", kind: "friend" }),
+  null,
+  "nobody has a relationship with themselves",
+);
+assert.equal(checkRelationship({ from: "a", to: "b", kind: "frenemy" }), null, "unknown kinds are refused");
+assert.equal(checkRelationship({ from: "a", to: "b", kind: "friend", level: 400 }).level, 100, "levels stay 0–100");
+
+const relations = createRelationships([{ from: "c-1", to: "c-2", kind: "friend", level: 90 }]);
+const names = { "c-1": "Sarah", "c-2": "Jake", player: "Zoey" };
+assert.equal(relations.describe("c-1", "c-2", names), "Sarah is best friends with Jake");
+assert.equal(relations.get("c-2", "c-1"), null, "relationships run one way");
+assert.equal(relations.feeling("c-2", "c-1").kind, "acquaintance", "townsfolk know each other a little anyway");
+assert.equal(relations.feeling("c-2", "player").kind, null, "but not the player, until they meet");
+relations.set("c-3", "c-1", { kind: "family", level: 60, role: "sister" });
+assert.equal(
+  relations.describe("c-3", "c-1", { ...names, "c-3": "Mira" }),
+  "Mira is Sarah's sister and is close to them",
+);
+relations.set("c-3", "c-1", null);
+assert.equal(relations.get("c-3", "c-1"), null, "a relationship can be cleared");
+
+assert.deepEqual(
+  checkTraitMap({ a: { aggression: 300 }, b: { sociability: 50 }, c: "x" }),
+  {
+    a: { aggression: 100, sociability: 50 },
+  },
+  "traits stay 0–100, and plain defaults aren't stored",
+);
+
+// ── In town ──
+const world = createWorld(5150);
+const crowd = createCrowd();
+crowd.setDressed(false);
+crowd.setWorld(world);
+crowd.setCast([
+  { id: "c-1", name: "Sarah" },
+  { id: "c-2", name: "Jake" },
+  { id: "c-3", name: "Mira" },
+  { id: "c-4", name: "Tam" },
+  { id: "c-5", name: "Rook" },
+  { id: "c-6", name: "Fen" },
+]);
+const town = createRelationships([
+  { from: "c-1", to: "c-2", kind: "friend", level: 95 },
+  { from: "c-2", to: "c-1", kind: "friend", level: 95 },
+  { from: "c-3", to: "c-4", kind: "enemy", level: 50 },
+]);
+crowd.setRelations((from, to) => town.feeling(from, to));
+const player = { x: 0, y: 0, z: 200 };
+let time = 0;
+let allowed = true; // the combat setting, as the crowd sees it
+const traits = {};
+crowd.setTraits((id) => traits[id] ?? { aggression: 50, sociability: 50 });
+const said = [];
+const step = (seconds) => {
+  for (let elapsed = 0; elapsed < seconds; elapsed += 0.1) {
+    time += 0.1;
+    crowd.update(0.1, {
+      player,
+      space: world,
+      playerSitting: false,
+      playerAngle: 0,
+      playerSpeed: 0,
+      hour: 12,
+      time,
+      isVisible: () => false,
+      onFootstep: () => {},
+      onSay: (group, text) => said.push(text),
+      playerName: "Zoey",
+      aggressionAllowed: () => allowed,
+    });
+    world.update(0.1);
+  }
+};
+const at = (id) => crowd.snapshot().find((person) => person.id === id);
+
+// Friends: over a while in town they meet and chat (or sit together).
+let together = false;
+for (let i = 0; i < 600 && !together; i++) {
+  step(2.5);
+  const sarah = at("c-1");
+  together = (sarah.state === "chat" || sarah.state === "sit") && sarah.with === "Jake";
+}
+assert.ok(together, "best friends seek each other out, and chat or sit together");
+
+// Someone who dislikes another moves off when they come close.
+const tam = at("c-4");
+crowd.restoreParty([], player); // nobody in the party; just here to keep the call shape
+const mira = at("c-3");
+const before = Math.hypot(mira.x - tam.x, mira.z - tam.z);
+if (before > 6) {
+  // Bring them close: Tam stands right next to Mira (a party of one, walked to her, then let go).
+  crowd.restoreParty(["c-4"], { x: mira.x + 1.5, z: mira.z });
+  crowd.setFollowing("c-4", false);
+}
+step(8);
+const apart = Math.hypot(at("c-3").x - at("c-4").x, at("c-3").z - at("c-4").z);
+assert.ok(apart > 4, `someone who dislikes another keeps away from them (${apart.toFixed(1)} m apart)`);
+
+// Toward the player: someone fond of them comes over and says hello; a sworn enemy marches up.
+/** Someone out in town and free (not indoors or with anyone), other than `not`; waits for one if needed. */
+const someoneOut = (...not) => {
+  for (let tries = 0; tries < 60; tries++) {
+    const free = crowd
+      .snapshot()
+      .find((person) => person.state !== "inside" && !person.with && !not.includes(person.id));
+    if (free) return free.id;
+    step(5);
+  }
+  throw new Error("nobody out in town");
+};
+const fond = someoneOut("c-3", "c-4");
+town.set(fond, "player", { kind: "friend", level: 80 });
+crowd.restoreParty([fond], { x: 0, z: 6 });
+crowd.setFollowing(fond, false);
+player.x = 0;
+player.z = 13;
+said.length = 0;
+step(12);
+const friend = at(fond);
+assert.ok(Math.hypot(friend.x - player.x, friend.z - player.z) < 4, "a friend comes over to the player");
+assert.ok(
+  said.some((line) => line.includes("Zoey")),
+  "and says hello by name",
+);
+
+const foe = someoneOut(fond, "c-3", "c-4");
+town.set(foe, "player", { kind: "enemy", level: 95 });
+crowd.restoreParty([foe], { x: 6, z: 6 });
+crowd.setFollowing(foe, false);
+said.length = 0;
+step(12);
+const enemy = at(foe);
+assert.ok(Math.hypot(enemy.x - player.x, enemy.z - player.z) < 4.5, "a sworn enemy marches up to the player");
+assert.ok(
+  said.some((line) => line.startsWith("You!")),
+  "and has words",
+);
+
+// Temperament and the combat setting: a passive sworn enemy keeps away instead; with confrontations
+// off, so does an aggressive one; an aggressive person comes at someone they merely dislike.
+const near = (id) => Math.hypot(at(id).x - player.x, at(id).z - player.z);
+/** Puts `id` near the player with how they see them and their temperament, and lets a while pass. */
+const meet = (id, relation, temperament) => {
+  town.set(id, "player", relation);
+  traits[id] = temperament;
+  crowd.restoreParty([id], { x: 5, z: 7 });
+  crowd.setFollowing(id, false);
+  said.length = 0;
+  step(12);
+  return near(id);
+};
+const calm = someoneOut(fond, foe, "c-3", "c-4");
+assert.ok(
+  meet(calm, { kind: "enemy", level: 95 }, { aggression: 0, sociability: 50 }) > 4.5,
+  "a passive sworn enemy doesn't confront",
+);
+assert.ok(!said.some((line) => line.startsWith("You!")));
+const hothead = someoneOut(fond, foe, calm, "c-3", "c-4");
+allowed = false;
+assert.ok(
+  meet(hothead, { kind: "enemy", level: 95 }, { aggression: 100, sociability: 50 }) > 4.5,
+  "confrontations off: nobody comes at you",
+);
+allowed = true;
+assert.ok(
+  meet(hothead, { kind: "enemy", level: 10 }, { aggression: 100, sociability: 50 }) < 4.5,
+  "an aggressive person comes at someone they merely dislike",
+);
+
+console.log("wanderworld relations regression: OK");

@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.4.23",
+  "version": "0.4.24",
   "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
   "engine": {
     "min": "2.4.4",
@@ -36,6 +36,7 @@
     },
     "assets": {
       "paths": [
+        "kit/art/bridge-planks.webp",
         "kit/art/cliff-rock.webp",
         "kit/art/ground-dirt.webp",
         "kit/art/ground-forest.webp",
@@ -55,6 +56,7 @@
         "kit/art/sign-wood.webp",
         "kit/art/street-cobbles.webp",
         "kit/art/water.webp",
+        "kit/art/wood-beam.webp",
         "kit/nature/bark-deadtree.webp",
         "kit/nature/bark-normaltree.webp",
         "kit/nature/bark-twistedtree.webp",
@@ -232,13 +234,18 @@
     },
     {
       "path": "client.js",
-      "sha256": "1d957b531e48ba31b344028a8c3cb948df22e75222ee195a4aea20a2a3eea34e",
-      "bytes": 1440862
+      "sha256": "3af5242ff60bd7caaa06d5650fcd42d96ee214c0ce4670944432ac7c8466dd3b",
+      "bytes": 1458340
     },
     {
       "path": "wanderworld-icon.webp",
       "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
       "bytes": 5236
+    },
+    {
+      "path": "kit/art/bridge-planks.webp",
+      "sha256": "55ad05cc340dd40bd606aa672c4d55fc2c4882eecd188b3291bab08a474927b0",
+      "bytes": 36976
     },
     {
       "path": "kit/art/cliff-rock.webp",
@@ -334,6 +341,11 @@
       "path": "kit/art/water.webp",
       "sha256": "a3f79e06c6c46eda19210617fcda8930e83cee61708360cf161fa63ce600e85d",
       "bytes": 26338
+    },
+    {
+      "path": "kit/art/wood-beam.webp",
+      "sha256": "ab1947c7151e09969d2a2cc7b7e9b45f19c26901a81a7761716ab4143b298895",
+      "bytes": 38302
     },
     {
       "path": "kit/nature/bark-deadtree.webp",
