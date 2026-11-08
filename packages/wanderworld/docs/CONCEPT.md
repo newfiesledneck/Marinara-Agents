@@ -4,8 +4,8 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.1, 2026-11-07: a detailed seeded town (parts kit), walked as your persona, with your characters
-living in it.**
+Status: **0.4.2, 2026-11-07: a detailed seeded town (parts kit), walked as your persona, with your characters
+living in it, and one set of controls for computer and touch.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
@@ -130,6 +130,26 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 
 **Out of scope for the prototype:** changes to other packages, Game Mode, VRM or 3D avatars, survival
 or daily-life rules, combat, building, and the parametric character builder.
+
+---
+
+## Controls
+
+One scheme for every screen, kept small so it stays learnable. E is reserved for "use" (talk, open,
+pick up) and never moves the camera.
+
+| | Computer | Touch screen |
+| --- | --- | --- |
+| Walk | WASD (camera-relative) | The stick, bottom left; a small push strolls |
+| Run | Hold Shift | Push the stick all the way out |
+| Look around | Drag with the left or middle mouse button, or the arrow keys | Drag anywhere off the stick |
+| Zoom | Mouse wheel, or + / − | Pinch |
+| Use | E, or click someone (planned, S3) | Tap someone (planned, S3) |
+
+The camera orbits a point at head height: yaw all the way round, pitch from a little below head height
+(looking up at towers) to nearly overhead, zoom 2.5–18 m. It never goes below the ground, and it slides
+in when a building stands between it and the player. A press that moves under 5 px is a click, not a drag,
+so clicking someone to talk to them won't fight with looking around.
 
 ---
 

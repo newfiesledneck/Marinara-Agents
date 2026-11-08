@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.2 — 2026-11-07
+
+- New controls, the same on every screen size. On a computer: WASD walks, Shift runs, drag with the left or middle mouse button (or use the arrow keys) to look around, and scroll or press + and − to zoom. On a touch screen: the stick walks (push it all the way to run), drag anywhere else to look around, and pinch to zoom.
+- The camera tilts: look up at towers from street level, or tilt up to nearly overhead. It never goes below the ground.
+- Q and E no longer turn the camera; E is kept for using things.
+
 ## 0.4.1 — 2026-11-07
 
 - Buildings are much more detailed, assembled from a kit of parts: timber-framed, plastered, plank, stone and brick walls; gable, hipped and flat roofs; chimneys, porches, balconies, shutters, flower boxes, shop windows, awnings and hanging signs.
