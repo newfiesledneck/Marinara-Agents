@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.0 — 2026-11-07
+
+- Choose characters under People to live in town, up to twelve. Each lives in a house near the plaza, wanders nearby, stops to face you when you walk up, and has its name over its head. You can't walk through them. Your choice is remembered.
+- Every 3D model format 3D Avatars uses now walks, for you and for your characters: VRM, GLB, FBX and MMD (PMX). GLB and FBX models walk on the bones 3D Avatars matched for them, as VRM models do.
+
 ## 0.3.2 — 2026-11-07
 
 - Walking is slower and more natural: an unhurried walk, and Shift runs at what used to be the walking pace. Strides lengthen with speed, so legs no longer spin quickly at a run.

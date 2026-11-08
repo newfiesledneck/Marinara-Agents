@@ -19,7 +19,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.3.2";
+const VERSION = "0.4.0";
 // A client-only Home tab with its own icon, the same floor as Modern Life Sim's Home tab.
 const CAPABILITY_API = Object.freeze({ major: 1, minor: 9 });
 const ENGINE_MIN = "2.4.4";
@@ -27,7 +27,7 @@ const MAX_ENGINE_EXCLUSIVE = "4.0.0";
 const THREE_VERSION = "0.186.1"; // matches the Engine's own three.js
 const TAB_ICON = "wanderworld-icon.webp";
 const BASE_DESCRIPTION =
-  "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town and forest as one of your personas, in the 3D model you set up for it in 3D Avatars.";
+  "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -112,8 +112,9 @@ const manifest = {
     { path: "client.js", sha256: sha256(clientBuffer), bytes: clientBuffer.byteLength },
     { path: TAB_ICON, sha256: sha256(iconBuffer), bytes: iconBuffer.byteLength },
   ],
-  // ui: it draws its own Home tab. It also reads your persona list and the persona's 3D Avatars model
-  // through the Engine's same-origin routes, which no other permission name describes; it writes nothing.
+  // ui: it draws its own Home tab. It also reads your persona and character lists and their 3D Avatars
+  // models through the Engine's same-origin routes, which no other permission name describes; it writes
+  // nothing.
   permissions: ["ui"],
   restartRequired: false,
 };

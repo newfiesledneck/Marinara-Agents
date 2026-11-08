@@ -10,8 +10,8 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.3.2",
-  "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town and forest as one of your personas, in the 3D model you set up for it in 3D Avatars.",
+  "version": "0.4.0",
+  "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
   "engine": {
     "min": "2.4.4",
     "maxExclusive": "4.0.0"
@@ -38,13 +38,13 @@
   "files": [
     {
       "path": "agents.json",
-      "sha256": "d6fb58361d20e1af1431117aeb14c7433a173e97c8c275867651d1eba445f331",
-      "bytes": 620
+      "sha256": "808c0801cacd4a878fd31d8e93ff5781f8349f9ab5dafa8f8b2b34a236372d2b",
+      "bytes": 651
     },
     {
       "path": "client.js",
-      "sha256": "930bee8a6f74e7eeec8a411e87bac9a66a39e2eb09d6b6f15260f4af4d483d9b",
-      "bytes": 797600
+      "sha256": "4fcbe93ec9a82e80e3e3355df9c8794a6ef3f2b45c5c40137f1be29e1602ac8f",
+      "bytes": 1012194
     },
     {
       "path": "wanderworld-icon.webp",
