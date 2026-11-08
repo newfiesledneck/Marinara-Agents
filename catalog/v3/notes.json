@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.23",
+          "date": "2026-11-08",
+          "notes": "- Rocks and boulders have the same painted rock texture as the mountains.\n- Walking in and out of a cave's mouth is smooth: the floor eases into the ground in front instead of stepping down.",
+          "highlight": false
+        },
+        {
           "version": "0.4.22",
           "date": "2026-11-08",
           "notes": "- Leaves and needles under thick stands of trees, and painted snow on the high peaks.\n- Bridges cross over the water: the river and its bed run underneath, and the dirt road stops at each end.\n- Sand and mud only along the river now, not in every hollow of the hills.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.4",
           "date": "2026-11-08",
           "notes": "- Use things with E, a click or a tap: sit on benches and chairs, open doors and go inside (each kind of building has a furnished room), and talk to people. Click further away to walk there.\n- Talking is a preview: you face each other, the camera moves to the side, and a chat box and speech bubbles open. Replies are placeholders until the AI update.\n- Townsfolk sit on benches, go in and out of their houses, head home at night, look at you and wave.\n- Day and night (20 minutes a day), with lamps at night, and sound: footsteps, doors, wind, birds and crickets.\n- Settings: resolution (Auto keeps 4K screens smooth), draw distance, shadows, walk speed, camera, time of day, sound and the HUD.\n- Feet stay planted while walking and standing, and legs no longer sway walking towards the camera.\n- Remembers where you were; a loading screen; a ☰ menu on phones.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.3",
-          "date": "2026-11-07",
-          "notes": "- A more natural walk: the heel lands first and the toes push off, knees fold as each foot swings through, hips turn and sway with the steps, shoulders turn against them, and arms swing a beat behind with relaxed elbows and fingers. The standing foot stays on the ground, so the body rises and falls with each step instead of bobbing on its own. At a run, people lean in and pump their arms.\n- Standing still is no longer stiff: people breathe, shift their weight from foot to foot, glance around now and then, and VRM models blink.\n- People without a 3D model look like people: a face, one of several hairstyles, different builds and heights, and shirts with trousers, shorts, skirts or dresses. They walk and stand the same way 3D models do.\n- Fixed: a GLB or FBX model that faces away in its file raised its arms above its head instead of lowering them, and a VRM 0.x model would have too.",
           "highlight": false
         }
       ]
