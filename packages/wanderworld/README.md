@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.3.0)
+## What it does now (0.3.1)
 
 - Draws a seeded town around a plaza and fountain, with streets, lamp posts and houses of different sizes,
   colours and roofs, surrounded by forest. **New world** walks a different one.

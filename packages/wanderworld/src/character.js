@@ -4,9 +4,20 @@
 // A persona's own 3D model comes from the Engine's avatar store (the one 3D Avatars sets up):
 // VRM models get a procedural walk on their humanoid bones; GLB models are shown as they are. Anything
 // else (MMD, FBX, the Engine's mesh avatars, or no model at all) gets a low-poly figure instead.
-import { Box3, BoxGeometry, Color, Group, Mesh, MeshLambertMaterial, SphereGeometry, Vector3 } from "three";
+import {
+  Box3,
+  BoxGeometry,
+  Color,
+  Group,
+  LoadingManager,
+  Mesh,
+  MeshLambertMaterial,
+  SphereGeometry,
+  TextureLoader,
+  Vector3,
+} from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
+import { VRMLoaderPlugin, VRMMetaLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import { hashString, rng } from "./world.js";
 
 const TYPICAL_HEIGHT = 1.7;
@@ -206,11 +217,33 @@ export async function findPersonaModel(personaId) {
   return { kind, url };
 }
 
-/** Loads a persona's model as a character. Throws when the file can't be loaded. */
+const VRM1_LICENSE_URL = "https://vrm.dev/licenses/1.0/";
+
+/**
+ * Loads a persona's model as a character, the way the Engine's own 3D Avatars does
+ * (vrm-renderer.ts `loadStoredGltf`). Throws when the file can't be loaded.
+ */
 export async function loadModelCharacter({ kind, url }) {
-  const loader = new GLTFLoader();
-  if (kind === "vrm") loader.register((parser) => new VRMLoaderPlugin(parser));
-  const gltf = await loader.loadAsync(url);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`GET model → ${response.status}`);
+  const bytes = await response.arrayBuffer();
+  // Only the file's own embedded data may load: a model can't make the page fetch anything else.
+  const manager = new LoadingManager();
+  manager.setURLModifier((target) => (/^(?:blob|data):/iu.test(target) ? target : "data:,"));
+  const loader = new GLTFLoader(manager);
+  loader.register((parser) => {
+    // Textures load as images, which the Engine's img-src allows from blob: URLs. GLTFLoader's default
+    // ImageBitmapLoader reads them with fetch, which the Engine's connect-src refuses for blob: URLs, so
+    // every texture failed quietly and the model drew plain white.
+    parser.textureLoader = new TextureLoader(manager);
+    if (kind !== "vrm") return { name: "wanderworld-embedded-textures" };
+    // An unusual licence URL is a spec slip, not a reason to show nothing (the Engine accepts it too).
+    const licenseUrl = parser.json?.extensions?.VRMC_vrm?.meta?.licenseUrl;
+    return new VRMLoaderPlugin(parser, {
+      metaPlugin: new VRMMetaLoaderPlugin(parser, { acceptLicenseUrls: [VRM1_LICENSE_URL, licenseUrl] }),
+    });
+  });
+  const gltf = await loader.parseAsync(bytes, "");
   if (kind === "vrm") {
     if (!gltf.userData.vrm) throw new Error("The file is not a VRM model");
     return vrmCharacter(gltf);
