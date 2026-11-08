@@ -25,6 +25,7 @@ import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
 import { createSign } from "./signs.js";
 import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
+import { landscapeWith } from "./land.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
@@ -305,7 +306,9 @@ function buildWorld(seed, place = null) {
   core.world?.dispose();
   for (const sign of core.signs) sign.dispose();
   core.signs = [];
-  core.world = createWorld(hashString(seed));
+  core.world = createWorld(hashString(seed), core.save?.seed === seed ? core.save.landscape : null);
+  // A world keeps the land it was first built with, even if the seed's own choices change later.
+  if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
   core.zoneId = null;
   core.zoneShown = null;
@@ -478,9 +481,10 @@ function openMenu() {
   core.menu?.show();
 }
 
-function createNewWorld({ name, seed }) {
+function createNewWorld({ name, seed, choices }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
+  save.landscape = landscapeWith(hashString(save.seed), choices);
   // A new world starts with the persona and cast of the one played last.
   save.persona = core.personaId;
   save.cast = [...(core.cast ?? [])];
@@ -1006,6 +1010,21 @@ function knock(door) {
   });
 }
 
+/** A cave's mouth: a card like a door's, for starting a scene in there later. */
+function enterCave(cave) {
+  const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
+  const title = zone ? zoneName(zone) : "A cave";
+  core.sceneDoor = cave;
+  core.hud.setScene({
+    title: title.charAt(0).toUpperCase() + title.slice(1),
+    people: [],
+    party: core.crowd
+      .party()
+      .filter((member) => !member.waiting)
+      .map((member) => member.name),
+  });
+}
+
 /** Back out to the street in front of the door (at once when `now`, e.g. for a new world). */
 function leaveInterior(now = false) {
   const inside = core.interior;
@@ -1056,6 +1075,17 @@ function usable() {
       z: person.position.z,
       y: 2.45,
       act: () => talkTo(person),
+    });
+  }
+  for (const cave of core.interior ? [] : (core.world?.caves ?? [])) {
+    list.push({
+      kind: "door",
+      label: "Go in",
+      x: cave.x,
+      z: cave.z,
+      y: 1.6,
+      mark: cave.mouth,
+      act: () => enterCave(cave),
     });
   }
   if (core.interior) {

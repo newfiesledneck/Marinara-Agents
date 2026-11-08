@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.16 — 2026-11-08
+
+- The land round town has shape: hills from gentle to rugged, mountain ranges along some edges with rock and snow, and a winding river with sandy banks.
+- Places out in the country: a roadside inn, cottages and caves in hillsides, each at the end of its own dirt road, with a wooden bridge where a road crosses the river.
+- Every world's land is its own. New world can choose hills, mountains, a river and how much is out in the country, or let the seed surprise you. The world keeps it.
+- The river, roads, mountains, inns and caves have names, and a cave can be used like a door.
+
 ## 0.4.15 — 2026-11-08
 
 - A party: in a conversation, ask someone to come with you. They follow in a loose line, run to catch up, find their way round buildings, sit near you when you sit, and catch up if they get lost.
