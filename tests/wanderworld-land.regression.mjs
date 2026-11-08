@@ -122,6 +122,26 @@ assert.ok(
   "and the roads",
 );
 
+// However hilly, the ground at the top of each bank stands above the water, so the water never floats.
+for (const seed of [41, 42, 43]) {
+  const hilly = createWorld(seed, landscapeWith(seed, { hills: "rugged", river: "yes" }));
+  const { points, width } = hilly.layout.river;
+  for (let i = 1; i < points.length; i++) {
+    const [a, b] = [points[i - 1], points[i]];
+    const length = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const [nx, nz] = [-(b.z - a.z) / length, (b.x - a.x) / length];
+    for (const side of [-1, 1]) {
+      const x = a.x + nx * side * (width / 2 + 4);
+      const z = a.z + nz * side * (width / 2 + 4);
+      if (Math.abs(x) > 150 || Math.abs(z) > 150) continue;
+      assert.ok(
+        heightAt(x, z) > -0.45,
+        `seed ${seed}: the bank at (${x.toFixed(0)}, ${z.toFixed(0)}) is above the water`,
+      );
+    }
+  }
+}
+
 // A world with no landscape given still builds, from the seed.
 assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
 

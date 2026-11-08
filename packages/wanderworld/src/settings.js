@@ -18,6 +18,9 @@ export const SETTINGS = {
   props: { value: true },
   /** Where people may confront or attack: anywhere, only outside towns, only outside safe places (town
    *  and inns), or nowhere. (Confrontations now; combat when there is some.) */
+  /** How often townsfolk come up to greet (or confront) you, 0 never … 2 twice as often, and how many at once. */
+  approach: { value: 1, min: 0, max: 2 },
+  approachMax: { value: 2, options: [1, 2, 3, 5] },
   combat: { value: "outsideSafe", options: ["anywhere", "outsideTowns", "outsideSafe", "off"] },
   /** Walking into buildings' rooms (unfinished); off, a door shows who's inside instead. */
   interiors: { value: false },

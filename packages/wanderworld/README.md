@@ -78,7 +78,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   button or a tap uses. The camera orbits and tilts, and moves in when a building would hide you.
 - **Settings:** resolution (Auto keeps it smooth), draw distance, trees and rocks, shadows, walk and run speed,
   camera speed and direction, time of day, sound, where confrontations and combat may happen
-  (anywhere, outside towns, outside safe places, or off), and what the HUD shows.
+  (anywhere, outside towns, outside safe places, or off), how often people come up to you and how many
+  at once, what the HUD shows, and Regenerate this world (rebuilt from its setup, keeping its people).
 - Shows frames per second, draw calls, triangles and the render resolution (Settings can hide it).
 - **Fullscreen** fills the screen, on Engines whose Home tabs offer it.
 

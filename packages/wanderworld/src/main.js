@@ -551,11 +551,47 @@ function createNewWorld({ name, seed, choices }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
   save.landscape = landscapeWith(hashString(save.seed), choices);
+  save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
   save.persona = core.personaId;
   save.cast = [...(core.cast ?? [])];
   core.saves.write(save);
   playWorld(save.id);
+}
+
+/** The New world choices a landscape amounts to, for a world saved before its choices were kept. */
+function choicesOf(landscape) {
+  const count = landscape?.outposts?.length ?? 0;
+  return {
+    hills: landscape?.hills,
+    mountains: ["none", "one", "two", "three"][landscape?.mountains?.length ?? 0],
+    river: landscape?.river ? "yes" : "no",
+    places: count === 0 ? "none" : count <= 2 ? "few" : "several",
+  };
+}
+
+/**
+ * Builds the world on screen afresh from its New world choices with this version's land, keeping its
+ * people, relationships, party, notes, lore and names. `reshuffle` also gives it a new seed (a new town
+ * layout and land): then place names and lore tied to places are cleared, as those places are gone.
+ * The player starts again at the square.
+ */
+function regenerateWorld(reshuffle = false) {
+  const save = core.save;
+  if (!save) return;
+  savePlace(true);
+  const choices = core.save.choices ?? choicesOf(core.save.landscape);
+  const seed = reshuffle ? `world-${Date.now().toString(36)}` : core.save.seed;
+  const landscape = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
+  const next = { ...core.save, seed, landscape, choices, place: null };
+  if (reshuffle) Object.assign(next, { names: {}, lore: {} });
+  core.saves.write(next);
+  // Drop the world in memory so playing builds it again from the save.
+  core.save = null;
+  core.world?.dispose();
+  core.world = null;
+  core.hud?.closePanels();
+  playWorld(next.id);
 }
 
 function suggestName() {
@@ -1892,6 +1928,8 @@ function step(dt) {
     onSay: (group, text) => core.talk?.say(group, text, 3.5),
     playerName: personaName(),
     aggressionAllowed,
+    approach: core.settings.approach,
+    approachMax: core.settings.approachMax,
   });
   core.talk?.update(dt);
   core.sound.tick(dt, { dark: core.dark, inside });
@@ -1972,6 +2010,7 @@ function attach(element) {
     onToggleCharacter: toggleCharacter,
     onSetBody: setBody,
     onSetting: changeSetting,
+    onRegenerate: regenerateWorld,
     onUse: () => {
       core.sound.unlock();
       use();

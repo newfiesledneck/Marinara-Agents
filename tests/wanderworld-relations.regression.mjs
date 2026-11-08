@@ -94,6 +94,8 @@ const step = (seconds) => {
       onSay: (group, text) => said.push(text),
       playerName: "Zoey",
       aggressionAllowed: () => allowed,
+      approach: 4, // people come up often here, so the test needn't wait
+      approachMax: 5,
     });
     world.update(0.1);
   }

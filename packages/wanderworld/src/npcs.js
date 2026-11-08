@@ -109,6 +109,7 @@ export function createCrowd() {
   let feeling = () => ({ kind: "acquaintance", level: 20, warmth: 0.12 });
   // Each person's temperament (relationships.js): aggression and sociability, 0–100.
   let traitsOf = () => ({ aggression: 50, sociability: 50 });
+  let lastApproach = -Infinity; // when someone last set off to come up to the player
   const party = []; // ids of followers, in order (their place in the line)
 
   /** Where someone is standing now: the town or the room. */
@@ -470,6 +471,15 @@ export function createCrowd() {
   }
 
   /** Something to say in a chat with `other`, by how they feel about each other. */
+  /** How many are coming up to the player (or just have): greeting, confronting, or in the last 10 s. */
+  function approachers() {
+    let count = 0;
+    for (const other of people.values()) {
+      if (other.greeting || (other.confronting && clock < other.confronting) || clock - other.greetedAt < 10) count++;
+    }
+    return count;
+  }
+
   /**
    * Two people's conversation (dialogue.js): a whole exchange, taking turns, the one who began first;
    * when it's done, the next to speak begins another. Returns whether it's `person`'s turn to speak.
@@ -537,7 +547,11 @@ export function createCrowd() {
       const sociability = traits.sociability / 100;
       const hostileAt = HOSTILE_WARMTH + (aggression - 0.5); // −0.35 (aggressive) … −1.35 (passive: never)
       const allowed = view.aggressionAllowed ? view.aggressionAllowed(view.player.x, view.player.z) : true;
+      // How often people come up to the player (Settings: 0 never … 2 twice as often), and how many at once.
+      const approach = view.approach ?? 1;
+      const room = approach > 0 && approachers() < (view.approachMax ?? 2) && clock - lastApproach > 20 / approach;
       if (
+        room &&
         allowed &&
         toPlayer.warmth <= hostileAt &&
         playerDistance < GREET_DISTANCE * 1.5 &&
@@ -545,6 +559,7 @@ export function createCrowd() {
       ) {
         // A sworn enemy marches up to have it out (a fight, once there's combat), dropping whatever else.
         person.greetedAt = clock;
+        lastApproach = clock;
         if (person.partner?.partner === person) person.partner.partner = null;
         person.partner = null;
         leaveSeat(person);
@@ -563,13 +578,15 @@ export function createCrowd() {
         }
       }
       if (
+        room &&
         toPlayer.warmth >= GREET_WARMTH - 0.3 * (sociability - 0.5) &&
         playerDistance < GREET_DISTANCE * (0.6 + 0.8 * sociability) &&
         playerDistance > STOP_DISTANCE + 0.5 &&
-        clock - person.greetedAt > GREET_AGAIN &&
+        clock - person.greetedAt > GREET_AGAIN / approach &&
         person.state !== "sit"
       ) {
         person.greetedAt = clock;
+        lastApproach = clock;
         person.plan = [{ walk: towardSpot(here, view.player, 1.8), direct: true }, { greet: true }];
         person.greeting = true; // walking over: not stopping short when the player is close
         person.state = "idle";
