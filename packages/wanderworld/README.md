@@ -4,13 +4,22 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.13)
+## What it does now (0.4.14)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the cobbled
   streets beyond, with brick sidewalks, flowers and clutter by the doors, ivy on walls, parked wagons and
   meadows on empty lots. Buildings come from a kit of parts (walls, roofs, chimneys, balconies, shutters,
   signs, awnings). **New world** walks a different one.
+- **Main menu and saves:** Continue, New world (a name and an optional seed), Load world (thumbnails,
+  Rename, Delete) and Settings. Each world keeps where you were, the time, the persona, the cast, its
+  place names and their lore, in this package's browser storage for now.
+- **Places:** a named town with named streets, the market square, the fountain, gardens, meadows, the
+  edge of town and the woods. Walking into one shows its name; the bar says where you are, and which
+  lore is active there. Shops, the tavern, smithy, temple and hall have their name on a sign.
+- **The Journal** (J): Here (where you are, the lore active here, who's nearby), People (where everyone
+  is and what they're doing, in the words the AI will get), Places (rename any place; tie lorebook
+  entries to it) and World.
 - **Play as** picks one of your personas. A persona with a 3D model set up in 3D Avatars walks in that
   model (VRM, GLB, FBX or MMD); any other persona gets a built-in low-poly person (face, hair, build and
   clothes chosen from its name). The choice is remembered.
@@ -82,6 +91,9 @@ for that persona in 3D Avatars first.
 - `src/interiors.js` builds the room behind a door from the building's kind, seeded by the building, and
   hides whichever walls stand between the camera and the player. Off by default (Settings → Walk into
   buildings) until rooms get their own pass.
+- `src/zones.js` names the places of a world from its layout and seed, finds the place at a point and
+  says where someone is in words; `src/saves.js` keeps the saved worlds (checked on the way in);
+  `src/menu.js` is the main menu, `src/journal.js` the Journal, `src/signs.js` the shop signs.
 - `src/talk.js` is the conversation panel and speech bubbles; `src/sound.js` makes every sound with Web
   Audio; `src/settings.js` keeps the settings, checking each value as it is read back.
 - `src/people.js` builds a default person from the kit: every part keeps its own joints' bind data and

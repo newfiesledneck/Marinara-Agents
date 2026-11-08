@@ -4,8 +4,9 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.13, 2026-11-08: a detailed, lively seeded town you can walk round, sit down in and talk in (a
-preview, without the AI yet), with up to thirty of your characters living their day in it, indoors and out.**
+Status: **0.4.14, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
+that you can walk round, sit down in and talk in (a preview, without the AI yet), with up to thirty of your
+characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
@@ -165,12 +166,21 @@ so a model call can read it as-is and later write to it.
 
 ### W1. Places and zones
 
+*In 0.4.14: zones, the place line and names on entering, `describe`, renaming and zone lore in the
+Journal, shop signs, all saved per world (`saves.js`). Still to do: a zone editor beyond renaming, and
+signs that carry a picture by default.*
+
 - **Every spot has a place:** buildings by kind and name ("the tavern", "Mira's house"), the plaza and
   its fountain, each street, gardens, meadows, the edge of town, the forest. A zone is a shape (a box or
   a circle) with an id, a name, a kind, and optional tags; nested zones read from small to large ("by the
   fountain, in the plaza, in town").
 - **On screen:** the zone's name shows briefly on entering it (the M1 goal), and a small place line sits
   by the clock.
+- **Signs:** shops, the tavern, the smithy, the temple and the hall have a board over the door with the
+  place's name, so a rename ("The Rusty Tankard", by hand now, by the AI from the world brief later)
+  shows on it. A board can carry a picture beside the words: default carved pictures per kind, or one the
+  AI generates for the place with the server part (packages can generate images there through the
+  Engine's integrations).
 - **Where each person is, in words:** `describe(person)` gives one line from their zone, what they're
   doing and what they're near: "Jake is sitting on a bench by the fountain in the plaza", "Sarah is inside
   the tavern". These lines are exactly what S3 and S4 send.

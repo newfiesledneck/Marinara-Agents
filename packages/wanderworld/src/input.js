@@ -23,7 +23,7 @@ const KEYS = {
   _: "zoomOut",
 };
 /** Keys that act once per press rather than while held. */
-const PRESSES = { e: "use", escape: "leave" };
+const PRESSES = { e: "use", escape: "leave", j: "journal" };
 
 const STICK_SIZE = 116;
 const KNOB_SIZE = 48;

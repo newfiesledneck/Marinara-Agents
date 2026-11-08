@@ -531,6 +531,23 @@ export function createCrowd() {
         person.group.removeFromParent();
       }
     },
+    /**
+     * Everyone as plain facts, for saying where they are (zones.js): [{ id, name, state, x, z,
+     * inDoor (door index or null), home (door index or null), seated, inRoom }].
+     */
+    snapshot() {
+      return [...people.values()].map((person) => ({
+        id: person.id,
+        name: person.name,
+        state: person.state,
+        x: person.group.position.x,
+        z: person.group.position.z,
+        inDoor: person.inDoor?.index ?? null,
+        home: person.home?.index ?? null,
+        seated: !!person.seat && person.state === "sit",
+        inRoom: !!person.space && person.space !== world,
+      }));
+    },
     /** Everyone inside `door`'s building, out of sight. */
     inside(door) {
       return [...people.values()].filter((person) => person.state === "inside" && person.inDoor?.index === door.index);

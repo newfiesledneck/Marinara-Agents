@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.14 — 2026-11-08
+
+- A main menu: Continue, New world, Load world and Settings. Each world saves where you were, the time, your persona and who lives there; the Load list shows a picture of each, with Rename and Delete. Your world from before comes over as "My first world".
+- Places: every town gets a name, and so does every street; there's the market square, the fountain, gardens, meadows, the edge of town and the woods. A place's name shows as you walk in, and the bar says where you are.
+- Shop signs: the tavern, shops, smithy, temple and hall have their name over the door.
+- The Journal (J): where you are and who's nearby, where everyone is ("Mira is walking on Chapel Row"), every place to rename (a sign changes with it) or tie lorebook entries to, and the world's details.
+
 ## 0.4.13 — 2026-11-08
 
 - A livelier town: cobbled streets, brick sidewalks round every block and a paved plaza; patchy grass; fenced gardens with a tree, flowers and a bench; flowers, barrels, sacks and buckets by doors; ivy on walls; wagons parked in the streets; meadows on empty lots.

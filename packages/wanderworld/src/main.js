@@ -21,6 +21,10 @@ import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { HOUSE_PIECES } from "./houses.js";
 import { kitModels, kitTexture } from "./kit.js";
+import { createMenu } from "./menu.js";
+import { createSaves } from "./saves.js";
+import { createSign } from "./signs.js";
+import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
@@ -47,10 +51,13 @@ const CLICK_SLOP = 5; // pixels a press may move and still be a click, not a dra
 const CAMERA_FOLLOW = 12; // how quickly the camera catches up (higher is snappier)
 /** Presses on these never start a camera drag: they're the HUD's own controls. */
 const UI_SELECTOR = "button, select, input, label, textarea, form, [data-wanderworld-ui]";
-const PERSONA_KEY = "wanderworld.persona"; // this package's own browser storage keys
-const CAST_KEY = "wanderworld.cast";
-const PLACE_KEY = "wanderworld.place";
+// This package's own browser storage: worlds live in saves.js; bodies are the same in every world.
 const BODIES_KEY = "wanderworld.bodies"; // { [character or persona id]: "male" | "female" }
+const PERSONA_KEY = "wanderworld.persona"; // the persona a new world starts with: the one played last
+const NEARBY = 12; // metres: who counts as nearby
+const ZONE_SETTLE = 0.6; // seconds in a new place before its name shows
+const THUMBNAIL = { width: 192, height: 108 };
+const THUMBNAIL_EVERY = 90; // seconds between thumbnail refreshes while playing
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
 const NO_INPUT = { x: 0, y: 0, amount: 0, run: false, yaw: 0, pitch: 0, zoom: 0 };
@@ -84,6 +91,19 @@ const core = {
   space: null, // the town, or the interior the player is in
   interior: null, // { door, room } while inside a building
   sceneDoor: null, // the door whose card is showing
+  saves: createSaves(),
+  save: null, // the world being played (saves.js record)
+  menu: null,
+  paused: true, // the main menu is up: nothing moves or draws
+  zones: null, // zones.js, for this world
+  signs: [], // shop signs, one per signed building
+  zoneId: null, // the place the player is in now
+  zoneShown: null, // the last place whose name showed
+  zoneSince: 0,
+  zoneCheck: 0,
+  journalAt: 0,
+  thumbnailAt: 0,
+  lorebooks: null, // the Engine's lorebooks with their entries, once read
   seed: FIRST_SEED,
   player: new Group(), // position and facing; the persona's body sits inside it
   shadow: blobShadow(),
@@ -283,7 +303,12 @@ function buildWorld(seed, place = null) {
   core.player.removeFromParent();
   core.crowd.detach();
   core.world?.dispose();
+  for (const sign of core.signs) sign.dispose();
+  core.signs = [];
   core.world = createWorld(hashString(seed));
+  core.zones = buildZones(core.world.layout, hashString(seed));
+  core.zoneId = null;
+  core.zoneShown = null;
   core.space = core.world;
   core.world.scene.add(core.player);
   core.crowd.setWorld(core.world);
@@ -313,7 +338,9 @@ function buildWorld(seed, place = null) {
     const world = core.world;
     kitModels("village", HOUSE_PIECES)
       .then((models) => {
-        if (core.world === world) world.addBuildings(models);
+        if (core.world !== world) return;
+        world.addBuildings(models);
+        placeSigns();
       })
       .catch((error) => console.warn("[wanderworld] detailed buildings failed to load", error));
     // Cobbled roads and brick paving, in the same kit's textures.
@@ -345,49 +372,361 @@ function currentPlace() {
   };
 }
 
-function newWorld() {
-  buildWorld(`world-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
-}
-
-/** Remembers the world and where the player stands, at most every two seconds. */
-function savePlace(now = false) {
-  if (!core.world || (!now && core.clock - core.savedAt < 2)) return;
+/**
+ * Saves the world being played: where the player stands, the time, persona and cast (at most every two
+ * seconds unless `now`). With `thumbnail`, a small picture of the view goes with it for the Load list.
+ */
+function savePlace(now = false, thumbnail = null) {
+  if (!core.world || !core.save || (!now && core.clock - core.savedAt < 2)) return;
   core.savedAt = core.clock;
   // Indoors, remember the street in front of the door: that's where the player comes back.
   const door = core.interior?.door;
   const outside = door ?? core.player.position;
-  store(
-    PLACE_KEY,
-    JSON.stringify({
-      seed: core.seed,
+  core.save = {
+    ...core.save,
+    playedAt: Date.now(),
+    hour: core.hour,
+    persona: core.personaId,
+    cast: [...(core.cast ?? [])],
+    place: {
       x: outside.x,
       z: outside.z,
       angle: door ? door.angle : core.player.rotation.y,
       yaw: door ? door.angle + STREET_VIEW : core.cameraYaw,
       pitch: core.cameraPitch,
       zoom: core.zoom,
-      hour: core.hour,
-    }),
-  );
+    },
+  };
+  core.saves.write(core.save, thumbnail);
 }
 
-function readPlace() {
+/** A saved spot, kept inside the world and the camera's limits. */
+function checkedPlace(place) {
+  if (!place) return null;
+  const edge = WORLD_SIZE / 2 - 2;
+  return {
+    ...place,
+    x: Math.max(-edge, Math.min(edge, place.x)),
+    z: Math.max(-edge, Math.min(edge, place.z)),
+    pitch: Math.max(MIN_PITCH, Math.min(MAX_PITCH, place.pitch)),
+    zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, place.zoom)),
+  };
+}
+
+/** The view as a small JPEG data URL, drawn right after a render (the canvas is cleared after that). */
+function captureThumbnail() {
+  if (!core.renderer || !core.world || typeof document === "undefined") return null;
   try {
-    const place = JSON.parse(readStored(PLACE_KEY) ?? "null");
-    const numbers = ["x", "z", "angle", "yaw", "pitch", "zoom", "hour"];
-    if (!place || typeof place.seed !== "string" || !numbers.every((key) => Number.isFinite(place[key]))) return null;
-    const edge = WORLD_SIZE / 2 - 2;
-    return {
-      ...place,
-      x: Math.max(-edge, Math.min(edge, place.x)),
-      z: Math.max(-edge, Math.min(edge, place.z)),
-      pitch: Math.max(MIN_PITCH, Math.min(MAX_PITCH, place.pitch)),
-      zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, place.zoom)),
-      hour: ((place.hour % 24) + 24) % 24,
-    };
+    core.renderer.render(core.space.scene, core.camera);
+    const canvas = document.createElement("canvas");
+    canvas.width = THUMBNAIL.width;
+    canvas.height = THUMBNAIL.height;
+    const source = core.renderer.domElement;
+    const scale = Math.max(canvas.width / source.width, canvas.height / source.height);
+    const w = source.width * scale;
+    const h = source.height * scale;
+    canvas.getContext("2d").drawImage(source, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    return canvas.toDataURL("image/jpeg", 0.7);
   } catch {
     return null;
   }
+}
+
+// ── Worlds and the main menu ─────────────────────────────────────────────────
+
+/** Plays saved world `id`: back where the player left it, with its persona and cast. */
+function playWorld(id) {
+  const save = core.saves.read(id);
+  if (!save) return;
+  core.saves.setLast(id);
+  if (core.save?.id === id && core.world) {
+    resume(); // the world in memory is this one: just carry on
+    return;
+  }
+  savePlace(true);
+  core.save = save;
+  core.hour = save.hour;
+  const known = new Set((core.characters ?? []).map((character) => character.id));
+  core.cast = new Set(save.cast.filter((id) => known.has(id)).slice(0, MAX_PEOPLE));
+  const persona =
+    core.personas?.find((entry) => entry.id === save.persona) ??
+    core.personas?.find((entry) => entry.id === readStored(PERSONA_KEY)) ??
+    core.personas?.[0] ??
+    null;
+  core.hud?.setPersonas(core.personas ?? [], persona?.id, core.bodies);
+  void choosePersona(persona?.id ?? null);
+  buildWorld(save.seed, checkedPlace(save.place));
+  updateCast();
+  resume();
+}
+
+function resume() {
+  core.menu?.hide();
+  core.hud?.setMenuOpen(false);
+  core.paused = false;
+  core.lastTime = 0;
+}
+
+/** Saves the world (with a fresh thumbnail) and opens the main menu. */
+function openMenu() {
+  if (core.mode === "talk") endTalk();
+  if (core.save && core.world) savePlace(true, captureThumbnail());
+  core.paused = true;
+  core.hud?.setMenuOpen(true);
+  core.menu?.show();
+}
+
+function createNewWorld({ name, seed }) {
+  const save = core.saves.create({ name: name || suggestName(), seed });
+  if (!save) return;
+  // A new world starts with the persona and cast of the one played last.
+  save.persona = core.personaId;
+  save.cast = [...(core.cast ?? [])];
+  core.saves.write(save);
+  playWorld(save.id);
+}
+
+function suggestName() {
+  const count = core.saves.list().length;
+  return count ? `World ${count + 1}` : "My first world";
+}
+
+function deleteWorld(id) {
+  core.saves.remove(id);
+  if (core.save?.id === id) {
+    core.save = null; // the world on screen is gone: it can't be continued or saved again
+    core.world?.dispose();
+    core.world = null;
+  }
+}
+
+// ── Places ───────────────────────────────────────────────────────────────────
+
+/** The names this world has given its places (by hand now, by the AI later). */
+const placeNames = () => core.save?.names ?? {};
+
+/**
+ * A place's name here: renamed (unless `renamed` is false), or "Mira's house" for a home someone in the
+ * cast lives in, or the default.
+ */
+function zoneName(zone, residents = null, renamed = true) {
+  if (renamed && placeNames()[zone.id]) return nameOf(zone, placeNames());
+  if (zone.kind === "building" && zone.buildingKind === "home" && residents?.get(zone.door)?.length) {
+    const names = residents.get(zone.door);
+    return `${names.length > 2 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.join(" and ")}'s house`;
+  }
+  return zone.name;
+}
+
+/** A sign over the door of every shop, the tavern, the temple, the hall and the smithy. */
+function placeSigns() {
+  for (const sign of core.signs) sign.dispose();
+  core.signs = [];
+  for (const zone of core.zones.zones) {
+    if (zone.kind !== "building" || !zone.sign) continue;
+    const door = core.world.doors[zone.door];
+    if (!door) continue;
+    // Above the doorframe, flat on the wall: the step is 0.35 m out from it.
+    const back = 0.29;
+    const sign = createSign({
+      x: door.step.x - Math.sin(door.angle) * back,
+      y: heightAt(door.step.x, door.step.z) + 2.84,
+      z: door.step.z - Math.cos(door.angle) * back,
+      angle: door.angle,
+      words: signOf(zone, placeNames()),
+    });
+    if (!sign) return; // no canvas here
+    sign.zone = zone;
+    core.world.scene.add(sign.mesh);
+    core.signs.push(sign);
+  }
+}
+
+/** Who lives where: door index → names. */
+function residentsOf(snapshot) {
+  const homes = new Map();
+  for (const person of snapshot) {
+    if (person.home === null) continue;
+    if (!homes.has(person.home)) homes.set(person.home, []);
+    homes.get(person.home).push(person.name);
+  }
+  return homes;
+}
+
+/** A person's (or the player's) zone: the building they're inside, or the place where they stand. */
+function zoneOfPerson(person) {
+  if (person.inDoor !== null && person.inDoor !== undefined) {
+    return core.zones.byId.get(`building:${person.inDoor}`) ?? zoneAt(core.zones, person.x, person.z);
+  }
+  return zoneAt(core.zones, person.x, person.z);
+}
+
+/** Zone lines with this world's names: a copy of the zones whose names say who lives where. */
+function namedZones(residents) {
+  const names = {};
+  for (const zone of core.zones.zones) names[zone.id] = zoneName(zone, residents);
+  return names;
+}
+
+/** Lorebook entries tied to a zone or the zones it sits in. */
+function loreAt(zone) {
+  const lore = core.save?.lore ?? {};
+  return chainOf(core.zones, zone).flatMap((at) => lore[at.id] ?? []);
+}
+
+/** Keeps the place line, the big place name and (when open) the Journal up to date. */
+function stepPlaces(dt) {
+  if (!core.zones) return;
+  core.zoneCheck -= dt;
+  core.journalAt -= dt;
+  if (core.zoneCheck > 0) return;
+  core.zoneCheck = 0.25;
+  const position = core.player.position;
+  const zone = core.interior
+    ? (core.zones.byId.get(`building:${core.interior.door.index}`) ?? zoneAt(core.zones, position.x, position.z))
+    : zoneAt(core.zones, position.x, position.z);
+  const snapshot = core.crowd.snapshot();
+  const residents = residentsOf(snapshot);
+  const names = namedZones(residents);
+  if (zone.id !== core.zoneId) {
+    core.zoneId = zone.id;
+    core.zoneSince = core.clock;
+  }
+  if (core.zoneShown !== zone.id && core.clock - core.zoneSince >= ZONE_SETTLE) {
+    // The town's own name the first time; after that the place itself.
+    if (core.zoneShown !== null || zone.kind !== "town") core.hud?.showZone(names[zone.id]);
+    core.zoneShown = zone.id;
+  }
+  const lore = loreAt(zone).map((entry) => entry.title);
+  const town = names.town;
+  core.hud?.setPlace(zone.id === "town" ? town : `${town} · ${names[zone.id]}`, lore);
+  if (core.journalAt <= 0) {
+    core.journalAt = 0.5;
+    core.hud?.journal.render(journalData(zone, snapshot, residents, names));
+  }
+}
+
+/** Everything the Journal shows, in the words the AI will get later. */
+function journalData(zone, snapshot, residents, names) {
+  const zones = core.zones;
+  const say = (who) => describe(zones, who, names);
+  const playerWho = {
+    name: personaName(),
+    state: core.mode === "sit" ? "sit" : core.mode === "talk" ? "talk" : "idle",
+    seat: core.mode === "sit",
+    talkingTo: core.talking?.name ?? null,
+    zone,
+  };
+  const position = core.player.position;
+  const lines = snapshot.map((person) => ({
+    person,
+    distance: Math.hypot(person.x - position.x, person.z - position.z),
+    line: say({
+      name: person.name,
+      state: person.state,
+      seat: person.seated,
+      zone: zoneOfPerson(person),
+    }),
+  }));
+  const nearby = lines
+    .filter((entry) => entry.person.state !== "inside" && !entry.person.inRoom && entry.distance < NEARBY)
+    .sort((a, b) => a.distance - b.distance)
+    .map((entry) => entry.line);
+  const lore = core.save?.lore ?? {};
+  return {
+    here: {
+      place: say(playerWho),
+      chain: chainOf(zones, zone)
+        .map((at) => names[at.id])
+        .join(" · "),
+      lore: loreAt(zone),
+      nearby,
+    },
+    people: lines.map((entry) => entry.line),
+    places: zones.zones.map((at) => ({
+      id: at.id,
+      kind: at.kind === "building" ? at.buildingKind : at.kind,
+      name: names[at.id],
+      defaultName: zoneName(at, residents, false),
+      lore: (lore[at.id] ?? []).length,
+    })),
+    world: {
+      name: core.save?.name ?? "",
+      town: names.town,
+      time: clockText(),
+      people: snapshot.length,
+      seed: core.seed,
+    },
+  };
+}
+
+/** Renames a place in this world (an empty name puts its default back); its sign changes with it. */
+function renameZone(id, name) {
+  if (!core.save) return;
+  const names = { ...core.save.names };
+  if (name) names[id] = name;
+  else delete names[id];
+  core.save = { ...core.save, names };
+  core.saves.write(core.save);
+  for (const sign of core.signs) if (sign.zone.id === id) sign.setWords(signOf(sign.zone, names));
+  core.zoneShown = core.zoneId; // no big title for a rename
+  core.journalAt = 0;
+  core.zoneCheck = 0;
+}
+
+/** The Engine's lorebooks with their entries: [{ id, name, entries: [{ id, title }] }], read once. */
+async function readLorebooks() {
+  if (core.lorebooks) return core.lorebooks;
+  const getJson = async (path) => {
+    const response = await fetch(path, { credentials: "same-origin" });
+    if (!response.ok) throw new Error(`GET ${path} → ${response.status}`);
+    return response.json();
+  };
+  const books = await getJson("/api/lorebooks");
+  const list = Array.isArray(books) ? books : (books?.items ?? books?.lorebooks ?? []);
+  core.lorebooks = await Promise.all(
+    list.map(async (book) => {
+      let entries = [];
+      try {
+        const raw = await getJson(`/api/lorebooks/${encodeURIComponent(book.id)}/entries`);
+        entries = (Array.isArray(raw) ? raw : (raw?.items ?? raw?.entries ?? [])).map((entry) => ({
+          id: String(entry.id),
+          title: String(
+            entry.name || entry.comment || (Array.isArray(entry.keys) ? entry.keys.join(", ") : "") || "Entry",
+          ),
+        }));
+      } catch (error) {
+        console.warn(`[wanderworld] couldn't read lorebook ${book.name}`, error);
+      }
+      return { id: String(book.id), name: String(book.name ?? "Lorebook"), entries };
+    }),
+  );
+  return core.lorebooks;
+}
+
+/** Opens the lore picker for a place: tick entries to make them active there. */
+function editZoneLore(id) {
+  const zone = core.zones?.byId.get(id);
+  if (!zone || !core.save) return;
+  const title = zoneName(zone, residentsOf(core.crowd.snapshot()));
+  const chosen = () => new Set((core.save.lore[id] ?? []).map((entry) => `${entry.lorebookId}/${entry.entryId}`));
+  const toggle = (book, entry, on) => {
+    const kept = (core.save.lore[id] ?? []).filter((at) => !(at.lorebookId === book.id && at.entryId === entry.id));
+    if (on) kept.push({ lorebookId: book.id, entryId: entry.id, title: entry.title });
+    const lore = { ...core.save.lore };
+    if (kept.length) lore[id] = kept;
+    else delete lore[id];
+    core.save = { ...core.save, lore };
+    core.saves.write(core.save);
+    core.zoneCheck = 0;
+  };
+  core.hud?.journal.showLore(title, null, chosen(), toggle);
+  readLorebooks()
+    .then((books) => core.hud?.journal.showLore(title, books, chosen(), toggle))
+    .catch((error) => {
+      console.warn("[wanderworld] couldn't read lorebooks", error);
+      core.hud?.journal.showLore(title, [], chosen(), toggle);
+    });
 }
 
 function setCharacter(character) {
@@ -435,7 +774,7 @@ function updateCast() {
   core.crowd.setShadows(core.settings.shadows);
   core.crowd.setNamesVisible(core.settings.names);
   core.hud?.setCharacters(core.characters ?? [], core.cast, core.bodies);
-  store(CAST_KEY, JSON.stringify([...core.cast]));
+  savePlace(true);
 }
 
 /** Sets which default body `id` (a character or persona) gets: "male", "female" or "auto". */
@@ -460,12 +799,6 @@ async function loadPeople() {
   const [personas, characters] = await Promise.all([listPersonas(), listCharacters()]);
   core.personas = personas;
   core.characters = characters;
-  let stored;
-  try {
-    stored = JSON.parse(readStored(CAST_KEY) ?? "[]");
-  } catch {
-    stored = []; // a damaged saved cast starts empty
-  }
   try {
     const bodies = JSON.parse(readStored(BODIES_KEY) ?? "{}");
     core.bodies = Object.fromEntries(
@@ -476,16 +809,11 @@ async function loadPeople() {
   } catch {
     core.bodies = {}; // a damaged saved copy: everyone is auto
   }
-  const known = new Set(characters.map((character) => character.id));
-  core.cast = new Set((Array.isArray(stored) ? stored : []).filter((id) => known.has(id)).slice(0, MAX_PEOPLE));
-  updateCast();
+  core.cast = core.cast ?? new Set();
+  core.hud?.setCharacters(characters, core.cast, core.bodies);
   const remembered = readStored(PERSONA_KEY);
-  const selected = personas.find((entry) => entry.id === remembered) ?? personas[0] ?? null;
-  core.hud?.setPersonas(personas, selected?.id, core.bodies);
-  // The loading card stays up until the persona's own model is in, so the first view is the real one.
-  const slow = setTimeout(() => core.hud?.setLoading(null), 10000);
-  await choosePersona(selected?.id ?? null);
-  clearTimeout(slow);
+  core.personaId = (personas.find((entry) => entry.id === remembered) ?? personas[0] ?? null)?.id ?? null;
+  core.hud?.setPersonas(personas, core.personaId, core.bodies);
   core.hud?.setLoading(null);
 }
 
@@ -637,8 +965,10 @@ function knock(door) {
   core.sound.door();
   const names = core.crowd.inside(door).map((person) => person.name);
   core.sceneDoor = door;
+  const zone = core.zones?.byId.get(`building:${door.index}`);
+  const title = zone ? zoneName(zone, residentsOf(core.crowd.snapshot())) : (PLACE_NAMES[door.kind] ?? "A house");
   core.hud.setScene({
-    title: PLACE_NAMES[door.kind] ?? "A house",
+    title: title.charAt(0).toUpperCase() + title.slice(1),
     people: names,
   });
 }
@@ -901,9 +1231,14 @@ function stepClock(dt) {
   else if (mode === "night") core.hour = 23;
   else core.hour = (core.hour + (dt * 24) / DAY_SECONDS) % 24;
   core.dark = core.world.setTime(core.hour);
+  core.hud?.setClock(clockText());
+}
+
+/** The time in town to the ten minutes: "09:40". */
+function clockText() {
   const hours = Math.floor(core.hour);
   const minutes = Math.floor((core.hour - hours) * 60);
-  core.hud?.setClock(`${String(hours).padStart(2, "0")}:${String(Math.floor(minutes / 10) * 10).padStart(2, "0")}`);
+  return `${String(hours).padStart(2, "0")}:${String(Math.floor(minutes / 10) * 10).padStart(2, "0")}`;
 }
 
 /** Moves the player for one frame; returns how fast they really moved. */
@@ -1044,8 +1379,14 @@ function step(dt) {
     else if (core.mode === "sit") standUp();
   }
   if (input?.take("use")) use();
+  if (input?.take("journal")) core.hud?.toggleJournal();
 
   stepClock(dt);
+  stepPlaces(dt);
+  if (core.save && core.clock - core.thumbnailAt > THUMBNAIL_EVERY) {
+    core.thumbnailAt = core.clock;
+    savePlace(true, captureThumbnail());
+  }
   const speed = movePlayer(dt, read);
   let lookAt = null;
   if (core.talking) {
@@ -1111,7 +1452,7 @@ function frame(time) {
     return;
   }
   core.raf = requestAnimationFrame(frame);
-  if (!core.world) return;
+  if (!core.world || core.paused) return;
   const dt = core.lastTime ? Math.min(0.1, (time - core.lastTime) / 1000) : 0;
   core.lastTime = time;
   step(dt);
@@ -1145,7 +1486,9 @@ function attach(element) {
   bindCamera(core.stage);
 
   core.hud = createHud(core.stage, {
-    onNewWorld: newWorld,
+    onMenu: openMenu,
+    onRenameZone: renameZone,
+    onZoneLore: editZoneLore,
     onToggleFullscreen: toggleFullscreen,
     onPickPersona: (id) => void choosePersona(id),
     onToggleCharacter: toggleCharacter,
@@ -1173,17 +1516,29 @@ function attach(element) {
       'Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called "graphics acceleration") in your browser\'s settings, then restart the browser.',
     );
   }
-  if (!core.world) {
-    const place = readPlace();
-    if (place) core.hour = place.hour;
-    buildWorld(place?.seed ?? core.seed, place);
-  }
+  core.menu = createMenu(core.hud.layer, {
+    list: () => core.saves.list(),
+    last: () => core.saves.last(),
+    onPlay: playWorld,
+    onCreate: createNewWorld,
+    onRename: (id, name) => {
+      core.saves.rename(id, name);
+      if (core.save?.id === id) core.save = { ...core.save, name };
+    },
+    onDelete: deleteWorld,
+    onSettings: () => core.hud?.openSettings(),
+    suggestName,
+  });
+  core.saves.migrate(); // the one world from before saves becomes the first saved world
   if (core.personas) {
     core.hud.setPersonas(core.personas, core.personaId, core.bodies);
-    core.hud.setCharacters(core.characters ?? [], core.cast, core.bodies);
+    core.hud.setCharacters(core.characters ?? [], core.cast ?? new Set(), core.bodies);
   } else {
     void loadPeople();
   }
+  // Back to the tab with a world in play: carry on. Otherwise the main menu.
+  if (core.world && core.save) resume();
+  else openMenu();
   core.resizeObserver = new ResizeObserver(resize);
   core.resizeObserver.observe(core.stage);
   applySettings();
@@ -1197,7 +1552,7 @@ function detach(element) {
   if (element !== core.element) return;
   if (core.raf) cancelAnimationFrame(core.raf);
   core.raf = 0;
-  savePlace(true);
+  if (!core.paused) savePlace(true);
   if (core.mode === "talk") endTalk();
   core.resizeObserver?.disconnect();
   core.resizeObserver = null;
