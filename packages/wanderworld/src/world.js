@@ -161,7 +161,6 @@ const ROAD = 0xb3a184;
 const PAVING = 0xc7bba5;
 /** Metres per repeat of the road and paving textures. */
 const ROAD_TILE = 4;
-const PAVING_TILE = 3;
 const PLAZA_TILE = 3.2;
 /** The paved edge round each block, inside its kerb. */
 const SIDEWALK = 1.2;
@@ -534,8 +533,51 @@ function placeGarden(random, town, x, z, size, facing) {
   town.waypoints.push(at(0, half + 0.8)); // in front of the gate, so people find the way in to the bench
 }
 
+/**
+ * The path round a square of half-size `half` at (cx, cz), `inset` in from its edge, with rounded
+ * corners of radius `round`: a closed loop starting halfway along one side (so the strip built on it
+ * joins without a seam), going round the right way for a ribbon's +side to face inwards.
+ */
+function roundedLoop(cx, cz, half, inset, round) {
+  const reach = half - inset;
+  const straight = reach - round;
+  const points = [];
+  const corners = [
+    [1, 1],
+    [-1, 1],
+    [-1, -1],
+    [1, -1],
+  ];
+  points.push({ x: cx + reach, z: cz });
+  for (const [sx, sz] of corners) {
+    // Along the side to this corner, round it (8 steps), on to the next side.
+    const centreX = cx + sx * straight;
+    const centreZ = cz + sz * straight;
+    const a0 = sx > 0 && sz > 0 ? 0 : sx < 0 && sz > 0 ? Math.PI / 2 : sx < 0 && sz < 0 ? Math.PI : (3 * Math.PI) / 2;
+    for (let k = 0; k <= 8; k++) {
+      const a = a0 + (k / 8) * (Math.PI / 2);
+      points.push({ x: centreX + Math.cos(a) * round, z: centreZ + Math.sin(a) * round });
+    }
+  }
+  points.push({ x: cx + reach, z: cz });
+  return points;
+}
+
+/**
+ * A block's edge: a raised stone kerb along the street and the sidewalk of setts inside it, fading into
+ * the lawn over its last half metre, all with rounded corners. Built as strips in the ground's material.
+ */
+function blockEdge(town, cx, cz, half) {
+  // The loop runs anticlockwise seen from above (+x towards +z), so a ribbon's +side faces the middle.
+  const kerbLoop = roundedLoop(cx, cz, half, 0.12, 1.4);
+  const walkLoop = roundedLoop(cx, cz, half, 0.24 + SIDEWALK / 2, 1.4 - 0.12 - SIDEWALK / 2);
+  town.kerbs.push(kerbLoop);
+  town.sidewalks.push(walkLoop);
+}
+
 /** An empty block at the town's edge, left as a meadow: a few trees, wildflowers and long grass. */
 function placeMeadow(random, town, cx, cz) {
+  blockEdge(town, cx, cz, BLOCK / 2);
   town.meadows.push({ x: cx, z: cz, half: BLOCK / 2 });
   const spot = (margin) => ({
     x: cx + (random() * 2 - 1) * (BLOCK / 2 - margin),
@@ -580,17 +622,7 @@ function placeWagon(random, town, x, z, alongX) {
  */
 function fillBlock(random, town, cx, cz, role) {
   const half = BLOCK / 2;
-  // A paved edge round the block, inside the kerb.
-  for (const [w, d, ox, oz] of [
-    [BLOCK, SIDEWALK, 0, half - SIDEWALK / 2],
-    [BLOCK, SIDEWALK, 0, -half + SIDEWALK / 2],
-    [SIDEWALK, BLOCK - 2 * SIDEWALK, half - SIDEWALK / 2, 0],
-    [SIDEWALK, BLOCK - 2 * SIDEWALK, -half + SIDEWALK / 2, 0],
-  ]) {
-    town.pavingPieces.push(
-      painted(new PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(cx + ox, 0.045, cz + oz), PAVING),
-    );
-  }
+  blockEdge(town, cx, cz, half);
   const toPlaza = facingFor(-cx, -cz);
   if (role === "hall" || role === "temple" || role === "tavern") {
     const width = role === "tavern" ? 11 + random() * 2 : 13 + random() * 2;
@@ -641,8 +673,9 @@ function buildTown(random, land, ground) {
     naturePieces: [],
     natureSlots: [],
     roadPieces: [],
-    pavingPieces: [],
     plazaPieces: [],
+    kerbs: [], // loops round each block (and the square) where a kerb runs
+    sidewalks: [], // loops along the middle of each block's sidewalk
     waypoints: [],
     gardens: [],
     meadows: [],
@@ -690,6 +723,7 @@ function buildTown(random, land, ground) {
     );
   }
   town.plazaPieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
+  town.kerbs.push(roundedLoop(0, 0, BLOCK / 2, 0.12, 0.6));
   // Now and then a wagon left at the side of a street, halfway along a block (clear of the crossings'
   // lamps), never next to the plaza.
   for (let i = 1; i < BLOCKS_PER_SIDE; i++) {
@@ -797,7 +831,7 @@ function buildTown(random, land, ground) {
     gardens: town.gardens,
     meadows: town.meadows,
     roads: groundMesh(town.roadPieces, ROAD_TILE),
-    paving: groundMesh(town.pavingPieces, PAVING_TILE),
+    edges: blockEdges(town, ground),
     plaza: groundMesh(town.plazaPieces, PLAZA_TILE),
     buildings: town.buildings,
     propSlots: town.propSlots,
@@ -832,6 +866,7 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
   const colours = [];
   const uvs = [];
   const splats = []; // terrain layer weights per point, when the columns give them
+  const splatsB = [];
   let travelled = 0;
   dense.forEach((point, i) => {
     const before = dense[Math.max(0, i - 1)];
@@ -847,7 +882,10 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
       positions.push(x, heightOf(x, z) + lift + (column.lift ?? 0), z);
       colours.push(column.colour.r, column.colour.g, column.colour.b);
       uvs.push((x + WORLD_SIZE / 2) / WORLD_SIZE, (WORLD_SIZE / 2 - z) / WORLD_SIZE);
-      if (column.splat) splats.push(...column.splat);
+      if (column.splat) {
+        splats.push(...column.splat);
+        splatsB.push(...(column.splatB ?? [0, 0, 0, 0]));
+      }
     }
   });
   const across = columns.length;
@@ -867,7 +905,7 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
   geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
   if (splats.length) {
     geometry.setAttribute("splatA", new Float32BufferAttribute(splats, 4));
-    geometry.setAttribute("splatB", new Float32BufferAttribute(new Float32Array(positions.length / 3), 1));
+    geometry.setAttribute("splatB", new Float32BufferAttribute(splatsB, 4));
   }
   geometry.setIndex(index);
   geometry.computeVertexNormals();
@@ -1012,6 +1050,49 @@ function buildCountry(random, town, land, ground) {
   return { meshes, caves, doorOf };
 }
 
+/**
+ * The town's kerbs, sidewalks and its edge into the meadow, as strips in the ground's material: kerbs a
+ * low raised stone edge, sidewalks setts that fade into the grass on the lawn side, and the outermost
+ * streets' cobbles fading into the meadow beyond the town.
+ */
+function blockEdges(town, ground) {
+  const flat = (lift) => (x, z) => heightAt(x, z) + lift;
+  const white = new Color(1, 1, 1);
+  const kerbColumns = [
+    { at: -1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 0, 0, 1], lift: -0.06 },
+    { at: -0.7, colour: white, splat: [0, 0, 0, 0], splatB: [0, 0, 0, 1], lift: 0.04 },
+    { at: 0.7, colour: white, splat: [0, 0, 0, 0], splatB: [0, 0, 0, 1], lift: 0.04 },
+    { at: 1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 0, 0, 1], lift: 0 },
+  ];
+  const walkColumns = [
+    { at: -1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 0, 1, 0] },
+    { at: 0.55, colour: white, splat: [0, 0, 0, 0], splatB: [0, 0, 1, 0] },
+    { at: 1, colour: white, splat: [0.45, 0, 0, 0], splatB: [0, 0, 0.55, 0], lift: -0.015 },
+    { at: 1.7, colour: white, splat: [1, 0, 0, 0], splatB: [0, 0, 0, 0], lift: -0.045 },
+  ];
+  const pieces = [
+    ...town.kerbs.map((loop) => ribbon(loop, 0.26, { heightOf: flat(0.1), columns: kerbColumns })),
+    ...town.sidewalks.map((loop) => ribbon(loop, SIDEWALK, { heightOf: flat(0.075), columns: walkColumns })),
+  ];
+  // Round the outside of the town, the outermost streets' cobbles fade into the meadow.
+  const outside = (BLOCKS_PER_SIDE * PITCH) / 2 + STREET / 2;
+  const edgeLoop = roundedLoop(0, 0, outside + 0.9, 0, 3);
+  pieces.push(
+    ribbon(edgeLoop, 1.8, {
+      heightOf: flat(0.04),
+      columns: [
+        { at: -1, colour: white, splat: [1, 0, 0, 0], splatB: [0, 0, 0, 0], lift: -0.03 },
+        { at: -0.2, colour: white, splat: [0.5, 0, 0, 0], splatB: [0, 0.5, 0, 0] },
+        { at: 1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] },
+      ],
+    }),
+  );
+  return new Mesh(
+    mergeGeometries(pieces),
+    terrainMaterial(ground, { polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
+  );
+}
+
 /** Flat pieces (roads, paving) merged into one mesh, with texture coordinates in metres / `tile`. */
 function groundMesh(pieces, tile) {
   const geometry = mergeGeometries(pieces);
@@ -1080,6 +1161,9 @@ const GROUND_LAYERS = {
   rock: { scale: 9, colour: 0x857d72 },
   sand: { scale: 5, colour: 0xa58d6c },
   snow: { scale: 12, colour: 0xe4e9ee },
+  cobbles: { scale: 4, colour: 0x8a8278 },
+  setts: { scale: 3, colour: 0xa49a8c },
+  plaza: { scale: 3.2, colour: 0xcbb99a },
 };
 
 /** A 1 × 1 texture of one colour: a layer's stand-in until its painted texture loads. */
@@ -1109,7 +1193,7 @@ function terrainUniforms() {
 
 /**
  * The ground's material: each point blends grass, dirt, rock, sand and snow by its weights (the
- * `splatA` (grass, dirt, rock, sand) and `splatB` (snow) attributes), every texture laid out in world
+ * `splatA` (grass, dirt, rock, sand) and `splatB` (snow, cobbles, setts, plaza slabs) attributes), every texture laid out in world
  * metres and sampled twice at different sizes so its repeats don't show, under large soft light and dark
  * patches. The vertex colour adds a little brightness per facet, keeping the low-poly look.
  */
@@ -1122,9 +1206,9 @@ function terrainMaterial(uniforms, options = {}) {
         "#include <common>",
         `#include <common>
 attribute vec4 splatA;
-attribute float splatB;
+attribute vec4 splatB;
 varying vec4 vSplatA;
-varying float vSplatB;
+varying vec4 vSplatB;
 varying vec2 vGround;`,
       )
       .replace(
@@ -1138,10 +1222,10 @@ vGround = (modelMatrix * vec4(transformed, 1.0)).xz;`,
       .replace(
         "#include <common>",
         `#include <common>
-uniform sampler2D tMacro, tgrass, tdirt, trock, tsand, tsnow;
-uniform float sgrass, sdirt, srock, ssand, ssnow;
+uniform sampler2D tMacro, tgrass, tdirt, trock, tsand, tsnow, tcobbles, tsetts, tplaza;
+uniform float sgrass, sdirt, srock, ssand, ssnow, scobbles, ssetts, splaza;
 varying vec4 vSplatA;
-varying float vSplatB;
+varying vec4 vSplatB;
 varying vec2 vGround;
 vec3 groundLayer(sampler2D map, float scale) {
   vec2 uv = vGround / scale;
@@ -1154,10 +1238,11 @@ vec3 groundLayer(sampler2D map, float scale) {
       .replace(
         "#include <map_fragment>",
         `{
-  float total = max(0.0001, vSplatA.x + vSplatA.y + vSplatA.z + vSplatA.w + vSplatB);
+  float total = max(0.0001, dot(vSplatA, vec4(1.0)) + dot(vSplatB, vec4(1.0)));
   vec3 ground = (groundLayer(tgrass, sgrass) * vSplatA.x + groundLayer(tdirt, sdirt) * vSplatA.y
     + groundLayer(trock, srock) * vSplatA.z + groundLayer(tsand, ssand) * vSplatA.w
-    + groundLayer(tsnow, ssnow) * vSplatB) / total;
+    + groundLayer(tsnow, ssnow) * vSplatB.x + groundLayer(tcobbles, scobbles) * vSplatB.y
+    + groundLayer(tsetts, ssetts) * vSplatB.z + groundLayer(tplaza, splaza) * vSplatB.w) / total;
   float patches = texture2D(tMacro, vGround / 52.0).r;
   diffuseColor.rgb *= ground * (0.78 + patches * 0.3);
 }`,
@@ -1191,7 +1276,7 @@ function buildGround(random, uniforms) {
   // so grass gives way to rock on steep slopes and high up, snow on the peaks, sand in the riverbed.
   const colors = new Float32Array(position.count * 3);
   const splatA = new Float32Array(position.count * 4);
-  const splatB = new Float32Array(position.count);
+  const splatB = new Float32Array(position.count * 4);
   for (let i = 0; i < position.count; i += 3) {
     const heights = [0, 1, 2].map((k) => position.getY(i + k));
     const steep = Math.max(...heights) - Math.min(...heights);
@@ -1200,12 +1285,12 @@ function buildGround(random, uniforms) {
       const [grass, dirt, rock, sand, snow] = groundWeights(heights[k], steep);
       colors.set([shade, shade, shade], (i + k) * 3);
       splatA.set([grass, dirt, rock, sand], (i + k) * 4);
-      splatB[i + k] = snow;
+      splatB[(i + k) * 4] = snow;
     }
   }
   geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
   geometry.setAttribute("splatA", new Float32BufferAttribute(splatA, 4));
-  geometry.setAttribute("splatB", new Float32BufferAttribute(splatB, 1));
+  geometry.setAttribute("splatB", new Float32BufferAttribute(splatB, 4));
   geometry.deleteAttribute("uv");
   geometry.computeVertexNormals();
   return new Mesh(geometry, terrainMaterial(uniforms, { flatShading: true }));
@@ -1290,7 +1375,7 @@ export function createWorld(seed, landscape = null) {
     town.buildingMesh,
     town.natureMesh,
     town.roads,
-    town.paving,
+    town.edges,
     town.plaza,
     ...country.meshes,
   );
@@ -1606,7 +1691,7 @@ export function createWorld(seed, landscape = null) {
   function addGround(textures) {
     for (const [mesh, map] of [
       [town.roads, textures.road],
-      [town.paving, textures.paving],
+
       [town.plaza, textures.plaza],
     ]) {
       if (!map) continue;
@@ -1617,6 +1702,10 @@ export function createWorld(seed, landscape = null) {
     for (const name of Object.keys(GROUND_LAYERS)) {
       if (textures[name]) ground[`t${name}`].value = textures[name];
     }
+    // The town's stone goes into the ground's layers too, for the kerbs, sidewalks and the town's edge.
+    if (textures.road) ground.tcobbles.value = textures.road;
+    if (textures.paving) ground.tsetts.value = textures.paving;
+    if (textures.plaza) ground.tplaza.value = textures.plaza;
   }
 
   /** Swaps the town's simple buildings for ones assembled from the village kit, once it has loaded. */

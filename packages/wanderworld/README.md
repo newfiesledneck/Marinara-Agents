@@ -4,14 +4,15 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.19)
+## What it does now (0.4.20)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the cobbled
   streets beyond, with brick sidewalks, flowers and clutter by the doors, ivy on walls, parked wagons and
   meadows on empty lots. Buildings come from a kit of parts (walls, roofs, chimneys, balconies, shutters,
   signs, awnings). **New world** walks a different one.
-- **Painted ground:** grass, dirt roads, cobbled streets, stone setts and a slabbed square, blended by
+- **Painted ground:** grass, dirt roads, cobbled streets, kerbed sidewalks of setts that fade into the lawns,
+  and a slabbed square, blended by
   height and slope into rock, snow and riverbed pebbles in one ground material (`world.js` terrainMaterial).
 - **The land:** hills, mountain ranges along some edges, a winding river with bridges, and places out in
   the country (a roadside inn, cottages, caves in hillsides) at the end of their own dirt roads. Each world
