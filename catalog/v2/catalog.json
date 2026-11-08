@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.4.18",
+        "version": "0.4.19",
         "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
         "engine": {
           "min": "2.4.4",
@@ -4941,10 +4941,17 @@
           },
           "assets": {
             "paths": [
+              "kit/art/ground-dirt.webp",
+              "kit/art/ground-grass.webp",
+              "kit/art/ground-pebbles.webp",
               "kit/art/loading-bg.webp",
               "kit/art/logo.webp",
               "kit/art/menu-bg-portrait.webp",
               "kit/art/menu-bg.webp",
+              "kit/art/plaza-stone.webp",
+              "kit/art/sidewalk-setts.webp",
+              "kit/art/sign-wood.webp",
+              "kit/art/street-cobbles.webp",
               "kit/nature/bark-deadtree.webp",
               "kit/nature/bark-normaltree.webp",
               "kit/nature/bark-twistedtree.webp",
@@ -5122,13 +5129,28 @@
           },
           {
             "path": "client.js",
-            "sha256": "b2ce3436dd23fae07fbb7230ab4006b31d5052f4b39d8f45f0fea7b5c2d4d5e3",
-            "bytes": 1425146
+            "sha256": "8767ba51509cd171992115a2187abf1447be7ef2ac21c12e72c08984d94d4523",
+            "bytes": 1428432
           },
           {
             "path": "wanderworld-icon.webp",
             "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
             "bytes": 5236
+          },
+          {
+            "path": "kit/art/ground-dirt.webp",
+            "sha256": "cb60c5d7fed1c6c5ee2638a1057bb9150b318ee6299f0e5d1b5c3a2082ea91eb",
+            "bytes": 146640
+          },
+          {
+            "path": "kit/art/ground-grass.webp",
+            "sha256": "58ab5b0a305c9c726be604ad830c8d404aff312ea97b869df11dbea8e4ff6820",
+            "bytes": 262932
+          },
+          {
+            "path": "kit/art/ground-pebbles.webp",
+            "sha256": "9009f4572e40e900d142984013864935c8d5b04504f6d4a950c8f8ed4c46065c",
+            "bytes": 92214
           },
           {
             "path": "kit/art/loading-bg.webp",
@@ -5149,6 +5171,26 @@
             "path": "kit/art/menu-bg.webp",
             "sha256": "e10509ac353dcab21eac6a699528c11bed619889d70ec9a8db3ebafbcf4ad6fa",
             "bytes": 40422
+          },
+          {
+            "path": "kit/art/plaza-stone.webp",
+            "sha256": "9ed9abad7f0b2aa45569a994a92fada5438c8f10631f3483fda5ebb643c0bb2c",
+            "bytes": 143720
+          },
+          {
+            "path": "kit/art/sidewalk-setts.webp",
+            "sha256": "d63c424d75fba577b162ad1611be2e9c6f068f685bf0cbb5d9c8a1f8f49a6d0f",
+            "bytes": 120304
+          },
+          {
+            "path": "kit/art/sign-wood.webp",
+            "sha256": "a4af15b6d70e353ccdaa5e990d52330f63ba29938210899e6a4086261be6d6ad",
+            "bytes": 43670
+          },
+          {
+            "path": "kit/art/street-cobbles.webp",
+            "sha256": "b2d3532aff36511adcfb3b0e5934678665fbab47b2928eab2e9fc096bcdfdea2",
+            "bytes": 268572
           },
           {
             "path": "kit/nature/bark-deadtree.webp",
@@ -5989,9 +6031,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.18.zip",
-        "sha256": "f0fdbcf6a3ca40bb63ffb8f9e3e4bb4b517175fedb5134a91fb6af58c2cb3d59",
-        "bytes": 9517839
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.19.zip",
+        "sha256": "0e9f19fef25a31668d4434f603fd184834d8067b2467782b9bde5baeb37f147f",
+        "bytes": 10601454
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
