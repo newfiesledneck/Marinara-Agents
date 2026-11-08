@@ -16,6 +16,7 @@ import {
   HemisphereLight,
   IcosahedronGeometry,
   InstancedMesh,
+  Matrix4,
   Mesh,
   MeshLambertMaterial,
   Object3D,
@@ -24,9 +25,11 @@ import {
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { housePieces } from "./houses.js";
 import {
   barrel,
   bench,
+  box,
   buildBuilding,
   bush,
   crate,
@@ -58,6 +61,8 @@ const FOUNTAIN_RADIUS = 2.4;
 export const SPAWN = Object.freeze({ x: 0, z: FOUNTAIN_RADIUS + 4 });
 
 const SEAT_HEIGHT = 0.45;
+/** How far roofs reach past the walls (the kit's round-tile roofs): the camera stays out from under them. */
+const ROOF_OVERHANG = 1.1;
 /** How high the kit stall's counter is, drawn at the town's size. */
 const STALL_COUNTER = 1.12;
 /** Every kit prop the town uses, for loading. */
@@ -290,9 +295,23 @@ function placeKitProp(town, fallback, { model, x, z, angle = 0, scale = 1, y = 0
 /** Builds a building from its spec at (x, z) facing `facing`, with its door, collision box and street clutter. */
 function placeBuilding(random, town, spec, x, z, facing) {
   const { geometry, doorX, footprint } = buildBuilding(random, spec);
-  placeProp(town, geometry, x, z, facing);
+  // The simple building goes into its own mesh, hidden once the village kit's version stands in its place.
+  town.buildingPieces.push(geometry.rotateY((facing * Math.PI) / 2).translate(x, 0, z));
+  town.buildings.push({ spec, doorX, x, z, facing });
   town.boxes.push(footprintBox(x, z, facing, footprint));
   const d = spec.depth / 2;
+  // Dark behind the doorway: unseen inside the simple building, it's what an open kit door shows.
+  placeProp(
+    town,
+    box(DOOR_WIDTH + 0.2, DOOR_HEIGHT + 0.2, 0.05, 0, (DOOR_HEIGHT + 0.2) / 2, 0, 0x120d0a).translate(
+      doorX,
+      0,
+      d - 0.45,
+    ),
+    x,
+    z,
+    facing,
+  );
   town.doors.push({
     // Where someone stands to use the door: in front of it, or in front of the porch when there is one.
     ...toWorld(x, z, facing, doorX, Math.max(d + 1.2, footprint.maxZ + 0.6)),
@@ -410,7 +429,17 @@ function fillBlock(random, town, cx, cz, role) {
 }
 
 function buildTown(random) {
-  const town = { pieces: [], propPieces: [], propSlots: [], boxes: [], circles: [], doors: [], seats: [] };
+  const town = {
+    pieces: [],
+    buildingPieces: [],
+    buildings: [],
+    propPieces: [],
+    propSlots: [],
+    boxes: [],
+    circles: [],
+    doors: [],
+    seats: [],
+  };
   const centres = [];
   for (let i = 0; i < BLOCKS_PER_SIDE; i++) centres.push((i - (BLOCKS_PER_SIDE - 1) / 2) * PITCH);
   // The eight blocks around the plaza get the town's landmarks and shops, in a seeded order.
@@ -504,9 +533,15 @@ function buildTown(random) {
     mergeGeometries(town.propPieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   );
+  const buildingMesh = new Mesh(
+    mergeGeometries(town.buildingPieces),
+    new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+  );
   return {
     mesh,
     props,
+    buildingMesh,
+    buildings: town.buildings,
     propSlots: town.propSlots,
     boxes: town.boxes,
     circles: town.circles,
@@ -582,7 +617,7 @@ export function createWorld(seed) {
 
   scene.add(buildGround(random));
   const town = buildTown(random);
-  scene.add(town.mesh, town.props);
+  scene.add(town.mesh, town.props, town.buildingMesh);
 
   const trees = scatter(random, BASE_TREES * MAX_DENSITY, 1.6, 1.6);
   const rocks = scatter(random, BASE_ROCKS * MAX_DENSITY, 0.8, 1.4);
@@ -687,7 +722,8 @@ export function createWorld(seed) {
     const steps = 24;
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
-      if (collider.insideBox(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t, 0.4)) return (i - 1) / steps;
+      if (collider.insideBox(fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t, ROOF_OVERHANG))
+        return (i - 1) / steps;
     }
     return 1;
   }
@@ -826,6 +862,30 @@ export function createWorld(seed) {
     }
   }
 
+  /** Swaps the town's simple buildings for ones assembled from the village kit, once it has loaded. */
+  function addBuildings(models) {
+    const groups = new Map();
+    const at = new Matrix4();
+    town.buildings.forEach((building, i) => {
+      at.makeRotationY((building.facing * Math.PI) / 2).setPosition(building.x, 0, building.z);
+      for (const { model, matrix } of housePieces(building.spec, building.doorX, seed ^ (i * 2654435761))) {
+        if (!groups.has(model)) groups.set(model, []);
+        groups.get(model).push(at.clone().multiply(matrix));
+      }
+    });
+    if ([...groups.keys()].some((model) => !models.has(model))) return; // something missing: keep the simple ones
+    town.buildingMesh.visible = false;
+    for (const [model, matrices] of groups) {
+      for (const { geometry, material } of models.get(model)) {
+        const instanced = new InstancedMesh(geometry, material, matrices.length);
+        matrices.forEach((matrix, i) => instanced.setMatrixAt(i, matrix));
+        instanced.computeBoundingSphere();
+        instanced.userData.kit = true;
+        scene.add(instanced);
+      }
+    }
+  }
+
   /** Swaps the town's simple barrels, crates, benches and stalls for kit props once they've loaded. */
   function addProps(models) {
     const groups = new Map();
@@ -877,6 +937,7 @@ export function createWorld(seed) {
     setDoor,
     addNature,
     addProps,
+    addBuildings,
     update,
     setDrawDistance,
     setTime,

@@ -101,7 +101,8 @@ export function makeSpec(random, kind, { width, depth } = {}) {
     roofColor: pick(random, ROOF),
     accentColor: pick(random, ACCENT),
     chimney: chance(0.6),
-    porch: chance(0.3),
+    // No porches: the village kit's buildings (houses.js) have none, and both kinds must share a footprint.
+    porch: false,
     balcony: false,
     shutters: chance(0.5),
     flowerBoxes: chance(0.4),
@@ -163,6 +164,15 @@ export function makeSpec(random, kind, { width, depth } = {}) {
     });
   }
   if (spec.floors < 2) spec.balcony = false;
+  // Sizes on the village kit's 2 m grid, in shapes it has roofs for (houses.js), so a kit building can
+  // stand exactly where the simple one does.
+  const even = (value, min, max) => Math.max(min, Math.min(max, Math.round(value / 2) * 2));
+  spec.width = even(spec.width, 4, 14);
+  spec.depth = even(spec.depth, 4, 8);
+  const span = Math.min(spec.width, spec.depth);
+  const length = Math.max(spec.width, spec.depth);
+  if (span === 4 && length > 8) spec.depth = 6;
+  if (span === 8 && length < 8) spec.width = spec.depth = 8;
   spec.wallColor =
     spec.walls === "stone"
       ? pick(random, STONE)
@@ -312,7 +322,13 @@ export function buildBuilding(random, spec) {
 
   // The door's frame, a dark doorway behind it and the step; a shop's door sits to one side of its window.
   // The door itself is separate (world.js) so it can swing open.
-  const doorX = spec.shopWindow ? width / 2 - 1.4 : (random() - 0.5) * Math.max(0, width - 3);
+  // The door sits in the middle of one of the 2 m wall segments (as the kit's door wall has it): a shop's
+  // at the end beside its window, a landmark's at the middle, a house's anywhere along the front.
+  const segments = Math.max(1, Math.round(width / 2));
+  const middle = segments % 2 ? 0 : 1;
+  const landmark = spec.kind === "tavern" || spec.kind === "temple" || spec.kind === "hall";
+  const anySegment = -width / 2 + 1 + 2 * Math.min(segments - 1, Math.floor(random() * segments));
+  const doorX = spec.shopWindow ? width / 2 - 1 : landmark ? middle : anySegment;
   pieces.push(box(1.45, 2.45, 0.1, doorX, 1.22, d + 0.05, spec.walls === "timber" ? BEAM : TRIM));
   pieces.push(box(DOOR_WIDTH, DOOR_HEIGHT, 0.04, doorX, DOOR_HEIGHT / 2, d + 0.11, DOORWAY));
   pieces.push(box(1.7, 0.18, 0.7, doorX, 0.09, d + 0.35, plinth));
@@ -392,7 +408,7 @@ export function buildBuilding(random, spec) {
   }
   if (spec.tower) {
     // A square tower at the back corner with a pyramid spire (a temple) or a hip cap with a clock (a hall).
-    const size = Math.min(3.6, depth * 0.55);
+    const size = 4; // the kit tower's footprint (houses.js)
     const towerHeight = height + FLOOR_HEIGHT * (spec.kind === "temple" ? 2.4 : 1.6);
     const tx = width / 2 - size / 2;
     const tz = -d + size / 2;

@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
   "engine": {
     "min": "2.4.4",
@@ -144,7 +144,49 @@
         "kit/props/vase-2.json",
         "kit/props/weaponstand.json",
         "kit/props/workbench-drawers.json",
-        "kit/props/workbench.json"
+        "kit/props/workbench.json",
+        "kit/village/balcony-simple-straight.json",
+        "kit/village/corner-exterior-brick.json",
+        "kit/village/corner-exterior-wood.json",
+        "kit/village/door-1-round.json",
+        "kit/village/doorframe-round-wooddark.json",
+        "kit/village/index.json",
+        "kit/village/prop-chimney.json",
+        "kit/village/roof-front-brick4.json",
+        "kit/village/roof-front-brick6.json",
+        "kit/village/roof-front-brick8.json",
+        "kit/village/roof-roundtiles-4x4.json",
+        "kit/village/roof-roundtiles-4x6.json",
+        "kit/village/roof-roundtiles-4x8.json",
+        "kit/village/roof-roundtiles-6x10.json",
+        "kit/village/roof-roundtiles-6x12.json",
+        "kit/village/roof-roundtiles-6x14.json",
+        "kit/village/roof-roundtiles-6x4.json",
+        "kit/village/roof-roundtiles-6x6.json",
+        "kit/village/roof-roundtiles-6x8.json",
+        "kit/village/roof-roundtiles-8x10.json",
+        "kit/village/roof-roundtiles-8x12.json",
+        "kit/village/roof-roundtiles-8x14.json",
+        "kit/village/roof-roundtiles-8x8.json",
+        "kit/village/roof-tower-roundtiles.json",
+        "kit/village/t-brick-basecolor.webp",
+        "kit/village/t-metalornaments-basecolor.webp",
+        "kit/village/t-plaster-basecolor.webp",
+        "kit/village/t-rocktrim-basecolor.webp",
+        "kit/village/t-roundtiles-basecolor.webp",
+        "kit/village/t-unevenbrick-basecolor.webp",
+        "kit/village/t-woodtrim-basecolor.webp",
+        "kit/village/wall-plaster-door-round.json",
+        "kit/village/wall-plaster-straight.json",
+        "kit/village/wall-plaster-window-thin-round.json",
+        "kit/village/wall-plaster-window-wide-round.json",
+        "kit/village/wall-plaster-woodgrid.json",
+        "kit/village/wall-unevenbrick-door-round.json",
+        "kit/village/wall-unevenbrick-straight.json",
+        "kit/village/wall-unevenbrick-window-wide-round.json",
+        "kit/village/window-thin-round1.json",
+        "kit/village/window-wide-round1.json",
+        "kit/village/windowshutters-wide-round-open.json"
       ]
     }
   },
@@ -156,8 +198,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "b839623e78936e9bc261001a244eff1cf93ddc1e8b4360a4d17535ef5875b08e",
-      "bytes": 1366723
+      "sha256": "2bf28fd197791d53bcf5c8b0a19437af7b19e92db1f58db4f6aa42255668cda6",
+      "bytes": 1370611
     },
     {
       "path": "wanderworld-icon.webp",
@@ -708,6 +750,216 @@
       "path": "kit/props/workbench.json",
       "sha256": "78a726ae3320a5c0b5279f5dd03ae075766479750a3c37b40d696efc8107cfe3",
       "bytes": 35380
+    },
+    {
+      "path": "kit/village/balcony-simple-straight.json",
+      "sha256": "106deceba8dee218dfadfff4c8f3c5aae8eb4383d6b8d1e5a554aa992439a18b",
+      "bytes": 39161
+    },
+    {
+      "path": "kit/village/corner-exterior-brick.json",
+      "sha256": "af826815ff1ef791f9689bb3bd7a6e5179c316c11968c598a451341b6bd60785",
+      "bytes": 67098
+    },
+    {
+      "path": "kit/village/corner-exterior-wood.json",
+      "sha256": "b3f1a82c0f9c981ccbc7dbd8da8192b99561d3c843da6ea446f3123398a430b9",
+      "bytes": 752
+    },
+    {
+      "path": "kit/village/door-1-round.json",
+      "sha256": "b8d073af0dcc1263bc4139795177682e0ef523af4a02c0a9ede45e4df4499330",
+      "bytes": 17625
+    },
+    {
+      "path": "kit/village/doorframe-round-wooddark.json",
+      "sha256": "aa007703967ae8621411333ea650f636f74d3b39e5d90ad2cf2b153262ccd717",
+      "bytes": 9138
+    },
+    {
+      "path": "kit/village/index.json",
+      "sha256": "44f420006bd9cf371c130e6ac84fe7d79b1bab31f9c59126edd6877e94e11247",
+      "bytes": 4396
+    },
+    {
+      "path": "kit/village/prop-chimney.json",
+      "sha256": "1099a091b19b56eeab40efaee717017196dcbf794452699b56eb1a1bd027a20a",
+      "bytes": 14521
+    },
+    {
+      "path": "kit/village/roof-front-brick4.json",
+      "sha256": "29f0ef6b7d4ed789b8cd16d05503335b524061c0f5a7956f2b5b009bfe702284",
+      "bytes": 8905
+    },
+    {
+      "path": "kit/village/roof-front-brick6.json",
+      "sha256": "f9331f24dc7edd917cfb855899ccf0045c61f5d71df7418abf2b5b64c8b575cb",
+      "bytes": 12217
+    },
+    {
+      "path": "kit/village/roof-front-brick8.json",
+      "sha256": "9664db612dadb7b86bdb6f363368fdd4bffe726ee92c5dcee6650838a4149536",
+      "bytes": 14034
+    },
+    {
+      "path": "kit/village/roof-roundtiles-4x4.json",
+      "sha256": "67137f1b90e39929abfc11038ade28f9c6762be61d296612c0554cc064a19663",
+      "bytes": 57746
+    },
+    {
+      "path": "kit/village/roof-roundtiles-4x6.json",
+      "sha256": "f8b816ed61f0696e3625f955709f174bc0a3e91bb3adf950e3e2a854114bd6dc",
+      "bytes": 70396
+    },
+    {
+      "path": "kit/village/roof-roundtiles-4x8.json",
+      "sha256": "ca3352e2164b6736be3a38b24a114bab9840e2c84d713b5de48a6e7502554339",
+      "bytes": 85529
+    },
+    {
+      "path": "kit/village/roof-roundtiles-6x10.json",
+      "sha256": "e0a4dc55b69c6e525e56c583ae66f7b43abaa5e5048a986f690bfb2af7ac1898",
+      "bytes": 114798
+    },
+    {
+      "path": "kit/village/roof-roundtiles-6x12.json",
+      "sha256": "3545e73a1c98365f9ccbbd59850ad7a5e976a2851e939d44c6eb9875da80aa51",
+      "bytes": 125622
+    },
+    {
+      "path": "kit/village/roof-roundtiles-6x14.json",
+      "sha256": "6dd3ee1fc6a728c2489b98dff2a7de89e131c9a965ac4b2dc9569f47a3174ae2",
+      "bytes": 139042
+    },
+    {
+      "path": "kit/village/roof-roundtiles-6x4.json",
+      "sha256": "9810bf5f43316627a06a1d956a1e8175973dafa90f230b65d534fa24e5856174",
+      "bytes": 61913
+    },
+    {
+      "path": "kit/village/roof-roundtiles-6x6.json",
+      "sha256": "b0c156d8fd3fbd29dad014383d5aadedf3812dd3e764805ab38b84d285ef4ff3",
+      "bytes": 90609
+    },
+    {
+      "path": "kit/village/roof-roundtiles-6x8.json",
+      "sha256": "b06a058fd6ccca498553a8c03d5a688dbc52f2c9a743a4815a901df0a86ad682",
+      "bytes": 102374
+    },
+    {
+      "path": "kit/village/roof-roundtiles-8x10.json",
+      "sha256": "a51abbc725080d58292f44d4d5dc09d5238d961314cd74efa7c7a721460d47b9",
+      "bytes": 122541
+    },
+    {
+      "path": "kit/village/roof-roundtiles-8x12.json",
+      "sha256": "a7a47f83148a4abbdd16f5347dc99ed2df8179d274f2002c7992156d0766a28f",
+      "bytes": 172771
+    },
+    {
+      "path": "kit/village/roof-roundtiles-8x14.json",
+      "sha256": "d9c7b1eb04ce3817c8793a50f7ed1d0a33a638df5f96299e2afece17a298dec2",
+      "bytes": 144147
+    },
+    {
+      "path": "kit/village/roof-roundtiles-8x8.json",
+      "sha256": "3764e904f12ff1ac1f63a226ada9905f4596800ac4962b76fb12a5a273726edf",
+      "bytes": 106159
+    },
+    {
+      "path": "kit/village/roof-tower-roundtiles.json",
+      "sha256": "598d499558391af591b452be81f416bdb77eed699fd14bd93d9758203371dfdf",
+      "bytes": 110867
+    },
+    {
+      "path": "kit/village/t-brick-basecolor.webp",
+      "sha256": "5ca25458f35c0785040b527ff5b66ffa5004a89d332f1c5358d1f3b5eabd98c8",
+      "bytes": 15914
+    },
+    {
+      "path": "kit/village/t-metalornaments-basecolor.webp",
+      "sha256": "1047496860116ea168c0b0b4b84278187c4fe70263a9ed2bbe70ea92f6393f72",
+      "bytes": 25258
+    },
+    {
+      "path": "kit/village/t-plaster-basecolor.webp",
+      "sha256": "4c86b3f1b8f49423c0a855c5e3a308a19b283d1d29b15b0ad1827462c1215dee",
+      "bytes": 5120
+    },
+    {
+      "path": "kit/village/t-rocktrim-basecolor.webp",
+      "sha256": "e49346f13f6791ce88ef218addd8e94100e233fe13308e0de15d01d301357524",
+      "bytes": 15066
+    },
+    {
+      "path": "kit/village/t-roundtiles-basecolor.webp",
+      "sha256": "8089a63ef76c5ba74a6cf918b08a4c95cbc7a42f3c044458009d04f6793e480c",
+      "bytes": 12230
+    },
+    {
+      "path": "kit/village/t-unevenbrick-basecolor.webp",
+      "sha256": "a925d7363acaf6ce63923cc1fc61651fc51f5b8f4a2febc832367f3aab535dbe",
+      "bytes": 16226
+    },
+    {
+      "path": "kit/village/t-woodtrim-basecolor.webp",
+      "sha256": "224477f956a9fdb494721b043421156364b6d3d881fef832ba056cca5f8265fa",
+      "bytes": 19352
+    },
+    {
+      "path": "kit/village/wall-plaster-door-round.json",
+      "sha256": "f46cdb27ed002f72f2f8ef46af5218ba7d20c373fa7ea93a1ba6f4e9652645cb",
+      "bytes": 5241
+    },
+    {
+      "path": "kit/village/wall-plaster-straight.json",
+      "sha256": "fe8d7eeae3f063bed3c3cdef856175400c9eb131451c6d9c91e316f4183d25b6",
+      "bytes": 3462
+    },
+    {
+      "path": "kit/village/wall-plaster-window-thin-round.json",
+      "sha256": "dd39bc3b7c442d78d94653ce9080c5fe35bdc73d31382c018885c674badefc31",
+      "bytes": 5696
+    },
+    {
+      "path": "kit/village/wall-plaster-window-wide-round.json",
+      "sha256": "7d16d3824958f952a11a2cfd354a90c5ce20155b29d4fc8992e20b1b65ac2c3a",
+      "bytes": 4210
+    },
+    {
+      "path": "kit/village/wall-plaster-woodgrid.json",
+      "sha256": "117333d58d87a3182170d710e3cecfeeb1e6236290c18cfe652339c33b329ef0",
+      "bytes": 9283
+    },
+    {
+      "path": "kit/village/wall-unevenbrick-door-round.json",
+      "sha256": "cc7dc5ff44a8a1ae3a31a68af638d23767b8ad29dffeee4ffefa239f396e7669",
+      "bytes": 4207
+    },
+    {
+      "path": "kit/village/wall-unevenbrick-straight.json",
+      "sha256": "8a315453c2e5c0736034c264dde2c1547b0af44a09e822c99a5acd5a2988a718",
+      "bytes": 2421
+    },
+    {
+      "path": "kit/village/wall-unevenbrick-window-wide-round.json",
+      "sha256": "07aa39db81058bbdc54d0971b6eb838a9f2f2a3fc3897dfa1020d424e7b46361",
+      "bytes": 3835
+    },
+    {
+      "path": "kit/village/window-thin-round1.json",
+      "sha256": "ea811a29a46ac143da4d7ecdc0088db0d31625c5bd17d88ef32f4c48ef956851",
+      "bytes": 13936
+    },
+    {
+      "path": "kit/village/window-wide-round1.json",
+      "sha256": "09a826afc48b62139cc0a359fec1c9d5e31abfa81cfaa2a47f781e6af6f289f7",
+      "bytes": 11848
+    },
+    {
+      "path": "kit/village/windowshutters-wide-round-open.json",
+      "sha256": "5d2a45ccb19685cdaaf8162f81b3ca8bde06fabf19eb4a04e4b4a59e2a9251ec",
+      "bytes": 5995
     }
   ],
   "permissions": [
