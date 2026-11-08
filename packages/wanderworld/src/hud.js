@@ -187,6 +187,7 @@ export function createHud(root, handlers) {
   toggle("shadows", "Shadows under people");
   toggle("nature", "Detailed trees and plants");
   toggle("props", "Detailed furniture and props");
+  toggle("buildings", "Detailed buildings");
   choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
   heading("Moving");
   choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });

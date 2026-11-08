@@ -1,0 +1,277 @@
+{
+  "source": "Medieval Village MegaKit (Standard) by Quaternius, CC0 1.0",
+  "models": {
+    "wall-unevenbrick-straight": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 56
+    },
+    "wall-unevenbrick-window-wide-round": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 116
+    },
+    "wall-unevenbrick-door-round": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 136
+    },
+    "wall-plaster-straight": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 86
+    },
+    "wall-plaster-woodgrid": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 248
+    },
+    "wall-plaster-window-wide-round": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 124
+    },
+    "wall-plaster-window-thin-round": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 166
+    },
+    "wall-plaster-door-round": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 137
+    },
+    "corner-exterior-wood": {
+      "size": [
+        0.21,
+        3,
+        0.24
+      ],
+      "triangles": 12
+    },
+    "corner-exterior-brick": {
+      "size": [
+        0.53,
+        3.02,
+        0.58
+      ],
+      "triangles": 3102
+    },
+    "window-wide-round1": {
+      "size": [
+        1.36,
+        1.73,
+        0.53
+      ],
+      "triangles": 354
+    },
+    "window-thin-round1": {
+      "size": [
+        0.89,
+        1.6,
+        0.34
+      ],
+      "triangles": 418
+    },
+    "windowshutters-wide-round-open": {
+      "size": [
+        2.3,
+        1.65,
+        0.47
+      ],
+      "triangles": 136
+    },
+    "doorframe-round-wooddark": {
+      "size": [
+        1.41,
+        2.56,
+        0.54
+      ],
+      "triangles": 320
+    },
+    "door-1-round": {
+      "size": [
+        1.12,
+        2.32,
+        0.12
+      ],
+      "triangles": 470
+    },
+    "roof-roundtiles-4x4": {
+      "size": [
+        5.51,
+        4.25,
+        5.56
+      ],
+      "triangles": 1996
+    },
+    "roof-roundtiles-4x6": {
+      "size": [
+        5.51,
+        4.23,
+        7.57
+      ],
+      "triangles": 2520
+    },
+    "roof-roundtiles-4x8": {
+      "size": [
+        5.51,
+        4.23,
+        9.68
+      ],
+      "triangles": 3116
+    },
+    "roof-roundtiles-6x4": {
+      "size": [
+        8.25,
+        5.67,
+        4.99
+      ],
+      "triangles": 2192
+    },
+    "roof-roundtiles-6x6": {
+      "size": [
+        8.25,
+        5.67,
+        8.03
+      ],
+      "triangles": 3244
+    },
+    "roof-roundtiles-6x8": {
+      "size": [
+        8.25,
+        5.67,
+        9.68
+      ],
+      "triangles": 3796
+    },
+    "roof-roundtiles-6x10": {
+      "size": [
+        8.25,
+        5.67,
+        11.85
+      ],
+      "triangles": 4300
+    },
+    "roof-roundtiles-6x12": {
+      "size": [
+        8.25,
+        5.67,
+        13.66
+      ],
+      "triangles": 4752
+    },
+    "roof-roundtiles-6x14": {
+      "size": [
+        8.25,
+        5.67,
+        15.71
+      ],
+      "triangles": 5372
+    },
+    "roof-roundtiles-8x8": {
+      "size": [
+        9.95,
+        6.78,
+        10.33
+      ],
+      "triangles": 3888
+    },
+    "roof-roundtiles-8x10": {
+      "size": [
+        9.95,
+        6.78,
+        11.86
+      ],
+      "triangles": 4480
+    },
+    "roof-roundtiles-8x12": {
+      "size": [
+        9.95,
+        6.78,
+        14.13
+      ],
+      "triangles": 6356
+    },
+    "roof-roundtiles-8x14": {
+      "size": [
+        9.95,
+        6.78,
+        15.71
+      ],
+      "triangles": 5484
+    },
+    "roof-front-brick4": {
+      "size": [
+        4.4,
+        3.07,
+        1.13
+      ],
+      "triangles": 252
+    },
+    "roof-front-brick6": {
+      "size": [
+        6.69,
+        4.52,
+        1.13
+      ],
+      "triangles": 328
+    },
+    "roof-front-brick8": {
+      "size": [
+        8.51,
+        5.45,
+        1.13
+      ],
+      "triangles": 364
+    },
+    "roof-tower-roundtiles": {
+      "size": [
+        5.65,
+        7.36,
+        5.43
+      ],
+      "triangles": 4024
+    },
+    "prop-chimney": {
+      "size": [
+        0.95,
+        3.18,
+        1
+      ],
+      "triangles": 618
+    },
+    "balcony-simple-straight": {
+      "size": [
+        2,
+        1.23,
+        0.21
+      ],
+      "triangles": 1120
+    }
+  }
+}

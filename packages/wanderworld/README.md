@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.11)
+## What it does now (0.4.12)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -17,6 +17,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   about in its own 3D model or a built-in person: out and about, on benches, or inside houses, shops, the
   tavern and the temple, where you find them in the room when you walk in. They stop to face you when you
   walk up and have their name overhead.
+- **Real buildings** assembled from Quaternius's free Medieval Village MegaKit (walls, windows, doors, roofs,
+  gables, chimneys, balconies, towers) on its 2 m grid; the simple buildings stand in until it loads.
 - **Detailed furniture and props** in town and indoors from Quaternius's free Fantasy Props and Medieval
   Village kits; the simple ones stand in until they load, or if Settings turns them off.
 - **Detailed nature** near town (trees, rocks, bushes, flowers, grass) from Quaternius's free Stylized Nature
@@ -80,6 +82,8 @@ for that persona in 3D Avatars first.
   Audio; `src/settings.js` keeps the settings, checking each value as it is read back.
 - `src/people.js` builds a default person from the kit: every part keeps its own joints' bind data and
   binds to the outfit's skeleton, then becomes a humanoid like a GLB model.
+- `src/houses.js` assembles a building's kit pieces from its spec (front facing +z); town buildings snap to
+  the kit's grid in `buildings.js`, so both versions share a footprint, door and collision box.
 - `src/kit.js` loads static kit models (shared geometry and materials, never disposed with a world);
   `world.addNature` swaps them in near town as instanced meshes.
 - `src/figure.js` is the built-in person: simple shapes on a humanoid skeleton in one skinned mesh, so it

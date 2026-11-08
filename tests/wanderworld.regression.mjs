@@ -6,6 +6,7 @@ import { Box3, Matrix4, Vector3 } from "three";
 import { buildBuilding, KINDS, makeSpec } from "../packages/wanderworld/src/buildings.js";
 import { setAnimationStyle } from "../packages/wanderworld/src/character.js";
 import { createFigure } from "../packages/wanderworld/src/figure.js";
+import { HOUSE_PIECES, housePieces, kitFits } from "../packages/wanderworld/src/houses.js";
 import { createInterior } from "../packages/wanderworld/src/interiors.js";
 import { createMotion } from "../packages/wanderworld/src/motion.js";
 import { checkSetting, loadSettings, SETTINGS } from "../packages/wanderworld/src/settings.js";
@@ -158,6 +159,43 @@ for (const kind of KINDS) {
   geometry.dispose();
 }
 assert.equal(makeSpec(random, "spaceship").kind, "home", "an unknown kind falls back to a home");
+
+// ── Buildings from the village kit ───────────────────────────────────────────
+// Every building the town makes sits on the kit's grid, in a shape it has a roof for, with its door in the
+// middle of a wall segment, and its kit version uses only pieces the kit has.
+{
+  const town = createWorld(31337);
+  const kitWorld = createWorld(31337);
+  const known = new Set(HOUSE_PIECES);
+  let checked = 0;
+  for (let i = 0; i < 400; i++) {
+    const kind = KINDS[i % KINDS.length];
+    const spec = makeSpec(rng(9000 + i), kind, { width: 4 + (i % 12), depth: 4 + (i % 6) });
+    assert.equal(spec.width % 2, 0, "widths are whole 2 m segments");
+    assert.equal(spec.depth % 2, 0, "depths are whole 2 m segments");
+    assert.ok(kitFits(spec.width, spec.depth), `the kit can roof ${spec.width} × ${spec.depth}`);
+    const { doorX, geometry } = buildBuilding(rng(i), spec);
+    geometry.dispose();
+    assert.ok(
+      Math.abs((((doorX - spec.width / 2 - 1) % 2) + 2) % 2) < 1e-9,
+      `the door is mid-segment (${doorX} in ${spec.width})`,
+    );
+    for (const { model } of housePieces(spec, doorX, i)) assert.ok(known.has(model), `the kit has ${model}`);
+    checked++;
+  }
+  assert.equal(checked, 400);
+  // The swap: the simple buildings are hidden and kit pieces take their place.
+  kitWorld.addBuildings(
+    new Map(
+      HOUSE_PIECES.map((name) => [name, [{ geometry: new BoxGeometry(1, 1, 1), material: new MeshLambertMaterial() }]]),
+    ),
+  );
+  let kitPieces = 0;
+  kitWorld.scene.traverse((object) => object.userData.kit && kitPieces++);
+  assert.ok(kitPieces > 10, `kit building pieces are added (${kitPieces} kinds)`);
+  town.dispose();
+  kitWorld.dispose();
+}
 
 // ── Inside buildings ─────────────────────────────────────────────────────────
 // Every kind of building opens onto a furnished room you can walk into, sit down in and walk out of.

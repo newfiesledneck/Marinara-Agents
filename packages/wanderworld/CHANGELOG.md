@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.12 — 2026-11-08
+
+- Real buildings: every house, shop, the tavern, temple, hall and smithy is assembled from Quaternius's free Medieval Village MegaKit (public domain): brick or stone ground floors, plaster and timber-framed storeys, arched windows with shutters, arched doors, round-tile roofs with brick gables, chimneys, balconies and towers.
+- Buildings now sit on the kit's 2 m grid, so a town's layout differs a little from before; porches are gone.
+- Settings → Detailed buildings turns them off on slow devices.
+
 ## 0.4.11 — 2026-11-08
 
 - Detailed furniture and props from Quaternius's free Fantasy Props and Medieval Village kits (public domain): market stalls with crates of apples and carrots, benches, barrels and crates in town; beds, tables, chairs, stools, bookcases, chests, an anvil and workbench, candle stands, banners, and mugs and plates on tables indoors.

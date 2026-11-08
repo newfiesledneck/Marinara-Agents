@@ -19,6 +19,7 @@ import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
+import { HOUSE_PIECES } from "./houses.js";
 import { kitModels } from "./kit.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
 
@@ -257,7 +258,7 @@ function changeSetting(name, value) {
   core.settings = { ...core.settings, [name]: checked };
   if (name === "resolution") core.autoScale = 1;
   if (name === "people") void choosePersona(core.personaId); // redress the player too
-  if ((name === "nature" || name === "props") && core.world) buildWorld(core.seed, currentPlace()); // redrawn
+  if (["nature", "props", "buildings"].includes(name) && core.world) buildWorld(core.seed, currentPlace()); // redrawn
   saveSettings(core.settings);
   applySettings();
 }
@@ -297,6 +298,14 @@ function buildWorld(seed, place = null) {
         if (core.world === world) world.addNature(models);
       })
       .catch((error) => console.warn("[wanderworld] detailed nature failed to load", error));
+  }
+  if (core.settings.buildings) {
+    const world = core.world;
+    kitModels("village", HOUSE_PIECES)
+      .then((models) => {
+        if (core.world === world) world.addBuildings(models);
+      })
+      .catch((error) => console.warn("[wanderworld] detailed buildings failed to load", error));
   }
   if (core.settings.props) {
     const world = core.world;
