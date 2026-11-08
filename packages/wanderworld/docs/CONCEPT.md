@@ -4,7 +4,8 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.0, 2026-11-07: a seeded town, walked as your persona, with your characters living in it.**
+Status: **0.4.1, 2026-11-07: a detailed seeded town (parts kit), walked as your persona, with your characters
+living in it.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
@@ -121,6 +122,7 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 | --- | --- | --- |
 | M0 | **Spike** ✅ | A Home tab renders a three.js scene and walks a capsule with WASD and a touch stick, with an fps readout. Measure fps on a phone. |
 | M0.5 | **Persona and town** ✅ | The player is the chosen persona's 3D Avatars model (VRM walks, GLB shows) or a low-poly figure; a seeded town of houses, streets and a plaza; buildings block movement and the camera. |
+| M0.6 | **Parts kit** ✅ | Buildings from a spec chosen from fixed menus (kind, size, floors, roof, walls, colours, features) assembled from parts; plaza landmarks, shops, homes, smithy, gardens, stalls, benches and street clutter, still one merged mesh. |
 | M1 | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. |
 | M2 | **Town from lore** | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part. |
 | M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. |
