@@ -16,6 +16,9 @@ export const SETTINGS = {
   nature: { value: true },
   /** Detailed furniture and props, in town and indoors (the kit); off keeps the simple ones. */
   props: { value: true },
+  /** Where people may confront or attack: anywhere, only outside towns, only outside safe places (town
+   *  and inns), or nowhere. (Confrontations now; combat when there is some.) */
+  combat: { value: "outsideSafe", options: ["anywhere", "outsideTowns", "outsideSafe", "off"] },
   /** Walking into buildings' rooms (unfinished); off, a door shows who's inside instead. */
   interiors: { value: false },
   /** Buildings assembled from the village kit; off keeps the simple ones. */

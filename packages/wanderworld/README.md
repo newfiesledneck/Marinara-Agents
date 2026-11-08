@@ -61,13 +61,18 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   moves the camera to the side, and opens a chat box with speech bubbles; replies are placeholder lines
   until the AI update. Click a spot on the ground to walk there.
 - **A living town:** townsfolk sit on benches, visit shops and the tavern, find their way along the
-  streets, head home at night, look at you and wave. A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
+  streets, head home at night, look at you and wave. Friends meet up to chat and sit or walk together.
+- **Relationships:** the Journal sets how each person sees the others and you (friend, family, partner,
+  rival, enemy and more, each with levels), and each character's temperament (passive to aggressive)
+  and manner (shy to outgoing). Townsfolk act on them: a friend comes over to say hello, someone who
+  dislikes you keeps away, a sworn enemy comes to have words. A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the
   stick walks (all the way out runs), dragging anywhere else looks around, pinching zooms, and the Use
   button or a tap uses. The camera orbits and tilts, and moves in when a building would hide you.
 - **Settings:** resolution (Auto keeps it smooth), draw distance, trees and rocks, shadows, walk speed,
-  camera speed and direction, time of day, sound, and what the HUD shows.
+  camera speed and direction, time of day, sound, where confrontations and combat may happen
+  (anywhere, outside towns, outside safe places, or off), and what the HUD shows.
 - Shows frames per second, draw calls, triangles and the render resolution (Settings can hide it).
 - **Fullscreen** fills the screen, on Engines whose Home tabs offer it.
 

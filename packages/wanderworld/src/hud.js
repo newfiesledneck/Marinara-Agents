@@ -203,6 +203,12 @@ export function createHud(root, handlers) {
   heading("World");
   choice("time", "Time", TIME_LABELS);
   toggle("interiors", "Walk into buildings (unfinished)");
+  choice("combat", "Confrontations and combat", {
+    anywhere: "Anywhere",
+    outsideTowns: "Outside towns",
+    outsideSafe: "Outside safe places",
+    off: "Off",
+  });
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
   heading("Display");
@@ -216,6 +222,8 @@ export function createHud(root, handlers) {
     onLore: (id) => handlers.onZoneLore(id),
     onPartyWait: (id, wait) => handlers.onPartyWait(id, wait),
     onPartyLeave: (id) => handlers.onPartyLeave(id),
+    onSetRelation: (from, to, fields, both) => handlers.onSetRelation(from, to, fields, both),
+    onSetTraits: (id, traits) => handlers.onSetTraits(id, traits),
   });
   panels.push(journal.panel);
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>

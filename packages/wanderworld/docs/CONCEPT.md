@@ -46,12 +46,12 @@ to read or move. Wanderworld runs its own world and saves, and picks its own sou
 
 ## What the platform gives a Home game (checked against Engine 2.5.2, 2026-11-07)
 
-| Need | What exists | Where to look |
-| --- | --- | --- |
-| A tab of its own | `contributions.slots: ["home-browser-tab"]` + `homeBrowserTab { label, ariaLabel, iconPaths }`; needs a client entrypoint; the icon must be hash-pinned in `files` | Engine `HomeBrowserHub.tsx`, `capability-package.schema.ts` |
-| Mounting | The package's element is mounted once with `view="browser"`; props include `browserFullscreen { active, setActive, enterLabel, exitLabel }` (1.376) and `onClose` | `HomeBrowserHub.tsx` |
-| Saves, model calls, characters, lorebooks | A server part (`server.mjs`) with package routes and storage, as every other Home game has | `packages/otome-forge`, `packages/saucelings`, `packages/gacha-forge`, `packages/modern-life-sim` |
-| Store logo | Apps use their Home tab icon as the store logo (`scripts/build-store.mjs`); no `store/icons/src/<id>.svg` | `CONTRIBUTING.md` "Store data" |
+| Need                                      | What exists                                                                                                                                                        | Where to look                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| A tab of its own                          | `contributions.slots: ["home-browser-tab"]` + `homeBrowserTab { label, ariaLabel, iconPaths }`; needs a client entrypoint; the icon must be hash-pinned in `files` | Engine `HomeBrowserHub.tsx`, `capability-package.schema.ts`                                       |
+| Mounting                                  | The package's element is mounted once with `view="browser"`; props include `browserFullscreen { active, setActive, enterLabel, exitLabel }` (1.376) and `onClose`  | `HomeBrowserHub.tsx`                                                                              |
+| Saves, model calls, characters, lorebooks | A server part (`server.mjs`) with package routes and storage, as every other Home game has                                                                         | `packages/otome-forge`, `packages/saucelings`, `packages/gacha-forge`, `packages/modern-life-sim` |
+| Store logo                                | Apps use their Home tab icon as the store logo (`scripts/build-store.mjs`); no `store/icons/src/<id>.svg`                                                          | `CONTRIBUTING.md` "Store data"                                                                    |
 
 Pixelforge (`packages/pixelforge`) is still the best reference for the world itself: seeded world
 compilation, the brief schema, stable ids, and "a loading gate, not a background swap" (the world doesn't
@@ -64,12 +64,12 @@ run until generation finishes; a failure is a retry screen, never a default worl
 The player picks the sources in Wanderworld's own setup screen, the way Otome Hearth builds its cast
 from your character cards.
 
-| Source | What it gives |
-| --- | --- |
+| Source                         | What it gives                                                    |
+| ------------------------------ | ---------------------------------------------------------------- |
 | Setting / genre (setup screen) | The **kit**: fantasy, modern town, sci-fi colony, survival wilds |
-| Lorebook entries | Landmarks, factions, named places, history, rules |
-| Character cards | Who lives and works where, households, routines |
-| Persona | Starting point, home, role |
+| Lorebook entries               | Landmarks, factions, named places, history, rules                |
+| Character cards                | Who lives and works where, households, routines                  |
+| Persona                        | Starting point, home, role                                       |
 
 One structured call writes a **world brief** (what exists). A deterministic **compiler** turns it
 into terrain, streets, lots and buildings from the kit. Same seed + same brief = same world.
@@ -96,10 +96,12 @@ World Maps ever offers a non-chat way to share places, zones are what would map 
 ## Performance budget (the city case)
 
 Targets for a mid-range phone:
+
 - **~30 fps** on a phone, 60 on desktop; cap `devicePixelRatio` at about 1.5.
 - **Draw calls under ~150**, **visible triangles under ~200k**.
 
 How:
+
 - **Low-poly, flat or vertex-colored**, one small shared texture atlas per kit. No real-time
   shadows: baked vertex ambient occlusion and a simple sun gradient.
 - **Instancing** for repeated props (trees, lamps, fences, windows) and **merged static geometry**
@@ -119,16 +121,16 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 
 ## Prototype milestones
 
-| # | Milestone | Done when |
-| --- | --- | --- |
-| M0 | **Spike** ✅ | A Home tab renders a three.js scene and walks a capsule with WASD and a touch stick, with an fps readout. Measure fps on a phone. |
-| M0.5 | **Persona and town** ✅ | The player is the chosen persona's 3D Avatars model (VRM walks, GLB shows) or a low-poly figure; a seeded town of houses, streets and a plaza; buildings block movement and the camera. |
-| M0.6 | **Parts kit** ✅ | Buildings from a spec chosen from fixed menus (kind, size, floors, roof, walls, colours, features) assembled from parts; plaza landmarks, shops, homes, smithy, gardens, stalls, benches and street clutter, still one merged mesh. |
-| M1 | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. *Zones, where people are, who's near whom, the party and relationships are planned as W1–W4 (client, no restart).* |
-| M2 | **Town from lore** | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part. |
-| M2.5 | **Things to do** ✅ | Use system (E, click, tap; walk to what you clicked), benches and chairs, doors that open, a furnished room inside every building from templates by kind, the conversation screen with placeholder replies, townsfolk routines, day and night, sound, settings. |
-| M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. *0.4.4 has template rooms by building kind; 0.4.13 puts them behind a setting. For now a door shows who's inside: going in will start a role-play scene with them in the chat, with generated pictures, once the server part exists (see below).* |
-| M4 | **People** | Cast characters placed at their homes and workplaces, as billboards or simple figures. *0.4.0 has the picker, their own models, homes near the plaza and wandering; homes and workplaces from the brief come with M2.* |
+| #    | Milestone                    | Done when                                                                                                                                                                                                                                                                                                                           |
+| ---- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0   | **Spike** ✅                 | A Home tab renders a three.js scene and walks a capsule with WASD and a touch stick, with an fps readout. Measure fps on a phone.                                                                                                                                                                                                   |
+| M0.5 | **Persona and town** ✅      | The player is the chosen persona's 3D Avatars model (VRM walks, GLB shows) or a low-poly figure; a seeded town of houses, streets and a plaza; buildings block movement and the camera.                                                                                                                                             |
+| M0.6 | **Parts kit** ✅             | Buildings from a spec chosen from fixed menus (kind, size, floors, roof, walls, colours, features) assembled from parts; plaza landmarks, shops, homes, smithy, gardens, stalls, benches and street clutter, still one merged mesh.                                                                                                 |
+| M1   | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. _Zones, where people are, who's near whom, the party and relationships are planned as W1–W4 (client, no restart)._                                                                                                             |
+| M2   | **Town from lore**           | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part.                                                                                                                                                                                                        |
+| M2.5 | **Things to do** ✅          | Use system (E, click, tap; walk to what you clicked), benches and chairs, doors that open, a furnished room inside every building from templates by kind, the conversation screen with placeholder replies, townsfolk routines, day and night, sound, settings.                                                                     |
+| M3   | **Enterable interiors**      | Doors load a generated interior (one call, saved); leaving restores the exterior. _0.4.4 has template rooms by building kind; 0.4.13 puts them behind a setting. For now a door shows who's inside: going in will start a role-play scene with them in the chat, with generated pictures, once the server part exists (see below)._ |
+| M4   | **People**                   | Cast characters placed at their homes and workplaces, as billboards or simple figures. _0.4.0 has the picker, their own models, homes near the plaza and wandering; homes and workplaces from the brief come with M2._                                                                                                              |
 
 **Out of scope for the prototype:** changes to other packages, Game Mode, VRM or 3D avatars, survival
 or daily-life rules, combat, building, and the parametric character builder.
@@ -140,15 +142,15 @@ or daily-life rules, combat, building, and the parametric character builder.
 One scheme for every screen, kept small so it stays learnable. E is "use" (sit, open, go in, talk) and
 never moves the camera; Esc stands up or leaves a conversation.
 
-| | Computer | Touch screen |
-| --- | --- | --- |
-| Walk | WASD (camera-relative) | The stick, bottom left; a small push strolls |
-| Run | Hold Shift | Push the stick all the way out |
-| Look around | Drag with the left or middle mouse button, or the arrow keys | Drag anywhere off the stick |
-| Zoom | Mouse wheel, or + / − | Pinch |
-| Use | E, or click it (further away: you walk there first) | The Use button, or tap it |
-| Walk to a spot | Click the ground | Tap the ground |
-| Stand up, stop talking | Esc, or move | Move, or the Leave button |
+|                        | Computer                                                     | Touch screen                                 |
+| ---------------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| Walk                   | WASD (camera-relative)                                       | The stick, bottom left; a small push strolls |
+| Run                    | Hold Shift                                                   | Push the stick all the way out               |
+| Look around            | Drag with the left or middle mouse button, or the arrow keys | Drag anywhere off the stick                  |
+| Zoom                   | Mouse wheel, or + / −                                        | Pinch                                        |
+| Use                    | E, or click it (further away: you walk there first)          | The Use button, or tap it                    |
+| Walk to a spot         | Click the ground                                             | Tap the ground                               |
+| Stand up, stop talking | Esc, or move                                                 | Move, or the Leave button                    |
 
 The camera orbits a point at head height: yaw all the way round, pitch from a little below head height
 (looking up at towers) to nearly overhead, zoom 2.5–18 m. It never goes below the ground, and it slides
@@ -166,9 +168,9 @@ so a model call can read it as-is and later write to it.
 
 ### W1. Places and zones
 
-*In 0.4.14: zones, the place line and names on entering, `describe`, renaming and zone lore in the
+_In 0.4.14: zones, the place line and names on entering, `describe`, renaming and zone lore in the
 Journal, shop signs, all saved per world (`saves.js`). Still to do: a zone editor beyond renaming, and
-signs that carry a picture by default.*
+signs that carry a picture by default._
 
 - **Every spot has a place:** buildings by kind and name ("the tavern", "Mira's house"), the plaza and
   its fountain, each street, gardens, meadows, the edge of town, the forest. A zone is a shape (a box or
@@ -198,10 +200,10 @@ signs that carry a picture by default.*
 
 ### W3. Party and following
 
-*In 0.4.15: asking along from a conversation, following in rows of two, running to catch up, waypoint
+_In 0.4.15: asking along from a conversation, following in rows of two, running to catch up, waypoint
 routing, sitting near a seated player, catching up when lost, wait here, part ways, saved per world, and
 named on a door's card. Not yet: following into walk-in rooms (followers wait outside), and the party
-going into a scene together (W5).*
+going into a scene together (W5)._
 
 - Invite someone from a conversation or the Use menu; they follow at a short distance in a loose line,
   walk when you walk, run when you run, find their way round buildings with the street waypoints, sit
@@ -210,6 +212,14 @@ going into a scene together (W5).*
   with you.
 
 ### W4. Relationships (built to grow)
+
+_In 0.4.24 (`relationships.js`): one record per direction, `{ from, to, kind, level 0–100, role, notes,
+history, updatedAt }`, with kinds acquaintance, friend, romance, partner, family, colleague, mentor,
+rival, enemy and fear, each with four named tiers and a warmth that drives behaviour. Townsfolk with no
+record know each other as acquaintances; toward the player, strangers. Each character also has traits,
+aggression and sociability (0–100), which move where confronting and greeting start. Settings →
+Confrontations and combat gates confronting by place (anywhere, outside towns, outside safe places, off).
+Set by hand in the Journal's Relationships tab; the AI sets and changes them later._
 
 The first version is small; the shape is meant to take a lot more later without a rewrite.
 
@@ -228,9 +238,9 @@ The first version is small; the shape is meant to take a lot more later without 
 
 ### W6. The land and the shape of the town
 
-*In 0.4.16 (`land.js`): a world's `landscape` (hills, mountain sides, a river, outposts: inn, cottage,
+_In 0.4.16 (`land.js`): a world's `landscape` (hills, mountain sides, a river, outposts: inn, cottage,
 cave) builds hills, ranges, the river with its banks and bridges, and dirt roads out to each outpost.
-The seed fills it in, New world can choose each part, and the save keeps it.*
+The seed fills it in, New world can choose each part, and the save keeps it._
 
 - **The AI chooses the land:** the world brief (S2) writes the landscape like any other part of the
   world: whether there are mountains, a river, a lone tavern on a forest road, a cave in a hillside, and
@@ -249,8 +259,8 @@ The seed fills it in, New world can choose each part, and the save keeps it.*
 
 ### W7. Things to use, placed by the world
 
-*In 0.4.21: a noticeboard on the square (`world.noticeboard`), its notes from the town's place names plus
-the player's own (saved as `notices`).*
+_In 0.4.21: a noticeboard on the square (`world.noticeboard`), its notes from the town's place names plus
+the player's own (saved as `notices`)._
 
 - The brief places usable things like any other part of the world: noticeboards (in squares, outside an
   inn, at a crossroads), and later wells, shrines, chests and signposts. Each is a kind with a spot.
@@ -265,7 +275,7 @@ the player's own (saved as `notices`).*
 - **The door sheet:** Enter, or Enter with your own first message ("we sneak in through the back", "I
   kick the door in"); who from the party comes in; who is inside (W1); the place and time.
 - **The request it builds:** `{ trigger, place, time, entering: { who, how, firstMessage }, present,
-  nearby, relationships between them, zone lore, recent events }`. The client can build it and show it
+nearby, relationships between them, zone lore, recent events }`. The client can build it and show it
   in a debug view now; S4 sends it.
 
 ---
@@ -282,16 +292,16 @@ Engine `staging` (`27e363843f`), 2026-11-08.
 
 ### What the server gets (`activate({ api })`)
 
-| Need | Host API | Seen in |
-| --- | --- | --- |
-| HTTP routes for the client | `api.registerPrivilegedRoutes((routes) => routes.get/post(...))`, served at `/api/wanderworld/...`; permission `routes` | Quartermaster `server.mjs`, Otome Hearth |
-| Saves | `api.runtime.persistence.documents`; permission `storage` | Quartermaster, Otome Hearth `store.ts` |
-| Personas, characters, lorebooks | `api.runtime.resources.listPersonas / listCharacters / listLorebooks / listEligibleLorebookEntries` | Otome Hearth `setup/cast.ts` |
-| Model calls | `api.runtime.languageModels.resolveForRequest({ connectionId })` → `chatComplete(messages, { temperature, maxTokens })`; `api.runtime.json.parseJsonish` for forgiving JSON | Quartermaster wardrobe, Otome Hearth `generation.ts` |
-| Debug logging | `api.runtime.logger.debugOverride(debugMode, ...)` when Debug Agents is on | Quartermaster |
-| Full Engine scenes | Client prop `startScene({ originId, prompt, plan, data, initiatorCharacterId })` → `{ chatId }`, plus `openChat` and `focusSceneOriginId`; server `api.registerSceneOrigin({ getContext, claim, release })`. `getContext` returns `{ characterIds, personaId, connectionId, transcript, notes, lorebookIds }`; `release` gets `{ kind: "concluded", summary, characterIds, ... }`. Permission `scenes`, capability API 1.66. The Engine casts Engine characters only | Slurp 2 `server.mjs` and `docs/SCENES.md`; Engine `shared/src/types/scene.ts` |
-| Context in any chat turn | `api.registerPromptContext((request) => text)`, called once per generation with `{ chatId, chatMeta, mode, targetCharacterIds, personaId, wrapFormat }`; returns text to append. Permission `prompt-context`. A scene started from Wanderworld carries `chatMeta.scenePackageOrigin`, so the contributor knows which world and place it belongs to | Slurp 2; Engine `capability-prompt-context.service.ts` |
-| Voices | Client `__MARINARA_HOST__.services.tts` (the Engine's `lib/tts-service`: `ttsService`, `playWhenAvailable`). Never open the TTS audio cache directly; `validate-catalog.mjs` refuses that | Engine `marinara-host-contract.ts` |
+| Need                            | Host API                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Seen in                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| HTTP routes for the client      | `api.registerPrivilegedRoutes((routes) => routes.get/post(...))`, served at `/api/wanderworld/...`; permission `routes`                                                                                                                                                                                                                                                                                                                                              | Quartermaster `server.mjs`, Otome Hearth                                      |
+| Saves                           | `api.runtime.persistence.documents`; permission `storage`                                                                                                                                                                                                                                                                                                                                                                                                            | Quartermaster, Otome Hearth `store.ts`                                        |
+| Personas, characters, lorebooks | `api.runtime.resources.listPersonas / listCharacters / listLorebooks / listEligibleLorebookEntries`                                                                                                                                                                                                                                                                                                                                                                  | Otome Hearth `setup/cast.ts`                                                  |
+| Model calls                     | `api.runtime.languageModels.resolveForRequest({ connectionId })` → `chatComplete(messages, { temperature, maxTokens })`; `api.runtime.json.parseJsonish` for forgiving JSON                                                                                                                                                                                                                                                                                          | Quartermaster wardrobe, Otome Hearth `generation.ts`                          |
+| Debug logging                   | `api.runtime.logger.debugOverride(debugMode, ...)` when Debug Agents is on                                                                                                                                                                                                                                                                                                                                                                                           | Quartermaster                                                                 |
+| Full Engine scenes              | Client prop `startScene({ originId, prompt, plan, data, initiatorCharacterId })` → `{ chatId }`, plus `openChat` and `focusSceneOriginId`; server `api.registerSceneOrigin({ getContext, claim, release })`. `getContext` returns `{ characterIds, personaId, connectionId, transcript, notes, lorebookIds }`; `release` gets `{ kind: "concluded", summary, characterIds, ... }`. Permission `scenes`, capability API 1.66. The Engine casts Engine characters only | Slurp 2 `server.mjs` and `docs/SCENES.md`; Engine `shared/src/types/scene.ts` |
+| Context in any chat turn        | `api.registerPromptContext((request) => text)`, called once per generation with `{ chatId, chatMeta, mode, targetCharacterIds, personaId, wrapFormat }`; returns text to append. Permission `prompt-context`. A scene started from Wanderworld carries `chatMeta.scenePackageOrigin`, so the contributor knows which world and place it belongs to                                                                                                                   | Slurp 2; Engine `capability-prompt-context.service.ts`                        |
+| Voices                          | Client `__MARINARA_HOST__.services.tts` (the Engine's `lib/tts-service`: `ttsService`, `playWhenAvailable`). Never open the TTS audio cache directly; `validate-catalog.mjs` refuses that                                                                                                                                                                                                                                                                            | Engine `marinara-host-contract.ts`                                            |
 
 How the Engine's own modes talk: Conversation, Roleplay and Game assemble their prompts inside the Engine
 and don't expose them to packages. Packages that hold their own conversations (Otome Hearth's messages and
@@ -330,9 +340,9 @@ treatment (image generation, backgrounds, agents, memory).
 
 ### S3. Conversations
 
-*The client side is in 0.4.4: starting a conversation, the facing lock, the two-shot camera, the chat panel
+_The client side is in 0.4.4: starting a conversation, the facing lock, the two-shot camera, the chat panel
 and speech bubbles, and talking gestures. Replies are placeholder lines; this step swaps them for the model
-call below.*
+call below._
 
 - **Start:** walk up to a character (within about 2 m, facing them) and press **E**, click them, or tap
   **Talk**.
@@ -349,6 +359,7 @@ call below.*
   - that character's conversation history in this world, with a short rolling summary once it grows
 
   The reply is the character's line only; the user's own words are never written for them.
+
 - **Later:** small actions in replies (walk somewhere, give an item), relationship memory, and characters
   talking to each other.
 
