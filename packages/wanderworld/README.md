@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.10)
+## What it does now (0.4.11)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -17,6 +17,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   about in its own 3D model or a built-in person: out and about, on benches, or inside houses, shops, the
   tavern and the temple, where you find them in the room when you walk in. They stop to face you when you
   walk up and have their name overhead.
+- **Detailed furniture and props** in town and indoors from Quaternius's free Fantasy Props and Medieval
+  Village kits; the simple ones stand in until they load, or if Settings turns them off.
 - **Detailed nature** near town (trees, rocks, bushes, flowers, grass) from Quaternius's free Stylized Nature
   MegaKit; simple trees further out. Settings can turn it off.
 - **Dressed default people:** anyone without a 3D model is put together from Quaternius's free

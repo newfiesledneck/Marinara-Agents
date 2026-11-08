@@ -14,6 +14,8 @@ export const SETTINGS = {
   shadows: { value: true },
   /** Detailed trees, rocks and plants near town (the kit); off keeps the simple low-poly ones. */
   nature: { value: true },
+  /** Detailed furniture and props, in town and indoors (the kit); off keeps the simple ones. */
+  props: { value: true },
   /** People without a 3D model: "kit" dresses them from the Quaternius characters; "simple" uses the
    *  built-in low-poly person (lighter on slow devices). */
   people: { value: "kit", options: ["kit", "simple"] },

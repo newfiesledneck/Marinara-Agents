@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.10, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
+Status: **0.4.11, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
 without the AI yet), with up to thirty of your characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
@@ -321,6 +321,9 @@ Answered (checked against Agents staging and Engine 2.5.2, 2026-11-07):
 
 Still open:
 
+- **Quaternius props are in, for testing (0.4.11):** 46 props from the Fantasy Props and Medieval Village kits
+  (CC0) in `kit/props/` (2.1 MB). Town and rooms keep their simple furniture as the stand-in and record
+  where each kit prop goes, so the layout and collisions are the same either way.
 - **Quaternius nature is in, for testing (0.4.10):** the Stylized Nature MegaKit (CC0) in `kit/nature/` (1.8 MB):
   detailed trees and rocks within 45 m of town, undergrowth round the edge. Heavy: about 2 million more
   triangles in view. Before phones: fewer and simpler trees (lower-detail versions or impostors), and

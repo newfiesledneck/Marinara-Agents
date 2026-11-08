@@ -58,6 +58,18 @@ const FOUNTAIN_RADIUS = 2.4;
 export const SPAWN = Object.freeze({ x: 0, z: FOUNTAIN_RADIUS + 4 });
 
 const SEAT_HEIGHT = 0.45;
+/** How high the kit stall's counter is, drawn at the town's size. */
+const STALL_COUNTER = 1.12;
+/** Every kit prop the town uses, for loading. */
+export const TOWN_PROPS = [
+  "barrel",
+  "barrel-apples",
+  "crate-wooden",
+  "bench",
+  "stall-empty",
+  "farmcrate-apple",
+  "farmcrate-carrot",
+];
 /** Detailed trees, rocks and plants (the kit) grow this far out from the town's edge; cones beyond. */
 const NATURE_RING = 45;
 const UNDERGROWTH = 700;
@@ -266,6 +278,15 @@ function placeProp(town, geometry, x, z, facing = 0) {
   town.pieces.push(geometry.rotateY((facing * Math.PI) / 2).translate(x, 0, z));
 }
 
+/**
+ * A prop the kit can draw: its simple stand-in goes into the props mesh (hidden once the kit has loaded),
+ * and its spot is kept for the kit model. `angle` in radians, `scale` a number or [x, y, z]; `y` lifts it.
+ */
+function placeKitProp(town, fallback, { model, x, z, angle = 0, scale = 1, y = 0 }) {
+  if (fallback) town.propPieces.push(fallback.rotateY(angle).translate(x, y, z));
+  town.propSlots.push({ model, x, y, z, angle, scale: Array.isArray(scale) ? scale : [scale, scale, scale] });
+}
+
 /** Builds a building from its spec at (x, z) facing `facing`, with its door, collision box and street clutter. */
 function placeBuilding(random, town, spec, x, z, facing) {
   const { geometry, doorX, footprint } = buildBuilding(random, spec);
@@ -288,11 +309,14 @@ function placeBuilding(random, town, spec, x, z, facing) {
     for (let i = 0; i < 1 + Math.floor(random() * 3); i++) {
       const local = { x: doorX + side * (1.2 + i * 0.75), z: d + 0.55 };
       const at = toWorld(x, z, facing, local.x, local.z);
+      const angle = Math.floor(random() * 4) * (Math.PI / 2) + (random() - 0.5) * 0.4;
       if (random() < 0.5) {
-        placeProp(town, barrel(), at.x, at.z);
+        const model = random() < 0.4 ? "barrel-apples" : "barrel";
+        placeKitProp(town, barrel(), { model, x: at.x, z: at.z, angle });
         town.circles.push({ x: at.x, z: at.z, r: 0.34 });
       } else {
-        placeProp(town, crate(0.55 + random() * 0.2), at.x, at.z, Math.floor(random() * 4));
+        const size = 0.55 + random() * 0.2;
+        placeKitProp(town, crate(size), { model: "crate-wooden", x: at.x, z: at.z, angle, scale: size / 0.85 });
         town.circles.push({ x: at.x, z: at.z, r: 0.4 });
       }
     }
@@ -301,7 +325,8 @@ function placeBuilding(random, town, spec, x, z, facing) {
 
 /** A bench at (x, z) facing `facing`, with two seats to sit on. */
 function placeBench(town, x, z, facing) {
-  placeProp(town, bench(), x, z, facing);
+  // The kit's bench is 2.8 m long; drawn at the town's 1.8 m.
+  placeKitProp(town, bench(), { model: "bench", x, z, angle: (facing * Math.PI) / 2, scale: [0.66, 0.9, 0.95] });
   town.boxes.push(footprintBox(x, z, facing, { minX: -0.9, maxX: 0.9, minZ: -0.25, maxZ: 0.25 }));
   for (const side of [-0.45, 0.45]) {
     town.seats.push({
@@ -385,7 +410,7 @@ function fillBlock(random, town, cx, cz, role) {
 }
 
 function buildTown(random) {
-  const town = { pieces: [], boxes: [], circles: [], doors: [], seats: [] };
+  const town = { pieces: [], propPieces: [], propSlots: [], boxes: [], circles: [], doors: [], seats: [] };
   const centres = [];
   for (let i = 0; i < BLOCKS_PER_SIDE; i++) centres.push((i - (BLOCKS_PER_SIDE - 1) / 2) * PITCH);
   // The eight blocks around the plaza get the town's landmarks and shops, in a seeded order.
@@ -435,7 +460,19 @@ function buildTown(random) {
     [5.6, 5.2],
   ]) {
     const facing = facingFor(-x, -z);
-    placeProp(town, marketStall(random), x, z, facing);
+    const angle = (facing * Math.PI) / 2;
+    placeKitProp(town, marketStall(random), { model: "stall-empty", x, z, angle, scale: 1.3 });
+    // Goods on the counter, in the kit's crates.
+    for (const side of [-0.45, 0.45]) {
+      const at = toWorld(x, z, facing, side, 0.15);
+      placeKitProp(town, null, {
+        model: random() < 0.5 ? "farmcrate-apple" : "farmcrate-carrot",
+        x: at.x,
+        z: at.z,
+        y: STALL_COUNTER,
+        angle: angle + (random() - 0.5) * 0.3,
+      });
+    }
     town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
   }
   for (const [x, z, facing] of [
@@ -463,7 +500,20 @@ function buildTown(random) {
       });
     }
   }
-  return { mesh, boxes: town.boxes, circles: town.circles, lamps, doors: town.doors, seats: town.seats };
+  const props = new Mesh(
+    mergeGeometries(town.propPieces),
+    new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+  );
+  return {
+    mesh,
+    props,
+    propSlots: town.propSlots,
+    boxes: town.boxes,
+    circles: town.circles,
+    lamps,
+    doors: town.doors,
+    seats: town.seats,
+  };
 }
 
 function buildGround(random) {
@@ -532,7 +582,7 @@ export function createWorld(seed) {
 
   scene.add(buildGround(random));
   const town = buildTown(random);
-  scene.add(town.mesh);
+  scene.add(town.mesh, town.props);
 
   const trees = scatter(random, BASE_TREES * MAX_DENSITY, 1.6, 1.6);
   const rocks = scatter(random, BASE_ROCKS * MAX_DENSITY, 0.8, 1.4);
@@ -776,6 +826,30 @@ export function createWorld(seed) {
     }
   }
 
+  /** Swaps the town's simple barrels, crates, benches and stalls for kit props once they've loaded. */
+  function addProps(models) {
+    const groups = new Map();
+    for (const slot of town.propSlots) {
+      if (!models.has(slot.model)) return; // something missing: keep the simple ones
+      if (!groups.has(slot.model)) groups.set(slot.model, []);
+      dummy.position.set(slot.x, heightAt(slot.x, slot.z) + slot.y, slot.z);
+      dummy.rotation.set(0, slot.angle, 0);
+      dummy.scale.set(...slot.scale);
+      dummy.updateMatrix();
+      groups.get(slot.model).push(dummy.matrix.clone());
+    }
+    town.props.visible = false;
+    for (const [model, matrices] of groups) {
+      for (const { geometry, material } of models.get(model)) {
+        const instanced = new InstancedMesh(geometry, material, matrices.length);
+        matrices.forEach((matrix, i) => instanced.setMatrixAt(i, matrix));
+        instanced.computeBoundingSphere();
+        instanced.userData.kit = true;
+        scene.add(instanced);
+      }
+    }
+  }
+
   function dispose() {
     scene.traverse((object) => {
       // Kit geometry and materials are shared by every world (kit.js keeps them).
@@ -802,6 +876,7 @@ export function createWorld(seed) {
     waypoints: streetWaypoints(),
     setDoor,
     addNature,
+    addProps,
     update,
     setDrawDistance,
     setTime,
