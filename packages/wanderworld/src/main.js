@@ -388,6 +388,7 @@ function savePlace(now = false, thumbnail = null) {
     hour: core.hour,
     persona: core.personaId,
     cast: [...(core.cast ?? [])],
+    party: core.crowd.party().map((member) => member.id),
     place: {
       x: outside.x,
       z: outside.z,
@@ -457,6 +458,7 @@ function playWorld(id) {
   void choosePersona(persona?.id ?? null);
   buildWorld(save.seed, checkedPlace(save.place));
   updateCast();
+  core.crowd.restoreParty(save.party, core.player.position);
   resume();
 }
 
@@ -603,6 +605,7 @@ function stepPlaces(dt) {
   if (core.journalAt <= 0) {
     core.journalAt = 0.5;
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
+    core.partyChanged = false;
   }
 }
 
@@ -643,6 +646,8 @@ function journalData(zone, snapshot, residents, names) {
       nearby,
     },
     people: lines.map((entry) => entry.line),
+    party: core.crowd.party(),
+    partyChanged: core.partyChanged,
     places: zones.zones.map((at) => ({
       id: at.id,
       kind: at.kind === "building" ? at.buildingKind : at.kind,
@@ -885,6 +890,30 @@ function talkTo(person) {
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
   core.talk.start(person.name);
+  core.talk.setInParty(core.crowd.inParty(person.id));
+}
+
+/** The person you're talking to joins the party, or leaves it. */
+function toggleParty() {
+  const talking = core.talking;
+  if (!talking) return;
+  const joining = !core.crowd.inParty(talking.id);
+  core.crowd.setFollowing(talking.id, joining);
+  core.talk.setInParty(joining);
+  core.talk.line(
+    null,
+    joining ? `${talking.name} comes along with you.` : `${talking.name} goes back to their day.`,
+    true,
+  );
+  partyChanged();
+}
+
+/** Saves the party and redraws its Journal tab. */
+function partyChanged() {
+  core.partyChanged = true;
+  core.journalAt = 0;
+  core.zoneCheck = 0;
+  savePlace(true);
 }
 
 function say(text) {
@@ -970,6 +999,10 @@ function knock(door) {
   core.hud.setScene({
     title: title.charAt(0).toUpperCase() + title.slice(1),
     people: names,
+    party: core.crowd
+      .party()
+      .filter((member) => !member.waiting)
+      .map((member) => member.name),
   });
 }
 
@@ -1421,6 +1454,8 @@ function step(dt) {
     player: core.player.position,
     space: core.space,
     playerSitting: core.mode === "sit",
+    playerAngle: core.player.rotation.y,
+    playerSpeed: speed,
     hour: core.hour,
     time: core.clock,
     isVisible: (position) => frustum.containsPoint(projected.set(position.x, position.y + 1, position.z)),
@@ -1488,6 +1523,14 @@ function attach(element) {
   core.hud = createHud(core.stage, {
     onMenu: openMenu,
     onRenameZone: renameZone,
+    onPartyWait: (id, wait) => {
+      core.crowd.setWaiting(id, wait);
+      partyChanged();
+    },
+    onPartyLeave: (id) => {
+      core.crowd.setFollowing(id, false);
+      partyChanged();
+    },
     onZoneLore: editZoneLore,
     onToggleFullscreen: toggleFullscreen,
     onPickPersona: (id) => void choosePersona(id),
@@ -1500,7 +1543,7 @@ function attach(element) {
     },
     maxPeople: MAX_PEOPLE,
   });
-  core.talk = createTalk(core.hud.layer, { onSend: say, onLeave: endTalk });
+  core.talk = createTalk(core.hud.layer, { onSend: say, onLeave: endTalk, onParty: toggleParty });
   core.input = createInput();
   core.hud.layer.append(core.input.stickElement);
   core.element.addEventListener("keydown", () => core.sound.unlock());

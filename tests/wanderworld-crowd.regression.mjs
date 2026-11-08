@@ -111,4 +111,60 @@ assert.ok(outdoors(), "having come out, they stay out a while instead of going s
 crowd.hideRoom();
 shown.room.dispose();
 
+// The party: two followers keep up with the player walking down a street, run to catch up, wait when
+// told to, and are back to their own day when they part ways.
+{
+  const walker = { x: 12, y: 0, z: -20 }; // on a street running north, so the way ahead is clear
+  const members = crowd
+    .present(world)
+    .slice(0, 2)
+    .map((person) => person.id);
+  assert.equal(members.length, 2, "two people are out to ask along");
+  crowd.restoreParty(members, walker);
+  assert.deepEqual(
+    crowd.party().map((member) => member.id),
+    members,
+    "the party is who was asked, in order",
+  );
+  const follow = (seconds, angle, speed) => {
+    for (let elapsed = 0; elapsed < seconds; elapsed += 0.1) {
+      time += 0.1;
+      walker.x += Math.sin(angle) * speed * 0.1;
+      walker.z += Math.cos(angle) * speed * 0.1;
+      crowd.update(0.1, {
+        player: walker,
+        space: world,
+        playerSitting: false,
+        playerAngle: angle,
+        playerSpeed: speed,
+        hour: 12,
+        time,
+        isVisible: () => false,
+        onFootstep: () => {},
+      });
+    }
+  };
+  const gaps = () =>
+    members.map((id) => {
+      const person = crowd.snapshot().find((entry) => entry.id === id);
+      return Math.hypot(person.x - walker.x, person.z - walker.z);
+    });
+  follow(1, 0, 0); // settle in behind
+  follow(12, 0, 1.4); // walk up the street
+  for (const gap of gaps()) assert.ok(gap < 4.5, `followers keep up at a walk (${gap.toFixed(1)} m behind)`);
+  follow(6, 0, 4.5); // run
+  for (const gap of gaps()) assert.ok(gap < 8, `followers keep up at a run (${gap.toFixed(1)} m behind)`);
+  walker.z += 60; // a long way off at once (out of sight)
+  follow(0.5, 0, 0);
+  for (const gap of gaps()) assert.ok(gap < 5, `lost followers catch up (${gap.toFixed(1)} m)`);
+  crowd.setWaiting(members[0], true);
+  const waitedAt = crowd.snapshot().find((entry) => entry.id === members[0]);
+  follow(6, Math.PI / 2, 1.4);
+  const stayed = crowd.snapshot().find((entry) => entry.id === members[0]);
+  assert.ok(Math.hypot(stayed.x - waitedAt.x, stayed.z - waitedAt.z) < 0.5, "told to wait, they stay put");
+  crowd.setFollowing(members[0], false);
+  crowd.setFollowing(members[1], false);
+  assert.equal(crowd.party().length, 0, "parting ways empties the party");
+}
+
 console.log("wanderworld crowd regression: OK");

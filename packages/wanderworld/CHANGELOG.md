@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.15 — 2026-11-08
+
+- A party: in a conversation, ask someone to come with you. They follow in a loose line, run to catch up, find their way round buildings, sit near you when you sit, and catch up if they get lost.
+- Journal → Party lists who's with you: tell someone to wait here or come along, or part ways.
+- The party is saved with the world, and a door's card says who's coming in with you.
+
 ## 0.4.14 — 2026-11-08
 
 - A main menu: Continue, New world, Load world and Settings. Each world saves where you were, the time, your persona and who lives there; the Load list shows a picture of each, with Rename and Delete. Your world from before comes over as "My first world".

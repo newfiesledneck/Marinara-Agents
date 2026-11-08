@@ -64,7 +64,7 @@ function bubbleSprite(text) {
   return sprite;
 }
 
-/** `handlers`: onSend(text) and onLeave(). */
+/** `handlers`: onSend(text), onLeave(), and onParty() (they join or leave the party). */
 export function createTalk(layer, handlers) {
   const bubbles = new Map(); // speaker group → { sprite, left }
 
@@ -83,7 +83,12 @@ export function createTalk(layer, handlers) {
   leave.style.cssText =
     "font:600 13px system-ui,sans-serif;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;";
   leave.addEventListener("click", () => handlers.onLeave());
-  header.append(title, leave);
+  // Come with me / Part ways: whether they join the party.
+  const party = document.createElement("button");
+  party.type = "button";
+  party.style.cssText = leave.style.cssText;
+  party.addEventListener("click", () => handlers.onParty?.());
+  header.append(title, party, leave);
   const log = document.createElement("div");
   log.style.cssText = "max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;";
   const note = document.createElement("div");
@@ -133,6 +138,10 @@ export function createTalk(layer, handlers) {
   return {
     get open() {
       return panel.style.display !== "none";
+    },
+    /** The party button: "Part ways" when they're with you, else "Come with me". */
+    setInParty(inParty) {
+      party.textContent = inParty ? "Part ways" : "Come with me";
     },
     /** Opens the panel for a conversation with `name`. */
     start(name) {

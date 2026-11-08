@@ -8,6 +8,7 @@
 const TABS = [
   ["here", "Here"],
   ["people", "People"],
+  ["party", "Party"],
   ["places", "Places"],
   ["world", "World"],
 ];
@@ -30,7 +31,10 @@ function button(label, css, onClick) {
   return node;
 }
 
-/** `handlers`: onRename(zoneId, name) (empty name puts the default back), onLore(zoneId). */
+/**
+ * `handlers`: onRename(zoneId, name) (empty name puts the default back), onLore(zoneId),
+ * onPartyWait(id, wait), onPartyLeave(id).
+ */
 export function createJournal(panelCss, handlers) {
   const panel = element("div", panelCss);
   panel.setAttribute("data-wanderworld-ui", "");
@@ -74,6 +78,24 @@ export function createJournal(panelCss, handlers) {
   function drawPeople() {
     if (!data.people.length) body.append(line("Nobody lives here yet. Choose characters in People.", MUTED));
     for (const text of data.people) body.append(line(text));
+  }
+
+  function drawParty() {
+    if (!data.party.length) {
+      body.append(line("Nobody's with you. Talk to someone and ask them to come with you.", MUTED));
+      return;
+    }
+    for (const member of data.party) {
+      const row = element("div", "display:flex;align-items:center;gap:6px;");
+      row.append(
+        element("span", "flex:1;font-size:13px;", member.waiting ? `${member.name} (waiting)` : member.name),
+        button(member.waiting ? "Come along" : "Wait here", SMALL, () =>
+          handlers.onPartyWait(member.id, !member.waiting),
+        ),
+        button("Part ways", SMALL, () => handlers.onPartyLeave(member.id)),
+      );
+      body.append(row);
+    }
   }
 
   function drawPlaces() {
@@ -151,7 +173,7 @@ export function createJournal(panelCss, handlers) {
     drawTabs();
     body.replaceChildren();
     if (!data) return;
-    ({ here: drawHere, people: drawPeople, places: drawPlaces, world: drawWorld })[tab]();
+    ({ here: drawHere, people: drawPeople, party: drawParty, places: drawPlaces, world: drawWorld })[tab]();
   }
 
   return {
@@ -160,7 +182,8 @@ export function createJournal(panelCss, handlers) {
     render(next) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
-      if (tab === "places" && !picker && body.childElementCount) return; // no redraw under the cursor
+      // No redraw under the cursor in the lists with buttons and fields.
+      if ((tab === "places" || tab === "party") && !picker && body.childElementCount && !next.partyChanged) return;
       draw();
     },
     /** Shows the lore picker for a place; call again with `lorebooks` once they've loaded. */

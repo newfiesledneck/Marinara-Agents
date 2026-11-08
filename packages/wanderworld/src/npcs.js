@@ -25,6 +25,14 @@ const WAVE_DISTANCE = 4.5;
 const WAVE_AGAIN = 40; // seconds before waving at the player again
 const TAG_HEIGHT = 2.15;
 const NEAR = 30; // metres within which a visible person animates every frame
+// The party: how followers keep up.
+const FOLLOW_GAP = 1.4; // metres behind the player for the first row
+const FOLLOW_ROW = 1.1; // and between rows
+const FOLLOW_SIDE = 0.75; // metres to either side
+const FOLLOW_RUN = 3.5; // further behind than this: run to catch up
+const RUN_SPEED = 4.8;
+const FOLLOW_LOST = 35; // further than this (or stuck a while): catch up out of sight
+const FOLLOW_SEAT = 9; // metres from a seated player a follower looks for a seat
 const NIGHT_FROM = 21;
 const NIGHT_TO = 6.5;
 
@@ -71,6 +79,7 @@ export function createCrowd() {
   let shadowsVisible = true;
   let dressPeople = true; // people without a model get a kit person (people.js), else the simple figure
   let clock = 0;
+  const party = []; // ids of followers, in order (their place in the line)
 
   /** Where someone is standing now: the town or the room. */
   const groundY = (person, x, z) => (person.space === world ? heightAt(x, z) : 0);
@@ -138,6 +147,8 @@ export function createCrowd() {
       restUntil: 0, // no sitting down again before this (game seconds)
       visitUntil: 0, // no going indoors again before this
       lastWave: -Infinity,
+      following: false, // in the party: walks with the player instead of following a plan
+      waiting: null, // in the party but told to wait here: { x, z }
       speaking: false,
       animate: 0, // seconds of animation owed while updates are spaced out
       frame: 0,
@@ -160,6 +171,7 @@ export function createCrowd() {
   function remove(id) {
     const person = people.get(id);
     if (!person) return;
+    if (party.includes(id)) party.splice(party.indexOf(id), 1);
     leaveSeat(person);
     people.delete(id);
     person.group.removeFromParent();
@@ -368,6 +380,120 @@ export function createCrowd() {
     return Number.isFinite(person.stay) ? person.stay <= 0 : !isNight(hour);
   }
 
+  /**
+   * One frame of walking with the player: to a place in a loose line behind them (by their place in the
+   * party), running when they fall behind, round buildings by the street points, sitting near the player
+   * when they sit, and catching up out of sight when lost. Returns true when there's nothing more to do
+   * this frame (they were moved somewhere new).
+   */
+  function follow(person, dt, view, playerDistance) {
+    const position = person.group.position;
+    const player = view.player;
+    // Told to wait: stand there, facing the player when they're close.
+    if (person.waiting) {
+      if (person.state === "walk" || Math.hypot(person.waiting.x - position.x, person.waiting.z - position.z) > 0.4) {
+        stepToward(person, person.waiting, WALK_SPEED, dt);
+      } else person.state = "idle";
+      return false;
+    }
+    // In different places (the player is in a room): wait where they are until the player is back.
+    if (person.space !== view.space) {
+      person.state = "idle";
+      return false;
+    }
+    // The player sat down: take a free seat close by, or stand near them.
+    if (view.playerSitting) {
+      if (person.state === "sit") return false;
+      if (!person.seat) {
+        const seat = freeSeat(person, person.space.seats ?? [], player, FOLLOW_SEAT);
+        if (seat) {
+          seat.taken = person.id;
+          person.seat = seat;
+        }
+      }
+      if (person.seat) {
+        const { approach } = person.seat;
+        if (Math.hypot(approach.x - position.x, approach.z - position.z) > 0.4) {
+          stepToward(person, approach, WALK_SPEED, dt);
+          return false;
+        }
+        position.set(person.seat.x, groundY(person, person.seat.x, person.seat.z), person.seat.z);
+        person.group.rotation.y = person.seat.angle;
+        person.state = "sit";
+        return false;
+      }
+    } else if (person.state === "sit" || person.seat) {
+      // The player stood up: up too.
+      const seat = person.seat;
+      leaveSeat(person);
+      if (seat && person.state === "sit")
+        position.set(seat.approach.x, groundY(person, seat.approach.x, seat.approach.z), seat.approach.z);
+      person.state = "idle";
+    }
+    // A place in the line: rows of two behind the player.
+    const slot = Math.max(0, party.indexOf(person.id));
+    const row = Math.floor(slot / 2);
+    const side = slot % 2 === 0 ? -1 : 1;
+    const back = FOLLOW_GAP + row * FOLLOW_ROW;
+    const angle = view.playerAngle ?? 0;
+    const spot = {
+      x: player.x - Math.sin(angle) * back + Math.cos(angle) * side * FOLLOW_SIDE,
+      z: player.z - Math.cos(angle) * back - Math.sin(angle) * side * FOLLOW_SIDE,
+    };
+    if (person.space.blocked?.(spot.x, spot.z, BODY_RADIUS)) {
+      spot.x = player.x - Math.sin(angle) * back;
+      spot.z = player.z - Math.cos(angle) * back;
+    }
+    // Lost (far away, or stuck a while): catch up out of sight, at their place in the line.
+    if (playerDistance > FOLLOW_LOST || person.stuck > 3) {
+      position.set(spot.x, groundY(person, spot.x, spot.z), spot.z);
+      person.stuck = 0;
+      person.next = null;
+      person.state = "idle";
+      return true;
+    }
+    const away = Math.hypot(spot.x - position.x, spot.z - position.z);
+    if (away < 0.45 || (playerDistance < FOLLOW_GAP + 0.3 && away < 1.2)) {
+      person.state = "idle";
+      person.group.rotation.y = approachAngle(person.group.rotation.y, angle, 4 * dt);
+      return false;
+    }
+    const speed =
+      away > FOLLOW_RUN ? RUN_SPEED : Math.max(WALK_SPEED, Math.min(view.playerSpeed ?? WALK_SPEED, RUN_SPEED));
+    stepToward(person, spot, speed, dt);
+    return false;
+  }
+
+  /** A step toward `target` at `speed`: straight when nothing's in the way, else by the street points. */
+  function stepToward(person, target, speed, dt) {
+    const position = person.group.position;
+    person.state = "walk";
+    person.rethink = (person.rethink ?? 0) - dt;
+    if (!person.next || person.rethink <= 0) {
+      person.rethink = 0.5;
+      person.visited = new Set();
+      person.next = nextPoint(person, target) ?? target;
+    }
+    const next =
+      person.next === target || Math.hypot(person.next.x - position.x, person.next.z - position.z) < 0.6
+        ? target
+        : person.next;
+    if (next === target) person.next = target;
+    const dx = next.x - position.x;
+    const dz = next.z - position.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance < 0.05) return;
+    const stride = Math.min(distance, speed * dt);
+    const beforeX = position.x;
+    const beforeZ = position.z;
+    position.x += (dx / distance) * stride;
+    position.z += (dz / distance) * stride;
+    person.space.resolveCollisions(position, BODY_RADIUS);
+    person.group.rotation.y = approachAngle(person.group.rotation.y, Math.atan2(dx, dz), 10 * dt);
+    const moved = Math.hypot(position.x - beforeX, position.z - beforeZ);
+    person.stuck = moved < stride * 0.2 ? (person.stuck ?? 0) + dt : Math.max(0, (person.stuck ?? 0) - dt);
+  }
+
   function stepPerson(person, dt, view) {
     if (person.inDoor) person.stay -= dt;
     if (person.state === "inside") {
@@ -398,6 +524,8 @@ export function createCrowd() {
 
     if (person.state === "talk") {
       person.group.rotation.y = approachAngle(person.group.rotation.y, towardPlayer, 6 * dt);
+    } else if (person.following) {
+      if (follow(person, dt, view, playerDistance)) return;
     } else if (person.state === "sit") {
       person.wait -= dt;
       if (person.wait <= 0 || (space === world && isNight(view.hour))) {
@@ -547,6 +675,52 @@ export function createCrowd() {
         seated: !!person.seat && person.state === "sit",
         inRoom: !!person.space && person.space !== world,
       }));
+    },
+    /** The party, in order: [{ id, name, waiting }]. */
+    party() {
+      return party
+        .map((id) => people.get(id))
+        .filter(Boolean)
+        .map((person) => ({
+          id: person.id,
+          name: person.name,
+          waiting: !!person.waiting,
+        }));
+    },
+    /** Whether `id` walks with the player. */
+    inParty(id) {
+      return party.includes(id);
+    },
+    /** `id` joins the party (true) or goes back to their own day (false). */
+    setFollowing(id, following) {
+      const person = people.get(id);
+      if (!person) return;
+      if (following && !party.includes(id)) party.push(id);
+      if (!following && party.includes(id)) party.splice(party.indexOf(id), 1);
+      person.following = following;
+      person.waiting = null;
+      leaveSeat(person);
+      person.plan = [];
+      person.next = null;
+      if (person.state !== "talk") person.state = "idle";
+      person.wait = following ? 0 : 1;
+    },
+    /** A follower waits where they stand (`wait` true) or comes along again. */
+    setWaiting(id, wait) {
+      const person = people.get(id);
+      if (!person?.following) return;
+      person.waiting = wait ? { x: person.group.position.x, z: person.group.position.z } : null;
+      person.next = null;
+    },
+    /** Puts the party back together after a load: `ids` follow, starting near `at`. */
+    restoreParty(ids, at) {
+      for (const id of [...party]) this.setFollowing(id, false);
+      for (const id of ids) {
+        const person = people.get(id);
+        if (!person || person.state === "inside") continue;
+        this.setFollowing(id, true);
+        person.group.position.set(at.x, groundY(person, at.x, at.z), at.z);
+      }
     },
     /** Everyone inside `door`'s building, out of sight. */
     inside(door) {

@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.14, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
+Status: **0.4.15, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
 that you can walk round, sit down in and talk in (a preview, without the AI yet), with up to thirty of your
 characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
@@ -197,6 +197,11 @@ signs that carry a picture by default.*
 - It feeds behaviour now (greeting, avoiding, joining) and context later ("who can hear this").
 
 ### W3. Party and following
+
+*In 0.4.15: asking along from a conversation, following in rows of two, running to catch up, waypoint
+routing, sitting near a seated player, catching up when lost, wait here, part ways, saved per world, and
+named on a door's card. Not yet: following into walk-in rooms (followers wait outside), and the party
+going into a scene together (W5).*
 
 - Invite someone from a conversation or the Use menu; they follow at a short distance in a loose line,
   walk when you walk, run when you run, find their way round buildings with the street waypoints, sit
