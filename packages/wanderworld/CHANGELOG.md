@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.17 — 2026-11-08
+
+- Caves are one weathered rock face set into the hillside, with the entrance carved into it: no loose boulders or gaps. Inside the passage goes dark, and ferns and grass grow along the foot and over the top.
+- Dirt roads are one smooth strip that fades into the grass at its edges, with no gaps at bends and no ground poking through.
+- The river is one smooth surface, deeper blue in the middle, with a soft sheen.
+
 ## 0.4.16 — 2026-11-08
 
 - The land round town has shape: hills from gentle to rugged, mountain ranges along some edges with rock and snow, and a winding river with sandy banks.

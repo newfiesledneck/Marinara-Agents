@@ -22,8 +22,8 @@ const OUTPOST_BLEND = 12; // and then blend back into the hills
 const MOUNTAIN_REACH = 62; // how far in from the edge a range rises
 const BRIDGE_HALF_WIDTH = 1.6;
 /** A cave: a tunnel this deep into its hill and this wide (world.js builds the rock round it). */
-export const CAVE_DEPTH = 7;
-export const CAVE_RADIUS = 2.2;
+export const CAVE_DEPTH = 7.5;
+export const CAVE_RADIUS = 2.5;
 
 const DIRECTION = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] };
 const smooth = (t) => {
@@ -306,7 +306,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         const behind = -rx * Math.sin(outpost.angle) - rz * Math.cos(outpost.angle);
         const across = Math.abs(rx * Math.cos(outpost.angle) - rz * Math.sin(outpost.angle));
         // A steep hill rising right behind the mouth…
-        height += 11 * smooth(1 - distance / 26) * smooth(behind / 3);
+        height += 5 * smooth(1 - distance / 26) * smooth((behind + 2) / 8);
         // …with the tunnel's floor cut into it: level with the mouth, the hill's flanks either side. The cut
         // is wider than the tunnel by more than a ground cell (2 m), so the ground's triangles never reach
         // inside the tunnel's roof (world.js); the rock roof covers the rest of the cut.
@@ -342,7 +342,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         return true;
     }
     for (const outpost of outposts) {
-      const reach = outpost.kind === "cave" ? 7 : OUTPOST_FLAT + 1;
+      const reach = outpost.kind === "cave" ? 13 : OUTPOST_FLAT + 1;
       if (Math.hypot(x - outpost.x, z - outpost.z) < reach + margin) return true;
     }
     return false;
