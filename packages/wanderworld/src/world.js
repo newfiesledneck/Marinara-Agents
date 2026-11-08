@@ -6,6 +6,7 @@
 import {
   BoxGeometry,
   Color,
+  DoubleSide,
   ConeGeometry,
   CylinderGeometry,
   DirectionalLight,
@@ -20,9 +21,24 @@ import {
   Object3D,
   PlaneGeometry,
   Scene,
+  Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { barrel, bench, buildBuilding, bush, crate, fence, makeSpec, marketStall, painted } from "./buildings.js";
+import {
+  barrel,
+  bench,
+  buildBuilding,
+  bush,
+  crate,
+  DOOR,
+  DOOR_HEIGHT,
+  DOOR_INSET,
+  DOOR_WIDTH,
+  fence,
+  makeSpec,
+  marketStall,
+  painted,
+} from "./buildings.js";
 
 export const WORLD_SIZE = 320; // metres along each side
 const BASE_TREES = 900;
@@ -41,7 +57,15 @@ export const TOWN_HALF = (BLOCKS_PER_SIDE * PITCH) / 2; // 60 m from the centre 
 const FOUNTAIN_RADIUS = 2.4;
 export const SPAWN = Object.freeze({ x: 0, z: FOUNTAIN_RADIUS + 4 });
 
+const SEAT_HEIGHT = 0.45;
+/** How far a door swings open, outward onto the street (radians). */
+const DOOR_SWING = 1.7;
+
 const SKY = 0xbfd9ee;
+// The sky through the day: deep blue at night, warm at dawn and dusk, pale blue by day.
+const NIGHT_SKY = new Color(0x1b2338);
+const DUSK_SKY = new Color(0xe0a27a);
+const DAY_SKY = new Color(SKY);
 const ROAD = 0xb3a184;
 const PAVING = 0xc7bba5;
 const STONE_GREY = 0x9a9a94;
@@ -81,7 +105,8 @@ const inTown = (x, z, margin = 6) => Math.abs(x) < TOWN_HALF + margin && Math.ab
 /**
  * Collision on the ground plane against circles (tree trunks, the fountain) and axis-aligned boxes
  * (buildings). A uniform grid means each check only looks at the 3×3 cells around the player.
- * Circles must have r < GRID_CELL; boxes are entered into every cell they cover.
+ * Circles must have r < GRID_CELL; boxes are entered into every cell they cover. Every shape needs its own
+ * `id`: a box in several cells is checked once per move by its id.
  */
 export function createCollider(circles, boxes = []) {
   const grid = new Map();
@@ -217,7 +242,15 @@ function placeBuilding(random, town, spec, x, z, facing) {
   placeProp(town, geometry, x, z, facing);
   town.boxes.push(footprintBox(x, z, facing, footprint));
   const d = spec.depth / 2;
-  town.doors.push({ ...toWorld(x, z, facing, doorX, d + 1.2), kind: spec.kind });
+  town.doors.push({
+    ...toWorld(x, z, facing, doorX, d + 1.2), // where someone stands to use the door
+    kind: spec.kind,
+    spec,
+    centre: { x, z },
+    angle: (facing * Math.PI) / 2, // the way the front faces
+    hinge: toWorld(x, z, facing, doorX - DOOR_WIDTH / 2, d + DOOR_INSET),
+    step: toWorld(x, z, facing, doorX, d + 0.35), // on the step, right in the doorway
+  });
   if (spec.kind === "shop" || spec.kind === "tavern" || spec.kind === "smithy") {
     // Barrels and crates by the door, on the side away from the sign.
     const side = doorX > 0 ? 1 : -1;
@@ -235,7 +268,22 @@ function placeBuilding(random, town, spec, x, z, facing) {
   }
 }
 
-/** A fenced garden on an empty lot: bushes and a small tree. */
+/** A bench at (x, z) facing `facing`, with two seats to sit on. */
+function placeBench(town, x, z, facing) {
+  placeProp(town, bench(), x, z, facing);
+  town.boxes.push(footprintBox(x, z, facing, { minX: -0.9, maxX: 0.9, minZ: -0.25, maxZ: 0.25 }));
+  for (const side of [-0.45, 0.45]) {
+    town.seats.push({
+      ...toWorld(x, z, facing, side, -0.02),
+      angle: (facing * Math.PI) / 2, // a sitter faces the bench's front
+      approach: toWorld(x, z, facing, side, 0.75), // where to stand before sitting down
+      height: SEAT_HEIGHT,
+      taken: null,
+    });
+  }
+}
+
+/** A fenced garden on an empty lot: bushes, a small tree and a bench. */
 function placeGarden(random, town, x, z, size) {
   placeProp(town, fence(size, size), x, z, Math.floor(random() * 4));
   for (let i = 0; i < 3 + Math.floor(random() * 4); i++) {
@@ -254,6 +302,8 @@ function placeGarden(random, town, x, z, size) {
     tz,
   );
   town.circles.push({ x: tx, z: tz, r: 0.25 });
+  // The bench sits on the garden's front edge, clear of the tree.
+  placeBench(town, x, z + size / 2 - 0.9, 0);
 }
 
 /**
@@ -304,7 +354,7 @@ function fillBlock(random, town, cx, cz, role) {
 }
 
 function buildTown(random) {
-  const town = { pieces: [], boxes: [], circles: [], doors: [] };
+  const town = { pieces: [], boxes: [], circles: [], doors: [], seats: [] };
   const centres = [];
   for (let i = 0; i < BLOCKS_PER_SIDE; i++) centres.push((i - (BLOCKS_PER_SIDE - 1) / 2) * PITCH);
   // The eight blocks around the plaza get the town's landmarks and shops, in a seeded order.
@@ -361,9 +411,11 @@ function buildTown(random) {
     [-4, 0, 1],
     [4, 0, 3],
     [0, -4, 0],
+    [-7.8, 0, 1],
+    [7.8, 0, 3],
+    [0, -7.8, 0],
   ]) {
-    placeProp(town, bench(), x, z, facing);
-    town.boxes.push(footprintBox(x, z, facing, { minX: -0.9, maxX: 0.9, minZ: -0.25, maxZ: 0.25 }));
+    placeBench(town, x, z, facing);
   }
 
   const mesh = new Mesh(
@@ -380,7 +432,7 @@ function buildTown(random) {
       });
     }
   }
-  return { mesh, boxes: town.boxes, circles: town.circles, lamps, doors: town.doors };
+  return { mesh, boxes: town.boxes, circles: town.circles, lamps, doors: town.doors, seats: town.seats };
 }
 
 function buildGround(random) {
@@ -425,7 +477,8 @@ export function createWorld(seed) {
   const scene = new Scene();
   scene.background = new Color(SKY);
   scene.fog = new Fog(SKY, 60, 170);
-  scene.add(new HemisphereLight(0xe8f4ff, 0x4a5a3a, 1.6));
+  const sky = new HemisphereLight(0xe8f4ff, 0x4a5a3a, 1.6);
+  scene.add(sky);
   const sun = new DirectionalLight(0xfff1d6, 1.8);
   sun.position.set(40, 80, 25);
   scene.add(sun);
@@ -452,11 +505,14 @@ export function createWorld(seed) {
     rocks.length,
   );
   const lampPosts = new InstancedMesh(
-    mergeGeometries([
-      painted(new CylinderGeometry(0.08, 0.1, 3.4, 5).translate(0, 1.7, 0), 0x2f3438),
-      painted(new BoxGeometry(0.45, 0.45, 0.45).translate(0, 3.55, 0), 0xffe3a0),
-    ]),
-    new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+    new CylinderGeometry(0.08, 0.1, 3.4, 5).translate(0, 1.7, 0),
+    new MeshLambertMaterial({ color: 0x2f3438, flatShading: true }),
+    town.lamps.length,
+  );
+  const lampGlow = new MeshLambertMaterial({ color: 0xffe3a0, emissive: 0xffc860, emissiveIntensity: 0 });
+  const lampHeads = new InstancedMesh(
+    new BoxGeometry(0.45, 0.45, 0.45).translate(0, 3.55, 0),
+    lampGlow,
     town.lamps.length,
   );
 
@@ -484,8 +540,27 @@ export function createWorld(seed) {
     dummy.scale.setScalar(1);
     dummy.updateMatrix();
     lampPosts.setMatrixAt(i, dummy.matrix);
+    lampHeads.setMatrixAt(i, dummy.matrix);
   });
-  scene.add(trunks, crowns, stones, lampPosts);
+  scene.add(trunks, crowns, stones, lampPosts, lampHeads);
+
+  // Doors: one instanced panel each, hinged on its left edge, swinging out onto the street.
+  const doorPanels = new InstancedMesh(
+    new BoxGeometry(DOOR_WIDTH, DOOR_HEIGHT, 0.08).translate(DOOR_WIDTH / 2, DOOR_HEIGHT / 2, 0),
+    new MeshLambertMaterial({ color: DOOR, flatShading: true, side: DoubleSide }),
+    Math.max(1, town.doors.length),
+  );
+  doorPanels.count = town.doors.length;
+  const doors = town.doors.map((door, index) => ({ ...door, index, open: 0, target: 0, closeIn: Infinity }));
+  const placeDoor = (door) => {
+    dummy.position.set(door.hinge.x, 0, door.hinge.z);
+    dummy.rotation.set(0, door.angle - DOOR_SWING * door.open, 0);
+    dummy.scale.setScalar(1);
+    dummy.updateMatrix();
+    doorPanels.setMatrixAt(door.index, dummy.matrix);
+  };
+  for (const door of doors) placeDoor(door);
+  scene.add(doorPanels);
 
   // Fixed obstacles: buildings, the fountain and the lamp posts. Trees join per density.
   let nextId = 0;
@@ -520,6 +595,68 @@ export function createWorld(seed) {
     return 1;
   }
 
+  /** Swings door `index` towards open (true) or shut (false); an open door shuts by itself after
+   *  `closeAfter` seconds when that is given. */
+  function setDoor(index, open, closeAfter = 0) {
+    const door = doors[index];
+    if (!door) return;
+    door.target = open ? 1 : 0;
+    door.closeIn = open && closeAfter > 0 ? closeAfter : Infinity;
+  }
+
+  /** Moves the doors on: each swings about a second to open or shut. */
+  function update(dt) {
+    let moved = false;
+    for (const door of doors) {
+      if (door.target === 1 && Number.isFinite(door.closeIn)) {
+        door.closeIn -= dt;
+        if (door.closeIn <= 0) setDoor(door.index, false);
+      }
+      if (door.open === door.target) continue;
+      const step = dt * 1.4;
+      door.open =
+        door.target > door.open ? Math.min(door.target, door.open + step) : Math.max(door.target, door.open - step);
+      placeDoor(door);
+      moved = true;
+    }
+    if (moved) doorPanels.instanceMatrix.needsUpdate = true;
+  }
+
+  /** How far you can see: the fog closes in from 40% of `distance` to all of it. */
+  function setDrawDistance(distance) {
+    scene.fog.near = distance * 0.4;
+    scene.fog.far = distance;
+  }
+
+  const sunDirection = new Vector3();
+  const skyColor = new Color();
+  /**
+   * Lights the world for `hour` (0–24): the sun rises at 6 and sets at 18, the sky warms at dawn and
+   * dusk, and the lamps glow from evening until morning. Returns how dark it is (0 day … 1 night).
+   */
+  function setTime(hour) {
+    const angle = ((hour - 6) / 12) * Math.PI; // 0 at sunrise, π/2 at noon, π at sunset
+    const height = Math.sin(angle);
+    const daylight = Math.min(1, Math.max(0, height * 2.5 + 0.25));
+    sunDirection.set(Math.cos(angle) * 60, Math.max(8, height * 80), 25);
+    sun.position.copy(sunDirection);
+    sun.intensity = 0.15 + 1.65 * daylight;
+    sky.intensity = 0.45 + 1.15 * daylight;
+    // Warm light low in the sky, white overhead, and a cool moonlight at night.
+    const low = Math.max(0, 1 - Math.abs(height) * 3);
+    sun.color.setRGB(1, 0.95 - low * 0.25, 0.84 - low * 0.4);
+    if (daylight < 0.05) sun.color.setRGB(0.6, 0.7, 1);
+    skyColor
+      .copy(NIGHT_SKY)
+      .lerp(DUSK_SKY, Math.min(1, daylight * 2))
+      .lerp(DAY_SKY, Math.max(0, daylight * 2 - 1));
+    scene.background.copy(skyColor);
+    scene.fog.color.copy(skyColor);
+    const dark = 1 - daylight;
+    lampGlow.emissiveIntensity = dark > 0.35 ? Math.min(1.4, (dark - 0.35) * 3) : 0;
+    return dark;
+  }
+
   function dispose() {
     scene.traverse((object) => {
       object.geometry?.dispose();
@@ -536,8 +673,14 @@ export function createWorld(seed) {
     clearSight,
     dispose,
     buildingCount: town.boxes.length,
-    /** Points just outside each building's front door, where its people start. */
-    doors: town.doors,
+    /** Each building's door: `x`/`z` is where to stand to use it, `step` the doorway, `open` 0–1. */
+    doors,
+    /** Bench seats: { x, z, angle, approach, height, taken }. */
+    seats: town.seats,
+    setDoor,
+    update,
+    setDrawDistance,
+    setTime,
     /** True when (x, z) is inside a building (with `margin`), so someone walking there would be stopped. */
     blocked: (x, z, margin = 0.3) => collider.insideBox(x, z, margin),
   };

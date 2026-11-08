@@ -1,5 +1,15 @@
 # Wanderworld release notes
 
+## 0.4.4 — 2026-11-08
+
+- Use things with E, a click or a tap: sit on benches and chairs, open doors and go inside (each kind of building has a furnished room), and talk to people. Click further away to walk there.
+- Talking is a preview: you face each other, the camera moves to the side, and a chat box and speech bubbles open. Replies are placeholders until the AI update.
+- Townsfolk sit on benches, go in and out of their houses, head home at night, look at you and wave.
+- Day and night (20 minutes a day), with lamps at night, and sound: footsteps, doors, wind, birds and crickets.
+- Settings: resolution (Auto keeps 4K screens smooth), draw distance, shadows, walk speed, camera, time of day, sound and the HUD.
+- Feet stay planted while walking and standing, and legs no longer sway walking towards the camera.
+- Remembers where you were; a loading screen; a ☰ menu on phones.
+
 ## 0.4.3 — 2026-11-07
 
 - A more natural walk: the heel lands first and the toes push off, knees fold as each foot swings through, hips turn and sway with the steps, shoulders turn against them, and arms swing a beat behind with relaxed elbows and fingers. The standing foot stays on the ground, so the body rises and falls with each step instead of bobbing on its own. At a run, people lean in and pump their arms.

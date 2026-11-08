@@ -1,9 +1,11 @@
-// The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, and
-// + / - zoom. E is left free for "activate". Camera dragging and pinching live in main.js.
+// The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, + / -
+// zoom, E uses what's in front of you and Esc leaves (a seat, a conversation). Camera dragging, pinching
+// and clicking live in main.js.
 //
 // `read()` returns { x, y, amount, run, yaw, pitch, zoom }: (x, y) is the walking direction (x right,
 // y forward, a unit vector or zero), `amount` how hard (the stick walks gently when pushed a little),
-// `yaw` and `pitch` the arrow keys' look direction, and `zoom` the + / - keys.
+// `yaw` and `pitch` the arrow keys' look direction, and `zoom` the + / - keys. `take("use")` and
+// `take("leave")` report a press of E or Esc once.
 
 const KEYS = {
   w: "forward",
@@ -20,6 +22,8 @@ const KEYS = {
   "-": "zoomOut",
   _: "zoomOut",
 };
+/** Keys that act once per press rather than while held. */
+const PRESSES = { e: "use", escape: "leave" };
 
 const STICK_SIZE = 116;
 const KNOB_SIZE = 48;
@@ -33,11 +37,16 @@ function isTyping(target) {
 
 export function createInput() {
   const held = new Set();
+  const pressed = new Set();
   const stick = { x: 0, y: 0, pointerId: null };
 
   const onKeyDown = (event) => {
+    const key = String(event.key).toLowerCase();
+    // Esc still leaves while typing in the chat box; nothing else does.
+    if (key === "escape" && !event.repeat) pressed.add("leave");
     if (isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
-    const action = KEYS[String(event.key).toLowerCase()];
+    if (PRESSES[key] && !event.repeat) pressed.add(PRESSES[key]);
+    const action = KEYS[key];
     if (!action) return;
     held.add(action);
     if (action.startsWith("look")) event.preventDefault(); // look around; don't scroll the Home panel
@@ -47,7 +56,10 @@ export function createInput() {
     if (action) held.delete(action);
   };
   // A key released while the window is unfocused never sends keyup, so drop everything on blur.
-  const onBlur = () => held.clear();
+  const onBlur = () => {
+    held.clear();
+    pressed.clear();
+  };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
@@ -127,6 +139,17 @@ export function createInput() {
     return { x, y, amount: length > 0 ? amount : 0, run, yaw, pitch, zoom };
   }
 
+  /** True once for each press of `name` ("use" or "leave") since the last call. */
+  function take(name) {
+    return pressed.delete(name);
+  }
+
+  /** Lets go of every held key, e.g. when a conversation takes the keyboard. */
+  function release() {
+    held.clear();
+    releaseStick();
+  }
+
   function dispose() {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
@@ -136,5 +159,5 @@ export function createInput() {
     held.clear();
   }
 
-  return { stickElement: base, read, dispose };
+  return { stickElement: base, read, take, release, dispose };
 }

@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.3)
+## What it does now (0.4.4)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -19,16 +19,23 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
 - **Natural movement.** Everyone walks heel to toe with turning hips, swinging arms and a foot that stays
   on the ground, leans into a run, and when standing breathes, shifts their weight and glances around.
   VRM models blink.
+- **Use things** with E, a click, or a tap: sit on benches and chairs, open doors and go inside (every
+  kind of building has a furnished room), and talk to people. A conversation turns you to face each other,
+  moves the camera to the side, and opens a chat box with speech bubbles; replies are placeholder lines
+  until the AI update. Click a spot on the ground to walk there.
+- **A living town:** townsfolk sit on benches, pop in and out of their houses, head home at night, look
+  at you and wave. A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
-  around, and the wheel or + / − zoom. Touch screen: the stick walks (all the way out runs), dragging
-  anywhere else looks around, and pinching zooms. The camera orbits and tilts, from looking up at towers
-  to nearly overhead. Buildings, trees and lamp posts block your way, and the camera moves in when a
-  building would hide you. E is kept for using things.
-- Shows frames per second, draw calls and triangles. Tap the readout to draw 1×, 4× or 10× the trees and
-  rocks, to check how a device copes.
+  around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the
+  stick walks (all the way out runs), dragging anywhere else looks around, pinching zooms, and the Use
+  button or a tap uses. The camera orbits and tilts, and moves in when a building would hide you.
+- **Settings:** resolution (Auto keeps it smooth), draw distance, trees and rocks, shadows, walk speed,
+  camera speed and direction, time of day, sound, and what the HUD shows.
+- Shows frames per second, draw calls, triangles and the render resolution (Settings can hide it).
 - **Fullscreen** fills the screen, on Engines whose Home tabs offer it.
 
-It reads your persona and character lists and their 3D Avatars models, and saves nothing yet.
+It reads your persona and character lists and their 3D Avatars models. It remembers your settings, the
+world and where you stood in this browser only; nothing is saved to the Engine yet.
 
 ## Using it
 
@@ -50,6 +57,12 @@ for that persona in 3D Avatars first.
   ground, which is also what makes a body rise and fall as it walks.
 - `src/character.js` applies that motion to any humanoid, and reads `GET /api/characters/personas/list`
   and `GET /api/characters`.
+- `src/npcs.js` runs the townsfolk: each follows a small plan (walk somewhere, sit, go inside, wait), heads
+  home at night, and stops, looks and waves when the player comes near.
+- `src/interiors.js` builds the room behind a door from the building's kind, seeded by the building, and
+  hides whichever walls stand between the camera and the player.
+- `src/talk.js` is the conversation panel and speech bubbles; `src/sound.js` makes every sound with Web
+  Audio; `src/settings.js` keeps the settings, checking each value as it is read back.
 - `src/figure.js` is the built-in person: simple shapes on a humanoid skeleton in one skinned mesh, so it
   moves exactly like a 3D model. It uses no outside art.
 - `src/models.js` reads a persona's or character's `GET /api/avatar-models/:type/:id` and loads its model

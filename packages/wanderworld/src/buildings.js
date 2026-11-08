@@ -30,7 +30,13 @@ const ACCENT = [0x4a6b8a, 0x6b8a4a, 0x8a4a4a, 0x8a7a3a, 0x5a4a7a, 0x3f6f6a];
 const BEAM = 0x4a3526;
 const TRIM = 0xefe9dd;
 const GLASS = 0x3b4a5a;
-const DOOR = 0x5a3b26;
+/** Doors: the swinging panel (world.js), and the dark doorway it opens onto. */
+export const DOOR = 0x5a3b26;
+export const DOOR_WIDTH = 1.1;
+export const DOOR_HEIGHT = 2.2;
+/** How far in front of the wall the closed door panel sits (its middle). */
+export const DOOR_INSET = 0.17;
+const DOORWAY = 0x1c1612;
 const IRON = 0x2f3438;
 const WOOD = 0x8a6440;
 const LEAF = 0x5a8a45;
@@ -304,10 +310,11 @@ export function buildBuilding(random, spec) {
   );
   wallDetail(pieces, random, spec, width, depth, height);
 
-  // The door, its frame and step; a shop's door sits to one side of its window.
+  // The door's frame, a dark doorway behind it and the step; a shop's door sits to one side of its window.
+  // The door itself is separate (world.js) so it can swing open.
   const doorX = spec.shopWindow ? width / 2 - 1.4 : (random() - 0.5) * Math.max(0, width - 3);
   pieces.push(box(1.45, 2.45, 0.1, doorX, 1.22, d + 0.05, spec.walls === "timber" ? BEAM : TRIM));
-  pieces.push(box(1.1, 2.2, 0.14, doorX, 1.1, d + 0.07, DOOR));
+  pieces.push(box(DOOR_WIDTH, DOOR_HEIGHT, 0.04, doorX, DOOR_HEIGHT / 2, d + 0.11, DOORWAY));
   pieces.push(box(1.7, 0.18, 0.7, doorX, 0.09, d + 0.35, plinth));
 
   // Windows: a row per floor on the front and back, one or two on each side.

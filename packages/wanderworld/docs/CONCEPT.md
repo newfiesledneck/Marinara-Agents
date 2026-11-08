@@ -4,8 +4,8 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.3, 2026-11-07: a detailed seeded town (parts kit), walked as your persona, with your characters
-living in it, one set of controls for computer and touch, and natural walking and standing.**
+Status: **0.4.4, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
+without the AI yet), with your characters living their day in it, day and night, sound and settings.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
@@ -125,7 +125,8 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 | M0.6 | **Parts kit** ✅ | Buildings from a spec chosen from fixed menus (kind, size, floors, roof, walls, colours, features) assembled from parts; plaza landmarks, shops, homes, smithy, gardens, stalls, benches and street clutter, still one merged mesh. |
 | M1 | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. |
 | M2 | **Town from lore** | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part. |
-| M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. |
+| M2.5 | **Things to do** ✅ | Use system (E, click, tap; walk to what you clicked), benches and chairs, doors that open, a furnished room inside every building from templates by kind, the conversation screen with placeholder replies, townsfolk routines, day and night, sound, settings. |
+| M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. *0.4.4 has template rooms by building kind; written ones come with the server part.* |
 | M4 | **People** | Cast characters placed at their homes and workplaces, as billboards or simple figures. *0.4.0 has the picker, their own models, homes near the plaza and wandering; homes and workplaces from the brief come with M2.* |
 
 **Out of scope for the prototype:** changes to other packages, Game Mode, VRM or 3D avatars, survival
@@ -135,8 +136,8 @@ or daily-life rules, combat, building, and the parametric character builder.
 
 ## Controls
 
-One scheme for every screen, kept small so it stays learnable. E is reserved for "use" (talk, open,
-pick up) and never moves the camera.
+One scheme for every screen, kept small so it stays learnable. E is "use" (sit, open, go in, talk) and
+never moves the camera; Esc stands up or leaves a conversation.
 
 | | Computer | Touch screen |
 | --- | --- | --- |
@@ -144,12 +145,15 @@ pick up) and never moves the camera.
 | Run | Hold Shift | Push the stick all the way out |
 | Look around | Drag with the left or middle mouse button, or the arrow keys | Drag anywhere off the stick |
 | Zoom | Mouse wheel, or + / − | Pinch |
-| Use | E, or click someone (planned, S3) | Tap someone (planned, S3) |
+| Use | E, or click it (further away: you walk there first) | The Use button, or tap it |
+| Walk to a spot | Click the ground | Tap the ground |
+| Stand up, stop talking | Esc, or move | Move, or the Leave button |
 
 The camera orbits a point at head height: yaw all the way round, pitch from a little below head height
 (looking up at towers) to nearly overhead, zoom 2.5–18 m. It never goes below the ground, and it slides
 in when a building stands between it and the player. A press that moves under 5 px is a click, not a drag,
-so clicking someone to talk to them won't fight with looking around.
+so clicking someone to talk to them won't fight with looking around. In a conversation the camera moves
+to a side-on two-shot of the pair, on whichever side isn't blocked by a building.
 
 ---
 
@@ -210,6 +214,10 @@ treatment (image generation, backgrounds, agents, memory).
   screen and never saves a default world for the player (Pixelforge's loading gate).
 
 ### S3. Conversations
+
+*The client side is in 0.4.4: starting a conversation, the facing lock, the two-shot camera, the chat panel
+and speech bubbles, and talking gestures. Replies are placeholder lines; this step swaps them for the model
+call below.*
 
 - **Start:** walk up to a character (within about 2 m, facing them) and press **E**, click them, or tap
   **Talk**.
