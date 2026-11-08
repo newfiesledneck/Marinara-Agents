@@ -152,10 +152,12 @@ function geometryOf(mesh) {
 }
 
 /** A person's look, from their name. */
-export function lookFor(name, index) {
+export function lookFor(name, index, body = "auto") {
   const random = rng(hashString(`${name || "wanderer"}:kit`));
   const pick = (list) => list[Math.floor(random() * list.length)];
-  const sex = random() < 0.5 ? "male" : "female";
+  // The body chosen in the People menu (later: from the character card), or else one from the name.
+  const fromName = random() < 0.5 ? "male" : "female";
+  const sex = body === "male" || body === "female" ? body : fromName;
   const outfit = pick(index.sexes[sex].outfits);
   return {
     sex,
@@ -171,10 +173,11 @@ export function lookFor(name, index) {
   };
 }
 
-/** The default person for `name`, as a walking character. Rejects if the kit can't be loaded. */
-export async function createPerson(name) {
+/** The default person for `name` with `build` ("male", "female" or "auto"), as a walking character.
+ *  Rejects if the kit can't be loaded. */
+export async function createPerson(name, build = "auto") {
   const index = await load("index.json");
-  const look = lookFor(name, index);
+  const look = lookFor(name, index, build);
   const parts = [look.outfit, `head-${look.sex}`];
   if (look.hair) parts.push(`hair-${look.hair}`);
   if (look.beard) parts.push("hair-beard");

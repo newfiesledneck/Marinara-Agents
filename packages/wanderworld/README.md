@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.8)
+## What it does now (0.4.9)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
@@ -18,7 +18,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   tavern and the temple, where you find them in the room when you walk in. They stop to face you when you
   walk up and have their name overhead.
 - **Dressed default people:** anyone without a 3D model is put together from Quaternius's free
-  character packs (outfit, head, hairstyle, skin and hair tones, height), chosen from their name. The
+  character packs (outfit, head, hairstyle, skin and hair tones, height), chosen from their name. A
+  body picker (Auto, Male, Female) next to each character in People and next to Play as sets which body. The
   files are package assets in `kit/people/`, loaded only when needed. See `kit/CREDITS.md`.
 - **Recorded animations** from Quaternius's free Universal Animation Library (CC0): idle, walk, jog,
   sprint, sitting and talking, played on any model with planted feet. Settings → Animation switches to
