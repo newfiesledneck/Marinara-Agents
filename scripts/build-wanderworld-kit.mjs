@@ -24,24 +24,31 @@ const SETS = {
       "CommonTree_1",
       "CommonTree_2",
       "CommonTree_3",
+      "CommonTree_4",
       "Pine_1",
       "Pine_2",
       "Pine_3",
+      "Pine_4",
       "TwistedTree_1",
       "DeadTree_1",
       "Bush_Common",
       "Bush_Common_Flowers",
       "Fern_1",
       "Plant_1",
+      "Plant_7",
+      "Clover_1",
+      "Mushroom_Common",
       "Flower_3_Group",
       "Flower_4_Group",
       "Grass_Common_Tall",
+      "Grass_Common_Short",
       "Grass_Wispy_Tall",
       "Rock_Medium_1",
       "Rock_Medium_2",
       "Rock_Medium_3",
       "Pebble_Round_1",
       "Pebble_Round_3",
+      "RockPath_Round_Wide",
     ],
     textureSize: (name) => (/grass/iu.test(name) ? 128 : 256),
   },
@@ -82,6 +89,8 @@ const SETS = {
       "Roof_Tower_RoundTiles",
       "Prop_Chimney",
       "Balcony_Simple_Straight",
+      "Prop_Vine1",
+      "Prop_Vine4",
     ],
     textureSize: () => 512,
   },
@@ -122,6 +131,9 @@ const SETS = {
       "FarmCrate_Apple",
       "FarmCrate_Carrot",
       "Bucket_Wooden_1",
+      "Bucket_Metal",
+      "Bag",
+      "FarmCrate_Empty",
       "Stall_Empty",
       "Stall_Cart_Empty",
       // Small things on tables and shelves
@@ -216,13 +228,24 @@ function packModel(path, textureName) {
     if (node.mesh !== undefined) {
       const normalMatrix = new Matrix3().getNormalMatrix(world);
       for (const primitive of gltf.json.meshes[node.mesh].primitives) {
-        const group = groups.get(primitive.material) ?? { positions: [], normals: [], uvs: [], indices: [] };
+        const group = groups.get(primitive.material) ?? {
+          positions: [],
+          normals: [],
+          uvs: [],
+          colours: [],
+          indices: [],
+        };
         groups.set(primitive.material, group);
         const base = group.positions.length / 3;
         const p = gltf.accessor(primitive.attributes.POSITION);
         const n = gltf.accessor(primitive.attributes.NORMAL);
         const uv =
           primitive.attributes.TEXCOORD_0 !== undefined ? gltf.accessor(primitive.attributes.TEXCOORD_0) : null;
+        // Vertex colours tint the texture on materials made for it ("…_Vertex"): fruit and vegetables.
+        const tinted = /vertex/iu.test(gltf.json.materials?.[primitive.material]?.name ?? "");
+        const colour =
+          tinted && primitive.attributes.COLOR_0 !== undefined ? gltf.accessor(primitive.attributes.COLOR_0) : null;
+        const channels = colour ? colour.length / (p.length / 3) : 0;
         const v = new Vector3();
         for (let i = 0; i < p.length / 3; i++) {
           v.set(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]).applyMatrix4(world);
@@ -232,6 +255,7 @@ function packModel(path, textureName) {
             .normalize();
           group.normals.push(v.x, v.y, v.z);
           group.uvs.push(uv ? uv[i * 2] : 0, uv ? uv[i * 2 + 1] : 0);
+          for (let c = 0; c < 3; c++) group.colours.push(colour ? colour[i * channels + c] : 1);
         }
         const index =
           primitive.indices !== undefined ? gltf.accessor(primitive.indices) : [...Array(p.length / 3).keys()];
@@ -255,6 +279,7 @@ function packModel(path, textureName) {
     const position = quantize(group.positions, 3);
     const uv = quantize(group.uvs, 2);
     const colour = material.pbrMetallicRoughness?.baseColorFactor;
+    const tinted = group.colours.some((value) => value < 0.999);
     meshes.push({
       texture: image ? textureName(image) : null,
       colour: colour ? colour.slice(0, 3).map((value) => Math.round(value * 1000) / 1000) : null,
@@ -268,6 +293,8 @@ function packModel(path, textureName) {
       uv: uv.data,
       index: b64(indices),
       wide: indices instanceof Uint32Array,
+      // Linear vertex colours as bytes, only where they tint anything.
+      ...(tinted ? { colours: b64(new Uint8Array(group.colours.map((value) => Math.round(value * 255)))) } : {}),
     });
     if (image) textures.push(image);
   }

@@ -4,8 +4,8 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.12, 2026-11-08: a detailed seeded town you can walk into, sit down in and talk in (a preview,
-without the AI yet), with up to thirty of your characters living their day in it, indoors and out.**
+Status: **0.4.13, 2026-11-08: a detailed, lively seeded town you can walk round, sit down in and talk in (a
+preview, without the AI yet), with up to thirty of your characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
@@ -126,7 +126,7 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 | M1 | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. |
 | M2 | **Town from lore** | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part. |
 | M2.5 | **Things to do** ✅ | Use system (E, click, tap; walk to what you clicked), benches and chairs, doors that open, a furnished room inside every building from templates by kind, the conversation screen with placeholder replies, townsfolk routines, day and night, sound, settings. |
-| M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. *0.4.4 has template rooms by building kind; written ones come with the server part.* |
+| M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. *0.4.4 has template rooms by building kind; 0.4.13 puts them behind a setting. For now a door shows who's inside: going in will start a role-play scene with them in the chat, with generated pictures, once the server part exists (see below).* |
 | M4 | **People** | Cast characters placed at their homes and workplaces, as billboards or simple figures. *0.4.0 has the picker, their own models, homes near the plaza and wandering; homes and workplaces from the brief come with M2.* |
 
 **Out of scope for the prototype:** changes to other packages, Game Mode, VRM or 3D avatars, survival
@@ -321,6 +321,14 @@ Answered (checked against Agents staging and Engine 2.5.2, 2026-11-07):
 
 Still open:
 
+- **Scenes instead of rooms, for now (0.4.13):** the kit rooms mixed detailed and blocky furniture and
+  misplaced props, so a door now shows a card naming everyone inside (`crowd.inside(door)`). With the
+  server part, Start scene opens a role-play scene in the chat with those characters (and image
+  generation for the place). Walk-in rooms stay behind Settings → Walk into buildings for a later pass.
+- **Detailed nature is everywhere (0.4.13):** every tree and rock is a kit model, drawn only within the draw
+  distance of the player and up to the density; about 4 million triangles in view at Far. Lower-detail
+  trees or impostors before phones.
+
 - **Quaternius buildings are in, for testing (0.4.12):** the Medieval Village MegaKit's modular pieces (CC0) in
   `kit/village/` (1.9 MB), assembled per building by `houses.js` from the same spec the parts kit uses.
   This answers the world-from-lore question for buildings: the LLM picks specs from fixed menus (kind,
@@ -330,7 +338,7 @@ Still open:
   (CC0) in `kit/props/` (2.1 MB). Town and rooms keep their simple furniture as the stand-in and record
   where each kit prop goes, so the layout and collisions are the same either way.
 - **Quaternius nature is in, for testing (0.4.10):** the Stylized Nature MegaKit (CC0) in `kit/nature/` (1.8 MB):
-  detailed trees and rocks within 45 m of town, undergrowth round the edge. Heavy: about 2 million more
+  detailed trees and rocks (everywhere since 0.4.13), undergrowth round the edge. Heavy: about 2 million more
   triangles in view. Before phones: fewer and simpler trees (lower-detail versions or impostors), and
   less undergrowth.
 - **Quaternius people are in, for testing (0.4.8):** Universal Base Characters and Modular Character

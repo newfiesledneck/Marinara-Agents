@@ -196,6 +196,7 @@ export function createHud(root, handlers) {
   toggle("invertLook", "Invert up and down");
   heading("World");
   choice("time", "Time", TIME_LABELS);
+  toggle("interiors", "Walk into buildings (unfinished)");
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
   heading("Display");
@@ -264,7 +265,28 @@ export function createHud(root, handlers) {
   fade.style.cssText =
     "position:absolute;inset:0;background:#000;opacity:0;transition:opacity 0.35s;pointer-events:none;";
 
-  layer.append(top, peoplePanel, settingsPanel, notice, prompt, use, hint, status, fade, loading);
+  // The card a door shows: the building, who is in it, and (later) a button to start a scene with them.
+  const scene = document.createElement("div");
+  scene.setAttribute("data-wanderworld-ui", "");
+  scene.style.cssText = `${CHIP}position:absolute;left:50%;bottom:48px;transform:translateX(-50%);width:min(420px,calc(100% - 24px));display:none;flex-direction:column;gap:8px;padding:12px 14px;font-size:14px;pointer-events:auto;`;
+  const sceneTitle = document.createElement("div");
+  sceneTitle.style.cssText = "font-weight:700;font-size:15px;";
+  const scenePeople = document.createElement("div");
+  const sceneNote = document.createElement("div");
+  sceneNote.style.cssText = "font-size:12px;opacity:0.75;";
+  sceneNote.textContent =
+    "Starting a scene here, with everyone inside taking part, comes with the AI part of Wanderworld.";
+  const sceneButtons = document.createElement("div");
+  sceneButtons.style.cssText = "display:flex;gap:8px;justify-content:flex-end;";
+  const sceneStart = button("Start scene", "Coming with the AI part", () => {});
+  sceneStart.disabled = true;
+  sceneStart.style.opacity = "0.5";
+  sceneStart.style.cursor = "default";
+  const sceneClose = button("Close", "Close this card", () => (scene.style.display = "none"));
+  sceneButtons.append(sceneStart, sceneClose);
+  scene.append(sceneTitle, scenePeople, sceneNote, sceneButtons);
+
+  layer.append(top, peoplePanel, settingsPanel, notice, scene, prompt, use, hint, status, fade, loading);
   root.append(layer);
 
   return {
@@ -340,6 +362,13 @@ export function createHud(root, handlers) {
       prompt.textContent = `E  ${label}`;
       prompt.style.left = `${x}px`;
       prompt.style.top = `${y}px`;
+    },
+    /** The card for a building: { title, people: [names] }, or null to close it. */
+    setScene(info) {
+      scene.style.display = info ? "flex" : "none";
+      if (!info) return;
+      sceneTitle.textContent = info.title;
+      scenePeople.textContent = info.people.length ? `Inside: ${info.people.join(", ")}` : "Nobody seems to be in.";
     },
     /** A notice with `text` and a Close button, or null to take it away. */
     setNotice(text) {

@@ -413,7 +413,8 @@ export function createCrowd() {
       person.group.rotation.y = approachAngle(person.group.rotation.y, towardPlayer, 6 * dt);
     } else if (person.state === "walk") {
       // Reaching a street point on the way: pick the next one (or the spot itself, once it's in sight).
-      if (person.next !== person.target && Math.hypot(person.next.x - position.x, person.next.z - position.z) < 0.6) {
+      const next = person.next;
+      if (next && next !== person.target && Math.hypot(next.x - position.x, next.z - position.z) < 0.6) {
         person.next = nextPoint(person, person.target);
       }
       // No way there (or a long way round with no end): give up on this plan and think again.
@@ -529,6 +530,10 @@ export function createCrowd() {
         leaveSeat(person);
         person.group.removeFromParent();
       }
+    },
+    /** Everyone inside `door`'s building, out of sight. */
+    inside(door) {
+      return [...people.values()].filter((person) => person.state === "inside" && person.inDoor?.index === door.index);
     },
     /** The player went into `door`'s building, whose room is `inside`: anyone in there shows up in it. */
     showRoom(door, inside) {

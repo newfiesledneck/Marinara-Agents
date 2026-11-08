@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.4.13 — 2026-11-08
+
+- A livelier town: cobbled streets, brick sidewalks round every block and a paved plaza; patchy grass; fenced gardens with a tree, flowers and a bench; flowers, barrels, sacks and buckets by doors; ivy on walls; wagons parked in the streets; meadows on empty lots.
+- Detailed trees everywhere, not just near town, and Trees and rocks adds more of them.
+- Doors are the village kit's own, hung in their frames.
+- Default people wear everyday clothes in seven colours.
+- Fruit, vegetables, books and bottles have their colours back.
+- Going through a door shows who's inside, ready for starting a scene there later. Settings → Walk into buildings brings the unfinished rooms back.
+
 ## 0.4.12 — 2026-11-08
 
 - Real buildings: every house, shop, the tavern, temple, hall and smithy is assembled from Quaternius's free Medieval Village MegaKit (public domain): brick or stone ground floors, plaster and timber-framed storeys, arched windows with shutters, arched doors, round-tile roofs with brick gables, chimneys, balconies and towers.

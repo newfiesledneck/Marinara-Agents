@@ -20,7 +20,7 @@ import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { HOUSE_PIECES } from "./houses.js";
-import { kitModels } from "./kit.js";
+import { kitModels, kitTexture } from "./kit.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
@@ -63,6 +63,15 @@ const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
 const TAP_RADIUS = 70; // screen pixels a tap may land from something and still pick it
 const WALK_TO_LIMIT = 40; // metres: a tap further away than this is ignored
 const STREET_VIEW = 0.6; // coming out of a door, the camera sits this far round from straight out
+/** What a building is called on its scene card, by kind. */
+const PLACE_NAMES = {
+  home: "A house",
+  shop: "The shop",
+  tavern: "The tavern",
+  temple: "The temple",
+  hall: "The town hall",
+  smithy: "The smithy",
+};
 
 const core = {
   element: null,
@@ -74,6 +83,7 @@ const core = {
   world: null,
   space: null, // the town, or the interior the player is in
   interior: null, // { door, room } while inside a building
+  sceneDoor: null, // the door whose card is showing
   seed: FIRST_SEED,
   player: new Group(), // position and facing; the persona's body sits inside it
   shadow: blobShadow(),
@@ -306,6 +316,11 @@ function buildWorld(seed, place = null) {
         if (core.world === world) world.addBuildings(models);
       })
       .catch((error) => console.warn("[wanderworld] detailed buildings failed to load", error));
+    // Cobbled roads and brick paving, in the same kit's textures.
+    core.world.addGround({
+      road: kitTexture("village", "t-unevenbrick-basecolor"),
+      paving: kitTexture("village", "t-brick-basecolor"),
+    });
   }
   if (core.settings.props) {
     const world = core.world;
@@ -612,6 +627,22 @@ function enterBuilding(door) {
   });
 }
 
+/**
+ * Going into a building, for now: the door opens and a card says who's in there. Starting a scene with
+ * them (a role-play scene in the chat, with its own pictures) comes with Wanderworld's server part; the
+ * walk-in rooms are still there behind a setting while that's worked out.
+ */
+function knock(door) {
+  core.world.setDoor(door.index, true, 4);
+  core.sound.door();
+  const names = core.crowd.inside(door).map((person) => person.name);
+  core.sceneDoor = door;
+  core.hud.setScene({
+    title: PLACE_NAMES[door.kind] ?? "A house",
+    people: names,
+  });
+}
+
 /** Back out to the street in front of the door (at once when `now`, e.g. for a new world). */
 function leaveInterior(now = false) {
   const inside = core.interior;
@@ -672,12 +703,13 @@ function usable() {
       const open = door.open > 0.6;
       list.push({
         kind: "door",
-        label: open ? "Go in" : "Open door",
+        label: !core.settings.interiors ? "Go in" : open ? "Go in" : "Open door",
         x: door.x,
         z: door.z,
         y: 1.8,
         mark: door.step,
         act: () => {
+          if (!core.settings.interiors) return knock(door);
           if (door.open > 0.6) enterBuilding(door);
           else {
             core.world.setDoor(door.index, true, 8);
@@ -1034,6 +1066,13 @@ function step(dt) {
     }
   }
   core.world.update(dt);
+  if (!core.interior) core.world.follow(core.player.position.x, core.player.position.z);
+  // Walking away from a door closes its card.
+  const card = core.sceneDoor;
+  if (card && Math.hypot(card.x - core.player.position.x, card.z - core.player.position.z) > 4) {
+    core.sceneDoor = null;
+    core.hud.setScene(null);
+  }
   viewProjection.multiplyMatrices(core.camera.projectionMatrix, core.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(viewProjection);
   const inside = !!core.interior;

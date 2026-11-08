@@ -12,10 +12,12 @@ export const SETTINGS = {
   /** Trees and rocks outside town, as a multiple of the usual. */
   density: { value: 1, options: [1, 4, 10] },
   shadows: { value: true },
-  /** Detailed trees, rocks and plants near town (the kit); off keeps the simple low-poly ones. */
+  /** Detailed trees, rocks and plants (the kit); off keeps the simple low-poly ones. */
   nature: { value: true },
   /** Detailed furniture and props, in town and indoors (the kit); off keeps the simple ones. */
   props: { value: true },
+  /** Walking into buildings' rooms (unfinished); off, a door shows who's inside instead. */
+  interiors: { value: false },
   /** Buildings assembled from the village kit; off keeps the simple ones. */
   buildings: { value: true },
   /** People without a 3D model: "kit" dresses them from the Quaternius characters; "simple" uses the

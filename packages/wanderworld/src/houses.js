@@ -9,12 +9,19 @@ import { Matrix4, Quaternion, Vector3 } from "three";
 import { rng } from "./world.js";
 
 const STOREY = 3.12; // the kit's wall height
-const WALL_FACE = 0.09; // a wall piece's outside face, in front of its origin
+/** A wall piece's outside face, in front of its origin. */
+export const WALL_FACE = 0.09;
+/** Where ivy hangs from on a wall piece: high up, on its outside face. */
+const IVY_HOLD = new Matrix4().makeTranslation(0, 2.6, WALL_FACE + 0.05);
 /** Roof spans (across the ridge) and lengths (along it) the kit has. */
 const ROOFS = { 4: [4, 6, 8], 6: [4, 6, 8, 10, 12, 14], 8: [8, 10, 12, 14] };
 
-/** Every kit piece a building might use, for loading. */
+/** The kit's door (world.js hangs and swings it; it isn't one of a building's fixed pieces). */
+export const DOOR_PIECE = "door-1-round";
+
+/** Every kit piece a building might use, and its door, for loading. */
 export const HOUSE_PIECES = [
+  DOOR_PIECE,
   "wall-unevenbrick-straight",
   "wall-unevenbrick-window-wide-round",
   "wall-unevenbrick-door-round",
@@ -35,6 +42,8 @@ export const HOUSE_PIECES = [
   "roof-tower-roundtiles",
   "prop-chimney",
   "balcony-simple-straight",
+  "prop-vine1",
+  "prop-vine4",
 ];
 
 /** Whether the kit can roof a footprint of `width` × `depth` (both even metres). */
@@ -96,6 +105,11 @@ export function housePieces(spec, doorX, seed) {
           add(`wall-${material}-straight`, matrix);
           // Timber framing is only the beams: it goes over a plain plaster wall.
           if (material === "plaster" && (timber || !ground) && random() < 0.6) add("wall-plaster-woodgrid", matrix);
+          // Ivy on a bare ground-floor wall, now and then: the kit's vines hang down from their origin, so
+          // it goes up near the eaves and out onto the wall's face.
+          else if (ground && random() < 0.25) {
+            add(random() < 0.6 ? "prop-vine1" : "prop-vine4", matrix.clone().multiply(IVY_HOLD));
+          }
         }
       }
     }

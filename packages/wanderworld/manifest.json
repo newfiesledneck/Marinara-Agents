@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
   "engine": {
     "min": "2.4.4",
@@ -41,14 +41,17 @@
         "kit/nature/bark-twistedtree.webp",
         "kit/nature/bush-common-flowers.json",
         "kit/nature/bush-common.json",
+        "kit/nature/clover-1.json",
         "kit/nature/commontree-1.json",
         "kit/nature/commontree-2.json",
         "kit/nature/commontree-3.json",
+        "kit/nature/commontree-4.json",
         "kit/nature/deadtree-1.json",
         "kit/nature/fern-1.json",
         "kit/nature/flower-3-group.json",
         "kit/nature/flower-4-group.json",
         "kit/nature/flowers.webp",
+        "kit/nature/grass-common-short.json",
         "kit/nature/grass-common-tall.json",
         "kit/nature/grass-wispy-tall.json",
         "kit/nature/grass.webp",
@@ -57,21 +60,32 @@
         "kit/nature/leaves-normaltree-c.webp",
         "kit/nature/leaves-twistedtree-c.webp",
         "kit/nature/leaves.webp",
+        "kit/nature/mushroom-common.json",
+        "kit/nature/mushrooms.webp",
         "kit/nature/pathrocks-diffuse.webp",
         "kit/nature/pebble-round-1.json",
         "kit/nature/pebble-round-3.json",
         "kit/nature/pine-1.json",
         "kit/nature/pine-2.json",
         "kit/nature/pine-3.json",
+        "kit/nature/pine-4.json",
         "kit/nature/plant-1.json",
+        "kit/nature/plant-7.json",
         "kit/nature/rock-medium-1.json",
         "kit/nature/rock-medium-2.json",
         "kit/nature/rock-medium-3.json",
+        "kit/nature/rockpath-round-wide.json",
         "kit/nature/rocks-diffuse.webp",
         "kit/nature/twistedtree-1.json",
+        "kit/people/clothes-a.webp",
+        "kit/people/clothes-b.webp",
+        "kit/people/clothes-blue.webp",
+        "kit/people/clothes-grey.webp",
+        "kit/people/clothes-plum.webp",
+        "kit/people/clothes-red.webp",
+        "kit/people/clothes-teal.webp",
         "kit/people/eyes.webp",
         "kit/people/female-peasant.json",
-        "kit/people/female-ranger.json",
         "kit/people/hair-1.webp",
         "kit/people/hair-2.webp",
         "kit/people/hair-beard.json",
@@ -86,14 +100,10 @@
         "kit/people/head-male.webp",
         "kit/people/index.json",
         "kit/people/male-peasant.json",
-        "kit/people/male-ranger.json",
-        "kit/people/peasant-a.webp",
-        "kit/people/peasant-b.webp",
-        "kit/people/ranger-a.webp",
-        "kit/people/ranger-b.webp",
         "kit/people/skin-female.webp",
         "kit/people/skin-male.webp",
         "kit/props/anvil.json",
+        "kit/props/bag.json",
         "kit/props/banner-1.json",
         "kit/props/barrel-apples.json",
         "kit/props/barrel.json",
@@ -105,6 +115,7 @@
         "kit/props/bookgroup-medium-1.json",
         "kit/props/bookstand.json",
         "kit/props/bottle-1.json",
+        "kit/props/bucket-metal.json",
         "kit/props/bucket-wooden-1.json",
         "kit/props/cabinet.json",
         "kit/props/candlestick-stand.json",
@@ -118,6 +129,7 @@
         "kit/props/dummy.json",
         "kit/props/farmcrate-apple.json",
         "kit/props/farmcrate-carrot.json",
+        "kit/props/farmcrate-empty.json",
         "kit/props/index.json",
         "kit/props/lantern-wall.json",
         "kit/props/mug.json",
@@ -152,6 +164,8 @@
         "kit/village/doorframe-round-wooddark.json",
         "kit/village/index.json",
         "kit/village/prop-chimney.json",
+        "kit/village/prop-vine1.json",
+        "kit/village/prop-vine4.json",
         "kit/village/roof-front-brick4.json",
         "kit/village/roof-front-brick6.json",
         "kit/village/roof-front-brick8.json",
@@ -175,6 +189,7 @@
         "kit/village/t-rocktrim-basecolor.webp",
         "kit/village/t-roundtiles-basecolor.webp",
         "kit/village/t-unevenbrick-basecolor.webp",
+        "kit/village/t-vineleaf-png.webp",
         "kit/village/t-woodtrim-basecolor.webp",
         "kit/village/wall-plaster-door-round.json",
         "kit/village/wall-plaster-straight.json",
@@ -198,8 +213,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "2bf28fd197791d53bcf5c8b0a19437af7b19e92db1f58db4f6aa42255668cda6",
-      "bytes": 1370611
+      "sha256": "b40a8a49c7a29b73fa7d577d6f0cb44c5d614c4a1e719ffbbcf3c0cfe3580b64",
+      "bytes": 1378778
     },
     {
       "path": "wanderworld-icon.webp",
@@ -232,6 +247,11 @@
       "bytes": 38666
     },
     {
+      "path": "kit/nature/clover-1.json",
+      "sha256": "f8791dcbd201c0cfd76200500257d9b8b278390ffeb0bd5ccb4ac07e78e7bc57",
+      "bytes": 7909
+    },
+    {
       "path": "kit/nature/commontree-1.json",
       "sha256": "eba84733baf976ad8b4549d4d5b58cb594db866a80a5c5597d72ebcdf55bfa69",
       "bytes": 214574
@@ -245,6 +265,11 @@
       "path": "kit/nature/commontree-3.json",
       "sha256": "2c1a2579f145db22b0e29cc1bd1a50ece0f309e2ac8b4abad04881133721336b",
       "bytes": 128207
+    },
+    {
+      "path": "kit/nature/commontree-4.json",
+      "sha256": "fe0ddbd86c0141844ba81f14fda941a6a94b6148cc3bf984c3738c73dafa18cf",
+      "bytes": 135309
     },
     {
       "path": "kit/nature/deadtree-1.json",
@@ -272,6 +297,11 @@
       "bytes": 11866
     },
     {
+      "path": "kit/nature/grass-common-short.json",
+      "sha256": "d2fc984a4fc84a1a261bc5e2c5228a2df746933dcd6f2b28e5d84761d176e1bf",
+      "bytes": 4143
+    },
+    {
       "path": "kit/nature/grass-common-tall.json",
       "sha256": "d53adcb7af85898ad1ef13cb6e982c2e0b3ce7aa524e84a2180fa6c9cd97e97a",
       "bytes": 8110
@@ -288,8 +318,8 @@
     },
     {
       "path": "kit/nature/index.json",
-      "sha256": "192e0ca0d800aa4cad24004e172159a1579c3b9c03f0de381e1d0fb8ddf9f38e",
-      "bytes": 2571
+      "sha256": "cdfa5adb2cb3fcf384ee1f4add5a460fb3b7b11caef1aedac3e7c0a823185b7c",
+      "bytes": 3399
     },
     {
       "path": "kit/nature/leaf-pine-c.webp",
@@ -310,6 +340,16 @@
       "path": "kit/nature/leaves.webp",
       "sha256": "16b9e9e02fef3a475cf143cf122bc95f9280f470ec483875e8c094d7c3ed0ab3",
       "bytes": 17832
+    },
+    {
+      "path": "kit/nature/mushroom-common.json",
+      "sha256": "0f7141dfd33cd45f3c16340e9ee56a97677ff747350dd1c85d30accbf4d396d3",
+      "bytes": 16914
+    },
+    {
+      "path": "kit/nature/mushrooms.webp",
+      "sha256": "ea8237681943500a9a85603baf09a69d89a9eddca2843c331fb65f26b0cb17b8",
+      "bytes": 9268
     },
     {
       "path": "kit/nature/pathrocks-diffuse.webp",
@@ -342,9 +382,19 @@
       "bytes": 154149
     },
     {
+      "path": "kit/nature/pine-4.json",
+      "sha256": "97d06b5d4f0fc64e15d934a548ba829ab67648ca22457444aef72740ffa6681f",
+      "bytes": 112195
+    },
+    {
       "path": "kit/nature/plant-1.json",
       "sha256": "5955219e16f00040dfcb7f2f468d2615d472e65add0657fe2a90435ee617ae68",
       "bytes": 3288
+    },
+    {
+      "path": "kit/nature/plant-7.json",
+      "sha256": "ee4d08e3c3726d104449f894b383f0ac3a6e79a3ce8bcad8f8e4d49b004d3ea0",
+      "bytes": 1568
     },
     {
       "path": "kit/nature/rock-medium-1.json",
@@ -362,6 +412,11 @@
       "bytes": 13638
     },
     {
+      "path": "kit/nature/rockpath-round-wide.json",
+      "sha256": "1b1182c610fb8038fa48f6f52c58d9421c22af84351e302d4fd436a1df704c06",
+      "bytes": 151055
+    },
+    {
       "path": "kit/nature/rocks-diffuse.webp",
       "sha256": "e43a436d4443054a919bf73b1eed4328fb104c832b365b95bed2672bfecafe07",
       "bytes": 8440
@@ -372,19 +427,49 @@
       "bytes": 320806
     },
     {
+      "path": "kit/people/clothes-a.webp",
+      "sha256": "376a38ce3abb9d1053164b2db1afc8183380dcb5856ffee58b2d5d3bae873836",
+      "bytes": 17620
+    },
+    {
+      "path": "kit/people/clothes-b.webp",
+      "sha256": "0e4c76eacbd0c2fb9670109eb37f017e6994d3344b38a2953bfd1c121fbf790b",
+      "bytes": 14502
+    },
+    {
+      "path": "kit/people/clothes-blue.webp",
+      "sha256": "3256fb501703b14ca46608a4f6a62a9d06395953682acdf555926a66dbdde4e5",
+      "bytes": 21090
+    },
+    {
+      "path": "kit/people/clothes-grey.webp",
+      "sha256": "d7456a3d74334ab993f5a33a58f3c017d01ec2cf57dc2e71b401f948cce1deb2",
+      "bytes": 18672
+    },
+    {
+      "path": "kit/people/clothes-plum.webp",
+      "sha256": "2796e62b7ebd31920b8bc3c54f264af1ede82efebdadf38536ab7869d85a638f",
+      "bytes": 18414
+    },
+    {
+      "path": "kit/people/clothes-red.webp",
+      "sha256": "a10353886b39fe75c17c85b818e9a38c7b77a20f457c20bf618a0221a01f5a00",
+      "bytes": 19076
+    },
+    {
+      "path": "kit/people/clothes-teal.webp",
+      "sha256": "25f554b0741f659287e6ba79cfe7e066530f9699fc27cb33ec46901b96434be3",
+      "bytes": 16580
+    },
+    {
       "path": "kit/people/eyes.webp",
       "sha256": "0fa0e28adf2b612fe263bda2f8950831d73d73d5ce871468a0b89d61be5c6ea6",
       "bytes": 772
     },
     {
       "path": "kit/people/female-peasant.json",
-      "sha256": "28ca2066062b3803b3eff25fffa5b06add4f63f09f550e241bc1edd089db68e5",
+      "sha256": "36d5d6d797e1bfc21424610183f00d4081efcf053b3e972986a0cf44909a7138",
       "bytes": 402419
-    },
-    {
-      "path": "kit/people/female-ranger.json",
-      "sha256": "6f64d680ea930cfadd480e2508678018d9dad2880a735ff3d9194387709cadd0",
-      "bytes": 920174
     },
     {
       "path": "kit/people/hair-1.webp",
@@ -448,38 +533,13 @@
     },
     {
       "path": "kit/people/index.json",
-      "sha256": "57421d3307598b06eb0424a06819d0269aa27e905cd53b9972be991f64ce8cf2",
-      "bytes": 1087
+      "sha256": "84affb1cada31e3717506e9dc099d1d0255434984edae7f80a84748f6a6b0ad4",
+      "bytes": 987
     },
     {
       "path": "kit/people/male-peasant.json",
-      "sha256": "d2ff90fcf72192450a7b3f551094f6adf4117bcddb91f1cb57c9519dc5a4ac0f",
+      "sha256": "a695c8f3b96550eecfa5957f4dc8c8c21b7f568024f540b26e30fabdada2ecc0",
       "bytes": 359856
-    },
-    {
-      "path": "kit/people/male-ranger.json",
-      "sha256": "1c99a332aba64c9ccb983dc53a7682bb45711ebc008fc67cf72ce79c9cb742d8",
-      "bytes": 921966
-    },
-    {
-      "path": "kit/people/peasant-a.webp",
-      "sha256": "376a38ce3abb9d1053164b2db1afc8183380dcb5856ffee58b2d5d3bae873836",
-      "bytes": 17620
-    },
-    {
-      "path": "kit/people/peasant-b.webp",
-      "sha256": "0e4c76eacbd0c2fb9670109eb37f017e6994d3344b38a2953bfd1c121fbf790b",
-      "bytes": 14502
-    },
-    {
-      "path": "kit/people/ranger-a.webp",
-      "sha256": "a7b07f0060db21d4f9b3771bdd583c66cc6cdee5e80ebb2adfa9a759e17edd66",
-      "bytes": 22720
-    },
-    {
-      "path": "kit/people/ranger-b.webp",
-      "sha256": "001aa6997385d2fb7a17aadbae8d9a20c1dc8ceb882d6fa72314f00dfef4e98f",
-      "bytes": 18856
     },
     {
       "path": "kit/people/skin-female.webp",
@@ -497,14 +557,19 @@
       "bytes": 16844
     },
     {
+      "path": "kit/props/bag.json",
+      "sha256": "cf40d05cc5e260416be16d4d99392c972cb4cbd70217ab45008ebac2f9f7bd0c",
+      "bytes": 16942
+    },
+    {
       "path": "kit/props/banner-1.json",
       "sha256": "fc12354ad1a96b7ce2206430b834170cbfb2f07334160a6cf948564d96dd3010",
       "bytes": 10957
     },
     {
       "path": "kit/props/barrel-apples.json",
-      "sha256": "f4d1523eb3f8329518a27ca4eb089453804fcdab8afe8f905d1562129ecfb04e",
-      "bytes": 59501
+      "sha256": "d2cdc39d74594556aa258a1fe18ca7beaa2dcafbd22c977bec8f88673b50bc92",
+      "bytes": 63690
     },
     {
       "path": "kit/props/barrel.json",
@@ -528,8 +593,8 @@
     },
     {
       "path": "kit/props/book-stack-1.json",
-      "sha256": "1518cb7b90cce8fcebbf94e98d01d4f0d40347c72407b44f023f97b6e83a7a36",
-      "bytes": 6923
+      "sha256": "1777102ebe1ae5284cd9947e28b53130cd7590d9c918e8b81a9ca04756006eb5",
+      "bytes": 8088
     },
     {
       "path": "kit/props/bookcase-2.json",
@@ -538,8 +603,8 @@
     },
     {
       "path": "kit/props/bookgroup-medium-1.json",
-      "sha256": "df172f016908883eb8ecdff703a2fc8a1e0b48fdbe4c011c89b3e6eec5a16431",
-      "bytes": 13580
+      "sha256": "ba1d7336c3738b2be526fbd6bb4967be1a763567322117d5889a40ef066d1569",
+      "bytes": 15897
     },
     {
       "path": "kit/props/bookstand.json",
@@ -548,8 +613,13 @@
     },
     {
       "path": "kit/props/bottle-1.json",
-      "sha256": "2facb196178c36c7bf38ae1d7c8a3fc60a16d5f794d9c0f34d3b04a952fb2f56",
-      "bytes": 7991
+      "sha256": "ea14cf4ac2e26b6f32dacf4fb26ea777db33cf53e71428fe98a9e73888fb7ac6",
+      "bytes": 9212
+    },
+    {
+      "path": "kit/props/bucket-metal.json",
+      "sha256": "d558652b78f27462e03c8aa95f312e4e70f99385c9dc85937726e69239323d3a",
+      "bytes": 13018
     },
     {
       "path": "kit/props/bucket-wooden-1.json",
@@ -563,8 +633,8 @@
     },
     {
       "path": "kit/props/candlestick-stand.json",
-      "sha256": "507a9e3e6a8f4baa1f3d1b7d916764560965f522803f095fbfcb4a9e61d9432c",
-      "bytes": 129545
+      "sha256": "07f4d350639d627b2ad9895b11ce11ddaa26b96674693e601e83cbbab670d7b8",
+      "bytes": 137498
     },
     {
       "path": "kit/props/candlestick-triple.json",
@@ -583,8 +653,8 @@
     },
     {
       "path": "kit/props/chandelier.json",
-      "sha256": "4bda561d929b43262037076c1fc162d9890201a1a50125b2a9b8990853ed2c3f",
-      "bytes": 147021
+      "sha256": "11c57a5f15010cb5445d2f44dc25daececad7a8f3aca93c3e61aeb542a78b013",
+      "bytes": 154974
     },
     {
       "path": "kit/props/chest-wood.json",
@@ -593,8 +663,8 @@
     },
     {
       "path": "kit/props/coin-pile.json",
-      "sha256": "f548cb582eb048e0064806bac8ce20fcca18b55279114f12f6ce1b6896ad5cbb",
-      "bytes": 26045
+      "sha256": "ae097618afffb7a56a4b64e62422925f823a257a428e3260da55ecea5ff06683",
+      "bytes": 30234
     },
     {
       "path": "kit/props/crate-wooden.json",
@@ -608,18 +678,23 @@
     },
     {
       "path": "kit/props/farmcrate-apple.json",
-      "sha256": "4aed7579c51e711061ab2c4d105bed49c6892c76cbb872bf1279a0ae230786a0",
-      "bytes": 80811
+      "sha256": "15d63916acf7635cb5d23aab5384957beb8b17e6d2bb3e2b43ccc816c23907d9",
+      "bytes": 88480
     },
     {
       "path": "kit/props/farmcrate-carrot.json",
-      "sha256": "d9923f370fc85e804446d5a31d10077c1a68e374d37bbb066e8490b391241305",
-      "bytes": 117721
+      "sha256": "fbec9b6dca15b5e52b909a22c2a67e58396c82459dfb1bce8b98753d5b038155",
+      "bytes": 131630
+    },
+    {
+      "path": "kit/props/farmcrate-empty.json",
+      "sha256": "2b9d0def081ead94eb9a3df406f9cfaf36918a516bb7a182d51ca1d4f4ddd8c2",
+      "bytes": 39317
     },
     {
       "path": "kit/props/index.json",
-      "sha256": "8f721d92439dc06f6ae81396f8da9506e505be68737f28691a4d945fedcc2c2a",
-      "bytes": 5524
+      "sha256": "ba8d3eecf379836cbab158c70f8ebf20f072417da06b8f16e154234a4d2c4352",
+      "bytes": 5872
     },
     {
       "path": "kit/props/lantern-wall.json",
@@ -673,8 +748,8 @@
     },
     {
       "path": "kit/props/shelf-small-bottles.json",
-      "sha256": "0aec9aa28f7c474a6d431218bba67cb6a3047cfb68ae5984de4df610f2711b9b",
-      "bytes": 128474
+      "sha256": "f89f0abca96b61f8c4411081bc17e5d2558d22bf08d08ad10f9c30076efc4747",
+      "bytes": 144343
     },
     {
       "path": "kit/props/stall-cart-empty.json",
@@ -733,8 +808,8 @@
     },
     {
       "path": "kit/props/vase-2.json",
-      "sha256": "50b4ea0616d5ff364f96c07befdd02e21def3b128cf9dd6ad257ca5902206071",
-      "bytes": 12680
+      "sha256": "d26ea23f99d20011ffdedf551fe0232766efd1876bc2f68ecf31b94485ae8719",
+      "bytes": 14453
     },
     {
       "path": "kit/props/weaponstand.json",
@@ -778,13 +853,23 @@
     },
     {
       "path": "kit/village/index.json",
-      "sha256": "44f420006bd9cf371c130e6ac84fe7d79b1bab31f9c59126edd6877e94e11247",
-      "bytes": 4396
+      "sha256": "e5fad93b014cf2c87214c572521ddd511f259f06d3b5b57bb66378f8075e7e00",
+      "bytes": 4625
     },
     {
       "path": "kit/village/prop-chimney.json",
       "sha256": "1099a091b19b56eeab40efaee717017196dcbf794452699b56eb1a1bd027a20a",
       "bytes": 14521
+    },
+    {
+      "path": "kit/village/prop-vine1.json",
+      "sha256": "6647d34cb43ba3acc545ea6980070c3e592df63537567904ea84c2547ce61065",
+      "bytes": 3658
+    },
+    {
+      "path": "kit/village/prop-vine4.json",
+      "sha256": "c25a4ca471ba3e7fcacfff85bd33c1821a037f71b34f2fa357366025a8f6733a",
+      "bytes": 1553
     },
     {
       "path": "kit/village/roof-front-brick4.json",
@@ -900,6 +985,11 @@
       "path": "kit/village/t-unevenbrick-basecolor.webp",
       "sha256": "a925d7363acaf6ce63923cc1fc61651fc51f5b8f4a2febc832367f3aab535dbe",
       "bytes": 16226
+    },
+    {
+      "path": "kit/village/t-vineleaf-png.webp",
+      "sha256": "7d9ea3e6d287a269a92a447607b11a716710297b0da6777478fa6dc4c3e81323",
+      "bytes": 12806
     },
     {
       "path": "kit/village/t-woodtrim-basecolor.webp",
