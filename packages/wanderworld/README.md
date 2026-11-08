@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.3.1)
+## What it does now (0.3.2)
 
 - Draws a seeded town around a plaza and fountain, with streets, lamp posts and houses of different sizes,
   colours and roofs, surrounded by forest. **New world** walks a different one.
@@ -12,7 +12,7 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   model with a walking animation; a GLB model is shown as it is. Any other persona gets a simple
   low-poly figure, coloured from its name. The choice is remembered.
 - Walk with WASD or the arrow keys, or the on-screen stick on touch screens. Shift runs; Q and E turn the
-  camera. Buildings, trees and lamp posts block your way, and the camera moves in when a building would
+  camera. Zoom with the mouse wheel, a pinch, or + and −. Buildings, trees and lamp posts block your way, and the camera moves in when a building would
   hide you.
 - Shows frames per second, draw calls and triangles. Tap the readout to draw 1×, 4× or 10× the trees and
   rocks, to check how a device copes.

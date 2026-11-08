@@ -21,7 +21,9 @@ import { VRMLoaderPlugin, VRMMetaLoaderPlugin, VRMUtils } from "@pixiv/three-vrm
 import { hashString, rng } from "./world.js";
 
 const TYPICAL_HEIGHT = 1.7;
-const STRIDE = 1.4; // metres per full walk cycle
+/** Metres covered by one full walk cycle (two steps). Longer strides at speed, as people take: about one
+ *  cycle a second at a walk (2.5 m/s) and one and a half at a run (5 m/s). */
+const strideAt = (speed) => 1.5 + 0.35 * speed;
 
 /** Walk-cycle angles for a phase and an amount (0 standing, 1 full stride). */
 function gait(phase, amount) {
@@ -41,7 +43,7 @@ function walker() {
   let phase = 0;
   let amount = 0;
   return (dt, speed) => {
-    phase += (dt * speed * Math.PI * 2) / STRIDE;
+    phase += (dt * speed * Math.PI * 2) / strideAt(speed);
     amount += (Math.min(1, speed / 4) - amount) * Math.min(1, dt * 8);
     return gait(phase, amount);
   };
