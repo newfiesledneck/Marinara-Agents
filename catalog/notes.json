@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.15",
+          "date": "2026-11-08",
+          "notes": "- A party: in a conversation, ask someone to come with you. They follow in a loose line, run to catch up, find their way round buildings, sit near you when you sit, and catch up if they get lost.\n- Journal → Party lists who's with you: tell someone to wait here or come along, or part ways.\n- The party is saved with the world, and a door's card says who's coming in with you.",
+          "highlight": false
+        },
+        {
           "version": "0.4.14",
           "date": "2026-11-08",
           "notes": "- A main menu: Continue, New world, Load world and Settings. Each world saves where you were, the time, your persona and who lives there; the Load list shows a picture of each, with Rename and Delete. Your world from before comes over as \"My first world\".\n- Places: every town gets a name, and so does every street; there's the market square, the fountain, gardens, meadows, the edge of town and the woods. A place's name shows as you walk in, and the bar says where you are.\n- Shop signs: the tavern, shops, smithy, temple and hall have their name over the door.\n- The Journal (J): where you are and who's nearby, where everyone is (\"Mira is walking on Chapel Row\"), every place to rename (a sign changes with it) or tie lorebook entries to, and the world's details.",
@@ -1520,12 +1526,6 @@
           "date": "2026-11-07",
           "notes": "- Wanderworld is now a game on its own Home tab instead of a Game Mode Experience, so it installs from the catalog. Open it from the Wanderworld tab on Home.\n- A New world button walks a different seeded world, and a Fullscreen button fills the screen on Engines that offer it.\n- It no longer reads World Maps, because a Home tab has no chat to read it from.",
           "highlight": true
-        },
-        {
-          "version": "0.1.0",
-          "date": "2026-11-07",
-          "notes": "- First prototype. Choose Wanderworld as the Experience in a Game Mode chat to walk a capsule around a low-poly landscape with WASD, the arrow keys or an on-screen stick on touch screens. Shift runs, and Q and E turn the camera.\n- The top of the screen shows where World Maps says your party is, and updates after each turn.\n- A performance readout shows frames per second, draw calls and triangles. Tap it to draw four or ten times as many trees and rocks, to see how your device copes.",
-          "highlight": false
         }
       ]
     },
