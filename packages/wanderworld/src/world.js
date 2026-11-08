@@ -573,6 +573,22 @@ function blockEdge(town, cx, cz, half) {
   const walkLoop = roundedLoop(cx, cz, half, 0.24 + SIDEWALK / 2, 1.4 - 0.12 - SIDEWALK / 2);
   town.kerbs.push(kerbLoop);
   town.sidewalks.push(walkLoop);
+  // The street's cobbles carry on into each corner the rounded kerb leaves (the sidewalk covers the rest).
+  for (const [sx, sz] of [
+    [1, 1],
+    [-1, 1],
+    [-1, -1],
+    [1, -1],
+  ]) {
+    town.roadPieces.push(
+      painted(
+        new PlaneGeometry(1.8, 1.8)
+          .rotateX(-Math.PI / 2)
+          .translate(cx + sx * (half - 0.9), 0.032, cz + sz * (half - 0.9)),
+        ROAD,
+      ),
+    );
+  }
 }
 
 /** An empty block at the town's edge, left as a meadow: a few trees, wildflowers and long grass. */
@@ -745,6 +761,10 @@ function buildTown(random, land, ground) {
   town.pieces.push(painted(new CylinderGeometry(0.35, 0.5, 2.2, 6).translate(0, 1.1, 0), STONE_GREY));
   town.circles.push({ x: 0, z: 0, r: FOUNTAIN_RADIUS + 0.7 }); // the stone rim and the plants round it
 
+  // The noticeboard: on the square's south side, facing the fountain, near where people arrive.
+  town.noticeboard = { x: -2.6, z: 7.5, angle: Math.PI, use: { x: -2.6, z: 6.5 } };
+  town.boxes.push({ minX: -3.6, maxX: -1.6, minZ: 7.25, maxZ: 7.75, low: true });
+
   // Market day on the plaza: stalls in the corners facing the fountain, benches beside it.
   for (const [x, z] of [
     [-5.6, -5.6],
@@ -827,6 +847,7 @@ function buildTown(random, land, ground) {
     buildingMesh,
     natureMesh,
     natureSlots: town.natureSlots,
+    noticeboard: town.noticeboard,
     waypoints: town.waypoints,
     gardens: town.gardens,
     meadows: town.meadows,
@@ -974,7 +995,7 @@ function buildCountry(random, town, land, ground) {
     placeBuilding(random, town, makeSpec(random, kind, size), outpost.x, outpost.z, outpost.facing);
   }
   if (caveRock.length) {
-    meshes.push(new Mesh(mergeGeometries(caveRock), new MeshLambertMaterial({ vertexColors: true })));
+    meshes.push(new Mesh(mergeGeometries(caveRock), cliffMaterial(ground)));
     meshes.push(new Mesh(mergeGeometries(caveFloor), new MeshLambertMaterial({ vertexColors: true })));
   }
   // Dirt roads: in the ground's own material, dirt down the middle fading through trodden grass into the
@@ -1014,19 +1035,7 @@ function buildCountry(random, town, land, ground) {
       ],
       wobble: 0.06,
     });
-    meshes.push(
-      new Mesh(
-        water,
-        new MeshPhongMaterial({
-          vertexColors: true,
-          specular: 0x9fc3d6,
-          shininess: 70,
-          transparent: true,
-          opacity: 0.86,
-          depthWrite: false,
-        }),
-      ),
-    );
+    meshes.push(new Mesh(water, waterMaterial(ground)));
   }
   for (const bridge of land.bridges) {
     const [ax, az] = bridge.along;
@@ -1183,7 +1192,12 @@ function flatTexture(hex) {
 
 /** The uniforms every terrain material of a world shares, so giving a layer its texture changes them all. */
 function terrainUniforms() {
-  const uniforms = { tMacro: { value: grassTexture(rng(7)) } };
+  const uniforms = {
+    tMacro: { value: grassTexture(rng(7)) },
+    tWater: { value: flatTexture(0x7fb0bd) },
+    tCliff: { value: flatTexture(0xa39b8f) },
+    uTime: { value: 0 },
+  };
   for (const [name, layer] of Object.entries(GROUND_LAYERS)) {
     uniforms[`t${name}`] = { value: flatTexture(layer.colour) };
     uniforms[`s${name}`] = { value: layer.scale };
@@ -1249,6 +1263,92 @@ vec3 groundLayer(sampler2D map, float scale) {
       );
   };
   material.customProgramCacheKey = () => "wanderworld-terrain";
+  return material;
+}
+
+/**
+ * The river's material: the painted water texture (`tWater`) sampled twice, the two drifting slowly in
+ * different directions and sizes (`uTime`), so the ripples move and never visibly repeat; tinted deep in
+ * the middle and lighter at the banks by the vertex colour, with a soft sheen.
+ */
+function waterMaterial(uniforms) {
+  const material = new MeshPhongMaterial({
+    vertexColors: true,
+    specular: 0x9fc3d6,
+    shininess: 70,
+    transparent: true,
+    opacity: 0.88,
+    depthWrite: false,
+  });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.tWater = uniforms.tWater;
+    shader.uniforms.uTime = uniforms.uTime;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vWater;")
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvWater = (modelMatrix * vec4(transformed, 1.0)).xz;",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nuniform sampler2D tWater;\nuniform float uTime;\nvarying vec2 vWater;",
+      )
+      .replace(
+        "#include <map_fragment>",
+        `{
+  vec3 a = texture2D(tWater, vWater / 6.0 + uTime * vec2(0.021, 0.034)).rgb;
+  vec3 b = texture2D(tWater, mat2(0.8, -0.6, 0.6, 0.8) * vWater / 9.5 - uTime * vec2(0.029, 0.012)).rgb;
+  diffuseColor.rgb *= (a + b) * 0.85;
+}`,
+      );
+  };
+  material.customProgramCacheKey = () => "wanderworld-water";
+  return material;
+}
+
+/**
+ * Rock faces (caves): the painted cliff texture (`tCliff`) wrapped on from three sides by the surface's
+ * direction (triplanar), so a vertical face shows it as well as a ledge does, with no stretching; the
+ * vertex colours still put moss on top and darkness deep inside.
+ */
+function cliffMaterial(uniforms) {
+  const material = new MeshLambertMaterial({ vertexColors: true });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.tCliff = uniforms.tCliff;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+varying vec3 vCliffPos;
+varying vec3 vCliffNormal;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+vCliffPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+vCliffNormal = normalize(mat3(modelMatrix) * objectNormal);`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+uniform sampler2D tCliff;
+varying vec3 vCliffPos;
+varying vec3 vCliffNormal;`,
+      )
+      .replace(
+        "#include <map_fragment>",
+        `{
+  vec3 w = pow(abs(normalize(vCliffNormal)), vec3(4.0));
+  w /= (w.x + w.y + w.z);
+  vec3 p = vCliffPos / 5.5;
+  vec3 rock = texture2D(tCliff, p.zy).rgb * w.x + texture2D(tCliff, p.xz).rgb * w.y + texture2D(tCliff, p.xy).rgb * w.z;
+  diffuseColor.rgb *= rock * 1.85;
+}`,
+      );
+  };
+  material.customProgramCacheKey = () => "wanderworld-cliff";
   return material;
 }
 
@@ -1534,6 +1634,7 @@ export function createWorld(seed, landscape = null) {
 
   /** Moves the doors on: each swings about a second to open or shut. */
   function update(dt) {
+    ground.uTime.value += dt;
     let moved = false;
     for (const door of doors) {
       if (door.target === 1 && Number.isFinite(door.closeIn)) {
@@ -1706,6 +1807,8 @@ export function createWorld(seed, landscape = null) {
     if (textures.road) ground.tcobbles.value = textures.road;
     if (textures.paving) ground.tsetts.value = textures.paving;
     if (textures.plaza) ground.tplaza.value = textures.plaza;
+    if (textures.water) ground.tWater.value = textures.water;
+    if (textures.cliff) ground.tCliff.value = textures.cliff;
   }
 
   /** Swaps the town's simple buildings for ones assembled from the village kit, once it has loaded. */
@@ -1813,6 +1916,9 @@ export function createWorld(seed, landscape = null) {
     },
     /** Each building's door: `x`/`z` is where to stand to use it, `step` the doorway, `open` 0–1. */
     doors,
+    /** The noticeboard on the square: { x, z, angle, use (where to stand to read it) }. Later the world
+     *  brief can place boards (and other things to use) wherever it likes. */
+    noticeboard: town.noticeboard,
     /** Cave mouths: { x, z (where to stand), angle, outpost }. */
     caves: country.caves,
     /** The world's landscape, as built (land.js), for saving with it. */

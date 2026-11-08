@@ -23,7 +23,7 @@ import { HOUSE_PIECES } from "./houses.js";
 import { kitModels, kitTexture } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
-import { createSign } from "./signs.js";
+import { createNoticeboard, createSign } from "./signs.js";
 import { buildZones, chainOf, describe, nameOf, signOf, zoneAt } from "./zones.js";
 import { landscapeWith } from "./land.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, WORLD_SIZE } from "./world.js";
@@ -68,7 +68,7 @@ const NO_INPUT = { x: 0, y: 0, amount: 0, run: false, yaw: 0, pitch: 0, zoom: 0 
 const AUTO_PIXELS = 1920 * 1080;
 const DAY_SECONDS = 20 * 60; // a whole day in town takes 20 minutes
 const START_HOUR = 9;
-const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6 };
+const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9 };
 const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
 const TAP_RADIUS = 70; // screen pixels a tap may land from something and still pick it
 const WALK_TO_LIMIT = 40; // metres: a tap further away than this is ignored
@@ -309,10 +309,24 @@ function buildWorld(seed, place = null) {
   core.world?.dispose();
   for (const sign of core.signs) sign.dispose();
   core.signs = [];
+  core.board?.dispose();
+  core.board = null;
   core.world = createWorld(hashString(seed), core.save?.seed === seed ? core.save.landscape : null);
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
+  const boardSpot = core.world.noticeboard;
+  core.board = boardSpot
+    ? createNoticeboard({
+        x: boardSpot.x,
+        y: heightAt(boardSpot.x, boardSpot.z),
+        z: boardSpot.z,
+        angle: boardSpot.angle,
+        boardUrl: `${ART}sign-wood.webp`,
+        noteUrl: `${ART}note.webp`,
+      })
+    : null;
+  if (core.board) core.world.scene.add(core.board.group);
   core.zoneId = null;
   core.zoneShown = null;
   core.space = core.world;
@@ -365,13 +379,10 @@ function buildWorld(seed, place = null) {
   core.world.addGround({
     grass: groundTexture("ground-grass"),
     dirt: groundTexture("ground-dirt"),
-    // Stand-ins until painted rock and riverbed textures are made: the nature kit's rock, and fine pebbles.
-    rock: (() => {
-      const map = kitTexture("nature", "rocks-diffuse");
-      map.anisotropy = Math.min(8, core.renderer?.capabilities.getMaxAnisotropy() ?? 1);
-      return map;
-    })(),
-    sand: groundTexture("ground-pebbles"),
+    rock: groundTexture("ground-rock"),
+    cliff: groundTexture("cliff-rock"),
+    sand: groundTexture("ground-riverbed"),
+    water: groundTexture("water"),
     road: groundTexture("street-cobbles"),
     paving: groundTexture("sidewalk-setts"),
     plaza: groundTexture("plaza-stone"),
@@ -1053,6 +1064,72 @@ function knock(door) {
   });
 }
 
+/**
+ * What's on the noticeboard: a few notes about the town (from its places' names, so they fit this world)
+ * and whatever the player has pinned. Later the AI pins quests and news here (docs/CONCEPT.md, S4).
+ */
+function noticeboardNotes() {
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const find = (test) => core.zones.zones.find(test);
+  const tavern = find((zone) => zone.buildingKind === "tavern");
+  const street = find((zone) => zone.kind === "street");
+  const smithy = find((zone) => zone.buildingKind === "smithy");
+  const wild = find((zone) => zone.kind === "mountains") ?? find((zone) => zone.kind === "forest");
+  const river = find((zone) => zone.kind === "river");
+  const title = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+  const town = [
+    { text: `Market every morning in ${names.plaza}. Fresh apples, honest scales.`, by: "the market warden" },
+    tavern && { text: `${title(names[tavern.id])}: warm stew, cold ale and a bed for the night.`, by: null },
+    street && {
+      text: `LOST: a grey cat who answers to Pip. Last seen on ${names[street.id]}. Reward offered!`,
+      by: "a worried neighbour",
+    },
+    smithy && {
+      text: `${title(names[smithy.id])} mends pots, shoes horses and sharpens anything with an edge.`,
+      by: null,
+    },
+    river && { text: `Keep children back from ${names.river} after rain. The banks give way.`, by: "the reeve" },
+    wild && { text: `Wolves heard near ${names[wild.id]} at dusk. Travel in company.`, by: "the watch" },
+  ].filter(Boolean);
+  // A handful, the same ones for this world.
+  const pick = town.filter((_, i) => (hashString(`${core.seed}:note`) >> i) & 1 || i < 2).slice(0, 4);
+  const mine = (core.save?.notices ?? []).map((note) => ({
+    id: note.id,
+    text: note.text,
+    by: note.by || personaName(),
+    mine: true,
+  }));
+  return [...pick.map((note, i) => ({ id: `town:${i}`, ...note })), ...mine];
+}
+
+function openNoticeboard() {
+  core.sceneDoor = core.world.noticeboard.use; // walking away closes it, like a door's card
+  const town = core.zones ? namedZones(residentsOf(core.crowd.snapshot())).town : "town";
+  const show = () => {
+    const notes = noticeboardNotes();
+    core.board?.setNotes(Math.min(5, notes.length));
+    core.hud?.setNoticeboard(
+      { title: `The ${town} noticeboard`, notes },
+      {
+        onPin: (text) => {
+          if (!core.save) return;
+          const note = { id: `n${Date.now().toString(36)}`, text, by: personaName(), at: Date.now() };
+          core.save = { ...core.save, notices: [...core.save.notices, note] };
+          core.saves.write(core.save);
+          show();
+        },
+        onRemove: (id) => {
+          if (!core.save) return;
+          core.save = { ...core.save, notices: core.save.notices.filter((note) => note.id !== id) };
+          core.saves.write(core.save);
+          show();
+        },
+      },
+    );
+  };
+  show();
+}
+
 /** A cave's mouth: a card like a door's, for starting a scene in there later. */
 function enterCave(cave) {
   const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
@@ -1118,6 +1195,17 @@ function usable() {
       z: person.position.z,
       y: 2.45,
       act: () => talkTo(person),
+    });
+  }
+  const board = core.interior ? null : core.world?.noticeboard;
+  if (board) {
+    list.push({
+      kind: "board",
+      label: "Read the noticeboard",
+      x: board.use.x,
+      z: board.use.z,
+      y: 2.2,
+      act: openNoticeboard,
     });
   }
   for (const cave of core.interior ? [] : (core.world?.caves ?? [])) {
@@ -1519,6 +1607,7 @@ function step(dt) {
   if (card && Math.hypot(card.x - core.player.position.x, card.z - core.player.position.z) > 4) {
     core.sceneDoor = null;
     core.hud.setScene(null);
+    core.hud.setNoticeboard(null);
   }
   viewProjection.multiplyMatrices(core.camera.projectionMatrix, core.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(viewProjection);
@@ -1546,7 +1635,7 @@ function step(dt) {
   const screen = core.target
     ? toScreen(core.target.mark?.x ?? core.target.x, core.target.y, core.target.mark?.z ?? core.target.z)
     : null;
-  if (core.mode === "talk") core.hud?.setPrompt(null);
+  if (core.mode === "talk" || core.hud?.boardOpen) core.hud?.setPrompt(null);
   else if (core.mode === "sit") {
     const head = toScreen(core.player.position.x, 1.9, core.player.position.z);
     core.hud?.setPrompt(label, head?.x, head?.y);

@@ -1,15 +1,18 @@
 // The main menu: Continue, New world, Load world and Settings, over a painted backdrop. It opens first,
 // and the in-game Menu button comes back to it (saving the world first). The Load list shows each saved
 // world with a thumbnail, when it was last played, and Rename and Delete.
+import { INK_INPUT, INK_SMALL, PARCHMENT_EDGED, SERIF } from "./ui.js";
+
 const FONT = "system-ui,sans-serif";
+// The menu's card is parchment, its choices wooden boards with cream lettering.
 const PANEL =
-  "background:rgba(14,18,26,0.78);color:#f3f5f7;border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;" +
-  "width:min(420px,calc(100% - 32px));box-shadow:0 10px 40px rgba(0,0,0,0.35);pointer-events:auto;";
+  `${PARCHMENT_EDGED}padding:26px 28px;display:flex;flex-direction:column;gap:10px;` +
+  "width:min(420px,calc(100% - 32px));pointer-events:auto;";
 const BIG =
-  `font:600 16px ${FONT};border:0;border-radius:10px;padding:12px 16px;cursor:pointer;text-align:left;` +
-  "background:rgba(255,255,255,0.12);color:#f3f5f7;";
-const SMALL = `font:600 12px ${FONT};border:0;border-radius:7px;padding:5px 9px;cursor:pointer;background:rgba(255,255,255,0.14);color:#f3f5f7;`;
-const INPUT = `font:14px ${FONT};border-radius:8px;border:0;padding:8px 10px;width:100%;box-sizing:border-box;`;
+  `font:600 17px ${SERIF};border:1px solid #4e341d;border-radius:9px;padding:11px 16px;cursor:pointer;text-align:left;` +
+  "background:linear-gradient(#7a5532,#5f4126);color:#f6ecd6;box-shadow:0 2px 4px rgba(0,0,0,0.25);";
+const SMALL = INK_SMALL;
+const INPUT = `${INK_INPUT}width:100%;`;
 
 function element(tag, css, textContent) {
   const node = document.createElement(tag);

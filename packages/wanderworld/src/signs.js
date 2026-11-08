@@ -3,7 +3,7 @@
 // by hand now and by the AI later, to "The Rusty Tankard"). A board can also carry a picture (a carved
 // tankard, an anvil): an image URL, from the kit or one the AI generated later; then the words sit
 // beside it. Drawn on a canvas, so signs need a browser (the tests build worlds without them).
-import { BoxGeometry, CanvasTexture, Mesh, MeshLambertMaterial, SRGBColorSpace } from "three";
+import { BoxGeometry, CanvasTexture, Group, Mesh, MeshLambertMaterial, SRGBColorSpace } from "three";
 
 const WIDTH = 1.5; // metres
 const HEIGHT = 0.5;
@@ -100,6 +100,105 @@ function paint(canvas, words, picture) {
   context.fillText(words, left + room / 2 + 2, height / 2 + 3);
   context.fillStyle = "#f2dfb4";
   context.fillText(words, left + room / 2, height / 2);
+}
+
+/**
+ * The noticeboard on the square: a painted board on two posts under a little roof, with a few notes
+ * pinned to it (`notes` of them, drawn on paper from `noteUrl`). Facing `angle`. Returns { group,
+ * setNotes(count), dispose() }, or null without a browser canvas.
+ */
+export function createNoticeboard({ x, y, z, angle, boardUrl, noteUrl, notes = 3 }) {
+  if (typeof document === "undefined") return null;
+  loadBoard(boardUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 340;
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  const paper = new Image();
+  let count = notes;
+  const draw = () => {
+    const context = canvas.getContext("2d");
+    const painted = board?.complete && board.naturalWidth > 0;
+    if (painted) drawBoard(context, canvas.width, canvas.height);
+    else {
+      context.fillStyle = "#7a5230";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    // Notes pinned at slight angles, each with a red pin and a few lines of ink.
+    const spots = [
+      [130, 120, -0.06],
+      [300, 105, 0.05],
+      [400, 210, -0.04],
+      [175, 235, 0.07],
+      [290, 230, -0.02],
+    ];
+    for (const [cx, cy, turn] of spots.slice(0, Math.min(count, spots.length))) {
+      context.save();
+      context.translate(cx, cy);
+      context.rotate(turn);
+      if (paper.complete && paper.naturalWidth) context.drawImage(paper, -55, -45, 110, 90);
+      else {
+        context.fillStyle = "#e9d8b2";
+        context.fillRect(-55, -45, 110, 90);
+      }
+      context.strokeStyle = "rgba(50, 32, 16, 0.55)";
+      context.lineWidth = 2;
+      for (let line = 0; line < 4; line++) {
+        context.beginPath();
+        context.moveTo(-38, -20 + line * 14);
+        context.lineTo(30 - (line % 2) * 18, -20 + line * 14);
+        context.stroke();
+      }
+      context.fillStyle = "#9b2a22";
+      context.beginPath();
+      context.arc(0, -38, 5, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
+    texture.needsUpdate = true;
+  };
+  paper.onload = draw;
+  paper.src = noteUrl;
+  if (board && !board.complete) waiting.add(draw);
+  draw();
+
+  const wood = new MeshLambertMaterial({ color: 0x5b3d24 });
+  const face = new MeshLambertMaterial({ map: texture });
+  const group = new Group();
+  const post = new BoxGeometry(0.14, 2.3, 0.14).translate(0, 1.15, 0);
+  for (const side of [-0.85, 0.85]) {
+    const mesh = new Mesh(post, wood);
+    mesh.position.x = side;
+    group.add(mesh);
+  }
+  // Box faces: +x, −x, +y, −y, +z (the front), −z.
+  const panel = new Mesh(new BoxGeometry(1.6, 1.06, 0.06), [wood, wood, wood, wood, face, wood]);
+  panel.position.set(0, 1.45, 0.05);
+  group.add(panel);
+  const roof = new Mesh(new BoxGeometry(2.0, 0.08, 0.5).rotateX(-0.25), wood);
+  roof.position.set(0, 2.32, 0.05);
+  group.add(roof);
+  group.position.set(x, y, z);
+  group.rotation.y = angle;
+  return {
+    group,
+    setNotes(next) {
+      if (next === count) return;
+      count = next;
+      draw();
+    },
+    dispose() {
+      group.removeFromParent();
+      post.dispose();
+      panel.geometry.dispose();
+      roof.geometry.dispose();
+      wood.dispose();
+      face.dispose();
+      texture.dispose();
+    },
+  };
 }
 
 /**
