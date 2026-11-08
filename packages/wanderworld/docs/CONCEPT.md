@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.20, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
+Status: **0.4.21, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
 that you can walk round, sit down in and talk in (a preview, without the AI yet), with up to thirty of your
 characters living their day in it, indoors and out.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
@@ -246,6 +246,17 @@ The seed fills it in, New world can choose each part, and the save keeps it.*
   generated world, then save it as a world to play. Because a world is a list of parts (landscape,
   plots, placed things), the editor and the AI write the same thing, and a built world can still be
   filled with people and lore by the AI.
+
+### W7. Things to use, placed by the world
+
+*In 0.4.21: a noticeboard on the square (`world.noticeboard`), its notes from the town's place names plus
+the player's own (saved as `notices`).*
+
+- The brief places usable things like any other part of the world: noticeboards (in squares, outside an
+  inn, at a crossroads), and later wells, shrines, chests and signposts. Each is a kind with a spot.
+- **Notes the AI writes:** quests ("the miller's cart lost a wheel on the road to the inn"), news and
+  rumours, from the cast, lore and recent events, pinned with who posted them. Taking a quest note can
+  start a scene or set a goal; the player's own notes go into context too.
 
 ### W5. Scene setup (the request, before there's anything to send it to)
 

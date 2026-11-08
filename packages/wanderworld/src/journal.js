@@ -5,6 +5,8 @@
 //   to it, so they're active while you're there.
 // - World: the world's name, town, time and seed.
 // Relationships and the party join as their own tabs (docs/CONCEPT.md, W3 and W4).
+import { INK, INK_SMALL, INK_SOFT, SERIF } from "./ui.js";
+
 const TABS = [
   ["here", "Here"],
   ["people", "People"],
@@ -12,10 +14,9 @@ const TABS = [
   ["places", "Places"],
   ["world", "World"],
 ];
-const TAB = "font:600 12px system-ui,sans-serif;border:0;border-radius:7px;padding:4px 9px;cursor:pointer;";
-const SMALL =
-  "font:600 11px system-ui,sans-serif;border:0;border-radius:6px;padding:2px 7px;cursor:pointer;background:rgba(255,255,255,0.16);color:#f3f5f7;";
-const MUTED = "opacity:0.7;font-size:12px;";
+const TAB = `font:600 12px ${SERIF};border:1px solid rgba(107,74,43,0.6);border-radius:7px;padding:4px 10px;cursor:pointer;`;
+const SMALL = INK_SMALL;
+const MUTED = `color:${INK_SOFT};font-size:12px;font-style:italic;`;
 
 function element(tag, css, textContent) {
   const node = document.createElement(tag);
@@ -57,8 +58,8 @@ export function createJournal(panelCss, handlers) {
           picker = null;
           draw();
         });
-        node.style.background = id === tab ? "#e8eef5" : "rgba(255,255,255,0.14)";
-        node.style.color = id === tab ? "#1a2230" : "#f3f5f7";
+        node.style.background = id === tab ? "#6b4a2b" : "rgba(107,74,43,0.08)";
+        node.style.color = id === tab ? "#f6ecd6" : INK;
         return node;
       }),
     );
@@ -105,7 +106,7 @@ export function createJournal(panelCss, handlers) {
       const row = element("div", "display:flex;align-items:center;gap:6px;");
       const name = element(
         "input",
-        "flex:1;min-width:0;font:13px system-ui;border-radius:6px;border:0;padding:3px 6px;",
+        "flex:1;min-width:0;font:13px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;color:#2b1e10;padding:3px 6px;",
       );
       name.value = place.name;
       name.placeholder = place.defaultName;

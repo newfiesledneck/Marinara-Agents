@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.21 — 2026-11-08
+
+- A noticeboard on the market square: read the town's notes, and pin up your own (they're saved with the world). Quests and news from the AI will go here later.
+- Parchment for the menu, conversations, building cards, the noticeboard and the Journal, with wooden buttons.
+- Painted water that ripples as it flows, sandy riverbeds, rock on the mountains, and cracked rock on cave faces.
+- No more grass wedges at street corners.
+
 ## 0.4.20 — 2026-11-08
 
 - A low stone kerb runs between the streets and the sidewalks, and round the market square.

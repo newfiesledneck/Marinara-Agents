@@ -4,8 +4,8 @@
 // the user's own AI connection from the character's and persona's details, come with Wanderworld's server
 // part (docs/CONCEPT.md, S3). Everything else here is what that will use.
 import { CanvasTexture, LinearFilter, Sprite, SpriteMaterial } from "three";
+import { INK_BUTTON, INK_INPUT, INK_SOFT, PARCHMENT_EDGED, SERIF } from "./ui.js";
 
-const CHIP = "background:rgba(10,14,20,0.78);color:#f3f5f7;border-radius:10px;";
 const BUBBLE_HEIGHT = 2.5;
 const BUBBLE_WIDTH = 420; // canvas pixels a line wraps at
 const PLACEHOLDER_REPLIES = [
@@ -71,17 +71,16 @@ export function createTalk(layer, handlers) {
   const panel = document.createElement("div");
   panel.setAttribute("data-wanderworld-ui", "");
   panel.style.cssText =
-    `${CHIP}position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:min(560px,calc(100% - 24px));` +
-    "display:none;flex-direction:column;gap:6px;padding:10px 12px;pointer-events:auto;font:14px system-ui,sans-serif;";
+    `${PARCHMENT_EDGED}position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:min(560px,calc(100% - 24px));` +
+    "display:none;flex-direction:column;gap:6px;padding:18px 22px;pointer-events:auto;font:14px system-ui,sans-serif;";
   const header = document.createElement("div");
   header.style.cssText = "display:flex;align-items:center;gap:8px;";
   const title = document.createElement("div");
-  title.style.cssText = "font-weight:700;flex:1;";
+  title.style.cssText = `font:700 16px ${SERIF};flex:1;`;
   const leave = document.createElement("button");
   leave.type = "button";
   leave.textContent = "Leave (Esc)";
-  leave.style.cssText =
-    "font:600 13px system-ui,sans-serif;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;";
+  leave.style.cssText = INK_BUTTON;
   leave.addEventListener("click", () => handlers.onLeave());
   // Come with me / Part ways: whether they join the party.
   const party = document.createElement("button");
@@ -92,19 +91,18 @@ export function createTalk(layer, handlers) {
   const log = document.createElement("div");
   log.style.cssText = "max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;";
   const note = document.createElement("div");
-  note.style.cssText = "font-size:12px;opacity:0.7;";
+  note.style.cssText = `font-size:12px;color:${INK_SOFT};font-style:italic;`;
   const form = document.createElement("form");
   form.style.cssText = "display:flex;gap:6px;";
   const input = document.createElement("input");
   input.type = "text";
   input.maxLength = 300;
   input.placeholder = "Say something…";
-  input.style.cssText =
-    "flex:1;font:14px system-ui,sans-serif;border:0;border-radius:8px;padding:8px 10px;min-width:0;";
+  input.style.cssText = `${INK_INPUT}flex:1;min-width:0;`;
   const send = document.createElement("button");
   send.type = "submit";
   send.textContent = "Say";
-  send.style.cssText = "font:600 14px system-ui,sans-serif;border:0;border-radius:8px;padding:6px 14px;cursor:pointer;";
+  send.style.cssText = INK_BUTTON;
   form.append(input, send);
   form.addEventListener("submit", (event) => {
     event.preventDefault();

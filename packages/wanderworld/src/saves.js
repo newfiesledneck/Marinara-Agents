@@ -76,6 +76,18 @@ export function checkWorld(raw) {
     // The land round the town (land.js checks it when the world is built): hills, mountains, river, outposts.
     landscape: isRecord(raw.landscape) ? raw.landscape : null,
     lore: checkLore(raw.lore),
+    // Notes pinned to the noticeboard by the player (later the AI pins quests and news there too).
+    notices: Array.isArray(raw.notices)
+      ? raw.notices
+          .filter((note) => isRecord(note) && typeof note.id === "string" && typeof note.text === "string")
+          .slice(0, 40)
+          .map((note) => ({
+            id: note.id,
+            text: note.text.slice(0, 400),
+            by: text(note.by).slice(0, 60),
+            at: finite(note.at, Date.now()),
+          }))
+      : [],
     // Kept as they are for now; W3 and W4 give them their checks.
     party: Array.isArray(raw.party) ? raw.party.filter((id) => typeof id === "string") : [],
     relationships: Array.isArray(raw.relationships) ? raw.relationships.filter(isRecord) : [],

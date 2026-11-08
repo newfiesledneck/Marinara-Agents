@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.20)
+## What it does now (0.4.21)
 
 - Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
   shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the cobbled
@@ -24,6 +24,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
 - **Places:** a named town with named streets, the market square, the fountain, gardens, meadows, the
   edge of town and the woods. Walking into one shows its name; the bar says where you are, and which
   lore is active there. Shops, the tavern, smithy, temple and hall have their name on a sign.
+- **A noticeboard** on the market square: the town's notes, and your own pinned up and saved.
+- **Parchment panels** for the menu, conversations, building cards, the noticeboard and the Journal (`src/ui.js`).
 - **The Journal** (J): Here (where you are, the lore active here, who's nearby), People (where everyone
   is and what they're doing, in the words the AI will get), Places (rename any place; tie lorebook
   entries to it) and World.

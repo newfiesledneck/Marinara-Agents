@@ -3,11 +3,12 @@
 // hint, a status line and a loading screen. Only controls take pointer events; the rest lets touches through.
 import { createJournal } from "./journal.js";
 import { SETTINGS } from "./settings.js";
+import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, NOTE_PAPER, PARCHMENT, PARCHMENT_EDGED, SERIF } from "./ui.js";
 
 const CHIP = "background:rgba(10,14,20,0.62);color:#f3f5f7;border-radius:8px;padding:4px 10px;";
 const BUTTON = `${CHIP}font:600 13px system-ui,sans-serif;border:0;cursor:pointer;pointer-events:auto;`;
 const PANEL =
-  `${CHIP}position:absolute;top:48px;right:8px;display:none;flex-direction:column;gap:4px;max-height:calc(100% - 64px);` +
+  `${PARCHMENT}position:absolute;top:48px;right:8px;display:none;flex-direction:column;gap:4px;max-height:calc(100% - 64px);` +
   "overflow-y:auto;min-width:220px;max-width:min(340px,calc(100% - 16px));padding:10px 12px;pointer-events:auto;font-size:13px;";
 const NARROW = "(max-width: 640px)";
 
@@ -290,9 +291,9 @@ export function createHud(root, handlers) {
   // The card a door shows: the building, who is in it, and (later) a button to start a scene with them.
   const scene = document.createElement("div");
   scene.setAttribute("data-wanderworld-ui", "");
-  scene.style.cssText = `${CHIP}position:absolute;left:50%;bottom:48px;transform:translateX(-50%);width:min(420px,calc(100% - 24px));display:none;flex-direction:column;gap:8px;padding:12px 14px;font-size:14px;pointer-events:auto;`;
+  scene.style.cssText = `${PARCHMENT_EDGED}position:absolute;left:50%;bottom:48px;transform:translateX(-50%);width:min(420px,calc(100% - 24px));display:none;flex-direction:column;gap:8px;padding:20px 24px;font-size:14px;pointer-events:auto;`;
   const sceneTitle = document.createElement("div");
-  sceneTitle.style.cssText = "font-weight:700;font-size:15px;";
+  sceneTitle.style.cssText = `font:700 17px ${SERIF};`;
   const scenePeople = document.createElement("div");
   const sceneNote = document.createElement("div");
   sceneNote.style.cssText = "font-size:12px;opacity:0.75;";
@@ -301,10 +302,12 @@ export function createHud(root, handlers) {
   const sceneButtons = document.createElement("div");
   sceneButtons.style.cssText = "display:flex;gap:8px;justify-content:flex-end;";
   const sceneStart = button("Start scene", "Coming with the AI part", () => {});
+  sceneStart.style.cssText = INK_BUTTON;
   sceneStart.disabled = true;
   sceneStart.style.opacity = "0.5";
   sceneStart.style.cursor = "default";
   const sceneClose = button("Close", "Close this card", () => (scene.style.display = "none"));
+  sceneClose.style.cssText = INK_BUTTON;
   sceneButtons.append(sceneStart, sceneClose);
   scene.append(sceneTitle, scenePeople, sceneNote, sceneButtons);
 
@@ -315,7 +318,15 @@ export function createHud(root, handlers) {
     "color:#fff8e6;text-shadow:0 2px 10px rgba(0,0,0,0.6);opacity:0;transition:opacity 0.6s;pointer-events:none;text-align:center;white-space:nowrap;";
   let zoneTimer = 0;
 
+  // The noticeboard: the notes pinned on it, and a place to pin your own.
+  const board = document.createElement("div");
+  board.setAttribute("data-wanderworld-ui", "");
+  board.style.cssText = `${PARCHMENT_EDGED}position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100% - 24px));max-height:calc(100% - 96px);overflow-y:auto;display:none;flex-direction:column;gap:10px;padding:24px 28px;pointer-events:auto;font-size:14px;`;
+  let boardHandlers = null;
+  board.addEventListener("keydown", (event) => event.stopPropagation());
+
   layer.append(
+    board,
     top,
     peoplePanel,
     journal.panel,
@@ -434,8 +445,73 @@ export function createHud(root, handlers) {
       for (const panel of panels) panel.style.display = "none";
       if (open) {
         scene.style.display = "none";
+        board.style.display = "none";
         zoneTitle.style.opacity = "0";
       }
+    },
+    /**
+     * The noticeboard: { title, notes: [{ id, text, by, mine }] }, with `handlers` onPin(text) and
+     * onRemove(id); or null to close it.
+     */
+    /** Whether the noticeboard is open (no use prompts over it). */
+    get boardOpen() {
+      return board.style.display !== "none";
+    },
+    setNoticeboard(info, handlers = boardHandlers) {
+      boardHandlers = handlers;
+      board.style.display = info ? "flex" : "none";
+      if (!info) return;
+      const header = document.createElement("div");
+      header.style.cssText = "display:flex;align-items:center;gap:8px;";
+      const title = document.createElement("div");
+      title.style.cssText = `font:700 18px ${SERIF};flex:1;`;
+      title.textContent = info.title;
+      const close = button("Close", "Close the noticeboard", () => (board.style.display = "none"));
+      close.style.cssText = INK_BUTTON;
+      header.append(title, close);
+      const grid = document.createElement("div");
+      grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;";
+      info.notes.forEach((note, i) => {
+        const card = document.createElement("div");
+        card.style.cssText = `${NOTE_PAPER}padding:16px 14px 12px;border-radius:3px;font:15px ${SERIF};line-height:1.35;box-shadow:0 2px 6px rgba(40,25,10,0.3);transform:rotate(${((i * 37) % 7) - 3}deg);position:relative;`;
+        const pin = document.createElement("div");
+        pin.style.cssText =
+          "position:absolute;top:5px;left:50%;width:9px;height:9px;margin-left:-4px;border-radius:50%;background:#9b2a22;box-shadow:0 1px 2px rgba(0,0,0,0.4);";
+        const words = document.createElement("div");
+        words.textContent = note.text;
+        card.append(pin, words);
+        if (note.by) {
+          const by = document.createElement("div");
+          by.style.cssText = `margin-top:6px;font-size:12px;font-style:italic;color:${INK_SOFT};text-align:right;`;
+          by.textContent = `— ${note.by}`;
+          card.append(by);
+        }
+        if (note.mine) {
+          const remove = button("Take down", "Take this note down", () => boardHandlers?.onRemove(note.id));
+          remove.style.cssText = `${INK_SMALL}margin-top:8px;`;
+          card.append(remove);
+        }
+        grid.append(card);
+      });
+      const hint = document.createElement("div");
+      hint.style.cssText = `font-size:12px;font-style:italic;color:${INK_SOFT};`;
+      hint.textContent = "Quests and news the AI writes will be pinned here once Wanderworld can call it.";
+      const form = document.createElement("form");
+      form.style.cssText = "display:flex;gap:8px;";
+      const input = document.createElement("input");
+      input.style.cssText = `${INK_INPUT}flex:1;min-width:0;`;
+      input.placeholder = "Write a note to pin up…";
+      input.maxLength = 400;
+      const pin = button("Pin it up", "Pin your note to the board", () => {});
+      pin.type = "submit";
+      pin.style.cssText = INK_BUTTON;
+      form.append(input, pin);
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const text = input.value.trim();
+        if (text) boardHandlers?.onPin(text);
+      });
+      board.replaceChildren(header, grid, hint, form);
     },
     /** The card for a building: { title, people: [names], party: [names coming in with you] }, or null. */
     setScene(info) {
