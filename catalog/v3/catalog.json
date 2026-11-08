@@ -4907,7 +4907,7 @@
         "schemaVersion": 2,
         "capabilityApi": {
           "major": 1,
-          "minor": 9
+          "minor": 10
         },
         "builtAgainst": {
           "engineVersion": "2.5.2",
@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.4.7",
+        "version": "0.4.8",
         "description": "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.",
         "engine": {
           "min": "2.4.4",
@@ -4938,6 +4938,34 @@
             "iconPaths": [
               "wanderworld-icon.webp"
             ]
+          },
+          "assets": {
+            "paths": [
+              "kit/people/eyes.webp",
+              "kit/people/female-peasant.json",
+              "kit/people/female-ranger.json",
+              "kit/people/hair-1.webp",
+              "kit/people/hair-2.webp",
+              "kit/people/hair-beard.json",
+              "kit/people/hair-buns.json",
+              "kit/people/hair-buzzed.json",
+              "kit/people/hair-buzzedfemale.json",
+              "kit/people/hair-long.json",
+              "kit/people/hair-simpleparted.json",
+              "kit/people/head-female.json",
+              "kit/people/head-female.webp",
+              "kit/people/head-male.json",
+              "kit/people/head-male.webp",
+              "kit/people/index.json",
+              "kit/people/male-peasant.json",
+              "kit/people/male-ranger.json",
+              "kit/people/peasant-a.webp",
+              "kit/people/peasant-b.webp",
+              "kit/people/ranger-a.webp",
+              "kit/people/ranger-b.webp",
+              "kit/people/skin-female.webp",
+              "kit/people/skin-male.webp"
+            ]
           }
         },
         "files": [
@@ -4948,13 +4976,133 @@
           },
           {
             "path": "client.js",
-            "sha256": "a113d2172b92f5ff9b656c2e12ba70dccb471d57bf710f5e8b200d1528d80b68",
-            "bytes": 1353552
+            "sha256": "35e1240b418d76e3abfc8f8661f8d764547f1872c9c016ebe9ebee60731805ee",
+            "bytes": 1357878
           },
           {
             "path": "wanderworld-icon.webp",
             "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
             "bytes": 5236
+          },
+          {
+            "path": "kit/people/eyes.webp",
+            "sha256": "0fa0e28adf2b612fe263bda2f8950831d73d73d5ce871468a0b89d61be5c6ea6",
+            "bytes": 772
+          },
+          {
+            "path": "kit/people/female-peasant.json",
+            "sha256": "28ca2066062b3803b3eff25fffa5b06add4f63f09f550e241bc1edd089db68e5",
+            "bytes": 402419
+          },
+          {
+            "path": "kit/people/female-ranger.json",
+            "sha256": "6f64d680ea930cfadd480e2508678018d9dad2880a735ff3d9194387709cadd0",
+            "bytes": 920174
+          },
+          {
+            "path": "kit/people/hair-1.webp",
+            "sha256": "ca7fef22ea2e9c610a480cdf93efbb52762dbc7d5e657e7c9add84a3d65cbc48",
+            "bytes": 13798
+          },
+          {
+            "path": "kit/people/hair-2.webp",
+            "sha256": "721c64d98e3bd0e0db59bb9d13f8a53a7b6da9974a48c39884327c798155ad0c",
+            "bytes": 17150
+          },
+          {
+            "path": "kit/people/hair-beard.json",
+            "sha256": "04666361863f47737cdd5d28246c24dd69557ad2fc299bd88aa2340b46023b4e",
+            "bytes": 31955
+          },
+          {
+            "path": "kit/people/hair-buns.json",
+            "sha256": "6f3b19f77582cf7530263a71e30c10b0683815e9640e55cac4d7e4d766187cbb",
+            "bytes": 131428
+          },
+          {
+            "path": "kit/people/hair-buzzed.json",
+            "sha256": "2f18342fad078aed98cdf3dc6824470005ebcaaab92e7c5c02319f766123c3bb",
+            "bytes": 26686
+          },
+          {
+            "path": "kit/people/hair-buzzedfemale.json",
+            "sha256": "feee562a6422120948dbb4022e6418e773acb6bf6cab68e73e5c7515d293a11d",
+            "bytes": 26824
+          },
+          {
+            "path": "kit/people/hair-long.json",
+            "sha256": "df97eea3bd7d7431c586cd81750a626708d56b08db75b3d44cb6041aa1bd0a86",
+            "bytes": 116621
+          },
+          {
+            "path": "kit/people/hair-simpleparted.json",
+            "sha256": "55a00d6a106299dc92ec0334c4191dfd88a816ac20976ec9c44ca51c2e0ed68b",
+            "bytes": 38600
+          },
+          {
+            "path": "kit/people/head-female.json",
+            "sha256": "15759d1130e93d926278e0c155dfa210849877e0b139981ff1433d4887259a44",
+            "bytes": 137808
+          },
+          {
+            "path": "kit/people/head-female.webp",
+            "sha256": "8282ff0a9475a402292bee7c67d5a01dea858ec98969156d7a111fdc8ad53f82",
+            "bytes": 9270
+          },
+          {
+            "path": "kit/people/head-male.json",
+            "sha256": "71bfa9c7d16240b7201f52e33080a407bbcb3ddfdd2c764f6e4504ff17aac86e",
+            "bytes": 122399
+          },
+          {
+            "path": "kit/people/head-male.webp",
+            "sha256": "5588f046f38ce25eeec0836738ca46543ed4b881d77c2cc02f7f0e47761e2540",
+            "bytes": 9170
+          },
+          {
+            "path": "kit/people/index.json",
+            "sha256": "57421d3307598b06eb0424a06819d0269aa27e905cd53b9972be991f64ce8cf2",
+            "bytes": 1087
+          },
+          {
+            "path": "kit/people/male-peasant.json",
+            "sha256": "d2ff90fcf72192450a7b3f551094f6adf4117bcddb91f1cb57c9519dc5a4ac0f",
+            "bytes": 359856
+          },
+          {
+            "path": "kit/people/male-ranger.json",
+            "sha256": "1c99a332aba64c9ccb983dc53a7682bb45711ebc008fc67cf72ce79c9cb742d8",
+            "bytes": 921966
+          },
+          {
+            "path": "kit/people/peasant-a.webp",
+            "sha256": "376a38ce3abb9d1053164b2db1afc8183380dcb5856ffee58b2d5d3bae873836",
+            "bytes": 17620
+          },
+          {
+            "path": "kit/people/peasant-b.webp",
+            "sha256": "0e4c76eacbd0c2fb9670109eb37f017e6994d3344b38a2953bfd1c121fbf790b",
+            "bytes": 14502
+          },
+          {
+            "path": "kit/people/ranger-a.webp",
+            "sha256": "a7b07f0060db21d4f9b3771bdd583c66cc6cdee5e80ebb2adfa9a759e17edd66",
+            "bytes": 22720
+          },
+          {
+            "path": "kit/people/ranger-b.webp",
+            "sha256": "001aa6997385d2fb7a17aadbae8d9a20c1dc8ceb882d6fa72314f00dfef4e98f",
+            "bytes": 18856
+          },
+          {
+            "path": "kit/people/skin-female.webp",
+            "sha256": "c3e61273b105d885f6d92c42a23c755914f6cf926cb142c9b2d5f7c58198c8bf",
+            "bytes": 9588
+          },
+          {
+            "path": "kit/people/skin-male.webp",
+            "sha256": "4bd6587e066fac73c9ae043ec4504c21fcf3fbb2f7653de67fc4aa07f510d52e",
+            "bytes": 8790
           }
         ],
         "permissions": [
@@ -4965,9 +5113,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.7.zip",
-        "sha256": "0253041c523222a927a46363e8a3c253759904ddf1c0d556c8e8d596fed99c73",
-        "bytes": 1361298
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.4.8.zip",
+        "sha256": "d5dcbeba2a773e5c68d6bbbcfc56d025b7cae99eec387721507bca080365af22",
+        "bytes": 4753596
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
