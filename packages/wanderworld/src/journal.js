@@ -39,6 +39,8 @@ function button(label, css, onClick) {
  * onSetTraits(id, { aggression, sociability }).
  */
 const SHOWN_BOOKS = "wanderworld-lorebooks-shown";
+const FIELD =
+  "font:13px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;color:#2b1e10;padding:3px 6px;";
 
 /** The lorebooks chosen to show in the lore picker, as saved in this browser; null when none saved. */
 function readShownBooks() {
@@ -67,6 +69,7 @@ export function createJournal(panelCss, handlers) {
   panel.append(tabs, body);
   let tab = "here";
   let data = null;
+  let groupEdit = null; // the id of the group whose places are being chosen
   let picker = null; // { zone, lorebooks, chosen, onToggle } while choosing lore for a place
 
   const section = (label) => element("div", "font-weight:700;margin-top:4px;opacity:0.9;", label);
@@ -246,10 +249,34 @@ export function createJournal(panelCss, handlers) {
   // The Places lore picker: which lorebooks it lists, and which are folded open.
   let shownBooks = null;
   const openBooks = new Set();
-  let keepChooserOpen = false;
+  let chooserOpen = null; // whether "Lorebooks shown" is open (null: open only when none are shown)
 
   function drawPlaces() {
     if (picker) return drawPicker();
+    if (groupEdit && data.groups.some((group) => group.id === groupEdit)) return drawGroup();
+    groupEdit = null;
+    // Groups: places gathered together, each with lore active anywhere in it.
+    body.append(section("Groups"));
+    body.append(line("Lore tied to a group is active in every place in it, with each place's own.", MUTED));
+    for (const group of data.groups) {
+      const row = element("div", "display:flex;align-items:center;gap:6px;");
+      const name = element("input", `flex:1;min-width:0;${FIELD}`);
+      name.value = group.name;
+      name.maxLength = 60;
+      name.addEventListener("change", () => handlers.onGroupRename(group.id, name.value.trim()));
+      name.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") name.blur();
+      });
+      row.append(
+        name,
+        button(`Places (${group.members.length})`, SMALL, () => ((groupEdit = group.id), draw())),
+        button(group.lore ? `Lore (${group.lore})` : "Lore", SMALL, () => handlers.onLore(group.id)),
+        button("✕", SMALL, () => handlers.onGroupDelete(group.id)),
+      );
+      body.append(row);
+    }
+    body.append(button("+ New group", SMALL, () => handlers.onGroupCreate("New group")));
+    body.append(section("Places"));
     body.append(line("Rename a place, or tie lorebook entries to it. Shops show their name on the sign.", MUTED));
     for (const place of data.places) {
       const row = element("div", "display:flex;align-items:center;gap:6px;");
@@ -272,6 +299,29 @@ export function createJournal(panelCss, handlers) {
       const lore = button(place.lore ? `Lore (${place.lore})` : "Lore", SMALL, () => handlers.onLore(place.id));
       row.append(element("span", "font-size:11px;opacity:0.6;width:58px;flex:none;", place.kind), name, lore);
       body.append(row);
+    }
+  }
+
+  /** One group's places: tick the ones in it. */
+  function drawGroup() {
+    const group = data.groups.find((entry) => entry.id === groupEdit);
+    body.append(
+      button("← Places", SMALL, () => ((groupEdit = null), draw())),
+      section(`Places in ${group.name}`),
+    );
+    const members = new Set(group.members);
+    for (const place of data.places) {
+      const label = element("label", "display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;");
+      const box = element("input");
+      box.type = "checkbox";
+      box.checked = members.has(place.id);
+      box.addEventListener("change", () => handlers.onGroupMember(group.id, place.id, box.checked));
+      label.append(
+        box,
+        element("span", "font-size:11px;opacity:0.6;width:58px;flex:none;", place.kind),
+        element("span", "", place.name),
+      );
+      body.append(label);
     }
   }
 
@@ -315,14 +365,14 @@ export function createJournal(panelCss, handlers) {
         if (box.checked) shownBooks.add(book.id);
         else shownBooks.delete(book.id);
         saveShownBooks(shownBooks);
-        keepChooserOpen = true;
+        chooserOpen = true;
         draw();
       });
       label.append(box, element("span", "", book.name));
       choose.append(label);
     }
-    choose.open = keepChooserOpen || !shown.length;
-    keepChooserOpen = false;
+    choose.open = chooserOpen ?? !shown.length; // open until you close it yourself
+    choose.addEventListener("toggle", () => (chooserOpen = choose.open));
     body.append(choose);
     if (!shown.length) return body.append(line("Choose the lorebooks to show above.", MUTED));
     // Each shown lorebook folds open to its entries.
@@ -398,7 +448,10 @@ export function createJournal(panelCss, handlers) {
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
       // No redraw under the cursor in the lists with buttons and fields.
       const lists = tab === "places" || tab === "party" || tab === "relations";
-      if (lists && !picker && body.childElementCount && !next.partyChanged && !next.relationsChanged) return;
+      // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.
+      if (picker && body.childElementCount) return;
+      const changed = next.partyChanged || next.relationsChanged || next.placesChanged;
+      if (lists && !picker && body.childElementCount && (!changed || groupEdit)) return; // a group's ticks are already shown
       draw();
     },
     /** Shows the lore picker for a place; call again with `lorebooks` once they've loaded. */

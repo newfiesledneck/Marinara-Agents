@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.29 — 2026-11-08
+
+- Place groups: gather places under a name, like every home in town, or the forest, mountains, cottages and river as the wilds. Lore tied to a group is active anywhere in it, along with each place's own.
+- Every world starts with two groups, The wilds and Homes. Add, rename, fill or remove groups in Journal → Places; later the AI can make them too.
+- The Lore panel and Journal → Here show the groups you're in.
+- The "Lorebooks shown" list stays open while you tick several, until you close it.
+
 ## 0.4.28 — 2026-11-08
 
 - Settings → Regenerate this world: builds the world again from its setup with everything new, keeping your people, relationships, party, notes and lore. Optionally a new town layout too.

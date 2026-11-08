@@ -190,6 +190,12 @@ signs that carry a picture by default._
   editor). An on-screen list shows which entries are active where the player stands (walking into the
   forest shows "Wilderness"). Showing and choosing them works in the client (the lorebook list is read
   like the character list); sending them to the model is S4's prompt context.
+- **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
+  forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
+  every place in it, on top of each place's own and the places it sits in. A world's groups are plain
+  data in its save, `groups: [{ id: "group:…", name, members: [zone ids] }]` (`zones.js`
+  `checkGroups`, `defaultGroups`, `groupsAt`), edited in Journal → Places now and made or changed by the
+  AI later (S2 can write them with the brief).
 
 ### W2. Who is near whom
 
