@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.3.1 — 2026-11-07
+
+- VRM and GLB models now show their colours and textures instead of plain white. Models load the way 3D Avatars loads them, and only with the pictures inside the model file.
+
 ## 0.3.0 — 2026-11-07
 
 - Walk as one of your personas: pick one under Play as. A persona with a VRM model set up in 3D Avatars walks the world in that model, with a walking animation; a GLB model is shown as it is. A persona without one gets a simple low-poly figure that walks too.
