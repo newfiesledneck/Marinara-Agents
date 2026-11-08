@@ -354,12 +354,28 @@ function buildWorld(seed, place = null) {
         })
         .catch((error) => console.warn("[wanderworld] detailed buildings failed to load", error)),
     );
-    // Cobbled roads and brick paving, in the same kit's textures.
-    core.world.addGround({
-      road: kitTexture("village", "t-unevenbrick-basecolor"),
-      paving: kitTexture("village", "t-brick-basecolor"),
-    });
   }
+  // The ground's painted textures (kit/art): grass and dirt on the land, cobbled streets, stone setts on
+  // the sidewalks and slabs on the square. Plain colours stand in until they load.
+  const groundTexture = (name) => {
+    const map = kitTexture("art", name);
+    map.anisotropy = Math.min(8, core.renderer?.capabilities.getMaxAnisotropy() ?? 1);
+    return map;
+  };
+  core.world.addGround({
+    grass: groundTexture("ground-grass"),
+    dirt: groundTexture("ground-dirt"),
+    // Stand-ins until painted rock and riverbed textures are made: the nature kit's rock, and fine pebbles.
+    rock: (() => {
+      const map = kitTexture("nature", "rocks-diffuse");
+      map.anisotropy = Math.min(8, core.renderer?.capabilities.getMaxAnisotropy() ?? 1);
+      return map;
+    })(),
+    sand: groundTexture("ground-pebbles"),
+    road: groundTexture("street-cobbles"),
+    paving: groundTexture("sidewalk-setts"),
+    plaza: groundTexture("plaza-stone"),
+  });
   if (core.settings.props) {
     const world = core.world;
     loads.push(
@@ -566,6 +582,7 @@ function placeSigns() {
       z: door.step.z - Math.cos(door.angle) * back,
       angle: door.angle,
       words: signOf(zone, placeNames()),
+      boardUrl: `${ART}sign-wood.webp`,
     });
     if (!sign) return; // no canvas here
     sign.zone = zone;

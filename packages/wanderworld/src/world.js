@@ -160,8 +160,9 @@ const DAY_SKY = new Color(SKY);
 const ROAD = 0xb3a184;
 const PAVING = 0xc7bba5;
 /** Metres per repeat of the road and paving textures. */
-const ROAD_TILE = 2.6;
-const PAVING_TILE = 2;
+const ROAD_TILE = 4;
+const PAVING_TILE = 3;
+const PLAZA_TILE = 3.2;
 /** The paved edge round each block, inside its kerb. */
 const SIDEWALK = 1.2;
 const STONE_GREY = 0x9a9a94;
@@ -630,7 +631,7 @@ function fillBlock(random, town, cx, cz, role) {
   }
 }
 
-function buildTown(random, land) {
+function buildTown(random, land, ground) {
   const town = {
     pieces: [],
     buildingPieces: [],
@@ -641,6 +642,7 @@ function buildTown(random, land) {
     natureSlots: [],
     roadPieces: [],
     pavingPieces: [],
+    plazaPieces: [],
     waypoints: [],
     gardens: [],
     meadows: [],
@@ -687,7 +689,7 @@ function buildTown(random, land) {
       painted(new PlaneGeometry(STREET, length).rotateX(-Math.PI / 2).translate(line, 0.035, 0), ROAD),
     );
   }
-  town.pavingPieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
+  town.plazaPieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
   // Now and then a wagon left at the side of a street, halfway along a block (clear of the crossings'
   // lamps), never next to the plaza.
   for (let i = 1; i < BLOCKS_PER_SIDE; i++) {
@@ -757,7 +759,7 @@ function buildTown(random, land) {
   }
 
   // The country round it (inns and cottages join the town's buildings before they're merged).
-  const country = buildCountry(random, town, land);
+  const country = buildCountry(random, town, land, ground);
   const mesh = new Mesh(
     mergeGeometries(town.pieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
@@ -796,6 +798,7 @@ function buildTown(random, land) {
     meadows: town.meadows,
     roads: groundMesh(town.roadPieces, ROAD_TILE),
     paving: groundMesh(town.pavingPieces, PAVING_TILE),
+    plaza: groundMesh(town.plazaPieces, PLAZA_TILE),
     buildings: town.buildings,
     propSlots: town.propSlots,
     boxes: town.boxes,
@@ -806,7 +809,6 @@ function buildTown(random, land) {
   };
 }
 
-const DIRT = 0x8f7350;
 const BRIDGE_WOOD = 0x7a5634;
 
 /**
@@ -829,6 +831,7 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
   const positions = [];
   const colours = [];
   const uvs = [];
+  const splats = []; // terrain layer weights per point, when the columns give them
   let travelled = 0;
   dense.forEach((point, i) => {
     const before = dense[Math.max(0, i - 1)];
@@ -844,6 +847,7 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
       positions.push(x, heightOf(x, z) + lift + (column.lift ?? 0), z);
       colours.push(column.colour.r, column.colour.g, column.colour.b);
       uvs.push((x + WORLD_SIZE / 2) / WORLD_SIZE, (WORLD_SIZE / 2 - z) / WORLD_SIZE);
+      if (column.splat) splats.push(...column.splat);
     }
   });
   const across = columns.length;
@@ -861,6 +865,10 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new Float32BufferAttribute(colours, 3));
   geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+  if (splats.length) {
+    geometry.setAttribute("splatA", new Float32BufferAttribute(splats, 4));
+    geometry.setAttribute("splatB", new Float32BufferAttribute(new Float32Array(positions.length / 3), 1));
+  }
   geometry.setIndex(index);
   geometry.computeVertexNormals();
   return geometry;
@@ -871,7 +879,7 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0 }) {
  * dirt roads out to them, the river's water and the bridges over it. Inns and cottages are ordinary
  * town buildings (so they get kit walls, doors, signs and collision like any other).
  */
-function buildCountry(random, town, land) {
+function buildCountry(random, town, land, ground) {
   const meshes = [];
   const caves = [];
   const doorOf = new Map(); // outpost index → door index
@@ -931,18 +939,17 @@ function buildCountry(random, town, land) {
     meshes.push(new Mesh(mergeGeometries(caveRock), new MeshLambertMaterial({ vertexColors: true })));
     meshes.push(new Mesh(mergeGeometries(caveFloor), new MeshLambertMaterial({ vertexColors: true })));
   }
-  // Dirt roads: worn earth down the middle, fading through trodden grass into the meadow at the edges,
-  // drawn just over the ground (polygon offset) so the ground's facets never poke through.
-  const dirt = new Color(DIRT);
-  const worn = new Color(DIRT).lerp(new Color(0x6f8a45), 0.55);
-  const meadow = new Color().setHSL(0.28, 0.42, 0.37);
+  // Dirt roads: in the ground's own material, dirt down the middle fading through trodden grass into the
+  // meadow at the edges (the same grass texture as the ground, so the join doesn't show), drawn just over
+  // the ground (polygon offset) so its facets never poke through.
+  const plain = new Color(1, 1, 1);
   const roadColumns = [
-    { at: -1.35, colour: meadow, lift: -0.04 },
-    { at: -1, colour: worn },
-    { at: -0.55, colour: dirt },
-    { at: 0.55, colour: dirt },
-    { at: 1, colour: worn },
-    { at: 1.35, colour: meadow, lift: -0.04 },
+    { at: -1.4, colour: plain, splat: [1, 0, 0, 0], lift: -0.04 },
+    { at: -1, colour: plain, splat: [0.55, 0.45, 0, 0] },
+    { at: -0.55, colour: plain, splat: [0, 1, 0, 0] },
+    { at: 0.55, colour: plain, splat: [0, 1, 0, 0] },
+    { at: 1, colour: plain, splat: [0.55, 0.45, 0, 0] },
+    { at: 1.4, colour: plain, splat: [1, 0, 0, 0], lift: -0.04 },
   ];
   const roads = land.roads.map((road) =>
     ribbon(road.points, road.width, { lift: 0.06, heightOf: heightAt, columns: roadColumns, wobble: 0.12 }),
@@ -951,13 +958,7 @@ function buildCountry(random, town, land) {
     meshes.push(
       new Mesh(
         mergeGeometries(roads),
-        new MeshLambertMaterial({
-          vertexColors: true,
-          map: grassTexture(rng(7)),
-          polygonOffset: true,
-          polygonOffsetFactor: -2,
-          polygonOffsetUnits: -2,
-        }),
+        terrainMaterial(ground, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
       ),
     );
   }
@@ -1069,35 +1070,145 @@ function grassTexture(random) {
   return texture;
 }
 
-function buildGround(random) {
+/**
+ * The ground's layers: how many metres one repeat of each texture covers, and the colour it shows until
+ * (or without) its texture. Grass, dirt, rock, sand (riverbeds) and snow, blended per point by weights.
+ */
+const GROUND_LAYERS = {
+  grass: { scale: 7, colour: 0x6f9244 },
+  dirt: { scale: 4.5, colour: 0x8f7350 },
+  rock: { scale: 9, colour: 0x857d72 },
+  sand: { scale: 5, colour: 0xa58d6c },
+  snow: { scale: 12, colour: 0xe4e9ee },
+};
+
+/** A 1 × 1 texture of one colour: a layer's stand-in until its painted texture loads. */
+function flatTexture(hex) {
+  const colour = new Color(hex);
+  const data = new Uint8Array([
+    Math.round(colour.r * 255),
+    Math.round(colour.g * 255),
+    Math.round(colour.b * 255),
+    255,
+  ]);
+  const texture = new DataTexture(data, 1, 1);
+  texture.colorSpace = SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/** The uniforms every terrain material of a world shares, so giving a layer its texture changes them all. */
+function terrainUniforms() {
+  const uniforms = { tMacro: { value: grassTexture(rng(7)) } };
+  for (const [name, layer] of Object.entries(GROUND_LAYERS)) {
+    uniforms[`t${name}`] = { value: flatTexture(layer.colour) };
+    uniforms[`s${name}`] = { value: layer.scale };
+  }
+  return uniforms;
+}
+
+/**
+ * The ground's material: each point blends grass, dirt, rock, sand and snow by its weights (the
+ * `splatA` (grass, dirt, rock, sand) and `splatB` (snow) attributes), every texture laid out in world
+ * metres and sampled twice at different sizes so its repeats don't show, under large soft light and dark
+ * patches. The vertex colour adds a little brightness per facet, keeping the low-poly look.
+ */
+function terrainMaterial(uniforms, options = {}) {
+  const material = new MeshLambertMaterial({ vertexColors: true, ...options });
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+attribute vec4 splatA;
+attribute float splatB;
+varying vec4 vSplatA;
+varying float vSplatB;
+varying vec2 vGround;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+vSplatA = splatA;
+vSplatB = splatB;
+vGround = (modelMatrix * vec4(transformed, 1.0)).xz;`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+uniform sampler2D tMacro, tgrass, tdirt, trock, tsand, tsnow;
+uniform float sgrass, sdirt, srock, ssand, ssnow;
+varying vec4 vSplatA;
+varying float vSplatB;
+varying vec2 vGround;
+vec3 groundLayer(sampler2D map, float scale) {
+  vec2 uv = vGround / scale;
+  vec3 near = texture2D(map, uv).rgb;
+  // The same texture, larger and turned, mixed in: the eye can't find one repeat to follow.
+  vec2 far = mat2(0.8, -0.6, 0.6, 0.8) * uv * 0.31 + vec2(0.37, 0.71);
+  return mix(near, texture2D(map, far).rgb, 0.4);
+}`,
+      )
+      .replace(
+        "#include <map_fragment>",
+        `{
+  float total = max(0.0001, vSplatA.x + vSplatA.y + vSplatA.z + vSplatA.w + vSplatB);
+  vec3 ground = (groundLayer(tgrass, sgrass) * vSplatA.x + groundLayer(tdirt, sdirt) * vSplatA.y
+    + groundLayer(trock, srock) * vSplatA.z + groundLayer(tsand, ssand) * vSplatA.w
+    + groundLayer(tsnow, ssnow) * vSplatB) / total;
+  float patches = texture2D(tMacro, vGround / 52.0).r;
+  diffuseColor.rgb *= ground * (0.78 + patches * 0.3);
+}`,
+      );
+  };
+  material.customProgramCacheKey = () => "wanderworld-terrain";
+  return material;
+}
+
+/** Layer weights at a point of the land from its height and how steep it is there: [grass, dirt, rock, sand, snow]. */
+function groundWeights(y, steep) {
+  const smooth = (t) => {
+    const c = Math.max(0, Math.min(1, t));
+    return c * c * (3 - 2 * c);
+  };
+  const snow = smooth((y - 27) / 6);
+  const rock = Math.max(smooth((y - 10) / 8), smooth((steep - 1.1) / 0.9)) * (1 - snow);
+  const sand = smooth((-0.15 - y) / 0.5) * (1 - rock);
+  const grass = Math.max(0, 1 - rock - sand - snow);
+  return [grass, 0, rock, sand, snow];
+}
+
+function buildGround(random, uniforms) {
   const geometry = new PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 160, 160).toNonIndexed();
   geometry.rotateX(-Math.PI / 2);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
     position.setY(i, heightAt(position.getX(i), position.getZ(i)));
   }
-  // One colour per triangle, so the flat shading reads as facets.
+  // Per facet: a little brightness of its own (the low-poly look), and its layers by height and slope,
+  // so grass gives way to rock on steep slopes and high up, snow on the peaks, sand in the riverbed.
   const colors = new Float32Array(position.count * 3);
-  const color = new Color();
+  const splatA = new Float32Array(position.count * 4);
+  const splatB = new Float32Array(position.count);
   for (let i = 0; i < position.count; i += 3) {
-    const y = (position.getY(i) + position.getY(i + 1) + position.getY(i + 2)) / 3;
-    const steep =
-      Math.max(...[0, 1, 2].map((k) => position.getY(i + k))) - Math.min(...[0, 1, 2].map((k) => position.getY(i + k)));
-    if (y < -0.3)
-      color.setHSL(0.1, 0.32, 0.42 + random() * 0.05); // riverbed and banks: sand and mud
-    else if (y > 30)
-      color.setHSL(0.6, 0.05, 0.86 + random() * 0.06); // snow on the peaks
-    else if (y > 12 || steep > 1.6)
-      color.setHSL(0.08, 0.1, 0.42 + random() * 0.08 + Math.min(0.1, y * 0.003)); // rock
-    else color.setHSL(0.27 + random() * 0.03, 0.42, 0.36 + y * 0.012 + random() * 0.04);
-    for (let k = 0; k < 3; k++) color.toArray(colors, (i + k) * 3);
+    const heights = [0, 1, 2].map((k) => position.getY(i + k));
+    const steep = Math.max(...heights) - Math.min(...heights);
+    const shade = 1.02 + random() * 0.12;
+    for (let k = 0; k < 3; k++) {
+      const [grass, dirt, rock, sand, snow] = groundWeights(heights[k], steep);
+      colors.set([shade, shade, shade], (i + k) * 3);
+      splatA.set([grass, dirt, rock, sand], (i + k) * 4);
+      splatB[i + k] = snow;
+    }
   }
   geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("splatA", new Float32BufferAttribute(splatA, 4));
+  geometry.setAttribute("splatB", new Float32BufferAttribute(splatB, 1));
+  geometry.deleteAttribute("uv");
   geometry.computeVertexNormals();
-  return new Mesh(
-    geometry,
-    new MeshLambertMaterial({ vertexColors: true, flatShading: true, map: grassTexture(rng(7)) }),
-  );
+  return new Mesh(geometry, terrainMaterial(uniforms, { flatShading: true }));
 }
 
 /** Random points across the ground outside town. */
@@ -1169,10 +1280,20 @@ export function createWorld(seed, landscape = null) {
   sun.position.set(40, 80, 25);
   scene.add(sun);
 
-  scene.add(buildGround(random));
-  const town = buildTown(random, land);
+  const ground = terrainUniforms();
+  scene.add(buildGround(random, ground));
+  const town = buildTown(random, land, ground);
   const { country } = town;
-  scene.add(town.mesh, town.props, town.buildingMesh, town.natureMesh, town.roads, town.paving, ...country.meshes);
+  scene.add(
+    town.mesh,
+    town.props,
+    town.buildingMesh,
+    town.natureMesh,
+    town.roads,
+    town.paving,
+    town.plaza,
+    ...country.meshes,
+  );
 
   const trees = scatter(random, BASE_TREES * MAX_DENSITY, 1.6, 1.6);
   const rocks = scatter(random, BASE_ROCKS * MAX_DENSITY, 0.8, 1.4);
@@ -1478,15 +1599,23 @@ export function createWorld(seed, landscape = null) {
     refreshNature();
   }
 
-  /** Roads in cobbles and paving in brick (`textures`: { road, paving }, from the village kit). */
-  function addGround({ road, paving }) {
+  /**
+   * Gives the ground its textures as they load (`textures`: any of road, paving, plaza for the town's
+   * streets, sidewalks and square; grass, dirt, rock, sand, snow for the land), each a repeating texture.
+   */
+  function addGround(textures) {
     for (const [mesh, map] of [
-      [town.roads, road],
-      [town.paving, paving],
+      [town.roads, textures.road],
+      [town.paving, textures.paving],
+      [town.plaza, textures.plaza],
     ]) {
+      if (!map) continue;
       mesh.material.map = map;
       mesh.material.vertexColors = false;
       mesh.material.needsUpdate = true;
+    }
+    for (const name of Object.keys(GROUND_LAYERS)) {
+      if (textures[name]) ground[`t${name}`].value = textures[name];
     }
   }
 
