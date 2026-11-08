@@ -2,8 +2,9 @@
 // sight check, the seeded town, and the low-poly figure.
 // Run: node tests/wanderworld.regression.mjs
 import assert from "node:assert/strict";
+import { buildBuilding, KINDS, makeSpec } from "../packages/wanderworld/src/buildings.js";
 import { createFigure } from "../packages/wanderworld/src/character.js";
-import { createCollider, createWorld, DENSITIES, SPAWN } from "../packages/wanderworld/src/world.js";
+import { createCollider, createWorld, DENSITIES, rng, SPAWN } from "../packages/wanderworld/src/world.js";
 
 // ── Collision: circles ───────────────────────────────────────────────────────
 const collider = createCollider(
@@ -62,8 +63,39 @@ assert.equal(world.clearSight(SPAWN.x, SPAWN.z, SPAWN.x, SPAWN.z + 4), 1, "the p
 
 const again = createWorld(12345);
 assert.equal(again.buildingCount, world.buildingCount, "the same seed builds the same town");
+assert.deepEqual(
+  again.doors.map((door) => door.kind),
+  world.doors.map((door) => door.kind),
+  "and the same buildings in the same places",
+);
+for (const kind of ["hall", "temple", "tavern"]) {
+  assert.equal(world.doors.filter((door) => door.kind === kind).length, 1, `the plaza has one ${kind}`);
+}
 world.dispose();
 again.dispose();
+
+// ── Parts kit ────────────────────────────────────────────────────────────────
+const random = rng(7);
+for (const kind of KINDS) {
+  const spec = makeSpec(random, kind);
+  assert.equal(spec.kind, kind);
+  const { geometry, footprint, doorX } = buildBuilding(random, spec);
+  geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox;
+  assert.ok(bounds.max.y > 3, `a ${kind} stands taller than a person`);
+  assert.ok(Math.abs(doorX) < spec.width / 2, `a ${kind}'s door is on its front wall`);
+  // The footprint covers the walls (overhangs, signs and sills may stick out a little past it).
+  assert.ok(
+    footprint.minX <= -spec.width / 2 && footprint.maxX >= spec.width / 2,
+    `a ${kind}'s footprint covers its width`,
+  );
+  assert.ok(
+    bounds.min.x > footprint.minX - 1.5 && bounds.max.x < footprint.maxX + 1.5,
+    `a ${kind} stays near its footprint`,
+  );
+  geometry.dispose();
+}
+assert.equal(makeSpec(random, "spaceship").kind, "home", "an unknown kind falls back to a home");
 
 // ── Figure ───────────────────────────────────────────────────────────────────
 const figure = createFigure("Aria");

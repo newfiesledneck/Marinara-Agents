@@ -4,10 +4,12 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
 not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.0)
+## What it does now (0.4.1)
 
-- Draws a seeded town around a plaza and fountain, with streets, lamp posts and houses of different sizes,
-  colours and roofs, surrounded by forest. **New world** walks a different one.
+- Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
+  shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the streets
+  beyond. Buildings come from a kit of parts (walls, roofs, chimneys, porches, balconies, shutters, signs,
+  awnings). **New world** walks a different one.
 - **Play as** picks one of your personas. A persona with a 3D model set up in 3D Avatars walks in that
   model (VRM, GLB, FBX or MMD) with a walking animation; any other persona gets a simple low-poly figure,
   coloured from its name. The choice is remembered.
@@ -31,8 +33,10 @@ for that persona in 3D Avatars first.
 
 - `src/main.js` mounts as the package's Home tab (`home-browser-tab` slot, `view="browser"`). The canvas,
   HUD and touch stick all live in that one element, and the WebGL renderer is reused when the tab reopens.
-- `src/world.js` builds the scene. Every building, road and the fountain are merged into one
-  vertex-coloured mesh, and trees, rocks and lamp posts are instanced, so the whole world is under ten
+- `src/buildings.js` is the parts kit: a building is a spec (kind, size, floors, roof, walls, colours,
+  features) chosen from fixed menus, which the world brief will choose from later, and the code assembles it.
+- `src/world.js` lays out the town and builds the scene. Every building, prop, road and the fountain are
+  merged into one vertex-coloured mesh, and trees, rocks and lamp posts are instanced, so the whole world is under ten
   draw calls. Collision is the player against trunk circles and building boxes in a 2D grid, not a
   physics engine.
 - `src/character.js` holds the walk and the low-poly figure, and reads `GET /api/characters/personas/list`

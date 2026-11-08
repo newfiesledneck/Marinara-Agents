@@ -5,7 +5,6 @@
 // vertex-coloured mesh, and trees, rocks and lamps are instanced.
 import {
   BoxGeometry,
-  BufferGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
@@ -14,6 +13,7 @@ import {
   Float32BufferAttribute,
   Fog,
   HemisphereLight,
+  IcosahedronGeometry,
   InstancedMesh,
   Mesh,
   MeshLambertMaterial,
@@ -22,6 +22,7 @@ import {
   Scene,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { barrel, bench, buildBuilding, bush, crate, fence, makeSpec, marketStall, painted } from "./buildings.js";
 
 export const WORLD_SIZE = 320; // metres along each side
 const BASE_TREES = 900;
@@ -37,18 +38,13 @@ const STREET = 6;
 const PITCH = BLOCK + STREET;
 const BLOCKS_PER_SIDE = 5;
 export const TOWN_HALF = (BLOCKS_PER_SIDE * PITCH) / 2; // 60 m from the centre to the outer street's edge
-const FLOOR_HEIGHT = 3.2;
 const FOUNTAIN_RADIUS = 2.4;
 export const SPAWN = Object.freeze({ x: 0, z: FOUNTAIN_RADIUS + 4 });
 
 const SKY = 0xbfd9ee;
-const WALLS = [0xe8dcc4, 0xd9c3a0, 0xc9b79c, 0xb8a58a, 0xe3d3b5, 0xa8b3b8, 0xc98f6b];
-const ROOFS = [0x9c4a3a, 0x7a3b2e, 0x5b4a6b, 0x4a5d6b, 0x6b5b3a, 0x8a6a3a];
 const ROAD = 0xb3a184;
 const PAVING = 0xc7bba5;
-const WINDOW = 0x3b4a5a;
-const DOOR = 0x5a3b26;
-const STONE = 0x9a9a94;
+const STONE_GREY = 0x9a9a94;
 const WATER = 0x5b8fb8;
 
 /** Deterministic 32-bit string hash (FNV-1a). */
@@ -71,8 +67,6 @@ export function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-const pick = (random, list) => list[Math.floor(random() * list.length)];
 
 /** Ground height at (x, z). Gentle hills outside town; the town and its edge are flat. */
 export function heightAt(x, z) {
@@ -186,93 +180,94 @@ export function createCollider(circles, boxes = []) {
   };
 }
 
-// ── Geometry helpers ─────────────────────────────────────────────────────────
+// ── Town ─────────────────────────────────────────────────────────────────────
 
-/** Non-indexed position + normal + colour, the one layout every merged piece shares. */
-function painted(geometry, hex) {
-  const flat = geometry.index ? geometry.toNonIndexed() : geometry;
-  flat.deleteAttribute("uv");
-  if (!flat.attributes.normal) flat.computeVertexNormals();
-  const color = new Color(hex);
-  const colors = new Float32Array(flat.attributes.position.count * 3);
-  for (let i = 0; i < flat.attributes.position.count; i++) color.toArray(colors, i * 3);
-  flat.setAttribute("color", new Float32BufferAttribute(colors, 3));
-  return flat;
+const facingFor = (dx, dz) => (Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 1 : 3) : dz > 0 ? 0 : 2);
+
+/** Turns a local point (x, z) of something facing `facing` and centred at (cx, cz) into world space. */
+function toWorld(cx, cz, facing, x, z) {
+  const angle = (facing * Math.PI) / 2;
+  return { x: cx + x * Math.cos(angle) + z * Math.sin(angle), z: cz - x * Math.sin(angle) + z * Math.cos(angle) };
 }
 
-function box(width, height, depth, x, y, z, hex) {
-  return painted(new BoxGeometry(width, height, depth).translate(x, y, z), hex);
+/** The world-space box around a local footprint turned to `facing` at (cx, cz). */
+function footprintBox(cx, cz, facing, { minX, maxX, minZ, maxZ }) {
+  const corners = [
+    [minX, minZ],
+    [maxX, minZ],
+    [minX, maxZ],
+    [maxX, maxZ],
+  ].map(([x, z]) => toWorld(cx, cz, facing, x, z));
+  return {
+    minX: Math.min(...corners.map((c) => c.x)),
+    maxX: Math.max(...corners.map((c) => c.x)),
+    minZ: Math.min(...corners.map((c) => c.z)),
+    maxZ: Math.max(...corners.map((c) => c.z)),
+  };
 }
 
-/** A gable roof with its ridge along x: `width` long, `depth` across, `height` from eave to ridge. */
-function gableRoof(width, depth, height) {
-  const w = width / 2;
-  const d = depth / 2;
-  // prettier-ignore
-  const positions = [
-    -w, 0, d,   w, 0, d,   w, height, 0,    -w, 0, d,   w, height, 0,   -w, height, 0, // +z slope
-    w, 0, -d,  -w, 0, -d, -w, height, 0,     w, 0, -d, -w, height, 0,    w, height, 0, // -z slope
-    w, 0, d,    w, 0, -d,  w, height, 0, // +x gable
-    -w, 0, -d, -w, 0, d,  -w, height, 0, // -x gable
-  ];
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-  geometry.computeVertexNormals();
-  return geometry;
+/** Puts a prop's local geometry into the town at (x, z), turned to `facing`. */
+function placeProp(town, geometry, x, z, facing = 0) {
+  town.pieces.push(geometry.rotateY((facing * Math.PI) / 2).translate(x, 0, z));
+}
+
+/** Builds a building from its spec at (x, z) facing `facing`, with its door, collision box and street clutter. */
+function placeBuilding(random, town, spec, x, z, facing) {
+  const { geometry, doorX, footprint } = buildBuilding(random, spec);
+  placeProp(town, geometry, x, z, facing);
+  town.boxes.push(footprintBox(x, z, facing, footprint));
+  const d = spec.depth / 2;
+  town.doors.push({ ...toWorld(x, z, facing, doorX, d + 1.2), kind: spec.kind });
+  if (spec.kind === "shop" || spec.kind === "tavern" || spec.kind === "smithy") {
+    // Barrels and crates by the door, on the side away from the sign.
+    const side = doorX > 0 ? 1 : -1;
+    for (let i = 0; i < 1 + Math.floor(random() * 3); i++) {
+      const local = { x: doorX + side * (1.2 + i * 0.75), z: d + 0.55 };
+      const at = toWorld(x, z, facing, local.x, local.z);
+      if (random() < 0.5) {
+        placeProp(town, barrel(), at.x, at.z);
+        town.circles.push({ x: at.x, z: at.z, r: 0.34 });
+      } else {
+        placeProp(town, crate(0.55 + random() * 0.2), at.x, at.z, Math.floor(random() * 4));
+        town.circles.push({ x: at.x, z: at.z, r: 0.4 });
+      }
+    }
+  }
+}
+
+/** A fenced garden on an empty lot: bushes and a small tree. */
+function placeGarden(random, town, x, z, size) {
+  placeProp(town, fence(size, size), x, z, Math.floor(random() * 4));
+  for (let i = 0; i < 3 + Math.floor(random() * 4); i++) {
+    placeProp(town, bush(random), x + (random() - 0.5) * (size - 1.5), z + (random() - 0.5) * (size - 1.5));
+  }
+  const tx = x + (random() - 0.5) * (size - 3);
+  const tz = z + (random() - 0.5) * (size - 3);
+  const height = 2.5 + random() * 1.5;
+  placeProp(
+    town,
+    mergeGeometries([
+      painted(new CylinderGeometry(0.12, 0.18, height * 0.45, 5).translate(0, height * 0.22, 0), 0x6b4a2f),
+      painted(new IcosahedronGeometry(height * 0.32, 0).translate(0, height * 0.65, 0), 0x4f7f3f),
+    ]),
+    tx,
+    tz,
+  );
+  town.circles.push({ x: tx, z: tz, r: 0.25 });
 }
 
 /**
- * One house: walls, a gable roof, a door on the street side and a row of windows per floor. Built
- * facing +z with its long side along x, then turned to face `facing` (0 = +z, 1 = +x, 2 = -z, 3 = -x).
+ * One 18 m block. Around the plaza: a landmark (town hall, temple or tavern) filling the block, or shops
+ * facing the plaza with homes behind. Elsewhere: up to four houses on the corner lots, now and then a shop
+ * or the smithy, and gardens on the empty lots.
  */
-function buildHouse(random, { x, z, width, depth, floors, facing }, doors) {
-  const height = floors * FLOOR_HEIGHT;
-  const wall = pick(random, WALLS);
-  const pieces = [box(width, height, depth, 0, height / 2, 0, wall)];
-  const roof = gableRoof(width + 0.8, depth + 0.8, Math.min(width, depth) * (0.35 + random() * 0.2));
-  pieces.push(painted(roof.translate(0, height, 0), pick(random, ROOFS)));
-  const doorX = (random() - 0.5) * (width - 3);
-  pieces.push(box(1.2, 2.2, 0.12, doorX, 1.1, depth / 2 + 0.06, DOOR));
-  const perFloor = Math.max(1, Math.floor(width / 2.6));
-  for (let floor = 0; floor < floors; floor++) {
-    const y = floor * FLOOR_HEIGHT + 1.7;
-    for (let i = 0; i < perFloor; i++) {
-      const wx = -width / 2 + (width / perFloor) * (i + 0.5);
-      // No front window where the door is.
-      if (!(floor === 0 && Math.abs(wx - doorX) < 1.3))
-        pieces.push(box(0.9, 1.1, 0.1, wx, y, depth / 2 + 0.05, WINDOW));
-      pieces.push(box(0.9, 1.1, 0.1, wx, y, -depth / 2 - 0.05, WINDOW));
-    }
-  }
-  const house = mergeGeometries(pieces);
-  const angle = (facing * Math.PI) / 2;
-  house.rotateY(angle);
-  house.translate(x, 0, z);
-  // Where someone stands outside the front door, turned the same way as the house.
-  const outX = doorX;
-  const outZ = depth / 2 + 1.2;
-  doors?.push({
-    x: x + outX * Math.cos(angle) + outZ * Math.sin(angle),
-    z: z - outX * Math.sin(angle) + outZ * Math.cos(angle),
-  });
-  return house;
-}
-
-/** Buildings for one 18 m block: either one large hall, or up to four houses on its corner lots. */
-function fillBlock(random, cx, cz, buildings, boxes, doors) {
+function fillBlock(random, town, cx, cz, role) {
   const half = BLOCK / 2;
-  const facingFor = (dx, dz) => (Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 1 : 3) : dz > 0 ? 0 : 2);
-  const nearPlaza = Math.abs(cx) <= PITCH && Math.abs(cz) <= PITCH;
-  if (nearPlaza && random() < 0.45) {
-    // A hall or inn facing the plaza.
-    const facing = facingFor(-cx, -cz);
-    const along = 12 + random() * 3;
-    const across = 9 + random() * 2;
-    const [width, depth] = facing % 2 === 0 ? [along, across] : [across, along];
-    buildings.push(
-      buildHouse(random, { x: cx, z: cz, width: along, depth: across, floors: 2 + (random() < 0.4), facing }, doors),
-    );
-    boxes.push({ minX: cx - width / 2, maxX: cx + width / 2, minZ: cz - depth / 2, maxZ: cz + depth / 2 });
+  const toPlaza = facingFor(-cx, -cz);
+  if (role === "hall" || role === "temple" || role === "tavern") {
+    const width = role === "tavern" ? 11 + random() * 2 : 13 + random() * 2;
+    const depth = role === "tavern" ? 8 + random() * 1.5 : 9.5 + random() * 2;
+    placeBuilding(random, town, makeSpec(random, role, { width, depth }), cx, cz, toPlaza);
     return;
   }
   for (const [lx, lz] of [
@@ -281,54 +276,98 @@ function fillBlock(random, cx, cz, buildings, boxes, doors) {
     [-1, 1],
     [1, 1],
   ]) {
-    if (random() < 0.18) continue; // an empty lot: a yard or garden
-    const along = 5 + random() * 3;
-    const across = 5 + random() * 2.5;
-    // Face the nearer street: the lot's outward side along x or z.
-    const facing = random() < 0.5 ? (lz > 0 ? 0 : 2) : lx > 0 ? 1 : 3;
-    const [width, depth] = facing % 2 === 0 ? [along, across] : [across, along];
-    const x = cx + lx * (half / 2 + (random() - 0.5));
-    const z = cz + lz * (half / 2 + (random() - 0.5));
-    const floors = random() < 0.35 ? 2 : 1;
-    buildings.push(buildHouse(random, { x, z, width: along, depth: across, floors, facing }, doors));
-    boxes.push({ minX: x - width / 2, maxX: x + width / 2, minZ: z - depth / 2, maxZ: z + depth / 2 });
+    const x = cx + lx * (half / 2 + (random() - 0.5) * 0.6);
+    const z = cz + lz * (half / 2 + (random() - 0.5) * 0.6);
+    // Lots on the plaza side of a shop block face the plaza and hold the shops.
+    const facesPlaza = role === "shops" && Math.sign(lx) * Math.sign(-cx) + Math.sign(lz) * Math.sign(-cz) > 0;
+    if (!facesPlaza && random() < 0.16) {
+      placeGarden(random, town, x, z, 7);
+      continue;
+    }
+    const kind = facesPlaza
+      ? "shop"
+      : role === "smithy" && lx < 0 && lz < 0
+        ? "smithy"
+        : random() < 0.08
+          ? "shop"
+          : "home";
+    const facing = facesPlaza ? toPlaza : random() < 0.5 ? (lz > 0 ? 0 : 2) : lx > 0 ? 1 : 3;
+    placeBuilding(
+      random,
+      town,
+      makeSpec(random, kind, { width: 5.5 + random() * 2, depth: 5 + random() * 2 }),
+      x,
+      z,
+      facing,
+    );
   }
 }
 
 function buildTown(random) {
-  const buildings = [];
-  const boxes = [];
-  const doors = [];
+  const town = { pieces: [], boxes: [], circles: [], doors: [] };
   const centres = [];
   for (let i = 0; i < BLOCKS_PER_SIDE; i++) centres.push((i - (BLOCKS_PER_SIDE - 1) / 2) * PITCH);
+  // The eight blocks around the plaza get the town's landmarks and shops, in a seeded order.
+  const plazaRoles = ["hall", "temple", "tavern", "shops", "shops", "shops", "homes", "homes"];
+  for (let i = plazaRoles.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [plazaRoles[i], plazaRoles[j]] = [plazaRoles[j], plazaRoles[i]];
+  }
+  const outer = centres[centres.length - 1];
+  const smithyBlock = Math.floor(random() * 4);
+  let ring = 0;
+  let edgeIndex = 0;
   for (const cx of centres) {
     for (const cz of centres) {
       if (cx === 0 && cz === 0) continue; // the plaza
-      const edge = Math.max(Math.abs(cx), Math.abs(cz)) === centres[centres.length - 1];
+      const nearPlaza = Math.abs(cx) <= PITCH && Math.abs(cz) <= PITCH;
+      const edge = Math.max(Math.abs(cx), Math.abs(cz)) === outer;
       if (edge && random() < 0.3) continue; // a ragged edge reads as a town, not a grid
-      fillBlock(random, cx, cz, buildings, boxes, doors);
+      const corner = Math.abs(cx) === outer && Math.abs(cz) === outer;
+      const role = nearPlaza ? plazaRoles[ring++] : corner && edgeIndex++ === smithyBlock ? "smithy" : "homes";
+      fillBlock(random, town, cx, cz, role);
     }
   }
 
   // Streets: one strip per grid line in each direction, plus the paved plaza and its fountain.
-  const surface = [];
   const length = BLOCKS_PER_SIDE * PITCH + STREET;
   for (let i = 0; i <= BLOCKS_PER_SIDE; i++) {
     const line = (i - BLOCKS_PER_SIDE / 2) * PITCH;
-    surface.push(painted(new PlaneGeometry(length, STREET).rotateX(-Math.PI / 2).translate(0, 0.03, line), ROAD));
-    surface.push(painted(new PlaneGeometry(STREET, length).rotateX(-Math.PI / 2).translate(line, 0.035, 0), ROAD));
+    town.pieces.push(painted(new PlaneGeometry(length, STREET).rotateX(-Math.PI / 2).translate(0, 0.03, line), ROAD));
+    town.pieces.push(painted(new PlaneGeometry(STREET, length).rotateX(-Math.PI / 2).translate(line, 0.035, 0), ROAD));
   }
-  surface.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
-  surface.push(
-    painted(new CylinderGeometry(FOUNTAIN_RADIUS, FOUNTAIN_RADIUS + 0.2, 0.7, 12).translate(0, 0.35, 0), STONE),
+  town.pieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
+  town.pieces.push(
+    painted(new CylinderGeometry(FOUNTAIN_RADIUS, FOUNTAIN_RADIUS + 0.2, 0.7, 12).translate(0, 0.35, 0), STONE_GREY),
   );
-  surface.push(
+  town.pieces.push(
     painted(new CylinderGeometry(FOUNTAIN_RADIUS - 0.3, FOUNTAIN_RADIUS - 0.3, 0.1, 12).translate(0, 0.66, 0), WATER),
   );
-  surface.push(painted(new CylinderGeometry(0.35, 0.5, 2.2, 6).translate(0, 1.1, 0), STONE));
+  town.pieces.push(painted(new CylinderGeometry(0.35, 0.5, 2.2, 6).translate(0, 1.1, 0), STONE_GREY));
+  town.circles.push({ x: 0, z: 0, r: FOUNTAIN_RADIUS + 0.2 });
+
+  // Market day on the plaza: stalls in the corners facing the fountain, benches beside it.
+  for (const [x, z] of [
+    [-5.6, -5.6],
+    [5.6, -5.6],
+    [-5.6, 5.2],
+    [5.6, 5.2],
+  ]) {
+    const facing = facingFor(-x, -z);
+    placeProp(town, marketStall(random), x, z, facing);
+    town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
+  }
+  for (const [x, z, facing] of [
+    [-4, 0, 1],
+    [4, 0, 3],
+    [0, -4, 0],
+  ]) {
+    placeProp(town, bench(), x, z, facing);
+    town.boxes.push(footprintBox(x, z, facing, { minX: -0.9, maxX: 0.9, minZ: -0.25, maxZ: 0.25 }));
+  }
 
   const mesh = new Mesh(
-    mergeGeometries([...buildings, ...surface]),
+    mergeGeometries(town.pieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   );
   // Lamp posts at every street crossing inside the town.
@@ -341,7 +380,7 @@ function buildTown(random) {
       });
     }
   }
-  return { mesh, boxes, lamps, doors };
+  return { mesh, boxes: town.boxes, circles: town.circles, lamps, doors: town.doors };
 }
 
 function buildGround(random) {
@@ -451,7 +490,7 @@ export function createWorld(seed) {
   // Fixed obstacles: buildings, the fountain and the lamp posts. Trees join per density.
   let nextId = 0;
   const fixedCircles = [
-    { id: nextId++, x: 0, z: 0, r: FOUNTAIN_RADIUS + 0.2 },
+    ...town.circles.map((circle) => ({ id: nextId++, ...circle })),
     ...town.lamps.map((lamp) => ({ id: nextId++, x: lamp.x, z: lamp.z, r: 0.15 })),
   ];
   const fixedBoxes = town.boxes.map((b) => ({ id: nextId++, ...b }));

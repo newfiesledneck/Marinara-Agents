@@ -4,7 +4,8 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.0, 2026-11-07: a seeded town, walked as your persona, with your characters living in it.**
+Status: **0.4.1, 2026-11-07: a detailed seeded town (parts kit), walked as your persona, with your characters
+living in it.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
 working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
 tested through a dev catalog.
@@ -121,6 +122,7 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 | --- | --- | --- |
 | M0 | **Spike** ✅ | A Home tab renders a three.js scene and walks a capsule with WASD and a touch stick, with an fps readout. Measure fps on a phone. |
 | M0.5 | **Persona and town** ✅ | The player is the chosen persona's 3D Avatars model (VRM walks, GLB shows) or a low-poly figure; a seeded town of houses, streets and a plaza; buildings block movement and the camera. |
+| M0.6 | **Parts kit** ✅ | Buildings from a spec chosen from fixed menus (kind, size, floors, roof, walls, colours, features) assembled from parts; plaza landmarks, shops, homes, smithy, gardens, stalls, benches and street clutter, still one merged mesh. |
 | M1 | **Walkable town, fixed kit** | The town in chunks, with named zones; entering one shows its name. Position, seed and persona saved. |
 | M2 | **Town from lore** | A setup screen picks persona, characters and lorebooks; the brief call builds the town; the world is saved by a server part. |
 | M3 | **Enterable interiors** | Doors load a generated interior (one call, saved); leaving restores the exterior. |
@@ -130,6 +132,103 @@ Library: three.js 0.186.1 (the Engine's own version) bundled in the package; it 
 or daily-life rules, combat, building, and the parametric character builder.
 
 ---
+
+## Plan: the server part (later; needs an Engine restart)
+
+Everything below needs a hand-written `server.mjs`, like Quartermaster's. It adds three things to the
+package: an Engine restart on install and update (`restartRequired: true`), the `routes` and `storage`
+permissions (plus `scenes` for S4), and model calls on the user's own connection. Client-only work (the
+parts kit, interiors from templates, polish) carries on beside it.
+
+Checked against Engine 2.5.2 (`11489b4`), 2026-11-07.
+
+### What the server gets (`activate({ api })`)
+
+| Need | Host API | Seen in |
+| --- | --- | --- |
+| HTTP routes for the client | `api.registerPrivilegedRoutes((routes) => routes.get/post(...))`, served at `/api/wanderworld/...`; permission `routes` | Quartermaster `server.mjs`, Otome Hearth |
+| Saves | `api.runtime.persistence.documents`; permission `storage` | Quartermaster, Otome Hearth `store.ts` |
+| Personas, characters, lorebooks | `api.runtime.resources.listPersonas / listCharacters / listLorebooks / listEligibleLorebookEntries` | Otome Hearth `setup/cast.ts` |
+| Model calls | `api.runtime.languageModels.resolveForRequest({ connectionId })` → `chatComplete(messages, { temperature, maxTokens })`; `api.runtime.json.parseJsonish` for forgiving JSON | Quartermaster wardrobe, Otome Hearth `generation.ts` |
+| Debug logging | `api.runtime.logger.debugOverride(debugMode, ...)` when Debug Agents is on | Quartermaster |
+| Full Engine scenes | Client prop `startScene({ originId, prompt, plan, data, initiatorCharacterId })` → `{ chatId }`, plus `openChat` and `focusSceneOriginId`; server `api.registerSceneOrigin({ getContext, claim, release })`, where `release` gets `{ kind: "concluded", summary, characterIds, ... }`; permission `scenes`, capability API 1.66 | Slurp 2 `server.mjs`; Engine `types/scene.ts` |
+| Voices | Client `__MARINARA_HOST__.services.tts` (the Engine's `lib/tts-service`: `ttsService`, `playWhenAvailable`). Never open the TTS audio cache directly; `validate-catalog.mjs` refuses that | Engine `marinara-host-contract.ts` |
+
+How the Engine's own modes talk: Conversation, Roleplay and Game assemble their prompts inside the Engine
+and don't expose them to packages. Packages that hold their own conversations (Otome Hearth's messages and
+dates, Quartermaster's wardrobe) do it themselves: resolve the connection, build messages from the
+character and persona records, fit the context, call `chatComplete`, and keep their own history.
+Wanderworld follows that, and hands off to a real Engine scene (S4) when a moment deserves the full chat
+treatment (image generation, backgrounds, agents, memory).
+
+### S1. Foundation
+
+- `server.mjs` with `activate`, built and hashed by `scripts/build-wanderworld-package.mjs` (syntax-checked
+  like Quartermaster's), and `restartRequired: true`.
+- A world document per world: seed, brief, cast, player state (position, persona), conversation logs and
+  world events. The client's localStorage choices move here.
+- Routes: list, read, create and delete worlds; save player state (throttled).
+
+### S2. World from lore
+
+- **Setup screen:** persona, characters (who lives there), lorebooks, an optional setting line ("a cosy
+  fishing village"), and optionally which connection writes it.
+- **One structured call writes the world brief**, following Game Mode's worldgen (Engine
+  `shared/src/features/world`: starter setting kits, brief, deterministic town compiler, interiors by
+  building purpose):
+  - `kit`: a setting family (fantasy village, modern town, sci-fi colony, survival wilds …) with palette
+    and mood words.
+  - `town`: name and size.
+  - `places`: each has a name, a kind from a fixed list (home, tavern, inn, shop, smithy, temple, hall,
+    market, school, café, clinic, workshop, farm, tower …), parts-kit choices from fixed lists (size,
+    floors, roof, walls, accent colour, features), a short description, and lorebook entry ids.
+  - `residents`: for each character, a home, a workplace and a daily routine word.
+  - `playerHome`: the persona's home.
+- **The compiler places it:** the landmark on the plaza, named places nearest it, then character homes and
+  workplaces, then ordinary houses. Named places get signboards. Same seed + same brief = same town.
+- **Validation:** unknown kinds or options fall back to defaults, never fail. A failed call shows a retry
+  screen and never saves a default world for the player (Pixelforge's loading gate).
+
+### S3. Conversations
+
+- **Start:** walk up to a character (within about 2 m, facing them) and press **E**, click them, or tap
+  **Talk**.
+- **Interaction lock:** movement input pauses. The player and the character turn to face each other at
+  conversation distance (about 1.2 m). The camera glides to a side-on two-shot, perpendicular to the line
+  between them, close and at head height. Esc or **Leave** restores the walking camera.
+- **Chat:** a chat panel at the bottom to type in, and speech bubbles over heads (with the panel as a log).
+  Optional TTS through the host service, in the character's Engine voice.
+- **Model call** (`POST /api/wanderworld/talk`), built server-side from:
+  - the character's record (description, personality, scenario, example messages, appearance)
+  - the persona's record (name, description, personality, appearance)
+  - where they are (town, place, time of day)
+  - lorebook entries matched to the recent lines (`listEligibleLorebookEntries`)
+  - that character's conversation history in this world, with a short rolling summary once it grows
+
+  The reply is the character's line only; the user's own words are never written for them.
+- **Later:** small actions in replies (walk somewhere, give an item), relationship memory, and characters
+  talking to each other.
+
+### S4. Zones and scenes
+
+- **Zones** are areas in the brief or the compiler (a district, a building, a crossroads, a forest
+  clearing) with triggers: `enter` (an ambush when you walk into the woods), `interact` (talking to a
+  certain character or touching an object), and conditions (time of day, once only, after a flag).
+- **What a trigger plays** (undecided, so keep it pluggable):
+  - **In-world beat:** one call writes a short exchange that plays as speech bubbles (and optional TTS)
+    where it happens. Cheapest, and stays in the 3D world.
+  - **Engine scene:** `startScene` opens a real roleplay scene chat with the world context (the provider's
+    `getContext`), image generation, backgrounds, agents and memory. `release` brings back the recap, which
+    becomes a world event (flags, relationship notes) so the world remembers.
+- Scenes need the `scenes` permission and capability API 1.66.
+
+### Decisions for later
+
+- Connection: the Engine default, a Wanderworld setting, or per job (world writing vs conversation)?
+- Token budget: how much lore, history and world detail per call, and what gives way first.
+- Should scene chats show in the user's chat list (they do by default), or be tucked away?
+- TTS: the character's Engine voice, auto-play or on tap.
+- Content rating for scenes and conversations.
 
 ## Open questions
 

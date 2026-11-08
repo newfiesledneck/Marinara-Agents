@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.1 — 2026-11-07
+
+- Buildings are much more detailed, assembled from a kit of parts: timber-framed, plastered, plank, stone and brick walls; gable, hipped and flat roofs; chimneys, porches, balconies, shutters, flower boxes, shop windows, awnings and hanging signs.
+- The plaza now has a town hall, a temple with a spire, a tavern and a row of shops around it, with market stalls and benches. Barrels and crates sit by shop doors, a smithy stands at the edge of town, and empty lots are fenced gardens with bushes and a tree.
+
 ## 0.4.0 — 2026-11-07
 
 - Choose characters under People to live in town, up to twelve. Each lives in a house near the plaza, wanders nearby, stops to face you when you walk up, and has its name over its head. You can't walk through them. Your choice is remembered.
