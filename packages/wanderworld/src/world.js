@@ -1341,10 +1341,10 @@ function waterMaterial(uniforms) {
  * direction (triplanar), so a vertical face shows it as well as a ledge does, with no stretching; the
  * vertex colours still put moss on top and darkness deep inside.
  */
-function cliffMaterial(uniforms) {
-  const material = new MeshLambertMaterial({ vertexColors: true });
+function cliffMaterial(uniforms, { texture = "tCliff", vertexColors = true, scale = 5.5, boost = 1.85 } = {}) {
+  const material = new MeshLambertMaterial({ vertexColors });
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.tCliff = uniforms.tCliff;
+    shader.uniforms.tCliff = uniforms[texture];
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
@@ -1355,8 +1355,13 @@ varying vec3 vCliffNormal;`,
       .replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
+#ifdef USE_INSTANCING
+vCliffPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+vCliffNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
+#else
 vCliffPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-vCliffNormal = normalize(mat3(modelMatrix) * objectNormal);`,
+vCliffNormal = normalize(mat3(modelMatrix) * objectNormal);
+#endif`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -1371,13 +1376,13 @@ varying vec3 vCliffNormal;`,
         `{
   vec3 w = pow(abs(normalize(vCliffNormal)), vec3(4.0));
   w /= (w.x + w.y + w.z);
-  vec3 p = vCliffPos / 5.5;
+  vec3 p = vCliffPos / ${scale.toFixed(2)};
   vec3 rock = texture2D(tCliff, p.zy).rgb * w.x + texture2D(tCliff, p.xz).rgb * w.y + texture2D(tCliff, p.xy).rgb * w.z;
-  diffuseColor.rgb *= rock * 1.85;
+  diffuseColor.rgb *= rock * ${boost.toFixed(2)};
 }`,
       );
   };
-  material.customProgramCacheKey = () => "wanderworld-cliff";
+  material.customProgramCacheKey = () => `wanderworld-cliff-${texture}-${vertexColors}-${scale}-${boost}`;
   return material;
 }
 
@@ -1773,6 +1778,8 @@ export function createWorld(seed, landscape = null) {
    */
   function addNature(models) {
     const placements = new Map(); // model name → [{ x, z, need, matrix }]
+    // Rocks and boulders in the painted rock (the same as the mountains'), lit a touch brighter.
+    const boulderLook = cliffMaterial(ground, { texture: "trock", vertexColors: false, scale: 2.2, boost: 1.05 });
     const place = (name, x, z, need) => {
       if (!placements.has(name)) placements.set(name, []);
       placements.get(name).push({ x, z, need, matrix: dummy.matrix.clone() });
@@ -1848,8 +1855,9 @@ export function createWorld(seed, landscape = null) {
     stones.visible = false;
     town.natureMesh.visible = false;
     for (const [name, items] of placements) {
+      const boulder = KIT_ROCKS.includes(name);
       const meshes = models.get(name).map(({ geometry, material }) => {
-        const instanced = new InstancedMesh(geometry, material, items.length);
+        const instanced = new InstancedMesh(geometry, boulder ? boulderLook : material, items.length);
         instanced.frustumCulled = false; // round the player anyway, and its instances change as they move
         instanced.userData.kit = true;
         instanced.userData.model = name;

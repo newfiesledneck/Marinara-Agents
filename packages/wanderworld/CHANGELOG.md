@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.23 — 2026-11-08
+
+- Rocks and boulders have the same painted rock texture as the mountains.
+- Walking in and out of a cave's mouth is smooth: the floor eases into the ground in front instead of stepping down.
+
 ## 0.4.22 — 2026-11-08
 
 - Leaves and needles under thick stands of trees, and painted snow on the high peaks.

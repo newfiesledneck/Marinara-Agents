@@ -316,8 +316,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         // is wider than the tunnel by more than a ground cell (2 m), so the ground's triangles never reach
         // inside the tunnel's roof (world.js); the rock roof covers the rest of the cut.
         const cut = CAVE_RADIUS + 2.6;
-        if (behind > -1 && behind < CAVE_DEPTH + 6 && across < cut + 2.4) {
-          const inside = smooth((cut + 2.4 - across) / 2.4) * smooth((CAVE_DEPTH + 6 - behind) / 2.5);
+        if (behind > -7 && behind < CAVE_DEPTH + 6 && across < cut + 2.4) {
+          const inside =
+            smooth((cut + 2.4 - across) / 2.4) * smooth((CAVE_DEPTH + 6 - behind) / 2.5) * smooth((behind + 7) / 6); // level at the mouth, easing out into the ground in front
           height = height + (outpost.ground - height) * inside;
         }
         continue;

@@ -19,7 +19,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.4.22";
+const VERSION = "0.4.23";
 // A client-only Home tab with its own icon, serving its own asset files (the kit: people, props).
 const CAPABILITY_API = Object.freeze({ major: 1, minor: 10 });
 const ENGINE_MIN = "2.4.4";
