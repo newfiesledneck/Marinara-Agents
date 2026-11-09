@@ -1116,6 +1116,50 @@ function applyHousing(found) {
   return set;
 }
 
+/** Journal → People's homes-and-work editor: everyone here, and the houses and workplaces to choose from. */
+function housingData(names) {
+  if (!core.zones) return { people: [], homes: [], workplaces: [] };
+  const slots = new Map([...slotsOf(core.zones)].map(([slot, id]) => [id, slot]));
+  const label = (zone) => {
+    const name = names[zone.id] ?? zone.name;
+    const slot = slots.get(zone.id) ?? slots.get(zone.parent);
+    return { id: zone.id, name: slot ? `${name} (${slot})` : name };
+  };
+  const buildings = core.zones.zones.filter(
+    (zone) => zone.kind === "building" && zone.door !== null && zone.door !== undefined,
+  );
+  const lived = new Set(["home", "cottage", "farm"]);
+  const housing = core.save?.housing ?? {};
+  return {
+    people: (core.characters ?? [])
+      .filter((character) => core.cast?.has(character.id))
+      .map((character) => ({
+        id: character.id,
+        name: character.name,
+        home: housing[character.id]?.home ?? null,
+        work: housing[character.id]?.work ?? null,
+        owner: housing[character.id]?.owner === true,
+      })),
+    homes: buildings.filter((zone) => lived.has(zone.buildingKind)).map(label),
+    workplaces: buildings.filter((zone) => zone.buildingKind !== "home" && zone.buildingKind !== "cottage").map(label),
+  };
+}
+
+/** Sets where character `id` lives and works, by hand (Journal → People); null fields are left to chance. */
+function setHousingByHand(id, { home, work, owner }) {
+  if (!core.save) return;
+  const housing = {
+    ...core.save.housing,
+    [id]: { home: home ?? null, work: work ?? null, owner: !!work && owner === true },
+  };
+  if (!home && !work) delete housing[id];
+  core.save = { ...core.save, housing };
+  core.saves.write(core.save);
+  useHousing();
+  core.placesChanged = true;
+  core.journalAt = 0;
+}
+
 /** Tells the townsfolk where they live and work (the world's housing, as door indexes). */
 function useHousing() {
   if (!core.zones) return;
@@ -1313,6 +1357,7 @@ function journalData(zone, snapshot, residents, names) {
         .filter(Boolean)
         .join(". ");
     }),
+    housing: housingData(names),
     relations: relationsData(),
     party: core.crowd.party(),
     relationsChanged: core.relationsChanged,
@@ -2755,6 +2800,7 @@ function attach(element) {
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
     onRegeneratePreview: previewRegenerate,
+    onSetHousing: setHousingByHand,
     onMap: drawJournalMap,
     onUse: () => {
       core.sound.unlock();

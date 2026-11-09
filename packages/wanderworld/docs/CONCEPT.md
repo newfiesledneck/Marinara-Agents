@@ -409,7 +409,7 @@ world's preview (they're read when the world is made), a zoomable map, marking p
   and travel scenes (S2, S4); a performance pass once the bigger worlds are in.
 - More animations (the earlier list's item 8): working at a forge or counter, carrying things,
   sweeping, drinking at the tavern, kneeling at the temple, waving and pointing, sleeping.
-- Homes and workplaces set by hand in the Journal (today only lorebooks set them, 0.4.37).
+- ~~Homes and workplaces set by hand in the Journal~~ (0.4.57: Journal → People → Set homes and work).
 - The in-game People panel in the Engine's character folders, like New world (0.4.41).
 - The dark wood planks texture (`wood-planks-dark` in the art folder): shop fronts, awnings' frames, a
   dock by the river.

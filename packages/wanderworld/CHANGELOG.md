@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.57 — 2026-11-09
+
+- Homes and work set by hand: Journal → People → "Set homes and work…" gives each character a home (or Auto) and a workplace, with whether they own it. Places show their numbered names (home6, smithy1) to match lorebooks.
+
 ## 0.4.56 — 2026-11-09
 
 - Maps: New world shows a map of the world your choices make, redrawn as you change them, with Reroll for another. Regenerate shows the rebuilt world's map, with Reroll for another new layout.

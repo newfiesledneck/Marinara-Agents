@@ -369,6 +369,7 @@ export function createHud(root, handlers) {
     onSetRelation: (from, to, fields, both) => handlers.onSetRelation(from, to, fields, both),
     onSetTraits: (id, traits) => handlers.onSetTraits(id, traits),
     onMap: (canvas) => handlers.onMap?.(canvas),
+    onSetHousing: (id, entry) => handlers.onSetHousing?.(id, entry),
   });
   panels.push(journal.panel);
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>
