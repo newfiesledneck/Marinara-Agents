@@ -645,8 +645,6 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
 - A person's own voice is used when you talk to them directly. A moment with several listeners uses the
   Settings voice for all of them.
 - The waypoint is on the Journal's map only: no marker in the world, nothing on the top bar.
-- The person window shows someone's day and sends you to People → Schedules to change it; the day
-  can't be edited in the window itself.
 - A region has one main settlement and hamlets. `ww: city` sets the main one's size and `ww: town3` adds
   two hamlets; several real towns or cities in one region isn't built.
 

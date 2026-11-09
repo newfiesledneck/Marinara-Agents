@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.85",
+          "date": "2026-11-09",
+          "notes": "- Everything about a person is managed in one place: Journal → People → Edit people → Edit. Their day is edited there now (lines of hours, what they do and where, or planned by the AI), next to home and work and their relationships. The separate Schedules, Homes and work, and Relationships pages are gone from the Journal.\n- The top bar is shorter: Journal, Lore, Illustrate, Chat and Menu. Menu holds who you play as, Settings, full screen and the way back to the main menu.",
+          "highlight": false
+        },
+        {
           "version": "0.4.84",
           "date": "2026-11-09",
           "notes": "- Journal → People → Edit people lists everyone with an Edit button. It opens a window with everything Wanderworld keeps about that person: body, voice, temperament and manner, home and work, their day, how they see you and you them, and how they and each other person see one another. Save or Cancel. A character with a card keeps who they are and their looks from the card; someone made for the world can have those changed too.\n- Every button shows it was clicked: it dips while pressed and stays lit for a moment after.",
@@ -307,12 +313,6 @@
           "version": "0.4.66",
           "date": "2026-11-09",
           "notes": "- Ponds: a landmark of its own, water in a hollow deep enough to swim in the middle and shallow at its sandy shore, ringed with reeds, ferns and mossy stones, with a bench looking over it. Comes with Landmarks in New world, or by the lore's pond1.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.65",
-          "date": "2026-11-09",
-          "notes": "- Fix: a mill far along the river no longer stands in the water; it always steps straight across onto the town's bank.\n- Rock on slopes blends in smoothly instead of painting whole triangles (sharp grey patches where level ground met a bank), and looks the same near and far.",
           "highlight": false
         }
       ]
