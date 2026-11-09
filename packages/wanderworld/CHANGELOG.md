@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.68 — 2026-11-09
+
+- A server part (needs an Engine restart after installing or updating): people answer in their own words, written by your model from their card, your persona, where you are, the time and weather, how they feel about you and the lore active there; set lines stand in if a call fails.
+- Settings → AI: AI conversations on or off, the connections for conversations, scenes and pictures, how people talk, reply length, creativity, and the picture style (the Engine's style profiles).
+- "Play it as a scene" on a scene card opens it as a roleplay scene in the Engine with everyone there; its recap comes back to Journal → Here.
+- Journal → Here: "Picture this place" paints where you are through your image connection.
+
 ## 0.4.67 — 2026-11-09
 
 - The sound of rain while it rains (softer indoors), and no birdsong in it.

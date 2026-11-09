@@ -48,8 +48,9 @@ import {
   regionNext,
 } from "./zones.js";
 import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
-import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
+import { ACTIONS, describeScene, OWN_LINE, sceneRequest } from "./interactions.js";
 import { drawMap } from "./map.js";
+import { createAi } from "./ai.js";
 import { weatherAt } from "./weather.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
@@ -143,6 +144,10 @@ const PLACE_NAMES = {
 const core = {
   element: null,
   props: null,
+  /** The server part (ai.js): conversations, pictures, scenes. */
+  ai: createAi(),
+  /** The last picture of a place: { zoneId, place, url, pending, error }. */
+  picture: null,
   stage: null,
   resizeObserver: null,
   renderer: null,
@@ -598,6 +603,7 @@ function playWorld(id) {
       if (load !== core.worldLoad) return;
       core.hud?.setLoading(null);
       resume();
+      void pullRecaps();
     };
     // Shown once the detail is in and the lore has linked up (so they appear at their door, not jump
     // there), or after a while regardless.
@@ -1343,6 +1349,14 @@ function journalData(zone, snapshot, residents, names) {
       lore: loreAt(zone),
       nearby,
       scenes: (core.save?.scenes ?? []).slice(-3).reverse().map(describeScene),
+      // What happened in scenes played out from this world (their recaps), newest first.
+      recaps: (core.save?.events ?? [])
+        .filter((event) => event.kind === "scene" && event.summary)
+        .slice(-3)
+        .reverse()
+        .map((event) => (event.place ? `At ${event.place}: ${event.summary}` : event.summary)),
+      picture: core.picture?.zoneId === zone.id ? core.picture : null,
+      canPicture: !!core.ai.known()?.images,
     },
     people: lines.map((entry) => {
       const toYou = core.relations.get(entry.person.id, "player");
@@ -1649,11 +1663,11 @@ function talkTo(person) {
   const distance = Math.hypot(dx, dz) || 1;
   const x = group.position.x + (dx / distance) * TALK_DISTANCE;
   const z = group.position.z + (dz / distance) * TALK_DISTANCE;
-  core.talking = { id: person.id, name: person.name, group, said: 0, asked: [] };
+  core.talking = { id: person.id, name: person.name, group, said: 0, asked: [], history: [] };
   glideTo(x, z, Math.atan2(-dx, -dz), 0.5);
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
-  core.talk.start(person.name);
+  core.talk.start(person.name, !!(core.settings.aiTalk && core.ai.known()?.talk));
   core.talk.setInParty(core.crowd.inParty(person.id));
   core.talk.setChoices(choicesFor(), choose);
   later(0.6, () => answer(core.talking, "greet"));
@@ -1761,7 +1775,7 @@ function say(text) {
     core.talk.say(talking.group, "…", 1.2);
     core.crowd.setSpeaking(talking.id, true);
   });
-  later(1.6, () => answer(talking, "answer"));
+  later(1.6, () => answer(talking, "answer", text));
 }
 
 /** The words a conversation's lines can use: who's talking, the town and a few of its places. */
@@ -1784,16 +1798,102 @@ function talkWords(name) {
 }
 
 /** The one you're talking to answers (`what`: "greet", "bye", "answer" or a topic, dialogue.js). */
-function answer(talking, what) {
+function answer(talking, what, line = "") {
   if (core.talking !== talking) return;
-  const mood = moodOf(core.relations.feeling(talking.id, "player"));
-  const reply = lineFor(what, mood, talkWords(talking.name));
+  const setLine = () => lineFor(what, moodOf(core.relations.feeling(talking.id, "player")), talkWords(talking.name));
+  // (A goodbye stays a set line: the conversation closes before a model could answer.)
+  const known = core.characters?.some((entry) => entry.id === talking.id);
+  if (what !== "bye" && core.settings.aiTalk && core.ai.known()?.talk && known) {
+    void aiAnswer(talking, line, setLine);
+    return;
+  }
+  showReply(talking, line, setLine());
+}
+
+/** The reply on screen and in the conversation's history (with the player's line before it). */
+function showReply(talking, line, reply) {
+  if (line) talking.history.push({ from: "player", text: line });
+  talking.history.push({ from: "character", text: reply });
   core.crowd.setSpeaking(talking.id, true);
-  core.talk.say(talking.group, reply, 4.5);
+  core.talk.say(talking.group, reply, Math.min(12, 3 + reply.length / 22));
   core.talk.line(talking.name, reply);
   later(2.6, () => {
     if (core.talking === talking) core.crowd.setSpeaking(talking.id, false);
   });
+}
+
+/**
+ * A reply written by the model (the server part), while they think it over; a failed call falls back to
+ * a set line, and says why once.
+ */
+async function aiAnswer(talking, line, setLine) {
+  core.talk.say(talking.group, "…", 60);
+  core.crowd.setSpeaking(talking.id, true);
+  try {
+    const { reply } = await core.ai.talk(talkPayload(talking, line));
+    if (core.talking === talking) showReply(talking, line, reply);
+  } catch (error) {
+    if (core.talking !== talking) return;
+    showReply(talking, line, setLine());
+    if (!core.aiTold) {
+      core.aiTold = true; // once a session
+      core.hud?.setNotice(`AI conversation didn't work, so set lines stand in: ${error?.message ?? error}`);
+    }
+  }
+}
+
+/** Where the player is, in words: the place and the places it's in. */
+function placeWords() {
+  if (!core.zones) return "";
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const at = core.interior ? core.interior.door : core.player.position;
+  const zone = zoneAt(core.zones, at.x, at.z);
+  return chainOf(core.zones, zone)
+    .map((entry) => names[entry.id])
+    .filter(Boolean)
+    .join(", in ");
+}
+
+/** The weather now, in a word, when there is any to speak of. */
+function weatherWord() {
+  const weather = core.world?.weatherNow?.();
+  return weather && weather.kind !== "clear" && weather.amount > 0.5 ? weather.kind : "";
+}
+
+/** What the server part needs for one reply from `talking` to the player's `line`. */
+function talkPayload(talking, line) {
+  const position = core.player.position;
+  const zone = core.zones ? zoneAt(core.zones, position.x, position.z) : null;
+  const nearby = core.crowd
+    .snapshot()
+    .filter((person) => person.id !== talking.id && person.state !== "inside")
+    .filter((person) => Math.hypot(person.x - position.x, person.z - position.z) < 12)
+    .map((person) => person.name)
+    .slice(0, 6)
+    .join(", ");
+  const names = { ...nameIds(), player: personaName() };
+  return {
+    characterId: talking.id,
+    personaId: core.personaId,
+    personaName: personaName(),
+    place: placeWords(),
+    time: clockText(),
+    weather: weatherWord(),
+    nearby,
+    relationship: core.relations.get(talking.id, "player") ? core.relations.describe(talking.id, "player", names) : "",
+    setting: core.save?.setting ?? "",
+    lore: zone
+      ? loreAt(zone)
+          .slice(0, 12)
+          .map(({ lorebookId, entryId }) => ({ lorebookId, entryId }))
+      : [],
+    history: talking.history.slice(-24),
+    line,
+    connectionId: core.settings.textConnection || null,
+    style: core.settings.talkStyle,
+    length: core.settings.replyLength,
+    temperature: core.settings.aiTemperature,
+  };
 }
 
 /** The player picks something to say from the choices. */
@@ -1805,7 +1905,7 @@ function choose(id) {
   core.talk.say(core.player, text, 3);
   if (id === "bye") {
     core.talk.setChoices([], () => {});
-    later(0.7, () => answer(talking, "bye"));
+    later(0.7, () => answer(talking, "bye", text));
     later(2.4, () => {
       if (core.talking === talking) endTalk();
     });
@@ -1813,7 +1913,7 @@ function choose(id) {
   }
   talking.asked.push(id);
   core.talk.setChoices(choicesFor(talking.asked), choose);
-  later(0.8, () => answer(talking, id));
+  later(0.8, () => answer(talking, id, text));
 }
 
 function endTalk() {
@@ -1869,6 +1969,131 @@ function enterBuilding(door) {
  * saved with the world, for the AI part to play out (docs/CONCEPT.md, S1).
  * `thing`: { kind, zone (where it is), title, inside: [{ id, name }], empty (said when nobody's there) }.
  */
+/**
+ * Starts the moment on a scene card as a real Engine scene (the host's startScene, Capability API 1.66):
+ * its context (who's there, the persona, the connection, notes, lorebooks) goes to the server part for
+ * the Engine's planner, and the Engine plans and opens the scene. Returns words for the card.
+ */
+async function playAsScene(thing, request, along) {
+  const startScene = core.props?.startScene;
+  if (typeof startScene !== "function" || !core.save) return "This Engine can't start scenes from Wanderworld.";
+  const known = new Set((core.characters ?? []).map((entry) => entry.id));
+  const people = [...thing.inside, ...along].filter((person, i, all) => all.findIndex((p) => p.id === person.id) === i);
+  const characterIds = people.map((person) => person.id).filter((id) => known.has(id));
+  if (!characterIds.length)
+    return "A scene needs one of your characters there: bring someone along, or find someone in.";
+  const names = { ...nameIds(), player: personaName() };
+  const feelings = characterIds
+    .map((id) => (core.relations.get(id, "player") ? core.relations.describe(id, "player", names) : ""))
+    .filter(Boolean);
+  const weather = weatherWord();
+  const notes = [
+    describeScene(request),
+    `Where: ${[thing.title, ...request.thing.chain].filter(Boolean).join(", in ")}. When: ${clockText()}${weather ? `, ${weather}` : ""}.`,
+    core.save.setting ? `The world: ${core.save.setting}` : "",
+    feelings.length ? `How they feel about ${personaName()}:\n${feelings.join("\n")}` : "",
+    "This scene is played out from Wanderworld, a small walkable world; keep to the place and the people there.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const originId = `world:${core.save.id}/scene:${Date.now().toString(36)}`;
+  try {
+    await core.ai.sceneOrigin(originId, {
+      characterIds,
+      personaId: core.personaId ?? null,
+      connectionId: core.settings.sceneConnection || core.settings.textConnection || null,
+      transcript: (core.talking?.history ?? []).slice(-12).map((entry) => ({
+        speaker: entry.from === "character" ? core.talking.name : personaName(),
+        content: entry.text,
+      })),
+      notes,
+      lorebookIds: core.save.lorebooks ?? [],
+    });
+    const first = people.find((person) => known.has(person.id));
+    const started = await startScene({
+      originId,
+      prompt: describeScene(request),
+      initiatorCharacterId: first?.id ?? null,
+      initiatorName: first?.name ?? null,
+      data: { worldId: core.save.id, place: thing.title },
+    });
+    if (!started) return "The scene wasn't started.";
+    return "The scene is open in the Engine. When it ends, its recap comes back here (Journal → Here).";
+  } catch (error) {
+    return `The scene couldn't start: ${error?.message ?? error}`;
+  }
+}
+
+/** Recaps of this world's scenes that have ended, from the server part, kept in the world's events. */
+async function pullRecaps() {
+  const save = core.save;
+  if (!save || !core.ai.known()?.scenes) return;
+  try {
+    const results = await core.ai.sceneResults(save.id);
+    if (!results.length || core.save?.id !== save.id) return;
+    const events = [...(core.save.events ?? [])];
+    for (const result of results) {
+      if (!events.some((event) => event.id === result.id)) {
+        events.push({
+          id: result.id,
+          kind: result.kind === "concluded" ? "scene" : "scene-dropped",
+          at: Date.parse(result.at) || Date.now(),
+          place: typeof result.data?.place === "string" ? result.data.place : "",
+          summary: result.summary ?? "",
+          characterIds: result.characterIds ?? [],
+        });
+      }
+    }
+    core.save = { ...core.save, events: events.slice(-100) };
+    core.saves.write(core.save);
+    core.journalAt = 0;
+    for (const result of results) await core.ai.forgetResult(result.id).catch(() => {});
+  } catch {
+    // the server part is away: the recaps wait there for next time
+  }
+}
+
+/** A picture of where the player is, through the server part's image route (Journal → Here). */
+async function pictureHere() {
+  if (!core.zones || core.picture?.pending) return;
+  const position = core.interior ? core.interior.door : core.player.position;
+  const zone = zoneAt(core.zones, position.x, position.z);
+  const place = placeWords();
+  const hour = Math.floor(core.hour);
+  const light =
+    hour < 6 || hour >= 21
+      ? "at night, lamplit"
+      : hour < 9
+        ? "in the early morning"
+        : hour >= 18
+          ? "at dusk"
+          : "in daylight";
+  const weather = weatherWord();
+  const prompt = [
+    `A view of ${place || "a small medieval town"}, ${light}${weather ? `, ${weather}` : ""}.`,
+    core.save?.setting
+      ? `The world: ${core.save.setting}.`
+      : "A cosy low-fantasy world of half-timbered houses, cobbled streets and green countryside.",
+    "Scenery, environment, no text.",
+  ].join(" ");
+  core.picture = { zoneId: zone.id, place, url: null, pending: true, error: null };
+  core.journalAt = 0;
+  try {
+    const { image } = await core.ai.image({
+      prompt,
+      name: place || "wanderworld",
+      width: 768,
+      height: 512,
+      connectionId: core.settings.imageConnection || null,
+      styleProfileId: core.settings.imageStyle,
+    });
+    core.picture = { ...core.picture, url: image, pending: false };
+  } catch (error) {
+    core.picture = { ...core.picture, pending: false, error: error?.message ?? String(error) };
+  }
+  core.journalAt = 0;
+}
+
 function openScene(thing) {
   const names = core.zones ? namedZones(residentsOf(core.crowd.snapshot())) : {};
   const chain =
@@ -1889,6 +2114,27 @@ function openScene(thing) {
       empty: thing.empty,
       party,
       actions: (ACTIONS[thing.kind] ?? []).map(({ id, label }) => ({ id, label })),
+      // With the server part and an Engine that can start scenes from packages.
+      playScene:
+        typeof core.props?.startScene === "function" && core.ai.known()?.scenes
+          ? (action, line, along) => {
+              const request = sceneRequest({
+                thing: { kind: thing.kind, name: thing.title, chain },
+                action: line.trim() ? OWN_LINE : (action ?? OWN_LINE),
+                line,
+                inside: thing.inside,
+                party: party.filter((member) => along.includes(member.id)),
+                persona: { id: "player", name: personaName() },
+                hour: core.hour,
+              });
+              if (!request) return Promise.resolve("Write what you do first, or pick one of the things to do.");
+              return playAsScene(
+                thing,
+                request,
+                party.filter((member) => along.includes(member.id)),
+              );
+            }
+          : null,
     },
     (action, line, along) => {
       const request = sceneRequest({
@@ -2740,6 +2986,8 @@ function frame(time) {
 
 function attach(element) {
   core.element = element;
+  // Is the server part running? (Remembered; Settings → AI asks again.) Then any scene recaps waiting.
+  void core.ai.status().then(() => pullRecaps());
   element.style.cssText += ";display:block;position:relative;overflow:hidden;width:100%;height:100%;";
   core.stage = document.createElement("div");
   core.stage.style.cssText = "position:absolute;inset:0;background:#bfd9ee;touch-action:none;";
@@ -2750,6 +2998,9 @@ function attach(element) {
 
   core.hud = createHud(core.stage, {
     onMenu: openMenu,
+    onAiStatus: () => core.ai.status(true),
+    onConnections: () => core.ai.connections(),
+    onPicture: pictureHere,
     onRenameZone: renameZone,
     onPartyWait: (id, wait) => {
       core.crowd.setWaiting(id, wait);
@@ -2945,6 +3196,11 @@ class WanderworldElement extends HTMLElement {
       }
       core.props = this.props;
       core.hud?.setFullscreen(fullscreenControl());
+      // Back from a scene started here: its recap may be waiting.
+      if (core.props?.focusSceneOriginId) {
+        void pullRecaps();
+        core.props.onFocusSceneOriginHandled?.();
+      }
     } catch (error) {
       reportError(this, error);
     }

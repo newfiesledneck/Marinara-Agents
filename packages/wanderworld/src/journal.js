@@ -100,6 +100,7 @@ export function createJournal(panelCss, handlers) {
     );
   }
 
+  const pictureImage = element("img", "width:100%;border-radius:8px;border:1px solid rgba(107,74,43,0.6);");
   function drawHere() {
     const here = data.here;
     body.append(explain("Where you are, the lore active here, and who's close by. Later this is what the AI is told."));
@@ -110,6 +111,26 @@ export function createJournal(panelCss, handlers) {
     body.append(section("Nearby"));
     if (here.nearby.length) for (const text of here.nearby) body.append(line(text));
     else body.append(line("Nobody close by.", MUTED));
+    if (here.recaps?.length) {
+      body.append(section("What happened"));
+      for (const text of here.recaps) body.append(line(`🎬 ${text}`));
+    }
+    if (here.canPicture) {
+      body.append(section("A picture"));
+      const picture = here.picture;
+      if (picture?.url) {
+        // The same image element each time, so the Journal's redraws don't make it flicker.
+        if (pictureImage.src !== picture.url) pictureImage.src = picture.url;
+        pictureImage.alt = `A picture of ${picture.place}`;
+        body.append(pictureImage);
+      } else if (picture?.pending) body.append(line("Painting it…", MUTED));
+      else if (picture?.error) body.append(line(`No picture: ${picture.error}`, MUTED));
+      const paint = button(picture?.url ? "Picture it again" : "Picture this place", SMALL, () =>
+        handlers.onPicture?.(),
+      );
+      paint.disabled = !!picture?.pending;
+      body.append(paint);
+    }
     if (here.scenes?.length) {
       body.append(section("Scenes set up"));
       for (const text of here.scenes) body.append(line(text));

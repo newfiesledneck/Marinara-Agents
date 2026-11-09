@@ -167,6 +167,17 @@ export function createHud(root, handlers) {
     hint: "The line of controls at the bottom of the screen.",
     stats: "Frames per second and other numbers at the top.",
     explanations: "These lines under settings, and the ones in the Journal and on New world.",
+    aiTalk:
+      "People answer in their own words, written by your model from their card, your persona and the world. Off, they use set lines.",
+    textConnection: "The model that writes conversations. Engine default uses your Engine's agent or main connection.",
+    sceneConnection:
+      "The model that plans and plays scenes you start in the world. Same as conversations unless chosen.",
+    imageConnection: "The image generation connection for pictures of places and moments.",
+    imageStyle:
+      "The look of pictures, from the Engine's style profiles. Engine default uses the one you set in the Engine.",
+    talkStyle: "How people talk to you, on top of who they are.",
+    replyLength: "How long people's replies are.",
+    aiTemperature: "Higher is more surprising, lower more predictable.",
   };
   const row = (label, control, name = null) => {
     const element = document.createElement("label");
@@ -272,6 +283,97 @@ export function createHud(root, handlers) {
     outsideSafe: "Outside safe places",
     off: "Off",
   });
+  // AI: the server part's connections and styles. The connection lists come from the Engine when the
+  // panel opens (they're the user's own, so they can change while playing).
+  heading("AI");
+  const aiStatus = document.createElement("div");
+  aiStatus.style.cssText = "font-size:12px;line-height:1.35;opacity:0.85;";
+  aiStatus.textContent = "Checking for Wanderworld's server part…";
+  settingsPanel.append(aiStatus);
+  const connectionLists = [];
+  const connectionChoice = (name, label, kind, empty) => {
+    const select = document.createElement("select");
+    select.style.cssText = "font:13px system-ui,sans-serif;border-radius:6px;border:0;padding:2px 4px;max-width:170px;";
+    let current = "";
+    const fill = (list) => {
+      const options = [
+        ["", empty],
+        ...list.map((entry) => [entry.id, entry.model ? `${entry.name} (${entry.model})` : entry.name]),
+      ];
+      if (current && !list.some((entry) => entry.id === current)) options.push([current, "(not found)"]);
+      select.replaceChildren(
+        ...options.map(([value, text]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = text;
+          return option;
+        }),
+      );
+      select.value = current;
+    };
+    fill([]);
+    select.addEventListener("change", () => {
+      current = select.value;
+      handlers.onSetting(name, current);
+    });
+    fields[name] = {
+      set: (value) => {
+        current = value ?? "";
+        if (![...select.options].some((option) => option.value === current)) fill([]);
+        select.value = current;
+      },
+    };
+    connectionLists.push({ kind, fill });
+    row(label, select, name);
+  };
+  toggle("aiTalk", "AI conversations");
+  connectionChoice("textConnection", "Conversations use", "text", "Engine default");
+  connectionChoice("sceneConnection", "Scenes use", "text", "Same as conversations");
+  choice("talkStyle", "How people talk", {
+    natural: "Naturally",
+    cosy: "Cosy",
+    dramatic: "Dramatic",
+    witty: "Witty",
+    terse: "Few words",
+  });
+  choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
+  slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
+  connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
+  choice("imageStyle", "Picture style", {
+    "": "Engine default",
+    off: "No style",
+    auto: "Auto",
+    anime: "Anime",
+    danbooru: "Danbooru / Illustrious",
+    realistic: "Realistic SDXL",
+    photorealistic: "Photorealistic",
+    cinematic: "Cinematic",
+    "digital-painting": "Digital painting",
+    painterly: "Painterly fantasy",
+    "z-image-turbo": "Z-Image Turbo",
+  });
+  /** Reads the server part's status and the user's connections into the AI section. */
+  const loadAi = async () => {
+    const status = await handlers.onAiStatus?.();
+    if (!status) {
+      aiStatus.textContent =
+        "Wanderworld's server part isn't running yet, so people use set lines. Restart the Engine after installing or updating Wanderworld.";
+      return;
+    }
+    aiStatus.textContent = status.scenes
+      ? "Server part running: conversations, pictures and scenes use your Engine's connections."
+      : "Server part running: conversations and pictures. This Engine can't start scenes from packages yet.";
+    try {
+      const lists = await handlers.onConnections();
+      for (const { kind, fill } of connectionLists) fill(lists?.[kind] ?? []);
+    } catch (error) {
+      aiStatus.textContent = `Couldn't read your connections: ${error?.message ?? error}`;
+    }
+  };
+  settingsButton.addEventListener("click", () => {
+    if (settingsPanel.style.display !== "none") void loadAi();
+  });
+
   // Regenerate: the world on screen built afresh from its setup (red, and asked twice: it's for good).
   const regenerate = document.createElement("div");
   regenerate.style.cssText = "display:flex;flex-direction:column;gap:6px;margin:4px 0;";
@@ -376,6 +478,7 @@ export function createHud(root, handlers) {
     onPartyLeave: (id) => handlers.onPartyLeave(id),
     onSetRelation: (from, to, fields, both) => handlers.onSetRelation(from, to, fields, both),
     onSetTraits: (id, traits) => handlers.onSetTraits(id, traits),
+    onPicture: () => handlers.onPicture?.(),
     onMap: (canvas) => handlers.onMap?.(canvas),
     onSetHousing: (id, entry) => handlers.onSetHousing?.(id, entry),
   });
@@ -820,7 +923,25 @@ export function createHud(root, handlers) {
       });
       own.style.cssText = INK_BUTTON;
       actions.append(own);
-      nodes.push(line, actions);
+      // Play it out now as a real Engine scene (the server part).
+      const sceneNote = text("", "font-size:12px;opacity:0.8;");
+      if (info.playScene) {
+        const play = button(
+          "Play it as a scene",
+          "Open this as a roleplay scene in the Engine, with everyone here",
+          async () => {
+            play.disabled = true;
+            play.textContent = "Starting…";
+            const words = await info.playScene(info.actions[0]?.id ?? null, line.value, [...along]);
+            play.disabled = false;
+            play.textContent = "Play it as a scene";
+            sceneNote.textContent = words;
+          },
+        );
+        play.style.cssText = `${INK_BUTTON}background:#6b4a2b;color:#f6ecd6;`;
+        actions.append(play);
+      }
+      nodes.push(line, actions, sceneNote);
       sceneBody.replaceChildren(...nodes);
     },
     /** A notice with `text` and a Close button, or null to take it away. */

@@ -210,6 +210,22 @@ export function checkWorld(raw) {
       : [],
     // Kept as they are for now; W3 and W4 give them their checks.
     party: Array.isArray(raw.party) ? raw.party.filter((id) => typeof id === "string") : [],
+    // What has happened in the world, newest last: recaps of scenes played out in the Engine (server part).
+    events: Array.isArray(raw.events)
+      ? raw.events
+          .filter((event) => isRecord(event) && typeof event.id === "string" && typeof event.kind === "string")
+          .slice(-100)
+          .map((event) => ({
+            id: event.id.slice(0, 100),
+            kind: event.kind.slice(0, 30),
+            at: finite(event.at, 0),
+            place: text(event.place).slice(0, 120),
+            summary: text(event.summary).slice(0, 4000),
+            characterIds: Array.isArray(event.characterIds)
+              ? event.characterIds.filter((id) => typeof id === "string").slice(0, 20)
+              : [],
+          }))
+      : [],
     // Scenes set up from doors and things, newest last, for the AI part to play out.
     scenes: Array.isArray(raw.scenes) ? raw.scenes.map(checkScene).filter(Boolean).slice(-30) : [],
     // Characters' temperaments (aggression, sociability), by id.
