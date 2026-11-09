@@ -402,6 +402,76 @@ assert.equal(
   assert.match(asked[0].content, /The world can build these places/u, "the cast needs the places to live and work in");
   assert.deepEqual(server.checkLoreSetup({ entries: "x", names: [] }, 2), { keys: [[], []], names: {} });
 
+  // A world written for itself: places a world can build, once each; new people, never named as someone
+  // already there and no more than asked for. Each step is told what the last one gave.
+  runtime.languageModels.resolveForRequest = async () => ({
+    connectionId: "t-1",
+    model: "m",
+    async chatComplete(messages) {
+      asked = messages;
+      return {
+        content: messages[0].content.startsWith("You invent")
+          ? '{"people": [{"name": "Mira", "body": "female"}, {"name": "Oswin", "body": "male", "description": "The smith.", "keys": ["lives in home2", "owner of smithy1", "owner of smithy9", "<i>"]}, {"name": "Brida", "body": "x"}, {"name": "Tolly"}]}'
+          : '{"premise": "A fishing village.", "places": [{"slot": "tavern1", "name": "The Drowned Bell", "lore": "Low beams."}, {"slot": "tavern1", "name": "Again"}, {"slot": "castle1", "name": "Keep"}, {"slot": "pond1", "name": ""}]}',
+      };
+    },
+  });
+  const written = await call("post", "/world-write", {
+    body: { step: "places", worldName: "Saltmere", characters: ["Mira"], placed: [{ slot: "home1", title: "Mira" }] },
+  });
+  assert.deepEqual(written.body, {
+    premise: "A fishing village.",
+    places: [{ slot: "tavern1", name: "The Drowned Bell", lore: "Low beams." }],
+  });
+  assert.match(asked[1].content, /No setting was given/u);
+  assert.match(asked[1].content, /home1 \(Mira\)/u);
+  const invented = await call("post", "/world-write", {
+    body: {
+      step: "people",
+      count: 2,
+      characters: ["Mira"],
+      premise: "A fishing village.",
+      places: [{ slot: "tavern1", name: "The Drowned Bell", lore: "Low beams." }],
+    },
+  });
+  assert.deepEqual(
+    invented.body.people.map((person) => [person.name, person.body, person.keys]),
+    [
+      ["Oswin", "male", ["lives in home2", "owner of smithy1"]],
+      ["Brida", "", []],
+    ],
+    "not Mira again, and no more than two",
+  );
+  assert.match(asked[0].content, /^You invent 2 new people/u);
+  assert.match(asked[1].content, /tavern1 = The Drowned Bell: Low beams\./u, "people are built around the places");
+
+  // Someone a world made for itself answers from what the client holds; an Engine id can't be passed off.
+  runtime.languageModels.resolveForRequest = async () => ({
+    connectionId: "t-1",
+    model: "m",
+    async chatComplete(messages) {
+      asked = messages;
+      return { content: "Aye." };
+    },
+  });
+  const own = { id: "local:new-1", name: "Oswin", description: "The smith of Saltmere." };
+  const localTalk = await call("post", "/talk", {
+    body: {
+      characterId: "local:new-1",
+      line: "Hello",
+      locals: [own, { id: "c-mira", name: "Forged" }],
+      loreTexts: ["The Drowned Bell: Low beams."],
+    },
+  });
+  assert.equal(localTalk.body.reply, "Aye.");
+  assert.match(asked[0].content, /The smith of Saltmere\./u);
+  assert.match(asked[0].content, /The Drowned Bell: Low beams\./u, "the world's own lore comes as text");
+  assert.equal((await call("post", "/talk", { body: { characterId: "local:new-2", locals: [own] } })).code, 404);
+  await call("post", "/talk", {
+    body: { characterId: "c-mira", line: "Hi", locals: [{ id: "c-mira", name: "Forged" }] },
+  });
+  assert.doesNotMatch(asked[0].content, /Forged/u, "an Engine character is always read from the Engine");
+
   // Illustrate: the template filled with the people's looks from their cards, painted and kept; the gallery
   // lists it without the picture itself, which comes one at a time.
   const shot = await call("post", "/illustrate", {

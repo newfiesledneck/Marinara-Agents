@@ -150,7 +150,7 @@ const core = {
   momentLog: [],
   momentBusy: false,
   /** The server part (ai.js): conversations, pictures, scenes. */
-  ai: createAi(),
+  ai: createAi(() => core.save?.locals ?? []),
   /** The last picture of a place: { zoneId, place, url, pending, error }. */
   picture: null,
   stage: null,
@@ -585,6 +585,7 @@ function playWorld(id) {
   core.save = save;
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
+  core.characters = peopleOf(save); // this world's own people live here only
   const known = new Set((core.characters ?? []).map((character) => character.id));
   core.cast = new Set(save.cast.filter((id) => known.has(id)).slice(0, MAX_PEOPLE));
   const persona =
@@ -646,8 +647,11 @@ function openMenu() {
  * trigger the entry ("town", "forest"), not where it belongs.
  */
 async function chosenBooks(save) {
-  if (!save.lorebooks.length) return [];
-  const books = (await readLorebooks()).filter((book) => save.lorebooks.includes(book.id));
+  const books = [
+    ...(save.lorebooks.length ? (await readLorebooks()).filter((book) => save.lorebooks.includes(book.id)) : []),
+    ...worldBook(save),
+  ];
+  if (!books.length) return [];
   const modes = [save.loreLinking, save.characterLinking];
   if (!modes.includes("ai")) return books;
   const own = modes.includes("keywords");
@@ -667,7 +671,7 @@ async function chosenBooks(save) {
  */
 function cardBook(save) {
   if (save.characterLinking !== "ai") return [];
-  const names = new Map((core.characters ?? []).map((entry) => [entry.id, entry.name]));
+  const names = new Map(peopleOf(save).map((entry) => [entry.id, entry.name]));
   const entries = Object.entries(save.loreKeys ?? {})
     .filter(([key]) => key.startsWith("cards/"))
     .map(([key, keys]) => {
@@ -683,21 +687,40 @@ const LORE_BATCH = 40; // entries a call reads (server.mjs takes no more)
 // (and summarise long entries first) if bigger lorebooks need it.
 const LORE_ENTRIES = 200;
 
+/** Everyone a world can cast: the Engine's characters, and the people it made for itself. */
+function peopleOf(save) {
+  return [...(core.engineCharacters ?? []), ...(save?.locals ?? [])];
+}
+
+/** The lore written for a world (`save.book`), as a lorebook of its own, under the id "world". */
+function worldBook(save) {
+  const entries = save?.book?.entries ?? [];
+  if (!entries.length) return [];
+  return [{ id: "world", name: "Written for this world", entries: entries.map((entry) => ({ ...entry, keys: [] })) }];
+}
+
 /**
- * Has the model set the world up (server.mjs `/lore-setup`), as keywords in the plain convention: first
- * the cast's cards and the persona (when characters are set up by the AI: bodies, homes, work,
- * relationships; under "cards/<id>"), then the world's lorebooks a batch at a time (under "lorebook
- * id/entry id"), with names for the places the lore names. Each call is told what's placed already, so
- * a number stays the same place.
+ * Has the model set the world up, a part at a time, each fed by what the parts before it gave (the
+ * places already numbered and named, the people already there):
+ * 1. the world's lorebooks, a batch at a time (server.mjs `/lore-setup`): what each entry belongs to,
+ *    and people the lore describes who have no card;
+ * 2. with `write.lore`, the world's own lore (`/world-write`): its premise, and places with their lore,
+ *    around what the lorebooks placed and who lives here;
+ * 3. with `write.people` (a number), that many new people built around those places and the cast;
+ * 4. the cast's cards and the persona (when characters are set up by the AI): bodies, homes, work and
+ *    relationships, among everyone and everything above.
+ * It's all kept as keywords in the plain convention (`loreKeys`: under "lorebook id/entry id",
+ * "world/<entry>" and "cards/<id>"), names for places (`loreNames`), the written lore (`book`) and the
+ * new people (`locals`).
  *
  * A call that fails is tried once more; a part that still fails is left as it was in `save` and named
  * in `failed`, and the rest goes on. `only` (ids from an earlier `failed`) asks for just those parts
- * again. `onProgress(text)` says what it's doing. Returns { loreKeys, loreNames, failed: [{ id, label,
- * error }], entries (lorebook entries read) }; `save` isn't changed.
+ * again. `onProgress(text)` says what it's doing. Returns { loreKeys, loreNames, book, locals, failed:
+ * [{ id, label, error }], entries (lorebook entries read) }; `save` isn't changed.
  */
-async function aiLoreSetup(save, onProgress = () => {}, only = null) {
+async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {}) {
   const people = save.characterLinking === "ai";
-  const cast = (core.characters ?? []).filter((entry) => save.cast?.includes(entry.id));
+  const cast = (core.engineCharacters ?? []).filter((entry) => save.cast?.includes(entry.id));
   let books = [];
   let unread = "";
   if (save.lorebooks.length) {
@@ -712,26 +735,72 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null) {
     .slice(0, LORE_ENTRIES);
   const keys = { ...save.loreKeys };
   const names = { ...save.loreNames };
-  const placed = new Map(); // numbered place → the entry that used it first
+  let locals = [...(save.locals ?? [])];
+  let book = { entries: [...(save.book?.entries ?? [])] };
+  const placed = new Map(); // numbered place → what used it first
   const place = (words, title) => {
     for (const word of words)
       for (const slot of word.toLowerCase().match(/\b[a-z]+\d+\b/gu) ?? [])
         if (!placed.has(slot)) placed.set(slot, title);
   };
   for (const words of Object.values(keys)) place(words, "");
+  const everyone = () => [...cast.map((entry) => entry.name), ...locals.map((entry) => entry.name)];
+  const common = () => ({
+    connectionId: core.settings.textConnection || null,
+    worldName: save.name,
+    setting: save.setting,
+    persona: core.personas?.find((entry) => entry.id === save.persona)?.name ?? "",
+    characters: everyone(),
+    placed: [...placed].map(([slot, title]) => ({ slot, title, name: names[slot] ?? "" })),
+  });
+  /** Someone the world makes for itself, with their keywords; false when the world is full. */
+  const addLocal = (id, person, words) => {
+    if (cast.length + locals.length >= MAX_PEOPLE || !person.name) return false;
+    locals = [...locals.filter((entry) => entry.id !== id), { id, ...person }];
+    keys[`cards/${id}`] = [person.name, ...words];
+    place(words, person.name);
+    return true;
+  };
+
+  const ask = async ({ batch, extra }) => {
+    const result = await core.ai.loreSetup({
+      ...common(),
+      places: save.loreLinking === "ai",
+      people,
+      locals,
+      ...extra,
+    });
+    batch.forEach(({ key, title, card, entry }, index) => {
+      // A card says who someone is, not what a place or the world is.
+      let words = (result?.keys?.[index] ?? []).filter(
+        (word) => !card || !/^(world$|group of|located in)/iu.test(word),
+      );
+      // An entry about someone with no card: they're made from it, and it stays tied to them as their lore.
+      if (entry && words.some((word) => word.toLowerCase() === "character")) {
+        words = words.filter(
+          (word) => word.toLowerCase() !== "character" && word.toLowerCase() !== title.toLowerCase(),
+        );
+        const known = everyone().some((name) => name.toLowerCase() === title.toLowerCase());
+        const id = `local:${key.replace(/[^\w-]/gu, "-")}`;
+        if (
+          !known &&
+          addLocal(
+            id,
+            { name: title, description: entry.content.slice(0, 1200), personality: "", appearance: "" },
+            words,
+          )
+        ) {
+          words = [title];
+        }
+      }
+      if (words.length) keys[key] = words;
+      else delete keys[key];
+      place(words, title);
+    });
+    for (const [slot, name] of Object.entries(result?.names ?? {})) names[slot] ??= name;
+  };
 
   const parts = [];
-  if (people && (cast.length || save.persona)) {
-    const batch = cast.map((entry) => ({ key: `cards/${entry.id}`, title: entry.name, card: true }));
-    if (save.persona) batch.push({ key: "cards/player", title: "the player", card: true });
-    parts.push({
-      id: "cards",
-      label: "the characters",
-      doing: "getting to know your characters…",
-      batch,
-      extra: { characterIds: cast.map((entry) => entry.id), personaId: save.persona || null, entries: [] },
-    });
-  }
   for (let at = 0; at < entries.length; at += LORE_BATCH) {
     const batch = entries.slice(at, at + LORE_BATCH);
     const several = entries.length > LORE_BATCH;
@@ -739,46 +808,92 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null) {
       id: `lore:${at}`,
       label: several ? `lorebook entries ${at + 1} to ${at + batch.length}` : "the lorebooks",
       doing: several ? `reading the lorebooks (${at} of ${entries.length} entries)…` : "reading the lorebooks…",
-      batch,
-      extra: {
-        entries: batch.map(({ entry }) => ({
-          title: entry.title,
-          keys: entry.keys,
-          content: entry.content.slice(0, 600),
-        })),
+      run: () =>
+        ask({
+          batch,
+          extra: {
+            entries: batch.map(({ entry }) => ({
+              title: entry.title,
+              keys: entry.keys,
+              content: entry.content.slice(0, 600),
+            })),
+          },
+        }),
+    });
+  }
+  if (write.lore) {
+    parts.push({
+      id: "write:places",
+      label: "the world's lore",
+      doing: "writing the world and its places…",
+      run: async () => {
+        const result = await core.ai.worldWrite({ ...common(), step: "places" });
+        book = {
+          entries: [
+            { id: "world", title: save.name, content: result.premise },
+            ...result.places.map((item) => ({ id: item.slot, title: item.name, content: item.lore })),
+          ].filter((entry) => entry.content),
+        };
+        for (const key of Object.keys(keys)) if (key.startsWith("world/")) delete keys[key];
+        if (result.premise) keys["world/world"] = ["world"];
+        for (const item of result.places) {
+          if (item.lore) keys[`world/${item.slot}`] = [item.slot];
+          names[item.slot] ??= item.name;
+          place([item.slot], item.name);
+        }
       },
     });
   }
-  const ask = async ({ batch, extra }) => {
-    const result = await core.ai.loreSetup({
-      connectionId: core.settings.textConnection || null,
-      worldName: save.name,
-      setting: save.setting,
-      persona: core.personas?.find((entry) => entry.id === save.persona)?.name ?? "",
-      characters: cast.map((entry) => entry.name),
-      places: save.loreLinking === "ai",
-      people,
-      placed: [...placed].map(([slot, title]) => ({ slot, title, name: names[slot] ?? "" })),
-      ...extra,
+  if (write.people > 0) {
+    parts.push({
+      id: "write:people",
+      label: "the new people",
+      doing: "inventing the people who live there…",
+      run: async () => {
+        const made = locals.filter((entry) => entry.id.startsWith("local:new-"));
+        locals = locals.filter((entry) => !made.includes(entry));
+        for (const entry of made) delete keys[`cards/${entry.id}`];
+        const count = Math.min(write.people, MAX_PEOPLE - cast.length - locals.length, 12);
+        if (count <= 0) return;
+        const result = await core.ai.worldWrite({
+          ...common(),
+          step: "people",
+          count,
+          premise: book.entries.find((entry) => entry.id === "world")?.content ?? save.setting,
+          places: [...placed.keys()].map((slot) => ({
+            slot,
+            name: names[slot] ?? slot,
+            lore: book.entries.find((entry) => entry.id === slot)?.content ?? "",
+          })),
+        });
+        result.people.forEach(({ keys: words, body, ...person }, index) =>
+          addLocal(`local:new-${index + 1}`, person, [body, ...words].filter(Boolean)),
+        );
+      },
     });
-    batch.forEach(({ key, title, card }, index) => {
-      // A card says who someone is, not what a place or the world is.
-      const words = (result?.keys?.[index] ?? []).filter(
-        (word) => !card || !/^(world$|group of|located in)/iu.test(word),
-      );
-      if (words.length) keys[key] = words;
-      else delete keys[key];
-      place(words, title);
+  }
+  if (people && (cast.length || save.persona)) {
+    const batch = cast.map((entry) => ({ key: `cards/${entry.id}`, title: entry.name, card: true }));
+    if (save.persona) batch.push({ key: "cards/player", title: "the player", card: true });
+    parts.push({
+      id: "cards",
+      label: "the characters",
+      doing: "getting to know your characters…",
+      run: () =>
+        ask({
+          batch,
+          extra: { characterIds: cast.map((entry) => entry.id), personaId: save.persona || null, entries: [] },
+        }),
     });
-    for (const [slot, name] of Object.entries(result?.names ?? {})) names[slot] ??= name;
-  };
+  }
+
   const failed = unread ? [{ id: "books", label: "the lorebooks", error: unread }] : [];
   for (const part of parts) {
     // Asked again: only what failed (every lorebook part, when the lorebooks couldn't be read at all).
     if (only && !only.includes(part.id) && !(only.includes("books") && part.id.startsWith("lore:"))) continue;
     onProgress(part.doing);
     try {
-      await ask(part);
+      await part.run();
     } catch (first) {
       // Once more for a bad answer or a dropped call; not when the server part or the device is refused.
       if ([403, 404].includes(first?.status)) {
@@ -787,42 +902,60 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null) {
       }
       onProgress(`${part.doing} (trying again)`);
       try {
-        await ask(part);
+        await part.run();
       } catch (error) {
         failed.push({ id: part.id, label: part.label, error: error?.message ?? String(error) });
       }
     }
   }
-  return { loreKeys: keys, loreNames: names, failed, entries: entries.length };
+  return { loreKeys: keys, loreNames: names, book, locals, failed, entries: entries.length };
 }
 
-/** How a world's lore is linked, as its save keeps it: the AI can set characters up from their cards alone; the other ways need a lorebook. */
-function linkingOf(lorebooks, loreLinking, characterLinking) {
+/**
+ * How a world's lore is linked, as its save keeps it. Linking by name needs a lorebook; the AI doesn't:
+ * it sets characters up from their cards, and ties in the lore and people it writes itself.
+ */
+function linkingOf(lorebooks, loreLinking, characterLinking, write = {}) {
+  const lore = write.lore && loreLinking === "none" ? "ai" : loreLinking;
+  const cast = write.people > 0 && characterLinking === "none" ? "ai" : characterLinking;
   return {
-    loreLinking: lorebooks.length ? loreLinking : "none",
-    characterLinking: lorebooks.length || characterLinking === "ai" ? characterLinking : "none",
+    loreLinking: lorebooks.length || write.lore ? lore : "none",
+    characterLinking: lorebooks.length || cast === "ai" ? cast : "none",
   };
 }
 
 /**
  * New world's first step when the AI sets it up: the setup (`aiLoreSetup`), with the loading screen up
  * and saying what's going on, for the menu to show before the land is built. `previous` (an earlier
- * answer with failed parts) asks only for what failed. Returns { setup: { loreKeys, loreNames, failed },
- * summary (setup.js), needs: { kind: count } }.
+ * answer with failed parts) asks only for what failed. Returns { setup: { loreKeys, loreNames, book,
+ * locals, failed }, summary (setup.js), needs: { kind: count } }.
  */
 async function planNewWorld(
-  { name, setting = "", lorebooks = [], loreLinking, characterLinking, cast, persona },
+  {
+    name,
+    setting = "",
+    lorebooks = [],
+    loreLinking,
+    characterLinking,
+    cast,
+    persona,
+    writeLore = false,
+    newPeople = 0,
+  },
   previous,
 ) {
+  const write = { lore: writeLore, people: newPeople };
   const draft = {
     name: name || suggestName(),
     setting,
     lorebooks,
-    ...linkingOf(lorebooks, loreLinking, characterLinking),
+    ...linkingOf(lorebooks, loreLinking, characterLinking, write),
     cast: cast ?? [],
     persona: persona ?? core.personaId,
     loreKeys: previous?.loreKeys ?? {},
     loreNames: previous?.loreNames ?? {},
+    locals: previous?.locals ?? [],
+    book: previous?.book ?? null,
   };
   core.hud?.setLoading("Building your world…");
   let setup;
@@ -831,16 +964,18 @@ async function planNewWorld(
       draft,
       (doing) => core.hud?.setLoading(`Building your world: ${doing}`),
       previous?.failed?.length ? previous.failed.map((part) => part.id) : null,
+      write,
     );
   } finally {
     core.hud?.setLoading(null);
   }
-  const needs = await worldNeeds({ ...draft, ...setup });
+  const made = { ...draft, ...setup };
+  const needs = await worldNeeds(made);
   return {
     setup,
     needs,
     summary: summariseSetup(setup, {
-      characters: (core.characters ?? []).filter((entry) => draft.cast.includes(entry.id)),
+      characters: peopleOf(made).filter((entry) => draft.cast.includes(entry.id) || entry.id.startsWith("local:")),
       persona: core.personas?.find((entry) => entry.id === draft.persona)?.name ?? "",
       entries: setup.entries,
     }),
@@ -872,15 +1007,19 @@ async function createNewWorld({
   cast = null,
   persona = null,
   setup = null, // the AI's setup, as the menu reviewed it (planNewWorld)
+  writeLore = false,
+  newPeople = 0,
 }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
   save.setting = setting;
   save.lorebooks = lorebooks;
-  Object.assign(save, linkingOf(lorebooks, loreLinking, characterLinking));
+  Object.assign(save, linkingOf(lorebooks, loreLinking, characterLinking, { lore: writeLore, people: newPeople }));
   save.lorePending = save.loreLinking !== "none" || save.characterLinking !== "none";
   save.persona = persona ?? core.personaId;
-  save.cast = cast ?? [];
+  save.locals = setup?.locals ?? [];
+  save.book = setup?.book ?? { entries: [] };
+  save.cast = [...(cast ?? []), ...save.locals.map((person) => person.id)].slice(0, MAX_PEOPLE);
   save.loreKeys = setup?.loreKeys ?? {};
   save.loreNames = setup?.loreNames ?? {};
   // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
@@ -1139,7 +1278,7 @@ function namedZones(residents) {
  */
 function activeLore(zone, names) {
   const lore = core.save?.lore ?? {};
-  const books = new Map((core.lorebooks ?? []).map((book) => [book.id, book]));
+  const books = new Map([...(core.lorebooks ?? []), ...worldBook(core.save)].map((book) => [book.id, book]));
   const entries = loreSources(zone, names).flatMap((source) =>
     (lore[source.id] ?? []).map((entry) => {
       const book = books.get(entry.lorebookId);
@@ -1148,6 +1287,7 @@ function activeLore(zone, names) {
         title: found?.title ?? entry.title,
         book: book?.name ?? "",
         from: source.label,
+        own: entry.lorebookId === "world", // written for this world: its text goes to the model from here
         content: found?.content ?? null,
       };
     }),
@@ -1932,7 +2072,8 @@ async function loadPeople() {
   core.hud?.setLoading("Loading Wanderworld…");
   const [personas, characters, folders] = await Promise.all([listPersonas(), listCharacters(), listCharacterFolders()]);
   core.personas = personas;
-  core.characters = characters;
+  core.engineCharacters = characters;
+  core.characters = peopleOf(core.save);
   core.characterFolders = folders;
   try {
     const bodies = JSON.parse(readStored(BODIES_KEY) ?? "{}");
@@ -2464,6 +2605,12 @@ function talkPayload(talking, line) {
           .slice(0, 12)
           .map(({ lorebookId, entryId }) => ({ lorebookId, entryId }))
       : [],
+    loreTexts: zone
+      ? activeLore(zone, {})
+          .entries.filter((entry) => entry.own && entry.content)
+          .slice(0, 6)
+          .map((entry) => `${entry.title}: ${entry.content}`)
+      : [],
     history: talking.history.slice(-24),
     line,
     connectionId: core.settings.textConnection || null,
@@ -2554,7 +2701,8 @@ function enterBuilding(door) {
 async function playAsScene(thing, request, along) {
   const startScene = core.props?.startScene;
   if (typeof startScene !== "function" || !core.save) return "This Engine can't start scenes from Wanderworld.";
-  const known = new Set((core.characters ?? []).map((entry) => entry.id));
+  // The Engine casts its own characters only: a world's own people can't be in a scene.
+  const known = new Set((core.engineCharacters ?? []).map((entry) => entry.id));
   const people = [...thing.inside, ...along].filter((person, i, all) => all.findIndex((p) => p.id === person.id) === i);
   const characterIds = people.map((person) => person.id).filter((id) => known.has(id));
   if (!characterIds.length)
@@ -3682,7 +3830,11 @@ function attach(element) {
           core.hud?.setNotice(`The AI is setting the world up: ${doing}`),
         );
         if (core.save?.id !== save.id) return; // another world was opened meanwhile
-        core.save = { ...core.save, loreKeys: setup.loreKeys, loreNames: setup.loreNames };
+        const cast = [...new Set([...core.save.cast, ...setup.locals.map((person) => person.id)])].slice(0, MAX_PEOPLE);
+        core.save = { ...core.save, loreKeys: setup.loreKeys, loreNames: setup.loreNames, locals: setup.locals, cast };
+        core.characters = peopleOf(core.save);
+        core.cast = new Set(cast);
+        updateCast();
         if (setup.failed.length) {
           // What came through is kept and linked; the rest stays as it was.
           await linkLore();
@@ -3763,7 +3915,7 @@ function attach(element) {
       // starts with the persona played last, for convenience.
       people: () => ({
         personas: core.personas ?? [],
-        characters: core.characters ?? [],
+        characters: core.engineCharacters ?? [],
         folders: core.characterFolders ?? [],
         cast: [],
         persona: core.saves.last()?.persona ?? core.personaId,

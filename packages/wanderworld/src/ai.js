@@ -54,7 +54,7 @@ async function request(path, { method = "GET", body, timeout = 120000 } = {}) {
 }
 
 /** The server part, as one object. `status()` is remembered once it has answered. */
-export function createAi() {
+export function createAi(locals = () => []) {
   let status = null;
   let checking = null;
   return {
@@ -71,7 +71,7 @@ export function createAi() {
     known: () => status,
     connections: () => request("/connections", { timeout: 15000 }),
     /** A character's reply: { reply }. */
-    talk: (payload) => request("/talk", { method: "POST", body: payload }),
+    talk: (payload) => request("/talk", { method: "POST", body: { ...payload, locals: locals() } }),
     /** A picture: { image } (a data URL). */
     image: (payload) => request("/image", { method: "POST", body: payload, timeout: 300000 }),
     /** Keeps a scene's context for the Engine's planner. */
@@ -80,17 +80,20 @@ export function createAi() {
     sceneResults: (worldId) =>
       request(`/scene-results/${encodeURIComponent(worldId)}`).then((body) => body?.results ?? []),
     /** A moment: { narration, replies: [{ id, text }], plans: [{ id, entry }] }. */
-    moment: (payload) => request("/moment", { method: "POST", body: payload }),
+    moment: (payload) => request("/moment", { method: "POST", body: { ...payload, locals: locals() } }),
     /** A scene's plan for the Engine (skipping its dialog): { plan, initiatorId }. */
     scenePlan: (payload) => request("/scene-plan", { method: "POST", body: payload }),
     /** Creates the planned scene in the Engine, with the chosen preset: { chatId }. */
     sceneStart: (payload) => request("/scene-start", { method: "POST", body: payload }),
     /** Someone's day from the model: { entries }. */
-    plan: (payload) => request("/plan", { method: "POST", body: payload }),
+    plan: (payload) => request("/plan", { method: "POST", body: { ...payload, locals: locals() } }),
     /** A batch of lorebook entries read for a world's setup: { keys: [[keywords] per entry], names: { place: name } }. */
     loreSetup: (payload) => request("/lore-setup", { method: "POST", body: payload, timeout: 240000 }),
+    /** A world written for itself, a step at a time: { premise, places } or { people } (server.mjs `/world-write`). */
+    worldWrite: (payload) => request("/world-write", { method: "POST", body: payload, timeout: 240000 }),
     /** Illustrates the moment from the user's template: { id, image, prompt, caption, at }; kept in the gallery. */
-    illustrate: (payload) => request("/illustrate", { method: "POST", body: payload, timeout: 300000 }),
+    illustrate: (payload) =>
+      request("/illustrate", { method: "POST", body: { ...payload, locals: locals() }, timeout: 300000 }),
     /** The world's gallery, newest first, without the pictures themselves: [{ id, caption, prompt, at }]. */
     pictures: (worldId) => request(`/pictures/${encodeURIComponent(worldId)}`).then((body) => body?.pictures ?? []),
     /** One picture: { id, image, caption, prompt, at }. */
