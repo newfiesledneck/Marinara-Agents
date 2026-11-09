@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.68",
+          "date": "2026-11-09",
+          "notes": "- A server part (needs an Engine restart after installing or updating): people answer in their own words, written by your model from their card, your persona, where you are, the time and weather, how they feel about you and the lore active there; set lines stand in if a call fails.\n- Settings → AI: AI conversations on or off, the connections for conversations, scenes and pictures, how people talk, reply length, creativity, and the picture style (the Engine's style profiles).\n- \"Play it as a scene\" on a scene card opens it as a roleplay scene in the Engine with everyone there; its recap comes back to Journal → Here.\n- Journal → Here: \"Picture this place\" paints where you are through your image connection.",
+          "highlight": false
+        },
+        {
           "version": "0.4.67",
           "date": "2026-11-09",
           "notes": "- The sound of rain while it rains (softer indoors), and no birdsong in it.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.49",
           "date": "2026-11-09",
           "notes": "- World size: Small, Normal, Large, Huge or Massive (up to three times as wide), chosen in New world (or Auto) and when regenerating. Bigger worlds spread their places further out and are just as wooded.\n- Draw distance: Tiny, Near, Medium, Far, Very far or Max, with fog hiding everything past it.\n- Much lighter far views: small plants are drawn nearby only and detailed trees out to 180 m, with simple trees beyond; the ground is built in pieces, finer near you.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.48",
-          "date": "2026-11-09",
-          "notes": "- Swimming sits in the water instead of floating above it, and wading in or climbing out eases smoothly between walking and swimming (for you and for townsfolk).",
           "highlight": false
         }
       ]
