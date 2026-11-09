@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.59)
+## What it does now (0.4.60)
 
 ### The world
 
@@ -99,7 +99,8 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, sound, confrontations, people coming up to you,
   what the HUD shows, explanations under every option, and Regenerate this world.
-- A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night.
+- A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night. Weather (Settings,
+  off by default): rain, snow or mist, changing every few minutes or always one.
 
 It reads your personas, characters, character folders, lorebooks and 3D Avatars models from the Engine.
 Everything it saves stays in this browser for now; nothing is saved to the Engine yet.

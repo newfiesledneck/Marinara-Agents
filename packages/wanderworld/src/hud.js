@@ -155,6 +155,7 @@ export function createHud(root, handlers) {
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "Dragging up looks down, like a flight stick.",
     time: "Let the day pass, or keep it at one time of day.",
+    weather: "Rain, snow or mist, changing every few minutes or always one. Off keeps the sky clear.",
     timeSpeed: "How fast the day passes while it's moving.",
     interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
     approach: "How often townsfolk come up to greet you, or confront you. 0 means never.",
@@ -247,6 +248,13 @@ export function createHud(root, handlers) {
   toggle("invertLook", "Invert up and down");
   heading("World");
   choice("time", "Time", TIME_LABELS);
+  choice("weather", "Weather", {
+    off: "Off (always clear)",
+    changing: "Changing",
+    rain: "Rain",
+    snow: "Snow",
+    mist: "Mist",
+  });
   choice("timeSpeed", "Time speed", {
     0.25: "¼× (a day in 80 min)",
     0.5: "½× (a day in 40 min)",

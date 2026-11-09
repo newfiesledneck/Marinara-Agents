@@ -50,6 +50,7 @@ import {
 import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
 import { drawMap } from "./map.js";
+import { weatherAt } from "./weather.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
   checkTraits,
@@ -122,6 +123,7 @@ const AUTO_PIXELS = 1920 * 1080;
 const DAY_SECONDS = 20 * 60; // a whole day in town takes 20 minutes
 const START_HOUR = 9;
 const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, thing: 1.9, travel: 1 };
+const WEATHER_PERIOD = 240; // seconds of play between changes of the weather
 const TRAVEL_REACH = 6; // metres from the world's edge where "Travel to…" shows
 const OPPOSITE = { north: "south", east: "west", south: "north", west: "east" }; // every kind of usable needs one
 const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
@@ -2447,6 +2449,19 @@ function stepClock(dt) {
   if (mode === "day") core.hour = 12;
   else if (mode === "night") core.hour = 23;
   else core.hour = (core.hour + (dt * 24 * (core.settings.timeSpeed ?? 1)) / DAY_SECONDS) % 24;
+  // The weather: off (clear), one kind always, or changing every few minutes (the same for a world each time).
+  core.weatherTime = (core.weatherTime ?? 0) + dt;
+  const setting = core.settings.weather ?? "off";
+  core.world.setWeather(
+    setting === "off"
+      ? "clear"
+      : setting === "changing"
+        ? weatherAt(
+            hashString(regionSeed(core.save ?? { region: HOME_REGION, seed: "" })),
+            Math.floor(core.weatherTime / WEATHER_PERIOD),
+          )
+        : setting,
+  );
   core.dark = core.world.setTime(core.hour);
   core.hud?.setClock(clockText());
 }

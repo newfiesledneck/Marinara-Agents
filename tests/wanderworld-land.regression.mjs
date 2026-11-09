@@ -471,4 +471,26 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
   old.dispose();
 }
 
+// Weather: changing weather is the same for a world each time and is mostly clear, with rain, mist and
+// snow now and then; a world eases into the weather it's given, out of one kind before into the next.
+{
+  const { weatherAt } = await import("../packages/wanderworld/src/weather.js");
+  assert.equal(weatherAt(5, 3), weatherAt(5, 3), "the same weather for the same world and time");
+  const kinds = Array.from({ length: 400 }, (_, period) => weatherAt(77, period));
+  const share = (kind) => kinds.filter((entry) => entry === kind).length / kinds.length;
+  assert.ok(share("clear") > 0.4 && share("clear") < 0.7, `mostly clear (${share("clear")})`);
+  for (const kind of ["rain", "mist", "snow"]) assert.ok(share(kind) > 0.03, `${kind} now and then`);
+  const world = createWorld(7);
+  world.setWeather("rain");
+  for (let i = 0; i < 100; i++) world.update(0.1);
+  assert.equal(world.weatherNow().kind, "rain");
+  assert.ok(world.weatherNow().amount > 0.9, "rain sets in over a few seconds");
+  world.setWeather("snow");
+  world.update(0.1);
+  assert.equal(world.weatherNow().kind, "rain", "the rain eases off first");
+  for (let i = 0; i < 200; i++) world.update(0.1);
+  assert.equal(world.weatherNow().kind, "snow", "then it snows");
+  world.dispose();
+}
+
 console.log("wanderworld land regression: OK");
