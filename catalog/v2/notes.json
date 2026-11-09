@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.47",
+          "date": "2026-11-09",
+          "notes": "- Townsfolk and followers can swim. They still go round by a bridge when there's one on the way, and your party crosses the way you did: swimming after you, or by the bridge.\n- Settings → Time speed: a day in 80, 40, 20, 10, 5 or 2½ minutes.\n- The clock in Journal → World keeps ticking, a place's lore count updates as soon as you go back, and deleting a group asks first.",
+          "highlight": false
+        },
+        {
           "version": "0.4.46",
           "date": "2026-11-09",
           "notes": "- Body choices are kept per world: setting someone's body in one world (by hand or by lore) doesn't change another. Older worlds start from the choices made before.\n- Inns and cottages never stand in the river: they move further out until they're on dry ground.\n- Caves have no road leading to them: they're found up on the hillsides.\n- Followers and townsfolk cross the wilds straight to where they're going, and cross the river by the nearest bridge instead of wading in.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.28",
           "date": "2026-11-08",
           "notes": "- Settings → Regenerate this world: builds the world again from its setup with everything new, keeping your people, relationships, party, notes and lore. Optionally a new town layout too.\n- Settings: how often people come up to you (or never), and at most how many at once, so you aren't surrounded.\n- The river's banks always stand above the water, so it no longer floats with gaps over low ground in hilly worlds.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.27",
-          "date": "2026-11-08",
-          "notes": "- Townsfolk hold real little conversations with each other, taking turns, warmer between friends and family and short between enemies.\n- Talking to someone: they greet you by how they feel about you, and you can pick what to say (how they are, news, about them, somewhere to eat, goodbye) or type your own.\n- Lit windows at night, smoke rising from chimneys, striped awnings over shops, and signs hanging out over the street on painted boards.\n- Settings: walk speed and run speed are separate sliders.\n- Best friends look further for each other, so they meet up more often.",
           "highlight": false
         }
       ]
