@@ -657,6 +657,212 @@ function placeFarm(random, town, outpost) {
   placeWagon(random, town, wagon.x, wagon.z, facing % 2 === 1);
 }
 
+const OLD_STONE = 0x8a857a;
+/** A stone's simple shape: a box, tilted a little (`tilt` radians about x and z). */
+const slab = (width, height, depth, tilt = 0) =>
+  painted(
+    new BoxGeometry(width, height, depth)
+      .translate(0, height / 2, 0)
+      .rotateX(tilt)
+      .rotateZ(tilt * 0.6),
+    OLD_STONE,
+  );
+
+/**
+ * Old stone, weathered: moss creeping up from the ground, the faces a little lighter or darker each
+ * (by where they are, so it's the same every time). `geometry` is painted, standing on y = 0.
+ */
+function weathered(geometry) {
+  const position = geometry.attributes.position;
+  const colour = geometry.attributes.color;
+  const moss = new Color(0x5f6b45);
+  const tint = new Color();
+  for (let i = 0; i < position.count; i += 3) {
+    // One shade per triangle (flat-shaded faces), from the triangle's middle.
+    const [x, y, z] = [0, 1, 2].map(
+      (k) => (position.getComponent(i, k) + position.getComponent(i + 1, k) + position.getComponent(i + 2, k)) / 3,
+    );
+    const shade = 0.9 + 0.18 * (Math.sin(x * 12.9898 + z * 78.233) * 0.5 + 0.5);
+    for (let v = i; v < i + 3; v++) {
+      tint.fromArray(colour.array, v * 3).multiplyScalar(shade);
+      const low = Math.max(0, Math.min(1, (0.55 - position.getY(v)) / 0.55));
+      tint.lerp(moss, low * 0.7);
+      tint.toArray(colour.array, v * 3);
+    }
+  }
+  return geometry;
+}
+
+/** Ferns, grass and bushes round a landmark's stones, `count` of them within `reach` of its middle. */
+function overgrow(random, town, outpost, count, reach) {
+  const plants = ["fern-1", "grass-wispy-tall", "grass-common-tall", "bush-common", "fern-1"];
+  for (let i = 0; i < count; i++) {
+    const angle = random() * Math.PI * 2;
+    const distance = reach * (0.3 + random() * 0.8);
+    const model = plants[Math.floor(random() * plants.length)];
+    placeKitPlant(town, null, {
+      model,
+      x: outpost.x + Math.cos(angle) * distance,
+      z: outpost.z + Math.sin(angle) * distance,
+      angle: random() * 6.3,
+      scale: model.startsWith("bush") ? 0.45 : 0.6 + random() * 0.3,
+    });
+  }
+}
+
+/** Puts local geometry (built round the place's middle, front +z) into the always-drawn pieces. */
+function placeLocal(town, outpost, geometry) {
+  town.pieces.push(geometry.rotateY((outpost.facing * Math.PI) / 2).translate(outpost.x, 0, outpost.z));
+}
+
+/** Landmarks out in the country, each built from plain shapes (no kit models), with its colliders. */
+const LANDMARKS = {
+  /** Old ruins: broken stone walls round a long-gone hall, a fallen arch's stones in the grass. */
+  ruins(random, town, outpost) {
+    const at = (lx, lz) => toWorld(outpost.x, outpost.z, outpost.facing, lx, lz);
+    const pieces = [];
+    const [w, d] = [12, 9];
+    const walls = [
+      [-w / 2, -d / 2, w / 2, -d / 2],
+      [w / 2, -d / 2, w / 2, d / 2],
+      [w / 2, d / 2, 1.5, d / 2],
+      [-1.5, d / 2, -w / 2, d / 2],
+      [-w / 2, d / 2, -w / 2, -d / 2],
+    ];
+    for (const [ax, az, bx, bz] of walls) {
+      const length = Math.hypot(bx - ax, bz - az);
+      const pieceCount = Math.ceil(length / 2);
+      for (let i = 0; i < pieceCount; i++) {
+        if (random() < 0.22) continue; // a gap where it fell
+        const t = (i + 0.5) / pieceCount;
+        const height = 0.6 + random() * random() * 3.4;
+        const lx = ax + (bx - ax) * t;
+        const lz = az + (bz - az) * t;
+        const along = Math.abs(bx - ax) > 0.1;
+        pieces.push(
+          painted(
+            new BoxGeometry(
+              along ? length / pieceCount + 0.05 : 0.7,
+              height,
+              along ? 0.7 : length / pieceCount + 0.05,
+            ).translate(lx, height / 2, lz),
+            random() < 0.5 ? OLD_STONE : 0x7c776c,
+          ),
+        );
+        const spot = at(lx, lz);
+        town.circles.push({ x: spot.x, z: spot.z, r: 1.05 });
+      }
+    }
+    for (let i = 0; i < 7; i++) {
+      const lx = (random() - 0.5) * (w + 6);
+      const lz = (random() - 0.5) * (d + 6);
+      pieces.push(
+        slab(0.6 + random() * 0.6, 0.4 + random() * 0.3, 0.5 + random() * 0.5, random() * 0.3)
+          .rotateY(random() * 3)
+          .translate(lx, -0.05, lz),
+      );
+    }
+    placeLocal(town, outpost, weathered(mergeGeometries(pieces)));
+    overgrow(random, town, outpost, 16, 9);
+  },
+  /** A timber watchtower on four legs, a ladder up to its roofed platform. */
+  watchtower(random, town, outpost) {
+    const at = (lx, lz) => toWorld(outpost.x, outpost.z, outpost.facing, lx, lz);
+    const timber = 0x6b4a2f;
+    const [half, height] = [1.7, 7];
+    const pieces = [];
+    for (const [sx, sz] of [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1],
+    ]) {
+      pieces.push(box(0.32, height + 2.2, 0.32, sx * half, (height + 2.2) / 2, sz * half, timber));
+      const leg = at(sx * half, sz * half);
+      town.circles.push({ x: leg.x, z: leg.z, r: 0.35 });
+    }
+    pieces.push(box(half * 2 + 0.6, 0.25, half * 2 + 0.6, 0, height, 0, 0x7d5a3a)); // the platform
+    for (const side of [-1, 1]) {
+      pieces.push(box(half * 2 + 0.6, 0.12, 0.1, 0, height + 1, side * (half + 0.3), timber)); // rails
+      pieces.push(box(0.1, 0.12, half * 2 + 0.6, side * (half + 0.3), height + 1, 0, timber));
+      pieces.push(box(0.1, height, 0.1, side * 0.35, height / 2, half + 0.5, timber)); // the ladder's sides
+    }
+    for (let rung = 0.5; rung < height; rung += 0.45) pieces.push(box(0.8, 0.07, 0.07, 0, rung, half + 0.5, timber));
+    pieces.push(box(1.4, 0.06, 1.4, 1, height - 0.9, -1, timber).rotateX(0.5)); // bracing
+    pieces.push(painted(slopedRoof(half * 2 + 1.2, half * 2 + 1.2, 1.8, true).translate(0, height + 2.2, 0), 0x5b4636));
+    placeLocal(town, outpost, mergeGeometries(pieces));
+  },
+  /** A ring of standing stones in a clearing, a flat stone in the middle. */
+  stones(random, town, outpost) {
+    const pieces = [];
+    const count = 9 + Math.floor(random() * 4);
+    for (let i = 0; i < count; i++) {
+      if (random() < 0.12) continue; // one gone
+      const angle = (i / count) * Math.PI * 2;
+      const [lx, lz] = [Math.cos(angle) * 6.5, Math.sin(angle) * 6.5];
+      const height = 2 + random() * 1.4;
+      pieces.push(
+        slab(1 + random() * 0.4, height, 0.6, (random() - 0.5) * 0.18)
+          .rotateY(-angle + Math.PI / 2)
+          .translate(lx, -0.1, lz),
+      );
+      const spot = toWorld(outpost.x, outpost.z, outpost.facing, lx, lz);
+      town.circles.push({ x: spot.x, z: spot.z, r: 0.65 });
+    }
+    pieces.push(slab(2.4, 0.5, 1.3).translate(0, -0.05, 0));
+    const middle = toWorld(outpost.x, outpost.z, outpost.facing, 0, 0);
+    town.circles.push({ x: middle.x, z: middle.z, r: 1.2 });
+    placeLocal(town, outpost, weathered(mergeGeometries(pieces)));
+    overgrow(random, town, outpost, 12, 9);
+  },
+  /** A fenced graveyard: rows of headstones, a stone cross, a dark old tree. */
+  graveyard(random, town, outpost) {
+    const [w, d] = [14, 12];
+    placeFence(town, outpost.x, outpost.z, w, d, outpost.facing);
+    const pieces = [];
+    for (let row = 0; row < 3; row++) {
+      for (let i = 0; i < 5; i++) {
+        if (random() < 0.15) continue;
+        const lx = -4.6 + i * 2.3 + (random() - 0.5) * 0.3;
+        const lz = -3.4 + row * 2.6;
+        const height = 0.7 + random() * 0.4;
+        pieces.push(slab(0.6, height, 0.16, (random() - 0.5) * 0.15).translate(lx, -0.05, lz));
+        pieces.push(box(0.7, 0.06, 1.5, lx, 0.03, lz + 0.85, 0x5e6b3c)); // the grave's mound
+      }
+    }
+    pieces.push(slab(0.3, 2.2, 0.3).translate(0, 0, -5));
+    pieces.push(box(1.2, 0.3, 0.3, 0, 1.6, -5, OLD_STONE));
+    placeLocal(town, outpost, weathered(mergeGeometries(pieces)));
+    const tree = toWorld(outpost.x, outpost.z, outpost.facing, 5, -4.2);
+    placeKitPlant(
+      town,
+      mergeGeometries([
+        painted(new CylinderGeometry(0.2, 0.3, 2, 5).translate(0, 1, 0), 0x4a3424),
+        painted(new ConeGeometry(1.6, 4.5, 7).translate(0, 4, 0), 0x2f4a2c),
+      ]),
+      { model: "pine-3", x: tree.x, z: tree.z, angle: random() * 6.3, scale: 0.55 },
+    );
+    town.circles.push({ x: tree.x, z: tree.z, r: 0.4 });
+  },
+  /** A mill on the river bank: a house with a door to the road, its waterwheel turning in the stream behind. */
+  mill(random, town, outpost) {
+    placeBuilding(random, town, makeSpec(random, "home", { width: 7, depth: 6 }), outpost.x, outpost.z, outpost.facing);
+    const timber = 0x5e4330;
+    const wheel = [painted(new CylinderGeometry(0.18, 0.18, 1.6, 6).rotateX(Math.PI / 2), timber)];
+    const radius = 2.3;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      wheel.push(box(0.12, radius, 0.12, 0, radius / 2, 0, timber).rotateZ(angle)); // spokes
+      wheel.push(box(0.75, 0.1, 1.1, 0, radius, 0, 0x6f5038).rotateZ(angle)); // paddles
+    }
+    // Beside the back wall (toward the water), standing on the axle.
+    const geometry = mergeGeometries(wheel)
+      .rotateY(Math.PI / 2)
+      .translate(0, 1.1, -4.4);
+    placeLocal(town, outpost, geometry);
+  },
+};
+
 /**
  * A fenced garden on an empty lot (`size` metres square, a whole number of fence lengths), its gate facing
  * `facing`: a tree in a back corner, bushes and flowers along the fence, and a bench at the back facing
@@ -1390,6 +1596,14 @@ function buildCountry(random, town, land, ground) {
       doorOf.set(outpost.index, town.doors.length);
       doorsOf.set(outpost.index, [town.doors.length]);
       placeFarm(random, town, outpost);
+      continue;
+    }
+    if (outpost.kind === "mill") {
+      doorOf.set(outpost.index, town.doors.length);
+      doorsOf.set(outpost.index, [town.doors.length]);
+    }
+    if (LANDMARKS[outpost.kind]) {
+      LANDMARKS[outpost.kind](random, town, outpost);
       continue;
     }
     const kind = outpost.kind === "inn" ? "tavern" : "home";

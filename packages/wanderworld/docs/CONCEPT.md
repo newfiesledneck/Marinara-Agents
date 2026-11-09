@@ -398,9 +398,9 @@ world's preview (they're read when the world is made), a zoomable map, marking p
 
 **Saved for later (not forgotten)**
 
-- New kinds of place: farms in fuller detail, a mill, ruins, a watchtower, a graveyard by the temple, a
-  lake or pond, a forest clearing with standing stones, more cave kinds (a mine, a grotto), a coast.
-  Each gets a numbered name for lore (farm1, ruins1…).
+- New kinds of place: ~~a mill, ruins, a watchtower, a graveyard, standing stones~~ (0.4.58, `LANDMARKS`
+  in world.js, numbered ruins1, mill1…). Still to come: a lake or pond (needs swimmable water off the river),
+  more cave kinds (a mine, a grotto), a coast, farms in fuller detail.
 - Weather and seasons, only if they look good: the Engine's chat weather (`WeatherEffects.tsx`, with
   `weather-renderer`) is a 2D overlay; it's a guide to the look and the weather names, but here it
   would be rain and snow falling in the scene, fog density, the sky's tint, wet darker ground, snow on

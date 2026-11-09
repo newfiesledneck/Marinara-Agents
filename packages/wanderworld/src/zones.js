@@ -68,6 +68,13 @@ const INN_NAMES = [
 const COTTAGE_NAMES = ["the woodcutter's cottage", "the old cottage", "the hermit's cottage", "the shepherd's cottage"];
 const CAVE_NAMES = ["the cave", "Hollow Cave", "the Echoing Cave", "the bear's den", "Glimmer Cave"];
 const FARM_NAMES = ["Brookside Farm", "Applegarth Farm", "Thistledown Farm", "Hayward's Farm", "Old Mill Farm"];
+const LANDMARK_NAMES = {
+  ruins: ["the old ruins", "the fallen hall", "Greystone Ruins", "the broken keep"],
+  watchtower: ["the watchtower", "the old lookout", "Hawk's Watch", "the beacon tower"],
+  stones: ["the standing stones", "the Old Ring", "the Whispering Stones", "the Nine Maidens"],
+  graveyard: ["the graveyard", "the old churchyard", "the quiet acre"],
+  mill: ["the mill", "the watermill", "Millbrook Mill", "the old mill"],
+};
 
 /** Default names and sign words by building kind. */
 const BUILDING = {
@@ -235,11 +242,16 @@ export function buildZones(layout, seed) {
   const outpostDoors = new Map();
   const outpostNames = [];
   (layout.outposts ?? []).forEach((outpost, i) => {
-    const names = { inn: INN_NAMES, cottage: COTTAGE_NAMES, cave: CAVE_NAMES, hamlet: TOWN_NAMES, farm: FARM_NAMES }[
-      outpost.kind
-    ];
+    const names = {
+      inn: INN_NAMES,
+      cottage: COTTAGE_NAMES,
+      cave: CAVE_NAMES,
+      hamlet: TOWN_NAMES,
+      farm: FARM_NAMES,
+      ...LANDMARK_NAMES,
+    }[outpost.kind];
     const name = outpost.name ?? pick(random, names, used);
-    outpostNames[i] = name.replace(/^the /u, "");
+    outpostNames[i] = name;
     // A hamlet is a settlement of its own (a town zone: town2, town3…), the rest are places.
     const id = outpost.kind === "cave" ? `cave:${i}` : outpost.kind === "hamlet" ? `town:${i}` : `outpost:${i}`;
     zones.push({
@@ -247,7 +259,16 @@ export function buildZones(layout, seed) {
       kind: outpost.kind === "cave" ? "cave" : outpost.kind === "hamlet" ? "town" : "outpost",
       outpostKind: outpost.kind,
       name,
-      shape: { circle: { x: outpost.x, z: outpost.z, r: { cave: 7, hamlet: 24, farm: 26 }[outpost.kind] ?? 15 } },
+      shape: {
+        circle: {
+          x: outpost.x,
+          z: outpost.z,
+          r:
+            { cave: 7, hamlet: 24, farm: 26, ruins: 12, watchtower: 8, stones: 10, graveyard: 10, mill: 9 }[
+              outpost.kind
+            ] ?? 15,
+        },
+      },
       parent: "forest",
       sign: null,
     });
@@ -262,7 +283,7 @@ export function buildZones(layout, seed) {
       zones.push({
         id: `road:${i}`,
         kind: "road",
-        name: `the road to ${name.replace(/^the /u, "")}`,
+        name: `the road to ${name}`,
         shape: { line: { points: road.points, width: road.width + 3 } },
         parent: "forest",
         sign: null,
@@ -621,6 +642,11 @@ const KIND_WORDS = {
   "outpost:cottage": ["cottage"],
   "outpost:hamlet": ["hamlet", "town"],
   "outpost:farm": ["farm", "farmstead", "barn", "fields"],
+  "outpost:ruins": ["ruins", "ruin"],
+  "outpost:watchtower": ["watchtower", "tower", "lookout"],
+  "outpost:stones": ["standing stones", "stone circle", "stones"],
+  "outpost:graveyard": ["graveyard", "cemetery", "churchyard"],
+  "outpost:mill": ["mill", "watermill", "miller"],
 };
 
 const plain = (word) =>
@@ -820,6 +846,11 @@ export const NEEDED_KINDS = [
   "inn",
   "cottage",
   "farm",
+  "ruins",
+  "watchtower",
+  "stones",
+  "graveyard",
+  "mill",
   "cave",
   "road",
   "garden",
