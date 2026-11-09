@@ -505,6 +505,11 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
       const choices = { places: "several", towns: "two", farms: "two", landmarks: "several", river: "yes" };
       const built = createWorld(seed, landscapeWith(seed, choices), {}, size);
       const places = built.layout.outposts;
+      for (const place of places) {
+        if (["inn", "cottage", "cave"].includes(place.kind)) continue;
+        const out = Math.max(Math.abs(place.x), Math.abs(place.z)) + room(place.kind);
+        assert.ok(out <= built.layout.worldHalf, `seed ${seed} ${size}: all of the ${place.kind} is inside the world`);
+      }
       for (let i = 0; i < places.length; i++) {
         for (let j = i + 1; j < places.length; j++) {
           const [a, b] = [places[i], places[j]];

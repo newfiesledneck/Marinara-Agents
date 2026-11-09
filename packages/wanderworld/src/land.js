@@ -337,10 +337,14 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
   const placed = []; // the places so far, to keep each one's level ground clear of the others'
   const roomOf = (kind) => (kind === "cave" ? 14 : flatOf(kind));
   const outposts = landscape.outposts.map((original, index) => {
-    // A graveyard close by the town goes on a side the river doesn't cut it off on.
-    const sideFree = (side) => !(river && landscape.river.side === side);
+    // A graveyard close by the town goes on a side the river doesn't cut it off on, and so does a hamlet
+    // or farm when there's no room for its ground between the river and the world's edge.
+    const beyondRiver = townHalf + 58 + flatOf(original.kind) + RIVER_WIDTH / 2 + BANK + 6;
+    const wantsDry =
+      original.kind === "graveyard" ||
+      ((original.kind === "hamlet" || original.kind === "farm") && beyondRiver > edge - flatOf(original.kind) - 6);
     const entry =
-      original.kind === "graveyard" && !sideFree(original.side)
+      wantsDry && river && landscape.river.side === original.side
         ? { ...original, side: SIDES[(SIDES.indexOf(original.side) + 1) % SIDES.length] }
         : original;
     const [dx, dz] = DIRECTION[entry.side];
@@ -360,10 +364,13 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       out = Math.min(out, Math.max(townHalf + 40, worldHalf - MOUNTAIN_REACH - flatOf(entry.kind)));
     }
     if (entry.kind === "graveyard") out = townHalf + 24 + random() * 10; // just outside town
-    out = Math.min(out, edge - 14); // inside the world, however small
+    // Inside the world, however small; a hamlet, farm or landmark with all its ground inside too.
+    const inside = OUTPOST_KINDS.includes(entry.kind) ? 14 : Math.max(14, roomOf(entry.kind) + 6);
+    out = Math.min(out, edge - inside);
     // A graveyard keeps close by the town, level with it; the rest spread along their side.
     const spread = entry.kind === "graveyard" ? Math.max(-townHalf * 0.6, Math.min(townHalf * 0.6, across)) : across;
-    let lateral = Math.max(-edge + 20, Math.min(edge - 20, spread));
+    const sideways = Math.max(20, inside); // and as far from the side edges
+    let lateral = Math.max(-edge + sideways, Math.min(edge - sideways, spread));
     const spot = (distance) => (dx !== 0 ? { x: dx * distance, z: lateral } : { x: lateral, z: dz * distance });
     // Never on the river: a place whose ground would reach the water or its banks steps further out.
     const dry = entry.kind === "hamlet" || entry.kind === "farm" ? flatOf(entry.kind) + 6 : 14; // more for a hamlet or farm
@@ -382,26 +389,49 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       placed.push(mill);
       return mill;
     }
-    while (!clearOfRiver(spot(out)) && out < edge - 18) out += 4;
-    // Clear of the places already there: along the side away from the one in the way, now and then
-    // further out too (still off the river).
-    let away = 0; // which way along the side it moves: kept for the whole search, turned back at the edge
-    for (let tries = 0; tries < 24; tries++) {
+    // Off the river: further out (inns, cottages and caves as always; the rest only as far as their room).
+    const furthest = OUTPOST_KINDS.includes(entry.kind) ? edge - 18 : edge - inside;
+    while (!clearOfRiver(spot(out)) && out < furthest) out += 4;
+    // Clear of the places already there and of the river: along the side (one way, turned back at the
+    // edge), now and then further out too.
+    let away = 0;
+    for (let tries = 0; tries < 30; tries++) {
       const at = spot(out);
       const clash = placed.find(
         (other) => Math.hypot(other.x - at.x, other.z - at.z) < roomOf(other.kind) + roomOf(entry.kind) + 4,
       );
-      if (!clash) break;
-      if (!away) away = Math.sign(dx !== 0 ? at.z - clash.z : at.x - clash.x) || 1;
-      if (Math.abs(lateral + away * 9) > edge - 20) away = -away;
+      if (!clash && clearOfRiver(at)) break;
+      if (!away) away = clash ? Math.sign(dx !== 0 ? at.z - clash.z : at.x - clash.x) || 1 : 1;
+      if (Math.abs(lateral + away * 9) > edge - sideways) away = -away;
       lateral += away * 9;
-      if (tries % 3 === 2) out = Math.min(out + 10, edge - 14);
-      while (!clearOfRiver(spot(out)) && out < edge - 18) out += 4;
+      if (tries % 3 === 2) out = Math.min(out + 10, furthest);
     }
-    const { x, z } = spot(out);
+    let { x, z } = spot(out);
+    let side = entry.side;
+    const free = (at) =>
+      clearOfRiver(at) &&
+      placed.every(
+        (other) => Math.hypot(other.x - at.x, other.z - at.z) >= roomOf(other.kind) + roomOf(entry.kind) + 4,
+      );
+    if (!free({ x, z })) {
+      // Its side is full: the free spot nearest where it wanted to be, anywhere out in the country (and
+      // the side that spot is on).
+      let best = null;
+      for (let gx = -edge + inside; gx <= edge - inside; gx += 8) {
+        for (let gz = -edge + inside; gz <= edge - inside; gz += 8) {
+          if (Math.max(Math.abs(gx), Math.abs(gz)) < townHalf + 24 + roomOf(entry.kind)) continue;
+          const distance = Math.hypot(gx - x, gz - z);
+          if ((!best || distance < best.distance) && free({ x: gx, z: gz })) best = { x: gx, z: gz, distance };
+        }
+      }
+      if (best) {
+        ({ x, z } = best);
+        side = Math.abs(x) > Math.abs(z) ? (x > 0 ? "east" : "west") : z > 0 ? "south" : "north";
+      }
+    }
     // The front looks back toward town, squared to a quarter turn like every building in town.
     const facing = ((Math.round(Math.atan2(-x, -z) / (Math.PI / 2)) % 4) + 4) % 4;
-    const place = { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
+    const place = { ...entry, side, index, x, z, facing, angle: (facing * Math.PI) / 2 };
     placed.push(place);
     return place;
   });
