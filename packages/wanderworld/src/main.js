@@ -19,7 +19,9 @@ import {
   creatureFromWords,
   structureFromKeywords,
   traitsFromWords,
+  unknownKeywords,
   voiceFromWords,
+  VOICES,
   worldFromLore,
 } from "./keywords.js";
 import { createPerson } from "./people.js";
@@ -672,7 +674,8 @@ async function chosenBooks(save) {
       // "character": the entry is someone (a card of that name, or a person linkLore makes); it's theirs
       // by their name: "name Mira Saxton", or else the entry's title.
       if (keys.some((key) => key.toLowerCase() === "character")) keys.push(loreName({ ...entry, keys }));
-      return { ...entry, keys };
+      // `own`: the keywords the lorebook's writer gave it, for the Journal's check.
+      return { ...entry, keys, own: book.id === "world" ? [] : (entry.keys ?? []) };
     }),
   }));
 }
@@ -1380,6 +1383,7 @@ function linkLore() {
       count += applyKeywords([...chosen, ...cardBook(core.save)], people);
       core.saves.write(core.save);
       void detailLocals();
+      void checkKeywords();
       core.placesChanged = true;
       core.journalAt = 0;
       core.zoneCheck = 0;
@@ -2069,6 +2073,15 @@ function journalData(zone, snapshot, residents, names) {
       picture: core.picture?.zoneId === zone.id ? core.picture : null,
       canPicture: !!core.ai.known()?.images,
     },
+    roster: rosterData(names),
+    locals: core.save?.locals ?? [],
+    voices: {
+      options: VOICES,
+      of: core.save?.voices ?? {},
+      people: (core.characters ?? [])
+        .filter((character) => core.cast?.has(character.id))
+        .map((character) => ({ id: character.id, name: character.name })),
+    },
     people: lines.map((entry) => {
       const toYou = core.relations.get(entry.person.id, "player");
       const house = core.save?.housing?.[entry.person.id];
@@ -2125,6 +2138,9 @@ function journalData(zone, snapshot, residents, names) {
       loreLinking: core.save?.loreLinking ?? "none",
       characterLinking: core.save?.characterLinking ?? "none",
       waiting: (core.save?.waitingPlacements ?? []).map((entry) => entry.title),
+      season: core.save?.season ?? "",
+      book: core.save?.book?.entries ?? [],
+      keywords: core.keywordCheck?.id === core.save?.id ? core.keywordCheck : null,
       creatures: (core.save?.creatures ?? []).map((creature) =>
         creature.hostile ? `${creature.name} (hostile)` : creature.name,
       ),
@@ -2485,6 +2501,82 @@ function setRelation(from, to, fields, both = false) {
   core.relationsChanged = true;
   core.journalAt = 0;
   core.zoneCheck = 0;
+}
+
+/**
+ * The Journal's roster: everyone in this world by the groups they're in (each faction, then everyone
+ * else), each with a line that stays put (where they live and work, how they see you), and the
+ * creatures the lore describes.
+ */
+function rosterData(names) {
+  const save = core.save;
+  const cast = (core.characters ?? []).filter((character) => core.cast?.has(character.id));
+  const member = (person) => {
+    const house = save?.housing?.[person.id];
+    const toYou = core.relations.get(person.id, "player");
+    return {
+      name: person.name,
+      facts: [
+        person.id.startsWith("local:") ? "of this world" : "",
+        house?.home && names[house.home] ? `lives in ${names[house.home]}` : "",
+        house?.work && names[house.work] ? `${house.owner ? "owns" : "works at"} ${names[house.work]}` : "",
+        toYou ? `${toYou.role || toYou.kind} to you` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    };
+  };
+  const grouped = new Set();
+  const groups = (save?.factions ?? [])
+    .map((faction) => {
+      const members = cast.filter((person) => faction.members.includes(person.id));
+      for (const person of members) grouped.add(person.id);
+      return { name: faction.name, members: members.map(member) };
+    })
+    .filter((group) => group.members.length);
+  const rest = cast.filter((person) => !grouped.has(person.id));
+  if (rest.length) groups.push({ name: groups.length ? "Everyone else" : "Everyone", members: rest.map(member) });
+  const creatures = (save?.creatures ?? []).map((creature) =>
+    [
+      creature.name,
+      creature.hostile ? "hostile" : "",
+      creature.found?.length ? `found in ${creature.found.join(", ")}` : "",
+      creature.when !== "any" ? `by ${creature.when}` : "",
+      creature.pack > 1 ? `in packs of ${creature.pack}` : "",
+      `danger ${creature.danger}`,
+      creature.drops?.length ? `may drop ${creature.drops.join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  );
+  return { groups, creatures };
+}
+
+/** The Journal's keyword check: how many "ww:" keywords this world's lorebooks have, and the ones not understood. */
+async function checkKeywords() {
+  const save = core.save;
+  if (!save || !core.zones) return;
+  try {
+    const books = (await chosenBooks(save)).filter((book) => book.id !== "world");
+    if (core.save?.id !== save.id) return;
+    const world = {
+      zones: core.zones,
+      names: namedZones(residentsOf(core.crowd.snapshot())),
+      groups: placeGroups(),
+      name: save.name,
+      characters: peopleOf(save).filter((person) => save.cast.includes(person.id)),
+      persona: personaName(),
+    };
+    core.keywordCheck = {
+      id: save.id,
+      found: books.reduce((sum, book) => sum + book.entries.reduce((count, entry) => count + entry.own.length, 0), 0),
+      unknown: unknownKeywords(books, world).slice(0, 60),
+    };
+  } catch (error) {
+    console.warn("[wanderworld] couldn't check the keywords", error);
+  }
+  core.placesChanged = true;
+  core.journalAt = 0;
 }
 
 /** Sets a character's temperament (saved with the world). */
@@ -4133,6 +4225,31 @@ function attach(element) {
     onRegenerate: regenerateWorld,
     onRegeneratePreview: previewRegenerate,
     onSetHousing: setHousingByHand,
+    onCheckKeywords: () => void checkKeywords(),
+    onSetVoice: (id, voice) => {
+      if (!core.save) return;
+      const voices = { ...core.save.voices };
+      if (VOICES.includes(voice)) voices[id] = voice;
+      else delete voices[id];
+      core.save = { ...core.save, voices };
+      core.saves.write(core.save);
+    },
+    // Someone this world made for itself: their card is the world's to change.
+    onEditLocal: (id, fields) => {
+      if (!core.save) return;
+      const locals = core.save.locals.map((person) =>
+        person.id === id ? { ...person, ...fields, id, name: person.name } : person,
+      );
+      core.save = { ...core.save, locals };
+      core.characters = peopleOf(core.save);
+      core.saves.write(core.save);
+    },
+    onEditBook: (id, content) => {
+      if (!core.save) return;
+      const entries = core.save.book.entries.map((entry) => (entry.id === id ? { ...entry, content } : entry));
+      core.save = { ...core.save, book: { entries } };
+      core.saves.write(core.save);
+    },
     onMap: drawJournalMap,
     onUse: () => {
       core.sound.unlock();

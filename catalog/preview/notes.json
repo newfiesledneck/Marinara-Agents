@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.81",
+          "date": "2026-11-09",
+          "notes": "- Journal → People is a roster you can read: everyone in the world by faction, with where they live and work and how they see you, and the creatures from the lore. It no longer shifts about. Buttons along the top open what they're doing right now, schedules, homes and work, relationships (no longer a tab of its own), and voices and details.\n- Voices and details: pick how each person talks, and edit the people a world made for itself. Journal → World: edit the lore written for the world, set the season, and check your ww: keywords (it lists any it didn't understand).\n- Settings come a section at a time (Graphics, Moving, World, AI, Display), and choosing who lives in the world moved from the top bar into Settings → World.\n- Floating windows (chat, Illustrate) stay inside the view when the browser window is made smaller.",
+          "highlight": false
+        },
+        {
           "version": "0.4.80",
           "date": "2026-11-09",
           "notes": "- More \"ww:\" keywords, each one short thing: the world's shape on its \"ww: world\" entry (ww: city, ww: walls, ww: size large, ww: season winter); a place's hours and owner (ww: closed 22-6, ww: owner Mira); temperament and voice (ww: shy, ww: grumpy, ww: voice gruff); factions (ww: faction Thieves Guild, ww: member of Thieves Guild); and a creature's details, kept for later (ww: found in forest1, ww: night, ww: pack 4, ww: danger 2, ww: drops gold).\n- Seasons: winter lays snow over the land.\n- Four more ways to talk (gruff, formal, cheerful, sly), and a person can have their own.\n- People made from lore get their details (who they are, manner, looks) from one model call, kept as their own card in the world. An owner a place names who isn't anyone yet becomes a new person.\n- \"ww: character Name\" only ties to a card you chose for that world; cards you left out are never pulled in.",
@@ -307,12 +313,6 @@
           "version": "0.4.62",
           "date": "2026-11-09",
           "notes": "- Places out in the country keep clear of each other: a farm's fields no longer run into a hamlet, and two farms never overlap.\n- A graveyard goes on a side of town the river doesn't cut off.\n- Map names no longer overlap (each goes above or below its place, wherever there's room), and neighbouring regions have different names.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.61",
-          "date": "2026-11-09",
-          "notes": "- The land goes on past the world's edge into the fog, with woods thinning out and the river running on, instead of ending in a drop to the sky.",
           "highlight": false
         }
       ]

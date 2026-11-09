@@ -13,7 +13,6 @@ const TABS = [
   ["here", "Here"],
   ["people", "People"],
   ["party", "Party"],
-  ["relations", "Relationships"],
   ["places", "Places"],
   ["map", "Map"],
   ["world", "World"],
@@ -75,6 +74,7 @@ export function createJournal(panelCss, handlers) {
   let groupEdit = null;
   let worldClock = null; // the World tab's time, updated in place
   const openNodes = new Set(["world", "places", "town", "groups"]); // which rows of the Places tree are open // the id of the group whose places are being chosen
+  let peopleView = "roster"; // which part of the People tab is showing
   let picker = null; // { zone, lorebooks, chosen, onToggle } while choosing lore for a place
 
   const section = (label) => element("div", "font-weight:700;margin-top:4px;opacity:0.9;", label);
@@ -104,7 +104,9 @@ export function createJournal(panelCss, handlers) {
   const pictureImage = element("img", "width:100%;border-radius:8px;border:1px solid rgba(107,74,43,0.6);");
   function drawHere() {
     const here = data.here;
-    body.append(explain("Where you are, the lore active here, and who's close by. Later this is what the AI is told."));
+    body.append(
+      explain("Where you are, the lore active here, and who's close by: what the AI is told when people answer."),
+    );
     body.append(section(here.place), line(here.chain, MUTED));
     body.append(section("Active lore"));
     if (here.lore.length) for (const entry of here.lore) body.append(line(`📜 ${entry.title}`));
@@ -252,20 +254,110 @@ export function createJournal(panelCss, handlers) {
     const note = line(planNote, MUTED);
     body.append(note);
   }
+  // People: who's in this world, set out to be read (it doesn't shift about), and behind buttons what
+  // they're doing right now, their days, homes and work, how they see each other, and their voices.
+  const PEOPLE_VIEWS = [
+    ["roster", "People in this world"],
+    ["doing", "Right now"],
+    ["schedules", "Schedules"],
+    ["housing", "Homes and work"],
+    ["relations", "Relationships"],
+    ["edit", "Voices and details"],
+  ];
   function drawPeople() {
-    body.append(explain("Everyone living in town and what they're doing, and how they see you once that's set."));
-    if (!data.people.length) body.append(line("Nobody lives here yet. Choose characters in People.", MUTED));
-    for (const text of data.people) body.append(line(text));
-    drawSchedules();
-    const { people, homes, workplaces } = data.housing;
-    if (!people.length) return;
-    body.append(
-      button(housingEdit ? "Done setting homes and work" : "Set homes and work…", SMALL, () => {
-        housingEdit = !housingEdit;
+    const views = element("div", "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;");
+    for (const [id, label] of PEOPLE_VIEWS) {
+      const tabButton = button(label, SMALL, () => {
+        peopleView = id;
+        housingEdit = id === "housing";
+        scheduleOf = id === "schedules" ? (data.schedules?.people[0]?.id ?? null) : null;
         draw();
-      }),
+      });
+      tabButton.style.opacity = id === peopleView ? "1" : "0.6";
+      views.append(tabButton);
+    }
+    body.append(views);
+    if (peopleView === "doing") {
+      body.append(explain("What everyone's doing at the moment, and how they see you."));
+      if (!data.people.length) body.append(line("Nobody lives here yet.", MUTED));
+      for (const text of data.people) body.append(line(text));
+      return;
+    }
+    if (peopleView === "schedules") return drawSchedules();
+    if (peopleView === "relations") return drawRelations();
+    if (peopleView === "edit") return drawDetails();
+    if (peopleView === "housing") return drawHousing();
+    body.append(
+      explain(
+        "Everyone who lives in this world, by the groups they belong to. Who lives here is chosen in Settings → World.",
+      ),
     );
-    if (!housingEdit) return;
+    const { groups, creatures } = data.roster;
+    if (!groups.length) body.append(line("Nobody lives here yet. Choose characters in Settings → World.", MUTED));
+    for (const group of groups) {
+      body.append(section(`${group.name} (${group.members.length})`));
+      for (const member of group.members) {
+        const row = element("div", "font-size:13px;line-height:1.4;");
+        row.append(element("span", "font-weight:600;", member.name));
+        if (member.facts) row.append(element("span", `color:${INK_SOFT};`, `  ${member.facts}`));
+        body.append(row);
+      }
+    }
+    if (creatures.length) {
+      body.append(section(`Creatures (${creatures.length})`));
+      body.append(explain("From the lore, kept for when the wilds have them."));
+      for (const creature of creatures) body.append(line(creature, "font-size:13px;"));
+    }
+  }
+
+  /** Each person's voice, and the details of the people this world made for itself. */
+  function drawDetails() {
+    const { people, options, of } = data.voices;
+    body.append(explain("How each person talks (Settings → AI sets it for everyone who has none of their own)."));
+    for (const person of people) {
+      const row = element("div", "display:flex;gap:6px;align-items:center;font-size:13px;");
+      const select = element("select", `${FIELD}max-width:150px;`);
+      for (const [value, label] of [
+        ["", "As in Settings"],
+        ...options.map((name) => [name, name[0].toUpperCase() + name.slice(1)]),
+      ]) {
+        const option = element("option", "", label);
+        option.value = value;
+        select.append(option);
+      }
+      select.value = of[person.id] ?? "";
+      select.addEventListener("change", () => handlers.onSetVoice?.(person.id, select.value));
+      row.append(element("span", "min-width:110px;font-weight:600;", person.name), select);
+      body.append(row);
+    }
+    if (!data.locals.length) return;
+    body.append(section("People made for this world"));
+    body.append(
+      explain(
+        "They aren't Engine characters: this is their card. What's written here is who they are in conversations, moments and pictures.",
+      ),
+    );
+    for (const person of data.locals) {
+      body.append(element("div", "font-weight:600;font-size:13px;margin-top:4px;", person.name));
+      for (const [field, label, rows] of [
+        ["description", "Who they are", 4],
+        ["personality", "Personality, and how they talk", 2],
+        ["appearance", "Looks", 2],
+      ]) {
+        const area = element("textarea", `${FIELD}resize:vertical;width:100%;box-sizing:border-box;`);
+        area.rows = rows;
+        area.value = person[field] ?? "";
+        area.placeholder = label;
+        area.setAttribute("aria-label", `${person.name}: ${label}`);
+        area.addEventListener("change", () => handlers.onEditLocal?.(person.id, { [field]: area.value.trim() }));
+        body.append(area);
+      }
+    }
+  }
+
+  function drawHousing() {
+    const { people, homes, workplaces } = data.housing;
+    if (!people.length) return void body.append(line("Nobody lives here yet.", MUTED));
     body.append(
       explain(
         'Where each person lives and works. Auto: a house near where they spend their days, and no job. A lorebook can set these too ("ww: lives in home6", "ww: works at smithy1").',
@@ -337,7 +429,7 @@ export function createJournal(panelCss, handlers) {
   function drawRelations() {
     const { kinds, people, records } = data.relations;
     if (people.length < 2) {
-      body.append(line("Add characters in People to set how they see each other and you.", MUTED));
+      body.append(line("With two or more people here you can set how they see each other and you.", MUTED));
       return;
     }
     if (!people.some((person) => person.id === whose)) whose = people[0].id;
@@ -815,6 +907,58 @@ export function createJournal(panelCss, handlers) {
         "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww: smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Settings → Regenerate this world builds what's new.",
       ),
     );
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Season"));
+    const season = element("select", FIELD);
+    for (const [value, label] of [
+      ["", "None (green land)"],
+      ["spring", "Spring"],
+      ["summer", "Summer"],
+      ["fall", "Fall"],
+      ["winter", "Winter (snow lies)"],
+    ]) {
+      const option = element("option", "", label);
+      option.value = value;
+      season.append(option);
+    }
+    season.value = world.season;
+    season.addEventListener("change", () => handlers.onSetSetup({ season: season.value }));
+    body.append(season);
+    body.append(section("Keywords"));
+    body.append(
+      explain(
+        "Wanderworld acts only on lorebook keywords that start with \"ww:\". This lists any it didn't understand: a typo, a place this world doesn't have, a name nobody here has.",
+      ),
+    );
+    body.append(
+      button("Check ww: keywords", SMALL, (event) => {
+        event.currentTarget.blur(); // the answer redraws this tab, which waits while something in it has focus
+        handlers.onCheckKeywords?.();
+      }),
+    );
+    if (world.keywords) {
+      body.append(
+        line(
+          world.keywords.unknown.length
+            ? `${world.keywords.found} found, ${world.keywords.unknown.length} not understood:`
+            : `${world.keywords.found} found, all understood.`,
+        ),
+      );
+      for (const item of world.keywords.unknown)
+        body.append(line(`ww: ${item.word}  (${item.entry}, in ${item.book})`, "font-size:12px;"));
+    }
+    if (world.book.length) {
+      body.append(section("Written for this world"));
+      body.append(explain("Lore the AI wrote for this world. It's yours to change: it's what people here know."));
+      for (const entry of world.book) {
+        body.append(element("div", "font-weight:600;font-size:13px;margin-top:4px;", entry.title));
+        const area = element("textarea", `${FIELD}resize:vertical;width:100%;box-sizing:border-box;`);
+        area.rows = 3;
+        area.value = entry.content;
+        area.setAttribute("aria-label", `Lore: ${entry.title}`);
+        area.addEventListener("change", () => handlers.onEditBook?.(entry.id, area.value.trim()));
+        body.append(area);
+      }
+    }
     if (world.creatures.length) {
       body.append(
         explain(`Creatures from the lore, kept for when the wilds have them: ${world.creatures.join(", ")}.`),
@@ -861,7 +1005,6 @@ export function createJournal(panelCss, handlers) {
       here: drawHere,
       people: drawPeople,
       party: drawParty,
-      relations: drawRelations,
       places: drawPlaces,
       map: drawMap,
       world: drawWorld,
@@ -875,7 +1018,9 @@ export function createJournal(panelCss, handlers) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
       if (tab === "map" && map?.isConnected) return void handlers.onMap?.(map);
-      if (tab === "people" && (housingEdit || scheduleOf) && body.childElementCount && !next.placesChanged) return;
+      // Only "Right now" follows the world; the rest of People stays put until something in it changes.
+      const peopleChanged = next.placesChanged || next.relationsChanged || next.partyChanged;
+      if (tab === "people" && peopleView !== "doing" && body.childElementCount && !peopleChanged) return;
       // No redraw under the cursor in the lists with buttons and fields.
       const lists = tab === "places" || tab === "party" || tab === "relations" || tab === "world";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.

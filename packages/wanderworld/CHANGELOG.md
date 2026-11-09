@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.81 — 2026-11-09
+
+- Journal → People is a roster you can read: everyone in the world by faction, with where they live and work and how they see you, and the creatures from the lore. It no longer shifts about. Buttons along the top open what they're doing right now, schedules, homes and work, relationships (no longer a tab of its own), and voices and details.
+- Voices and details: pick how each person talks, and edit the people a world made for itself. Journal → World: edit the lore written for the world, set the season, and check your ww: keywords (it lists any it didn't understand).
+- Settings come a section at a time (Graphics, Moving, World, AI, Display), and choosing who lives in the world moved from the top bar into Settings → World.
+- Floating windows (chat, Illustrate) stay inside the view when the browser window is made smaller.
+
 ## 0.4.80 — 2026-11-09
 
 - More "ww:" keywords, each one short thing: the world's shape on its "ww: world" entry (ww: city, ww: walls, ww: size large, ww: season winter); a place's hours and owner (ww: closed 22-6, ww: owner Mira); temperament and voice (ww: shy, ww: grumpy, ww: voice gruff); factions (ww: faction Thieves Guild, ww: member of Thieves Guild); and a creature's details, kept for later (ww: found in forest1, ww: night, ww: pack 4, ww: danger 2, ww: drops gold).
