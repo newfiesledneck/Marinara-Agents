@@ -29,7 +29,7 @@ export function entryAt(entries, hour) {
 export function checkEntry(raw) {
   if (!raw || typeof raw !== "object") return null;
   const hour = (value) =>
-    Number.isFinite(Number(value)) ? Math.round(Math.max(0, Math.min(24, Number(value))) * 2) / 2 : null;
+    Number.isFinite(Number(value)) ? Math.round(Math.max(0, Math.min(24, Number(value))) * 4) / 4 : null; // quarter hours
   const from = hour(raw.from);
   const to = hour(raw.to);
   if (from === null || to === null || from === to || !ACTIVITIES.includes(raw.activity)) return null;
@@ -111,8 +111,34 @@ export function putEntry(entries, entry) {
   return out.sort((a, b) => a.from - b.from);
 }
 
+/**
+ * The schedule lines among a lore entry's keywords: "work 10:15-18:45", "home 22-7:15" (over midnight),
+ * "eat 12-13 at tavern1" (a place by its numbered name or its own). Returns [{ from, to, activity, at }]
+ * (`at`: the place as written, or "").
+ */
+export function scheduleFromWords(words) {
+  const pattern = new RegExp(
+    String.raw`^(${ACTIVITIES.join("|")})\s+(\d{1,2})(?::(\d{2}))?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?(?:\s+at\s+(.+))?$`,
+    "iu",
+  );
+  const hour = (hours, minutes) => Number(hours) + Number(minutes ?? 0) / 60;
+  const out = [];
+  for (const raw of words) {
+    const match = pattern.exec(String(raw ?? "").trim());
+    if (!match) continue;
+    const entry = checkEntry({
+      from: hour(match[2], match[3]),
+      to: hour(match[4], match[5]),
+      activity: match[1].toLowerCase(),
+      place: "",
+    });
+    if (entry) out.push({ ...entry, at: (match[6] ?? "").trim() });
+  }
+  return out;
+}
+
 /** "08:30" for 8.5. */
 export function hourText(hour) {
   const whole = Math.floor(hour) % 24;
-  return `${String(whole).padStart(2, "0")}:${hour % 1 ? "30" : "00"}`;
+  return `${String(whole).padStart(2, "0")}:${String(Math.round((hour % 1) * 60)).padStart(2, "0")}`;
 }

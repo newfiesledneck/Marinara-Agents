@@ -182,7 +182,7 @@ export function createJournal(panelCss, handlers) {
     body.append(top);
     const entries = person.entries.map((entry) => ({ ...entry }));
     const commit = () => handlers.onSetSchedule?.(person.id, entries);
-    const hours = Array.from({ length: 49 }, (_, i) => i / 2);
+    const hours = Array.from({ length: 97 }, (_, i) => i / 4); // quarter hours
     const select = (options, value, onChange, css = "") => {
       const node = element("select", `${FIELD}${css}`);
       for (const [optionValue, label] of options) {
@@ -268,7 +268,7 @@ export function createJournal(panelCss, handlers) {
     if (!housingEdit) return;
     body.append(
       explain(
-        'Where each person lives and works. Auto: a house near where they spend their days, and no job. A lorebook can set these too ("lives in home6", "works at smithy1").',
+        'Where each person lives and works. Auto: a house near where they spend their days, and no job. A lorebook can set these too ("ww: lives in home6", "ww: works at smithy1").',
       ),
     );
     const choose = (options, value, empty, onChange) => {
@@ -791,18 +791,20 @@ export function createJournal(panelCss, handlers) {
     };
     picker("loreLinking", [
       ["none", "Lore and places: I'll tie lore myself"],
-      ["keywords", "Lore and places: link lorebook entries by matching names"],
+      ["keywords", "Lore and places: link lorebook entries by their ww: keywords"],
       ["ai", "Lore and places: let the AI read the lorebooks"],
     ]);
     picker("characterLinking", [
       ["none", "Characters: I'll set them up myself"],
-      ["keywords", "Characters: set up from lorebook keywords"],
+      ["keywords", "Characters: set up from ww: keywords"],
       ["ai", "Characters: let the AI set them up (cards, persona, lorebooks)"],
     ]);
     const byAi = world.loreLinking === "ai" || world.characterLinking === "ai";
     if (byAi || world.loreLinking === "keywords" || world.characterLinking === "keywords")
       body.append(
-        button(byAi ? "Have the AI set the world up now" : "Link lore by name now", SMALL, () => handlers.onLinkLore()),
+        button(byAi ? "Have the AI set the world up now" : "Link lore by its ww: keywords now", SMALL, () =>
+          handlers.onLinkLore(),
+        ),
       );
     const needed = Object.entries(world.needs).map(([kind, count]) => `${kind} ×${count}`);
     if (needed.length) {
@@ -810,7 +812,7 @@ export function createJournal(panelCss, handlers) {
     }
     body.append(
       explain(
-        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); by name needs the keywords on the entries. It only fills in what isn't set yet. After changing lorebooks or reading them again, Settings → Regenerate this world builds what's new.",
+        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww: smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Settings → Regenerate this world builds what's new.",
       ),
     );
     if (world.waiting.length) {

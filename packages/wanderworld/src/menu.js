@@ -326,12 +326,12 @@ export function createMenu(layer, handlers, art = null) {
     // Off unless chosen: nothing is linked or set up for you until you opt in.
     const linking = picker([
       ["none", "Lore and places: I'll tie lore myself"],
-      ["keywords", "Lore and places: link lorebook entries by matching names"],
+      ["keywords", "Lore and places: link lorebook entries by their ww: keywords"],
       ["ai", "Lore and places: let the AI read the lorebooks"],
     ]);
     const characterLinking = picker([
       ["none", "Characters: I'll set them up myself"],
-      ["keywords", "Characters: set up from lorebook keywords (body, relationships)"],
+      ["keywords", "Characters: set up from ww: keywords (body, home, work, day, relationships)"],
       ["ai", "Characters: let the AI set them up (cards, persona, lorebooks)"],
     ]);
     // What the AI writes for this world itself: its lore and places, and people who have no card.
@@ -512,7 +512,7 @@ export function createMenu(layer, handlers, art = null) {
       reroll,
       element("div", "font:12px system-ui;opacity:0.75;", "Lorebooks for this world"),
       explainLine(
-        'Entries named or keyed after a place (the town\'s name, "tavern", "the woods"), a character or "world" are tied there; a character\'s entry keyed "enemy", "mentor", "male"… sets them up too.',
+        'Wanderworld only acts on keywords that start with "ww:", so a lorebook\'s ordinary trigger words never set anything by accident. "ww: tavern1" ties an entry to the first tavern, "ww: world" to the whole world, "ww: Mira" to a character; on a character\'s entry "ww: woman", "ww: lives in home3", "ww: owner of tavern1", "ww: work 10:15-18:45", "ww: friend" or "ww: sister of Tam" set them up, and "ww: character" makes a person of an entry with no card. The package README lists them all.',
       ),
       bookList,
       element("div", "font:12px system-ui;opacity:0.75;", "Setting the world up"),

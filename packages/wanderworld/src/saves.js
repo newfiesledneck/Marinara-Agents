@@ -263,7 +263,7 @@ export function checkWorld(raw) {
               id,
               {
                 entries: value.entries.map(checkEntry).filter(Boolean).slice(0, 24),
-                by: value.by === "ai" ? "ai" : "you",
+                by: ["ai", "lore"].includes(value.by) ? value.by : "you",
               },
             ]),
         )
