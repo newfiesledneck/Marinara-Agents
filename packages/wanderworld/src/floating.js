@@ -38,8 +38,9 @@ export function makeFloating(layer, frame, bar, key, defaults) {
     if (!Number.isFinite(state.y)) state.y = Math.max(4, height - (state.bottom ?? 0) - state.h);
     state.w = Math.max(200, Math.min(state.w, width - 8));
     state.h = Math.max(120, Math.min(state.h, height - 8));
-    state.x = Math.max(4, Math.min(width - 60, state.x));
-    state.y = Math.max(4, Math.min(height - 40, state.y));
+    // Wholly inside the view: a smaller browser window pulls it back in rather than losing it off the edge.
+    state.x = Math.max(4, Math.min(width - state.w - 4, state.x));
+    state.y = Math.max(4, Math.min(height - state.h - 4, state.y));
     frame.style.left = `${state.x}px`;
     frame.style.top = `${state.y}px`;
     frame.style.width = `${state.w}px`;
@@ -65,6 +66,10 @@ export function makeFloating(layer, frame, bar, key, defaults) {
   bar.addEventListener("pointerup", drop);
   bar.addEventListener("pointercancel", drop);
   let timer = null;
+  if (globalThis.ResizeObserver)
+    new ResizeObserver(() => {
+      if (frame.style.display !== "none") place();
+    }).observe(layer);
   if (globalThis.ResizeObserver)
     new ResizeObserver(() => {
       if (frame.style.display === "none") return;

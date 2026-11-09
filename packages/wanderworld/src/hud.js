@@ -131,15 +131,43 @@ export function createHud(root, handlers) {
   settingsPanel.setAttribute("data-wanderworld-ui", "");
   settingsPanel.style.cssText = PANEL;
   panels.push(settingsPanel);
-  const settingsButton = button("Settings", "Resolution, speed, camera, sound and more", () =>
-    togglePanel(settingsPanel),
-  );
+  const settingsButton = button("Settings", "Resolution, speed, camera, sound and more", () => {
+    togglePanel(settingsPanel);
+    showSection(shownSection);
+  });
   const fields = {};
+  // Settings come a section at a time: tabs along the top, and only that section's rows below.
+  const sectionTabs = document.createElement("div");
+  sectionTabs.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;";
+  const sectionStyle = document.createElement("style");
+  sectionStyle.textContent = "[data-wanderworld-settings-hidden]{display:none!important}";
+  settingsPanel.append(sectionStyle, sectionTabs);
+  let shownSection = "";
+  const showSection = (name) => {
+    shownSection = name;
+    let current = "";
+    for (const child of settingsPanel.children) {
+      if (child === sectionTabs || child === sectionStyle) continue;
+      if (child.dataset.settingsHeading) current = child.dataset.settingsHeading;
+      // Rows added later (connection lists, the regenerate card) belong to the heading above them. Hidden
+      // by an attribute, so each row's own display (and whatever shows or hides it) is left alone.
+      child.toggleAttribute("data-wanderworld-settings-hidden", !!child.dataset.settingsHeading || current !== name);
+    }
+    for (const tab of sectionTabs.children) tab.style.opacity = tab.textContent === name ? "1" : "0.6";
+  };
   const heading = (text) => {
     const element = document.createElement("div");
     element.textContent = text;
+    element.dataset.settingsHeading = text;
     element.style.cssText = "font-weight:700;margin-top:6px;opacity:0.85;";
     settingsPanel.append(element);
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.textContent = text;
+    tab.style.cssText = INK_BUTTON;
+    tab.addEventListener("click", () => showSection(text));
+    sectionTabs.append(tab);
+    if (!shownSection) shownSection = text;
   };
   // What each setting does, in a line under it (hidden with Show explanations off).
   const EXPLAIN = {
@@ -267,6 +295,7 @@ export function createHud(root, handlers) {
   slider("lookSpeed", "Camera turn speed", 0.1, times);
   toggle("invertLook", "Invert up and down");
   heading("World");
+  settingsPanel.append(peopleButton); // who lives in this world
   choice("time", "Time", TIME_LABELS);
   choice("weather", "Weather", {
     off: "Off (always clear)",
@@ -490,6 +519,10 @@ export function createHud(root, handlers) {
     onGroupMember: (id, zoneId, on) => handlers.onGroupMember(id, zoneId, on),
     onGroupParent: (id, parent) => handlers.onGroupParent(id, parent),
     onSetSetup: (fields) => handlers.onSetSetup(fields),
+    onCheckKeywords: () => handlers.onCheckKeywords(),
+    onSetVoice: (id, voice) => handlers.onSetVoice(id, voice),
+    onEditLocal: (id, fields) => handlers.onEditLocal(id, fields),
+    onEditBook: (id, content) => handlers.onEditBook(id, content),
     onPartyGather: () => handlers.onPartyGather(),
     onPartyDisband: () => handlers.onPartyDisband(),
     onLinkLore: () => handlers.onLinkLore(),
@@ -529,7 +562,6 @@ export function createHud(root, handlers) {
   fullscreen.style.display = "none";
   controls.append(
     personaLabel,
-    peopleButton,
     journalButton,
     loreButton,
     illustrateButton,

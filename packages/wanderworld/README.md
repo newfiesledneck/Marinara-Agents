@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.80)
+## What it does now (0.4.81)
 
 ### The world
 
@@ -157,9 +157,12 @@ only walk about.
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
   as a scene" (Settings → Walk into buildings brings back the unfinished furnished rooms).
-- **The Journal** (J): Here, People (where everyone is, where they live and work, and their schedules),
-  Party, Relationships, Places (the setup tree), Map (the region from above, with names and where each
-  edge leads) and World (setting, scene instructions, lorebooks, lore linking).
+- **The Journal** (J): Here; People (a roster by faction, and behind buttons what everyone's doing right
+  now, schedules, homes and work, relationships, and each person's voice and the details of people the
+  world made for itself); Party; Places (the setup tree); Map (the region from above, with names and
+  where each edge leads); and World (setting, scene instructions, lorebooks, lore linking, the season,
+  the lore written for the world, and a check of your `ww:` keywords that lists any it didn't
+  understand).
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster).
 - **Animation:** recorded clips from Quaternius's Universal Animation Library (idle, walk, jog, sprint,
   sitting, talking, swimming), or the hand-made motion (Settings → Animation).
