@@ -11,8 +11,9 @@ persona and lorebooks that you explore, talk in, and start scenes from. It is an
    and **restart Marinara Engine** when asked. The restart starts its server part; without it the world
    still works, with set lines instead of AI.
 2. Open **Home → Wanderworld**, choose **New world**, pick your persona and the characters who live there,
-   and play. To walk in your persona's own model, set one up for that persona in 3D Avatars first; anyone
-   without a model gets a dressed townsperson.
+   and play. Under "Setting the world up" the AI can do the rest (who lives where, who knows whom). To
+   walk in your persona's own model, set one up for that persona in 3D Avatars first; anyone without a
+   model gets a dressed townsperson.
 3. For AI, open **Settings → AI** in Wanderworld and choose the connections: one for conversations, one
    for scenes, and an image connection for pictures. Each can stay on the Engine's default.
 4. From another device, enter the Engine's Admin Secret in **Settings → Advanced → Admin Access** on that
@@ -27,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.74)
+## What it does now (0.4.75)
 
 ### The world
 
@@ -49,7 +50,7 @@ from **Load world** or clear the site's data.
 - **Regions:** at the edge of the world, "Travel to <region>" takes you and your party into the next
   region, with its own land and settlement made from the world's seed. Each region keeps its own place
   names, lore and groups; characters who didn't come along wait at home. Each trip saves a travel scene
-  request for the AI part.
+  request with the world.
 - **Built to its lore:** with places linked by name, a world is built with at least every numbered place
   its lorebooks mention (smithy3 makes three smithies; town2 brings a hamlet; farm2 two farms; a cave
   brings mountains for it). Past that, random.

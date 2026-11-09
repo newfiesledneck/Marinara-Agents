@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.75 — 2026-11-09
+
+- The AI's world setup has more room to answer (for models that think first), and the Journal's lore choices are worded as New world's.
+
 ## 0.4.74 — 2026-11-09
 
 - The AI's setup of a new world is shown before the land is built: everyone's body, home, work and relationships, the places the world will get, the names and the lore tied to them, with the map and world size. From there: build it, ask the AI again, or go back to the settings (the setup is kept).

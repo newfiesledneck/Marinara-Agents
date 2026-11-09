@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.75",
+          "date": "2026-11-09",
+          "notes": "- The AI's world setup has more room to answer (for models that think first), and the Journal's lore choices are worded as New world's.",
+          "highlight": false
+        },
+        {
           "version": "0.4.74",
           "date": "2026-11-09",
           "notes": "- The AI's setup of a new world is shown before the land is built: everyone's body, home, work and relationships, the places the world will get, the names and the lore tied to them, with the map and world size. From there: build it, ask the AI again, or go back to the settings (the setup is kept).\n- A model call that fails is tried once more; if it still fails, what did come through is kept, the review says what's missing, and \"Ask the AI again\" asks only for that. Building with a partial setup works, and Journal → World can finish it later.\n- The loading screen now also waits for your own figure.",
@@ -307,12 +313,6 @@
           "version": "0.4.56",
           "date": "2026-11-09",
           "notes": "- Maps: New world shows a map of the world your choices make, redrawn as you change them, with Reroll for another. Regenerate shows the rebuilt world's map, with Reroll for another new layout.\n- Journal → Map: the region you're in from above, with you, the town, hamlets, farms, inns, cottages and caves by name, and the regions beyond each edge.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.55",
-          "date": "2026-11-09",
-          "notes": "- Regions and travel: at the edge of the world, \"Travel to <region>\" takes you, with the party following you, into the next region, made from the world's seed the first time with its own land and settlement. You arrive at its facing edge, and can travel on in any direction or back home.\n- Each region keeps its own place names, lore and groups. Characters who stayed behind wait at home.\n- Every trip saves a travel scene request for the AI part, for encounters on the way later.",
           "highlight": false
         }
       ]

@@ -837,7 +837,8 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await model.chatComplete(messages, { temperature: 0.2, maxTokens: 2400 });
+          // Room to answer for a model that thinks first.
+          const result = await model.chatComplete(messages, { temperature: 0.2, maxTokens: 4000 });
           const value = readJson(result?.content, api.runtime.json?.parseJsonish);
           if (!value) return reply.status(502).send({ error: "The model didn't give a usable setup." });
           return checkLoreSetup(value, entries.length);
