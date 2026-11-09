@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.78)
+## What it does now (0.4.79)
 
 ### The world
 
@@ -198,7 +198,8 @@ links nothing. Put them in an entry's keys, next to its usual ones.
 | `ww: friend`, `ww: enemy`, `ww: mentor`, `ww: sister`… | a character's entry | How they see you. |
 | `ww: sister of Tam`, `ww: rival of Fen` | a character's entry | How they stand toward someone else (one way; the other's entry says theirs). |
 | `ww: work 10:15-18:45`, `ww: home 22-7:15`, `ww: eat 12-13 at tavern1` | a character's entry | Their day (home, work, eat, visit, sit, walk), over the usual one; quarter hours, and over midnight. |
-| `ww: character` | any entry | Makes a person of the entry (its title their name, its text who they are) when no card has that name. They live in that world only. |
+| `ww: character Mira Saxton` | any entry | The entry is that person (with no name after it, the entry's title is the name). A card of exactly that name is who it means, and joins the world. With no such card, a person is made from the entry's text who lives in that world only: `ww: character Mira Little` beside a card called Mira Saxton gives you both. |
+| `ww: monster Goblin`, `ww: creature Deer`, `ww: hostile` | any entry | Marks the entry as a creature (a monster, or a hostile creature, attacks). Kept with the world for later: nothing uses them yet. |
 
 Choose "link lorebook entries by their ww: keywords" (places) and "set up from ww: keywords"
 (characters) in New world or Journal → World. With the AI setting things up instead, `ww:` keywords

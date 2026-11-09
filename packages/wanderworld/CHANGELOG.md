@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.79 — 2026-11-09
+
+- "ww: character Mira Saxton": the entry is that person. A card of exactly that name is who it means and joins the world; with no such card (a "Mira Little" beside the card "Mira Saxton") a new person is made for that world. With no name after it, the entry's title is the name.
+- "ww: monster Goblin", "ww: creature" and "ww: hostile" mark an entry as a creature. Nothing uses them yet: they are kept with the world (Journal → World lists them) for when the wilds have creatures.
+
 ## 0.4.78 — 2026-11-09
 
 - Lorebook keywords for Wanderworld now need the prefix "ww:" ("ww: tavern1", "ww:woman", "ww: lives in home3"), so a lorebook's ordinary trigger words ("town", "man", "enemy") never set anything by accident, and an entry's title alone links nothing. Lorebooks keyed the old way need the prefix added.

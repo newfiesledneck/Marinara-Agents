@@ -192,6 +192,18 @@ export function checkWorld(raw) {
         appearance: text(person.appearance).slice(0, 500),
       }))
       .filter((person) => person.name),
+    // Creatures the world's lore describes ("ww: monster", "ww: creature", "ww: hostile"), kept for what
+    // will use them: [{ lorebookId, entryId, name, kind, hostile }].
+    creatures: (Array.isArray(raw.creatures) ? raw.creatures : [])
+      .filter((creature) => isRecord(creature) && typeof creature.entryId === "string")
+      .slice(0, 100)
+      .map((creature) => ({
+        lorebookId: text(creature.lorebookId).slice(0, 120),
+        entryId: creature.entryId.slice(0, 120),
+        name: text(creature.name).slice(0, 60),
+        kind: creature.kind === "monster" ? "monster" : "creature",
+        hostile: creature.hostile === true,
+      })),
     // Lore written for this world (not in an Engine lorebook): { entries: [{ id, title, content }] },
     // linked to places like any lorebook's entries (under the lorebook id "world").
     book: {

@@ -815,6 +815,11 @@ export function createJournal(panelCss, handlers) {
         "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww: smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Settings → Regenerate this world builds what's new.",
       ),
     );
+    if (world.creatures.length) {
+      body.append(
+        explain(`Creatures from the lore, kept for when the wilds have them: ${world.creatures.join(", ")}.`),
+      );
+    }
     if (world.waiting.length) {
       body.append(
         explain(

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.79",
+          "date": "2026-11-09",
+          "notes": "- \"ww: character Mira Saxton\": the entry is that person. A card of exactly that name is who it means and joins the world; with no such card (a \"Mira Little\" beside the card \"Mira Saxton\") a new person is made for that world. With no name after it, the entry's title is the name.\n- \"ww: monster Goblin\", \"ww: creature\" and \"ww: hostile\" mark an entry as a creature. Nothing uses them yet: they are kept with the world (Journal → World lists them) for when the wilds have creatures.",
+          "highlight": false
+        },
+        {
           "version": "0.4.78",
           "date": "2026-11-09",
           "notes": "- Lorebook keywords for Wanderworld now need the prefix \"ww:\" (\"ww: tavern1\", \"ww:woman\", \"ww: lives in home3\"), so a lorebook's ordinary trigger words (\"town\", \"man\", \"enemy\") never set anything by accident, and an entry's title alone links nothing. Lorebooks keyed the old way need the prefix added.\n- New keywords: a day (\"ww: work 10:15-18:45\", \"ww: home 22-7:15\", \"ww: eat 12-13 at tavern1\"), a place's name (\"ww: name The Gilded Stag\" beside \"ww: tavern1\"), and \"ww: character\" to make a person of an entry with no card. Schedules keep quarter hours.",
@@ -307,12 +313,6 @@
           "version": "0.4.60",
           "date": "2026-11-09",
           "notes": "- Weather (Settings → Weather, off by default): rain falling in streaks, drifting snow, or mist, each greying the sky, dimming the sun and drawing the fog in. \"Changing\" turns every few minutes, the same for a world each time and mostly clear; or pick one kind to keep.\n- Fix: unlit windows and lamp glows no longer show as pale squares in fog and mist.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.59",
-          "date": "2026-11-09",
-          "notes": "- City walls and gates: a new city is ringed by a crenellated stone wall with round corner towers and a gatehouse wherever a road leaves town and in the middle of each side. New world's \"Walls\" choice gives any settlement walls or none. Townsfolk and your party find their way out and in by the gates. The map shows the wall.\n- Cities made before keep their open edges.",
           "highlight": false
         }
       ]

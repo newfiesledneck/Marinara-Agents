@@ -759,6 +759,43 @@ export { plain as plainWord };
  */
 const wordsOf = (entry) => (entry.byTitle ? [entry.title, ...(entry.keys ?? [])] : (entry.keys ?? []));
 
+/** What a lore entry calls the thing it's about: its "name …" keyword ("name Mira Saxton"), or else its title. */
+export function loreName(entry) {
+  const named = (entry.keys ?? []).map((word) => /^named?\s+(.+)$/iu.exec(String(word).trim())?.[1]).find(Boolean);
+  return (named ?? entry.title ?? "").trim().slice(0, 60);
+}
+
+/** True when an entry's keywords say it's about a creature ("monster", "creature", "hostile"), not a person. */
+export function isCreature(entry) {
+  return (entry.keys ?? []).some((word) =>
+    ["monster", "creature", "hostile"].includes(String(word).toLowerCase().trim()),
+  );
+}
+
+/**
+ * The creatures a world's lore describes, for what will use them later (encounters, the wilds): entries
+ * keyed "monster" or "creature", and "hostile" for ones that attack (a monster always is). Returns
+ * [{ lorebookId, entryId, name, kind: "monster" | "creature", hostile }].
+ */
+export function creaturesFromLore(books) {
+  const out = [];
+  for (const book of books) {
+    for (const entry of book.entries) {
+      if (!isCreature(entry)) continue;
+      const has = (word) => entry.keys.some((key) => String(key).toLowerCase().trim() === word);
+      const kind = has("monster") ? "monster" : "creature";
+      out.push({
+        lorebookId: book.id,
+        entryId: entry.id,
+        name: loreName(entry),
+        kind,
+        hostile: kind === "monster" || has("hostile"),
+      });
+    }
+  }
+  return out;
+}
+
 /**
  * Names a lorebook gives places: an entry about a place ("tavern1") with the keyword "name The Gilded
  * Stag". Returns { [zone id]: name }.

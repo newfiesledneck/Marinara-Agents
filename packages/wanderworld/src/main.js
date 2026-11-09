@@ -44,6 +44,9 @@ import {
   slotsOf,
   needsFromLore,
   namesFromLore,
+  loreName,
+  isCreature,
+  creaturesFromLore,
   placeTargets,
   plainWord,
   zoneAt,
@@ -659,8 +662,9 @@ async function chosenBooks(save) {
     ...book,
     entries: book.entries.map((entry) => {
       const keys = [...(entry.keys ?? []), ...(save.loreKeys?.[`${book.id}/${entry.id}`] ?? [])];
-      // "character": the entry is someone with no card (linkLore makes them); it's theirs by their name.
-      if (keys.some((key) => key.toLowerCase() === "character")) keys.push(entry.title);
+      // "character": the entry is someone (a card of that name, or a person linkLore makes); it's theirs
+      // by their name: "name Mira Saxton", or else the entry's title.
+      if (keys.some((key) => key.toLowerCase() === "character")) keys.push(loreName({ ...entry, keys }));
       return { ...entry, keys };
     }),
   }));
@@ -779,21 +783,19 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
       );
       // An entry about someone with no card: they're made from it, and it stays tied to them as their lore.
       if (entry && words.some((word) => word.toLowerCase() === "character")) {
+        const name = loreName({ title, keys: [...(entry.keys ?? []), ...words] });
         words = words.filter(
-          (word) => word.toLowerCase() !== "character" && word.toLowerCase() !== title.toLowerCase(),
+          (word) => !["character", name.toLowerCase(), title.toLowerCase()].includes(word.toLowerCase()),
         );
-        const known = everyone().some((name) => name.toLowerCase() === title.toLowerCase());
+        const known = [...(core.engineCharacters ?? []).map((person) => person.name), ...everyone()].some(
+          (other) => other.toLowerCase() === name.toLowerCase(),
+        );
         const id = `local:${key.replace(/[^\w-]/gu, "-")}`;
-        if (
-          !known &&
-          addLocal(
-            id,
-            { name: title, description: entry.content.slice(0, 1200), personality: "", appearance: "" },
-            words,
-          )
-        ) {
-          words = [title];
-        }
+        const person = { name, description: entry.content.slice(0, 1200), personality: "", appearance: "" };
+        // Someone with a card of that name is that card (linkLore brings them in); anyone else is made here.
+        if (known || isCreature({ keys: [...(entry.keys ?? []), ...words] }))
+          words = known ? ["character", ...words] : words;
+        else if (addLocal(id, person, words)) words = [name];
       }
       if (words.length) keys[key] = words;
       else delete keys[key];
@@ -1312,6 +1314,7 @@ function linkLore() {
       const places = core.save.loreLinking !== "none";
       const people = core.save.characterLinking !== "none";
       if (people) peopleFromLore(chosen);
+      core.save = { ...core.save, creatures: creaturesFromLore(chosen) };
       if (places) nameFromLore(chosen);
       const names = namedZones(residentsOf(core.crowd.snapshot()));
       const found = matchLore(chosen, {
@@ -1352,31 +1355,42 @@ function linkLore() {
 }
 
 /**
- * Makes the people a lorebook describes who have no card: an entry keyed "ww: character" becomes someone
- * who lives in this world only (`save.locals`), named for the entry, with its text as who they are.
+ * Brings in the people a lorebook describes: an entry keyed "ww: character Mira Saxton" is that person
+ * (with no name there, its title is the name). A card of exactly that name is who it means, and
+ * joins the world; with no such card (a "Mira Little" beside the card "Mira Saxton") someone is made who
+ * lives in this world only (`save.locals`), with the entry's text as who they are.
  */
 function peopleFromLore(books) {
   const before = core.save.locals ?? [];
   const locals = [...before];
-  const taken = new Set(peopleOf(core.save).map((person) => person.name.toLowerCase()));
+  const cast = [...core.save.cast];
+  const named = (list, name) => list.find((person) => person.name.toLowerCase() === name.toLowerCase());
   for (const book of books) {
     if (book.id === "world" || book.id === "cards") continue;
     for (const entry of book.entries) {
-      const marked = entry.keys.some((key) => key.toLowerCase() === "character");
-      if (!marked || taken.has(entry.title.toLowerCase())) continue;
-      if (core.save.cast.length + locals.length - before.length >= MAX_PEOPLE) break;
-      taken.add(entry.title.toLowerCase());
-      locals.push({
+      if (!entry.keys.some((key) => key.toLowerCase() === "character") || isCreature(entry)) continue;
+      const name = loreName(entry);
+      if (!name || named(locals, name)) continue;
+      const full = cast.length >= MAX_PEOPLE;
+      // A card of exactly that name is who the entry means: they live here (if there's room).
+      const card = named(core.engineCharacters ?? [], name);
+      if (card) {
+        if (!cast.includes(card.id) && !full) cast.push(card.id);
+        continue;
+      }
+      if (full) continue;
+      const person = {
         id: `local:${`${book.id}/${entry.id}`.replace(/[^\w-]/gu, "-")}`,
-        name: entry.title.slice(0, 60),
+        name,
         description: entry.content.slice(0, 1200),
         personality: "",
         appearance: "",
-      });
+      };
+      locals.push(person);
+      cast.push(person.id);
     }
   }
-  if (locals.length === before.length) return;
-  const cast = [...new Set([...core.save.cast, ...locals.map((person) => person.id)])].slice(0, MAX_PEOPLE);
+  if (locals.length === before.length && cast.length === core.save.cast.length) return;
   core.save = { ...core.save, locals, cast };
   core.characters = peopleOf(core.save);
   core.cast = new Set(cast);
@@ -1953,6 +1967,9 @@ function journalData(zone, snapshot, residents, names) {
       loreLinking: core.save?.loreLinking ?? "none",
       characterLinking: core.save?.characterLinking ?? "none",
       waiting: (core.save?.waitingPlacements ?? []).map((entry) => entry.title),
+      creatures: (core.save?.creatures ?? []).map((creature) =>
+        creature.hostile ? `${creature.name} (hostile)` : creature.name,
+      ),
       needs: core.save?.needs ?? {},
       allLorebooks: core.lorebooks?.map((book) => ({ id: book.id, name: book.name })) ?? null,
       name: core.save?.name ?? "",
@@ -1981,7 +1998,7 @@ function renameZone(id, name) {
 /** The Engine's lorebooks with their entries: [{ id, name, entries: [{ id, title }] }], read once. */
 /**
  * A lorebook entry's keys, told apart: `keys` are Wanderworld's, written with the prefix "ww:" ("ww:
- * tavern1", "ww:man", "ww: work 10:15-18:45") and kept without it; `triggers` are everything else, the
+ * tavern1", "ww:man", "ww: work 10:15-18:45", "ww: character Mira Saxton") and kept without it; `triggers` are everything else, the
  * lorebook's own trigger words, which Wanderworld never acts on (the AI reads them as hints only).
  */
 function wanderKeys(raw) {
@@ -1993,7 +2010,12 @@ function wanderKeys(raw) {
     keys: all
       .filter(own)
       .map((key) => key.replace(/^ww\s*:\s*/iu, "").trim())
-      .filter(Boolean),
+      .filter(Boolean)
+      // "character Mira Saxton", "monster Goblin": what it is, and its name with it.
+      .flatMap((key) => {
+        const named = /^(character|monster|creature|hostile)\s+(.+)$/iu.exec(key);
+        return named ? [named[1].toLowerCase(), `name ${named[2].trim()}`] : [key];
+      }),
     triggers: all.filter((key) => !own(key)),
   };
 }
