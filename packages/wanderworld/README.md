@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.82)
+## What it does now (0.4.83)
 
 ### The world
 
@@ -207,7 +207,7 @@ links nothing. Put them in an entry's keys, next to its usual ones.
 | `ww: member of Thieves Guild` | a character's entry | Puts them in that faction; the faction's entry is lore for each member. |
 | `ww: faction Thieves Guild` | any entry | The entry is that faction's lore. |
 | `ww: character Mira Saxton` | any entry | The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means. Otherwise a person is made who lives in that world only, and one model call writes who they are, their manner and their looks from the entry: `ww: character Mira Little` beside a card called Mira Saxton gives you both. Cards you didn't choose are never pulled in. |
-| `ww: closed 22-6` | a place's entry | When the place is closed. |
+| `ww: closed 22-6` | a place's entry | When the place is closed: its door card says so, and the AI is told. People's own days aren't changed by it. |
 | `ww: owner Mira` | a building's entry | Mira owns it (the other way round from `ww: owner of tavern1` on Mira's entry). If nobody in the world is called that, a new person is made. |
 | `ww: city`, `ww: town`, `ww: village`, `ww: hamlet`; `ww: walls`; `ww: size large`; `ww: season winter` | the entry keyed `ww: world` | The world's shape, wherever New world left it on "Surprise me": the main settlement (`town1`, whatever its size; `ww: town3` adds two hamlets), walls, the world's size, and the season (winter lies under snow). |
 | `ww: monster Goblin`, `ww: creature Deer`, `ww: hostile` | any entry | Marks the entry as a creature (a monster, or a hostile creature, attacks). Kept with the world for later: nothing uses them yet. |

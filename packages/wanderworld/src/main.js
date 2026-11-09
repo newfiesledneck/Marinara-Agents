@@ -67,7 +67,7 @@ import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, OWN_LINE, parseSpeech, pickListeners, sceneRequest } from "./interactions.js";
 import { drawMap } from "./map.js";
 import { createAi } from "./ai.js";
-import { ACTIVITY_WORDS, entryAt, hourText, putEntry, scheduleFromWords, usualDay } from "./schedules.js";
+import { ACTIVITY_WORDS, entryAt, hourText, inRange, putEntry, scheduleFromWords, usualDay } from "./schedules.js";
 import { weatherAt } from "./weather.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
@@ -2952,13 +2952,19 @@ async function illustrateMoment(template) {
 }
 
 /** Where the player is, in words: the place and the places it's in. */
+/** " (closed until 06:00)" when a place's hours (a lorebook's "ww: closed 22-6") say it's shut now, else "". */
+function closedWords(zoneId) {
+  const hours = core.save?.hours?.[zoneId];
+  return hours && inRange(core.hour, hours.from, hours.to) ? ` (closed until ${hourText(hours.to)})` : "";
+}
+
 function placeWords() {
   if (!core.zones) return "";
   const names = namedZones(residentsOf(core.crowd.snapshot()));
   const at = core.interior ? core.interior.door : core.player.position;
   const zone = zoneAt(core.zones, at.x, at.z);
   return chainOf(core.zones, zone)
-    .map((entry) => names[entry.id])
+    .map((entry) => names[entry.id] && `${names[entry.id]}${closedWords(entry.id)}`)
     .filter(Boolean)
     .join(", in ");
 }
@@ -3335,7 +3341,7 @@ function knock(door) {
   openScene({
     kind: home ? "home" : "door",
     zone,
-    title: zone ? zoneName(zone, residentsOf(core.crowd.snapshot())) : (PLACE_NAMES[door.kind] ?? "a house"),
+    title: `${zone ? zoneName(zone, residentsOf(core.crowd.snapshot())) : (PLACE_NAMES[door.kind] ?? "a house")}${zone ? closedWords(zone.id) : ""}`,
     inside: core.crowd.inside(door).map((person) => ({ id: person.id, name: person.name })),
     empty: home ? "Nobody else is home." : "Nobody seems to be in.",
   });

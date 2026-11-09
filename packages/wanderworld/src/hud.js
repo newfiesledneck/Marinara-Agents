@@ -1043,7 +1043,7 @@ export function createHud(root, handlers) {
           text("The scene is set:", `font:700 13px ${SERIF};`),
           text(words, `${NOTE_PAPER}padding:8px 10px;font-size:13px;line-height:1.45;`),
           text(
-            "The AI part of Wanderworld will play it out from here, with everyone there taking part. It's kept in the Journal (Here).",
+            'With AI on it plays out as a moment, or as a full scene from "Play it as a scene". It\'s kept in the Journal (Here).',
             "font-size:12px;opacity:0.75;",
           ),
         );

@@ -458,7 +458,7 @@ export function createJournal(panelCss, handlers) {
     body.append(top);
     body.append(
       explain(
-        "How each person sees the others and you. Friends seek each other out, sit and walk together; enemies keep away (a sworn enemy confronts you). Temperament and manner decide how readily they confront or greet. Lore keywords can set these, and later the AI changes them as things happen.",
+        "How each person sees the others and you. Friends seek each other out, sit and walk together; enemies keep away (a sworn enemy confronts you). Temperament and manner decide how readily they confront or greet. A lorebook's ww: keywords can set these, the AI's setup of a new world does, and scenes and moments change them as things happen.",
       ),
     );
     // Their temperament (not for the player, who acts for themselves).
@@ -740,7 +740,7 @@ export function createJournal(panelCss, handlers) {
     if (!lorebooks.length) return body.append(line("No lorebooks found.", MUTED));
     body.append(
       explain(
-        "Ticked entries are active here and in every place inside it. (Sending them to the AI comes with the AI part.)",
+        "Ticked entries are active here and in every place inside it: they're what the AI is told when people here answer.",
       ),
     );
     // Which lorebooks to list: chosen in a dropdown at the top (remembered in this browser); at first,

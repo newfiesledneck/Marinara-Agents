@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.83 — 2026-11-09
+
+- A place with closing hours (ww: closed 22-6) says so on its door card while it's shut, and the AI is told too.
+- Wording caught up with what the AI does now, in the door card, the Journal's lore picker and the relationships notes.
+
 ## 0.4.82 — 2026-11-09
 
 - The Journal's map zooms and pans: scroll or use + and −, drag to move about. All the way out is the whole region; closer in names the buildings (the tavern, the smithy, then every house).
