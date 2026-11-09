@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.70 — 2026-11-09
+
+- Up to five people hear what you say or do, and anyone you name ("/s Hey Ingrid!") is one of them if they're in earshot, with the nearest others.
+
 ## 0.4.69 — 2026-11-09
 
 - Moments: the "Around you" chat window takes what you say or do: plain text to everyone nearby, /s shouts, /w whispers, /p talks to your party, /a does something (open a chest, cast a spell). The narrator answers and whoever heard may reply. Reading the noticeboard, sitting by people and card choices are moments too. Commands are listed under the box; the window moves and resizes.

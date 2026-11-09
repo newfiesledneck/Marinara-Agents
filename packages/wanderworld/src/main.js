@@ -48,7 +48,7 @@ import {
   regionNext,
 } from "./zones.js";
 import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
-import { ACTIONS, describeScene, OWN_LINE, parseSpeech, sceneRequest } from "./interactions.js";
+import { ACTIONS, describeScene, OWN_LINE, parseSpeech, pickListeners, sceneRequest } from "./interactions.js";
 import { drawMap } from "./map.js";
 import { createAi } from "./ai.js";
 import { ACTIVITY_WORDS, entryAt, hourText, putEntry, usualDay } from "./schedules.js";
@@ -1989,7 +1989,7 @@ function doingWords(person) {
  * out of doors, only the party when that's who's being spoken to. Nearest first, at most six; Engine
  * characters only (the model writes their lines from their cards).
  */
-function momentListeners(voice, audience, extra = []) {
+function momentListeners(voice, audience, extra = [], text = "") {
   const range = VOICE_RANGE[voice] ?? VOICE_RANGE.talk;
   const at = core.interior ? core.interior.door : core.player.position;
   const party = new Set(
@@ -2001,21 +2001,24 @@ function momentListeners(voice, audience, extra = []) {
   const known = new Set((core.characters ?? []).map((character) => character.id));
   const inside = new Set(extra.map((person) => person.id));
   const names = { ...nameIds(), player: personaName() };
-  return core.crowd
+  const heard = core.crowd
     .snapshot()
     .filter((person) => known.has(person.id) && (person.state !== "inside" || inside.has(person.id)))
-    .map((person) => ({ person, distance: inside.has(person.id) ? 2 : Math.hypot(person.x - at.x, person.z - at.z) }))
-    .filter(({ person, distance }) => distance <= range && (audience !== "party" || party.has(person.id)))
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, 6)
-    .map(({ person, distance }) => ({
-      id: person.id,
+    .map((person) => ({
+      person,
       name: person.name,
-      distance: Math.round(distance),
-      doing: inside.has(person.id) ? "inside" : doingWords(person),
-      feeling: core.relations.get(person.id, "player") ? core.relations.describe(person.id, "player", names) : "",
-      inParty: party.has(person.id),
-    }));
+      distance: inside.has(person.id) ? 2 : Math.hypot(person.x - at.x, person.z - at.z),
+    }))
+    .filter(({ person, distance }) => distance <= range && (audience !== "party" || party.has(person.id)));
+  // Anyone the player names ("Hey Ingrid!") is among them if they're in earshot; then the nearest.
+  return pickListeners(heard, text).map(({ person, distance }) => ({
+    id: person.id,
+    name: person.name,
+    distance: Math.round(distance),
+    doing: inside.has(person.id) ? "inside" : doingWords(person),
+    feeling: core.relations.get(person.id, "player") ? core.relations.describe(person.id, "player", names) : "",
+    inParty: party.has(person.id),
+  }));
 }
 
 /** A line in the narration box and the moment log (`who` null for the narrator). */
@@ -2045,7 +2048,7 @@ async function runMoment({
     narrate(personaName(), voice === "whisper" ? `(whispers) ${line}` : voice === "shout" ? `(shouts) ${line}` : line);
   }
   if (!core.settings.aiTalk || !core.settings.aiMoments || !core.ai.known()?.moments || core.momentBusy) return false;
-  const listeners = momentListeners(voice, audience, listenersExtra);
+  const listeners = momentListeners(voice, audience, listenersExtra, `${line} ${action}`);
   if (needListeners && !listeners.length) return false;
   core.momentBusy = true;
   try {
