@@ -406,6 +406,10 @@ export function createSmoke(tops) {
   let time = 0;
   return {
     object,
+    /** Smoke isn't lit by the scene's lights (points), so it darkens with the night here instead. */
+    setDark(dark) {
+      object.material.color.setScalar(1 - 0.78 * dark);
+    },
     update(dt) {
       time += dt;
       for (let i = 0; i < tops.length * PUFFS; i++) {
