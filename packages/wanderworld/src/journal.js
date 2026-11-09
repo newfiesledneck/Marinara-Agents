@@ -6,7 +6,7 @@
 // - World: the world's name, town, time and seed.
 // Relationships and the party join as their own tabs (docs/CONCEPT.md, W3 and W4).
 import { INK, INK_SMALL, INK_SOFT, SERIF } from "./ui.js";
-import { mapCanvas } from "./map.js";
+import { clampView, mapCanvas } from "./map.js";
 import { ACTIVITIES, ACTIVITY_WORDS, hourText } from "./schedules.js";
 
 const TABS = [
@@ -988,13 +988,98 @@ export function createJournal(panelCss, handlers) {
   }
 
   let map = null; // the Map tab's canvas, redrawn in place as you walk
+  let mapView = { x: 0, z: 0, zoom: 1 }; // what the map shows: its middle, and how close
+  let mapHalf = 160; // half the region's side, in metres (from the last drawing)
+  let mapNote = null;
+  function redrawMap() {
+    if (!map?.isConnected) return;
+    mapView = clampView(mapView, mapHalf);
+    const drawn = handlers.onMap?.(map, mapView);
+    if (drawn?.half) mapHalf = drawn.half;
+    if (mapNote) mapNote.textContent = drawn?.waypoint ?? "";
+  }
   function drawMap() {
     body.append(
-      explain("This region from above: you (yellow), the town, places out in the country, and where each edge leads."),
+      explain(
+        "This region from above: you (yellow), your home, the town, places out in the country, and where each edge leads. Scroll or use the buttons to look closer, drag to move about, and click to set a waypoint.",
+      ),
     );
     map = mapCanvas(420, 420);
-    body.append(map);
-    handlers.onMap?.(map);
+    map.style.cursor = "crosshair";
+    map.style.touchAction = "none";
+    // Where on the map a pointer is, in the world's metres.
+    const at = (event) => {
+      const box = map.getBoundingClientRect();
+      const across = (mapHalf * 2) / mapView.zoom;
+      return {
+        x: mapView.x + ((event.clientX - box.left) / box.width - 0.5) * across,
+        z: mapView.z + ((event.clientY - box.top) / box.height - 0.5) * across,
+      };
+    };
+    const zoomTo = (zoom, keep = null) => {
+      const before = keep ? at(keep) : null;
+      mapView = clampView({ ...mapView, zoom }, mapHalf);
+      if (before) {
+        // The spot under the pointer stays under it.
+        const after = at(keep);
+        mapView = clampView(
+          { ...mapView, x: mapView.x + before.x - after.x, z: mapView.z + before.z - after.z },
+          mapHalf,
+        );
+      }
+      redrawMap();
+    };
+    map.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault();
+        zoomTo(mapView.zoom * (event.deltaY < 0 ? 1.25 : 0.8), event);
+      },
+      { passive: false },
+    );
+    let drag = null;
+    map.addEventListener("pointerdown", (event) => {
+      drag = { x: event.clientX, y: event.clientY, view: { ...mapView }, moved: false };
+      map.setPointerCapture?.(event.pointerId);
+    });
+    map.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const box = map.getBoundingClientRect();
+      const perPixel = (mapHalf * 2) / mapView.zoom / box.width;
+      if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 4) drag.moved = true;
+      if (!drag.moved) return;
+      mapView = {
+        ...mapView,
+        x: drag.view.x - (event.clientX - drag.x) * perPixel,
+        z: drag.view.z - (event.clientY - drag.y) * perPixel,
+      };
+      redrawMap();
+    });
+    map.addEventListener("pointerup", (event) => {
+      const clicked = drag && !drag.moved;
+      drag = null;
+      if (!clicked) return;
+      handlers.onWaypoint?.(at(event));
+      redrawMap();
+    });
+    map.addEventListener("pointercancel", () => (drag = null));
+    const controls = element("div", "display:flex;gap:4px;flex-wrap:wrap;align-items:center;");
+    mapNote = element("span", `font-size:12px;color:${INK_SOFT};`, "");
+    controls.append(
+      button("+", SMALL, () => zoomTo(mapView.zoom * 1.5)),
+      button("−", SMALL, () => zoomTo(mapView.zoom / 1.5)),
+      button("Whole region", SMALL, () => {
+        mapView = { x: 0, z: 0, zoom: 1 };
+        redrawMap();
+      }),
+      button("Clear waypoint", SMALL, () => {
+        handlers.onWaypoint?.(null);
+        redrawMap();
+      }),
+      mapNote,
+    );
+    body.append(map, controls);
+    redrawMap();
   }
 
   function draw() {
@@ -1017,7 +1102,7 @@ export function createJournal(panelCss, handlers) {
     render(next) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
-      if (tab === "map" && map?.isConnected) return void handlers.onMap?.(map);
+      if (tab === "map" && map?.isConnected) return void redrawMap();
       // Only "Right now" follows the world; the rest of People stays put until something in it changes.
       const peopleChanged = next.placesChanged || next.relationsChanged || next.partyChanged;
       if (tab === "people" && peopleView !== "doing" && body.childElementCount && !peopleChanged) return;

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.82 — 2026-11-09
+
+- The Journal's map zooms and pans: scroll or use + and −, drag to move about. All the way out is the whole region; closer in names the buildings (the tavern, the smithy, then every house).
+- Click the map to set a waypoint (a red flag); under the map it says how far it is and which way. Your home is marked with a little house.
+- The regions to the east and west are written up the sides, like the ones along the top and bottom, so the middle of the map stays clear.
+
 ## 0.4.81 — 2026-11-09
 
 - Journal → People is a roster you can read: everyone in the world by faction, with where they live and work and how they see you, and the creatures from the lore. It no longer shifts about. Buttons along the top open what they're doing right now, schedules, homes and work, relationships (no longer a tab of its own), and voices and details.

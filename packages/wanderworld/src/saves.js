@@ -211,6 +211,11 @@ export function checkWorld(raw) {
           .map((word) => text(word).slice(0, 40))
           .slice(0, 12),
       })),
+    // A waypoint the player marked on the map: { region, x, z }, or null.
+    waypoint:
+      isRecord(raw.waypoint) && Number.isFinite(raw.waypoint.x) && Number.isFinite(raw.waypoint.z)
+        ? { region: text(raw.waypoint.region).slice(0, 40), x: raw.waypoint.x, z: raw.waypoint.z }
+        : null,
     // The season the land wears: "winter" lies under snow. "" is the plain green land.
     season: ["spring", "summer", "fall", "winter"].includes(raw.season) ? raw.season : "",
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.

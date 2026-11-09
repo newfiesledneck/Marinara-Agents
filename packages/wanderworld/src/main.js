@@ -1148,9 +1148,21 @@ function previewRegenerate(canvas, { reshuffle, size, seed }) {
 }
 
 /** The Journal's map of the region you're in: the places by name, you, and where each edge leads. */
-function drawJournalMap(canvas) {
-  if (!core.world?.map || !core.zones || !core.save) return;
+function drawJournalMap(canvas, view = null) {
+  if (!core.world?.map || !core.zones || !core.save) return null;
   const names = namedZones(residentsOf(core.crowd.snapshot()));
+  // A closer look names the buildings too: the ones with a name of their own first, then every door.
+  const doors = core.world.doors ?? [];
+  const buildings = core.zones.zones
+    .filter((zone) => zone.kind === "building" && doors[zone.door])
+    .map((zone) => ({
+      x: doors[zone.door].centre?.x ?? doors[zone.door].x,
+      z: doors[zone.door].centre?.z ?? doors[zone.door].z,
+      text: names[zone.id] ?? zone.name,
+      zoom: zone.buildingKind === "home" ? 5 : 2.5,
+    }));
+  const homeDoor = doors[playerHomeDoor()];
+  const waypoint = core.save.waypoint?.region === core.save.region ? core.save.waypoint : null;
   const labels = core.zones.zones
     .filter(
       (zone) => zone.id === "town" || zone.kind === "cave" || zone.kind === "outpost" || zone.outpostKind === "hamlet",
@@ -1164,7 +1176,38 @@ function drawJournalMap(canvas) {
     ["north", "east", "south", "west"].map((side) => [side, regionNameAt(regionNext(core.save.region, side))]),
   );
   const at = core.interior ? core.interior.door : core.player.position;
-  drawMap(canvas, core.world.map, { labels, edges, player: { x: at.x, z: at.z, angle: core.player.rotation.y } });
+  drawMap(canvas, core.world.map, {
+    labels: [...labels, ...buildings],
+    edges,
+    view,
+    home: homeDoor ? { x: homeDoor.x, z: homeDoor.z } : null,
+    waypoint,
+    player: { x: at.x, z: at.z, angle: core.player.rotation.y },
+  });
+  // How far the waypoint is and which way, in words under the map.
+  let words = "";
+  if (waypoint) {
+    const east = waypoint.x - at.x;
+    const south = waypoint.z - at.z;
+    const far = Math.round(Math.hypot(east, south));
+    const way = [
+      south < -far * 0.38 ? "north" : south > far * 0.38 ? "south" : "",
+      east > far * 0.38 ? "east" : east < -far * 0.38 ? "west" : "",
+    ]
+      .filter(Boolean)
+      .join("-");
+    words = far < 4 ? "You're at your waypoint." : `Waypoint: ${far} m ${way}.`;
+  }
+  return { half: core.world.map.half, waypoint: words };
+}
+
+/** Marks (or clears, with null) the player's waypoint on this region's map. */
+function setWaypoint(at) {
+  if (!core.save) return;
+  const half = core.world?.map?.half ?? 0;
+  const inside = at && Math.abs(at.x) <= half && Math.abs(at.z) <= half;
+  core.save = { ...core.save, waypoint: inside ? { region: core.save.region, x: at.x, z: at.z } : null };
+  core.saves.write(core.save);
 }
 
 function suggestName() {
@@ -4251,6 +4294,7 @@ function attach(element) {
       core.saves.write(core.save);
     },
     onMap: drawJournalMap,
+    onWaypoint: setWaypoint,
     onUse: () => {
       core.sound.unlock();
       use();
