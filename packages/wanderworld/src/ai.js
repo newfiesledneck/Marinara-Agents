@@ -79,6 +79,17 @@ export function createAi() {
     /** Recaps of this world's scenes that have ended: [{ id, summary, kind, characterIds, data, at }]. */
     sceneResults: (worldId) =>
       request(`/scene-results/${encodeURIComponent(worldId)}`).then((body) => body?.results ?? []),
+    /** A moment: { narration, replies: [{ id, text }], plans: [{ id, entry }] }. */
+    moment: (payload) => request("/moment", { method: "POST", body: payload }),
+    /** Someone's day from the model: { entries }. */
+    plan: (payload) => request("/plan", { method: "POST", body: payload }),
+    /** Illustrates the moment from the user's template: { id, image, prompt, caption, at }; kept in the gallery. */
+    illustrate: (payload) => request("/illustrate", { method: "POST", body: payload, timeout: 300000 }),
+    /** The world's gallery, newest first, without the pictures themselves: [{ id, caption, prompt, at }]. */
+    pictures: (worldId) => request(`/pictures/${encodeURIComponent(worldId)}`).then((body) => body?.pictures ?? []),
+    /** One picture: { id, image, caption, prompt, at }. */
+    picture: (id) => request(`/picture/${encodeURIComponent(id)}`),
+    forgetPicture: (id) => request(`/picture/${encodeURIComponent(id)}`, { method: "DELETE" }),
     /** Forgets a recap the client has kept. */
     forgetResult: (id) => request(`/scene-results/${encodeURIComponent(id)}`, { method: "DELETE" }),
   };

@@ -123,4 +123,32 @@ assert.ok(!choicesFor(["news"]).some((choice) => choice.id === "news"), "asked t
   assert.equal(checkWorld({ id: "w2", seed: "s", region: "far away" }).region, HOME_REGION, "a bad region is home");
 }
 
+// The chat window's commands: plain text is said to everyone nearby; /s shouts, /w whispers, /p talks to
+// the party, /a is something done instead of said; an unknown command is said as typed.
+{
+  const { parseSpeech, SPEECH_HELP } = await import("../packages/wanderworld/src/interactions.js");
+  assert.deepEqual(parseSpeech("Hello there"), { line: "Hello there", action: "", voice: "talk", audience: "nearby" });
+  assert.equal(parseSpeech("/s hello!").voice, "shout");
+  assert.equal(parseSpeech("/SHOUT hello!").voice, "shout");
+  assert.equal(parseSpeech("/whisper psst").voice, "whisper");
+  assert.equal(parseSpeech("/w psst").line, "psst");
+  assert.equal(parseSpeech("/p let's go").audience, "party");
+  assert.deepEqual(parseSpeech("/a opens the old chest"), {
+    line: "",
+    action: "opens the old chest",
+    voice: "talk",
+    audience: "nearby",
+  });
+  assert.equal(parseSpeech("/action casts a spell").action, "casts a spell");
+  assert.equal(parseSpeech("/dance now").line, "/dance now", "an unknown command is said as typed");
+  assert.equal(parseSpeech("/s "), null, "a command with nothing after it does nothing");
+  assert.equal(parseSpeech("   "), null);
+  for (const command of ["/s", "/w", "/p", "/a"]) {
+    assert.ok(
+      SPEECH_HELP.some(([typed]) => typed.startsWith(command)),
+      `${command} is in the help`,
+    );
+  }
+}
+
 console.log("wanderworld scenes regression: OK");

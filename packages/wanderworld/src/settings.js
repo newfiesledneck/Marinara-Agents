@@ -51,6 +51,8 @@ export const SETTINGS = {
   /** AI (the server part): conversations written by the model, on the connections chosen here ("" is
    *  the Engine's default), in a style and length; pictures through an image connection and style. */
   aiTalk: { value: true },
+  /** Moments: what you do and say out loud gets a line of narration and replies from whoever hears. */
+  aiMoments: { value: true },
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },

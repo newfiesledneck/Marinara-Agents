@@ -113,3 +113,48 @@ export function checkScene(raw) {
   const request = sceneRequest({ ...raw, action: raw.action });
   return request ? { ...request, at: Number.isFinite(raw.at) ? raw.at : 0 } : null;
 }
+
+/** The Speak bar's commands: "/s" shouts, "/w" whispers, "/p" speaks to the party, "/a" is an action. */
+const SPEECH_COMMANDS = {
+  s: { voice: "shout" },
+  shout: { voice: "shout" },
+  w: { voice: "whisper" },
+  whisper: { voice: "whisper" },
+  p: { audience: "party" },
+  party: { audience: "party" },
+  a: { action: true },
+  action: { action: true },
+};
+
+/**
+ * What the player typed in the Speak bar: { line, action, voice ("talk" | "shout" | "whisper"), audience
+ * ("nearby" | "party") }. Plain text is said normally to everyone nearby; "/s hello!" shouts it, "/w"
+ * whispers, "/p" talks to the party, "/a casts a spell" does something instead of saying it. An unknown
+ * command is said as typed. Null for nothing at all.
+ */
+export function parseSpeech(input) {
+  const typed = clean(input, 600);
+  if (!typed) return null;
+  const match = /^\/(\w+)\s*(.*)$/su.exec(typed);
+  const command = match ? SPEECH_COMMANDS[match[1].toLowerCase()] : null;
+  const rest = command ? match[2].trim() : typed;
+  if (!rest) return null;
+  return {
+    line: command?.action ? "" : rest,
+    action: command?.action ? rest : "",
+    voice: command?.voice ?? "talk",
+    audience: command?.audience ?? "nearby",
+  };
+}
+
+/** The chat window's list of commands: what to type, and what it does. Grows as commands are added. */
+export const SPEECH_HELP = [
+  ["text", "say it out loud to everyone nearby"],
+  ["/s text, /shout", "shout it: heard across a square"],
+  ["/w text, /whisper", "whisper it: only someone right beside you hears"],
+  ["/p text, /party", "say it to your party only"],
+  [
+    "/a text, /action",
+    "do something instead of saying it (open a chest, cast a spell); the narrator and people nearby respond",
+  ],
+];

@@ -2,6 +2,9 @@
 // screens), the People and Settings panels, a performance readout, a clock, the "use" prompt, a controls
 // hint, a status line and a loading screen. Only controls take pointer events; the rest lets touches through.
 import { createJournal } from "./journal.js";
+import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
+import { makeFloating } from "./floating.js";
+import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
 import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, NOTE_PAPER, PARCHMENT, PARCHMENT_EDGED, SERIF } from "./ui.js";
@@ -481,6 +484,8 @@ export function createHud(root, handlers) {
     onPicture: () => handlers.onPicture?.(),
     onMap: (canvas) => handlers.onMap?.(canvas),
     onSetHousing: (id, entry) => handlers.onSetHousing?.(id, entry),
+    onSetSchedule: (id, entries) => handlers.onSetSchedule?.(id, entries),
+    onPlanSchedule: (id, request) => handlers.onPlanSchedule?.(id, request),
   });
   panels.push(journal.panel);
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>
@@ -496,10 +501,26 @@ export function createHud(root, handlers) {
     togglePanel(lorePanel);
     if (lorePanel.style.display !== "none") handlers.onOpenLore?.();
   });
+  const illustrateButton = button("Illustrate", "Paint the current moment, and see the world's pictures", () =>
+    illustrate.toggle(),
+  );
+  const chatButton = button("Chat", "What's happening around you, and saying something out loud", () =>
+    chatFloat.setOpen(!chatFloat.isOpen()),
+  );
   const fresh = button("Menu", "Save and go back to the main menu", handlers.onMenu);
   const fullscreen = button("Fullscreen", "Fill the screen with the world", handlers.onToggleFullscreen);
   fullscreen.style.display = "none";
-  controls.append(personaLabel, peopleButton, journalButton, loreButton, settingsButton, fresh, fullscreen);
+  controls.append(
+    personaLabel,
+    peopleButton,
+    journalButton,
+    loreButton,
+    illustrateButton,
+    chatButton,
+    settingsButton,
+    fresh,
+    fullscreen,
+  );
 
   const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
   menuButton.setAttribute("aria-label", "Menu");
@@ -594,6 +615,69 @@ export function createHud(root, handlers) {
   board.style.cssText = `${PARCHMENT_EDGED}position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100% - 24px));max-height:calc(100% - 96px);overflow-y:auto;display:none;flex-direction:column;gap:10px;padding:24px 28px;pointer-events:auto;font-size:14px;`;
   let boardHandlers = null;
   board.addEventListener("keydown", (event) => event.stopPropagation());
+
+  // The chat window: what the narrator says and what people answer in moments, the box to say (or do)
+  // something, and the commands under it. It floats: drag it by its title, resize it from its corner.
+  const chat = floatingFrame("Around you", () => chatFloat.setOpen(false));
+  layer.append(chat.frame);
+  const chatFloat = makeFloating(layer, chat.frame, chat.bar, "wanderworld.chat", {
+    w: 380,
+    h: 260,
+    right: undefined,
+    bottom: 70,
+    x: 12,
+    open: true,
+  });
+  const narration = document.createElement("div");
+  narration.style.cssText = "flex:1;overflow-y:auto;padding:6px 10px;font:13px/1.4 system-ui,sans-serif;";
+  const speakBar = document.createElement("form");
+  speakBar.style.cssText = "display:flex;gap:6px;padding:6px 8px 2px;";
+  const speakInput = document.createElement("input");
+  speakInput.placeholder = "Say something, or /a to do something";
+  speakInput.maxLength = 600;
+  speakInput.style.cssText = `${INK_INPUT}flex:1;min-width:0;font:13px system-ui,sans-serif;`;
+  speakInput.setAttribute("aria-label", "Say something, or /a for an action");
+  const speakSend = document.createElement("button");
+  speakSend.type = "submit";
+  speakSend.textContent = "Say";
+  speakSend.style.cssText = INK_BUTTON;
+  speakBar.append(speakInput, speakSend);
+  speakInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") speakInput.blur();
+  });
+  speakBar.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const typed = speakInput.value.trim();
+    if (!typed) return;
+    speakInput.value = "";
+    handlers.onSpeak?.(typed);
+  });
+  // The commands, folded away under the box (the list grows as commands are added).
+  const commands = document.createElement("details");
+  commands.style.cssText = `padding:0 10px 6px;font-size:11px;color:${INK_SOFT};`;
+  const commandsTitle = document.createElement("summary");
+  commandsTitle.style.cssText = "cursor:pointer;";
+  commandsTitle.textContent = "Commands";
+  const commandList = document.createElement("div");
+  commandList.style.cssText =
+    "display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin-top:3px;line-height:1.35;";
+  for (const [typed, does] of SPEECH_HELP) {
+    const code = document.createElement("span");
+    code.style.cssText = "font-family:ui-monospace,monospace;white-space:nowrap;";
+    code.textContent = typed;
+    const words = document.createElement("span");
+    words.textContent = does;
+    commandList.append(code, words);
+  }
+  commands.append(commandsTitle, commandList);
+  chat.frame.append(narration, speakBar, commands);
+  let narrationTimer = null;
+  const illustrate = createIllustrateWindow(layer, {
+    onIllustrate: (template) => handlers.onIllustrate(template),
+    onGallery: () => handlers.onGallery(),
+    onPicture: (id) => handlers.onPictureOf(id),
+    onDelete: (id) => handlers.onDeletePicture(id),
+  });
 
   const explainRule = document.createElement("style");
   explainRule.textContent = ".wanderworld-no-explain [data-wanderworld-explain]{display:none!important}";
@@ -788,6 +872,9 @@ export function createHud(root, handlers) {
     /** While the main menu is up: the bar, hint and panels go. */
     setMenuOpen(open) {
       top.style.display = open ? "none" : "flex";
+      chat.frame.style.display = open ? "none" : chatFloat.isOpen() ? "flex" : "none";
+      if (!open) chatFloat.place();
+      illustrate.frame.style.display = open ? "none" : illustrate.isOpen() ? "flex" : "none";
       hint.style.visibility = open ? "hidden" : "";
       for (const panel of panels) panel.style.display = "none";
       if (open) {
@@ -963,7 +1050,37 @@ export function createHud(root, handlers) {
       fade.style.opacity = dark ? "1" : "0";
     },
     /** Hides the bar and hint while a conversation has the screen. */
+    /** Speaking up and narration show while walking about (not in a conversation or the menu). */
+    setSpeakable(on) {
+      chat.frame.style.display = on && chatFloat.isOpen() ? "flex" : "none";
+    },
+    /** Opens the chat window (after a world loads, if it was left open). */
+    restoreChat() {
+      if (chatFloat.isOpen()) chatFloat.setOpen(true);
+    },
+    /** A line in the narration box: `who` null for the narrator. */
+    narrate(who, text) {
+      const line = document.createElement("div");
+      if (who) {
+        const name = document.createElement("b");
+        name.textContent = `${who}: `;
+        line.append(name, document.createTextNode(text));
+      } else {
+        line.style.fontStyle = "italic";
+        line.textContent = text;
+      }
+      narration.append(line);
+      while (narration.childElementCount > 60) narration.firstElementChild.remove();
+      narration.scrollTop = narration.scrollHeight;
+      // Something new: the window comes back if it was closed, and stands out a moment.
+      if (!chatFloat.isOpen()) chatFloat.setOpen(true);
+      chat.frame.style.opacity = "1";
+      clearTimeout(narrationTimer);
+      narrationTimer = setTimeout(() => (chat.frame.style.opacity = "0.85"), 20000);
+    },
+    illustrate,
     setBusy(busy) {
+      chat.frame.style.visibility = busy ? "hidden" : "";
       top.style.visibility = busy ? "hidden" : "";
       hint.style.visibility = busy ? "hidden" : "";
       if (busy) for (const panel of panels) panel.style.display = "none";

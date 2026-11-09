@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.69 — 2026-11-09
+
+- Moments: the "Around you" chat window takes what you say or do: plain text to everyone nearby, /s shouts, /w whispers, /p talks to your party, /a does something (open a chest, cast a spell). The narrator answers and whoever heard may reply. Reading the noticeboard, sitting by people and card choices are moments too. Commands are listed under the box; the window moves and resizes.
+- Schedules: everyone follows a day (home, work, meals, visits, a seat), editable in Journal → People → Schedules, planned by the AI on request, and changed by what people agree to in moments.
+- Illustrate: a window that paints the current moment from a prompt template you can edit, with a scrolling gallery (the newest 60): click to show, × to delete.
+
 ## 0.4.68 — 2026-11-09
 
 - A server part (needs an Engine restart after installing or updating): people answer in their own words, written by your model from their card, your persona, where you are, the time and weather, how they feel about you and the lore active there; set lines stand in if a call fails.

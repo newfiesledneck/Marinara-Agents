@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.68)
+## What it does now (0.4.69)
 
 ### The world
 
@@ -81,6 +81,18 @@ With it running:
 - **Conversations in character:** people answer in their own words, written by your model from their card,
   your persona, where you are, the time and weather, how they feel about you and the lore active there.
   If a call fails, set lines stand in.
+- **Moments, in the "Around you" chat window:** say something out loud and whoever hears may answer,
+  with a line of narration. Plain text is said to everyone nearby, `/s` shouts (heard across a square),
+  `/w` whispers (only someone right beside you), `/p` talks to your party, and `/a` does something
+  instead (open a chest, cast a spell). Reading the noticeboard, sitting down by people and choosing
+  things on a card are moments too. The commands are listed under the box; the window moves and resizes.
+  Pressing E on someone is still a direct conversation.
+- **Schedules:** everyone follows a day (home, work, meals, visits, a seat somewhere), a usual one from
+  their home and work until you change it in Journal → People → Schedules, or the AI plans one. What
+  people agree to in moments ("meet me at noon by the fountain") goes into their day.
+- **Illustrate:** a window that paints the current moment (where, when, the weather, who's with you and
+  what they're doing, their looks from their cards) from a prompt template you can edit, with the world's
+  gallery. It moves, resizes and stays open while you play.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
   the Engine, with everyone there (one of your characters at least), your persona and the world's
   lorebooks. The Engine plans it; when it ends, its recap comes back to Journal → Here.
@@ -156,7 +168,8 @@ that persona in 3D Avatars first.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
   `/api/wanderworld` for status, the connection list, conversation replies, pictures, and scene contexts
   and recaps, plus a scene origin for the Engine's scene planner. `src/ai.js` is the client's side of it,
-  and `src/map.js` draws the maps.
+  `src/map.js` draws the maps, `src/schedules.js` holds the daily schedules, and `src/illustrate.js` and
+  `src/floating.js` the Illustrate window and the floating windows.
 - `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
   and speech bubbles, `src/signs.js` signs and the noticeboard, `src/ui.js` the parchment look,

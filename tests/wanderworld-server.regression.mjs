@@ -144,7 +144,7 @@ const call = async (method, path, { body, params } = {}) => {
 
 const stop = await server.activate({ api });
 assert.equal(typeof stop, "function");
-assert.deepEqual((await call("get", "/status")).body, { server: true, scenes: true, images: true, talk: true });
+assert.equal((await call("get", "/status")).body.moments, true);
 
 // Connections: split by kind, nothing secret.
 const connections = (await call("get", "/connections")).body;
@@ -248,5 +248,122 @@ assert.equal(
   0,
   "kept and gone",
 );
+
+// Moments: only those who could hear may answer; plans name real places; a schedule from the model is
+// checked the same way.
+{
+  assert.deepEqual(server.checkEntry({ from: 7.3, to: 9, activity: "work", place: "" }), {
+    from: 7.5,
+    to: 9,
+    activity: "work",
+    place: "",
+  });
+  assert.equal(server.checkEntry({ from: 7, to: 9, activity: "fly" }), null, "unknown activities are refused");
+  assert.equal(
+    server.checkEntry({ from: 7, to: 9, activity: "visit", place: "the moon" }, [{ id: "z:1", name: "The Tavern" }]),
+    null,
+  );
+  assert.equal(
+    server.checkEntry({ from: 7, to: 9, activity: "visit", place: "the tavern" }, [{ id: "z:1", name: "The Tavern" }])
+      .place,
+    "z:1",
+  );
+  assert.equal(
+    server.fillTemplate("{persona} at {place}, {weather}, {unknown}.", {
+      persona: "Zoey",
+      place: "the market",
+      weather: "",
+    }),
+    "Zoey at the market.",
+    "placeholders filled, empty ones tidied away",
+  );
+  // The stand-in model answers a moment.
+  runtime.languageModels.resolveForRequest = async () => ({
+    connectionId: "t-1",
+    model: "m",
+    async chatComplete(messages) {
+      calls.push({ messages });
+      return {
+        content:
+          'Sure! {"narration": "The notes flutter.", "replies": [{"id": "c-mira", "text": "Mira: Fresh notices today!"}, {"id": "c-ghost", "text": "Boo"}], "plans": [{"id": "c-mira", "from": 12, "to": 13, "activity": "visit", "place": "the fountain"}, {"id": "c-mira", "from": 1, "to": 2, "activity": "visit", "place": "Atlantis"}]}',
+      };
+    },
+  });
+  const moment = await call("post", "/moment", {
+    body: {
+      personaId: "p-zoey",
+      action: "reads the notes on the noticeboard",
+      line: "Anything new?",
+      voice: "shout",
+      listeners: [
+        { id: "c-mira", distance: 6, doing: "sitting on a bench" },
+        { id: "c-ghost", distance: 2 },
+      ],
+      places: [{ id: "fountain", name: "the fountain" }],
+    },
+  });
+  assert.equal(moment.code, 200);
+  assert.equal(moment.body.narration, "The notes flutter.");
+  assert.deepEqual(
+    moment.body.replies,
+    [{ id: "c-mira", text: "Fresh notices today!" }],
+    "only characters who exist and heard",
+  );
+  assert.deepEqual(
+    moment.body.plans,
+    [{ id: "c-mira", entry: { from: 12, to: 13, activity: "visit", place: "fountain" } }],
+    "plans at real places only",
+  );
+  const prompt = calls.at(-1).messages[0].content;
+  assert.match(prompt, /id "c-mira": Mira, 6 m away, sitting on a bench/u);
+  assert.doesNotMatch(prompt, /c-ghost/u, "someone who isn't a character isn't listed");
+  assert.match(
+    calls.at(-1).messages[1].content,
+    /Zoey reads the notes on the noticeboard\. Zoey shouts: "Anything new\?"/u,
+  );
+  assert.equal((await call("post", "/moment", { body: {} })).code, 400, "something has to happen");
+
+  runtime.languageModels.resolveForRequest = async () => ({
+    connectionId: "t-1",
+    model: "m",
+    async chatComplete() {
+      return {
+        content:
+          '{"entries": [{"from": 0, "to": 7, "activity": "home"}, {"from": 7, "to": 12, "activity": "work"}, {"from": 12, "to": 13, "activity": "eat", "place": "the tavern"}, {"from": 13, "to": 14, "activity": "visit", "place": "Mordor"}]}',
+      };
+    },
+  });
+  const plan = await call("post", "/plan", {
+    body: { characterId: "c-mira", places: [{ id: "tav", name: "the tavern", kind: "tavern" }] },
+  });
+  assert.deepEqual(
+    plan.body.entries.map((entry) => `${entry.from}-${entry.to} ${entry.activity} ${entry.place}`),
+    ["0-7 home ", "7-12 work ", "12-13 eat tav"],
+    "a visit to a place that isn't there is dropped",
+  );
+
+  // Illustrate: the template filled with the people's looks from their cards, painted and kept; the gallery
+  // lists it without the picture itself, which comes one at a time.
+  const shot = await call("post", "/illustrate", {
+    body: {
+      worldId: "w1",
+      template: "{persona} with {people} at {place}, {time_of_day}. {people_appearance}",
+      facts: { place: "the bakery", timeOfDay: "morning", people: [{ id: "c-mira", doing: "kneading dough" }] },
+      personaId: "p-zoey",
+      styleProfileId: "anime",
+    },
+  });
+  assert.equal(shot.code, 200);
+  assert.equal(shot.body.prompt, "Zoey with Mira (kneading dough) at the bakery, morning. Mira: flour on her apron");
+  const gallery = (await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures;
+  assert.equal(gallery.length, 1);
+  assert.equal(gallery[0].image, undefined, "the list carries no image data");
+  assert.equal(
+    (await call("get", "/picture/:id", { params: { id: gallery[0].id } })).body.image,
+    "data:image/png;base64,AAAA",
+  );
+  await call("delete", "/picture/:id", { params: { id: gallery[0].id } });
+  assert.equal((await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures.length, 0);
+}
 
 console.log("wanderworld server regression: OK");

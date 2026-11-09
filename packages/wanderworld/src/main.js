@@ -48,9 +48,10 @@ import {
   regionNext,
 } from "./zones.js";
 import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
-import { ACTIONS, describeScene, OWN_LINE, sceneRequest } from "./interactions.js";
+import { ACTIONS, describeScene, OWN_LINE, parseSpeech, sceneRequest } from "./interactions.js";
 import { drawMap } from "./map.js";
 import { createAi } from "./ai.js";
+import { ACTIVITY_WORDS, entryAt, hourText, putEntry, usualDay } from "./schedules.js";
 import { weatherAt } from "./weather.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
@@ -144,6 +145,9 @@ const PLACE_NAMES = {
 const core = {
   element: null,
   props: null,
+  /** Moments: the latest lines said and narrated, for the next one's context: [{ who, text }]. */
+  momentLog: [],
+  momentBusy: false,
   /** The server part (ai.js): conversations, pictures, scenes. */
   ai: createAi(),
   /** The last picture of a place: { zoneId, place, url, pending, error }. */
@@ -604,6 +608,10 @@ function playWorld(id) {
       core.hud?.setLoading(null);
       resume();
       void pullRecaps();
+      core.momentLog = [];
+      core.hud?.illustrate.reset();
+      core.hud?.illustrate.restore();
+      core.hud?.restoreChat();
     };
     // Shown once the detail is in and the lore has linked up (so they appear at their door, not jump
     // there), or after a while regardless.
@@ -1168,6 +1176,112 @@ function setHousingByHand(id, { home, work, owner }) {
   core.journalAt = 0;
 }
 
+// ── Schedules (schedules.js) ────────────────────────────────────────────────
+
+/** The places a schedule can name: buildings with a door, the market, places out in the country. */
+function schedulePlaces() {
+  if (!core.zones) return [];
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const slots = new Map([...slotsOf(core.zones)].map(([slot, id]) => [id, slot]));
+  return core.zones.zones
+    .filter(
+      (zone) =>
+        (zone.kind === "building" && zone.door !== null && zone.door !== undefined) ||
+        ["plaza", "fountain", "outpost", "garden", "meadow"].includes(zone.kind) ||
+        zone.outpostKind === "hamlet",
+    )
+    .map((zone) => ({
+      id: zone.id,
+      name: names[zone.id] ?? zone.name,
+      kind: zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind),
+      slot: slots.get(zone.id) ?? "",
+    }));
+}
+
+/** Someone's day as the world has it: theirs if set (by the player or the AI), else a usual one. */
+function scheduleOf(id) {
+  const set = core.save?.schedules?.[id];
+  if (set?.entries?.length) return { entries: set.entries, by: set.by };
+  const tavern = core.zones?.zones.find((zone) => zone.kind === "building" && zone.buildingKind === "tavern");
+  const square = core.zones?.byId.get("plaza");
+  return {
+    entries: usualDay(id, {
+      work: !!core.save?.housing?.[id]?.work,
+      tavern: tavern?.id ?? "",
+      square: square?.id ?? "",
+    }),
+    by: "usual",
+  };
+}
+
+/** Tells the townsfolk their days: each entry's place as a door to go in at, or a spot to go to. */
+function useSchedules() {
+  if (!core.zones) return;
+  const where = (placeId) => {
+    const zone = placeId ? core.zones.byId.get(placeId) : null;
+    if (!zone) return { door: null, point: null };
+    if (Number.isInteger(zone.door)) return { door: zone.door, point: null };
+    // A place out in the country: its own building's door, if it has one.
+    const building = core.zones.zones.find((entry) => entry.parent === zone.id && Number.isInteger(entry.door));
+    if (building && zone.kind === "outpost") return { door: building.door, point: null };
+    const circle = zone.shape?.circle;
+    const box = zone.shape?.box;
+    const point = circle
+      ? { x: circle.x, z: circle.z }
+      : box
+        ? { x: (box.minX + box.maxX) / 2, z: (box.minZ + box.maxZ) / 2 }
+        : null;
+    return { door: null, point };
+  };
+  const map = {};
+  for (const character of core.characters ?? []) {
+    if (!core.cast?.has(character.id)) continue;
+    map[character.id] = scheduleOf(character.id).entries.map((entry) => ({ ...entry, ...where(entry.place) }));
+  }
+  core.crowd.setSchedules(map);
+}
+
+/** Sets `id`'s schedule (null: back to a usual day). `by`: "you" or "ai". */
+function setSchedule(id, entries, by = "you") {
+  if (!core.save) return;
+  const schedules = { ...core.save.schedules };
+  if (entries?.length) schedules[id] = { entries, by };
+  else delete schedules[id];
+  core.save = { ...core.save, schedules };
+  core.saves.write(core.save);
+  useSchedules();
+  core.placesChanged = true;
+  core.journalAt = 0;
+}
+
+/** The AI plans `id`'s day (server.mjs /plan), with what the player asked for. Returns words for the editor. */
+async function planSchedule(id, request = "") {
+  if (!core.ai.known()?.plans) return "Wanderworld's server part isn't running.";
+  const places = schedulePlaces();
+  const names = Object.fromEntries(places.map((place) => [place.id, place.name]));
+  const house = core.save?.housing?.[id] ?? {};
+  try {
+    const { entries } = await core.ai.plan({
+      characterId: id,
+      home: names[house.home] ?? "",
+      work: names[house.work] ?? "",
+      places: places.map(({ id: placeId, name, kind }) => ({ id: placeId, name, kind })),
+      current: scheduleOf(id).entries,
+      request,
+      connectionId: core.settings.textConnection || null,
+    });
+    setSchedule(id, entries, "ai");
+    return "Planned.";
+  } catch (error) {
+    return `Couldn't plan it: ${error?.message ?? error}`;
+  }
+}
+
+/** Puts one entry the AI agreed in a moment ("meet me at the fountain at noon") into `id`'s day. */
+function scheduleFromMoment(id, entry) {
+  setSchedule(id, putEntry(scheduleOf(id).entries, entry), "ai");
+}
+
 /** Tells the townsfolk where they live and work (the world's housing, as door indexes). */
 function useHousing() {
   if (!core.zones) return;
@@ -1180,6 +1294,7 @@ function useHousing() {
       ]),
     ),
   );
+  useSchedules();
 }
 
 /** Changes the world's setup from Journal → World: its setting words, lorebooks or how lore is linked. */
@@ -1374,6 +1489,16 @@ function journalData(zone, snapshot, residents, names) {
         .join(". ");
     }),
     housing: housingData(names),
+    // Journal → People's schedule editor: everyone here, their day and who set it; the places to pick.
+    schedules: {
+      people: (core.characters ?? [])
+        .filter((character) => core.cast?.has(character.id))
+        .map((character) => ({ id: character.id, name: character.name, ...scheduleOf(character.id) })),
+      places: core.zones
+        ? schedulePlaces().map(({ id, name, slot }) => ({ id, name: slot ? `${name} (${slot})` : name }))
+        : [],
+      canPlan: !!core.ai.known()?.plans,
+    },
     relations: relationsData(),
     party: core.crowd.party(),
     relationsChanged: core.relationsChanged,
@@ -1546,6 +1671,7 @@ function updateCast() {
     .filter((character) => core.cast.has(character.id) && (!away || along.has(character.id)))
     .map((character) => ({ ...character, body: core.bodies[character.id] ?? "auto" }));
   core.crowd.setCast(chosen);
+  useSchedules();
   core.crowd.setShadows(core.settings.shadows);
   core.crowd.setNamesVisible(core.settings.names);
   core.hud?.setCharacters(core.characters ?? [], core.cast, core.bodies);
@@ -1641,6 +1767,8 @@ function sit(seat) {
   core.seat = seat;
   core.mode = "sit";
   glideTo(seat.x, seat.z, seat.angle, 0.45);
+  // People round about may say something to someone sitting down by them.
+  later(0.6, () => void runMoment({ action: "sits down on a bench", needListeners: true }));
 }
 
 function standUp() {
@@ -1840,6 +1968,225 @@ async function aiAnswer(talking, line, setLine) {
       core.hud?.setNotice(`AI conversation didn't work, so set lines stand in: ${error?.message ?? error}`);
     }
   }
+}
+
+// ── Moments: narration and replies from whoever hears (server.mjs /moment) ─────
+
+/** How far a voice carries, in metres. */
+const VOICE_RANGE = { whisper: 2.5, talk: 9, shout: 28 };
+
+/** What someone is doing, in a few words, for a moment's listeners and the Illustrate prompt. */
+function doingWords(person) {
+  if (person.seated) return person.with ? `sitting with ${person.with}` : "sitting on a bench";
+  if (person.state === "chat" || person.with) return person.with ? `chatting with ${person.with}` : "chatting";
+  if (person.state === "walk") return "walking along";
+  const entry = core.crowd.scheduledNow(person.id, core.hour);
+  return entry && entry.activity !== "walk" ? ACTIVITY_WORDS[entry.activity] : "standing about";
+}
+
+/**
+ * Who hears the player: within the voice's range (a whisper a couple of metres, a shout across a square),
+ * out of doors, only the party when that's who's being spoken to. Nearest first, at most six; Engine
+ * characters only (the model writes their lines from their cards).
+ */
+function momentListeners(voice, audience, extra = []) {
+  const range = VOICE_RANGE[voice] ?? VOICE_RANGE.talk;
+  const at = core.interior ? core.interior.door : core.player.position;
+  const party = new Set(
+    core.crowd
+      .party()
+      .filter((member) => !member.waiting)
+      .map((member) => member.id),
+  );
+  const known = new Set((core.characters ?? []).map((character) => character.id));
+  const inside = new Set(extra.map((person) => person.id));
+  const names = { ...nameIds(), player: personaName() };
+  return core.crowd
+    .snapshot()
+    .filter((person) => known.has(person.id) && (person.state !== "inside" || inside.has(person.id)))
+    .map((person) => ({ person, distance: inside.has(person.id) ? 2 : Math.hypot(person.x - at.x, person.z - at.z) }))
+    .filter(({ person, distance }) => distance <= range && (audience !== "party" || party.has(person.id)))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 6)
+    .map(({ person, distance }) => ({
+      id: person.id,
+      name: person.name,
+      distance: Math.round(distance),
+      doing: inside.has(person.id) ? "inside" : doingWords(person),
+      feeling: core.relations.get(person.id, "player") ? core.relations.describe(person.id, "player", names) : "",
+      inParty: party.has(person.id),
+    }));
+}
+
+/** A line in the narration box and the moment log (`who` null for the narrator). */
+function narrate(who, text) {
+  core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text }].slice(-30);
+  core.hud?.narrate(who, text);
+}
+
+/**
+ * A moment: the player does something (`action`) and/or says something (`line`, at `voice`, to
+ * `audience`: "nearby" or "party"). The model narrates it in a line and whoever heard may answer;
+ * anything they agree to ("meet me at noon by the fountain") goes in their schedule. With
+ * `needListeners`, nothing happens unless someone's in earshot (sitting down, reading the board).
+ * Returns whether the moment ran.
+ */
+async function runMoment({
+  action = "",
+  line = "",
+  voice = "talk",
+  audience = "nearby",
+  needListeners = false,
+  listenersExtra = [],
+}) {
+  if (!core.save || !core.zones) return false;
+  if (line) {
+    core.talk.say(core.player, line, Math.min(10, 3 + line.length / 22));
+    narrate(personaName(), voice === "whisper" ? `(whispers) ${line}` : voice === "shout" ? `(shouts) ${line}` : line);
+  }
+  if (!core.settings.aiTalk || !core.settings.aiMoments || !core.ai.known()?.moments || core.momentBusy) return false;
+  const listeners = momentListeners(voice, audience, listenersExtra);
+  if (needListeners && !listeners.length) return false;
+  core.momentBusy = true;
+  try {
+    const names = namedZones(residentsOf(core.crowd.snapshot()));
+    const at = core.interior ? core.interior.door : core.player.position;
+    const zone = zoneAt(core.zones, at.x, at.z);
+    const lore = activeLore(zone, names)
+      .entries.filter((entry) => entry.content)
+      .map((entry) => `${entry.title}: ${entry.content}`)
+      .slice(0, 6);
+    const places = schedulePlaces();
+    const result = await core.ai.moment({
+      personaId: core.personaId ?? null,
+      personaName: personaName(),
+      action,
+      line,
+      voice,
+      listeners,
+      place: placeWords(),
+      time: clockText(),
+      weather: weatherWord(),
+      setting: core.save.setting ?? "",
+      style: core.settings.talkStyle,
+      lore,
+      recent: core.momentLog.slice(-12),
+      places: places.map(({ id, name }) => ({ id, name })),
+      connectionId: core.settings.textConnection || null,
+      temperature: core.settings.aiTemperature,
+    });
+    if (result.narration) narrate(null, result.narration);
+    result.replies.forEach((reply, i) => {
+      const listener = listeners.find((person) => person.id === reply.id);
+      later(0.3 + i * 1.8, () => {
+        const group = core.crowd.groupOf(reply.id);
+        if (group) core.talk.say(group, reply.text, Math.min(10, 3 + reply.text.length / 22));
+        core.crowd.setSpeaking(reply.id, true);
+        later(2.6, () => core.crowd.setSpeaking(reply.id, false));
+        narrate(listener?.name ?? "Someone", reply.text);
+      });
+    });
+    const placeNames = Object.fromEntries(places.map((place) => [place.id, place.name]));
+    for (const { id, entry } of result.plans) {
+      scheduleFromMoment(id, entry);
+      const who = listeners.find((person) => person.id === id)?.name ?? "Someone";
+      const where = placeNames[entry.place] ? ` at ${placeNames[entry.place]}` : "";
+      narrate(
+        null,
+        `(${who}: ${ACTIVITY_WORDS[entry.activity]}${where}, ${hourText(entry.from)}–${hourText(entry.to)}.)`,
+      );
+    }
+    return true;
+  } catch (error) {
+    narrate(null, `(No narration: ${error?.message ?? error})`);
+    return false;
+  } finally {
+    core.momentBusy = false;
+  }
+}
+
+/**
+ * The player types in the Speak bar (interactions.js parseSpeech): said to everyone nearby, shouted (/s),
+ * whispered (/w), said to the party (/p), or done instead of said (/a: an action the narrator and the
+ * people round about answer).
+ */
+function speak(typed) {
+  const speech = parseSpeech(typed);
+  if (!speech) return;
+  if (speech.action) narrate(personaName(), `*${speech.action}*`);
+  void runMoment(speech);
+}
+
+// ── Illustrate (illustrate.js, server.mjs /illustrate) ─────────────────────────
+
+/** What the player is doing right now, in a few words. */
+function playerDoing() {
+  if (core.mode === "sit") return "sitting on a bench";
+  if (core.talking) return `talking with ${core.talking.name}`;
+  if (core.swimming) return "swimming";
+  if (core.interior) return "standing inside";
+  const moving = core.input?.moving?.() ?? false;
+  return moving ? "walking" : "standing";
+}
+
+/**
+ * Paints the current moment from the player's template: where and when, the weather, who's with them
+ * (the party and anyone close by, and what they're doing), what the player is doing and the last line
+ * of narration. Their looks come from their cards on the server. Kept in the world's gallery.
+ */
+async function illustrateMoment(template) {
+  if (!core.save || !core.zones) throw new Error("Open a world first.");
+  if (!core.ai.known()?.illustrate) throw new Error("Wanderworld's server part isn't running: restart the Engine.");
+  const at = core.interior ? core.interior.door : core.player.position;
+  const zone = zoneAt(core.zones, at.x, at.z);
+  const party = new Set(core.crowd.party().map((member) => member.id));
+  const known = new Set((core.characters ?? []).map((character) => character.id));
+  const people = core.crowd
+    .snapshot()
+    .filter((person) => known.has(person.id) && person.state !== "inside")
+    .map((person) => ({ person, distance: Math.hypot(person.x - at.x, person.z - at.z) }))
+    .filter(({ person, distance }) => distance < 10 || (party.has(person.id) && distance < 25))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 5)
+    .map(({ person }) => ({ id: person.id, name: person.name, doing: doingWords(person) }));
+  const hour = core.hour;
+  const timeOfDay =
+    hour < 5 || hour >= 22
+      ? "night"
+      : hour < 8
+        ? "early morning"
+        : hour < 12
+          ? "morning"
+          : hour < 14
+            ? "midday"
+            : hour < 18
+              ? "afternoon"
+              : hour < 20
+                ? "dusk"
+                : "evening";
+  const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
+  const recent = [...core.momentLog].reverse().find((line) => line.who === "Narrator")?.text ?? "";
+  return core.ai.illustrate({
+    worldId: core.save.id,
+    template,
+    personaId: core.personaId ?? null,
+    facts: {
+      persona: personaName(),
+      people,
+      place: placeWords(),
+      placeKind:
+        { plaza: "a market square", street: "a town street", forest: "the woods", river: "a riverbank" }[kind] ?? kind,
+      time: clockText(),
+      timeOfDay,
+      weather: weatherWord(),
+      activity: playerDoing(),
+      setting: core.save.setting ?? "",
+      recent,
+    },
+    caption: `${placeWords()}, ${clockText()}`,
+    connectionId: core.settings.imageConnection || null,
+    styleProfileId: core.settings.imageStyle,
+  });
 }
 
 /** Where the player is, in words: the place and the places it's in. */
@@ -2152,6 +2499,12 @@ function openScene(thing) {
         core.saves.write(core.save);
       }
       core.journalAt = 0;
+      // Played out at once as a moment: a line of narration, and whoever's there may answer.
+      void runMoment({
+        action: request.verb ? `${request.verb} (${thing.title})` : `is at ${thing.title}`,
+        line: request.line,
+        listenersExtra: thing.inside,
+      });
       return describeScene(request);
     },
   );
@@ -2228,6 +2581,7 @@ function noticeboardNotes() {
 
 function openNoticeboard() {
   core.sceneDoor = core.world.noticeboard.use; // walking away closes it, like a door's card
+  void runMoment({ action: "stops to read the notes on the noticeboard", needListeners: true });
   const town = core.zones ? namedZones(residentsOf(core.crowd.snapshot())).town : "town";
   const show = () => {
     const notes = noticeboardNotes();
@@ -2999,6 +3353,13 @@ function attach(element) {
   core.hud = createHud(core.stage, {
     onMenu: openMenu,
     onAiStatus: () => core.ai.status(true),
+    onSpeak: speak,
+    onIllustrate: illustrateMoment,
+    onGallery: () => (core.save ? core.ai.pictures(core.save.id) : Promise.resolve([])),
+    onPictureOf: (id) => core.ai.picture(id),
+    onDeletePicture: (id) => core.ai.forgetPicture(id),
+    onSetSchedule: (id, entries) => setSchedule(id, entries, "you"),
+    onPlanSchedule: planSchedule,
     onConnections: () => core.ai.connections(),
     onPicture: pictureHere,
     onRenameZone: renameZone,
