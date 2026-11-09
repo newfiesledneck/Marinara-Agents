@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.48",
+          "date": "2026-11-09",
+          "notes": "- Swimming sits in the water instead of floating above it, and wading in or climbing out eases smoothly between walking and swimming (for you and for townsfolk).",
+          "highlight": false
+        },
+        {
           "version": "0.4.47",
           "date": "2026-11-09",
           "notes": "- Townsfolk and followers can swim. They still go round by a bridge when there's one on the way, and your party crosses the way you did: swimming after you, or by the bridge.\n- Settings → Time speed: a day in 80, 40, 20, 10, 5 or 2½ minutes.\n- The clock in Journal → World keeps ticking, a place's lore count updates as soon as you go back, and deleting a group asks first.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.29",
           "date": "2026-11-08",
           "notes": "- Place groups: gather places under a name, like every home in town, or the forest, mountains, cottages and river as the wilds. Lore tied to a group is active anywhere in it, along with each place's own.\n- Every world starts with two groups, The wilds and Homes. Add, rename, fill or remove groups in Journal → Places; later the AI can make them too.\n- The Lore panel and Journal → Here show the groups you're in.\n- The \"Lorebooks shown\" list stays open while you tick several, until you close it.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.28",
-          "date": "2026-11-08",
-          "notes": "- Settings → Regenerate this world: builds the world again from its setup with everything new, keeping your people, relationships, party, notes and lore. Optionally a new town layout too.\n- Settings: how often people come up to you (or never), and at most how many at once, so you aren't surrounded.\n- The river's banks always stand above the water, so it no longer floats with gaps over low ground in hilly worlds.",
           "highlight": false
         }
       ]
