@@ -2271,7 +2271,11 @@ function movePlayer(dt, input) {
   // Swimming, the body floats at the surface (the swim clips hold the head just above it).
   const water = core.interior ? null : waterAt(position.x, position.z);
   core.swimming = !!water && water.depth > SWIM_DEPTH && core.mode === "walk";
-  position.y = core.interior ? 0 : core.swimming ? water.level : heightAt(position.x, position.z);
+  // In the water the height eases between wading (feet on the bed) and floating, in step with the swim
+  // pose fading in, so walking in and climbing out flow instead of jumping.
+  const target = core.interior ? 0 : core.swimming ? water.level : heightAt(position.x, position.z);
+  const wet = !core.interior && water && (water.depth > 0.3 || core.swimming);
+  position.y = wet ? position.y + (target - position.y) * Math.min(1, dt * 6) : target;
   core.shadow.visible = core.settings.shadows && !core.swimming;
   return dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
 }
