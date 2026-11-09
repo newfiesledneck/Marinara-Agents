@@ -136,11 +136,13 @@ export function createTalk(layer, handlers) {
     setInParty(inParty) {
       party.textContent = inParty ? "Part ways" : "Come with me";
     },
-    /** Opens the panel for a conversation with `name`. */
-    start(name) {
+    /** Opens the panel for a conversation with `name` (`ai`: replies come from the model). */
+    start(name, ai = false) {
       title.textContent = `Talking with ${name}`;
       log.replaceChildren();
-      note.textContent = `Preview: simple set conversations for now. Real replies, in character, come with Wanderworld's AI update.`;
+      note.textContent = ai
+        ? `${name} answers in their own words (Settings → AI). The choices below are things you could say.`
+        : "Set lines: turn on AI conversations in Settings → AI (with Wanderworld's server part running) for replies in character.";
       panel.style.display = "flex";
       setTimeout(() => input.focus(), 0);
     },

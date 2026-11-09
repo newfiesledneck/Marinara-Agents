@@ -460,6 +460,26 @@ character and persona records, fit the context, call `chatComplete`, and keep th
 Wanderworld follows that, and hands off to a real Engine scene (S4) when a moment deserves the full chat
 treatment (image generation, backgrounds, agents, memory).
 
+### Where it stands (0.4.68)
+
+_Done: `server.mjs` with privileged routes (status, connections, talk, image, scene-origin,
+scene-results), a scene origin (`getContext`, `release`), permissions `network`, `routes`, `scenes`,
+`storage` and `ui`, `restartRequired: true`, capability API 1.66, Engine 2.4.6 or newer. S3's model call
+is `POST /talk` (character card, persona, place, time, weather, relationship, zone lore, history). S4's
+Engine scene is "Play it as a scene" on a scene card (the host's `startScene`, the Engine plans it from
+our `getContext`); recaps become world `events`. Pictures go through the Engine's avatar-generation route
+with a style profile id, as Quartermaster's do. Not yet: S1's world documents on the server (worlds stay
+in the browser), S2's world brief, S5's daily plans, the prompt-context contributor for scene turns, TTS,
+and a preset choice for scenes (the host's `startScene` takes none)._
+
+**Security notes (for the PR):** every route body is checked (ids by pattern, text by length, numbers
+clamped, style profile ids from a fixed list); the connection list carries only id, name, provider,
+model and default flag (the Engine already masks keys, and none are read); the loopback goes only to
+127.0.0.1 on the Engine's own port, to two fixed paths; model calls use `languageModels.resolveForRequest`
+with the user's chosen connection id; scene contexts must name at least one character and an origin id
+of the form `world:<id>/…`; `release` is idempotent per scene chat; stale contexts are removed after
+three days.
+
 ### S1. Foundation
 
 - `server.mjs` with `activate`, built and hashed by `scripts/build-wanderworld-package.mjs` (syntax-checked

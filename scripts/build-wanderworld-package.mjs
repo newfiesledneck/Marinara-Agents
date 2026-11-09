@@ -1,9 +1,11 @@
 // Build the Wanderworld package, a Home screen game: bundle its client (with three.js) into one
 // client.js, stamp the manifest, agent stub and English locale, write a reproducible artifact zip, and
-// update the catalog family. It is client-only and needs no Engine checkout to build: three.js and
+// update the catalog family, with its hand-written server.mjs. It needs no Engine checkout to build: three.js and
 // esbuild are pinned in this repository's package.json.
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -19,10 +21,12 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.4.67";
-// A client-only Home tab with its own icon, serving its own asset files (the kit: people, props).
-const CAPABILITY_API = Object.freeze({ major: 1, minor: 10 });
-const ENGINE_MIN = "2.4.4";
+const VERSION = "0.4.68";
+// A Home tab with its own icon, serving its own asset files (the kit: people, props), and a server part for
+// model calls, pictures and scenes. Capability API 1.66 is the scene origin (`scenes`); the Engine minimum
+// matches Slurp 2's, the other package with scenes.
+const CAPABILITY_API = Object.freeze({ major: 1, minor: 66 });
+const ENGINE_MIN = "2.4.6";
 const MAX_ENGINE_EXCLUSIVE = "4.0.0";
 const THREE_VERSION = "0.186.1"; // matches the Engine's own three.js
 const TAB_ICON = "wanderworld-icon.webp";
@@ -109,6 +113,22 @@ const agentDefinition = {
 };
 const agentsBuffer = Buffer.from(`${JSON.stringify([agentDefinition], null, 2)}\n`);
 
+// ── Server part (hand-written server.mjs, syntax-checked like Quartermaster's) ──────────────────
+const serverBuffer = Buffer.from(
+  (await readFile(join(packageRoot, "server.mjs"), "utf8")).replace(/\r\n/gu, "\n"),
+  "utf8",
+);
+const syntaxDir = await mkdtemp(join(tmpdir(), "wanderworld-server-syntax-"));
+try {
+  const checkPath = join(syntaxDir, "server.check.mjs");
+  await writeFile(checkPath, serverBuffer);
+  const checked = spawnSync(process.execPath, ["--check", checkPath], { encoding: "utf8" });
+  if (checked.status !== 0)
+    throw new Error(checked.stderr || checked.stdout || "Wanderworld server.mjs failed the syntax check");
+} finally {
+  await rm(syntaxDir, { recursive: true, force: true });
+}
+
 const manifest = {
   schemaVersion: 2,
   capabilityApi: boundary.capabilityApi,
@@ -119,7 +139,7 @@ const manifest = {
   description,
   engine: { min: ENGINE_MIN, maxExclusive: MAX_ENGINE_EXCLUSIVE },
   kind: ["agent"],
-  entrypoints: { agents: "agents.json", client: "client.js" },
+  entrypoints: { agents: "agents.json", client: "client.js", server: "server.mjs" },
   contributions: {
     slots: ["home-browser-tab"],
     homeBrowserTab: { label: "Wanderworld", ariaLabel: "Open Wanderworld", iconPaths: [TAB_ICON] },
@@ -128,14 +148,24 @@ const manifest = {
   files: [
     { path: "agents.json", sha256: sha256(agentsBuffer), bytes: agentsBuffer.byteLength },
     { path: "client.js", sha256: sha256(clientBuffer), bytes: clientBuffer.byteLength },
+    { path: "server.mjs", sha256: sha256(serverBuffer), bytes: serverBuffer.byteLength },
     { path: TAB_ICON, sha256: sha256(iconBuffer), bytes: iconBuffer.byteLength },
     ...kitPayloads.map((asset) => ({ path: asset.path, sha256: sha256(asset.buffer), bytes: asset.buffer.byteLength })),
   ],
   // ui: it draws its own Home tab. It also reads your persona and character lists and their 3D Avatars
-  // models through the Engine's same-origin routes, which no other permission name describes; it writes
-  // nothing.
-  permissions: ["ui"],
-  restartRequired: false,
+  //   models through the Engine's same-origin routes, which no other permission name describes.
+  // routes: server.mjs serves /api/wanderworld (status, connections, talk, image, scene contexts and recaps).
+  // storage: scene contexts until the Engine's planner reads them, and scene recaps until the client keeps
+  //   them (persistence.documents, kinds "scene-origin" and "scene-result").
+  // network: server.mjs's loopback to the Engine's own REST API on 127.0.0.1 (GET /api/connections for the
+  //   AI settings, POST /api/characters/avatar-generation for pictures), as Quartermaster and Gacha Forge
+  //   do: the capability runtime has no image or connection-list method. Nothing leaves the machine except
+  //   through the user's own Engine connections.
+  // scenes: a scene origin (api.registerSceneOrigin), so a scene started in the world gets its cast,
+  //   persona, connection, notes and lorebooks, and its recap comes back (Capability API 1.66).
+  permissions: ["network", "routes", "scenes", "storage", "ui"],
+  // Privileged routes only start with the Engine: the Engine refuses `routes` without a restart.
+  restartRequired: true,
 };
 
 await writeFile(join(packageRoot, "client.js"), clientBuffer);
@@ -149,6 +179,7 @@ const archive = createDeterministicZip([
   { name: "manifest.json", data: manifestBuffer },
   { name: "agents.json", data: agentsBuffer },
   { name: "client.js", data: clientBuffer },
+  { name: "server.mjs", data: serverBuffer },
   { name: TAB_ICON, data: iconBuffer },
   ...kitPayloads.map((asset) => ({ name: asset.path, data: asset.buffer })),
 ]);

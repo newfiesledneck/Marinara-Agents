@@ -48,6 +48,31 @@ export const SETTINGS = {
   timeSpeed: { value: 1, options: [0.25, 0.5, 1, 2, 4, 8] },
   /** "off" keeps it clear; "changing" turns now and then (rain, mist, snow); or one kind always. */
   weather: { value: "off", options: ["off", "changing", "rain", "snow", "mist"] },
+  /** AI (the server part): conversations written by the model, on the connections chosen here ("" is
+   *  the Engine's default), in a style and length; pictures through an image connection and style. */
+  aiTalk: { value: true },
+  textConnection: { value: "", text: true },
+  sceneConnection: { value: "", text: true },
+  imageConnection: { value: "", text: true },
+  imageStyle: {
+    value: "",
+    options: [
+      "",
+      "off",
+      "auto",
+      "anime",
+      "danbooru",
+      "realistic",
+      "photorealistic",
+      "cinematic",
+      "digital-painting",
+      "painterly",
+      "z-image-turbo",
+    ],
+  },
+  talkStyle: { value: "natural", options: ["natural", "cosy", "dramatic", "witty", "terse"] },
+  replyLength: { value: "medium", options: ["short", "medium", "long"] },
+  aiTemperature: { value: 0.9, min: 0, max: 1.5 },
   sound: { value: true },
   volume: { value: 0.6, min: 0, max: 1 },
 };
@@ -56,6 +81,7 @@ export const SETTINGS = {
 export function checkSetting(name, value) {
   const setting = SETTINGS[name];
   if (!setting) return undefined;
+  if (setting.text) return typeof value === "string" ? value.trim().slice(0, 120) : setting.value;
   if (setting.options) return setting.options.includes(value) ? value : setting.value;
   if (typeof setting.value === "boolean") return typeof value === "boolean" ? value : setting.value;
   return typeof value === "number" && Number.isFinite(value)

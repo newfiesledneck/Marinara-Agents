@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.66)
+## What it does now (0.4.68)
 
 ### The world
 
@@ -73,6 +73,22 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   lorebooks' current needs, keeping its people, relationships, lore, groups and homes; optionally a new
   town layout, with every name and link moved to the same kind of place.
 
+### AI (the server part)
+
+Wanderworld has a server part (`server.mjs`), so the Engine needs a restart after installing or updating it.
+With it running:
+
+- **Conversations in character:** people answer in their own words, written by your model from their card,
+  your persona, where you are, the time and weather, how they feel about you and the lore active there.
+  If a call fails, set lines stand in.
+- **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
+  the Engine, with everyone there (one of your characters at least), your persona and the world's
+  lorebooks. The Engine plans it; when it ends, its recap comes back to Journal → Here.
+- **Pictures:** Journal → Here → "Picture this place" paints where you are through your image connection.
+- **Settings → AI:** AI conversations on or off, which connection writes conversations, which plays scenes,
+  which paints pictures (each can be the Engine's default), how people talk, reply length, creativity, and
+  the picture style (the Engine's built-in style profiles, or your default one).
+
 ### Playing
 
 - **Main menu and saves,** with painted art and a loading screen: Continue, New world (name, seed, your
@@ -103,7 +119,8 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   off by default): rain, snow or mist, changing every few minutes or always one.
 
 It reads your personas, characters, character folders, lorebooks and 3D Avatars models from the Engine.
-Everything it saves stays in this browser for now; nothing is saved to the Engine yet.
+Worlds stay in this browser for now. The server part keeps only what scenes need (their context until the
+Engine's planner reads it, and their recaps until the world takes them).
 
 ## Using it
 
@@ -136,6 +153,10 @@ that persona in 3D Avatars first.
   `scripts/build-wanderworld-clips.mjs`); `src/motion.js` is the hand-made motion; `src/models.js` loads
   3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
   build the default people.
+- `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
+  `/api/wanderworld` for status, the connection list, conversation replies, pictures, and scene contexts
+  and recaps, plus a scene origin for the Engine's scene planner. `src/ai.js` is the client's side of it,
+  and `src/map.js` draws the maps.
 - `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
   and speech bubbles, `src/signs.js` signs and the noticeboard, `src/ui.js` the parchment look,
