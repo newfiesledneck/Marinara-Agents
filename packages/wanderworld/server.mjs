@@ -279,6 +279,43 @@ export function fillTemplate(template, values) {
     .slice(0, MAX.prompt);
 }
 
+const POVS = {
+  first_person: "first person (I, as the characters)",
+  second_person: "second person (you, for the player)",
+  third_person: "third person (they)",
+};
+const TENSES = { present: "present tense", past: "past tense" };
+
+/**
+ * The Engine's scene plan (SceneFullPlan) from a model's answer, checked and completed: Wanderworld's
+ * own point of view, tense and extra instructions always go in its system prompt.
+ */
+export function checkScenePlan(value, { characterIds, pov, tense, extra, fallbackName }) {
+  if (!isRecord(value)) return null;
+  const description = block(value.description, 1000);
+  const firstMessage = block(value.firstMessage, 4000);
+  if (!description || !firstMessage) return null;
+  const writing = [
+    `Write in ${POVS[pov] ?? POVS.second_person}, ${TENSES[tense] ?? TENSES.present}.`,
+    "Keep to the place and the people there; never write the player's words, thoughts or choices.",
+    extra ? `The player's instructions for scenes in this world: ${extra}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    name: text(value.name, 80) || fallbackName,
+    description,
+    scenario: block(value.scenario, 3000),
+    firstMessage,
+    background: null,
+    characterIds,
+    systemPrompt: [block(value.systemPrompt, 3000), writing].filter(Boolean).join("\n\n"),
+    rating: value.rating === "nsfw" ? "nsfw" : "sfw",
+    relationshipHistory: block(value.relationshipHistory, 2000),
+    participationGuide: block(value.participationGuide, 600),
+  };
+}
+
 /** A scene context from the client, checked (the Engine's SceneOriginContext). */
 export function checkSceneContext(raw) {
   if (!isRecord(raw)) return null;
@@ -333,9 +370,15 @@ async function listConnections() {
     isDefault: row.isDefault === true || row.isDefault === "true",
   });
   const list = Array.isArray(rows) ? rows.filter((row) => isRecord(row) && typeof row.id === "string") : [];
+  // The user's prompt presets too, for the scene preset choice (names only).
+  const presetRows = await engineFetch("/api/prompts", { method: "GET" }).catch(() => []);
+  const presets = (Array.isArray(presetRows) ? presetRows : [])
+    .filter((row) => isRecord(row) && typeof row.id === "string")
+    .map((row) => ({ id: row.id, name: text(row.name, MAX.name) || row.id, model: "" }));
   return {
     text: list.filter((row) => row.provider !== "image_generation").map(shown),
     image: list.filter((row) => row.provider === "image_generation").map(shown),
+    presets,
   };
 }
 
@@ -724,6 +767,117 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
       routes.delete("/picture/:id", async (request) => {
         const doc = await documents.getById(PACKAGE_ID, idOf(request.params.id));
         return { removed: doc?.kind === PICTURE_KIND ? await removeDocument(documents, doc.id) : false };
+      });
+
+      // A scene's plan, written here so a Wanderworld scene starts without the Engine's dialog (whose
+      // remembered choices come from other chats): the people there, the persona, the moment, the
+      // world's notes, and the player's point of view, tense and instructions for this world.
+      routes.post("/scene-plan", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const sceneContext = checkSceneContext(body.context);
+        if (!sceneContext) return reply.status(400).send({ error: "A scene needs at least one character there." });
+        const records = await resources.listCharacters(sceneContext.characterIds);
+        const cast = records.map((record) => ({ id: record.id, ...characterCard(record) }));
+        if (!cast.length) return reply.status(404).send({ error: "Those characters aren't in the Engine any more." });
+        const [personaRecord] = sceneContext.personaId ? await resources.listPersonas([sceneContext.personaId]) : [];
+        const persona = personaCard(personaRecord, text(body.personaName, MAX.name));
+        const initiator = cast.find((person) => person.id === idOf(body.initiatorId)) ?? cast[0];
+        const pov = POVS[body.pov] ? body.pov : "second_person";
+        const tense = TENSES[body.tense] ? body.tense : "present";
+        const extra = block(body.instructions, 1000);
+        const system = [
+          "You plan a roleplay scene for Marinara Engine, starting from a moment in Wanderworld, a small world the player walks around in. Answer with one JSON object and nothing else.",
+          section(
+            "The people in it",
+            cast
+              .map((person) => `${person.name}: ${[person.description, person.personality, person.appearance].filter(Boolean).join(" ").slice(0, 900)}`)
+              .join("\n\n"),
+          ),
+          section(`The player, ${persona.name}`, [persona.description, persona.personality, persona.appearance].filter(Boolean).join(" ").slice(0, 900)),
+          section("Where, when and what's between them", sceneContext.notes ?? ""),
+          section("Just before", sceneContext.transcript.map((line) => `${line.speaker}: ${line.content}`).join("\n")),
+          section("How to write it", `${POVS[pov]}, ${TENSES[tense]}.${extra ? ` ${extra}` : ""}`),
+          `{"name": "a short title",
+ "description": "one or two sentences the player sees as the scene opens",
+ "scenario": "a hidden outline of where the scene could go",
+ "firstMessage": "the opening, written as ${initiator.name} (and the narration around them), never the player's words",
+ "systemPrompt": "writing instructions for this scene: voice, pace, what to keep to",
+ "rating": "sfw or nsfw",
+ "relationshipHistory": "who they are to each other and to ${persona.name}, briefly",
+ "participationGuide": "one or two friendly lines on how the player can take part"}`,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        try {
+          const model = await languageModels.resolveForRequest({
+            connectionId: sceneContext.connectionId || undefined,
+          });
+          const result = await model.chatComplete(
+            [
+              { role: "system", content: system },
+              { role: "user", content: text(body.prompt, 1500) || `${persona.name} meets ${initiator.name}.` },
+            ],
+            { temperature: 0.8, maxTokens: 1800 },
+          );
+          const plan = checkScenePlan(readJson(result?.content, api.runtime.json?.parseJsonish), {
+            characterIds: cast.map((person) => person.id),
+            pov,
+            tense,
+            extra,
+            fallbackName: text(body.title, 80) || "A scene in Wanderworld",
+          });
+          if (!plan) return reply.status(502).send({ error: "The model's plan wasn't usable." });
+          return { plan, initiatorId: initiator.id };
+        } catch (error) {
+          logger.warn("[wanderworld] scene plan failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // Creates a planned scene through the Engine's own /api/scene/create (as its client would after its
+      // dialog), with the scene connection and the player's chosen prompt preset, which the Home tab's
+      // startScene can't pass. The Engine claims the origin through getContext as usual.
+      routes.post("/scene-start", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const originId = idOf(body.originId);
+        if (!originId || !worldOf(originId)) return reply.status(400).send({ error: "Invalid originId" });
+        const origin = await documents.getById(PACKAGE_ID, docId("origin", originId));
+        if (!origin) return reply.status(409).send({ error: "That scene's context wasn't kept (save it first)." });
+        const plan = checkScenePlan(body.plan, {
+          characterIds: origin.data.context.characterIds,
+          pov: body.pov,
+          tense: body.tense,
+          extra: "",
+          fallbackName: "A scene in Wanderworld",
+        });
+        if (!plan) return reply.status(400).send({ error: "Invalid scene plan" });
+        // The plan came back from this server's /scene-plan with its system prompt complete; keep it.
+        plan.systemPrompt = block(body.plan.systemPrompt, 6000) || plan.systemPrompt;
+        const initiatorId = idOf(body.initiatorId);
+        // A preset id is a plain id (the Engine also checks that it exists).
+        const presetId = text(body.promptPresetId, 100);
+        const promptPresetId = /^[A-Za-z0-9_-]+$/u.test(presetId) ? presetId : null;
+        const data = isRecord(body.data) ? body.data : null;
+        if (data && JSON.stringify(data).length > 3500) return reply.status(400).send({ error: "Scene data too large" });
+        try {
+          const created = await engineFetch("/api/scene/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-marinara-csrf": "1" },
+            body: JSON.stringify({
+              packageOrigin: { packageId: PACKAGE_ID, originId },
+              ...(data ? { packageData: data } : {}),
+              initiatorCharId: plan.characterIds.includes(initiatorId) ? initiatorId : plan.characterIds[0],
+              plan,
+              connectionId: origin.data.context.connectionId ?? null,
+              promptPresetId,
+            }),
+          });
+          if (typeof created?.chatId !== "string") return reply.status(502).send({ error: "The Engine made no scene." });
+          return { chatId: created.chatId, name: text(created.chatName, 120) };
+        } catch (error) {
+          logger.warn("[wanderworld] scene start failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The scene couldn't be made." });
+        }
       });
 
       routes.delete("/scene-results/:id", async (request) => {

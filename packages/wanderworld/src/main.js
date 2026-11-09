@@ -1524,6 +1524,7 @@ function journalData(zone, snapshot, residents, names) {
     placesChanged: core.placesChanged,
     world: {
       setting: core.save?.setting ?? "",
+      sceneInstructions: core.save?.sceneInstructions ?? "",
       lorebooks: core.save?.lorebooks ?? [],
       loreLinking: core.save?.loreLinking ?? "none",
       characterLinking: core.save?.characterLinking ?? "none",
@@ -2347,26 +2348,72 @@ async function playAsScene(thing, request, along) {
     .filter(Boolean)
     .join("\n\n");
   const originId = `world:${core.save.id}/scene:${Date.now().toString(36)}`;
-  try {
-    await core.ai.sceneOrigin(originId, {
-      characterIds,
-      personaId: core.personaId ?? null,
-      connectionId: core.settings.sceneConnection || core.settings.textConnection || null,
-      transcript: (core.talking?.history ?? []).slice(-12).map((entry) => ({
+  const context = {
+    characterIds,
+    personaId: core.personaId ?? null,
+    connectionId: core.settings.sceneConnection || core.settings.textConnection || null,
+    transcript: [
+      ...(core.talking?.history ?? []).slice(-8).map((entry) => ({
         speaker: entry.from === "character" ? core.talking.name : personaName(),
         content: entry.text,
       })),
-      notes,
-      lorebookIds: core.save.lorebooks ?? [],
-    });
+      ...core.momentLog.slice(-8).map((line) => ({ speaker: line.who, content: line.text })),
+    ].slice(-12),
+    notes,
+    lorebookIds: core.save.lorebooks ?? [],
+  };
+  try {
+    await core.ai.sceneOrigin(originId, context);
     const first = people.find((person) => known.has(person.id));
+    // Wanderworld plans the scene itself (its point of view, tense and this world's instructions), so
+    // the Engine's dialog, with choices remembered from other chats, doesn't come up. If planning
+    // fails, the Engine's own planner and dialog take over.
+    let plan = null;
+    let planNote = "";
+    try {
+      const planned = await core.ai.scenePlan({
+        context,
+        personaName: personaName(),
+        initiatorId: first?.id ?? null,
+        prompt: describeScene(request),
+        title: thing.title,
+        pov: core.settings.scenePov,
+        tense: core.settings.sceneTense,
+        instructions: core.save.sceneInstructions ?? "",
+      });
+      plan = planned.plan;
+    } catch (error) {
+      planNote = ` (Wanderworld couldn't plan it, ${error?.message ?? error}, so the Engine's planner took over.)`;
+    }
+    const initiator = plan ? (people.find((person) => person.id === plan.characterIds[0]) ?? first) : first;
+    // A plan of its own: the scene is made through the server part, with the chosen prompt preset, and
+    // opened here. (The Home tab's startScene can't pass a preset.)
+    if (plan) {
+      try {
+        const made = await core.ai.sceneStart({
+          originId,
+          plan,
+          initiatorId: initiator?.id ?? null,
+          promptPresetId: core.settings.scenePreset || null,
+          pov: core.settings.scenePov,
+          tense: core.settings.sceneTense,
+          data: { worldId: core.save.id, place: thing.title },
+        });
+        core.props?.openChat?.(made.chatId);
+        return "The scene is open in the Engine. When it ends, its recap comes back here (Journal → Here).";
+      } catch (error) {
+        planNote = ` (It couldn't be made with your preset, ${error?.message ?? error}, so it opened without one.)`;
+      }
+    }
     const started = await startScene({
       originId,
       prompt: describeScene(request),
-      initiatorCharacterId: first?.id ?? null,
-      initiatorName: first?.name ?? null,
+      ...(plan ? { plan } : {}),
+      initiatorCharacterId: initiator?.id ?? null,
+      initiatorName: initiator?.name ?? null,
       data: { worldId: core.save.id, place: thing.title },
     });
+    if (started && planNote) return `The scene is open in the Engine.${planNote}`;
     if (!started) return "The scene wasn't started.";
     return "The scene is open in the Engine. When it ends, its recap comes back here (Journal → Here).";
   } catch (error) {

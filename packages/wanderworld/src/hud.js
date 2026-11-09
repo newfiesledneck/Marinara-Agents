@@ -181,6 +181,11 @@ export function createHud(root, handlers) {
     talkStyle: "How people talk to you, on top of who they are.",
     replyLength: "How long people's replies are.",
     aiTemperature: "Higher is more surprising, lower more predictable.",
+    scenePov:
+      "How scenes you start in the world are written. Each world's own scene instructions are in Journal → World.",
+    sceneTense: "The tense scenes are written in.",
+    scenePreset:
+      "The Engine prompt preset a scene starts with, picked for you each time. None: the scene's own instructions alone.",
   };
   const row = (label, control, name = null) => {
     const element = document.createElement("label");
@@ -340,6 +345,13 @@ export function createHud(root, handlers) {
     terse: "Few words",
   });
   choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
+  choice("scenePov", "Scene point of view", {
+    second_person: "Second person (you)",
+    third_person: "Third person",
+    first_person: "First person",
+  });
+  choice("sceneTense", "Scene tense", { present: "Present", past: "Past" });
+  connectionChoice("scenePreset", "Scene prompt preset", "presets", "None");
   slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
   connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
   choice("imageStyle", "Picture style", {

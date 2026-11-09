@@ -156,6 +156,8 @@ export function checkWorld(raw) {
     lore: checkLore(raw.lore),
     // The world's setting in words ("a cosy fishing village"), for the AI to write the world from.
     setting: text(raw.setting).slice(0, 600),
+    // The player's instructions for scenes started in this world (Wanderworld plans its scenes).
+    sceneInstructions: text(raw.sceneInstructions).slice(0, 1000),
     // The lorebooks this world draws on (ids), and how their entries are linked to places: "keywords"
     // (exact names, done when the world is built), "ai" (for the AI part to do), or "none".
     lorebooks: Array.isArray(raw.lorebooks) ? raw.lorebooks.filter((id) => typeof id === "string").slice(0, 50) : [],

@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.69)
+## What it does now (0.4.71)
 
 ### The world
 
@@ -94,8 +94,10 @@ With it running:
   what they're doing, their looks from their cards) from a prompt template you can edit, with the world's
   gallery. It moves, resizes and stays open while you play.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
-  the Engine, with everyone there (one of your characters at least), your persona and the world's
-  lorebooks. The Engine plans it; when it ends, its recap comes back to Journal → Here.
+  the Engine with everyone there (one of your characters at least), your persona and the world's lorebooks.
+  Wanderworld plans it itself (point of view, tense and prompt preset from Settings → AI, and the world's
+  scene instructions from Journal → World), so the Engine's scene dialog doesn't come up. When it ends,
+  its recap comes back to Journal → Here.
 - **Pictures:** Journal → Here → "Picture this place" paints where you are through your image connection.
 - **Settings → AI:** AI conversations on or off, which connection writes conversations, which plays scenes,
   which paints pictures (each can be the Engine's default), how people talk, reply length, creativity, and

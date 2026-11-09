@@ -81,6 +81,10 @@ export function createAi() {
       request(`/scene-results/${encodeURIComponent(worldId)}`).then((body) => body?.results ?? []),
     /** A moment: { narration, replies: [{ id, text }], plans: [{ id, entry }] }. */
     moment: (payload) => request("/moment", { method: "POST", body: payload }),
+    /** A scene's plan for the Engine (skipping its dialog): { plan, initiatorId }. */
+    scenePlan: (payload) => request("/scene-plan", { method: "POST", body: payload }),
+    /** Creates the planned scene in the Engine, with the chosen preset: { chatId }. */
+    sceneStart: (payload) => request("/scene-start", { method: "POST", body: payload }),
     /** Someone's day from the model: { entries }. */
     plan: (payload) => request("/plan", { method: "POST", body: payload }),
     /** Illustrates the moment from the user's template: { id, image, prompt, caption, at }; kept in the gallery. */
