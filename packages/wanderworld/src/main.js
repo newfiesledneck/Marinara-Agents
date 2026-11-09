@@ -15,6 +15,13 @@ import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
 import { findModel, loadModelCharacter } from "./models.js";
 import { summariseSetup } from "./setup.js";
+import {
+  creatureFromWords,
+  structureFromKeywords,
+  traitsFromWords,
+  voiceFromWords,
+  worldFromLore,
+} from "./keywords.js";
 import { createPerson } from "./people.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
@@ -787,9 +794,7 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
         words = words.filter(
           (word) => !["character", name.toLowerCase(), title.toLowerCase()].includes(word.toLowerCase()),
         );
-        const known = [...(core.engineCharacters ?? []).map((person) => person.name), ...everyone()].some(
-          (other) => other.toLowerCase() === name.toLowerCase(),
-        );
+        const known = everyone().some((other) => other.toLowerCase() === name.toLowerCase());
         const id = `local:${key.replace(/[^\w-]/gu, "-")}`;
         const person = { name, description: entry.content.slice(0, 1200), personality: "", appearance: "" };
         // Someone with a card of that name is that card (linkLore brings them in); anyone else is made here.
@@ -978,6 +983,7 @@ async function planNewWorld(
   return {
     setup,
     needs,
+    shape: await loreShape(made),
     summary: summariseSetup(setup, {
       characters: peopleOf(made).filter((entry) => draft.cast.includes(entry.id) || entry.id.startsWith("local:")),
       persona: core.personas?.find((entry) => entry.id === draft.persona)?.name ?? "",
@@ -1028,6 +1034,9 @@ async function createNewWorld({
   save.loreNames = setup?.loreNames ?? {};
   // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
   save.needs = await worldNeeds(save);
+  const shape = await loreShape(save);
+  choices = withShape(choices, shape);
+  save.season = shape.season ?? "";
   save.landscape = landscapeNeeds(landscapeWith(hashString(save.seed), choices), save.needs, hashString(save.seed));
   save.worldSize = sizeFor(choices?.size, save.landscape);
   save.choices = choices ?? null;
@@ -1036,6 +1045,25 @@ async function createNewWorld({
   save.bodies = {}; // everyone auto until set here, by hand or by lore
   core.saves.write(save);
   playWorld(save.id);
+}
+
+/** What a world's lorebooks say of its shape ("ww: world" with "ww: city", "ww: walls", "ww: size large", "ww: season winter"). */
+async function loreShape(save) {
+  try {
+    return save.loreLinking === "none" ? {} : worldFromLore(await chosenBooks(save));
+  } catch {
+    return {};
+  }
+}
+
+/** New world's choices with the lore's shape where a choice was left to the seed: what's chosen by hand stands. */
+function withShape(choices, shape) {
+  const out = { ...choices };
+  const open = (key) => !out[key] || out[key] === "surprise";
+  if (shape.settlement && open("settlement")) out.settlement = shape.settlement;
+  if (shape.walls && open("walls")) out.walls = "yes";
+  if (shape.size && open("size")) out.size = shape.size;
+  return out;
 }
 
 /**
@@ -1314,7 +1342,13 @@ function linkLore() {
       const places = core.save.loreLinking !== "none";
       const people = core.save.characterLinking !== "none";
       if (people) peopleFromLore(chosen);
-      core.save = { ...core.save, creatures: creaturesFromLore(chosen) };
+      core.save = {
+        ...core.save,
+        creatures: creaturesFromLore(chosen).map(({ words, ...creature }) => ({
+          ...creature,
+          ...creatureFromWords(words),
+        })),
+      };
       if (places) nameFromLore(chosen);
       const names = namedZones(residentsOf(core.crowd.snapshot()));
       const found = matchLore(chosen, {
@@ -1343,6 +1377,9 @@ function linkLore() {
       if (core.freshStart && !core.interior) startAtHome();
       core.saves.write(core.save);
       if (people) count += setupCharactersFromLore(chosen);
+      count += applyKeywords([...chosen, ...cardBook(core.save)], people);
+      core.saves.write(core.save);
+      void detailLocals();
       core.placesChanged = true;
       core.journalAt = 0;
       core.zoneCheck = 0;
@@ -1352,6 +1389,120 @@ function linkLore() {
       console.warn("[wanderworld] couldn't link lore", error);
       return 0;
     });
+}
+
+/**
+ * What the lorebooks say beyond lore and housing (keywords.js): when places are closed, who owns a place
+ * by the place's own entry ("ww: owner Mira": someone here of that name, or else a new person of that
+ * name), and factions with their members, whose entry is lore for each of them. Returns how many
+ * things it set.
+ */
+function applyKeywords(books, people) {
+  const world = {
+    zones: core.zones,
+    names: namedZones(residentsOf(core.crowd.snapshot())),
+    groups: placeGroups(),
+    name: "",
+    characters: people ? peopleOf(core.save).filter((person) => core.save.cast.includes(person.id)) : [],
+  };
+  const { hours, owners, factions } = structureFromKeywords(books, world);
+  let set = Object.keys(hours).filter((id) => !core.save.hours?.[id]).length;
+  core.save = { ...core.save, hours: { ...hours, ...core.save.hours } };
+  if (!people) return set;
+  const find = (name) =>
+    peopleOf(core.save).find(
+      (person) => core.save.cast.includes(person.id) && person.name.toLowerCase() === name.toLowerCase(),
+    );
+  // An owner nobody here answers to becomes someone new, if there's room.
+  const locals = [...(core.save.locals ?? [])];
+  for (const { name } of owners) {
+    if (find(name) || locals.some((person) => person.name.toLowerCase() === name.toLowerCase())) continue;
+    if (core.save.cast.length + locals.length - (core.save.locals ?? []).length >= MAX_PEOPLE) break;
+    locals.push({
+      id: `local:owner-${name.toLowerCase().replace(/[^\w]+/gu, "-")}`,
+      name: name.slice(0, 60),
+      description: "",
+      personality: "",
+      appearance: "",
+    });
+  }
+  if (locals.length !== (core.save.locals ?? []).length) {
+    const cast = [...new Set([...core.save.cast, ...locals.map((person) => person.id)])].slice(0, MAX_PEOPLE);
+    core.save = { ...core.save, locals, cast };
+    core.characters = peopleOf(core.save);
+    core.cast = new Set(cast);
+    updateCast();
+  }
+  const housing = {};
+  for (const { place, name } of owners) {
+    const person = find(name);
+    if (person && core.zones.byId.get(place)?.kind === "building")
+      housing[person.id] ??= { home: null, work: place, owner: true };
+  }
+  set += applyHousing(housing);
+  // Factions: who's in them, and their entry as lore for each member.
+  const lore = {};
+  const made = factions.map((faction) => {
+    const members = [
+      ...new Set(
+        faction.members
+          .map((member) => (member.startsWith("character:") ? member.slice("character:".length) : find(member)?.id))
+          .filter(Boolean),
+      ),
+    ];
+    if (faction.entryId)
+      for (const id of members)
+        lore[`character:${id}`] = [
+          ...(lore[`character:${id}`] ?? []),
+          { lorebookId: faction.lorebookId, entryId: faction.entryId, title: faction.name },
+        ];
+    return { ...faction, members };
+  });
+  set += made.length;
+  core.save = { ...core.save, factions: made, lore: mergeLore(core.save.lore, lore) };
+  return set;
+}
+
+/**
+ * Fills in the people a world made from its lore with only a name and what the entry says (or nothing,
+ * for an owner a place names): the model writes who they are, their manner and their looks (server.mjs
+ * `/world-write`, step "detail"), kept as their own "card" in the save. Pictures and conversations read
+ * a real card first and this one for anyone without. Quiet when the server part isn't there.
+ */
+async function detailLocals() {
+  const save = core.save;
+  const bare = (save?.locals ?? []).filter((person) => !person.personality && !person.appearance).slice(0, 12);
+  if (!bare.length || core.detailing || !(await core.ai.status())?.worldWrite) return;
+  core.detailing = true;
+  try {
+    const result = await core.ai.worldWrite({
+      step: "detail",
+      connectionId: core.settings.textConnection || null,
+      worldName: save.name,
+      setting: save.setting,
+      people: bare.map((person) => ({ name: person.name, text: person.description })),
+    });
+    if (core.save?.id !== save.id) return;
+    const filled = new Map(bare.map((person, at) => [person.id, result?.people?.[at]]));
+    const locals = core.save.locals.map((person) => {
+      const more = filled.get(person.id);
+      if (!more) return person;
+      if (more.body && !core.bodies[person.id]) setBody(person.id, more.body);
+      return {
+        ...person,
+        description: more.description || person.description,
+        personality: more.personality || "…",
+        appearance: more.appearance || "…",
+      };
+    });
+    core.save = { ...core.save, locals };
+    core.characters = peopleOf(core.save);
+    core.saves.write(core.save);
+  } catch (error) {
+    console.warn("[wanderworld] couldn't fill in the people made from lore", error);
+  } finally {
+    core.detailing = false;
+  }
 }
 
 /**
@@ -1372,13 +1523,10 @@ function peopleFromLore(books) {
       const name = loreName(entry);
       if (!name || named(locals, name)) continue;
       const full = cast.length >= MAX_PEOPLE;
-      // A card of exactly that name is who the entry means: they live here (if there's room).
-      const card = named(core.engineCharacters ?? [], name);
-      if (card) {
-        if (!cast.includes(card.id) && !full) cast.push(card.id);
-        continue;
-      }
-      if (full) continue;
+      // A card chosen for this world with exactly that name is who the entry means. A card that wasn't
+      // chosen is left out of it: someone of that name is made for this world instead.
+      const chosen = (core.engineCharacters ?? []).filter((card) => cast.includes(card.id));
+      if (named(chosen, name) || full) continue;
       const person = {
         id: `local:${`${book.id}/${entry.id}`.replace(/[^\w-]/gu, "-")}`,
         name,
@@ -1429,6 +1577,16 @@ function setupCharactersFromLore(books) {
       .flatMap((entry) => entry.keys ?? [])
       .concat(core.save.loreKeys?.[`cards/${character.id}`] ?? []) // what the AI read in their card
       .filter((word) => word.toLowerCase().trim() !== name);
+    const traits = traitsFromWords(words);
+    if (Object.keys(traits).length && !core.save.traits?.[character.id]) {
+      setTraits(character.id, traits);
+      set++;
+    }
+    const voice = voiceFromWords(words);
+    if (voice && !core.save.voices?.[character.id]) {
+      core.save = { ...core.save, voices: { ...core.save.voices, [character.id]: voice } };
+      set++;
+    }
     const { body, relation } = setupFromWords(words);
     if (body && !core.bodies[character.id]) {
       setBody(character.id, body);
@@ -2712,7 +2870,7 @@ function talkPayload(talking, line) {
     history: talking.history.slice(-24),
     line,
     connectionId: core.settings.textConnection || null,
-    style: core.settings.talkStyle,
+    style: core.save?.voices?.[talking.id] || core.settings.talkStyle, // their own voice, or the setting's
     length: core.settings.replyLength,
     temperature: core.settings.aiTemperature,
   };
@@ -3574,6 +3732,7 @@ function stepClock(dt) {
   // The weather: off (clear), one kind always, or changing every few minutes (the same for a world each time).
   core.weatherTime = (core.weatherTime ?? 0) + dt;
   const setting = core.settings.weather ?? "off";
+  core.world.setSeason(core.save?.season ?? "");
   core.world.setWeather(
     setting === "off"
       ? "clear"

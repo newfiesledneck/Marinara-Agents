@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.4.80 — 2026-11-09
+
+- More "ww:" keywords, each one short thing: the world's shape on its "ww: world" entry (ww: city, ww: walls, ww: size large, ww: season winter); a place's hours and owner (ww: closed 22-6, ww: owner Mira); temperament and voice (ww: shy, ww: grumpy, ww: voice gruff); factions (ww: faction Thieves Guild, ww: member of Thieves Guild); and a creature's details, kept for later (ww: found in forest1, ww: night, ww: pack 4, ww: danger 2, ww: drops gold).
+- Seasons: winter lays snow over the land.
+- Four more ways to talk (gruff, formal, cheerful, sly), and a person can have their own.
+- People made from lore get their details (who they are, manner, looks) from one model call, kept as their own card in the world. An owner a place names who isn't anyone yet becomes a new person.
+- "ww: character Name" only ties to a card you chose for that world; cards you left out are never pulled in.
+
 ## 0.4.79 — 2026-11-09
 
 - "ww: character Mira Saxton": the entry is that person. A card of exactly that name is who it means and joins the world; with no such card (a "Mira Little" beside the card "Mira Saxton") a new person is made for that world. With no name after it, the entry's title is the name.

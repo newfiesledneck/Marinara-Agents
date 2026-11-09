@@ -2107,6 +2107,7 @@ function terrainUniforms() {
     uniforms[`t${name}`] = { value: flatTexture(layer.colour) };
     uniforms[`s${name}`] = { value: layer.scale };
   }
+  uniforms.uWinter = { value: 0 }; // how far the grass and forest floor lie under snow (a season)
   return uniforms;
 }
 
@@ -2147,6 +2148,7 @@ vGround = (modelMatrix * vec4(transformed, 1.0)).xz;`,
         `#include <common>
 uniform sampler2D tMacro, tgrass, tdirt, trock, tsand, tsnow, tcobbles, tsetts, tplaza, tforest;
 uniform float sgrass, sdirt, srock, ssand, ssnow, scobbles, ssetts, splaza, sforest;
+uniform float uWinter;
 varying vec4 vSplatA;
 varying vec4 vSplatB;
 varying vec4 vSplatC;
@@ -2163,11 +2165,11 @@ vec3 groundLayer(sampler2D map, float scale) {
         "#include <map_fragment>",
         `{
   float total = max(0.0001, dot(vSplatA, vec4(1.0)) + dot(vSplatB, vec4(1.0)) + vSplatC.x);
-  vec3 ground = (groundLayer(tgrass, sgrass) * vSplatA.x + groundLayer(tdirt, sdirt) * vSplatA.y
+  vec3 ground = (groundLayer(tgrass, sgrass) * vSplatA.x * (1.0 - uWinter) + groundLayer(tdirt, sdirt) * vSplatA.y
     + groundLayer(trock, srock) * vSplatA.z + groundLayer(tsand, ssand) * vSplatA.w
-    + groundLayer(tsnow, ssnow) * vSplatB.x + groundLayer(tcobbles, scobbles) * vSplatB.y
+    + groundLayer(tsnow, ssnow) * (vSplatB.x + uWinter * (vSplatA.x + vSplatC.x)) + groundLayer(tcobbles, scobbles) * vSplatB.y
     + groundLayer(tsetts, ssetts) * vSplatB.z + groundLayer(tplaza, splaza) * vSplatB.w
-    + groundLayer(tforest, sforest) * vSplatC.x) / total;
+    + groundLayer(tforest, sforest) * vSplatC.x * (1.0 - uWinter)) / total;
   float patches = texture2D(tMacro, vGround / 52.0).r;
   diffuseColor.rgb *= ground * (0.78 + patches * 0.3);
 }`,
@@ -3153,6 +3155,10 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     clearSight,
     dispose,
     /** The weather to ease into: "clear", "rain", "snow" or "mist" (weather.js). */
+    /** The season the land wears: winter lies under snow; the others are the green land. */
+    setSeason(season) {
+      ground.uWinter.value = season === "winter" ? 0.85 : 0;
+    },
     setWeather(kind) {
       sky_.target = WEATHER_LOOK[kind] ? kind : "clear";
     },

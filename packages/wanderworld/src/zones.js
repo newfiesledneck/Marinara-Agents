@@ -788,6 +788,7 @@ export function creaturesFromLore(books) {
         lorebookId: book.id,
         entryId: entry.id,
         name: loreName(entry),
+        words: entry.keys,
         kind,
         hostile: kind === "monster" || has("hostile"),
       });

@@ -63,6 +63,10 @@ const TALK_STYLES = {
   dramatic: "Let feelings run high: tension, longing and stakes come through in what they say.",
   witty: "Be quick and playful: banter, teasing and clever turns of phrase.",
   terse: "Say little: short, guarded lines, a lot left unsaid.",
+  gruff: "Be gruff: blunt, a little rough, no patience for fuss, kinder than they sound.",
+  formal: "Be formal: careful, courteous, properly put, never slangy.",
+  cheerful: "Be cheerful: bright, quick to laugh, seeing the good side.",
+  sly: "Be sly: knowing, sidelong, saying less than they mean.",
 };
 const LENGTHS = { short: [1, 2, 160], medium: [1, 3, 320], long: [2, 5, 600] }; // sentences and max tokens
 const PICTURE_KIND = "picture";
@@ -296,6 +300,27 @@ export function worldWriteMessages(input) {
     "Already placed",
     input.placed.map((item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (${item.title})` : ""}`).join("\n"),
   );
+  if (input.step === "detail") {
+    return [
+      {
+        role: "system",
+        content: [
+          "You fill in the people of a small 3D world from what its lore says of them, for a roleplay sandbox. Answer with one JSON object and nothing else.",
+          `For each numbered person give "n" (their number) and, staying true to what's written and inventing only what's missing: "body" ("male" or "female"), "description" (60 to 120 words: who they are, their age and trade, their history here, what they want), "personality" (20 to 40 words, with how they talk) and "appearance" (20 to 40 words).`,
+          `{"people": [{"n": 1, "body": "female", "description": "", "personality": "", "appearance": ""}]}`,
+        ].join("\n\n"),
+      },
+      {
+        role: "user",
+        content: [
+          section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
+          section("People", input.people.map((person, at) => `${at + 1}. ${person.name}\n${person.text || "(nothing is written of them: invent someone who fits)"}`).join("\n\n")),
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      },
+    ];
+  }
   const about = section("The world", [input.worldName, input.setting || "No setting was given: invent one that suits a small, walkable, low-poly world."].filter(Boolean).join(": "));
   const cast = section("Characters who live here", input.characters.join(", "));
   if (input.step === "people") {
@@ -352,6 +377,20 @@ export function worldWriteMessages(input) {
  * appearance, keys }] }, at most `count`, none named as someone in `taken`.
  */
 export function checkWorldWrite(value, step, { count = 0, taken = [] } = {}) {
+  if (step === "detail") {
+    const people = Array.from({ length: count }, () => null);
+    for (const raw of Array.isArray(value?.people) ? value.people : []) {
+      const at = Number(raw?.n) - 1;
+      if (!Number.isInteger(at) || at < 0 || at >= count) continue;
+      people[at] = {
+        body: raw.body === "male" || raw.body === "female" ? raw.body : "",
+        description: block(raw.description, 1200),
+        personality: block(raw.personality, 500),
+        appearance: block(raw.appearance, 500),
+      };
+    }
+    return { people };
+  }
   if (step === "people") {
     const names = new Set(taken.map((name) => name.toLowerCase()));
     const people = [];
@@ -994,13 +1033,20 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
       // the premise and places with their lore, then new people built around them.
       routes.post("/world-write", async (request, reply) => {
         const body = isRecord(request.body) ? request.body : {};
-        const step = body.step === "people" ? "people" : "places";
-        const count = Math.max(1, Math.min(12, Math.round(Number(body.count)) || 1));
+        const step = ["people", "detail"].includes(body.step) ? body.step : "places";
+        const described = (Array.isArray(body.people) ? body.people : [])
+          .filter(isRecord)
+          .map((person) => ({ name: text(person.name, 60), text: block(person.text, 1200) }))
+          .filter((person) => person.name)
+          .slice(0, 12);
+        const count = step === "detail" ? described.length : Math.max(1, Math.min(12, Math.round(Number(body.count)) || 1));
+        if (step === "detail" && !count) return reply.status(400).send({ error: "Nobody to fill in." });
         const characters = (Array.isArray(body.characters) ? body.characters : []).map((name) => text(name, MAX.name)).filter(Boolean).slice(0, 60);
         const messages = worldWriteMessages({
           step,
           count,
           characters,
+          people: described,
           worldName: text(body.worldName, MAX.name),
           setting: text(body.setting, 600),
           persona: text(body.persona, MAX.name),
@@ -1021,7 +1067,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           const result = await model.chatComplete(messages, { temperature: 0.8, maxTokens: 6000 });
           const value = readJson(result?.content, api.runtime.json?.parseJsonish);
           const checked = value ? checkWorldWrite(value, step, { count, taken: characters }) : null;
-          if (!checked || !(checked.people ?? checked.places).length) {
+          if (!checked || !(checked.people ?? checked.places).some(Boolean)) {
             return reply.status(502).send({ error: "The model didn't give a usable answer." });
           }
           return checked;

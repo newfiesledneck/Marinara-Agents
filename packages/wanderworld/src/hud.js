@@ -178,7 +178,8 @@ export function createHud(root, handlers) {
     imageConnection: "The image generation connection for pictures of places and moments.",
     imageStyle:
       "The look of pictures, from the Engine's style profiles. Engine default uses the one you set in the Engine.",
-    talkStyle: "How people talk to you, on top of who they are.",
+    talkStyle:
+      "How people talk to you, on top of who they are. Someone with a voice of their own (Journal, or a lorebook's ww: voice gruff) keeps it.",
     replyLength: "How long people's replies are.",
     aiTemperature: "Higher is more surprising, lower more predictable.",
     scenePov:
@@ -343,6 +344,10 @@ export function createHud(root, handlers) {
     dramatic: "Dramatic",
     witty: "Witty",
     terse: "Few words",
+    gruff: "Gruff",
+    formal: "Formal",
+    cheerful: "Cheerful",
+    sly: "Sly",
   });
   choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
   choice("scenePov", "Scene point of view", {

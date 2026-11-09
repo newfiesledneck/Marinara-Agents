@@ -72,7 +72,10 @@ export const SETTINGS = {
       "z-image-turbo",
     ],
   },
-  talkStyle: { value: "natural", options: ["natural", "cosy", "dramatic", "witty", "terse"] },
+  talkStyle: {
+    value: "natural",
+    options: ["natural", "cosy", "dramatic", "witty", "terse", "gruff", "formal", "cheerful", "sly"],
+  },
   replyLength: { value: "medium", options: ["short", "medium", "long"] },
   aiTemperature: { value: 0.9, min: 0, max: 1.5 },
   /** How Wanderworld's scenes are written (it plans them itself; the instructions are per world). */
