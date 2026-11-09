@@ -375,6 +375,15 @@ and driven by the lorebook's numbered places (0.4.38) as a minimum.
   the ground through the snow layer, autumn colours on the trees.
 - City walls and gates; second-town details; a world builder (W6); the AI writing the land, settlements
   and travel scenes (S2, S4); a performance pass once the bigger worlds are in.
+- More animations (the earlier list's item 8): working at a forge or counter, carrying things,
+  sweeping, drinking at the tavern, kneeling at the temple, waving and pointing, sleeping.
+- Homes and workplaces set by hand in the Journal (today only lorebooks set them, 0.4.37).
+- The in-game People panel in the Engine's character folders, like New world (0.4.41).
+- The dark wood planks texture (`wood-planks-dark` in the art folder): shop fronts, awnings' frames, a
+  dock by the river.
+- Swimming for townsfolk and followers (today they go round by a bridge, 0.4.46).
+- Small fixes: the World tab's clock doesn't tick while open; a place's lore count updates only after
+  leaving the lore picker; deleting a group asks nothing first.
 
 ### W5. Scene setup (the request, before there's anything to send it to)
 
