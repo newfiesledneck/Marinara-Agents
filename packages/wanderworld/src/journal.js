@@ -356,7 +356,7 @@ export function createJournal(panelCss, handlers) {
         depth,
         place.id,
         kids.length > 0,
-        kindTag(place.kind),
+        kindTag(place.slot ?? place.kind),
         nameField(place.name, place.defaultName, (value) => {
           if (value !== place.name) handlers.onRename(place.id, value === place.defaultName ? "" : value);
         }),
@@ -582,6 +582,13 @@ export function createJournal(panelCss, handlers) {
     ]);
     if (world.loreLinking === "keywords" || world.characterLinking === "keywords")
       body.append(button("Link lore by name now", SMALL, () => handlers.onLinkLore()));
+    if (world.waiting.length) {
+      body.append(
+        explain(
+          `Waiting for the world builder (the lore puts them somewhere this world hasn't built them): ${world.waiting.join(", ")}.`,
+        ),
+      );
+    }
     body.append(section("This world"));
     for (const [label, value] of [
       ["World", world.name],

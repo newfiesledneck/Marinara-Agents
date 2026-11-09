@@ -38,6 +38,8 @@ import {
   WORLD_ID,
   matchLore,
   mergeLore,
+  structureFromLore,
+  slotsOf,
   zoneAt,
 } from "./zones.js";
 import { landscapeWith } from "./land.js";
@@ -348,6 +350,7 @@ function buildWorld(seed, place = null) {
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
+  useHousing();
   if (core.save?.lorePending) linkLore();
   const boardSpot = core.world.noticeboard;
   core.board = boardSpot
@@ -628,7 +631,7 @@ function regenerateWorld(reshuffle = false) {
     const built = createWorld(hashString(seed), landscape);
     const map = remapZones(core.zones, buildZones(built.layout, hashString(seed)));
     built.dispose();
-    Object.assign(next, carrySetup({ ...core.save, groups: core.save.groups ?? null }, map));
+    Object.assign(next, carrySetup({ ...core.save, groups: core.save.groups ?? null }, map), { waitingPlacements: [] });
   }
   core.saves.write(next);
   // Drop the world in memory so playing builds it again from the save.
@@ -790,6 +793,16 @@ function linkLore() {
       if (!places) delete found[WORLD_ID]; // "world" alone always matches: only with places on
       let count = Object.values(found).reduce((sum, entries) => sum + entries.length, 0);
       core.save = { ...core.save, lore: mergeLore(core.save.lore, found), lorePending: false };
+      // The structure the lorebook spells out: groups of kinds, what's located in what, who lives and works where.
+      const structure = structureFromLore(chosen, {
+        zones: core.zones,
+        names,
+        groups: placeGroups(),
+        name: core.save.name,
+        characters: people ? (core.characters ?? []).filter((character) => core.cast?.has(character.id)) : [],
+      });
+      if (places) count += applyStructure(structure, chosen);
+      if (people) count += applyHousing(structure.housing);
       core.saves.write(core.save);
       if (people) count += setupCharactersFromLore(chosen);
       core.placesChanged = true;
@@ -852,6 +865,85 @@ function whoIsNamed(name) {
     (entry) => core.cast?.has(entry.id) && plainName(entry.name) === wanted,
   );
   return character?.id ?? null;
+}
+
+/**
+ * Puts a lorebook's groups and placements into the world's setup: "group of home" groups (with their
+ * entry as lore), places and groups put inside groups, groups inside groups. A place the lore puts
+ * somewhere the world didn't build it waits for the world builder. Returns how many things changed.
+ */
+function applyStructure({ groups: made, placements }, books) {
+  const groups = placeGroups().map((group) => ({ ...group }));
+  let changed = 0;
+  for (const group of made) {
+    const at = groups.findIndex((entry) => entry.id === group.id);
+    if (at >= 0) groups[at] = { ...groups[at], name: group.name, members: group.members };
+    else groups.push(group);
+    changed++;
+  }
+  // The group's own entry is its lore.
+  const lore = { ...core.save.lore };
+  for (const book of books) {
+    for (const entry of book.entries) {
+      const id = `group:lore-${book.id}-${entry.id}`;
+      if (!made.some((group) => group.id === id)) continue;
+      lore[id] = mergeLore(
+        { [id]: lore[id] ?? [] },
+        { [id]: [{ lorebookId: book.id, entryId: entry.id, title: entry.title }] },
+      )[id];
+    }
+  }
+  const waiting = [];
+  for (const placement of placements) {
+    const target = groups.find((group) => group.id === placement.in);
+    const subjectGroup = groups.find((group) => group.id === placement.place);
+    if (target && subjectGroup) subjectGroup.parent = target.id;
+    else if (target) target.members = [...new Set([...target.members, placement.place])];
+    else if (placement.in === WORLD_ID) continue;
+    else {
+      const zone = core.zones.byId.get(placement.place);
+      const inside = zone && chainOf(core.zones, zone).some((at) => at.id === placement.in);
+      if (!inside) waiting.push(placement);
+      continue;
+    }
+    changed++;
+  }
+  core.save = { ...core.save, groups, lore, waitingPlacements: waiting };
+  return changed;
+}
+
+/** Homes and workplaces from lore, for characters who have none set yet. Returns how many it set. */
+function applyHousing(found) {
+  const housing = { ...core.save.housing };
+  let set = 0;
+  for (const [id, entry] of Object.entries(found)) {
+    const now = housing[id] ?? { home: null, work: null, owner: false };
+    const next = {
+      home: now.home ?? entry.home,
+      work: now.work ?? entry.work,
+      owner: now.work ? now.owner : entry.owner,
+    };
+    if (next.home !== now.home) set++;
+    if (next.work !== now.work) set++;
+    housing[id] = next;
+  }
+  core.save = { ...core.save, housing };
+  useHousing();
+  return set;
+}
+
+/** Tells the townsfolk where they live and work (the world's housing, as door indexes). */
+function useHousing() {
+  if (!core.zones) return;
+  const door = (id) => core.zones.byId.get(id)?.door ?? null;
+  core.crowd.setHousing(
+    Object.fromEntries(
+      Object.entries(core.save?.housing ?? {}).map(([id, entry]) => [
+        id,
+        { home: door(entry.home), work: door(entry.work) },
+      ]),
+    ),
+  );
 }
 
 /** Changes the world's setup from Journal → World: its setting words, lorebooks or how lore is linked. */
@@ -983,6 +1075,8 @@ function stepPlaces(dt) {
 /** Everything the Journal shows, in the words the AI will get later. */
 function journalData(zone, snapshot, residents, names) {
   const zones = core.zones;
+  // Each place's numbered name ("home6"), shown in the Places tree for lorebook keywords.
+  const slotNames = new Map([...slotsOf(zones)].filter(([slot]) => slot !== "wilds1").map(([slot, id]) => [id, slot]));
   const say = (who) => describe(zones, who, names);
   const playerWho = {
     name: personaName(),
@@ -1020,9 +1114,18 @@ function journalData(zone, snapshot, residents, names) {
     },
     people: lines.map((entry) => {
       const toYou = core.relations.get(entry.person.id, "player");
-      return toYou
-        ? `${entry.line}. ${core.relations.describe(entry.person.id, "player", { ...nameIds(), player: "you" })}.`
-        : entry.line;
+      const house = core.save?.housing?.[entry.person.id];
+      const where = [
+        house?.home && names[house.home] ? `lives in ${names[house.home]}` : null,
+        house?.work && names[house.work] ? `${house.owner ? "owns" : "works at"} ${names[house.work]}` : null,
+      ].filter(Boolean);
+      return [
+        entry.line,
+        toYou ? core.relations.describe(entry.person.id, "player", { ...nameIds(), player: "you" }) : null,
+        where.length ? `${entry.person.name} ${where.join(" and ")}` : null,
+      ]
+        .filter(Boolean)
+        .join(". ");
     }),
     relations: relationsData(),
     party: core.crowd.party(),
@@ -1038,6 +1141,7 @@ function journalData(zone, snapshot, residents, names) {
       })),
     places: zones.zones.map((at) => ({
       id: at.id,
+      slot: slotNames.get(at.id),
       parent: at.parent,
       kind: at.kind === "building" ? at.buildingKind : at.kind,
       name: names[at.id],
@@ -1051,6 +1155,7 @@ function journalData(zone, snapshot, residents, names) {
       lorebooks: core.save?.lorebooks ?? [],
       loreLinking: core.save?.loreLinking ?? "none",
       characterLinking: core.save?.characterLinking ?? "none",
+      waiting: (core.save?.waitingPlacements ?? []).map((entry) => entry.title),
       allLorebooks: core.lorebooks?.map((book) => ({ id: book.id, name: book.name })) ?? null,
       name: core.save?.name ?? "",
       town: names.town,

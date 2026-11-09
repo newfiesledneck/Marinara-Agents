@@ -208,6 +208,12 @@ signs that carry a picture by default._
   Keywords of the form "<relationship> of|with <Name>" ("brother of Sarah", "friends with Tam") set how
   they stand toward another character in town or the player (`linksFromWords`), one way only: the
   user's lorebook says each direction, nothing is inferred.
+- **Structure from lore (0.4.37):** every place has a numbered name by kind and order (`slotsOf`:
+  town1, forest1 (also wilds1), tavern1, home1…, inn1, cave1), the same identity a regenerate keeps.
+  Entry keywords "group of <kind>" (a group of every place of that kind, the entry its lore), "located
+  in <place>" (inside another place or group; one the world hasn't built there waits for the world
+  builder in `waitingPlacements`), and on characters "lives in", "works at", "owner of" (`housing`: a
+  lore home is reserved for those named; workers go to work by day) — `structureFromLore`.
 - **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
   forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
   every place in it, on top of each place's own and the places it sits in. A world's groups are plain

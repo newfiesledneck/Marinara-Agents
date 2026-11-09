@@ -495,7 +495,7 @@ export function remapZones(old, next) {
 }
 
 /** Carries a world's setup over to its rebuilt places: names, lore and groups by `map` (old → new id). */
-export function carrySetup({ names = {}, lore = {}, groups = null }, map) {
+export function carrySetup({ names = {}, lore = {}, groups = null, housing = {} }, map) {
   const move = (record) =>
     Object.fromEntries(
       Object.entries(record)
@@ -508,6 +508,12 @@ export function carrySetup({ names = {}, lore = {}, groups = null }, map) {
     groups: groups
       ? groups.map((group) => ({ ...group, members: group.members.map((id) => map.get(id)).filter(Boolean) }))
       : null,
+    housing: Object.fromEntries(
+      Object.entries(housing).map(([id, entry]) => [
+        id,
+        { ...entry, home: map.get(entry.home) ?? null, work: map.get(entry.work) ?? null },
+      ]),
+    ),
   };
 }
 
@@ -541,13 +547,33 @@ const plain = (word) =>
     .trim()
     .replace(/^(the|a|an)\s+/u, "");
 
+/** A place's sort for kind words and numbered names: "home", "tavern", "inn", "cave", "forest"… */
+function sortOf(zone) {
+  if (zone.kind === "building") return zone.buildingKind;
+  if (zone.outpostKind) return zone.outpostKind;
+  return zone.kind === "plaza" ? "square" : zone.kind;
+}
+
 /**
- * Lore for a new world from its lorebooks: every entry whose name or a keyword is exactly the name of a
- * place (as named in this world, or its kind: "tavern", "forest"), a group, a character or the world
- * itself is tied to it. `books`: [{ id, entries: [{ id, title, keys }] }]; `world`: { zones, names,
- * groups, name, characters: [{ id, name }] }. Returns { [id]: [{ lorebookId, entryId, title }] }.
+ * Every place's numbered name, by kind and order: "town1", "forest1", "tavern1", "home1" … "home50",
+ * "inn1", "cave2". The same order a regenerate keeps places by, so a numbered name always means the same
+ * place in a world. "wilds1" is the forest too. Returns a Map of name → zone id.
  */
-export function matchLore(books, world) {
+export function slotsOf(zones) {
+  const counts = new Map();
+  const slots = new Map();
+  for (const zone of zones.zones) {
+    const sort = sortOf(zone);
+    const n = (counts.get(sort) ?? 0) + 1;
+    counts.set(sort, n);
+    slots.set(`${sort}${n}`, zone.id);
+  }
+  if (slots.has("forest1")) slots.set("wilds1", slots.get("forest1"));
+  return slots;
+}
+
+/** Every word a lorebook can use for something in the world → the ids it means (places, groups, characters, the world). */
+export function placeTargets(world) {
   const targets = new Map(); // plain word → ids
   const add = (word, id) => {
     const key = plain(word);
@@ -566,10 +592,40 @@ export function matchLore(books, world) {
           : zone.kind;
     for (const word of KIND_WORDS[kind] ?? []) add(word, zone.id);
   }
+  for (const [slot, id] of slotsOf(world.zones)) add(slot, id);
   for (const group of world.groups ?? []) add(group.name, group.id);
   for (const character of world.characters ?? []) add(character.name, `character:${character.id}`);
   add(world.name, WORLD_ID);
   add("world", WORLD_ID);
+  return targets;
+}
+
+/** Every place of the kind a word names ("home", "houses", "tavern", "inn"…): zone ids. */
+export function placesOfKind(zones, word) {
+  const wanted = plain(word).replace(/s$/u, "");
+  return zones.zones
+    .filter((zone) => {
+      const kind =
+        zone.kind === "building"
+          ? `building:${zone.buildingKind}`
+          : zone.outpostKind
+            ? `outpost:${zone.outpostKind}`
+            : zone.kind;
+      return sortOf(zone) === wanted || (KIND_WORDS[kind] ?? []).some((kindWord) => plain(kindWord) === wanted);
+    })
+    .map((zone) => zone.id);
+}
+
+export { plain as plainWord };
+
+/**
+ * Lore for a new world from its lorebooks: every entry whose name or a keyword is exactly the name of a
+ * place (as named in this world, or its kind: "tavern", "forest"), a group, a character or the world
+ * itself is tied to it. `books`: [{ id, entries: [{ id, title, keys }] }]; `world`: { zones, names,
+ * groups, name, characters: [{ id, name }] }. Returns { [id]: [{ lorebookId, entryId, title }] }.
+ */
+export function matchLore(books, world) {
+  const targets = placeTargets(world);
   const lore = {};
   for (const book of books) {
     for (const entry of book.entries) {
@@ -594,4 +650,59 @@ export function mergeLore(lore, extra) {
     if (added.length) out[id] = [...(out[id] ?? []), ...added];
   }
   return out;
+}
+
+/**
+ * The world's structure as a lorebook spells it out, in plain keywords on its entries:
+ * - "group of <kind>" ("group of home"): the entry becomes a group of every place of that kind, with
+ *   the entry as its lore.
+ * - "located in <place>" ("located in town1", "located in Ashfall", "located in world"): what the
+ *   entry is (a place or group) sits inside that place or group.
+ * - on a character's entry, "lives in <place>", "works at <place>", "owner of <place>" ("home6",
+ *   "smithy1", or a place's name): their home and work.
+ * `world`: as placeTargets takes. Returns { groups: [new groups], placements: [{ place, in, title }],
+ * housing: { [characterId]: { home, work, owner } } (zone ids) }.
+ */
+export function structureFromLore(books, world) {
+  const targets = placeTargets(world);
+  const first = (word) => [...(targets.get(plain(word)) ?? [])][0] ?? null;
+  const groups = [];
+  const placements = [];
+  const housing = {};
+  for (const book of books) {
+    for (const entry of book.entries) {
+      const words = [entry.title, ...(entry.keys ?? [])];
+      const subjects = new Set();
+      for (const word of words) for (const id of targets.get(plain(word)) ?? []) subjects.add(id);
+      for (const word of words) {
+        const match = /^group of\s+(.+)$/iu.exec(String(word).trim());
+        if (!match) continue;
+        const id = `group:lore-${book.id}-${entry.id}`;
+        groups.push({ id, name: entry.title, members: placesOfKind(world.zones, match[1]), parent: null });
+        subjects.add(id);
+      }
+      for (const word of words) {
+        const match = /^(located in|lives in|works at|owner of)\s+(.+)$/iu.exec(String(word).trim());
+        if (!match) continue;
+        const target = first(match[2]);
+        if (!target) continue;
+        const how = match[1].toLowerCase();
+        for (const subject of subjects) {
+          if (how === "located in") {
+            if (!subject.startsWith("character:") && subject !== target)
+              placements.push({ place: subject, in: target, title: entry.title });
+          } else if (subject.startsWith("character:") && world.zones.byId.get(target)?.kind === "building") {
+            const id = subject.slice("character:".length);
+            housing[id] ??= { home: null, work: null, owner: false };
+            if (how === "lives in") housing[id].home ??= target;
+            else {
+              housing[id].work ??= target;
+              if (how === "owner of") housing[id].owner = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return { groups, placements, housing };
 }

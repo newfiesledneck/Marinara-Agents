@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.37 — 2026-11-08
+
+- Every place has a numbered name for lorebooks (town1, forest1, tavern1, home6, inn1…), shown in Journal → Places.
+- Lorebooks can build the world's structure: "group of home" makes a group of every house, and "located in town1" puts a place or group inside another.
+- On a character's entry, "lives in home6", "works at smithy1" and "owner of tavern1" set where they live and work. A house given by lore is theirs alone, and they spend working hours at their work.
+- Journal → People says where each person lives and works.
+
 ## 0.4.36 — 2026-11-08
 
 - Linking lore to places and setting up characters from lore are off by default on New world: choose them to opt in.
