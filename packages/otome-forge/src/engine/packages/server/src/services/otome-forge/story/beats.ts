@@ -28,6 +28,10 @@
 //   beat counts as read, and the lookahead written from the uncut scene is removed (again on a retry, and by the
 //   lookahead itself when it was saved just after the cut). A Confrontation eased off after its ending keeps its canon
 //   whole, so its lookahead stays.
+// - A chapter's small memories (0.20.4, the maintainer's: cached, and never switching between scenes): its first
+//   scene recalls the pool for everyone in its nodes and saves the ones it sent on the chapter (`memories`, a
+//   revision-checked write that keeps what an earlier call saved); every later scene, Confrontation and Closer of the
+//   chapter sends exactly those (S/story/canon.ts `pool`). A memory made meanwhile waits for the next chapter.
 // - A date's beat (M5, chapter kind "date") has exactly one small choice whose options each carry a hidden `score`
 //   (−1/0/1, how the date's love interest takes it; at least one scores 1), read by index like the effects and saved
 //   as `beat.scores`. A date never ends on a big choice, and an option opens a grievance only on a date planned to go
@@ -59,6 +63,8 @@
 //   beat written queues its places and CG (which wait for a tap under Ask before painting, or while the player
 //   reviews image prompts); a beat replaced by a rewrite, or removed after it, releases its CG. All of it in the
 //   background: the art never holds up or breaks the story.
+// - 0.20.0: a beat counted as read records its side speakers (S/story/side-cast.ts noteSideSpeakers, one cheap write,
+//   no model call), and with Side character sprites on tends their looks and sprites in the background.
 import { forgeChoiceLabel } from "@forge-kit/player-choice-text.mjs";
 import { forgeNormalizeChoiceBeat, forgePendingChoice } from "@forge-kit/player-choices-server.mjs";
 import type { ForgeStoryCancellation } from "@forge-kit/story-cancel-server.mjs";
@@ -84,6 +90,7 @@ import {
   hisSideKey,
   stageRow,
   type ClimaxMove,
+  HIS_SIDE_MIN_STAGE,
 } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
 import { heldAgainst, type DateScore } from "../../../../../client/src/features/otome-forge/shared/dates.js";
 import { SIDE_WITH_AFFECTION } from "../../../../../client/src/features/otome-forge/shared/economy.js";
@@ -98,9 +105,9 @@ import { generateJson, readOrGenerate, runForeground } from "../generation.js";
 import type { OtomeArt } from "../art/expressions.js";
 import { beatMessages, closerMessages, confrontationMessages, explicitCgAllowed, prologueEnding } from "../prompts.js";
 import { OtomeForgeError } from "../http.js";
-import { PROLOGUE_KEY, beatId, mainChapterKey, runDocTarget, stateId, unitId, worldId } from "../ids.js";
+import { PROLOGUE_KEY, beatId, chapterId, mainChapterKey, runDocTarget, stateId, unitId, worldId } from "../ids.js";
 import { normalizeState, readRun, type RunDocuments } from "../schemas/state.js";
-import { normalizeBeat } from "../schemas/story.js";
+import { normalizeBeat, normalizeChapter } from "../schemas/story.js";
 import { normalizeUnit } from "../schemas/unit.js";
 import { normalizeWorld } from "../schemas/world.js";
 import { withPersonaStoryAbout } from "../setup/cast.js";
@@ -109,6 +116,7 @@ import { payClearing, readBeatToEnd } from "../state/rewards.js";
 import { countedNow, gateShut, healRupture, passGate } from "../state/stages.js";
 import { arcCovering, listArcs } from "./arc.js";
 import type { ChapterDeps } from "./chapters.js";
+import { noteSideSpeakers, type SideCastDeps } from "./side-cast.js";
 import {
   OWN_ANSWER_LABEL,
   type StoryContext,
@@ -149,7 +157,7 @@ import {
   type BeatReply,
 } from "./replies.js";
 
-export interface BeatDeps extends ChapterDeps {
+export interface BeatDeps extends ChapterDeps, Pick<SideCastDeps, "background" | "images" | "cutouts"> {
   /** The run-scoped Cancel (forge-kit story-cancel-server); without one, writes simply run. */
   cancellation?: ForgeStoryCancellation;
   /** The story's art (S/art, M2b); without it nothing is painted. */
@@ -668,24 +676,42 @@ async function generateBeat(
   // as its plan is; a date's or a story's scenes are not.
   // A side chapter tells a scene of a chapter before it again, so the story's memory, which is the story as it is now,
   // would hand it chapters that came after the moment it retells: it gets the scene itself (hisSideSource) and none.
-  const memory: StoryContext = told
+  // The chapter's small memories are everyone's in it, chosen by its first scene (see the header).
+  const everyone = [...new Set(chapter.nodes.flatMap((entry) => entry.cast))];
+  const recall = (memories: readonly string[] | undefined): Promise<StoryContext> =>
+    recallText(deps, runId, {
+      job: "narration",
+      cast: node.cast,
+      ...(pov ? { reader: pov } : {}),
+      cached: chapter.kind === "main" ? {} : { li: chapter.li ?? chapter.lead },
+      ...(chapter.kind === "main" ? { continues: "main" as const } : {}),
+      ...((chapter.kind === "route" || chapter.kind === "repair") && chapter.li ? { continues: chapter.li } : {}),
+      lastStory: chapter.kind === "main" || chapter.kind === "route" || chapter.kind === "repair",
+      // Long-term recall: exactly the earlier chapters its plan chose, in their order (S/story/canon.ts).
+      ...(chapter.recalled ? { recalled: chapter.recalled } : {}),
+      pool: { cast: everyone, ...(memories ? { ids: memories } : {}) },
+      query: {
+        cues: [storySoFar.join("\n\n").slice(-2000), node.guide].filter(Boolean),
+        plan: node.guide,
+        speakers: [run.player.name, ...present.map((unit) => unit.name)].filter(Boolean),
+      },
+      signal,
+      debugMode,
+    });
+  let memory: StoryContext = told
     ? { text: "", overview: "", details: [], maxContext: null, prefix: "", fate: "", optional: [] }
-    : await recallText(deps, runId, {
-        job: "narration",
-        cast: node.cast,
-        ...(pov ? { reader: pov } : {}),
-        cached: chapter.kind === "main" ? {} : { li: chapter.li ?? chapter.lead },
-        ...(chapter.kind === "main" ? { continues: "main" as const } : {}),
-        ...((chapter.kind === "route" || chapter.kind === "repair") && chapter.li ? { continues: chapter.li } : {}),
-        lastStory: chapter.kind === "main" || chapter.kind === "route" || chapter.kind === "repair",
-        query: {
-          cues: [storySoFar.join("\n\n").slice(-2000), node.guide].filter(Boolean),
-          plan: node.guide,
-          speakers: [run.player.name, ...present.map((unit) => unit.name)].filter(Boolean),
-        },
-        signal,
-        debugMode,
-      });
+    : await recall(chapter.memories);
+  if (!told && !chapter.memories && memory.memories) {
+    const chosen = memory.memories;
+    const saved = await deps.store.updateDoc(
+      runDocTarget("chapter", chapterId(runId, key)),
+      normalizeChapter,
+      (current) => (!current || current.memories ? current : { ...current, memories: chosen }),
+    );
+    // Another scene of the chapter chose first: send what it saved, so every scene's stays the same.
+    const kept = saved?.memories;
+    if (kept && kept.join("\n") !== chosen.join("\n")) memory = await recall(kept);
+  }
   const last = i === chapter.nodes.length - 1;
   const mustChoose =
     chapter.kind === "route" && !!node.gate && !!chapter.stage && stageRow(chapter.stage).gate === "confrontation";
@@ -722,6 +748,7 @@ async function generateBeat(
     storySoFar,
     memory: memory.text,
     recalls: memory.recalls?.text ?? "",
+    pool: memory.pool?.text ?? "",
     // The arc's line for a main chapter goes in the story context, as P5 sends it (#2066).
     arc:
       chapter.kind === "main" && chapter.number
@@ -1344,7 +1371,7 @@ async function finishBeat(
   runId: string,
   chapter: Chapter,
   beat: Beat,
-  debugMode: boolean,
+  { debugMode, review }: PaintMode,
 ): Promise<ReadResult> {
   let outcome: Omit<ReturnType<typeof readBeatToEnd>, "state"> = { grants: [], chapterDone: false };
   let stageUp: ReadResult["stageUp"];
@@ -1400,7 +1427,8 @@ async function finishBeat(
       }
       const moment = spent ? null : hisSideMomentOf(chapter, beat, { stageUp: gate.stageUp, repaired: heal.repaired });
       const his = moment?.li === candidate ? next.lis[moment.li] : undefined;
-      if (moment && his) {
+      // #2155: a moment counts once he is at Wound or beyond after it (reaching Wound counts itself).
+      if (moment && his && his.stage >= HIS_SIDE_MIN_STAGE) {
         const ref = `${chapter.key}/${beat.i}`;
         next = noteHisSide(next, moment.li, { arc, ref, moment: moment.moment, at });
         hisSide = moment.li;
@@ -1416,6 +1444,7 @@ async function finishBeat(
     return next;
   });
   if (!state) throw runNotFound();
+  await noteSideSpeakers(deps, runId, chapter.key, beat, { debugMode, review });
   if (completedNow && deps.memory) {
     void Promise.resolve(deps.memory.maintain({ runId, debugMode })).catch((error: unknown) =>
       deps.runtime.logger.warn(
@@ -1449,7 +1478,7 @@ export async function readTo(
   key: string,
   i: number,
   segment: number,
-  { debugMode }: { debugMode: boolean },
+  mode: PaintMode,
 ): Promise<ReadResult> {
   const { run, chapter } = await load(deps, runId, key);
   const beat = await readBeat(deps.store, runId, key, i);
@@ -1468,7 +1497,7 @@ export async function readTo(
   if (reached < end || (!beat.easedOff && unsettled)) {
     return { grants: [], starlight: run.state.wallet.starlight, chapterDone: false };
   }
-  return finishBeat(deps, runId, chapter, beat, debugMode);
+  return finishBeat(deps, runId, chapter, beat, mode);
 }
 
 /** A node eased off before anything was written (its scene was declined): no lines, cut at the start. */
@@ -1503,7 +1532,7 @@ export async function easeOff(
   key: string,
   i: number,
   segment: number,
-  { debugMode }: { debugMode: boolean },
+  mode: PaintMode,
 ): Promise<{ beat: Beat; veilSuggestions: LimitId[] } & ReadResult> {
   const { run, chapter } = await load(deps, runId, key);
   const node = chapter.nodes[i];
@@ -1543,6 +1572,6 @@ export async function easeOff(
     (tag): tag is LimitId =>
       (LIMIT_IDS as readonly string[]).includes(tag) && world?.content.limits[tag as LimitId] === "allow",
   );
-  const read = await finishBeat(deps, runId, chapter, beat, debugMode);
+  const read = await finishBeat(deps, runId, chapter, beat, mode);
   return { beat, veilSuggestions, ...read };
 }

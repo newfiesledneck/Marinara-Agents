@@ -1,13 +1,15 @@
 // ──────────────────────────────────────────────
 // Otome Forge: the Album. CGs (newest first: story CGs once seen, Memories' CGs once painted, pair portraits), chat
 // stickers (#2044: the protagonist's five and each love interest's unlocked ones, cut out), Photo Shoot photos (#2087:
-// newest first, square, each one viewed, saved or deleted), Memories (each one's
-// Character Story or Moment to read, and Snapshots), the Love Timeline, favourite lines, the soundtrack (the moods,
-// then each begun chapter's theme), and the Tells journal. Only what is unlocked is listed; every image saves to the
-// device through the Engine. Everything reads without images or audio: a Memory without art shows a quiet card in their
-// colour.
+// newest first, square, each one viewed, saved or deleted), Tarot night's cards (#2151: each one drawn, on its own card
+// face, Cards.tsx), Memories (each one's Character Story or Moment to read, and Snapshots), the Love Timeline,
+// favourite lines, the soundtrack (the moods, then each begun chapter's theme), and the Tells journal. Only what is
+// unlocked is listed; every image saves to the device through the Engine. Everything reads without images or audio: a
+// Memory without art shows a quiet card in their colour, and a Tarot card without its picture our own emblem.
 // ──────────────────────────────────────────────
 // Route (S/routes/album.ts): GET /runs/:run/album → AlbumView. An unopened Memory is opened here as anywhere else.
+// 0.21.0: a Memory, Moment or Snapshot won from Wish and not looked at yet has a dot, and so does the Memories tab; opening
+// it (from Memories or the Love Timeline) lets it go (useMarkSeen).
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +21,7 @@ import {
   Eye,
   Heart,
   Images,
+  MoonStar,
   Music,
   Paintbrush,
   Quote,
@@ -35,6 +38,7 @@ import {
   invalidateCollection,
   paintWaits,
   useItemActions,
+  useMarkSeen,
   type ItemActions,
 } from "../../hooks/use-items";
 import { useMusicCue } from "../../hooks/use-otome-audio";
@@ -48,6 +52,7 @@ import { useStickers } from "../phone/StickerPicker";
 import { TabList } from "../wish/BannerTabs";
 import { RARITY_NAMES } from "../wish/SealedLetter";
 import { ItemArt, ItemDetail, PaintReviewDialog, RarityStars, itemPerson, useKindLabel } from "../wish/TenPullGrid";
+import { CardGrid, useCardImages } from "./Cards";
 import { CgViewer, useFormatAt } from "./CgViewer";
 import { Favorites } from "./Favorites";
 import { Soundtrack } from "./Soundtrack";
@@ -56,13 +61,24 @@ import { Timeline } from "./Timeline";
 
 const POLL_MS = 3_000;
 
-const ALBUM_TABS = ["cgs", "stickers", "photos", "memories", "timeline", "favorites", "soundtrack", "tells"] as const;
+const ALBUM_TABS = [
+  "cgs",
+  "stickers",
+  "photos",
+  "cards",
+  "memories",
+  "timeline",
+  "favorites",
+  "soundtrack",
+  "tells",
+] as const;
 type AlbumTab = (typeof ALBUM_TABS)[number];
 
 const TAB_META: Record<AlbumTab, { labelKey: string; Icon: LucideIcon }> = {
   cgs: { labelKey: "ui.otomeForge.album.tabCgs", Icon: Images },
   stickers: { labelKey: "ui.otomeForge.album.tabStickers", Icon: StickerIcon },
   photos: { labelKey: "ui.otomeForge.album.tabPhotos", Icon: Camera },
+  cards: { labelKey: "ui.otomeForge.album.tabCards", Icon: MoonStar },
   memories: { labelKey: "ui.otomeForge.album.tabMemories", Icon: BookHeart },
   timeline: { labelKey: "ui.otomeForge.album.tabTimeline", Icon: CalendarHeart },
   favorites: { labelKey: "ui.otomeForge.album.tabFavorites", Icon: Quote },
@@ -92,7 +108,8 @@ export function useAlbum(runKey: string) {
     refetchOnMount: "always",
     refetchInterval: (query) =>
       query.state.data?.memories.some((memory) => memory.art?.state === "pending") ||
-      query.state.data?.stickers?.some((sticker) => sticker.art?.state === "pending")
+      query.state.data?.stickers?.some((sticker) => sticker.art?.state === "pending") ||
+      query.state.data?.cards?.some((card) => card.art.state === "pending")
         ? POLL_MS
         : false,
   });
@@ -105,6 +122,9 @@ interface AlbumProps {
   onOpenStory: (key: string) => void;
 }
 
+/** The Album tab that holds a new Memory, Moment or Snapshot (0.21.0). */
+const MEMORIES_FRESH: ReadonlySet<AlbumTab> = new Set<AlbumTab>(["memories"]);
+
 export function Album({ runKey, view, onOpenStory }: AlbumProps) {
   const { t } = useTranslation();
   const otome = useOtomeApi();
@@ -112,12 +132,15 @@ export function Album({ runKey, view, onOpenStory }: AlbumProps) {
   const queryClient = useQueryClient();
   const album = useAlbum(runKey);
   const actions = useItemActions(runKey);
+  const markSeen = useMarkSeen(runKey);
   const [tab, setTab] = useState<AlbumTab>("cgs");
   const [viewing, setViewing] = useState<number | null>(null);
   const [viewingSticker, setViewingSticker] = useState<number | null>(null);
   // A photo is held by its key: the list can change under the viewer (a photo taken elsewhere lands first), and Delete
   // must take the one shown.
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+  // A card too: one painted meanwhile takes its place in Arcana order, so the indexes move.
+  const [viewingCard, setViewingCard] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // A deleted photo's tile goes with it: once the viewer has closed (and handed focus back), focus moves to the panel.
   const focusPanel = useRef(false);
@@ -127,6 +150,8 @@ export function Album({ runKey, view, onOpenStory }: AlbumProps) {
     panelRef.current?.focus({ preventScroll: true });
   }, [viewingPhoto]);
   const stickers = useStickerImages(view, album.data?.stickers ?? []);
+  // Stubs and servers older than #2151's Album send no cards.
+  const cards = useCardImages(view, album.data?.cards ?? []);
   const [memory, setMemory] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   // The soundtrack's chosen row plays while the Album is open; none lets the story's own music go on. A chapter's theme
@@ -176,7 +201,13 @@ export function Album({ runKey, view, onOpenStory }: AlbumProps) {
   // Stubs and servers older than #2087 send no photos.
   const photos = data.photos ?? [];
   const photoIndex = viewingPhoto === null ? -1 : photos.findIndex((image) => image.key === viewingPhoto);
+  const cardIndex = viewingCard === null ? -1 : cards.images.findIndex((image) => image.key === viewingCard);
   const shownMemory = data.memories.find((item) => item.id === memory) ?? null;
+  /** Opens a Memory's page; a new one is new no more. */
+  const show = (itemId: string) => {
+    setMemory(itemId);
+    if (data.memories.some((item) => item.id === itemId && item.new)) markSeen(itemId);
+  };
   /** Deletes the photo shown, closes the viewer and leaves focus on the Photos panel (its tile is gone). */
   const deletePhoto = async (image: AlbumImage) => {
     await otome.post(`${runPath(runKey)}/photos/${encodeURIComponent(image.key.replace(/^photo:/u, ""))}/delete`, {});
@@ -205,10 +236,12 @@ export function Album({ runKey, view, onOpenStory }: AlbumProps) {
         square
         onView={(index) => setViewingPhoto(photos[index]?.key ?? null)}
       />
+    ) : tab === "cards" ? (
+      <CardGrid runKey={runKey} view={view} cards={cards} actions={actions} onView={setViewingCard} />
     ) : tab === "memories" ? (
-      <Memories view={view} memories={data.memories} onShow={setMemory} />
+      <Memories view={view} memories={data.memories} onShow={show} />
     ) : tab === "timeline" ? (
-      <Timeline view={view} entries={data.timeline} memories={data.memories} onShow={setMemory} />
+      <Timeline view={view} entries={data.timeline} memories={data.memories} onShow={show} />
     ) : tab === "favorites" ? (
       <Favorites view={view} favorites={data.favorites} />
     ) : tab === "soundtrack" ? (
@@ -228,6 +261,8 @@ export function Album({ runKey, view, onOpenStory }: AlbumProps) {
         label={t("ui.otomeForge.album.tabsLabel")}
         labelOf={(name) => t(TAB_META[name].labelKey)}
         iconOf={(name) => TAB_META[name].Icon}
+        fresh={data.memories.some((item) => item.new) ? MEMORIES_FRESH : undefined}
+        freshLabel={t("ui.otomeForge.common.hasNew")}
         className="of-album-tabs"
       />
       <div
@@ -261,6 +296,15 @@ export function Album({ runKey, view, onOpenStory }: AlbumProps) {
           onIndex={(index) => setViewingPhoto(photos[index]?.key ?? null)}
           onClose={() => setViewingPhoto(null)}
           onDelete={deletePhoto}
+        />
+      ) : null}
+      {cardIndex >= 0 ? (
+        <CgViewer
+          view={view}
+          images={cards.images}
+          index={cardIndex}
+          onIndex={(index) => setViewingCard(cards.images[index]?.key ?? null)}
+          onClose={() => setViewingCard(null)}
         />
       ) : null}
       {/* The prompt review takes the place of the Memory's page while it shows (one dialog over the stage at a time). */}
@@ -541,6 +585,11 @@ function Memories({
                     <span className="of-keepsake-kind">
                       <RarityStars rarity={item.rarity} />
                       {kindLabel(item, view)}
+                      {item.new ? (
+                        <span className="of-tab-dot of-new-dot of-item-dot">
+                          <span className="of-visually-hidden">{t("ui.otomeForge.common.newItem")}</span>
+                        </span>
+                      ) : null}
                     </span>
                     <span className="of-keepsake-title">{item.title}</span>
                     {li ? <span className="of-keepsake-who">{li.name}</span> : null}

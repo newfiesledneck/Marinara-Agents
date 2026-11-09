@@ -8,9 +8,10 @@
 // one; the planner picks the Foil. #2156: a love interest whose grievance with her stands is never offered or accepted
 // as the Lead (he may still be in the chapter); in a story where every one of them holds one (only from before #2156)
 // the usual pair is offered.
-// A plan is checked before it is saved (normalizeChapterPlan): 6–9 nodes, 1–2 moments, exactly one climax node (a
-// Confrontation, or a Closer with the Lead in it: #1938) as the second-to-last or last node, the other kind after two
-// main chapters in a row ended with the same one (requiredClimax), at most two CG nodes, the Lead and the Foil each in at least one node, every love interest in chapter 1,
+// A plan is checked before it is saved (normalizeChapterPlan): 6–9 nodes, 1–2 moments, at most one climax node (a
+// Confrontation, or a Closer with the Lead in it: #1938; 0.19.1: none when the chapter does not build to one, except a
+// story arc's last, which carries its big event) as the second-to-last or last node, the other kind after the last two
+// climaxes were alike (requiredClimax), at most two CG nodes, the Lead and the Foil each in at least one node, every love interest in chapter 1,
 // an off-screen line for each absent one, no tag for a Line, and conflict seeds that never repeat that love interest's
 // last two kinds of angst, counting the seeds planted earlier in the same plan (at most one open misunderstanding
 // each, resolved within two chapters). A failed check is the generation core's one repair turn. A side-with mark
@@ -20,6 +21,9 @@
 // cached part, and copied onto the chapter for its scenes (S/story/beats.ts); the write that registers the chapter lets
 // them go, unless newer ones were sent meanwhile. A plan that fails, is cancelled or refused saves nothing and keeps
 // them.
+// Long-term recall (0.19.0, S/story/canon.ts recallText): the plan chooses the earlier chapters its story context
+// recalls in detail, by its arc's purpose for it, its Lead and cast, those thoughts and how the previous chapter ended,
+// after its arc is known, and saves them on the chapter (`recalled`), so each of its scenes sends exactly those.
 import type { CapabilityRuntimeHost } from "@marinara-engine/shared";
 import type {
   ArcJudgment,
@@ -70,6 +74,7 @@ import { withPersonaStoryAbout } from "../setup/cast.js";
 import { cancellable } from "./beats.js";
 import { hisSideOffers } from "./his-side.js";
 import { removeLoveInterest } from "./introduce.js";
+import type { RecallIndex } from "../memory/recall-index.js";
 import { readBeat, recallText, type StoryMemory } from "./canon.js";
 import { chapterPlanMessages, knownRows } from "../prompts.js";
 import {
@@ -86,6 +91,8 @@ export interface ChapterDeps extends GenerationDeps {
   runtime: GenerationDeps["runtime"] & Pick<CapabilityRuntimeHost, "resources">;
   store: OtomeStore;
   memory?: StoryMemory;
+  /** Long-term recall's index (S/memory/recall-index.ts); without it a plan recalls no earlier chapter in detail. */
+  recall?: Pick<RecallIndex, "choose">;
 }
 
 const notFound = (what: string) => new OtomeForgeError(404, `No such ${what}.`, "not-found");
@@ -140,7 +147,7 @@ export interface PlanContext {
   world: Pick<World, "content">;
   number: number;
   lead: LiId;
-  /** The climax this chapter must use, after CLIMAX_STREAK main chapters alike; absent, the planner picks. */
+  /** The climax this chapter must use if it has one, after CLIMAX_STREAK climaxes alike; absent, the planner picks. */
   climax?: ClimaxKind;
   /** The story arc this chapter belongs to (#1980), when the run has one. */
   arc?: StoryArc | null;
@@ -150,7 +157,7 @@ export interface PlanContext {
   judgment?: ArcJudgment;
 }
 
-/** How many main chapters in a row may end with the same climax (the maintainer's 2, so the two alternate often). */
+/** How many climaxes in a row may be the same kind (the maintainer's 2, so the two alternate often). */
 export const CLIMAX_STREAK = 2;
 
 /** A chapter's climax: the kind of its confrontation or closer node, or null when it has none. */
@@ -159,12 +166,17 @@ export function climaxOfChapter(chapter: Pick<Chapter, "nodes"> | undefined): Cl
   return node?.kind === "confrontation" || node?.kind === "closer" ? node.kind : null;
 }
 
-/** The climax the next main chapter must use: the other kind once the last CLIMAX_STREAK all ended alike, else null. */
+/**
+ * The climax the next main chapter must use if it has one: the other kind once the last CLIMAX_STREAK climaxes played
+ * were alike, else null. Chapters without one are skipped.
+ */
 export function requiredClimax(mains: ReadonlyArray<Pick<Chapter, "nodes">>): ClimaxKind | null {
-  if (mains.length < CLIMAX_STREAK) return null;
-  const last = mains.slice(-CLIMAX_STREAK).map(climaxOfChapter);
+  const last = mains
+    .map(climaxOfChapter)
+    .filter((kind) => kind !== null)
+    .slice(-CLIMAX_STREAK);
   const first = last[0];
-  if (!first || last.some((kind) => kind !== first)) return null;
+  if (last.length < CLIMAX_STREAK || !first || last.some((kind) => kind !== first)) return null;
   return first === "closer" ? "confrontation" : "closer";
 }
 
@@ -332,17 +344,18 @@ export function normalizeChapterPlan(reply: ChapterPlanReply, context: PlanConte
   const nodes = planNodes(reply, context);
   const moments = nodes.filter((node) => node.kind === "moment").length;
   if (moments < 1 || moments > 2) return `the chapter needs 1 or 2 moment nodes, not ${moments}`;
+  // 0.19.1: a chapter that does not build to a climax has none.
   const climaxes = nodes.filter((node) => node.kind === "confrontation" || node.kind === "closer");
-  if (climaxes.length !== 1) {
-    return `the chapter needs exactly one climax node (a confrontation or a closer), not ${climaxes.length}`;
+  if (climaxes.length > 1) {
+    return `the chapter has at most one climax node (a confrontation or a closer), not ${climaxes.length}`;
   }
-  const climax = climaxes[0]!;
-  if (climax.i < nodes.length - 2) return `the ${climax.kind} must be the second-to-last or last node`;
-  if (context.climax && climax.kind !== context.climax) {
-    return `this chapter's climax must be a ${context.climax} node, not a ${climax.kind}: the last two main chapters both ended with a ${climax.kind}`;
+  const climax = climaxes[0];
+  if (climax && climax.i < nodes.length - 2) return `the ${climax.kind} must be the second-to-last or last node`;
+  if (climax && context.climax && climax.kind !== context.climax) {
+    return `this chapter's climax must be a ${context.climax} node, not a ${climax.kind}: the last two climaxes were both ${climax.kind}s`;
   }
   // Its trust, first and grievance are the Lead's: a Closer is played with them.
-  if (climax.kind === "closer" && !climax.cast.includes(lead)) return "the Lead must be in the closer node";
+  if (climax?.kind === "closer" && !climax.cast.includes(lead)) return "the Lead must be in the closer node";
   // A node may be the protagonist's alone (#1955), but a moment and the climax are played with a love interest.
   const empty = nodes.find((node) => node.kind !== "beat" && !node.cast.length);
   if (empty) return `the ${empty.kind} node ${empty.i + 1} needs a love interest in its cast`;
@@ -365,7 +378,7 @@ export function normalizeChapterPlan(reply: ChapterPlanReply, context: PlanConte
   }
   // #1980: the arc's schedule is what makes a reveal real. A scheduled chapter must place it on a node (with its holder
   // when it is a piece); a node in an unscheduled chapter is dropped, so a hallucinated early reveal cannot land; the
-  // arc's last chapter carries its big event in the climax.
+  // arc's last chapter carries its big event in the climax (a breathing arc's has none, so its climax is optional).
   const scheduled = arc ? revealAt(arc, number) : undefined;
   if (scheduled) {
     const index = typeof reply.revealNode === "number" ? reply.revealNode : -1;
@@ -377,7 +390,8 @@ export function normalizeChapterPlan(reply: ChapterPlanReply, context: PlanConte
     }
     node.reveal = scheduled.kind === "truth" ? { kind: "truth" } : { kind: "piece", li: scheduled.li! };
   }
-  if (arc && number === arc.endsAt) {
+  if (arc && number === arc.endsAt && (climax || arc.endsWith)) {
+    if (!climax) return "this is the arc's last chapter: it ends on a climax node that carries its big event";
     if (reply.eventNode !== climax.i) return "this is the arc's last chapter: set eventNode to the climax node's index";
     climax.arcEvent = true;
   }
@@ -474,24 +488,6 @@ export async function planNextChapter(
   return readOrGenerate(runId, read, async () => {
     signal?.throwIfAborted();
     const units = cast.map((li) => run.units.find((unit) => unit.id === li)!);
-    // ponytail: recalls for the Lead only, since the planner picks the Foil (plan M2a "Recall": cast [lead, foil]).
-    // The Lead's own route and repair chapters reach the plan; the Foil's and everyone else's never do, in recall
-    // (S/story/canon.ts mayKnow) or in the ledgers (S/prompts.ts knownTo), but for the last Character Story, whoever's
-    // it is, titled private between the protagonist and its love interest (#2126, `lastStory`). Upgrade path: a
-    // second recall for the Foil after the plan names them, or keep [lead] so another love interest's private canon
-    // never reaches the node guides.
-    const memory = await recallText(deps, runId, {
-      job: "structured",
-      cast: [lead],
-      continues: "main",
-      // The recalls follow the Lead, so they go after the story context the chapter's scenes share (#2066, #2091).
-      cached: {},
-      // As every scene of the chapter is, so the story context stays theirs (S/story/beats.ts generateBeat).
-      lastStory: true,
-      query: { plan: units.find((unit) => unit.id === lead)?.bible?.want ?? "", speakers: units.map((u) => u.name) },
-      signal,
-      debugMode,
-    });
     const climax = requiredClimax(mains);
     const sideWith = sideWithOpen(mains, number);
     // #1980: the arc this chapter belongs to, planned right here when the run has none covering it (the first arc, or
@@ -536,6 +532,32 @@ export async function planNextChapter(
     const judgment = await judgmentFor(deps.store, runId, arc, mains, number);
     // #2127: the thoughts waiting now, after the arc's plan: `run.state` was read before this task was queued.
     const thoughts = (await deps.store.readDoc(stateId(runId), normalizeState))?.thoughts ?? null;
+    // ponytail: recalls for the Lead only, since the planner picks the Foil (plan M2a "Recall": cast [lead, foil]).
+    // The Lead's own route and repair chapters reach the plan; the Foil's and everyone else's never do, in recall
+    // (S/story/canon.ts mayKnow) or in the ledgers (S/prompts.ts knownTo), but for the last Character Story, whoever's
+    // it is, titled private between the protagonist and its love interest (#2126, `lastStory`). Upgrade path: a
+    // second recall for the Foil after the plan names them, or keep [lead] so another love interest's private canon
+    // never reaches the node guides.
+    const leadName = units.find((unit) => unit.id === lead)?.name ?? "";
+    const others = units.filter((unit) => unit.id !== lead).map((unit) => unit.name);
+    const memory = await recallText(deps, runId, {
+      job: "structured",
+      cast: [lead],
+      continues: "main",
+      // The recalls follow the Lead, so they go after the story context the chapter's scenes share (#2066, #2091).
+      cached: {},
+      // As every scene of the chapter is, so the story context stays theirs (S/story/beats.ts generateBeat).
+      lastStory: true,
+      query: { plan: units.find((unit) => unit.id === lead)?.bible?.want ?? "", speakers: units.map((u) => u.name) },
+      // Long-term recall (see the header): the earlier chapters this one is about, saved below for its scenes.
+      chooseBy: [
+        arc.plan.find((entry) => entry.n === number)?.purpose ?? "",
+        others.length ? `${leadName} leads, with ${others.join(", ")}.` : `${leadName} leads.`,
+        thoughts?.text ?? "",
+      ],
+      signal,
+      debugMode,
+    });
     const context: PlanContext = {
       units,
       state: run.state,
@@ -592,6 +614,7 @@ export async function planNextChapter(
       plannedAt: new Date().toISOString(),
       connectionId,
       ...(thoughts ? { thoughts: thoughts.text } : {}),
+      ...(memory.recalled ? { recalled: memory.recalled } : {}),
     };
     const saved = await deps.store.mutateDoc(
       runDocTarget("chapter", chapterId(runId, key)),

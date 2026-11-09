@@ -15,7 +15,7 @@ import type { TarotPaid } from "./tarot";
 import type { ClawLineKind, TapZone, TimeOfDay } from "./home";
 import type { FigurinePicture, GiftId } from "./shop";
 import type { PlayerSticker } from "./stickers";
-import type { BannerKind, PityCounter, Rarity } from "./wish";
+import type { BannerKind, PityCounter, Rarity, UnseenCounts } from "./wish";
 
 export type {
   ClimaxEnding,
@@ -43,7 +43,8 @@ export type OtomeErrorCode =
   | "declined"
   | "bad-format"
   | "no-connection"
-  | "capacity";
+  | "capacity"
+  | "no-embeddings";
 
 export interface OtomeRunEntry {
   runKey: string;
@@ -100,6 +101,11 @@ export interface Connections {
   structured?: string;
   chat?: string;
   compress?: string;
+  /**
+   * Memory recall embeddings (0.19.0, S/memory/recall-index.ts): the Engine connection whose own embedding model indexes
+   * the chapter summaries; absent, the Engine's built-in local model. Never a text job's connection.
+   */
+  embeddings?: string;
 }
 
 export interface ImageSettings {
@@ -114,6 +120,11 @@ export interface ImageSettings {
   styleProfileId?: string;
   /** The player's own words for how every picture looks (art style, medium); they lead each image prompt. */
   style?: string;
+  /**
+   * 0.20.0: a full-body sprite for each recurring side character (S/story/side-cast.ts), shown while they speak; absent
+   * or false: none, and nothing is called or painted for them.
+   */
+  sideSprites?: boolean;
 }
 
 export type ForgeStepState = "pending" | "running" | "done" | "failed" | "waiting-consent";
@@ -906,6 +917,8 @@ export interface RunState {
   owned: {
     items: string[];
     at: Record<string, string>;
+    /** 0.21.0: the items won from Wish not looked at yet, in the order won (S/routes/items.ts `seen` lets one go). */
+    unseen: string[];
     plush: Record<string, number>;
     gifts: Partial<Record<GiftId, number>>;
     figurines: Record<LiId, string>;
@@ -1051,6 +1064,16 @@ export interface Chapter {
    * the client).
    */
   hisSide?: HisSideNote;
+  /**
+   * 0.19.0: a main chapter's earlier chapters recalled in detail, by chapter key, in the order they go, chosen once when
+   * it was planned so every scene's story context is the same (S/story/canon.ts recallText; hidden from the client).
+   */
+  recalled?: string[];
+  /**
+   * 0.20.4: the chapter's small memories, by id, in the order they go, chosen by its first scene for everyone in it so
+   * every scene sends the same ones; [] when it has none (S/story/beats.ts; hidden from the client).
+   */
+  memories?: string[];
 }
 
 /** A segment of a beat: one line of dialogue, one thought, or one piece of narration. */
@@ -1255,7 +1278,17 @@ export type BeatState = "unwritten" | "ready" | "read";
 /** A chapter as the client sees it: no guides and no ledger (the plan is the hidden story). */
 export type ChapterView = Omit<
   Chapter,
-  "nodes" | "ledger" | "connectionId" | "date" | "music" | "prestige" | "thoughts" | "gift" | "hisSide"
+  | "nodes"
+  | "ledger"
+  | "connectionId"
+  | "date"
+  | "music"
+  | "prestige"
+  | "thoughts"
+  | "gift"
+  | "hisSide"
+  | "recalled"
+  | "memories"
 > & {
   music?: Pick<ChapterMusic, "track">;
   nodes: Array<Pick<ChapterNode, "i" | "kind" | "moment" | "cg" | "gate">>;
@@ -1288,6 +1321,25 @@ export interface SceneArt {
    * it. Absent otherwise, also for a look waiting for Paint, failed or stopped.
    */
   lookComing?: true;
+  /**
+   * 0.20.0: the recurring side characters who speak in this beat, by the speaker name as the beat writes it, while Side
+   * character sprites is on (S/art/side-sprites.ts). Absent with none.
+   */
+  sides?: Record<string, SideSpriteView>;
+}
+
+/** A recurring side character's sprite as the reader sees it (0.20.0): one neutral full-body picture, never a face. */
+export interface SideSpriteView {
+  /** Their record's key (POST /runs/:run/art/side {key}). */
+  key: string;
+  /** The sprite's paint record, or null before it is asked for (their look is still being written). */
+  art: Paint | null;
+  /** The sprite: its cut-out once ready, or the painted image when cleanup failed. */
+  url?: string;
+  /** `url` is a cut-out (no backdrop). */
+  cut?: true;
+  /** It is being painted or cut out: the reader polls. */
+  coming?: true;
 }
 
 export interface StoryChapterEntry {
@@ -1472,6 +1524,20 @@ export interface MemoryStatus {
   unsummarized?: number;
 }
 
+/**
+ * GET /runs/:run/memory/recall and POST .../memory/recall/retry → {status}: the long-term recall index (0.19.0,
+ * S/memory/recall-index.ts). `failed` waits for Retry indexing, with the error (English, raw).
+ */
+export interface RecallIndexStatus {
+  phase: "indexing" | "ready" | "failed";
+  /** How many of the chapter summaries (`total`) are indexed for the story's embedding model. */
+  indexed: number;
+  total: number;
+  message?: string;
+  /** This Engine lets the story use a connection's embedding model (capability API 1.818); otherwise only Built-in. */
+  choosable: boolean;
+}
+
 // ── Wire shapes ──
 
 /** The world as the client sees it: no mystery truth or pieces, no web secrets, no music briefs, no message quotas. */
@@ -1529,6 +1595,8 @@ export interface RunView {
   /** A sticker set is being designed or a sticker painted in the background: poll the run until it lands. */
   stickersPending?: true;
   starlight: number;
+  /** 0.21.0: the items won from Wish not looked at yet, by where they are kept (absent from an older server). */
+  unseen?: UnseenCounts;
   /** GET /runs/:run: the prologue has been read to its end (Begin then goes straight Home). */
   prologue?: boolean;
 }
@@ -1554,7 +1622,9 @@ export interface SetupInput {
 /** POST /runs/:run/settings. Raising a gated setting needs the 18+ gate; lowering one never does. */
 export interface SettingsInput {
   content?: ContentSettings;
-  images?: Partial<Pick<ImageSettings, "connectionId" | "rating" | "ask" | "expressions" | "styleProfileId" | "style">>;
+  images?: Partial<
+    Pick<ImageSettings, "connectionId" | "rating" | "ask" | "expressions" | "styleProfileId" | "style" | "sideSprites">
+  >;
   connections?: Connections;
   language?: string;
   writingStyle?: string;

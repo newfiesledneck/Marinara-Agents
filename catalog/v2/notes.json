@@ -552,6 +552,12 @@
     "noodle": {
       "versions": [
         {
+          "version": "1.5.13",
+          "date": "2026-11-08",
+          "notes": "- With Include descriptions on, a character's Image Generation Appearance Override now reaches Noodle's images word for word. Interpret image prompts no longer rewords or drops it, and with Interpret image prompts off it now replaces the character's Appearance instead of being left out. (#2182)\n- A character's post image that names your persona or @mentions it now includes your persona: its appearance, Image Generation Appearance Override first, with Include descriptions on, and its avatar with Use avatar references on. (#2182)",
+          "highlight": false
+        },
+        {
           "version": "1.5.12",
           "date": "2026-10-30",
           "notes": "- The \"Long-Term Memory isn't sharing memories\" line now clears as soon as sharing is turned back on.\n- Turning on \"Use memories from Long-Term Memory\" now offers to turn on Long-Term Memory's sharing when it is off.",
@@ -664,17 +670,83 @@
           "date": "2026-09-13",
           "notes": "- Applying a saved prompt asks before replacing the current prompt, including edits already saved as the active prompt.\n- Cancel works immediately in Delete All Noodle Data; only deletion requires typing DELETE.\n- A running timeline refresh blocks duplicate refresh requests instead of queuing extra generations.\n- GLM 5.3 on NanoGPT and Z.AI keeps its required reasoning enabled when the selected effort is None.",
           "highlight": false
-        },
-        {
-          "version": "1.2.22",
-          "date": "2026-09-13",
-          "notes": "- Maintenance: simplify the inline composer's visibility checks and remove unused code.",
-          "highlight": false
         }
       ]
     },
     "otome-forge": {
       "versions": [
+        {
+          "version": "0.21.0",
+          "date": "2026-11-08",
+          "notes": "- **The top left button is a house.** It takes you Home, as before, and its circle is in the colour of whoever is with you there, beside their name.\n- **New items have a dot.** Anything you win from Wish shows a small dot in the Wardrobe or the Album: on the dock, on the tab that holds it, and by the item itself. The dot goes once you click the item (or one of its buttons).",
+          "highlight": true
+        },
+        {
+          "version": "0.20.4",
+          "date": "2026-11-08",
+          "notes": "- **Every scene of a chapter remembers the same small moments.** A chapter now picks its small memories (message exchanges, Snapshots, Read Him, Claw Machine and Tarot rounds, Read Me notes and dates) once, for everyone in it, and each of its scenes is written with the same ones, marked with who knows them. On an Anthropic connection, after the first scene they're sent at the cached price instead of in full every time. Something that happens during a chapter is remembered from the next one.",
+          "highlight": false
+        },
+        {
+          "version": "0.20.3",
+          "date": "2026-11-08",
+          "notes": "- **Route and repair chapters cost less to start.** Their plan now opens with the same story the chapter's scenes are written from, and on an Anthropic connection caches it, so the first scene reads it at the cached price instead of writing it all again. The plan sees the same things as before, in a different order. This works when your Planning and Narration connections are the same, as for main chapters.",
+          "highlight": false
+        },
+        {
+          "version": "0.20.2",
+          "date": "2026-11-08",
+          "notes": "- **Messages cost less.** When you text a love interest on an Anthropic connection, everything that stays the same through the conversation (their card, what they know of the story, your earlier conversations) is cached for five minutes, so each reply after the first sends it at the cached price instead of in full. A daily message they send first is cached the same way for your answer.",
+          "highlight": false
+        },
+        {
+          "version": "0.20.0",
+          "date": "2026-11-08",
+          "notes": "- **Side characters who keep coming back get a sprite.** Turn on **Side character sprites** in **Settings → Images**. Once a side character has spoken in two different chapters, their one full-body sprite stands where a love interest's figure does while they speak. It's one neutral picture, with no expressions. Stories you already started count the scenes you've read.\n- **Your own characters look like themselves.** Someone whose name matches one of your Engine character cards gets their sprite as soon as they speak, painted with that card's avatar and full-body sprite as references. Two cards with the same name are never guessed between.\n- **What it costs.** Each one takes 1 call on your Planning connection to write their look (none for a character card), then 1 image. With **Ask before painting** on, tap **Paint** beside the place while they speak.",
+          "highlight": true
+        },
+        {
+          "version": "0.19.1",
+          "date": "2026-11-08",
+          "notes": "- **Not every chapter ends in a Confrontation or a Closer.** A main chapter has one only when it builds to it, and otherwise ends on an ordinary scene or a moment. A story arc's last chapter still has one for its big event. Confrontations and Closers still alternate, counting only chapters that have one.",
+          "highlight": false
+        },
+        {
+          "version": "0.19.0",
+          "date": "2026-11-08",
+          "notes": "- **Long stories remember their beginnings in detail.** As a story grows, its early chapters are condensed again and again. Now each main chapter brings back up to three earlier chapters that matter to it, by their original summaries, in its plan and every scene. Only chapters everyone in it may know come back, and nothing changes when none is close enough.\n- **Stories you already have too.** Chapter summaries are indexed in the background when you open a story and after each new summary, with no model call. The built-in model runs on this computer and its index is stored with the story.\n- **Memory recall embeddings.** In **Settings → Connections**, choose **Built-in (local)** or an Engine connection with its own embedding model, for example one better at your story's language. An older Engine offers only Built-in. Beside it you see how many summaries are indexed, or why indexing failed, with **Retry indexing**.",
+          "highlight": true
+        },
+        {
+          "version": "0.18.2",
+          "date": "2026-11-08",
+          "notes": "- **Their side shows what you never saw.** A love interest's side of a big moment is now a scene you weren't there for, just before it or right after you left, instead of the same scene told again. It opens once they reach **Wound**; earlier moments don't count.",
+          "highlight": false
+        },
+        {
+          "version": "0.18.1",
+          "date": "2026-11-08",
+          "notes": "- **Stories meet the world's important people.** Chapters now bring in major side characters with real parts, not only passing locals, so they can grow into love interests or antagonists later. In a story set in an existing world, that means its own canon characters tied to your love interests.\n- **Premise suggestions may use existing worlds.** Surprise me no longer avoids names, places and characters from existing books, films and games.",
+          "highlight": false
+        },
+        {
+          "version": "0.18.0",
+          "date": "2026-11-08",
+          "notes": "- **Your Tarot cards are in the Album.** A new **Cards** section keeps every card you've drawn at Tarot night with an image connection, in deck order, each labelled with whose it is, such as \"The Lovers · Ren\". Tap a painted card to see it large and save it, as you would a CG. A card still painting says so, and one waiting for your tap, or one that failed, offers **Paint it** or **Try painting it again** with its cost right there.",
+          "highlight": true
+        },
+        {
+          "version": "0.17.2",
+          "date": "2026-11-08",
+          "notes": "- **Send a sticker with your words.** In Messages, picking a sticker now attaches it to your message instead of sending it at once. It shows above the box with a remove button; write something if you like, then tap **Send** to send the sticker and your words together. Picking another sticker swaps it.\n- **The personality quiz on date waits too.** While Date Night plans your evening, and while Read Him, Read Me or Tarot night is being set or read, tap **Play the personality quiz** to answer statements as you wait.",
+          "highlight": false
+        },
+        {
+          "version": "0.17.1",
+          "date": "2026-11-08",
+          "notes": "- **Faces, framed as faces.** The small portrait circles now frame each love interest at the face instead of the middle of the body: their painted look is anchored at the top and zoomed to the head and shoulders, so no crown is cut. In the personality quiz, the portraits beside their answers no longer lose their left edge.",
+          "highlight": false
+        },
         {
           "version": "0.17.0",
           "date": "2026-11-07",
@@ -721,78 +793,6 @@
           "version": "0.11.0",
           "date": "2026-11-07",
           "notes": "- **Tarot night.** A new date in Dates: three cards of the Major Arcana, as Past, Present and Future. A love interest reads your cards and answers your question, or you read theirs, choosing how to read each card, spoken in your persona's voice. A reading pays 40 Starlight and 40 affection within the day's caps, costs 1 model call, changes nothing in the story, and only they remember it. A reading you leave opens again: when they read your cards, from its start; when you read theirs, at the card you still have to read.\n- **A Tarot deck painted for your story.** With an image connection, each card is painted the first time it is drawn and kept: your cards show you, theirs show them, and the Lovers, the Sun, Temperance and Judgement show you both. At most 3 images a reading, only for cards not painted yet; Ask before painting and prompt review wait for your tap. Without one, the cards are Otome Hearth's own gold line art.",
-          "highlight": true
-        },
-        {
-          "version": "0.10.0",
-          "date": "2026-11-07",
-          "notes": "- **Your Engine art comes first.** A love interest from a character card now appears in the card's sprites (Full Body → Neutral, else Neutral) or, without sprites, its avatar, and you in your persona's avatar, from the moment the story is made, before anything is painted. Their sprites for love, blushing, smirk, sad, angry and the like become their faces, and only the faces they lack are painted, never while **Ask before painting** is on. A story in progress gives Engine art to anyone who has no portrait yet; looks already painted stay.\n- **Choose a background for any place.** **Background** beside a story location opens your Engine backgrounds: the one you pick shows there, on Home, on dates and in photos, and nothing is painted. A painting it replaces is kept. Turn on **Ask before painting** to choose before a place is painted.\n- **Don't paint**, the first choice of the image connection in **Settings → Images**, turns painting off and keeps to your Engine art.",
-          "highlight": true
-        },
-        {
-          "version": "0.9.6",
-          "date": "2026-11-07",
-          "notes": "- **Answer a chapter's last decision in your own words.** When a chapter ends on a choice that lasts, **Write your own…** now waits under the offered answers: write something you say or something you do instead, and it becomes your choice, as lasting as any other. The story carries on from it, and the next chapter of that storyline starts from your words. Every other choice keeps its offered answers, because the scenes after them are already written ahead. Choosing your own words costs nothing extra.",
-          "highlight": false
-        },
-        {
-          "version": "0.9.5",
-          "date": "2026-11-07",
-          "notes": "- **Scene pictures show your love interests and you.** In a picture of two or more people, such as a key image, a Memory's or a Character Story's art, or a date's keepsake, each person is now painted from their own picture, so their faces match even while they wear a look; the look they wear is still described. When the story names someone another way, with a title, as \"you\", by a surname or a fuller name, or without its accents, the picture still knows who it is. When a saved picture of someone can't be loaded, the painting stops before anything is paid for and lets you try again, instead of painting a stranger.",
-          "highlight": false
-        },
-        {
-          "version": "0.9.4",
-          "date": "2026-11-06",
-          "notes": "- **Otome Hearth uses a little less battery.** It does less drawing on every screen, and stops work you can't see. The soft glows drifting behind each screen are blurred once instead of on every frame. Once Home has appeared, the scene hidden behind your room is no longer drawn at all, and in Midnight the window's light takes less work to draw. The glows hidden behind the reader hold still, and so do Home's stars at dawn and by day, when the sky hides them. Nothing looks, moves or sounds different.",
-          "highlight": false
-        },
-        {
-          "version": "0.9.3",
-          "date": "2026-11-06",
-          "notes": "- **Figurines are painted.** A love interest's figurine is now a painted picture of them as a small collectible figure in the look they wear, standing on a display base, instead of a drawing. It is painted once, right after you buy it (1 image, with your image connection), then cut out so it stands on the Shop's shelf, in your Wardrobe and on Home. **Ask before painting** and prompt review wait for your tap, and a paint that fails shows **Try painting it again**. Opening the Shop no longer draws every figurine with your Planning model. A figurine you bought before 0.9.3 shows **Paint it** in the Shop and the Wardrobe.",
-          "highlight": false
-        },
-        {
-          "version": "0.9.2",
-          "date": "2026-11-06",
-          "notes": "- **The aphrodisiac's bottle is whole.** Its neck now meets the heart-shaped body on the Shop's shelf and in the Wardrobe.",
-          "highlight": false
-        },
-        {
-          "version": "0.9.1",
-          "date": "2026-11-06",
-          "notes": "- **Less affection from activities each day.** Date Night, Read Them, Read Me, the Claw Machine, Close and remember and Show him now earn at most 150 affection per love interest a day, down from 300. Story chapters still earn without a limit, and so does a gift you give on a date.",
-          "highlight": false
-        },
-        {
-          "version": "0.9.0",
-          "date": "2026-11-06",
-          "notes": "- **A Shop in Wish.** Spend Starlight on gifts: flowers, chocolates, wine, and under NSFW Heat an aphrodisiac. They wait in your Wardrobe until a date.\n- **Bring a gift to Date Night.** Pick one with your looks and give it in the first scene: they react in their own voice, and the evening can change because of it. The gift earns extra affection, even past the daily cap.\n- **Figurines of your love interests.** Each one is drawn just for them and costs 5,000 Starlight. Buying one unlocks a short, funny scene with them, and the figurine joins you on Home.",
-          "highlight": true
-        },
-        {
-          "version": "0.8.12",
-          "date": "2026-11-06",
-          "notes": "- **Tell the story what's on your mind.** A new thought-bubble button on Home, beside Remind Me, opens Your thoughts…: write what your protagonist is thinking about what happened lately, something to look into, something a love interest did that you can't let go of, or that you'd like a hug today. The next main story chapter takes it into account in its plan and its scenes, then lets it go. Until then a dot on the button shows it's waiting, and you can change or clear it. Sending it costs nothing extra.",
-          "highlight": false
-        },
-        {
-          "version": "0.8.11",
-          "date": "2026-11-06",
-          "notes": "- **Chapters remember your last Character Story.** A main, route or repair chapter led by another love interest now always knows the Character Story you played last, even before its summary is written, so it no longer contradicts what happened there. That story stays private between you and its love interest: the others still don't know what happened in it.",
-          "highlight": false
-        },
-        {
-          "version": "0.8.10",
-          "date": "2026-11-06",
-          "notes": "- **Scenes are written as they were before 0.8.9**: each one when you reach it, and the next one ahead while you read. 0.8.9 wrote the rest of the chapter ahead, so later scenes missed the small choices you made along the way. The fixes for pictures that hung and for the Story connection stay.",
-          "highlight": true
-        },
-        {
-          "version": "0.8.9",
-          "date": "2026-11-05",
-          "notes": "- **A chapter's art is painted ahead.** Opening a chapter, a date or a story now writes its scenes ahead in the background and paints each one's places and key image as soon as it is written, so the art is waiting when you get there. Writing ahead stops at a big choice or a Confrontation, because what comes next depends on what you pick, and goes on once you have picked. Ease off and Rewrite still let go of the scenes they replace.\n- **No more endless \"Painting this moment…\".** A picture the image service never finishes now stops after 10 minutes and shows Retry, and the pictures waiting behind it carry on.\n- **Dates, banners and Character Stories are written with your Story connection**, like the chapters: Date Night, Read Them, Read Me, the banners' scenes and Memories, Character Stories and the extra stories that unlock past level 10.",
           "highlight": true
         }
       ]
