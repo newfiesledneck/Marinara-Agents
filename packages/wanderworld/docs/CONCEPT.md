@@ -220,6 +220,11 @@ signs that carry a picture by default._
   `buildTown`: extra taverns, temples, halls, smithies and shops in place of houses), random past that.
   Saved as `needs`; regenerate reads them again. Second towns (town2) are the next step: a smaller
   village out in the country on its own road, with its own square and buildings.
+- **The player's entry (0.4.39):** keyed "player <persona name>" / "persona <name>" (one persona) or
+  "you" / "player" / "persona" (any), never the bare name, which a character may share (`PLAYER_ID`).
+  Its lore is always active; gender words set the persona's body, "<relationship> of <Name>" how the
+  player sees others, and "lives in" the player's home (`housing.player`: reserved, named for
+  everyone in it, the start point of a new world, its door card the player's own).
 - **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
   forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
   every place in it, on top of each place's own and the places it sits in. A world's groups are plain

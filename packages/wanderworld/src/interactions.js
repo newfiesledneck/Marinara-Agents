@@ -12,6 +12,11 @@ export const ACTIONS = {
     { id: "enter", label: "Go in", verb: "goes in" },
     { id: "knock", label: "Knock", verb: "knocks at the door and waits" },
   ],
+  // The player's own home (from their lore).
+  home: [
+    { id: "enter", label: "Go inside", verb: "goes inside" },
+    { id: "rest", label: "Rest a while", verb: "rests at home" },
+  ],
   cave: [
     { id: "enter", label: "Go in", verb: "goes into the cave" },
     { id: "look", label: "Look around the mouth", verb: "looks around the mouth of the cave" },
