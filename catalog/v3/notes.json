@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.65",
+          "date": "2026-11-09",
+          "notes": "- Fix: a mill far along the river no longer stands in the water; it always steps straight across onto the town's bank.\n- Rock on slopes blends in smoothly instead of painting whole triangles (sharp grey patches where level ground met a bank), and looks the same near and far.",
+          "highlight": false
+        },
+        {
           "version": "0.4.64",
           "date": "2026-11-09",
           "notes": "- Chimney smoke darkens at night instead of glowing white against the dark sky; town walls are a darker, weathered stone.\n- Every gate in a town's walls has a clear way out: a dirt track fading into the meadow where no road leaves, with no trees or bushes in the way.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.46",
           "date": "2026-11-09",
           "notes": "- Body choices are kept per world: setting someone's body in one world (by hand or by lore) doesn't change another. Older worlds start from the choices made before.\n- Inns and cottages never stand in the river: they move further out until they're on dry ground.\n- Caves have no road leading to them: they're found up on the hillsides.\n- Followers and townsfolk cross the wilds straight to where they're going, and cross the river by the nearest bridge instead of wading in.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.45",
-          "date": "2026-11-08",
-          "notes": "- New world starts with nobody living in it: characters from your other worlds no longer come along. Each world keeps its own cast, relationships, lore, homes and party in its own save.",
           "highlight": false
         }
       ]
