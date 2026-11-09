@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.84",
+          "date": "2026-11-09",
+          "notes": "- Journal → People → Edit people lists everyone with an Edit button. It opens a window with everything Wanderworld keeps about that person: body, voice, temperament and manner, home and work, their day, how they see you and you them, and how they and each other person see one another. Save or Cancel. A character with a card keeps who they are and their looks from the card; someone made for the world can have those changed too.\n- Every button shows it was clicked: it dips while pressed and stays lit for a moment after.",
+          "highlight": false
+        },
+        {
           "version": "0.4.83",
           "date": "2026-11-09",
           "notes": "- A place with closing hours (ww: closed 22-6) says so on its door card while it's shut, and the AI is told too.\n- Wording caught up with what the AI does now, in the door card, the Journal's lore picker and the relationships notes.",
@@ -307,12 +313,6 @@
           "version": "0.4.65",
           "date": "2026-11-09",
           "notes": "- Fix: a mill far along the river no longer stands in the water; it always steps straight across onto the town's bank.\n- Rock on slopes blends in smoothly instead of painting whole triangles (sharp grey patches where level ground met a bank), and looks the same near and far.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.64",
-          "date": "2026-11-09",
-          "notes": "- Chimney smoke darkens at night instead of glowing white against the dark sky; town walls are a darker, weathered stone.\n- Every gate in a town's walls has a clear way out: a dirt track fading into the meadow where no road leaves, with no trees or bushes in the way.",
           "highlight": false
         }
       ]

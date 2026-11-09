@@ -262,7 +262,7 @@ export function createJournal(panelCss, handlers) {
     ["schedules", "Schedules"],
     ["housing", "Homes and work"],
     ["relations", "Relationships"],
-    ["edit", "Voices and details"],
+    ["edit", "Edit people"],
   ];
   function drawPeople() {
     const views = element("div", "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;");
@@ -310,48 +310,27 @@ export function createJournal(panelCss, handlers) {
     }
   }
 
-  /** Each person's voice, and the details of the people this world made for itself. */
+  /** Everyone, each with an Edit button that opens their window (person.js): everything about them in one place. */
   function drawDetails() {
-    const { people, options, of } = data.voices;
-    body.append(explain("How each person talks (Settings → AI sets it for everyone who has none of their own)."));
-    for (const person of people) {
-      const row = element("div", "display:flex;gap:6px;align-items:center;font-size:13px;");
-      const select = element("select", `${FIELD}max-width:150px;`);
-      for (const [value, label] of [
-        ["", "As in Settings"],
-        ...options.map((name) => [name, name[0].toUpperCase() + name.slice(1)]),
-      ]) {
-        const option = element("option", "", label);
-        option.value = value;
-        select.append(option);
-      }
-      select.value = of[person.id] ?? "";
-      select.addEventListener("change", () => handlers.onSetVoice?.(person.id, select.value));
-      row.append(element("span", "min-width:110px;font-weight:600;", person.name), select);
-      body.append(row);
-    }
-    if (!data.locals.length) return;
-    body.append(section("People made for this world"));
     body.append(
       explain(
-        "They aren't Engine characters: this is their card. What's written here is who they are in conversations, moments and pictures.",
+        "Everything Wanderworld keeps about each person, in one window: body, voice, temperament, home, work, their day, and how they and everyone else see each other. For someone with a character card, who they are and their looks stay the card's; someone made for this world can have those changed too.",
       ),
     );
-    for (const person of data.locals) {
-      body.append(element("div", "font-weight:600;font-size:13px;margin-top:4px;", person.name));
-      for (const [field, label, rows] of [
-        ["description", "Who they are", 4],
-        ["personality", "Personality, and how they talk", 2],
-        ["appearance", "Looks", 2],
-      ]) {
-        const area = element("textarea", `${FIELD}resize:vertical;width:100%;box-sizing:border-box;`);
-        area.rows = rows;
-        area.value = person[field] ?? "";
-        area.placeholder = label;
-        area.setAttribute("aria-label", `${person.name}: ${label}`);
-        area.addEventListener("change", () => handlers.onEditLocal?.(person.id, { [field]: area.value.trim() }));
-        body.append(area);
-      }
+    if (!data.voices.people.length) body.append(line("Nobody lives here yet.", MUTED));
+    const made = new Set(data.locals.map((person) => person.id));
+    for (const person of data.voices.people) {
+      const row = element("div", "display:flex;gap:8px;align-items:center;font-size:13px;");
+      row.append(
+        button("Edit", SMALL, () => handlers.onEditPerson?.(person.id)),
+        element("span", "font-weight:600;", person.name),
+        element(
+          "span",
+          `color:${INK_SOFT};font-size:12px;`,
+          made.has(person.id) ? "made for this world" : "character card",
+        ),
+      );
+      body.append(row);
     }
   }
 
@@ -1114,6 +1093,14 @@ export function createJournal(panelCss, handlers) {
       if (tab === "world" && worldClock?.isConnected) worldClock.textContent = next.world.time;
       const changed = next.partyChanged || next.relationsChanged || next.placesChanged;
       if (lists && !picker && body.childElementCount && (!changed || groupEdit)) return; // a group's ticks are already shown
+      draw();
+    },
+    /** Shows someone's day in People → Schedules (from their window's "Change their day…"). */
+    showSchedule(id) {
+      tab = "people";
+      peopleView = "schedules";
+      housingEdit = false;
+      scheduleOf = id;
       draw();
     },
     /** Shows the lore picker for a place; call again with `lorebooks` once they've loaded. */

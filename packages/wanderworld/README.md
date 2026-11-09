@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.83)
+## What it does now (0.4.84)
 
 ### The world
 
@@ -158,8 +158,8 @@ only walk about.
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
   as a scene" (Settings → Walk into buildings brings back the unfinished furnished rooms).
 - **The Journal** (J): Here; People (a roster by faction, and behind buttons what everyone's doing right
-  now, schedules, homes and work, relationships, and each person's voice and the details of people the
-  world made for itself); Party; Places (the setup tree); Map (the region from above, with names and
+  now, schedules, homes and work, relationships, and Edit people: a window per person with everything
+  Wanderworld keeps about them, to change and Save or Cancel); Party; Places (the setup tree); Map (the region from above, with names and
   where each edge leads; it zooms and pans, a closer look names the buildings, a click sets a waypoint,
   and your home is marked); and World (setting, scene instructions, lorebooks, lore linking, the season,
   the lore written for the world, and a check of your `ww:` keywords that lists any it didn't
