@@ -2635,12 +2635,12 @@ function personData(id) {
         out: core.relations.get(id, other.id) ?? null,
         back: core.relations.get(other.id, id) ?? null,
       })),
-    schedule: day.entries.map((entry) => ({
-      from: entry.from,
-      to: entry.to,
-      words: `${ACTIVITY_WORDS[entry.activity]}${entry.place && names[entry.place] ? ` at ${names[entry.place]}` : ""}`,
+    day: { entries: day.entries, by: day.by },
+    places: schedulePlaces().map(({ id: placeId, name, slot }) => ({
+      id: placeId,
+      name: slot ? `${name} (${slot})` : name,
     })),
-    scheduleBy: day.by,
+    canPlan: !!core.ai.known()?.plans,
   };
 }
 
@@ -2660,6 +2660,7 @@ function savePerson(id, changes) {
     else delete voices[id];
     core.save = { ...core.save, voices };
   }
+  if (changes.schedule !== undefined) setSchedule(id, changes.schedule, "you");
   if (changes.traits) setTraits(id, changes.traits);
   if (changes.housing) setHousingByHand(id, changes.housing);
   const same = (a, b) => (a?.kind ?? "") === (b?.kind ?? "") && (!a || !b || a.level === b.level);
@@ -4360,6 +4361,7 @@ function attach(element) {
       if (person) core.hud?.editPerson(person);
     },
     onSavePerson: savePerson,
+    onPersonDay: (id) => scheduleOf(id),
     onSetVoice: (id, voice) => {
       if (!core.save) return;
       const voices = { ...core.save.voices };

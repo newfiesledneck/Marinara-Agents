@@ -140,128 +140,15 @@ export function createJournal(panelCss, handlers) {
     }
   }
 
-  let housingEdit = false; // the homes-and-work editor is open (the tab holds still while it is)
-  let scheduleOf = null; // whose schedule is open for editing (the tab holds still while it is)
-  let planNote = "";
-
   /**
    * The schedule editor: each person's day as rows (from, to, what, where), changed here, written by
    * the AI (with what you ask for), or back to their usual day. Every change applies at once.
    */
-  function drawSchedules() {
-    const { people, places, canPlan } = data.schedules ?? { people: [] };
-    if (!people.length) return;
-    body.append(
-      button(scheduleOf ? "Done with schedules" : "Schedules…", SMALL, () => {
-        scheduleOf = scheduleOf ? null : people[0].id;
-        planNote = "";
-        draw();
-      }),
-    );
-    if (!scheduleOf) return;
-    const person = people.find((entry) => entry.id === scheduleOf) ?? people[0];
-    scheduleOf = person.id;
-    body.append(
-      explain(
-        "What each person does through the day. Hours not listed, and walks, are their own to fill (company, benches, wandering). The AI can plan a day, and things people agree to in moments go in too.",
-      ),
-    );
-    const top = element("div", "display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;");
-    const who = element("select", FIELD);
-    for (const entry of people) {
-      const option = element("option", "", entry.name);
-      option.value = entry.id;
-      who.append(option);
-    }
-    who.value = person.id;
-    who.addEventListener("change", () => {
-      scheduleOf = who.value;
-      planNote = "";
-      draw();
-    });
-    const source = { usual: "their usual day", you: "set by you", ai: "planned by the AI" }[person.by] ?? "";
-    top.append(who, element("span", MUTED, source));
-    body.append(top);
-    const entries = person.entries.map((entry) => ({ ...entry }));
-    const commit = () => handlers.onSetSchedule?.(person.id, entries);
-    const hours = Array.from({ length: 97 }, (_, i) => i / 4); // quarter hours
-    const select = (options, value, onChange, css = "") => {
-      const node = element("select", `${FIELD}${css}`);
-      for (const [optionValue, label] of options) {
-        const option = element("option", "", label);
-        option.value = String(optionValue);
-        node.append(option);
-      }
-      node.value = String(value);
-      node.addEventListener("change", () => onChange(node.value));
-      return node;
-    };
-    entries.forEach((entry, i) => {
-      const row = element("div", "display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:12px;");
-      const hourOptions = hours.map((hour) => [hour, hourText(hour)]);
-      row.append(
-        select(hourOptions, entry.from, (value) => ((entry.from = Number(value)), commit())),
-        element("span", "", "–"),
-        select(hourOptions, entry.to, (value) => ((entry.to = Number(value)), commit())),
-        select(
-          ACTIVITIES.map((activity) => [activity, ACTIVITY_WORDS[activity]]),
-          entry.activity,
-          (value) => ((entry.activity = value), commit()),
-        ),
-        select(
-          [
-            ["", entry.activity === "home" || entry.activity === "work" ? "their own" : "anywhere"],
-            ...places.map((place) => [place.id, place.name]),
-          ],
-          entry.place,
-          (value) => ((entry.place = value), commit()),
-          "max-width:140px;",
-        ),
-        button("✕", SMALL, () => {
-          entries.splice(i, 1);
-          commit();
-        }),
-      );
-      body.append(row);
-    });
-    const actions = element("div", "display:flex;gap:6px;flex-wrap:wrap;");
-    actions.append(
-      button("Add an hour", SMALL, () => {
-        const last = entries.at(-1);
-        const from = last ? last.to % 24 : 9;
-        entries.push({ from, to: (from + 1) % 24 || 24, activity: "walk", place: "" });
-        commit();
-      }),
-      button("Back to their usual day", SMALL, () => handlers.onSetSchedule?.(person.id, null)),
-    );
-    body.append(actions);
-    if (canPlan) {
-      const ask = element("div", "display:flex;gap:6px;align-items:center;");
-      const request = element("input", `${FIELD}flex:1;min-width:0;`);
-      request.placeholder = "Ask for something (optional): early riser, temple at dusk…";
-      request.maxLength = 300;
-      const plan = button("Plan with AI", SMALL, async () => {
-        plan.disabled = true;
-        planNote = "Planning…";
-        note.textContent = planNote;
-        planNote = (await handlers.onPlanSchedule?.(person.id, request.value.trim())) ?? "";
-        plan.disabled = false;
-        note.textContent = planNote;
-      });
-      ask.append(request, plan);
-      body.append(ask);
-    }
-    const note = line(planNote, MUTED);
-    body.append(note);
-  }
   // People: who's in this world, set out to be read (it doesn't shift about), and behind buttons what
-  // they're doing right now, their days, homes and work, how they see each other, and their voices.
+  // they're doing right now, and Edit people: everything about someone, in their own window (person.js).
   const PEOPLE_VIEWS = [
     ["roster", "People in this world"],
     ["doing", "Right now"],
-    ["schedules", "Schedules"],
-    ["housing", "Homes and work"],
-    ["relations", "Relationships"],
     ["edit", "Edit people"],
   ];
   function drawPeople() {
@@ -269,8 +156,6 @@ export function createJournal(panelCss, handlers) {
     for (const [id, label] of PEOPLE_VIEWS) {
       const tabButton = button(label, SMALL, () => {
         peopleView = id;
-        housingEdit = id === "housing";
-        scheduleOf = id === "schedules" ? (data.schedules?.people[0]?.id ?? null) : null;
         draw();
       });
       tabButton.style.opacity = id === peopleView ? "1" : "0.6";
@@ -283,10 +168,7 @@ export function createJournal(panelCss, handlers) {
       for (const text of data.people) body.append(line(text));
       return;
     }
-    if (peopleView === "schedules") return drawSchedules();
-    if (peopleView === "relations") return drawRelations();
     if (peopleView === "edit") return drawDetails();
-    if (peopleView === "housing") return drawHousing();
     body.append(
       explain(
         "Everyone who lives in this world, by the groups they belong to. Who lives here is chosen in Settings → World.",
@@ -314,7 +196,7 @@ export function createJournal(panelCss, handlers) {
   function drawDetails() {
     body.append(
       explain(
-        "Everything Wanderworld keeps about each person, in one window: body, voice, temperament, home, work, their day, and how they and everyone else see each other. For someone with a character card, who they are and their looks stay the card's; someone made for this world can have those changed too.",
+        "Everything about each person is changed here, in their own window: body, voice, temperament, home and work, their day, and how they and everyone else see each other. For someone with a character card, who they are and their looks stay the card's; someone made for this world can have those changed too.",
       ),
     );
     if (!data.voices.people.length) body.append(line("Nobody lives here yet.", MUTED));
@@ -329,47 +211,6 @@ export function createJournal(panelCss, handlers) {
           `color:${INK_SOFT};font-size:12px;`,
           made.has(person.id) ? "made for this world" : "character card",
         ),
-      );
-      body.append(row);
-    }
-  }
-
-  function drawHousing() {
-    const { people, homes, workplaces } = data.housing;
-    if (!people.length) return void body.append(line("Nobody lives here yet.", MUTED));
-    body.append(
-      explain(
-        'Where each person lives and works. Auto: a house near where they spend their days, and no job. A lorebook can set these too ("ww: lives in home6", "ww: works at smithy1").',
-      ),
-    );
-    const choose = (options, value, empty, onChange) => {
-      const select = element("select", `${FIELD}max-width:150px;`);
-      for (const [id, name] of [["", empty], ...options.map((option) => [option.id, option.name])]) {
-        const option = element("option", "", name);
-        option.value = id;
-        select.append(option);
-      }
-      select.value = value ?? "";
-      select.addEventListener("change", () => onChange(select.value || null));
-      return select;
-    };
-    for (const person of people) {
-      const row = element("div", "display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;");
-      const set = (fields) =>
-        handlers.onSetHousing?.(person.id, { home: person.home, work: person.work, owner: person.owner, ...fields });
-      const owner = element("input");
-      owner.type = "checkbox";
-      owner.checked = person.owner;
-      owner.disabled = !person.work;
-      owner.title = "Owns the place they work at";
-      owner.addEventListener("change", () => set({ owner: owner.checked }));
-      const ownerLabel = element("label", "display:flex;gap:3px;align-items:center;");
-      ownerLabel.append(owner, element("span", "", "owner"));
-      row.append(
-        element("span", "min-width:70px;font-weight:600;", person.name),
-        choose(homes, person.home, "Home: auto", (home) => set({ home })),
-        choose(workplaces, person.work, "No work", (work) => set({ work, owner: work ? person.owner : false })),
-        ownerLabel,
       );
       body.append(row);
     }
@@ -404,120 +245,6 @@ export function createJournal(panelCss, handlers) {
 
   let whose = "player"; // whose relationships the tab shows
   let both = true; // a change goes both ways (from them to the other and back)
-
-  function drawRelations() {
-    const { kinds, people, records } = data.relations;
-    if (people.length < 2) {
-      body.append(line("With two or more people here you can set how they see each other and you.", MUTED));
-      return;
-    }
-    if (!people.some((person) => person.id === whose)) whose = people[0].id;
-    const top = element("div", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;");
-    const pick = element(
-      "select",
-      "font:13px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;padding:2px 4px;",
-    );
-    for (const person of people) {
-      const option = element("option", "", person.name);
-      option.value = person.id;
-      pick.append(option);
-    }
-    pick.value = whose;
-    pick.addEventListener("change", () => {
-      whose = pick.value;
-      draw();
-    });
-    const mirror = element("label", "display:flex;gap:4px;align-items:center;font-size:12px;cursor:pointer;");
-    const box = element("input");
-    box.type = "checkbox";
-    box.checked = both;
-    box.addEventListener("change", () => (both = box.checked));
-    mirror.append(box, element("span", "", "Both ways"));
-    top.append(element("span", "font-size:12px;", "How"), pick, element("span", "font-size:12px;", "sees…"), mirror);
-    body.append(top);
-    body.append(
-      explain(
-        "How each person sees the others and you. Friends seek each other out, sit and walk together; enemies keep away (a sworn enemy confronts you). Temperament and manner decide how readily they confront or greet. A lorebook's ww: keywords can set these, the AI's setup of a new world does, and scenes and moments change them as things happen.",
-      ),
-    );
-    // Their temperament (not for the player, who acts for themselves).
-    const traits = data.relations.traits[whose];
-    if (traits) {
-      for (const trait of data.relations.traitKinds) {
-        const row = element("div", "display:flex;gap:6px;align-items:center;font-size:12px;");
-        const range = element("input", "flex:1;");
-        range.type = "range";
-        range.min = "0";
-        range.max = "100";
-        range.value = String(traits[trait.id]);
-        range.addEventListener("change", () =>
-          handlers.onSetTraits(whose, { ...traits, [trait.id]: Number(range.value) }),
-        );
-        row.append(
-          element("span", "width:70px;font-weight:600;", trait.label),
-          element("span", "width:60px;text-align:right;", trait.low),
-          range,
-          element("span", "width:70px;", trait.high),
-        );
-        body.append(row);
-      }
-    }
-    for (const other of people) {
-      if (other.id === whose) continue;
-      const record = records.find((entry) => entry.from === whose && entry.to === other.id);
-      const row = element(
-        "div",
-        "display:flex;flex-direction:column;gap:3px;padding:6px 0;border-top:1px solid rgba(110,80,40,0.25);",
-      );
-      const head = element("div", "display:flex;gap:6px;align-items:center;");
-      const kind = element(
-        "select",
-        "font:12px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;padding:1px 3px;",
-      );
-      for (const [value, label] of [["", "— none —"], ...kinds.map((entry) => [entry.id, entry.label])]) {
-        const option = element("option", "", label);
-        option.value = value;
-        kind.append(option);
-      }
-      kind.value = record?.kind ?? "";
-      head.append(element("span", "flex:1;font-weight:600;font-size:13px;", other.name), kind);
-      row.append(head);
-      kind.addEventListener("change", () => {
-        handlers.onSetRelation(
-          whose,
-          other.id,
-          kind.value ? { kind: kind.value, level: record?.level ?? 40 } : null,
-          both,
-        );
-      });
-      if (record) {
-        const level = element("input", "flex:1;");
-        level.type = "range";
-        level.min = "0";
-        level.max = "100";
-        level.value = String(record.level);
-        const tier = element("span", "font-size:12px;font-style:italic;min-width:96px;text-align:right;", record.tier);
-        level.addEventListener("input", () => (tier.textContent = "…"));
-        level.addEventListener("change", () =>
-          handlers.onSetRelation(whose, other.id, { kind: record.kind, level: Number(level.value) }, both),
-        );
-        const slider = element("div", "display:flex;gap:6px;align-items:center;");
-        slider.append(level, tier);
-        row.append(slider);
-        const roles = kinds.find((entry) => entry.id === record.kind)?.roles ?? [];
-        const role = element(
-          "input",
-          "font:12px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;padding:2px 5px;",
-        );
-        role.placeholder = roles.length ? `Role (${roles.slice(0, 3).join(", ")}…)` : "Role (optional)";
-        role.value = record.role ?? "";
-        role.maxLength = 40;
-        role.addEventListener("change", () => handlers.onSetRelation(whose, other.id, { role: role.value }, false));
-        row.append(role, line(record.words, MUTED));
-      }
-      body.append(row);
-    }
-  }
 
   // The Places lore picker: which lorebooks it lists, and which are folded open.
   let shownBooks = null;
@@ -1093,14 +820,6 @@ export function createJournal(panelCss, handlers) {
       if (tab === "world" && worldClock?.isConnected) worldClock.textContent = next.world.time;
       const changed = next.partyChanged || next.relationsChanged || next.placesChanged;
       if (lists && !picker && body.childElementCount && (!changed || groupEdit)) return; // a group's ticks are already shown
-      draw();
-    },
-    /** Shows someone's day in People → Schedules (from their window's "Change their day…"). */
-    showSchedule(id) {
-      tab = "people";
-      peopleView = "schedules";
-      housingEdit = false;
-      scheduleOf = id;
       draw();
     },
     /** Shows the lore picker for a place; call again with `lorebooks` once they've loaded. */

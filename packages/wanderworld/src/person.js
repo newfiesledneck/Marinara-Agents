@@ -4,7 +4,7 @@
 // It floats over the world like the chat (floating.js). Opened from Journal → People → Edit people.
 import { makeFloating } from "./floating.js";
 import { floatingFrame } from "./illustrate.js";
-import { hourText } from "./schedules.js";
+import { ACTIVITIES, ACTIVITY_WORDS, hourText } from "./schedules.js";
 import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, SERIF } from "./ui.js";
 
 function element(tag, css = "", textContent) {
@@ -52,12 +52,12 @@ function relationFields(kinds, record, label) {
 }
 
 /**
- * The editor, added to `layer`. `handlers`: onSave(id, changes), onSchedule(id) (opens their day in the
- * Journal). `open(person)` shows it for: { id, name, local, card: { description, personality,
+ * The editor, added to `layer`. `handlers`: onSave(id, changes), onPlan(id, request) → Promise<{ words,
+ * day: { entries, by } }> (the AI plans their day; it's kept at once). `open(person)` shows it for: { id, name, local, card: { description, personality,
  * appearance }, body, voice, voices: [names], traits: { aggression, sociability }, traitKinds: [{ id,
  * label, low, high }], home, work, owner, homes, workplaces: [{ id, name }], kinds: [{ id, label }],
  * toPlayer, fromPlayer: record | null, others: [{ id, name, out, back: record | null }], schedule:
- * [{ from, to, words }], scheduleBy }.
+ * [{ from, to, words }], scheduleBy, day: { entries, by }, places: [{ id, name }], canPlan }.
  */
 export function createPersonEditor(layer, handlers) {
   const { frame, bar } = floatingFrame("Edit", () => float.setOpen(false));
@@ -170,22 +170,110 @@ export function createPersonEditor(layer, handlers) {
       changes.housing = { home: home.value || null, work: work.value || null, owner: !!work.value && owner.checked };
     });
 
+    // Their day: rows of hours, what they do and where. Hours not listed, and walks, are theirs to fill.
     body.append(head("Their day"));
-    body.append(
-      note(
-        person.scheduleBy === "usual"
-          ? "The usual day for someone like them."
-          : `Set by ${person.scheduleBy === "ai" ? "the AI" : person.scheduleBy === "lore" ? "a lorebook" : "you"}.`,
-      ),
-    );
-    for (const entry of person.schedule)
-      body.append(
-        element("div", "font-size:12px;", `${hourText(entry.from)} to ${hourText(entry.to)}  ${entry.words}`),
-      );
-    const day = element("button", INK_SMALL, "Change their day…");
-    day.type = "button";
-    day.addEventListener("click", () => handlers.onSchedule?.(person.id));
-    body.append(day);
+    const dayNote = note("");
+    const dayRows = element("div", "display:flex;flex-direction:column;gap:3px;");
+    let day = person.day.entries.map((entry) => ({ ...entry })); // null: back to the usual day
+    let dayBy = person.day.by;
+    let dayChanged = false;
+    const hours = Array.from({ length: 97 }, (_, i) => [String(i / 4), hourText(i / 4)]);
+    const drawDay = () => {
+      dayNote.textContent =
+        day === null
+          ? "Back to the usual day for someone like them, once saved."
+          : dayChanged
+            ? "Changed here; kept when you save."
+            : ({ usual: "The usual day for someone like them.", ai: "Planned by the AI.", lore: "Set by a lorebook." }[
+                dayBy
+              ] ?? "Set by you.");
+      dayRows.replaceChildren();
+      (day ?? []).forEach((entry, at) => {
+        const touch = (key, value) => {
+          entry[key] = value;
+          dayChanged = true;
+          drawDay();
+        };
+        const from = choice(hours, String(entry.from), "From");
+        const to = choice(hours, String(entry.to), "To");
+        const what = choice(
+          ACTIVITIES.map((activity) => [activity, ACTIVITY_WORDS[activity]]),
+          entry.activity,
+          "What they do",
+        );
+        const where = choice(
+          [
+            ["", entry.activity === "home" || entry.activity === "work" ? "their own" : "anywhere"],
+            ...person.places.map((place) => [place.id, place.name]),
+          ],
+          entry.place ?? "",
+          "Where",
+        );
+        from.addEventListener("change", () => touch("from", Number(from.value)));
+        to.addEventListener("change", () => touch("to", Number(to.value)));
+        what.addEventListener("change", () => touch("activity", what.value));
+        where.addEventListener("change", () => touch("place", where.value));
+        const remove = element("button", INK_SMALL, "✕");
+        remove.type = "button";
+        remove.title = "Remove this line";
+        remove.addEventListener("click", () => {
+          day.splice(at, 1);
+          dayChanged = true;
+          drawDay();
+        });
+        const row = element("div", "display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:12px;");
+        row.append(from, element("span", "", "to"), to, what, where, remove);
+        dayRows.append(row);
+      });
+    };
+    const dayButtons = element("div", "display:flex;gap:6px;flex-wrap:wrap;");
+    const add = element("button", INK_SMALL, "Add a line");
+    add.type = "button";
+    add.addEventListener("click", () => {
+      day ??= [];
+      const last = day.at(-1);
+      const from = last ? last.to % 24 : 9;
+      day.push({ from, to: (from + 1) % 24 || 24, activity: "walk", place: "" });
+      dayChanged = true;
+      drawDay();
+    });
+    const usual = element("button", INK_SMALL, "Back to their usual day");
+    usual.type = "button";
+    usual.addEventListener("click", () => {
+      day = null;
+      dayChanged = true;
+      drawDay();
+    });
+    dayButtons.append(add, usual);
+    body.append(dayNote, dayRows, dayButtons);
+    if (person.canPlan) {
+      const ask = element("div", "display:flex;gap:6px;align-items:center;");
+      const request = element("input", `${INK_INPUT}flex:1;min-width:0;`);
+      request.placeholder = "Ask for something (optional): early riser, temple at dusk…";
+      request.maxLength = 300;
+      request.setAttribute("aria-label", "What to ask the AI for");
+      const plan = element("button", INK_SMALL, "Plan with AI");
+      plan.type = "button";
+      plan.addEventListener("click", async () => {
+        plan.disabled = true;
+        dayNote.textContent = "Planning…";
+        const planned = await handlers.onPlan?.(person.id, request.value.trim());
+        plan.disabled = false;
+        if (planned?.day) {
+          day = planned.day.entries.map((entry) => ({ ...entry }));
+          dayBy = planned.day.by;
+          dayChanged = false; // the AI's plan is kept at once
+        }
+        drawDay();
+        if (planned?.words) dayNote.textContent = planned.words;
+      });
+      ask.append(request, plan);
+      body.append(ask);
+    }
+    drawDay();
+    reads.push((changes) => {
+      if (dayChanged) changes.schedule = day && day.length ? day : null;
+    });
 
     body.append(head("You and them"));
     const toPlayer = relationFields(person.kinds, person.toPlayer, `How ${person.name} sees you`);

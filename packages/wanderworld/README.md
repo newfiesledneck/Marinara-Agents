@@ -14,7 +14,7 @@ persona and lorebooks that you explore, talk in, and start scenes from. It is an
    and play. Under "Setting the world up" the AI can do the rest (who lives where, who knows whom). To
    walk in your persona's own model, set one up for that persona in 3D Avatars first; anyone without a
    model gets a dressed townsperson.
-3. For AI, open **Settings → AI** in Wanderworld and choose the connections: one for conversations, one
+3. For AI, open **Menu → Settings → AI** in Wanderworld and choose the connections: one for conversations, one
    for scenes, and an image connection for pictures. Each can stay on the Engine's default.
 4. From another device, enter the Engine's Admin Secret in **Settings → Advanced → Admin Access** on that
    device, as for other packages with their own routes.
@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.84)
+## What it does now (0.4.85)
 
 ### The world
 
@@ -157,9 +157,9 @@ only walk about.
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
   as a scene" (Settings → Walk into buildings brings back the unfinished furnished rooms).
-- **The Journal** (J): Here; People (a roster by faction, and behind buttons what everyone's doing right
-  now, schedules, homes and work, relationships, and Edit people: a window per person with everything
-  Wanderworld keeps about them, to change and Save or Cancel); Party; Places (the setup tree); Map (the region from above, with names and
+- **The Journal** (J): Here; People (a roster by faction, what everyone's doing right now, and Edit
+  people: a window per person with everything Wanderworld keeps about them — body, voice, temperament,
+  home and work, their day, and relationships both ways — to change and Save or Cancel); Party; Places (the setup tree); Map (the region from above, with names and
   where each edge leads; it zooms and pans, a closer look names the buildings, a click sets a waypoint,
   and your home is marked); and World (setting, scene instructions, lorebooks, lore linking, the season,
   the lore written for the world, and a check of your `ww:` keywords that lists any it didn't

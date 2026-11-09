@@ -560,19 +560,21 @@ export function createHud(root, handlers) {
   const chatButton = button("Chat", "What's happening around you, and saying something out loud", () =>
     chatFloat.setOpen(!chatFloat.isOpen()),
   );
-  const fresh = button("Menu", "Save and go back to the main menu", handlers.onMenu);
+  const fresh = button("Main menu", "Save and go back to the main menu", handlers.onMenu);
   const fullscreen = button("Fullscreen", "Fill the screen with the world", handlers.onToggleFullscreen);
   fullscreen.style.display = "none";
-  controls.append(
-    personaLabel,
-    journalButton,
-    loreButton,
-    illustrateButton,
-    chatButton,
-    settingsButton,
-    fresh,
-    fullscreen,
+  // The Menu: what's used now and then (who you play, Settings, full screen, the way out), out of the bar.
+  const menuPanel = document.createElement("div");
+  menuPanel.setAttribute("data-wanderworld-ui", "");
+  menuPanel.style.cssText = PANEL;
+  personaLabel.style.cssText = "font-size:13px;display:none;align-items:center;gap:6px;flex-wrap:wrap;";
+  for (const item of [settingsButton, fullscreen, fresh]) item.style.width = "100%";
+  menuPanel.append(personaLabel, settingsButton, fullscreen, fresh);
+  panels.push(menuPanel);
+  const gameMenuButton = button("Menu", "Who you play, Settings, full screen and the main menu", () =>
+    togglePanel(menuPanel),
   );
+  controls.append(journalButton, loreButton, illustrateButton, chatButton, gameMenuButton);
 
   const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
   menuButton.setAttribute("aria-label", "Menu");
@@ -726,10 +728,10 @@ export function createHud(root, handlers) {
   let narrationTimer = null;
   const personEditor = createPersonEditor(layer, {
     onSave: (id, changes) => handlers.onSavePerson(id, changes),
-    onSchedule: (id) => {
-      if (journal.panel.style.display === "none") togglePanel(journal.panel);
-      journal.showSchedule(id);
-    },
+    onPlan: async (id, request) => ({
+      words: await handlers.onPlanSchedule(id, request),
+      day: handlers.onPersonDay(id),
+    }),
   });
   // Every button shows it was clicked: it dips while pressed, and stays lit for a moment after. A button
   // that's redrawn by its own click (the Journal's lists) passes the light to the one that took its place.
@@ -778,6 +780,7 @@ export function createHud(root, handlers) {
     journal.panel,
     lorePanel,
     settingsPanel,
+    menuPanel,
     notice,
     scene,
     prompt,
