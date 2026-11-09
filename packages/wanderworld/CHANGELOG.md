@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.44 — 2026-11-08
+
+- New world: each character folder has its own checkbox that picks everyone in it (as many as fit) or clears them. It shows half-ticked when only some are chosen.
+
 ## 0.4.43 — 2026-11-08
 
 - New world's character and lorebook lists show again: they had been squeezed to nothing inside the scrolling card.
