@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.50",
+          "date": "2026-11-09",
+          "notes": "- Settlements: a hamlet, village, town or city, chosen in New world or left to the seed. Each has its own size and buildings: a hamlet of houses round a green, a village with stalls, a tavern and a temple, a town with its fountain square, a city with more of everything.\n- The market can sit off to one side instead of in the middle, and streets can be cobbled (with kerbs and sidewalks) or dirt paths.\n- Cottages and inns out in the country are their own kinds, kept apart from the town's houses and taverns: \"home\" lore, home numbers and the Homes group stay in town.\n- A lorebook naming more homes than a settlement holds makes it bigger. Worlds made before keep their town as it was.",
+          "highlight": false
+        },
+        {
           "version": "0.4.49",
           "date": "2026-11-09",
           "notes": "- World size: Small, Normal, Large, Huge or Massive (up to three times as wide), chosen in New world (or Auto) and when regenerating. Bigger worlds spread their places further out and are just as wooded.\n- Draw distance: Tiny, Near, Medium, Far, Very far or Max, with fog hiding everything past it.\n- Much lighter far views: small plants are drawn nearby only and detailed trees out to 180 m, with simple trees beyond; the ground is built in pieces, finer near you.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.31",
           "date": "2026-11-08",
           "notes": "- New world asks for the world's setting, which lorebooks it uses, and how their entries are linked to places: by matching names (an entry named or keyed \"tavern\", \"the woods\" or the town's name goes there), by the AI once the AI update arrives, or by hand.\n- Journal → World shows and changes that setup later, with a button to link lore by name again.\n- Keyword links also reach groups, characters (by name) and the whole world (\"world\").",
-          "highlight": false
-        },
-        {
-          "version": "0.4.30",
-          "date": "2026-11-08",
-          "notes": "- Journal → Places shows the world's setup as a tree: the whole world, its characters, then each place inside the one it sits in (town, street, building), then groups. Lore can be tied at every level.\n- Lore for the whole world is active everywhere; a character's lore is active while you talk to them or while they're with you.\n- Groups can sit inside other groups and pass their lore down.\n- Regenerating with a new layout keeps the setup: names, lore and groups move to the same kind of place (the tavern stays the tavern).",
           "highlight": false
         }
       ]
