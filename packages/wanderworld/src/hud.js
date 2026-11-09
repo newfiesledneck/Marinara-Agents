@@ -187,6 +187,9 @@ export function createHud(root, handlers) {
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "Dragging up looks down, like a flight stick.",
     time: "Let the day pass, or keep it at one time of day.",
+    narratorCard:
+      "One of your character cards as the narrator. It tells things in its voice, and a scene can start with nobody else there: alone in the woods, with only the narrator.",
+    narratorUse: "What the narrator card is used for.",
     narration:
       "A line in the chat window on first coming to a place (its lore, when it has some) and now and then about who's near. By AI, each new place is one model call.",
     weather: "Rain, snow or mist, changing every few minutes or always one. Off keeps the sky clear.",
@@ -394,6 +397,12 @@ export function createHud(root, handlers) {
   });
   choice("sceneTense", "Scene tense", { present: "Present", past: "Past" });
   connectionChoice("scenePreset", "Scene prompt preset", "presets", "None");
+  connectionChoice("narratorCard", "Narrator card", "characters", "None");
+  choice("narratorUse", "The narrator tells", {
+    scenes: "Scenes",
+    moments: "Moments and narration",
+    both: "Both",
+  });
   slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
   connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
   choice("imageStyle", "Picture style", {
@@ -697,7 +706,13 @@ export function createHud(root, handlers) {
   speakSend.type = "submit";
   speakSend.textContent = "Say";
   speakSend.style.cssText = INK_BUTTON;
-  speakBar.append(speakInput, speakSend);
+  const sceneHere = button("Scene", "Start a full scene right here, opening with what you've written", () => {
+    const typed = speakInput.value.trim();
+    speakInput.value = "";
+    handlers.onSceneHere?.(typed);
+  });
+  sceneHere.style.cssText = INK_SMALL;
+  speakBar.append(speakInput, speakSend, sceneHere);
   speakInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") speakInput.blur();
   });
@@ -1125,6 +1140,20 @@ export function createHud(root, handlers) {
       actions.append(own);
       // Play it out now as a real Engine scene (the server part).
       const sceneNote = text("", "font-size:12px;opacity:0.8;");
+      const narratorBox = document.createElement("input");
+      narratorBox.type = "checkbox";
+      narratorBox.checked = true;
+      if (info.playScene && info.narrator) {
+        // With the people there and the narrator, or the people alone (when there are any).
+        const label = document.createElement("label");
+        label.style.cssText = "display:flex;gap:6px;align-items:center;font-size:12px;";
+        label.append(narratorBox, document.createTextNode(`With the narrator (${info.narrator})`));
+        if (info.needsNarrator) {
+          narratorBox.disabled = true;
+          label.append(document.createTextNode(": nobody else is here, so the narrator tells it"));
+        }
+        nodes.push(label);
+      }
       if (info.playScene) {
         const play = button(
           "Play it as a scene",
@@ -1132,7 +1161,12 @@ export function createHud(root, handlers) {
           async () => {
             play.disabled = true;
             play.textContent = "Starting…";
-            const words = await info.playScene(info.actions[0]?.id ?? null, line.value, [...along]);
+            const words = await info.playScene(
+              info.actions[0]?.id ?? null,
+              line.value,
+              [...along],
+              narratorBox.checked,
+            );
             play.disabled = false;
             play.textContent = "Play it as a scene";
             sceneNote.textContent = words;

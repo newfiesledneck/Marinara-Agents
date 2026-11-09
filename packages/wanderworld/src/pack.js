@@ -10,6 +10,41 @@
 
 /** A thing: `prompt` (on the E prompt), `title` (its card, when the place has no name), `reach` (metres), `choices`. */
 const THINGS = {
+  // A fire the player lights with "/camp": it stays until it's put out.
+  campfire: {
+    prompt: "Sit by the fire",
+    title: "your campfire",
+    reach: 2.6,
+    choices: [
+      {
+        id: "sit",
+        label: "Sit by the fire",
+        verb: "sits by the campfire and watches it burn",
+        lines: [
+          "The fire settles, and the dark draws in to listen.",
+          "Sparks go up and don't come down. The {time} is a good deal smaller with a fire in it.",
+        ],
+      },
+      {
+        id: "story",
+        label: "Tell a story",
+        verb: "tells a story by the campfire",
+        lines: [
+          "You tell it the way you were told it, and the fire puts in the pauses.",
+          "It's a better story out here than it ever was indoors.",
+        ],
+      },
+      {
+        id: "douse",
+        label: "Put it out",
+        verb: "puts the campfire out and scatters the ashes",
+        lines: [
+          "A hiss, a last thread of smoke, and the place is only a place again.",
+          "Cold ash. You were never here.",
+        ],
+      },
+    ],
+  },
   stall: {
     prompt: "Look over the stall",
     title: "a market stall",
@@ -299,6 +334,36 @@ const THINGS = {
   },
 };
 
+/** Joining someone in what they're doing, by what that is: a choice when talking to them. {who} is them. */
+const JOINING = {
+  work: {
+    label: "Lend them a hand",
+    verb: "lends {who} a hand with their work",
+    lines: [
+      "{who} finds you something to carry. It turns out there is always something to carry.",
+      "You work alongside {who} a while. Little is said; it doesn't need to be.",
+    ],
+  },
+  eat: {
+    label: "Join them to eat",
+    verb: "sits down to eat with {who}",
+    lines: [
+      "{who} makes room and pushes the bread your way.",
+      "You eat with {who}. The talk comes easier with something on the table.",
+    ],
+  },
+  sit: {
+    label: "Sit with them",
+    verb: "sits down beside {who}",
+    lines: ["{who} shifts along. For a while you both watch {place} go by.", "You sit with {who}, in no hurry."],
+  },
+  other: {
+    label: "Keep them company",
+    verb: "keeps {who} company for a while",
+    lines: ["You fall in beside {who} for a while.", "{who} seems glad enough of the company."],
+  },
+};
+
 /** Told the first time the player comes to a kind of place, when it has no lore of its own to tell. */
 const ARRIVALS = {
   town: ["{place}. Smoke from the chimneys, and somebody's dog announcing you."],
@@ -354,7 +419,21 @@ const ERRANDS = [
   },
 ];
 
-export const PACK = { id: "fantasy", things: THINGS, arrivals: ARRIVALS, sights: SIGHTS, errands: ERRANDS };
+/** Told when the player makes camp. */
+const CAMP = [
+  "You clear a ring, find dry wood, and after the usual argument with it, have a fire.",
+  "The fire takes. {place} looks different with a light of your own in it.",
+];
+
+export const PACK = {
+  id: "fantasy",
+  things: THINGS,
+  arrivals: ARRIVALS,
+  sights: SIGHTS,
+  errands: ERRANDS,
+  joining: JOINING,
+  camp: CAMP,
+};
 
 /** Which kind of thing a prop the town places is, by its model's name; undefined for plain clutter. */
 export const PROP_THINGS = {
