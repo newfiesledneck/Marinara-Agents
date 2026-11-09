@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.32 — 2026-11-08
+
+- People lists who's living in town first, then everyone else, under headings. The order is set when you open the panel, so rows stay put while you tick.
+
 ## 0.4.31 — 2026-11-08
 
 - New world asks for the world's setting, which lorebooks it uses, and how their entries are linked to places: by matching names (an entry named or keyed "tavern", "the woods" or the town's name goes there), by the AI once the AI update arrives, or by hand.

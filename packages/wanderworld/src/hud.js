@@ -112,7 +112,14 @@ export function createHud(root, handlers) {
   peopleList.style.cssText = "display:flex;flex-direction:column;gap:2px;";
   peoplePanel.append(peopleNote, peopleList);
   panels.push(peoplePanel);
-  const peopleButton = button("People", "Choose characters to live in town", () => togglePanel(peoplePanel));
+  // Who's in town is listed first: sorted each time the panel opens (not while ticking, so rows stay put).
+  let peopleOrder = null; // character ids in the order shown
+  let lastPeople = null; // the last setCharacters arguments, to redraw sorted
+  const peopleButton = button("People", "Choose characters to live in town", () => {
+    peopleOrder = null;
+    if (lastPeople) hud.setCharacters(...lastPeople);
+    togglePanel(peoplePanel);
+  });
   peopleButton.style.display = "none";
 
   // Settings.
@@ -409,7 +416,7 @@ export function createHud(root, handlers) {
   );
   root.append(layer);
 
-  return {
+  const hud = {
     layer,
     setStats({ fps, calls, triangles, scale }) {
       stats.textContent = `${fps} fps · ${calls} draws · ${Math.round(triangles / 1000)}k tris · ${Math.round(scale * 100)}% res`;
@@ -450,26 +457,49 @@ export function createHud(root, handlers) {
     /** Fills the People checklist; `chosen` is a Set of character ids, `chosenBodies` their default bodies.
      *  An empty list hides the button. */
     setCharacters(characters, chosen, chosenBodies = {}) {
+      lastPeople = [characters, chosen, chosenBodies];
       bodies = chosenBodies;
       peopleButton.style.display = characters.length ? "" : "none";
       peopleButton.textContent = chosen.size ? `People (${chosen.size})` : "People";
+      // Living in town first, then everyone else, each in the Engine's order; kept while the panel is open.
+      const ids = characters.map((character) => character.id);
+      if (!peopleOrder || peopleOrder.length !== ids.length || ids.some((id) => !peopleOrder.includes(id))) {
+        peopleOrder = [...ids.filter((id) => chosen.has(id)), ...ids.filter((id) => !chosen.has(id))];
+      }
+      const byId = new Map(characters.map((character) => [character.id, character]));
+      const sorted = peopleOrder.map((id) => byId.get(id));
+      const firstOut = sorted.findIndex((character) => !chosen.has(character.id));
+      const heading = (text) => {
+        const element = document.createElement("div");
+        element.style.cssText =
+          "font-size:11px;font-weight:700;opacity:0.65;margin-top:4px;text-transform:uppercase;letter-spacing:0.04em;";
+        element.textContent = text;
+        return element;
+      };
+      const rows = sorted.map((character) => {
+        const entry = document.createElement("label");
+        entry.style.cssText = "display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;";
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = chosen.has(character.id);
+        box.disabled = !box.checked && chosen.size >= maxPeople;
+        box.addEventListener("change", () => handlers.onToggleCharacter(character.id, box.checked));
+        const name = document.createElement("span");
+        name.textContent = character.name;
+        name.style.flex = "1";
+        const body = bodyPicker((value) => handlers.onSetBody(character.id, value));
+        body.value = bodies[character.id] ?? "auto";
+        entry.append(box, name, body);
+        return entry;
+      });
+      const inTown = sorted.filter((character) => chosen.has(character.id)).length;
+      // Headings where the sorted groups start (ticking more while open adds below without reordering).
+      const split = firstOut < 0 ? rows.length : firstOut;
       peopleList.replaceChildren(
-        ...characters.map((character) => {
-          const entry = document.createElement("label");
-          entry.style.cssText = "display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;";
-          const box = document.createElement("input");
-          box.type = "checkbox";
-          box.checked = chosen.has(character.id);
-          box.disabled = !box.checked && chosen.size >= maxPeople;
-          box.addEventListener("change", () => handlers.onToggleCharacter(character.id, box.checked));
-          const name = document.createElement("span");
-          name.textContent = character.name;
-          name.style.flex = "1";
-          const body = bodyPicker((value) => handlers.onSetBody(character.id, value));
-          body.value = bodies[character.id] ?? "auto";
-          entry.append(box, name, body);
-          return entry;
-        }),
+        ...(split > 0 ? [heading(`Living in town (${inTown})`)] : []),
+        ...rows.slice(0, split),
+        ...(split < rows.length ? [heading("Not in town")] : []),
+        ...rows.slice(split),
       );
     },
     /** The use prompt: `label` ("Sit", "Talk to Mira") at screen point (x, y), or null to hide it. */
@@ -722,4 +752,5 @@ export function createHud(root, handlers) {
       layer.remove();
     },
   };
+  return hud;
 }
