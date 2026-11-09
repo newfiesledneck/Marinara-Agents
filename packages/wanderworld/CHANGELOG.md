@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.54 — 2026-11-09
+
+- A road network out in the country: hamlets on neighbouring sides are joined by a road curving round the town, inns stand beside the road to a hamlet or farm where their own track meets it, and inns and cottages take a track off a nearby road instead of a long one from town.
+- Worlds without hamlets or farms keep their roads as they were.
+
 ## 0.4.53 — 2026-11-09
 
 - Farms out in the country: a farmhouse and a red barn round a yard at the end of their own road, with fenced fields of wheat or greens in rows behind, crates, barrels and a wagon. Chosen in New world ("Farms") or often one by the seed.

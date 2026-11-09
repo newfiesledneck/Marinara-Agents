@@ -198,11 +198,13 @@ export function buildZones(layout, seed) {
     });
   }
   const outpostDoors = new Map();
+  const outpostNames = [];
   (layout.outposts ?? []).forEach((outpost, i) => {
     const names = { inn: INN_NAMES, cottage: COTTAGE_NAMES, cave: CAVE_NAMES, hamlet: TOWN_NAMES, farm: FARM_NAMES }[
       outpost.kind
     ];
     const name = outpost.name ?? pick(random, names, used);
+    outpostNames[i] = name.replace(/^the /u, "");
     // A hamlet is a settlement of its own (a town zone: town2, town3…), the rest are places.
     const id = outpost.kind === "cave" ? `cave:${i}` : outpost.kind === "hamlet" ? `town:${i}` : `outpost:${i}`;
     zones.push({
@@ -232,6 +234,19 @@ export function buildZones(layout, seed) {
       });
     }
   });
+  // Roads joining two settlements out in the country.
+  for (const road of (layout.roads ?? []).filter((entry) => entry.between)) {
+    const [a, b] = road.between;
+    zones.push({
+      id: `road:${a}-${b}`,
+      kind: "road",
+      between: true,
+      name: `the road between ${outpostNames[a]} and ${outpostNames[b]}`,
+      shape: { line: { points: road.points, width: road.width + 3 } },
+      parent: "forest",
+      sign: null,
+    });
+  }
   // Each town building belongs to the street (or the square) it stands on: town → street → building.
   const streetsAndSquare = zones.filter((zone) => zone.kind === "street" || zone.kind === "plaza");
   const onStreet = (box) => {
@@ -480,8 +495,9 @@ function keysOf(zones) {
   const counts = new Map();
   const keys = new Map();
   for (const zone of zones.zones) {
-    const sort =
-      zone.kind === "building"
+    const sort = zone.between
+      ? "road:between"
+      : zone.kind === "building"
         ? `building:${zone.buildingKind}`
         : zone.outpostKind
           ? `${zone.kind}:${zone.outpostKind}`

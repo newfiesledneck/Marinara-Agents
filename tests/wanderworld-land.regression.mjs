@@ -327,4 +327,35 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
 // A world with no landscape given still builds, from the seed.
 assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
 
+// The road network: hamlets on neighbouring sides are joined, an inn stands beside the farm road on its
+// side with its track starting on that road.
+{
+  const landscape = {
+    ...landscapeWith(97, { places: "none", towns: "none", farms: "none" }),
+    river: null,
+    mountains: [],
+    outposts: [
+      { kind: "hamlet", side: "north" },
+      { kind: "hamlet", side: "east" },
+      { kind: "farm", side: "south" },
+      { kind: "inn", side: "south" },
+    ],
+  };
+  const built = createWorld(97, landscape);
+  const { roads } = built.layout;
+  const join = roads.find((road) => road.between);
+  assert.deepEqual(join?.between, [0, 1], "the two hamlets are joined");
+  const farmRoad = roads.find((road) => road.to === 2);
+  const innRoad = roads.find((road) => road.to === 3);
+  const start = innRoad.points[0];
+  assert.ok(
+    farmRoad.points.some((point) => Math.hypot(point.x - start.x, point.z - start.z) < 0.01),
+    "the inn's track leaves from the farm road",
+  );
+  assert.ok(innRoad.points.length < farmRoad.points.length, "and is shorter than a road of its own");
+  const zones = buildZones(built.layout, 97);
+  assert.match(zones.byId.get("road:0-1")?.name ?? "", /^the road between /u, "the joining road is a place");
+  built.dispose();
+}
+
 console.log("wanderworld land regression: OK");

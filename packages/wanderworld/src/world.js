@@ -1429,7 +1429,7 @@ function buildCountry(random, town, land, ground) {
             wobble: 0.12,
             // Leaving town, the road starts as the street's cobbles and turns to dirt over a few metres.
             fadeFrom:
-              stretch === firstStretch && look.roads === "cobble"
+              stretch === firstStretch && road.fromTown !== false && look.roads === "cobble"
                 ? { length: 4, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] }
                 : null,
           }),
@@ -2617,7 +2617,12 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       // Out in the country: the river, each road (to its outpost), the mountain ranges, the outposts
       // (`door` is the door of an inn or cottage) and caves.
       river: land.river ? { points: land.river.points, width: land.river.width } : null,
-      roads: land.roads.map((road) => ({ points: road.points, width: road.width, to: road.to })),
+      roads: land.roads.map((road) => ({
+        points: road.points,
+        width: road.width,
+        to: road.to,
+        ...(road.between ? { between: road.between } : {}),
+      })),
       mountains: land.mountains.map((ridge) => ridge.side),
       worldHalf: worldSize / 2,
       outposts: land.outposts.map((outpost) => ({
