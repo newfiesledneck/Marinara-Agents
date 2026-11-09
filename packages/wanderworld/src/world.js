@@ -281,6 +281,7 @@ const hasStreetZ = (k, b) => hasBlock(k - 1, b) || hasBlock(k, b);
 /** Sets the settlement for the world being built (its size, market and roads). */
 function useSettlement(settlement) {
   look = settlement;
+  gateLanes = [];
   const layout = settlement.layout ?? "grid";
   // A crossroads or one long street needs more blocks along its lines to hold as many homes.
   const kindBlocks = SETTLEMENTS[settlement.kind]?.blocks ?? BLOCKS_PER_SIDE;
@@ -314,6 +315,14 @@ function useSettlement(settlement) {
 
 /** True when (x, z) is inside the town's footprint plus a margin, where no trees or rocks grow. */
 const inTown = (x, z, margin = 6) => Math.abs(x) < townHalf + margin && Math.abs(z) < townHalf + margin;
+// The way out of each gate in a town's wall, kept clear of trees and undergrowth (placeWalls fills it).
+let gateLanes = []; // [[from, to]]
+const inGateLane = (x, z) =>
+  gateLanes.some(([a, b]) => {
+    const [dx, dz] = [b.x - a.x, b.z - a.z];
+    const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+    return Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t)) < 4.5;
+  });
 
 /**
  * Collision on the ground plane against circles (tree trunks, the fountain) and axis-aligned boxes
@@ -874,7 +883,7 @@ const wallLine = () => townHalf + STREET / 2 + 1.6;
  */
 function placeWalls(town, land) {
   const line = wallLine();
-  const stone = 0x9a958a;
+  const stone = 0x878177;
   const pieces = [];
   const gateWidth = STREET + 0.6;
   const tower = (x, z, height, radius) => {
@@ -897,6 +906,7 @@ function placeWalls(town, land) {
   };
   // The gates on each side: where the roads from town start (their street), and the middle street.
   const middle = streetLines[Math.floor(streetLines.length / 2)];
+  const roadGates = new Set(); // the gates a road goes out of (the rest get a short track)
   const gates = {
     north: new Set([middle]),
     south: new Set([middle]),
@@ -909,6 +919,7 @@ function placeWalls(town, land) {
     const side =
       Math.abs(start.x) > Math.abs(start.z) ? (start.x > 0 ? "east" : "west") : start.z > 0 ? "south" : "north";
     gates[side].add(side === "east" || side === "west" ? start.z : start.x);
+    roadGates.add(`${side}:${side === "east" || side === "west" ? start.z : start.x}`);
   }
   for (const [side, at] of Object.entries(gates)) {
     const alongX = side === "north" || side === "south";
@@ -945,6 +956,12 @@ function placeWalls(town, land) {
       pieces.push(box(alongX ? gateWidth + 1 : 2, 1.1, alongX ? 2 : gateWidth + 1, top.x, 5, top.z, stone));
       // Street points through the gate: just inside and just outside.
       town.waypoints.push(spot(gate, out + (out > 0 ? 5 : -5)), spot(gate, out + (out > 0 ? -2.5 : 2.5)));
+      gateLanes.push([spot(gate, out - (out > 0 ? 3 : -3)), spot(gate, out + (out > 0 ? 18 : -18))]);
+      // No road out of this one: a short dirt track from the gate, wearing away into the meadow.
+      if (!roadGates.has(`${side}:${gate}`)) {
+        const sign = out > 0 ? 1 : -1;
+        town.gateTracks.push([spot(gate, out - sign * 2.6), spot(gate, out + sign * 16)]);
+      }
       from = gate + gateWidth / 2;
     }
   }
@@ -1350,6 +1367,7 @@ function buildTown(random, land, ground, needs = {}) {
     sidewalks: [], // loops along the middle of each block's sidewalk
     waypoints: [],
     gardens: [],
+    gateTracks: [], // short dirt tracks out of gates no road leaves by (placeWalls)
     meadows: [],
     boxes: [],
     circles: [],
@@ -1765,6 +1783,18 @@ function buildCountry(random, town, land, ground) {
       }
     }
     finish(true);
+  }
+  for (const track of town.gateTracks) {
+    roads.push(
+      ribbon(track, 3.2, {
+        lift: 0.06,
+        heightOf: land.groundAt,
+        columns: roadColumns,
+        wobble: 0.12,
+        fadeFrom: look.roads === "cobble" ? { length: 3, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] } : null,
+        fadeTo: { length: 9, splat: [1, 0, 0, 0], splatB: [0, 0, 0, 0] },
+      }),
+    );
   }
   if (roads.length) {
     meshes.push(
@@ -2328,7 +2358,7 @@ function scatter(random, count, scaleMin, scaleRange) {
   while (points.length < count) {
     const x = (random() * 2 - 1) * half;
     const z = (random() * 2 - 1) * half;
-    if (inTown(x, z) || land?.clear(x, z, 1) || heightAt(x, z) > 26) continue;
+    if (inTown(x, z) || land?.clear(x, z, 1) || inGateLane(x, z) || heightAt(x, z) > 26) continue;
     points.push({ x, z, scale: scaleMin + random() * scaleRange, turn: random() * Math.PI * 2, tint: random() });
   }
   return points;
@@ -2416,14 +2446,14 @@ function mapInfo(built) {
  * `seed`, `landscape` and `size`, without touching the world being played.
  */
 export function previewMap(seed, landscape, size = "normal") {
-  const saved = { worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks };
+  const saved = { worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks, gateLanes };
   try {
     worldSize = WORLD_SIZES[size] ?? WORLD_SIZE;
     const checked = checkLandscape(landscape, seed);
     useSettlement(checked.settlement);
     return mapInfo(createLand(checked, seed, { townHalf, worldHalf: worldSize / 2, streetLines }));
   } finally {
-    ({ worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks } = saved);
+    ({ worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks, gateLanes } = saved);
   }
 }
 
@@ -2773,6 +2803,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     lastDark = dark;
     lastHour = hour;
     windowLights?.setTime(dark, hour);
+    smoke?.setDark(dark);
     return dark;
   }
 
@@ -2838,7 +2869,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     for (let placed = 0, tries = 0; placed < UNDERGROWTH && tries < UNDERGROWTH * 6; tries++) {
       const x = (growth() * 2 - 1) * (townHalf + NATURE_RING);
       const z = (growth() * 2 - 1) * (townHalf + NATURE_RING);
-      if (inTown(x, z, 1.5) || land.clear(x, z)) continue;
+      if (inTown(x, z, 1.5) || land.clear(x, z) || inGateLane(x, z)) continue;
       const [name, , size] = pickWeighted(KIT_PLANTS, growth());
       dummy.position.set(x, heightAt(x, z) - 0.03, z);
       dummy.rotation.set(0, growth() * Math.PI * 2, 0);

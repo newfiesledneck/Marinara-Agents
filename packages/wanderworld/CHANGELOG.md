@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.64 — 2026-11-09
+
+- Chimney smoke darkens at night instead of glowing white against the dark sky; town walls are a darker, weathered stone.
+- Every gate in a town's walls has a clear way out: a dirt track fading into the meadow where no road leaves, with no trees or bushes in the way.
+
 ## 0.4.63 — 2026-11-09
 
 - Hamlets, farms and landmarks keep all their ground inside the world, off the river, and clear of each other even in a crowded world: when their own side is full they find the nearest free spot elsewhere.
