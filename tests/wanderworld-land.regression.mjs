@@ -164,6 +164,30 @@ for (const seed of [41, 42, 43]) {
   built.dispose();
 }
 
+// Places out in the country never stand in the river, and caves have no road to them.
+for (const seed of [71, 72, 73, 74, 75, 76]) {
+  const landscape = landscapeNeeds(
+    landscapeWith(seed, { river: "yes", places: "several" }),
+    { inn: 2, cottage: 2, cave: 2 },
+    seed,
+  );
+  const built = createWorld(seed, landscape);
+  for (const outpost of built.layout.outposts) {
+    if (outpost.kind === "cave") continue;
+    const ground = heightAt(outpost.x, outpost.z);
+    assert.ok(
+      ground > -0.3,
+      `seed ${seed}: ${outpost.kind} at (${outpost.x.toFixed(0)}, ${outpost.z.toFixed(0)}) stands on dry ground (${ground.toFixed(2)})`,
+    );
+  }
+  const caves = built.layout.outposts.map((outpost, i) => [outpost, i]).filter(([outpost]) => outpost.kind === "cave");
+  assert.ok(
+    caves.every(([, i]) => !built.layout.roads.some((road) => road.to === i)),
+    "no road to a cave",
+  );
+  built.dispose();
+}
+
 // A world with no landscape given still builds, from the seed.
 assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
 

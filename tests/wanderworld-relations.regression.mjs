@@ -22,7 +22,7 @@ const {
   warmthOf,
 } = await import("../packages/wanderworld/src/relationships.js");
 const { createCrowd } = await import("../packages/wanderworld/src/npcs.js");
-const { createWorld } = await import("../packages/wanderworld/src/world.js");
+const { createWorld, waterAt } = await import("../packages/wanderworld/src/world.js");
 
 // ── The records ──
 assert.equal(tierOf("friend", 10), "friendly");
@@ -131,6 +131,7 @@ let allowed = true; // the combat setting, as the crowd sees it
 const traits = {};
 crowd.setTraits((id) => traits[id] ?? { aggression: 50, sociability: 50 });
 const said = [];
+const someoneOutForParty = () => crowd.snapshot().find((person) => person.state !== "inside")?.id ?? "c-6";
 const step = (seconds) => {
   for (let elapsed = 0; elapsed < seconds; elapsed += 0.1) {
     time += 0.1;
@@ -265,5 +266,62 @@ assert.ok(
   meet(hothead, { kind: "enemy", level: 10 }, { aggression: 100, sociability: 50 }) < 4.5,
   "an aggressive person comes at someone they merely dislike",
 );
+
+// Across the river a follower goes round by the bridge (not into the water), and gets there.
+{
+  const { landscapeNeeds, landscapeWith } = await import("../packages/wanderworld/src/land.js");
+  let riverWorld = null;
+  for (let seed = 80; seed < 120 && !riverWorld; seed++) {
+    const built = createWorld(
+      seed,
+      landscapeNeeds(landscapeWith(seed, { river: "yes", places: "several" }), { inn: 2 }, seed),
+    );
+    if (built.bridges.length) riverWorld = built;
+    else built.dispose();
+  }
+  assert.ok(riverWorld, "a world with a bridge");
+  const walkers = createCrowd();
+  walkers.setDressed(false);
+  walkers.setWorld(riverWorld);
+  walkers.setCast([{ id: "w-1", name: "Walker" }]);
+  const bridge = riverWorld.bridges[0];
+  const across = { x: bridge.b.x - bridge.a.x, z: bridge.b.z - bridge.a.z };
+  const length = Math.hypot(across.x, across.z);
+  const along = { x: -across.z / length, z: across.x / length }; // along the river
+  const start = { x: bridge.a.x + along.x * 4, z: bridge.a.z + along.z * 4 }; // close enough not to be "lost"
+  const goal = { x: bridge.b.x - along.x * 4, y: 0, z: bridge.b.z - along.z * 4 };
+  walkers.restoreParty(["w-1"], start);
+  const middle = { x: (bridge.a.x + bridge.b.x) / 2, z: (bridge.a.z + bridge.b.z) / 2 };
+  let nearestToBridge = Infinity;
+  let wet = 0;
+  let clock = 0;
+  for (let i = 0; i < 240; i++) {
+    clock += 0.1;
+    walkers.update(0.1, {
+      player: goal,
+      space: riverWorld,
+      playerSitting: false,
+      playerAngle: 0,
+      playerSpeed: 1.4,
+      hour: 12,
+      time: clock,
+      isVisible: () => false,
+      onFootstep: () => {},
+      onSay: () => {},
+      playerName: "Zoey",
+    });
+    const at = walkers.snapshot()[0];
+    nearestToBridge = Math.min(nearestToBridge, Math.hypot(at.x - middle.x, at.z - middle.z));
+    if (waterAt(at.x, at.z).depth > 0.6) wet++;
+  }
+  const end = walkers.snapshot()[0];
+  assert.ok(
+    nearestToBridge < 3,
+    `the follower crossed by the bridge (came within ${nearestToBridge.toFixed(1)} m of its middle)`,
+  );
+  assert.equal(wet, 0, "and never waded into the river");
+  assert.ok(Math.hypot(end.x - goal.x, end.z - goal.z) < 5, "and reached the player");
+  riverWorld.dispose();
+}
 
 console.log("wanderworld relations regression: OK");

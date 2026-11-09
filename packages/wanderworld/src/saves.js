@@ -99,6 +99,11 @@ export function checkWorld(raw) {
     characterLinking: ["keywords", "ai", "none"].includes(raw.characterLinking) ? raw.characterLinking : "none",
     // True until the keyword links have been made (the first time the world is built).
     lorePending: raw.lorePending === true,
+    // Each character's (and the persona's) body in this world: { [id]: "male" | "female" } (missing: auto).
+    // Null for a world saved before bodies were kept per world.
+    bodies: isRecord(raw.bodies)
+      ? Object.fromEntries(Object.entries(raw.bodies).filter(([, body]) => body === "male" || body === "female"))
+      : null,
     // The least the world must have for its lore ({ kind: count }, zones.js `needsFromLore`).
     needs: isRecord(raw.needs)
       ? Object.fromEntries(

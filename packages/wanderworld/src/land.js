@@ -228,42 +228,49 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     const slot = (perSide[entry.side] = (perSide[entry.side] ?? -1) + 1);
     const across = (slot % 2 === 0 ? -1 : 1) * (18 + slot * 22) * (random() < 0.5 ? 1 : -1) + (random() - 0.5) * 16;
     // Caves sit at the foot of the hills; inns and cottages a fair walk out.
-    const out = entry.kind === "cave" ? worldHalf - 46 - random() * 8 : townHalf + 48 + random() * 20;
-    const x = dx !== 0 ? dx * out : Math.max(-edge + 20, Math.min(edge - 20, across));
-    const z = dz !== 0 ? dz * out : Math.max(-edge + 20, Math.min(edge - 20, across));
+    let out = entry.kind === "cave" ? worldHalf - 46 - random() * 8 : townHalf + 48 + random() * 20;
+    const lateral = Math.max(-edge + 20, Math.min(edge - 20, across));
+    const spot = (distance) => (dx !== 0 ? { x: dx * distance, z: lateral } : { x: lateral, z: dz * distance });
+    // Never on the river: a place whose ground would reach the water or its banks steps further out.
+    const clearOfRiver = (at) => !river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + 14;
+    while (!clearOfRiver(spot(out)) && out < edge - 20) out += 4;
+    const { x, z } = spot(out);
     // The front looks back toward town, squared to a quarter turn like every building in town.
     const facing = ((Math.round(Math.atan2(-x, -z) / (Math.PI / 2)) % 4) + 4) % 4;
     return { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
   });
 
-  // Roads: from the end of the street on that side nearest the outpost, out and round to its door.
-  const roads = outposts.map((outpost) => {
-    const [dx, dz] = DIRECTION[outpost.side];
-    const lateral = dx !== 0 ? outpost.z : outpost.x;
-    const line = streetLines.reduce((best, value) =>
-      Math.abs(value - lateral) < Math.abs(best - lateral) ? value : best,
-    );
-    // From just inside the end of the street (its cobbles reach townHalf + 3), so the road can fade out of them.
-    const out0 = townHalf + 2.2;
-    const start = dx !== 0 ? { x: dx * out0, z: line } : { x: line, z: dz * out0 };
-    const front = { x: outpost.x + Math.sin(outpost.angle) * 8, z: outpost.z + Math.cos(outpost.angle) * 8 };
-    const bend = {
-      x: dx !== 0 ? (start.x + front.x) / 2 : start.x + (front.x - start.x) * 0.2,
-      z: dz !== 0 ? (start.z + front.z) / 2 : start.z + (front.z - start.z) * 0.2,
-    };
-    const points = [];
-    const length = Math.hypot(front.x - start.x, front.z - start.z);
-    const steps = Math.max(4, Math.ceil(length / 3));
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const a = (1 - t) * (1 - t);
-      const b = 2 * (1 - t) * t;
-      const c = t * t;
-      points.push({ x: a * start.x + b * bend.x + c * front.x, z: a * start.z + b * bend.z + c * front.z });
-    }
-    points.push({ x: outpost.x + Math.sin(outpost.angle) * 3, z: outpost.z + Math.cos(outpost.angle) * 3 });
-    return { points, width: ROAD_WIDTH, to: outpost.index, bounds: boundsOf(points, ROAD_WIDTH + 2) };
-  });
+  // Roads: from the end of the street on that side nearest the outpost, out and round to its door. Caves
+  // have none: they're found up on the hillsides.
+  const roads = outposts
+    .filter((outpost) => outpost.kind !== "cave")
+    .map((outpost) => {
+      const [dx, dz] = DIRECTION[outpost.side];
+      const lateral = dx !== 0 ? outpost.z : outpost.x;
+      const line = streetLines.reduce((best, value) =>
+        Math.abs(value - lateral) < Math.abs(best - lateral) ? value : best,
+      );
+      // From just inside the end of the street (its cobbles reach townHalf + 3), so the road can fade out of them.
+      const out0 = townHalf + 2.2;
+      const start = dx !== 0 ? { x: dx * out0, z: line } : { x: line, z: dz * out0 };
+      const front = { x: outpost.x + Math.sin(outpost.angle) * 8, z: outpost.z + Math.cos(outpost.angle) * 8 };
+      const bend = {
+        x: dx !== 0 ? (start.x + front.x) / 2 : start.x + (front.x - start.x) * 0.2,
+        z: dz !== 0 ? (start.z + front.z) / 2 : start.z + (front.z - start.z) * 0.2,
+      };
+      const points = [];
+      const length = Math.hypot(front.x - start.x, front.z - start.z);
+      const steps = Math.max(4, Math.ceil(length / 3));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const a = (1 - t) * (1 - t);
+        const b = 2 * (1 - t) * t;
+        const c = t * t;
+        points.push({ x: a * start.x + b * bend.x + c * front.x, z: a * start.z + b * bend.z + c * front.z });
+      }
+      points.push({ x: outpost.x + Math.sin(outpost.angle) * 3, z: outpost.z + Math.cos(outpost.angle) * 3 });
+      return { points, width: ROAD_WIDTH, to: outpost.index, bounds: boundsOf(points, ROAD_WIDTH + 2) };
+    });
 
   // Bridges where a road crosses the river.
   const bridges = [];
