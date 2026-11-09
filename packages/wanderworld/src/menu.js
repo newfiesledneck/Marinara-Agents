@@ -283,8 +283,15 @@ export function createMenu(layer, handlers, art = null) {
     const byId = new Map(people.characters.map((entry) => [entry.id, entry]));
     const inFolder = new Set(people.folders.flatMap((folder) => folder.memberIds));
     const boxes = new Map(); // character id → its checkboxes (one per folder it's in)
+    const folderBoxes = []; // each folder's own checkbox: [{ box, members }]
     const refreshCast = () => {
       castHeading.textContent = `Characters living there (${cast.size} of up to ${people.max})`;
+      // Each folder's box: ticked when all of it is chosen, half-ticked when some are.
+      for (const { box, members } of folderBoxes) {
+        const chosen = members.filter((entry) => cast.has(entry.id)).length;
+        box.checked = chosen === members.length;
+        box.indeterminate = chosen > 0 && chosen < members.length;
+      }
       for (const [id, list] of boxes) {
         for (const box of list) {
           box.checked = cast.has(id);
@@ -306,17 +313,24 @@ export function createMenu(layer, handlers, art = null) {
       label.append(box, element("span", "", character.name));
       return label;
     };
+    // A folder: its own checkbox picks everyone in it (as many as fit) or nobody; open it to pick one by one.
     const folderFold = (name, members) => {
       const fold = element("details", "");
-      const chosen = members.filter((entry) => cast.has(entry.id)).length;
-      fold.append(
-        element(
-          "summary",
-          "cursor:pointer;font-weight:600;",
-          `📁 ${name} (${members.length}${chosen ? `, ${chosen} chosen` : ""})`,
-        ),
-        ...members.map(characterRow),
-      );
+      const summary = element("summary", "cursor:pointer;font-weight:600;display:flex;gap:6px;align-items:center;");
+      const all = element("input");
+      all.type = "checkbox";
+      all.title = `Everyone in ${name}`;
+      all.addEventListener("click", (event) => event.stopPropagation()); // ticking doesn't open or close it
+      all.addEventListener("change", () => {
+        for (const entry of members) {
+          if (!all.checked) cast.delete(entry.id);
+          else if (cast.size < people.max) cast.add(entry.id);
+        }
+        refreshCast();
+      });
+      folderBoxes.push({ box: all, members });
+      summary.append(all, element("span", "", `📁 ${name} (${members.length})`));
+      fold.append(summary, ...members.map(characterRow));
       return fold;
     };
     for (const folder of people.folders) {
