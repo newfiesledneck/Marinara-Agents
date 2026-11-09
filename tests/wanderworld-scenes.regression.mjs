@@ -82,4 +82,39 @@ const first = choicesFor();
 assert.equal(first.at(-1).id, "bye", "there's always a way to say goodbye");
 assert.ok(!choicesFor(["news"]).some((choice) => choice.id === "news"), "asked topics drop off");
 
+// Regions: travelling makes a travel request, the map of regions steps by side, names stay put, and a
+// save keeps the regions and the home region's setup while away (dropping anything malformed).
+{
+  const { regionName, regionNext, HOME_REGION } = await import("../packages/wanderworld/src/zones.js");
+  const { checkWorld } = await import("../packages/wanderworld/src/saves.js");
+  assert.equal(regionNext(HOME_REGION, "east"), "1,0");
+  assert.equal(regionNext("1,0", "north"), "1,-1");
+  assert.equal(regionName("seed-a", "1,0"), regionName("seed-a", "1,0"), "a region keeps its name");
+  const trip = sceneRequest({
+    thing: { kind: "travel", name: "the road to Highmoor", chain: ["the Greenvale"] },
+    action: "go",
+    party: [{ id: "c-1", name: "Mira" }],
+    persona: { id: "player", name: "Zoey" },
+    hour: 8,
+  });
+  assert.match(describeScene(trip), /Zoey sets off along the road, with Mira/u, "a travel request reads as words");
+  const save = checkWorld({
+    id: "w1",
+    seed: "seed-a",
+    region: "1,0",
+    regions: {
+      "1,0": { name: "Highmoor", number: 2, seed: "seed-a|1,0", landscape: { hills: "flat" }, lore: { town: [] } },
+      "0,0": { seed: "x", landscape: {} },
+      nonsense: { seed: "y", landscape: {} },
+      "2,0": { name: "No land", seed: "z" },
+    },
+    homeSetup: { names: { town: "Briarwood" }, housing: { "c-1": { home: "building:3" } } },
+  });
+  assert.equal(save.region, "1,0", "away in region 1,0");
+  assert.deepEqual(Object.keys(save.regions), ["1,0"], "only well-formed other regions are kept");
+  assert.equal(save.homeSetup.names.town, "Briarwood", "home's names wait while away");
+  assert.equal(save.homeSetup.housing["c-1"].home, "building:3", "and its homes");
+  assert.equal(checkWorld({ id: "w2", seed: "s", region: "far away" }).region, HOME_REGION, "a bad region is home");
+}
+
 console.log("wanderworld scenes regression: OK");

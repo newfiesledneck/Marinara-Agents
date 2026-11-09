@@ -2,6 +2,7 @@
 // screens), the People and Settings panels, a performance readout, a clock, the "use" prompt, a controls
 // hint, a status line and a loading screen. Only controls take pointer events; the rest lets touches through.
 import { createJournal } from "./journal.js";
+import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
 import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, NOTE_PAPER, PARCHMENT, PARCHMENT_EDGED, SERIF } from "./ui.js";
 
@@ -309,9 +310,26 @@ export function createHud(root, handlers) {
       size.append(option);
     }
     sizeRow.append(document.createTextNode("World size"), size);
+    // The map of what it will be: its own layout, or a new one (Reroll picks another).
+    let seed = randomSeed();
+    const map = mapCanvas(320, 240);
+    const redraw = () =>
+      handlers.onRegeneratePreview?.(map, {
+        reshuffle: reshuffle.checked,
+        size: size.value === "keep" ? null : size.value,
+        seed,
+      });
+    reshuffle.addEventListener("change", redraw);
+    size.addEventListener("change", redraw);
+    const reroll = button("Reroll", "Another new layout", () => {
+      seed = randomSeed();
+      reshuffle.checked = true;
+      redraw();
+    });
+    reroll.style.cssText = INK_BUTTON;
     const yes = button("Regenerate", "Rebuild this world now", () => {
       drawRegenerate(false);
-      handlers.onRegenerate(reshuffle.checked, size.value === "keep" ? null : size.value);
+      handlers.onRegenerate(reshuffle.checked, size.value === "keep" ? null : size.value, seed);
     });
     yes.style.cssText = DANGER;
     const no = button("Cancel", "Keep the world as it is", () => drawRegenerate(false));
@@ -319,7 +337,8 @@ export function createHud(root, handlers) {
     const buttons = document.createElement("div");
     buttons.style.cssText = "display:flex;gap:6px;";
     buttons.append(yes, no);
-    regenerate.replaceChildren(warning, label, sizeRow, buttons);
+    regenerate.replaceChildren(warning, label, sizeRow, map, reroll, buttons);
+    redraw();
   };
   drawRegenerate(false);
   settingsPanel.append(regenerate);
@@ -349,6 +368,7 @@ export function createHud(root, handlers) {
     onPartyLeave: (id) => handlers.onPartyLeave(id),
     onSetRelation: (from, to, fields, both) => handlers.onSetRelation(from, to, fields, both),
     onSetTraits: (id, traits) => handlers.onSetTraits(id, traits),
+    onMap: (canvas) => handlers.onMap?.(canvas),
   });
   panels.push(journal.panel);
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>

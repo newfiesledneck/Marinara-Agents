@@ -372,6 +372,13 @@ cottages in forest clearings, a mill on the river, roads between opposite sides,
 
 **Phase D: regions and travel**
 
+_Done in 0.4.55: regions on a map of keys ("0,0" is home, region1), each `{ name, number, seed,
+landscape }` in `save.regions`, made the first time you cross an edge (no mountains on the arrival edge).
+The region you're in owns `names`, `lore`, `groups` and `housing`; the home region's wait in `homeSetup`.
+Only the party travels; the rest of the cast stays home. Each trip saves a `travel` scene request.
+Regenerate works in the home region only. Saved for later: lore naming regions (region2…), townsfolk of
+their own in other regions, the AI writing a region from its name, encounters on the road._
+
 - Each map is a region (region1, region2…); a world is a set of regions, each with its own seed, land,
   settlements and needs, saved with the world. The lorebook can name regions like any other place.
 - At the edges of a region, "[E] Travel to <region's name>" takes you to the matching edge of the next
@@ -379,6 +386,12 @@ cottages in forest clearings, a mill on the river, roads between opposite sides,
   travel scene): for now the hook and a travel request (like a scene request), the AI part later.
 
 **Phase E: seeing the world**
+
+_Done in 0.4.56: `map.js` draws a world on a 2D canvas from `world.map` (the built world) or
+`previewMap(seed, landscape, size)` (a world not built, leaving the one being played alone): land shaded by
+height, the river, roads, the town's blocks, places by kind. New world and Regenerate preview with Reroll;
+Journal → Map adds names, the player and the regions beyond each edge. Saved for later: lore needs in New
+world's preview (they're read when the world is made), a zoomable map, marking places on it._
 
 - A small top-down map in New world and Regenerate to preview the layout before playing, with Reroll.
 - The same map in the Journal: where you are, named places, regions and travel points.

@@ -2062,6 +2062,47 @@ function streetWaypoints() {
  * Builds the scene for one seed. Instanced meshes are allocated at the highest density once;
  * changing density only changes how many instances are drawn.
  */
+/** What a map needs (map.js): the land as built with the settlement in use now (useSettlement). */
+function mapInfo(built) {
+  const blocksBuilt = [];
+  const centre = (i) => (i - (blocksPerSide - 1) / 2) * PITCH;
+  for (let a = 0; a < blocksPerSide; a++) {
+    for (let b = 0; b < blocksPerSide; b++) {
+      if (hasBlock(a, b)) blocksBuilt.push({ x: centre(a), z: centre(b), market: a === plaza.i && b === plaza.j });
+    }
+  }
+  return {
+    half: worldSize / 2,
+    groundAt: built.groundAt,
+    waterLevel: built.waterLevel,
+    toRiverBank: built.toRiverBank,
+    roads: built.roads.map((road) => ({ points: road.points })),
+    outposts: built.outposts.map((outpost) => ({
+      kind: outpost.kind,
+      x: outpost.x,
+      z: outpost.z,
+      index: outpost.index,
+    })),
+    town: { blocks: blocksBuilt, block: BLOCK, street: STREET, roads: look.roads },
+  };
+}
+
+/**
+ * The map of a world that isn't built (New world's preview, Regenerate's): its land and settlement from
+ * `seed`, `landscape` and `size`, without touching the world being played.
+ */
+export function previewMap(seed, landscape, size = "normal") {
+  const saved = { worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks };
+  try {
+    worldSize = WORLD_SIZES[size] ?? WORLD_SIZE;
+    const checked = checkLandscape(landscape, seed);
+    useSettlement(checked.settlement);
+    return mapInfo(createLand(checked, seed, { townHalf, worldHalf: worldSize / 2, streetLines }));
+  } finally {
+    ({ worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks } = saved);
+  }
+}
+
 export function createWorld(seed, landscape = null, needs = {}, size = "normal") {
   const random = rng(seed);
   worldSize = WORLD_SIZES[size] ?? WORLD_SIZE;
@@ -2595,10 +2636,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     });
   }
 
+  const map = mapInfo(land);
   return {
     scene,
     /** Metres along each side. */
     size: worldSize,
+    /** What map.js draws this world from. */
+    map,
     setDensity,
     resolveCollisions,
     clearSight,

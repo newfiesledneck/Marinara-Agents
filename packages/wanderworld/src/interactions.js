@@ -27,6 +27,8 @@ export const ACTIONS = {
     { id: "rest", label: "Sit on the rim", verb: "sits on the fountain's rim to watch the square" },
   ],
   noticeboard: [{ id: "read", label: "Read the notes", verb: "reads the notes on the noticeboard" }],
+  // Travelling to the next region, across the edge of this one: the road between them.
+  travel: [{ id: "go", label: "Set off", verb: "sets off along the road" }],
 };
 
 /** Id of the action that's only the player's own line. */
