@@ -8,7 +8,7 @@
 // or going through a door. "Space" is wherever they are: the town, or the room inside a building; both
 // offer the same collision, camera and seat calls.
 import { Frustum, Group, Matrix4, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3, WebGLRenderer } from "three";
-import { blobShadow, listCharacters, listPersonas, setAnimationStyle } from "./character.js";
+import { blobShadow, listCharacterFolders, listCharacters, listPersonas, setAnimationStyle } from "./character.js";
 import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
@@ -612,6 +612,8 @@ async function createNewWorld({
   lorebooks = [],
   loreLinking = "none",
   characterLinking = "none",
+  cast = null,
+  persona = null,
 }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
@@ -625,8 +627,9 @@ async function createNewWorld({
   save.landscape = landscapeNeeds(landscapeWith(hashString(save.seed), choices), save.needs, hashString(save.seed));
   save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
-  save.persona = core.personaId;
-  save.cast = [...(core.cast ?? [])];
+  // Who lives there and who you play, from New world (else the persona and cast of the world played last).
+  save.persona = persona ?? core.personaId;
+  save.cast = cast ?? [...(core.cast ?? [])];
   core.saves.write(save);
   playWorld(save.id);
 }
@@ -1415,9 +1418,10 @@ function toggleCharacter(id, chosen) {
 async function loadPeople() {
   if (core.personas) return;
   core.hud?.setLoading("Loading Wanderworld…");
-  const [personas, characters] = await Promise.all([listPersonas(), listCharacters()]);
+  const [personas, characters, folders] = await Promise.all([listPersonas(), listCharacters(), listCharacterFolders()]);
   core.personas = personas;
   core.characters = characters;
+  core.characterFolders = folders;
   try {
     const bodies = JSON.parse(readStored(BODIES_KEY) ?? "{}");
     core.bodies = Object.fromEntries(
@@ -2540,6 +2544,20 @@ function attach(element) {
       last: () => core.saves.last(),
       onPlay: playWorld,
       onCreate: createNewWorld,
+      // Everyone New world can choose from: personas, characters, the Engine's character folders, and
+      // who's chosen now (the last world's cast and persona).
+      people: () => {
+        // From the menu nothing's loaded yet: start from the world played last.
+        const last = core.cast?.size ? null : core.saves.last();
+        return {
+          personas: core.personas ?? [],
+          characters: core.characters ?? [],
+          folders: core.characterFolders ?? [],
+          cast: core.cast?.size ? [...core.cast] : (last?.cast ?? []),
+          persona: last?.persona ?? core.personaId,
+          max: MAX_PEOPLE,
+        };
+      },
       lorebooks: () => readLorebooks().then((books) => books.map((book) => ({ id: book.id, name: book.name }))),
       onRename: (id, name) => {
         core.saves.rename(id, name);

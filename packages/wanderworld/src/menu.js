@@ -219,6 +219,107 @@ export function createMenu(layer, handlers, art = null) {
       ["keywords", "Characters: link and set up by name (body, relationships)"],
       ["ai", "Characters: let the AI do it (with the AI update)"],
     ]);
+    // Who you play: type a persona's name (an exact match picks it) or pick one from the list.
+    const people = handlers.people?.() ?? {
+      personas: [],
+      characters: [],
+      folders: [],
+      cast: [],
+      persona: null,
+      max: 30,
+    };
+    let personaId = people.persona;
+    const personaRow = element("div", "display:flex;gap:6px;align-items:center;");
+    const personaInput = element("input", `${INPUT}flex:1;min-width:0;`);
+    personaInput.placeholder = "Your persona's name";
+    personaInput.setAttribute("aria-label", "Persona");
+    const personaPick = element("select", `${INPUT}padding:5px 8px;max-width:45%;`);
+    for (const [value, text] of [["", "Pick…"], ...people.personas.map((entry) => [entry.id, entry.name])]) {
+      const option = element("option", "", text);
+      option.value = value;
+      personaPick.append(option);
+    }
+    const personaNote = element("div", "font:11px system-ui;opacity:0.75;");
+    const showPersona = () => {
+      const chosen = people.personas.find((entry) => entry.id === personaId);
+      personaPick.value = chosen ? chosen.id : "";
+      personaNote.textContent = chosen
+        ? `Playing as ${chosen.name}.`
+        : personaInput.value.trim()
+          ? "No persona has exactly that name: pick one from the list."
+          : "Type your persona's name, or pick one.";
+    };
+    personaInput.value = people.personas.find((entry) => entry.id === personaId)?.name ?? "";
+    personaInput.addEventListener("input", () => {
+      const typed = personaInput.value.trim().toLowerCase();
+      personaId = people.personas.find((entry) => entry.name.trim().toLowerCase() === typed)?.id ?? null;
+      showPersona();
+    });
+    personaPick.addEventListener("change", () => {
+      personaId = personaPick.value || null;
+      personaInput.value = people.personas.find((entry) => entry.id === personaId)?.name ?? personaInput.value;
+      showPersona();
+    });
+    personaRow.append(personaInput, personaPick);
+    showPersona();
+
+    // Who lives there: the Engine's characters in their folders (fold one open to choose), up to the most a town holds.
+    const cast = new Set(people.cast.filter((id) => people.characters.some((entry) => entry.id === id)));
+    const castHeading = element("div", "font:12px system-ui;opacity:0.75;");
+    const castList = element(
+      "div",
+      "display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto;font-size:13px;",
+    );
+    const byId = new Map(people.characters.map((entry) => [entry.id, entry]));
+    const inFolder = new Set(people.folders.flatMap((folder) => folder.memberIds));
+    const boxes = new Map(); // character id → its checkboxes (one per folder it's in)
+    const refreshCast = () => {
+      castHeading.textContent = `Characters living there (${cast.size} of up to ${people.max})`;
+      for (const [id, list] of boxes) {
+        for (const box of list) {
+          box.checked = cast.has(id);
+          box.disabled = !box.checked && cast.size >= people.max;
+        }
+      }
+    };
+    const characterRow = (character) => {
+      const label = element("label", "display:flex;gap:6px;align-items:center;cursor:pointer;padding-left:16px;");
+      const box = element("input");
+      box.type = "checkbox";
+      box.addEventListener("change", () => {
+        if (box.checked && cast.size < people.max) cast.add(character.id);
+        else cast.delete(character.id);
+        refreshCast();
+      });
+      if (!boxes.has(character.id)) boxes.set(character.id, []);
+      boxes.get(character.id).push(box);
+      label.append(box, element("span", "", character.name));
+      return label;
+    };
+    const folderFold = (name, members) => {
+      const fold = element("details", "");
+      const chosen = members.filter((entry) => cast.has(entry.id)).length;
+      fold.append(
+        element(
+          "summary",
+          "cursor:pointer;font-weight:600;",
+          `📁 ${name} (${members.length}${chosen ? `, ${chosen} chosen` : ""})`,
+        ),
+        ...members.map(characterRow),
+      );
+      return fold;
+    };
+    for (const folder of people.folders) {
+      const members = folder.memberIds.map((id) => byId.get(id)).filter(Boolean);
+      if (members.length) castList.append(folderFold(folder.name, members));
+    }
+    const loose = people.characters.filter((entry) => !inFolder.has(entry.id));
+    if (loose.length)
+      castList.append(people.folders.length ? folderFold("Not in a folder", loose) : element("div", "", ""));
+    if (!people.folders.length) castList.replaceChildren(...loose.map(characterRow));
+    if (!people.characters.length) castList.textContent = "No characters found.";
+    refreshCast();
+
     const create = button("Create and play", BIG, () =>
       handlers.onCreate({
         name: name.value.trim(),
@@ -228,6 +329,8 @@ export function createMenu(layer, handlers, art = null) {
         lorebooks: [...lorebooks],
         loreLinking: linking.value,
         characterLinking: characterLinking.value,
+        cast: [...cast],
+        persona: personaId,
       }),
     );
     card.append(
@@ -235,6 +338,11 @@ export function createMenu(layer, handlers, art = null) {
       element("div", "font:12px system-ui;opacity:0.75;", "Name"),
       name,
       seed,
+      element("div", "font:12px system-ui;opacity:0.75;", "You play as"),
+      personaRow,
+      personaNote,
+      castHeading,
+      castList,
       explainLine("The same seed always builds the same town. The setting tells the AI what kind of world to write."),
       setting,
       pickers,
