@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.54)
+## What it does now (0.4.55)
 
 ### The world
 
@@ -22,6 +22,10 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   and caves up on the hillsides with no road to them. Roads join neighbouring hamlets, and inns stand by
   the road to a hamlet or farm. Each world chooses its own in New world, or leaves it to the seed
   (`src/land.js`, `src/caves.js`).
+- **Regions:** at the edge of the world, "Travel to <region>" takes you and your party into the next
+  region, with its own land and settlement made from the world's seed. Each region keeps its own place
+  names, lore and groups; characters who didn't come along wait at home. Each trip saves a travel scene
+  request for the AI part.
 - **Built to its lore:** with places linked by name, a world is built with at least every numbered place
   its lorebooks mention (smithy3 makes three smithies; town2 brings a hamlet; farm2 two farms; a cave
   brings mountains for it). Past that, random.

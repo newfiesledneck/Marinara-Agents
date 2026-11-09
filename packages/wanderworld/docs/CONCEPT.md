@@ -372,6 +372,13 @@ cottages in forest clearings, a mill on the river, roads between opposite sides,
 
 **Phase D: regions and travel**
 
+_Done in 0.4.55: regions on a map of keys ("0,0" is home, region1), each `{ name, number, seed,
+landscape }` in `save.regions`, made the first time you cross an edge (no mountains on the arrival edge).
+The region you're in owns `names`, `lore`, `groups` and `housing`; the home region's wait in `homeSetup`.
+Only the party travels; the rest of the cast stays home. Each trip saves a `travel` scene request.
+Regenerate works in the home region only. Saved for later: lore naming regions (region2…), townsfolk of
+their own in other regions, the AI writing a region from its name, encounters on the road._
+
 - Each map is a region (region1, region2…); a world is a set of regions, each with its own seed, land,
   settlements and needs, saved with the world. The lorebook can name regions like any other place.
 - At the edges of a region, "[E] Travel to <region's name>" takes you to the matching edge of the next

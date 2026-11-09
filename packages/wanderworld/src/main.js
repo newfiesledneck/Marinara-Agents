@@ -43,6 +43,9 @@ import {
   slotsOf,
   needsFromLore,
   zoneAt,
+  HOME_REGION,
+  regionName,
+  regionNext,
 } from "./zones.js";
 import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
@@ -116,7 +119,9 @@ const NO_INPUT = { x: 0, y: 0, amount: 0, run: false, yaw: 0, pitch: 0, zoom: 0 
 const AUTO_PIXELS = 1920 * 1080;
 const DAY_SECONDS = 20 * 60; // a whole day in town takes 20 minutes
 const START_HOUR = 9;
-const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, thing: 1.9 }; // every kind of usable needs one
+const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, thing: 1.9, travel: 1 };
+const TRAVEL_REACH = 6; // metres from the world's edge where "Travel to…" shows
+const OPPOSITE = { north: "south", east: "west", south: "north", west: "east" }; // every kind of usable needs one
 const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
 const TAP_RADIUS = 70; // screen pixels a tap may land from something and still pick it
 const WALK_TO_LIMIT = 40; // metres: a tap further away than this is ignored
@@ -361,11 +366,13 @@ function buildWorld(seed, place = null) {
   core.board?.dispose();
   core.board = null;
   const own = core.save?.seed === seed;
+  // Another region of this world: its own land, as big as the home region.
+  const region = Object.values(core.save?.regions ?? {}).find((entry) => entry.seed === seed);
   core.world = createWorld(
     hashString(seed),
-    own ? core.save.landscape : null,
+    own ? core.save.landscape : (region?.landscape ?? null),
     own ? core.save.needs : {},
-    own ? core.save.worldSize : "normal",
+    own || region ? core.save.worldSize : "normal",
   );
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
@@ -580,7 +587,7 @@ function playWorld(id) {
   const load = ++core.worldLoad;
   setTimeout(() => {
     if (load !== core.worldLoad) return;
-    const detail = buildWorld(save.seed, checkedPlace(save.place));
+    const detail = buildWorld(regionSeed(save), checkedPlace(save.place));
     updateCast();
     core.crowd.restoreParty(save.party, core.player.position);
     const shown = () => {
@@ -689,6 +696,10 @@ function choicesOf(landscape) {
 async function regenerateWorld(reshuffle = false, size = null) {
   const save = core.save;
   if (!save) return;
+  if (save.region !== HOME_REGION) {
+    core.hud?.setNotice(`Regenerating rebuilds the home region. Travel back to ${homeRegionName()} first.`);
+    return;
+  }
   savePlace(true);
   const choices = core.save.choices ?? choicesOf(core.save.landscape);
   const seed = reshuffle ? `world-${Date.now().toString(36)}` : core.save.seed;
@@ -1426,8 +1437,11 @@ async function choosePersona(id) {
 }
 
 function updateCast() {
+  // Away from home, only the party that came along is here.
+  const away = core.save && core.save.region !== HOME_REGION;
+  const along = new Set(core.save?.party ?? []);
   const chosen = (core.characters ?? [])
-    .filter((character) => core.cast.has(character.id))
+    .filter((character) => core.cast.has(character.id) && (!away || along.has(character.id)))
     .map((character) => ({ ...character, body: core.bodies[character.id] ?? "auto" }));
   core.crowd.setCast(chosen);
   core.crowd.setShadows(core.settings.shadows);
@@ -1999,6 +2013,19 @@ function usable() {
       act: () => enterCave(cave),
     });
   }
+  const edge = core.interior || !core.save ? null : edgeSide();
+  if (edge) {
+    // At the world's edge: on to the next region (right where the player stands, so it's always in reach).
+    const { x, z } = core.player.position;
+    list.push({
+      kind: "travel",
+      label: `Travel to ${regionNameAt(regionNext(core.save.region, edge))}`,
+      x,
+      z,
+      y: 1.9,
+      act: () => travel(edge),
+    });
+  }
   if (core.interior) {
     const { exit } = core.interior.room;
     list.push({ kind: "exit", label: "Leave", x: exit.x, z: exit.z, y: 1.6, act: () => leaveInterior() });
@@ -2031,6 +2058,129 @@ function usable() {
     }
   }
   return list;
+}
+
+// ── Regions and travel ───────────────────────────────────────────────────────
+
+/** The seed of the region a save is in: the world's own at home. */
+function regionSeed(save) {
+  return save.region === HOME_REGION ? save.seed : (save.regions[save.region]?.seed ?? save.seed);
+}
+
+function homeRegionName() {
+  return regionName(core.save.seed, HOME_REGION);
+}
+
+/** The name of the region at `key` (made or not yet). */
+function regionNameAt(key) {
+  if (key === HOME_REGION) return homeRegionName();
+  return core.save.regions?.[key]?.name ?? regionName(core.save.seed, key);
+}
+
+/** Which edge of the world the player is near enough to travel across, or null. */
+function edgeSide() {
+  const half = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
+  const { x, z } = core.player.position;
+  const sides = [
+    ["east", x],
+    ["west", -x],
+    ["south", z],
+    ["north", -z],
+  ].filter(([, out]) => out > half - TRAVEL_REACH);
+  return sides.sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
+/**
+ * Travels across the world's `side` edge into the next region (made the first time, from the world's seed),
+ * with the party that's following. This region's setup is kept for coming back; a travel scene request is
+ * saved for the AI part (encounters on the way, later). The player arrives at the facing edge.
+ */
+function travel(side) {
+  const save = core.save;
+  if (!save || core.interior || core.mode !== "walk") return;
+  savePlace(true);
+  const from = save.region;
+  const to = regionNext(from, side);
+  const party = core.crowd
+    .party()
+    .filter((member) => !member.waiting)
+    .map((member) => ({ id: member.id, name: member.name }));
+  // Anyone told to wait stays behind, out of the party.
+  for (const member of core.crowd.party()) if (member.waiting) core.crowd.setFollowing(member.id, false);
+  const regions = { ...save.regions };
+  const setup = { names: save.names, lore: save.lore, groups: save.groups, housing: save.housing, place: save.place };
+  let homeSetup = save.homeSetup;
+  if (from === HOME_REGION) homeSetup = setup;
+  else regions[from] = { ...regions[from], ...setup };
+  if (to !== HOME_REGION && !regions[to]) {
+    const seed = `${save.seed}|${to}`;
+    const landscape = landscapeWith(hashString(seed), {});
+    // Arriving across the facing edge: no mountain range in the way there.
+    landscape.mountains = landscape.mountains.filter((edge) => edge !== OPPOSITE[side]);
+    regions[to] = { name: regionName(save.seed, to), number: Object.keys(regions).length + 2, seed, landscape };
+  }
+  const target = (to === HOME_REGION ? homeSetup : regions[to]) ?? {};
+  const name = regionNameAt(to);
+  const request = sceneRequest({
+    thing: { kind: "travel", name: `the road to ${name}`, chain: [regionNameAt(from)] },
+    action: "go",
+    line: "",
+    inside: [],
+    party,
+    persona: { id: "player", name: personaName() },
+    hour: core.hour,
+  });
+  const lateral = side === "east" || side === "west" ? core.player.position.z : core.player.position.x;
+  core.save = {
+    ...save,
+    regions,
+    region: to,
+    homeSetup: to === HOME_REGION ? null : homeSetup,
+    names: target.names ?? {},
+    lore: target.lore ?? {},
+    groups: target.groups ?? null,
+    housing: target.housing ?? {},
+    party: party.map((member) => member.id),
+    place: null,
+    scenes: [...(save.scenes ?? []), request].filter(Boolean).slice(-30),
+  };
+  core.saves.write(core.save);
+  core.hud?.closePanels();
+  core.hud?.setLoading(`Travelling to ${name}…`);
+  const load = ++core.worldLoad;
+  setTimeout(() => {
+    if (load !== core.worldLoad) return;
+    const detail = buildWorld(regionSeed(core.save), null);
+    arriveFrom(side, lateral);
+    updateCast();
+    core.crowd.restoreParty(core.save.party, core.player.position);
+    core.journalAt = 0;
+    Promise.race([detail, new Promise((done) => setTimeout(done, BUILD_WAIT * 1000))]).then(() => {
+      if (load !== core.worldLoad) return;
+      core.hud?.setLoading(null);
+      resume();
+    });
+  }, 60);
+}
+
+/** Puts the player just inside the edge they came in by (having left across `side`), on open dry ground. */
+function arriveFrom(side, lateral) {
+  const half = core.world.size / 2 - 2 - TRAVEL_REACH - 2;
+  const [dx, dz] = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] }[side];
+  const along = Math.max(-half, Math.min(half, lateral));
+  let x = dx !== 0 ? -dx * half : along;
+  let z = dz !== 0 ? -dz * half : along;
+  for (let step = 0; step < 60; step++) {
+    if (!core.world.blocked(x, z, PLAYER_RADIUS) && heightAt(x, z) > -0.3) break;
+    // Further in, and off to one side now and then, until there's room.
+    x += dx * 2 + (step % 7 === 6 ? 3 : 0) * (dz !== 0 ? 1 : 0);
+    z += dz * 2 + (step % 7 === 6 ? 3 : 0) * (dx !== 0 ? 1 : 0);
+  }
+  core.player.position.set(x, heightAt(x, z), z);
+  core.player.rotation.y = Math.atan2(dx, dz);
+  core.cameraYaw = core.player.rotation.y + Math.PI;
+  core.freshStart = false;
+  savePlace(true);
 }
 
 /** The best thing to use from where the player stands and faces, or null. */

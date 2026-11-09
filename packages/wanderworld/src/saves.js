@@ -61,6 +61,58 @@ function checkLore(lore) {
   return out;
 }
 
+/** Where characters live and work: { [id]: { home, work, owner } } (place ids). */
+function checkHousing(housing) {
+  if (!isRecord(housing)) return {};
+  return Object.fromEntries(
+    Object.entries(housing)
+      .filter(([, entry]) => isRecord(entry))
+      .map(([id, entry]) => [
+        id,
+        {
+          home: typeof entry.home === "string" ? entry.home : null,
+          work: typeof entry.work === "string" ? entry.work : null,
+          owner: entry.owner === true,
+        },
+      ]),
+  );
+}
+
+/** One region's own setup, kept while the player is in another: names, lore, groups, homes, where they were. */
+function checkSetup(raw) {
+  if (!isRecord(raw)) return null;
+  return {
+    names: checkNames(raw.names),
+    lore: checkLore(raw.lore),
+    groups: checkGroups(raw.groups),
+    housing: checkHousing(raw.housing),
+    place: checkPlace(raw.place),
+  };
+}
+
+const REGION_KEY = /^-?\d{1,3},-?\d{1,3}$/u;
+
+/** The regions besides the home one: { "x,z": { name, number, seed, landscape, …setup } }. */
+function checkRegions(raw) {
+  if (!isRecord(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw)
+      .filter(([key, region]) => REGION_KEY.test(key) && key !== "0,0" && isRecord(region))
+      .filter(([, region]) => typeof region.seed === "string" && isRecord(region.landscape))
+      .slice(0, 60)
+      .map(([key, region]) => [
+        key,
+        {
+          name: text(region.name, "a far country").slice(0, MAX_NAME),
+          number: Number.isInteger(region.number) ? region.number : 2,
+          seed: region.seed.slice(0, 200),
+          landscape: region.landscape,
+          ...checkSetup(region),
+        },
+      ]),
+  );
+}
+
 /** A world record with every field checked and defaults filled in. */
 export function checkWorld(raw) {
   if (!isRecord(raw) || typeof raw.id !== "string" || typeof raw.seed !== "string") return null;
@@ -115,20 +167,12 @@ export function checkWorld(raw) {
         )
       : {},
     // Where characters live and work, from lore (or set by hand): { [id]: { home, work, owner } } (place ids).
-    housing: isRecord(raw.housing)
-      ? Object.fromEntries(
-          Object.entries(raw.housing)
-            .filter(([, entry]) => isRecord(entry))
-            .map(([id, entry]) => [
-              id,
-              {
-                home: typeof entry.home === "string" ? entry.home : null,
-                work: typeof entry.work === "string" ? entry.work : null,
-                owner: entry.owner === true,
-              },
-            ]),
-        )
-      : {},
+    housing: checkHousing(raw.housing),
+    // The region the player is in ("x,z" on the map of regions; "0,0" is home, region1). Names, lore,
+    // groups and homes above are that region's; the home region's wait in `homeSetup` while away.
+    region: typeof raw.region === "string" && REGION_KEY.test(raw.region) ? raw.region : "0,0",
+    regions: checkRegions(raw.regions),
+    homeSetup: checkSetup(raw.homeSetup),
     // Places the lore puts somewhere the world hasn't built them yet ("located in wilds1" for a house in
     // town), waiting for the world builder: [{ place, in, title }].
     waitingPlacements: Array.isArray(raw.waitingPlacements)

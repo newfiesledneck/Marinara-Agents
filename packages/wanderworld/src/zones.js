@@ -90,6 +90,41 @@ const PREPOSITION = {
   river: "by",
 };
 
+const REGION_NAMES = [
+  "the Greenvale",
+  "Marrow Downs",
+  "the Fenlands",
+  "Highmoor",
+  "the Amber Reach",
+  "Brackenridge",
+  "the Silverwood",
+  "Dunmere",
+  "the Hollow Wolds",
+  "Kestrel Heath",
+  "the Lantern Coast",
+  "Oakhollow",
+];
+
+/** The home region of every world, where it starts (region1). */
+export const HOME_REGION = "0,0";
+const SIDE_STEP = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] };
+/** The region next to `key` ("x,z" on the map of regions) across its `side` edge. */
+export function regionNext(key, side) {
+  const [x, z] = key.split(",").map(Number);
+  const [dx, dz] = SIDE_STEP[side];
+  return `${x + dx},${z + dz}`;
+}
+/** A region's name: the same for the same world and place on the map of regions. */
+export function regionName(worldSeed, key) {
+  const random = rng(((hashOf(`${worldSeed}|${key}`) % 2147483647) + 2147483647) % 2147483647);
+  return REGION_NAMES[Math.floor(random() * REGION_NAMES.length)];
+}
+function hashOf(text) {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+  return hash | 0;
+}
+
 const pick = (random, list, used) => {
   const left = list.filter((name) => !used.has(name));
   const name = (left.length ? left : list)[Math.floor(random() * (left.length || list.length))];

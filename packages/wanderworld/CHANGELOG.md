@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.55 — 2026-11-09
+
+- Regions and travel: at the edge of the world, "Travel to <region>" takes you, with the party following you, into the next region, made from the world's seed the first time with its own land and settlement. You arrive at its facing edge, and can travel on in any direction or back home.
+- Each region keeps its own place names, lore and groups. Characters who stayed behind wait at home.
+- Every trip saves a travel scene request for the AI part, for encounters on the way later.
+
 ## 0.4.54 — 2026-11-09
 
 - A road network out in the country: hamlets on neighbouring sides are joined by a road curving round the town, inns stand beside the road to a hamlet or farm where their own track meets it, and inns and cottages take a track off a nearby road instead of a long one from town.
