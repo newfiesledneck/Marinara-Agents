@@ -1,10 +1,33 @@
 # Wanderworld
 
-A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal is a world built from your
-characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
-prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
+A walkable, low-poly 3D world on its own Home tab in Marinara Engine: a world built from your characters,
+persona and lorebooks that you explore, talk in, and start scenes from. It is an alpha, offered to Engine
+`staging` testers only, and still changing quickly. The plan and milestones are in
+[docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.71)
+## Using it
+
+1. **Install** Wanderworld from **Agents → Download Agents** on an Engine `staging` build (2.4.6 or newer),
+   and **restart Marinara Engine** when asked. The restart starts its server part; without it the world
+   still works, with set lines instead of AI.
+2. Open **Home → Wanderworld**, choose **New world**, pick your persona and the characters who live there,
+   and play. To walk in your persona's own model, set one up for that persona in 3D Avatars first; anyone
+   without a model gets a dressed townsperson.
+3. For AI, open **Settings → AI** in Wanderworld and choose the connections: one for conversations, one
+   for scenes, and an image connection for pictures. Each can stay on the Engine's default.
+4. From another device, enter the Engine's Admin Secret in **Settings → Advanced → Admin Access** on that
+   device, as for other packages with their own routes.
+
+What it asks for on install, and why: `routes` and `storage` (its own `/api/wanderworld` routes, scene
+contexts and recaps, and the picture gallery), `scenes` (starting Engine scenes from the world and getting
+their recaps back) and `network` (calls to your own Engine on this machine for the connection list, image
+generation and scene creation; nothing else leaves the machine except through your Engine connections).
+
+Worlds are saved in this browser's storage, one save per world; they don't follow you to another browser
+or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
+from **Load world** or clear the site's data.
+
+## What it does now (0.4.72)
 
 ### The world
 
@@ -45,7 +68,7 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   swimming. Friends meet up and hold little conversations, taking turns; name tags are tinted by how each
   person sees you (red enemies, green friends, pink romance…).
 - **Talking:** walk up and press E. They greet you by how they feel about you; pick from a few things to
-  say, or type your own (set conversations until the AI update).
+  say, or type your own. With AI on they answer in character; without it, from set lines.
 - **Relationships** (Journal → Relationships): how each person sees the others and you (friend, family,
   partner, rival, enemy and more, each with levels), and each one's temperament (passive to aggressive)
   and manner (shy to outgoing). Friends come over to say hello, someone who dislikes you keeps away, a
@@ -100,25 +123,29 @@ With it running:
   its recap comes back to Journal → Here.
 - **Pictures:** Journal → Here → "Picture this place" paints where you are through your image connection.
 - **Settings → AI:** AI conversations on or off, which connection writes conversations, which plays scenes,
-  which paints pictures (each can be the Engine's default), how people talk, reply length, creativity, and
-  the picture style (the Engine's built-in style profiles, or your default one).
+  which paints pictures (each can be the Engine's default), how people talk, reply length, creativity, the
+  scene point of view, tense and prompt preset, and the picture style (the Engine's built-in style
+  profiles, or your default one).
+
+Every AI call uses a connection of yours, so it costs what that connection costs. A conversation reply, a
+moment, a day's schedule, a scene plan and a picture are one call each; nothing calls a model while you
+only walk about.
 
 ### Playing
 
 - **Main menu and saves,** with painted art and a loading screen: Continue, New world (name, seed, your
-  persona, the characters who live there from your Engine folders, the land, the settlement, any more
-  hamlets and farms, the world's size from Small to Massive, the setting and lorebooks, with a map of the world it makes and Reroll),
-  Load world (thumbnails, Rename, Delete) and Settings. Each world keeps everything in its own save in
-  this package's browser storage: where you were, the time, the cast, bodies, relationships, lore,
-  groups, homes, notes and scenes.
+  persona, the characters who live there from your Engine folders, the land, the settlement, walls, any
+  more hamlets, farms and landmarks, the world's size from Small to Massive, the setting and lorebooks,
+  with a map of the world it makes and Reroll), Load world (thumbnails, Rename, Delete) and Settings. Each
+  world keeps everything in its own save in this package's browser storage: where you were, the time, the
+  cast, bodies, relationships, lore, groups, homes, schedules, notes and scenes.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
-  and who comes along; choosing sets up a scene request for the AI part to play out (Settings → Walk into
-  buildings brings back the unfinished furnished rooms).
-- **The Journal** (J): Here, People (where everyone is, and where they live and work, set by hand or
-  by lore), Party,
-  Relationships, Places (the setup tree), Map (the region from above, with names and where each edge
-  leads) and World (setting, lorebooks, lore linking).
+  and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
+  as a scene" (Settings → Walk into buildings brings back the unfinished furnished rooms).
+- **The Journal** (J): Here, People (where everyone is, where they live and work, and their schedules),
+  Party, Relationships, Places (the setup tree), Map (the region from above, with names and where each
+  edge leads) and World (setting, scene instructions, lorebooks, lore linking).
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster).
 - **Animation:** recorded clips from Quaternius's Universal Animation Library (idle, walk, jog, sprint,
   sitting, talking, swimming), or the hand-made motion (Settings → Animation).
@@ -132,14 +159,18 @@ With it running:
 - A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night. Weather (Settings,
   off by default): rain, snow or mist, changing every few minutes or always one.
 
-It reads your personas, characters, character folders, lorebooks and 3D Avatars models from the Engine.
-Worlds stay in this browser for now. The server part keeps only what scenes need (their context until the
-Engine's planner reads it, and their recaps until the world takes them).
+It reads your personas, characters, character folders, lorebooks, connections, prompt presets and 3D
+Avatars models from the Engine, and changes none of them. Worlds stay in this browser for now. The server
+part keeps only scene contexts (until the Engine's planner reads them), scene recaps (until the world takes
+them) and each world's newest 60 pictures.
 
-## Using it
+### Known limits
 
-Install it, then open the **Wanderworld** tab on Home. To walk in your persona's own model, set one up for
-that persona in 3D Avatars first.
+- A scene needs at least one of your characters there: the Engine casts its own characters only.
+- Only the Engine's built-in picture style profiles are listed; your own default profile is "Engine default".
+- Another region has no townsfolk of its own yet: only your party travels.
+- Walk-in rooms are unfinished and off by default.
+- Quartermaster works inside scenes started from Wanderworld (they are roleplay chats), not in the world.
 
 ## How it works
 
@@ -156,9 +187,10 @@ that persona in 3D Avatars first.
 - `src/zones.js` names the places of a world, finds the place at a point, says where someone is in words,
   and holds the setup logic: groups, numbered names, keeping the setup through a regenerate, and reading
   lorebook keywords (`matchLore`, `structureFromLore`, `needsFromLore`).
-- `src/npcs.js` runs the townsfolk: each follows a small plan (walk, sit, go in, chat, work, wait), heads home
-  at night, routes along the streets in town and straight across country (by a bridge over the river),
-  swims, follows the party, and acts on relationships and temperament.
+- `src/npcs.js` runs the townsfolk: each follows their day's schedule (`src/schedules.js`) and, between
+  its entries, a small plan (walk, sit, go in, chat, wait); routes along the streets in town and straight
+  across country (by a bridge over the river, by the gates of a walled town), swims, follows the party,
+  and acts on relationships and temperament.
 - `src/relationships.js` holds relationship kinds, tiers and warmth, temperaments, and reading
   relationships from lore keywords; `src/dialogue.js` the set conversations; `src/interactions.js` the
   things you can do with doors and things, and the scene requests they make.
@@ -168,9 +200,10 @@ that persona in 3D Avatars first.
   3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
   build the default people.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
-  `/api/wanderworld` for status, the connection list, conversation replies, pictures, and scene contexts
-  and recaps, plus a scene origin for the Engine's scene planner. `src/ai.js` is the client's side of it,
-  `src/map.js` draws the maps, `src/schedules.js` holds the daily schedules, and `src/illustrate.js` and
+  `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
+  plans, pictures and the gallery, scene plans, scene creation, and scene contexts and recaps, plus a
+  scene origin for the Engine. Every request body is checked there. `src/ai.js` is the client's side of
+  it, `src/map.js` draws the maps, `src/weather.js` the weather, and `src/illustrate.js` and
   `src/floating.js` the Illustrate window and the floating windows.
 - `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
@@ -182,12 +215,28 @@ that persona in 3D Avatars first.
 
 Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The pixel ratio is capped at
 1.5, Auto resolution steps down when frames drop, nature and real lights follow the player, and fog hides
-the far edge. A performance pass is planned once the bigger worlds are in (docs/CONCEPT.md, W8).
+the far edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
-## Building
+## Building and testing
 
 ```bash
 node scripts/build-wanderworld-package.mjs
 ```
 
-Edit `src/` and rebuild; never edit `client.js`, `manifest.json` or the artifact by hand.
+Edit `src/` or `server.mjs` and rebuild; never edit `client.js`, `manifest.json` or the artifact by hand.
+Bump `VERSION` in the build script and add a `CHANGELOG.md` entry first. The regression suites are
+`tests/wanderworld*.regression.mjs`, each run with `node`.
+
+## Credits
+
+The buildings, props, nature, townsfolk and recorded animations are converted from free packs by
+[Quaternius](https://quaternius.com), released under
+[CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
+Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
+Fantasy, and the Universal Animation Library. Thank you, Quaternius. The full list, with which folder
+comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and
+[src/clips/CREDITS.md](src/clips/CREDITS.md).
+
+The menu art, logo, loading screen, store banner and ground, water and wood textures were made for
+Wanderworld by its author with an image generator. three.js, `@pixiv/three-vrm` and `mmd-parser` are
+bundled under their MIT licences, with their notices kept in `client.js`.

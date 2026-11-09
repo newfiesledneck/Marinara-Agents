@@ -21,6 +21,13 @@
       "iconPath": "../../../store/icons/ruleset-5e-2014.webp",
       "bannerPath": "../../../store/banners/ruleset-5e-2014.webp",
       "bannerSmallPath": "../../../store/banners/ruleset-5e-2014-1200.webp"
+    },
+    "wanderworld": {
+      "section": "adventure",
+      "tagline": "A low-poly 3D world to walk around in.",
+      "iconPath": "../../../store/icons/wanderworld.webp",
+      "bannerPath": "../../../store/banners/wanderworld.webp",
+      "bannerSmallPath": "../../../store/banners/wanderworld-1200.webp"
     }
   }
 }

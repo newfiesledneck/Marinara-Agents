@@ -192,6 +192,130 @@
           "highlight": true
         }
       ]
+    },
+    "wanderworld": {
+      "versions": [
+        {
+          "version": "0.4.72",
+          "date": "2026-11-09",
+          "notes": "- Offered to Engine staging testers from Agents → Download Agents. The README has install steps, what each permission is for, known limits, and credits for the Quaternius CC0 packs the world is built from.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.71",
+          "date": "2026-11-09",
+          "notes": "- Scenes you start in the world are planned by Wanderworld, so the Engine's scene dialog (with choices remembered from other chats) no longer comes up. Settings → AI: scene point of view, tense, and a prompt preset picked for every scene; Journal → World: scene instructions for that world. If planning fails, the Engine's own planner takes over.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.70",
+          "date": "2026-11-09",
+          "notes": "- Up to five people hear what you say or do, and anyone you name (\"/s Hey Ingrid!\") is one of them if they're in earshot, with the nearest others.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.69",
+          "date": "2026-11-09",
+          "notes": "- Moments: the \"Around you\" chat window takes what you say or do: plain text to everyone nearby, /s shouts, /w whispers, /p talks to your party, /a does something (open a chest, cast a spell). The narrator answers and whoever heard may reply. Reading the noticeboard, sitting by people and card choices are moments too. Commands are listed under the box; the window moves and resizes.\n- Schedules: everyone follows a day (home, work, meals, visits, a seat), editable in Journal → People → Schedules, planned by the AI on request, and changed by what people agree to in moments.\n- Illustrate: a window that paints the current moment from a prompt template you can edit, with a scrolling gallery (the newest 60): click to show, × to delete.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.68",
+          "date": "2026-11-09",
+          "notes": "- A server part (needs an Engine restart after installing or updating): people answer in their own words, written by your model from their card, your persona, where you are, the time and weather, how they feel about you and the lore active there; set lines stand in if a call fails.\n- Settings → AI: AI conversations on or off, the connections for conversations, scenes and pictures, how people talk, reply length, creativity, and the picture style (the Engine's style profiles).\n- \"Play it as a scene\" on a scene card opens it as a roleplay scene in the Engine with everyone there; its recap comes back to Journal → Here.\n- Journal → Here: \"Picture this place\" paints where you are through your image connection.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.67",
+          "date": "2026-11-09",
+          "notes": "- The sound of rain while it rains (softer indoors), and no birdsong in it.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.66",
+          "date": "2026-11-09",
+          "notes": "- Ponds: a landmark of its own, water in a hollow deep enough to swim in the middle and shallow at its sandy shore, ringed with reeds, ferns and mossy stones, with a bench looking over it. Comes with Landmarks in New world, or by the lore's pond1.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.65",
+          "date": "2026-11-09",
+          "notes": "- Fix: a mill far along the river no longer stands in the water; it always steps straight across onto the town's bank.\n- Rock on slopes blends in smoothly instead of painting whole triangles (sharp grey patches where level ground met a bank), and looks the same near and far.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.64",
+          "date": "2026-11-09",
+          "notes": "- Chimney smoke darkens at night instead of glowing white against the dark sky; town walls are a darker, weathered stone.\n- Every gate in a town's walls has a clear way out: a dirt track fading into the meadow where no road leaves, with no trees or bushes in the way.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.63",
+          "date": "2026-11-09",
+          "notes": "- Hamlets, farms and landmarks keep all their ground inside the world, off the river, and clear of each other even in a crowded world: when their own side is full they find the nearest free spot elsewhere.\n- A hamlet or farm goes on another side when there's no room for it beyond the river.\n- Country roads wear away into the grass where they arrive instead of stopping square.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.62",
+          "date": "2026-11-09",
+          "notes": "- Places out in the country keep clear of each other: a farm's fields no longer run into a hamlet, and two farms never overlap.\n- A graveyard goes on a side of town the river doesn't cut off.\n- Map names no longer overlap (each goes above or below its place, wherever there's room), and neighbouring regions have different names.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.61",
+          "date": "2026-11-09",
+          "notes": "- The land goes on past the world's edge into the fog, with woods thinning out and the river running on, instead of ending in a drop to the sky.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.60",
+          "date": "2026-11-09",
+          "notes": "- Weather (Settings → Weather, off by default): rain falling in streaks, drifting snow, or mist, each greying the sky, dimming the sun and drawing the fog in. \"Changing\" turns every few minutes, the same for a world each time and mostly clear; or pick one kind to keep.\n- Fix: unlit windows and lamp glows no longer show as pale squares in fog and mist.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.59",
+          "date": "2026-11-09",
+          "notes": "- City walls and gates: a new city is ringed by a crenellated stone wall with round corner towers and a gatehouse wherever a road leaves town and in the middle of each side. New world's \"Walls\" choice gives any settlement walls or none. Townsfolk and your party find their way out and in by the gates. The map shows the wall.\n- Cities made before keep their open edges.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.58",
+          "date": "2026-11-09",
+          "notes": "- Landmarks out in the country: old ruins, a timber watchtower, a ring of standing stones, a fenced graveyard just outside town, and a watermill on the river bank. Chosen in New world (\"Landmarks\") or now and then by the seed; a lorebook naming ruins1, watchtower1, stones1, graveyard1 or mill1 brings one. Someone can work at the mill.\n- Roads to places keep their \"the\": the road to the Wayside Inn, the road to the quiet acre.\n- Fix: a bridge over a deep valley no longer drags the river banks under the water.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.57",
+          "date": "2026-11-09",
+          "notes": "- Homes and work set by hand: Journal → People → \"Set homes and work…\" gives each character a home (or Auto) and a workplace, with whether they own it. Places show their numbered names (home6, smithy1) to match lorebooks.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.56",
+          "date": "2026-11-09",
+          "notes": "- Maps: New world shows a map of the world your choices make, redrawn as you change them, with Reroll for another. Regenerate shows the rebuilt world's map, with Reroll for another new layout.\n- Journal → Map: the region you're in from above, with you, the town, hamlets, farms, inns, cottages and caves by name, and the regions beyond each edge.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.55",
+          "date": "2026-11-09",
+          "notes": "- Regions and travel: at the edge of the world, \"Travel to <region>\" takes you, with the party following you, into the next region, made from the world's seed the first time with its own land and settlement. You arrive at its facing edge, and can travel on in any direction or back home.\n- Each region keeps its own place names, lore and groups. Characters who stayed behind wait at home.\n- Every trip saves a travel scene request for the AI part, for encounters on the way later.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.54",
+          "date": "2026-11-09",
+          "notes": "- A road network out in the country: hamlets on neighbouring sides are joined by a road curving round the town, inns stand beside the road to a hamlet or farm where their own track meets it, and inns and cottages take a track off a nearby road instead of a long one from town.\n- Worlds without hamlets or farms keep their roads as they were.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.53",
+          "date": "2026-11-09",
+          "notes": "- Farms out in the country: a farmhouse and a red barn round a yard at the end of their own road, with fenced fields of wheat or greens in rows behind, crates, barrels and a wagon. Chosen in New world (\"Farms\") or often one by the seed.\n- A lorebook naming farm1 or farm2 brings that many; \"farm\", \"barn\" and \"fields\" lore links there.\n- Hamlets and farms stand on open ground in front of a mountain range, not up it.",
+          "highlight": false
+        }
+      ]
     }
   }
 }

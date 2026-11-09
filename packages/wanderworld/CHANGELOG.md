@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.72 — 2026-11-09
+
+- Offered to Engine staging testers from Agents → Download Agents. The README has install steps, what each permission is for, known limits, and credits for the Quaternius CC0 packs the world is built from.
+
 ## 0.4.71 — 2026-11-09
 
 - Scenes you start in the world are planned by Wanderworld, so the Engine's scene dialog (with choices remembered from other chats) no longer comes up. Settings → AI: scene point of view, tense, and a prompt preset picked for every scene; Journal → World: scene instructions for that world. If planning fails, the Engine's own planner takes over.
