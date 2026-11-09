@@ -64,7 +64,8 @@ export function createMenu(layer, handlers, art = null) {
   tall?.addEventListener?.("change", backdrop);
   const column = element(
     "div",
-    "display:flex;flex-direction:column;gap:14px;align-items:stretch;width:min(420px,100%);",
+    // No taller than the window: the card below the logo shrinks and scrolls (a long New world form).
+    "display:flex;flex-direction:column;gap:14px;align-items:stretch;width:min(420px,100%);max-height:calc(100% - 24px);padding:12px 0;box-sizing:border-box;",
   );
   const title = element(
     "div",
@@ -73,7 +74,10 @@ export function createMenu(layer, handlers, art = null) {
   );
   // The carved logo in place of the lettering, once it has loaded.
   if (art?.logo) {
-    const logo = element("img", "width:min(460px,100%);height:auto;filter:drop-shadow(0 4px 14px rgba(30,18,6,0.45));");
+    const logo = element(
+      "img",
+      "flex:none;width:min(460px,100%);max-height:22vh;object-fit:contain;object-position:left;height:auto;filter:drop-shadow(0 4px 14px rgba(30,18,6,0.45));",
+    );
     logo.alt = "Wanderworld";
     logo.addEventListener("load", () => title.replaceWith(logo));
     logo.src = art.logo;
@@ -83,7 +87,8 @@ export function createMenu(layer, handlers, art = null) {
     "font:600 15px system-ui,sans-serif;color:#fff8e6;text-shadow:0 1px 3px rgba(0,0,0,0.85),0 0 14px rgba(0,0,0,0.5);margin-top:-8px;",
     "Your characters, living their days in a world of their own.",
   );
-  const card = element("div", PANEL);
+  const card = element("div", `${PANEL}flex:0 1 auto;min-height:0;`);
+  for (const fixed of [title, tagline]) fixed.style.flex = "none";
   column.append(title, tagline, card);
   screen.append(column);
   layer.prepend(screen); // under the HUD's panels, so Settings opens over it
