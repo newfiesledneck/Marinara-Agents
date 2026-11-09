@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.41 — 2026-11-08
+
+- New world chooses who you play and who lives there. Type your persona's name (an exact match picks it) or pick from the list. Characters show in their Engine folders: open one to tick who moves in, up to 30. It starts from the world you played last.
+
 ## 0.4.40 — 2026-11-08
 
 - "lives in inn1", "owner of inn1" and the same for cottages now mean the building there, so an innkeeper or a hermit can live and work out in the country.

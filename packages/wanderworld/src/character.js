@@ -196,6 +196,31 @@ function cardName(row) {
 }
 
 /** The Engine's characters, as [{ id, name }] sorted by name; empty when the list can't be read. */
+/**
+ * The Engine's character folders (its character groups), as [{ id, name, memberIds }]; empty when they
+ * can't be read.
+ */
+export async function listCharacterFolders() {
+  return rows(await getJson("/api/characters/groups/list"))
+    .filter((row) => typeof row?.id === "string" && row.id)
+    .map((row) => {
+      let members = row.characterIds;
+      if (typeof members === "string") {
+        try {
+          members = JSON.parse(members);
+        } catch {
+          members = [];
+        }
+      }
+      return {
+        id: row.id,
+        name: typeof row.name === "string" && row.name.trim() ? row.name.trim() : "Folder",
+        memberIds: Array.isArray(members) ? members.filter((id) => typeof id === "string") : [],
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function listCharacters() {
   return rows(await getJson("/api/characters"))
     .filter((row) => typeof row?.id === "string" && row.id)
