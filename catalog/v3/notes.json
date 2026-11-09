@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.44",
+          "date": "2026-11-08",
+          "notes": "- New world: each character folder has its own checkbox that picks everyone in it (as many as fit) or clears them. It shows half-ticked when only some are chosen.",
+          "highlight": false
+        },
+        {
           "version": "0.4.43",
           "date": "2026-11-08",
           "notes": "- New world's character and lorebook lists show again: they had been squeezed to nothing inside the scrolling card.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.25",
           "date": "2026-11-08",
           "notes": "- Swimming: walk into the river and you wade through the shallows, then swim where it's deep, treading water when you stop (Shift swims faster). Recorded swimming animations from the Universal Animation Library.\n- The river is deeper in the middle, and its water reaches the banks everywhere instead of leaving dry gaps.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.24",
-          "date": "2026-11-08",
-          "notes": "- Relationships: set how each person sees everyone else, and you, in the Journal's new Relationships tab. Friend, family, partner, rival, enemy and more, each with levels: a low-level friend is just friendly, a high one a best friend; a low-level enemy dislikes you, a high one is a sworn enemy.\n- Townsfolk act on them: friends seek each other out, chat, and sit or walk together; people keep away from someone they dislike or fear; someone fond of you comes over and says hello; a sworn enemy marches up to have words.\n- Temperament and manner for each character, from passive to aggressive and from shy to outgoing: how readily they confront someone, or come over to greet you and seek company.\n- Settings → Confrontations and combat: anywhere, outside towns, outside safe places (towns, inns and cottages), or off.\n- Bridges have plank decks on beams and piers, and reach from bank to bank.\n- Dirt roads fade out of the cobbles where they leave town instead of starting in a hard line.",
           "highlight": false
         }
       ]
