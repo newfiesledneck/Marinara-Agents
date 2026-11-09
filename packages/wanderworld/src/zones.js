@@ -219,6 +219,23 @@ export function buildZones(layout, seed) {
       });
     }
   });
+  // Each town building belongs to the street (or the square) it stands on: town → street → building.
+  const streetsAndSquare = zones.filter((zone) => zone.kind === "street" || zone.kind === "plaza");
+  const onStreet = (box) => {
+    let best = "town";
+    let bestGap = Infinity;
+    for (const zone of streetsAndSquare) {
+      const other = zone.shape.box;
+      const gap =
+        Math.max(0, other.minX - box.maxX, box.minX - other.maxX) +
+        Math.max(0, other.minZ - box.maxZ, box.minZ - other.maxZ);
+      if (gap < bestGap) {
+        best = zone.id;
+        bestGap = gap;
+      }
+    }
+    return best;
+  };
   layout.buildings.forEach((building, i) => {
     const kind = BUILDING[building.kind] ?? BUILDING.home;
     const outpost = outpostDoors.get(i);
@@ -230,7 +247,7 @@ export function buildZones(layout, seed) {
       // An inn or cottage out in the country is its outpost's place, by the same name.
       name: outpost ? outpost.name : kind.name,
       shape: { box: building.box },
-      parent: outpost ? outpost.id : "town",
+      parent: outpost ? outpost.id : onStreet(building.box),
       sign: outpost ? (outpost.kind === "inn" ? outpost.name.replace(/^the /u, "") : null) : kind.sign,
     });
   });
@@ -396,6 +413,8 @@ export function checkGroups(raw) {
       members: [
         ...new Set((Array.isArray(group.members) ? group.members : []).filter((id) => typeof id === "string")),
       ].slice(0, 1000),
+      // A group can sit inside another (the homes of Mill Lane inside the town's homes).
+      parent: typeof group.parent === "string" && group.parent !== group.id ? group.parent : null,
     }));
 }
 
@@ -413,8 +432,81 @@ export function newGroupId(groups, name) {
   return id;
 }
 
-/** The groups that hold any of `zones` (a place and the places it sits in). */
+/** The groups that hold any of `zones` (a place and the places it sits in), and the groups those sit in. */
 export function groupsAt(groups, zones) {
   const ids = new Set(zones.map((zone) => zone.id));
-  return groups.filter((group) => group.members.some((id) => ids.has(id)));
+  const found = groups.filter((group) => group.members.some((id) => ids.has(id)));
+  const byId = new Map(groups.map((group) => [group.id, group]));
+  for (let i = 0; i < found.length; i++) {
+    const parent = byId.get(found[i].parent);
+    if (parent && !found.includes(parent)) found.push(parent); // a loop of parents stops at the first repeat
+  }
+  return found;
+}
+
+// ── The world's setup, kept through a regenerate ─────────────────────────────
+
+/** The whole world: the top of every place's chain, for lore that's active everywhere. */
+export const WORLD_ID = "world";
+
+/**
+ * A place's identity apart from where it ended up: its kind and which one of that kind it is (the third
+ * home, the first inn), or its own id where that never moves (the town, the square, the river, a street).
+ */
+function keysOf(zones) {
+  const counts = new Map();
+  const keys = new Map();
+  for (const zone of zones.zones) {
+    const sort =
+      zone.kind === "building"
+        ? `building:${zone.buildingKind}`
+        : zone.outpostKind
+          ? `${zone.kind}:${zone.outpostKind}`
+          : zone.kind;
+    if (["town", "plaza", "fountain", "forest", "outskirts", "river", "street"].includes(zone.kind)) {
+      keys.set(zone.id, zone.id);
+      continue;
+    }
+    const n = counts.get(sort) ?? 0;
+    counts.set(sort, n + 1);
+    keys.set(zone.id, `${sort}#${n}`);
+  }
+  return keys;
+}
+
+/**
+ * Which place in a rebuilt world (`next` zones) each place of the old one (`old`) has become, by kind
+ * and order: old id → new id. A place with no counterpart (fewer homes now) is left out. Roads go with
+ * their outposts.
+ */
+export function remapZones(old, next) {
+  const oldKeys = keysOf(old);
+  const byKey = new Map([...keysOf(next)].map(([id, key]) => [key, id]));
+  const map = new Map();
+  for (const [id, key] of oldKeys) if (byKey.has(key)) map.set(id, byKey.get(key));
+  for (const [id, to] of [...map]) {
+    if (id.startsWith("outpost:") || id.startsWith("cave:")) {
+      const road = `road:${id.split(":")[1]}`;
+      if (old.byId.has(road) && next.byId.has(`road:${to.split(":")[1]}`)) map.set(road, `road:${to.split(":")[1]}`);
+    }
+  }
+  map.set(WORLD_ID, WORLD_ID);
+  return map;
+}
+
+/** Carries a world's setup over to its rebuilt places: names, lore and groups by `map` (old → new id). */
+export function carrySetup({ names = {}, lore = {}, groups = null }, map) {
+  const move = (record) =>
+    Object.fromEntries(
+      Object.entries(record)
+        .map(([id, value]) => [id.startsWith("group:") || id.startsWith("character:") ? id : map.get(id), value])
+        .filter(([id]) => id),
+    );
+  return {
+    names: move(names),
+    lore: move(lore),
+    groups: groups
+      ? groups.map((group) => ({ ...group, members: group.members.map((id) => map.get(id)).filter(Boolean) }))
+      : null,
+  };
 }
