@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.41",
+          "date": "2026-11-08",
+          "notes": "- New world chooses who you play and who lives there. Type your persona's name (an exact match picks it) or pick from the list. Characters show in their Engine folders: open one to tick who moves in, up to 30. It starts from the world you played last.",
+          "highlight": false
+        },
+        {
           "version": "0.4.40",
           "date": "2026-11-08",
           "notes": "- \"lives in inn1\", \"owner of inn1\" and the same for cottages now mean the building there, so an innkeeper or a hermit can live and work out in the country.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.22",
           "date": "2026-11-08",
           "notes": "- Leaves and needles under thick stands of trees, and painted snow on the high peaks.\n- Bridges cross over the water: the river and its bed run underneath, and the dirt road stops at each end.\n- Sand and mud only along the river now, not in every hollow of the hills.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.21",
-          "date": "2026-11-08",
-          "notes": "- A noticeboard on the market square: read the town's notes, and pin up your own (they're saved with the world). Quests and news from the AI will go here later.\n- Parchment for the menu, conversations, building cards, the noticeboard and the Journal, with wooden buttons.\n- Painted water that ripples as it flows, sandy riverbeds, rock on the mountains, and cracked rock on cave faces.\n- No more grass wedges at street corners.",
           "highlight": false
         }
       ]
