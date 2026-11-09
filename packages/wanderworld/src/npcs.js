@@ -12,7 +12,7 @@ import { findModel, loadModelCharacter } from "./models.js";
 import { createPerson } from "./people.js";
 import { tagColourOf } from "./relationships.js";
 import { fill, greetingFor, moodOf, pickExchange } from "./dialogue.js";
-import { hashString, heightAt, rng, waterAt } from "./world.js";
+import { hashString, heightAt, onBridgeAt, rng, waterAt } from "./world.js";
 
 export const MAX_PEOPLE = 30; // far-off and out-of-sight people animate less often, so thirty stays smooth
 const WANDER_RADIUS = 9;
@@ -33,6 +33,8 @@ const FOLLOW_ROW = 1.1; // and between rows
 const FOLLOW_SIDE = 0.75; // metres to either side
 const FOLLOW_RUN = 3.5; // further behind than this: run to catch up
 const RUN_SPEED = 4.8;
+const SWIM_DEPTH = 1.3; // metres of water from which people swim (as the player does)
+const SWIM_SLOWER = 0.6; // swimming speed, as a share of walking or running
 const FOLLOW_LOST = 35; // further than this (or stuck a while): catch up out of sight
 const FOLLOW_SEAT = 9; // metres from a seated player a follower looks for a seat
 // Getting on with each other (relationships.js): who seeks out whom, who keeps away.
@@ -115,7 +117,14 @@ export function createCrowd() {
   const party = []; // ids of followers, in order (their place in the line)
 
   /** Where someone is standing now: the town or the room. */
-  const groundY = (person, x, z) => (person.space === world ? heightAt(x, z) : 0);
+  // Where someone stands: the ground, or the water's surface where it's deep enough to swim.
+  const groundY = (person, x, z) => {
+    if (person.space !== world) return 0;
+    const water = waterAt(x, z);
+    return water.depth > SWIM_DEPTH ? water.level : heightAt(x, z);
+  };
+  // How the player last crossed the river ("bridge" or "swim"): the party crosses the same way.
+  let lastCrossing = "bridge";
 
   /**
    * Where someone lives: the home their lore gives them (setHousing), else one of the houses nearest the
@@ -268,7 +277,9 @@ export function createCrowd() {
   function nextPoint(person, target) {
     const from = person.group.position;
     // Across the river: by the bridge that makes the shortest way round (on, across the deck, then on).
-    if (person.space === world && world.bridges?.length && overWater(from, target)) {
+    // The party crosses the way the player did: swimming after them, or by the bridge.
+    const swimAfter = person.following && (viewNow?.playerSwimming || lastCrossing === "swim");
+    if (person.space === world && world.bridges?.length && !swimAfter && overWater(from, target)) {
       let best = null;
       let bestCost = Infinity;
       for (const bridge of world.bridges) {
@@ -895,9 +906,10 @@ export function createCrowd() {
     const stride = Math.min(distance, speed * dt);
     const beforeX = position.x;
     const beforeZ = position.z;
-    position.x += (dx / distance) * stride;
-    position.z += (dz / distance) * stride;
-    person.space.resolveCollisions(position, BODY_RADIUS);
+    const slow = person.swimming ? SWIM_SLOWER : 1; // swimming is slower than walking
+    position.x += (dx / distance) * stride * slow;
+    position.z += (dz / distance) * stride * slow;
+    person.space.resolveCollisions(position, BODY_RADIUS, true); // into the water too (they swim)
     person.group.rotation.y = approachAngle(person.group.rotation.y, Math.atan2(dx, dz), 10 * dt);
     const moved = Math.hypot(position.x - beforeX, position.z - beforeZ);
     person.stuck = moved < stride * 0.2 ? (person.stuck ?? 0) + dt : Math.max(0, (person.stuck ?? 0) - dt);
@@ -1042,7 +1054,7 @@ export function createCrowd() {
         const stride = Math.min(distance, WALK_SPEED * dt);
         position.x += headX * stride;
         position.z += headZ * stride;
-        if (!person.straight) space.resolveCollisions(position, BODY_RADIUS);
+        if (!person.straight) space.resolveCollisions(position, BODY_RADIUS, true);
         person.group.rotation.y = approachAngle(person.group.rotation.y, Math.atan2(headX, headZ), 8 * dt);
         const moved = Math.hypot(position.x - startX, position.z - startZ);
         person.stuck = moved < stride * 0.2 ? person.stuck + dt : Math.max(0, person.stuck - dt);
@@ -1074,6 +1086,8 @@ export function createCrowd() {
     }
     if (person.state === "inside" || !person.space) return;
     position.y = groundY(person, position.x, position.z);
+    person.swimming = person.space === world && waterAt(position.x, position.z).depth > SWIM_DEPTH;
+    if (person.shadow) person.shadow.visible = shadowsVisible && !person.swimming;
 
     // Looking at and waving to the player.
     const relative = Math.atan2(
@@ -1098,6 +1112,7 @@ export function createCrowd() {
     const every = !visible ? 6 : playerDistance > NEAR ? 3 : 1;
     if (person.frame % every !== 0 && !wave) return;
     const pose = person.character.update(person.animate, speed, {
+      swim: person.swimming,
       sit: person.state === "sit",
       lookAt,
       talk: (person.state === "talk" || person.state === "chat" || person.state === "sit") && person.speaking,
@@ -1262,6 +1277,9 @@ export function createCrowd() {
       if (!world) return;
       clock = view.time;
       viewNow = view;
+      // How the player crosses the river (the party does the same).
+      if (view.playerSwimming) lastCrossing = "swim";
+      else if (view.player && onBridgeAt(view.player.x, view.player.z)) lastCrossing = "bridge";
       for (const person of people.values()) {
         stepPerson(person, dt, view);
         // The name tag's colour: how they see the player (checked now and then; redrawn when it changes).

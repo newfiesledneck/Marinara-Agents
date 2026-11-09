@@ -200,6 +200,11 @@ export function heightAt(x, z) {
   return land ? land.heightAt(x, z) : 0;
 }
 
+/** Whether (x, z) is on a bridge's deck in the world built last. */
+export function onBridgeAt(x, z) {
+  return land ? land.onBridge(x, z, 0) : false;
+}
+
 /** How deep the water is at (x, z) in the world built last (0 on dry land), and where its surface is. */
 export function waterAt(x, z) {
   return land ? { depth: land.depthAt(x, z), level: land.waterLevel } : { depth: 0, level: 0 };

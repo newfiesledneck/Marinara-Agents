@@ -321,6 +321,34 @@ assert.ok(
   );
   assert.equal(wet, 0, "and never waded into the river");
   assert.ok(Math.hypot(end.x - goal.x, end.z - goal.z) < 5, "and reached the player");
+
+  // When the player swims across, the party swims after them (straight over, not round by the bridge).
+  walkers.restoreParty(["w-1"], start);
+  let swam = 0;
+  let nearBridge = Infinity;
+  for (let i = 0; i < 240; i++) {
+    clock += 0.1;
+    walkers.update(0.1, {
+      player: goal,
+      space: riverWorld,
+      playerSitting: false,
+      playerSwimming: true,
+      playerAngle: 0,
+      playerSpeed: 1.4,
+      hour: 12,
+      time: clock,
+      isVisible: () => false,
+      onFootstep: () => {},
+      onSay: () => {},
+      playerName: "Zoey",
+    });
+    const at = walkers.snapshot()[0];
+    nearBridge = Math.min(nearBridge, Math.hypot(at.x - middle.x, at.z - middle.z));
+    if (waterAt(at.x, at.z).depth > 1.3) swam++;
+  }
+  const after = walkers.snapshot()[0];
+  assert.ok(swam > 0, "the follower swam across after the swimming player");
+  assert.ok(Math.hypot(after.x - goal.x, after.z - goal.z) < 5, "and reached the player");
   riverWorld.dispose();
 }
 

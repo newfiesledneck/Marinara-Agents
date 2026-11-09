@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.47 — 2026-11-09
+
+- Townsfolk and followers can swim. They still go round by a bridge when there's one on the way, and your party crosses the way you did: swimming after you, or by the bridge.
+- Settings → Time speed: a day in 80, 40, 20, 10, 5 or 2½ minutes.
+- The clock in Journal → World keeps ticking, a place's lore count updates as soon as you go back, and deleting a group asks first.
+
 ## 0.4.46 — 2026-11-09
 
 - Body choices are kept per world: setting someone's body in one world (by hand or by lore) doesn't change another. Older worlds start from the choices made before.

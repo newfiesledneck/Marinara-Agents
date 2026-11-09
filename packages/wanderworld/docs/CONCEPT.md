@@ -288,7 +288,7 @@ The seed fills it in, New world can choose each part, and the save keeps it._
   names for them. Every part is optional and checked, so worlds differ and a partial answer still works.
 - **More outposts:** a mill, a farmstead, ruins, a shrine, a watchtower, a campsite; more cave kinds (a
   mine, a grotto by water); lakes and ponds; a coast.
-- **Town shapes, not only the square grid:** a single row of houses along a winding road through the
+- **Town shapes, not only the square grid** (now planned in W8): a single row of houses along a winding road through the
   map, a crossroads village, a scattered hamlet, a town on both banks of the river with bridges in it, a
   walled town with gates. The layout is a set of plots along roads, so zones, signs, waypoints and the
   townsfolk keep working whatever the shape. The brief picks the shape and the plots' kinds.
@@ -308,6 +308,81 @@ the player's own (saved as `notices`)._
 - **Notes the AI writes:** quests ("the miller's cart lost a wheel on the road to the inn"), news and
   rumours, from the cast, lore and recent events, pinned with who posted them. Taking a quest note can
   start a scene or set a goal; the player's own notes go into context too.
+
+### W8. World generation, the next version (planned 2026-11-09)
+
+Goal: worlds that come out very different from each other, bigger worlds with room for more places, and
+a structure ready for several settlements and for travelling between regions. Everything stays
+seeded, saved with the world, settable in New world and Regenerate (each choice can be left on Auto),
+and driven by the lorebook's numbered places (0.4.38) as a minimum.
+
+**Phase A: world size and draw distance**
+
+- **World size:** Small, Normal (today's world), Large, Huge, Massive (about 0.7×, 1×, 1.5×, 2× and
+  3× the side). Chosen in New world and Regenerate, or Auto (from the settlements and the lore's needs).
+- **Draw distance:** Tiny, Near, Medium, Far, Very far, Max (about 60, 90, 140, 200, 300 and 450 m).
+  It sets how far buildings, people, props and nature are drawn, and the fog closes in just inside it
+  so what isn't drawn is never seen as empty ground.
+- **What bigger worlds need:** the ground in chunks with coarser detail far away (one mesh at 2 m cells
+  doesn't scale to Massive); buildings, props and people culled by distance in chunks; nature already
+  culls by distance (`refreshNature`). Collision and zones stay grid-based.
+
+**Phase B: settlements**
+
+- **Kinds by size:** hamlet (a handful of houses, maybe a well, no square), village (a green or a few
+  market stalls, one or two trades), town (a square with a fountain, the usual landmarks), city (more
+  streets, several squares or markets, more of every trade, later walls and gates). The kind decides
+  how many buildings and which ones; the lore's needs come on top.
+- **Layouts:** grid (today), crossroads, along the road (one long winding street), ring round a green,
+  riverside (along the river, a bridge in town), hillside (terraced). The market isn't always a central
+  square with a fountain: it can be stalls at a crossroads, a green, or a riverside quay, and can sit
+  off to one side.
+- **Roads:** cobbled streets (with kerbs and sidewalks, as now) or dirt paths (no sidewalks); later
+  gravel. Chosen per settlement or Auto (hamlets dirt, cities cobbled).
+- **More than one per world:** any mix (a hamlet and a city, two villages and a hamlet…), each its own
+  zone (town1, town2…) with its streets and buildings under it; numbered names continue across them
+  (home1… counts every settlement's houses). Lore and setup keep working by numbered name.
+
+**Phase C: the country, placed where things fit**
+
+- Places go where they suit the land instead of a few fixed spots per side: inns where roads meet,
+  cottages in clearings, caves on real slopes (as many as wanted, no roads), farms in open flat fields
+  with large plots, fields and a barn nearby, a mill on the river.
+- **A road network:** roads join the settlements to each other (and branch off to outposts), crossing
+  the river by bridges; dirt or cobbles by what they join.
+
+**Phase D: regions and travel**
+
+- Each map is a region (region1, region2…); a world is a set of regions, each with its own seed, land,
+  settlements and needs, saved with the world. The lorebook can name regions like any other place.
+- At the edges of a region, "[E] Travel to <region's name>" takes you to the matching edge of the next
+  region's wilderness, with the party. Travel can start a scene on the way (an encounter, a fight, a
+  travel scene): for now the hook and a travel request (like a scene request), the AI part later.
+
+**Phase E: seeing the world**
+
+- A small top-down map in New world and Regenerate to preview the layout before playing, with Reroll.
+- The same map in the Journal: where you are, named places, regions and travel points.
+
+**Saved for later (not forgotten)**
+
+- New kinds of place: farms in fuller detail, a mill, ruins, a watchtower, a graveyard by the temple, a
+  lake or pond, a forest clearing with standing stones, more cave kinds (a mine, a grotto), a coast.
+  Each gets a numbered name for lore (farm1, ruins1…).
+- Weather and seasons, only if they look good: the Engine's chat weather (`WeatherEffects.tsx`, with
+  `weather-renderer`) is a 2D overlay; it's a guide to the look and the weather names, but here it
+  would be rain and snow falling in the scene, fog density, the sky's tint, wet darker ground, snow on
+  the ground through the snow layer, autumn colours on the trees.
+- City walls and gates; second-town details; a world builder (W6); the AI writing the land, settlements
+  and travel scenes (S2, S4); a performance pass once the bigger worlds are in.
+- More animations (the earlier list's item 8): working at a forge or counter, carrying things,
+  sweeping, drinking at the tavern, kneeling at the temple, waving and pointing, sleeping.
+- Homes and workplaces set by hand in the Journal (today only lorebooks set them, 0.4.37).
+- The in-game People panel in the Engine's character folders, like New world (0.4.41).
+- The dark wood planks texture (`wood-planks-dark` in the art folder): shop fronts, awnings' frames, a
+  dock by the river.
+- ~~Swimming for townsfolk and followers~~ (0.4.47) and the small fixes (World clock, lore counts,
+  group delete; 0.4.47).
 
 ### W5. Scene setup (the request, before there's anything to send it to)
 

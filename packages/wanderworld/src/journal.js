@@ -70,6 +70,7 @@ export function createJournal(panelCss, handlers) {
   let tab = "here";
   let data = null;
   let groupEdit = null;
+  let worldClock = null; // the World tab's time, updated in place
   const openNodes = new Set(["world", "places", "town", "groups"]); // which rows of the Places tree are open // the id of the group whose places are being chosen
   let picker = null; // { zone, lorebooks, chosen, onToggle } while choosing lore for a place
 
@@ -400,7 +401,7 @@ export function createJournal(panelCss, handlers) {
         inside,
         button(`Places (${group.members.length})`, SMALL, () => ((groupEdit = group.id), draw())),
         loreButton(group),
-        button("✕", SMALL, () => handlers.onGroupDelete(group.id)),
+        confirmDelete(group),
       );
       if (open) for (const kid of kids) drawGroupRow(kid, depth + 1, seen);
     };
@@ -411,6 +412,23 @@ export function createJournal(panelCss, handlers) {
       add.style.marginLeft = "28px";
       body.append(add);
     }
+  }
+
+  /** A group's ✕: asks "Delete?" first (a second press within a few seconds removes it and its lore). */
+  function confirmDelete(group) {
+    const remove = button("✕", SMALL, () => {
+      if (remove.dataset.asking) return handlers.onGroupDelete(group.id);
+      remove.dataset.asking = "1";
+      remove.textContent = "Delete?";
+      remove.title = `Delete ${group.name} and the lore tied to it`;
+      setTimeout(() => {
+        if (!remove.isConnected) return;
+        delete remove.dataset.asking;
+        remove.textContent = "✕";
+      }, 3000);
+    });
+    remove.title = `Delete ${group.name}`;
+    return remove;
   }
 
   /** One group's places: tick the ones in it. */
@@ -607,10 +625,9 @@ export function createJournal(panelCss, handlers) {
       ["Seed", world.seed],
     ]) {
       const row = element("div", "display:flex;justify-content:space-between;gap:12px;font-size:13px;");
-      row.append(
-        element("span", "opacity:0.7;", label),
-        element("span", "text-align:right;word-break:break-all;", value),
-      );
+      const shown = element("span", "text-align:right;word-break:break-all;", value);
+      if (label === "Time") worldClock = shown; // ticks on while the tab is open (render)
+      row.append(element("span", "opacity:0.7;", label), shown);
       body.append(row);
     }
   }
@@ -639,6 +656,8 @@ export function createJournal(panelCss, handlers) {
       const lists = tab === "places" || tab === "party" || tab === "relations" || tab === "world";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.
       if (picker && body.childElementCount) return;
+      // The World tab's clock ticks on even when the tab isn't redrawn.
+      if (tab === "world" && worldClock?.isConnected) worldClock.textContent = next.world.time;
       const changed = next.partyChanged || next.relationsChanged || next.placesChanged;
       if (lists && !picker && body.childElementCount && (!changed || groupEdit)) return; // a group's ticks are already shown
       draw();
