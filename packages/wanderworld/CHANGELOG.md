@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.36 — 2026-11-08
+
+- Linking lore to places and setting up characters from lore are off by default on New world: choose them to opt in.
+
 ## 0.4.35 — 2026-11-08
 
 - Lorebooks can set how characters stand toward each other: a character's entry keyed "brother of Sarah", "son of Zoey", "enemy of Mira" or "friends with Tam" sets that one way. Nothing is assumed the other way round; the other character's own entry says how they see it. "you" or your persona's name means you.
