@@ -1408,6 +1408,18 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.62",
+          "date": "2026-11-09",
+          "notes": "- Places out in the country keep clear of each other: a farm's fields no longer run into a hamlet, and two farms never overlap.\n- A graveyard goes on a side of town the river doesn't cut off.\n- Map names no longer overlap (each goes above or below its place, wherever there's room), and neighbouring regions have different names.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.61",
+          "date": "2026-11-09",
+          "notes": "- The land goes on past the world's edge into the fog, with woods thinning out and the river running on, instead of ending in a drop to the sky.",
+          "highlight": false
+        },
+        {
           "version": "0.4.60",
           "date": "2026-11-09",
           "notes": "- Weather (Settings → Weather, off by default): rain falling in streaks, drifting snow, or mist, each greying the sky, dimming the sun and drawing the fog in. \"Changing\" turns every few minutes, the same for a world each time and mostly clear; or pick one kind to keep.\n- Fix: unlit windows and lamp glows no longer show as pale squares in fog and mist.",
@@ -1513,18 +1525,6 @@
           "version": "0.4.43",
           "date": "2026-11-08",
           "notes": "- New world's character and lorebook lists show again: they had been squeezed to nothing inside the scrolling card.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.42",
-          "date": "2026-11-08",
-          "notes": "- The main menu's card scrolls when the window is short, so all of New world can be reached; the logo shrinks to fit.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.41",
-          "date": "2026-11-08",
-          "notes": "- New world chooses who you play and who lives there. Type your persona's name (an exact match picks it) or pick from the list. Characters show in their Engine folders: open one to tick who moves in, up to 30. It starts from the world you played last.",
           "highlight": false
         }
       ]
