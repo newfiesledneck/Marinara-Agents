@@ -120,10 +120,16 @@ export function createJournal(panelCss, handlers) {
   }
 
   function drawParty() {
+    body.append(
+      explain(
+        'Who\'s travelling with you: they follow you, wait where you ask, and come into scenes with you. "Everyone near me" brings along whoever is standing right round you.',
+      ),
+    );
+    const all = element("div", "display:flex;gap:6px;flex-wrap:wrap;");
+    all.append(button("Everyone near me comes along", SMALL, () => handlers.onPartyGather()));
+    if (data.party.length) all.append(button("Everyone parts ways", SMALL, () => handlers.onPartyDisband()));
+    body.append(all);
     if (!data.party.length) {
-      body.append(
-        explain("Who's travelling with you: they follow you, wait where you ask, and come into scenes with you."),
-      );
       body.append(line("Nobody's with you. Talk to someone and ask them to come with you.", MUTED));
       return;
     }

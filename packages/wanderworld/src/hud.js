@@ -312,6 +312,8 @@ export function createHud(root, handlers) {
     onGroupMember: (id, zoneId, on) => handlers.onGroupMember(id, zoneId, on),
     onGroupParent: (id, parent) => handlers.onGroupParent(id, parent),
     onSetSetup: (fields) => handlers.onSetSetup(fields),
+    onPartyGather: () => handlers.onPartyGather(),
+    onPartyDisband: () => handlers.onPartyDisband(),
     onLinkLore: () => handlers.onLinkLore(),
     onWantLorebooks: () => handlers.onWantLorebooks(),
     onPartyWait: (id, wait) => handlers.onPartyWait(id, wait),
