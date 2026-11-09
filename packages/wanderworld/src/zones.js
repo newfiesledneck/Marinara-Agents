@@ -693,9 +693,13 @@ export function structureFromLore(books, world) {
       for (const word of words) {
         const match = /^(located in|lives in|works at|owner of)\s+(.+)$/iu.exec(String(word).trim());
         if (!match) continue;
-        const target = first(match[2]);
-        if (!target) continue;
         const how = match[1].toLowerCase();
+        let target = first(match[2]);
+        // Living or working at an inn or cottage out in the country means its building.
+        if (target && how !== "located in" && world.zones.byId.get(target)?.kind === "outpost") {
+          target = world.zones.zones.find((zone) => zone.kind === "building" && zone.parent === target)?.id ?? target;
+        }
+        if (!target) continue;
         for (const subject of subjects) {
           if (how === "located in") {
             if (!subject.startsWith("character:") && subject !== target)
