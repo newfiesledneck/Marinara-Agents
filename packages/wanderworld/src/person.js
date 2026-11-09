@@ -26,13 +26,35 @@ function choice(options, value, label) {
   return select;
 }
 
-/** A relationship's fields: a kind (or none) and how strong, 0–100. Returns { row, read() → fields | null }. */
+/**
+ * A relationship's fields: a kind (or none), a role where the kind has them (family: sister, parent…;
+ * colleague: employer…; mentor: student), and how strong, 0–100. `kinds`: [{ id, label, roles }].
+ * Returns { row, read() → { kind, level, role } | null }.
+ */
 function relationFields(kinds, record, label) {
   const kind = choice(
     [["", "Nothing set"], ...kinds.map((entry) => [entry.id, entry.label])],
     record?.kind ?? "",
     label,
   );
+  const role = element("select", `${INK_INPUT}padding:3px 6px;max-width:130px;`);
+  role.setAttribute("aria-label", `${label}: as what`);
+  const drawRoles = () => {
+    const roles = [...(kinds.find((entry) => entry.id === kind.value)?.roles ?? [])];
+    // A role set some other way (a lorebook's "father", "wife") stays on offer for the kind it came with.
+    const had = record?.kind === kind.value ? (record.role ?? "") : "";
+    if (had && !roles.includes(had)) roles.unshift(had);
+    role.replaceChildren();
+    for (const [value, name] of [["", "no role"], ...roles.map((name) => [name, name])]) {
+      const option = element("option", "", name);
+      option.value = value;
+      role.append(option);
+    }
+    role.value = had;
+    role.style.display = roles.length ? "" : "none";
+  };
+  kind.addEventListener("change", drawRoles);
+  drawRoles();
   const level = element("input", "width:90px;");
   level.type = "range";
   level.min = "0";
@@ -40,14 +62,11 @@ function relationFields(kinds, record, label) {
   level.step = "5";
   level.value = String(record?.level ?? 50);
   level.setAttribute("aria-label", `${label}: how strongly`);
-  const row = element("span", "display:inline-flex;gap:6px;align-items:center;");
-  row.append(kind, level);
+  const row = element("span", "display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;");
+  row.append(kind, role, level);
   return {
     row,
-    read: () =>
-      kind.value
-        ? { kind: kind.value, level: Number(level.value), role: record?.kind === kind.value ? (record.role ?? "") : "" }
-        : null,
+    read: () => (kind.value ? { kind: kind.value, level: Number(level.value), role: role.value } : null),
   };
 }
 

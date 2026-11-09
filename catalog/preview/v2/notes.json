@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.86",
+          "date": "2026-11-09",
+          "notes": "- The person window lets you pick a role for a relationship again (family: sister, parent, cousin…; colleague: employer, apprentice…; mentor: mentor or student), beside its kind and strength. A role a lorebook gave (\"father\", \"wife\") stays on offer.",
+          "highlight": false
+        },
+        {
           "version": "0.4.85",
           "date": "2026-11-09",
           "notes": "- Everything about a person is managed in one place: Journal → People → Edit people → Edit. Their day is edited there now (lines of hours, what they do and where, or planned by the AI), next to home and work and their relationships. The separate Schedules, Homes and work, and Relationships pages are gone from the Journal.\n- The top bar is shorter: Journal, Lore, Illustrate, Chat and Menu. Menu holds who you play as, Settings, full screen and the way back to the main menu.",
@@ -307,12 +313,6 @@
           "version": "0.4.67",
           "date": "2026-11-09",
           "notes": "- The sound of rain while it rains (softer indoors), and no birdsong in it.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.66",
-          "date": "2026-11-09",
-          "notes": "- Ponds: a landmark of its own, water in a hollow deep enough to swim in the middle and shallow at its sandy shore, ringed with reeds, ferns and mossy stones, with a bench looking over it. Comes with Landmarks in New world, or by the lore's pond1.",
           "highlight": false
         }
       ]
