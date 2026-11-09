@@ -357,6 +357,10 @@ second village, town or city (the other settlement is a hamlet for now)._
 
 **Phase C: the country, placed where things fit**
 
+_C1 done in 0.4.53: farms (`kind: "farm"` outposts: a farmhouse, a barn built from plain shapes, two
+fenced fields of crop rows, 28 m of level ground; farm1, farm2… for lore; New world's "Farms"), and
+hamlets and farms kept in front of mountain ranges. Next: C2 the road network._
+
 - Places go where they suit the land instead of a few fixed spots per side: inns where roads meet,
   cottages in clearings, caves on real slopes (as many as wanted, no roads), farms in open flat fields
   with large plots, fields and a barn nearby, a mill on the river.

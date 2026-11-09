@@ -51,6 +51,7 @@ import {
   makeSpec,
   marketStall,
   painted,
+  slopedRoof,
 } from "./buildings.js";
 
 export const WORLD_SIZE = 320; // metres along each side of a Normal world
@@ -554,6 +555,109 @@ function placeBench(town, x, z, facing) {
 }
 
 /**
+ * A wooden fence round a `width` × `depth` rectangle at (x, z) (whole numbers of fence lengths), its gate in
+ * the middle of the front side (`facing`). It blocks like a wall, low, with the gate left open.
+ */
+function placeFence(town, x, z, width, depth, facing) {
+  const turn = (facing * Math.PI) / 2;
+  const [halfW, halfD] = [width / 2, depth / 2];
+  const gate = Math.floor(width / FENCE_LENGTH / 2);
+  for (let side = 0; side < 4; side++) {
+    const lengths = (side % 2 === 0 ? width : depth) / FENCE_LENGTH;
+    for (let i = 0; i < lengths; i++) {
+      if (side === 0 && i === gate) continue; // the way in
+      const along = -(side % 2 === 0 ? halfW : halfD) + FENCE_LENGTH * (i + 0.5);
+      // Side 0 is the front (+z), then the right (+x), the back and the left; each length runs along its side.
+      const [lx, lz, angle] = [
+        [along, halfD, 0],
+        [halfW, along, Math.PI / 2],
+        [along, -halfD, 0],
+        [-halfW, along, Math.PI / 2],
+      ][side];
+      const spot = toWorld(x, z, facing, lx, lz);
+      placeKitProp(town, null, { model: "prop-woodenfence-single", x: spot.x, z: spot.z, angle: turn + angle });
+    }
+  }
+  town.propPieces.push(fence(width, depth).rotateY(turn).translate(x, 0, z)); // the simple fence, till the kit's
+  const gateFrom = -halfW + FENCE_LENGTH * gate;
+  for (const [minX, maxX, minZ, maxZ] of [
+    [-halfW, gateFrom, halfD - 0.1, halfD + 0.1],
+    [gateFrom + FENCE_LENGTH, halfW, halfD - 0.1, halfD + 0.1],
+    [-halfW, halfW, -halfD - 0.1, -halfD + 0.1],
+    [-halfW - 0.1, -halfW + 0.1, -halfD, halfD],
+    [halfW - 0.1, halfW + 0.1, -halfD, halfD],
+  ]) {
+    if (maxX - minX > 0.05) town.boxes.push({ ...footprintBox(x, z, facing, { minX, maxX, minZ, maxZ }), low: true });
+  }
+}
+
+/**
+ * A farm out in the country: the farmhouse and a red barn either side of the yard where its road ends,
+ * fenced fields of crops in rows behind them (one of wheat, one of greens), crates, barrels and a wagon.
+ */
+function placeFarm(random, town, outpost) {
+  const { x, z, facing } = outpost;
+  const at = (lx, lz) => toWorld(x, z, facing, lx, lz);
+  const turn = (facing * Math.PI) / 2;
+  const house = at(-6.5, 1.5);
+  placeBuilding(random, town, makeSpec(random, "home", { width: 7, depth: 6 }), house.x, house.z, facing);
+  // The barn: plank walls under a steep roof, big doors to the yard. Built here, not from the kit.
+  const barn = at(7, 0);
+  const [width, depth, wall] = [8, 11, 4.2];
+  const red = random() < 0.5 ? 0x8a3b2c : 0x7a4a2e;
+  const pieces = [
+    box(width, wall, depth, 0, wall / 2, 0, red),
+    painted(
+      slopedRoof(depth + 0.6, width + 0.8, 3.2, false)
+        .rotateY(Math.PI / 2)
+        .translate(0, wall, 0),
+      0x5b4636,
+    ),
+    box(3.2, 3.2, 0.12, 0, 1.6, depth / 2 + 0.06, 0x5a3b26), // the doors
+    box(3.5, 0.18, 0.16, 0, 3.25, depth / 2 + 0.08, 0xe8e0cc), // and their white trim
+    box(0.18, 3.3, 0.16, -1.66, 1.65, depth / 2 + 0.08, 0xe8e0cc),
+    box(0.18, 3.3, 0.16, 1.66, 1.65, depth / 2 + 0.08, 0xe8e0cc),
+    box(1.1, 0.9, 0.1, 0, wall + 1.1, depth / 2 + 0.25, 0x3a2a1e), // the hayloft door in the gable
+  ];
+  town.pieces.push(mergeGeometries(pieces).rotateY(turn).translate(barn.x, 0, barn.z));
+  town.boxes.push(
+    footprintBox(barn.x, barn.z, facing, { minX: -width / 2, maxX: width / 2, minZ: -depth / 2, maxZ: depth / 2 }),
+  );
+  // Fields behind, each in rows of crops on ridged earth, fenced with the gate toward the yard.
+  for (const [side, crop] of [
+    [-1, random() < 0.5 ? "wheat" : "greens"],
+    [1, null],
+  ]) {
+    const kind = crop ?? (random() < 0.5 ? "wheat" : "greens");
+    const centre = at(side * 9.5, -15);
+    const [fieldW, fieldD] = [16, 14];
+    placeFence(town, centre.x, centre.z, fieldW, fieldD, facing);
+    const rows = [
+      painted(new PlaneGeometry(fieldW - 0.6, fieldD - 0.6).rotateX(-Math.PI / 2).translate(0, 0.05, 0), 0x5e4630),
+    ];
+    const tall = kind === "wheat" ? 0.75 : 0.35;
+    const colour = kind === "wheat" ? 0xcfae55 : 0x5f8f3a;
+    for (let lx = -fieldW / 2 + 1.2; lx <= fieldW / 2 - 1.2; lx += 1.25) {
+      rows.push(box(0.7, 0.16, fieldD - 1.6, lx, 0.08, 0, 0x6e5338));
+      rows.push(box(0.42, tall, fieldD - 2, lx, 0.12 + tall / 2, 0, colour));
+    }
+    town.pieces.push(mergeGeometries(rows).rotateY(turn).translate(centre.x, 0, centre.z));
+  }
+  // The yard: crates of what the farm grows by the house, barrels by the barn, a wagon.
+  for (const [model, lx, lz] of [
+    ["farmcrate-apple", -2.4, 5.5],
+    ["farmcrate-carrot", -1.4, 6.2],
+    ["barrel-apples", 2.8, 6.5],
+  ]) {
+    const spot = at(lx, lz);
+    placeKitProp(town, crate(0.6), { model, x: spot.x, z: spot.z, angle: turn + random() * 0.6 - 0.3 });
+    town.circles.push({ x: spot.x, z: spot.z, r: 0.45 });
+  }
+  const wagon = at(12.5, 8);
+  placeWagon(random, town, wagon.x, wagon.z, facing % 2 === 1);
+}
+
+/**
  * A fenced garden on an empty lot (`size` metres square, a whole number of fence lengths), its gate facing
  * `facing`: a tree in a back corner, bushes and flowers along the fence, and a bench at the back facing
  * the gate.
@@ -561,37 +665,8 @@ function placeBench(town, x, z, facing) {
 function placeGarden(random, town, x, z, size, facing) {
   town.gardens.push({ x, z, size });
   const at = (lx, lz) => toWorld(x, z, facing, lx, lz);
-  const turn = (facing * Math.PI) / 2;
   const half = size / 2;
-  const lengths = size / FENCE_LENGTH;
-  const gate = Math.floor(lengths / 2);
-  for (let side = 0; side < 4; side++) {
-    for (let i = 0; i < lengths; i++) {
-      if (side === 0 && i === gate) continue; // the way in
-      const along = -half + FENCE_LENGTH * (i + 0.5);
-      // Side 0 is the front (+z), then the right (+x), the back and the left; each length runs along its side.
-      const [lx, lz, angle] = [
-        [along, half, 0],
-        [half, along, Math.PI / 2],
-        [along, -half, 0],
-        [-half, along, Math.PI / 2],
-      ][side];
-      const spot = at(lx, lz);
-      placeKitProp(town, null, { model: "prop-woodenfence-single", x: spot.x, z: spot.z, angle: turn + angle });
-    }
-  }
-  town.propPieces.push(fence(size, size).rotateY(turn).translate(x, 0, z)); // the simple fence, till the kit's
-  // The fence blocks like a wall: a thin box along each side, with the gate left open.
-  const gateFrom = -half + FENCE_LENGTH * gate;
-  for (const [minX, maxX, minZ, maxZ] of [
-    [-half, gateFrom, half - 0.1, half + 0.1],
-    [gateFrom + FENCE_LENGTH, half, half - 0.1, half + 0.1],
-    [-half, half, -half - 0.1, -half + 0.1],
-    [-half - 0.1, -half + 0.1, -half, half],
-    [half - 0.1, half + 0.1, -half, half],
-  ]) {
-    if (maxX - minX > 0.05) town.boxes.push({ ...footprintBox(x, z, facing, { minX, maxX, minZ, maxZ }), low: true });
-  }
+  placeFence(town, x, z, size, size, facing);
 
   const corner = random() < 0.5 ? -1 : 1;
   const tree = at(corner * (half - 1.2), -half + 1.2);
@@ -1309,6 +1384,12 @@ function buildCountry(random, town, land, ground) {
     }
     if (outpost.kind === "hamlet") {
       placeHamlet(random, town, outpost, doorOf, doorsOf);
+      continue;
+    }
+    if (outpost.kind === "farm") {
+      doorOf.set(outpost.index, town.doors.length);
+      doorsOf.set(outpost.index, [town.doors.length]);
+      placeFarm(random, town, outpost);
       continue;
     }
     const kind = outpost.kind === "inn" ? "tavern" : "home";

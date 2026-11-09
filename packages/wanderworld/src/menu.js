@@ -216,6 +216,15 @@ export function createMenu(layer, handlers, art = null) {
         ],
       ],
       [
+        "farms",
+        "Farms",
+        [
+          ["none", "None"],
+          ["one", "One farm"],
+          ["two", "Two farms"],
+        ],
+      ],
+      [
         "places",
         "Out in the country",
         [

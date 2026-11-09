@@ -38,8 +38,11 @@ assert.equal(chosen.outposts.filter((entry) => entry.kind !== "hamlet").length, 
   // Surprise me keeps the seed's land; the settlement is picked from the seed too (a new world's own).
   const { settlement, ...land } = landscapeWith(31, { hills: "surprise" });
   const { settlement: ignored, ...seededLand } = seeded;
-  const noHamlets = { ...land, outposts: land.outposts.filter((entry) => entry.kind !== "hamlet") };
-  assert.deepEqual(noHamlets, seededLand, "Surprise me keeps the seed's choices (a hamlet may join them)");
+  const noHamlets = {
+    ...land,
+    outposts: land.outposts.filter((entry) => entry.kind !== "hamlet" && entry.kind !== "farm"),
+  };
+  assert.deepEqual(noHamlets, seededLand, "Surprise me keeps the seed's choices (a hamlet or farm may join them)");
   assert.ok(["hamlet", "village", "town", "city"].includes(settlement.kind), "and picks a settlement");
   assert.equal(ignored.kind, "town", "a world without one stays the town it always was");
 }
@@ -290,6 +293,35 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
   const { zoneAt } = await import("../packages/wanderworld/src/zones.js");
   const middle = hamlet.shape.circle;
   assert.equal(zoneAt(zones, middle.x, middle.z).id, hamlet.id, "its green is the hamlet, not the road's end");
+}
+
+// Farms: farm2 in the lore brings two, each a place of its own (farm1, farm2) with its farmhouse, on
+// level ground, on its own road.
+{
+  const { slotsOf, zoneAt } = await import("../packages/wanderworld/src/zones.js");
+  const landscape = landscapeNeeds(
+    landscapeWith(96, { places: "none", towns: "none", farms: "none" }),
+    { farm: 2 },
+    96,
+  );
+  assert.equal(landscape.outposts.filter((entry) => entry.kind === "farm").length, 2, "farm2 makes two farms");
+  const built = createWorld(96, landscape);
+  const zones = buildZones(built.layout, 96);
+  const slots = slotsOf(zones);
+  for (const name of ["farm1", "farm2"]) {
+    const farm = zones.byId.get(slots.get(name));
+    assert.ok(farm && farm.outpostKind === "farm", `${name} is a farm`);
+    const { x, z } = farm.shape.circle;
+    assert.equal(zoneAt(zones, x, z).id, farm.id, `${name}'s yard is the farm`);
+    const index = built.layout.outposts.findIndex((outpost) => outpost.x === x && outpost.z === z);
+    assert.ok(
+      built.layout.roads.some((road) => road.to === index),
+      `${name} has a road`,
+    );
+    assert.ok(built.layout.outposts[index].door !== null, `${name} has a farmhouse door`);
+    assert.ok(Math.abs(heightAt(x + 15, z + 15)) < 0.01, `${name}'s fields are level`);
+  }
+  built.dispose();
 }
 
 // A world with no landscape given still builds, from the seed.

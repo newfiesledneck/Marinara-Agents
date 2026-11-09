@@ -67,6 +67,7 @@ const INN_NAMES = [
 ];
 const COTTAGE_NAMES = ["the woodcutter's cottage", "the old cottage", "the hermit's cottage", "the shepherd's cottage"];
 const CAVE_NAMES = ["the cave", "Hollow Cave", "the Echoing Cave", "the bear's den", "Glimmer Cave"];
+const FARM_NAMES = ["Brookside Farm", "Applegarth Farm", "Thistledown Farm", "Hayward's Farm", "Old Mill Farm"];
 
 /** Default names and sign words by building kind. */
 const BUILDING = {
@@ -198,7 +199,9 @@ export function buildZones(layout, seed) {
   }
   const outpostDoors = new Map();
   (layout.outposts ?? []).forEach((outpost, i) => {
-    const names = { inn: INN_NAMES, cottage: COTTAGE_NAMES, cave: CAVE_NAMES, hamlet: TOWN_NAMES }[outpost.kind];
+    const names = { inn: INN_NAMES, cottage: COTTAGE_NAMES, cave: CAVE_NAMES, hamlet: TOWN_NAMES, farm: FARM_NAMES }[
+      outpost.kind
+    ];
     const name = outpost.name ?? pick(random, names, used);
     // A hamlet is a settlement of its own (a town zone: town2, town3…), the rest are places.
     const id = outpost.kind === "cave" ? `cave:${i}` : outpost.kind === "hamlet" ? `town:${i}` : `outpost:${i}`;
@@ -207,7 +210,7 @@ export function buildZones(layout, seed) {
       kind: outpost.kind === "cave" ? "cave" : outpost.kind === "hamlet" ? "town" : "outpost",
       outpostKind: outpost.kind,
       name,
-      shape: { circle: { x: outpost.x, z: outpost.z, r: { cave: 7, hamlet: 24 }[outpost.kind] ?? 15 } },
+      shape: { circle: { x: outpost.x, z: outpost.z, r: { cave: 7, hamlet: 24, farm: 26 }[outpost.kind] ?? 15 } },
       parent: "forest",
       sign: null,
     });
@@ -566,6 +569,7 @@ const KIND_WORDS = {
   "outpost:inn": ["inn"],
   "outpost:cottage": ["cottage"],
   "outpost:hamlet": ["hamlet", "town"],
+  "outpost:farm": ["farm", "farmstead", "barn", "fields"],
 };
 
 const plain = (word) =>
@@ -764,6 +768,7 @@ export const NEEDED_KINDS = [
   "home",
   "inn",
   "cottage",
+  "farm",
   "cave",
   "road",
   "garden",

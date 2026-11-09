@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.53 — 2026-11-09
+
+- Farms out in the country: a farmhouse and a red barn round a yard at the end of their own road, with fenced fields of wheat or greens in rows behind, crates, barrels and a wagon. Chosen in New world ("Farms") or often one by the seed.
+- A lorebook naming farm1 or farm2 brings that many; "farm", "barn" and "fields" lore links there.
+- Hamlets and farms stand on open ground in front of a mountain range, not up it.
+
 ## 0.4.52 — 2026-11-09
 
 - More settlements: hamlets out in the country, each five to eight houses round a green on its own road, chosen in New world ("More settlements") or now and then by the seed.
