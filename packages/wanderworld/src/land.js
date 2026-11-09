@@ -12,8 +12,9 @@ export const SIDES = ["north", "east", "south", "west"]; // north is −z
 export const HILLS = ["flat", "gentle", "rolling", "rugged"];
 export const OUTPOST_KINDS = ["inn", "cottage", "cave"];
 /** Every kind of place out in the country, with hamlets (more settlements beyond the main one). */
-export const PLACE_KINDS = [...OUTPOST_KINDS, "hamlet"];
+export const PLACE_KINDS = [...OUTPOST_KINDS, "hamlet", "farm"];
 const HAMLET_FLAT = 24; // metres round a hamlet's middle that are level
+const FARM_FLAT = 28; // and round a farm's yard and fields
 /** Kinds of settlement, smallest first, with their usual market and roads and about how many homes they hold. */
 export const SETTLEMENT_KINDS = ["hamlet", "village", "town", "city"];
 export const SETTLEMENT_LAYOUTS = ["grid", "crossroads", "street", "ring"];
@@ -56,6 +57,8 @@ const BANK = 4; // metres over which the ground slopes down into the river
 const ROAD_WIDTH = 3.2;
 const OUTPOST_FLAT = 11; // metres round an inn or cottage that are level
 const OUTPOST_BLEND = 12; // and then blend back into the hills
+/** Metres of level ground round a place of this kind (a cave's is its own, see createLand). */
+const flatOf = (kind) => ({ hamlet: HAMLET_FLAT, farm: FARM_FLAT })[kind] ?? OUTPOST_FLAT;
 const MOUNTAIN_REACH = 62; // how far in from the edge a range rises
 const BRIDGE_HALF_WIDTH = 1.6;
 const MAX_OUTPOSTS = 10; // places out in the country (a few per side)
@@ -139,6 +142,11 @@ export function landscapeWith(seed, choices = {}) {
   for (let i = 0; i < more && landscape.outposts.length < MAX_OUTPOSTS; i++) {
     landscape.outposts.push({ kind: "hamlet", side: SIDES[Math.floor(pick() * SIDES.length)] });
   }
+  // Farms: as chosen, or often one.
+  const farms = { none: 0, one: 1, two: 2 }[choices.farms] ?? (pick() < 0.4 ? 1 : 0);
+  for (let i = 0; i < farms && landscape.outposts.length < MAX_OUTPOSTS; i++) {
+    landscape.outposts.push({ kind: "farm", side: SIDES[Math.floor(pick() * SIDES.length)] });
+  }
   return landscape;
 }
 
@@ -177,7 +185,7 @@ export function landscapeNeeds(landscape, needs = {}, seed = 0) {
     )[0];
     out.outposts.push({ kind: "hamlet", side });
   }
-  for (const kind of OUTPOST_KINDS) {
+  for (const kind of [...OUTPOST_KINDS, "farm"]) {
     while (count(kind) < Math.min(4, needs[kind] ?? 0) && out.outposts.length < MAX_OUTPOSTS) {
       // Caves on a mountain side; the rest on whichever side has fewest so far.
       const sides = kind === "cave" && out.mountains.length ? out.mountains : SIDES;
@@ -317,11 +325,15 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       entry.kind === "cave"
         ? Math.max(townHalf + 30, worldHalf - 46 - random() * 8) // clear of the town, even in a small world
         : townHalf + 48 + random() * reach;
+    // A hamlet or farm wants open, level country: in front of a mountain range, not up it.
+    if ((entry.kind === "hamlet" || entry.kind === "farm") && landscape.mountains.includes(entry.side)) {
+      out = Math.min(out, Math.max(townHalf + 40, worldHalf - MOUNTAIN_REACH - flatOf(entry.kind)));
+    }
     out = Math.min(out, edge - 14); // inside the world, however small
     const lateral = Math.max(-edge + 20, Math.min(edge - 20, across));
     const spot = (distance) => (dx !== 0 ? { x: dx * distance, z: lateral } : { x: lateral, z: dz * distance });
     // Never on the river: a place whose ground would reach the water or its banks steps further out.
-    const dry = entry.kind === "hamlet" ? HAMLET_FLAT + 6 : 14; // a hamlet needs more dry ground
+    const dry = entry.kind === "hamlet" || entry.kind === "farm" ? flatOf(entry.kind) + 6 : 14; // more for a hamlet or farm
     const clearOfRiver = (at) => !river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + dry;
     while (!clearOfRiver(spot(out)) && out < edge - 18) out += 4;
     const { x, z } = spot(out);
@@ -330,37 +342,130 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     return { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
   });
 
-  // Roads: from the end of the street on that side nearest the outpost, out and round to its door. Caves
-  // have none: they're found up on the hillsides.
-  const roads = outposts
-    .filter((outpost) => outpost.kind !== "cave")
-    .map((outpost) => {
-      const [dx, dz] = DIRECTION[outpost.side];
-      const lateral = dx !== 0 ? outpost.z : outpost.x;
-      const line = streetLines.reduce((best, value) =>
-        Math.abs(value - lateral) < Math.abs(best - lateral) ? value : best,
-      );
-      // From just inside the end of the street (its cobbles reach townHalf + 3), so the road can fade out of them.
-      const out0 = townHalf + 2.2;
-      const start = dx !== 0 ? { x: dx * out0, z: line } : { x: line, z: dz * out0 };
-      const front = { x: outpost.x + Math.sin(outpost.angle) * 8, z: outpost.z + Math.cos(outpost.angle) * 8 };
-      const bend = {
-        x: dx !== 0 ? (start.x + front.x) / 2 : start.x + (front.x - start.x) * 0.2,
-        z: dz !== 0 ? (start.z + front.z) / 2 : start.z + (front.z - start.z) * 0.2,
-      };
-      const points = [];
-      const length = Math.hypot(front.x - start.x, front.z - start.z);
-      const steps = Math.max(4, Math.ceil(length / 3));
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const a = (1 - t) * (1 - t);
-        const b = 2 * (1 - t) * t;
-        const c = t * t;
-        points.push({ x: a * start.x + b * bend.x + c * front.x, z: a * start.z + b * bend.z + c * front.z });
+  // Roads. Hamlets and farms each get one from the end of the street on their side nearest them, out and
+  // round to the front. An inn on a side with one of those roads stands beside it, where its own short
+  // track meets the road; inns and cottages take a track off the nearest such road when that's shorter
+  // than a road of their own from town. Hamlets on neighbouring sides are joined round the town's corner.
+  // Caves have none: they're found up on the hillsides.
+  const curve = (start, bend, end) => {
+    const points = [];
+    const steps = Math.max(4, Math.ceil(Math.hypot(end.x - start.x, end.z - start.z) / 3));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const [a, b, c] = [(1 - t) * (1 - t), 2 * (1 - t) * t, t * t];
+      points.push({ x: a * start.x + b * bend.x + c * end.x, z: a * start.z + b * bend.z + c * end.z });
+    }
+    return points;
+  };
+  const frontOf = (outpost, distance) => ({
+    x: outpost.x + Math.sin(outpost.angle) * distance,
+    z: outpost.z + Math.cos(outpost.angle) * distance,
+  });
+  const roadFor = (outpost, points, fromTown) => {
+    points.push(frontOf(outpost, 3));
+    return { points, width: ROAD_WIDTH, to: outpost.index, fromTown, bounds: boundsOf(points, ROAD_WIDTH + 2) };
+  };
+  const townStart = (outpost) => {
+    const [dx, dz] = DIRECTION[outpost.side];
+    const lateral = dx !== 0 ? outpost.z : outpost.x;
+    const line = streetLines.reduce((best, value) =>
+      Math.abs(value - lateral) < Math.abs(best - lateral) ? value : best,
+    );
+    // From just inside the end of the street (its cobbles reach townHalf + 3), so the road can fade out of them.
+    const out0 = townHalf + 2.2;
+    return dx !== 0 ? { x: dx * out0, z: line } : { x: line, z: dz * out0 };
+  };
+  const fromTown = (outpost) => {
+    const [dx, dz] = DIRECTION[outpost.side];
+    const start = townStart(outpost);
+    const front = frontOf(outpost, 8);
+    const bend = {
+      x: dx !== 0 ? (start.x + front.x) / 2 : start.x + (front.x - start.x) * 0.2,
+      z: dz !== 0 ? (start.z + front.z) / 2 : start.z + (front.z - start.z) * 0.2,
+    };
+    return roadFor(outpost, curve(start, bend, front), true);
+  };
+  const isMain = (outpost) => outpost.kind === "hamlet" || outpost.kind === "farm";
+  const mainRoads = outposts.filter(isMain).map(fromTown);
+  const face = (outpost, toward) => {
+    outpost.facing = ((Math.round(Math.atan2(toward.x - outpost.x, toward.z - outpost.z) / (Math.PI / 2)) % 4) + 4) % 4;
+    outpost.angle = (outpost.facing * Math.PI) / 2;
+  };
+  // Room for an inn at `at`: inside the world, out of town, off the river, and clear of every other place's
+  // level ground (the inn's own building is about 9 m across its corners).
+  const roomAt = (at, except) =>
+    Math.abs(at.x) < edge - 18 &&
+    Math.abs(at.z) < edge - 18 &&
+    Math.max(Math.abs(at.x), Math.abs(at.z)) > townHalf + 12 &&
+    (!river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + 14) &&
+    outposts.every((other) => other === except || Math.hypot(other.x - at.x, other.z - at.z) > flatOf(other.kind) + 9);
+  // Inns by the roads: beside the main road on their side, part way along it, wherever there's room.
+  for (const inn of outposts.filter((outpost) => outpost.kind === "inn")) {
+    const road = mainRoads.find((entry) => outposts[entry.to].side === inn.side);
+    if (!road) continue;
+    const last = road.points.length - 2;
+    spots: for (const share of [0.5, 0.35, 0.65, 0.25, 0.75]) {
+      const i = Math.min(last, Math.max(1, Math.round(road.points.length * share)));
+      const [at, next] = [road.points[i], road.points[i + 1]];
+      const length = Math.hypot(next.x - at.x, next.z - at.z) || 1;
+      for (const sign of [1, -1]) {
+        const spot = {
+          x: at.x - ((next.z - at.z) / length) * sign * (OUTPOST_FLAT + 3),
+          z: at.z + ((next.x - at.x) / length) * sign * (OUTPOST_FLAT + 3),
+        };
+        if (!roomAt(spot, inn)) continue;
+        Object.assign(inn, spot, { by: at });
+        face(inn, at);
+        break spots;
       }
-      points.push({ x: outpost.x + Math.sin(outpost.angle) * 3, z: outpost.z + Math.cos(outpost.angle) * 3 });
-      return { points, width: ROAD_WIDTH, to: outpost.index, bounds: boundsOf(points, ROAD_WIDTH + 2) };
+    }
+  }
+  const nearestOnMain = (to) => {
+    let best = null;
+    for (const road of mainRoads) {
+      // Not from the very start (that's the town's street) or the end (that's the place itself).
+      for (const point of road.points.slice(3, -4)) {
+        const distance = Math.hypot(point.x - to.x, point.z - to.z);
+        if (!best || distance < best.distance) best = { point, distance };
+      }
+    }
+    return best;
+  };
+  const sideRoads = outposts
+    .filter((outpost) => outpost.kind === "inn" || outpost.kind === "cottage")
+    .map((outpost) => {
+      const front = frontOf(outpost, 8);
+      if (outpost.by) return roadFor(outpost, curve(outpost.by, outpost.by, front), false);
+      const branch = nearestOnMain(front);
+      const own = Math.hypot(front.x - townStart(outpost).x, front.z - townStart(outpost).z);
+      if (!branch || branch.distance > own * 0.6) return fromTown(outpost);
+      const middle = { x: (branch.point.x + front.x) / 2, z: (branch.point.z + front.z) / 2 };
+      return roadFor(outpost, curve(branch.point, middle, front), false);
     });
+  // Hamlets on neighbouring sides (north and east, say) joined by a road curving round the town's corner.
+  const joins = [];
+  const hamlets = outposts.filter((outpost) => outpost.kind === "hamlet");
+  hamlets.forEach((a, i) => {
+    for (const b of hamlets.slice(i + 1)) {
+      const [ax, az] = DIRECTION[a.side];
+      const [bx, bz] = DIRECTION[b.side];
+      if (ax * bx + az * bz !== 0) continue; // the same side or opposite ones
+      const start = frontOf(a, 8);
+      const end = frontOf(b, 8);
+      // The corner between them: a's distance out along its own axis, b's along its.
+      const corner = { x: ax !== 0 ? start.x : end.x, z: az !== 0 ? start.z : end.z };
+      const points = curve(start, corner, end);
+      joins.push({
+        points,
+        width: ROAD_WIDTH,
+        to: null,
+        between: [a.index, b.index],
+        fromTown: false,
+        bounds: boundsOf(points, ROAD_WIDTH + 2),
+      });
+    }
+  });
+  const roads = [...mainRoads, ...sideRoads].sort((a, b) => a.to - b.to).concat(joins);
 
   // Bridges where a road crosses the river.
   const bridges = [];
@@ -470,7 +575,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         }
         continue;
       }
-      const flat = outpost.kind === "hamlet" ? HAMLET_FLAT : OUTPOST_FLAT;
+      const flat = flatOf(outpost.kind);
       if (distance < flat + OUTPOST_BLEND) {
         height = outpost.ground + (height - outpost.ground) * smooth((distance - flat) / OUTPOST_BLEND);
       }
@@ -515,7 +620,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         return true;
     }
     for (const outpost of outposts) {
-      const reach = outpost.kind === "cave" ? 13 : outpost.kind === "hamlet" ? HAMLET_FLAT + 1 : OUTPOST_FLAT + 1;
+      const reach = outpost.kind === "cave" ? 13 : flatOf(outpost.kind) + 1;
       if (Math.hypot(x - outpost.x, z - outpost.z) < reach + margin) return true;
     }
     return false;

@@ -82,7 +82,7 @@ export function checkWorld(raw) {
     // The New world choices it was made with (the land and the settlement), for regenerating it.
     choices: isRecord(raw.choices)
       ? Object.fromEntries(
-          ["hills", "mountains", "river", "places", "settlement", "layout", "marketAt", "roads", "towns"]
+          ["hills", "mountains", "river", "places", "settlement", "layout", "marketAt", "roads", "towns", "farms"]
             .filter((key) => typeof raw.choices[key] === "string")
             .map((key) => [key, raw.choices[key].slice(0, 20)]),
         )
