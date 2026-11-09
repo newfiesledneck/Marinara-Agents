@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.72",
+          "date": "2026-11-09",
+          "notes": "- Offered to Engine staging testers from Agents → Download Agents. The README has install steps, what each permission is for, known limits, and credits for the Quaternius CC0 packs the world is built from.",
+          "highlight": false
+        },
+        {
           "version": "0.4.71",
           "date": "2026-11-09",
           "notes": "- Scenes you start in the world are planned by Wanderworld, so the Engine's scene dialog (with choices remembered from other chats) no longer comes up. Settings → AI: scene point of view, tense, and a prompt preset picked for every scene; Journal → World: scene instructions for that world. If planning fails, the Engine's own planner takes over.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.53",
           "date": "2026-11-09",
           "notes": "- Farms out in the country: a farmhouse and a red barn round a yard at the end of their own road, with fenced fields of wheat or greens in rows behind, crates, barrels and a wagon. Chosen in New world (\"Farms\") or often one by the seed.\n- A lorebook naming farm1 or farm2 brings that many; \"farm\", \"barn\" and \"fields\" lore links there.\n- Hamlets and farms stand on open ground in front of a mountain range, not up it.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.52",
-          "date": "2026-11-09",
-          "notes": "- More settlements: hamlets out in the country, each five to eight houses round a green on its own road, chosen in New world (\"More settlements\") or now and then by the seed.\n- A lorebook naming town2 or town3 brings a hamlet for each; their houses are numbered among the homes, and \"hamlet\" lore links there.\n- Regenerating a world now keeps all its New world choices, its settlement and layout included.",
           "highlight": false
         }
       ]

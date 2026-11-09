@@ -242,6 +242,18 @@ jobs:
           npx tsx tests/story-writer-markdown.regression.ts
           npx tsx tests/story-writer-reader-layout.regression.ts
 
+          # Wanderworld world generation, townsfolk, schedules, scenes and the server part's request checks.
+          node tests/wanderworld.regression.mjs
+          node tests/wanderworld-crowd.regression.mjs
+          node tests/wanderworld-land.regression.mjs
+          node tests/wanderworld-mmd.regression.mjs
+          node tests/wanderworld-people.regression.mjs
+          node tests/wanderworld-places.regression.mjs
+          node tests/wanderworld-relations.regression.mjs
+          node tests/wanderworld-scenes.regression.mjs
+          node tests/wanderworld-schedules.regression.mjs
+          node tests/wanderworld-server.regression.mjs
+
           # Pull request gate topology and the owner approval evaluator.
           node scripts/validate-pr-triage.mjs
           node scripts/test-owner-approval.mjs

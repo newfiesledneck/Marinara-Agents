@@ -159,6 +159,10 @@ export const OFFICIAL_PACKAGE_GUIDANCE = Object.freeze({
     modes: ["conversation", "roleplay", "game"],
     activation: "Install it, restart Marinara Engine when prompted, then open Home → Saucelings.",
   },
+  wanderworld: {
+    modes: ["conversation", "roleplay", "game"],
+    activation: "Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
+  },
   "story-writer": {
     modes: ["conversation", "roleplay", "game"],
     activation: "Install it, restart Marinara Engine when prompted, then open Home → Story Writer.",

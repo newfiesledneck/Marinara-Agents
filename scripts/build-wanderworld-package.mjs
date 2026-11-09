@@ -21,7 +21,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.4.71";
+const VERSION = "0.4.72";
 // A Home tab with its own icon, serving its own asset files (the kit: people, props), and a server part for
 // model calls, pictures and scenes. Capability API 1.66 is the scene origin (`scenes`); the Engine minimum
 // matches Slurp 2's, the other package with scenes.
@@ -31,7 +31,7 @@ const MAX_ENGINE_EXCLUSIVE = "4.0.0";
 const THREE_VERSION = "0.186.1"; // matches the Engine's own three.js
 const TAB_ICON = "wanderworld-icon.webp";
 const BASE_DESCRIPTION =
-  "A walkable low-poly 3D town on its own Home tab. Early prototype: walk a seeded town as one of your personas, with your characters living there, each in the 3D model you set up for them in 3D Avatars.";
+  "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha.";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -188,8 +188,8 @@ const artifactName = `wanderworld-${VERSION}.zip`;
 await writeFile(join(artifactsDir, artifactName), archive);
 
 // ── Catalog family ───────────────────────────────────────────────────────────
-// Listed in INCOMPLETE_PACKAGE_IDS, so writeCatalogFamily leaves it out of every committed catalog;
-// a dev build with MARINARA_CATALOG_INCLUDE_INCOMPLETE=1 publishes it for local testing.
+// Listed in STAGING_ONLY_PACKAGE_IDS, so writeCatalogFamily moves it to the preview overlay for Engine
+// `staging` testers and keeps it out of the published lanes.
 const { catalog } = await readCatalogFamily(repoRoot);
 catalog.packages = catalog.packages.filter((entry) => entry.manifest.id !== "wanderworld");
 catalog.packages.push({

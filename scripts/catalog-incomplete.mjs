@@ -38,12 +38,12 @@
 // into the normal lanes for a local build, so an unfiltered catalog can be
 // served to a development Engine through its MARINARA_AGENT_CATALOG_URL
 // override. Never commit a catalog generated that way — validation rejects it.
-export const INCOMPLETE_PACKAGE_IDS = new Set(["pixelforge", "wanderworld"]);
+export const INCOMPLETE_PACKAGE_IDS = new Set(["pixelforge"]);
 
 // To graduate a package to stable users, follow "Packages that are not ready for
 // everyone" in CONTRIBUTING.md (Quartermaster and Relationship Tracker did so for
 // Marinara Engine v2.5.0; 2D Avatars and 3D Avatars for v2.5.1; Otome Hearth and Saucelings for v2.5.2).
-export const STAGING_ONLY_PACKAGE_IDS = new Set(["blackjack", "modern-life-sim", "ruleset-5e-2014"]);
+export const STAGING_ONLY_PACKAGE_IDS = new Set(["blackjack", "modern-life-sim", "ruleset-5e-2014", "wanderworld"]);
 
 // A package is in exactly one state. Both sets hiding the same id would make
 // the published/overlay split order-dependent, so reject it at import time.
