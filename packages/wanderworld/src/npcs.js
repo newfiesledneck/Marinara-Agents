@@ -109,18 +109,32 @@ export function createCrowd() {
   let feeling = () => ({ kind: "acquaintance", level: 20, warmth: 0.12 });
   // Each person's temperament (relationships.js): aggression and sociability, 0–100.
   let traitsOf = () => ({ aggression: 50, sociability: 50 });
-  let lastApproach = -Infinity; // when someone last set off to come up to the player
+  let lastApproach = -Infinity;
+  // Homes and workplaces set by the world's lore: id → { home, work } (door indexes).
+  let housing = new Map(); // when someone last set off to come up to the player
   const party = []; // ids of followers, in order (their place in the line)
 
   /** Where someone is standing now: the town or the room. */
   const groundY = (person, x, z) => (person.space === world ? heightAt(x, z) : 0);
 
-  /** Townsfolk live in the houses nearest the plaza, so the player meets them soon after arriving. */
-  function place(person) {
+  /**
+   * Where someone lives: the home their lore gives them (setHousing), else one of the houses nearest the
+   * plaza (so the player meets them soon after arriving), never one kept for others by their lore.
+   */
+  function homeOf(person) {
+    const given = housing.get(person.id)?.home;
+    if (Number.isInteger(given) && world?.doors[given]) return world.doors[given];
+    const kept = new Set([...housing.values()].map((entry) => entry.home).filter(Number.isInteger));
     const doors = [...(world?.doors ?? [])].sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
-    const homes = doors.filter((door) => door.kind === "home").slice(0, HOMES);
+    const homes = doors.filter((door) => door.kind === "home" && !kept.has(door.index)).slice(0, HOMES);
     const choices = homes.length ? homes : doors;
-    person.home = choices.length ? choices[hashString(person.id) % choices.length] : null;
+    return choices.length ? choices[hashString(person.id) % choices.length] : null;
+  }
+
+  function place(person) {
+    person.home = homeOf(person);
+    const work = housing.get(person.id)?.work;
+    person.work = Number.isInteger(work) ? (world?.doors[work] ?? null) : null;
     person.space = world;
     person.inDoor = null;
     const start = person.home ?? { x: 0, z: 0 };
@@ -166,6 +180,8 @@ export function createCrowd() {
       group: new Group(),
       character: null,
       home: null,
+      work: null, // where they work by day (from lore), or null
+      workUntil: 0,
       space: null, // the town (world) or the room the player is in
       inDoor: null, // the building they're inside, if any
       stay: 0, // seconds left inside a building (Infinity: until morning)
@@ -301,6 +317,11 @@ export function createCrowd() {
       return;
     }
     if (isNight(hour) && person.home) return goInto(person, person.home, Infinity);
+    // Working hours: off to work (the smithy, the shop…) for a good while, now and then.
+    if (person.work && hour >= 8 && hour < 18 && clock > person.workUntil && person.random() < 0.5) {
+      person.workUntil = clock + 90 + person.random() * 60; // a break between shifts
+      return goInto(person, person.work, 60 + person.random() * 90);
+    }
     if (
       clock > person.socialUntil &&
       // a shy person seeks company half as often as most, an outgoing one half as often again
@@ -1080,6 +1101,7 @@ export function createCrowd() {
         z: person.group.position.z,
         inDoor: person.inDoor?.index ?? null,
         home: person.home?.index ?? null,
+        work: person.work?.index ?? null,
         seated: !!person.seat && person.state === "sit",
         with:
           person.state === "chat"
@@ -1089,6 +1111,18 @@ export function createCrowd() {
               : null,
         inRoom: !!person.space && person.space !== world,
       }));
+    },
+    /**
+     * Homes and workplaces from the world's lore: { [id]: { home, work } } as door indexes (null for
+     * none). A home given here is theirs alone: nobody else is put there.
+     */
+    setHousing(map) {
+      housing = new Map(Object.entries(map ?? {}));
+      for (const person of people.values()) {
+        person.home = homeOf(person);
+        const work = housing.get(person.id)?.work;
+        person.work = Number.isInteger(work) ? (world?.doors[work] ?? null) : null;
+      }
     },
     /** Each person's temperament: `fn(id)` → { aggression, sociability } (0–100). */
     setTraits(fn) {

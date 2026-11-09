@@ -155,6 +155,23 @@ const step = (seconds) => {
 };
 const at = (id) => crowd.snapshot().find((person) => person.id === id);
 
+// Homes from lore: the two given home 6 live there, and nobody else is put in it.
+{
+  const homeDoors = world.doors.filter((door) => door.kind === "home");
+  const kept = homeDoors[3].index;
+  crowd.setHousing({ "c-1": { home: kept, work: null }, "c-2": { home: kept, work: null } });
+  const homesNow = crowd.snapshot().map((person) => [person.id, person.home]);
+  assert.ok(
+    homesNow.filter(([id]) => id === "c-1" || id === "c-2").every(([, home]) => home === kept),
+    "they live there",
+  );
+  assert.ok(
+    homesNow.filter(([id]) => id !== "c-1" && id !== "c-2").every(([, home]) => home !== kept),
+    "nobody else does",
+  );
+  crowd.setHousing({});
+}
+
 // Friends: over a while in town they meet and chat (or sit together).
 let together = false;
 for (let i = 0; i < 600 && !together; i++) {

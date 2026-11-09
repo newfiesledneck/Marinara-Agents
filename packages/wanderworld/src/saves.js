@@ -99,6 +99,29 @@ export function checkWorld(raw) {
     characterLinking: ["keywords", "ai", "none"].includes(raw.characterLinking) ? raw.characterLinking : "none",
     // True until the keyword links have been made (the first time the world is built).
     lorePending: raw.lorePending === true,
+    // Where characters live and work, from lore (or set by hand): { [id]: { home, work, owner } } (place ids).
+    housing: isRecord(raw.housing)
+      ? Object.fromEntries(
+          Object.entries(raw.housing)
+            .filter(([, entry]) => isRecord(entry))
+            .map(([id, entry]) => [
+              id,
+              {
+                home: typeof entry.home === "string" ? entry.home : null,
+                work: typeof entry.work === "string" ? entry.work : null,
+                owner: entry.owner === true,
+              },
+            ]),
+        )
+      : {},
+    // Places the lore puts somewhere the world hasn't built them yet ("located in wilds1" for a house in
+    // town), waiting for the world builder: [{ place, in, title }].
+    waitingPlacements: Array.isArray(raw.waitingPlacements)
+      ? raw.waitingPlacements
+          .filter((entry) => isRecord(entry) && typeof entry.place === "string" && typeof entry.in === "string")
+          .slice(0, 200)
+          .map((entry) => ({ place: entry.place, in: entry.in, title: text(entry.title).slice(0, 120) }))
+      : [],
     // Place groups ({ id, name, members }); null until the player (or the AI) changes the defaults.
     groups: checkGroups(raw.groups),
     // Notes pinned to the noticeboard by the player (later the AI pins quests and news there too).

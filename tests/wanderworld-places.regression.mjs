@@ -9,6 +9,9 @@ import {
   checkGroups,
   matchLore,
   mergeLore,
+  placesOfKind,
+  slotsOf,
+  structureFromLore,
   defaultGroups,
   describe,
   groupsAt,
@@ -232,6 +235,49 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
   );
   const merged = mergeLore({ town: [{ lorebookId: "b", entryId: "1", title: "x" }] }, linked);
   assert.equal(merged.town.length, 1, "linking again adds nothing twice");
+
+  // Numbered names, and the structure a lorebook spells out.
+  const slots = slotsOf(zones);
+  assert.equal(slots.get("town1"), "town");
+  assert.equal(slots.get("wilds1"), "forest");
+  assert.equal(zones.byId.get(slots.get("tavern1")).buildingKind, "tavern");
+  assert.equal(zones.byId.get(slots.get("home6")).buildingKind, "home");
+  const homes = placesOfKind(zones, "home");
+  const workSlot = ["smithy1", "shop1", "temple1", "hall1"].find((slot) => slots.has(slot));
+  assert.ok(homes.length > 5 && homes.every((id) => zones.byId.get(id).buildingKind === "home"));
+  const structure = structureFromLore(
+    [
+      {
+        id: "b",
+        entries: [
+          { id: "g", title: "Residential Homes", keys: ["group of home", "located in town1"] },
+          { id: "f", title: "Forbidden Forest", keys: ["wilds1", "located in world"] },
+          { id: "j", title: "Jacob", keys: ["Jacob", "lives in home6", `works at ${workSlot}`] },
+          { id: "s", title: "Sarah", keys: ["Sarah", "lives in home6", "owner of tavern1"] },
+          { id: "h", title: "Jacob's home", keys: ["home6", "located in Residential Homes"] },
+        ],
+      },
+    ],
+    {
+      zones,
+      names: {},
+      groups,
+      name: "Aldermere",
+      characters: [
+        { id: "c-j", name: "Jacob" },
+        { id: "c-s", name: "Sarah" },
+      ],
+    },
+  );
+  const homesGroup = structure.groups.find((group) => group.name === "Residential Homes");
+  assert.equal(homesGroup.members.length, homes.length, "'group of home' holds every house");
+  assert.deepEqual(structure.housing["c-j"], { home: slots.get("home6"), work: slots.get(workSlot), owner: false });
+  assert.deepEqual(structure.housing["c-s"], { home: slots.get("home6"), work: slots.get("tavern1"), owner: true });
+  assert.ok(
+    structure.placements.some((entry) => entry.place === homesGroup.id && entry.in === "town"),
+    "the group sits in the town",
+  );
+  assert.ok(structure.placements.some((entry) => entry.place === "forest" && entry.in === "world"));
 }
 
 console.log("wanderworld places regression: OK");
