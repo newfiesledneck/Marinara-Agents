@@ -1408,6 +1408,18 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.54",
+          "date": "2026-11-09",
+          "notes": "- A road network out in the country: hamlets on neighbouring sides are joined by a road curving round the town, inns stand beside the road to a hamlet or farm where their own track meets it, and inns and cottages take a track off a nearby road instead of a long one from town.\n- Worlds without hamlets or farms keep their roads as they were.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.53",
+          "date": "2026-11-09",
+          "notes": "- Farms out in the country: a farmhouse and a red barn round a yard at the end of their own road, with fenced fields of wheat or greens in rows behind, crates, barrels and a wagon. Chosen in New world (\"Farms\") or often one by the seed.\n- A lorebook naming farm1 or farm2 brings that many; \"farm\", \"barn\" and \"fields\" lore links there.\n- Hamlets and farms stand on open ground in front of a mountain range, not up it.",
+          "highlight": false
+        },
+        {
           "version": "0.4.52",
           "date": "2026-11-09",
           "notes": "- More settlements: hamlets out in the country, each five to eight houses round a green on its own road, chosen in New world (\"More settlements\") or now and then by the seed.\n- A lorebook naming town2 or town3 brings a hamlet for each; their houses are numbered among the homes, and \"hamlet\" lore links there.\n- Regenerating a world now keeps all its New world choices, its settlement and layout included.",
@@ -1513,18 +1525,6 @@
           "version": "0.4.35",
           "date": "2026-11-08",
           "notes": "- Lorebooks can set how characters stand toward each other: a character's entry keyed \"brother of Sarah\", \"son of Zoey\", \"enemy of Mira\" or \"friends with Tam\" sets that one way. Nothing is assumed the other way round; the other character's own entry says how they see it. \"you\" or your persona's name means you.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.34",
-          "date": "2026-11-08",
-          "notes": "- Party tab: \"Everyone near me comes along\" brings everyone standing within a few steps of you into the party, and \"Everyone parts ways\" sends the whole party off again.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.33",
-          "date": "2026-11-08",
-          "notes": "- Characters can be set up from their lore: an entry named or keyed after a character in town, with keywords like \"enemy\", \"sworn enemy\", \"mentor\", \"sister\", \"male\" or \"female\", sets their body and how they see you (only what isn't set yet).\n- New world and Journal → World choose linking separately for places and for characters.\n- Explanations under every setting, at the top of each Journal tab and on New world; Settings → Show explanations hides them.",
           "highlight": false
         }
       ]
