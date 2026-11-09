@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.45 — 2026-11-08
+
+- New world starts with nobody living in it: characters from your other worlds no longer come along. Each world keeps its own cast, relationships, lore, homes and party in its own save.
+
 ## 0.4.44 — 2026-11-08
 
 - New world: each character folder has its own checkbox that picks everyone in it (as many as fit) or clears them. It shows half-ticked when only some are chosen.

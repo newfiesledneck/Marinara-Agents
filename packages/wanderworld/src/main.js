@@ -627,9 +627,9 @@ async function createNewWorld({
   save.landscape = landscapeNeeds(landscapeWith(hashString(save.seed), choices), save.needs, hashString(save.seed));
   save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
-  // Who lives there and who you play, from New world (else the persona and cast of the world played last).
+  // Who lives there and who you play, from New world. Worlds are separate: nobody moves in from another.
   save.persona = persona ?? core.personaId;
-  save.cast = cast ?? [...(core.cast ?? [])];
+  save.cast = cast ?? [];
   core.saves.write(save);
   playWorld(save.id);
 }
@@ -2546,18 +2546,16 @@ function attach(element) {
       onCreate: createNewWorld,
       // Everyone New world can choose from: personas, characters, the Engine's character folders, and
       // who's chosen now (the last world's cast and persona).
-      people: () => {
-        // From the menu nothing's loaded yet: start from the world played last.
-        const last = core.cast?.size ? null : core.saves.last();
-        return {
-          personas: core.personas ?? [],
-          characters: core.characters ?? [],
-          folders: core.characterFolders ?? [],
-          cast: core.cast?.size ? [...core.cast] : (last?.cast ?? []),
-          persona: last?.persona ?? core.personaId,
-          max: MAX_PEOPLE,
-        };
-      },
+      // New world starts empty: nobody from another world (each world keeps its own cast); the persona box
+      // starts with the persona played last, for convenience.
+      people: () => ({
+        personas: core.personas ?? [],
+        characters: core.characters ?? [],
+        folders: core.characterFolders ?? [],
+        cast: [],
+        persona: core.saves.last()?.persona ?? core.personaId,
+        max: MAX_PEOPLE,
+      }),
       lorebooks: () => readLorebooks().then((books) => books.map((book) => ({ id: book.id, name: book.name }))),
       onRename: (id, name) => {
         core.saves.rename(id, name);
