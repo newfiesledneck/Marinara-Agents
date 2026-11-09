@@ -1,5 +1,15 @@
 # Wanderworld release notes
 
+## 0.4.62 — 2026-11-09
+
+- Places out in the country keep clear of each other: a farm's fields no longer run into a hamlet, and two farms never overlap.
+- A graveyard goes on a side of town the river doesn't cut off.
+- Map names no longer overlap (each goes above or below its place, wherever there's room), and neighbouring regions have different names.
+
+## 0.4.61 — 2026-11-09
+
+- The land goes on past the world's edge into the fog, with woods thinning out and the river running on, instead of ending in a drop to the sky.
+
 ## 0.4.60 — 2026-11-09
 
 - Weather (Settings → Weather, off by default): rain falling in streaks, drifting snow, or mist, each greying the sky, dimming the sun and drawing the fog in. "Changing" turns every few minutes, the same for a world each time and mostly clear; or pick one kind to keep.

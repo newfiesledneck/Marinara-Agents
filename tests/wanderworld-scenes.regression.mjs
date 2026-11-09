@@ -90,6 +90,12 @@ assert.ok(!choicesFor(["news"]).some((choice) => choice.id === "news"), "asked t
   assert.equal(regionNext(HOME_REGION, "east"), "1,0");
   assert.equal(regionNext("1,0", "north"), "1,-1");
   assert.equal(regionName("seed-a", "1,0"), regionName("seed-a", "1,0"), "a region keeps its name");
+  const near = ["0,0", "1,0", "-1,0", "0,1", "0,-1", "1,1", "-1,-1", "1,-1", "-1,1"];
+  assert.equal(
+    new Set(near.map((key) => regionName("seed-a", key))).size,
+    near.length,
+    "home and the eight regions round it all differ",
+  );
   const trip = sceneRequest({
     thing: { kind: "travel", name: "the road to Highmoor", chain: ["the Greenvale"] },
     action: "go",

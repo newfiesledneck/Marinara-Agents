@@ -160,9 +160,27 @@ export function drawMap(canvas, info, options = {}) {
     context.fillStyle = "#3a2a1a";
     context.fillText(text, x, y);
   };
+  // Each name above its place, else below it, wherever it doesn't run into a name already written (the
+  // edges' region names count too); one that fits nowhere is left out rather than written over another.
+  const taken = [
+    [size / 2 - size * 0.2, 0, size * 0.4, font * 1.6],
+    [size / 2 - size * 0.2, size - font * 1.6, size * 0.4, font * 1.6],
+  ];
+  const clashes = (box) =>
+    taken.some(([x, y, w, h]) => box[0] < x + w && box[0] + box[2] > x && box[1] < y + h && box[1] + box[3] > y);
+  context.font = `600 ${font}px Georgia, serif`;
   for (const entry of options.labels ?? []) {
     const [x, y] = toPixel(entry.x, entry.z);
-    label(entry.text, x, Math.max(font, Math.min(size - font, y - font * 1.5)));
+    const width = context.measureText(entry.text).width + 4;
+    for (const at of [y - font * 1.5, y + font * 1.5, y - font * 2.7, y + font * 2.7]) {
+      const line = Math.max(font, Math.min(size - font, at));
+      const left = Math.max(0, Math.min(size - width, x - width / 2));
+      const box = [left, line - font * 0.6, width, font * 1.2];
+      if (clashes(box)) continue;
+      taken.push(box);
+      label(entry.text, left + width / 2, line);
+      break;
+    }
   }
   const edges = options.edges ?? {};
   if (edges.north) label(`↑ ${edges.north}`, size / 2, font * 0.8);

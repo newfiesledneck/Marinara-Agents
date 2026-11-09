@@ -2275,7 +2275,9 @@ function groundChunk(x0, z0, cell, material, forest) {
  */
 function createGround(scene, uniforms, forest) {
   const material = terrainMaterial(uniforms, { flatShading: true });
-  const half = worldSize / 2;
+  // The land goes on past the world's edge (two chunks of it, into the fog), so walking up to the edge
+  // shows country beyond instead of the ground ending in a drop to the sky.
+  const half = worldSize / 2 + CHUNK * 2;
   const chunks = [];
   for (let z0 = -half; z0 < half; z0 += CHUNK) {
     for (let x0 = -half; x0 < half; x0 += CHUNK) {
@@ -2508,6 +2510,33 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     stones.setMatrixAt(i, dummy.matrix);
   });
   scene.add(trunks, crowns, stones);
+  // Beyond the world's edge, simple woods thinning out into the fog (no collisions: nobody goes there).
+  const beyond = [];
+  const edgeRandom = rng(seed ^ 0x7f4a7c15);
+  const inner = worldSize / 2;
+  const outer = inner + 110;
+  const wanted = Math.round(((outer * 2) ** 2 - (inner * 2) ** 2) / 260);
+  for (let tries = 0; beyond.length < wanted && tries < wanted * 4; tries++) {
+    const x = (edgeRandom() * 2 - 1) * outer;
+    const z = (edgeRandom() * 2 - 1) * outer;
+    const out = Math.max(Math.abs(x), Math.abs(z)) - inner;
+    if (out < 3 || edgeRandom() > 1 - out / 160 || land.clear(x, z, 1) || heightAt(x, z) > 26) continue;
+    beyond.push({ x, z, scale: 1.4 + edgeRandom() * 1.8, turn: edgeRandom() * 6.3, tint: edgeRandom() });
+  }
+  const farTrunks = new InstancedMesh(trunkGeometry, trunks.material, Math.max(1, beyond.length));
+  const farCrowns = new InstancedMesh(crownGeometry, crowns.material, Math.max(1, beyond.length));
+  farTrunks.count = farCrowns.count = beyond.length;
+  beyond.forEach((tree, i) => {
+    dummy.position.set(tree.x, heightAt(tree.x, tree.z) - 0.05, tree.z);
+    dummy.rotation.set(0, tree.turn, 0);
+    dummy.scale.setScalar(tree.scale);
+    dummy.updateMatrix();
+    farTrunks.setMatrixAt(i, dummy.matrix);
+    farCrowns.setMatrixAt(i, dummy.matrix);
+    farCrowns.setColorAt(i, crownColor.setHSL(0.3 + tree.tint * 0.08, 0.45, 0.26 + tree.tint * 0.08));
+  });
+  farTrunks.userData.beyond = farCrowns.userData.beyond = true; // always the simple trees, past the edge
+  scene.add(farTrunks, farCrowns);
   scene.add(...lamps.objects);
   // The fountain, on a square only.
   if (look.market === "square") {

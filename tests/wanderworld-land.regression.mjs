@@ -493,4 +493,33 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
   world.dispose();
 }
 
+// A crowded country: however many places, each one's level ground stays clear of the others' (a farm's
+// fields never run into a hamlet's houses).
+{
+  const room = (kind) =>
+    ({ hamlet: 24, farm: 28, ruins: 13, watchtower: 8, stones: 11, graveyard: 11, mill: 9, cave: 14, inn: 9 })[kind] ??
+    11;
+  let pairs = 0;
+  for (const seed of [201, 202, 203, 204, 205, 206]) {
+    for (const size of ["normal", "large"]) {
+      const choices = { places: "several", towns: "two", farms: "two", landmarks: "several", river: "yes" };
+      const built = createWorld(seed, landscapeWith(seed, choices), {}, size);
+      const places = built.layout.outposts;
+      for (let i = 0; i < places.length; i++) {
+        for (let j = i + 1; j < places.length; j++) {
+          const [a, b] = [places[i], places[j]];
+          const gap = Math.hypot(a.x - b.x, a.z - b.z);
+          assert.ok(
+            gap >= room(a.kind) + room(b.kind),
+            `seed ${seed} ${size}: ${a.kind} and ${b.kind} ${gap.toFixed(0)} m apart`,
+          );
+          pairs++;
+        }
+      }
+      built.dispose();
+    }
+  }
+  assert.ok(pairs > 100, `pairs checked (${pairs})`);
+}
+
 console.log("wanderworld land regression: OK");

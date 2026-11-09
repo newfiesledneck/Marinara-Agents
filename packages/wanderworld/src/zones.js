@@ -121,10 +121,28 @@ export function regionNext(key, side) {
   const [dx, dz] = SIDE_STEP[side];
   return `${x + dx},${z + dz}`;
 }
-/** A region's name: the same for the same world and place on the map of regions. */
+/**
+ * A region's name: the same for the same world and place on the map of regions. Names go round a spiral
+ * out from home, so home and the eight regions round it all have different ones (twelve names in all).
+ */
 export function regionName(worldSeed, key) {
-  const random = rng(((hashOf(`${worldSeed}|${key}`) % 2147483647) + 2147483647) % 2147483647);
-  return REGION_NAMES[Math.floor(random() * REGION_NAMES.length)];
+  const [x, z] = key.split(",").map(Number);
+  const ring = Math.max(Math.abs(x), Math.abs(z));
+  let index = 0;
+  if (ring) {
+    // Round the ring: along its top edge, down its right, back along its bottom, up its left.
+    const step =
+      z === -ring
+        ? x + ring
+        : x === ring
+          ? 2 * ring + z + ring
+          : z === ring
+            ? 4 * ring + ring - x
+            : 6 * ring + ring - z;
+    index = (2 * ring - 1) ** 2 + step;
+  }
+  const offset = ((hashOf(String(worldSeed)) % REGION_NAMES.length) + REGION_NAMES.length) % REGION_NAMES.length;
+  return REGION_NAMES[(offset + index) % REGION_NAMES.length];
 }
 function hashOf(text) {
   let hash = 2166136261;

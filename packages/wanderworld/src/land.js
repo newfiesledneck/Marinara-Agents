@@ -320,7 +320,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     const phase = random() * Math.PI * 2;
     const swing = 8 + random() * 6;
     const points = [];
-    for (let t = -worldHalf - 10; t <= worldHalf + 10; t += 6) {
+    // On past the world's edge with the land beyond it (world.js draws two chunks more each way).
+    for (let t = -worldHalf - 172; t <= worldHalf + 172; t += 6) {
+      // 162 m more each way, on the same 6 m steps
       const wobble = Math.sin(t / 34 + phase) * swing + Math.sin(t / 13 + phase * 2) * 2.5;
       // Along the side's axis it runs across; out from town by `offset` plus the wobble.
       const out = offset + wobble;
@@ -332,7 +334,15 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
   // Places out in the country, each at the end of a road from the nearest street leaving town. Two on
   // the same side share the side, spread apart.
   const perSide = {};
-  const outposts = landscape.outposts.map((entry, index) => {
+  const placed = []; // the places so far, to keep each one's level ground clear of the others'
+  const roomOf = (kind) => (kind === "cave" ? 14 : flatOf(kind));
+  const outposts = landscape.outposts.map((original, index) => {
+    // A graveyard close by the town goes on a side the river doesn't cut it off on.
+    const sideFree = (side) => !(river && landscape.river.side === side);
+    const entry =
+      original.kind === "graveyard" && !sideFree(original.side)
+        ? { ...original, side: SIDES[(SIDES.indexOf(original.side) + 1) % SIDES.length] }
+        : original;
     const [dx, dz] = DIRECTION[entry.side];
     const slot = (perSide[entry.side] = (perSide[entry.side] ?? -1) + 1);
     // A bigger world spreads its places further apart and further out (a Normal world: as before).
@@ -351,7 +361,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     }
     if (entry.kind === "graveyard") out = townHalf + 24 + random() * 10; // just outside town
     out = Math.min(out, edge - 14); // inside the world, however small
-    const lateral = Math.max(-edge + 20, Math.min(edge - 20, across));
+    // A graveyard keeps close by the town, level with it; the rest spread along their side.
+    const spread = entry.kind === "graveyard" ? Math.max(-townHalf * 0.6, Math.min(townHalf * 0.6, across)) : across;
+    let lateral = Math.max(-edge + 20, Math.min(edge - 20, spread));
     const spot = (distance) => (dx !== 0 ? { x: dx * distance, z: lateral } : { x: lateral, z: dz * distance });
     // Never on the river: a place whose ground would reach the water or its banks steps further out.
     const dry = entry.kind === "hamlet" || entry.kind === "farm" ? flatOf(entry.kind) + 6 : 14; // more for a hamlet or farm
@@ -366,13 +378,32 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       const x = near.x - (near.x / across) * reach;
       const z = near.z - (near.z / across) * reach;
       const facing = ((Math.round(Math.atan2(x - near.x, z - near.z) / (Math.PI / 2)) % 4) + 4) % 4;
-      return { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
+      const mill = { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
+      placed.push(mill);
+      return mill;
     }
     while (!clearOfRiver(spot(out)) && out < edge - 18) out += 4;
+    // Clear of the places already there: along the side away from the one in the way, now and then
+    // further out too (still off the river).
+    let away = 0; // which way along the side it moves: kept for the whole search, turned back at the edge
+    for (let tries = 0; tries < 24; tries++) {
+      const at = spot(out);
+      const clash = placed.find(
+        (other) => Math.hypot(other.x - at.x, other.z - at.z) < roomOf(other.kind) + roomOf(entry.kind) + 4,
+      );
+      if (!clash) break;
+      if (!away) away = Math.sign(dx !== 0 ? at.z - clash.z : at.x - clash.x) || 1;
+      if (Math.abs(lateral + away * 9) > edge - 20) away = -away;
+      lateral += away * 9;
+      if (tries % 3 === 2) out = Math.min(out + 10, edge - 14);
+      while (!clearOfRiver(spot(out)) && out < edge - 18) out += 4;
+    }
     const { x, z } = spot(out);
     // The front looks back toward town, squared to a quarter turn like every building in town.
     const facing = ((Math.round(Math.atan2(-x, -z) / (Math.PI / 2)) % 4) + 4) % 4;
-    return { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
+    const place = { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
+    placed.push(place);
+    return place;
   });
 
   // Roads. Hamlets and farms each get one from the end of the street on their side nearest them, out and
