@@ -320,7 +320,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     const phase = random() * Math.PI * 2;
     const swing = 8 + random() * 6;
     const points = [];
-    for (let t = -worldHalf - 10; t <= worldHalf + 10; t += 6) {
+    // On past the world's edge with the land beyond it (world.js draws two chunks more each way).
+    for (let t = -worldHalf - 172; t <= worldHalf + 172; t += 6) {
+      // 162 m more each way, on the same 6 m steps
       const wobble = Math.sin(t / 34 + phase) * swing + Math.sin(t / 13 + phase * 2) * 2.5;
       // Along the side's axis it runs across; out from town by `offset` plus the wobble.
       const out = offset + wobble;

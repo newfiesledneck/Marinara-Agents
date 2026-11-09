@@ -63,7 +63,11 @@ const world = createWorld(12345);
 for (const density of DENSITIES) world.setDensity(density);
 const meshes = [];
 world.scene.traverse((object) => object.isInstancedMesh && meshes.push(object));
-assert.equal(meshes.length, 6, "trunks, crowns, rocks, lamp posts, lamp heads and doors are one instanced mesh each");
+assert.equal(
+  meshes.length,
+  8,
+  "trunks, crowns, rocks, lamp posts, lamp heads, doors and the woods beyond the edge (two) are one instanced mesh each",
+);
 
 // Doors swing open and shut; benches have seats; the day turns to night.
 assert.ok(world.doors.length >= 30, `every building has a door (${world.doors.length})`);
@@ -95,7 +99,9 @@ world.setTime(12);
   const simple = [];
   nature.scene.traverse((object) => {
     if (object.userData.kit) kit.push(object);
-    else if (object.isInstancedMesh && object.instanceMatrix.count > 100) simple.push(object); // room for many
+    // (the woods beyond the world's edge are always the simple trees)
+    else if (object.isInstancedMesh && !object.userData.beyond && object.instanceMatrix.count > 100)
+      simple.push(object);
   });
   assert.ok(kit.length >= 15, `kit trees, rocks and plants are added (${kit.length} kinds)`);
   assert.ok(

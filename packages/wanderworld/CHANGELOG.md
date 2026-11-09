@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.61 — 2026-11-09
+
+- The land goes on past the world's edge into the fog, with woods thinning out and the river running on, instead of ending in a drop to the sky.
+
 ## 0.4.60 — 2026-11-09
 
 - Weather (Settings → Weather, off by default): rain falling in streaks, drifting snow, or mist, each greying the sky, dimming the sun and drawing the fog in. "Changing" turns every few minutes, the same for a world each time and mostly clear; or pick one kind to keep.
