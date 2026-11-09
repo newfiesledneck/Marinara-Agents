@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.77)
+## What it does now (0.4.78)
 
 ### The world
 
@@ -51,7 +51,7 @@ from **Load world** or clear the site's data.
   region, with its own land and settlement made from the world's seed. Each region keeps its own place
   names, lore and groups; characters who didn't come along wait at home. Each trip saves a travel scene
   request with the world.
-- **Built to its lore:** with places linked by name, a world is built with at least every numbered place
+- **Built to its lore:** with places linked by their keywords, a world is built with at least every numbered place
   its lorebooks mention (smithy3 makes three smithies; town2 brings a hamlet; farm2 two farms; a cave
   brings mountains for it). Past that, random.
 - **Painted ground and water:** grass, dirt, forest floor, rock, snow, riverbed pebbles, cobbles, setts and
@@ -84,15 +84,12 @@ from **Load world** or clear the site's data.
   and the buildings on them, the wilds, and groups of places (which can sit inside each other). A
   lorebook entry can be tied at any level: active where you are and everywhere above it, everywhere for
   the world, or while you talk to or travel with that character. The **Lore** button shows what's active.
-- **Lorebooks can set it all up** (each part opt-in in New world or Journal → World):
-  - entries named or keyed after a place, its kind ("tavern", "the woods") or its numbered name
-    (town1, tavern1, home6, inn1, cave1 — shown in the Places tree) link there;
-  - "group of home" makes a group of every house; "located in town1" puts a place or group inside another;
-  - on a character's entry: "male" / "female", how they see you ("enemy", "best friend", "mentor"…), how
-    they stand toward others ("brother of Sarah", "friends with Tam"), and "lives in home6", "works at
-    smithy1", "owner of tavern1";
-  - your own entry, keyed "player <your persona's name>" (or "you"): its lore is always active, and it can
-    give you a home (you start at your front door) and your relationships.
+- **Lorebooks can set it all up** (each part opt-in in New world or Journal → World), with keywords
+  that start with `ww:` so ordinary trigger words never set anything: which place, group, character or
+  the whole world an entry belongs to; place names and what sits inside what; a character's body, home,
+  work, day, how they see you and how they stand toward others; people made from entries with no card;
+  and your own entry (`ww: player`), whose lore is always active and can give you a home (you start at
+  your front door). The full list is under [Lorebook keywords](#lorebook-keywords).
 - **Regenerate this world** (Settings) rebuilds it from its setup with this version's land and the
   lorebooks' current needs, keeping its people, relationships, lore, groups and homes; optionally a new
   town layout, with every name and link moved to the same kind of place.
@@ -148,7 +145,7 @@ only walk about.
   it's doing, then the setup is shown for a look before the land is built: build it, ask again, or go
   back and change the settings. A call that fails is tried again; what came through is kept and only
   the missing part is asked for again. The same can be spelled out with keywords on lorebook entries
-  (`tavern1`, `lives in home3`, `sister of Mira`), or set by hand in the Journal.
+  (`ww: tavern1`, `ww: lives in home3`, `ww: sister of Mira`), or set by hand in the Journal.
 - **A world written for you:** with no lorebook, or none of your characters, the AI can still make a
   whole world. "World lore" has it write the world's premise and named places with their own lore, kept
   in that world and active where you stand; "new people" has it invent up to 12 people around those
@@ -180,6 +177,32 @@ It reads your personas, characters, character folders, lorebooks, connections, p
 Avatars models from the Engine, and changes none of them. Worlds stay in this browser for now. The server
 part keeps only scene contexts (until the Engine's planner reads them), scene recaps (until the world takes
 them) and each world's newest 60 pictures.
+
+### Lorebook keywords
+
+Wanderworld acts only on lorebook keywords that start with `ww:` (`ww:man` and `ww: man` are the
+same), so an entry's ordinary trigger words never set anything by accident, and an entry's title alone
+links nothing. Put them in an entry's keys, next to its usual ones.
+
+| Keyword | On | What it does |
+| --- | --- | --- |
+| `ww: tavern1`, `ww: home6`, `ww: forest1` | any entry | The entry is that place's lore (places are numbered by kind: Journal → Places shows each one's name). A number the world doesn't have yet is built: `ww: smithy3` makes three smithies. |
+| `ww: tavern`, `ww: forest` | any entry | Lore for every place of that kind. |
+| `ww: world` | any entry | Lore active everywhere. |
+| `ww: Mira`, `ww: player` | any entry | The entry is about that character (their name), or about you. |
+| `ww: name The Gilded Stag` | a place's entry | Names the place. |
+| `ww: located in town2` | a place's entry | Puts the place inside another place or group. |
+| `ww: group of home` | any entry | Makes a group of every place of that kind, with the entry as its lore. |
+| `ww: man`, `ww: woman` (or male, female, boy, girl) | a character's entry | Their body. |
+| `ww: lives in home6`, `ww: works at smithy1`, `ww: owner of tavern1` | a character's entry | Home and work. |
+| `ww: friend`, `ww: enemy`, `ww: mentor`, `ww: sister`… | a character's entry | How they see you. |
+| `ww: sister of Tam`, `ww: rival of Fen` | a character's entry | How they stand toward someone else (one way; the other's entry says theirs). |
+| `ww: work 10:15-18:45`, `ww: home 22-7:15`, `ww: eat 12-13 at tavern1` | a character's entry | Their day (home, work, eat, visit, sit, walk), over the usual one; quarter hours, and over midnight. |
+| `ww: character` | any entry | Makes a person of the entry (its title their name, its text who they are) when no card has that name. They live in that world only. |
+
+Choose "link lorebook entries by their ww: keywords" (places) and "set up from ww: keywords"
+(characters) in New world or Journal → World. With the AI setting things up instead, `ww:` keywords
+still count, and come first.
 
 ### Known limits
 

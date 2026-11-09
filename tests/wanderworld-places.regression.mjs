@@ -191,11 +191,12 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
     {
       id: "b",
       entries: [
-        { id: "1", title: zones.town, keys: [] },
+        { id: "1", title: "About the town", keys: [zones.town] },
         { id: "2", title: "Old ale", keys: ["Tavern"] },
         { id: "3", title: "Wolves", keys: ["the woods", "wolf"] },
         { id: "4", title: "Gods", keys: ["World"] },
-        { id: "5", title: "Mira", keys: [] },
+        { id: "5", title: "Mira", keys: ["Mira"] },
+        { id: "7", title: "Tavern", keys: [] }, // only called that: a title links nothing
         { id: "6", title: "Unrelated", keys: ["taverns are fun"] },
       ],
     },
@@ -307,7 +308,8 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
         id: "b",
         entries: [
           { id: "y", title: "About me", keys: ["you"] },
-          { id: "z", title: "Zoey", keys: [] },
+          { id: "z", title: "Zoey's past", keys: ["Zoey"] },
+          { id: "t", title: "Zoey", keys: [] }, // only called that: a title links nothing
         ],
       },
     ],
@@ -323,6 +325,33 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
     ["z"],
     "'Zoey' is the character's",
   );
+
+  // A lorebook names a place with "name …" on the place's entry; a card's own entry goes by its title.
+  const { namesFromLore } = await import("../packages/wanderworld/src/zones.js");
+  const named = namesFromLore(
+    [
+      {
+        id: "b",
+        entries: [
+          { id: "n", title: "x", keys: ["tavern1", "name The Gilded Stag"] },
+          { id: "m", title: "y", keys: ["name Nowhere"] },
+        ],
+      },
+    ],
+    { zones, names: {}, groups: [], name: "", characters: [] },
+  );
+  assert.deepEqual(Object.values(named), ["The Gilded Stag"], "only an entry about a place names it");
+  const byCard = matchLore(
+    [{ id: "cards", entries: [{ id: "c-z", title: "Zoey", keys: ["female"], byTitle: true }] }],
+    {
+      zones,
+      names: {},
+      groups,
+      name: "W",
+      characters: [{ id: "c-z", name: "Zoey" }],
+    },
+  );
+  assert.equal(byCard["character:c-z"].length, 1, "what the AI read in a card is that character's");
 }
 
 console.log("wanderworld places regression: OK");

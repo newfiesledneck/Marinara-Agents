@@ -753,6 +753,33 @@ export function placesOfKind(zones, word) {
 export { plain as plainWord };
 
 /**
+ * The words a lore entry is linked by: its Wanderworld keywords (in a lorebook, the keys written
+ * "ww: …": main.js `wanderKeys`). Its title counts only where Wanderworld named the entry itself
+ * (`byTitle`: someone's card), never for a lorebook's: "Home" or "The Forest" is just what it's called.
+ */
+const wordsOf = (entry) => (entry.byTitle ? [entry.title, ...(entry.keys ?? [])] : (entry.keys ?? []));
+
+/**
+ * Names a lorebook gives places: an entry about a place ("tavern1") with the keyword "name The Gilded
+ * Stag". Returns { [zone id]: name }.
+ */
+export function namesFromLore(books, world) {
+  const targets = placeTargets(world);
+  const names = {};
+  for (const book of books) {
+    for (const entry of book.entries) {
+      const words = wordsOf(entry);
+      const name = words.map((word) => /^named?\s+(.+)$/iu.exec(String(word).trim())?.[1]).find(Boolean);
+      if (!name) continue;
+      for (const word of words)
+        for (const id of targets.get(plain(word)) ?? [])
+          if (world.zones.byId.has(id)) names[id] ??= name.trim().slice(0, 60);
+    }
+  }
+  return names;
+}
+
+/**
  * Lore for a new world from its lorebooks: every entry whose name or a keyword is exactly the name of a
  * place (as named in this world, or its kind: "tavern", "forest"), a group, a character or the world
  * itself is tied to it. `books`: [{ id, entries: [{ id, title, keys }] }]; `world`: { zones, names,
@@ -764,8 +791,7 @@ export function matchLore(books, world) {
   for (const book of books) {
     for (const entry of book.entries) {
       const ids = new Set();
-      for (const word of [entry.title, ...(entry.keys ?? [])])
-        for (const id of targets.get(plain(word)) ?? []) ids.add(id);
+      for (const word of wordsOf(entry)) for (const id of targets.get(plain(word)) ?? []) ids.add(id);
       for (const id of ids) {
         lore[id] ??= [];
         lore[id].push({ lorebookId: book.id, entryId: entry.id, title: entry.title });
@@ -805,7 +831,7 @@ export function structureFromLore(books, world) {
   const housing = {};
   for (const book of books) {
     for (const entry of book.entries) {
-      const words = [entry.title, ...(entry.keys ?? [])];
+      const words = wordsOf(entry);
       const subjects = new Set();
       for (const word of words) for (const id of targets.get(plain(word)) ?? []) subjects.add(id);
       for (const word of words) {
@@ -888,7 +914,7 @@ export function needsFromLore(books) {
   const needs = {};
   for (const book of books) {
     for (const entry of book.entries) {
-      for (const word of [entry.title, ...(entry.keys ?? [])]) {
+      for (const word of wordsOf(entry)) {
         for (const [, kind, number] of String(word).matchAll(pattern)) {
           const sort = kind.toLowerCase() === "wilds" ? "forest" : kind.toLowerCase();
           needs[sort] = Math.max(needs[sort] ?? 0, Math.min(60, Number(number)));

@@ -253,7 +253,7 @@ assert.equal(
 // checked the same way.
 {
   assert.deepEqual(server.checkEntry({ from: 7.3, to: 9, activity: "work", place: "" }), {
-    from: 7.5,
+    from: 7.25,
     to: 9,
     activity: "work",
     place: "",

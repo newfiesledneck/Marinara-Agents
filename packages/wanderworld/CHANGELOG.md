@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.78 — 2026-11-09
+
+- Lorebook keywords for Wanderworld now need the prefix "ww:" ("ww: tavern1", "ww:woman", "ww: lives in home3"), so a lorebook's ordinary trigger words ("town", "man", "enemy") never set anything by accident, and an entry's title alone links nothing. Lorebooks keyed the old way need the prefix added.
+- New keywords: a day ("ww: work 10:15-18:45", "ww: home 22-7:15", "ww: eat 12-13 at tavern1"), a place's name ("ww: name The Gilded Stag" beside "ww: tavern1"), and "ww: character" to make a person of an entry with no card. Schedules keep quarter hours.
+
 ## 0.4.77 — 2026-11-09
 
 - New world can be written by the AI from nothing: "World lore: let the AI write this world and its places" writes a premise and named places with their own lore, kept in the world and active where you stand.

@@ -74,4 +74,19 @@ const after = crowd.snapshot().find((person) => person.id === "c-smith");
 assert.notEqual(after.state, "inside", "out once the shift is over");
 world.dispose();
 
+// A day spelled out in a lorebook: "work 10:15-18:45", "home 22-7:15", "eat 12-13 at tavern1".
+{
+  const { scheduleFromWords, hourText } = await import("../packages/wanderworld/src/schedules.js");
+  assert.deepEqual(
+    scheduleFromWords(["work 10:15-18:45", "Home 22 - 7:15", "eat 12-13 at tavern1", "man", "work late", "dance 1-2"]),
+    [
+      { from: 10.25, to: 18.75, activity: "work", place: "", at: "" },
+      { from: 22, to: 7.25, activity: "home", place: "", at: "" },
+      { from: 12, to: 13, activity: "eat", place: "", at: "tavern1" },
+    ],
+  );
+  assert.equal(hourText(18.75), "18:45");
+  assert.equal(hourText(7), "07:00");
+}
+
 console.log("wanderworld schedules regression: OK");

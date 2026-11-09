@@ -43,6 +43,9 @@ import {
   structureFromLore,
   slotsOf,
   needsFromLore,
+  namesFromLore,
+  placeTargets,
+  plainWord,
   zoneAt,
   HOME_REGION,
   regionName,
@@ -52,7 +55,7 @@ import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, OWN_LINE, parseSpeech, pickListeners, sceneRequest } from "./interactions.js";
 import { drawMap } from "./map.js";
 import { createAi } from "./ai.js";
-import { ACTIVITY_WORDS, entryAt, hourText, putEntry, usualDay } from "./schedules.js";
+import { ACTIVITY_WORDS, entryAt, hourText, putEntry, scheduleFromWords, usualDay } from "./schedules.js";
 import { weatherAt } from "./weather.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
@@ -652,15 +655,14 @@ async function chosenBooks(save) {
     ...worldBook(save),
   ];
   if (!books.length) return [];
-  const modes = [save.loreLinking, save.characterLinking];
-  if (!modes.includes("ai")) return books;
-  const own = modes.includes("keywords");
   return books.map((book) => ({
     ...book,
-    entries: book.entries.map((entry) => ({
-      ...entry,
-      keys: [...(own ? entry.keys : []), ...(save.loreKeys?.[`${book.id}/${entry.id}`] ?? [])],
-    })),
+    entries: book.entries.map((entry) => {
+      const keys = [...(entry.keys ?? []), ...(save.loreKeys?.[`${book.id}/${entry.id}`] ?? [])];
+      // "character": the entry is someone with no card (linkLore makes them); it's theirs by their name.
+      if (keys.some((key) => key.toLowerCase() === "character")) keys.push(entry.title);
+      return { ...entry, keys };
+    }),
   }));
 }
 
@@ -676,7 +678,7 @@ function cardBook(save) {
     .filter(([key]) => key.startsWith("cards/"))
     .map(([key, keys]) => {
       const id = key.slice("cards/".length);
-      return { id, title: id === "player" ? "player" : (names.get(id) ?? ""), keys, content: "" };
+      return { id, title: id === "player" ? "player" : (names.get(id) ?? ""), keys, content: "", byTitle: true };
     })
     .filter((entry) => entry.title);
   return entries.length ? [{ id: "cards", name: "", entries }] : [];
@@ -814,7 +816,7 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
           extra: {
             entries: batch.map(({ entry }) => ({
               title: entry.title,
-              keys: entry.keys,
+              keys: [...(entry.triggers ?? []), ...entry.keys],
               content: entry.content.slice(0, 600),
             })),
           },
@@ -1309,7 +1311,8 @@ function linkLore() {
       // Places and the world, and characters, each as the setup says (by name, by the AI, or left alone).
       const places = core.save.loreLinking !== "none";
       const people = core.save.characterLinking !== "none";
-      if (places) nameFromLore();
+      if (people) peopleFromLore(chosen);
+      if (places) nameFromLore(chosen);
       const names = namedZones(residentsOf(core.crowd.snapshot()));
       const found = matchLore(chosen, {
         zones: places ? core.zones : { zones: [] },
@@ -1348,10 +1351,45 @@ function linkLore() {
     });
 }
 
+/**
+ * Makes the people a lorebook describes who have no card: an entry keyed "ww: character" becomes someone
+ * who lives in this world only (`save.locals`), named for the entry, with its text as who they are.
+ */
+function peopleFromLore(books) {
+  const before = core.save.locals ?? [];
+  const locals = [...before];
+  const taken = new Set(peopleOf(core.save).map((person) => person.name.toLowerCase()));
+  for (const book of books) {
+    if (book.id === "world" || book.id === "cards") continue;
+    for (const entry of book.entries) {
+      const marked = entry.keys.some((key) => key.toLowerCase() === "character");
+      if (!marked || taken.has(entry.title.toLowerCase())) continue;
+      if (core.save.cast.length + locals.length - before.length >= MAX_PEOPLE) break;
+      taken.add(entry.title.toLowerCase());
+      locals.push({
+        id: `local:${`${book.id}/${entry.id}`.replace(/[^\w-]/gu, "-")}`,
+        name: entry.title.slice(0, 60),
+        description: entry.content.slice(0, 1200),
+        personality: "",
+        appearance: "",
+      });
+    }
+  }
+  if (locals.length === before.length) return;
+  const cast = [...new Set([...core.save.cast, ...locals.map((person) => person.id)])].slice(0, MAX_PEOPLE);
+  core.save = { ...core.save, locals, cast };
+  core.characters = peopleOf(core.save);
+  core.cast = new Set(cast);
+  updateCast();
+}
+
 /** Gives the places the lore names (the AI's `loreNames`: tavern1 → "The Gilded Stag") those names, unless named already. */
-function nameFromLore() {
+function nameFromLore(books = []) {
   const slots = slotsOf(core.zones);
   const names = { ...core.save.names };
+  // And the names a lorebook spells out ("ww: tavern1" with "ww: name The Gilded Stag").
+  const world = { zones: core.zones, names: {}, groups: [], name: "", characters: [] };
+  for (const [id, name] of Object.entries(namesFromLore(books, world))) names[id] ??= name;
   for (const [slot, name] of Object.entries(core.save.loreNames ?? {})) {
     const id = slots.get(slot);
     if (id && !names[id]) names[id] = name;
@@ -1374,7 +1412,7 @@ function setupCharactersFromLore(books) {
     const words = (core.save.lore[`character:${character.id}`] ?? [])
       .map((tie) => entries.get(`${tie.lorebookId}/${tie.entryId}`))
       .filter(Boolean)
-      .flatMap((entry) => [entry.title, ...(entry.keys ?? [])])
+      .flatMap((entry) => entry.keys ?? [])
       .concat(core.save.loreKeys?.[`cards/${character.id}`] ?? []) // what the AI read in their card
       .filter((word) => word.toLowerCase().trim() !== name);
     const { body, relation } = setupFromWords(words);
@@ -1384,6 +1422,28 @@ function setupCharactersFromLore(books) {
     }
     if (relation && !core.relations.get(character.id, "player")) {
       setRelation(character.id, "player", relation, false);
+      set++;
+    }
+    // "work 10:15-18:45", "home 22-7:15", "eat 12-13 at tavern1": their day, over the usual one, unless
+    // it's been set already (by hand, by the AI or by an earlier link).
+    const day = scheduleFromWords(words);
+    if (day.length && !core.save.schedules?.[character.id]) {
+      const targets = placeTargets({
+        zones: core.zones,
+        names: namedZones(residentsOf(core.crowd.snapshot())),
+        groups: [],
+      });
+      // What the lore gives hours for replaces the usual hours for it (their work is 10:15 to 18:45, not
+      // that and the usual morning too); the time freed is spent about town.
+      const given = new Set(day.map((entry) => entry.activity));
+      let entries = scheduleOf(character.id).entries.map((entry) =>
+        given.has(entry.activity) ? { ...entry, activity: "walk", place: "" } : entry,
+      );
+      for (const { at, ...entry } of day) {
+        const place = [...(targets.get(plainWord(at)) ?? [])].find((id) => core.zones.byId.has(id)) ?? "";
+        entries = putEntry(entries, { ...entry, place });
+      }
+      setSchedule(character.id, entries, "lore");
       set++;
     }
     // "brother of Sarah", "son of Zoey": how they stand toward someone else in town, or the player.
@@ -1398,7 +1458,7 @@ function setupCharactersFromLore(books) {
   const mine = (core.save.lore[PLAYER_ID] ?? [])
     .map((tie) => entries.get(`${tie.lorebookId}/${tie.entryId}`))
     .filter(Boolean)
-    .flatMap((entry) => [entry.title, ...(entry.keys ?? [])])
+    .flatMap((entry) => entry.keys ?? [])
     .concat(core.save.loreKeys?.["cards/player"] ?? []);
   const { body } = setupFromWords(mine);
   if (body && core.personaId && !core.bodies[core.personaId]) {
@@ -1919,6 +1979,25 @@ function renameZone(id, name) {
 }
 
 /** The Engine's lorebooks with their entries: [{ id, name, entries: [{ id, title }] }], read once. */
+/**
+ * A lorebook entry's keys, told apart: `keys` are Wanderworld's, written with the prefix "ww:" ("ww:
+ * tavern1", "ww:man", "ww: work 10:15-18:45") and kept without it; `triggers` are everything else, the
+ * lorebook's own trigger words, which Wanderworld never acts on (the AI reads them as hints only).
+ */
+function wanderKeys(raw) {
+  const all = (Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : [])
+    .map((key) => String(key).trim())
+    .filter(Boolean);
+  const own = (key) => /^ww\s*:/iu.test(key);
+  return {
+    keys: all
+      .filter(own)
+      .map((key) => key.replace(/^ww\s*:\s*/iu, "").trim())
+      .filter(Boolean),
+    triggers: all.filter((key) => !own(key)),
+  };
+}
+
 async function readLorebooks() {
   if (core.lorebooks?.length) return core.lorebooks; // none yet (or none found): ask again
   const getJson = async (path) => {
@@ -1939,10 +2018,7 @@ async function readLorebooks() {
             entry.name || entry.comment || (Array.isArray(entry.keys) ? entry.keys.join(", ") : "") || "Entry",
           ),
           content: typeof entry.content === "string" ? entry.content.slice(0, 4000) : "",
-          // Its keywords, for linking it to places by name.
-          keys: (Array.isArray(entry.keys) ? entry.keys : typeof entry.keys === "string" ? entry.keys.split(",") : [])
-            .map((key) => String(key).trim())
-            .filter(Boolean),
+          ...wanderKeys(entry.keys),
         }));
       } catch (error) {
         console.warn(`[wanderworld] couldn't read lorebook ${book.name}`, error);
@@ -3847,10 +3923,10 @@ function attach(element) {
       const count = await linkLore();
       core.hud?.setNotice(
         count
-          ? `Linked ${count} lore entries and character details (body, how they see you)${byAi ? ". Regenerate the world to build places the lore adds" : " by name"}.`
+          ? `Linked ${count} lore entries and character details (body, how they see you)${byAi ? ". Regenerate the world to build places the lore adds" : " by their ww: keywords"}.`
           : byAi
             ? "The AI found nothing new to set up."
-            : "No entries matched a place, group or character by name.",
+            : 'No entry has a "ww:" keyword that matches a place, group or character here.',
       );
     },
     onWantLorebooks: () => {

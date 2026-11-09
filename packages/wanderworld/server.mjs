@@ -434,7 +434,7 @@ export function checkLoreSetup(value, count) {
 /** A schedule entry, checked: { from, to (hours 0–24, half hours), activity, place (a place id or name) }. */
 export function checkEntry(raw, places = null) {
   if (!isRecord(raw)) return null;
-  const hour = (value) => (Number.isFinite(Number(value)) ? Math.round(Math.max(0, Math.min(24, Number(value))) * 2) / 2 : null);
+  const hour = (value) => (Number.isFinite(Number(value)) ? Math.round(Math.max(0, Math.min(24, Number(value))) * 4) / 4 : null);
   const from = hour(raw.from);
   const to = hour(raw.to);
   const activity = ACTIVITIES.includes(raw.activity) ? raw.activity : null;
