@@ -179,6 +179,31 @@ export function checkWorld(raw) {
         .slice(0, 200)
         .map(([slot, name]) => [slot, name.trim().slice(0, 60)]),
     ),
+    // People this world made for itself (not Engine cards): [{ id: "local:…", name, description,
+    // personality, appearance }]. They live here only, and count toward the cast.
+    locals: (Array.isArray(raw.locals) ? raw.locals : [])
+      .filter((person) => isRecord(person) && typeof person.id === "string" && person.id.startsWith("local:"))
+      .slice(0, 30)
+      .map((person) => ({
+        id: person.id.slice(0, 120),
+        name: text(person.name).slice(0, 60),
+        description: text(person.description).slice(0, 1200),
+        personality: text(person.personality).slice(0, 500),
+        appearance: text(person.appearance).slice(0, 500),
+      }))
+      .filter((person) => person.name),
+    // Lore written for this world (not in an Engine lorebook): { entries: [{ id, title, content }] },
+    // linked to places like any lorebook's entries (under the lorebook id "world").
+    book: {
+      entries: (Array.isArray(raw.book?.entries) ? raw.book.entries : [])
+        .filter((entry) => isRecord(entry) && typeof entry.id === "string")
+        .slice(0, 60)
+        .map((entry) => ({
+          id: entry.id.slice(0, 60),
+          title: text(entry.title).slice(0, 120),
+          content: text(entry.content).slice(0, 1500),
+        })),
+    },
     // True until the keyword links have been made (the first time the world is built).
     lorePending: raw.lorePending === true,
     // Each character's (and the persona's) body in this world: { [id]: "male" | "female" } (missing: auto).

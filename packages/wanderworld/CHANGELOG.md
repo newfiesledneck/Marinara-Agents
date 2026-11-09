@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.77 — 2026-11-09
+
+- New world can be written by the AI from nothing: "World lore: let the AI write this world and its places" writes a premise and named places with their own lore, kept in the world and active where you stand.
+- "New people for the AI to invent": up to 12 people built around those places and your cast, with a description, personality, looks, home, work and relationships. They live in that world only (not Engine characters), talk and keep their days like anyone, and can't be cast in scenes.
+- A lorebook entry about someone with no card can become a person in the world.
+- The steps feed each other in order: lorebooks, the world and its places, new people, then your own characters fitted in among them. All of it shows in the review before the land is built.
+
 ## 0.4.76 — 2026-11-09
 
 - Dirt streets in a hamlet or village are paths now: their edges fade into the grass instead of ending in a hard line.

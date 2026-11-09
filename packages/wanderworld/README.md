@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.76)
+## What it does now (0.4.77)
 
 ### The world
 
@@ -130,7 +130,7 @@ With it running:
 
 Every AI call uses a connection of yours, so it costs what that connection costs. A conversation reply, a
 moment, a day's schedule, a scene plan and a picture are one call each, and setting a world up is one
-call for the cast and one for every 40 lorebook entries; nothing calls a model while you
+call for the cast, one for every 40 lorebook entries, and one each for written lore and new people; nothing calls a model while you
 only walk about.
 
 ### Playing
@@ -149,6 +149,13 @@ only walk about.
   back and change the settings. A call that fails is tried again; what came through is kept and only
   the missing part is asked for again. The same can be spelled out with keywords on lorebook entries
   (`tavern1`, `lives in home3`, `sister of Mira`), or set by hand in the Journal.
+- **A world written for you:** with no lorebook, or none of your characters, the AI can still make a
+  whole world. "World lore" has it write the world's premise and named places with their own lore, kept
+  in that world and active where you stand; "new people" has it invent up to 12 people around those
+  places and your cast, each with a description, personality, looks, home, work and relationships. They
+  aren't Engine characters: they live, talk and keep their days in that world only. A lorebook entry
+  about someone with no card can become one of them too. The steps feed each other in order: your
+  lorebooks, the world and its places, new people, then your own characters fitted in among them.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
@@ -176,7 +183,8 @@ them) and each world's newest 60 pictures.
 
 ### Known limits
 
-- A scene needs at least one of your characters there: the Engine casts its own characters only.
+- A scene needs at least one of your characters there: the Engine casts its own characters only, so
+  people a world invented can't be in scenes.
 - Only the Engine's built-in picture style profiles are listed; your own default profile is "Engine default".
 - Another region has no townsfolk of its own yet: only your party travels.
 - Walk-in rooms are unfinished and off by default.

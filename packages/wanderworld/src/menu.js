@@ -334,6 +334,22 @@ export function createMenu(layer, handlers, art = null) {
       ["keywords", "Characters: set up from lorebook keywords (body, relationships)"],
       ["ai", "Characters: let the AI set them up (cards, persona, lorebooks)"],
     ]);
+    // What the AI writes for this world itself: its lore and places, and people who have no card.
+    const writeLore = picker([
+      ["no", "World lore: only what my lorebooks say"],
+      ["yes", "World lore: let the AI write this world and its places"],
+    ]);
+    const newPeople = element("input", `${INPUT}width:64px;`);
+    newPeople.type = "number";
+    newPeople.min = "0";
+    newPeople.max = "12";
+    newPeople.value = "0";
+    newPeople.setAttribute("aria-label", "New people for the AI to invent");
+    const newPeopleRow = element("label", "display:flex;gap:8px;align-items:center;font:13px system-ui;");
+    newPeopleRow.append(
+      newPeople,
+      element("span", "", "new people for the AI to invent (they live in this world only)"),
+    );
     // Who you play: type a persona's name (an exact match picks it) or pick one from the list.
     const people = handlers.people?.() ?? {
       personas: [],
@@ -459,6 +475,8 @@ export function createMenu(layer, handlers, art = null) {
       characterLinking: characterLinking.value,
       cast: [...cast],
       persona: personaId,
+      writeLore: writeLore.value === "yes",
+      newPeople: Math.max(0, Math.min(12, Math.round(Number(newPeople.value)) || 0)),
       onSize: (value) => {
         choices.size = value;
         if (sizePicker) sizePicker.value = value;
@@ -467,7 +485,10 @@ export function createMenu(layer, handlers, art = null) {
     });
     // With the AI setting the world up, its setup is shown for a look before the land is built.
     const byAi = (params) =>
-      params.characterLinking === "ai" || (params.loreLinking === "ai" && params.lorebooks.length > 0);
+      params.writeLore ||
+      params.newPeople > 0 ||
+      params.characterLinking === "ai" ||
+      (params.loreLinking === "ai" && params.lorebooks.length > 0);
     const create = button("Create and play", BIG, () => {
       const params = chosen();
       if (byAi(params)) void review(params, [...card.childNodes]);
@@ -500,6 +521,11 @@ export function createMenu(layer, handlers, art = null) {
       ),
       characterLinking,
       linking,
+      writeLore,
+      newPeopleRow,
+      explainLine(
+        "With nothing chosen above, the AI can still make a whole world: it writes the world and its places first, then people who belong there, then fits your own characters in among them. Each is one more model call. The people it invents aren't Engine characters: they live, talk and keep their days in this world only, and can't be cast in scenes.",
+      ),
       create,
       button("Back", SMALL, home),
     );
@@ -526,6 +552,8 @@ export function createMenu(layer, handlers, art = null) {
       params.characterLinking,
       params.cast,
       params.persona,
+      params.writeLore,
+      params.newPeople,
     ]);
     let result = !again && reviewed?.asked === asked ? reviewed.result : null;
     if (!result) {
@@ -594,6 +622,18 @@ export function createMenu(layer, handlers, art = null) {
         : []),
       head(`People (${summary.people.length})`),
       summary.people.length ? list : line("Nobody was set up.", "opacity:0.7;"),
+      ...(setup.locals?.length
+        ? [
+            head(`New people (${setup.locals.length})`),
+            ...setup.locals.map((person) => line(`${person.name}: ${person.description}`, "opacity:0.9;")),
+          ]
+        : []),
+      ...(setup.book?.entries?.length
+        ? [
+            head("The world, as written"),
+            ...setup.book.entries.map((entry) => line(`${entry.title}: ${entry.content}`, "opacity:0.9;")),
+          ]
+        : []),
       head("Places"),
       line(
         places.length ? `Built with at least: ${places.join(", ")}.` : "Nothing beyond what the land settings give.",
