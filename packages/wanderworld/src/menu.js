@@ -160,6 +160,17 @@ export function createMenu(layer, handlers, art = null) {
         ],
       ],
       [
+        "size",
+        "World size",
+        [
+          ["small", "Small"],
+          ["normal", "Normal"],
+          ["large", "Large"],
+          ["huge", "Huge"],
+          ["massive", "Massive"],
+        ],
+      ],
+      [
         "places",
         "Out in the country",
         [
@@ -170,7 +181,7 @@ export function createMenu(layer, handlers, art = null) {
       ],
     ]) {
       const select = element("select", `${INPUT}padding:5px 8px;`);
-      for (const [value, text] of [["surprise", "Surprise me"], ...options]) {
+      for (const [value, text] of [["surprise", key === "size" ? "Auto" : "Surprise me"], ...options]) {
         const option = element("option", "", text);
         option.value = value;
         select.append(option);

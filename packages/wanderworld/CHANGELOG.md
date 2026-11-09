@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.49 — 2026-11-09
+
+- World size: Small, Normal, Large, Huge or Massive (up to three times as wide), chosen in New world (or Auto) and when regenerating. Bigger worlds spread their places further out and are just as wooded.
+- Draw distance: Tiny, Near, Medium, Far, Very far or Max, with fog hiding everything past it.
+- Much lighter far views: small plants are drawn nearby only and detailed trees out to 180 m, with simple trees beyond; the ground is built in pieces, finer near you.
+
 ## 0.4.48 — 2026-11-09
 
 - Swimming sits in the water instead of floating above it, and wading in or climbing out eases smoothly between walking and swimming (for you and for townsfolk).

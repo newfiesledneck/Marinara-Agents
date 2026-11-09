@@ -316,7 +316,9 @@ a structure ready for several settlements and for travelling between regions. Ev
 seeded, saved with the world, settable in New world and Regenerate (each choice can be left on Auto),
 and driven by the lorebook's numbered places (0.4.38) as a minimum.
 
-**Phase A: world size and draw distance**
+**Phase A: world size and draw distance** — _done in 0.4.49: `WORLD_SIZES`, the ground in 80 m chunks
+(8 m cells, 2 m near the player, skirted edges), nature reach per kind with simple trees far off, six
+draw distances, size in New world and Regenerate; readings in docs/PERFORMANCE.md._
 
 - **World size:** Small, Normal (today's world), Large, Huge, Massive (about 0.7×, 1×, 1.5×, 2× and
   3× the side). Chosen in New world and Regenerate, or Auto (from the settlements and the lore's needs).

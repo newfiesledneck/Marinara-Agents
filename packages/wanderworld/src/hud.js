@@ -43,7 +43,7 @@ function button(label, title, onClick) {
 }
 
 const RESOLUTION_LABELS = { auto: "Auto (keeps it smooth)", 100: "Full", 75: "75%", 50: "50%" };
-const DISTANCE_LABELS = { 90: "Near", 140: "Medium", 200: "Far" };
+const DISTANCE_LABELS = { 60: "Tiny", 90: "Near", 140: "Medium", 200: "Far", 300: "Very far", 450: "Max" };
 const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always night" };
 
 /**
@@ -140,7 +140,8 @@ export function createHud(root, handlers) {
   // What each setting does, in a line under it (hidden with Show explanations off).
   const EXPLAIN = {
     resolution: "How sharp the picture is. Auto lowers it when frames drop, to keep things smooth.",
-    drawDistance: "How far you can see before the fog. Further looks grand but costs speed.",
+    drawDistance:
+      "How far buildings, people, trees and things are drawn; fog hides what's past it. Further looks grand but costs speed.",
     density: "How many trees, rocks and plants grow round the town.",
     shadows: "Soft shadows under people.",
     nature: "Detailed trees and plants from the nature kit, instead of simple shapes.",
@@ -289,9 +290,28 @@ export function createHud(root, handlers) {
         "A new town layout too (names, lore and groups move to the same kind of place: the tavern stays the tavern)",
       ),
     );
+    // Its size can change too (keeping it, or Small … Massive).
+    const sizeRow = document.createElement("label");
+    sizeRow.style.cssText = "display:flex;gap:6px;align-items:center;font-size:12px;";
+    const size = document.createElement("select");
+    size.style.cssText = "font:12px system-ui,sans-serif;border-radius:6px;border:0;padding:2px 4px;";
+    for (const [value, text] of [
+      ["keep", "Keep its size"],
+      ["small", "Small"],
+      ["normal", "Normal"],
+      ["large", "Large"],
+      ["huge", "Huge"],
+      ["massive", "Massive"],
+    ]) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      size.append(option);
+    }
+    sizeRow.append(document.createTextNode("World size"), size);
     const yes = button("Regenerate", "Rebuild this world now", () => {
       drawRegenerate(false);
-      handlers.onRegenerate(reshuffle.checked);
+      handlers.onRegenerate(reshuffle.checked, size.value === "keep" ? null : size.value);
     });
     yes.style.cssText = DANGER;
     const no = button("Cancel", "Keep the world as it is", () => drawRegenerate(false));
@@ -299,7 +319,7 @@ export function createHud(root, handlers) {
     const buttons = document.createElement("div");
     buttons.style.cssText = "display:flex;gap:6px;";
     buttons.append(yes, no);
-    regenerate.replaceChildren(warning, label, buttons);
+    regenerate.replaceChildren(warning, label, sizeRow, buttons);
   };
   drawRegenerate(false);
   settingsPanel.append(regenerate);

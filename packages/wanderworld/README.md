@@ -65,7 +65,8 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
 ### Playing
 
 - **Main menu and saves,** with painted art and a loading screen: Continue, New world (name, seed, your
-  persona, the characters who live there from your Engine folders, the land, the setting and lorebooks),
+  persona, the characters who live there from your Engine folders, the land, the world's size from Small to
+  Massive, the setting and lorebooks),
   Load world (thumbnails, Rename, Delete) and Settings. Each world keeps everything in its own save in
   this package's browser storage: where you were, the time, the cast, bodies, relationships, lore,
   groups, homes, notes and scenes.
@@ -81,7 +82,8 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the stick
   walks (all the way out runs), dragging elsewhere looks around, pinching zooms, and Use or a tap uses.
-- **Settings:** resolution, draw distance, trees and rocks, shadows, detail on or off, walk and run speed,
+- **Settings:** resolution, draw distance (Tiny to Max; what costs the most is measured in
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, sound, confrontations, people coming up to you,
   what the HUD shows, explanations under every option, and Regenerate this world.
 - A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night.

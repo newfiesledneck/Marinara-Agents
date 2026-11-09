@@ -89,18 +89,25 @@ world.setTime(12);
     NATURE_MODELS.map((name) => [name, [{ geometry: new BoxGeometry(1, 1, 1), material: new MeshLambertMaterial() }]]),
   );
   nature.addNature(stand);
+  nature.setDrawDistance(140); // within the detailed trees' reach: no simple trees stand in
   nature.follow(SPAWN.x, SPAWN.z);
   const kit = [];
   const simple = [];
   nature.scene.traverse((object) => {
     if (object.userData.kit) kit.push(object);
-    else if (object.isInstancedMesh && object.count > 100) simple.push(object);
+    else if (object.isInstancedMesh && object.instanceMatrix.count > 100) simple.push(object); // room for many
   });
   assert.ok(kit.length >= 15, `kit trees, rocks and plants are added (${kit.length} kinds)`);
   assert.ok(
     simple.length >= 3 && simple.every((mesh) => !mesh.visible),
     "the simple trees and rocks are all hidden: only kit nature shows",
   );
+  // Past the detailed trees' reach (a long draw distance), simple trees stand in far off; never rocks.
+  nature.setDrawDistance(450);
+  const [trunks, , stones] = simple;
+  assert.ok(trunks.visible && trunks.count > 0, "far off, simple trees stand in beyond the detailed ones");
+  assert.ok(!stones.visible, "but never simple rocks");
+  nature.setDrawDistance(140);
   const treeNames = new Set(NATURE_MODELS.filter((name) => /tree|pine/u.test(name)));
   const trees = kit.filter((mesh) => treeNames.has(mesh.userData.model));
   const drawn = () => trees.reduce((sum, mesh) => sum + mesh.count, 0);

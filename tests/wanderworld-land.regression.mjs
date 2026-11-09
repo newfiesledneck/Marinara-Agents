@@ -188,6 +188,24 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
   built.dispose();
 }
 
+// World sizes: everything stays inside a small world, and a massive one spreads its places further out.
+{
+  const landscape = landscapeNeeds(landscapeWith(81, { places: "several", mountains: "two" }), { inn: 2, cave: 2 }, 81);
+  const spread = {};
+  for (const size of ["small", "massive"]) {
+    const built = createWorld(81, landscape, {}, size);
+    const half = built.size / 2;
+    assert.equal(built.size, { small: 240, massive: 960 }[size]);
+    assert.ok(
+      built.layout.outposts.every((outpost) => Math.abs(outpost.x) < half && Math.abs(outpost.z) < half),
+      `${size}: every place out in the country is inside the world`,
+    );
+    spread[size] = Math.max(...built.layout.outposts.map((outpost) => Math.hypot(outpost.x, outpost.z)));
+    built.dispose();
+  }
+  assert.ok(spread.massive > spread.small * 1.5, "a massive world's places spread further out");
+}
+
 // A world with no landscape given still builds, from the seed.
 assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
 

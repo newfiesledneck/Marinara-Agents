@@ -8,7 +8,7 @@ export const SETTINGS = {
   /** Render resolution: "auto" adjusts to keep the frame rate up; the rest are a share of the screen's. */
   resolution: { value: "auto", options: ["auto", "100", "75", "50"] },
   /** How far you can see before the haze, in metres. */
-  drawDistance: { value: 140, options: [90, 140, 200] },
+  drawDistance: { value: 140, options: [60, 90, 140, 200, 300, 450] },
   /** Trees and rocks outside town, as a multiple of the usual. */
   density: { value: 1, options: [1, 4, 10] },
   shadows: { value: true },
