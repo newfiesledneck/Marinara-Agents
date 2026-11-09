@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.65 — 2026-11-09
+
+- Fix: a mill far along the river no longer stands in the water; it always steps straight across onto the town's bank.
+- Rock on slopes blends in smoothly instead of painting whole triangles (sharp grey patches where level ground met a bank), and looks the same near and far.
+
 ## 0.4.64 — 2026-11-09
 
 - Chimney smoke darkens at night instead of glowing white against the dark sky; town walls are a darker, weathered stone.
