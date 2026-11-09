@@ -43,7 +43,7 @@ for (const side of ["left", "right"]) {
 }
 
 /** Leg lengths the swimming stroke is raised by, so the swimmer's back breaks the surface. */
-const SWIM_LIFT = 0.3;
+const SWIM_LIFT = 0.1;
 
 /** Running clips whose up-and-down is calmed, and by how much. */
 const CALMER = new Set(["jog", "sprint"]);

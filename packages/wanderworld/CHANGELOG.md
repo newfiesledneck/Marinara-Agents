@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.48 — 2026-11-09
+
+- Swimming sits in the water instead of floating above it, and wading in or climbing out eases smoothly between walking and swimming (for you and for townsfolk).
+
 ## 0.4.47 — 2026-11-09
 
 - Townsfolk and followers can swim. They still go round by a bridge when there's one on the way, and your party crosses the way you did: swimming after you, or by the bridge.

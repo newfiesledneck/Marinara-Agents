@@ -1085,8 +1085,11 @@ export function createCrowd() {
       if (person.wait <= 0) startStep(person, view.hour);
     }
     if (person.state === "inside" || !person.space) return;
-    position.y = groundY(person, position.x, position.z);
-    person.swimming = person.space === world && waterAt(position.x, position.z).depth > SWIM_DEPTH;
+    // In the water, height eases between wading and floating (with the swim pose), never jumping.
+    const depth = person.space === world ? waterAt(position.x, position.z).depth : 0;
+    const ground = groundY(person, position.x, position.z);
+    position.y = depth > 0.3 ? position.y + (ground - position.y) * Math.min(1, dt * 6) : ground;
+    person.swimming = depth > SWIM_DEPTH;
     if (person.shadow) person.shadow.visible = shadowsVisible && !person.swimming;
 
     // Looking at and waving to the player.
