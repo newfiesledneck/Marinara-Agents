@@ -169,6 +169,12 @@ export function createMenu(layer, handlers, art = null) {
       pickers.append(element("span", "opacity:0.8;", label), select);
     }
     // The world's setting in words, its lorebooks, and how their entries are linked to places.
+    /** An explanation line (hidden with Settings → Show explanations off). */
+    const explainLine = (text) => {
+      const node = element("div", "font:11px system-ui;opacity:0.7;line-height:1.35;", text);
+      node.setAttribute("data-wanderworld-explain", "");
+      return node;
+    };
     const setting = element("textarea", `${INPUT}resize:vertical;min-height:44px;font:13px system-ui;`);
     setting.placeholder = 'Setting (optional), e.g. "a cosy fishing village where the old gods still listen"';
     setting.maxLength = 600;
@@ -193,16 +199,25 @@ export function createMenu(layer, handlers, art = null) {
         );
       })
       .catch(() => (bookList.textContent = "Couldn't read your lorebooks."));
-    const linking = element("select", `${INPUT}padding:5px 8px;`);
-    for (const [value, text] of [
-      ["keywords", "Link entries to places by matching names"],
-      ["ai", "Let the AI link entries to the right places (with the AI update)"],
-      ["none", "Don't link: I'll tie them myself"],
-    ]) {
-      const option = element("option", "", text);
-      option.value = value;
-      linking.append(option);
-    }
+    const picker = (options) => {
+      const select = element("select", `${INPUT}padding:5px 8px;`);
+      for (const [value, text] of options) {
+        const option = element("option", "", text);
+        option.value = value;
+        select.append(option);
+      }
+      return select;
+    };
+    const linking = picker([
+      ["keywords", "Places: link entries by matching names"],
+      ["ai", "Places: let the AI link entries (with the AI update)"],
+      ["none", "Places: I'll tie them myself"],
+    ]);
+    const characterLinking = picker([
+      ["keywords", "Characters: link and set up by name (body, how they see you)"],
+      ["ai", "Characters: let the AI do it (with the AI update)"],
+      ["none", "Characters: I'll set them up myself"],
+    ]);
     const create = button("Create and play", BIG, () =>
       handlers.onCreate({
         name: name.value.trim(),
@@ -211,6 +226,7 @@ export function createMenu(layer, handlers, art = null) {
         setting: setting.value.trim(),
         lorebooks: [...lorebooks],
         loreLinking: linking.value,
+        characterLinking: characterLinking.value,
       }),
     );
     card.append(
@@ -218,11 +234,16 @@ export function createMenu(layer, handlers, art = null) {
       element("div", "font:12px system-ui;opacity:0.75;", "Name"),
       name,
       seed,
+      explainLine("The same seed always builds the same town. The setting tells the AI what kind of world to write."),
       setting,
       pickers,
       element("div", "font:12px system-ui;opacity:0.75;", "Lorebooks for this world"),
+      explainLine(
+        'Entries named or keyed after a place (the town\'s name, "tavern", "the woods"), a character or "world" are tied there; a character\'s entry keyed "enemy", "mentor", "male"… sets them up too.',
+      ),
       bookList,
       linking,
+      characterLinking,
       element(
         "div",
         "font:12px system-ui;opacity:0.7;",

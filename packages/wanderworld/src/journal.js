@@ -75,6 +75,12 @@ export function createJournal(panelCss, handlers) {
 
   const section = (label) => element("div", "font-weight:700;margin-top:4px;opacity:0.9;", label);
   const line = (text, css = "") => element("div", `font-size:13px;line-height:1.35;${css}`, text);
+  /** An explanation: shown unless Settings → Show explanations is off. */
+  const explain = (text) => {
+    const node = line(text, `${MUTED}font-size:12px;`);
+    node.setAttribute("data-wanderworld-explain", "");
+    return node;
+  };
 
   function drawTabs() {
     tabs.replaceChildren(
@@ -93,6 +99,7 @@ export function createJournal(panelCss, handlers) {
 
   function drawHere() {
     const here = data.here;
+    body.append(explain("Where you are, the lore active here, and who's close by. Later this is what the AI is told."));
     body.append(section(here.place), line(here.chain, MUTED));
     body.append(section("Active lore"));
     if (here.lore.length) for (const entry of here.lore) body.append(line(`📜 ${entry.title}`));
@@ -107,12 +114,16 @@ export function createJournal(panelCss, handlers) {
   }
 
   function drawPeople() {
+    body.append(explain("Everyone living in town and what they're doing, and how they see you once that's set."));
     if (!data.people.length) body.append(line("Nobody lives here yet. Choose characters in People.", MUTED));
     for (const text of data.people) body.append(line(text));
   }
 
   function drawParty() {
     if (!data.party.length) {
+      body.append(
+        explain("Who's travelling with you: they follow you, wait where you ask, and come into scenes with you."),
+      );
       body.append(line("Nobody's with you. Talk to someone and ask them to come with you.", MUTED));
       return;
     }
@@ -163,9 +174,8 @@ export function createJournal(panelCss, handlers) {
     top.append(element("span", "font-size:12px;", "How"), pick, element("span", "font-size:12px;", "sees…"), mirror);
     body.append(top);
     body.append(
-      line(
-        "Friends seek each other out, sit and walk together; enemies keep away (a sworn enemy confronts you). Later the AI sets and changes these.",
-        MUTED,
+      explain(
+        "How each person sees the others and you. Friends seek each other out, sit and walk together; enemies keep away (a sworn enemy confronts you). Temperament and manner decide how readily they confront or greet. Lore keywords can set these, and later the AI changes them as things happen.",
       ),
     );
     // Their temperament (not for the player, who acts for themselves).
@@ -297,9 +307,8 @@ export function createJournal(panelCss, handlers) {
     const kindTag = (kind) => element("span", "font-size:11px;opacity:0.6;width:54px;flex:none;", kind);
 
     body.append(
-      line(
+      explain(
         "The world's setup: tie lore to the whole world, a character, any place, or a group. Lore is active where you are, in every place above it, and for whoever you're with.",
-        MUTED,
       ),
     );
     // The whole world, at the top.
@@ -430,7 +439,9 @@ export function createJournal(panelCss, handlers) {
     if (!lorebooks) return body.append(line("Loading lorebooks…", MUTED));
     if (!lorebooks.length) return body.append(line("No lorebooks found.", MUTED));
     body.append(
-      line("Ticked entries are active while you're here. (Sending them to the AI comes with the AI part.)", MUTED),
+      explain(
+        "Ticked entries are active here and in every place inside it. (Sending them to the AI comes with the AI part.)",
+      ),
     );
     // Which lorebooks to list: chosen in a dropdown at the top (remembered in this browser); at first,
     // the ones with an entry ticked for this place.
@@ -507,6 +518,11 @@ export function createJournal(panelCss, handlers) {
   function drawWorld() {
     const world = data.world;
     // The world's setup: its setting words, its lorebooks, and how their entries are linked to places.
+    body.append(
+      explain(
+        "Your world's setup: what it's like, the lorebooks it uses, and how their entries link to places and characters.",
+      ),
+    );
     body.append(section("Setup"));
     const setting = element("textarea", `${FIELD}resize:vertical;min-height:44px;width:100%;box-sizing:border-box;`);
     setting.value = world.setting;
@@ -537,20 +553,28 @@ export function createJournal(panelCss, handlers) {
       }
       body.append(list);
     }
-    const linking = element("select", `${FIELD}width:100%;`);
-    for (const [value, text] of [
-      ["keywords", "Link entries to places by matching names"],
-      ["ai", "Let the AI link entries (with the AI update)"],
-      ["none", "I'll tie them myself"],
-    ]) {
-      const option = element("option", "", text);
-      option.value = value;
-      linking.append(option);
-    }
-    linking.value = world.loreLinking;
-    linking.addEventListener("change", () => handlers.onSetSetup({ loreLinking: linking.value }));
-    body.append(linking);
-    if (world.loreLinking === "keywords")
+    const picker = (field, options) => {
+      const select = element("select", `${FIELD}width:100%;`);
+      for (const [value, text] of options) {
+        const option = element("option", "", text);
+        option.value = value;
+        select.append(option);
+      }
+      select.value = world[field];
+      select.addEventListener("change", () => handlers.onSetSetup({ [field]: select.value }));
+      body.append(select);
+    };
+    picker("loreLinking", [
+      ["keywords", "Places: link entries by matching names"],
+      ["ai", "Places: let the AI link entries (with the AI update)"],
+      ["none", "Places: I'll tie them myself"],
+    ]);
+    picker("characterLinking", [
+      ["keywords", "Characters: link and set up by name"],
+      ["ai", "Characters: let the AI do it (with the AI update)"],
+      ["none", "Characters: I'll set them up myself"],
+    ]);
+    if (world.loreLinking === "keywords" || world.characterLinking === "keywords")
       body.append(button("Link lore by name now", SMALL, () => handlers.onLinkLore()));
     body.append(section("This world"));
     for (const [label, value] of [

@@ -137,13 +137,47 @@ export function createHud(root, handlers) {
     element.style.cssText = "font-weight:700;margin-top:6px;opacity:0.85;";
     settingsPanel.append(element);
   };
-  const row = (label, control) => {
+  // What each setting does, in a line under it (hidden with Show explanations off).
+  const EXPLAIN = {
+    resolution: "How sharp the picture is. Auto lowers it when frames drop, to keep things smooth.",
+    drawDistance: "How far you can see before the fog. Further looks grand but costs speed.",
+    density: "How many trees, rocks and plants grow round the town.",
+    shadows: "Soft shadows under people.",
+    nature: "Detailed trees and plants from the nature kit, instead of simple shapes.",
+    props: "Detailed barrels, crates, benches and stalls, instead of simple shapes.",
+    buildings: "Buildings assembled from the village kit, instead of simple boxes.",
+    people: "How characters without their own 3D model look: dressed townsfolk, or simple figures.",
+    animation: "Recorded motion from the animation library, or the hand-made walk.",
+    walkSpeed: "How fast you walk.",
+    runSpeed: "How fast you run (hold Shift).",
+    lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
+    invertLook: "Dragging up looks down, like a flight stick.",
+    time: "Let the day pass, or keep it at one time of day.",
+    interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
+    approach: "How often townsfolk come up to greet you, or confront you. 0 means never.",
+    approachMax: "The most people coming up to you at the same time.",
+    combat: "Where people may confront (and later fight) you: safe places are towns, inns and cottages.",
+    sound: "Footsteps, doors and the world's sounds.",
+    volume: "How loud those sounds are.",
+    names: "Names over people's heads, tinted by how they see you.",
+    hint: "The line of controls at the bottom of the screen.",
+    stats: "Frames per second and other numbers at the top.",
+    explanations: "These lines under settings, and the ones in the Journal and on New world.",
+  };
+  const row = (label, control, name = null) => {
     const element = document.createElement("label");
     element.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
     const text = document.createElement("span");
     text.textContent = label;
     element.append(text, control);
     settingsPanel.append(element);
+    if (name && EXPLAIN[name]) {
+      const explain = document.createElement("div");
+      explain.setAttribute("data-wanderworld-explain", "");
+      explain.style.cssText = "font-size:11px;opacity:0.7;margin:-4px 0 2px;line-height:1.3;";
+      explain.textContent = EXPLAIN[name];
+      settingsPanel.append(explain);
+    }
   };
   const choice = (name, label, labels) => {
     const select = document.createElement("select");
@@ -159,14 +193,14 @@ export function createHud(root, handlers) {
       handlers.onSetting(name, typeof SETTINGS[name].value === "number" ? Number(raw) : raw);
     });
     fields[name] = { set: (value) => (select.value = String(value)) };
-    row(label, select);
+    row(label, select, name);
   };
   const toggle = (name, label) => {
     const box = document.createElement("input");
     box.type = "checkbox";
     box.addEventListener("change", () => handlers.onSetting(name, box.checked));
     fields[name] = { set: (value) => (box.checked = value) };
-    row(label, box);
+    row(label, box, name);
   };
   const slider = (name, label, step, format) => {
     const wrap = document.createElement("span");
@@ -190,7 +224,7 @@ export function createHud(root, handlers) {
         value.textContent = format(next);
       },
     };
-    row(label, wrap);
+    row(label, wrap, name);
   };
   const times = (value) => `${value.toFixed(1)}×`;
   heading("Graphics");
@@ -266,6 +300,7 @@ export function createHud(root, handlers) {
   toggle("names", "Names over people");
   toggle("hint", "Controls hint");
   toggle("stats", "Frame rate");
+  toggle("explanations", "Show explanations");
 
   // The Journal: where everyone is, places and their lore.
   const journal = createJournal(PANEL, {
@@ -397,6 +432,9 @@ export function createHud(root, handlers) {
   let boardHandlers = null;
   board.addEventListener("keydown", (event) => event.stopPropagation());
 
+  const explainRule = document.createElement("style");
+  explainRule.textContent = ".wanderworld-no-explain [data-wanderworld-explain]{display:none!important}";
+  layer.append(explainRule);
   layer.append(
     board,
     top,
@@ -429,6 +467,8 @@ export function createHud(root, handlers) {
       for (const [name, field] of Object.entries(fields)) field.set(settings[name]);
       hint.style.display = settings.hint ? "" : "none";
       stats.style.display = settings.stats ? "" : "none";
+      // Explanations anywhere in Wanderworld's screens (settings, Journal, New world) show or hide together.
+      layer.classList.toggle("wanderworld-no-explain", !settings.explanations);
     },
     /** `control` is the Engine's fullscreen toggle, or null when this Engine has none. */
     setFullscreen(control) {

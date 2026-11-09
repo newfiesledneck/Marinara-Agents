@@ -202,6 +202,9 @@ signs that carry a picture by default._
   links entries whose name or a keyword is exactly a place's name or kind word, a group's or a
   character's name, or "world" (`zones.js` `matchLore`), once at the first build and again on request;
   "ai" leaves it for S2, which links entries to places by meaning; "none" is by hand.
+  `characterLinking` does the same for characters (0.4.33): their entries link by name, and keywords
+  set what isn't set yet (`relationships.js` `setupFromWords`: "male"/"female" picks the body; a kind,
+  label, tier or role such as "enemy", "sworn enemy", "mentor" or "sister" sets how they see the player).
 - **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
   forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
   every place in it, on top of each place's own and the places it sits in. A world's groups are plain

@@ -38,6 +38,8 @@ export const SETTINGS = {
   lookSpeed: { value: 1, min: 0.4, max: 2.5 },
   invertLook: { value: false },
   names: { value: true },
+  /** Short explanations under settings, in the Journal and on New world. */
+  explanations: { value: true },
   hint: { value: true },
   stats: { value: true },
   /** "cycle" runs a day in 20 minutes; "day" and "night" hold it there. */

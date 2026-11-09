@@ -43,7 +43,7 @@ import {
 import { landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
-import { checkTraits, createRelationships, KINDS, phraseOf, tierOf, TRAITS } from "./relationships.js";
+import { checkTraits, createRelationships, KINDS, phraseOf, setupFromWords, tierOf, TRAITS } from "./relationships.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, waterAt, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
@@ -563,13 +563,22 @@ function openMenu() {
   core.menu?.show();
 }
 
-function createNewWorld({ name, seed, choices, setting = "", lorebooks = [], loreLinking = "keywords" }) {
+function createNewWorld({
+  name,
+  seed,
+  choices,
+  setting = "",
+  lorebooks = [],
+  loreLinking = "keywords",
+  characterLinking = "keywords",
+}) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
   save.setting = setting;
   save.lorebooks = lorebooks;
   save.loreLinking = lorebooks.length ? loreLinking : "none";
-  save.lorePending = lorebooks.length > 0 && loreLinking === "keywords";
+  save.characterLinking = lorebooks.length ? characterLinking : "none";
+  save.lorePending = lorebooks.length > 0 && (loreLinking === "keywords" || characterLinking === "keywords");
   save.landscape = landscapeWith(hashString(save.seed), choices);
   save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
@@ -758,16 +767,21 @@ function linkLore() {
       if (core.save?.id !== save.id) return 0;
       const chosen = books.filter((book) => core.save.lorebooks.includes(book.id));
       const names = namedZones(residentsOf(core.crowd.snapshot()));
+      // Places and the world, and characters, each as the setup says (by name, or left alone).
+      const places = core.save.loreLinking === "keywords";
+      const people = core.save.characterLinking === "keywords";
       const found = matchLore(chosen, {
-        zones: core.zones,
+        zones: places ? core.zones : { zones: [] },
         names,
-        groups: placeGroups(),
-        name: core.save.name,
-        characters: (core.characters ?? []).filter((character) => core.cast?.has(character.id)),
+        groups: places ? placeGroups() : [],
+        name: places ? core.save.name : "",
+        characters: people ? (core.characters ?? []).filter((character) => core.cast?.has(character.id)) : [],
       });
-      const count = Object.values(found).reduce((sum, entries) => sum + entries.length, 0);
+      if (!places) delete found[WORLD_ID]; // "world" alone always matches: only with places on
+      let count = Object.values(found).reduce((sum, entries) => sum + entries.length, 0);
       core.save = { ...core.save, lore: mergeLore(core.save.lore, found), lorePending: false };
       core.saves.write(core.save);
+      if (people) count += setupCharactersFromLore(chosen);
       core.placesChanged = true;
       core.journalAt = 0;
       core.zoneCheck = 0;
@@ -777,6 +791,35 @@ function linkLore() {
       console.warn("[wanderworld] couldn't link lore", error);
       return 0;
     });
+}
+
+/**
+ * Sets up the characters in town from their lore entries' keywords (relationships.js `setupFromWords`):
+ * "male" / "female" picks their body, "enemy", "mentor", "sister"… how they see the player. Only what
+ * isn't set yet: a body still on Auto, no relationship with the player. Returns how many things it set.
+ */
+function setupCharactersFromLore(books) {
+  const entries = new Map(books.flatMap((book) => book.entries.map((entry) => [`${book.id}/${entry.id}`, entry])));
+  let set = 0;
+  for (const character of core.characters ?? []) {
+    if (!core.cast?.has(character.id)) continue;
+    const name = character.name.toLowerCase().trim();
+    const words = (core.save.lore[`character:${character.id}`] ?? [])
+      .map((tie) => entries.get(`${tie.lorebookId}/${tie.entryId}`))
+      .filter(Boolean)
+      .flatMap((entry) => [entry.title, ...(entry.keys ?? [])])
+      .filter((word) => word.toLowerCase().trim() !== name);
+    const { body, relation } = setupFromWords(words);
+    if (body && !core.bodies[character.id]) {
+      setBody(character.id, body);
+      set++;
+    }
+    if (relation && !core.relations.get(character.id, "player")) {
+      setRelation(character.id, "player", relation, false);
+      set++;
+    }
+  }
+  return set;
 }
 
 /** Changes the world's setup from Journal → World: its setting words, lorebooks or how lore is linked. */
@@ -975,6 +1018,7 @@ function journalData(zone, snapshot, residents, names) {
       setting: core.save?.setting ?? "",
       lorebooks: core.save?.lorebooks ?? [],
       loreLinking: core.save?.loreLinking ?? "none",
+      characterLinking: core.save?.characterLinking ?? "none",
       allLorebooks: core.lorebooks?.map((book) => ({ id: book.id, name: book.name })) ?? null,
       name: core.save?.name ?? "",
       town: names.town,
@@ -1130,6 +1174,8 @@ function toggleCharacter(id, chosen) {
   if (chosen && core.cast.size < MAX_PEOPLE) core.cast.add(id);
   else core.cast.delete(id);
   updateCast();
+  // Someone new in town: their lore (and what it says about them) links up as the world's setup says.
+  if (chosen && core.save?.characterLinking === "keywords" && core.save.lorebooks.length) void linkLore();
 }
 
 /** Reads the Engine's personas and characters once, then restores the remembered persona and cast. */
@@ -2175,7 +2221,7 @@ function attach(element) {
       linkLore().then((count) =>
         core.hud?.setNotice(
           count
-            ? `Linked ${count} lore entries to places, characters and the world.`
+            ? `Linked ${count} lore entries and character details (body, how they see you) by name.`
             : "No entries matched a place, group or character by name.",
         ),
       ),

@@ -11,7 +11,7 @@ const context = new Proxy(
 globalThis.document = { createElement: () => ({ getContext: () => context, width: 0, height: 0 }) };
 globalThis.fetch = async () => new Response("null", { status: 404 });
 
-const { checkRelationship, checkTraitMap, createRelationships, phraseOf, tierOf, warmthOf } =
+const { checkRelationship, checkTraitMap, createRelationships, phraseOf, setupFromWords, tierOf, warmthOf } =
   await import("../packages/wanderworld/src/relationships.js");
 const { createCrowd } = await import("../packages/wanderworld/src/npcs.js");
 const { createWorld } = await import("../packages/wanderworld/src/world.js");
@@ -51,6 +51,31 @@ assert.deepEqual(
     a: { aggression: 100, sociability: 50 },
   },
   "traits stay 0–100, and plain defaults aren't stored",
+);
+
+// What a character's lore keywords say about them: their body and how they see the player.
+assert.deepEqual(setupFromWords(["Jacob", "enemy", "male"]), {
+  body: "male",
+  relation: { kind: "enemy", level: 50, role: "" },
+});
+assert.deepEqual(setupFromWords(["Sir. Augustine", "Mentor", "Male"]).relation, {
+  kind: "mentor",
+  level: 50,
+  role: "",
+});
+assert.deepEqual(
+  setupFromWords(["sworn enemy"]).relation,
+  { kind: "enemy", level: 87, role: "" },
+  "a tier sets the level",
+);
+assert.deepEqual(setupFromWords(["sister", "woman"]), {
+  body: "female",
+  relation: { kind: "family", level: 60, role: "sister" },
+});
+assert.deepEqual(
+  setupFromWords(["the old mill", "rumours"]),
+  { body: null, relation: null },
+  "other words set nothing",
 );
 
 // ── In town ──

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.33 — 2026-11-08
+
+- Characters can be set up from their lore: an entry named or keyed after a character in town, with keywords like "enemy", "sworn enemy", "mentor", "sister", "male" or "female", sets their body and how they see you (only what isn't set yet).
+- New world and Journal → World choose linking separately for places and for characters.
+- Explanations under every setting, at the top of each Journal tab and on New world; Settings → Show explanations hides them.
+
 ## 0.4.32 — 2026-11-08
 
 - People lists who's living in town first, then everyone else, under headings. The order is set when you open the panel, so rows stay put while you tick.

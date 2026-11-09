@@ -248,3 +248,54 @@ export function createRelationships(records = []) {
     },
   };
 }
+
+/** Keywords that say someone's body: "male", "woman"… */
+const GENDER_WORDS = {
+  male: "male",
+  man: "male",
+  boy: "male",
+  female: "female",
+  woman: "female",
+  girl: "female",
+};
+/** Keywords that say how someone sees the player, besides each kind's name, label and tiers. */
+const RELATION_WORDS = {
+  lover: { kind: "romance", level: 80 },
+  sweetheart: { kind: "romance", level: 60 },
+  wife: { kind: "partner", level: 80, role: "wife" },
+  husband: { kind: "partner", level: 80, role: "husband" },
+  spouse: { kind: "partner", level: 80, role: "spouse" },
+  nemesis: { kind: "rival", level: 90 },
+  boss: { kind: "colleague", level: 50, role: "employer" },
+  student: { kind: "mentor", level: 50, role: "student" },
+  apprentice: { kind: "colleague", level: 40, role: "apprentice" },
+};
+
+/**
+ * What a character's lore entries say about them, from their keywords: their body ("male", "female")
+ * and how they see the player ("enemy", "sworn enemy", "mentor", "sister"…). The first word of each sort
+ * wins. Returns { body: "male" | "female" | null, relation: { kind, level, role } | null }.
+ */
+export function setupFromWords(words) {
+  let body = null;
+  let relation = null;
+  for (const raw of words) {
+    const word = String(raw ?? "")
+      .toLowerCase()
+      .trim();
+    if (!word) continue;
+    body ??= GENDER_WORDS[word] ?? null;
+    if (relation) continue;
+    if (RELATION_WORDS[word]) relation = { role: "", ...RELATION_WORDS[word] };
+    else if (KINDS.family.roles.includes(word)) relation = { kind: "family", level: 60, role: word };
+    else {
+      for (const [kind, spec] of Object.entries(KINDS)) {
+        const tier = spec.tiers.indexOf(word);
+        if (word === kind || word === spec.label.toLowerCase()) relation = { kind, level: 50, role: "" };
+        else if (tier >= 0) relation = { kind, level: tier * 25 + 12, role: "" };
+        if (relation) break;
+      }
+    }
+  }
+  return { body, relation };
+}
