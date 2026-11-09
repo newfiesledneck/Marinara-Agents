@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.42",
+          "date": "2026-11-08",
+          "notes": "- The main menu's card scrolls when the window is short, so all of New world can be reached; the logo shrinks to fit.",
+          "highlight": false
+        },
+        {
           "version": "0.4.41",
           "date": "2026-11-08",
           "notes": "- New world chooses who you play and who lives there. Type your persona's name (an exact match picks it) or pick from the list. Characters show in their Engine folders: open one to tick who moves in, up to 30. It starts from the world you played last.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.23",
           "date": "2026-11-08",
           "notes": "- Rocks and boulders have the same painted rock texture as the mountains.\n- Walking in and out of a cave's mouth is smooth: the floor eases into the ground in front instead of stepping down.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.22",
-          "date": "2026-11-08",
-          "notes": "- Leaves and needles under thick stands of trees, and painted snow on the high peaks.\n- Bridges cross over the water: the river and its bed run underneath, and the dirt road stops at each end.\n- Sand and mud only along the river now, not in every hollow of the hills.",
           "highlight": false
         }
       ]
