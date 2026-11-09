@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.60",
+          "date": "2026-11-09",
+          "notes": "- Weather (Settings → Weather, off by default): rain falling in streaks, drifting snow, or mist, each greying the sky, dimming the sun and drawing the fog in. \"Changing\" turns every few minutes, the same for a world each time and mostly clear; or pick one kind to keep.\n- Fix: unlit windows and lamp glows no longer show as pale squares in fog and mist.",
+          "highlight": false
+        },
+        {
           "version": "0.4.59",
           "date": "2026-11-09",
           "notes": "- City walls and gates: a new city is ringed by a crenellated stone wall with round corner towers and a gatehouse wherever a road leaves town and in the middle of each side. New world's \"Walls\" choice gives any settlement walls or none. Townsfolk and your party find their way out and in by the gates. The map shows the wall.\n- Cities made before keep their open edges.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.41",
           "date": "2026-11-08",
           "notes": "- New world chooses who you play and who lives there. Type your persona's name (an exact match picks it) or pick from the list. Characters show in their Engine folders: open one to tick who moves in, up to 30. It starts from the world you played last.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.40",
-          "date": "2026-11-08",
-          "notes": "- \"lives in inn1\", \"owner of inn1\" and the same for cottages now mean the building there, so an innkeeper or a hermit can live and work out in the country.",
           "highlight": false
         }
       ]
