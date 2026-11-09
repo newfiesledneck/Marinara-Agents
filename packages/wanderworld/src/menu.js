@@ -88,6 +88,11 @@ export function createMenu(layer, handlers, art = null) {
     "Your characters, living their days in a world of their own.",
   );
   const card = element("div", `${PANEL}flex:0 1 auto;min-height:0;`);
+  // The card scrolls; nothing inside it is squeezed (the character and lorebook lists would shrink to nothing).
+  card.setAttribute("data-wanderworld-menu-card", "");
+  const noSqueeze = element("style", "");
+  noSqueeze.textContent = "[data-wanderworld-menu-card] > * { flex-shrink: 0; }";
+  screen.append(noSqueeze);
   for (const fixed of [title, tagline]) fixed.style.flex = "none";
   column.append(title, tagline, card);
   screen.append(column);

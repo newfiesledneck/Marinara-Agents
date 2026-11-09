@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.43 — 2026-11-08
+
+- New world's character and lorebook lists show again: they had been squeezed to nothing inside the scrolling card.
+
 ## 0.4.42 — 2026-11-08
 
 - The main menu's card scrolls when the window is short, so all of New world can be reached; the logo shrinks to fit.
