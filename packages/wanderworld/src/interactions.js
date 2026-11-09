@@ -7,7 +7,11 @@
 export const SCENE_VERSION = 1;
 
 /** Each kind of thing's actions: an id, the button's label, and what the player does, for a sentence. */
-export const ACTIONS = {
+import { PACK } from "./pack.js";
+
+export { partOfDay };
+
+const BUILT_IN = {
   door: [
     { id: "enter", label: "Go in", verb: "goes in" },
     { id: "knock", label: "Knock", verb: "knocks at the door and waits" },
@@ -29,6 +33,12 @@ export const ACTIONS = {
   noticeboard: [{ id: "read", label: "Read the notes", verb: "reads the notes on the noticeboard" }],
   // Travelling to the next region, across the edge of this one: the road between them.
   travel: [{ id: "go", label: "Set off", verb: "sets off along the road" }],
+};
+
+/** What can be done with each kind of thing: the ones every world has, and the setting pack's (pack.js). */
+export const ACTIONS = {
+  ...BUILT_IN,
+  ...Object.fromEntries(Object.entries(PACK.things).map(([kind, thing]) => [kind, thing.choices])),
 };
 
 /** Id of the action that's only the player's own line. */

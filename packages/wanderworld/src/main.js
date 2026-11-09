@@ -15,6 +15,7 @@ import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
 import { findModel, loadModelCharacter } from "./models.js";
 import { summariseSetup } from "./setup.js";
+import { arrivalLine, errandFor, PACK, pickLine, PROP_THINGS, thingLine } from "./pack.js";
 import {
   creatureFromWords,
   structureFromKeywords,
@@ -64,7 +65,15 @@ import {
   regionNext,
 } from "./zones.js";
 import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
-import { ACTIONS, describeScene, OWN_LINE, parseSpeech, pickListeners, sceneRequest } from "./interactions.js";
+import {
+  partOfDay,
+  ACTIONS,
+  describeScene,
+  OWN_LINE,
+  parseSpeech,
+  pickListeners,
+  sceneRequest,
+} from "./interactions.js";
 import { drawMap } from "./map.js";
 import { createAi } from "./ai.js";
 import { ACTIVITY_WORDS, entryAt, hourText, inRange, putEntry, scheduleFromWords, usualDay } from "./schedules.js";
@@ -144,6 +153,7 @@ const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, th
 const WEATHER_PERIOD = 240; // seconds of play between changes of the weather
 const TRAVEL_REACH = 6; // metres from the world's edge where "Travel to…" shows
 const OPPOSITE = { north: "south", east: "west", south: "north", west: "east" }; // every kind of usable needs one
+const SIGHT_EVERY = 140; // seconds between lines about who's near (the world's voice)
 const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
 const TAP_RADIUS = 70; // screen pixels a tap may land from something and still pick it
 const WALK_TO_LIMIT = 40; // metres: a tap further away than this is ignored
@@ -1351,6 +1361,118 @@ function namedZones(residents) {
 }
 
 /**
+ * The things standing about this world that the setting pack gives something to do with (pack.js): some
+ * of the town's props (a stall, a wagon, a stack of barrels) and the places out in the country (a farm,
+ * the standing stones). Worked out once for a world.
+ */
+function worldThings() {
+  const world = core.world;
+  if (!world) return [];
+  if (world.things) return world.things;
+  const things = [];
+  for (const prop of world.props ?? []) {
+    const kind = PROP_THINGS[prop.model];
+    if (!kind) continue;
+    // One of a kind in a spot: a stack of barrels is one thing to look into, not six.
+    if (things.some((other) => other.kind === kind && Math.hypot(other.x - prop.x, other.z - prop.z) < 3)) continue;
+    things.push({ kind, x: prop.x, z: prop.z });
+  }
+  for (const place of world.map?.outposts ?? [])
+    if (PACK.things[place.kind]) things.push({ kind: place.kind, x: place.x, z: place.z, place: true });
+  world.things = things;
+  return things;
+}
+
+/** One of the pack's things: its card of things to do, with whoever's near. */
+function useThing(thing) {
+  core.sceneDoor = thing; // walking away closes its card, like a door's
+  const zone = core.zones ? zoneAt(core.zones, thing.x, thing.z) : null;
+  const near = core.crowd
+    .snapshot()
+    .filter((person) => person.state !== "inside" && Math.hypot(person.x - thing.x, person.z - thing.z) < 9);
+  openScene({
+    kind: thing.kind,
+    zone,
+    title: thing.place && zone ? zoneName(zone) : PACK.things[thing.kind].title,
+    inside: near.map((person) => ({ id: person.id, name: person.name })),
+  });
+}
+
+/** Words the pack's lines can use: where the player is, the part of the day, and someone near. */
+function lineWords(who = "") {
+  return { place: placeWords().split(", in ")[0] || "here", time: partOfDay(core.hour), who };
+}
+
+/**
+ * The world speaks up on first coming to a place (Settings → The world's voice): what its lore says, or
+ * else the setting pack's line for that kind of place; with "arrivals by AI" the model writes it. And an
+ * errand taken from the noticeboard is done when the player reaches its place with its person near.
+ */
+function arrive(zone, names) {
+  const save = core.save;
+  if (!save || core.interior) return;
+  const voice = core.settings.narration ?? "lines";
+  const seen = save.visited?.[save.region] ?? [];
+  if (seen.includes(zone.id)) return;
+  core.save = { ...save, visited: { ...save.visited, [save.region]: [...seen, zone.id].slice(-400) } };
+  if (voice === "off" || zone.kind === "street" || zone.kind === "road") return;
+  const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
+  // The place's own lore (the first entry tied to it), when it has some.
+  const tie = save.lore?.[zone.id]?.[0];
+  const told = tie && activeLore(zone, names).entries.find((entry) => entry.title === tie.title && entry.content);
+  const line = told
+    ? `${names[zone.id]}. ${told.content.split(/(?<=[.!?])\s/u)[0]}`
+    : arrivalLine(kind, `${save.seed}:${zone.id}`, lineWords());
+  const canAsk = voice === "ai" && core.settings.aiTalk && core.settings.aiMoments && core.ai.known()?.moments;
+  if (!canAsk) return void (line && narrate(null, line));
+  void runMoment({ action: `comes to ${names[zone.id]} for the first time` }).then((done) => {
+    if (!done && line) narrate(null, line);
+  });
+}
+
+/** An errand is done on reaching its person, wherever they are: they answer, and think better of you. */
+function finishErrand() {
+  const errand = core.save?.errand;
+  if (!errand || core.interior || core.mode !== "walk") return;
+  const person = core.crowd.snapshot().find((entry) => entry.id === errand.person);
+  const at = core.player.position;
+  if (!person || person.state === "inside" || Math.hypot(person.x - at.x, person.z - at.z) > 3.5) return;
+  core.save = { ...core.save, errand: null, errandsDone: (core.save.errandsDone ?? 0) + 1, waypoint: null };
+  const now = core.relations.get(errand.person, "player");
+  setRelation(errand.person, "player", {
+    kind: now?.kind ?? "acquaintance",
+    role: now?.role ?? "",
+    level: Math.min(100, (now?.level ?? 30) + 8),
+  });
+  core.hud?.setNotice(`Errand done: ${person.name} thinks a little better of you.`);
+  void runMoment({
+    action: `has come to ${person.name} as the note on the noticeboard asked: "${errand.text}"`,
+    listenersExtra: [{ id: person.id, name: person.name }],
+  }).then((done) => !done && narrate(null, errand.done));
+}
+
+/** Now and then, with the world's voice on, a line about someone close by and what they're at. */
+function noticeSomeone() {
+  if ((core.settings.narration ?? "lines") === "off" || core.mode !== "walk" || core.interior) return;
+  const at = core.player.position;
+  const near = core.crowd
+    .snapshot()
+    .filter((person) => person.state !== "inside" && person.id !== core.lastSight)
+    .map((person) => ({ person, far: Math.hypot(person.x - at.x, person.z - at.z) }))
+    .filter((entry) => entry.far > 3 && entry.far < 16)
+    .sort((a, b) => a.far - b.far)[0];
+  if (!near) return;
+  core.lastSight = near.person.id;
+  narrate(
+    null,
+    pickLine(PACK.sights, `${near.person.id}:${Math.floor(core.clock)}`, {
+      who: near.person.name,
+      doing: doingWords(near.person),
+    }),
+  );
+}
+
+/**
  * What the Lore panel shows: every entry active here, nearest place first, with the place it's tied to,
  * its lorebook and (once the lorebooks are read) its text.
  */
@@ -2053,6 +2175,13 @@ function stepPlaces(dt) {
     // The town's own name the first time; after that the place itself.
     if (core.zoneShown !== null || zone.kind !== "town") core.hud?.showZone(names[zone.id]);
     core.zoneShown = zone.id;
+    arrive(zone, names);
+  }
+  finishErrand();
+  core.sightAt ??= core.clock - SIGHT_EVERY + 40; // the first one a little after arriving
+  if (core.clock - core.sightAt >= SIGHT_EVERY) {
+    core.sightAt = core.clock;
+    noticeSomeone();
   }
   const lore = loreAt(zone).map((entry) => entry.title);
   const town = names.town;
@@ -2850,7 +2979,7 @@ function momentListeners(voice, audience, extra = [], text = "") {
 /** A line in the narration box and the moment log (`who` null for the narrator). */
 function narrate(who, text) {
   core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text }].slice(-30);
-  core.hud?.narrate(who, text);
+  core.hud?.narrate(who, text, !!who && who === personaName());
 }
 
 /**
@@ -3392,6 +3521,12 @@ function openScene(thing) {
         action: request.verb ? `${request.verb} (${thing.title})` : `is at ${thing.title}`,
         line: request.line,
         listenersExtra: thing.inside,
+      }).then((done) => {
+        // No AI answering: the setting pack's own line for it, so something still happens.
+        const told = done
+          ? ""
+          : thingLine(thing.kind, request.action, `${thing.title}:${Math.floor(core.clock / 30)}`, lineWords());
+        if (told) narrate(null, told);
       });
       return describeScene(request);
     },
@@ -3464,7 +3599,27 @@ function noticeboardNotes() {
     by: note.by || personaName(),
     mine: true,
   }));
-  return [...pick.map((note, i) => ({ id: `town:${i}`, ...note })), ...mine];
+  // One note asks for something (the setting pack's errands): a new one once the last is done.
+  const errand = core.save?.errand ? null : boardErrand(names);
+  return [
+    ...(errand ? [{ id: errand.id, text: errand.text, by: null, errand: true }] : []),
+    ...pick.map((note, i) => ({ id: `town:${i}`, ...note })),
+    ...mine,
+  ];
+}
+
+/** The errand the noticeboard offers now: to someone who lives here, found where they work or live. */
+function boardErrand(names) {
+  if (!core.zones || !core.save) return null;
+  const people = (core.characters ?? [])
+    .filter((person) => core.cast?.has(person.id))
+    .map((person) => {
+      const house = core.save.housing?.[person.id];
+      const place = [house?.work, house?.home, "plaza", "town"].find((id) => id && names[id]);
+      return place ? { id: person.id, name: person.name, place: { id: place, name: names[place] } } : null;
+    })
+    .filter(Boolean);
+  return errandFor(`${core.save.seed}:${core.save.region}:${core.save.errandsDone ?? 0}`, people);
 }
 
 function openNoticeboard() {
@@ -3482,6 +3637,23 @@ function openNoticeboard() {
           const note = { id: `n${Date.now().toString(36)}`, text, by: personaName(), at: Date.now() };
           core.save = { ...core.save, notices: [...core.save.notices, note] };
           core.saves.write(core.save);
+          show();
+        },
+        onTake: (id) => {
+          const errand = boardErrand(namedZones(residentsOf(core.crowd.snapshot())));
+          if (!core.save || !errand || errand.id !== id) return;
+          // Marked on the map: the place's middle is where to go.
+          const zone = core.zones.byId.get(errand.place);
+          const door = zone?.door !== undefined ? core.world.doors[zone.door] : null;
+          const spot = door ?? zone?.shape?.circle ?? null;
+          core.save = {
+            ...core.save,
+            errand,
+            waypoint: spot ? { region: core.save.region, x: spot.x, z: spot.z } : core.save.waypoint,
+          };
+          core.saves.write(core.save);
+          narrate(null, `You take the note down: "${errand.text}"`);
+          core.hud?.setNotice("Errand taken: it's marked on your map.");
           show();
         },
         onRemove: (id) => {
@@ -3587,6 +3759,17 @@ function usable() {
       y: 1.6,
       mark: cave.mouth,
       act: () => enterCave(cave),
+    });
+  }
+  for (const thing of core.interior ? [] : worldThings()) {
+    list.push({
+      kind: "thing",
+      label: PACK.things[thing.kind].prompt,
+      x: thing.x,
+      z: thing.z,
+      y: 1.5,
+      reach: PACK.things[thing.kind].reach,
+      act: () => useThing(thing),
     });
   }
   const edge = core.interior || !core.save ? null : edgeSide();
@@ -3769,7 +3952,7 @@ function pickTarget() {
     const dx = thing.x - position.x;
     const dz = thing.z - position.z;
     const distance = Math.hypot(dx, dz);
-    if (distance > USE_RANGE[thing.kind]) continue;
+    if (distance > (thing.reach ?? USE_RANGE[thing.kind])) continue;
     const turn = distance > 0.2 ? 1 - Math.cos(Math.atan2(dx, dz) - facing) : 0;
     const score = distance + turn * 0.8;
     if (score < bestScore) {
@@ -3820,9 +4003,9 @@ function tap(clientX, clientY) {
   const position = core.player.position;
   if (best) {
     const distance = Math.hypot(best.x - position.x, best.z - position.z);
-    if (distance <= USE_RANGE[best.kind]) best.act();
-    else if (distance < WALK_TO_LIMIT)
-      core.walkTo = { x: best.x, z: best.z, near: USE_RANGE[best.kind] * 0.6, then: best };
+    const reach = best.reach ?? USE_RANGE[best.kind];
+    if (distance <= reach) best.act();
+    else if (distance < WALK_TO_LIMIT) core.walkTo = { x: best.x, z: best.z, near: reach * 0.6, then: best };
     return;
   }
   tapPoint.set((x / rect.width) * 2 - 1, -(y / rect.height) * 2 + 1);

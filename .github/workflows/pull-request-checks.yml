@@ -248,6 +248,7 @@ jobs:
           node tests/wanderworld-keywords.regression.mjs
           node tests/wanderworld-land.regression.mjs
           node tests/wanderworld-mmd.regression.mjs
+          node tests/wanderworld-pack.regression.mjs
           node tests/wanderworld-people.regression.mjs
           node tests/wanderworld-places.regression.mjs
           node tests/wanderworld-relations.regression.mjs

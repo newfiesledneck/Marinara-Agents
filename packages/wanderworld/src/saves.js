@@ -211,6 +211,25 @@ export function checkWorld(raw) {
           .map((word) => text(word).slice(0, 40))
           .slice(0, 12),
       })),
+    // Places the player has been, by region: { [region]: [zone ids] } (a place speaks up the first time).
+    visited: Object.fromEntries(
+      Object.entries(isRecord(raw.visited) ? raw.visited : {})
+        .filter(([, zones]) => Array.isArray(zones))
+        .slice(0, 60)
+        .map(([region, zones]) => [region, zones.filter((id) => typeof id === "string").slice(0, 400)]),
+    ),
+    // The errand taken from the noticeboard: { id, person, place, text, done }, or null; and how many are done.
+    errand:
+      isRecord(raw.errand) && typeof raw.errand.id === "string"
+        ? {
+            id: raw.errand.id.slice(0, 40),
+            person: text(raw.errand.person).slice(0, 120),
+            place: text(raw.errand.place).slice(0, 120),
+            text: text(raw.errand.text).slice(0, 400),
+            done: text(raw.errand.done).slice(0, 400),
+          }
+        : null,
+    errandsDone: Number.isFinite(raw.errandsDone) ? Math.max(0, Math.floor(raw.errandsDone)) : 0,
     // A waypoint the player marked on the map: { region, x, z }, or null.
     waypoint:
       isRecord(raw.waypoint) && Number.isFinite(raw.waypoint.x) && Number.isFinite(raw.waypoint.z)

@@ -3207,6 +3207,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     /** Where a first visit starts: by the market. */
     spawn,
     noticeboard: town.noticeboard,
+    /** The town's props, as placed: [{ model, x, z }] (main.js makes things to use of some: pack.js PROP_THINGS). */
+    props: town.propSlots.map((slot) => ({ model: slot.model, x: slot.x, z: slot.z })),
     /** Cave mouths: { x, z (where to stand), angle, outpost }. */
     caves: country.caves,
     /** The world's landscape, as built (land.js), for saving with it. */

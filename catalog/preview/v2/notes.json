@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.88",
+          "date": "2026-11-09",
+          "notes": "- More to do in the world: market stalls, wagons, barrels and crates, and out in the country the farm, graveyard, standing stones, mill, pond, watchtower and ruins each have a card of things to do. With AI on each is a moment; without it the world still answers with lines of its own.\n- The world's voice (Settings → World): a line on first coming to a place (its lore, when it has some) and now and then about who's near. On without AI by default; arrivals can be written by AI.\n- The noticeboard has an errand to someone in the world: take it and it's marked on your map; reach them and it's done, and they think better of you.\n- The chat window tells narration, your lines and other people's apart. With it closed, narration shows as a caption over the world, and Chat shows a dot.",
+          "highlight": false
+        },
+        {
           "version": "0.4.87",
           "date": "2026-11-09",
           "notes": "- Journal → People → Relationships is back as an overview to read: how everyone sees each other and you, person by person. Changing one is done in Edit people.\n- Hints in the game point to Menu → Settings now that Settings lives in the Menu.",
@@ -307,12 +313,6 @@
           "version": "0.4.69",
           "date": "2026-11-09",
           "notes": "- Moments: the \"Around you\" chat window takes what you say or do: plain text to everyone nearby, /s shouts, /w whispers, /p talks to your party, /a does something (open a chest, cast a spell). The narrator answers and whoever heard may reply. Reading the noticeboard, sitting by people and card choices are moments too. Commands are listed under the box; the window moves and resizes.\n- Schedules: everyone follows a day (home, work, meals, visits, a seat), editable in Journal → People → Schedules, planned by the AI on request, and changed by what people agree to in moments.\n- Illustrate: a window that paints the current moment from a prompt template you can edit, with a scrolling gallery (the newest 60): click to show, × to delete.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.68",
-          "date": "2026-11-09",
-          "notes": "- A server part (needs an Engine restart after installing or updating): people answer in their own words, written by your model from their card, your persona, where you are, the time and weather, how they feel about you and the lore active there; set lines stand in if a call fails.\n- Settings → AI: AI conversations on or off, the connections for conversations, scenes and pictures, how people talk, reply length, creativity, and the picture style (the Engine's style profiles).\n- \"Play it as a scene\" on a scene card opens it as a roleplay scene in the Engine with everyone there; its recap comes back to Journal → Here.\n- Journal → Here: \"Picture this place\" paints where you are through your image connection.",
           "highlight": false
         }
       ]

@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.87)
+## What it does now (0.4.88)
 
 ### The world
 
@@ -153,6 +153,13 @@ only walk about.
   aren't Engine characters: they live, talk and keep their days in that world only. A lorebook entry
   about someone with no card can become one of them too. The steps feed each other in order: your
   lorebooks, the world and its places, new people, then your own characters fitted in among them.
+- **More to do, with or without AI:** market stalls, wagons, barrels and crates, and out in the country
+  the farm, graveyard, standing stones, mill, pond, watchtower and ruins each open a card of things to do
+  (browse, haggle, read the stones, skip a stone…). With AI on, each is a moment the model narrates and
+  people nearby answer; with it off, the world answers with lines of its own. The **world's voice**
+  (Menu → Settings → World) adds a line on first coming to a place (its lore, when it has some) and now
+  and then about who's near; with the chat window closed it shows as a caption. The noticeboard offers
+  an **errand** to someone in the world: take it, it's marked on your map, and reaching them finishes it.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
@@ -261,7 +268,9 @@ still count, and come first.
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
   plans, world setup from cards and lorebooks, pictures and the gallery, scene plans, scene creation, and scene contexts and recaps, plus a
   scene origin for the Engine. Every request body is checked there. `src/ai.js` is the client's side of
-  it, `src/map.js` draws the maps, `src/weather.js` the weather, `src/setup.js` sums the AI's setup up for the review, and `src/illustrate.js` and
+  it, `src/map.js` draws the maps, `src/weather.js` the weather, `src/pack.js` the setting pack (the things to use, what's said about them
+  and places when no AI answers, and the errands: every word of the setting, so another setting is
+  another pack), `src/setup.js` sums the AI's setup up for the review, and `src/illustrate.js` and
   `src/floating.js` the Illustrate window and the floating windows.
 - `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
