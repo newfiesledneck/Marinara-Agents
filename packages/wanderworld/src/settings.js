@@ -48,6 +48,9 @@ export const SETTINGS = {
   timeSpeed: { value: 1, options: [0.25, 0.5, 1, 2, 4, 8] },
   /** "off" keeps it clear; "changing" turns now and then (rain, mist, snow); or one kind always. */
   weather: { value: "off", options: ["off", "changing", "rain", "snow", "mist"] },
+  // The world's own voice: a line on first coming somewhere and now and then about who's near. "lines"
+  // are the setting pack's (no AI); "ai" has the model write the arrival (one call each new place).
+  narration: { value: "lines", options: ["off", "lines", "ai"] },
   /** AI (the server part): conversations written by the model, on the connections chosen here ("" is
    *  the Engine's default), in a style and length; pictures through an image connection and style. */
   aiTalk: { value: true },

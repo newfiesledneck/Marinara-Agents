@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.88 — 2026-11-09
+
+- More to do in the world: market stalls, wagons, barrels and crates, and out in the country the farm, graveyard, standing stones, mill, pond, watchtower and ruins each have a card of things to do. With AI on each is a moment; without it the world still answers with lines of its own.
+- The world's voice (Settings → World): a line on first coming to a place (its lore, when it has some) and now and then about who's near. On without AI by default; arrivals can be written by AI.
+- The noticeboard has an errand to someone in the world: take it and it's marked on your map; reach them and it's done, and they think better of you.
+- The chat window tells narration, your lines and other people's apart. With it closed, narration shows as a caption over the world, and Chat shows a dot.
+
 ## 0.4.87 — 2026-11-09
 
 - Journal → People → Relationships is back as an overview to read: how everyone sees each other and you, person by person. Changing one is done in Edit people.

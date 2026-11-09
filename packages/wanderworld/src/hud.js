@@ -187,6 +187,8 @@ export function createHud(root, handlers) {
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "Dragging up looks down, like a flight stick.",
     time: "Let the day pass, or keep it at one time of day.",
+    narration:
+      "A line in the chat window on first coming to a place (its lore, when it has some) and now and then about who's near. By AI, each new place is one model call.",
     weather: "Rain, snow or mist, changing every few minutes or always one. Off keeps the sky clear.",
     timeSpeed: "How fast the day passes while it's moving.",
     interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
@@ -298,6 +300,11 @@ export function createHud(root, handlers) {
   heading("World");
   settingsPanel.append(peopleButton); // who lives in this world
   choice("time", "Time", TIME_LABELS);
+  choice("narration", "The world's voice", {
+    off: "Off",
+    lines: "On (no AI)",
+    ai: "On, arrivals by AI",
+  });
   choice("weather", "Weather", {
     off: "Off (always clear)",
     changing: "Changing",
@@ -550,9 +557,11 @@ export function createHud(root, handlers) {
   const illustrateButton = button("Illustrate", "Paint the current moment, and see the world's pictures", () =>
     illustrate.toggle(),
   );
-  const chatButton = button("Chat", "What's happening around you, and saying something out loud", () =>
-    chatFloat.setOpen(!chatFloat.isOpen()),
-  );
+  const chatButton = button("Chat", "What's happening around you, and saying something out loud", () => {
+    chatFloat.setOpen(!chatFloat.isOpen());
+    chatButton.textContent = "Chat"; // read
+    if (chatFloat.isOpen()) narration.scrollTop = narration.scrollHeight;
+  });
   const fresh = button("Main menu", "Save and go back to the main menu", handlers.onMenu);
   const fullscreen = button("Fullscreen", "Fill the screen with the world", handlers.onToggleFullscreen);
   fullscreen.style.display = "none";
@@ -719,6 +728,15 @@ export function createHud(root, handlers) {
   commands.append(commandsTitle, commandList);
   chat.frame.append(narration, speakBar, commands);
   let narrationTimer = null;
+  // Narration with the chat window closed: a caption over the world for a few seconds, then gone (it's
+  // in the window when it's opened).
+  const caption = document.createElement("div");
+  caption.setAttribute("data-wanderworld-ui", "");
+  caption.style.cssText =
+    `${CHIP}position:absolute;left:50%;bottom:92px;transform:translateX(-50%);max-width:min(560px,calc(100% - 32px));` +
+    "padding:8px 14px;font:italic 14px/1.4 Georgia,serif;text-align:center;pointer-events:none;opacity:0;transition:opacity 400ms;";
+  layer.append(caption);
+  let captionTimer = null;
   const personEditor = createPersonEditor(layer, {
     onSave: (id, changes) => handlers.onSavePerson(id, changes),
     onPlan: async (id, request) => ({
@@ -1007,6 +1025,13 @@ export function createHud(root, handlers) {
           by.textContent = `— ${note.by}`;
           card.append(by);
         }
+        if (note.errand) {
+          const take = button("Take it", "Take this errand: it's marked on your map", () =>
+            boardHandlers?.onTake(note.id),
+          );
+          take.style.cssText = `${INK_SMALL}margin-top:8px;`;
+          card.append(take);
+        }
         if (note.mine) {
           const remove = button("Take down", "Take this note down", () => boardHandlers?.onRemove(note.id));
           remove.style.cssText = `${INK_SMALL}margin-top:8px;`;
@@ -1016,7 +1041,8 @@ export function createHud(root, handlers) {
       });
       const hint = document.createElement("div");
       hint.style.cssText = `font-size:12px;font-style:italic;color:${INK_SOFT};`;
-      hint.textContent = "Quests and news the AI writes will be pinned here once Wanderworld can call it.";
+      hint.textContent =
+        "A note that asks for something can be taken: it's marked on your map, and the Journal's Here keeps it.";
       const form = document.createElement("form");
       form.style.cssText = "display:flex;gap:8px;";
       const input = document.createElement("input");
@@ -1146,21 +1172,40 @@ export function createHud(root, handlers) {
       if (chatFloat.isOpen()) chatFloat.setOpen(true);
     },
     /** A line in the narration box: `who` null for the narrator. */
-    narrate(who, text) {
+    /**
+     * A line for the chat window: narration (no `who`: set apart, in italics), something the player
+     * said or did (`mine`), or someone else's. With the window closed, narration shows as a caption
+     * over the world instead of opening it, and the Chat button shows there's something to read.
+     */
+    narrate(who, text, mine = false) {
       const line = document.createElement("div");
       if (who) {
+        // Who's speaking, in their colour: the player's lines one side of the eye, everyone else's the other.
+        line.style.cssText = `margin:3px 0;padding:3px 8px;border-radius:8px;background:${
+          mine ? "rgba(52,92,140,0.13)" : "rgba(140,74,32,0.12)"
+        };${mine ? "margin-left:22px;" : "margin-right:22px;"}`;
         const name = document.createElement("b");
-        name.textContent = `${who}: `;
+        name.style.color = mine ? "#274f7d" : "#7a3a12";
+        name.textContent = `${who}  `;
         line.append(name, document.createTextNode(text));
       } else {
-        line.style.fontStyle = "italic";
+        line.style.cssText =
+          "margin:5px 0;padding:2px 0 2px 9px;border-left:3px solid rgba(107,74,43,0.45);font-style:italic;color:rgba(59,42,24,0.82);";
         line.textContent = text;
       }
       narration.append(line);
       while (narration.childElementCount > 60) narration.firstElementChild.remove();
       narration.scrollTop = narration.scrollHeight;
-      // Something new: the window comes back if it was closed, and stands out a moment.
-      if (!chatFloat.isOpen()) chatFloat.setOpen(true);
+      if (!chatFloat.isOpen()) {
+        chatButton.textContent = "Chat •"; // something to read
+        if (!who) {
+          caption.textContent = text;
+          caption.style.opacity = "1";
+          clearTimeout(captionTimer);
+          captionTimer = setTimeout(() => (caption.style.opacity = "0"), Math.min(11000, 3500 + text.length * 45));
+        }
+        return;
+      }
       chat.frame.style.opacity = "1";
       clearTimeout(narrationTimer);
       narrationTimer = setTimeout(() => (chat.frame.style.opacity = "0.85"), 20000);
