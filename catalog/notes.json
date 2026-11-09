@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.64",
+          "date": "2026-11-09",
+          "notes": "- Chimney smoke darkens at night instead of glowing white against the dark sky; town walls are a darker, weathered stone.\n- Every gate in a town's walls has a clear way out: a dirt track fading into the meadow where no road leaves, with no trees or bushes in the way.",
+          "highlight": false
+        },
+        {
           "version": "0.4.63",
           "date": "2026-11-09",
           "notes": "- Hamlets, farms and landmarks keep all their ground inside the world, off the river, and clear of each other even in a crowded world: when their own side is full they find the nearest free spot elsewhere.\n- A hamlet or farm goes on another side when there's no room for it beyond the river.\n- Country roads wear away into the grass where they arrive instead of stopping square.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.45",
           "date": "2026-11-08",
           "notes": "- New world starts with nobody living in it: characters from your other worlds no longer come along. Each world keeps its own cast, relationships, lore, homes and party in its own save.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.44",
-          "date": "2026-11-08",
-          "notes": "- New world: each character folder has its own checkbox that picks everyone in it (as many as fit) or clears them. It shows half-ticked when only some are chosen.",
           "highlight": false
         }
       ]
