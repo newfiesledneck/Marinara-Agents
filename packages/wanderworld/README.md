@@ -4,18 +4,18 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.58)
+## What it does now (0.4.59)
 
 ### The world
 
 - **A settlement of its own kind:** a hamlet round a green, a village with a stall market, a town with a
-  fountain square, or a city; laid out as a grid, a crossroads, along one street or round the market;
-  the market in the middle or off to one side, and cobbled streets with
-  sidewalks or dirt paths (New world, or left to the seed). In a town: a town hall, a temple, a tavern and shops
-  round the square with market stalls and benches; homes, a smithy and fenced gardens along cobbled streets
-  with kerbed sidewalks, flowers and clutter by the doors, ivy, wagons and meadows on empty lots. Shops have
-  striped awnings and hanging signs on painted boards; iron lamp posts light the streets at night, windows
-  glow, and smoke rises from chimneys.
+  fountain square, or a city; laid out as a grid, a crossroads, along one street or round the market; the
+  market in the middle or off to one side, stone walls and gates (new cities have them), and cobbled streets
+  with sidewalks or dirt paths (New world, or left to the seed). In a town: a town hall, a temple, a tavern
+  and shops round the square with market stalls and benches; homes, a smithy and fenced gardens along cobbled
+  streets with kerbed sidewalks, flowers and clutter by the doors, ivy, wagons and meadows on empty lots.
+  Shops have striped awnings and hanging signs on painted boards; iron lamp posts light the streets at night,
+  windows glow, and smoke rises from chimneys.
 - **The land:** hills, mountain ranges along some edges, a winding river with plank bridges on piers, and
   places out in the country: hamlets of a few houses round a green (town2, town3…), farms with a barn
   and fenced fields, wayside inns and cottages at the end of their own dirt roads (never in the river),

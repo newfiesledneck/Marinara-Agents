@@ -863,6 +863,94 @@ const LANDMARKS = {
   },
 };
 
+/** How far out from the middle a settlement's wall runs: just past its outer streets. */
+const wallLine = () => townHalf + STREET / 2 + 1.6;
+
+/**
+ * A stone wall round the settlement, crenellated, with a round tower at each corner and a gatehouse (two
+ * towers and a walkway over the way through) wherever a road leaves town, and in the middle of each side.
+ * The wall blocks walkers; street points outside each gate lead the townsfolk out and back in.
+ */
+function placeWalls(town, land) {
+  const line = wallLine();
+  const stone = 0x9a958a;
+  const pieces = [];
+  const gateWidth = STREET + 0.6;
+  const tower = (x, z, height, radius) => {
+    pieces.push(painted(new CylinderGeometry(radius, radius + 0.25, height, 10).translate(x, height / 2, z), stone));
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      pieces.push(
+        box(
+          0.7,
+          0.8,
+          0.7,
+          x + Math.cos(angle) * (radius - 0.3),
+          height + 0.4,
+          z + Math.sin(angle) * (radius - 0.3),
+          stone,
+        ),
+      );
+    }
+    town.circles.push({ x, z, r: radius + 0.2 });
+  };
+  // The gates on each side: where the roads from town start (their street), and the middle street.
+  const middle = streetLines[Math.floor(streetLines.length / 2)];
+  const gates = {
+    north: new Set([middle]),
+    south: new Set([middle]),
+    east: new Set([middle]),
+    west: new Set([middle]),
+  };
+  for (const road of land.roads) {
+    if (!road.fromTown) continue;
+    const start = road.points[0];
+    const side =
+      Math.abs(start.x) > Math.abs(start.z) ? (start.x > 0 ? "east" : "west") : start.z > 0 ? "south" : "north";
+    gates[side].add(side === "east" || side === "west" ? start.z : start.x);
+  }
+  for (const [side, at] of Object.entries(gates)) {
+    const alongX = side === "north" || side === "south";
+    const out = side === "south" || side === "east" ? line : -line;
+    const spot = (along, across = out) => (alongX ? { x: along, z: across } : { x: across, z: along });
+    const openings = [...at].sort((a, b) => a - b);
+    // Wall lengths between the corners and the gates.
+    let from = -line;
+    for (const gate of [...openings, null]) {
+      const to = gate === null ? line : gate - gateWidth / 2;
+      if (to - from > 0.5) {
+        const centre = spot((from + to) / 2);
+        const length = to - from;
+        pieces.push(box(alongX ? length : 1.2, 4.2, alongX ? 1.2 : length, centre.x, 2.1, centre.z, stone));
+        for (let t = from + 0.6; t < to - 0.4; t += 1.6) {
+          const merlon = spot(t, out + (out > 0 ? 0.35 : -0.35));
+          pieces.push(box(alongX ? 0.8 : 0.5, 0.7, alongX ? 0.5 : 0.8, merlon.x, 4.55, merlon.z, stone));
+        }
+        const half = { x: alongX ? length / 2 : 0.6, z: alongX ? 0.6 : length / 2 };
+        town.boxes.push({
+          minX: centre.x - half.x,
+          maxX: centre.x + half.x,
+          minZ: centre.z - half.z,
+          maxZ: centre.z + half.z,
+        });
+      }
+      if (gate === null) break;
+      // The gatehouse: a tower either side and a walkway over the top.
+      for (const edge of [-1, 1]) {
+        const towerAt = spot(gate + edge * (gateWidth / 2 + 1.1));
+        tower(towerAt.x, towerAt.z, 6.4, 1.5);
+      }
+      const top = spot(gate);
+      pieces.push(box(alongX ? gateWidth + 1 : 2, 1.1, alongX ? 2 : gateWidth + 1, top.x, 5, top.z, stone));
+      // Street points through the gate: just inside and just outside.
+      town.waypoints.push(spot(gate, out + (out > 0 ? 5 : -5)), spot(gate, out + (out > 0 ? -2.5 : 2.5)));
+      from = gate + gateWidth / 2;
+    }
+  }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) tower(sx * line, sz * line, 6, 2);
+  town.pieces.push(weathered(mergeGeometries(pieces)));
+}
+
 /**
  * A fenced garden on an empty lot (`size` metres square, a whole number of fence lengths), its gate facing
  * `facing`: a tree in a back corner, bushes and flowers along the fence, and a bench at the back facing
@@ -1374,6 +1462,7 @@ function buildTown(random, land, ground, needs = {}) {
   }
   placeMarket(random, town);
 
+  if (look.walls) placeWalls(town, land);
   // The country round it (inns and cottages join the town's buildings before they're merged).
   const country = buildCountry(random, town, land, ground);
   const mesh = new Mesh(mergeOrEmpty(town.pieces), new MeshLambertMaterial({ vertexColors: true, flatShading: true }));
@@ -2297,7 +2386,13 @@ function mapInfo(built) {
       z: outpost.z,
       index: outpost.index,
     })),
-    town: { blocks: blocksBuilt, block: BLOCK, street: STREET, roads: look.roads },
+    town: {
+      blocks: blocksBuilt,
+      block: BLOCK,
+      street: STREET,
+      roads: look.roads,
+      walls: look.walls ? wallLine() : null,
+    },
   };
 }
 
@@ -2870,6 +2965,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       fountainRadius: look.market === "square" ? FOUNTAIN_RADIUS : null,
       // The settlement: hamlet, village, town or city; its market (square, stalls, green) and roads.
       settlement: { ...look },
+      walls: !!look.walls,
       streets: streetStrips(),
       buildings: town.buildings.map((building) => ({ kind: building.spec.kind, box: building.box })),
       // Out in the country: the river, each road (to its outpost), the mountain ranges, the outposts

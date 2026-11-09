@@ -405,7 +405,7 @@ world's preview (they're read when the world is made), a zoomable map, marking p
   `weather-renderer`) is a 2D overlay; it's a guide to the look and the weather names, but here it
   would be rain and snow falling in the scene, fog density, the sky's tint, wet darker ground, snow on
   the ground through the snow layer, autumn colours on the trees.
-- City walls and gates; second-town details; a world builder (W6); the AI writing the land, settlements
+- ~~City walls and gates~~ (0.4.59: `placeWalls`, `settlement.walls`, gate street points); second-town details; a world builder (W6); the AI writing the land, settlements
   and travel scenes (S2, S4); a performance pass once the bigger worlds are in.
 - More animations (the earlier list's item 8): working at a forge or counter, carrying things,
   sweeping, drinking at the tavern, kneeling at the temple, waving and pointing, sleeping.

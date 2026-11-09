@@ -119,6 +119,12 @@ export function drawMap(canvas, info, options = {}) {
     context.fillRect(x, y, town.block * scale, town.block * scale);
   }
 
+  if (town.walls) {
+    const [x, y] = toPixel(-town.walls, -town.walls);
+    context.strokeStyle = "#6f6a60";
+    context.lineWidth = Math.max(2, 1.6 * scale);
+    context.strokeRect(x, y, town.walls * 2 * scale, town.walls * 2 * scale);
+  }
   // Places out in the country.
   for (const place of info.outposts) {
     const style = PLACE_STYLE[place.kind] ?? PLACE_STYLE.cottage;

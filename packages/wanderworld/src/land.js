@@ -49,6 +49,8 @@ export function checkSettlement(raw) {
     side: SIDES.includes(raw?.side) ? raw.side : null,
     // How its blocks are laid out: all of them (grid), a plus (crossroads), one long street, or a ring.
     layout: SETTLEMENT_LAYOUTS.includes(raw?.layout) ? raw.layout : "grid",
+    // A stone wall round it with gates where its roads leave (new cities have them; older worlds don't).
+    walls: raw?.walls === true,
   };
 }
 const HILL_SCALE = { flat: 0.15, gentle: 0.6, rolling: 1.2, rugged: 2.1 };
@@ -140,6 +142,7 @@ export function landscapeWith(seed, choices = {}) {
     roads: ["cobble", "dirt"].includes(choices.roads) ? choices.roads : undefined,
     side: offside ? SIDES[Math.floor(pick() * SIDES.length)] : null,
     layout: SETTLEMENT_LAYOUTS.includes(choices.layout) ? choices.layout : usual[Math.floor(pick() * usual.length)],
+    walls: choices.walls === "yes" || (choices.walls !== "no" && kind === "city"),
   });
   // More settlements out in the country: as chosen, or now and then a hamlet.
   const more = { none: 0, one: 1, two: 2 }[choices.towns] ?? (pick() < 0.25 ? 1 : 0);

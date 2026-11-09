@@ -68,7 +68,10 @@ const landscape = {
 const world = createWorld(31, landscape);
 assert.deepEqual(
   world.landscape,
-  { ...landscape, settlement: { kind: "town", market: "square", roads: "cobble", side: null, layout: "grid" } },
+  {
+    ...landscape,
+    settlement: { kind: "town", market: "square", roads: "cobble", side: null, layout: "grid", walls: false },
+  },
   "the world keeps the landscape it was built with (a town, when none was given)",
 );
 for (const [x, z] of [
@@ -433,6 +436,39 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
     hilly.dispose();
   }
   assert.ok(decks > 3, `bridges were checked (${decks})`);
+}
+
+// City walls: a new city has them, with an open gate where each road leaves town and a street point just
+// outside it; the wall between gates blocks the way. A city saved before walls stays open.
+{
+  const landscape = landscapeWith(100, { settlement: "city", places: "several", towns: "none", farms: "none" });
+  assert.equal(landscape.settlement.walls, true, "a new city has walls");
+  const built = createWorld(100, landscape);
+  const half = built.layout.townHalf;
+  const line = half + 3 + 1.6;
+  let blocked = 0;
+  for (let t = -line + 3; t < line - 3; t += 0.5) if (built.blocked(t, -line, 0.2)) blocked++;
+  assert.ok(blocked > 20, `the north wall stands (${blocked} blocked spots)`);
+  for (const road of built.layout.roads.filter((entry) => entry.to !== null)) {
+    const start = road.points[0];
+    if (Math.max(Math.abs(start.x), Math.abs(start.z)) > half + 4) continue; // a track off another road
+    const out = Math.abs(start.x) > Math.abs(start.z) ? [Math.sign(start.x), 0] : [0, Math.sign(start.z)];
+    const through = { x: start.x + out[0] * 3.4, z: start.z + out[1] * 3.4 };
+    assert.ok(
+      !built.blocked(through.x, through.z, 0.3),
+      `the gate at (${start.x.toFixed(0)}, ${start.z.toFixed(0)}) is open`,
+    );
+    const outside = { x: start.x + out[0] * 7.4, z: start.z + out[1] * 7.4 };
+    assert.ok(
+      built.waypoints.some((point) => Math.hypot(point.x - outside.x, point.z - outside.z) < 1.5),
+      "with a street point outside it",
+    );
+  }
+  assert.equal(built.layout.walls, true);
+  built.dispose();
+  const old = createWorld(100, { ...landscape, settlement: { kind: "city" } });
+  assert.equal(old.layout.walls, false, "a city saved before walls stays open");
+  old.dispose();
 }
 
 console.log("wanderworld land regression: OK");

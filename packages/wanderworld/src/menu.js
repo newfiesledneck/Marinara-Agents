@@ -198,6 +198,14 @@ export function createMenu(layer, handlers, art = null) {
         ],
       ],
       [
+        "walls",
+        "Walls",
+        [
+          ["no", "None"],
+          ["yes", "Walls and gates"],
+        ],
+      ],
+      [
         "marketAt",
         "Market",
         [
