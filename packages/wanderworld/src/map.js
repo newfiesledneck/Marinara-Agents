@@ -78,20 +78,43 @@ function landImage(info) {
   return land;
 }
 
+/** A view of the map, kept inside the region: zoom from 1 (all of it) to 8, the middle wherever it still fills the canvas. */
+export function clampView(view, half) {
+  const zoom = Math.max(1, Math.min(8, Number(view?.zoom) || 1));
+  const reach = half * (1 - 1 / zoom);
+  const within = (value) => Math.max(-reach, Math.min(reach, Number(value) || 0));
+  return { x: within(view?.x), z: within(view?.z), zoom };
+}
+
 /**
- * Draws `info` (world.js map info) on `canvas`. `options`: { labels: [{ x, z, text }], player: { x, z,
- * angle }, edges: { north, east, south, west } (names of the regions beyond) }.
+ * Draws `info` (world.js map info) on `canvas`. `options`: { labels: [{ x, z, text, zoom (shown from
+ * that zoom up) }], player: { x, z, angle }, edges: { north, east, south, west } (names of the regions
+ * beyond), view: { x, z, zoom } (what's at the middle, and how close: 1 is the whole region), home and
+ * waypoint: { x, z } }.
  */
 export function drawMap(canvas, info, options = {}) {
   const context = canvas.getContext("2d");
   if (!context || !info) return;
   const size = canvas.width;
   const half = info.half;
-  const scale = size / (half * 2);
-  const toPixel = (x, z) => [(x + half) * scale, (z + half) * scale];
+  const view = clampView(options.view, half);
+  const scale = (size / (half * 2)) * view.zoom;
+  const toPixel = (x, z) => [(x - view.x) * scale + size / 2, (z - view.z) * scale + size / 2];
 
   context.imageSmoothingEnabled = true;
-  context.drawImage(landImage(info), 0, 0, size, size);
+  const land = landImage(info);
+  const shown = land.width / view.zoom; // the part of the land's picture in view
+  context.drawImage(
+    land,
+    ((view.x + half) / (half * 2)) * land.width - shown / 2,
+    ((view.z + half) / (half * 2)) * land.height - shown / 2,
+    shown,
+    shown,
+    0,
+    0,
+    size,
+    size,
+  );
 
   // Roads, then the town's blocks (streets between them show as the dirt or cobble colour round them).
   context.lineCap = "round";
@@ -130,7 +153,7 @@ export function drawMap(canvas, info, options = {}) {
   for (const place of info.outposts) {
     const style = PLACE_STYLE[place.kind] ?? PLACE_STYLE.cottage;
     const [x, y] = toPixel(place.x, place.z);
-    const r = style.size * Math.max(1, size / 260);
+    const r = style.size * Math.max(1, size / 260) * Math.min(2, Math.sqrt(view.zoom));
     context.fillStyle = style.colour;
     context.strokeStyle = "rgba(30,20,10,0.75)";
     context.lineWidth = 1;
@@ -166,12 +189,16 @@ export function drawMap(canvas, info, options = {}) {
   const taken = [
     [size / 2 - size * 0.2, 0, size * 0.4, font * 1.6],
     [size / 2 - size * 0.2, size - font * 1.6, size * 0.4, font * 1.6],
+    [0, size / 2 - size * 0.2, font * 1.6, size * 0.4],
+    [size - font * 1.6, size / 2 - size * 0.2, font * 1.6, size * 0.4],
   ];
   const clashes = (box) =>
     taken.some(([x, y, w, h]) => box[0] < x + w && box[0] + box[2] > x && box[1] < y + h && box[1] + box[3] > y);
   context.font = `600 ${font}px Georgia, serif`;
   for (const entry of options.labels ?? []) {
+    if ((entry.zoom ?? 1) > view.zoom) continue; // a closer look shows more names
     const [x, y] = toPixel(entry.x, entry.z);
+    if (x < 0 || y < 0 || x > size || y > size) continue;
     const width = context.measureText(entry.text).width + 4;
     for (const at of [y - font * 1.5, y + font * 1.5, y - font * 2.7, y + font * 2.7]) {
       const line = Math.max(font, Math.min(size - font, at));
@@ -186,8 +213,54 @@ export function drawMap(canvas, info, options = {}) {
   const edges = options.edges ?? {};
   if (edges.north) label(`↑ ${edges.north}`, size / 2, font * 0.8);
   if (edges.south) label(`↓ ${edges.south}`, size / 2, size - font * 0.8);
-  if (edges.west) label(`← ${edges.west}`, 4, size / 2, "left");
-  if (edges.east) label(`${edges.east} →`, size - 4, size / 2, "right");
+  // East and west are written up the sides, like the names along the top and bottom: the middle of the
+  // map stays clear for what's in it.
+  const upright = (text, x, turn) => {
+    context.save();
+    context.translate(x, size / 2);
+    context.rotate(turn);
+    label(text, 0, 0);
+    context.restore();
+  };
+  if (edges.west) upright(`↑ ${edges.west}`, font * 0.8, -Math.PI / 2);
+  if (edges.east) upright(`↑ ${edges.east}`, size - font * 0.8, Math.PI / 2);
+  // Your home (a little house) and your waypoint (a flag).
+  if (options.home) {
+    const [x, y] = toPixel(options.home.x, options.home.z);
+    const r = Math.max(5, size / 70);
+    context.beginPath();
+    context.moveTo(x, y - r * 1.3);
+    context.lineTo(x + r, y - r * 0.2);
+    context.lineTo(x + r * 0.7, y - r * 0.2);
+    context.lineTo(x + r * 0.7, y + r);
+    context.lineTo(x - r * 0.7, y + r);
+    context.lineTo(x - r * 0.7, y - r * 0.2);
+    context.lineTo(x - r, y - r * 0.2);
+    context.closePath();
+    context.fillStyle = "#fff3c4";
+    context.strokeStyle = "#2a1a0a";
+    context.lineWidth = 2;
+    context.fill();
+    context.stroke();
+  }
+  if (options.waypoint) {
+    const [x, y] = toPixel(options.waypoint.x, options.waypoint.z);
+    const r = Math.max(6, size / 55);
+    context.strokeStyle = "#2a1a0a";
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(x, y);
+    context.lineTo(x, y - r * 2);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(x, y - r * 2);
+    context.lineTo(x + r * 1.3, y - r * 1.5);
+    context.lineTo(x, y - r);
+    context.closePath();
+    context.fillStyle = "#d8342b";
+    context.fill();
+    context.stroke();
+  }
   if (options.player) {
     const [x, y] = toPixel(options.player.x, options.player.z);
     const r = Math.max(5, size / 60);
