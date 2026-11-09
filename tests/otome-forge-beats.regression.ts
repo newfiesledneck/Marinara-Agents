@@ -934,7 +934,7 @@ test("a chapter whose summary failed goes in full in every story prompt, with it
     const number = Number(/main chapter (\d+)/.exec(whole(messages))?.[1] ?? 1);
     if (isPlanner(messages)) {
       // Main chapter 3 follows two Confrontations: the planner is told to end it with a Closer (#1938).
-      const plan = /This chapter's climax is a closer/.test(system(messages)) ? closerPlanReply : planReply;
+      const plan = /If this chapter has a climax, it is a closer/.test(system(messages)) ? closerPlanReply : planReply;
       return json(plan({ title: `Night ${number}`, ledger: { relationship: [], conflict: [], offscreen: [] } }));
     }
     const i = Number(/Narrate node (\d+) of/.exec(messages.at(-1)!.content)?.[1] ?? 1) - 1;
@@ -3281,6 +3281,12 @@ test("in his own route chapter, a love interest's own canon is cached with the r
     assert.equal(call.messages[0]!.content, scenes[0]!.messages[0]!.content, "one story context, whoever is present");
     assert.ok(call.messages[0]!.content.includes("KAI-DATE"), "his own date is cached in his own chapter");
   }
+  // 0.20.2: the route plan opens with that story context, marked, so the first scene reads what it wrote.
+  const plan = t.calls.find((call) => system(call.messages).includes("route planner"))!;
+  assert.equal(plan.messages[0]!.content, scenes[0]!.messages[0]!.content, "the plan's story context is the scenes'");
+  assert.equal(plan.messages[0]!.cacheBreakpoint, true);
+  assert.ok(!plan.messages[0]!.content.includes("MYSTERY-TRUTH"), "the mystery's truth stays in the plan's own part");
+  assert.ok(whole(plan.messages).includes("MYSTERY-TRUTH"), "which still has it");
 });
 
 test("a love interest who speaks in another's Character Story knows it; one only mentioned there does not (0.8.5)", async () => {

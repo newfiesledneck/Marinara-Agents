@@ -207,6 +207,15 @@ export function createMenu(layer, handlers, art = null) {
         ],
       ],
       [
+        "towns",
+        "More settlements",
+        [
+          ["none", "None"],
+          ["one", "A hamlet"],
+          ["two", "Two hamlets"],
+        ],
+      ],
+      [
         "places",
         "Out in the country",
         [

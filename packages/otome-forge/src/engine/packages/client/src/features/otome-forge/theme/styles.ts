@@ -205,7 +205,16 @@ ${R} .of-avatar {
 }
 /* Out of flow, so a tall look cannot keep its own height and push past the circle: cover then always crops it. */
 ${R} .of-avatar img {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%;
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0;
+}
+/* A full-body look (Avatar.tsx sets the class only for an image much taller than wide) has its head at the very top,
+   so the circle frames it as a portrait: anchored at the top and zoomed to the head and shoulders, never past the
+   crown. A square or bust avatar is never zoomed, and a card avatar's own crop (inline) keeps its rectangle. */
+${R} .of-avatar img.of-avatar-face {
+  right: auto; bottom: auto; left: -50%; top: 0; width: 200%; height: 200%;
+  /* The Engine's global img reset clamps max-width to 100%, which would clip the zoom to half the circle (as the
+     crop's inline style already guards against). */
+  max-width: none; max-height: none;
 }
 ${R} .of-avatar--empty {
   background: transparent; color: var(--of-accent-text); box-shadow: none;
@@ -257,7 +266,8 @@ ${R} .of-dock {
   margin: 0 10px max(10px, env(safe-area-inset-bottom)); padding: 7px 4px 6px; border-radius: 26px;
 }
 ${R} .of-dock-item {
-  display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 6px 2px 3px;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0;
+  padding: 6px 2px 3px;
   border: 0; border-radius: 16px; background: transparent; color: var(--of-text-soft); cursor: pointer;
   transition: color 420ms var(--of-ease), background-color 420ms var(--of-ease);
 }
@@ -857,6 +867,11 @@ ${R} .of-tab { position: relative; }
 ${R} .of-tab-dot {
   width: 7px; height: 7px; border-radius: 50%; background: ${PALETTE.rose}; box-shadow: 0 0 8px ${PALETTE.rose};
 }
+/* 0.21.0: an item won from Wish and not looked at yet: by its name (a look) or its kind (a Memory), on the tab that holds
+   it and on the dock. It is the only sign, so on Pearl's pale glass it takes the deeper accent ink, as Remind Me's does. */
+${R} .of-new-dot { display: inline-block; flex: none; vertical-align: middle; margin-inline-start: 6px; }
+${R} .of-dock-dot { position: absolute; top: 5px; inset-inline-end: calc(50% - 17px); margin: 0; }
+${R}[data-look="pearl"] :is(.of-new-dot, .of-dock-dot, .of-album-tabs .of-tab-dot) { background: var(--of-accent-text); }
 /* An item's picture, or a quiet card in their colour with their initials. */
 ${R} .of-item-art {
   position: relative; display: grid; place-items: center; flex: none; width: 100%; aspect-ratio: 3 / 4;
@@ -1371,6 +1386,19 @@ ${R} .of-album-sticker--quiet {
 ${R} .of-album-sticker--quiet svg { color: var(--of-accent-text); }
 ${R} .of-album-sticker--quiet .of-button { min-height: 44px; }
 ${R} .of-album-sticker--quiet .of-cost { justify-content: center; }
+/* #2151: Tarot night's cards, each its whole card face (TAROT_RULES), labelled under it; three across on a phone. */
+${R} .of-album-cgs--card { grid-template-columns: repeat(auto-fill, minmax(min(112px, 30%), 1fr)); gap: 14px 10px; }
+${R} .of-album-card { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+${R} .of-album-card-view {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 0; border: 0;
+  border-radius: 8px; color: inherit; background: transparent; cursor: zoom-in; transition: transform 300ms var(--of-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  ${R} .of-album-card-view:hover { transform: translateY(-3px); }
+}
+${R} .of-album-card .of-album-cg-title { font-size: 0.86rem; overflow-wrap: anywhere; }
+${R} .of-album-card .of-button { min-height: 44px; }
+${R} .of-album-card .of-cost { justify-content: center; }
 ${R} .of-viewer { display: flex; flex-direction: column; gap: 10px; }
 ${R} .of-viewer-figure { display: flex; flex-direction: column; gap: 6px; margin: 0; }
 ${R} .of-viewer-img {
@@ -1610,6 +1638,11 @@ ${R} .of-quiz {
   text-align: center;
 }
 ${R} .of-quiz-play { align-self: center; }
+/* Under a date's wait (WaitQuiz): its own column below the status, scrolling on its own like Who said what? does. */
+${R} .of-wait-quiz {
+  flex: none; display: flex; flex-direction: column; align-self: center; width: min(100%, 560px); min-height: 0;
+  max-height: 58cqh; padding: 0 16px 18px;
+}
 ${R} .of-quiz-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; }
 ${R} .of-quiz-statement { margin: 0; font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
 ${R} .of-quiz-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
@@ -1624,7 +1657,9 @@ ${R} .of-quiz-point[aria-disabled="true"] { cursor: default; }
 ${R} .of-quiz-point[aria-disabled="true"]:not([aria-pressed="true"]) { opacity: 0.6; }
 ${R} .of-quiz-ends { display: flex; justify-content: space-between; gap: 8px; margin-top: -4px; font-size: 0.75rem; color: var(--of-text-soft); }
 ${R} .of-quiz-you { margin: 0; font-weight: 700; }
-${R} .of-quiz-answers { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; text-align: start; }
+${R} .of-quiz-answers {
+  display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0; padding-inline: 3px; list-style: none; text-align: start;
+}
 ${R} .of-quiz-answer { display: flex; align-items: center; gap: 10px; }
 ${R} .of-quiz-answer-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 ${R} .of-quiz-alike { flex: none; font-size: 0.78rem; font-weight: 700; color: var(--of-text-soft); }`;
@@ -2778,6 +2813,10 @@ ${R} .of-quote-label {
 }
 ${R} .of-quote-chip q { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--of-font-hand); font-size: 1.15rem; }
 ${R} .of-quote-chip .of-icon-button { width: 32px; height: 32px; }
+/* A sticker attached to the message box, shown small above it until Send (or Remove). */
+${R} .of-attached-sticker .of-sticker { width: 48px; height: 48px; flex: none; border-radius: 12px; }
+${R} .of-attached-sticker .of-sticker--quiet { font-size: 0.6rem; gap: 2px; }
+${R} .of-attached-sticker .of-sticker--quiet svg { width: 18px; height: 18px; }
 ${R} .of-stickers { position: relative; flex: none; }
 /* 44px touch targets: the Stickers button, and Send and the box beside it so the row stays even. */
 ${R} .of-stickers > .of-icon-button, ${R} .of-composer-row > .of-send { width: 44px; height: 44px; }

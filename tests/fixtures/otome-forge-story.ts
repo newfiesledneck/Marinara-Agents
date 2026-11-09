@@ -96,6 +96,7 @@ export async function storyWorld({
   content = defaultContent(),
   cancellation = false,
   personas = [],
+  characters = [],
   arcReply,
   quizReply,
   model = {},
@@ -106,12 +107,14 @@ export async function storyWorld({
   content?: ReturnType<typeof defaultContent>;
   cancellation?: boolean;
   personas?: Array<{ id: string; data: unknown }>;
+  /** The player's Engine character cards (0.20.0: side characters are matched to them). */
+  characters?: FakeRuntimeOptions["characters"];
   /** #1983 M4: the arc plan the fake writes, when a test needs one that differs from the default. */
   arcReply?: (prompt: string) => string;
   /** #2174: the personality quiz lines the fake writes, when a test needs other ones than fakeQuizReply's. */
   quizReply?: FakeRuntimeOptions["quizReply"];
-  /** The fake connection's context window, output cap and background admission (#2039). */
-  model?: Pick<FakeRuntimeOptions, "maxContext" | "maxOutputTokens" | "admissionRun">;
+  /** The fake connection's context window, output cap and background admission (#2039), and the embedders (0.19.0). */
+  model?: Pick<FakeRuntimeOptions, "maxContext" | "maxOutputTokens" | "admissionRun" | "embeddings" | "embeddingsFor">;
 }) {
   const fake = createFakeDocuments();
   const store = createOtomeStore(fake.documents);
@@ -119,6 +122,7 @@ export async function storyWorld({
     documents: fake.documents,
     replies,
     personas,
+    characters,
     ...(arcReply ? { arcReply } : {}),
     ...(quizReply ? { quizReply } : {}),
     ...model,

@@ -1,5 +1,60 @@
 # Otome Hearth release notes
 
+## 0.21.0 — 2026-11-08
+
+- **The top left button is a house.** It takes you Home, as before, and its circle is in the colour of whoever is with you there, beside their name.
+- **New items have a dot.** Anything you win from Wish shows a small dot in the Wardrobe or the Album: on the dock, on the tab that holds it, and by the item itself. The dot goes once you click the item (or one of its buttons).
+
+## 0.20.4 — 2026-11-08
+
+- **Every scene of a chapter remembers the same small moments.** A chapter now picks its small memories (message exchanges, Snapshots, Read Him, Claw Machine and Tarot rounds, Read Me notes and dates) once, for everyone in it, and each of its scenes is written with the same ones, marked with who knows them. On an Anthropic connection, after the first scene they're sent at the cached price instead of in full every time. Something that happens during a chapter is remembered from the next one.
+
+## 0.20.3 — 2026-11-08
+
+- **Route and repair chapters cost less to start.** Their plan now opens with the same story the chapter's scenes are written from, and on an Anthropic connection caches it, so the first scene reads it at the cached price instead of writing it all again. The plan sees the same things as before, in a different order. This works when your Planning and Narration connections are the same, as for main chapters.
+
+## 0.20.2 — 2026-11-08
+
+- **Messages cost less.** When you text a love interest on an Anthropic connection, everything that stays the same through the conversation (their card, what they know of the story, your earlier conversations) is cached for five minutes, so each reply after the first sends it at the cached price instead of in full. A daily message they send first is cached the same way for your answer.
+
+## 0.20.0 — 2026-11-08
+
+- **Side characters who keep coming back get a sprite.** Turn on **Side character sprites** in **Settings → Images**. Once a side character has spoken in two different chapters, their one full-body sprite stands where a love interest's figure does while they speak. It's one neutral picture, with no expressions. Stories you already started count the scenes you've read.
+- **Your own characters look like themselves.** Someone whose name matches one of your Engine character cards gets their sprite as soon as they speak, painted with that card's avatar and full-body sprite as references. Two cards with the same name are never guessed between.
+- **What it costs.** Each one takes 1 call on your Planning connection to write their look (none for a character card), then 1 image. With **Ask before painting** on, tap **Paint** beside the place while they speak.
+
+## 0.19.1 — 2026-11-08
+
+- **Not every chapter ends in a Confrontation or a Closer.** A main chapter has one only when it builds to it, and otherwise ends on an ordinary scene or a moment. A story arc's last chapter still has one for its big event. Confrontations and Closers still alternate, counting only chapters that have one.
+
+## 0.19.0 — 2026-11-08
+
+- **Long stories remember their beginnings in detail.** As a story grows, its early chapters are condensed again and again. Now each main chapter brings back up to three earlier chapters that matter to it, by their original summaries, in its plan and every scene. Only chapters everyone in it may know come back, and nothing changes when none is close enough.
+- **Stories you already have too.** Chapter summaries are indexed in the background when you open a story and after each new summary, with no model call. The built-in model runs on this computer and its index is stored with the story.
+- **Memory recall embeddings.** In **Settings → Connections**, choose **Built-in (local)** or an Engine connection with its own embedding model, for example one better at your story's language. An older Engine offers only Built-in. Beside it you see how many summaries are indexed, or why indexing failed, with **Retry indexing**.
+
+## 0.18.2 — 2026-11-08
+
+- **Their side shows what you never saw.** A love interest's side of a big moment is now a scene you weren't there for, just before it or right after you left, instead of the same scene told again. It opens once they reach **Wound**; earlier moments don't count.
+
+## 0.18.1 — 2026-11-08
+
+- **Stories meet the world's important people.** Chapters now bring in major side characters with real parts, not only passing locals, so they can grow into love interests or antagonists later. In a story set in an existing world, that means its own canon characters tied to your love interests.
+- **Premise suggestions may use existing worlds.** Surprise me no longer avoids names, places and characters from existing books, films and games.
+
+## 0.18.0 — 2026-11-08
+
+- **Your Tarot cards are in the Album.** A new **Cards** section keeps every card you've drawn at Tarot night with an image connection, in deck order, each labelled with whose it is, such as "The Lovers · Ren". Tap a painted card to see it large and save it, as you would a CG. A card still painting says so, and one waiting for your tap, or one that failed, offers **Paint it** or **Try painting it again** with its cost right there.
+
+## 0.17.2 — 2026-11-08
+
+- **Send a sticker with your words.** In Messages, picking a sticker now attaches it to your message instead of sending it at once. It shows above the box with a remove button; write something if you like, then tap **Send** to send the sticker and your words together. Picking another sticker swaps it.
+- **The personality quiz on date waits too.** While Date Night plans your evening, and while Read Him, Read Me or Tarot night is being set or read, tap **Play the personality quiz** to answer statements as you wait.
+
+## 0.17.1 — 2026-11-08
+
+- **Faces, framed as faces.** The small portrait circles now frame each love interest at the face instead of the middle of the body: their painted look is anchored at the top and zoomed to the head and shoulders, so no crown is cut. In the personality quiz, the portraits beside their answers no longer lose their left edge.
+
 ## 0.17.0 — 2026-11-07
 
 - **Take the personality quiz while a chapter is planned.** While a chapter is being planned, tap **Play the personality quiz** and answer statements from strongly disagree to strongly agree. After each answer you see how every love interest answered the same statement, and how alike the two of you are so far. Statements about sex and kinks appear only when Heat is NSFW. Once you've answered them all, 50 new statements are written for you in the background.

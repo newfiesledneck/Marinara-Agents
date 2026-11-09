@@ -39,7 +39,7 @@ import { CostHint } from "../../components/CostHint";
 import { DeclinedPanel } from "../../components/DeclinedPanel";
 import { Dialog } from "../../components/Dialog";
 import { ARCANA_NAME_KEYS, TarotBack, TarotCard, TarotFace } from "../../components/TarotCard";
-import { imagesOn, tarotQueryKey, useItemActions, type ItemActions, type PaintTarget } from "../../hooks/use-items";
+import { imagesOn, tarotPaintTarget, tarotQueryKey, useItemActions, type ItemActions } from "../../hooks/use-items";
 import { useAudioSnapshot, useOtomeAudio } from "../../hooks/use-otome-audio";
 import { runPath } from "../../hooks/use-reader";
 import { patchRun, runQueryKey } from "../../hooks/use-run";
@@ -71,6 +71,7 @@ import { PALETTE } from "../../theme/tokens";
 import { FacePlate } from "../reader/FacePlate";
 import { PaintReviewDialog } from "../wish/TenPullGrid";
 import { playQueryKey, type ActivityScreenProps } from "./DatesHub";
+import { WaitQuiz } from "../story/PersonalityQuiz";
 
 /** While a shown card paints, the deck is read again this often (as the Shop and the Wardrobe do). */
 const POLL_MS = 3_000;
@@ -107,15 +108,6 @@ function typing(target: EventTarget): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
-
-/** S/routes/tarot.ts: POST .../art/tarot {li, card} and .../art/tarot/prompt; `subject` names it in the review. */
-const tarotPaintTarget = (runKey: string, li: string, card: Arcana, subject: string): PaintTarget => ({
-  id: `tarot:${deckKey(card, li)}`,
-  subject,
-  paintPath: `${runPath(runKey)}/art/tarot`,
-  promptPath: `${runPath(runKey)}/art/tarot/prompt`,
-  body: { li, card },
-});
 
 /** GET /runs/:run/lis/:li/tarot, read again while one of the deck's cards paints. */
 function useTarot(runKey: string, li: string) {
@@ -386,12 +378,15 @@ export function TarotNight({ runKey, view, li: picked, onExit }: ActivityScreenP
       ) : phase.kind === "pick" ? (
         <Pick accent={accent} picks={picks} headingRef={pickRef} onPicks={setPicks} onTurn={() => void start()} />
       ) : phase.kind === "loading" ? (
-        <div className="of-center" role="status">
-          <Heart className="of-pulse" size={28} strokeWidth={1.6} fill="currentColor" aria-hidden="true" />
-          <p className="of-body">
-            {phase.what === "start" ? t("ui.otomeForge.tarot.loading", { name }) : t("ui.otomeForge.tarot.finishing")}
-          </p>
-        </div>
+        <>
+          <div className="of-center" role="status">
+            <Heart className="of-pulse" size={28} strokeWidth={1.6} fill="currentColor" aria-hidden="true" />
+            <p className="of-body">
+              {phase.what === "start" ? t("ui.otomeForge.tarot.loading", { name }) : t("ui.otomeForge.tarot.finishing")}
+            </p>
+          </div>
+          <WaitQuiz runKey={runKey} lis={view.lis} />
+        </>
       ) : phase.kind === "failed" && phase.retry === "start" ? (
         // Writing the reading failed (a refusal, no connection, a bad reply): said honestly; Retry keeps the picks.
         <div ref={failedRef} className="of-rh-failed">

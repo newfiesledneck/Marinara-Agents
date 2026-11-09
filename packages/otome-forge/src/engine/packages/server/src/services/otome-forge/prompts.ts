@@ -64,7 +64,9 @@
 //   notebookMemories: older Read Me entries as recall records (S/memory/memory.ts)
 // (f) Phone
 //   renderThread: the thread as prompt text (P17, S/phone/memory.ts)
-//   chatReplyMessages: P17 chat reply, with stickers (#2044) and daily messages (S/phone/chat.ts, S/phone/daily.ts)
+//   chatReplyMessages: P17 chat reply, with stickers (#2044) and daily messages (S/phone/chat.ts, S/phone/daily.ts);
+//     0.20.2: its instructions and his card, the story and the conversations that are over are cached (five minutes),
+//     the thread now and the task after them
 //   chatMemoryMessages: P18 what he remembers of a closed conversation (S/phone/memory.ts), and the group chat's
 //   groupChatMessages: P17g the group chat's reply and squabble (#2154, S/phone/group.ts)
 // (g) Home and care
@@ -99,6 +101,9 @@
 //   stickerPrompt: a chat sticker (S/art/stickers.ts)
 //   figurinePrompt: a love interest's Shop figurine, painted once it is bought, #2138 (S/art/figurine.ts)
 //   photoPrompt: a Photo Shoot photo (S/minigames/photo-shoot.ts)
+// (m) Side characters
+//   sideLookMessages: a recurring side character's look, for their sprite, 0.20.0 (S/story/side-cast.ts); the sprite
+//     itself is lookPrompt's (S/art/side-sprites.ts)
 //
 // ELSEWHERE, and why
 // - The forge kit, shared with Gacha Forge (sources/forge-kit; editing it changes Gacha Forge too):
@@ -127,7 +132,7 @@
 //   (arcs), S/story/chapters.ts (P5), S/story/routes-plan.ts (P10, P11), S/story/beats.ts and S/story/prologue.ts
 //   prologueProblem (P6), S/story/confrontation.ts (P12, P12c), S/phone/replies.ts (P17, P18), S/home/lines.ts,
 //   S/home/note.ts, S/care/care-note.ts, S/minigames/read-me.ts, read-him.ts, date-night.ts, quiz.ts and plush.ts (with
-//   S/art/plush-svg.ts), S/art/stickers.ts, S/wish/replies.ts, S/items/replies.ts checkLine, S/audio/music.ts.
+//   S/art/plush-svg.ts), S/art/stickers.ts, S/story/side-cast.ts, S/wish/replies.ts, S/items/replies.ts checkLine, S/audio/music.ts.
 // - Text built inside non-prompt code, which moving would mean rewriting that code: S/story/canon.ts (EASE_OFF_MARKER,
 //   whose start C/lib/reader-state.ts matches; a climax pick's canon marker; titleOf, a private chapter's title;
 //   DECISIONS_HEADING and the decision lines; the recall block headings), the private titles and texts of memory
@@ -383,7 +388,7 @@ export const WRITING_RULES = [
   "Falling for the protagonist does not make a monster good or secretly kind at once; as affection grows and they come to know the protagonist, they may become a better partner to them, in their own way.",
   "The protagonist knows only what the story has shown them and what their own persona would know.",
   "A card or bible is for writing a character, never what the protagonist knows: a love interest's past, body, habits, powers, and words for their world reach the protagonist only on the page, when they are told, see it, or find it out. Until then the protagonist does not understand them, and nobody talks to the protagonist as if they do.",
-  "When the story is set in an existing world from a game, book, film or show, keep to its canon: its places, peoples, powers, history and terms. Never rename, replace, or reinvent them.",
+  "When the story is set in an existing world from a game, book, film or show, keep to its canon: its places, peoples, characters, powers, history and terms. Never rename, replace, or reinvent them.",
 ] as const;
 
 export const STORY_PACING_INSTRUCTION =
@@ -820,7 +825,7 @@ export function premiseMessages(language: string): OtomeMessage[] {
         "RULES",
         `- 3 to 5 sentences, written in ${language}.`,
         "- An original setting and situation with a romance-mystery hook: something is wrong, someone is hiding it, and the protagonist is about to be drawn in.",
-        "- No real people, and no names, places or characters from existing books, films, games or other media.",
+        "- No real people.",
         "- Everyone in it is an adult. No school settings and no students.",
         "- Leave the love interests unnamed: the player brings the cast.",
         '- Never assume the protagonist\'s gender: address them as "you".',
@@ -1104,9 +1109,12 @@ export function musicBriefMessages(world: Pick<World, "premise" | "setting">, cu
 // #2046 (Side with): while a side-with scene may come (S/story/chapters.ts sideWithOpen), P5 may mark one beat node
 // where two to four love interests disagree; P6 on that node offers ONE choice with an option per love interest present,
 // each naming whom it backs, and the game, never the reply, sets what siding changes. Other prompts are unchanged.
-// #2155 (his side): P6 tells one scene again from a love interest's point of view (hisSideFraming): its instructions let
+// #2155 (his side): P6 writes a scene the protagonist was not there for, beside a big moment, from a love interest's
+// point of view (hisSideFraming): its instructions let
 // only him think and carry no choice rules, its card is as things stood at the moment (the caller's state), and the
 // scene as the protagonist lived it goes in the last turn, after the cached part. Its story context and every other chapter's messages are unchanged.
+// 0.19.1: P5's climax is optional, planned only when the chapter builds to one; a story arc's last chapter keeps one
+// for its big event.
 
 // ── The blocks and rules the story prompts share ──
 // Most other prompts carry these blocks too (betweenYou, knowsAboutYou, protagonistBlock, appearanceLine, bibleBlock,
@@ -1468,7 +1476,9 @@ export function sceneCardBlock(unit: Unit, liState: LiState, resolves: readonly 
 // `cached`), the task. Each of the first three parts ends where the provider may cache the prompt (cacheBreakpoint,
 // capability API 1.814; P5, P12 and P12c mark the story context alone, as no later call shares the rest, and P5 on a
 // connection of its own marks nothing), so after a chapter's first call its story context is sent at the cached price.
-// Nothing in the story context may follow the node, its cast or the prompt's kind.
+// Nothing in the story context may follow the node, its cast or the prompt's kind. 0.20.4: P6, P12 and P12c send the
+// chapter's small memories (S/story/canon.ts `pool`) as a cached part of their own right after it, the same for every
+// scene of the chapter; P5's own recalls still follow its cached part.
 
 export interface StoryContextInput {
   world: World;
@@ -1540,15 +1550,18 @@ function storyMessages(
   instructions: string,
   texts: readonly string[],
   rest: readonly string[],
-  { marks = "all" }: { marks?: "all" | "context" | "none" } = {},
+  { marks = "all", pool = "" }: { marks?: "all" | "context" | "none"; pool?: string } = {},
 ): OtomeMessage[] {
   const settled = texts.slice(0, -1);
   const marked = (message: OtomeMessage): OtomeMessage =>
     marks === "all" ? { ...message, cacheBreakpoint: true } : message;
+  const cachedPart = (content: string): OtomeMessage =>
+    marks === "none" ? { role: "system", content } : { role: "system", content, cacheBreakpoint: true };
   return [
-    marks === "none"
-      ? { role: "system", content: context }
-      : { role: "system", content: context, cacheBreakpoint: true },
+    cachedPart(context),
+    // The chapter's small memories under their heading (S/story/canon.ts), the same for each of its scenes (0.20.4);
+    // left empty when they give way, which the Engine drops. At most four marks in all.
+    ...(pool.trim() ? [cachedPart(pool.trim())] : []),
     marked({ role: "system", content: instructions }),
     ...settled.map((content, index): OtomeMessage =>
       index === settled.length - 1 ? marked({ role: "user", content }) : { role: "user", content },
@@ -1620,7 +1633,7 @@ export function arcPlanMessages(
     nothingLeft
       ? "- reveals: leave it empty. Every piece of the mystery and its truth are already revealed."
       : "- reveals: 1 to 4, in the order they land. kind piece reveals one love interest's part of the mystery (name them by id); kind truth reveals the whole answer, only in the last chapter and only once. Never schedule a piece marked ALREADY REVEALED, or the truth once it is told.",
-    "- antagonist: a person or force standing against the protagonist this arc; null when the arc's trouble is not a person.",
+    "- antagonist: a person or force standing against the protagonist this arc, in an existing world often one of its canon characters; null when the arc's trouble is not a person.",
     // #2047: only this writer knows which answer is true, so only it can promise the true one is among the options;
     // the narrator sees the question and the answers alone.
     '- judgment: OPTIONAL. Only when this arc holds a mystery, suspects, a traitor or a disputed account the protagonist could judge (who did it, who betrayed them, whom to believe). question: that question, short ("Who betrayed the guild?"). answers: 2 to 4 plausible answers, worded the same way; the true one (what the hidden truth, your reveals and your ending make true) is always among them, and you never mark which. Name the true answer in endsWith.what or in the reveal that answers it, since later writers see only those; when neither your hidden truth nor your ending answers the question, omit judgment. chapters: the 1-based positions of the chapters whose end may close on it, once the clues allow a real guess and before a reveal or the ending answers it. The scene writer sees only the question and the answers, the player may guess wrong, and whatever they pick is canon: write the later purposes so they hold either way. Never in a breathing arc, and never invented to fill the field: when the arc has no such question, omit judgment.',
@@ -1756,7 +1769,7 @@ export interface ChapterPlanInput {
   memory: string;
   /** The recalls' text (recallText with `cached`): the recalls and the canon only some may know, or "". */
   recalls?: string;
-  /** The climax this chapter must use (S/story/chapters.ts requiredClimax), or null when the planner picks. */
+  /** The climax this chapter must use if it has one (S/story/chapters.ts requiredClimax), or null when the planner picks. */
   climax?: ClimaxKind | null;
   /** The story arc this chapter belongs to (#1980); its scheduled reveal for this chapter is the only mystery text a planner sees. */
   arc?: StoryArc | null;
@@ -1818,24 +1831,25 @@ export function chapterPlanMessages({
     "- title: the chapter's name, 2 to 6 words. summary: one or two lines on what the chapter is about, without giving away its turns (the player reads it).",
     `- tags: content tags a reader should see before it starts, from: ${CHAPTER_TAGS.join(", ")}. Only what the chapter really holds; [] when none apply.`,
     "- nodes: kind beat is an ordinary scene. Kind moment is a scene with a special framing, set by moment: read-him (the protagonist reads one love interest's face to see what they really feel), call (a call from afar, only voices), date (time together that may go as hoped, or stumble on something real when the story gives it a reason). Kind confrontation is a climax: an argument in which something true comes out. Kind closer is a warm climax: a quiet moment in which the Lead offers something of themselves and lets the protagonist close, or almost does; it can end well, or go wrong.",
-    `- guide: what happens in that node, 2 to 4 sentences, for the narrator: who wants what, what changes, where it leaves things. cast: the ids of the love interests present. place: where it opens (optional). cg: true only for a node holding a story-defining image (a confession, a revelation, a rescue${firstNightCg(world) ? ", or under this Heat a first night together" : ""}). resolves: ids of open grievances this node may resolve.`,
+    `- guide: what happens in that node, 2 to 4 sentences, for the narrator: who wants what, what changes, where it leaves things. cast: the ids of the love interests present; name anyone else present in the guide. place: where it opens (optional). cg: true only for a node holding a story-defining image (a confession, a revelation, a rescue${firstNightCg(world) ? ", or under this Heat a first night together" : ""}). resolves: ids of open grievances this node may resolve.`,
     "- ledger.relationship: one line per love interest present on what moved between them and the protagonist. ledger.conflict: conflict seeds: plant a new one (type from: " +
       ANGST_TYPES.join(", ") +
       "), or escalate, complicate or resolve an open one by its id. ledger.offscreen: one line for every love interest NOT in this chapter: what they were doing meanwhile.",
     "RULES",
-    `- ${NODES_MIN} to ${NODES_MAX} nodes; 1 or 2 moment nodes; exactly one climax node, a confrontation or a closer, as the second-to-last or last node; at most 2 nodes with cg.`,
+    `- ${NODES_MIN} to ${NODES_MAX} nodes; 1 or 2 moment nodes; at most one climax node, a confrontation or a closer, as the second-to-last or last node; at most 2 nodes with cg.`,
+    "- A climax only when the chapter builds to one; a chapter may go without, and end on an ordinary scene or a moment.",
     climax
-      ? `- This chapter's climax is a ${climax}: the last two main chapters both ended with a ${climax === "closer" ? "confrontation" : "closer"}.`
-      : `- Choose the climax the story calls for: open grievances and strain lean toward a confrontation, trust and calm toward a closer.${lastClimax ? ` The last main chapter ended with a ${lastClimax}.` : ""}`,
-    "- The Lead is in most nodes and in the climax; the Foil appears in at least one node. The Foil's goal competes with the protagonist's or the Lead's, and not always for the protagonist: a rivalry over a goal, a secret, a duty or the mystery counts too.",
+      ? `- If this chapter has a climax, it is a ${climax}: the last two climaxes were both ${climax === "closer" ? "confrontation" : "closer"}s.`
+      : `- If it has one, choose the climax the story calls for: open grievances and strain lean toward a confrontation, trust and calm toward a closer.${lastClimax ? ` The last main chapter ended with a ${lastClimax}.` : ""}`,
+    "- The Lead is in most nodes and in the climax, if any; the Foil appears in at least one node. The Foil's goal competes with the protagonist's or the Lead's, and not always for the protagonist: a rivalry over a goal, a secret, a duty or the mystery counts too.",
     `- Never plan a chapter on the template of the ones before it: vary what drives it and where its turn falls. When its last node leaves a lasting decision open, make it ${VARIED_DECISION}.`,
     // #2047: a climax-last plan has no big choice at its end, so it could never close on the judgment.
     ...(judgment
       ? [
-          "- This chapter's end may close on a judgment the protagonist can get wrong (the narrator decides; it is optional): put the climax second-to-last, so the last node can hold a big choice.",
+          "- This chapter's end may close on a judgment the protagonist can get wrong (the narrator decides; it is optional): put any climax second-to-last, so the last node can hold a big choice.",
         ]
       : []),
-    "- The world has other people: give named minor characters (friends, family, rivals, officials, locals) real parts where the story calls for them; they speak and can matter. Not every node needs a love interest: the protagonist has a life of their own, and a node may be theirs alone or with others (cast []). A moment node and the climax always have their love interest in cast.",
+    "- The world has other people, important ones too: give named characters (friends, family, rivals, superiors, officials, locals) real parts where the story calls for them; they speak and can matter. Introduce major characters with depth, so they can become love interests or antagonists later; in an existing world, its canon characters tied to the love interests. Not every node needs a love interest: the protagonist has a life of their own, and a node may be theirs alone or with others (cast []). A moment node and the climax always have their love interest in cast.",
     "- No cap on the cast: when the beat needs everyone (a rescue, a party, a confrontation), a node may hold the whole cast, each with their own stake.",
     ...(sideWith ? [SIDE_WITH_PLAN_RULE] : []),
     TIME_RULE,
@@ -1866,7 +1880,9 @@ export function chapterPlanMessages({
               .map((entry) => `${entry.n} — ${entry.purpose}`)
               .join("; "),
           lastChapter
-            ? `THIS IS THE ARC'S LAST CHAPTER. Its big event is this chapter's climax: ${arc.endsWith?.what ?? arc.goal} Set "eventNode" to the climax node's index.`
+            ? arc.endsWith
+              ? `THIS IS THE ARC'S LAST CHAPTER. It has a climax, which carries its big event: ${arc.endsWith.what} Set "eventNode" to the climax node's index.`
+              : `THIS IS THE ARC'S LAST CHAPTER: ${arc.goal} If it has a climax, set "eventNode" to the climax node's index.`
             : arc.endsWith
               ? `Chapter ${arc.endsAt} ends the arc: ${arc.endsWith.what}`
               : "",
@@ -2036,6 +2052,8 @@ export interface BeatMessagesInput {
   memory: string;
   /** The recalls' text (recallText with `cached`): the recalls and the canon only some may know, or "". */
   recalls?: string;
+  /** The chapter's small memories (recallText's `pool`), the same for each of its scenes, or "". */
+  pool?: string;
   /** A main chapter's arc (#1980), for the story context, or null. */
   arc?: StoryArc | null;
   /** #2155: his side's scene as the protagonist lived it (S/story/his-side.ts hisSideSource), or none. */
@@ -2052,6 +2070,7 @@ export function beatMessages({
   storySoFar,
   memory,
   recalls = "",
+  pool = "",
   arc = null,
   prologue = "",
   hisSide = "",
@@ -2177,7 +2196,7 @@ export function beatMessages({
     chapterTexts(chapter, units, storySoFar, opening),
     rest,
     // Only a Rewrite of his side shares its instructions, so they are no cache write of their own (#2091).
-    pov ? { marks: "context" } : undefined,
+    { ...(pov ? { marks: "context" as const } : {}), pool },
   );
 }
 
@@ -2317,7 +2336,8 @@ function chapterLabel(chapter: BeatMessagesInput["chapter"], units: readonly Uni
   }
   if (chapter.kind === "repair") return `a repair chapter with ${owner}`;
   if (chapter.kind === "story") {
-    if (chapter.hisSide) return `${owner}'s side of it: the same events, told again from ${owner}'s point of view`;
+    if (chapter.hisSide)
+      return `${owner}'s side of it: a scene the protagonist was not there for, just before that moment or right after they left`;
     return chapter.prestige ? `${owner}'s extra story, imagined together (not canon)` : `${owner}'s Character Story`;
   }
   return `${chapter.kind} chapter`;
@@ -2356,13 +2376,13 @@ function prestigeFraming(name: string, prestige: NonNullable<Chapter["prestige"]
 }
 
 /**
- * #2155: what P6 adds to his side (`side-<li>-<arc>`, S/story/his-side.ts) in place of the Character Story's framing: the
- * scene above, told again from his point of view, as things stood at the moment (the caller's state).
+ * #2155: what P6 adds to his side (`side-<li>-<arc>`, S/story/his-side.ts) in place of the Character Story's framing: a
+ * scene beside the one above that the protagonist never saw, from his point of view, as things stood then.
  */
 function hisSideFraming(name: string): string[] {
   return [
-    `This is ${name.toUpperCase()}'S SIDE: the scene above, told again from ${name}'s point of view. The same events in the same order, condensed to this node's length: the lines that matter are said again word for word, every choice and action of the protagonist's stays exactly as it was, nothing new happens, nothing is undone, and it ends where that scene ended. Never repeat the bracketed game markers.`,
-    `The narration stays with ${name}: what ${name} sees, notices and feels in their body. The protagonist is still "you", seen through ${name}'s eyes; where the writing rules speak of what the protagonist feels, write what ${name} feels, and let the protagonist's feelings show only as ${name} reads them. Keep everything How it's written asks but the point of view.`,
+    `This is ${name.toUpperCase()}'S SIDE: a scene the protagonist was not there for, beside the scene above: what led ${name} to it, or what ${name} did right after the protagonist left, whichever tells more. Never retell the scene above; it stays exactly as it happened. Never repeat the bracketed game markers.`,
+    `The narration stays with ${name}: what ${name} sees, notices and feels in their body. The protagonist is not in it, or only leaving at its start; where the writing rules speak of what the protagonist feels, write what ${name} feels. Keep everything How it's written asks but the point of view.`,
     `${name}'s thoughts show what ${name} wanted, feared and kept back then, in ${name}'s own voice, and only what ${name} knew at that moment, nothing that happened later. How far ${name} admits their feelings, even to themselves, keeps to the romance line on ${name}'s card.`,
     `A Hidden line on the card is never stated, even in thought; it presses on ${name} only as the tells do. The protagonist never learns any of this.`,
   ];
@@ -2444,8 +2464,12 @@ export interface ArcPlanInput {
   state: RunState;
   /** Whose chapter it is. */
   li: LiId;
-  /** Recalled memory (the kit's text), or "". */
+  /** The story memory's text (S/story/canon.ts recallText with `cached`, as his chapter's scenes get it), or "". */
   memory: string;
+  /** The recalls' text (recallText with `cached`), or "". */
+  recalls?: string;
+  /** 0.20.2: the chapter's scenes run on this connection too, so its story context is marked for them to read. */
+  sharesCache?: boolean;
 }
 
 const PLAN_SHAPE =
@@ -2457,7 +2481,7 @@ function arcPlanFields(world: Pick<World, "content">): string[] {
     "- title: the chapter's name, 2 to 6 words. summary: one or two lines on what the chapter is about, without giving away its turns (the player reads it).",
     `- tags: content tags a reader should see before it starts, from: ${CHAPTER_TAGS.join(", ")}. Only what the chapter really holds; [] when none apply.`,
     "- nodes: kind beat is an ordinary scene. Kind moment is a scene with a special framing, set by moment: read-him (the protagonist reads their face to see what they really feel), call (a call from afar, only voices), date (time together that may go as hoped, or stumble on something real when the story gives it a reason). Kind confrontation is an argument that comes to a head, played as three rounds of stances.",
-    `- guide: what happens in that node, 2 to 4 sentences, for the narrator: who wants what, what changes, where it leaves things. cast: the ids of the love interests present. place: where it opens (optional). cg: true only for a node holding a story-defining image${firstNightCg(world) ? " (under this Heat, a first night together counts)" : ""}. resolves: ids of open grievances this node may resolve.`,
+    `- guide: what happens in that node, 2 to 4 sentences, for the narrator: who wants what, what changes, where it leaves things. cast: the ids of the love interests present; name anyone else present in the guide. place: where it opens (optional). cg: true only for a node holding a story-defining image${firstNightCg(world) ? " (under this Heat, a first night together counts)" : ""}. resolves: ids of open grievances this node may resolve.`,
     `- ledger.relationship: one line on what moved between them and the protagonist. ledger.conflict: plant a new conflict seed (type from: ${ANGST_TYPES.join(", ")}), or escalate, complicate or resolve an open one by its id. ledger.offscreen: optional lines for love interests not in this chapter.`,
   ];
 }
@@ -2469,18 +2493,16 @@ function othersBlock(units: readonly Unit[], state: RunState, li: LiId): string 
     .join("\n\n");
 }
 
+/**
+ * P10's and P11's own part (0.20.2): what follows the story context they share with their chapter's scenes, which
+ * holds the world, the protagonist and the story memory. The premise and the mystery's truth are the planner's alone.
+ */
 function arcPlanUser(input: ArcPlanInput, heading: string, task: string[]): string {
-  const { world, player, units, state, li, memory } = input;
+  const { world, units, state, li, recalls = "" } = input;
   const unit = units.find((item) => item.id === li);
   return [
-    "WORLD",
-    world.setting.trim() || world.premise.trim(),
     ...plannerPremise(world),
-    world.mystery.question ? `The mystery: ${world.mystery.question}` : "",
     world.mystery.truth ? `The hidden truth (never stated outright): ${world.mystery.truth}` : "",
-    "",
-    "PROTAGONIST",
-    protagonistBlock(player),
     "",
     unit
       ? [
@@ -2501,13 +2523,31 @@ function arcPlanUser(input: ArcPlanInput, heading: string, task: string[]): stri
     // As recall's cast [li] (S/story/routes-plan.ts): no other love interest's own chapter reaches the plan.
     ledgerBlock(state, units, [li]) || "(none yet)",
     "",
-    memory.trim() ? `STORY MEMORY\n${memory.trim()}` : "",
+    recalls.trim(),
     "",
     ...task,
     otomeContractReminder("planner"),
   ]
     .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
     .join("\n");
+}
+
+/**
+ * P10 and P11 in the cached layout, as P5 is (0.20.2): the story context their chapter's scenes open with (its writing
+ * rules and content contract, the world, the protagonist, the story memory as his chapter's scenes get it), marked
+ * when the scenes run on the same connection, so the first scene reads what the plan wrote; then the plan's own
+ * instructions; then its own part.
+ */
+function planInStoryLayout(input: ArcPlanInput, system: string, user: string): OtomeMessage[] {
+  const { world, player, units, memory, sharesCache = false } = input;
+  const [instructions] = forgeChoicePlanMessages([{ role: "system" as const, content: system }], true);
+  return storyMessages(
+    storyContext({ world, player, units, number: null, arc: null, memory }),
+    instructions!.content,
+    [],
+    [user],
+    { marks: sharesCache ? "context" : "none" },
+  );
 }
 
 export interface RoutePlanInput extends ArcPlanInput {
@@ -2549,11 +2589,6 @@ export function routePlanMessages(input: RoutePlanInput): OtomeMessage[] {
     "- Never reveal a secret before its stage.",
     `- Write every text field in ${world.language}.`,
     "- Omit an optional field rather than writing null.",
-    "",
-    STORY_PACING_INSTRUCTION,
-    otomeWritingRules({ story: true, style: world.writingStyle, banned: world.bannedPhrases }),
-    "",
-    otomeContentContract({ world, lis: units.map((item) => ({ name: item.name })), kind: "planner" }),
   ]
     .filter(Boolean)
     .join("\n");
@@ -2566,13 +2601,7 @@ export function routePlanMessages(input: RoutePlanInput): OtomeMessage[] {
     ),
     `Plan ${name}'s route chapter toward stage ${stage} now (id ${li}).`,
   ]);
-  return forgeChoicePlanMessages(
-    [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    true,
-  );
+  return planInStoryLayout(input, system, user);
 }
 
 export interface RepairPlanInput extends ArcPlanInput {
@@ -2600,23 +2629,12 @@ export function repairPlanMessages(input: RepairPlanInput): OtomeMessage[] {
     TIME_RULE,
     `- Write every text field in ${world.language}.`,
     "- Omit an optional field rather than writing null.",
-    "",
-    STORY_PACING_INSTRUCTION,
-    otomeWritingRules({ story: true, style: world.writingStyle, banned: world.bannedPhrases }),
-    "",
-    otomeContentContract({ world, lis: units.map((item) => ({ name: item.name })), kind: "planner" }),
   ].join("\n");
   const user = arcPlanUser(input, `${name.toUpperCase()} (whose repair this is)`, [
     `The rupture (grievance ${grievance.id}, held by ${holder}): ${grievance.text}`,
     `Plan the repair between ${name} and the protagonist now (id ${li}).`,
   ]);
-  return forgeChoicePlanMessages(
-    [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    true,
-  );
+  return planInStoryLayout(input, system, user);
 }
 
 // ── P12: the Confrontation (narration, 0.9, scene contract, one call) ──
@@ -2631,7 +2649,20 @@ const SEGMENT_SHAPE = '{"speaker": "", "text": "...", "thought": false, "express
 
 /** P12: the opening, three rounds of four stances each, and the three endings, in one reply. */
 export function confrontationMessages(input: ConfrontationMessagesInput): OtomeMessage[] {
-  const { world, player, units, state, chapter, node, storySoFar, memory, recalls = "", arc = null, li } = input;
+  const {
+    world,
+    player,
+    units,
+    state,
+    chapter,
+    node,
+    storySoFar,
+    memory,
+    recalls = "",
+    pool = "",
+    arc = null,
+    li,
+  } = input;
   const backgrounds = savedBackgrounds(world);
   const present = units.filter((unit) => node.cast.includes(unit.id) || unit.id === li);
   const him = units.find((unit) => unit.id === li);
@@ -2703,7 +2734,7 @@ export function confrontationMessages(input: ConfrontationMessagesInput): OtomeM
     system + VOICES_INSTRUCTION,
     chapterTexts(chapter, units, storySoFar, "(This is the chapter's first node.)"),
     rest,
-    { marks: "context" },
+    { marks: "context", pool },
   );
 }
 
@@ -2715,7 +2746,20 @@ export function confrontationMessages(input: ConfrontationMessagesInput): OtomeM
  * their tastes (#1936), and Opened up may turn intimate; the content contract decides how far.
  */
 export function closerMessages(input: ConfrontationMessagesInput): OtomeMessage[] {
-  const { world, player, units, state, chapter, node, storySoFar, memory, recalls = "", arc = null, li } = input;
+  const {
+    world,
+    player,
+    units,
+    state,
+    chapter,
+    node,
+    storySoFar,
+    memory,
+    recalls = "",
+    pool = "",
+    arc = null,
+    li,
+  } = input;
   const backgrounds = savedBackgrounds(world);
   const present = units.filter((unit) => node.cast.includes(unit.id) || unit.id === li);
   const partner = units.find((unit) => unit.id === li);
@@ -2788,7 +2832,7 @@ export function closerMessages(input: ConfrontationMessagesInput): OtomeMessage[
     system + VOICES_INSTRUCTION,
     chapterTexts(chapter, units, storySoFar, "(This is the chapter's first node.)"),
     rest,
-    { marks: "context" },
+    { marks: "context", pool },
   );
 }
 
@@ -3094,7 +3138,11 @@ export function chatReplyMessages({
           "They already happened. Bring one up only where it fits; never replay it or start from it again.",
         ].join("\n")
       : "",
-    "",
+  ]
+    .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
+    .join("\n");
+  // 0.20.2: everything above stays the same through a conversation, so it is cached; the thread and the task follow.
+  const now = [
     "THE THREAD NOW (oldest first)",
     tail.length ? renderThread(tail, { li: name, player: them }, "his", stickers?.name) : "(no messages yet)",
     "",
@@ -3111,8 +3159,9 @@ export function chatReplyMessages({
     .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
     .join("\n");
   return [
-    { role: "system", content: system },
-    { role: "user", content: user },
+    { role: "system", content: system, cacheBreakpoint: true },
+    { role: "user", content: user, cacheBreakpoint: true },
+    { role: "user", content: now },
   ];
 }
 
@@ -5980,4 +6029,54 @@ export function photoPrompt(input: PhotoInput, edited: Partial<ImagePrompt> = {}
   return edited.negativePrompt?.trim()
     ? built
     : { ...built, negativePrompt: mergeTags(built.negativePrompt, PHOTO_NEGATIVE) };
+}
+
+// ──────────────────────────────────────────────
+// (m) Side characters
+// ──────────────────────────────────────────────
+// 0.20.0: a side character who keeps coming back (S/story/side-cast.ts) gets one full-body sprite, painted with
+// lookPrompt from a look written here in one background call on the Planning connection: their name, the setting, and
+// the scenes they spoke in, as the story wrote them (bounded by the caller). The reply is English, visual-only tags, as
+// a love interest's bible look is. A canon character of an existing world may take what the scenes leave open from
+// canon. A character card's own Appearance stands in for this call, so it is never made for one.
+
+/** The look call's prompt. `scenes` is the text of the scenes they spoke in, in story order, already bounded. */
+export function sideLookMessages({
+  world,
+  name,
+  scenes,
+}: {
+  world: Pick<World, "content" | "images" | "setting" | "premise">;
+  name: string;
+  scenes: string;
+}): OtomeMessage[] {
+  const system = [
+    `You write how one side character of an otome visual novel looks, for a full-body portrait of them: ${name}.`,
+    'Reply with ONLY a JSON object: {"identityLine": "...", "outfitLine": "...", "presentation": "man|woman|person"}',
+    "FIELDS",
+    "- identityLine: English only, visual-only comma-separated tags: face, hair, eyes, build, skin, marks, with adult features.",
+    "- outfitLine: English only, visual-only comma-separated tags: the clothing they wear in these scenes, else their everyday clothing in this world.",
+    "- presentation: how to draw them, man, woman or person.",
+    "RULES",
+    "- Everything the scenes show or say of their looks and clothing comes first, as English tags.",
+    "- When they are a known character of an existing book, film, game or series this world comes from, take what the scenes leave open from their canonical look.",
+    "- Otherwise fill what the scenes leave open with a look that fits who they are in the scenes, their role and the setting.",
+    "- Visual only: no names, personality, story, pose, expression or background.",
+    "",
+    otomeContentContract({ world, lis: [], kind: "planner" }),
+  ].join("\n");
+  const user = [
+    "THE SETTING",
+    world.setting.trim() || world.premise.trim(),
+    "",
+    `THE SCENES ${name.toUpperCase()} SPEAKS IN, IN STORY ORDER`,
+    scenes,
+    "",
+    `Write ${name}'s look now.`,
+    otomeContractReminder("planner"),
+  ].join("\n");
+  return [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ];
 }
