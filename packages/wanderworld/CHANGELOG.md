@@ -1,5 +1,15 @@
 # Wanderworld release notes
 
+## 0.4.75 — 2026-11-09
+
+- The AI's world setup has more room to answer (for models that think first), and the Journal's lore choices are worded as New world's.
+
+## 0.4.74 — 2026-11-09
+
+- The AI's setup of a new world is shown before the land is built: everyone's body, home, work and relationships, the places the world will get, the names and the lore tied to them, with the map and world size. From there: build it, ask the AI again, or go back to the settings (the setup is kept).
+- A model call that fails is tried once more; if it still fails, what did come through is kept, the review says what's missing, and "Ask the AI again" asks only for that. Building with a partial setup works, and Journal → World can finish it later.
+- The loading screen now also waits for your own figure.
+
 ## 0.4.73 — 2026-11-09
 
 - New world can be set up by the AI, ready to play: it reads your characters' cards and persona (no lorebook needed) and any lorebooks you choose, and sets who's a man or a woman, how people know each other and you, where everyone lives and works, which lore belongs to which place, names for the places the lore names, and builds the places that takes. The loading screen says what it's doing until the world is ready. Journal → World can run it again. Lorebook keywords and setting things by hand work as before.

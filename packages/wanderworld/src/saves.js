@@ -159,7 +159,7 @@ export function checkWorld(raw) {
     // The player's instructions for scenes started in this world (Wanderworld plans its scenes).
     sceneInstructions: text(raw.sceneInstructions).slice(0, 1000),
     // The lorebooks this world draws on (ids), and how their entries are linked to places: "keywords"
-    // (exact names, done when the world is built), "ai" (for the AI part to do), or "none".
+    // (exact names, done when the world is built), "ai" (the model reads them: `loreKeys`), or "none".
     lorebooks: Array.isArray(raw.lorebooks) ? raw.lorebooks.filter((id) => typeof id === "string").slice(0, 50) : [],
     loreLinking: ["keywords", "ai", "none"].includes(raw.loreLinking) ? raw.loreLinking : "none",
     // The same for characters: linking their entries by name and setting them up from the keywords

@@ -790,13 +790,13 @@ export function createJournal(panelCss, handlers) {
       body.append(select);
     };
     picker("loreLinking", [
-      ["none", "Places: I'll tie lore myself"],
-      ["keywords", "Places: link entries by matching names"],
-      ["ai", "Places: let the AI read the lorebooks and link them"],
+      ["none", "Lore and places: I'll tie lore myself"],
+      ["keywords", "Lore and places: link lorebook entries by matching names"],
+      ["ai", "Lore and places: let the AI read the lorebooks"],
     ]);
     picker("characterLinking", [
       ["none", "Characters: I'll set them up myself"],
-      ["keywords", "Characters: link and set up by name"],
+      ["keywords", "Characters: set up from lorebook keywords"],
       ["ai", "Characters: let the AI set them up (cards, persona, lorebooks)"],
     ]);
     const byAi = world.loreLinking === "ai" || world.characterLinking === "ai";

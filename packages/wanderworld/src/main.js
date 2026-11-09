@@ -14,6 +14,7 @@ import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
 import { findModel, loadModelCharacter } from "./models.js";
+import { summariseSetup } from "./setup.js";
 import { createPerson } from "./people.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
@@ -592,7 +593,7 @@ function playWorld(id) {
     core.personas?.[0] ??
     null;
   core.hud?.setPersonas(core.personas ?? [], persona?.id, core.bodies);
-  void choosePersona(persona?.id ?? null);
+  const figure = Promise.resolve(choosePersona(persona?.id ?? null)).catch(() => {});
   // The loading screen first (building blocks for a moment), then the world, shown once its detailed
   // trees, buildings and props are in (or after a while regardless).
   core.menu?.hide();
@@ -615,7 +616,7 @@ function playWorld(id) {
     };
     // Shown once the detail is in and the lore has linked up (so they appear at their door, not jump
     // there), or after a while regardless.
-    const ready = Promise.all([detail, core.linking ?? Promise.resolve()]);
+    const ready = Promise.all([detail, core.linking ?? Promise.resolve(), figure]);
     Promise.race([ready, new Promise((done) => setTimeout(done, BUILD_WAIT * 1000))]).then(shown);
   }, 60);
 }
@@ -683,24 +684,72 @@ const LORE_BATCH = 40; // entries a call reads (server.mjs takes no more)
 const LORE_ENTRIES = 200;
 
 /**
- * Has the model set the world up (server.mjs `/lore-setup`) and keeps what it makes in the save, as
- * keywords in the plain convention (`loreKeys`): first the cast's cards and the persona (when characters
- * are set up by the AI: bodies, homes, work, relationships; under "cards/<id>"), then the world's
- * lorebooks a batch at a time (under "lorebook id/entry id"), with names for the places the lore names
- * (`loreNames`). Each call is told what's placed already, so a number stays the same place.
- * `onProgress(text)` says what it's doing. Changes `save` in place; throws when a call fails.
+ * Has the model set the world up (server.mjs `/lore-setup`), as keywords in the plain convention: first
+ * the cast's cards and the persona (when characters are set up by the AI: bodies, homes, work,
+ * relationships; under "cards/<id>"), then the world's lorebooks a batch at a time (under "lorebook
+ * id/entry id"), with names for the places the lore names. Each call is told what's placed already, so
+ * a number stays the same place.
+ *
+ * A call that fails is tried once more; a part that still fails is left as it was in `save` and named
+ * in `failed`, and the rest goes on. `only` (ids from an earlier `failed`) asks for just those parts
+ * again. `onProgress(text)` says what it's doing. Returns { loreKeys, loreNames, failed: [{ id, label,
+ * error }], entries (lorebook entries read) }; `save` isn't changed.
  */
-async function aiLoreSetup(save, onProgress = () => {}) {
+async function aiLoreSetup(save, onProgress = () => {}, only = null) {
   const people = save.characterLinking === "ai";
   const cast = (core.characters ?? []).filter((entry) => save.cast?.includes(entry.id));
-  const books = save.lorebooks.length ? (await readLorebooks()).filter((book) => save.lorebooks.includes(book.id)) : [];
+  let books = [];
+  let unread = "";
+  if (save.lorebooks.length) {
+    try {
+      books = (await readLorebooks()).filter((book) => save.lorebooks.includes(book.id));
+    } catch (error) {
+      unread = error?.message ?? String(error);
+    }
+  }
   const entries = books
     .flatMap((book) => book.entries.map((entry) => ({ key: `${book.id}/${entry.id}`, title: entry.title, entry })))
     .slice(0, LORE_ENTRIES);
-  const keys = {};
-  const names = {};
+  const keys = { ...save.loreKeys };
+  const names = { ...save.loreNames };
   const placed = new Map(); // numbered place → the entry that used it first
-  const ask = async (batch, extra) => {
+  const place = (words, title) => {
+    for (const word of words)
+      for (const slot of word.toLowerCase().match(/\b[a-z]+\d+\b/gu) ?? [])
+        if (!placed.has(slot)) placed.set(slot, title);
+  };
+  for (const words of Object.values(keys)) place(words, "");
+
+  const parts = [];
+  if (people && (cast.length || save.persona)) {
+    const batch = cast.map((entry) => ({ key: `cards/${entry.id}`, title: entry.name, card: true }));
+    if (save.persona) batch.push({ key: "cards/player", title: "the player", card: true });
+    parts.push({
+      id: "cards",
+      label: "the characters",
+      doing: "getting to know your characters…",
+      batch,
+      extra: { characterIds: cast.map((entry) => entry.id), personaId: save.persona || null, entries: [] },
+    });
+  }
+  for (let at = 0; at < entries.length; at += LORE_BATCH) {
+    const batch = entries.slice(at, at + LORE_BATCH);
+    const several = entries.length > LORE_BATCH;
+    parts.push({
+      id: `lore:${at}`,
+      label: several ? `lorebook entries ${at + 1} to ${at + batch.length}` : "the lorebooks",
+      doing: several ? `reading the lorebooks (${at} of ${entries.length} entries)…` : "reading the lorebooks…",
+      batch,
+      extra: {
+        entries: batch.map(({ entry }) => ({
+          title: entry.title,
+          keys: entry.keys,
+          content: entry.content.slice(0, 600),
+        })),
+      },
+    });
+  }
+  const ask = async ({ batch, extra }) => {
     const result = await core.ai.loreSetup({
       connectionId: core.settings.textConnection || null,
       worldName: save.name,
@@ -718,36 +767,84 @@ async function aiLoreSetup(save, onProgress = () => {}) {
         (word) => !card || !/^(world$|group of|located in)/iu.test(word),
       );
       if (words.length) keys[key] = words;
-      for (const word of words)
-        for (const slot of word.toLowerCase().match(/\b[a-z]+\d+\b/gu) ?? [])
-          if (!placed.has(slot)) placed.set(slot, title);
+      else delete keys[key];
+      place(words, title);
     });
     for (const [slot, name] of Object.entries(result?.names ?? {})) names[slot] ??= name;
   };
-  if (people && (cast.length || save.persona)) {
-    onProgress("getting to know your characters…");
-    const cards = cast.map((entry) => ({ key: `cards/${entry.id}`, title: entry.name, card: true }));
-    if (save.persona) cards.push({ key: "cards/player", title: "the player", card: true });
-    await ask(cards, { characterIds: cast.map((entry) => entry.id), personaId: save.persona || null, entries: [] });
+  const failed = unread ? [{ id: "books", label: "the lorebooks", error: unread }] : [];
+  for (const part of parts) {
+    // Asked again: only what failed (every lorebook part, when the lorebooks couldn't be read at all).
+    if (only && !only.includes(part.id) && !(only.includes("books") && part.id.startsWith("lore:"))) continue;
+    onProgress(part.doing);
+    try {
+      await ask(part);
+    } catch (first) {
+      // Once more for a bad answer or a dropped call; not when the server part or the device is refused.
+      if ([403, 404].includes(first?.status)) {
+        failed.push({ id: part.id, label: part.label, error: first?.message ?? String(first) });
+        continue;
+      }
+      onProgress(`${part.doing} (trying again)`);
+      try {
+        await ask(part);
+      } catch (error) {
+        failed.push({ id: part.id, label: part.label, error: error?.message ?? String(error) });
+      }
+    }
   }
-  for (let at = 0; at < entries.length; at += LORE_BATCH) {
-    onProgress(
-      entries.length > LORE_BATCH
-        ? `reading the lorebooks (${at} of ${entries.length} entries)…`
-        : "reading the lorebooks…",
+  return { loreKeys: keys, loreNames: names, failed, entries: entries.length };
+}
+
+/** How a world's lore is linked, as its save keeps it: the AI can set characters up from their cards alone; the other ways need a lorebook. */
+function linkingOf(lorebooks, loreLinking, characterLinking) {
+  return {
+    loreLinking: lorebooks.length ? loreLinking : "none",
+    characterLinking: lorebooks.length || characterLinking === "ai" ? characterLinking : "none",
+  };
+}
+
+/**
+ * New world's first step when the AI sets it up: the setup (`aiLoreSetup`), with the loading screen up
+ * and saying what's going on, for the menu to show before the land is built. `previous` (an earlier
+ * answer with failed parts) asks only for what failed. Returns { setup: { loreKeys, loreNames, failed },
+ * summary (setup.js), needs: { kind: count } }.
+ */
+async function planNewWorld(
+  { name, setting = "", lorebooks = [], loreLinking, characterLinking, cast, persona },
+  previous,
+) {
+  const draft = {
+    name: name || suggestName(),
+    setting,
+    lorebooks,
+    ...linkingOf(lorebooks, loreLinking, characterLinking),
+    cast: cast ?? [],
+    persona: persona ?? core.personaId,
+    loreKeys: previous?.loreKeys ?? {},
+    loreNames: previous?.loreNames ?? {},
+  };
+  core.hud?.setLoading("Building your world…");
+  let setup;
+  try {
+    setup = await aiLoreSetup(
+      draft,
+      (doing) => core.hud?.setLoading(`Building your world: ${doing}`),
+      previous?.failed?.length ? previous.failed.map((part) => part.id) : null,
     );
-    const batch = entries.slice(at, at + LORE_BATCH);
-    await ask(batch, {
-      entries: batch.map(({ entry }) => ({
-        title: entry.title,
-        keys: entry.keys,
-        content: entry.content.slice(0, 600),
-      })),
-    });
+  } finally {
+    core.hud?.setLoading(null);
   }
-  save.loreKeys = keys;
-  save.loreNames = names;
-  return Object.keys(keys).length;
+  const needs = await worldNeeds({ ...draft, ...setup });
+  return {
+    setup,
+    needs,
+    summary: summariseSetup(setup, {
+      characters: (core.characters ?? []).filter((entry) => draft.cast.includes(entry.id)),
+      persona: core.personas?.find((entry) => entry.id === draft.persona)?.name ?? "",
+      entries: setup.entries,
+    }),
+  };
 }
 
 /**
@@ -774,29 +871,18 @@ async function createNewWorld({
   characterLinking = "none",
   cast = null,
   persona = null,
+  setup = null, // the AI's setup, as the menu reviewed it (planNewWorld)
 }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
   save.setting = setting;
   save.lorebooks = lorebooks;
-  save.loreLinking = lorebooks.length ? loreLinking : "none";
-  // The AI can set the characters up from their cards alone; the other ways need a lorebook.
-  save.characterLinking = lorebooks.length || characterLinking === "ai" ? characterLinking : "none";
+  Object.assign(save, linkingOf(lorebooks, loreLinking, characterLinking));
   save.lorePending = save.loreLinking !== "none" || save.characterLinking !== "none";
   save.persona = persona ?? core.personaId;
   save.cast = cast ?? [];
-  let failed = "";
-  if (save.loreLinking === "ai" || save.characterLinking === "ai") {
-    // The loading screen stays up from here until the world is built and set up, saying what's going on.
-    core.menu?.hide();
-    core.hud?.setLoading("Building your world…");
-    try {
-      await aiLoreSetup(save, (doing) => core.hud?.setLoading(`Building your world: ${doing}`));
-    } catch (error) {
-      failed = error?.message ?? String(error);
-    }
-    core.hud?.setLoading("Building your world: raising the land…");
-  }
+  save.loreKeys = setup?.loreKeys ?? {};
+  save.loreNames = setup?.loreNames ?? {};
   // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
   save.needs = await worldNeeds(save);
   save.landscape = landscapeNeeds(landscapeWith(hashString(save.seed), choices), save.needs, hashString(save.seed));
@@ -807,7 +893,6 @@ async function createNewWorld({
   save.bodies = {}; // everyone auto until set here, by hand or by lore
   core.saves.write(save);
   playWorld(save.id);
-  if (failed) core.hud?.setNotice(`The AI couldn't set the world up (${failed}). Journal → World can try again.`);
 }
 
 /**
@@ -872,8 +957,8 @@ async function regenerateWorld(reshuffle = false, size = null, newSeed = null) {
 // ── Maps (map.js) ────────────────────────────────────────────────────────────
 
 /** New world's preview: the land and settlement `seed` and the `choices` make (before any lore needs). */
-function previewNewWorld(canvas, seed, choices) {
-  const landscape = landscapeWith(hashString(seed), choices);
+function previewNewWorld(canvas, seed, choices, needs = {}) {
+  const landscape = landscapeNeeds(landscapeWith(hashString(seed), choices), needs, hashString(seed));
   drawMap(canvas, previewMap(hashString(seed), landscape, sizeFor(choices?.size, landscape)));
 }
 
@@ -3590,16 +3675,20 @@ function attach(element) {
     onLinkLore: async () => {
       const byAi = core.save?.loreLinking === "ai" || core.save?.characterLinking === "ai";
       if (byAi) {
-        const save = { ...core.save };
-        core.hud?.setNotice("The AI is setting the world up…");
-        try {
-          await aiLoreSetup(save);
-        } catch (error) {
-          core.hud?.setNotice(`The AI couldn't set the world up (${error?.message ?? error}).`);
+        const save = core.save;
+        const setup = await aiLoreSetup(save, (doing) =>
+          core.hud?.setNotice(`The AI is setting the world up: ${doing}`),
+        );
+        if (core.save?.id !== save.id) return; // another world was opened meanwhile
+        core.save = { ...core.save, loreKeys: setup.loreKeys, loreNames: setup.loreNames };
+        if (setup.failed.length) {
+          // What came through is kept and linked; the rest stays as it was.
+          await linkLore();
+          core.hud?.setNotice(
+            `The AI couldn't do ${setup.failed.map((part) => part.label).join(", ")} (${setup.failed[0].error}). The rest is set up; try again for what's missing.`,
+          );
           return;
         }
-        if (core.save?.id !== save.id) return; // another world was opened meanwhile
-        core.save = { ...core.save, loreKeys: save.loreKeys, loreNames: save.loreNames };
       }
       const count = await linkLore();
       core.hud?.setNotice(
@@ -3664,6 +3753,7 @@ function attach(element) {
       last: () => core.saves.last(),
       onPlay: playWorld,
       onCreate: createNewWorld,
+      onSetup: planNewWorld,
       preview: previewNewWorld,
       // Everyone New world can choose from: personas, characters, the Engine's character folders, and
       // who's chosen now (the last world's cast and persona).

@@ -1,4 +1,4 @@
-// Placeholder conversations until the AI writes them (docs/CONCEPT.md, S3 and S5): short back-and-forth
+// Set conversations, for when the AI isn't writing them (AI conversations off, or a call failed): short back-and-forth
 // exchanges townsfolk have with each other, and a few dialogue choices for the player, all picked by how
 // the two people feel about each other. Lines can name people and places: {A} and {B} (the two in an
 // exchange, A speaking first), {name} (the one the player talks to), {you} (the player), {town},
@@ -188,7 +188,7 @@ const FAREWELLS = {
   cold: ["Finally.", "Good riddance."],
 };
 
-/** For whatever the player types, until the AI answers properly. */
+/** For whatever the player types, when the AI isn't answering. */
 const ANSWERS = {
   stranger: ["Is that so?", "Hm. I'll take your word for it.", "If you say so."],
   neutral: ["Mm, I was just thinking the same.", "Ha! You don't say.", "I'll have to remember that."],
