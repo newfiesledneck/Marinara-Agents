@@ -623,7 +623,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.4.84, 2026-11-09)
+## Outstanding (as of 0.4.87, 2026-11-09)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -657,14 +657,19 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
 - A look for spring and fall (tree and grass tints).
 - People made for a world: renaming, removing, and adding one by hand.
 
+**Later (decided 2026-11-09: not now)**
+
+- Quartermaster as the character sheet and inventory in the world. Today it works inside scenes
+  started from Wanderworld (they are roleplay chats), not while walking about. Using it here, instead
+  of building a sheet and inventory of our own, is its own piece of work and waits.
+
 **Known limits (in the README too)**
 
 - People a world made for itself can't be cast in Engine scenes: the Engine casts its own characters.
 - The world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
 - Another region has no townsfolk of its own; walk-in rooms are unfinished and off by default.
 - The camera doesn't avoid trees, so foliage can fill the view.
-- Quartermaster works in scenes started from Wanderworld, not in the world (using it as the character
-  sheet and inventory here is its own piece of work, proposed separately).
+- Quartermaster works in scenes started from Wanderworld, not in the world (see Later).
 
 **Keywords: kept short on purpose**
 

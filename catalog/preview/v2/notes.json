@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.87",
+          "date": "2026-11-09",
+          "notes": "- Journal → People → Relationships is back as an overview to read: how everyone sees each other and you, person by person. Changing one is done in Edit people.\n- Hints in the game point to Menu → Settings now that Settings lives in the Menu.",
+          "highlight": false
+        },
+        {
           "version": "0.4.86",
           "date": "2026-11-09",
           "notes": "- The person window lets you pick a role for a relationship again (family: sister, parent, cousin…; colleague: employer, apprentice…; mentor: mentor or student), beside its kind and strength. A role a lorebook gave (\"father\", \"wife\") stays on offer.",
@@ -307,12 +313,6 @@
           "version": "0.4.68",
           "date": "2026-11-09",
           "notes": "- A server part (needs an Engine restart after installing or updating): people answer in their own words, written by your model from their card, your persona, where you are, the time and weather, how they feel about you and the lore active there; set lines stand in if a call fails.\n- Settings → AI: AI conversations on or off, the connections for conversations, scenes and pictures, how people talk, reply length, creativity, and the picture style (the Engine's style profiles).\n- \"Play it as a scene\" on a scene card opens it as a roleplay scene in the Engine with everyone there; its recap comes back to Journal → Here.\n- Journal → Here: \"Picture this place\" paints where you are through your image connection.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.67",
-          "date": "2026-11-09",
-          "notes": "- The sound of rain while it rains (softer indoors), and no birdsong in it.",
           "highlight": false
         }
       ]
