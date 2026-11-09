@@ -398,9 +398,9 @@ world's preview (they're read when the world is made), a zoomable map, marking p
 
 **Saved for later (not forgotten)**
 
-- New kinds of place: farms in fuller detail, a mill, ruins, a watchtower, a graveyard by the temple, a
-  lake or pond, a forest clearing with standing stones, more cave kinds (a mine, a grotto), a coast.
-  Each gets a numbered name for lore (farm1, ruins1…).
+- New kinds of place: ~~a mill, ruins, a watchtower, a graveyard, standing stones~~ (0.4.58, `LANDMARKS`
+  in world.js, numbered ruins1, mill1…). Still to come: a lake or pond (needs swimmable water off the river),
+  more cave kinds (a mine, a grotto), a coast, farms in fuller detail.
 - Weather and seasons, only if they look good: the Engine's chat weather (`WeatherEffects.tsx`, with
   `weather-renderer`) is a 2D overlay; it's a guide to the look and the weather names, but here it
   would be rain and snow falling in the scene, fog density, the sky's tint, wet darker ground, snow on
@@ -409,7 +409,7 @@ world's preview (they're read when the world is made), a zoomable map, marking p
   and travel scenes (S2, S4); a performance pass once the bigger worlds are in.
 - More animations (the earlier list's item 8): working at a forge or counter, carrying things,
   sweeping, drinking at the tavern, kneeling at the temple, waving and pointing, sleeping.
-- Homes and workplaces set by hand in the Journal (today only lorebooks set them, 0.4.37).
+- ~~Homes and workplaces set by hand in the Journal~~ (0.4.57: Journal → People → Set homes and work).
 - The in-game People panel in the Engine's character folders, like New world (0.4.41).
 - The dark wood planks texture (`wood-planks-dark` in the art folder): shop fronts, awnings' frames, a
   dock by the river.

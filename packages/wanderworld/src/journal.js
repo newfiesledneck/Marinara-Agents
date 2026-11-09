@@ -116,10 +116,56 @@ export function createJournal(panelCss, handlers) {
     }
   }
 
+  let housingEdit = false; // the homes-and-work editor is open (the tab holds still while it is)
   function drawPeople() {
     body.append(explain("Everyone living in town and what they're doing, and how they see you once that's set."));
     if (!data.people.length) body.append(line("Nobody lives here yet. Choose characters in People.", MUTED));
     for (const text of data.people) body.append(line(text));
+    const { people, homes, workplaces } = data.housing;
+    if (!people.length) return;
+    body.append(
+      button(housingEdit ? "Done setting homes and work" : "Set homes and work…", SMALL, () => {
+        housingEdit = !housingEdit;
+        draw();
+      }),
+    );
+    if (!housingEdit) return;
+    body.append(
+      explain(
+        'Where each person lives and works. Auto: a house near where they spend their days, and no job. A lorebook can set these too ("lives in home6", "works at smithy1").',
+      ),
+    );
+    const choose = (options, value, empty, onChange) => {
+      const select = element("select", `${FIELD}max-width:150px;`);
+      for (const [id, name] of [["", empty], ...options.map((option) => [option.id, option.name])]) {
+        const option = element("option", "", name);
+        option.value = id;
+        select.append(option);
+      }
+      select.value = value ?? "";
+      select.addEventListener("change", () => onChange(select.value || null));
+      return select;
+    };
+    for (const person of people) {
+      const row = element("div", "display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;");
+      const set = (fields) =>
+        handlers.onSetHousing?.(person.id, { home: person.home, work: person.work, owner: person.owner, ...fields });
+      const owner = element("input");
+      owner.type = "checkbox";
+      owner.checked = person.owner;
+      owner.disabled = !person.work;
+      owner.title = "Owns the place they work at";
+      owner.addEventListener("change", () => set({ owner: owner.checked }));
+      const ownerLabel = element("label", "display:flex;gap:3px;align-items:center;");
+      ownerLabel.append(owner, element("span", "", "owner"));
+      row.append(
+        element("span", "min-width:70px;font-weight:600;", person.name),
+        choose(homes, person.home, "Home: auto", (home) => set({ home })),
+        choose(workplaces, person.work, "No work", (work) => set({ work, owner: work ? person.owner : false })),
+        ownerLabel,
+      );
+      body.append(row);
+    }
   }
 
   function drawParty() {
@@ -666,6 +712,7 @@ export function createJournal(panelCss, handlers) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
       if (tab === "map" && map?.isConnected) return void handlers.onMap?.(map);
+      if (tab === "people" && housingEdit && body.childElementCount && !next.placesChanged) return;
       // No redraw under the cursor in the lists with buttons and fields.
       const lists = tab === "places" || tab === "party" || tab === "relations" || tab === "world";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.

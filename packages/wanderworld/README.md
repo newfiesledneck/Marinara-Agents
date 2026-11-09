@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.56)
+## What it does now (0.4.58)
 
 ### The world
 
@@ -19,6 +19,7 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
 - **The land:** hills, mountain ranges along some edges, a winding river with plank bridges on piers, and
   places out in the country: hamlets of a few houses round a green (town2, town3…), farms with a barn
   and fenced fields, wayside inns and cottages at the end of their own dirt roads (never in the river),
+  landmarks (ruins, a watchtower, standing stones, a graveyard, a watermill on the bank),
   and caves up on the hillsides with no road to them. Roads join neighbouring hamlets, and inns stand by
   the road to a hamlet or farm. Each world chooses its own in New world, or leaves it to the seed
   (`src/land.js`, `src/caves.js`).
@@ -84,7 +85,8 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along; choosing sets up a scene request for the AI part to play out (Settings → Walk into
   buildings brings back the unfinished furnished rooms).
-- **The Journal** (J): Here, People (where everyone is, and where they live and work), Party,
+- **The Journal** (J): Here, People (where everyone is, and where they live and work, set by hand or
+  by lore), Party,
   Relationships, Places (the setup tree), Map (the region from above, with names and where each edge
   leads) and World (setting, lorebooks, lore linking).
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster).

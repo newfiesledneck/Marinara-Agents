@@ -33,16 +33,24 @@ const chosen = landscapeWith(31, { hills: "flat", mountains: "three", river: "no
 assert.equal(chosen.hills, "flat");
 assert.equal(chosen.mountains.length, 3);
 assert.equal(chosen.river, null);
-assert.equal(chosen.outposts.filter((entry) => entry.kind !== "hamlet").length, 4, "several places (hamlets aside)");
+assert.equal(
+  chosen.outposts.filter((entry) => ["inn", "cottage", "cave"].includes(entry.kind)).length,
+  4,
+  "several places (hamlets, farms and landmarks aside)",
+);
 {
   // Surprise me keeps the seed's land; the settlement is picked from the seed too (a new world's own).
   const { settlement, ...land } = landscapeWith(31, { hills: "surprise" });
   const { settlement: ignored, ...seededLand } = seeded;
   const noHamlets = {
     ...land,
-    outposts: land.outposts.filter((entry) => entry.kind !== "hamlet" && entry.kind !== "farm"),
+    outposts: land.outposts.filter((entry) => ["inn", "cottage", "cave"].includes(entry.kind)),
   };
-  assert.deepEqual(noHamlets, seededLand, "Surprise me keeps the seed's choices (a hamlet or farm may join them)");
+  assert.deepEqual(
+    noHamlets,
+    seededLand,
+    "Surprise me keeps the seed's choices (hamlets, farms and landmarks may join them)",
+  );
   assert.ok(["hamlet", "village", "town", "city"].includes(settlement.kind), "and picks a settlement");
   assert.equal(ignored.kind, "town", "a world without one stays the town it always was");
 }
@@ -381,6 +389,50 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
     "with its market",
   );
   built.dispose();
+}
+
+// Landmarks: the lore's ruins1, watchtower1, stones1, graveyard1 and mill1 each bring one, numbered for
+// lore; the mill stands on the river bank with its back to the water, the graveyard just outside town.
+{
+  const { slotsOf } = await import("../packages/wanderworld/src/zones.js");
+  const base = landscapeWith(99, { places: "none", towns: "none", farms: "none", landmarks: "none", river: "yes" });
+  const needs = { ruins: 1, watchtower: 1, stones: 1, graveyard: 1, mill: 1 };
+  const landscape = landscapeNeeds(base, needs, 99);
+  const built = createWorld(99, landscape);
+  const zones = buildZones(built.layout, 99);
+  const slots = slotsOf(zones);
+  for (const name of Object.keys(needs)) {
+    const zone = zones.byId.get(slots.get(`${name}1`));
+    assert.equal(zone?.outpostKind, name, `${name}1 is there`);
+  }
+  const mill = built.layout.outposts.find((outpost) => outpost.kind === "mill");
+  const river = built.layout.river.points;
+  const toRiver = Math.min(...river.map((point) => Math.hypot(point.x - mill.x, point.z - mill.z)));
+  assert.ok(toRiver < 12, `the mill is on the bank (${toRiver.toFixed(1)} m from the river)`);
+  assert.ok(mill.door !== null, "with a door (someone can work there)");
+  const graveyard = built.layout.outposts.find((outpost) => outpost.kind === "graveyard");
+  const fromTown = Math.max(Math.abs(graveyard.x), Math.abs(graveyard.z));
+  assert.ok(fromTown < 110, `the graveyard is just outside town (${fromTown.toFixed(0)} m)`);
+  built.dispose();
+}
+
+// A bridge's deck never sits below the banks, however low the valley it crosses (the earth banked up under
+// its ends would drag the banks under the water).
+{
+  let decks = 0;
+  for (const seed of [41, 42, 43, 44, 45, 46]) {
+    const hilly = createWorld(
+      seed,
+      landscapeWith(seed, { hills: "rugged", river: "yes", places: "several", towns: "two" }),
+    );
+    for (const { a, b } of hilly.bridges) {
+      const deck = heightAt((a.x + b.x) / 2, (a.z + b.z) / 2);
+      assert.ok(deck >= 0.149, `seed ${seed}: a bridge deck at ${deck.toFixed(2)} m stands over the banks`);
+      decks++;
+    }
+    hilly.dispose();
+  }
+  assert.ok(decks > 3, `bridges were checked (${decks})`);
 }
 
 console.log("wanderworld land regression: OK");

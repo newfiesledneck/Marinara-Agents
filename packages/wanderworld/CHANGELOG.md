@@ -1,5 +1,15 @@
 # Wanderworld release notes
 
+## 0.4.58 — 2026-11-09
+
+- Landmarks out in the country: old ruins, a timber watchtower, a ring of standing stones, a fenced graveyard just outside town, and a watermill on the river bank. Chosen in New world ("Landmarks") or now and then by the seed; a lorebook naming ruins1, watchtower1, stones1, graveyard1 or mill1 brings one. Someone can work at the mill.
+- Roads to places keep their "the": the road to the Wayside Inn, the road to the quiet acre.
+- Fix: a bridge over a deep valley no longer drags the river banks under the water.
+
+## 0.4.57 — 2026-11-09
+
+- Homes and work set by hand: Journal → People → "Set homes and work…" gives each character a home (or Auto) and a workplace, with whether they own it. Places show their numbered names (home6, smithy1) to match lorebooks.
+
 ## 0.4.56 — 2026-11-09
 
 - Maps: New world shows a map of the world your choices make, redrawn as you change them, with Reroll for another. Regenerate shows the rebuilt world's map, with Reroll for another new layout.
