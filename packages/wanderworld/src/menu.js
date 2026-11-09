@@ -2,6 +2,7 @@
 // and the in-game Menu button comes back to it (saving the world first). The Load list shows each saved
 // world with a thumbnail, when it was last played, and Rename and Delete.
 import { INK_INPUT, INK_SMALL, PARCHMENT_EDGED, SERIF } from "./ui.js";
+import { mapCanvas, randomSeed } from "./map.js";
 
 const FONT = "system-ui,sans-serif";
 // The menu's card is parchment, its choices wooden boards with cream lettering.
@@ -124,6 +125,23 @@ export function createMenu(layer, handlers, art = null) {
     const seed = element("input", INPUT);
     seed.placeholder = "Seed (optional: the same seed builds the same town)";
     seed.maxLength = 80;
+    // The seed the preview shows while the box is empty (and the world gets, unless one is typed).
+    let previewSeed = randomSeed();
+    const preview = mapCanvas(320, 260);
+    let previewTimer = null;
+    const redraw = () => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(
+        () => handlers.preview?.(preview, seed.value.trim() || previewSeed, { ...choices }),
+        150,
+      );
+    };
+    seed.addEventListener("input", redraw);
+    const reroll = button("Reroll", SMALL, () => {
+      previewSeed = randomSeed();
+      seed.value = "";
+      redraw();
+    });
     // The land round the town: each choice, or Surprise me (the seed decides).
     const choices = {};
     const pickers = element(
@@ -240,7 +258,10 @@ export function createMenu(layer, handlers, art = null) {
         option.value = value;
         select.append(option);
       }
-      select.addEventListener("change", () => (choices[key] = select.value));
+      select.addEventListener("change", () => {
+        choices[key] = select.value;
+        redraw();
+      });
       pickers.append(element("span", "opacity:0.8;", label), select);
     }
     // The world's setting in words, its lorebooks, and how their entries are linked to places.
@@ -412,7 +433,7 @@ export function createMenu(layer, handlers, art = null) {
     const create = button("Create and play", BIG, () =>
       handlers.onCreate({
         name: name.value.trim(),
-        seed: seed.value.trim(),
+        seed: seed.value.trim() || previewSeed,
         choices,
         setting: setting.value.trim(),
         lorebooks: [...lorebooks],
@@ -435,6 +456,9 @@ export function createMenu(layer, handlers, art = null) {
       explainLine("The same seed always builds the same town. The setting tells the AI what kind of world to write."),
       setting,
       pickers,
+      preview,
+      explainLine("A map of the world these choices make. Reroll for another; lorebooks may add places to it."),
+      reroll,
       element("div", "font:12px system-ui;opacity:0.75;", "Lorebooks for this world"),
       explainLine(
         'Entries named or keyed after a place (the town\'s name, "tavern", "the woods"), a character or "world" are tied there; a character\'s entry keyed "enemy", "mentor", "male"… sets them up too.',
@@ -452,6 +476,7 @@ export function createMenu(layer, handlers, art = null) {
     );
     name.focus();
     name.select();
+    redraw();
   }
 
   function load() {

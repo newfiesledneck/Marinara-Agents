@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.55)
+## What it does now (0.4.56)
 
 ### The world
 
@@ -76,7 +76,7 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
 
 - **Main menu and saves,** with painted art and a loading screen: Continue, New world (name, seed, your
   persona, the characters who live there from your Engine folders, the land, the settlement, any more
-  hamlets and farms, the world's size from Small to Massive, the setting and lorebooks),
+  hamlets and farms, the world's size from Small to Massive, the setting and lorebooks, with a map of the world it makes and Reroll),
   Load world (thumbnails, Rename, Delete) and Settings. Each world keeps everything in its own save in
   this package's browser storage: where you were, the time, the cast, bodies, relationships, lore,
   groups, homes, notes and scenes.
@@ -85,7 +85,8 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   and who comes along; choosing sets up a scene request for the AI part to play out (Settings → Walk into
   buildings brings back the unfinished furnished rooms).
 - **The Journal** (J): Here, People (where everyone is, and where they live and work), Party,
-  Relationships, Places (the setup tree) and World (setting, lorebooks, lore linking).
+  Relationships, Places (the setup tree), Map (the region from above, with names and where each edge
+  leads) and World (setting, lorebooks, lore linking).
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster).
 - **Animation:** recorded clips from Quaternius's Universal Animation Library (idle, walk, jog, sprint,
   sitting, talking, swimming), or the hand-made motion (Settings → Animation).

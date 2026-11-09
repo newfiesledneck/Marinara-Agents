@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.56 — 2026-11-09
+
+- Maps: New world shows a map of the world your choices make, redrawn as you change them, with Reroll for another. Regenerate shows the rebuilt world's map, with Reroll for another new layout.
+- Journal → Map: the region you're in from above, with you, the town, hamlets, farms, inns, cottages and caves by name, and the regions beyond each edge.
+
 ## 0.4.55 — 2026-11-09
 
 - Regions and travel: at the edge of the world, "Travel to <region>" takes you, with the party following you, into the next region, made from the world's seed the first time with its own land and settlement. You arrive at its facing edge, and can travel on in any direction or back home.

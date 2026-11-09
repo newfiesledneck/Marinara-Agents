@@ -387,6 +387,12 @@ their own in other regions, the AI writing a region from its name, encounters on
 
 **Phase E: seeing the world**
 
+_Done in 0.4.56: `map.js` draws a world on a 2D canvas from `world.map` (the built world) or
+`previewMap(seed, landscape, size)` (a world not built, leaving the one being played alone): land shaded by
+height, the river, roads, the town's blocks, places by kind. New world and Regenerate preview with Reroll;
+Journal → Map adds names, the player and the regions beyond each edge. Saved for later: lore needs in New
+world's preview (they're read when the world is made), a zoomable map, marking places on it._
+
 - A small top-down map in New world and Regenerate to preview the layout before playing, with Reroll.
 - The same map in the Journal: where you are, named places, regions and travel points.
 

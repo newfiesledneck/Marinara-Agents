@@ -49,6 +49,7 @@ import {
 } from "./zones.js";
 import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
+import { drawMap } from "./map.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
   checkTraits,
@@ -65,6 +66,7 @@ import {
   hashString,
   heightAt,
   NATURE_MODELS,
+  previewMap,
   SPAWN,
   TOWN_PROPS,
   waterAt,
@@ -693,7 +695,7 @@ function choicesOf(landscape) {
  * layout and land); its setup still stands: each place's name, lore and groups move to the same kind of
  * place in the new layout (zones.js `remapZones`). The player starts again at the square.
  */
-async function regenerateWorld(reshuffle = false, size = null) {
+async function regenerateWorld(reshuffle = false, size = null, newSeed = null) {
   const save = core.save;
   if (!save) return;
   if (save.region !== HOME_REGION) {
@@ -702,7 +704,7 @@ async function regenerateWorld(reshuffle = false, size = null) {
   }
   savePlace(true);
   const choices = core.save.choices ?? choicesOf(core.save.landscape);
-  const seed = reshuffle ? `world-${Date.now().toString(36)}` : core.save.seed;
+  const seed = reshuffle ? (newSeed ?? `world-${Date.now().toString(36)}`) : core.save.seed;
   // What its lorebooks need now (they may have grown since), on top of its land.
   const needs = await worldNeeds(core.save.lorebooks, core.save.loreLinking);
   if (core.save?.id !== save.id) return; // another world was opened meanwhile
@@ -724,6 +726,45 @@ async function regenerateWorld(reshuffle = false, size = null) {
   core.world = null;
   core.hud?.closePanels();
   playWorld(next.id);
+}
+
+// ── Maps (map.js) ────────────────────────────────────────────────────────────
+
+/** New world's preview: the land and settlement `seed` and the `choices` make (before any lore needs). */
+function previewNewWorld(canvas, seed, choices) {
+  const landscape = landscapeWith(hashString(seed), choices);
+  drawMap(canvas, previewMap(hashString(seed), landscape, sizeFor(choices?.size, landscape)));
+}
+
+/** Regenerate's preview: this world rebuilt as asked (its own layout, or a new one from `seed`). */
+function previewRegenerate(canvas, { reshuffle, size, seed }) {
+  const save = core.save;
+  if (!save) return;
+  const used = reshuffle ? seed : save.seed;
+  const choices = save.choices ?? choicesOf(save.landscape);
+  const land = save.choices || reshuffle ? landscapeWith(hashString(used), choices) : save.landscape;
+  const landscape = landscapeNeeds(checkLandscape(land, hashString(used)), save.needs, hashString(used));
+  drawMap(canvas, previewMap(hashString(used), landscape, size ?? save.worldSize));
+}
+
+/** The Journal's map of the region you're in: the places by name, you, and where each edge leads. */
+function drawJournalMap(canvas) {
+  if (!core.world?.map || !core.zones || !core.save) return;
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const labels = core.zones.zones
+    .filter(
+      (zone) => zone.id === "town" || zone.kind === "cave" || zone.kind === "outpost" || zone.outpostKind === "hamlet",
+    )
+    .map((zone) => ({
+      x: zone.shape?.circle?.x ?? 0,
+      z: zone.shape?.circle?.z ?? 0,
+      text: names[zone.id] ?? zone.name,
+    }));
+  const edges = Object.fromEntries(
+    ["north", "east", "south", "west"].map((side) => [side, regionNameAt(regionNext(core.save.region, side))]),
+  );
+  const at = core.interior ? core.interior.door : core.player.position;
+  drawMap(canvas, core.world.map, { labels, edges, player: { x: at.x, z: at.z, angle: core.player.rotation.y } });
 }
 
 function suggestName() {
@@ -2713,6 +2754,8 @@ function attach(element) {
     onSetBody: setBody,
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
+    onRegeneratePreview: previewRegenerate,
+    onMap: drawJournalMap,
     onUse: () => {
       core.sound.unlock();
       use();
@@ -2743,6 +2786,7 @@ function attach(element) {
       last: () => core.saves.last(),
       onPlay: playWorld,
       onCreate: createNewWorld,
+      preview: previewNewWorld,
       // Everyone New world can choose from: personas, characters, the Engine's character folders, and
       // who's chosen now (the last world's cast and persona).
       // New world starts empty: nobody from another world (each world keeps its own cast); the persona box

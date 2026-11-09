@@ -6,6 +6,7 @@
 // - World: the world's name, town, time and seed.
 // Relationships and the party join as their own tabs (docs/CONCEPT.md, W3 and W4).
 import { INK, INK_SMALL, INK_SOFT, SERIF } from "./ui.js";
+import { mapCanvas } from "./map.js";
 
 const TABS = [
   ["here", "Here"],
@@ -13,6 +14,7 @@ const TABS = [
   ["party", "Party"],
   ["relations", "Relationships"],
   ["places", "Places"],
+  ["map", "Map"],
   ["world", "World"],
 ];
 const TAB = `font:600 12px ${SERIF};border:1px solid rgba(107,74,43,0.6);border-radius:7px;padding:4px 10px;cursor:pointer;`;
@@ -632,6 +634,16 @@ export function createJournal(panelCss, handlers) {
     }
   }
 
+  let map = null; // the Map tab's canvas, redrawn in place as you walk
+  function drawMap() {
+    body.append(
+      explain("This region from above: you (yellow), the town, places out in the country, and where each edge leads."),
+    );
+    map = mapCanvas(420, 420);
+    body.append(map);
+    handlers.onMap?.(map);
+  }
+
   function draw() {
     drawTabs();
     body.replaceChildren();
@@ -642,6 +654,7 @@ export function createJournal(panelCss, handlers) {
       party: drawParty,
       relations: drawRelations,
       places: drawPlaces,
+      map: drawMap,
       world: drawWorld,
     })[tab]();
   }
@@ -652,6 +665,7 @@ export function createJournal(panelCss, handlers) {
     render(next) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
+      if (tab === "map" && map?.isConnected) return void handlers.onMap?.(map);
       // No redraw under the cursor in the lists with buttons and fields.
       const lists = tab === "places" || tab === "party" || tab === "relations" || tab === "world";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.

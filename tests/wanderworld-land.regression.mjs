@@ -358,4 +358,29 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
   built.dispose();
 }
 
+// The map: a preview of a world that isn't built matches the world once built, and leaves the world
+// being played as it was.
+{
+  const { previewMap } = await import("../packages/wanderworld/src/world.js");
+  const landscape = landscapeWith(98, { towns: "one", farms: "one", settlement: "village" });
+  const built = createWorld(98, landscape, {}, "large");
+  const before = heightAt(40, 40);
+  const preview = previewMap(98, landscapeWith(12, { settlement: "city" }), "small");
+  assert.equal(preview.half, 120, "a Small preview");
+  assert.equal(heightAt(40, 40), before, "the world being played keeps its land");
+  const again = previewMap(98, landscape, "large");
+  const strip = (info) => ({
+    half: info.half,
+    outposts: info.outposts,
+    blocks: info.town.blocks,
+    roads: info.roads.length,
+  });
+  assert.deepEqual(strip(again), strip(built.map), "the preview is the world it will build");
+  assert.ok(
+    built.map.town.blocks.some((block) => block.market),
+    "with its market",
+  );
+  built.dispose();
+}
+
 console.log("wanderworld land regression: OK");
