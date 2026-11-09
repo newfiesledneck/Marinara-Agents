@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.63 — 2026-11-09
+
+- Hamlets, farms and landmarks keep all their ground inside the world, off the river, and clear of each other even in a crowded world: when their own side is full they find the nearest free spot elsewhere.
+- A hamlet or farm goes on another side when there's no room for it beyond the river.
+- Country roads wear away into the grass where they arrive instead of stopping square.
+
 ## 0.4.62 — 2026-11-09
 
 - Places out in the country keep clear of each other: a farm's fields no longer run into a hamlet, and two farms never overlap.

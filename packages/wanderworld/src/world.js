@@ -1527,7 +1527,7 @@ const BRIDGE_WOOD = 0x7a5634;
  * so edges can fade into the grass. Texture coordinates match the ground's, so its grass texture lines
  * up across the join. `wobble` varies the width a little along the way, so edges aren't ruler-straight.
  */
-function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0, fadeFrom = null }) {
+function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0, fadeFrom = null, fadeTo = null }) {
   const dense = [];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
@@ -1537,6 +1537,8 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0, fadeFr
       dense.push({ x: a.x + ((b.x - a.x) * k) / steps, z: a.z + ((b.z - a.z) * k) / steps });
   }
   dense.push(points[points.length - 1]);
+  let total = 0;
+  for (let i = 1; i < dense.length; i++) total += Math.hypot(dense[i].x - dense[i - 1].x, dense[i].z - dense[i - 1].z);
   const positions = [];
   const colours = [];
   const uvs = [];
@@ -1558,12 +1560,17 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0, fadeFr
       colours.push(column.colour.r, column.colour.g, column.colour.b);
       uvs.push((x + worldSize / 2) / worldSize, (worldSize / 2 - z) / worldSize);
       if (column.splat) {
-        // `fadeFrom`: { length, splat, splatB }: over its first metres the strip blends in from these weights.
+        // `fadeFrom` / `fadeTo`: { length, splat, splatB }: over its first (last) metres the strip blends in
+        // from (out to) these weights, so it doesn't start or end with a hard edge.
+        const mix = (from, to, t) => to.map((value, i) => from[i] + (value - from[i]) * t);
+        let weights = column.splat;
+        let weightsB = column.splatB ?? [0, 0, 0, 0];
         const t = fadeFrom ? Math.min(1, travelled / fadeFrom.length) : 1;
-        const mix = (from, to) => to.map((value, i) => from[i] + (value - from[i]) * t);
-        splats.push(...(t < 1 ? mix(fadeFrom.splat, column.splat) : column.splat));
-        const b = column.splatB ?? [0, 0, 0, 0];
-        splatsB.push(...(t < 1 ? mix(fadeFrom.splatB, b) : b));
+        if (t < 1) [weights, weightsB] = [mix(fadeFrom.splat, weights, t), mix(fadeFrom.splatB, weightsB, t)];
+        const end = fadeTo ? Math.min(1, (total - travelled) / fadeTo.length) : 1;
+        if (end < 1) [weights, weightsB] = [mix(fadeTo.splat, weights, end), mix(fadeTo.splatB, weightsB, end)];
+        splats.push(...weights);
+        splatsB.push(...weightsB);
       }
     }
   });
@@ -1723,7 +1730,8 @@ function buildCountry(random, town, land, ground) {
   for (const road of land.roads) {
     let stretch = [];
     const firstStretch = stretch;
-    const finish = () => {
+    const GRASS = { length: 5, splat: [1, 0, 0, 0], splatB: [0, 0, 0, 0] };
+    const finish = (last = false) => {
       if (stretch.length > 1) {
         roads.push(
           ribbon(stretch, road.width, {
@@ -1735,7 +1743,11 @@ function buildCountry(random, town, land, ground) {
             fadeFrom:
               stretch === firstStretch && road.fromTown !== false && look.roads === "cobble"
                 ? { length: 4, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] }
-                : null,
+                : stretch === firstStretch && road.between
+                  ? GRASS // a road between two hamlets starts on one's green
+                  : null,
+            // And it wears away into the grass where it arrives, instead of stopping square.
+            fadeTo: last ? GRASS : null,
           }),
         );
       }
@@ -1752,7 +1764,7 @@ function buildCountry(random, town, land, ground) {
         else stretch.push(point);
       }
     }
-    finish();
+    finish(true);
   }
   if (roads.length) {
     meshes.push(
