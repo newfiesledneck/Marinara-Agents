@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.42 — 2026-11-08
+
+- The main menu's card scrolls when the window is short, so all of New world can be reached; the logo shrinks to fit.
+
 ## 0.4.41 — 2026-11-08
 
 - New world chooses who you play and who lives there. Type your persona's name (an exact match picks it) or pick from the list. Characters show in their Engine folders: open one to tick who moves in, up to 30. It starts from the world you played last.
