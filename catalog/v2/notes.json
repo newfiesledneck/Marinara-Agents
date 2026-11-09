@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.36",
+          "date": "2026-11-08",
+          "notes": "- Linking lore to places and setting up characters from lore are off by default on New world: choose them to opt in.",
+          "highlight": false
+        },
+        {
           "version": "0.4.35",
           "date": "2026-11-08",
           "notes": "- Lorebooks can set how characters stand toward each other: a character's entry keyed \"brother of Sarah\", \"son of Zoey\", \"enemy of Mira\" or \"friends with Tam\" sets that one way. Nothing is assumed the other way round; the other character's own entry says how they see it. \"you\" or your persona's name means you.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.17",
           "date": "2026-11-08",
           "notes": "- Caves are one weathered rock face set into the hillside, with the entrance carved into it: no loose boulders or gaps. Inside the passage goes dark, and ferns and grass grow along the foot and over the top.\n- Dirt roads are one smooth strip that fades into the grass at its edges, with no gaps at bends and no ground poking through.\n- The river is one smooth surface, deeper blue in the middle, with a soft sheen.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.16",
-          "date": "2026-11-08",
-          "notes": "- The land round town has shape: hills from gentle to rugged, mountain ranges along some edges with rock and snow, and a winding river with sandy banks.\n- Places out in the country: a roadside inn, cottages and caves in hillsides, each at the end of its own dirt road, with a wooden bridge where a road crosses the river.\n- Every world's land is its own. New world can choose hills, mountains, a river and how much is out in the country, or let the seed surprise you. The world keeps it.\n- The river, roads, mountains, inns and caves have names, and a cave can be used like a door.",
           "highlight": false
         }
       ]
