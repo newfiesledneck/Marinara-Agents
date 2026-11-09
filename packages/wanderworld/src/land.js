@@ -380,11 +380,14 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       // (the wheel turns in it).
       const at = spot(out);
       const near = toLine(river.points, at.x, at.z);
-      const across = Math.hypot(near.x, near.z) || 1;
+      // Straight across the river from its middle (not toward the town's centre, which can run along it),
+      // on the town's side.
+      let [nx, nz] = [-near.along[1], near.along[0]];
+      if (nx * -near.x + nz * -near.z < 0) [nx, nz] = [-nx, -nz];
       const reach = RIVER_WIDTH / 2 + 5.5;
-      const x = near.x - (near.x / across) * reach;
-      const z = near.z - (near.z / across) * reach;
-      const facing = ((Math.round(Math.atan2(x - near.x, z - near.z) / (Math.PI / 2)) % 4) + 4) % 4;
+      const x = near.x + nx * reach;
+      const z = near.z + nz * reach;
+      const facing = ((Math.round(Math.atan2(nx, nz) / (Math.PI / 2)) % 4) + 4) % 4;
       const mill = { ...entry, index, x, z, facing, angle: (facing * Math.PI) / 2 };
       placed.push(mill);
       return mill;

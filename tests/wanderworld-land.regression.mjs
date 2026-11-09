@@ -527,4 +527,31 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
   assert.ok(pairs > 100, `pairs checked (${pairs})`);
 }
 
+// A mill stands on the bank, never in the river, wherever along it (here far along a river that runs
+// past the town's side, where the way to the town's middle runs nearly along the water).
+{
+  const landscape = {
+    hills: "rolling",
+    mountains: ["west"],
+    river: { side: "north" },
+    outposts: [
+      { kind: "hamlet", side: "north" },
+      { kind: "farm", side: "north" },
+      { kind: "cottage", side: "north" },
+      { kind: "mill", side: "north" },
+    ],
+    settlement: { kind: "town", walls: true },
+  };
+  for (const seed of [11, 12, 13, 14]) {
+    const built = createWorld(seed, landscape, {}, "large");
+    const mill = built.layout.outposts.find((place) => place.kind === "mill");
+    assert.equal(waterAt(mill.x, mill.z).depth, 0, `seed ${seed}: the mill is on dry ground`);
+    const toRiver = Math.min(
+      ...built.layout.river.points.map((point) => Math.hypot(point.x - mill.x, point.z - mill.z)),
+    );
+    assert.ok(toRiver > 7 && toRiver < 13, `seed ${seed}: on the bank (${toRiver.toFixed(1)} m from the river)`);
+    built.dispose();
+  }
+}
+
 console.log("wanderworld land regression: OK");

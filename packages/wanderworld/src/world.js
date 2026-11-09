@@ -2251,17 +2251,26 @@ const facetShade = (x, z) => {
  */
 function groundChunk(x0, z0, cell, material, forest) {
   const cells = Math.round(CHUNK / cell);
+  // Heights one cell past each edge too, for each point's slope.
+  const side = cells + 3;
   const heights = [];
-  for (let j = 0; j <= cells; j++) {
-    for (let i = 0; i <= cells; i++) heights.push(land.groundAt(x0 + i * cell, z0 + j * cell)); // under bridges too
+  for (let j = -1; j <= cells + 1; j++) {
+    for (let i = -1; i <= cells + 1; i++) heights.push(land.groundAt(x0 + i * cell, z0 + j * cell)); // under bridges too
   }
-  const at = (i, j) => ({ x: x0 + i * cell, y: heights[j * (cells + 1) + i], z: z0 + j * cell });
+  const height = (i, j) => heights[(j + 1) * side + i + 1];
+  // How steep the ground is at each point (its slope over its neighbours, as the height a 2.6 m stretch
+  // would climb), so rock blends in smoothly across the triangles instead of painting whole ones.
+  const at = (i, j) => {
+    const slope = Math.hypot(height(i + 1, j) - height(i - 1, j), height(i, j + 1) - height(i, j - 1)) / (2 * cell);
+    return { x: x0 + i * cell, y: height(i, j), z: z0 + j * cell, steep: slope * 2.6 };
+  };
   const positions = [];
   const colours = [];
   const splatA = [];
   const splatB = [];
   const splatC = [];
-  const vertex = (point, steep, shade, drop) => {
+  const vertex = (point, shade, drop) => {
+    const steep = point.steep;
     positions.push(point.x, point.y - drop, point.z);
     colours.push(shade, shade, shade);
     const [grass, dirt, rock, sand, snow] = groundWeights(point.y, steep, land.toRiverBank(point.x, point.z));
@@ -2271,11 +2280,10 @@ function groundChunk(x0, z0, cell, material, forest) {
     splatC.push(floor, 0, 0, 0);
   };
   const triangle = (a, b, c, drop = [0, 0, 0]) => {
-    const steep = Math.max(a.y, b.y, c.y) - Math.min(a.y, b.y, c.y);
     const shade = facetShade((a.x + b.x + c.x) / 3, (a.z + b.z + c.z) / 3);
-    vertex(a, steep, shade, drop[0]);
-    vertex(b, steep, shade, drop[1]);
-    vertex(c, steep, shade, drop[2]);
+    vertex(a, shade, drop[0]);
+    vertex(b, shade, drop[1]);
+    vertex(c, shade, drop[2]);
   };
   for (let j = 0; j < cells; j++) {
     for (let i = 0; i < cells; i++) {
