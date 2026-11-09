@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.46",
+          "date": "2026-11-09",
+          "notes": "- Body choices are kept per world: setting someone's body in one world (by hand or by lore) doesn't change another. Older worlds start from the choices made before.\n- Inns and cottages never stand in the river: they move further out until they're on dry ground.\n- Caves have no road leading to them: they're found up on the hillsides.\n- Followers and townsfolk cross the wilds straight to where they're going, and cross the river by the nearest bridge instead of wading in.",
+          "highlight": false
+        },
+        {
           "version": "0.4.45",
           "date": "2026-11-08",
           "notes": "- New world starts with nobody living in it: characters from your other worlds no longer come along. Each world keeps its own cast, relationships, lore, homes and party in its own save.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.27",
           "date": "2026-11-08",
           "notes": "- Townsfolk hold real little conversations with each other, taking turns, warmer between friends and family and short between enemies.\n- Talking to someone: they greet you by how they feel about you, and you can pick what to say (how they are, news, about them, somewhere to eat, goodbye) or type your own.\n- Lit windows at night, smoke rising from chimneys, striped awnings over shops, and signs hanging out over the street on painted boards.\n- Settings: walk speed and run speed are separate sliders.\n- Best friends look further for each other, so they meet up more often.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.26",
-          "date": "2026-11-08",
-          "notes": "- Doors, caves and the fountain open a card of things to do (go in, knock, toss a coin…), a box for your own line, and who comes along. Choosing sets up a scene for the AI part to play out; recent ones show in the Journal.\n- Iron lamp posts with glass lanterns that glow at night, pool light on the cobbles and light the streets near you.\n- A stone fountain with a tiered bowl and water falling into the basin.\n- Name tags are tinted by how each person sees you: red for enemies, green for friends, pink for romance, grey to yellow as acquaintances get to know you, deeper the stronger it is.\n- A Lore button shows the lore active where you are, with its text. In Places, choose which lorebooks to list, each folding open to its entries.",
           "highlight": false
         }
       ]
