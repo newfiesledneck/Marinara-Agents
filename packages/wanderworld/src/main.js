@@ -57,7 +57,17 @@ import {
   tierOf,
   TRAITS,
 } from "./relationships.js";
-import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, waterAt, WORLD_SIZE } from "./world.js";
+import {
+  createWorld,
+  hashString,
+  heightAt,
+  NATURE_MODELS,
+  SPAWN,
+  TOWN_PROPS,
+  waterAt,
+  WORLD_SIZE,
+  WORLD_SIZES,
+} from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
@@ -351,7 +361,12 @@ function buildWorld(seed, place = null) {
   core.board?.dispose();
   core.board = null;
   const own = core.save?.seed === seed;
-  core.world = createWorld(hashString(seed), own ? core.save.landscape : null, own ? core.save.needs : {});
+  core.world = createWorld(
+    hashString(seed),
+    own ? core.save.landscape : null,
+    own ? core.save.needs : {},
+    own ? core.save.worldSize : "normal",
+  );
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
@@ -498,7 +513,7 @@ function savePlace(now = false, thumbnail = null) {
 /** A saved spot, kept inside the world and the camera's limits. */
 function checkedPlace(place) {
   if (!place) return null;
-  const edge = WORLD_SIZE / 2 - 2;
+  const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
   return {
     ...place,
     x: Math.max(-edge, Math.min(edge, place.x)),
@@ -633,6 +648,7 @@ async function createNewWorld({
   // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
   save.needs = await worldNeeds(save.lorebooks, save.loreLinking);
   save.landscape = landscapeNeeds(landscapeWith(hashString(save.seed), choices), save.needs, hashString(save.seed));
+  save.worldSize = sizeFor(choices?.size, save.landscape);
   save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
   // Who lives there and who you play, from New world. Worlds are separate: nobody moves in from another.
@@ -641,6 +657,15 @@ async function createNewWorld({
   save.bodies = {}; // everyone auto until set here, by hand or by lore
   core.saves.write(save);
   playWorld(save.id);
+}
+
+/**
+ * A world's size: the one chosen, or on Auto, Normal, unless it has more places out in the country than
+ * fit comfortably (then Large).
+ */
+function sizeFor(chosen, landscape) {
+  if (Object.hasOwn(WORLD_SIZES, chosen)) return chosen;
+  return (landscape?.outposts?.length ?? 0) > 6 ? "large" : "normal";
 }
 
 /** The New world choices a landscape amounts to, for a world saved before its choices were kept. */
@@ -660,7 +685,7 @@ function choicesOf(landscape) {
  * layout and land); its setup still stands: each place's name, lore and groups move to the same kind of
  * place in the new layout (zones.js `remapZones`). The player starts again at the square.
  */
-async function regenerateWorld(reshuffle = false) {
+async function regenerateWorld(reshuffle = false, size = null) {
   const save = core.save;
   if (!save) return;
   savePlace(true);
@@ -671,10 +696,11 @@ async function regenerateWorld(reshuffle = false) {
   if (core.save?.id !== save.id) return; // another world was opened meanwhile
   const land = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
   const landscape = landscapeNeeds(checkLandscape(land, hashString(seed)), needs, hashString(seed));
-  const next = { ...core.save, seed, landscape, choices, needs, place: null };
+  const worldSize = size && Object.hasOwn(WORLD_SIZES, size) ? size : core.save.worldSize;
+  const next = { ...core.save, seed, landscape, choices, needs, worldSize, place: null };
   if (reshuffle && core.zones) {
     // The setup stays: every place's name, lore and groups go to the same kind of place in the new layout.
-    const built = createWorld(hashString(seed), landscape, needs);
+    const built = createWorld(hashString(seed), landscape, needs, worldSize);
     const map = remapZones(core.zones, buildZones(built.layout, hashString(seed)));
     built.dispose();
     Object.assign(next, carrySetup({ ...core.save, groups: core.save.groups ?? null }, map), { waitingPlacements: [] });
@@ -2254,7 +2280,7 @@ function movePlayer(dt, input) {
       position.z += moveZ * speed * dt;
       space.resolveCollisions(position, PLAYER_RADIUS, true); // the player may go into the water
       core.crowd.pushOut(position, PLAYER_RADIUS, space);
-      const edge = WORLD_SIZE / 2 - 2;
+      const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
       position.x = Math.max(-edge, Math.min(edge, position.x));
       position.z = Math.max(-edge, Math.min(edge, position.z));
       player.rotation.y = approachAngle(player.rotation.y, Math.atan2(moveX, moveZ), 12 * dt);

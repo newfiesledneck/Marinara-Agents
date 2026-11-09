@@ -226,14 +226,22 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
   const outposts = landscape.outposts.map((entry, index) => {
     const [dx, dz] = DIRECTION[entry.side];
     const slot = (perSide[entry.side] = (perSide[entry.side] ?? -1) + 1);
-    const across = (slot % 2 === 0 ? -1 : 1) * (18 + slot * 22) * (random() < 0.5 ? 1 : -1) + (random() - 0.5) * 16;
+    // A bigger world spreads its places further apart and further out (a Normal world: as before).
+    const room = worldHalf / 160;
+    const across =
+      (slot % 2 === 0 ? -1 : 1) * (18 + slot * 22) * room * (random() < 0.5 ? 1 : -1) + (random() - 0.5) * 16 * room;
     // Caves sit at the foot of the hills; inns and cottages a fair walk out.
-    let out = entry.kind === "cave" ? worldHalf - 46 - random() * 8 : townHalf + 48 + random() * 20;
+    const reach = Math.max(20, worldHalf - townHalf - 110);
+    let out =
+      entry.kind === "cave"
+        ? Math.max(townHalf + 30, worldHalf - 46 - random() * 8) // clear of the town, even in a small world
+        : townHalf + 48 + random() * reach;
+    out = Math.min(out, edge - 14); // inside the world, however small
     const lateral = Math.max(-edge + 20, Math.min(edge - 20, across));
     const spot = (distance) => (dx !== 0 ? { x: dx * distance, z: lateral } : { x: lateral, z: dz * distance });
     // Never on the river: a place whose ground would reach the water or its banks steps further out.
     const clearOfRiver = (at) => !river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + 14;
-    while (!clearOfRiver(spot(out)) && out < edge - 20) out += 4;
+    while (!clearOfRiver(spot(out)) && out < edge - 18) out += 4;
     const { x, z } = spot(out);
     // The front looks back toward town, squared to a quarter turn like every building in town.
     const facing = ((Math.round(Math.atan2(-x, -z) / (Math.PI / 2)) % 4) + 4) % 4;

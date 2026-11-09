@@ -53,7 +53,11 @@ import {
   painted,
 } from "./buildings.js";
 
-export const WORLD_SIZE = 320; // metres along each side
+export const WORLD_SIZE = 320; // metres along each side of a Normal world
+/** Each world size's side in metres (multiples of the ground's 80 m chunks). */
+export const WORLD_SIZES = { small: 240, normal: 320, large: 480, huge: 640, massive: 960 };
+// ponytail: the size of the world built last, module-wide like `land` below (same ceiling and upgrade).
+let worldSize = WORLD_SIZE;
 const BASE_TREES = 900;
 const BASE_ROCKS = 260;
 /** Prop multipliers the fps label cycles through, to stress-test a phone. */
@@ -150,6 +154,8 @@ const KIT_PLANTS = [
   ["pebble-round-3", 1, 1.4],
 ];
 /** Every kit model the nature uses, for loading. */
+/** How far each kind of detailed nature is drawn (metres, and never past the draw distance). */
+const NATURE_REACH = { plant: 70, rock: 160, tree: 180 };
 export const NATURE_MODELS = [...KIT_TREES.map(([name]) => name), ...KIT_ROCKS, ...KIT_PLANTS.map(([name]) => name)];
 /** How far a door swings open, outward onto the street (radians). */
 const DOOR_SWING = 1.7;
@@ -923,7 +929,7 @@ function ribbon(points, width, { lift = 0, heightOf, columns, wobble = 0, fadeFr
       const z = point.z + (tx / length) * half * column.at;
       positions.push(x, heightOf(x, z) + lift + (column.lift ?? 0), z);
       colours.push(column.colour.r, column.colour.g, column.colour.b);
-      uvs.push((x + WORLD_SIZE / 2) / WORLD_SIZE, (WORLD_SIZE / 2 - z) / WORLD_SIZE);
+      uvs.push((x + worldSize / 2) / worldSize, (worldSize / 2 - z) / worldSize);
       if (column.splat) {
         // `fadeFrom`: { length, splat, splatB }: over its first metres the strip blends in from these weights.
         const t = fadeFrom ? Math.min(1, travelled / fadeFrom.length) : 1;
@@ -1490,86 +1496,159 @@ function groundWeights(y, steep, fromRiver = Infinity) {
   return [grass, 0, rock, sand, snow];
 }
 
-/**
- * Leaves and needles under the trees: where trees stand close together (the usual density's trees, so
- * it's the same at any density), the ground's grass gives way to forest floor, fading out into clearings.
- * Only grass changes; rock, snow and riverbeds stay as they are.
- */
-function paintForestFloor(mesh, trees) {
-  const cell = 6;
+/** The trees near each 6 m cell, for forest floor (the usual density's trees, so it's the same at any). */
+function forestGrid(trees) {
   const grid = new Map();
   for (const tree of trees) {
-    const key = `${Math.floor(tree.x / cell)},${Math.floor(tree.z / cell)}`;
+    const key = `${Math.floor(tree.x / 6)},${Math.floor(tree.z / 6)}`;
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(tree);
   }
-  const position = mesh.geometry.attributes.position;
-  const splatA = mesh.geometry.attributes.splatA;
-  const forest = new Float32Array(position.count * 4);
-  const reach = 6.5;
-  for (let i = 0; i < position.count; i++) {
-    const x = position.getX(i);
-    const z = position.getZ(i);
-    const cx = Math.floor(x / cell);
-    const cz = Math.floor(z / cell);
-    let cover = 0;
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dz = -1; dz <= 1; dz++) {
-        for (const tree of grid.get(`${cx + dx},${cz + dz}`) ?? []) {
-          const distance = Math.hypot(tree.x - x, tree.z - z);
-          if (distance < reach) cover += 1 - distance / reach;
-        }
-      }
-    }
-    const thick = Math.min(1, Math.max(0, (cover - 0.75) / 1.4));
-    const grass = splatA.getX(i);
-    const floor = grass * thick * thick * (3 - 2 * thick) * 0.85; // a little grass always shows through
-    splatA.setX(i, grass - floor);
-    forest[i * 4] = floor;
-  }
-  splatA.needsUpdate = true;
-  mesh.geometry.setAttribute("splatC", new Float32BufferAttribute(forest, 4));
+  return grid;
 }
 
-function buildGround(random, uniforms) {
-  const geometry = new PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 160, 160).toNonIndexed();
-  geometry.rotateX(-Math.PI / 2);
-  const position = geometry.attributes.position;
-  for (let i = 0; i < position.count; i++) {
-    position.setY(i, land.groundAt(position.getX(i), position.getZ(i))); // the ground runs on under bridges
-  }
-  // Per facet: a little brightness of its own (the low-poly look), and its layers by height and slope,
-  // so grass gives way to rock on steep slopes and high up, snow on the peaks, sand in the riverbed.
-  const colors = new Float32Array(position.count * 3);
-  const splatA = new Float32Array(position.count * 4);
-  const splatB = new Float32Array(position.count * 4);
-  for (let i = 0; i < position.count; i += 3) {
-    const heights = [0, 1, 2].map((k) => position.getY(i + k));
-    const steep = Math.max(...heights) - Math.min(...heights);
-    const shade = 1.02 + random() * 0.12;
-    for (let k = 0; k < 3; k++) {
-      const [grass, dirt, rock, sand, snow] = groundWeights(
-        heights[k],
-        steep,
-        land.toRiverBank(position.getX(i + k), position.getZ(i + k)),
-      );
-      colors.set([shade, shade, shade], (i + k) * 3);
-      splatA.set([grass, dirt, rock, sand], (i + k) * 4);
-      splatB[(i + k) * 4] = snow;
+/**
+ * Leaves and needles under the trees at (x, z), 0…1: where trees stand close together the grass gives
+ * way to forest floor, fading out into clearings.
+ */
+function forestCover(grid, x, z) {
+  const cx = Math.floor(x / 6);
+  const cz = Math.floor(z / 6);
+  let cover = 0;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      for (const tree of grid.get(`${cx + dx},${cz + dz}`) ?? []) {
+        const distance = Math.hypot(tree.x - x, tree.z - z);
+        if (distance < 6.5) cover += 1 - distance / 6.5;
+      }
     }
   }
-  geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+  const thick = Math.min(1, Math.max(0, (cover - 0.75) / 1.4));
+  return thick * thick * (3 - 2 * thick) * 0.85; // a little grass always shows through
+}
+
+const CHUNK = 80; // metres: the ground is built in squares this size
+const FINE_CELL = 2; // near the player
+const COARSE_CELL = 8; // everywhere else (the fog hides the difference)
+const FINE_NEAR = 115; // a chunk's middle this close: its fine ground is built and shown
+const FINE_FAR = 175; // further than this: its fine ground is let go
+const SKIRT = 2.5; // metres the edges hang down, so no cracks show where fine and coarse chunks meet
+
+/** A little brightness per facet (the low-poly look), the same wherever the facet is built. */
+const facetShade = (x, z) => {
+  const value = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+  return 1.02 + (value - Math.floor(value)) * 0.12;
+};
+
+/**
+ * One square of ground at (x0, z0), `CHUNK` metres a side in cells of `cell` metres: its layers by
+ * height and slope (grass gives way to rock on steep slopes and high up, snow on the peaks, sand by the
+ * river, forest floor under trees), and a skirt round its edges.
+ */
+function groundChunk(x0, z0, cell, material, forest) {
+  const cells = Math.round(CHUNK / cell);
+  const heights = [];
+  for (let j = 0; j <= cells; j++) {
+    for (let i = 0; i <= cells; i++) heights.push(land.groundAt(x0 + i * cell, z0 + j * cell)); // under bridges too
+  }
+  const at = (i, j) => ({ x: x0 + i * cell, y: heights[j * (cells + 1) + i], z: z0 + j * cell });
+  const positions = [];
+  const colours = [];
+  const splatA = [];
+  const splatB = [];
+  const splatC = [];
+  const vertex = (point, steep, shade, drop) => {
+    positions.push(point.x, point.y - drop, point.z);
+    colours.push(shade, shade, shade);
+    const [grass, dirt, rock, sand, snow] = groundWeights(point.y, steep, land.toRiverBank(point.x, point.z));
+    const floor = grass * forestCover(forest, point.x, point.z);
+    splatA.push(grass - floor, dirt, rock, sand);
+    splatB.push(snow, 0, 0, 0);
+    splatC.push(floor, 0, 0, 0);
+  };
+  const triangle = (a, b, c, drop = [0, 0, 0]) => {
+    const steep = Math.max(a.y, b.y, c.y) - Math.min(a.y, b.y, c.y);
+    const shade = facetShade((a.x + b.x + c.x) / 3, (a.z + b.z + c.z) / 3);
+    vertex(a, steep, shade, drop[0]);
+    vertex(b, steep, shade, drop[1]);
+    vertex(c, steep, shade, drop[2]);
+  };
+  for (let j = 0; j < cells; j++) {
+    for (let i = 0; i < cells; i++) {
+      const p00 = at(i, j);
+      const p10 = at(i + 1, j);
+      const p01 = at(i, j + 1);
+      const p11 = at(i + 1, j + 1);
+      triangle(p00, p01, p10);
+      triangle(p10, p01, p11);
+    }
+  }
+  // The skirt: each edge hangs down a little, seen from both sides.
+  const edges = [];
+  for (let k = 0; k < cells; k++) {
+    edges.push([at(k, 0), at(k + 1, 0)], [at(k, cells), at(k + 1, cells)]);
+    edges.push([at(0, k), at(0, k + 1)], [at(cells, k), at(cells, k + 1)]);
+  }
+  for (const [a, b] of edges) {
+    triangle(a, b, a, [0, 0, SKIRT]);
+    triangle(b, b, a, [0, SKIRT, SKIRT]);
+    triangle(b, a, a, [0, 0, SKIRT]);
+    triangle(b, a, b, [0, SKIRT, SKIRT]);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new Float32BufferAttribute(colours, 3));
   geometry.setAttribute("splatA", new Float32BufferAttribute(splatA, 4));
   geometry.setAttribute("splatB", new Float32BufferAttribute(splatB, 4));
-  geometry.deleteAttribute("uv");
+  geometry.setAttribute("splatC", new Float32BufferAttribute(splatC, 4));
   geometry.computeVertexNormals();
-  return new Mesh(geometry, terrainMaterial(uniforms, { flatShading: true }));
+  const mesh = new Mesh(geometry, material);
+  mesh.userData.ground = true;
+  return mesh;
+}
+
+/**
+ * The whole ground in 80 m chunks: coarse everywhere from the start, fine near the player (built as
+ * they come near, let go as they leave). Returns { follow(x, z) }.
+ */
+function createGround(scene, uniforms, forest) {
+  const material = terrainMaterial(uniforms, { flatShading: true });
+  const half = worldSize / 2;
+  const chunks = [];
+  for (let z0 = -half; z0 < half; z0 += CHUNK) {
+    for (let x0 = -half; x0 < half; x0 += CHUNK) {
+      const coarse = groundChunk(x0, z0, COARSE_CELL, material, forest);
+      scene.add(coarse);
+      chunks.push({ x0, z0, coarse, fine: null });
+    }
+  }
+  let lastX = Infinity;
+  let lastZ = Infinity;
+  return {
+    follow(x, z) {
+      if ((x - lastX) ** 2 + (z - lastZ) ** 2 < 16) return; // every 4 m
+      lastX = x;
+      lastZ = z;
+      for (const chunk of chunks) {
+        const distance = Math.hypot(chunk.x0 + CHUNK / 2 - x, chunk.z0 + CHUNK / 2 - z);
+        if (!chunk.fine && distance < FINE_NEAR) {
+          chunk.fine = groundChunk(chunk.x0, chunk.z0, FINE_CELL, material, forest);
+          scene.add(chunk.fine);
+        } else if (chunk.fine && distance > FINE_FAR) {
+          scene.remove(chunk.fine);
+          chunk.fine.geometry.dispose();
+          chunk.fine = null;
+        }
+        chunk.coarse.visible = !chunk.fine;
+      }
+    },
+  };
 }
 
 /** Random points across the ground outside town. */
 function scatter(random, count, scaleMin, scaleRange) {
   const points = [];
-  const half = WORLD_SIZE / 2 - 2;
+  const half = worldSize / 2 - 2;
   while (points.length < count) {
     const x = (random() * 2 - 1) * half;
     const z = (random() * 2 - 1) * half;
@@ -1619,11 +1698,16 @@ function streetWaypoints() {
  * Builds the scene for one seed. Instanced meshes are allocated at the highest density once;
  * changing density only changes how many instances are drawn.
  */
-export function createWorld(seed, landscape = null, needs = {}) {
+export function createWorld(seed, landscape = null, needs = {}, size = "normal") {
   const random = rng(seed);
+  worldSize = WORLD_SIZES[size] ?? WORLD_SIZE;
+  // Trees and rocks grow with the area: a bigger world is as wooded as a Normal one.
+  const areaScale = (worldSize / WORLD_SIZE) ** 2;
+  const baseTrees = Math.round(BASE_TREES * areaScale);
+  const baseRocks = Math.round(BASE_ROCKS * areaScale);
   land = createLand(checkLandscape(landscape, seed), seed, {
     townHalf: TOWN_HALF,
-    worldHalf: WORLD_SIZE / 2,
+    worldHalf: worldSize / 2,
     streetLines: STREET_LINES,
   });
   const scene = new Scene();
@@ -1636,8 +1720,6 @@ export function createWorld(seed, landscape = null, needs = {}) {
   scene.add(sun);
 
   const ground = terrainUniforms();
-  const groundMesh = buildGround(random, ground);
-  scene.add(groundMesh);
   const town = buildTown(random, land, ground, needs ?? {});
   const { country } = town;
   scene.add(
@@ -1651,9 +1733,11 @@ export function createWorld(seed, landscape = null, needs = {}) {
     ...country.meshes,
   );
 
-  const trees = scatter(random, BASE_TREES * MAX_DENSITY, 1.6, 1.6);
-  paintForestFloor(groundMesh, trees.slice(0, BASE_TREES));
-  const rocks = scatter(random, BASE_ROCKS * MAX_DENSITY, 0.8, 1.4);
+  const trees = scatter(random, baseTrees * MAX_DENSITY, 1.6, 1.6);
+  const rocks = scatter(random, baseRocks * MAX_DENSITY, 0.8, 1.4);
+  // The ground, in chunks: coarse everywhere, fine near the player (forest floor under the usual trees).
+  const terrain = createGround(scene, ground, forestGrid(trees.slice(0, baseTrees)));
+  terrain.follow(SPAWN.x, SPAWN.z);
 
   const trunkGeometry = new CylinderGeometry(0.15, 0.22, 1.2, 5).translate(0, 0.6, 0);
   const crownGeometry = new ConeGeometry(0.95, 2.4, 6).translate(0, 2.3, 0);
@@ -1683,11 +1767,13 @@ export function createWorld(seed, landscape = null, needs = {}) {
 
   const dummy = new Object3D();
   const crownColor = new Color();
+  const treeMatrices = []; // each simple tree's place, for drawing them far off once the kit's trees are in
   trees.forEach((tree, i) => {
     dummy.position.set(tree.x, heightAt(tree.x, tree.z) - 0.05, tree.z);
     dummy.rotation.set(0, tree.turn, 0);
     dummy.scale.setScalar(tree.scale);
     dummy.updateMatrix();
+    treeMatrices.push(dummy.matrix.clone());
     trunks.setMatrixAt(i, dummy.matrix);
     crowns.setMatrixAt(i, dummy.matrix);
     crowns.setColorAt(i, crownColor.setHSL(0.3 + tree.tint * 0.08, 0.45, 0.26 + tree.tint * 0.08));
@@ -1754,8 +1840,10 @@ export function createWorld(seed, landscape = null, needs = {}) {
   const natureLayers = []; // { meshes: InstancedMesh[], items: [{ x, z, need, matrix }] }
   const view = { x: Infinity, z: Infinity, radius: 200, density: DENSITIES[0] };
   function refreshNature() {
-    const reach = (view.radius + 15) ** 2;
-    for (const { meshes, items } of natureLayers) {
+    for (const { meshes, items, kind } of natureLayers) {
+      // Small plants only nearby, rocks a little further, detailed trees out to a point; past that the
+      // simple trees stand in (below), all under the fog.
+      const reach = (Math.min(view.radius, NATURE_REACH[kind]) + 15) ** 2;
       let count = 0;
       for (const item of items) {
         if (item.need > view.density) continue;
@@ -1768,10 +1856,35 @@ export function createWorld(seed, landscape = null, needs = {}) {
         mesh.instanceMatrix.needsUpdate = true;
       }
     }
+    // Far off (past the detailed trees, out to the draw distance): the simple trees, a hundredth of the cost.
+    const far = natureLayers.length > 0 && view.radius > NATURE_REACH.tree;
+    trunks.visible = crowns.visible = far || !natureLayers.length;
+    if (!far) {
+      if (natureLayers.length) return;
+      trunks.count = crowns.count = baseTrees * view.density;
+      return;
+    }
+    const near = NATURE_REACH.tree ** 2;
+    const out = (view.radius + 15) ** 2;
+    let count = 0;
+    const limit = baseTrees * view.density;
+    for (let i = 0; i < limit && i < trees.length; i++) {
+      const distance = (trees[i].x - view.x) ** 2 + (trees[i].z - view.z) ** 2;
+      if (distance < near || distance > out) continue;
+      trunks.setMatrixAt(count, treeMatrices[i]);
+      crowns.setMatrixAt(count, treeMatrices[i]);
+      crowns.setColorAt(count, crownColor.setHSL(0.3 + trees[i].tint * 0.08, 0.45, 0.26 + trees[i].tint * 0.08));
+      count++;
+    }
+    trunks.count = crowns.count = count;
+    trunks.instanceMatrix.needsUpdate = true;
+    crowns.instanceMatrix.needsUpdate = true;
+    if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
   }
   /** Where the player is, so the detailed nature near them is the nature drawn. Cheap to call every frame. */
   function follow(x, z) {
     lamps.follow(x, z);
+    terrain.follow(x, z);
     if (!natureLayers.length || (x - view.x) ** 2 + (z - view.z) ** 2 < 64) return;
     view.x = x;
     view.z = z;
@@ -1780,10 +1893,10 @@ export function createWorld(seed, landscape = null, needs = {}) {
 
   let collider = createCollider([], []);
   function setDensity(density) {
-    const treeCount = BASE_TREES * density;
+    const treeCount = baseTrees * density;
     trunks.count = treeCount;
     crowns.count = treeCount;
-    stones.count = BASE_ROCKS * density;
+    stones.count = baseRocks * density;
     collider = createCollider([...fixedCircles, ...treeCircles.slice(0, treeCount)], fixedBoxes);
     view.density = density;
     refreshNature();
@@ -1903,7 +2016,7 @@ export function createWorld(seed, landscape = null, needs = {}) {
     const growth = rng(seed ^ 0x5bd1e995);
     trees.forEach((tree, i) => {
       const [name, , size] = pickWeighted(KIT_TREES, tree.tint);
-      const need = needFor(i, BASE_TREES);
+      const need = needFor(i, baseTrees);
       dummy.position.set(tree.x, heightAt(tree.x, tree.z) - 0.1, tree.z);
       dummy.rotation.set(0, tree.turn, 0);
       dummy.scale.setScalar(size * (0.75 + tree.scale * 0.15));
@@ -1930,7 +2043,7 @@ export function createWorld(seed, landscape = null, needs = {}) {
         KIT_ROCKS[Math.floor(rock.tint * KIT_ROCKS.length) % KIT_ROCKS.length],
         rock.x,
         rock.z,
-        needFor(i, BASE_ROCKS),
+        needFor(i, baseRocks),
       );
     });
     // Undergrowth on the grass around town: between the town's edge and the forest.
@@ -1961,6 +2074,7 @@ export function createWorld(seed, landscape = null, needs = {}) {
     town.natureMesh.visible = false;
     for (const [name, items] of placements) {
       const boulder = KIT_ROCKS.includes(name);
+      const kind = boulder ? "rock" : KIT_TREES.some(([tree]) => tree === name) ? "tree" : "plant";
       const meshes = models.get(name).map(({ geometry, material }) => {
         const instanced = new InstancedMesh(geometry, boulder ? boulderLook : material, items.length);
         instanced.frustumCulled = false; // round the player anyway, and its instances change as they move
@@ -1969,7 +2083,7 @@ export function createWorld(seed, landscape = null, needs = {}) {
         scene.add(instanced);
         return instanced;
       });
-      natureLayers.push({ meshes, items });
+      natureLayers.push({ meshes, items, kind });
     }
     view.x = Infinity; // drawn from wherever the player is on the next follow()
     refreshNature();
@@ -2111,6 +2225,8 @@ export function createWorld(seed, landscape = null, needs = {}) {
 
   return {
     scene,
+    /** Metres along each side. */
+    size: worldSize,
     setDensity,
     resolveCollisions,
     clearSight,
@@ -2129,7 +2245,7 @@ export function createWorld(seed, landscape = null, needs = {}) {
       river: land.river ? { points: land.river.points, width: land.river.width } : null,
       roads: land.roads.map((road) => ({ points: road.points, width: road.width, to: road.to })),
       mountains: land.mountains.map((ridge) => ridge.side),
-      worldHalf: WORLD_SIZE / 2,
+      worldHalf: worldSize / 2,
       outposts: land.outposts.map((outpost) => ({
         kind: outpost.kind,
         name: outpost.name ?? null,

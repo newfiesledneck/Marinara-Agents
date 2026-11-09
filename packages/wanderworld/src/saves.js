@@ -104,6 +104,8 @@ export function checkWorld(raw) {
     bodies: isRecord(raw.bodies)
       ? Object.fromEntries(Object.entries(raw.bodies).filter(([, body]) => body === "male" || body === "female"))
       : null,
+    // How big the world is (world.js WORLD_SIZES): small, normal, large, huge or massive.
+    worldSize: ["small", "normal", "large", "huge", "massive"].includes(raw.worldSize) ? raw.worldSize : "normal",
     // The least the world must have for its lore ({ kind: count }, zones.js `needsFromLore`).
     needs: isRecord(raw.needs)
       ? Object.fromEntries(

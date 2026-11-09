@@ -1,149 +1,138 @@
 # Wanderworld
 
 A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal is a world built from your
-characters, persona and lorebooks, with buildings you can walk into. This is an early prototype and is
-not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
+characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
+prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.23)
+## What it does now (0.4.48)
 
-- Draws a seeded town around a plaza and fountain, surrounded by forest. A town hall, a temple, a tavern and
-  shops ring the plaza, with market stalls and benches; homes, a smithy and fenced gardens fill the cobbled
-  streets beyond, with brick sidewalks, flowers and clutter by the doors, ivy on walls, parked wagons and
-  meadows on empty lots. Buildings come from a kit of parts (walls, roofs, chimneys, balconies, shutters,
-  signs, awnings). **New world** walks a different one.
-- **Painted ground:** grass, dirt roads, cobbled streets, kerbed sidewalks of setts that fade into the lawns,
-  and a slabbed square, blended by
-  height and slope into rock, snow and riverbed pebbles in one ground material (`world.js` terrainMaterial).
-- **The land:** hills, mountain ranges along some edges, a winding river with bridges, and places out in
-  the country (a roadside inn, cottages, caves in hillsides) at the end of their own dirt roads. Each world
-  has its own, chosen in New world or left to the seed, and saved with it (`src/land.js`). Caves are one
-  carved rock face (`src/caves.js`).
-- **Main menu and saves** (with its own painted art and logo, and a loading screen while a world builds): Continue, New world (a name and an optional seed), Load world (thumbnails,
-  Rename, Delete) and Settings. Each world keeps where you were, the time, the persona, the cast, its
-  place names and their lore, in this package's browser storage for now.
-- **Places:** a named town with named streets, the market square, the fountain, gardens, meadows, the
-  edge of town and the woods. Walking into one shows its name; the bar says where you are, and which
-  lore is active there. Shops, the tavern, smithy, temple and hall have their name on a sign.
-- **A noticeboard** on the market square: the town's notes, and your own pinned up and saved.
-- **Parchment panels** for the menu, conversations, building cards, the noticeboard and the Journal (`src/ui.js`).
-- **The Journal** (J): Here (where you are, the lore active here, who's nearby), People (where everyone
-  is and what they're doing, in the words the AI will get), Places (rename any place; tie lorebook
-  entries to it) and World.
-- **A party:** ask someone in a conversation to come with you ("Come with me"); they follow, run to
-  keep up, go round buildings, sit near you, and can wait somewhere or part ways (Journal → Party).
-- **Play as** picks one of your personas. A persona with a 3D model set up in 3D Avatars walks in that
-  model (VRM, GLB, FBX or MMD); any other persona gets a built-in low-poly person (face, hair, build and
-  clothes chosen from its name). The choice is remembered.
-- **People** picks up to thirty characters to live in town. Each lives in a house near the plaza and goes
-  about in its own 3D model or a built-in person: out and about, on benches, or inside houses, shops, the
-  tavern and the temple. A door says who's inside. They stop to face you when you walk up and have their
-  name overhead.
-- **Real buildings** assembled from Quaternius's free Medieval Village MegaKit (walls, windows, doors, roofs,
-  gables, chimneys, balconies, towers) on its 2 m grid; the simple buildings stand in until it loads.
-- **Detailed furniture and props** in town and indoors from Quaternius's free Fantasy Props and Medieval
-  Village kits; the simple ones stand in until they load, or if Settings turns them off.
-- **Detailed nature** everywhere (trees, rocks, bushes, flowers, grass) from Quaternius's free Stylized
-  Nature MegaKit, drawn out to the draw distance; Trees and rocks sets how many. Settings can turn it off.
-- **Dressed default people:** anyone without a 3D model is put together from Quaternius's free
-  character packs (everyday clothes in seven colours, head, hairstyle, skin and hair tones, height), chosen
-  from their name. A
-  body picker (Auto, Male, Female) next to each character in People and next to Play as sets which body. The
-  files are package assets in `kit/people/`, loaded only when needed. See `kit/CREDITS.md`.
-- **Recorded animations** from Quaternius's free Universal Animation Library (CC0): idle, walk, jog,
-  sprint, sitting, talking and swimming, played on any model with planted feet. Settings → Animation switches to
-  the hand-made motion below. See `src/clips/CREDITS.md`.
-- **Natural movement (hand-made).** Everyone walks heel to toe with turning hips, swinging arms and a foot that stays
-  on the ground, leans into a run, and when standing breathes, shifts their weight and glances around.
-  VRM models blink.
-- **Use things** with E, a click, or a tap: sit on benches and chairs, go through a door (for now a card
-  says who's inside; starting a scene with them comes with the AI part, and Settings → Walk into buildings
-  brings back the unfinished furnished rooms), and talk to people. A conversation turns you to face each other,
-  moves the camera to the side, and opens a chat box with speech bubbles; replies are placeholder lines
-  until the AI update. Click a spot on the ground to walk there.
-- **A living town:** townsfolk sit on benches, visit shops and the tavern, find their way along the
-  streets, head home at night, look at you and wave. Friends meet up to chat and sit or walk together.
-  Talk to anyone: pick what to say from a few choices, or type (set conversations until the AI update).
-- **Relationships:** the Journal sets how each person sees the others and you (friend, family, partner,
-  rival, enemy and more, each with levels), and each character's temperament (passive to aggressive)
-  and manner (shy to outgoing). Townsfolk act on them: a friend comes over to say hello, someone who
-  dislikes you keeps away, a sworn enemy comes to have words.
-- **Scenes:** doors, caves and the fountain offer things to do and a box for your own line; choosing sets
-  up a scene request (who's there, who came with you, the time) for the AI part to play out.
-- **Lore and the world's setup:** Journal → Places shows the world as a tree (the whole world, its
-  characters, the town, its streets and buildings, the wilds, and groups of places) and lorebook entries
-  can be tied at any level: active where you are and everywhere above it, or while you're with that
-  character. New world picks your persona (type or pick) and the characters who live there (from your
-  Engine folders), the world's setting and lorebooks, and can link entries to places by name
-  (Journal → World changes it later). The Lore button shows what's active now.
-- **Swimming:** wade into the river and swim where it's deep (Shift swims faster). A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
+### The world
+
+- **A seeded town** around a market square with a stone fountain: a town hall, a temple, a tavern and shops
+  round the square with market stalls and benches; homes, a smithy and fenced gardens along cobbled streets
+  with kerbed sidewalks, flowers and clutter by the doors, ivy, wagons and meadows on empty lots. Shops have
+  striped awnings and hanging signs on painted boards; iron lamp posts light the streets at night, windows
+  glow, and smoke rises from chimneys.
+- **The land:** hills, mountain ranges along some edges, a winding river with plank bridges on piers, and
+  places out in the country: wayside inns and cottages at the end of their own dirt roads (never in the
+  river), and caves up on the hillsides with no road to them. Each world chooses its own in New world, or
+  leaves it to the seed (`src/land.js`, `src/caves.js`).
+- **Built to its lore:** with places linked by name, a world is built with at least every numbered place
+  its lorebooks mention (smithy3 makes three smithies; a cave brings mountains for it). Past that, random.
+- **Painted ground and water:** grass, dirt, forest floor, rock, snow, riverbed pebbles, cobbles, setts and
+  slabs blended in one ground material, and rippling water (`world.js`).
+- **Real buildings, props and nature** from Quaternius's free kits (Medieval Village, Fantasy Props,
+  Stylized Nature); simple stand-ins show until they load, or if Settings turns them off.
+
+### People
+
+- **Play as** one of your personas, in its 3D Avatars model (VRM, GLB, FBX or MMD) or a built-in person.
+- **Up to thirty characters live in each world,** in their own 3D models or dressed townsfolk (Quaternius's
+  character packs, chosen from their name; a body picker sets Auto, Male or Female, per world).
+- **A living town:** townsfolk visit shops and the tavern, sit on benches, find their way along the streets,
+  go to work by day if they have a job, head home at night, and cross the river by a bridge or by
+  swimming. Friends meet up and hold little conversations, taking turns; name tags are tinted by how each
+  person sees you (red enemies, green friends, pink romance…).
+- **Talking:** walk up and press E. They greet you by how they feel about you; pick from a few things to
+  say, or type your own (set conversations until the AI update).
+- **Relationships** (Journal → Relationships): how each person sees the others and you (friend, family,
+  partner, rival, enemy and more, each with levels), and each one's temperament (passive to aggressive)
+  and manner (shy to outgoing). Friends come over to say hello, someone who dislikes you keeps away, a
+  sworn enemy comes to have words. Settings decide how often people come up to you, how many at once, and
+  where confrontations may happen.
+- **A party:** ask someone along in a conversation, or bring everyone standing round you (Journal → Party).
+  They follow you, run to keep up, sit near you, wait where you ask, and cross water the way you did.
+
+### Lore and the world's setup
+
+- **Journal → Places** shows the world as a tree: the whole world, its characters, the town, its streets
+  and the buildings on them, the wilds, and groups of places (which can sit inside each other). A
+  lorebook entry can be tied at any level: active where you are and everywhere above it, everywhere for
+  the world, or while you talk to or travel with that character. The **Lore** button shows what's active.
+- **Lorebooks can set it all up** (each part opt-in in New world or Journal → World):
+  - entries named or keyed after a place, its kind ("tavern", "the woods") or its numbered name
+    (town1, tavern1, home6, inn1, cave1 — shown in the Places tree) link there;
+  - "group of home" makes a group of every house; "located in town1" puts a place or group inside another;
+  - on a character's entry: "male" / "female", how they see you ("enemy", "best friend", "mentor"…), how
+    they stand toward others ("brother of Sarah", "friends with Tam"), and "lives in home6", "works at
+    smithy1", "owner of tavern1";
+  - your own entry, keyed "player <your persona's name>" (or "you"): its lore is always active, and it can
+    give you a home (you start at your front door) and your relationships.
+- **Regenerate this world** (Settings) rebuilds it from its setup with this version's land and the
+  lorebooks' current needs, keeping its people, relationships, lore, groups and homes; optionally a new
+  town layout, with every name and link moved to the same kind of place.
+
+### Playing
+
+- **Main menu and saves,** with painted art and a loading screen: Continue, New world (name, seed, your
+  persona, the characters who live there from your Engine folders, the land, the world's size from Small to
+  Massive, the setting and lorebooks),
+  Load world (thumbnails, Rename, Delete) and Settings. Each world keeps everything in its own save in
+  this package's browser storage: where you were, the time, the cast, bodies, relationships, lore,
+  groups, homes, notes and scenes.
+- **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
+  door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
+  and who comes along; choosing sets up a scene request for the AI part to play out (Settings → Walk into
+  buildings brings back the unfinished furnished rooms).
+- **The Journal** (J): Here, People (where everyone is, and where they live and work), Party,
+  Relationships, Places (the setup tree) and World (setting, lorebooks, lore linking).
+- **Swimming:** wade into the river and swim where it's deep (Shift swims faster).
+- **Animation:** recorded clips from Quaternius's Universal Animation Library (idle, walk, jog, sprint,
+  sitting, talking, swimming), or the hand-made motion (Settings → Animation).
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
-  around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the
-  stick walks (all the way out runs), dragging anywhere else looks around, pinching zooms, and the Use
-  button or a tap uses. The camera orbits and tilts, and moves in when a building would hide you.
-- **Settings:** resolution (Auto keeps it smooth), draw distance, trees and rocks, shadows, walk and run speed,
-  camera speed and direction, time of day, sound, where confrontations and combat may happen
-  (anywhere, outside towns, outside safe places, or off), how often people come up to you and how many
-  at once, what the HUD shows, and Regenerate this world (rebuilt from its setup, keeping its people).
-- Shows frames per second, draw calls, triangles and the render resolution (Settings can hide it).
-- **Fullscreen** fills the screen, on Engines whose Home tabs offer it.
+  around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the stick
+  walks (all the way out runs), dragging elsewhere looks around, pinching zooms, and Use or a tap uses.
+- **Settings:** resolution, draw distance (Tiny to Max; what costs the most is measured in
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, detail on or off, walk and run speed,
+  camera speed and direction, time of day and time speed, sound, confrontations, people coming up to you,
+  what the HUD shows, explanations under every option, and Regenerate this world.
+- A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night.
 
-It reads your persona and character lists and their 3D Avatars models. It remembers your settings, the
-world and where you stood in this browser only; nothing is saved to the Engine yet.
+It reads your personas, characters, character folders, lorebooks and 3D Avatars models from the Engine.
+Everything it saves stays in this browser for now; nothing is saved to the Engine yet.
 
 ## Using it
 
-Install it, then open the **Wanderworld** tab on Home. To walk in your persona's own model, set one up
-for that persona in 3D Avatars first.
+Install it, then open the **Wanderworld** tab on Home. To walk in your persona's own model, set one up for
+that persona in 3D Avatars first.
 
 ## How it works
 
-- `src/main.js` mounts as the package's Home tab (`home-browser-tab` slot, `view="browser"`). The canvas,
-  HUD and touch stick all live in that one element, and the WebGL renderer is reused when the tab reopens.
-- `src/buildings.js` is the parts kit: a building is a spec (kind, size, floors, roof, walls, colours,
-  features) chosen from fixed menus, which the world brief will choose from later, and the code assembles it.
-- `src/world.js` lays out the town and builds the scene. Every building, prop, road and the fountain are
-  merged into one vertex-coloured mesh, and trees, rocks and lamp posts are instanced, so the whole world is under ten
-  draw calls. Collision is the player against trunk circles and building boxes in a 2D grid, not a
-  physics engine.
-- `src/motion.js` is how bodies move: a walk-to-run cycle and an idle, as angles for three-vrm's
-  normalized humanoid bones. The hips drop as far as the legs' angles need to keep the standing foot on the
-  ground, which is also what makes a body rise and fall as it walks.
-- `src/clips.js` plays the recorded clips (`src/clips/ual.json`, made by
-  `scripts/build-wanderworld-clips.mjs`): each frame is every bone's turn from the T-pose in model space,
-  so it plays on any rig, timed by each body's own measured footfall so feet don't skate.
-- `src/character.js` applies that motion to any humanoid, and reads `GET /api/characters/personas/list`
-  and `GET /api/characters`.
-- `src/npcs.js` runs the townsfolk: each follows a small plan (walk somewhere, sit, go inside, wait), heads
-  home at night, and stops, looks and waves when the player comes near.
-- `src/interiors.js` builds the room behind a door from the building's kind, seeded by the building, and
-  hides whichever walls stand between the camera and the player. Off by default (Settings → Walk into
-  buildings) until rooms get their own pass.
-- `src/zones.js` names the places of a world from its layout and seed, finds the place at a point and
-  says where someone is in words; `src/saves.js` keeps the saved worlds (checked on the way in);
-  `src/menu.js` is the main menu, `src/journal.js` the Journal, `src/signs.js` the shop signs.
-- `src/talk.js` is the conversation panel and speech bubbles; `src/sound.js` makes every sound with Web
-  Audio; `src/settings.js` keeps the settings, checking each value as it is read back.
-- `src/people.js` builds a default person from the kit: every part keeps its own joints' bind data and
-  binds to the outfit's skeleton, then becomes a humanoid like a GLB model.
-- `src/houses.js` assembles a building's kit pieces from its spec (front facing +z); town buildings snap to
-  the kit's grid in `buildings.js`, so both versions share a footprint, door and collision box.
-- `src/kit.js` loads static kit models (shared geometry and materials, never disposed with a world);
-  `world.addNature` swaps them in as instanced meshes, each model's instances rewritten to those within the
-  draw distance as the player moves (`world.follow`).
-- `src/figure.js` is the built-in person: simple shapes on a humanoid skeleton in one skinned mesh, so it
-  moves exactly like a 3D model. It uses no outside art.
-- `src/models.js` reads a persona's or character's `GET /api/avatar-models/:type/:id` and loads its model
-  the way 3D Avatars does: VRM with `@pixiv/three-vrm`, GLB and FBX with three.js's loaders and the bones
-  3D Avatars matched, and MMD (PMX) with `mmd-parser` into a plain toon-shaded skinned mesh (the Engine's
-  MMD materials need three's WebGPU renderer). Every format becomes a three-vrm humanoid, so one walk
-  drives them all.
-- `src/npcs.js` places the chosen characters at doors near the plaza and walks them around.
-- three.js 0.186.1, `@pixiv/three-vrm` 3.5.5 and `mmd-parser` 1.1.4 (the versions the Engine itself uses)
-  are bundled into `client.js`, because the Engine does not hand its copies to packages.
+- `src/main.js` mounts as the package's Home tab (`home-browser-tab` slot, `view="browser"`): the canvas,
+  HUD and touch stick live in one element, and the WebGL renderer is reused when the tab reopens. It ties
+  the world, the townsfolk, saves, the Journal and lore together.
+- `src/world.js` lays out the town and builds the scene: the ground, roads, water and bridges, buildings
+  (simple ones, then the kit's), props, nature (drawn out to the draw distance) and collision (circles and
+  boxes in a 2D grid, not a physics engine). `src/land.js` makes the land (hills, mountains, the river,
+  places out in the country and their roads); `src/caves.js` carves cave mouths; `src/fixtures.js` builds
+  lamp posts, the fountain, lit windows, chimney smoke and awnings.
+- `src/buildings.js` is the parts kit (a building is a spec chosen from fixed menus) and `src/houses.js`
+  assembles a building from the village kit on its 2 m grid; both versions share a footprint and door.
+- `src/zones.js` names the places of a world, finds the place at a point, says where someone is in words,
+  and holds the setup logic: groups, numbered names, keeping the setup through a regenerate, and reading
+  lorebook keywords (`matchLore`, `structureFromLore`, `needsFromLore`).
+- `src/npcs.js` runs the townsfolk: each follows a small plan (walk, sit, go in, chat, work, wait), heads home
+  at night, routes along the streets in town and straight across country (by a bridge over the river),
+  swims, follows the party, and acts on relationships and temperament.
+- `src/relationships.js` holds relationship kinds, tiers and warmth, temperaments, and reading
+  relationships from lore keywords; `src/dialogue.js` the set conversations; `src/interactions.js` the
+  things you can do with doors and things, and the scene requests they make.
+- `src/character.js` applies motion to any humanoid and reads the Engine's personas, characters and
+  character folders; `src/clips.js` plays the recorded clips (`src/clips/ual.json`, made by
+  `scripts/build-wanderworld-clips.mjs`); `src/motion.js` is the hand-made motion; `src/models.js` loads
+  3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
+  build the default people.
+- `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
+  menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
+  and speech bubbles, `src/signs.js` signs and the noticeboard, `src/ui.js` the parchment look,
+  `src/sound.js` Web Audio sounds, `src/settings.js` the settings, `src/kit.js` the kit's models.
+- `src/interiors.js` builds the (unfinished) room behind a door, off by default.
+- three.js 0.186.1, `@pixiv/three-vrm` 3.5.5 and `mmd-parser` 1.1.4 (the versions the Engine uses) are
+  bundled into `client.js`, because the Engine does not hand its copies to packages.
 
-Performance targets: about 30 fps on a mid-range phone and 60 on a desktop, under 150 draw calls and 200k
-visible triangles. The pixel ratio is capped at 1.5, there are no real-time shadows, and fog hides the far
-edge.
+Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The pixel ratio is capped at
+1.5, Auto resolution steps down when frames drop, nature and real lights follow the player, and fog hides
+the far edge. A performance pass is planned once the bigger worlds are in (docs/CONCEPT.md, W8).
 
 ## Building
 
