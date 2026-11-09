@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.30",
+          "date": "2026-11-08",
+          "notes": "- Journal → Places shows the world's setup as a tree: the whole world, its characters, then each place inside the one it sits in (town, street, building), then groups. Lore can be tied at every level.\n- Lore for the whole world is active everywhere; a character's lore is active while you talk to them or while they're with you.\n- Groups can sit inside other groups and pass their lore down.\n- Regenerating with a new layout keeps the setup: names, lore and groups move to the same kind of place (the tavern stays the tavern).",
+          "highlight": false
+        },
+        {
           "version": "0.4.29",
           "date": "2026-11-08",
           "notes": "- Place groups: gather places under a name, like every home in town, or the forest, mountains, cottages and river as the wilds. Lore tied to a group is active anywhere in it, along with each place's own.\n- Every world starts with two groups, The wilds and Homes. Add, rename, fill or remove groups in Journal → Places; later the AI can make them too.\n- The Lore panel and Journal → Here show the groups you're in.\n- The \"Lorebooks shown\" list stays open while you tick several, until you close it.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.11",
           "date": "2026-11-08",
           "notes": "- Detailed furniture and props from Quaternius's free Fantasy Props and Medieval Village kits (public domain): market stalls with crates of apples and carrots, benches, barrels and crates in town; beds, tables, chairs, stools, bookcases, chests, an anvil and workbench, candle stands, banners, and mugs and plates on tables indoors.\n- Settings → Detailed furniture and props turns them off on slow devices.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.10",
-          "date": "2026-11-08",
-          "notes": "- Detailed nature around town: leafy trees, pines, twisted and dead trees, rocks, bushes, ferns, flowers, grass and pebbles from Quaternius's free Stylized Nature MegaKit (public domain). Further out, the simple trees stay, where the haze hides the difference.\n- Settings → Detailed trees and plants turns them off on slow devices.",
           "highlight": false
         }
       ]
