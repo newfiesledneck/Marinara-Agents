@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.40",
+          "date": "2026-11-08",
+          "notes": "- \"lives in inn1\", \"owner of inn1\" and the same for cottages now mean the building there, so an innkeeper or a hermit can live and work out in the country.",
+          "highlight": false
+        },
+        {
           "version": "0.4.39",
           "date": "2026-11-08",
           "notes": "- Your own lore entry: keyed \"player <your persona's name>\" (for one persona) or \"you\" / \"player\" (any persona), never your bare name, so a character can share it. Its lore is active everywhere, \"male\"/\"female\" sets your body, and \"mother of Hank\" or \"friends with Mira\" sets how you see them.\n- \"lives in home6\" on it gives you a home. The house is named for everyone in it, a new world starts you at your front door, its prompt reads \"Your home\", and Journal → Here says when you're at home.\n- A new world's loading screen stays up until its lore has linked and you're in place.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.21",
           "date": "2026-11-08",
           "notes": "- A noticeboard on the market square: read the town's notes, and pin up your own (they're saved with the world). Quests and news from the AI will go here later.\n- Parchment for the menu, conversations, building cards, the noticeboard and the Journal, with wooden buttons.\n- Painted water that ripples as it flows, sandy riverbeds, rock on the mountains, and cracked rock on cave faces.\n- No more grass wedges at street corners.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.20",
-          "date": "2026-11-08",
-          "notes": "- A low stone kerb runs between the streets and the sidewalks, and round the market square.\n- Sidewalks fade into the lawns instead of stopping in a hard line, and every block's corners are rounded.\n- At the edge of town the cobbled streets fade into the meadow.",
           "highlight": false
         }
       ]
