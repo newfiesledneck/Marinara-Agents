@@ -534,7 +534,7 @@ export async function activate(context) {
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)
-          .slice(0, 8);
+          .slice(0, 5); // the client's MAX_LISTENERS
         const records = listeners.length ? await resources.listCharacters(listeners.map((person) => person.id)) : [];
         const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
         const heard = listeners

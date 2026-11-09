@@ -158,3 +158,29 @@ export const SPEECH_HELP = [
     "do something instead of saying it (open a chest, cast a spell); the narrator and people nearby respond",
   ],
 ];
+
+/** How many people hear a moment at most (the model writes for each, so it's kept small). */
+export const MAX_LISTENERS = 5;
+
+/** Whether `text` names someone called `name`: their whole name, or their first name, as a word. */
+export function mentions(text, name) {
+  const words = String(text ?? "").toLowerCase();
+  const full = String(name ?? "")
+    .trim()
+    .toLowerCase();
+  if (!full || !words) return false;
+  const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const names = [...new Set([full, full.split(/\s+/u)[0]])].filter((entry) => entry.length > 1);
+  return names.some((entry) => new RegExp(`(^|[^\\p{L}\\p{N}])${escape(entry)}($|[^\\p{L}\\p{N}])`, "u").test(words));
+}
+
+/**
+ * Who hears a moment: from `candidates` ([{ id, name, distance }] already in earshot), anyone the player
+ * named in `text` first (nearest first), then the nearest of the rest, `max` in all.
+ */
+export function pickListeners(candidates, text, max = MAX_LISTENERS) {
+  const byDistance = [...candidates].sort((a, b) => a.distance - b.distance);
+  const named = byDistance.filter((person) => mentions(text, person.name));
+  const rest = byDistance.filter((person) => !named.includes(person));
+  return [...named, ...rest].slice(0, max);
+}

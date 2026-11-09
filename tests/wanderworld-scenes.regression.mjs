@@ -151,4 +151,30 @@ assert.ok(!choicesFor(["news"]).some((choice) => choice.id === "news"), "asked t
   }
 }
 
+// Who hears a moment: at most five, and anyone named comes first if they're in earshot.
+{
+  const { mentions, pickListeners, MAX_LISTENERS } = await import("../packages/wanderworld/src/interactions.js");
+  assert.equal(MAX_LISTENERS, 5);
+  assert.ok(mentions("Hey Ingrid!", "Ingrid"));
+  assert.ok(mentions("hey INGRID, over here", "Ingrid Holm"), "a first name, any case");
+  assert.ok(mentions("Ingrid Holm, wait", "Ingrid Holm"));
+  assert.ok(!mentions("Ingridson's shop", "Ingrid"), "not inside another word");
+  assert.ok(!mentions("Hello", "Ingrid"));
+  const crowd = ["Ada", "Bo", "Cy", "Di", "Ed", "Fen", "Ingrid"].map((name, i) => ({
+    id: `c-${i}`,
+    name,
+    distance: i + 1,
+  }));
+  assert.deepEqual(
+    pickListeners(crowd, "Lovely day").map((person) => person.name),
+    ["Ada", "Bo", "Cy", "Di", "Ed"],
+    "the nearest five",
+  );
+  assert.deepEqual(
+    pickListeners(crowd, "Hey Ingrid!").map((person) => person.name),
+    ["Ingrid", "Ada", "Bo", "Cy", "Di"],
+    "the one named, then the nearest",
+  );
+}
+
 console.log("wanderworld scenes regression: OK");
