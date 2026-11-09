@@ -326,6 +326,26 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
     "'Zoey' is the character's",
   );
 
+  // Who an entry is about, and the creatures the lore keeps for later.
+  const { loreName, creaturesFromLore } = await import("../packages/wanderworld/src/zones.js");
+  assert.equal(loreName({ title: "File 7", keys: ["character", "name Mira Little"] }), "Mira Little");
+  assert.equal(loreName({ title: "Greta", keys: ["character"] }), "Greta", "the title, with no name given");
+  assert.deepEqual(
+    creaturesFromLore([
+      {
+        id: "b",
+        entries: [
+          { id: "g", title: "Goblins", keys: ["monster", "name Goblin"] },
+          { id: "d", title: "Deer", keys: ["creature"] },
+          { id: "w", title: "Wolf", keys: ["creature", "hostile"] },
+          { id: "x", title: "Bandit lore", keys: ["hostile", "name Bandit"] },
+          { id: "m", title: "Mira", keys: ["character"] },
+        ],
+      },
+    ]).map((creature) => `${creature.name}:${creature.kind}:${creature.hostile}`),
+    ["Goblin:monster:true", "Deer:creature:false", "Wolf:creature:true", "Bandit:creature:true"],
+  );
+
   // A lorebook names a place with "name …" on the place's entry; a card's own entry goes by its title.
   const { namesFromLore } = await import("../packages/wanderworld/src/zones.js");
   const named = namesFromLore(

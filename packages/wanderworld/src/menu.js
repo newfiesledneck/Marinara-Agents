@@ -512,7 +512,7 @@ export function createMenu(layer, handlers, art = null) {
       reroll,
       element("div", "font:12px system-ui;opacity:0.75;", "Lorebooks for this world"),
       explainLine(
-        'Wanderworld only acts on keywords that start with "ww:", so a lorebook\'s ordinary trigger words never set anything by accident. "ww: tavern1" ties an entry to the first tavern, "ww: world" to the whole world, "ww: Mira" to a character; on a character\'s entry "ww: woman", "ww: lives in home3", "ww: owner of tavern1", "ww: work 10:15-18:45", "ww: friend" or "ww: sister of Tam" set them up, and "ww: character" makes a person of an entry with no card. The package README lists them all.',
+        'Wanderworld only acts on keywords that start with "ww:", so a lorebook\'s ordinary trigger words never set anything by accident. "ww: tavern1" ties an entry to the first tavern, "ww: world" to the whole world, "ww: Mira" to a character; on a character\'s entry "ww: woman", "ww: lives in home3", "ww: owner of tavern1", "ww: work 10:15-18:45", "ww: friend" or "ww: sister of Tam" set them up, and "ww: character Mira Saxton" says an entry is that person (their card, or someone made for this world when no card has that name). The package README lists them all.',
       ),
       bookList,
       element("div", "font:12px system-ui;opacity:0.75;", "Setting the world up"),
