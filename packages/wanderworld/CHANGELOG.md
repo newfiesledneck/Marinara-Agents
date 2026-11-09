@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.84 — 2026-11-09
+
+- Journal → People → Edit people lists everyone with an Edit button. It opens a window with everything Wanderworld keeps about that person: body, voice, temperament and manner, home and work, their day, how they see you and you them, and how they and each other person see one another. Save or Cancel. A character with a card keeps who they are and their looks from the card; someone made for the world can have those changed too.
+- Every button shows it was clicked: it dips while pressed and stays lit for a moment after.
+
 ## 0.4.83 — 2026-11-09
 
 - A place with closing hours (ww: closed 22-6) says so on its door card while it's shut, and the AI is told too.

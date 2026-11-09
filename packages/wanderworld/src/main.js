@@ -2595,6 +2595,86 @@ function rosterData(names) {
   return { groups, creatures };
 }
 
+/** Everything the person editor (person.js) shows for `id`: what Wanderworld keeps about them, and the choices there are. */
+function personData(id) {
+  const person = (core.characters ?? []).find((entry) => entry.id === id);
+  if (!person || !core.save) return null;
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const { homes, workplaces } = housingData(names);
+  const house = core.save.housing?.[id] ?? {};
+  const local = (core.save.locals ?? []).find((entry) => entry.id === id);
+  const day = scheduleOf(id);
+  const relations = relationsData();
+  return {
+    id,
+    name: person.name,
+    local: !!local,
+    card: {
+      description: local?.description ?? person.description ?? "",
+      personality: local?.personality ?? "",
+      appearance: local?.appearance ?? "",
+    },
+    body: core.bodies[id] ?? "auto",
+    voice: core.save.voices?.[id] ?? "",
+    voices: VOICES,
+    traits: checkTraits(core.save.traits?.[id]),
+    traitKinds: relations.traitKinds,
+    home: house.home ?? null,
+    work: house.work ?? null,
+    owner: !!house.owner,
+    homes,
+    workplaces,
+    kinds: relations.kinds,
+    toPlayer: core.relations.get(id, "player") ?? null,
+    fromPlayer: core.relations.get("player", id) ?? null,
+    others: (core.characters ?? [])
+      .filter((other) => core.cast?.has(other.id) && other.id !== id)
+      .map((other) => ({
+        id: other.id,
+        name: other.name,
+        out: core.relations.get(id, other.id) ?? null,
+        back: core.relations.get(other.id, id) ?? null,
+      })),
+    schedule: day.entries.map((entry) => ({
+      from: entry.from,
+      to: entry.to,
+      words: `${ACTIVITY_WORDS[entry.activity]}${entry.place && names[entry.place] ? ` at ${names[entry.place]}` : ""}`,
+    })),
+    scheduleBy: day.by,
+  };
+}
+
+/** Saves what the person editor changed: only what's different from how things stand. */
+function savePerson(id, changes) {
+  if (!core.save || !(core.characters ?? []).some((entry) => entry.id === id)) return;
+  if (changes.local && core.save.locals.some((entry) => entry.id === id)) {
+    const locals = core.save.locals.map((entry) =>
+      entry.id === id ? { ...entry, ...changes.local, id, name: entry.name } : entry,
+    );
+    core.save = { ...core.save, locals };
+    core.characters = peopleOf(core.save);
+  }
+  if (changes.voice !== undefined) {
+    const voices = { ...core.save.voices };
+    if (VOICES.includes(changes.voice)) voices[id] = changes.voice;
+    else delete voices[id];
+    core.save = { ...core.save, voices };
+  }
+  if (changes.traits) setTraits(id, changes.traits);
+  if (changes.housing) setHousingByHand(id, changes.housing);
+  const same = (a, b) => (a?.kind ?? "") === (b?.kind ?? "") && (!a || !b || a.level === b.level);
+  for (const { from, to, fields } of changes.relations ?? []) {
+    const now = core.relations.get(from, to) ?? null;
+    if (!same(now, fields)) setRelation(from, to, fields ? { ...now, ...fields } : null, false);
+  }
+  if (changes.body !== undefined && (core.bodies[id] ?? "auto") !== changes.body) setBody(id, changes.body);
+  core.saves.write(core.save);
+  core.placesChanged = true;
+  core.relationsChanged = true;
+  core.journalAt = 0;
+  core.hud?.setNotice(`Saved.`);
+}
+
 /** The Journal's keyword check: how many "ww:" keywords this world's lorebooks have, and the ones not understood. */
 async function checkKeywords() {
   const save = core.save;
@@ -4275,6 +4355,11 @@ function attach(element) {
     onRegeneratePreview: previewRegenerate,
     onSetHousing: setHousingByHand,
     onCheckKeywords: () => void checkKeywords(),
+    onEditPerson: (id) => {
+      const person = personData(id);
+      if (person) core.hud?.editPerson(person);
+    },
+    onSavePerson: savePerson,
     onSetVoice: (id, voice) => {
       if (!core.save) return;
       const voices = { ...core.save.voices };

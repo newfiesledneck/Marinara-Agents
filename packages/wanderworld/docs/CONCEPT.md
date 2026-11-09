@@ -623,6 +623,57 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
+## Outstanding (as of 0.4.84, 2026-11-09)
+
+What's built but unproven, half-built, or agreed and not started. Newest decisions first.
+
+**Before the pull request**
+
+- Everything the AI does has only run against a stand-in model in a test harness: conversations,
+  moments, schedules, scene plans, pictures, the world setup, the written lore, the invented people and
+  the details call. A world made on a real Engine with a real model is the one check still owed.
+- Then the feature-request issue and a draft pull request to `staging`, from a clean branch (one commit,
+  the latest artifact only: `feat/wanderworld` carries every development build).
+
+**Half-built: stored or shown, with little or no effect yet**
+
+- Creatures (`ww: monster`, `ww: creature`, `ww: hostile`, with found in, night or day, pack, danger,
+  drops) are kept with the world and listed in the Journal. Nothing wanders, attacks or drops anything.
+- Closing hours (`ww: closed 22-6`) label the door card and are told to the AI. People still go in, and
+  nobody's day changes for them.
+- Seasons: winter lays snow. Spring, summer and fall are stored and look like the plain green land.
+- A person's own voice is used when you talk to them directly. A moment with several listeners uses the
+  Settings voice for all of them.
+- The waypoint is on the Journal's map only: no marker in the world, nothing on the top bar.
+- The person window shows someone's day and sends you to People → Schedules to change it; the day
+  can't be edited in the window itself.
+- A region has one main settlement and hamlets. `ww: city` sets the main one's size and `ww: town3` adds
+  two hamlets; several real towns or cities in one region isn't built.
+
+**Agreed, not started**
+
+- Creatures in the wilds: they keep to where the lore puts them, by night or day, in their packs; a
+  hostile one starts a moment or a scene.
+- A waypoint marker in the world (a beam, or an arrow on the bar).
+- Closing hours that matter: people leave at closing, the door says no.
+- A look for spring and fall (tree and grass tints).
+- People made for a world: renaming, removing, and adding one by hand.
+
+**Known limits (in the README too)**
+
+- People a world made for itself can't be cast in Engine scenes: the Engine casts its own characters.
+- The world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
+- Another region has no townsfolk of its own; walk-in rooms are unfinished and off by default.
+- The camera doesn't avoid trees, so foliage can fill the view.
+- Quartermaster works in scenes started from Wanderworld, not in the world (using it as the character
+  sheet and inventory here is its own piece of work, proposed separately).
+
+**Keywords: kept short on purpose**
+
+A keyword says one short thing that sets a stat or a setting; nothing that is prose (descriptions,
+looks, secrets): the AI reads the entry's own text for those. Considered and left out for now:
+`ww: party`, `ww: start at …`, world weather, and a noticeboard keyword.
+
 ## Open questions
 
 Answered (checked against Agents staging and Engine 2.5.2, 2026-11-07):

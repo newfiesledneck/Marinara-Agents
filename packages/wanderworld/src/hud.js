@@ -3,6 +3,7 @@
 // hint, a status line and a loading screen. Only controls take pointer events; the rest lets touches through.
 import { createJournal } from "./journal.js";
 import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
+import { createPersonEditor } from "./person.js";
 import { makeFloating } from "./floating.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
@@ -519,6 +520,7 @@ export function createHud(root, handlers) {
     onGroupMember: (id, zoneId, on) => handlers.onGroupMember(id, zoneId, on),
     onGroupParent: (id, parent) => handlers.onGroupParent(id, parent),
     onSetSetup: (fields) => handlers.onSetSetup(fields),
+    onEditPerson: (id) => handlers.onEditPerson(id),
     onCheckKeywords: () => handlers.onCheckKeywords(),
     onSetVoice: (id, voice) => handlers.onSetVoice(id, voice),
     onEditLocal: (id, fields) => handlers.onEditLocal(id, fields),
@@ -722,6 +724,43 @@ export function createHud(root, handlers) {
   commands.append(commandsTitle, commandList);
   chat.frame.append(narration, speakBar, commands);
   let narrationTimer = null;
+  const personEditor = createPersonEditor(layer, {
+    onSave: (id, changes) => handlers.onSavePerson(id, changes),
+    onSchedule: (id) => {
+      if (journal.panel.style.display === "none") togglePanel(journal.panel);
+      journal.showSchedule(id);
+    },
+  });
+  // Every button shows it was clicked: it dips while pressed, and stays lit for a moment after. A button
+  // that's redrawn by its own click (the Journal's lists) passes the light to the one that took its place.
+  const pressStyle = document.createElement("style");
+  pressStyle.textContent =
+    "[data-wanderworld-layer] button{transition:transform 80ms,filter 80ms,box-shadow 160ms}" +
+    "[data-wanderworld-layer] button:active{transform:translateY(1px) scale(0.97);filter:brightness(0.85)}" +
+    "[data-wanderworld-layer] button[data-wanderworld-pressed]{filter:brightness(1.18);box-shadow:0 0 0 2px rgba(255,236,170,0.95),0 0 10px rgba(255,220,120,0.8)}";
+  layer.setAttribute("data-wanderworld-layer", "");
+  layer.append(pressStyle);
+  layer.addEventListener(
+    "click",
+    (event) => {
+      const pressed = event.target.closest?.("button");
+      if (!pressed) return;
+      const words = pressed.textContent;
+      const light = (node) => {
+        node.setAttribute("data-wanderworld-pressed", "");
+        setTimeout(() => node.removeAttribute("data-wanderworld-pressed"), 420);
+      };
+      light(pressed);
+      setTimeout(() => {
+        if (pressed.isConnected) return;
+        const again = [...layer.querySelectorAll("button")].find(
+          (node) => node.textContent === words && node.offsetParent,
+        );
+        if (again) light(again);
+      }, 60);
+    },
+    true,
+  );
   const illustrate = createIllustrateWindow(layer, {
     onIllustrate: (template) => handlers.onIllustrate(template),
     onGallery: () => handlers.onGallery(),
@@ -752,6 +791,8 @@ export function createHud(root, handlers) {
   root.append(layer);
 
   const hud = {
+    /** Opens the person editor (person.js) for `person`. */
+    editPerson: (person) => personEditor.open(person),
     layer,
     setStats({ fps, calls, triangles, scale }) {
       stats.textContent = `${fps} fps · ${calls} draws · ${Math.round(triangles / 1000)}k tris · ${Math.round(scale * 100)}% res`;
