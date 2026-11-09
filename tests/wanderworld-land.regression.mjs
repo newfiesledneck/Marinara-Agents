@@ -578,4 +578,15 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
   built.dispose();
 }
 
+// A bigger world left to the seed gets more places out in it; what's chosen by hand stays as chosen.
+for (const seed of [3, 31, 77]) {
+  const count = (choices) => landscapeWith(seed, choices).outposts.length;
+  assert.ok(count({ size: "massive" }) >= count({}) + 5, "a massive world has more to walk to");
+  assert.equal(
+    count({ size: "massive", towns: "none", farms: "none", landmarks: "none", places: "none" }),
+    0,
+    "nothing is added to what was chosen",
+  );
+}
+
 console.log("wanderworld land regression: OK");
