@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.40 — 2026-11-08
+
+- "lives in inn1", "owner of inn1" and the same for cottages now mean the building there, so an innkeeper or a hermit can live and work out in the country.
+
 ## 0.4.39 — 2026-11-08
 
 - Your own lore entry: keyed "player <your persona's name>" (for one persona) or "you" / "player" (any persona), never your bare name, so a character can share it. Its lore is active everywhere, "male"/"female" sets your body, and "mother of Hank" or "friends with Mira" sets how you see them.

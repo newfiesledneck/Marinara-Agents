@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { createSaves, checkWorld } from "../packages/wanderworld/src/saves.js";
 import { createWorld, SPAWN } from "../packages/wanderworld/src/world.js";
+import { landscapeNeeds, landscapeWith } from "../packages/wanderworld/src/land.js";
 import {
   buildZones,
   carrySetup,
@@ -286,6 +287,20 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
   );
   assert.equal(mine.housing.player.home, slots.get("home6"), "'player Zoey' gives the player a home");
   assert.equal(mine.housing["c-z"], undefined, "the character called Zoey isn't moved in");
+  {
+    // An inn's keeper: "owner of inn1" and "lives in inn1" mean the inn's building.
+    const country = createWorld(61, landscapeNeeds(landscapeWith(61, { places: "none" }), { inn: 1 }, 61));
+    const countryZones = buildZones(country.layout, 61);
+    const keeper = structureFromLore(
+      [{ id: "b", entries: [{ id: "k", title: "Keeper", keys: ["Keeper", "owner of inn1", "lives in inn1"] }] }],
+      { zones: countryZones, names: {}, groups: [], name: "W", characters: [{ id: "c-k", name: "Keeper" }] },
+    );
+    const building = countryZones.byId.get(keeper.housing["c-k"].work);
+    assert.equal(building?.kind, "building", '"owner of inn1" means the building there');
+    assert.equal(building.parent, slotsOf(countryZones).get("inn1"));
+    assert.equal(keeper.housing["c-k"].home, building.id);
+    country.dispose();
+  }
   const linkedMine = matchLore(
     [
       {
