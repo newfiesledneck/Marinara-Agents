@@ -119,19 +119,24 @@ export function buildZones(layout, seed) {
     {
       id: "plaza",
       kind: "plaza",
-      name: "the market square",
+      // The market by its kind: a square with a fountain, a stall market, or a hamlet's green.
+      name: { stalls: "the market", green: "the green" }[layout.settlement?.market] ?? "the market square",
       shape: { box: square(layout.plaza.x, layout.plaza.z, layout.plaza.half) },
       parent: "town",
       sign: null,
     },
-    {
-      id: "fountain",
-      kind: "fountain",
-      name: "the fountain",
-      shape: { circle: { x: layout.plaza.x, z: layout.plaza.z, r: layout.fountainRadius + 2 } },
-      parent: "plaza",
-      sign: null,
-    },
+    ...(layout.fountainRadius
+      ? [
+          {
+            id: "fountain",
+            kind: "fountain",
+            name: "the fountain",
+            shape: { circle: { x: layout.plaza.x, z: layout.plaza.z, r: layout.fountainRadius + 2 } },
+            parent: "plaza",
+            sign: null,
+          },
+        ]
+      : []),
   ];
   for (const street of layout.streets) {
     zones.push({
@@ -242,7 +247,9 @@ export function buildZones(layout, seed) {
     zones.push({
       id: `building:${i}`,
       kind: "building",
-      buildingKind: building.kind,
+      // An inn's or cottage's building is its own kind, never one of the town's taverns or houses (so
+      // "home" lore, home numbers and the Homes group stay in the settlements).
+      buildingKind: outpost ? outpost.kind : building.kind,
       door: i,
       // An inn or cottage out in the country is its outpost's place, by the same name.
       name: outpost ? outpost.name : kind.name,
@@ -568,6 +575,8 @@ export function slotsOf(zones) {
   const counts = new Map();
   const slots = new Map();
   for (const zone of zones.zones) {
+    // An inn's or cottage's building goes by its place's number (inn1, cottage1), not one of its own.
+    if (zone.kind === "building" && zone.parent && zones.byId.get(zone.parent)?.kind === "outpost") continue;
     const sort = sortOf(zone);
     const n = (counts.get(sort) ?? 0) + 1;
     counts.set(sort, n);

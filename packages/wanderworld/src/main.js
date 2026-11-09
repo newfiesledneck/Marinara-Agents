@@ -398,8 +398,9 @@ function buildWorld(seed, place = null) {
     : null;
   const spot = place && !core.world.blocked(place.x, place.z, PLAYER_RADIUS) ? place : null;
   core.freshStart = !spot; // a first visit: once lore gives them a home, they start at its door
-  const x = spot?.x ?? front?.x ?? SPAWN.x;
-  const z = spot?.z ?? front?.z ?? SPAWN.z;
+  const start = core.world.spawn ?? SPAWN; // by the market
+  const x = spot?.x ?? front?.x ?? start.x;
+  const z = spot?.z ?? front?.z ?? start.z;
   core.player.position.set(x, heightAt(x, z), z);
   core.player.rotation.y = spot?.angle ?? (homeDoor ? homeDoor.angle : 0);
   core.cameraYaw = spot?.yaw ?? (homeDoor ? homeDoor.angle + Math.PI : 0);

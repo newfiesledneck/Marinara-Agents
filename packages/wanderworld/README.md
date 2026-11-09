@@ -8,7 +8,9 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
 
 ### The world
 
-- **A seeded town** around a market square with a stone fountain: a town hall, a temple, a tavern and shops
+- **A settlement of its own kind:** a hamlet round a green, a village with a stall market, a town with a
+  fountain square, or a city; the market in the middle or off to one side, and cobbled streets with
+  sidewalks or dirt paths (New world, or left to the seed). In a town: a town hall, a temple, a tavern and shops
   round the square with market stalls and benches; homes, a smithy and fenced gardens along cobbled streets
   with kerbed sidewalks, flowers and clutter by the doors, ivy, wagons and meadows on empty lots. Shops have
   striped awnings and hanging signs on painted boards; iron lamp posts light the streets at night, windows

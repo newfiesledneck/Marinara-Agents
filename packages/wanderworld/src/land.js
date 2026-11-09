@@ -11,6 +11,30 @@ import { rng } from "./world.js";
 export const SIDES = ["north", "east", "south", "west"]; // north is −z
 export const HILLS = ["flat", "gentle", "rolling", "rugged"];
 export const OUTPOST_KINDS = ["inn", "cottage", "cave"];
+/** Kinds of settlement, smallest first, with their usual market and roads and about how many homes they hold. */
+export const SETTLEMENT_KINDS = ["hamlet", "village", "town", "city"];
+const SETTLEMENT_LOOK = {
+  hamlet: { market: "green", roads: "dirt", homes: 9 },
+  village: { market: "stalls", roads: "dirt", homes: 20 },
+  town: { market: "square", roads: "cobble", homes: 45 },
+  city: { market: "square", roads: "cobble", homes: 100 },
+};
+
+/**
+ * A settlement checked: { kind, market ("square" | "stalls" | "green"), roads ("cobble" | "dirt"), side
+ * (where the market sits off the middle: a side, or null) }. A world saved before settlements were kept
+ * is the town it always was: a fountain square in the middle and cobbled streets.
+ */
+export function checkSettlement(raw) {
+  const kind = SETTLEMENT_KINDS.includes(raw?.kind) ? raw.kind : "town";
+  const usual = SETTLEMENT_LOOK[kind];
+  return {
+    kind,
+    market: ["square", "stalls", "green"].includes(raw?.market) ? raw.market : usual.market,
+    roads: ["cobble", "dirt"].includes(raw?.roads) ? raw.roads : usual.roads,
+    side: SIDES.includes(raw?.side) ? raw.side : null,
+  };
+}
 const HILL_SCALE = { flat: 0.15, gentle: 0.6, rolling: 1.2, rugged: 2.1 };
 const RIVER_WIDTH = 7;
 const RIVER_BED = -2.4; // deep enough to swim in mid-stream, wading near the banks
@@ -49,6 +73,7 @@ export function landscapeFor(seed) {
     mountains: shuffled.slice(0, mountainCount),
     river: random() < 0.75 ? { side: shuffled[(mountainCount + 1) % 4] } : null,
     outposts,
+    settlement: checkSettlement(null),
   };
 }
 
@@ -75,6 +100,25 @@ export function landscapeWith(seed, choices = {}) {
       side: sides[(i + 1) % 4],
     }));
   }
+  // The settlement: the kind chosen or a seeded one, its market (in the middle, or off to one side) and
+  // its roads (each by the kind's usual, unless chosen).
+  const pick = rng(seed ^ 0x5e771e);
+  const roll = pick();
+  const kind = SETTLEMENT_KINDS.includes(choices.settlement)
+    ? choices.settlement
+    : roll < 0.15
+      ? "hamlet"
+      : roll < 0.5
+        ? "village"
+        : roll < 0.85
+          ? "town"
+          : "city";
+  const offside = choices.marketAt === "side" || (choices.marketAt !== "middle" && pick() < 0.4);
+  landscape.settlement = checkSettlement({
+    kind,
+    roads: ["cobble", "dirt"].includes(choices.roads) ? choices.roads : undefined,
+    side: offside ? SIDES[Math.floor(pick() * SIDES.length)] : null,
+  });
   return landscape;
 }
 
@@ -85,6 +129,13 @@ export function landscapeWith(seed, choices = {}) {
  */
 export function landscapeNeeds(landscape, needs = {}, seed = 0) {
   const out = { ...landscape, mountains: [...landscape.mountains], outposts: [...landscape.outposts] };
+  // A settlement too small for the homes the lore names grows to the next kind up.
+  let settlement = checkSettlement(landscape.settlement);
+  while ((needs.home ?? 0) > SETTLEMENT_LOOK[settlement.kind].homes && settlement.kind !== "city") {
+    const kind = SETTLEMENT_KINDS[SETTLEMENT_KINDS.indexOf(settlement.kind) + 1];
+    settlement = { ...settlement, kind, market: SETTLEMENT_LOOK[kind].market };
+  }
+  out.settlement = settlement;
   const random = rng(seed ^ 0x51ed270b);
   const free = () => SIDES.filter((side) => !out.mountains.includes(side) && out.river?.side !== side);
   const count = (kind) => out.outposts.filter((entry) => entry.kind === kind).length;
@@ -133,6 +184,7 @@ export function checkLandscape(raw, seed) {
     mountains: sides(raw.mountains) ?? fallback.mountains,
     river,
     outposts,
+    settlement: checkSettlement(raw.settlement),
   };
 }
 

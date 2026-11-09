@@ -69,7 +69,7 @@ const GRID_CELL = 4; // collision grid cell, metres
 const BLOCK = 18;
 const STREET = 6;
 const PITCH = BLOCK + STREET;
-const BLOCKS_PER_SIDE = 5;
+const BLOCKS_PER_SIDE = 5; // a town's blocks per side (each kind of settlement has its own)
 export const TOWN_HALF = (BLOCKS_PER_SIDE * PITCH) / 2; // 60 m from the centre to the outer street's edge
 const FOUNTAIN_RADIUS = 2.4;
 export const SPAWN = Object.freeze({ x: 0, z: FOUNTAIN_RADIUS + 4 });
@@ -219,8 +219,69 @@ export function waterAt(x, z) {
 /** Street lines: the middle of each street, the same along x and z. */
 const STREET_LINES = Array.from({ length: BLOCKS_PER_SIDE + 1 }, (_, i) => (i - BLOCKS_PER_SIDE / 2) * PITCH);
 
+/**
+ * Each kind of settlement: blocks per side, its usual market and roads, the roles of the blocks round the
+ * market (landmarks, shops, homes), what it always has (for the lore's needs on top), and about how many
+ * homes it holds (a lore needing more makes it bigger, land.js).
+ */
+export const SETTLEMENTS = {
+  hamlet: {
+    blocks: 2,
+    market: "green",
+    roads: "dirt",
+    ring: [],
+    base: { hall: 0, temple: 0, tavern: 0, shop: 0, smithy: 0 },
+    homes: 9,
+  },
+  village: {
+    blocks: 3,
+    market: "stalls",
+    roads: "dirt",
+    ring: ["tavern", "temple", "shops", "homes", "homes", "homes", "homes", "homes"],
+    base: { hall: 0, temple: 1, tavern: 1, shop: 1, smithy: 0 },
+    homes: 20,
+  },
+  town: {
+    blocks: 5,
+    market: "square",
+    roads: "cobble",
+    ring: ["hall", "temple", "tavern", "shops", "shops", "shops", "homes", "homes"],
+    base: { hall: 1, temple: 1, tavern: 1, shop: 3, smithy: 0 },
+    homes: 45,
+  },
+  city: {
+    blocks: 7,
+    market: "square",
+    roads: "cobble",
+    ring: ["hall", "temple", "tavern", "tavern", "shops", "shops", "shops", "shops"],
+    base: { hall: 1, temple: 1, tavern: 2, shop: 4, smithy: 0 },
+    homes: 100,
+  },
+};
+
+// ponytail: the settlement of the world built last, module-wide like `worldSize` (same ceiling).
+let blocksPerSide = BLOCKS_PER_SIDE;
+let townHalf = (BLOCKS_PER_SIDE * PITCH) / 2;
+let streetLines = STREET_LINES;
+let plaza = { x: 0, z: 0 }; // the market's middle
+let look = { kind: "town", market: "square", roads: "cobble", side: null };
+
+/** Sets the settlement for the world being built (its size, market and roads). */
+function useSettlement(settlement) {
+  look = settlement;
+  blocksPerSide = SETTLEMENTS[settlement.kind]?.blocks ?? BLOCKS_PER_SIDE;
+  townHalf = (blocksPerSide * PITCH) / 2;
+  streetLines = Array.from({ length: blocksPerSide + 1 }, (_, i) => (i - blocksPerSide / 2) * PITCH);
+  // The market's block: the middle one (for an even count, the one just short of it), or one to a side.
+  const base = Math.floor((blocksPerSide - 1) / 2);
+  const step = { north: [0, -1], south: [0, 1], west: [-1, 0], east: [1, 0] }[settlement.side] ?? [0, 0];
+  const index = (axis) => Math.max(0, Math.min(blocksPerSide - 1, base + step[axis]));
+  const centre = (i) => (i - (blocksPerSide - 1) / 2) * PITCH;
+  plaza = { x: centre(index(0)), z: centre(index(1)), i: index(0), j: index(1) };
+}
+
 /** True when (x, z) is inside the town's footprint plus a margin, where no trees or rocks grow. */
-const inTown = (x, z, margin = 6) => Math.abs(x) < TOWN_HALF + margin && Math.abs(z) < TOWN_HALF + margin;
+const inTown = (x, z, margin = 6) => Math.abs(x) < townHalf + margin && Math.abs(z) < townHalf + margin;
 
 /**
  * Collision on the ground plane against circles (tree trunks, the fountain) and axis-aligned boxes
@@ -588,6 +649,7 @@ function roundedLoop(cx, cz, half, inset, round) {
  * the lawn over its last half metre, all with rounded corners. Built as strips in the ground's material.
  */
 function blockEdge(town, cx, cz, half) {
+  if (look.roads === "dirt") return; // dirt streets: the lots' grass meets the street, no kerb or sidewalk
   // The loop runs anticlockwise seen from above (+x towards +z), so a ribbon's +side faces the middle.
   const kerbLoop = roundedLoop(cx, cz, half, 0.12, 1.4);
   const walkLoop = roundedLoop(cx, cz, half, 0.24 + SIDEWALK / 2, 1.4 - 0.12 - SIDEWALK / 2);
@@ -651,6 +713,130 @@ function placeWagon(random, town, x, z, alongX) {
   );
 }
 
+/** The noticeboard on the market's south side, facing in, near where people arrive. */
+function placeNoticeboard(town, px, pz) {
+  town.noticeboard = { x: px - 2.6, z: pz + 7.5, angle: Math.PI, use: { x: px - 2.6, z: pz + 6.5 } };
+  town.boxes.push({ minX: px - 3.6, maxX: px - 1.6, minZ: pz + 7.25, maxZ: pz + 7.75, low: true });
+}
+
+/** A stall facing `facing`, with goods on its counter and a barrel or sack at its side. */
+function placeStall(random, town, x, z, facing) {
+  const angle = (facing * Math.PI) / 2;
+  placeKitProp(town, marketStall(random), { model: "stall-empty", x, z, angle, scale: 1.3 });
+  for (const side of [-0.45, 0.45]) {
+    const at = toWorld(x, z, facing, side, 0.15);
+    placeKitProp(town, null, {
+      model: random() < 0.5 ? "farmcrate-apple" : "farmcrate-carrot",
+      x: at.x,
+      z: at.z,
+      y: STALL_COUNTER,
+      angle: angle + (random() - 0.5) * 0.3,
+    });
+  }
+  town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
+  const beside = toWorld(x, z, facing, random() < 0.5 ? -1.6 : 1.6, 0);
+  const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * 3)];
+  placeKitProp(town, fallback(), { model, x: beside.x, z: beside.z, angle: random() * Math.PI * 2 });
+  town.circles.push({ x: beside.x, z: beside.z, r });
+}
+
+/**
+ * The market's furniture, by its kind: a square with the fountain, stalls in the corners and benches; a
+ * stall market (two rows of stalls facing each other, benches at the ends); or a green (grass, a few
+ * trees and bushes round its edge, benches facing in). Each has the noticeboard.
+ */
+function placeMarket(random, town) {
+  const px = plaza.x;
+  const pz = plaza.z;
+  if (look.market === "square") {
+    // The fountain itself is built in createWorld (fixtures.js); here, only room for it.
+    town.circles.push({ x: px, z: pz, r: FOUNTAIN_RADIUS + 0.7 }); // the stone rim and the plants round it
+
+    // The noticeboard: on the square's south side, facing the fountain, near where people arrive.
+    placeNoticeboard(town, px, pz);
+
+    // Market day on the plaza: stalls in the corners facing the fountain, benches beside it.
+    for (let [x, z] of [
+      [-5.6, -5.6],
+      [5.6, -5.6],
+      [-5.6, 5.2],
+      [5.6, 5.2],
+    ]) {
+      const facing = facingFor(-x, -z);
+      const angle = (facing * Math.PI) / 2;
+      x += px;
+      z += pz;
+      placeKitProp(town, marketStall(random), { model: "stall-empty", x, z, angle, scale: 1.3 });
+      // Goods on the counter, in the kit's crates.
+      for (const side of [-0.45, 0.45]) {
+        const at = toWorld(x, z, facing, side, 0.15);
+        placeKitProp(town, null, {
+          model: random() < 0.5 ? "farmcrate-apple" : "farmcrate-carrot",
+          x: at.x,
+          z: at.z,
+          y: STALL_COUNTER,
+          angle: angle + (random() - 0.5) * 0.3,
+        });
+      }
+      town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
+      // A barrel or a sack at the stall's side.
+      const beside = toWorld(x, z, facing, random() < 0.5 ? -1.6 : 1.6, 0);
+      const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * 3)];
+      placeKitProp(town, fallback(), { model, x: beside.x, z: beside.z, angle: random() * Math.PI * 2 });
+      town.circles.push({ x: beside.x, z: beside.z, r });
+    }
+    // Bushes and flowers round the fountain.
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      const [model, size] = GARDEN_PLANTS[i % 4];
+      const bx = px + Math.cos(angle) * (FOUNTAIN_RADIUS + 0.45);
+      const bz = pz + Math.sin(angle) * (FOUNTAIN_RADIUS + 0.45);
+      placeKitPlant(town, bush(random, 0.45), { model, x: bx, z: bz, angle, scale: size * 0.8 });
+    }
+    for (const [x, z, facing] of [
+      [-4, 0, 1],
+      [4, 0, 3],
+      [0, -4, 0],
+      [-7.8, 0, 1],
+      [7.8, 0, 3],
+      [0, -7.8, 0],
+    ]) {
+      placeBench(town, px + x, pz + z, facing);
+    }
+    return;
+  }
+  placeNoticeboard(town, px, pz);
+  if (look.market === "stalls") {
+    for (const x of [-5.2, 0, 5.2]) {
+      placeStall(random, town, px + x, pz - 4.2, 0); // facing south, across the lane
+      placeStall(random, town, px + x, pz + 2.6, 2); // facing north
+    }
+    placeBench(town, px - 7.8, pz - 0.8, 1);
+    placeBench(town, px + 7.8, pz - 0.8, 3);
+    return;
+  }
+  // A green: trees and bushes round the edge, benches facing in.
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    const reach = 7.2 + random() * 0.8;
+    const [model, size] = GARDEN_PLANTS[i % GARDEN_PLANTS.length];
+    placeKitPlant(town, bush(random, 0.5), {
+      model,
+      x: px + Math.cos(angle) * reach,
+      z: pz + Math.sin(angle) * reach,
+      angle,
+      scale: size,
+    });
+  }
+  for (const [x, z, facing] of [
+    [-3.5, 0, 1],
+    [3.5, 0, 3],
+    [0, -3.5, 0],
+  ]) {
+    placeBench(town, px + x, pz + z, facing);
+  }
+}
+
 /**
  * One 18 m block. Around the plaza: a landmark (town hall, temple or tavern) filling the block, or shops
  * facing the plaza with homes behind. Elsewhere: up to four houses on the corner lots, now and then a shop
@@ -659,7 +845,7 @@ function placeWagon(random, town, x, z, alongX) {
 function fillBlock(random, town, cx, cz, role) {
   const half = BLOCK / 2;
   blockEdge(town, cx, cz, half);
-  const toPlaza = facingFor(-cx, -cz);
+  const toPlaza = facingFor(plaza.x - cx, plaza.z - cz);
   if (role === "hall" || role === "temple" || role === "tavern") {
     const width = role === "tavern" ? 11 + random() * 2 : 13 + random() * 2;
     const depth = role === "tavern" ? 8 + random() * 1.5 : 9.5 + random() * 2;
@@ -675,7 +861,8 @@ function fillBlock(random, town, cx, cz, role) {
     const x = cx + lx * (half / 2 + (random() - 0.5) * 0.6);
     const z = cz + lz * (half / 2 + (random() - 0.5) * 0.6);
     // Lots on the plaza side of a shop block face the plaza and hold the shops.
-    const facesPlaza = role === "shops" && Math.sign(lx) * Math.sign(-cx) + Math.sign(lz) * Math.sign(-cz) > 0;
+    const facesPlaza =
+      role === "shops" && Math.sign(lx) * Math.sign(plaza.x - cx) + Math.sign(lz) * Math.sign(plaza.z - cz) > 0;
     if (!facesPlaza && random() < 0.16) {
       placeGarden(random, town, x, z, 6, random() < 0.5 ? (lz > 0 ? 0 : 2) : lx > 0 ? 1 : 3);
       continue;
@@ -703,10 +890,11 @@ function fillBlock(random, town, cx, cz, role) {
 }
 
 function buildTown(random, land, ground, needs = {}) {
+  const kind = SETTLEMENTS[look.kind] ?? SETTLEMENTS.town;
   // Buildings the lore needs beyond what every town has (one hall, temple and tavern by the square, a
   // few shops facing it): they take the place of houses here and there.
   const extra = [];
-  const base = { hall: 1, temple: 1, tavern: 1, shop: 3, smithy: 0 };
+  const base = kind.base;
   for (const kind of ["tavern", "smithy", "shop", "temple", "hall"]) {
     for (let n = base[kind]; n < Math.min(12, needs[kind] ?? 0); n++) extra.push(kind);
   }
@@ -734,9 +922,9 @@ function buildTown(random, land, ground, needs = {}) {
     seats: [],
   };
   const centres = [];
-  for (let i = 0; i < BLOCKS_PER_SIDE; i++) centres.push((i - (BLOCKS_PER_SIDE - 1) / 2) * PITCH);
-  // The eight blocks around the plaza get the town's landmarks and shops, in a seeded order.
-  const plazaRoles = ["hall", "temple", "tavern", "shops", "shops", "shops", "homes", "homes"];
+  for (let i = 0; i < blocksPerSide; i++) centres.push((i - (blocksPerSide - 1) / 2) * PITCH);
+  // The blocks round the market get the settlement's landmarks and shops, in a seeded order.
+  const plazaRoles = [...kind.ring];
   for (let i = plazaRoles.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [plazaRoles[i], plazaRoles[j]] = [plazaRoles[j], plazaRoles[i]];
@@ -745,25 +933,29 @@ function buildTown(random, land, ground, needs = {}) {
   const smithyBlock = Math.floor(random() * 4);
   let ring = 0;
   let edgeIndex = 0;
-  for (const cx of centres) {
-    for (const cz of centres) {
-      if (cx === 0 && cz === 0) continue; // the plaza
-      const nearPlaza = Math.abs(cx) <= PITCH && Math.abs(cz) <= PITCH;
+  centres.forEach((cx, a) => {
+    centres.forEach((cz, b) => {
+      if (a === plaza.i && b === plaza.j) return; // the market
+      const nearPlaza = Math.max(Math.abs(a - plaza.i), Math.abs(b - plaza.j)) <= 1;
       const edge = Math.max(Math.abs(cx), Math.abs(cz)) === outer;
-      if (edge && random() < 0.3) {
-        placeMeadow(random, town, cx, cz); // a ragged edge reads as a town, not a grid
-        continue;
+      if (edge && !nearPlaza && random() < 0.3) {
+        placeMeadow(random, town, cx, cz); // a ragged edge reads as a settlement, not a grid
+        return;
       }
       const corner = Math.abs(cx) === outer && Math.abs(cz) === outer;
-      const role = nearPlaza ? plazaRoles[ring++] : corner && edgeIndex++ === smithyBlock ? "smithy" : "homes";
+      const role = nearPlaza
+        ? (plazaRoles[ring++] ?? "homes")
+        : corner && edgeIndex++ === smithyBlock
+          ? "smithy"
+          : "homes";
       fillBlock(random, town, cx, cz, role);
-    }
-  }
+    });
+  });
 
   // Streets: one strip per grid line in each direction, plus the paved plaza and its fountain.
-  const length = BLOCKS_PER_SIDE * PITCH + STREET;
-  for (let i = 0; i <= BLOCKS_PER_SIDE; i++) {
-    const line = (i - BLOCKS_PER_SIDE / 2) * PITCH;
+  const length = blocksPerSide * PITCH + STREET;
+  for (let i = 0; i <= blocksPerSide; i++) {
+    const line = (i - blocksPerSide / 2) * PITCH;
     town.roadPieces.push(
       painted(new PlaneGeometry(length, STREET).rotateX(-Math.PI / 2).translate(0, 0.03, line), ROAD),
     );
@@ -771,100 +963,61 @@ function buildTown(random, land, ground, needs = {}) {
       painted(new PlaneGeometry(STREET, length).rotateX(-Math.PI / 2).translate(line, 0.035, 0), ROAD),
     );
   }
-  town.plazaPieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(0, 0.04, 0), PAVING));
-  town.kerbs.push(roundedLoop(0, 0, BLOCK / 2, 0.12, 0.6));
+  // The market: a paved square with a fountain (a town or city), stalls on paving or packed earth (a
+  // village), or a green (a hamlet).
+  const px = plaza.x;
+  const pz = plaza.z;
+  if (look.market === "square" || (look.market === "stalls" && look.roads === "cobble")) {
+    town.plazaPieces.push(
+      painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(px, 0.04, pz), PAVING),
+    );
+    town.kerbs.push(roundedLoop(px, pz, BLOCK / 2, 0.12, 0.6));
+  } else if (look.market === "stalls") {
+    town.roadPieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(px, 0.034, pz), ROAD));
+  }
   // Now and then a wagon left at the side of a street, halfway along a block (clear of the crossings'
   // lamps), never next to the plaza.
-  for (let i = 1; i < BLOCKS_PER_SIDE; i++) {
-    const line = (i - BLOCKS_PER_SIDE / 2) * PITCH;
-    for (let j = 0; j < BLOCKS_PER_SIDE; j++) {
-      const middle = (j - (BLOCKS_PER_SIDE - 1) / 2) * PITCH;
-      if ((Math.abs(middle) < PITCH / 2 && Math.abs(line) < PITCH) || random() > 0.15) continue;
+  for (let i = 1; i < blocksPerSide; i++) {
+    const line = (i - blocksPerSide / 2) * PITCH;
+    for (let j = 0; j < blocksPerSide; j++) {
+      const middle = (j - (blocksPerSide - 1) / 2) * PITCH;
+      const byMarket =
+        (Math.abs(middle - px) < PITCH / 2 && Math.abs(line - pz) < PITCH) ||
+        (Math.abs(middle - pz) < PITCH / 2 && Math.abs(line - px) < PITCH);
+      if (byMarket || random() > 0.15) continue;
       const kerb = line + (random() < 0.5 ? -1 : 1) * (STREET / 2 - 1);
       if (random() < 0.5) placeWagon(random, town, middle, kerb, true);
       else placeWagon(random, town, kerb, middle, false);
     }
   }
-  // The fountain itself is built in createWorld (fixtures.js); here, only room for it.
-  town.circles.push({ x: 0, z: 0, r: FOUNTAIN_RADIUS + 0.7 }); // the stone rim and the plants round it
-
-  // The noticeboard: on the square's south side, facing the fountain, near where people arrive.
-  town.noticeboard = { x: -2.6, z: 7.5, angle: Math.PI, use: { x: -2.6, z: 6.5 } };
-  town.boxes.push({ minX: -3.6, maxX: -1.6, minZ: 7.25, maxZ: 7.75, low: true });
-
-  // Market day on the plaza: stalls in the corners facing the fountain, benches beside it.
-  for (const [x, z] of [
-    [-5.6, -5.6],
-    [5.6, -5.6],
-    [-5.6, 5.2],
-    [5.6, 5.2],
-  ]) {
-    const facing = facingFor(-x, -z);
-    const angle = (facing * Math.PI) / 2;
-    placeKitProp(town, marketStall(random), { model: "stall-empty", x, z, angle, scale: 1.3 });
-    // Goods on the counter, in the kit's crates.
-    for (const side of [-0.45, 0.45]) {
-      const at = toWorld(x, z, facing, side, 0.15);
-      placeKitProp(town, null, {
-        model: random() < 0.5 ? "farmcrate-apple" : "farmcrate-carrot",
-        x: at.x,
-        z: at.z,
-        y: STALL_COUNTER,
-        angle: angle + (random() - 0.5) * 0.3,
-      });
-    }
-    town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
-    // A barrel or a sack at the stall's side.
-    const beside = toWorld(x, z, facing, random() < 0.5 ? -1.6 : 1.6, 0);
-    const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * 3)];
-    placeKitProp(town, fallback(), { model, x: beside.x, z: beside.z, angle: random() * Math.PI * 2 });
-    town.circles.push({ x: beside.x, z: beside.z, r });
-  }
-  // Bushes and flowers round the fountain.
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
-    const [model, size] = GARDEN_PLANTS[i % 4];
-    const px = Math.cos(angle) * (FOUNTAIN_RADIUS + 0.45);
-    const pz = Math.sin(angle) * (FOUNTAIN_RADIUS + 0.45);
-    placeKitPlant(town, bush(random, 0.45), { model, x: px, z: pz, angle, scale: size * 0.8 });
-  }
-  for (const [x, z, facing] of [
-    [-4, 0, 1],
-    [4, 0, 3],
-    [0, -4, 0],
-    [-7.8, 0, 1],
-    [7.8, 0, 3],
-    [0, -7.8, 0],
-  ]) {
-    placeBench(town, x, z, facing);
-  }
+  placeMarket(random, town);
 
   // The country round it (inns and cottages join the town's buildings before they're merged).
   const country = buildCountry(random, town, land, ground);
-  const mesh = new Mesh(
-    mergeGeometries(town.pieces),
-    new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-  );
+  const mesh = new Mesh(mergeOrEmpty(town.pieces), new MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   // Lamp posts at every street crossing inside the town.
   const lamps = [];
-  for (let i = 1; i < BLOCKS_PER_SIDE; i++) {
-    for (let j = 1; j < BLOCKS_PER_SIDE; j++) {
-      lamps.push({
-        x: (i - BLOCKS_PER_SIDE / 2) * PITCH + STREET / 2 - 0.4,
-        z: (j - BLOCKS_PER_SIDE / 2) * PITCH + STREET / 2 - 0.4,
-      });
+  for (let i = 1; i < blocksPerSide; i++) {
+    for (let j = 1; j < blocksPerSide; j++) {
+      const lamp = {
+        x: (i - blocksPerSide / 2) * PITCH + STREET / 2 - 0.4,
+        z: (j - blocksPerSide / 2) * PITCH + STREET / 2 - 0.4,
+      };
+      // Dirt streets have lamps only at the market's corners.
+      if (look.roads === "dirt" && Math.max(Math.abs(lamp.x - plaza.x), Math.abs(lamp.z - plaza.z)) > PITCH) continue;
+      lamps.push(lamp);
     }
   }
   const props = new Mesh(
-    mergeGeometries(town.propPieces),
+    mergeOrEmpty(town.propPieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   );
   const buildingMesh = new Mesh(
-    mergeGeometries(town.buildingPieces),
+    mergeOrEmpty(town.buildingPieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   );
   const natureMesh = new Mesh(
-    mergeGeometries(town.naturePieces),
+    mergeOrEmpty(town.naturePieces),
     new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
   );
   return {
@@ -1085,7 +1238,10 @@ function buildCountry(random, town, land, ground) {
             columns: roadColumns,
             wobble: 0.12,
             // Leaving town, the road starts as the street's cobbles and turns to dirt over a few metres.
-            fadeFrom: stretch === firstStretch ? { length: 4, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] } : null,
+            fadeFrom:
+              stretch === firstStretch && look.roads === "cobble"
+                ? { length: 4, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] }
+                : null,
           }),
         );
       }
@@ -1202,15 +1358,19 @@ function blockEdges(town, ground) {
     ...town.sidewalks.map((loop) => ribbon(loop, SIDEWALK, { heightOf: flat(0.075), columns: walkColumns })),
   ];
   // Round the outside of the town, the outermost streets' cobbles fade into the meadow.
-  const outside = (BLOCKS_PER_SIDE * PITCH) / 2 + STREET / 2;
+  const outside = (blocksPerSide * PITCH) / 2 + STREET / 2;
   const edgeLoop = roundedLoop(0, 0, outside + 0.9, 0, 3);
   pieces.push(
     ribbon(edgeLoop, 1.8, {
       heightOf: flat(0.04),
       columns: [
         { at: -1, colour: white, splat: [1, 0, 0, 0], splatB: [0, 0, 0, 0], lift: -0.03 },
-        { at: -0.2, colour: white, splat: [0.5, 0, 0, 0], splatB: [0, 0.5, 0, 0] },
-        { at: 1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] },
+        look.roads === "dirt"
+          ? { at: -0.2, colour: white, splat: [0.5, 0.5, 0, 0], splatB: [0, 0, 0, 0] }
+          : { at: -0.2, colour: white, splat: [0.5, 0, 0, 0], splatB: [0, 0.5, 0, 0] },
+        look.roads === "dirt"
+          ? { at: 1, colour: white, splat: [0, 1, 0, 0], splatB: [0, 0, 0, 0] }
+          : { at: 1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] },
       ],
     }),
   );
@@ -1221,7 +1381,14 @@ function blockEdges(town, ground) {
 }
 
 /** Flat pieces (roads, paving) merged into one mesh, with texture coordinates in metres / `tile`. */
+/** Pieces merged into one geometry, or an empty one when there are none (a sparse hamlet). */
+function mergeOrEmpty(pieces) {
+  return pieces.length ? mergeGeometries(pieces) : new BufferGeometry();
+}
+
 function groundMesh(pieces, tile) {
+  // None (a market that isn't paved): an empty mesh, so the rest of the town needn't ask.
+  if (!pieces.length) return new Mesh(new BufferGeometry(), new MeshLambertMaterial({ vertexColors: true }));
   const geometry = mergeGeometries(pieces);
   const position = geometry.attributes.position;
   const uv = new Float32Array(position.count * 2);
@@ -1660,10 +1827,10 @@ function scatter(random, count, scaleMin, scaleRange) {
 
 /** Each street: one strip per grid line in each direction, with an id that stays the same. */
 function streetStrips() {
-  const length = BLOCKS_PER_SIDE * PITCH + STREET;
+  const length = blocksPerSide * PITCH + STREET;
   const strips = [];
-  for (let i = 0; i <= BLOCKS_PER_SIDE; i++) {
-    const line = (i - BLOCKS_PER_SIDE / 2) * PITCH;
+  for (let i = 0; i <= blocksPerSide; i++) {
+    const line = (i - blocksPerSide / 2) * PITCH;
     // The street with its sidewalks and doorsteps: someone at a front door is on the street.
     const across = { min: line - STREET / 2 - 2.5, max: line + STREET / 2 + 2.5 };
     strips.push({
@@ -1681,7 +1848,7 @@ function streetStrips() {
 function streetWaypoints() {
   const points = [];
   const lines = [];
-  for (let i = 0; i <= BLOCKS_PER_SIDE; i++) lines.push((i - BLOCKS_PER_SIDE / 2) * PITCH);
+  for (let i = 0; i <= blocksPerSide; i++) lines.push((i - blocksPerSide / 2) * PITCH);
   for (const a of lines) {
     for (let j = 0; j < lines.length; j++) {
       points.push({ x: a, z: lines[j] });
@@ -1705,10 +1872,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   const areaScale = (worldSize / WORLD_SIZE) ** 2;
   const baseTrees = Math.round(BASE_TREES * areaScale);
   const baseRocks = Math.round(BASE_ROCKS * areaScale);
-  land = createLand(checkLandscape(landscape, seed), seed, {
-    townHalf: TOWN_HALF,
+  const checked = checkLandscape(landscape, seed);
+  useSettlement(checked.settlement);
+  const spawn = { x: plaza.x, z: plaza.z + (look.market === "square" ? FOUNTAIN_RADIUS + 4 : 4) };
+  land = createLand(checked, seed, {
+    townHalf: townHalf,
     worldHalf: worldSize / 2,
-    streetLines: STREET_LINES,
+    streetLines,
   });
   const scene = new Scene();
   scene.background = new Color(SKY);
@@ -1737,7 +1907,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   const rocks = scatter(random, baseRocks * MAX_DENSITY, 0.8, 1.4);
   // The ground, in chunks: coarse everywhere, fine near the player (forest floor under the usual trees).
   const terrain = createGround(scene, ground, forestGrid(trees.slice(0, baseTrees)));
-  terrain.follow(SPAWN.x, SPAWN.z);
+  terrain.follow(spawn.x, spawn.z);
 
   const trunkGeometry = new CylinderGeometry(0.15, 0.22, 1.2, 5).translate(0, 0.6, 0);
   const crownGeometry = new ConeGeometry(0.95, 2.4, 6).translate(0, 2.3, 0);
@@ -1786,7 +1956,12 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     stones.setMatrixAt(i, dummy.matrix);
   });
   scene.add(trunks, crowns, stones);
-  scene.add(...lamps.objects, ...fountain.objects);
+  scene.add(...lamps.objects);
+  // The fountain, on a square only.
+  if (look.market === "square") {
+    for (const object of fountain.objects) object.position.set(plaza.x, 0, plaza.z);
+    scene.add(...fountain.objects);
+  }
   // Striped awnings over the shops' fronts (and some taverns').
   const awnings = createAwnings(
     town.buildings
@@ -2048,8 +2223,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     });
     // Undergrowth on the grass around town: between the town's edge and the forest.
     for (let placed = 0, tries = 0; placed < UNDERGROWTH && tries < UNDERGROWTH * 6; tries++) {
-      const x = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
-      const z = (growth() * 2 - 1) * (TOWN_HALF + NATURE_RING);
+      const x = (growth() * 2 - 1) * (townHalf + NATURE_RING);
+      const z = (growth() * 2 - 1) * (townHalf + NATURE_RING);
       if (inTown(x, z, 1.5) || land.clear(x, z)) continue;
       const [name, , size] = pickWeighted(KIT_PLANTS, growth());
       dummy.position.set(x, heightAt(x, z) - 0.03, z);
@@ -2095,7 +2270,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
    */
   function addGround(textures) {
     for (const [mesh, map] of [
-      [town.roads, textures.road],
+      [town.roads, look.roads === "dirt" ? textures.dirt : textures.road],
 
       [town.plaza, textures.plaza],
     ]) {
@@ -2235,9 +2410,11 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     /** The town's plan for naming places (zones.js): buildings (door i is building i), gardens, meadows,
      *  streets and the square. */
     layout: {
-      townHalf: TOWN_HALF,
-      plaza: { x: 0, z: 0, half: BLOCK / 2 },
-      fountainRadius: FOUNTAIN_RADIUS,
+      townHalf: townHalf,
+      plaza: { x: plaza.x, z: plaza.z, half: BLOCK / 2 },
+      fountainRadius: look.market === "square" ? FOUNTAIN_RADIUS : null,
+      // The settlement: hamlet, village, town or city; its market (square, stalls, green) and roads.
+      settlement: { ...look },
       streets: streetStrips(),
       buildings: town.buildings.map((building) => ({ kind: building.spec.kind, box: building.box })),
       // Out in the country: the river, each road (to its outpost), the mountain ranges, the outposts
@@ -2261,7 +2438,9 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     /** The noticeboard on the square: { x, z, angle, use (where to stand to read it) }. Later the world
      *  brief can place boards (and other things to use) wherever it likes. */
     /** The fountain on the square: its centre and rim radius. */
-    fountain: { x: 0, z: 0, r: FOUNTAIN_RADIUS },
+    fountain: look.market === "square" ? { x: plaza.x, z: plaza.z, r: FOUNTAIN_RADIUS } : null,
+    /** Where a first visit starts: by the market. */
+    spawn,
     noticeboard: town.noticeboard,
     /** Cave mouths: { x, z (where to stand), angle, outpost }. */
     caves: country.caves,
