@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.38",
+          "date": "2026-11-08",
+          "notes": "- With places linked by name, a world is built with at least every numbered place its lorebooks mention: \"smithy3\" makes three smithies, \"inn2\" two inns, \"cave1\" a cave. A cave brings mountains with it, and \"river1\" a river. Past that it's random. Regenerate builds what changed lorebooks need.\n- Journal → World lists what the world was built to have.\n- The fountain's Use prompt only shows when you're beside it.",
+          "highlight": false
+        },
+        {
           "version": "0.4.37",
           "date": "2026-11-08",
           "notes": "- Every place has a numbered name for lorebooks (town1, forest1, tavern1, home6, inn1…), shown in Journal → Places.\n- Lorebooks can build the world's structure: \"group of home\" makes a group of every house, and \"located in town1\" puts a place or group inside another.\n- On a character's entry, \"lives in home6\", \"works at smithy1\" and \"owner of tavern1\" set where they live and work. A house given by lore is theirs alone, and they spend working hours at their work.\n- Journal → People says where each person lives and works.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.19",
           "date": "2026-11-08",
           "notes": "- Painted ground: grass across the land, dirt on the country roads, round cobbles on the streets, stone setts on the sidewalks and sandstone slabs on the market square.\n- The land blends grass into rock on steep slopes and high ground, snow on the peaks and pebbles in the riverbed, with no tiling showing.\n- Shop signs are painted wooden boards.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.18",
-          "date": "2026-11-08",
-          "notes": "- New art: the main menu has a painted hilltop view of the village (a tall version on phones held upright) and a carved Wanderworld logo.\n- Loading a world shows a lantern-lit street while it builds, and opens once its trees, buildings and props are in.\n- A new store banner.",
           "highlight": false
         }
       ]
