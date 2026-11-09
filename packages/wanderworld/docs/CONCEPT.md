@@ -480,6 +480,11 @@ Quartermaster as Wanderworld's character sheet needs a change in Quartermaster: 
 (its sheet element takes only a `chatId`), and a world isn't a chat. Scenes from Wanderworld are real
 roleplay chats, so Quartermaster already works inside them._
 
+_0.4.71: scenes are planned by Wanderworld (`POST /scene-plan`, `checkScenePlan`) and made through the
+Engine's `/api/scene/create` over loopback (`POST /scene-start`) with the chosen prompt preset, because
+the Home tab's `startScene` takes no preset and shows the Engine's dialog with choices remembered from
+other chats. A failed plan falls back to `startScene`._
+
 **Security notes (for the PR):** every route body is checked (ids by pattern, text by length, numbers
 clamped, style profile ids from a fixed list); the connection list carries only id, name, provider,
 model and default flag (the Engine already masks keys, and none are read); the loopback goes only to

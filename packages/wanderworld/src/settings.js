@@ -75,6 +75,11 @@ export const SETTINGS = {
   talkStyle: { value: "natural", options: ["natural", "cosy", "dramatic", "witty", "terse"] },
   replyLength: { value: "medium", options: ["short", "medium", "long"] },
   aiTemperature: { value: 0.9, min: 0, max: 1.5 },
+  /** How Wanderworld's scenes are written (it plans them itself; the instructions are per world). */
+  scenePov: { value: "second_person", options: ["second_person", "third_person", "first_person"] },
+  sceneTense: { value: "present", options: ["present", "past"] },
+  /** The prompt preset scenes start with ("" for none: the scene's own instructions alone). */
+  scenePreset: { value: "", text: true },
   sound: { value: true },
   volume: { value: 0.6, min: 0, max: 1 },
 };

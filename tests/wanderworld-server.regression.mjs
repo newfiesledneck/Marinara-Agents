@@ -366,4 +366,74 @@ assert.equal(
   assert.equal((await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures.length, 0);
 }
 
+// Scenes Wanderworld plans itself: the plan is checked and carries the player's point of view, tense and
+// instructions; it's made through the Engine's /api/scene/create with the chosen prompt preset; and the
+// prompt presets are listed with the connections.
+{
+  const realFetch = globalThis.fetch;
+  const created = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const json = (body) => ({ ok: true, json: async () => body });
+    if (url.endsWith("/api/prompts")) return json([{ id: "pre-1", name: "Cosy RP" }]);
+    if (url.endsWith("/api/scene/create")) {
+      created.push(JSON.parse(options.body));
+      return json({ chatId: "chat-42", chatName: "Breakfast" });
+    }
+    return realFetch(url, options);
+  };
+  assert.deepEqual((await call("get", "/connections")).body.presets, [{ id: "pre-1", name: "Cosy RP", model: "" }]);
+  assert.equal(server.checkScenePlan({ description: "x" }, { characterIds: ["c-1"] }), null, "a plan needs an opening");
+  runtime.languageModels.resolveForRequest = async () => ({
+    connectionId: "t-1",
+    model: "m",
+    async chatComplete(messages) {
+      calls.push({ messages });
+      return {
+        content:
+          '{"name": "Breakfast", "description": "Morning light.", "scenario": "They talk.", "firstMessage": "Mira sets down two cups.", "systemPrompt": "Gentle.", "rating": "spicy", "relationshipHistory": "Friends.", "participationGuide": "Say hello."}',
+      };
+    },
+  });
+  const sceneContext = { characterIds: ["c-mira"], personaId: "p-zoey", connectionId: "t-1", notes: "At the bakery." };
+  const planned = await call("post", "/scene-plan", {
+    body: {
+      context: sceneContext,
+      prompt: "Zoey goes in.",
+      pov: "third_person",
+      tense: "past",
+      instructions: "Keep it cosy.",
+    },
+  });
+  assert.equal(planned.code, 200);
+  const { plan } = planned.body;
+  assert.equal(plan.firstMessage, "Mira sets down two cups.");
+  assert.deepEqual(plan.characterIds, ["c-mira"]);
+  assert.equal(plan.rating, "sfw", "an unknown rating is safe");
+  assert.match(plan.systemPrompt, /Gentle\.\n\nWrite in third person \(they\), past tense\./u);
+  assert.match(plan.systemPrompt, /Keep it cosy\./u, "the world's instructions always go in");
+  assert.doesNotMatch(calls.at(-1).messages[0].content, /extra instructions from another chat/u);
+  assert.match(calls.at(-1).messages[0].content, /Mira: .*bakes bread/u, "the cast's cards go to the planner");
+
+  const originId = "world:w1/scene:2";
+  assert.equal(
+    (await call("post", "/scene-start", { body: { originId, plan } })).code,
+    409,
+    "the context must be kept first",
+  );
+  await call("post", "/scene-origin", { body: { originId, context: sceneContext } });
+  const started = await call("post", "/scene-start", {
+    body: { originId, plan, initiatorId: "c-mira", promptPresetId: "pre-1", data: { worldId: "w1" } },
+  });
+  assert.equal(started.body.chatId, "chat-42");
+  const sent = created.at(-1);
+  assert.deepEqual(sent.packageOrigin, { packageId: "wanderworld", originId });
+  assert.equal(sent.promptPresetId, "pre-1", "the chosen preset goes with it");
+  assert.equal(sent.connectionId, "t-1", "on the scene's connection");
+  assert.equal(sent.initiatorCharId, "c-mira");
+  assert.equal(sent.plan.systemPrompt, plan.systemPrompt);
+  await call("post", "/scene-start", { body: { originId, plan, promptPresetId: "../x" } });
+  assert.equal(created.at(-1).promptPresetId, null, "a malformed preset id isn't sent");
+  globalThis.fetch = realFetch;
+}
+
 console.log("wanderworld server regression: OK");

@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.71 — 2026-11-09
+
+- Scenes you start in the world are planned by Wanderworld, so the Engine's scene dialog (with choices remembered from other chats) no longer comes up. Settings → AI: scene point of view, tense, and a prompt preset picked for every scene; Journal → World: scene instructions for that world. If planning fails, the Engine's own planner takes over.
+
 ## 0.4.70 — 2026-11-09
 
 - Up to five people hear what you say or do, and anyone you name ("/s Hey Ingrid!") is one of them if they're in earshot, with the nearest others.

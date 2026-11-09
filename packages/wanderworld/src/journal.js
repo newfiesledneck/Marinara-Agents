@@ -738,6 +738,23 @@ export function createJournal(panelCss, handlers) {
     setting.maxLength = 600;
     setting.addEventListener("change", () => handlers.onSetSetup({ setting: setting.value.trim() }));
     body.append(setting);
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Scene instructions for this world"));
+    body.append(
+      explain(
+        "Extra instructions for every scene you start here (play it as a scene): tone, what to avoid, how much detail. Point of view and tense are in Settings → AI.",
+      ),
+    );
+    const instructions = element(
+      "textarea",
+      `${FIELD}resize:vertical;min-height:44px;width:100%;box-sizing:border-box;`,
+    );
+    instructions.value = world.sceneInstructions ?? "";
+    instructions.placeholder = 'e.g. "Slow-burn, cosy, keep it SFW; describe the food"';
+    instructions.maxLength = 1000;
+    instructions.addEventListener("change", () =>
+      handlers.onSetSetup({ sceneInstructions: instructions.value.trim() }),
+    );
+    body.append(instructions);
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Lorebooks for this world"));
     if (!world.allLorebooks) {
       body.append(line("Reading your lorebooks…", MUTED));
