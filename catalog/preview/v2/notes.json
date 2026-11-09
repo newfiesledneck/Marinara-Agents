@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.89",
+          "date": "2026-11-09",
+          "notes": "- A narrator card (Menu → Settings → AI): pick one of your characters to tell scenes, moments or both in its voice. With it, a scene can start with nobody else there.\n- A scene from anywhere: the chat window's Scene button, or \"/scene …\", opens one right where you stand with whoever's near, your party, the narrator, or the narrator alone. A scene's card asks whether the narrator joins the people there.\n- What you do is told even when nobody's near, and so is reading the noticeboard.\n- \"/camp\" lights a campfire to sit by, tell a story at, and put out.\n- Talking to someone offers joining what they're doing: lend a hand, eat with them, sit with them, keep them company.",
+          "highlight": false
+        },
+        {
           "version": "0.4.88",
           "date": "2026-11-09",
           "notes": "- More to do in the world: market stalls, wagons, barrels and crates, and out in the country the farm, graveyard, standing stones, mill, pond, watchtower and ruins each have a card of things to do. With AI on each is a moment; without it the world still answers with lines of its own.\n- The world's voice (Settings → World): a line on first coming to a place (its lore, when it has some) and now and then about who's near. On without AI by default; arrivals can be written by AI.\n- The noticeboard has an errand to someone in the world: take it and it's marked on your map; reach them and it's done, and they think better of you.\n- The chat window tells narration, your lines and other people's apart. With it closed, narration shows as a caption over the world, and Chat shows a dot.",
@@ -307,12 +313,6 @@
           "version": "0.4.70",
           "date": "2026-11-09",
           "notes": "- Up to five people hear what you say or do, and anyone you name (\"/s Hey Ingrid!\") is one of them if they're in earshot, with the nearest others.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.69",
-          "date": "2026-11-09",
-          "notes": "- Moments: the \"Around you\" chat window takes what you say or do: plain text to everyone nearby, /s shouts, /w whispers, /p talks to your party, /a does something (open a chest, cast a spell). The narrator answers and whoever heard may reply. Reading the noticeboard, sitting by people and card choices are moments too. Commands are listed under the box; the window moves and resizes.\n- Schedules: everyone follows a day (home, work, meals, visits, a seat), editable in Journal → People → Schedules, planned by the AI on request, and changed by what people agree to in moments.\n- Illustrate: a window that paints the current moment from a prompt template you can edit, with a scrolling gallery (the newest 60): click to show, × to delete.",
           "highlight": false
         }
       ]

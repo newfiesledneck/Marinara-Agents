@@ -623,7 +623,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.4.88, 2026-11-09)
+## Outstanding (as of 0.4.89, 2026-11-09)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -661,8 +661,6 @@ world would choose its pack when it's made; one pack is built in today.
 
 **Agreed, not started**
 
-- Joining what people are doing: someone at work, eating or sitting offers "Help", "Join them" or
-  "Watch" beside talking to them.
 - People who come to you with something to say start a moment of their own (today they walk up and
   greet you).
 - Things to use inside buildings (the anvil, the tavern's tables and bar): they wait on walk-in rooms.

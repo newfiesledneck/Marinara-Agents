@@ -167,6 +167,8 @@ export const SPEECH_HELP = [
     "/a text, /action",
     "do something instead of saying it (open a chest, cast a spell); the narrator and people nearby respond",
   ],
+  ["/scene text", "start a full scene right where you stand, with what you write as how it opens"],
+  ["/camp", "light a campfire here, for you and your party to sit by"],
 ];
 
 /** How many people hear a moment at most (the model writes for each, so it's kept small). */

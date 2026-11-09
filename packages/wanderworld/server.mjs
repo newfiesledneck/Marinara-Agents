@@ -510,6 +510,11 @@ export function momentMessages(input) {
     "You are the narrator of Wanderworld, a small living world the player walks around in. Write only what happens in this one moment, as JSON.",
     `The player is ${input.persona.name}.${input.persona.card ? " " + input.persona.card : ""} Never write ${input.persona.name}'s words, thoughts or choices.`,
     TALK_STYLES[input.style] ?? TALK_STYLES.natural,
+    input.narrator &&
+      section(
+        "Your voice",
+        `You narrate as ${input.narrator.name}. ${input.narrator.card} Keep to that voice in the narration; other people still speak as themselves.`,
+      ),
     section("The world", input.setting),
     section(
       "Right now",
@@ -518,7 +523,7 @@ export function momentMessages(input) {
     section(
       "Who can hear",
       people ||
-        "Nobody is close enough to hear. Reply with narration only (what the player notices), and no replies.",
+        "Nobody is close enough to hear. Still narrate: one or two sentences on what comes of it and what the player notices. No replies.",
     ),
     section("What they know (lore)", input.lore.join("\n\n")),
     section("Just before", input.recent.map((line) => `${line.who}: ${line.text}`).join("\n")),
@@ -884,7 +889,14 @@ export async function activate(context) {
           .map((place) => ({ id: idOf(place.id), name: text(place.name, MAX.name) }))
           .filter((place) => place.id && place.name)
           .slice(0, 60);
+        // The user's narrator card, when they've set one: an Engine character, read from the Engine.
+        const narratorId = idOf(body.narratorId);
+        const [narratorRecord] = narratorId && !narratorId.startsWith("local:") ? await resources.listCharacters([narratorId]) : [];
+        const narratorCard = narratorRecord ? characterCard(narratorRecord) : null;
         const input = {
+          narrator: narratorCard
+            ? { name: narratorCard.name, card: [narratorCard.personality, narratorCard.description].filter(Boolean).join(" ").slice(0, 700) }
+            : null,
           persona: { name: persona.name, card: [persona.description, persona.appearance].filter(Boolean).join(" ").slice(0, 500) },
           listeners: heard,
           action: text(body.action, 300),

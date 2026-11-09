@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.4.89 — 2026-11-09
+
+- A narrator card (Menu → Settings → AI): pick one of your characters to tell scenes, moments or both in its voice. With it, a scene can start with nobody else there.
+- A scene from anywhere: the chat window's Scene button, or "/scene …", opens one right where you stand with whoever's near, your party, the narrator, or the narrator alone. A scene's card asks whether the narrator joins the people there.
+- What you do is told even when nobody's near, and so is reading the noticeboard.
+- "/camp" lights a campfire to sit by, tell a story at, and put out.
+- Talking to someone offers joining what they're doing: lend a hand, eat with them, sit with them, keep them company.
+
 ## 0.4.88 — 2026-11-09
 
 - More to do in the world: market stalls, wagons, barrels and crates, and out in the country the farm, graveyard, standing stones, mill, pond, watchtower and ruins each have a card of things to do. With AI on each is a moment; without it the world still answers with lines of its own.

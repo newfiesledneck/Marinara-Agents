@@ -7,7 +7,23 @@
 // The player is in one of four modes: walking, sitting (on a bench or chair), talking (to a townsperson)
 // or going through a door. "Space" is wherever they are: the town, or the room inside a building; both
 // offer the same collision, camera and seat calls.
-import { Frustum, Group, Matrix4, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3, WebGLRenderer } from "three";
+import {
+  ConeGeometry,
+  CylinderGeometry,
+  Frustum,
+  Group,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  PerspectiveCamera,
+  Plane,
+  PointLight,
+  Raycaster,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from "three";
 import { blobShadow, listCharacterFolders, listCharacters, listPersonas, setAnimationStyle } from "./character.js";
 import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
@@ -1361,6 +1377,102 @@ function namedZones(residents) {
 }
 
 /**
+ * The user's narrator card (Settings → AI), when it's set, still one of their characters, and used for
+ * `what` ("scenes" or "moments"): { id, name }, or null.
+ */
+function narratorFor(what) {
+  const use = core.settings.narratorUse ?? "both";
+  if (use !== "both" && use !== what) return null;
+  const card = (core.engineCharacters ?? []).find((entry) => entry.id === core.settings.narratorCard);
+  return card ? { id: card.id, name: card.name } : null;
+}
+
+/**
+ * A scene from wherever the player stands (the chat window's Scene button, or "/scene …"): the place,
+ * whoever's within a few steps, the party, and what was typed as how it opens. With nobody there it's
+ * the narrator card's to tell.
+ */
+async function sceneHere(typed) {
+  if (!core.save || !core.zones || core.interior) return;
+  const at = core.player.position;
+  const zone = zoneAt(core.zones, at.x, at.z);
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const near = core.crowd
+    .snapshot()
+    .filter((person) => person.state !== "inside" && Math.hypot(person.x - at.x, person.z - at.z) < 8)
+    .map((person) => ({ id: person.id, name: person.name }));
+  const party = core.crowd
+    .party()
+    .filter((member) => !member.waiting)
+    .map((member) => ({ id: member.id, name: member.name }));
+  const title = names[zone.id] ?? "here";
+  const chain = chainOf(core.zones, zone)
+    .slice(1)
+    .map((entry) => names[entry.id]);
+  const request = sceneRequest({
+    thing: { kind: "place", name: title, chain },
+    action: OWN_LINE,
+    line: typed || "takes a moment here",
+    inside: near,
+    party,
+    persona: { id: "player", name: personaName() },
+    hour: core.hour,
+  });
+  narrate(null, "(Starting a scene here…)");
+  const words = await playAsScene({ kind: "place", zone, title, inside: near }, request, party, true);
+  narrate(null, `(${words})`);
+}
+
+/** A campfire where the player stands ("/camp"): a few logs, a flame and its light, to sit by with the party. */
+function makeCamp() {
+  if (!core.world || core.interior) return;
+  dousCamp();
+  const { x, z } = core.player.position;
+  const ahead = { x: x + Math.sin(core.player.rotation.y) * 1.4, z: z + Math.cos(core.player.rotation.y) * 1.4 };
+  const fire = new Group();
+  const wood = new MeshLambertMaterial({ color: 0x5a3b22 });
+  for (let i = 0; i < 4; i++) {
+    const log = new Mesh(new CylinderGeometry(0.07, 0.08, 0.8, 6), wood);
+    log.rotation.set(Math.PI / 2 - 0.5, (i * Math.PI) / 2, 0, "YXZ");
+    log.position.y = 0.2;
+    fire.add(log);
+  }
+  const flame = new Mesh(new ConeGeometry(0.22, 0.6, 7), new MeshBasicMaterial({ color: 0xffa531 }));
+  flame.position.y = 0.45;
+  const glow = new PointLight(0xffa24a, 6, 14, 1.6);
+  glow.position.y = 0.9;
+  fire.add(flame, glow);
+  fire.position.set(ahead.x, heightAt(ahead.x, ahead.z), ahead.z);
+  core.world.scene.add(fire);
+  core.world.camp = { kind: "campfire", x: ahead.x, z: ahead.z, object: fire, flame };
+  void runMoment({ action: "makes camp and lights a fire", audience: "party" }).then(
+    (done) => !done && narrate(null, pickLine(PACK.camp, `${ahead.x}`, lineWords())),
+  );
+}
+
+/** Puts the campfire out, if there is one. */
+function dousCamp() {
+  const camp = core.world?.camp;
+  if (!camp) return;
+  core.world.scene.remove(camp.object);
+  camp.object.traverse((node) => {
+    node.geometry?.dispose();
+    node.material?.dispose();
+  });
+  core.world.camp = null;
+}
+
+/** What joining someone is, by what they're doing (pack.js joining): { label, verb, lines }, with their name in. */
+function joiningOf(person) {
+  const seen = core.crowd.snapshot().find((entry) => entry.id === person.id);
+  const now = core.crowd.scheduledNow(person.id, core.hour)?.activity;
+  const kind = seen?.seated ? "sit" : now === "work" || now === "eat" ? now : "other";
+  const entry = PACK.joining[kind];
+  const named = (text) => text.replaceAll("{who}", person.name);
+  return { label: entry.label, verb: named(entry.verb), lines: entry.lines.map(named) };
+}
+
+/**
  * The things standing about this world that the setting pack gives something to do with (pack.js): some
  * of the town's props (a stall, a wagon, a stack of barrels) and the places out in the country (a farm,
  * the standing stones). Worked out once for a world.
@@ -2594,7 +2706,7 @@ function talkTo(person) {
   core.hud?.setPrompt(null);
   core.talk.start(person.name, !!(core.settings.aiTalk && core.ai.known()?.talk));
   core.talk.setInParty(core.crowd.inParty(person.id));
-  core.talk.setChoices(choicesFor(), choose);
+  core.talk.setChoices([{ id: "join", label: joiningOf(person).label }, ...choicesFor()], choose);
   later(0.6, () => answer(core.talking, "greet"));
 }
 
@@ -3032,6 +3144,7 @@ async function runMoment({
       places: places.map(({ id, name }) => ({ id, name })),
       connectionId: core.settings.textConnection || null,
       temperature: core.settings.aiTemperature,
+      narratorId: narratorFor("moments")?.id ?? null,
     });
     if (result.narration) narrate(null, result.narration);
     result.replies.forEach((reply, i) => {
@@ -3069,6 +3182,9 @@ async function runMoment({
  * people round about answer).
  */
 function speak(typed) {
+  const command = /^\/(scene|camp)\b\s*(.*)$/isu.exec(typed.trim());
+  if (command?.[1].toLowerCase() === "scene") return void sceneHere(command[2].trim());
+  if (command?.[1].toLowerCase() === "camp") return makeCamp();
   const speech = parseSpeech(typed);
   if (!speech) return;
   if (speech.action) narrate(personaName(), `*${speech.action}*`);
@@ -3217,6 +3333,18 @@ function talkPayload(talking, line) {
 function choose(id) {
   const talking = core.talking;
   if (!talking) return;
+  if (id === "join") {
+    // Not something said: the talk ends, and what they do together is a moment (or the pack's line).
+    const joining = joiningOf(talking);
+    const person = { id: talking.id, name: talking.name };
+    endTalk();
+    narrate(personaName(), `*${joining.verb}*`);
+    void runMoment({ action: joining.verb, listenersExtra: [person] }).then(
+      (done) =>
+        !done && narrate(null, pickLine(joining.lines, `${person.id}:${Math.floor(core.clock / 30)}`, lineWords())),
+    );
+    return;
+  }
   const text = labelOf(id);
   core.talk.line(personaName(), text);
   core.talk.say(core.player, text, 3);
@@ -3291,15 +3419,19 @@ function enterBuilding(door) {
  * its context (who's there, the persona, the connection, notes, lorebooks) goes to the server part for
  * the Engine's planner, and the Engine plans and opens the scene. Returns words for the card.
  */
-async function playAsScene(thing, request, along) {
+async function playAsScene(thing, request, along, withNarrator = false) {
   const startScene = core.props?.startScene;
   if (typeof startScene !== "function" || !core.save) return "This Engine can't start scenes from Wanderworld.";
   // The Engine casts its own characters only: a world's own people can't be in a scene.
   const known = new Set((core.engineCharacters ?? []).map((entry) => entry.id));
   const people = [...thing.inside, ...along].filter((person, i, all) => all.findIndex((p) => p.id === person.id) === i);
   const characterIds = people.map((person) => person.id).filter((id) => known.has(id));
+  // The narrator card joins when asked for, and always when nobody else can be cast.
+  const narrator = narratorFor("scenes");
+  const telling = narrator && (withNarrator || !characterIds.length) && !characterIds.includes(narrator.id);
+  if (telling) characterIds.push(narrator.id);
   if (!characterIds.length)
-    return "A scene needs one of your characters there: bring someone along, or find someone in.";
+    return "A scene needs one of your characters there, or a narrator card (Menu → Settings → AI) to tell it alone.";
   const names = { ...nameIds(), player: personaName() };
   const feelings = characterIds
     .map((id) => (core.relations.get(id, "player") ? core.relations.describe(id, "player", names) : ""))
@@ -3311,6 +3443,9 @@ async function playAsScene(thing, request, along) {
     core.save.setting ? `The world: ${core.save.setting}` : "",
     feelings.length ? `How they feel about ${personaName()}:\n${feelings.join("\n")}` : "",
     "This scene is played out from Wanderworld, a small walkable world; keep to the place and the people there.",
+    telling
+      ? `${narrator.name} is the narrator of this scene: they tell what happens and give the world its voice, and are not a person standing there.`
+      : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -3331,7 +3466,7 @@ async function playAsScene(thing, request, along) {
   };
   try {
     await core.ai.sceneOrigin(originId, context);
-    const first = people.find((person) => known.has(person.id));
+    const first = people.find((person) => known.has(person.id)) ?? (telling ? narrator : null);
     // Wanderworld plans the scene itself (its point of view, tense and this world's instructions), so
     // the Engine's dialog, with choices remembered from other chats, doesn't come up. If planning
     // fails, the Engine's own planner and dialog take over.
@@ -3478,10 +3613,12 @@ function openScene(thing) {
       empty: thing.empty,
       party,
       actions: (ACTIONS[thing.kind] ?? []).map(({ id, label }) => ({ id, label })),
+      narrator: narratorFor("scenes")?.name ?? null,
+      needsNarrator: ![...thing.inside, ...party].some((person) => !person.id.startsWith("local:")),
       // With the server part and an Engine that can start scenes from packages.
       playScene:
         typeof core.props?.startScene === "function" && core.ai.known()?.scenes
-          ? (action, line, along) => {
+          ? (action, line, along, withNarrator) => {
               const request = sceneRequest({
                 thing: { kind: thing.kind, name: thing.title, chain },
                 action: line.trim() ? OWN_LINE : (action ?? OWN_LINE),
@@ -3496,6 +3633,7 @@ function openScene(thing) {
                 thing,
                 request,
                 party.filter((member) => along.includes(member.id)),
+                withNarrator,
               );
             }
           : null,
@@ -3528,6 +3666,7 @@ function openScene(thing) {
           : thingLine(thing.kind, request.action, `${thing.title}:${Math.floor(core.clock / 30)}`, lineWords());
         if (told) narrate(null, told);
       });
+      if (thing.kind === "campfire" && request.action === "douse") dousCamp();
       return describeScene(request);
     },
   );
@@ -3624,7 +3763,7 @@ function boardErrand(names) {
 
 function openNoticeboard() {
   core.sceneDoor = core.world.noticeboard.use; // walking away closes it, like a door's card
-  void runMoment({ action: "stops to read the notes on the noticeboard", needListeners: true });
+  void runMoment({ action: "stops to read the notes on the noticeboard" });
   const town = core.zones ? namedZones(residentsOf(core.crowd.snapshot())).town : "town";
   const show = () => {
     const notes = noticeboardNotes();
@@ -3761,7 +3900,7 @@ function usable() {
       act: () => enterCave(cave),
     });
   }
-  for (const thing of core.interior ? [] : worldThings()) {
+  for (const thing of core.interior ? [] : [...worldThings(), ...(core.world?.camp ? [core.world.camp] : [])]) {
     list.push({
       kind: "thing",
       label: PACK.things[thing.kind].prompt,
@@ -4431,7 +4570,11 @@ function attach(element) {
     onPictureOf: (id) => core.ai.picture(id),
     onDeletePicture: (id) => core.ai.forgetPicture(id),
     onPlanSchedule: planSchedule,
-    onConnections: () => core.ai.connections(),
+    onConnections: async () => ({
+      ...(await core.ai.connections()),
+      characters: (core.engineCharacters ?? []).map(({ id, name }) => ({ id, name })),
+    }),
+    onSceneHere: (typed) => void sceneHere(typed),
     onPicture: pictureHere,
     onRenameZone: renameZone,
     onPartyWait: (id, wait) => {

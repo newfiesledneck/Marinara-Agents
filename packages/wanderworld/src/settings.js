@@ -86,6 +86,10 @@ export const SETTINGS = {
   sceneTense: { value: "present", options: ["present", "past"] },
   /** The prompt preset scenes start with ("" for none: the scene's own instructions alone). */
   scenePreset: { value: "", text: true },
+  // One of the user's character cards as the narrator: it tells scenes, moments or both in its voice, and
+  // lets a scene start with nobody else in it. "" is no narrator card.
+  narratorCard: { value: "", text: true },
+  narratorUse: { value: "both", options: ["scenes", "moments", "both"] },
   sound: { value: true },
   volume: { value: 0.6, min: 0, max: 1 },
 };

@@ -322,6 +322,12 @@ assert.equal(
     /Zoey reads the notes on the noticeboard\. Zoey shouts: "Anything new\?"/u,
   );
   assert.equal((await call("post", "/moment", { body: {} })).code, 400, "something has to happen");
+  // Nobody near: it's still told. And a narrator card, when one is set, gives the telling its voice.
+  await call("post", "/moment", { body: { action: "skips a stone", personaId: "p-zoey", narratorId: "c-mira" } });
+  assert.match(calls.at(-1).messages[0].content, /Nobody is close enough to hear. Still narrate/u);
+  assert.match(calls.at(-1).messages[0].content, /You narrate as Mira./u);
+  await call("post", "/moment", { body: { action: "skips a stone", narratorId: "local:new-1" } });
+  assert.doesNotMatch(calls.at(-1).messages[0].content, /You narrate as/u, "only an Engine card narrates");
 
   runtime.languageModels.resolveForRequest = async () => ({
     connectionId: "t-1",

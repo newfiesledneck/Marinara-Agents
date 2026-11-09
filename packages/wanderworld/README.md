@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.88)
+## What it does now (0.4.89)
 
 ### The world
 
@@ -160,6 +160,12 @@ only walk about.
   (Menu → Settings → World) adds a line on first coming to a place (its lore, when it has some) and now
   and then about who's near; with the chat window closed it shows as a caption. The noticeboard offers
   an **errand** to someone in the world: take it, it's marked on your map, and reaching them finishes it.
+- **A narrator, and scenes from anywhere:** pick one of your character cards as the narrator (Menu →
+  Settings → AI) and it tells scenes, moments or both in its voice. The chat window's **Scene** button, or
+  `/scene …`, starts a scene right where you stand: with whoever's near and your party, with the narrator
+  as well, or with the narrator alone when nobody else is there. What you do is narrated even with
+  nobody about. `/camp` lights a campfire for you and your party, and talking to someone offers joining
+  what they're doing.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
@@ -229,8 +235,8 @@ still count, and come first.
 
 ### Known limits
 
-- A scene needs at least one of your characters there: the Engine casts its own characters only, so
-  people a world invented can't be in scenes.
+- A scene needs at least one of your character cards: someone there, or the narrator card. The Engine
+  casts its own characters only, so people a world invented can't be in scenes.
 - Only the Engine's built-in picture style profiles are listed; your own default profile is "Engine default".
 - Another region has no townsfolk of its own yet: only your party travels.
 - Walk-in rooms are unfinished and off by default.
