@@ -2118,13 +2118,9 @@ function journalData(zone, snapshot, residents, names) {
     },
     roster: rosterData(names),
     locals: core.save?.locals ?? [],
-    voices: {
-      options: VOICES,
-      of: core.save?.voices ?? {},
-      people: (core.characters ?? [])
-        .filter((character) => core.cast?.has(character.id))
-        .map((character) => ({ id: character.id, name: character.name })),
-    },
+    everyone: (core.characters ?? [])
+      .filter((character) => core.cast?.has(character.id))
+      .map((character) => ({ id: character.id, name: character.name })),
     people: lines.map((entry) => {
       const toYou = core.relations.get(entry.person.id, "player");
       const house = core.save?.housing?.[entry.person.id];
@@ -2140,17 +2136,6 @@ function journalData(zone, snapshot, residents, names) {
         .filter(Boolean)
         .join(". ");
     }),
-    housing: housingData(names),
-    // Journal → People's schedule editor: everyone here, their day and who set it; the places to pick.
-    schedules: {
-      people: (core.characters ?? [])
-        .filter((character) => core.cast?.has(character.id))
-        .map((character) => ({ id: character.id, name: character.name, ...scheduleOf(character.id) })),
-      places: core.zones
-        ? schedulePlaces().map(({ id, name, slot }) => ({ id, name: slot ? `${name} (${slot})` : name }))
-        : [],
-      canPlan: !!core.ai.known()?.plans,
-    },
     relations: relationsData(),
     party: core.crowd.party(),
     relationsChanged: core.relationsChanged,
@@ -4244,7 +4229,7 @@ function frame(time) {
 
 function attach(element) {
   core.element = element;
-  // Is the server part running? (Remembered; Settings → AI asks again.) Then any scene recaps waiting.
+  // Is the server part running? (Remembered; Menu → Settings → AI asks again.) Then any scene recaps waiting.
   void core.ai.status().then(() => pullRecaps());
   element.style.cssText += ";display:block;position:relative;overflow:hidden;width:100%;height:100%;";
   core.stage = document.createElement("div");
@@ -4262,7 +4247,6 @@ function attach(element) {
     onGallery: () => (core.save ? core.ai.pictures(core.save.id) : Promise.resolve([])),
     onPictureOf: (id) => core.ai.picture(id),
     onDeletePicture: (id) => core.ai.forgetPicture(id),
-    onSetSchedule: (id, entries) => setSchedule(id, entries, "you"),
     onPlanSchedule: planSchedule,
     onConnections: () => core.ai.connections(),
     onPicture: pictureHere,
@@ -4271,8 +4255,6 @@ function attach(element) {
       core.crowd.setWaiting(id, wait);
       partyChanged();
     },
-    onSetRelation: setRelation,
-    onSetTraits: setTraits,
     onPartyLeave: (id) => {
       core.crowd.setFollowing(id, false);
       partyChanged();
@@ -4355,7 +4337,6 @@ function attach(element) {
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
     onRegeneratePreview: previewRegenerate,
-    onSetHousing: setHousingByHand,
     onCheckKeywords: () => void checkKeywords(),
     onEditPerson: (id) => {
       const person = personData(id);
@@ -4363,24 +4344,6 @@ function attach(element) {
     },
     onSavePerson: savePerson,
     onPersonDay: (id) => scheduleOf(id),
-    onSetVoice: (id, voice) => {
-      if (!core.save) return;
-      const voices = { ...core.save.voices };
-      if (VOICES.includes(voice)) voices[id] = voice;
-      else delete voices[id];
-      core.save = { ...core.save, voices };
-      core.saves.write(core.save);
-    },
-    // Someone this world made for itself: their card is the world's to change.
-    onEditLocal: (id, fields) => {
-      if (!core.save) return;
-      const locals = core.save.locals.map((person) =>
-        person.id === id ? { ...person, ...fields, id, name: person.name } : person,
-      );
-      core.save = { ...core.save, locals };
-      core.characters = peopleOf(core.save);
-      core.saves.write(core.save);
-    },
     onEditBook: (id, content) => {
       if (!core.save) return;
       const entries = core.save.book.entries.map((entry) => (entry.id === id ? { ...entry, content } : entry));

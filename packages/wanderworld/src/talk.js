@@ -141,8 +141,8 @@ export function createTalk(layer, handlers) {
       title.textContent = `Talking with ${name}`;
       log.replaceChildren();
       note.textContent = ai
-        ? `${name} answers in their own words (Settings → AI). The choices below are things you could say.`
-        : "Set lines: turn on AI conversations in Settings → AI (with Wanderworld's server part running) for replies in character.";
+        ? `${name} answers in their own words (Menu → Settings → AI). The choices below are things you could say.`
+        : "Set lines: turn on AI conversations in Menu → Settings → AI (with Wanderworld's server part running) for replies in character.";
       panel.style.display = "flex";
       setTimeout(() => input.focus(), 0);
     },

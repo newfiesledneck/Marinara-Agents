@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.87 — 2026-11-09
+
+- Journal → People → Relationships is back as an overview to read: how everyone sees each other and you, person by person. Changing one is done in Edit people.
+- Hints in the game point to Menu → Settings now that Settings lives in the Menu.
+
 ## 0.4.86 — 2026-11-09
 
 - The person window lets you pick a role for a relationship again (family: sister, parent, cousin…; colleague: employer, apprentice…; mentor: mentor or student), beside its kind and strength. A role a lorebook gave ("father", "wife") stays on offer.

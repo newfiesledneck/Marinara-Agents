@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.86)
+## What it does now (0.4.87)
 
 ### The world
 
@@ -116,11 +116,11 @@ With it running:
   gallery. It moves, resizes and stays open while you play.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
   the Engine with everyone there (one of your characters at least), your persona and the world's lorebooks.
-  Wanderworld plans it itself (point of view, tense and prompt preset from Settings → AI, and the world's
+  Wanderworld plans it itself (point of view, tense and prompt preset from Menu → Settings → AI, and the world's
   scene instructions from Journal → World), so the Engine's scene dialog doesn't come up. When it ends,
   its recap comes back to Journal → Here.
 - **Pictures:** Journal → Here → "Picture this place" paints where you are through your image connection.
-- **Settings → AI:** AI conversations on or off, which connection writes conversations, which plays scenes,
+- **Menu → Settings → AI:** AI conversations on or off, which connection writes conversations, which plays scenes,
   which paints pictures (each can be the Engine's default), how people talk, reply length, creativity, the
   scene point of view, tense and prompt preset, and the picture style (the Engine's built-in style
   profiles, or your default one).
@@ -156,9 +156,9 @@ only walk about.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
-  as a scene" (Settings → Walk into buildings brings back the unfinished furnished rooms).
-- **The Journal** (J): Here; People (a roster by faction, what everyone's doing right now, and Edit
-  people: a window per person with everything Wanderworld keeps about them — body, voice, temperament,
+  as a scene" (Menu → Settings → Walk into buildings brings back the unfinished furnished rooms).
+- **The Journal** (J): Here; People (a roster by faction, what everyone's doing right now, an overview
+  of every relationship, and Edit people: a window per person with everything Wanderworld keeps about them — body, voice, temperament,
   home and work, their day, and relationships both ways — to change and Save or Cancel); Party; Places (the setup tree); Map (the region from above, with names and
   where each edge leads; it zooms and pans, a closer look names the buildings, a click sets a waypoint,
   and your home is marked); and World (setting, scene instructions, lorebooks, lore linking, the season,
@@ -166,7 +166,7 @@ only walk about.
   understand).
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster).
 - **Animation:** recorded clips from Quaternius's Universal Animation Library (idle, walk, jog, sprint,
-  sitting, talking, swimming), or the hand-made motion (Settings → Animation).
+  sitting, talking, swimming), or the hand-made motion (Menu → Settings → Animation).
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the stick
   walks (all the way out runs), dragging elsewhere looks around, pinching zooms, and Use or a tap uses.

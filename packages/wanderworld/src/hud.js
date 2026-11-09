@@ -522,8 +522,6 @@ export function createHud(root, handlers) {
     onSetSetup: (fields) => handlers.onSetSetup(fields),
     onEditPerson: (id) => handlers.onEditPerson(id),
     onCheckKeywords: () => handlers.onCheckKeywords(),
-    onSetVoice: (id, voice) => handlers.onSetVoice(id, voice),
-    onEditLocal: (id, fields) => handlers.onEditLocal(id, fields),
     onEditBook: (id, content) => handlers.onEditBook(id, content),
     onPartyGather: () => handlers.onPartyGather(),
     onPartyDisband: () => handlers.onPartyDisband(),
@@ -531,14 +529,9 @@ export function createHud(root, handlers) {
     onWantLorebooks: () => handlers.onWantLorebooks(),
     onPartyWait: (id, wait) => handlers.onPartyWait(id, wait),
     onPartyLeave: (id) => handlers.onPartyLeave(id),
-    onSetRelation: (from, to, fields, both) => handlers.onSetRelation(from, to, fields, both),
-    onSetTraits: (id, traits) => handlers.onSetTraits(id, traits),
     onPicture: () => handlers.onPicture?.(),
     onMap: (canvas, view) => handlers.onMap?.(canvas, view),
     onWaypoint: (at) => handlers.onWaypoint?.(at),
-    onSetHousing: (id, entry) => handlers.onSetHousing?.(id, entry),
-    onSetSchedule: (id, entries) => handlers.onSetSchedule?.(id, entries),
-    onPlanSchedule: (id, request) => handlers.onPlanSchedule?.(id, request),
   });
   panels.push(journal.panel);
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>

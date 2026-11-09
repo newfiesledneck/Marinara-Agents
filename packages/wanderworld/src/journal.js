@@ -79,7 +79,7 @@ export function createJournal(panelCss, handlers) {
 
   const section = (label) => element("div", "font-weight:700;margin-top:4px;opacity:0.9;", label);
   const line = (text, css = "") => element("div", `font-size:13px;line-height:1.35;${css}`, text);
-  /** An explanation: shown unless Settings → Show explanations is off. */
+  /** An explanation: shown unless Menu → Settings → Show explanations is off. */
   const explain = (text) => {
     const node = line(text, `${MUTED}font-size:12px;`);
     node.setAttribute("data-wanderworld-explain", "");
@@ -149,6 +149,7 @@ export function createJournal(panelCss, handlers) {
   const PEOPLE_VIEWS = [
     ["roster", "People in this world"],
     ["doing", "Right now"],
+    ["relations", "Relationships"],
     ["edit", "Edit people"],
   ];
   function drawPeople() {
@@ -169,13 +170,15 @@ export function createJournal(panelCss, handlers) {
       return;
     }
     if (peopleView === "edit") return drawDetails();
+    if (peopleView === "relations") return drawRelations();
     body.append(
       explain(
-        "Everyone who lives in this world, by the groups they belong to. Who lives here is chosen in Settings → World.",
+        "Everyone who lives in this world, by the groups they belong to. Who lives here is chosen in Menu → Settings → World.",
       ),
     );
     const { groups, creatures } = data.roster;
-    if (!groups.length) body.append(line("Nobody lives here yet. Choose characters in Settings → World.", MUTED));
+    if (!groups.length)
+      body.append(line("Nobody lives here yet. Choose characters in Menu → Settings → World.", MUTED));
     for (const group of groups) {
       body.append(section(`${group.name} (${group.members.length})`));
       for (const member of group.members) {
@@ -193,15 +196,35 @@ export function createJournal(panelCss, handlers) {
   }
 
   /** Everyone, each with an Edit button that opens their window (person.js): everything about them in one place. */
+  /** Every relationship in the world, to read: who sees whom how, person by person. Changed in Edit people. */
+  function drawRelations() {
+    body.append(
+      explain(
+        "How everyone sees each other and you, each way round on its own. To change one, open that person in Edit people.",
+      ),
+    );
+    const { people, records } = data.relations;
+    const name = new Map(people.map((person) => [person.id, person.name]));
+    const shown = records.filter((record) => name.has(record.from) && name.has(record.to));
+    if (!shown.length) return void body.append(line("Nothing is set yet.", MUTED));
+    for (const person of people) {
+      const theirs = shown.filter((record) => record.from === person.id);
+      if (!theirs.length) continue;
+      body.append(section(person.name));
+      for (const record of theirs)
+        body.append(line(`${record.words}${record.role ? ` (${record.role})` : ""}`, "font-size:13px;"));
+    }
+  }
+
   function drawDetails() {
     body.append(
       explain(
         "Everything about each person is changed here, in their own window: body, voice, temperament, home and work, their day, and how they and everyone else see each other. For someone with a character card, who they are and their looks stay the card's; someone made for this world can have those changed too.",
       ),
     );
-    if (!data.voices.people.length) body.append(line("Nobody lives here yet.", MUTED));
+    if (!data.everyone.length) body.append(line("Nobody lives here yet.", MUTED));
     const made = new Set(data.locals.map((person) => person.id));
-    for (const person of data.voices.people) {
+    for (const person of data.everyone) {
       const row = element("div", "display:flex;gap:8px;align-items:center;font-size:13px;");
       row.append(
         button("Edit", SMALL, () => handlers.onEditPerson?.(person.id)),
@@ -539,7 +562,7 @@ export function createJournal(panelCss, handlers) {
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Scene instructions for this world"));
     body.append(
       explain(
-        "Extra instructions for every scene you start here (play it as a scene): tone, what to avoid, how much detail. Point of view and tense are in Settings → AI.",
+        "Extra instructions for every scene you start here (play it as a scene): tone, what to avoid, how much detail. Point of view and tense are in Menu → Settings → AI.",
       ),
     );
     const instructions = element(
@@ -610,7 +633,7 @@ export function createJournal(panelCss, handlers) {
     }
     body.append(
       explain(
-        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww: smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Settings → Regenerate this world builds what's new.",
+        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww: smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Menu → Settings → Regenerate this world builds what's new.",
       ),
     );
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Season"));

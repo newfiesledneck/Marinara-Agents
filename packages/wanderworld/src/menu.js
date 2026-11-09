@@ -284,7 +284,7 @@ export function createMenu(layer, handlers, art = null) {
       pickers.append(element("span", "opacity:0.8;", label), select);
     }
     // The world's setting in words, its lorebooks, and how their entries are linked to places.
-    /** An explanation line (hidden with Settings → Show explanations off). */
+    /** An explanation line (hidden with Menu → Settings → Show explanations off). */
     const explainLine = (text) => {
       const node = element("div", "font:11px system-ui;opacity:0.7;line-height:1.35;", text);
       node.setAttribute("data-wanderworld-explain", "");
