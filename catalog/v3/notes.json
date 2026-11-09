@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.71",
+          "date": "2026-11-09",
+          "notes": "- Scenes you start in the world are planned by Wanderworld, so the Engine's scene dialog (with choices remembered from other chats) no longer comes up. Settings → AI: scene point of view, tense, and a prompt preset picked for every scene; Journal → World: scene instructions for that world. If planning fails, the Engine's own planner takes over.",
+          "highlight": false
+        },
+        {
           "version": "0.4.70",
           "date": "2026-11-09",
           "notes": "- Up to five people hear what you say or do, and anyone you name (\"/s Hey Ingrid!\") is one of them if they're in earshot, with the nearest others.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.52",
           "date": "2026-11-09",
           "notes": "- More settlements: hamlets out in the country, each five to eight houses round a green on its own road, chosen in New world (\"More settlements\") or now and then by the seed.\n- A lorebook naming town2 or town3 brings a hamlet for each; their houses are numbered among the homes, and \"hamlet\" lore links there.\n- Regenerating a world now keeps all its New world choices, its settlement and layout included.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.51",
-          "date": "2026-11-09",
-          "notes": "- Settlement layouts: a grid of streets, a crossroads, a row along one street, or a cluster round the market, chosen in New world or left to the seed. Streets are laid only beside the blocks that are built, and lamps stand where streets meet.",
           "highlight": false
         }
       ]
