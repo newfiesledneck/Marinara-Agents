@@ -144,6 +144,7 @@ export function createMenu(layer, handlers, art = null) {
     });
     // The land round the town: each choice, or Surprise me (the seed decides).
     const choices = {};
+    let sizePicker = null; // the review's size choice shows here too, a step back
     const pickers = element(
       "div",
       "display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:13px;",
@@ -279,6 +280,7 @@ export function createMenu(layer, handlers, art = null) {
         choices[key] = select.value;
         redraw();
       });
+      if (key === "size") sizePicker = select;
       pickers.append(element("span", "opacity:0.8;", label), select);
     }
     // The world's setting in words, its lorebooks, and how their entries are linked to places.
@@ -447,19 +449,30 @@ export function createMenu(layer, handlers, art = null) {
     if (!people.characters.length) castList.textContent = "No characters found.";
     refreshCast();
 
-    const create = button("Create and play", BIG, () =>
-      handlers.onCreate({
-        name: name.value.trim(),
-        seed: seed.value.trim() || previewSeed,
-        choices,
-        setting: setting.value.trim(),
-        lorebooks: [...lorebooks],
-        loreLinking: linking.value,
-        characterLinking: characterLinking.value,
-        cast: [...cast],
-        persona: personaId,
-      }),
-    );
+    const chosen = () => ({
+      name: name.value.trim(),
+      seed: seed.value.trim() || previewSeed,
+      choices,
+      setting: setting.value.trim(),
+      lorebooks: [...lorebooks],
+      loreLinking: linking.value,
+      characterLinking: characterLinking.value,
+      cast: [...cast],
+      persona: personaId,
+      onSize: (value) => {
+        choices.size = value;
+        if (sizePicker) sizePicker.value = value;
+        redraw();
+      },
+    });
+    // With the AI setting the world up, its setup is shown for a look before the land is built.
+    const byAi = (params) =>
+      params.characterLinking === "ai" || (params.loreLinking === "ai" && params.lorebooks.length > 0);
+    const create = button("Create and play", BIG, () => {
+      const params = chosen();
+      if (byAi(params)) void review(params, [...card.childNodes]);
+      else handlers.onCreate(params);
+    });
     card.append(
       element("div", "font:700 17px system-ui;", "New world"),
       element("div", "font:12px system-ui;opacity:0.75;", "Name"),
@@ -493,6 +506,124 @@ export function createMenu(layer, handlers, art = null) {
     name.focus();
     name.select();
     redraw();
+  }
+
+  // The last setup the AI gave, and what it was asked for: going back to change the land doesn't ask again.
+  let reviewed = null; // { asked, result }
+
+  /**
+   * The AI's setup of a new world, for a look before the land is built: who's who, where they live and
+   * work, how they know each other, the places the world gets and the lore tied to them. From here:
+   * build it, ask again (only what failed, when something did), or go back to the settings (`form`:
+   * the New world card's own nodes, put back as they were).
+   */
+  async function review(params, form, again = null) {
+    const asked = JSON.stringify([
+      params.name,
+      params.setting,
+      params.lorebooks,
+      params.loreLinking,
+      params.characterLinking,
+      params.cast,
+      params.persona,
+    ]);
+    let result = !again && reviewed?.asked === asked ? reviewed.result : null;
+    if (!result) {
+      card.replaceChildren(element("div", "font:13px system-ui;opacity:0.8;", "Setting your world up…"));
+      try {
+        result = await handlers.onSetup(params, again === "failed" ? reviewed?.result.setup : null);
+      } catch (error) {
+        result = {
+          setup: {
+            loreKeys: {},
+            loreNames: {},
+            failed: [{ id: "all", label: "the setup", error: error?.message ?? String(error) }],
+          },
+          needs: {},
+          summary: { people: [], named: [], lore: { placed: 0, world: 0, untied: 0 } },
+        };
+      }
+      reviewed = { asked, result };
+    }
+    const { setup, needs, summary } = result;
+    const head = (text) => element("div", "font:700 13px system-ui;margin-top:6px;", text);
+    const line = (text, style = "") => element("div", `font:12px system-ui;line-height:1.4;${style}`, text);
+    const list = element("div", "display:flex;flex-direction:column;gap:3px;max-height:38vh;overflow-y:auto;");
+    for (const person of summary.people) {
+      const facts = [
+        person.body === "male" ? "a man" : person.body === "female" ? "a woman" : "",
+        person.home && `lives in ${setup.loreNames[person.home] ?? person.home}`,
+        person.work && `${person.owner ? "owns" : "works at"} ${setup.loreNames[person.work] ?? person.work}`,
+        person.toPlayer && `sees you as: ${person.toPlayer}`,
+        ...person.links,
+      ].filter(Boolean);
+      list.append(line(`${person.name}${person.you ? " (you)" : ""}: ${facts.join(" · ") || "nothing set"}`));
+    }
+    const places = Object.entries(needs).map(([kind, count]) => `${kind} ×${count}`);
+    const map = mapCanvas(320, 260);
+    const size = element("select", `${INPUT}padding:5px 8px;`);
+    for (const [value, text] of [
+      ["surprise", "Auto"],
+      ["small", "Small"],
+      ["normal", "Normal"],
+      ["large", "Large"],
+      ["huge", "Huge"],
+      ["massive", "Massive"],
+    ]) {
+      const option = element("option", "", text);
+      option.value = value;
+      size.append(option);
+    }
+    size.value = params.choices.size ?? "surprise";
+    size.setAttribute("aria-label", "World size");
+    const draw = () => handlers.preview?.(map, params.seed, { ...params.choices }, needs);
+    size.addEventListener("change", () => {
+      params.onSize(size.value);
+      draw();
+    });
+    const failed = setup.failed ?? [];
+    card.replaceChildren(
+      element("div", "font:700 17px system-ui;", `${params.name || "Your world"}, before it's built`),
+      ...(failed.length
+        ? [
+            line(
+              `The AI couldn't do ${failed.map((part) => part.label).join(", ")}: ${failed[0].error} You can ask again for what's missing, build with what's here (the rest can be set in the Journal, or by the AI later from Journal → World), or go back.`,
+              "background:rgba(160,60,40,0.18);border-radius:6px;padding:6px 8px;",
+            ),
+          ]
+        : []),
+      head(`People (${summary.people.length})`),
+      summary.people.length ? list : line("Nobody was set up.", "opacity:0.7;"),
+      head("Places"),
+      line(
+        places.length ? `Built with at least: ${places.join(", ")}.` : "Nothing beyond what the land settings give.",
+        "",
+      ),
+      ...(summary.named.length
+        ? [line(`Named: ${summary.named.map(([place, placeName]) => `${placeName} (${place})`).join(", ")}.`)]
+        : []),
+      ...(summary.lore.placed + summary.lore.world + summary.lore.untied
+        ? [
+            head("Lore"),
+            line(
+              `${summary.lore.placed} entries tied to places and people, ${summary.lore.world} known to the whole world, ${summary.lore.untied} left untied.`,
+            ),
+          ]
+        : []),
+      head("The land"),
+      map,
+      size,
+      line(
+        "Other land settings are a step back. Everything above can be changed once you're in, in the Journal.",
+        "opacity:0.7;",
+      ),
+      button("Build the world", BIG, () => handlers.onCreate({ ...params, setup })),
+      button(failed.length ? "Ask the AI again for what's missing" : "Ask the AI again", SMALL, () =>
+        review(params, form, failed.length ? "failed" : "all"),
+      ),
+      button("Back to the settings", SMALL, () => card.replaceChildren(...form)),
+    );
+    draw();
   }
 
   function load() {

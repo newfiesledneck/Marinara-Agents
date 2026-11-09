@@ -352,4 +352,45 @@ assert.ok(
   riverWorld.dispose();
 }
 
+// The AI's setup of a new world, summed up for the review before the land is built.
+{
+  const { summariseSetup } = await import("../packages/wanderworld/src/setup.js");
+  const summary = summariseSetup(
+    {
+      loreKeys: {
+        "cards/c-fen": ["Fen", "male", "lives in home2", "owner of tavern1", "friend"],
+        "cards/c-mira": ["Mira", "female", "lives in home3", "works at smithy1", "sister of Tam", "rival of Fen"],
+        "cards/player": ["player", "female", "lives in home1", "friend"],
+        "book/e1": ["tavern1", "located in town1"],
+        "book/e2": ["World"],
+      },
+      loreNames: { tavern1: "The Gilded Stag" },
+    },
+    {
+      characters: [
+        { id: "c-fen", name: "Fen" },
+        { id: "c-mira", name: "Mira" },
+        { id: "c-rook", name: "Rook" },
+      ],
+      persona: "Zoey",
+      entries: 5,
+    },
+  );
+  assert.deepEqual(
+    summary.people.map((person) => person.name),
+    ["Zoey", "Fen", "Mira"],
+    "the player first, then whoever was set up",
+  );
+  const [you, fen, mira] = summary.people;
+  assert.deepEqual([you.you, you.body, you.home, you.toPlayer], [true, "female", "home1", ""]);
+  assert.deepEqual(
+    [fen.body, fen.home, fen.work, fen.owner, fen.toPlayer],
+    ["male", "home2", "tavern1", true, "friend"],
+  );
+  assert.deepEqual([mira.work, mira.owner, mira.links], ["smithy1", false, ["sister of Tam", "rival of Fen"]]);
+  assert.deepEqual(summary.named, [["tavern1", "The Gilded Stag"]]);
+  assert.deepEqual(summary.lore, { placed: 1, world: 1, untied: 3 });
+  assert.deepEqual(summariseSetup(null).people, [], "nothing set up is an empty summary");
+}
+
 console.log("wanderworld relations regression: OK");

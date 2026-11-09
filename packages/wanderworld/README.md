@@ -27,7 +27,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.73)
+## What it does now (0.4.74)
 
 ### The world
 
@@ -144,7 +144,9 @@ only walk about.
   persona, and any lorebooks you choose, and makes the world ready to play: who's a man or a woman, how
   people know each other and you, where everyone lives and works, which lore belongs to which place,
   names for the places the lore names, and the places that takes built in. The loading screen says what
-  it's doing until the world is ready. The same can be spelled out with keywords on lorebook entries
+  it's doing, then the setup is shown for a look before the land is built: build it, ask again, or go
+  back and change the settings. A call that fails is tried again; what came through is kept and only
+  the missing part is asked for again. The same can be spelled out with keywords on lorebook entries
   (`tavern1`, `lives in home3`, `sister of Mira`), or set by hand in the Journal.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
@@ -211,7 +213,7 @@ them) and each world's newest 60 pictures.
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
   plans, world setup from cards and lorebooks, pictures and the gallery, scene plans, scene creation, and scene contexts and recaps, plus a
   scene origin for the Engine. Every request body is checked there. `src/ai.js` is the client's side of
-  it, `src/map.js` draws the maps, `src/weather.js` the weather, and `src/illustrate.js` and
+  it, `src/map.js` draws the maps, `src/weather.js` the weather, `src/setup.js` sums the AI's setup up for the review, and `src/illustrate.js` and
   `src/floating.js` the Illustrate window and the floating windows.
 - `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
