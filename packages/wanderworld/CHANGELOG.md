@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.73 — 2026-11-09
+
+- New world can be set up by the AI, ready to play: it reads your characters' cards and persona (no lorebook needed) and any lorebooks you choose, and sets who's a man or a woman, how people know each other and you, where everyone lives and works, which lore belongs to which place, names for the places the lore names, and builds the places that takes. The loading screen says what it's doing until the world is ready. Journal → World can run it again. Lorebook keywords and setting things by hand work as before.
+
 ## 0.4.72 — 2026-11-09
 
 - Offered to Engine staging testers from Agents → Download Agents. The README has install steps, what each permission is for, known limits, and credits for the Quaternius CC0 packs the world is built from.

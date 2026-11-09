@@ -792,22 +792,25 @@ export function createJournal(panelCss, handlers) {
     picker("loreLinking", [
       ["none", "Places: I'll tie lore myself"],
       ["keywords", "Places: link entries by matching names"],
-      ["ai", "Places: let the AI link entries (with the AI update)"],
+      ["ai", "Places: let the AI read the lorebooks and link them"],
     ]);
     picker("characterLinking", [
       ["none", "Characters: I'll set them up myself"],
       ["keywords", "Characters: link and set up by name"],
-      ["ai", "Characters: let the AI do it (with the AI update)"],
+      ["ai", "Characters: let the AI set them up (cards, persona, lorebooks)"],
     ]);
-    if (world.loreLinking === "keywords" || world.characterLinking === "keywords")
-      body.append(button("Link lore by name now", SMALL, () => handlers.onLinkLore()));
+    const byAi = world.loreLinking === "ai" || world.characterLinking === "ai";
+    if (byAi || world.loreLinking === "keywords" || world.characterLinking === "keywords")
+      body.append(
+        button(byAi ? "Have the AI set the world up now" : "Link lore by name now", SMALL, () => handlers.onLinkLore()),
+      );
     const needed = Object.entries(world.needs).map(([kind, count]) => `${kind} ×${count}`);
     if (needed.length) {
       body.append(line(`Built with at least: ${needed.join(", ")}.`, MUTED));
     }
     body.append(
       explain(
-        "With places linked by name, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). After changing lorebooks, Settings → Regenerate this world builds them.",
+        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); by name needs the keywords on the entries. It only fills in what isn't set yet. After changing lorebooks or reading them again, Settings → Regenerate this world builds what's new.",
       ),
     );
     if (world.waiting.length) {

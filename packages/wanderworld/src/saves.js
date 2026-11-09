@@ -165,6 +165,20 @@ export function checkWorld(raw) {
     // The same for characters: linking their entries by name and setting them up from the keywords
     // (body, how they see the player).
     characterLinking: ["keywords", "ai", "none"].includes(raw.characterLinking) ? raw.characterLinking : "none",
+    // What the AI made of the lorebooks' entries (linking "ai"): keywords in the plain convention, by
+    // "lorebook id/entry id", and the names the lore gives numbered places ({ tavern1: "The Gilded Stag" }).
+    loreKeys: Object.fromEntries(
+      Object.entries(isRecord(raw.loreKeys) ? raw.loreKeys : {})
+        .filter(([, keys]) => Array.isArray(keys))
+        .slice(0, 400)
+        .map(([key, keys]) => [key, keys.filter((word) => typeof word === "string").slice(0, 8)]),
+    ),
+    loreNames: Object.fromEntries(
+      Object.entries(isRecord(raw.loreNames) ? raw.loreNames : {})
+        .filter(([, name]) => typeof name === "string" && name.trim())
+        .slice(0, 200)
+        .map(([slot, name]) => [slot, name.trim().slice(0, 60)]),
+    ),
     // True until the keyword links have been made (the first time the world is built).
     lorePending: raw.lorePending === true,
     // Each character's (and the persona's) body in this world: { [id]: "male" | "female" } (missing: auto).

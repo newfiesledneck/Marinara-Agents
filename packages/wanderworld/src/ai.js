@@ -87,6 +87,8 @@ export function createAi() {
     sceneStart: (payload) => request("/scene-start", { method: "POST", body: payload }),
     /** Someone's day from the model: { entries }. */
     plan: (payload) => request("/plan", { method: "POST", body: payload }),
+    /** A batch of lorebook entries read for a world's setup: { keys: [[keywords] per entry], names: { place: name } }. */
+    loreSetup: (payload) => request("/lore-setup", { method: "POST", body: payload, timeout: 240000 }),
     /** Illustrates the moment from the user's template: { id, image, prompt, caption, at }; kept in the gallery. */
     illustrate: (payload) => request("/illustrate", { method: "POST", body: payload, timeout: 300000 }),
     /** The world's gallery, newest first, without the pictures themselves: [{ id, caption, prompt, at }]. */

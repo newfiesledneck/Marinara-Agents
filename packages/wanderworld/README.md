@@ -27,7 +27,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.72)
+## What it does now (0.4.73)
 
 ### The world
 
@@ -128,7 +128,8 @@ With it running:
   profiles, or your default one).
 
 Every AI call uses a connection of yours, so it costs what that connection costs. A conversation reply, a
-moment, a day's schedule, a scene plan and a picture are one call each; nothing calls a model while you
+moment, a day's schedule, a scene plan and a picture are one call each, and setting a world up is one
+call for the cast and one for every 40 lorebook entries; nothing calls a model while you
 only walk about.
 
 ### Playing
@@ -139,6 +140,12 @@ only walk about.
   with a map of the world it makes and Reroll), Load world (thumbnails, Rename, Delete) and Settings. Each
   world keeps everything in its own save in this package's browser storage: where you were, the time, the
   cast, bodies, relationships, lore, groups, homes, schedules, notes and scenes.
+- **A world set up for you:** in New world, "let the AI set them up" reads your characters' cards and
+  persona, and any lorebooks you choose, and makes the world ready to play: who's a man or a woman, how
+  people know each other and you, where everyone lives and works, which lore belongs to which place,
+  names for the places the lore names, and the places that takes built in. The loading screen says what
+  it's doing until the world is ready. The same can be spelled out with keywords on lorebook entries
+  (`tavern1`, `lives in home3`, `sister of Mira`), or set by hand in the Journal.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
@@ -170,6 +177,7 @@ them) and each world's newest 60 pictures.
 - Only the Engine's built-in picture style profiles are listed; your own default profile is "Engine default".
 - Another region has no townsfolk of its own yet: only your party travels.
 - Walk-in rooms are unfinished and off by default.
+- The AI's world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
 - Quartermaster works inside scenes started from Wanderworld (they are roleplay chats), not in the world.
 
 ## How it works
@@ -201,7 +209,7 @@ them) and each world's newest 60 pictures.
   build the default people.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
-  plans, pictures and the gallery, scene plans, scene creation, and scene contexts and recaps, plus a
+  plans, world setup from cards and lorebooks, pictures and the gallery, scene plans, scene creation, and scene contexts and recaps, plus a
   scene origin for the Engine. Every request body is checked there. `src/ai.js` is the client's side of
   it, `src/map.js` draws the maps, `src/weather.js` the weather, and `src/illustrate.js` and
   `src/floating.js` the Illustrate window and the floating windows.

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.73",
+          "date": "2026-11-09",
+          "notes": "- New world can be set up by the AI, ready to play: it reads your characters' cards and persona (no lorebook needed) and any lorebooks you choose, and sets who's a man or a woman, how people know each other and you, where everyone lives and works, which lore belongs to which place, names for the places the lore names, and builds the places that takes. The loading screen says what it's doing until the world is ready. Journal → World can run it again. Lorebook keywords and setting things by hand work as before.",
+          "highlight": false
+        },
+        {
           "version": "0.4.72",
           "date": "2026-11-09",
           "notes": "- Offered to Engine staging testers from Agents → Download Agents. The README has install steps, what each permission is for, known limits, and credits for the Quaternius CC0 packs the world is built from.",
@@ -307,12 +313,6 @@
           "version": "0.4.54",
           "date": "2026-11-09",
           "notes": "- A road network out in the country: hamlets on neighbouring sides are joined by a road curving round the town, inns stand beside the road to a hamlet or farm where their own track meets it, and inns and cottages take a track off a nearby road instead of a long one from town.\n- Worlds without hamlets or farms keep their roads as they were.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.53",
-          "date": "2026-11-09",
-          "notes": "- Farms out in the country: a farmhouse and a red barn round a yard at the end of their own road, with fenced fields of wheat or greens in rows behind, crates, barrels and a wagon. Chosen in New world (\"Farms\") or often one by the seed.\n- A lorebook naming farm1 or farm2 brings that many; \"farm\", \"barn\" and \"fields\" lore links there.\n- Hamlets and farms stand on open ground in front of a mountain range, not up it.",
           "highlight": false
         }
       ]
