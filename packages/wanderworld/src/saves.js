@@ -203,6 +203,42 @@ export function checkWorld(raw) {
         name: text(creature.name).slice(0, 60),
         kind: creature.kind === "monster" ? "monster" : "creature",
         hostile: creature.hostile === true,
+        found: (Array.isArray(creature.found) ? creature.found : []).map((word) => text(word).slice(0, 60)).slice(0, 6),
+        when: ["night", "day"].includes(creature.when) ? creature.when : "any",
+        pack: Math.max(1, Math.min(10, Number(creature.pack) || 1)),
+        danger: Math.max(1, Math.min(10, Number(creature.danger) || 1)),
+        drops: (Array.isArray(creature.drops) ? creature.drops : [])
+          .map((word) => text(word).slice(0, 40))
+          .slice(0, 12),
+      })),
+    // The season the land wears: "winter" lies under snow. "" is the plain green land.
+    season: ["spring", "summer", "fall", "winter"].includes(raw.season) ? raw.season : "",
+    // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.
+    voices: Object.fromEntries(
+      Object.entries(isRecord(raw.voices) ? raw.voices : {})
+        .filter(([, voice]) => typeof voice === "string")
+        .slice(0, 60)
+        .map(([id, voice]) => [id, voice.slice(0, 20)]),
+    ),
+    // When places are closed: { [zone id]: { from, to } } (hours).
+    hours: Object.fromEntries(
+      Object.entries(isRecord(raw.hours) ? raw.hours : {})
+        .filter(([, span]) => isRecord(span) && Number.isFinite(span.from) && Number.isFinite(span.to))
+        .slice(0, 100)
+        .map(([id, span]) => [id, { from: span.from, to: span.to }]),
+    ),
+    // Groups of people: [{ id, name, lorebookId, entryId, members: [ids] }].
+    factions: (Array.isArray(raw.factions) ? raw.factions : [])
+      .filter((faction) => isRecord(faction) && typeof faction.id === "string")
+      .slice(0, 40)
+      .map((faction) => ({
+        id: faction.id.slice(0, 80),
+        name: text(faction.name).slice(0, 60),
+        lorebookId: text(faction.lorebookId).slice(0, 120),
+        entryId: text(faction.entryId).slice(0, 120),
+        members: (Array.isArray(faction.members) ? faction.members : [])
+          .filter((id) => typeof id === "string")
+          .slice(0, 40),
       })),
     // Lore written for this world (not in an Engine lorebook): { entries: [{ id, title, content }] },
     // linked to places like any lorebook's entries (under the lorebook id "world").

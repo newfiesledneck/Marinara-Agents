@@ -574,6 +574,13 @@ export function createMenu(layer, handlers, art = null) {
       reviewed = { asked, result };
     }
     const { setup, needs, summary } = result;
+    // The world's shape from its lore ("ww: city", "ww: walls", "ww: size large"), where it was left to the seed.
+    for (const [key, value] of Object.entries({
+      settlement: result.shape?.settlement,
+      walls: result.shape?.walls && "yes",
+      size: result.shape?.size,
+    }))
+      if (value && (!params.choices[key] || params.choices[key] === "surprise")) params.choices[key] = value;
     const head = (text) => element("div", "font:700 13px system-ui;margin-top:6px;", text);
     const line = (text, style = "") => element("div", `font:12px system-ui;line-height:1.4;${style}`, text);
     const list = element("div", "display:flex;flex-direction:column;gap:3px;max-height:38vh;overflow-y:auto;");
