@@ -19,6 +19,7 @@ const PLACE_STYLE = {
   inn: { colour: "#b23a2a", size: 4.5 },
   cottage: { colour: "#8a6a44", size: 4 },
   cave: { colour: "#3b3a3c", size: 4.5 },
+  pond: { colour: "#4f86b0", size: 3 },
 };
 
 /** A square map canvas, drawn at `pixels` and shown at up to `shown` CSS pixels wide. */

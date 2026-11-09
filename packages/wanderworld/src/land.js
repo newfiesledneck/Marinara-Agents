@@ -13,7 +13,10 @@ export const HILLS = ["flat", "gentle", "rolling", "rugged"];
 export const OUTPOST_KINDS = ["inn", "cottage", "cave"];
 /** Every kind of place out in the country, with hamlets (more settlements beyond the main one). */
 /** Landmarks out in the country: old ruins, a watchtower, a ring of standing stones, a graveyard, a mill. */
-export const LANDMARK_KINDS = ["ruins", "watchtower", "stones", "graveyard", "mill"];
+export const LANDMARK_KINDS = ["ruins", "watchtower", "stones", "graveyard", "mill", "pond"];
+/** A pond: water this wide (metres from its middle to the shore) and this deep in the middle. */
+export const POND_RADIUS = 8;
+const POND_BED = -2.2;
 export const PLACE_KINDS = [...OUTPOST_KINDS, "hamlet", "farm", ...LANDMARK_KINDS];
 const HAMLET_FLAT = 24; // metres round a hamlet's middle that are level
 const FARM_FLAT = 28; // and round a farm's yard and fields
@@ -63,8 +66,9 @@ const OUTPOST_FLAT = 11; // metres round an inn or cottage that are level
 const OUTPOST_BLEND = 12; // and then blend back into the hills
 /** Metres of level ground round a place of this kind (a cave's is its own, see createLand). */
 const flatOf = (kind) =>
-  ({ hamlet: HAMLET_FLAT, farm: FARM_FLAT, ruins: 13, watchtower: 8, stones: 11, graveyard: 11, mill: 9 })[kind] ??
-  OUTPOST_FLAT;
+  ({ hamlet: HAMLET_FLAT, farm: FARM_FLAT, ruins: 13, watchtower: 8, stones: 11, graveyard: 11, mill: 9, pond: 13 })[
+    kind
+  ] ?? OUTPOST_FLAT;
 const MOUNTAIN_REACH = 62; // how far in from the edge a range rises
 const BRIDGE_HALF_WIDTH = 1.6;
 const MAX_OUTPOSTS = 14; // places out in the country (a few per side)
@@ -637,7 +641,12 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
   }
 
   /** How deep the river's water is at (x, z): 0 out of it (or on a bridge). */
+  const ponds = outposts.filter((outpost) => outpost.kind === "pond");
+  /** How far (x, z) is from the nearest pond's shore: 0 or less in the water, Infinity with no pond. */
+  const toPondShore = (x, z) =>
+    ponds.reduce((best, pond) => Math.min(best, Math.hypot(x - pond.x, z - pond.z) - POND_RADIUS), Infinity);
   function depthAt(x, z) {
+    if (ponds.length && toPondShore(x, z) < 1) return Math.max(0, WATER_LEVEL - groundAt(x, z));
     if (!river || !inBounds(river.bounds, x, z) || onBridge(x, z) !== null) return 0;
     if (toLine(river.points, x, z).distance > river.width / 2 + BANK) return 0;
     return Math.max(0, WATER_LEVEL - groundAt(x, z));
@@ -677,6 +686,10 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
       const flat = flatOf(outpost.kind);
       if (distance < flat + OUTPOST_BLEND) {
         height = outpost.ground + (height - outpost.ground) * smooth((distance - flat) / OUTPOST_BLEND);
+      }
+      // A pond's bowl: deep enough to swim in the middle, shelving up to meet the water at its shore.
+      if (outpost.kind === "pond" && distance < POND_RADIUS + 3) {
+        height = Math.min(height, POND_BED - POND_BED * smooth((distance - 2) / (POND_RADIUS + 1)));
       }
     }
     if (river && inBounds(river.bounds, x, z)) {
@@ -729,7 +742,8 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
    * Circles that keep walkers out of the water (every 2.5 m along the river), leaving the bridges open.
    */
   function waterCircles() {
-    if (!river) return [];
+    const pondCircles = ponds.map((pond) => ({ x: pond.x, z: pond.z, r: POND_RADIUS - 1 }));
+    if (!river) return pondCircles;
     const circles = [];
     const radius = river.width / 2 - 0.3;
     for (let i = 1; i < river.points.length; i++) {
@@ -749,7 +763,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         if (!nearBridge) circles.push({ x, z, r: radius });
       }
     }
-    return circles;
+    return [...circles, ...pondCircles];
   }
 
   return {
@@ -757,8 +771,13 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     heightAt,
     groundAt,
     /** How far (x, z) is from the river's banks: 0 or less in the riverbed, Infinity with no river. */
+    // (Or a pond's shore, whichever is nearer: the water there has the same bed and banks.)
     toRiverBank: (x, z) =>
-      river && inBounds(river.bounds, x, z) ? toLine(river.points, x, z).distance - river.width / 2 : Infinity,
+      Math.min(
+        river && inBounds(river.bounds, x, z) ? toLine(river.points, x, z).distance - river.width / 2 : Infinity,
+        toPondShore(x, z),
+      ),
+    ponds: () => ponds.map((pond) => ({ x: pond.x, z: pond.z, r: POND_RADIUS })),
     /** Whether (x, z) is on (or within `margin` of) a bridge's deck. */
     onBridge: (x, z, margin = 0) =>
       bridges.some((bridge) => {

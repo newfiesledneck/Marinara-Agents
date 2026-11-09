@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.60)
+## What it does now (0.4.66)
 
 ### The world
 
@@ -17,12 +17,12 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   Shops have striped awnings and hanging signs on painted boards; iron lamp posts light the streets at night,
   windows glow, and smoke rises from chimneys.
 - **The land:** hills, mountain ranges along some edges, a winding river with plank bridges on piers, and
-  places out in the country: hamlets of a few houses round a green (town2, town3…), farms with a barn
-  and fenced fields, wayside inns and cottages at the end of their own dirt roads (never in the river),
-  landmarks (ruins, a watchtower, standing stones, a graveyard, a watermill on the bank),
-  and caves up on the hillsides with no road to them. Roads join neighbouring hamlets, and inns stand by
-  the road to a hamlet or farm. Each world chooses its own in New world, or leaves it to the seed
-  (`src/land.js`, `src/caves.js`).
+  places out in the country: hamlets of a few houses round a green (town2, town3…), farms with a barn and
+  fenced fields, wayside inns and cottages at the end of their own dirt roads (never in the river), landmarks
+  (ruins, a watchtower, standing stones, a graveyard, a watermill on the bank, a pond to swim in), and caves
+  up on the hillsides with no road to them. Roads join neighbouring hamlets, and inns stand by the road to a
+  hamlet or farm. Each world chooses its own in New world, or leaves it to the seed (`src/land.js`,
+  `src/caves.js`).
 - **Regions:** at the edge of the world, "Travel to <region>" takes you and your party into the next
   region, with its own land and settlement made from the world's seed. Each region keeps its own place
   names, lore and groups; characters who didn't come along wait at home. Each trip saves a travel scene
