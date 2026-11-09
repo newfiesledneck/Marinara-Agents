@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.83",
+          "date": "2026-11-09",
+          "notes": "- A place with closing hours (ww: closed 22-6) says so on its door card while it's shut, and the AI is told too.\n- Wording caught up with what the AI does now, in the door card, the Journal's lore picker and the relationships notes.",
+          "highlight": false
+        },
+        {
           "version": "0.4.82",
           "date": "2026-11-09",
           "notes": "- The Journal's map zooms and pans: scroll or use + and −, drag to move about. All the way out is the whole region; closer in names the buildings (the tavern, the smithy, then every house).\n- Click the map to set a waypoint (a red flag); under the map it says how far it is and which way. Your home is marked with a little house.\n- The regions to the east and west are written up the sides, like the ones along the top and bottom, so the middle of the map stays clear.",
@@ -307,12 +313,6 @@
           "version": "0.4.64",
           "date": "2026-11-09",
           "notes": "- Chimney smoke darkens at night instead of glowing white against the dark sky; town walls are a darker, weathered stone.\n- Every gate in a town's walls has a clear way out: a dirt track fading into the meadow where no road leaves, with no trees or bushes in the way.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.63",
-          "date": "2026-11-09",
-          "notes": "- Hamlets, farms and landmarks keep all their ground inside the world, off the river, and clear of each other even in a crowded world: when their own side is full they find the nearest free spot elsewhere.\n- A hamlet or farm goes on another side when there's no room for it beyond the river.\n- Country roads wear away into the grass where they arrive instead of stopping square.",
           "highlight": false
         }
       ]
