@@ -11,6 +11,9 @@ import { rng } from "./world.js";
 export const SIDES = ["north", "east", "south", "west"]; // north is −z
 export const HILLS = ["flat", "gentle", "rolling", "rugged"];
 export const OUTPOST_KINDS = ["inn", "cottage", "cave"];
+/** Every kind of place out in the country, with hamlets (more settlements beyond the main one). */
+export const PLACE_KINDS = [...OUTPOST_KINDS, "hamlet"];
+const HAMLET_FLAT = 24; // metres round a hamlet's middle that are level
 /** Kinds of settlement, smallest first, with their usual market and roads and about how many homes they hold. */
 export const SETTLEMENT_KINDS = ["hamlet", "village", "town", "city"];
 export const SETTLEMENT_LAYOUTS = ["grid", "crossroads", "street", "ring"];
@@ -131,6 +134,11 @@ export function landscapeWith(seed, choices = {}) {
     side: offside ? SIDES[Math.floor(pick() * SIDES.length)] : null,
     layout: SETTLEMENT_LAYOUTS.includes(choices.layout) ? choices.layout : usual[Math.floor(pick() * usual.length)],
   });
+  // More settlements out in the country: as chosen, or now and then a hamlet.
+  const more = { none: 0, one: 1, two: 2 }[choices.towns] ?? (pick() < 0.25 ? 1 : 0);
+  for (let i = 0; i < more && landscape.outposts.length < MAX_OUTPOSTS; i++) {
+    landscape.outposts.push({ kind: "hamlet", side: SIDES[Math.floor(pick() * SIDES.length)] });
+  }
   return landscape;
 }
 
@@ -160,6 +168,15 @@ export function landscapeNeeds(landscape, needs = {}, seed = 0) {
   if ((needs.river ?? 0) > 0 && !out.river) {
     out.river = { side: free()[0] ?? SIDES.find((side) => !out.mountains.includes(side)) ?? SIDES[0] };
   }
+  // More settlements: a hamlet for each town the lore numbers past the first (town2, town3…).
+  while (1 + count("hamlet") < Math.min(4, needs.town ?? 0) && out.outposts.length < MAX_OUTPOSTS) {
+    const side = [...SIDES].sort(
+      (a, b) =>
+        out.outposts.filter((entry) => entry.side === a).length -
+          out.outposts.filter((entry) => entry.side === b).length || random() - 0.5,
+    )[0];
+    out.outposts.push({ kind: "hamlet", side });
+  }
   for (const kind of OUTPOST_KINDS) {
     while (count(kind) < Math.min(4, needs[kind] ?? 0) && out.outposts.length < MAX_OUTPOSTS) {
       // Caves on a mountain side; the rest on whichever side has fewest so far.
@@ -183,7 +200,7 @@ export function checkLandscape(raw, seed) {
   const river = raw.river === null ? null : SIDES.includes(raw.river?.side) ? { side: raw.river.side } : fallback.river;
   const outposts = Array.isArray(raw.outposts)
     ? raw.outposts
-        .filter((entry) => entry && OUTPOST_KINDS.includes(entry.kind) && SIDES.includes(entry.side))
+        .filter((entry) => entry && PLACE_KINDS.includes(entry.kind) && SIDES.includes(entry.side))
         .slice(0, MAX_OUTPOSTS)
         .map((entry) => ({
           kind: entry.kind,
@@ -304,7 +321,8 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     const lateral = Math.max(-edge + 20, Math.min(edge - 20, across));
     const spot = (distance) => (dx !== 0 ? { x: dx * distance, z: lateral } : { x: lateral, z: dz * distance });
     // Never on the river: a place whose ground would reach the water or its banks steps further out.
-    const clearOfRiver = (at) => !river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + 14;
+    const dry = entry.kind === "hamlet" ? HAMLET_FLAT + 6 : 14; // a hamlet needs more dry ground
+    const clearOfRiver = (at) => !river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + dry;
     while (!clearOfRiver(spot(out)) && out < edge - 18) out += 4;
     const { x, z } = spot(out);
     // The front looks back toward town, squared to a quarter turn like every building in town.
@@ -452,8 +470,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         }
         continue;
       }
-      if (distance < OUTPOST_FLAT + OUTPOST_BLEND) {
-        height = outpost.ground + (height - outpost.ground) * smooth((distance - OUTPOST_FLAT) / OUTPOST_BLEND);
+      const flat = outpost.kind === "hamlet" ? HAMLET_FLAT : OUTPOST_FLAT;
+      if (distance < flat + OUTPOST_BLEND) {
+        height = outpost.ground + (height - outpost.ground) * smooth((distance - flat) / OUTPOST_BLEND);
       }
     }
     if (river && inBounds(river.bounds, x, z)) {
@@ -496,7 +515,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
         return true;
     }
     for (const outpost of outposts) {
-      const reach = outpost.kind === "cave" ? 13 : OUTPOST_FLAT + 1;
+      const reach = outpost.kind === "cave" ? 13 : outpost.kind === "hamlet" ? HAMLET_FLAT + 1 : OUTPOST_FLAT + 1;
       if (Math.hypot(x - outpost.x, z - outpost.z) < reach + margin) return true;
     }
     return false;

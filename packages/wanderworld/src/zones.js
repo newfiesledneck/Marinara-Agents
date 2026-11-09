@@ -198,20 +198,25 @@ export function buildZones(layout, seed) {
   }
   const outpostDoors = new Map();
   (layout.outposts ?? []).forEach((outpost, i) => {
-    const names = { inn: INN_NAMES, cottage: COTTAGE_NAMES, cave: CAVE_NAMES }[outpost.kind];
+    const names = { inn: INN_NAMES, cottage: COTTAGE_NAMES, cave: CAVE_NAMES, hamlet: TOWN_NAMES }[outpost.kind];
     const name = outpost.name ?? pick(random, names, used);
-    const id = outpost.kind === "cave" ? `cave:${i}` : `outpost:${i}`;
+    // A hamlet is a settlement of its own (a town zone: town2, town3…), the rest are places.
+    const id = outpost.kind === "cave" ? `cave:${i}` : outpost.kind === "hamlet" ? `town:${i}` : `outpost:${i}`;
     zones.push({
       id,
-      kind: outpost.kind === "cave" ? "cave" : "outpost",
+      kind: outpost.kind === "cave" ? "cave" : outpost.kind === "hamlet" ? "town" : "outpost",
       outpostKind: outpost.kind,
       name,
-      shape: { circle: { x: outpost.x, z: outpost.z, r: outpost.kind === "cave" ? 7 : 15 } },
+      shape: { circle: { x: outpost.x, z: outpost.z, r: { cave: 7, hamlet: 24 }[outpost.kind] ?? 15 } },
       parent: "forest",
       sign: null,
     });
-    if (outpost.door !== null && outpost.door !== undefined)
-      outpostDoors.set(outpost.door, { id, name, kind: outpost.kind });
+    for (const door of outpost.doors?.length
+      ? outpost.doors
+      : outpost.door !== null && outpost.door !== undefined
+        ? [outpost.door]
+        : [])
+      outpostDoors.set(door, { id, name, kind: outpost.kind });
     const road = (layout.roads ?? []).find((entry) => entry.to === i);
     if (road) {
       zones.push({
@@ -249,13 +254,18 @@ export function buildZones(layout, seed) {
       kind: "building",
       // An inn's or cottage's building is its own kind, never one of the town's taverns or houses (so
       // "home" lore, home numbers and the Homes group stay in the settlements).
-      buildingKind: outpost ? outpost.kind : building.kind,
+      buildingKind: outpost && outpost.kind !== "hamlet" ? outpost.kind : building.kind,
       door: i,
       // An inn or cottage out in the country is its outpost's place, by the same name.
-      name: outpost ? outpost.name : kind.name,
+      name: outpost && outpost.kind !== "hamlet" ? outpost.name : kind.name,
       shape: { box: building.box },
       parent: outpost ? outpost.id : onStreet(building.box),
-      sign: outpost ? (outpost.kind === "inn" ? outpost.name.replace(/^the /u, "") : null) : kind.sign,
+      sign:
+        outpost && outpost.kind !== "hamlet"
+          ? outpost.kind === "inn"
+            ? outpost.name.replace(/^the /u, "")
+            : null
+          : kind.sign,
     });
   });
   return { town, zones, byId: new Map(zones.map((zone) => [zone.id, zone])) };
@@ -317,7 +327,8 @@ export function zoneAt(zones, x, z) {
   let bestDepth = -1;
   for (const zone of zones.zones) {
     if (!zone.shape || zone.kind === "building" || !contains(zone.shape, x, z)) continue;
-    const level = LEVEL[zone.kind] ?? 0;
+    // A hamlet holds the end of its road, like any place out in the country.
+    const level = (zone.outpostKind === "hamlet" ? LEVEL.outpost : LEVEL[zone.kind]) ?? 0;
     if (level > bestDepth) {
       best = zone;
       bestDepth = level;
@@ -472,7 +483,10 @@ function keysOf(zones) {
         : zone.outpostKind
           ? `${zone.kind}:${zone.outpostKind}`
           : zone.kind;
-    if (["town", "plaza", "fountain", "forest", "outskirts", "river", "street"].includes(zone.kind)) {
+    if (
+      !zone.outpostKind &&
+      ["town", "plaza", "fountain", "forest", "outskirts", "river", "street"].includes(zone.kind)
+    ) {
       keys.set(zone.id, zone.id);
       continue;
     }
@@ -494,7 +508,7 @@ export function remapZones(old, next) {
   const map = new Map();
   for (const [id, key] of oldKeys) if (byKey.has(key)) map.set(id, byKey.get(key));
   for (const [id, to] of [...map]) {
-    if (id.startsWith("outpost:") || id.startsWith("cave:")) {
+    if (id.startsWith("outpost:") || id.startsWith("cave:") || (id.startsWith("town:") && to.startsWith("town:"))) {
       const road = `road:${id.split(":")[1]}`;
       if (old.byId.has(road) && next.byId.has(`road:${to.split(":")[1]}`)) map.set(road, `road:${to.split(":")[1]}`);
     }
@@ -551,6 +565,7 @@ const KIND_WORDS = {
   "building:hall": ["hall", "town hall"],
   "outpost:inn": ["inn"],
   "outpost:cottage": ["cottage"],
+  "outpost:hamlet": ["hamlet", "town"],
 };
 
 const plain = (word) =>
@@ -562,7 +577,7 @@ const plain = (word) =>
 /** A place's sort for kind words and numbered names: "home", "tavern", "inn", "cave", "forest"… */
 function sortOf(zone) {
   if (zone.kind === "building") return zone.buildingKind;
-  if (zone.outpostKind) return zone.outpostKind;
+  if (zone.outpostKind && zone.outpostKind !== "hamlet") return zone.outpostKind; // a hamlet is a town (town2…)
   return zone.kind === "plaza" ? "square" : zone.kind;
 }
 

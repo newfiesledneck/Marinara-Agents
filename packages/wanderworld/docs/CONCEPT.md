@@ -335,7 +335,11 @@ cobbled or dirt streets, all in `landscape.settlement` (`checkSettlement`; world
 old town), grown by the lore's homes. B2 done in 0.4.51: layouts as the blocks a settlement builds
 (grid, crossroads, street, ring), with streets, street points, lamps and wagons only by built blocks.
 Saved for later: riverside and hillside layouts (they need the settlement placed against the river or a
-slope), crossroads arms as one central street instead of a street each side. Next: B3 several settlements._
+slope), crossroads arms as one central street instead of a street each side. B3 done in 0.4.52: more
+settlements as hamlets out in the country (`kind: "hamlet"` outposts: five to eight houses round a green
+on their own road, a `town:<i>` zone numbered town2, town3…, their houses among the homes), from New
+world's "More settlements", now and then the seed, or the lore naming town2 and up. Saved for later: a
+second village, town or city (the other settlement is a hamlet for now)._
 
 - **Kinds by size:** hamlet (a handful of houses, maybe a well, no square), village (a green or a few
   market stalls, one or two trades), town (a square with a fountain, the usual landmarks), city (more

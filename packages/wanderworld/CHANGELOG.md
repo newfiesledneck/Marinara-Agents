@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.52 — 2026-11-09
+
+- More settlements: hamlets out in the country, each five to eight houses round a green on its own road, chosen in New world ("More settlements") or now and then by the seed.
+- A lorebook naming town2 or town3 brings a hamlet for each; their houses are numbered among the homes, and "hamlet" lore links there.
+- Regenerating a world now keeps all its New world choices, its settlement and layout included.
+
 ## 0.4.51 — 2026-11-09
 
 - Settlement layouts: a grid of streets, a crossroads, a row along one street, or a cluster round the market, chosen in New world or left to the seed. Streets are laid only beside the blocks that are built, and lamps stand where streets meet.

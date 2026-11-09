@@ -868,6 +868,46 @@ function placeMarket(random, town) {
 }
 
 /**
+ * A hamlet out in the country: five to eight houses round a small green, facing in, the side towards its
+ * road left open, with bushes and a bench on the green.
+ */
+function placeHamlet(random, town, outpost, doorOf, doorsOf) {
+  const count = 5 + Math.floor(random() * 4);
+  const doors = [];
+  for (let i = 0; i < count; i++) {
+    // Round the green, leaving a gap where the road comes in (the outpost's front).
+    const angle = outpost.angle + Math.PI * 0.35 + (i / (count - 1)) * Math.PI * 1.3;
+    const x = outpost.x + Math.sin(angle) * 15;
+    const z = outpost.z + Math.cos(angle) * 15;
+    const facing = ((Math.round(Math.atan2(outpost.x - x, outpost.z - z) / (Math.PI / 2)) % 4) + 4) % 4;
+    doors.push(town.doors.length);
+    const kind = i === 0 && random() < 0.5 ? "shop" : "home";
+    placeBuilding(
+      random,
+      town,
+      makeSpec(random, kind, { width: 5.5 + random() * 2, depth: 5 + random() * 2 }),
+      x,
+      z,
+      facing,
+    );
+  }
+  doorOf.set(outpost.index, doors[0]);
+  doorsOf.set(outpost.index, doors);
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const [model, size] = GARDEN_PLANTS[i % GARDEN_PLANTS.length];
+    placeKitPlant(town, bush(random, 0.45), {
+      model,
+      x: outpost.x + Math.cos(angle) * 4,
+      z: outpost.z + Math.sin(angle) * 4,
+      angle,
+      scale: size,
+    });
+  }
+  placeBench(town, outpost.x, outpost.z - 1.5, 0);
+}
+
+/**
  * One 18 m block. Around the plaza: a landmark (town hall, temple or tavern) filling the block, or shops
  * facing the plaza with homes behind. Elsewhere: up to four houses on the corner lots, now and then a shop
  * or the smithy, and gardens on the empty lots.
@@ -1218,7 +1258,8 @@ function woodBox(width, height, depth, x, y, z, { across = false, tile = 1.5 } =
 function buildCountry(random, town, land, ground) {
   const meshes = [];
   const caves = [];
-  const doorOf = new Map(); // outpost index → door index
+  const doorOf = new Map(); // outpost index → door index (its first, for a hamlet)
+  const doorsOf = new Map(); // outpost index → every door index (a hamlet has several)
   const caveRock = [];
   const caveFloor = [];
   const seedOf = (outpost) => Math.round(outpost.x * 131 + outpost.z * 977) | 0;
@@ -1266,9 +1307,14 @@ function buildCountry(random, town, land, ground) {
       caves.push({ x: inside.x, z: inside.z, angle: outpost.angle, mouth: inside, outpost: outpost.index });
       continue;
     }
+    if (outpost.kind === "hamlet") {
+      placeHamlet(random, town, outpost, doorOf, doorsOf);
+      continue;
+    }
     const kind = outpost.kind === "inn" ? "tavern" : "home";
     const size = outpost.kind === "inn" ? { width: 10, depth: 8 } : { width: 6, depth: 6 };
     doorOf.set(outpost.index, town.doors.length);
+    doorsOf.set(outpost.index, [town.doors.length]);
     placeBuilding(random, town, makeSpec(random, kind, size), outpost.x, outpost.z, outpost.facing);
   }
   if (caveRock.length) {
@@ -1393,7 +1439,7 @@ function buildCountry(random, town, land, ground) {
     wood[name] = new MeshLambertMaterial({ color: BRIDGE_WOOD });
     meshes.push(new Mesh(mergeGeometries(parts), wood[name]));
   }
-  return { meshes, caves, doorOf, wood };
+  return { meshes, caves, doorOf, doorsOf, wood };
 }
 
 /**
@@ -2499,6 +2545,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         x: outpost.x,
         z: outpost.z,
         door: country.doorOf.get(outpost.index) ?? null,
+        doors: country.doorsOf.get(outpost.index) ?? [],
       })),
       gardens: town.gardens,
       meadows: town.meadows,

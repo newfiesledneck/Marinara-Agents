@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine. The goal i
 characters, persona and lorebooks, that you explore, talk in, and start scenes from. This is an early
 prototype and is not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](docs/CONCEPT.md).
 
-## What it does now (0.4.48)
+## What it does now (0.4.52)
 
 ### The world
 
@@ -17,11 +17,11 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
   striped awnings and hanging signs on painted boards; iron lamp posts light the streets at night, windows
   glow, and smoke rises from chimneys.
 - **The land:** hills, mountain ranges along some edges, a winding river with plank bridges on piers, and
-  places out in the country: wayside inns and cottages at the end of their own dirt roads (never in the
-  river), and caves up on the hillsides with no road to them. Each world chooses its own in New world, or
+  places out in the country: hamlets of a few houses round a green (town2, town3…), wayside inns and
+  cottages at the end of their own dirt roads (never in the river), and caves up on the hillsides with no road to them. Each world chooses its own in New world, or
   leaves it to the seed (`src/land.js`, `src/caves.js`).
 - **Built to its lore:** with places linked by name, a world is built with at least every numbered place
-  its lorebooks mention (smithy3 makes three smithies; a cave brings mountains for it). Past that, random.
+  its lorebooks mention (smithy3 makes three smithies; town2 brings a hamlet; a cave brings mountains for it). Past that, random.
 - **Painted ground and water:** grass, dirt, forest floor, rock, snow, riverbed pebbles, cobbles, setts and
   slabs blended in one ground material, and rippling water (`world.js`).
 - **Real buildings, props and nature** from Quaternius's free kits (Medieval Village, Fantasy Props,
@@ -68,8 +68,8 @@ prototype and is not listed in the catalog yet. The plan and milestones are in [
 ### Playing
 
 - **Main menu and saves,** with painted art and a loading screen: Continue, New world (name, seed, your
-  persona, the characters who live there from your Engine folders, the land, the world's size from Small to
-  Massive, the setting and lorebooks),
+  persona, the characters who live there from your Engine folders, the land, the settlement and any more
+  hamlets, the world's size from Small to Massive, the setting and lorebooks),
   Load world (thumbnails, Rename, Delete) and Settings. Each world keeps everything in its own save in
   this package's browser storage: where you were, the time, the cast, bodies, relationships, lore,
   groups, homes, notes and scenes.

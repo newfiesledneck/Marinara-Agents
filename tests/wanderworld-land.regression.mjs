@@ -33,12 +33,13 @@ const chosen = landscapeWith(31, { hills: "flat", mountains: "three", river: "no
 assert.equal(chosen.hills, "flat");
 assert.equal(chosen.mountains.length, 3);
 assert.equal(chosen.river, null);
-assert.equal(chosen.outposts.length, 4);
+assert.equal(chosen.outposts.filter((entry) => entry.kind !== "hamlet").length, 4, "several places (hamlets aside)");
 {
   // Surprise me keeps the seed's land; the settlement is picked from the seed too (a new world's own).
   const { settlement, ...land } = landscapeWith(31, { hills: "surprise" });
   const { settlement: ignored, ...seededLand } = seeded;
-  assert.deepEqual(land, seededLand, "Surprise me keeps the seed's choices");
+  const noHamlets = { ...land, outposts: land.outposts.filter((entry) => entry.kind !== "hamlet") };
+  assert.deepEqual(noHamlets, seededLand, "Surprise me keeps the seed's choices (a hamlet may join them)");
   assert.ok(["hamlet", "village", "town", "city"].includes(settlement.kind), "and picks a settlement");
   assert.equal(ignored.kind, "town", "a world without one stays the town it always was");
 }
@@ -261,6 +262,34 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
   );
   const grown = landscapeNeeds({ ...landscapeWith(93, {}), settlement: { kind: "hamlet" } }, { home: 30 }, 93);
   assert.equal(grown.settlement.kind, "town", "a hamlet too small for thirty homes grows into a town");
+}
+
+// More settlements: a lorebook naming town2 brings a hamlet out in the country, its own settlement
+// (a town zone, town2) with its houses numbered among the homes, on a road from the main town.
+{
+  const landscape = landscapeNeeds(landscapeWith(95, { places: "none", towns: "none" }), { town: 2 }, 95);
+  assert.equal(landscape.outposts.filter((entry) => entry.kind === "hamlet").length, 1, "town2 makes one hamlet");
+  const built = createWorld(95, landscape);
+  const zones = buildZones(built.layout, 95);
+  const hamlet = zones.zones.find((zone) => zone.kind === "town" && zone.id !== "town");
+  assert.ok(hamlet, "the hamlet is a settlement of its own");
+  const houses = zones.zones.filter((zone) => zone.kind === "building" && zone.parent === hamlet.id);
+  assert.ok(houses.length >= 5, `with its houses (${houses.length})`);
+  assert.ok(
+    houses.every((zone) => zone.buildingKind === "home" || zone.buildingKind === "shop"),
+    "town houses, not cottages",
+  );
+  const index = built.layout.outposts.findIndex((outpost) => outpost.kind === "hamlet");
+  assert.ok(
+    built.layout.roads.some((road) => road.to === index),
+    "with a road to it",
+  );
+  built.dispose();
+  const { slotsOf } = await import("../packages/wanderworld/src/zones.js");
+  assert.equal(slotsOf(zones).get("town2"), hamlet.id, "named town2");
+  const { zoneAt } = await import("../packages/wanderworld/src/zones.js");
+  const middle = hamlet.shape.circle;
+  assert.equal(zoneAt(zones, middle.x, middle.z).id, hamlet.id, "its green is the hamlet, not the road's end");
 }
 
 // A world with no landscape given still builds, from the seed.
