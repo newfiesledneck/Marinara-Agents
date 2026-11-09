@@ -65,6 +65,12 @@ const TALK_STYLES = {
   terse: "Say little: short, guarded lines, a lot left unsaid.",
 };
 const LENGTHS = { short: [1, 2, 160], medium: [1, 3, 320], long: [2, 5, 600] }; // sentences and max tokens
+const PICTURE_KIND = "picture";
+const MAX_PICTURES = 60; // per world, oldest let go first
+/** What people can do on a schedule (the client acts each out; npcs.js). */
+export const ACTIVITIES = ["home", "work", "eat", "visit", "sit", "walk"];
+/** How a voice carries: whisper, talk or shout (the client picks who's in range; the model is told). */
+const VOICES = { whisper: "whispers", talk: "says", shout: "shouts" };
 
 // ── Small checks (every field from the client is checked here: it is a trust boundary) ──────────
 
@@ -162,6 +168,115 @@ export function cleanReply(content, name) {
   reply = reply.replace(prefix, "");
   if (/^"[^"]*"$/u.test(reply)) reply = reply.slice(1, -1);
   return reply.slice(0, MAX.line).trim();
+}
+
+/** The first JSON object in a model's answer, forgivingly (the Engine's parseJsonish when there is one). */
+export function readJson(content, parseJsonish) {
+  const raw = typeof content === "string" ? content.replace(/<think>[\s\S]*?<\/think>/giu, "") : "";
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  const body = raw.slice(start, end + 1);
+  try {
+    const value = parseJsonish ? parseJsonish(body) : JSON.parse(body);
+    return isRecord(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A schedule entry, checked: { from, to (hours 0–24, half hours), activity, place (a place id or name) }. */
+export function checkEntry(raw, places = null) {
+  if (!isRecord(raw)) return null;
+  const hour = (value) => (Number.isFinite(Number(value)) ? Math.round(Math.max(0, Math.min(24, Number(value))) * 2) / 2 : null);
+  const from = hour(raw.from);
+  const to = hour(raw.to);
+  const activity = ACTIVITIES.includes(raw.activity) ? raw.activity : null;
+  if (from === null || to === null || from === to || !activity) return null;
+  let place = text(raw.place, MAX.name);
+  if (places) {
+    // A place the world has, by id or by name (any case); home and work stand for the person's own.
+    const wanted = place.toLowerCase().replace(/^the /u, "");
+    const found = places.find((entry) => entry.id === place || entry.name.toLowerCase().replace(/^the /u, "") === wanted);
+    place = found ? found.id : "";
+  }
+  if (!place && (activity === "visit" || activity === "sit")) return null;
+  return { from, to, activity, place };
+}
+
+/** The messages for a moment: what the player does or says, and how the people in earshot answer. */
+export function momentMessages(input) {
+  const people = input.listeners
+    .map(
+      (person) =>
+        `- id "${person.id}": ${person.name}, ${person.distance} m away, ${person.doing || "standing about"}` +
+        `${person.inParty ? ", travelling with " + input.persona.name : ""}` +
+        `${person.feeling ? `. Feels: ${person.feeling}` : ""}` +
+        `${person.card ? `. ${person.card}` : ""}`,
+    )
+    .join("\n");
+  const did = [
+    input.action ? `${input.persona.name} ${input.action}.` : "",
+    input.line ? `${input.persona.name} ${VOICES[input.voice] ?? "says"}: "${input.line}"` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const system = [
+    "You are the narrator of Wanderworld, a small living world the player walks around in. Write only what happens in this one moment, as JSON.",
+    `The player is ${input.persona.name}.${input.persona.card ? " " + input.persona.card : ""} Never write ${input.persona.name}'s words, thoughts or choices.`,
+    TALK_STYLES[input.style] ?? TALK_STYLES.natural,
+    section("The world", input.setting),
+    section(
+      "Right now",
+      [input.place && `Where: ${input.place}.`, input.time && `When: ${input.time}.`, input.weather && `Weather: ${input.weather}.`].filter(Boolean).join("\n"),
+    ),
+    section(
+      "Who can hear",
+      people ||
+        "Nobody is close enough to hear. Reply with narration only (what the player notices), and no replies.",
+    ),
+    section("What they know (lore)", input.lore.join("\n\n")),
+    section("Just before", input.recent.map((line) => `${line.who}: ${line.text}`).join("\n")),
+    section("Places in the world (for plans)", input.places.map((place) => place.name).join(", ")),
+    `Answer with one JSON object and nothing else:
+{"narration": "at most two short sentences: what ${input.persona.name} sees, hears or finds; empty if nothing worth saying",
+ "replies": [{"id": "an id from Who can hear", "text": "what they say aloud, at most one short *action*"}],
+ "plans": [{"id": "an id from Who can hear", "from": 12, "to": 13, "activity": "${ACTIVITIES.join("|")}", "place": "a place from the list"}]}
+Only people who heard (a whisper carries a couple of metres, a shout across a square) may reply, and only if they would: zero to three replies, the most fitting first. Add a plan only when someone agrees to be somewhere at a time; otherwise leave plans empty.`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return [
+    { role: "system", content: system },
+    { role: "user", content: did || `${input.persona.name} looks around.` },
+  ];
+}
+
+/** A moment's answer, checked: only people who could hear reply; plans name real places. */
+export function checkMoment(value, listeners, places) {
+  const known = new Map(listeners.map((person) => [person.id, person]));
+  const replies = (Array.isArray(value?.replies) ? value.replies : [])
+    .filter((reply) => isRecord(reply) && known.has(reply.id))
+    .map((reply) => ({ id: reply.id, text: cleanReply(text(reply.text, MAX.line), known.get(reply.id).name) }))
+    .filter((reply) => reply.text)
+    .slice(0, 3);
+  const plans = (Array.isArray(value?.plans) ? value.plans : [])
+    .filter((plan) => isRecord(plan) && known.has(plan.id))
+    .map((plan) => ({ id: plan.id, entry: checkEntry(plan, places) }))
+    .filter((plan) => plan.entry)
+    .slice(0, 4);
+  return { narration: text(value?.narration, 600), replies, plans };
+}
+
+/** A prompt from the user's template: {name} placeholders filled, unknown ones dropped, spacing tidied. */
+export function fillTemplate(template, values) {
+  return String(template)
+    .replace(/\{(\w+)\}/gu, (match, key) => (typeof values[key] === "string" ? values[key] : ""))
+    .replace(/[ \t]+/gu, " ")
+    .replace(/\s+([,.])/gu, "$1")
+    .replace(/([,.]){2,}/gu, "$1")
+    .trim()
+    .slice(0, MAX.prompt);
 }
 
 /** A scene context from the client, checked (the Engine's SceneOriginContext). */
@@ -267,7 +382,15 @@ export async function activate(context) {
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
     async (routes) => {
-      routes.get("/status", async () => ({ server: true, scenes: scenesOn, images: true, talk: true }));
+      routes.get("/status", async () => ({
+        server: true,
+        scenes: scenesOn,
+        images: true,
+        talk: true,
+        moments: true,
+        plans: true,
+        illustrate: true,
+      }));
 
       routes.get("/connections", async (request, reply) => {
         try {
@@ -395,6 +518,212 @@ export async function activate(context) {
             .map((doc) => ({ id: doc.id, ...doc.data }))
             .sort((a, b) => String(a.at).localeCompare(String(b.at))),
         };
+      });
+
+      // A moment: the player does or says something, and the people in earshot answer (or the narrator
+      // just describes it). Light: no scene, one call.
+      routes.post("/moment", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const listeners = (Array.isArray(body.listeners) ? body.listeners : [])
+          .filter(isRecord)
+          .map((person) => ({
+            id: idOf(person.id),
+            distance: Number.isFinite(person.distance) ? Math.round(Math.max(0, Math.min(99, person.distance))) : 5,
+            doing: text(person.doing, 120),
+            feeling: text(person.feeling, 200),
+            inParty: person.inParty === true,
+          }))
+          .filter((person) => person.id)
+          .slice(0, 8);
+        const records = listeners.length ? await resources.listCharacters(listeners.map((person) => person.id)) : [];
+        const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
+        const heard = listeners
+          .filter((person) => cards.has(person.id))
+          .map((person) => {
+            const card = cards.get(person.id);
+            return { ...person, name: card.name, card: [card.personality, card.description].filter(Boolean).join(" ").slice(0, 500) };
+          });
+        const personaId = idOf(body.personaId);
+        const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
+        const persona = personaCard(personaRecord, text(body.personaName, MAX.name));
+        const places = (Array.isArray(body.places) ? body.places : [])
+          .filter(isRecord)
+          .map((place) => ({ id: idOf(place.id), name: text(place.name, MAX.name) }))
+          .filter((place) => place.id && place.name)
+          .slice(0, 60);
+        const input = {
+          persona: { name: persona.name, card: [persona.description, persona.appearance].filter(Boolean).join(" ").slice(0, 500) },
+          listeners: heard,
+          action: text(body.action, 300),
+          line: text(body.line, MAX.line),
+          voice: VOICES[body.voice] ? body.voice : "talk",
+          place: text(body.place, 300),
+          time: text(body.time, 80),
+          weather: text(body.weather, 40),
+          setting: block(body.setting, 600),
+          style: text(body.style, 20),
+          lore: (Array.isArray(body.lore) ? body.lore : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean).slice(0, 6),
+          recent: (Array.isArray(body.recent) ? body.recent : [])
+            .filter(isRecord)
+            .slice(-12)
+            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400) }))
+            .filter((line) => line.text),
+          places,
+        };
+        if (!input.action && !input.line) return reply.status(400).send({ error: "Nothing happened (action or line)" });
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const temperature = Number.isFinite(body.temperature) ? Math.max(0, Math.min(1.5, body.temperature)) : 0.9;
+          const result = await model.chatComplete(momentMessages(input), { temperature, maxTokens: 700 });
+          const value = readJson(result?.content, api.runtime.json?.parseJsonish);
+          if (!value) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          return checkMoment(value, heard, places);
+        } catch (error) {
+          logger.warn("[wanderworld] moment failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // A day's schedule for someone, written by the model from who they are, their home and work, the
+      // places there are, and what the player asked for (if anything).
+      routes.post("/plan", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const characterId = idOf(body.characterId);
+        const [record] = characterId ? await resources.listCharacters([characterId]) : [];
+        if (!record) return reply.status(404).send({ error: "That character isn't in the Engine any more." });
+        const card = characterCard(record);
+        const places = (Array.isArray(body.places) ? body.places : [])
+          .filter(isRecord)
+          .map((place) => ({ id: idOf(place.id), name: text(place.name, MAX.name), kind: text(place.kind, 40) }))
+          .filter((place) => place.id && place.name)
+          .slice(0, 60);
+        const current = (Array.isArray(body.current) ? body.current : []).map((entry) => checkEntry(entry)).filter(Boolean);
+        const system = [
+          `You plan one ordinary day for ${card.name}, who lives in Wanderworld. Answer with one JSON object and nothing else.`,
+          section(card.name, [card.description, card.personality, card.scenario].filter(Boolean).join("\n\n").slice(0, 2000)),
+          section("Their home and work", [text(body.home, MAX.name) && `Home: ${text(body.home, MAX.name)}`, text(body.work, MAX.name) && `Work: ${text(body.work, MAX.name)}`].filter(Boolean).join("\n")),
+          section("Places", places.map((place) => `${place.name} (${place.kind})`).join(", ")),
+          section("Their schedule now", current.map((entry) => `${entry.from}-${entry.to} ${entry.activity} ${entry.place}`).join("\n")),
+          `{"entries": [{"from": 7, "to": 9, "activity": "${ACTIVITIES.join("|")}", "place": "a place name from Places, or empty for home, work and walk"}]}
+Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at their home (nights too), "work" at their work, "eat" somewhere they'd eat, "visit" and "sit" at a named place, "walk" about town.`,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        const ask = text(body.request, 400);
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await model.chatComplete(
+            [
+              { role: "system", content: system },
+              { role: "user", content: ask ? `Plan the day, and: ${ask}` : "Plan the day." },
+            ],
+            { temperature: 0.7, maxTokens: 900 },
+          );
+          const value = readJson(result?.content, api.runtime.json?.parseJsonish);
+          const entries = (Array.isArray(value?.entries) ? value.entries : []).map((entry) => checkEntry(entry, places.length ? [...places, { id: "", name: "" }] : null)).filter(Boolean).slice(0, 16);
+          if (!entries.length) return reply.status(502).send({ error: "The model didn't give a usable plan." });
+          return { entries };
+        } catch (error) {
+          logger.warn("[wanderworld] plan failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // Illustrate the moment: the user's template filled with where and when, who's there (their looks
+      // from their cards), what's going on; painted, and kept in the world's gallery.
+      routes.post("/illustrate", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const worldId = idOf(body.worldId);
+        const template = block(body.template, 2000);
+        if (!worldId || !template) return reply.status(400).send({ error: "A world and a prompt template are needed." });
+        const facts = isRecord(body.facts) ? body.facts : {};
+        const people = (Array.isArray(facts.people) ? facts.people : []).filter(isRecord).slice(0, 8);
+        const records = people.length ? await resources.listCharacters(people.map((person) => idOf(person.id)).filter(Boolean)) : [];
+        const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
+        const personaId = idOf(body.personaId);
+        const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
+        const persona = personaCard(personaRecord, text(facts.persona, MAX.name));
+        const looks = people
+          .map((person) => {
+            const card = cards.get(idOf(person.id));
+            const name = card?.name ?? text(person.name, MAX.name);
+            return card?.appearance ? `${name}: ${card.appearance.slice(0, 300)}` : "";
+          })
+          .filter(Boolean);
+        const values = {
+          persona: persona.name,
+          // "Zoey: tall, red-haired…", or nothing when the card has no appearance (so no dangling name).
+          persona_appearance: persona.appearance ? `${persona.name}: ${persona.appearance.slice(0, 300)}` : "",
+          people: people.map((person) => `${cards.get(idOf(person.id))?.name ?? text(person.name, MAX.name)}${text(person.doing, 80) ? ` (${text(person.doing, 80)})` : ""}`).join(", "),
+          people_appearance: looks.join("; "),
+          place: text(facts.place, 200),
+          place_kind: text(facts.placeKind, 60),
+          time: text(facts.time, 40),
+          time_of_day: text(facts.timeOfDay, 40),
+          weather: text(facts.weather, 40),
+          activity: text(facts.activity, 160),
+          setting: text(facts.setting, 400),
+          recent: text(facts.recent, 400),
+        };
+        const prompt = fillTemplate(template, values);
+        if (!prompt) return reply.status(400).send({ error: "The template came out empty." });
+        const styleProfileId = STYLE_PROFILE_IDS.has(body.styleProfileId) ? body.styleProfileId : "";
+        const width = Number.isInteger(body.width) ? Math.max(256, Math.min(1536, body.width)) : 1024;
+        const height = Number.isInteger(body.height) ? Math.max(256, Math.min(1536, body.height)) : 640;
+        try {
+          const connection = await imageConnection(idOf(body.connectionId));
+          if (!connection) return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
+          const name = slug(values.place || "moment");
+          const result = await engineFetch("/api/characters/avatar-generation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              connectionId: connection.id,
+              name,
+              appearance: prompt,
+              width,
+              height,
+              ...(styleProfileId ? { styleProfileId } : {}),
+              promptOverrides: [{ id: `avatar:${name}`, prompt }],
+            }),
+          });
+          if (typeof result?.image !== "string" || !result.image.startsWith("data:image/")) {
+            return reply.status(502).send({ error: "The Engine sent back no picture." });
+          }
+          const at = new Date().toISOString();
+          const id = docId("picture", `${worldId}|${at}|${Math.random()}`);
+          const caption = text(body.caption, 200) || values.place;
+          await putDocument(documents, id, PICTURE_KIND, caption, { worldId, prompt, caption, image: result.image, at });
+          // Only the newest pictures of a world are kept.
+          const all = (await documents.list(PACKAGE_ID, PICTURE_KIND)).filter((doc) => doc.data?.worldId === worldId);
+          all.sort((a, b) => String(b.data?.at).localeCompare(String(a.data?.at)));
+          for (const old of all.slice(MAX_PICTURES)) await removeDocument(documents, old.id).catch(() => false);
+          return { id, image: result.image, prompt, caption, at };
+        } catch (error) {
+          logger.warn("[wanderworld] illustrate failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The picture couldn't be made." });
+        }
+      });
+
+      routes.get("/pictures/:world", async (request) => {
+        const world = idOf(request.params.world);
+        const all = (await documents.list(PACKAGE_ID, PICTURE_KIND)).filter((doc) => doc.data?.worldId === world);
+        return {
+          pictures: all
+            .map((doc) => ({ id: doc.id, caption: doc.data.caption ?? "", prompt: doc.data.prompt ?? "", at: doc.data.at }))
+            .sort((a, b) => String(b.at).localeCompare(String(a.at))),
+        };
+      });
+
+      routes.get("/picture/:id", async (request, reply) => {
+        const doc = await documents.getById(PACKAGE_ID, idOf(request.params.id));
+        if (!doc || doc.kind !== PICTURE_KIND) return reply.status(404).send({ error: "No such picture" });
+        return { id: doc.id, image: doc.data.image, caption: doc.data.caption, prompt: doc.data.prompt, at: doc.data.at };
+      });
+
+      routes.delete("/picture/:id", async (request) => {
+        const doc = await documents.getById(PACKAGE_ID, idOf(request.params.id));
+        return { removed: doc?.kind === PICTURE_KIND ? await removeDocument(documents, doc.id) : false };
       });
 
       routes.delete("/scene-results/:id", async (request) => {

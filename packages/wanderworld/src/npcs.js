@@ -13,6 +13,7 @@ import { createPerson } from "./people.js";
 import { tagColourOf } from "./relationships.js";
 import { fill, greetingFor, moodOf, pickExchange } from "./dialogue.js";
 import { hashString, heightAt, onBridgeAt, rng, waterAt } from "./world.js";
+import { entryAt, inRange } from "./schedules.js";
 
 export const MAX_PEOPLE = 30; // far-off and out-of-sight people animate less often, so thirty stays smooth
 const WANDER_RADIUS = 9;
@@ -114,6 +115,7 @@ export function createCrowd() {
   let lastApproach = -Infinity;
   // Homes and workplaces set by the world's lore: id → { home, work } (door indexes).
   let housing = new Map(); // when someone last set off to come up to the player
+  let schedules = new Map(); // id → that person's day: [{ from, to, activity, door (index), point }]
   const party = []; // ids of followers, in order (their place in the line)
 
   /** Where someone is standing now: the town or the room. */
@@ -140,10 +142,49 @@ export function createCrowd() {
     return choices.length ? choices[hashString(person.id) % choices.length] : null;
   }
 
+  /** Someone's schedule with its doors found in this world. */
+  function scheduleOf(person) {
+    return (schedules.get(person.id) ?? []).map((entry) => ({
+      ...entry,
+      door: Number.isInteger(entry.door) ? (world?.doors[entry.door] ?? null) : null,
+    }));
+  }
+
+  /**
+   * Does what `entry` of their schedule says: home or work (indoors till the entry's hours are over),
+   * eating or visiting at a place (in at its door, or there a while), sitting near a place. A walk, or
+   * an entry they can't follow here, leaves them to the usual rules (returns false).
+   */
+  function followSchedule(person, entry) {
+    const stayIn = (door) => {
+      if (!door) return false;
+      goInto(person, door, Infinity);
+      person.until = entry;
+      return true;
+    };
+    if (entry.activity === "home") return stayIn(person.home);
+    if (entry.activity === "work") return stayIn(person.work);
+    if ((entry.activity === "eat" || entry.activity === "visit") && entry.door) return stayIn(entry.door);
+    const near = entry.point ?? (entry.door ? { x: entry.door.x, z: entry.door.z } : null);
+    if (entry.activity === "sit" && near) {
+      const seat = freeSeat(person, world.seats, near, 18);
+      if (seat) {
+        takeSeat(person, seat, 30 + person.random() * 40);
+        return true;
+      }
+    }
+    if (entry.activity !== "walk" && near) {
+      person.plan = [{ walk: near }, { wait: 8 + person.random() * 10 }];
+      return true;
+    }
+    return false;
+  }
+
   function place(person) {
     person.home = homeOf(person);
     const work = housing.get(person.id)?.work;
     person.work = Number.isInteger(work) ? (world?.doors[work] ?? null) : null;
+    person.schedule = scheduleOf(person);
     person.space = world;
     person.inDoor = null;
     const start = person.home ?? { x: 0, z: 0 };
@@ -364,9 +405,13 @@ export function createCrowd() {
       person.plan = [{ walk: roomSpot(person) }, { wait: 5 + person.random() * 10 }];
       return;
     }
-    if (isNight(hour) && person.home) return goInto(person, person.home, Infinity);
+    // Their day's schedule first, when they have one; then the usual rules.
+    const scheduled = entryAt(person.schedule, hour);
+    if (scheduled && followSchedule(person, scheduled)) return;
+    const ruled = !person.schedule?.length;
+    if (ruled && isNight(hour) && person.home) return goInto(person, person.home, Infinity);
     // Working hours: off to work (the smithy, the shop…) for a good while, now and then.
-    if (person.work && hour >= 8 && hour < 18 && clock > person.workUntil && person.random() < 0.5) {
+    if (ruled && person.work && hour >= 8 && hour < 18 && clock > person.workUntil && person.random() < 0.5) {
       person.workUntil = clock + 90 + person.random() * 60; // a break between shifts
       return goInto(person, person.work, 60 + person.random() * 90);
     }
@@ -781,6 +826,7 @@ export function createCrowd() {
   function comeOut(person) {
     const door = person.inDoor ?? person.home;
     person.inDoor = null;
+    person.until = null;
     person.space = world;
     world.scene.add(person.group);
     person.group.position.set(door.step.x, heightAt(door.step.x, door.step.z), door.step.z);
@@ -795,6 +841,8 @@ export function createCrowd() {
 
   /** Whether their time indoors is up (a visit's length, or night's end for the night at home). */
   function timeToLeave(person, hour) {
+    // In for a schedule entry: out once its hours are over.
+    if (person.until) return !inRange(hour, person.until.from, person.until.to);
     return Number.isFinite(person.stay) ? person.stay <= 0 : !isNight(hour);
   }
 
@@ -1174,6 +1222,19 @@ export function createCrowd() {
      * Homes and workplaces from the world's lore: { [id]: { home, work } } as door indexes (null for
      * none). A home given here is theirs alone: nobody else is put there.
      */
+    /**
+     * Everyone's day: `map` id → [{ from, to, activity, door (door index or null), point ({ x, z } or
+     * null) }]. Someone not in it follows the usual rules. Takes effect at their next plan.
+     */
+    setSchedules(map) {
+      schedules = new Map(Object.entries(map ?? {}));
+      for (const person of people.values()) person.schedule = scheduleOf(person);
+    },
+    /** What `id`'s schedule says they're doing at `hour`, or null. */
+    scheduledNow(id, hour) {
+      const person = people.get(id);
+      return person ? entryAt(person.schedule, hour) : null;
+    },
     setHousing(map) {
       housing = new Map(Object.entries(map ?? {}));
       for (const person of people.values()) {
@@ -1325,6 +1386,10 @@ export function createCrowd() {
         }));
     },
     /** Starts a conversation: they stop what they're doing (standing up if seated) and face the player. */
+    /** Someone's group (to put a speech bubble over), or null. */
+    groupOf(id) {
+      return people.get(id)?.group ?? null;
+    },
     beginTalk(id) {
       const person = people.get(id);
       if (!person || person.state === "inside" || !person.space) return null;

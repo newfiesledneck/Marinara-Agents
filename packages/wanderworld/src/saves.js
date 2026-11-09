@@ -9,6 +9,7 @@
 // lets later fields arrive with defaults.
 
 import { checkScene } from "./interactions.js";
+import { checkEntry } from "./schedules.js";
 import { checkGroups } from "./zones.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
 
@@ -210,6 +211,22 @@ export function checkWorld(raw) {
       : [],
     // Kept as they are for now; W3 and W4 give them their checks.
     party: Array.isArray(raw.party) ? raw.party.filter((id) => typeof id === "string") : [],
+    // Daily schedules set by the player or the AI: { [characterId]: { entries, by: "you" | "ai" } }. Anyone
+    // not here follows a usual day (schedules.js usualDay).
+    schedules: isRecord(raw.schedules)
+      ? Object.fromEntries(
+          Object.entries(raw.schedules)
+            .filter(([, value]) => isRecord(value) && Array.isArray(value.entries))
+            .slice(0, 100)
+            .map(([id, value]) => [
+              id,
+              {
+                entries: value.entries.map(checkEntry).filter(Boolean).slice(0, 24),
+                by: value.by === "ai" ? "ai" : "you",
+              },
+            ]),
+        )
+      : {},
     // What has happened in the world, newest last: recaps of scenes played out in the Engine (server part).
     events: Array.isArray(raw.events)
       ? raw.events

@@ -472,6 +472,14 @@ with a style profile id, as Quartermaster's do. Not yet: S1's world documents on
 in the browser), S2's world brief, S5's daily plans, the prompt-context contributor for scene turns, TTS,
 and a preset choice for scenes (the host's `startScene` takes none)._
 
+_0.4.69: moments (`POST /moment`: narration, replies from listeners in earshot by voice, and plans
+they agree to; the chat window's commands `/s /w /p /a`), S5's schedules (`schedules.js`, followed in
+npcs.js, edited in Journal → People, `POST /plan` for the AI; moments put agreed plans in), and Illustrate
+(`POST /illustrate` from an editable template, pictures kept per world as `picture` documents, at most 60).
+Quartermaster as Wanderworld's character sheet needs a change in Quartermaster: it keys everything by chat
+(its sheet element takes only a `chatId`), and a world isn't a chat. Scenes from Wanderworld are real
+roleplay chats, so Quartermaster already works inside them._
+
 **Security notes (for the PR):** every route body is checked (ids by pattern, text by length, numbers
 clamped, style profile ids from a fixed list); the connection list carries only id, name, provider,
 model and default flag (the Engine already masks keys, and none are read); the loopback goes only to

@@ -7,6 +7,7 @@
 // Relationships and the party join as their own tabs (docs/CONCEPT.md, W3 and W4).
 import { INK, INK_SMALL, INK_SOFT, SERIF } from "./ui.js";
 import { mapCanvas } from "./map.js";
+import { ACTIVITIES, ACTIVITY_WORDS, hourText } from "./schedules.js";
 
 const TABS = [
   ["here", "Here"],
@@ -138,10 +139,124 @@ export function createJournal(panelCss, handlers) {
   }
 
   let housingEdit = false; // the homes-and-work editor is open (the tab holds still while it is)
+  let scheduleOf = null; // whose schedule is open for editing (the tab holds still while it is)
+  let planNote = "";
+
+  /**
+   * The schedule editor: each person's day as rows (from, to, what, where), changed here, written by
+   * the AI (with what you ask for), or back to their usual day. Every change applies at once.
+   */
+  function drawSchedules() {
+    const { people, places, canPlan } = data.schedules ?? { people: [] };
+    if (!people.length) return;
+    body.append(
+      button(scheduleOf ? "Done with schedules" : "Schedules…", SMALL, () => {
+        scheduleOf = scheduleOf ? null : people[0].id;
+        planNote = "";
+        draw();
+      }),
+    );
+    if (!scheduleOf) return;
+    const person = people.find((entry) => entry.id === scheduleOf) ?? people[0];
+    scheduleOf = person.id;
+    body.append(
+      explain(
+        "What each person does through the day. Hours not listed, and walks, are their own to fill (company, benches, wandering). The AI can plan a day, and things people agree to in moments go in too.",
+      ),
+    );
+    const top = element("div", "display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;");
+    const who = element("select", FIELD);
+    for (const entry of people) {
+      const option = element("option", "", entry.name);
+      option.value = entry.id;
+      who.append(option);
+    }
+    who.value = person.id;
+    who.addEventListener("change", () => {
+      scheduleOf = who.value;
+      planNote = "";
+      draw();
+    });
+    const source = { usual: "their usual day", you: "set by you", ai: "planned by the AI" }[person.by] ?? "";
+    top.append(who, element("span", MUTED, source));
+    body.append(top);
+    const entries = person.entries.map((entry) => ({ ...entry }));
+    const commit = () => handlers.onSetSchedule?.(person.id, entries);
+    const hours = Array.from({ length: 49 }, (_, i) => i / 2);
+    const select = (options, value, onChange, css = "") => {
+      const node = element("select", `${FIELD}${css}`);
+      for (const [optionValue, label] of options) {
+        const option = element("option", "", label);
+        option.value = String(optionValue);
+        node.append(option);
+      }
+      node.value = String(value);
+      node.addEventListener("change", () => onChange(node.value));
+      return node;
+    };
+    entries.forEach((entry, i) => {
+      const row = element("div", "display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:12px;");
+      const hourOptions = hours.map((hour) => [hour, hourText(hour)]);
+      row.append(
+        select(hourOptions, entry.from, (value) => ((entry.from = Number(value)), commit())),
+        element("span", "", "–"),
+        select(hourOptions, entry.to, (value) => ((entry.to = Number(value)), commit())),
+        select(
+          ACTIVITIES.map((activity) => [activity, ACTIVITY_WORDS[activity]]),
+          entry.activity,
+          (value) => ((entry.activity = value), commit()),
+        ),
+        select(
+          [
+            ["", entry.activity === "home" || entry.activity === "work" ? "their own" : "anywhere"],
+            ...places.map((place) => [place.id, place.name]),
+          ],
+          entry.place,
+          (value) => ((entry.place = value), commit()),
+          "max-width:140px;",
+        ),
+        button("✕", SMALL, () => {
+          entries.splice(i, 1);
+          commit();
+        }),
+      );
+      body.append(row);
+    });
+    const actions = element("div", "display:flex;gap:6px;flex-wrap:wrap;");
+    actions.append(
+      button("Add an hour", SMALL, () => {
+        const last = entries.at(-1);
+        const from = last ? last.to % 24 : 9;
+        entries.push({ from, to: (from + 1) % 24 || 24, activity: "walk", place: "" });
+        commit();
+      }),
+      button("Back to their usual day", SMALL, () => handlers.onSetSchedule?.(person.id, null)),
+    );
+    body.append(actions);
+    if (canPlan) {
+      const ask = element("div", "display:flex;gap:6px;align-items:center;");
+      const request = element("input", `${FIELD}flex:1;min-width:0;`);
+      request.placeholder = "Ask for something (optional): early riser, temple at dusk…";
+      request.maxLength = 300;
+      const plan = button("Plan with AI", SMALL, async () => {
+        plan.disabled = true;
+        planNote = "Planning…";
+        note.textContent = planNote;
+        planNote = (await handlers.onPlanSchedule?.(person.id, request.value.trim())) ?? "";
+        plan.disabled = false;
+        note.textContent = planNote;
+      });
+      ask.append(request, plan);
+      body.append(ask);
+    }
+    const note = line(planNote, MUTED);
+    body.append(note);
+  }
   function drawPeople() {
     body.append(explain("Everyone living in town and what they're doing, and how they see you once that's set."));
     if (!data.people.length) body.append(line("Nobody lives here yet. Choose characters in People.", MUTED));
     for (const text of data.people) body.append(line(text));
+    drawSchedules();
     const { people, homes, workplaces } = data.housing;
     if (!people.length) return;
     body.append(
@@ -733,7 +848,7 @@ export function createJournal(panelCss, handlers) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
       if (tab === "map" && map?.isConnected) return void handlers.onMap?.(map);
-      if (tab === "people" && housingEdit && body.childElementCount && !next.placesChanged) return;
+      if (tab === "people" && (housingEdit || scheduleOf) && body.childElementCount && !next.placesChanged) return;
       // No redraw under the cursor in the lists with buttons and fields.
       const lists = tab === "places" || tab === "party" || tab === "relations" || tab === "world";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.
