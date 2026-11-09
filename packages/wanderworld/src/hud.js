@@ -153,6 +153,7 @@ export function createHud(root, handlers) {
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "Dragging up looks down, like a flight stick.",
     time: "Let the day pass, or keep it at one time of day.",
+    timeSpeed: "How fast the day passes while it's moving.",
     interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
     approach: "How often townsfolk come up to greet you, or confront you. 0 means never.",
     approachMax: "The most people coming up to you at the same time.",
@@ -244,6 +245,14 @@ export function createHud(root, handlers) {
   toggle("invertLook", "Invert up and down");
   heading("World");
   choice("time", "Time", TIME_LABELS);
+  choice("timeSpeed", "Time speed", {
+    0.25: "¼× (a day in 80 min)",
+    0.5: "½× (a day in 40 min)",
+    1: "1× (a day in 20 min)",
+    2: "2× (a day in 10 min)",
+    4: "4× (a day in 5 min)",
+    8: "8× (a day in 2½ min)",
+  });
   toggle("interiors", "Walk into buildings (unfinished)");
   slider("approach", "People coming up to you", 0.1, (value) => (value === 0 ? "never" : times(value)));
   choice("approachMax", "At most at once", { 1: "1", 2: "2", 3: "3", 5: "5" });

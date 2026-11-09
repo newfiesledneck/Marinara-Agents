@@ -381,9 +381,8 @@ and driven by the lorebook's numbered places (0.4.38) as a minimum.
 - The in-game People panel in the Engine's character folders, like New world (0.4.41).
 - The dark wood planks texture (`wood-planks-dark` in the art folder): shop fronts, awnings' frames, a
   dock by the river.
-- Swimming for townsfolk and followers (today they go round by a bridge, 0.4.46).
-- Small fixes: the World tab's clock doesn't tick while open; a place's lore count updates only after
-  leaving the lore picker; deleting a group asks nothing first.
+- ~~Swimming for townsfolk and followers~~ (0.4.47) and the small fixes (World clock, lore counts,
+  group delete; 0.4.47).
 
 ### W5. Scene setup (the request, before there's anything to send it to)
 

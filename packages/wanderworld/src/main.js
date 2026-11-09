@@ -1348,6 +1348,9 @@ function editZoneLore(id) {
     core.save = { ...core.save, lore };
     core.saves.write(core.save);
     core.zoneCheck = 0;
+    // Its "Lore (n)" in Places is up to date as soon as you go back.
+    core.placesChanged = true;
+    core.journalAt = 0;
   };
   core.hud?.journal.showLore(title, null, chosen(), toggle);
   readLorebooks()
@@ -2180,7 +2183,7 @@ function stepClock(dt) {
   const mode = core.settings.time;
   if (mode === "day") core.hour = 12;
   else if (mode === "night") core.hour = 23;
-  else core.hour = (core.hour + (dt * 24) / DAY_SECONDS) % 24;
+  else core.hour = (core.hour + (dt * 24 * (core.settings.timeSpeed ?? 1)) / DAY_SECONDS) % 24;
   core.dark = core.world.setTime(core.hour);
   core.hud?.setClock(clockText());
 }
@@ -2399,6 +2402,7 @@ function step(dt) {
     onSay: (group, text) => core.talk?.say(group, text, 3.5),
     playerName: personaName(),
     aggressionAllowed,
+    playerSwimming: core.swimming,
     approach: core.settings.approach,
     approachMax: core.settings.approachMax,
   });
