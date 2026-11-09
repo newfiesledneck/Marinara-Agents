@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.39",
+          "date": "2026-11-08",
+          "notes": "- Your own lore entry: keyed \"player <your persona's name>\" (for one persona) or \"you\" / \"player\" (any persona), never your bare name, so a character can share it. Its lore is active everywhere, \"male\"/\"female\" sets your body, and \"mother of Hank\" or \"friends with Mira\" sets how you see them.\n- \"lives in home6\" on it gives you a home. The house is named for everyone in it, a new world starts you at your front door, its prompt reads \"Your home\", and Journal → Here says when you're at home.\n- A new world's loading screen stays up until its lore has linked and you're in place.",
+          "highlight": false
+        },
+        {
           "version": "0.4.38",
           "date": "2026-11-08",
           "notes": "- With places linked by name, a world is built with at least every numbered place its lorebooks mention: \"smithy3\" makes three smithies, \"inn2\" two inns, \"cave1\" a cave. A cave brings mountains with it, and \"river1\" a river. Past that it's random. Regenerate builds what changed lorebooks need.\n- Journal → World lists what the world was built to have.\n- The fountain's Use prompt only shows when you're beside it.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.20",
           "date": "2026-11-08",
           "notes": "- A low stone kerb runs between the streets and the sidewalks, and round the market square.\n- Sidewalks fade into the lawns instead of stopping in a hard line, and every block's corners are rounded.\n- At the edge of town the cobbled streets fade into the meadow.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.19",
-          "date": "2026-11-08",
-          "notes": "- Painted ground: grass across the land, dirt on the country roads, round cobbles on the streets, stone setts on the sidewalks and sandstone slabs on the market square.\n- The land blends grass into rock on steep slopes and high ground, snow on the peaks and pebbles in the riverbed, with no tiling showing.\n- Shop signs are painted wooden boards.",
           "highlight": false
         }
       ]
