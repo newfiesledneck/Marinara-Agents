@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.35 — 2026-11-08
+
+- Lorebooks can set how characters stand toward each other: a character's entry keyed "brother of Sarah", "son of Zoey", "enemy of Mira" or "friends with Tam" sets that one way. Nothing is assumed the other way round; the other character's own entry says how they see it. "you" or your persona's name means you.
+
 ## 0.4.34 — 2026-11-08
 
 - Party tab: "Everyone near me comes along" brings everyone standing within a few steps of you into the party, and "Everyone parts ways" sends the whole party off again.
