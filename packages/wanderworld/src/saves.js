@@ -99,6 +99,14 @@ export function checkWorld(raw) {
     characterLinking: ["keywords", "ai", "none"].includes(raw.characterLinking) ? raw.characterLinking : "none",
     // True until the keyword links have been made (the first time the world is built).
     lorePending: raw.lorePending === true,
+    // The least the world must have for its lore ({ kind: count }, zones.js `needsFromLore`).
+    needs: isRecord(raw.needs)
+      ? Object.fromEntries(
+          Object.entries(raw.needs)
+            .filter(([, count]) => Number.isInteger(count) && count > 0)
+            .map(([kind, count]) => [kind, Math.min(60, count)]),
+        )
+      : {},
     // Where characters live and work, from lore (or set by hand): { [id]: { home, work, owner } } (place ids).
     housing: isRecord(raw.housing)
       ? Object.fromEntries(

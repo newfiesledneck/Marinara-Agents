@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.38 — 2026-11-08
+
+- With places linked by name, a world is built with at least every numbered place its lorebooks mention: "smithy3" makes three smithies, "inn2" two inns, "cave1" a cave. A cave brings mountains with it, and "river1" a river. Past that it's random. Regenerate builds what changed lorebooks need.
+- Journal → World lists what the world was built to have.
+- The fountain's Use prompt only shows when you're beside it.
+
 ## 0.4.37 — 2026-11-08
 
 - Every place has a numbered name for lorebooks (town1, forest1, tavern1, home6, inn1…), shown in Journal → Places.

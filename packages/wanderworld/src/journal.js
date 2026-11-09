@@ -582,6 +582,15 @@ export function createJournal(panelCss, handlers) {
     ]);
     if (world.loreLinking === "keywords" || world.characterLinking === "keywords")
       body.append(button("Link lore by name now", SMALL, () => handlers.onLinkLore()));
+    const needed = Object.entries(world.needs).map(([kind, count]) => `${kind} ×${count}`);
+    if (needed.length) {
+      body.append(line(`Built with at least: ${needed.join(", ")}.`, MUTED));
+    }
+    body.append(
+      explain(
+        "With places linked by name, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). After changing lorebooks, Settings → Regenerate this world builds them.",
+      ),
+    );
     if (world.waiting.length) {
       body.append(
         explain(

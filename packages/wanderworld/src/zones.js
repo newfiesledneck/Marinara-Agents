@@ -706,3 +706,47 @@ export function structureFromLore(books, world) {
   }
   return { groups, placements, housing };
 }
+
+/** The kinds a world can be asked for by number in its lore ("smithy3", "town2"). */
+export const NEEDED_KINDS = [
+  "town",
+  "forest",
+  "wilds",
+  "river",
+  "mountains",
+  "square",
+  "fountain",
+  "tavern",
+  "shop",
+  "temple",
+  "hall",
+  "smithy",
+  "home",
+  "inn",
+  "cottage",
+  "cave",
+  "road",
+  "garden",
+  "meadow",
+];
+
+/**
+ * What a world must have for its lorebooks: the highest number used for each kind anywhere in their
+ * entries' names and keywords ("smithy3" alone, or inside "lives in home6", "located in cave1"). A world
+ * is built with at least that many of each it can make; past that it's random. Returns { kind: count }.
+ */
+export function needsFromLore(books) {
+  const pattern = new RegExp(String.raw`\b(${NEEDED_KINDS.join("|")})(\d+)\b`, "giu");
+  const needs = {};
+  for (const book of books) {
+    for (const entry of book.entries) {
+      for (const word of [entry.title, ...(entry.keys ?? [])]) {
+        for (const [, kind, number] of String(word).matchAll(pattern)) {
+          const sort = kind.toLowerCase() === "wilds" ? "forest" : kind.toLowerCase();
+          needs[sort] = Math.max(needs[sort] ?? 0, Math.min(60, Number(number)));
+        }
+      }
+    }
+  }
+  return needs;
+}

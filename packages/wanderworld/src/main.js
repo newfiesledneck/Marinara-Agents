@@ -40,9 +40,10 @@ import {
   mergeLore,
   structureFromLore,
   slotsOf,
+  needsFromLore,
   zoneAt,
 } from "./zones.js";
-import { landscapeWith } from "./land.js";
+import { checkLandscape, landscapeNeeds, landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
@@ -102,7 +103,7 @@ const NO_INPUT = { x: 0, y: 0, amount: 0, run: false, yaw: 0, pitch: 0, zoom: 0 
 const AUTO_PIXELS = 1920 * 1080;
 const DAY_SECONDS = 20 * 60; // a whole day in town takes 20 minutes
 const START_HOUR = 9;
-const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9 };
+const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, thing: 1.9 }; // every kind of usable needs one
 const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
 const TAP_RADIUS = 70; // screen pixels a tap may land from something and still pick it
 const WALK_TO_LIMIT = 40; // metres: a tap further away than this is ignored
@@ -346,7 +347,8 @@ function buildWorld(seed, place = null) {
   core.signs = [];
   core.board?.dispose();
   core.board = null;
-  core.world = createWorld(hashString(seed), core.save?.seed === seed ? core.save.landscape : null);
+  const own = core.save?.seed === seed;
+  core.world = createWorld(hashString(seed), own ? core.save.landscape : null, own ? core.save.needs : {});
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
@@ -576,7 +578,22 @@ function openMenu() {
   core.menu?.show();
 }
 
-function createNewWorld({
+/**
+ * What a world must have for its lorebooks (zones.js `needsFromLore`), when its places link by name:
+ * every numbered place they mention. Empty otherwise, or when the lorebooks can't be read.
+ */
+async function worldNeeds(lorebooks, loreLinking) {
+  if (!lorebooks.length || loreLinking !== "keywords") return {};
+  try {
+    const books = await readLorebooks();
+    return needsFromLore(books.filter((book) => lorebooks.includes(book.id)));
+  } catch (error) {
+    console.warn("[wanderworld] couldn't read lorebooks for the world's needs", error);
+    return {};
+  }
+}
+
+async function createNewWorld({
   name,
   seed,
   choices,
@@ -592,7 +609,9 @@ function createNewWorld({
   save.loreLinking = lorebooks.length ? loreLinking : "none";
   save.characterLinking = lorebooks.length ? characterLinking : "none";
   save.lorePending = lorebooks.length > 0 && (loreLinking === "keywords" || characterLinking === "keywords");
-  save.landscape = landscapeWith(hashString(save.seed), choices);
+  // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
+  save.needs = await worldNeeds(save.lorebooks, save.loreLinking);
+  save.landscape = landscapeNeeds(landscapeWith(hashString(save.seed), choices), save.needs, hashString(save.seed));
   save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
   save.persona = core.personaId;
@@ -618,17 +637,21 @@ function choicesOf(landscape) {
  * layout and land); its setup still stands: each place's name, lore and groups move to the same kind of
  * place in the new layout (zones.js `remapZones`). The player starts again at the square.
  */
-function regenerateWorld(reshuffle = false) {
+async function regenerateWorld(reshuffle = false) {
   const save = core.save;
   if (!save) return;
   savePlace(true);
   const choices = core.save.choices ?? choicesOf(core.save.landscape);
   const seed = reshuffle ? `world-${Date.now().toString(36)}` : core.save.seed;
-  const landscape = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
-  const next = { ...core.save, seed, landscape, choices, place: null };
+  // What its lorebooks need now (they may have grown since), on top of its land.
+  const needs = await worldNeeds(core.save.lorebooks, core.save.loreLinking);
+  if (core.save?.id !== save.id) return; // another world was opened meanwhile
+  const land = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
+  const landscape = landscapeNeeds(checkLandscape(land, hashString(seed)), needs, hashString(seed));
+  const next = { ...core.save, seed, landscape, choices, needs, place: null };
   if (reshuffle && core.zones) {
     // The setup stays: every place's name, lore and groups go to the same kind of place in the new layout.
-    const built = createWorld(hashString(seed), landscape);
+    const built = createWorld(hashString(seed), landscape, needs);
     const map = remapZones(core.zones, buildZones(built.layout, hashString(seed)));
     built.dispose();
     Object.assign(next, carrySetup({ ...core.save, groups: core.save.groups ?? null }, map), { waitingPlacements: [] });
@@ -1156,6 +1179,7 @@ function journalData(zone, snapshot, residents, names) {
       loreLinking: core.save?.loreLinking ?? "none",
       characterLinking: core.save?.characterLinking ?? "none",
       waiting: (core.save?.waitingPlacements ?? []).map((entry) => entry.title),
+      needs: core.save?.needs ?? {},
       allLorebooks: core.lorebooks?.map((book) => ({ id: book.id, name: book.name })) ?? null,
       name: core.save?.name ?? "",
       town: names.town,

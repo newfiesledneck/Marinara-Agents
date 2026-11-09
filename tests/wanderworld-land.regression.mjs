@@ -3,7 +3,7 @@
 // be walked through except on a bridge where a road crosses it; inns and cottages get doors, caves a
 // mouth, and every one of them a name.
 import assert from "node:assert/strict";
-import { checkLandscape, landscapeFor, landscapeWith } from "../packages/wanderworld/src/land.js";
+import { checkLandscape, landscapeFor, landscapeNeeds, landscapeWith } from "../packages/wanderworld/src/land.js";
 import { createWorld, heightAt, waterAt } from "../packages/wanderworld/src/world.js";
 import { buildZones, zoneAt } from "../packages/wanderworld/src/zones.js";
 
@@ -140,6 +140,28 @@ for (const seed of [41, 42, 43]) {
       );
     }
   }
+}
+
+// A world built for its lore: at least what it names. A cave brings mountains with it.
+{
+  const bare = landscapeWith(51, { mountains: "none", river: "no", places: "none" });
+  const needed = landscapeNeeds(bare, { cave: 2, inn: 1, river: 1, smithy: 3, tavern: 2, temple: 2 }, 51);
+  assert.ok(needed.mountains.length >= 1, "a cave needs hills, so there are mountains");
+  assert.equal(needed.outposts.filter((entry) => entry.kind === "cave").length, 2);
+  assert.ok(
+    needed.outposts.filter((entry) => entry.kind === "cave").every((entry) => needed.mountains.includes(entry.side)),
+    "caves are in the mountains",
+  );
+  assert.equal(needed.outposts.filter((entry) => entry.kind === "inn").length, 1);
+  assert.ok(needed.river, "a river when one's named");
+  const built = createWorld(51, needed, { smithy: 3, tavern: 2, temple: 2 });
+  const kinds = built.layout.buildings.map((building) => building.kind);
+  const count = (kind) => kinds.filter((entry) => entry === kind).length;
+  assert.ok(count("smithy") >= 3, `three smithies (got ${count("smithy")})`);
+  assert.ok(count("tavern") >= 2 + 1, "two taverns in town, plus the inn's"); // the inn's building is a tavern too
+  assert.ok(count("temple") >= 2, "two temples");
+  assert.equal(built.caves.length, 2, "both caves have mouths");
+  built.dispose();
 }
 
 // A world with no landscape given still builds, from the seed.
