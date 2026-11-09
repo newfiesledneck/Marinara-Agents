@@ -448,6 +448,8 @@ export function groupsAt(groups, zones) {
 
 /** The whole world: the top of every place's chain, for lore that's active everywhere. */
 export const WORLD_ID = "world";
+/** The player (their persona): lore tied to them is active wherever they go. */
+export const PLAYER_ID = "player";
 
 /**
  * A place's identity apart from where it ended up: its kind and which one of that kind it is (the third
@@ -499,7 +501,10 @@ export function carrySetup({ names = {}, lore = {}, groups = null, housing = {} 
   const move = (record) =>
     Object.fromEntries(
       Object.entries(record)
-        .map(([id, value]) => [id.startsWith("group:") || id.startsWith("character:") ? id : map.get(id), value])
+        .map(([id, value]) => [
+          id.startsWith("group:") || id.startsWith("character:") || id === PLAYER_ID ? id : map.get(id),
+          value,
+        ])
         .filter(([id]) => id),
     );
   return {
@@ -597,6 +602,10 @@ export function placeTargets(world) {
   for (const character of world.characters ?? []) add(character.name, `character:${character.id}`);
   add(world.name, WORLD_ID);
   add("world", WORLD_ID);
+  // The player's own entry: "you", "player" or "persona" for any persona, or "player <name>" / "persona
+  // <name>" for one persona only (never the bare name: a character may share it).
+  for (const word of ["you", "player", "persona"]) add(word, PLAYER_ID);
+  if (world.persona) for (const word of ["player", "persona"]) add(`${word} ${world.persona}`, PLAYER_ID);
   return targets;
 }
 
@@ -691,8 +700,11 @@ export function structureFromLore(books, world) {
           if (how === "located in") {
             if (!subject.startsWith("character:") && subject !== target)
               placements.push({ place: subject, in: target, title: entry.title });
-          } else if (subject.startsWith("character:") && world.zones.byId.get(target)?.kind === "building") {
-            const id = subject.slice("character:".length);
+          } else if (
+            (subject.startsWith("character:") || subject === PLAYER_ID) &&
+            world.zones.byId.get(target)?.kind === "building"
+          ) {
+            const id = subject === PLAYER_ID ? PLAYER_ID : subject.slice("character:".length);
             housing[id] ??= { home: null, work: null, owner: false };
             if (how === "lives in") housing[id].home ??= target;
             else {

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.39 — 2026-11-08
+
+- Your own lore entry: keyed "player <your persona's name>" (for one persona) or "you" / "player" (any persona), never your bare name, so a character can share it. Its lore is active everywhere, "male"/"female" sets your body, and "mother of Hank" or "friends with Mira" sets how you see them.
+- "lives in home6" on it gives you a home. The house is named for everyone in it, a new world starts you at your front door, its prompt reads "Your home", and Journal → Here says when you're at home.
+- A new world's loading screen stays up until its lore has linked and you're in place.
+
 ## 0.4.38 — 2026-11-08
 
 - With places linked by name, a world is built with at least every numbered place its lorebooks mention: "smithy3" makes three smithies, "inn2" two inns, "cave1" a cave. A cave brings mountains with it, and "river1" a river. Past that it's random. Regenerate builds what changed lorebooks need.

@@ -36,6 +36,7 @@ import {
   remapZones,
   signOf,
   WORLD_ID,
+  PLAYER_ID,
   matchLore,
   mergeLore,
   structureFromLore,
@@ -353,7 +354,8 @@ function buildWorld(seed, place = null) {
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
   useHousing();
-  if (core.save?.lorePending) linkLore();
+  // A new world's lore links up first (it may give the player a home to start at); the loading screen waits.
+  core.linking = core.save?.lorePending ? linkLore() : null;
   const boardSpot = core.world.noticeboard;
   core.board = boardSpot
     ? createNoticeboard({
@@ -372,12 +374,18 @@ function buildWorld(seed, place = null) {
   core.world.scene.add(core.player);
   core.crowd.setWorld(core.world);
   resetMode();
+  // Where to start: where they were, else at their own front door (from their lore), else the square.
+  const homeDoor = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
+  const front = homeDoor
+    ? { x: homeDoor.x + Math.sin(homeDoor.angle) * 1.2, z: homeDoor.z + Math.cos(homeDoor.angle) * 1.2 }
+    : null;
   const spot = place && !core.world.blocked(place.x, place.z, PLAYER_RADIUS) ? place : null;
-  const x = spot?.x ?? SPAWN.x;
-  const z = spot?.z ?? SPAWN.z;
+  core.freshStart = !spot; // a first visit: once lore gives them a home, they start at its door
+  const x = spot?.x ?? front?.x ?? SPAWN.x;
+  const z = spot?.z ?? front?.z ?? SPAWN.z;
   core.player.position.set(x, heightAt(x, z), z);
-  core.player.rotation.y = spot?.angle ?? 0;
-  core.cameraYaw = spot?.yaw ?? 0;
+  core.player.rotation.y = spot?.angle ?? (homeDoor ? homeDoor.angle : 0);
+  core.cameraYaw = spot?.yaw ?? (homeDoor ? homeDoor.angle + Math.PI : 0);
   core.cameraPitch = spot?.pitch ?? START_PITCH;
   core.zoom = spot?.zoom ?? CAMERA_DISTANCE;
   core.camera?.position.set(x, CAMERA_HEIGHT, z + CAMERA_DISTANCE);
@@ -556,7 +564,10 @@ function playWorld(id) {
       core.hud?.setLoading(null);
       resume();
     };
-    Promise.race([detail, new Promise((done) => setTimeout(done, BUILD_WAIT * 1000))]).then(shown);
+    // Shown once the detail is in and the lore has linked up (so they appear at their door, not jump
+    // there), or after a while regardless.
+    const ready = Promise.all([detail, core.linking ?? Promise.resolve()]);
+    Promise.race([ready, new Promise((done) => setTimeout(done, BUILD_WAIT * 1000))]).then(shown);
   }, 60);
 }
 
@@ -745,12 +756,49 @@ function placeSigns() {
 /** Who lives where: door index → names. */
 function residentsOf(snapshot) {
   const homes = new Map();
+  // The player first, when their lore gives them a home.
+  const mine = playerHomeDoor();
+  if (mine !== null) homes.set(mine, [personaName()]);
   for (const person of snapshot) {
     if (person.home === null) continue;
     if (!homes.has(person.home)) homes.set(person.home, []);
     homes.get(person.home).push(person.name);
   }
   return homes;
+}
+
+/** Puts the player at their own front door, facing out (a new world whose lore gives them a home). */
+function startAtHome() {
+  const index = playerHomeDoor();
+  const door = index !== null ? core.world?.doors[index] : null;
+  if (!door) return;
+  core.freshStart = false;
+  const x = door.x + Math.sin(door.angle) * 1.2;
+  const z = door.z + Math.cos(door.angle) * 1.2;
+  core.player.position.set(x, heightAt(x, z), z);
+  core.player.rotation.y = door.angle;
+  core.cameraYaw = door.angle + Math.PI;
+  // The party comes along to the door too.
+  core.crowd.restoreParty(
+    core.crowd.party().map((member) => member.id),
+    core.player.position,
+  );
+  savePlace(true);
+}
+
+/** Whether the player is at home: inside their house, or right by its door. */
+function atHome() {
+  const index = playerHomeDoor();
+  if (index === null || !core.world) return false;
+  if (core.interior) return core.interior.door.index === index;
+  const door = core.world.doors[index];
+  return !!door && Math.hypot(door.x - core.player.position.x, door.z - core.player.position.z) < 4;
+}
+
+/** The door index of the player's home (from their lore), or null. */
+function playerHomeDoor() {
+  const id = core.save?.housing?.[PLAYER_ID]?.home;
+  return id ? (core.zones?.byId.get(id)?.door ?? null) : null;
 }
 
 /** A person's (or the player's) zone: the building they're inside, or the place where they stand. */
@@ -812,8 +860,10 @@ function linkLore() {
         groups: places ? placeGroups() : [],
         name: places ? core.save.name : "",
         characters: people ? (core.characters ?? []).filter((character) => core.cast?.has(character.id)) : [],
+        persona: people ? personaName() : null,
       });
       if (!places) delete found[WORLD_ID]; // "world" alone always matches: only with places on
+      if (!people) delete found[PLAYER_ID]; // "you" / "player" too: only with characters on
       let count = Object.values(found).reduce((sum, entries) => sum + entries.length, 0);
       core.save = { ...core.save, lore: mergeLore(core.save.lore, found), lorePending: false };
       // The structure the lorebook spells out: groups of kinds, what's located in what, who lives and works where.
@@ -823,9 +873,11 @@ function linkLore() {
         groups: placeGroups(),
         name: core.save.name,
         characters: people ? (core.characters ?? []).filter((character) => core.cast?.has(character.id)) : [],
+        persona: people ? personaName() : null,
       });
       if (places) count += applyStructure(structure, chosen);
       if (people) count += applyHousing(structure.housing);
+      if (core.freshStart && !core.interior) startAtHome();
       core.saves.write(core.save);
       if (people) count += setupCharactersFromLore(chosen);
       core.placesChanged = true;
@@ -872,6 +924,22 @@ function setupCharactersFromLore(books) {
       set++;
     }
   }
+  // The player's own entry ("you", "player Zoey"): their body, and how they see the others.
+  const mine = (core.save.lore[PLAYER_ID] ?? [])
+    .map((tie) => entries.get(`${tie.lorebookId}/${tie.entryId}`))
+    .filter(Boolean)
+    .flatMap((entry) => [entry.title, ...(entry.keys ?? [])]);
+  const { body } = setupFromWords(mine);
+  if (body && core.personaId && !core.bodies[core.personaId]) {
+    setBody(core.personaId, body);
+    set++;
+  }
+  for (const link of linksFromWords(mine)) {
+    const to = whoIsNamed(link.name);
+    if (!to || to === PLAYER_ID || core.relations.get(PLAYER_ID, to)) continue;
+    setRelation(PLAYER_ID, to, link.relation, false);
+    set++;
+  }
   return set;
 }
 
@@ -883,11 +951,13 @@ function whoIsNamed(name) {
       .trim()
       .replace(/^(the|a|an)\s+/u, "");
   const wanted = plainName(name);
-  if (["you", "player", plainName(personaName())].includes(wanted)) return "player";
+  const persona = plainName(personaName());
+  if (["you", "player", "persona", `player ${persona}`, `persona ${persona}`].includes(wanted)) return "player";
+  // A bare name means a character in town first (one may share the persona's name), else the persona.
   const character = (core.characters ?? []).find(
     (entry) => core.cast?.has(entry.id) && plainName(entry.name) === wanted,
   );
-  return character?.id ?? null;
+  return character?.id ?? (wanted === persona ? "player" : null);
 }
 
 /**
@@ -1008,6 +1078,7 @@ function loreSources(zone, names = {}) {
     ...[...people].map(([id, label]) => ({ id: `character:${id}`, label })),
     ...chain.map((at) => ({ id: at.id, label: names[at.id] ?? at.name })),
     ...groupsAt(placeGroups(), chain).map((group) => ({ id: group.id, label: `${group.name} (group)` })),
+    { id: PLAYER_ID, label: `${personaName()} (you)` },
     { id: WORLD_ID, label: `${core.save?.name ?? "the world"} (the whole world)` },
   ];
 }
@@ -1126,7 +1197,8 @@ function journalData(zone, snapshot, residents, names) {
   const lore = core.save?.lore ?? {};
   return {
     here: {
-      place: say(playerWho),
+      // "…, at home" when standing at (or in) the player's own house.
+      place: atHome() ? `${say(playerWho)}, at home` : say(playerWho),
       chain: [
         ...chainOf(zones, zone).map((at) => names[at.id]),
         ...groupsAt(placeGroups(), chainOf(zones, zone)).map((group) => group.name),
@@ -1695,12 +1767,13 @@ function knock(door) {
   core.sound.door();
   core.sceneDoor = door;
   const zone = core.zones?.byId.get(`building:${door.index}`);
+  const home = door.index === playerHomeDoor();
   openScene({
-    kind: "door",
+    kind: home ? "home" : "door",
     zone,
     title: zone ? zoneName(zone, residentsOf(core.crowd.snapshot())) : (PLACE_NAMES[door.kind] ?? "a house"),
     inside: core.crowd.inside(door).map((person) => ({ id: person.id, name: person.name })),
-    empty: "Nobody seems to be in.",
+    empty: home ? "Nobody else is home." : "Nobody seems to be in.",
   });
 }
 
@@ -1886,7 +1959,14 @@ function usable() {
       const open = door.open > 0.6;
       list.push({
         kind: "door",
-        label: !core.settings.interiors ? "Go in" : open ? "Go in" : "Open door",
+        label:
+          door.index === playerHomeDoor()
+            ? "Your home"
+            : !core.settings.interiors
+              ? "Go in"
+              : open
+                ? "Go in"
+                : "Open door",
         x: door.x,
         z: door.z,
         y: 1.8,

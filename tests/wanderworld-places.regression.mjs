@@ -278,6 +278,36 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
     "the group sits in the town",
   );
   assert.ok(structure.placements.some((entry) => entry.place === "forest" && entry.in === "world"));
+
+  // The player's own entry: "player <persona name>" (or "you"), never the bare name, which a character may share.
+  const mine = structureFromLore(
+    [{ id: "b", entries: [{ id: "p", title: "Zoey's life", keys: ["player Zoey", "lives in home6"] }] }],
+    { zones, names: {}, groups, name: "W", persona: "Zoey", characters: [{ id: "c-z", name: "Zoey" }] },
+  );
+  assert.equal(mine.housing.player.home, slots.get("home6"), "'player Zoey' gives the player a home");
+  assert.equal(mine.housing["c-z"], undefined, "the character called Zoey isn't moved in");
+  const linkedMine = matchLore(
+    [
+      {
+        id: "b",
+        entries: [
+          { id: "y", title: "About me", keys: ["you"] },
+          { id: "z", title: "Zoey", keys: [] },
+        ],
+      },
+    ],
+    { zones, names: {}, groups, name: "W", persona: "Zoey", characters: [{ id: "c-z", name: "Zoey" }] },
+  );
+  assert.deepEqual(
+    linkedMine.player.map((entry) => entry.entryId),
+    ["y"],
+    "'you' is the player's entry",
+  );
+  assert.deepEqual(
+    linkedMine["character:c-z"].map((entry) => entry.entryId),
+    ["z"],
+    "'Zoey' is the character's",
+  );
 }
 
 console.log("wanderworld places regression: OK");
