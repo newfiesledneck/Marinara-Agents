@@ -2663,7 +2663,8 @@ function savePerson(id, changes) {
   if (changes.schedule !== undefined) setSchedule(id, changes.schedule, "you");
   if (changes.traits) setTraits(id, changes.traits);
   if (changes.housing) setHousingByHand(id, changes.housing);
-  const same = (a, b) => (a?.kind ?? "") === (b?.kind ?? "") && (!a || !b || a.level === b.level);
+  const same = (a, b) =>
+    (a?.kind ?? "") === (b?.kind ?? "") && (!a || !b || (a.level === b.level && (a.role ?? "") === (b.role ?? "")));
   for (const { from, to, fields } of changes.relations ?? []) {
     const now = core.relations.get(from, to) ?? null;
     if (!same(now, fields)) setRelation(from, to, fields ? { ...now, ...fields } : null, false);

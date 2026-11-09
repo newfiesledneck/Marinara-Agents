@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.86 — 2026-11-09
+
+- The person window lets you pick a role for a relationship again (family: sister, parent, cousin…; colleague: employer, apprentice…; mentor: mentor or student), beside its kind and strength. A role a lorebook gave ("father", "wife") stays on offer.
+
 ## 0.4.85 — 2026-11-09
 
 - Everything about a person is managed in one place: Journal → People → Edit people → Edit. Their day is edited there now (lines of hours, what they do and where, or planned by the AI), next to home and work and their relationships. The separate Schedules, Homes and work, and Relationships pages are gone from the Journal.
