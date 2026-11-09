@@ -332,7 +332,10 @@ draw distances, size in New world and Regenerate; readings in docs/PERFORMANCE.m
 **Phase B: settlements** — _B1 done in 0.4.50: kinds (`SETTLEMENTS` in world.js; hamlet 2×2 blocks with
 a green, village 3×3 with stalls, town 5×5 with the square, city 7×7), market style and position (`side`),
 cobbled or dirt streets, all in `landscape.settlement` (`checkSettlement`; worlds without one stay the
-old town), grown by the lore's homes. Next: B2 layouts, B3 several settlements._
+old town), grown by the lore's homes. B2 done in 0.4.51: layouts as the blocks a settlement builds
+(grid, crossroads, street, ring), with streets, street points, lamps and wagons only by built blocks.
+Saved for later: riverside and hillside layouts (they need the settlement placed against the river or a
+slope), crossroads arms as one central street instead of a street each side. Next: B3 several settlements._
 
 - **Kinds by size:** hamlet (a handful of houses, maybe a well, no square), village (a green or a few
   market stalls, one or two trades), town (a square with a fountain, the usual landmarks), city (more

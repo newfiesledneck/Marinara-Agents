@@ -170,6 +170,16 @@ export function createMenu(layer, handlers, art = null) {
         ],
       ],
       [
+        "layout",
+        "Layout",
+        [
+          ["grid", "A grid of streets"],
+          ["crossroads", "A crossroads"],
+          ["street", "Along one street"],
+          ["ring", "Round the market"],
+        ],
+      ],
+      [
         "marketAt",
         "Market",
         [
