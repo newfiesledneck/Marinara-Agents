@@ -11,8 +11,16 @@ const context = new Proxy(
 globalThis.document = { createElement: () => ({ getContext: () => context, width: 0, height: 0 }) };
 globalThis.fetch = async () => new Response("null", { status: 404 });
 
-const { checkRelationship, checkTraitMap, createRelationships, phraseOf, setupFromWords, tierOf, warmthOf } =
-  await import("../packages/wanderworld/src/relationships.js");
+const {
+  checkRelationship,
+  checkTraitMap,
+  createRelationships,
+  linksFromWords,
+  phraseOf,
+  setupFromWords,
+  tierOf,
+  warmthOf,
+} = await import("../packages/wanderworld/src/relationships.js");
 const { createCrowd } = await import("../packages/wanderworld/src/npcs.js");
 const { createWorld } = await import("../packages/wanderworld/src/world.js");
 
@@ -76,6 +84,26 @@ assert.deepEqual(
   setupFromWords(["the old mill", "rumours"]),
   { body: null, relation: null },
   "other words set nothing",
+);
+// …and how they stand toward others, in plain words; nothing assumed the other way round.
+assert.deepEqual(
+  linksFromWords(["Jacob", "male", "brother of Sarah", "son of Zoey", "friends with Mira", "sworn enemy of Rook"]),
+  [
+    { name: "Sarah", relation: { kind: "family", level: 60, role: "brother" } },
+    { name: "Zoey", relation: { kind: "family", level: 70, role: "son" } },
+    { name: "Mira", relation: { kind: "friend", level: 50, role: "" } },
+    { name: "Rook", relation: { kind: "enemy", level: 87, role: "" } },
+  ],
+);
+assert.deepEqual(
+  linksFromWords(["tales of the river", "in love with Tam"]),
+  [{ name: "Tam", relation: { kind: "romance", level: 85, role: "" } }],
+  "only a relationship word before 'of' / 'with' counts",
+);
+assert.equal(
+  setupFromWords(["brother of Sarah"]).relation,
+  null,
+  "a link to someone else isn't how they see the player",
 );
 
 // ── In town ──

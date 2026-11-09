@@ -269,7 +269,43 @@ const RELATION_WORDS = {
   boss: { kind: "colleague", level: 50, role: "employer" },
   student: { kind: "mentor", level: 50, role: "student" },
   apprentice: { kind: "colleague", level: 40, role: "apprentice" },
+  father: { kind: "family", level: 70, role: "father" },
+  mother: { kind: "family", level: 70, role: "mother" },
+  son: { kind: "family", level: 70, role: "son" },
+  daughter: { kind: "family", level: 70, role: "daughter" },
+  grandchild: { kind: "family", level: 60, role: "grandchild" },
+  friends: { kind: "friend", level: 50 },
+  "in love": { kind: "romance", level: 85 },
 };
+
+/** A relationship a single word (or phrase) names: "enemy", "sworn enemy", "sister", "in love"; or null. */
+function relationOf(word) {
+  if (RELATION_WORDS[word]) return { role: "", ...RELATION_WORDS[word] };
+  if (KINDS.family.roles.includes(word)) return { kind: "family", level: 60, role: word };
+  for (const [kind, spec] of Object.entries(KINDS)) {
+    if (word === kind || word === spec.label.toLowerCase()) return { kind, level: 50, role: "" };
+    const tier = spec.tiers.indexOf(word);
+    if (tier >= 0) return { kind, level: tier * 25 + 12, role: "" };
+  }
+  return null;
+}
+
+/**
+ * Relationships with other people a character's keywords spell out, in plain words: "brother of Sarah",
+ * "son of Zoey", "enemy of Mira", "friends with Tam", "in love with Jacob". Each says how this character
+ * stands toward the one named; nothing is assumed the other way round (Sarah's own entry says "sister of
+ * Jacob" if she sees it so). Returns [{ name (as written), relation: { kind, level, role } }].
+ */
+export function linksFromWords(words) {
+  const links = [];
+  for (const raw of words) {
+    const match = /^(.+?)\s+(?:of|with|to)\s+(.+)$/iu.exec(String(raw ?? "").trim());
+    if (!match) continue;
+    const relation = relationOf(match[1].toLowerCase().trim());
+    if (relation && match[2].trim()) links.push({ name: match[2].trim(), relation });
+  }
+  return links;
+}
 
 /**
  * What a character's lore entries say about them, from their keywords: their body ("male", "female")
@@ -285,17 +321,7 @@ export function setupFromWords(words) {
       .trim();
     if (!word) continue;
     body ??= GENDER_WORDS[word] ?? null;
-    if (relation) continue;
-    if (RELATION_WORDS[word]) relation = { role: "", ...RELATION_WORDS[word] };
-    else if (KINDS.family.roles.includes(word)) relation = { kind: "family", level: 60, role: word };
-    else {
-      for (const [kind, spec] of Object.entries(KINDS)) {
-        const tier = spec.tiers.indexOf(word);
-        if (word === kind || word === spec.label.toLowerCase()) relation = { kind, level: 50, role: "" };
-        else if (tier >= 0) relation = { kind, level: tier * 25 + 12, role: "" };
-        if (relation) break;
-      }
-    }
+    relation ??= relationOf(word);
   }
   return { body, relation };
 }

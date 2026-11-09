@@ -205,6 +205,9 @@ signs that carry a picture by default._
   `characterLinking` does the same for characters (0.4.33): their entries link by name, and keywords
   set what isn't set yet (`relationships.js` `setupFromWords`: "male"/"female" picks the body; a kind,
   label, tier or role such as "enemy", "sworn enemy", "mentor" or "sister" sets how they see the player).
+  Keywords of the form "<relationship> of|with <Name>" ("brother of Sarah", "friends with Tam") set how
+  they stand toward another character in town or the player (`linksFromWords`), one way only: the
+  user's lorebook says each direction, nothing is inferred.
 - **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
   forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
   every place in it, on top of each place's own and the places it sits in. A world's groups are plain

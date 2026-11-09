@@ -43,7 +43,16 @@ import {
 import { landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
-import { checkTraits, createRelationships, KINDS, phraseOf, setupFromWords, tierOf, TRAITS } from "./relationships.js";
+import {
+  checkTraits,
+  createRelationships,
+  KINDS,
+  linksFromWords,
+  phraseOf,
+  setupFromWords,
+  tierOf,
+  TRAITS,
+} from "./relationships.js";
 import { createWorld, hashString, heightAt, NATURE_MODELS, SPAWN, TOWN_PROPS, waterAt, WORLD_SIZE } from "./world.js";
 
 const PACKAGE_ID = "wanderworld";
@@ -819,8 +828,30 @@ function setupCharactersFromLore(books) {
       setRelation(character.id, "player", relation, false);
       set++;
     }
+    // "brother of Sarah", "son of Zoey": how they stand toward someone else in town, or the player.
+    for (const link of linksFromWords(words)) {
+      const to = whoIsNamed(link.name);
+      if (!to || to === character.id || core.relations.get(character.id, to)) continue;
+      setRelation(character.id, to, link.relation, false);
+      set++;
+    }
   }
   return set;
+}
+
+/** Who a name in a lore keyword means: a character in town, or the player ("you", "player", their persona's name). */
+function whoIsNamed(name) {
+  const plainName = (text) =>
+    String(text ?? "")
+      .toLowerCase()
+      .trim()
+      .replace(/^(the|a|an)\s+/u, "");
+  const wanted = plainName(name);
+  if (["you", "player", plainName(personaName())].includes(wanted)) return "player";
+  const character = (core.characters ?? []).find(
+    (entry) => core.cast?.has(entry.id) && plainName(entry.name) === wanted,
+  );
+  return character?.id ?? null;
 }
 
 /** Changes the world's setup from Journal → World: its setting words, lorebooks or how lore is linked. */
