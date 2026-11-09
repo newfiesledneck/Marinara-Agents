@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.35",
+          "date": "2026-11-08",
+          "notes": "- Lorebooks can set how characters stand toward each other: a character's entry keyed \"brother of Sarah\", \"son of Zoey\", \"enemy of Mira\" or \"friends with Tam\" sets that one way. Nothing is assumed the other way round; the other character's own entry says how they see it. \"you\" or your persona's name means you.",
+          "highlight": false
+        },
+        {
           "version": "0.4.34",
           "date": "2026-11-08",
           "notes": "- Party tab: \"Everyone near me comes along\" brings everyone standing within a few steps of you into the party, and \"Everyone parts ways\" sends the whole party off again.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.16",
           "date": "2026-11-08",
           "notes": "- The land round town has shape: hills from gentle to rugged, mountain ranges along some edges with rock and snow, and a winding river with sandy banks.\n- Places out in the country: a roadside inn, cottages and caves in hillsides, each at the end of its own dirt road, with a wooden bridge where a road crosses the river.\n- Every world's land is its own. New world can choose hills, mountains, a river and how much is out in the country, or let the seed surprise you. The world keeps it.\n- The river, roads, mountains, inns and caves have names, and a cave can be used like a door.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.15",
-          "date": "2026-11-08",
-          "notes": "- A party: in a conversation, ask someone to come with you. They follow in a loose line, run to catch up, find their way round buildings, sit near you when you sit, and catch up if they get lost.\n- Journal → Party lists who's with you: tell someone to wait here or come along, or part ways.\n- The party is saved with the world, and a door's card says who's coming in with you.",
           "highlight": false
         }
       ]
