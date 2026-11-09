@@ -571,14 +571,14 @@ export function createJournal(panelCss, handlers) {
       body.append(select);
     };
     picker("loreLinking", [
+      ["none", "Places: I'll tie lore myself"],
       ["keywords", "Places: link entries by matching names"],
       ["ai", "Places: let the AI link entries (with the AI update)"],
-      ["none", "Places: I'll tie them myself"],
     ]);
     picker("characterLinking", [
+      ["none", "Characters: I'll set them up myself"],
       ["keywords", "Characters: link and set up by name"],
       ["ai", "Characters: let the AI do it (with the AI update)"],
-      ["none", "Characters: I'll set them up myself"],
     ]);
     if (world.loreLinking === "keywords" || world.characterLinking === "keywords")
       body.append(button("Link lore by name now", SMALL, () => handlers.onLinkLore()));

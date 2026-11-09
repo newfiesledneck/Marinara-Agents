@@ -208,15 +208,16 @@ export function createMenu(layer, handlers, art = null) {
       }
       return select;
     };
+    // Off unless chosen: nothing is linked or set up for you until you opt in.
     const linking = picker([
+      ["none", "Places: I'll tie lore myself"],
       ["keywords", "Places: link entries by matching names"],
       ["ai", "Places: let the AI link entries (with the AI update)"],
-      ["none", "Places: I'll tie them myself"],
     ]);
     const characterLinking = picker([
-      ["keywords", "Characters: link and set up by name (body, how they see you)"],
-      ["ai", "Characters: let the AI do it (with the AI update)"],
       ["none", "Characters: I'll set them up myself"],
+      ["keywords", "Characters: link and set up by name (body, relationships)"],
+      ["ai", "Characters: let the AI do it (with the AI update)"],
     ]);
     const create = button("Create and play", BIG, () =>
       handlers.onCreate({

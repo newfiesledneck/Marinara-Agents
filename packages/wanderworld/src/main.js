@@ -579,8 +579,8 @@ function createNewWorld({
   choices,
   setting = "",
   lorebooks = [],
-  loreLinking = "keywords",
-  characterLinking = "keywords",
+  loreLinking = "none",
+  characterLinking = "none",
 }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
