@@ -56,7 +56,7 @@ const landscape = {
 const world = createWorld(31, landscape);
 assert.deepEqual(
   world.landscape,
-  { ...landscape, settlement: { kind: "town", market: "square", roads: "cobble", side: null } },
+  { ...landscape, settlement: { kind: "town", market: "square", roads: "cobble", side: null, layout: "grid" } },
   "the world keeps the landscape it was built with (a town, when none was given)",
 );
 for (const [x, z] of [
@@ -245,6 +245,20 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
   assert.ok(offside.layout.plaza.x > 10, "a market off to the east sits east of the middle");
   assert.ok(offside.spawn.x > 10, "and a first visit starts by it");
   offside.dispose();
+  // Layouts: a crossroads, one street and a ring leave blocks open (a grid builds them all); every house
+  // is still on a laid street, and the townsfolk's street points are only on laid streets.
+  const built = {};
+  for (const layout of ["grid", "crossroads", "street", "ring"]) {
+    const world = createWorld(94, { ...landscapeWith(94, { places: "none" }), settlement: { kind: "town", layout } });
+    built[layout] = world.layout.buildings.length;
+    assert.ok(world.layout.buildings.length > 6, `${layout}: a settlement with houses`);
+    assert.ok(world.waypoints.length > 4, `${layout}: streets to walk`);
+    world.dispose();
+  }
+  assert.ok(
+    built.crossroads < built.grid && built.street < built.grid,
+    `fewer blocks than a grid (${JSON.stringify(built)})`,
+  );
   const grown = landscapeNeeds({ ...landscapeWith(93, {}), settlement: { kind: "hamlet" } }, { home: 30 }, 93);
   assert.equal(grown.settlement.kind, "town", "a hamlet too small for thirty homes grows into a town");
 }

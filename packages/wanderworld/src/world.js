@@ -264,12 +264,25 @@ let blocksPerSide = BLOCKS_PER_SIDE;
 let townHalf = (BLOCKS_PER_SIDE * PITCH) / 2;
 let streetLines = STREET_LINES;
 let plaza = { x: 0, z: 0 }; // the market's middle
-let look = { kind: "town", market: "square", roads: "cobble", side: null };
+let look = { kind: "town", market: "square", roads: "cobble", side: null, layout: "grid" };
+let blocks = null; // "a,b" of every block that's built (null: all of them, the grid)
+
+/** Whether block (a, b) of the settlement is built (its layout decides). */
+const hasBlock = (a, b) =>
+  a >= 0 && b >= 0 && a < blocksPerSide && b < blocksPerSide && (!blocks || blocks.has(`${a},${b}`));
+
+/** Whether the street along z-line `k` over block column `a` is laid (a block either side of it). */
+const hasStreetX = (k, a) => hasBlock(a, k - 1) || hasBlock(a, k);
+/** Whether the street along x-line `k` over block row `b` is laid. */
+const hasStreetZ = (k, b) => hasBlock(k - 1, b) || hasBlock(k, b);
 
 /** Sets the settlement for the world being built (its size, market and roads). */
 function useSettlement(settlement) {
   look = settlement;
-  blocksPerSide = SETTLEMENTS[settlement.kind]?.blocks ?? BLOCKS_PER_SIDE;
+  const layout = settlement.layout ?? "grid";
+  // A crossroads or one long street needs more blocks along its lines to hold as many homes.
+  const kindBlocks = SETTLEMENTS[settlement.kind]?.blocks ?? BLOCKS_PER_SIDE;
+  blocksPerSide = layout === "grid" ? kindBlocks : Math.max(3, kindBlocks + (layout === "ring" ? 0 : 2));
   townHalf = (blocksPerSide * PITCH) / 2;
   streetLines = Array.from({ length: blocksPerSide + 1 }, (_, i) => (i - blocksPerSide / 2) * PITCH);
   // The market's block: the middle one (for an even count, the one just short of it), or one to a side.
@@ -278,6 +291,23 @@ function useSettlement(settlement) {
   const index = (axis) => Math.max(0, Math.min(blocksPerSide - 1, base + step[axis]));
   const centre = (i) => (i - (blocksPerSide - 1) / 2) * PITCH;
   plaza = { x: centre(index(0)), z: centre(index(1)), i: index(0), j: index(1) };
+  // The layout's blocks: all of them (grid), a plus along two main streets (crossroads), one long row
+  // (along the road), or a rounded cluster round the market (ring). The market's block always.
+  const middle = Math.floor((blocksPerSide - 1) / 2);
+  const outer = blocksPerSide - 1;
+  const keep =
+    {
+      grid: () => true,
+      crossroads: (a, b) => a === middle || b === middle,
+      street: (a, b) => b === middle,
+      ring: (a, b) => !((a === 0 || a === outer) && (b === 0 || b === outer)),
+    }[layout] ?? (() => true);
+  blocks = null;
+  if (layout !== "grid") {
+    blocks = new Set([`${plaza.i},${plaza.j}`]);
+    for (let a = 0; a < blocksPerSide; a++)
+      for (let b = 0; b < blocksPerSide; b++) if (keep(a, b)) blocks.add(`${a},${b}`);
+  }
 }
 
 /** True when (x, z) is inside the town's footprint plus a margin, where no trees or rocks grow. */
@@ -893,15 +923,10 @@ function buildTown(random, land, ground, needs = {}) {
   const kind = SETTLEMENTS[look.kind] ?? SETTLEMENTS.town;
   // Buildings the lore needs beyond what every town has (one hall, temple and tavern by the square, a
   // few shops facing it): they take the place of houses here and there.
-  const extra = [];
-  const base = kind.base;
-  for (const kind of ["tavern", "smithy", "shop", "temple", "hall"]) {
-    for (let n = base[kind]; n < Math.min(12, needs[kind] ?? 0); n++) extra.push(kind);
-  }
   const town = {
-    extra,
+    extra: [], // filled once the market's neighbours have their roles (below)
     homeLots: 0,
-    extraEvery: Math.max(1, Math.floor(36 / (extra.length + 1))),
+    extraEvery: 1,
     pieces: [],
     buildingPieces: [],
     buildings: [],
@@ -929,6 +954,35 @@ function buildTown(random, land, ground, needs = {}) {
     const j = Math.floor(random() * (i + 1));
     [plazaRoles[i], plazaRoles[j]] = [plazaRoles[j], plazaRoles[i]];
   }
+  // Fewer blocks round the market than roles (a crossroads, one street): the landmarks come first, so
+  // the settlement still has its hall, temple and tavern (a grid has room for them all).
+  let around = 0;
+  for (let da = -1; da <= 1; da++)
+    for (let db = -1; db <= 1; db++) if ((da || db) && hasBlock(plaza.i + da, plaza.j + db)) around++;
+  if (around < plazaRoles.length) {
+    const rank = (role) => (role === "homes" ? 2 : role === "shops" ? 1 : 0);
+    plazaRoles.sort((a, b) => rank(a) - rank(b));
+  }
+  // What it has anyway: the landmarks among the roles that found a block (a grid: the kind's usual), and
+  // its usual shops on a grid (elsewhere they aren't sure, so the lore's shops all come as extras).
+  const given = plazaRoles.slice(0, around);
+  const base = blocks
+    ? {
+        hall: 0,
+        temple: 0,
+        tavern: 0,
+        smithy: 0,
+        shop: 0,
+        ...Object.fromEntries(
+          ["hall", "temple", "tavern"].map((role) => [role, given.filter((entry) => entry === role).length]),
+        ),
+      }
+    : kind.base;
+  for (const want of ["tavern", "smithy", "shop", "temple", "hall"]) {
+    for (let n = base[want]; n < Math.min(12, needs[want] ?? 0); n++) town.extra.push(want);
+  }
+  // Spread through the house lots there are (about two per block; a town's grid keeps its old spacing).
+  town.extraEvery = Math.max(1, Math.floor((blocks ? Math.max(3, blocks.size * 2) : 36) / (town.extra.length + 1)));
   const outer = centres[centres.length - 1];
   const smithyBlock = Math.floor(random() * 4);
   let ring = 0;
@@ -936,10 +990,11 @@ function buildTown(random, land, ground, needs = {}) {
   centres.forEach((cx, a) => {
     centres.forEach((cz, b) => {
       if (a === plaza.i && b === plaza.j) return; // the market
+      if (!hasBlock(a, b)) return; // left open by the layout: meadow and woods
       const nearPlaza = Math.max(Math.abs(a - plaza.i), Math.abs(b - plaza.j)) <= 1;
       const edge = Math.max(Math.abs(cx), Math.abs(cz)) === outer;
-      if (edge && !nearPlaza && random() < 0.3) {
-        placeMeadow(random, town, cx, cz); // a ragged edge reads as a settlement, not a grid
+      if (!blocks && edge && !nearPlaza && random() < 0.3) {
+        placeMeadow(random, town, cx, cz); // a grid's ragged edge reads as a settlement, not a grid (other layouts are already ragged)
         return;
       }
       const corner = Math.abs(cx) === outer && Math.abs(cz) === outer;
@@ -953,15 +1008,20 @@ function buildTown(random, land, ground, needs = {}) {
   });
 
   // Streets: one strip per grid line in each direction, plus the paved plaza and its fountain.
-  const length = blocksPerSide * PITCH + STREET;
-  for (let i = 0; i <= blocksPerSide; i++) {
-    const line = (i - blocksPerSide / 2) * PITCH;
-    town.roadPieces.push(
-      painted(new PlaneGeometry(length, STREET).rotateX(-Math.PI / 2).translate(0, 0.03, line), ROAD),
-    );
-    town.roadPieces.push(
-      painted(new PlaneGeometry(STREET, length).rotateX(-Math.PI / 2).translate(line, 0.035, 0), ROAD),
-    );
+  const span = PITCH + STREET; // a block's length of street, overlapping at the crossings
+  for (let k = 0; k <= blocksPerSide; k++) {
+    const line = (k - blocksPerSide / 2) * PITCH;
+    for (let a = 0; a < blocksPerSide; a++) {
+      const along = centres[a];
+      if (hasStreetX(k, a))
+        town.roadPieces.push(
+          painted(new PlaneGeometry(span, STREET).rotateX(-Math.PI / 2).translate(along, 0.03, line), ROAD),
+        );
+      if (hasStreetZ(k, a))
+        town.roadPieces.push(
+          painted(new PlaneGeometry(STREET, span).rotateX(-Math.PI / 2).translate(line, 0.035, along), ROAD),
+        );
+    }
   }
   // The market: a paved square with a fountain (a town or city), stalls on paving or packed earth (a
   // village), or a green (a hamlet).
@@ -986,8 +1046,9 @@ function buildTown(random, land, ground, needs = {}) {
         (Math.abs(middle - pz) < PITCH / 2 && Math.abs(line - px) < PITCH);
       if (byMarket || random() > 0.15) continue;
       const kerb = line + (random() < 0.5 ? -1 : 1) * (STREET / 2 - 1);
-      if (random() < 0.5) placeWagon(random, town, middle, kerb, true);
-      else placeWagon(random, town, kerb, middle, false);
+      if (random() < 0.5) {
+        if (hasStreetX(i, j)) placeWagon(random, town, middle, kerb, true);
+      } else if (hasStreetZ(i, j)) placeWagon(random, town, kerb, middle, false);
     }
   }
   placeMarket(random, town);
@@ -1003,8 +1064,10 @@ function buildTown(random, land, ground, needs = {}) {
         x: (i - blocksPerSide / 2) * PITCH + STREET / 2 - 0.4,
         z: (j - blocksPerSide / 2) * PITCH + STREET / 2 - 0.4,
       };
-      // Dirt streets have lamps only at the market's corners.
+      // Dirt streets have lamps only at the market's corners; any street, only where streets meet.
       if (look.roads === "dirt" && Math.max(Math.abs(lamp.x - plaza.x), Math.abs(lamp.z - plaza.z)) > PITCH) continue;
+      const meeting = [hasStreetX(j, i - 1), hasStreetX(j, i), hasStreetZ(i, j - 1), hasStreetZ(i, j)];
+      if (meeting.filter(Boolean).length < 2) continue;
       lamps.push(lamp);
     }
   }
@@ -1360,22 +1423,23 @@ function blockEdges(town, ground) {
   // Round the outside of the town, the outermost streets' cobbles fade into the meadow.
   const outside = (blocksPerSide * PITCH) / 2 + STREET / 2;
   const edgeLoop = roundedLoop(0, 0, outside + 0.9, 0, 3);
-  pieces.push(
-    ribbon(edgeLoop, 1.8, {
-      heightOf: flat(0.04),
-      columns: [
-        { at: -1, colour: white, splat: [1, 0, 0, 0], splatB: [0, 0, 0, 0], lift: -0.03 },
-        look.roads === "dirt"
-          ? { at: -0.2, colour: white, splat: [0.5, 0.5, 0, 0], splatB: [0, 0, 0, 0] }
-          : { at: -0.2, colour: white, splat: [0.5, 0, 0, 0], splatB: [0, 0.5, 0, 0] },
-        look.roads === "dirt"
-          ? { at: 1, colour: white, splat: [0, 1, 0, 0], splatB: [0, 0, 0, 0] }
-          : { at: 1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] },
-      ],
-    }),
-  );
+  if (!blocks)
+    pieces.push(
+      ribbon(edgeLoop, 1.8, {
+        heightOf: flat(0.04),
+        columns: [
+          { at: -1, colour: white, splat: [1, 0, 0, 0], splatB: [0, 0, 0, 0], lift: -0.03 },
+          look.roads === "dirt"
+            ? { at: -0.2, colour: white, splat: [0.5, 0.5, 0, 0], splatB: [0, 0, 0, 0] }
+            : { at: -0.2, colour: white, splat: [0.5, 0, 0, 0], splatB: [0, 0.5, 0, 0] },
+          look.roads === "dirt"
+            ? { at: 1, colour: white, splat: [0, 1, 0, 0], splatB: [0, 0, 0, 0] }
+            : { at: 1, colour: white, splat: [0, 0, 0, 0], splatB: [0, 1, 0, 0] },
+        ],
+      }),
+    );
   return new Mesh(
-    mergeGeometries(pieces),
+    mergeOrEmpty(pieces), // dirt streets in a crossroads or a ring: no kerbs, sidewalks or edge
     terrainMaterial(ground, { polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
   );
 }
@@ -1829,18 +1893,21 @@ function scatter(random, count, scaleMin, scaleRange) {
 function streetStrips() {
   const length = blocksPerSide * PITCH + STREET;
   const strips = [];
+  const laid = (test) => Array.from({ length: blocksPerSide }, (_, a) => a).some(test);
   for (let i = 0; i <= blocksPerSide; i++) {
     const line = (i - blocksPerSide / 2) * PITCH;
     // The street with its sidewalks and doorsteps: someone at a front door is on the street.
     const across = { min: line - STREET / 2 - 2.5, max: line + STREET / 2 + 2.5 };
-    strips.push({
-      id: `street:x${i}`,
-      box: { minX: -length / 2, maxX: length / 2, minZ: across.min, maxZ: across.max },
-    });
-    strips.push({
-      id: `street:z${i}`,
-      box: { minX: across.min, maxX: across.max, minZ: -length / 2, maxZ: length / 2 },
-    });
+    if (laid((a) => hasStreetX(i, a)))
+      strips.push({
+        id: `street:x${i}`,
+        box: { minX: -length / 2, maxX: length / 2, minZ: across.min, maxZ: across.max },
+      });
+    if (laid((b) => hasStreetZ(i, b)))
+      strips.push({
+        id: `street:z${i}`,
+        box: { minX: across.min, maxX: across.max, minZ: -length / 2, maxZ: length / 2 },
+      });
   }
   return strips;
 }
@@ -1849,15 +1916,18 @@ function streetWaypoints() {
   const points = [];
   const lines = [];
   for (let i = 0; i <= blocksPerSide; i++) lines.push((i - blocksPerSide / 2) * PITCH);
-  for (const a of lines) {
+  // Crossings and the middle of each block's street, where those streets are laid.
+  lines.forEach((a, k) => {
     for (let j = 0; j < lines.length; j++) {
-      points.push({ x: a, z: lines[j] });
+      const onStreet = hasStreetX(j, k - 1) || hasStreetX(j, k) || hasStreetZ(k, j - 1) || hasStreetZ(k, j);
+      if (onStreet) points.push({ x: a, z: lines[j] });
       if (j < lines.length - 1) {
         const middle = (lines[j] + lines[j + 1]) / 2;
-        points.push({ x: a, z: middle }, { x: middle, z: a });
+        if (hasStreetZ(k, j)) points.push({ x: a, z: middle });
+        if (hasStreetX(k, j)) points.push({ x: middle, z: a });
       }
     }
-  }
+  });
   return points;
 }
 

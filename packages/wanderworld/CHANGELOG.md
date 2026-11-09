@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.51 — 2026-11-09
+
+- Settlement layouts: a grid of streets, a crossroads, a row along one street, or a cluster round the market, chosen in New world or left to the seed. Streets are laid only beside the blocks that are built, and lamps stand where streets meet.
+
 ## 0.4.50 — 2026-11-09
 
 - Settlements: a hamlet, village, town or city, chosen in New world or left to the seed. Each has its own size and buildings: a hamlet of houses round a green, a village with stalls, a tavern and a temple, a town with its fountain square, a city with more of everything.

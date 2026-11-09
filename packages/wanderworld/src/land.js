@@ -13,6 +13,14 @@ export const HILLS = ["flat", "gentle", "rolling", "rugged"];
 export const OUTPOST_KINDS = ["inn", "cottage", "cave"];
 /** Kinds of settlement, smallest first, with their usual market and roads and about how many homes they hold. */
 export const SETTLEMENT_KINDS = ["hamlet", "village", "town", "city"];
+export const SETTLEMENT_LAYOUTS = ["grid", "crossroads", "street", "ring"];
+/** The layouts each kind is usually laid out in, when left to the seed. */
+const USUAL_LAYOUTS = {
+  hamlet: ["street", "crossroads"],
+  village: ["crossroads", "street", "ring"],
+  town: ["grid", "ring", "crossroads"],
+  city: ["grid", "grid", "ring"],
+};
 const SETTLEMENT_LOOK = {
   hamlet: { market: "green", roads: "dirt", homes: 9 },
   village: { market: "stalls", roads: "dirt", homes: 20 },
@@ -33,6 +41,8 @@ export function checkSettlement(raw) {
     market: ["square", "stalls", "green"].includes(raw?.market) ? raw.market : usual.market,
     roads: ["cobble", "dirt"].includes(raw?.roads) ? raw.roads : usual.roads,
     side: SIDES.includes(raw?.side) ? raw.side : null,
+    // How its blocks are laid out: all of them (grid), a plus (crossroads), one long street, or a ring.
+    layout: SETTLEMENT_LAYOUTS.includes(raw?.layout) ? raw.layout : "grid",
   };
 }
 const HILL_SCALE = { flat: 0.15, gentle: 0.6, rolling: 1.2, rugged: 2.1 };
@@ -114,10 +124,12 @@ export function landscapeWith(seed, choices = {}) {
           ? "town"
           : "city";
   const offside = choices.marketAt === "side" || (choices.marketAt !== "middle" && pick() < 0.4);
+  const usual = USUAL_LAYOUTS[kind];
   landscape.settlement = checkSettlement({
     kind,
     roads: ["cobble", "dirt"].includes(choices.roads) ? choices.roads : undefined,
     side: offside ? SIDES[Math.floor(pick() * SIDES.length)] : null,
+    layout: SETTLEMENT_LAYOUTS.includes(choices.layout) ? choices.layout : usual[Math.floor(pick() * usual.length)],
   });
   return landscape;
 }
