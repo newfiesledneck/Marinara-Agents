@@ -21,6 +21,7 @@ const OUTPOST_FLAT = 11; // metres round an inn or cottage that are level
 const OUTPOST_BLEND = 12; // and then blend back into the hills
 const MOUNTAIN_REACH = 62; // how far in from the edge a range rises
 const BRIDGE_HALF_WIDTH = 1.6;
+const MAX_OUTPOSTS = 10; // places out in the country (a few per side)
 const BRIDGE_END = 2.4; // metres of each bridge's end that rest on banked-up earth
 const BRIDGE_RAMP = 3.5; // metres beyond each end over which that earth eases back into the land
 /** A cave: a tunnel this deep into its hill and this wide (world.js builds the rock round it). */
@@ -77,6 +78,40 @@ export function landscapeWith(seed, choices = {}) {
   return landscape;
 }
 
+/**
+ * A landscape with what a world's lore needs (zones.js `needsFromLore`): enough mountain sides, a river,
+ * and enough inns, cottages and caves. A cave needs hills to sit in, so asking for one brings mountains
+ * with it. Anything already there stays.
+ */
+export function landscapeNeeds(landscape, needs = {}, seed = 0) {
+  const out = { ...landscape, mountains: [...landscape.mountains], outposts: [...landscape.outposts] };
+  const random = rng(seed ^ 0x51ed270b);
+  const free = () => SIDES.filter((side) => !out.mountains.includes(side) && out.river?.side !== side);
+  const count = (kind) => out.outposts.filter((entry) => entry.kind === kind).length;
+  const mountains = Math.min(3, Math.max(needs.mountains ?? 0, (needs.cave ?? 0) > 0 ? 1 : 0));
+  while (out.mountains.length < mountains) {
+    const side = free()[0] ?? SIDES.find((s) => !out.mountains.includes(s));
+    if (!side) break;
+    out.mountains.push(side);
+  }
+  if ((needs.river ?? 0) > 0 && !out.river) {
+    out.river = { side: free()[0] ?? SIDES.find((side) => !out.mountains.includes(side)) ?? SIDES[0] };
+  }
+  for (const kind of OUTPOST_KINDS) {
+    while (count(kind) < Math.min(4, needs[kind] ?? 0) && out.outposts.length < MAX_OUTPOSTS) {
+      // Caves on a mountain side; the rest on whichever side has fewest so far.
+      const sides = kind === "cave" && out.mountains.length ? out.mountains : SIDES;
+      const side = [...sides].sort(
+        (a, b) =>
+          out.outposts.filter((entry) => entry.side === a).length -
+            out.outposts.filter((entry) => entry.side === b).length || random() - 0.5,
+      )[0];
+      out.outposts.push({ kind, side });
+    }
+  }
+  return out;
+}
+
 /** A landscape with every field checked; anything missing comes from the seed's own. */
 export function checkLandscape(raw, seed) {
   const fallback = landscapeFor(seed);
@@ -86,7 +121,7 @@ export function checkLandscape(raw, seed) {
   const outposts = Array.isArray(raw.outposts)
     ? raw.outposts
         .filter((entry) => entry && OUTPOST_KINDS.includes(entry.kind) && SIDES.includes(entry.side))
-        .slice(0, 6)
+        .slice(0, MAX_OUTPOSTS)
         .map((entry) => ({
           kind: entry.kind,
           side: entry.side,

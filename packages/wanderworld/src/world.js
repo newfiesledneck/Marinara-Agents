@@ -669,13 +669,16 @@ function fillBlock(random, town, cx, cz, role) {
       placeGarden(random, town, x, z, 6, random() < 0.5 ? (lz > 0 ? 0 : 2) : lx > 0 ? 1 : 3);
       continue;
     }
-    const kind = facesPlaza
+    let kind = facesPlaza
       ? "shop"
       : role === "smithy" && lx < 0 && lz < 0
         ? "smithy"
         : random() < 0.08
           ? "shop"
           : "home";
+    // The world's lore needs more of some kind (a second tavern, three smithies): every so many houses
+    // becomes one, spread through town.
+    if (kind === "home" && town.extra.length && ++town.homeLots % town.extraEvery === 0) kind = town.extra.shift();
     const facing = facesPlaza ? toPlaza : random() < 0.5 ? (lz > 0 ? 0 : 2) : lx > 0 ? 1 : 3;
     placeBuilding(
       random,
@@ -688,8 +691,18 @@ function fillBlock(random, town, cx, cz, role) {
   }
 }
 
-function buildTown(random, land, ground) {
+function buildTown(random, land, ground, needs = {}) {
+  // Buildings the lore needs beyond what every town has (one hall, temple and tavern by the square, a
+  // few shops facing it): they take the place of houses here and there.
+  const extra = [];
+  const base = { hall: 1, temple: 1, tavern: 1, shop: 3, smithy: 0 };
+  for (const kind of ["tavern", "smithy", "shop", "temple", "hall"]) {
+    for (let n = base[kind]; n < Math.min(12, needs[kind] ?? 0); n++) extra.push(kind);
+  }
   const town = {
+    extra,
+    homeLots: 0,
+    extraEvery: Math.max(1, Math.floor(36 / (extra.length + 1))),
     pieces: [],
     buildingPieces: [],
     buildings: [],
@@ -1601,7 +1614,7 @@ function streetWaypoints() {
  * Builds the scene for one seed. Instanced meshes are allocated at the highest density once;
  * changing density only changes how many instances are drawn.
  */
-export function createWorld(seed, landscape = null) {
+export function createWorld(seed, landscape = null, needs = {}) {
   const random = rng(seed);
   land = createLand(checkLandscape(landscape, seed), seed, {
     townHalf: TOWN_HALF,
@@ -1620,7 +1633,7 @@ export function createWorld(seed, landscape = null) {
   const ground = terrainUniforms();
   const groundMesh = buildGround(random, ground);
   scene.add(groundMesh);
-  const town = buildTown(random, land, ground);
+  const town = buildTown(random, land, ground, needs ?? {});
   const { country } = town;
   scene.add(
     town.mesh,

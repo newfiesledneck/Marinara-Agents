@@ -214,6 +214,12 @@ signs that carry a picture by default._
   in <place>" (inside another place or group; one the world hasn't built there waits for the world
   builder in `waitingPlacements`), and on characters "lives in", "works at", "owner of" (`housing`: a
   lore home is reserved for those named; workers go to work by day) — `structureFromLore`.
+- **Built to the lore (0.4.38):** `needsFromLore` reads the highest number used per kind in a world's
+  lorebooks (also inside "lives in home6", "located in cave1"); the world is built with at least that
+  many (`landscapeNeeds`: mountain sides, a river, inns, cottages and caves, a cave bringing mountains;
+  `buildTown`: extra taverns, temples, halls, smithies and shops in place of houses), random past that.
+  Saved as `needs`; regenerate reads them again. Second towns (town2) are the next step: a smaller
+  village out in the country on its own road, with its own square and buildings.
 - **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
   forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
   every place in it, on top of each place's own and the places it sits in. A world's groups are plain
