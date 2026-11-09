@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.31",
+          "date": "2026-11-08",
+          "notes": "- New world asks for the world's setting, which lorebooks it uses, and how their entries are linked to places: by matching names (an entry named or keyed \"tavern\", \"the woods\" or the town's name goes there), by the AI once the AI update arrives, or by hand.\n- Journal → World shows and changes that setup later, with a button to link lore by name again.\n- Keyword links also reach groups, characters (by name) and the whole world (\"world\").",
+          "highlight": false
+        },
+        {
           "version": "0.4.30",
           "date": "2026-11-08",
           "notes": "- Journal → Places shows the world's setup as a tree: the whole world, its characters, then each place inside the one it sits in (town, street, building), then groups. Lore can be tied at every level.\n- Lore for the whole world is active everywhere; a character's lore is active while you talk to them or while they're with you.\n- Groups can sit inside other groups and pass their lore down.\n- Regenerating with a new layout keeps the setup: names, lore and groups move to the same kind of place (the tavern stays the tavern).",
@@ -1519,12 +1525,6 @@
           "version": "0.4.12",
           "date": "2026-11-08",
           "notes": "- Real buildings: every house, shop, the tavern, temple, hall and smithy is assembled from Quaternius's free Medieval Village MegaKit (public domain): brick or stone ground floors, plaster and timber-framed storeys, arched windows with shutters, arched doors, round-tile roofs with brick gables, chimneys, balconies and towers.\n- Buildings now sit on the kit's 2 m grid, so a town's layout differs a little from before; porches are gone.\n- Settings → Detailed buildings turns them off on slow devices.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.11",
-          "date": "2026-11-08",
-          "notes": "- Detailed furniture and props from Quaternius's free Fantasy Props and Medieval Village kits (public domain): market stalls with crates of apples and carrots, benches, barrels and crates in town; beds, tables, chairs, stools, bookcases, chests, an anvil and workbench, candle stands, banners, and mugs and plates on tables indoors.\n- Settings → Detailed furniture and props turns them off on slow devices.",
           "highlight": false
         }
       ]
