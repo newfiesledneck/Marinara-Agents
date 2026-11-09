@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.59 — 2026-11-09
+
+- City walls and gates: a new city is ringed by a crenellated stone wall with round corner towers and a gatehouse wherever a road leaves town and in the middle of each side. New world's "Walls" choice gives any settlement walls or none. Townsfolk and your party find their way out and in by the gates. The map shows the wall.
+- Cities made before keep their open edges.
+
 ## 0.4.58 — 2026-11-09
 
 - Landmarks out in the country: old ruins, a timber watchtower, a ring of standing stones, a fenced graveyard just outside town, and a watermill on the river bank. Chosen in New world ("Landmarks") or now and then by the seed; a lorebook naming ruins1, watchtower1, stones1, graveyard1 or mill1 brings one. Someone can work at the mill.

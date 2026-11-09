@@ -167,4 +167,50 @@ shown.room.dispose();
   assert.equal(crowd.party().length, 0, "parting ways empties the party");
 }
 
+// A walled city: a follower in the middle of town finds the way out through a gate to the player waiting
+// outside the walls beyond a corner (the wall in the straight line between them).
+{
+  const { landscapeWith } = await import("../packages/wanderworld/src/land.js");
+  const walled = createWorld(
+    100,
+    landscapeWith(100, {
+      settlement: "city",
+      places: "none",
+      towns: "none",
+      farms: "none",
+      landmarks: "none",
+      river: "no",
+      mountains: "none",
+    }),
+  );
+  assert.equal(walled.layout.walls, true, "a walled city");
+  const crowd2 = createCrowd();
+  crowd2.setDressed(false);
+  crowd2.setWorld(walled);
+  crowd2.setCast([{ id: "w-1", name: "Wren" }]);
+  const line = walled.layout.townHalf + 4.6;
+  const waiting = { x: line + 14, y: 0, z: line + 14 };
+  crowd2.restoreParty(["w-1"], { x: 0, z: 0 });
+  let clock = 0;
+  for (let elapsed = 0; elapsed < 90; elapsed += 0.1) {
+    clock += 0.1;
+    crowd2.update(0.1, {
+      player: waiting,
+      space: walled,
+      playerSitting: false,
+      hour: 12,
+      time: clock,
+      isVisible: () => false,
+      onFootstep: () => {},
+    });
+  }
+  const wren = crowd2.snapshot().find((entry) => entry.id === "w-1");
+  const gap = Math.hypot(wren.x - waiting.x, wren.z - waiting.z);
+  assert.ok(
+    gap < 8,
+    `the follower came out through a gate (${gap.toFixed(1)} m away at (${wren.x.toFixed(0)}, ${wren.z.toFixed(0)}))`,
+  );
+  walled.dispose();
+}
+
 console.log("wanderworld crowd regression: OK");

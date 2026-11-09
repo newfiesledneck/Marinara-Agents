@@ -304,7 +304,8 @@ export function createCrowd() {
     // Out in the wilds, going somewhere else out there (after the party, to the inn): no streets to
     // follow, so straight across country (trees push them round). Into town, the streets.
     const outside = (at) => Math.max(Math.abs(at.x), Math.abs(at.z)) > (world.layout?.townHalf ?? Infinity) + 3;
-    if (outside(from) && outside(target)) return target;
+    // (Unless the town has walls: then round by its gates, unless the way is clear.)
+    if (outside(from) && outside(target) && !world.layout?.walls) return target;
     let best = null;
     let bestCost = Infinity;
     for (const point of world.waypoints) {
