@@ -9,6 +9,7 @@ export function createSound() {
   let enabled = true;
   let volume = 0.6;
   let nextChirp = 2;
+  let rainGain = null; // the rain's loudness (0 until it rains)
 
   function apply() {
     if (!master || !context) return;
@@ -53,6 +54,24 @@ export function createSound() {
     wind.connect(low).connect(windGain).connect(master);
     wind.start();
     drift.start();
+    // Rain: the same noise, high and hissing, with a softer patter under it; silent until it rains.
+    const rain = context.createBufferSource();
+    rain.buffer = noise;
+    rain.loop = true;
+    rain.playbackRate.value = 0.83; // out of step with the wind's copy of the noise
+    const hiss = context.createBiquadFilter();
+    hiss.type = "bandpass";
+    hiss.frequency.value = 2600;
+    hiss.Q.value = 0.5;
+    const patter = context.createBiquadFilter();
+    patter.type = "lowpass";
+    patter.frequency.value = 900;
+    rainGain = context.createGain();
+    rainGain.gain.value = 0;
+    rain.connect(hiss).connect(rainGain);
+    rain.connect(patter).connect(rainGain);
+    rainGain.connect(master);
+    rain.start();
     apply();
   }
 
@@ -117,8 +136,10 @@ export function createSound() {
       burst({ frequency: 120, q: 0.8, length: 0.18, gain: 0.5, type: "lowpass", at: 0.3 });
     },
     /** Birds by day, crickets at night, every so often. `dark` is 0 (day) … 1 (night). */
-    tick(dt, { dark = 0, inside = false } = {}) {
-      if (!context || !enabled || inside) return;
+    tick(dt, { dark = 0, inside = false, rain = 0 } = {}) {
+      // Rain on the roof is quieter indoors.
+      rainGain?.gain.setTargetAtTime(rain * (inside ? 0.04 : 0.14), context.currentTime, 0.8);
+      if (!context || !enabled || inside || rain > 0.4) return; // no birdsong in the rain
       nextChirp -= dt;
       if (nextChirp > 0) return;
       if (dark > 0.6) {

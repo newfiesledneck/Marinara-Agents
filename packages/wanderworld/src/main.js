@@ -2689,7 +2689,8 @@ function step(dt) {
     approachMax: core.settings.approachMax,
   });
   core.talk?.update(dt);
-  core.sound.tick(dt, { dark: core.dark, inside });
+  const weather = core.world.weatherNow();
+  core.sound.tick(dt, { dark: core.dark, inside, rain: weather.kind === "rain" ? weather.amount : 0 });
 
   placeCamera(dt);
   core.interior?.room.update(dt, core.camera);
