@@ -323,14 +323,14 @@ export function createMenu(layer, handlers, art = null) {
     };
     // Off unless chosen: nothing is linked or set up for you until you opt in.
     const linking = picker([
-      ["none", "Places: I'll tie lore myself"],
-      ["keywords", "Places: link entries by matching names"],
-      ["ai", "Places: let the AI link entries (with the AI update)"],
+      ["none", "Lore and places: I'll tie lore myself"],
+      ["keywords", "Lore and places: link lorebook entries by matching names"],
+      ["ai", "Lore and places: let the AI read the lorebooks"],
     ]);
     const characterLinking = picker([
       ["none", "Characters: I'll set them up myself"],
-      ["keywords", "Characters: link and set up by name (body, relationships)"],
-      ["ai", "Characters: let the AI do it (with the AI update)"],
+      ["keywords", "Characters: set up from lorebook keywords (body, relationships)"],
+      ["ai", "Characters: let the AI set them up (cards, persona, lorebooks)"],
     ]);
     // Who you play: type a persona's name (an exact match picks it) or pick one from the list.
     const people = handlers.people?.() ?? {
@@ -481,13 +481,12 @@ export function createMenu(layer, handlers, art = null) {
         'Entries named or keyed after a place (the town\'s name, "tavern", "the woods"), a character or "world" are tied there; a character\'s entry keyed "enemy", "mentor", "male"… sets them up too.',
       ),
       bookList,
-      linking,
-      characterLinking,
-      element(
-        "div",
-        "font:12px system-ui;opacity:0.7;",
-        "Later, a world will be written from your persona, characters and lorebooks. For now it's a seeded town.",
+      element("div", "font:12px system-ui;opacity:0.75;", "Setting the world up"),
+      explainLine(
+        "The AI can make the world ready to play: who's a man or a woman, how people know each other and you, where everyone lives and works, and which lore belongs to which place, with the places that takes built in. It reads your characters' cards and persona (one model call) and the lorebooks chosen above (one call for every 40 entries), on the conversations connection. No lorebook is needed for the characters.",
       ),
+      characterLinking,
+      linking,
       create,
       button("Back", SMALL, home),
     );

@@ -639,14 +639,125 @@ function openMenu() {
 }
 
 /**
- * What a world must have for its lorebooks (zones.js `needsFromLore`), when its places link by name:
+ * The lorebooks a world draws on, as its linking reads them: with their own keywords (by name), the
+ * keywords the AI gave their entries (`save.loreKeys`), or both when places go one way and characters
+ * the other. With the AI alone an entry's own keywords are left out: in any lorebook they're words that
+ * trigger the entry ("town", "forest"), not where it belongs.
+ */
+async function chosenBooks(save) {
+  if (!save.lorebooks.length) return [];
+  const books = (await readLorebooks()).filter((book) => save.lorebooks.includes(book.id));
+  const modes = [save.loreLinking, save.characterLinking];
+  if (!modes.includes("ai")) return books;
+  const own = modes.includes("keywords");
+  return books.map((book) => ({
+    ...book,
+    entries: book.entries.map((entry) => ({
+      ...entry,
+      keys: [...(own ? entry.keys : []), ...(save.loreKeys?.[`${book.id}/${entry.id}`] ?? [])],
+    })),
+  }));
+}
+
+/**
+ * What the AI made of the cast's cards and the persona (`save.loreKeys` under "cards/<id>"), as a
+ * lorebook of its own for the structure and the world's needs: one entry each, named for the character
+ * ("player" for the persona), with the keywords and no text. Empty unless characters are set up by the AI.
+ */
+function cardBook(save) {
+  if (save.characterLinking !== "ai") return [];
+  const names = new Map((core.characters ?? []).map((entry) => [entry.id, entry.name]));
+  const entries = Object.entries(save.loreKeys ?? {})
+    .filter(([key]) => key.startsWith("cards/"))
+    .map(([key, keys]) => {
+      const id = key.slice("cards/".length);
+      return { id, title: id === "player" ? "player" : (names.get(id) ?? ""), keys, content: "" };
+    })
+    .filter((entry) => entry.title);
+  return entries.length ? [{ id: "cards", name: "", entries }] : [];
+}
+
+const LORE_BATCH = 40; // entries a call reads (server.mjs takes no more)
+// ponytail: the first 200 entries of the chosen lorebooks are read, 600 characters of each; raise both
+// (and summarise long entries first) if bigger lorebooks need it.
+const LORE_ENTRIES = 200;
+
+/**
+ * Has the model set the world up (server.mjs `/lore-setup`) and keeps what it makes in the save, as
+ * keywords in the plain convention (`loreKeys`): first the cast's cards and the persona (when characters
+ * are set up by the AI: bodies, homes, work, relationships; under "cards/<id>"), then the world's
+ * lorebooks a batch at a time (under "lorebook id/entry id"), with names for the places the lore names
+ * (`loreNames`). Each call is told what's placed already, so a number stays the same place.
+ * `onProgress(text)` says what it's doing. Changes `save` in place; throws when a call fails.
+ */
+async function aiLoreSetup(save, onProgress = () => {}) {
+  const people = save.characterLinking === "ai";
+  const cast = (core.characters ?? []).filter((entry) => save.cast?.includes(entry.id));
+  const books = save.lorebooks.length ? (await readLorebooks()).filter((book) => save.lorebooks.includes(book.id)) : [];
+  const entries = books
+    .flatMap((book) => book.entries.map((entry) => ({ key: `${book.id}/${entry.id}`, title: entry.title, entry })))
+    .slice(0, LORE_ENTRIES);
+  const keys = {};
+  const names = {};
+  const placed = new Map(); // numbered place → the entry that used it first
+  const ask = async (batch, extra) => {
+    const result = await core.ai.loreSetup({
+      connectionId: core.settings.textConnection || null,
+      worldName: save.name,
+      setting: save.setting,
+      persona: core.personas?.find((entry) => entry.id === save.persona)?.name ?? "",
+      characters: cast.map((entry) => entry.name),
+      places: save.loreLinking === "ai",
+      people,
+      placed: [...placed].map(([slot, title]) => ({ slot, title, name: names[slot] ?? "" })),
+      ...extra,
+    });
+    batch.forEach(({ key, title, card }, index) => {
+      // A card says who someone is, not what a place or the world is.
+      const words = (result?.keys?.[index] ?? []).filter(
+        (word) => !card || !/^(world$|group of|located in)/iu.test(word),
+      );
+      if (words.length) keys[key] = words;
+      for (const word of words)
+        for (const slot of word.toLowerCase().match(/\b[a-z]+\d+\b/gu) ?? [])
+          if (!placed.has(slot)) placed.set(slot, title);
+    });
+    for (const [slot, name] of Object.entries(result?.names ?? {})) names[slot] ??= name;
+  };
+  if (people && (cast.length || save.persona)) {
+    onProgress("getting to know your characters…");
+    const cards = cast.map((entry) => ({ key: `cards/${entry.id}`, title: entry.name, card: true }));
+    if (save.persona) cards.push({ key: "cards/player", title: "the player", card: true });
+    await ask(cards, { characterIds: cast.map((entry) => entry.id), personaId: save.persona || null, entries: [] });
+  }
+  for (let at = 0; at < entries.length; at += LORE_BATCH) {
+    onProgress(
+      entries.length > LORE_BATCH
+        ? `reading the lorebooks (${at} of ${entries.length} entries)…`
+        : "reading the lorebooks…",
+    );
+    const batch = entries.slice(at, at + LORE_BATCH);
+    await ask(batch, {
+      entries: batch.map(({ entry }) => ({
+        title: entry.title,
+        keys: entry.keys,
+        content: entry.content.slice(0, 600),
+      })),
+    });
+  }
+  save.loreKeys = keys;
+  save.loreNames = names;
+  return Object.keys(keys).length;
+}
+
+/**
+ * What a world must have for its lorebooks (zones.js `needsFromLore`), when its places are linked:
  * every numbered place they mention. Empty otherwise, or when the lorebooks can't be read.
  */
-async function worldNeeds(lorebooks, loreLinking) {
-  if (!lorebooks.length || loreLinking !== "keywords") return {};
+async function worldNeeds(save) {
   try {
-    const books = await readLorebooks();
-    return needsFromLore(books.filter((book) => lorebooks.includes(book.id)));
+    // What the lorebooks name (when their places are linked), and where the AI put the cast.
+    return needsFromLore([...(save.loreLinking === "none" ? [] : await chosenBooks(save)), ...cardBook(save)]);
   } catch (error) {
     console.warn("[wanderworld] couldn't read lorebooks for the world's needs", error);
     return {};
@@ -669,20 +780,34 @@ async function createNewWorld({
   save.setting = setting;
   save.lorebooks = lorebooks;
   save.loreLinking = lorebooks.length ? loreLinking : "none";
-  save.characterLinking = lorebooks.length ? characterLinking : "none";
-  save.lorePending = lorebooks.length > 0 && (loreLinking === "keywords" || characterLinking === "keywords");
+  // The AI can set the characters up from their cards alone; the other ways need a lorebook.
+  save.characterLinking = lorebooks.length || characterLinking === "ai" ? characterLinking : "none";
+  save.lorePending = save.loreLinking !== "none" || save.characterLinking !== "none";
+  save.persona = persona ?? core.personaId;
+  save.cast = cast ?? [];
+  let failed = "";
+  if (save.loreLinking === "ai" || save.characterLinking === "ai") {
+    // The loading screen stays up from here until the world is built and set up, saying what's going on.
+    core.menu?.hide();
+    core.hud?.setLoading("Building your world…");
+    try {
+      await aiLoreSetup(save, (doing) => core.hud?.setLoading(`Building your world: ${doing}`));
+    } catch (error) {
+      failed = error?.message ?? String(error);
+    }
+    core.hud?.setLoading("Building your world: raising the land…");
+  }
   // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
-  save.needs = await worldNeeds(save.lorebooks, save.loreLinking);
+  save.needs = await worldNeeds(save);
   save.landscape = landscapeNeeds(landscapeWith(hashString(save.seed), choices), save.needs, hashString(save.seed));
   save.worldSize = sizeFor(choices?.size, save.landscape);
   save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
   // Who lives there and who you play, from New world. Worlds are separate: nobody moves in from another.
-  save.persona = persona ?? core.personaId;
-  save.cast = cast ?? [];
   save.bodies = {}; // everyone auto until set here, by hand or by lore
   core.saves.write(save);
   playWorld(save.id);
+  if (failed) core.hud?.setNotice(`The AI couldn't set the world up (${failed}). Journal → World can try again.`);
 }
 
 /**
@@ -722,7 +847,7 @@ async function regenerateWorld(reshuffle = false, size = null, newSeed = null) {
   const choices = core.save.choices ?? choicesOf(core.save.landscape);
   const seed = reshuffle ? (newSeed ?? `world-${Date.now().toString(36)}`) : core.save.seed;
   // What its lorebooks need now (they may have grown since), on top of its land.
-  const needs = await worldNeeds(core.save.lorebooks, core.save.loreLinking);
+  const needs = await worldNeeds(core.save);
   if (core.save?.id !== save.id) return; // another world was opened meanwhile
   const land = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
   const landscape = landscapeNeeds(checkLandscape(land, hashString(seed)), needs, hashString(seed));
@@ -953,14 +1078,14 @@ function activeLore(zone, names) {
 function linkLore() {
   const save = core.save;
   if (!save || !core.zones) return Promise.resolve(0);
-  return readLorebooks()
-    .then((books) => {
+  return chosenBooks(save)
+    .then((chosen) => {
       if (core.save?.id !== save.id) return 0;
-      const chosen = books.filter((book) => core.save.lorebooks.includes(book.id));
+      // Places and the world, and characters, each as the setup says (by name, by the AI, or left alone).
+      const places = core.save.loreLinking !== "none";
+      const people = core.save.characterLinking !== "none";
+      if (places) nameFromLore();
       const names = namedZones(residentsOf(core.crowd.snapshot()));
-      // Places and the world, and characters, each as the setup says (by name, or left alone).
-      const places = core.save.loreLinking === "keywords";
-      const people = core.save.characterLinking === "keywords";
       const found = matchLore(chosen, {
         zones: places ? core.zones : { zones: [] },
         names,
@@ -974,7 +1099,7 @@ function linkLore() {
       let count = Object.values(found).reduce((sum, entries) => sum + entries.length, 0);
       core.save = { ...core.save, lore: mergeLore(core.save.lore, found), lorePending: false };
       // The structure the lorebook spells out: groups of kinds, what's located in what, who lives and works where.
-      const structure = structureFromLore(chosen, {
+      const structure = structureFromLore([...chosen, ...cardBook(core.save)], {
         zones: core.zones,
         names,
         groups: placeGroups(),
@@ -998,6 +1123,18 @@ function linkLore() {
     });
 }
 
+/** Gives the places the lore names (the AI's `loreNames`: tavern1 → "The Gilded Stag") those names, unless named already. */
+function nameFromLore() {
+  const slots = slotsOf(core.zones);
+  const names = { ...core.save.names };
+  for (const [slot, name] of Object.entries(core.save.loreNames ?? {})) {
+    const id = slots.get(slot);
+    if (id && !names[id]) names[id] = name;
+  }
+  core.save = { ...core.save, names };
+  for (const sign of core.signs ?? []) sign.setWords(signOf(sign.zone, names));
+}
+
 /**
  * Sets up the characters in town from their lore entries' keywords (relationships.js `setupFromWords`):
  * "male" / "female" picks their body, "enemy", "mentor", "sister"… how they see the player. Only what
@@ -1013,6 +1150,7 @@ function setupCharactersFromLore(books) {
       .map((tie) => entries.get(`${tie.lorebookId}/${tie.entryId}`))
       .filter(Boolean)
       .flatMap((entry) => [entry.title, ...(entry.keys ?? [])])
+      .concat(core.save.loreKeys?.[`cards/${character.id}`] ?? []) // what the AI read in their card
       .filter((word) => word.toLowerCase().trim() !== name);
     const { body, relation } = setupFromWords(words);
     if (body && !core.bodies[character.id]) {
@@ -1035,7 +1173,8 @@ function setupCharactersFromLore(books) {
   const mine = (core.save.lore[PLAYER_ID] ?? [])
     .map((tie) => entries.get(`${tie.lorebookId}/${tie.entryId}`))
     .filter(Boolean)
-    .flatMap((entry) => [entry.title, ...(entry.keys ?? [])]);
+    .flatMap((entry) => [entry.title, ...(entry.keys ?? [])])
+    .concat(core.save.loreKeys?.["cards/player"] ?? []);
   const { body } = setupFromWords(mine);
   if (body && core.personaId && !core.bodies[core.personaId]) {
     setBody(core.personaId, body);
@@ -1697,7 +1836,7 @@ function toggleCharacter(id, chosen) {
   else core.cast.delete(id);
   updateCast();
   // Someone new in town: their lore (and what it says about them) links up as the world's setup says.
-  if (chosen && core.save?.characterLinking === "keywords" && core.save.lorebooks.length) void linkLore();
+  if (chosen && core.save?.characterLinking !== "none") void linkLore();
 }
 
 /** Reads the Engine's personas and characters once, then restores the remembered persona and cast. */
@@ -3448,14 +3587,29 @@ function attach(element) {
     },
     onZoneLore: editZoneLore,
     onSetSetup: setSetup,
-    onLinkLore: () =>
-      linkLore().then((count) =>
-        core.hud?.setNotice(
-          count
-            ? `Linked ${count} lore entries and character details (body, how they see you) by name.`
+    onLinkLore: async () => {
+      const byAi = core.save?.loreLinking === "ai" || core.save?.characterLinking === "ai";
+      if (byAi) {
+        const save = { ...core.save };
+        core.hud?.setNotice("The AI is setting the world up…");
+        try {
+          await aiLoreSetup(save);
+        } catch (error) {
+          core.hud?.setNotice(`The AI couldn't set the world up (${error?.message ?? error}).`);
+          return;
+        }
+        if (core.save?.id !== save.id) return; // another world was opened meanwhile
+        core.save = { ...core.save, loreKeys: save.loreKeys, loreNames: save.loreNames };
+      }
+      const count = await linkLore();
+      core.hud?.setNotice(
+        count
+          ? `Linked ${count} lore entries and character details (body, how they see you)${byAi ? ". Regenerate the world to build places the lore adds" : " by name"}.`
+          : byAi
+            ? "The AI found nothing new to set up."
             : "No entries matched a place, group or character by name.",
-        ),
-      ),
+      );
+    },
     onWantLorebooks: () => {
       if (core.lorebooksAsked) return; // once: the World tab redraws while they're read
       core.lorebooksAsked = true;

@@ -185,6 +185,114 @@ export function readJson(content, parseJsonish) {
   }
 }
 
+/** The kinds of place a world can build, and how many of each at most, for the lore setup's numbered names. */
+export const LORE_KINDS = {
+  town: 4,
+  home: 40,
+  tavern: 3,
+  shop: 4,
+  smithy: 3,
+  temple: 3,
+  hall: 2,
+  inn: 4,
+  cottage: 4,
+  farm: 4,
+  mill: 4,
+  pond: 4,
+  ruins: 4,
+  watchtower: 4,
+  stones: 4,
+  graveyard: 4,
+  cave: 3,
+  mountains: 3,
+  forest: 1,
+  river: 1,
+  square: 1,
+  fountain: 1,
+};
+const LORE_BATCH = 40; // entries a call reads at most
+
+/**
+ * The messages that have the model set a world up from lorebook entries: for each entry, keywords in the
+ * plain convention the client already links by ("tavern1", "located in town2", "lives in home3", a
+ * character's name), plus names for the places the lore names. `input`: { setting, worldName, persona,
+ * characters: [names], places, people (what to set up), placed: [{ slot, name, title }] (from earlier
+ * batches), entries: [{ title, keys, content }] }.
+ */
+export function loreSetupMessages(input) {
+  const kinds = Object.entries(LORE_KINDS)
+    .map(([kind, max]) => (max > 1 ? `${kind} (up to ${max})` : kind))
+    .join(", ");
+  const rules = [
+    "You set up a small 3D world from a user's characters and lorebooks. For each numbered entry, say what in the world it belongs to, as keywords. Answer with one JSON object and nothing else.",
+    `The world can build these places, each named by its kind and a number counting from 1 ("tavern1" is the first tavern): ${kinds}. town1 is the main settlement; other towns are small hamlets out in the country. Square, fountain, taverns, shops, smithies, temples, halls and homes stand in town1; the rest lie out in the country. Keep the numbers under "Already placed" for the places they are.`,
+    input.places &&
+      `Keywords for places:
+- A numbered place ("tavern1", "home3", "forest1"): the entry describes that place. Each distinct place in the lore gets its own number; entries about the same place share it.
+- "located in <numbered place>" beside it: that place lies inside another ("cave1" with "located in mountains1").
+- "group of <kind>": the entry is about every place of that kind ("group of home" for a quarter of houses).
+- "world": lore everyone in this world lives with (its history, gods, laws, magic). Only for such entries.
+A place the world can't build (a castle, a harbour) takes the nearest kind, or no keyword. Never invent places the lore doesn't have.
+Also give "names": the name the lore gives a numbered place ("tavern1": "The Gilded Stag").`,
+    input.people &&
+      `Keywords for people (only those listed under Characters, and the player):
+- The character's name exactly as listed, or "player": the entry is about them.
+- Beside that, what the entry says of them: "male" or "female"; "lives in <home>" ("lives in home3"); "works at <place>" or "owner of <place>" ("owner of tavern1"); how they see the player, one of friend, romance, partner, family, colleague, mentor, rival, enemy, fear; and how they stand toward another listed character, as "<word> of <Name>" with one of those words or brother, sister, father, mother, son, daughter, husband, wife ("sister of Mira").
+An entry headed "Character card" is the character themself. Give it their name first, then: male or female; a home ("lives in home2": people who would share a house share its number, everyone else gets their own); their work when the card suggests one ("works at smithy1", "owner of tavern1"); how they see the player; and how they stand toward each other listed character they'd know. The card headed "player" is the player: give it "player", male or female, and a home.`,
+    "Give an entry no keywords when it fits none of this (items, spells, people who aren't listed).",
+    `{"entries": [{"n": 1, "keys": ["tavern1", "located in town1"]}, {"n": 2, "keys": []}]${input.places ? ', "names": {"tavern1": "The Gilded Stag"}' : ""}}`,
+  ];
+  const entries = input.entries
+    .map((entry, at) => `${at + 1}. ${entry.title}${entry.keys.length ? ` [${entry.keys.join(", ")}]` : ""}\n${entry.content}`)
+    .join("\n\n");
+  const user = [
+    section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
+    input.people && section("Characters", input.characters.join(", ")),
+    input.people && input.persona && section("The player", input.persona),
+    section(
+      "Already placed",
+      input.placed.map((item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (entry "${item.title}")` : ""}`).join("\n"),
+    ),
+    section("Entries", entries),
+  ];
+  return [
+    { role: "system", content: rules.filter(Boolean).join("\n\n") },
+    { role: "user", content: user.filter(Boolean).join("\n\n") },
+  ];
+}
+
+/** A numbered place name the world could build ("tavern2"; "wilds1" is the forest), or "". */
+function loreSlot(word) {
+  const match = /^([a-z]+)([1-9]\d?)$/u.exec(String(word).toLowerCase().trim());
+  if (!match) return "";
+  const kind = match[1] === "wilds" ? "forest" : match[1];
+  return Number(match[2]) <= (LORE_KINDS[kind] ?? 0) ? `${match[1]}${match[2]}` : "";
+}
+
+/**
+ * The model's lore setup, checked: `keys` is one list per entry asked about (in order; plain words only,
+ * no numbered place past what a world can build), `names` is { numbered place: its name }.
+ */
+export function checkLoreSetup(value, count) {
+  const keys = Array.from({ length: count }, () => []);
+  for (const item of Array.isArray(value?.entries) ? value.entries : []) {
+    const at = Number(item?.n) - 1;
+    if (!Number.isInteger(at) || at < 0 || at >= count || !Array.isArray(item.keys)) continue;
+    keys[at] = item.keys
+      .map((key) => text(key, 60))
+      .filter((key) => /^[\p{L}\p{N} '’.-]+$/u.test(key))
+      // Every numbered place a keyword uses, alone or inside "lives in home3", must be one the world can build.
+      .filter((key) => (key.toLowerCase().match(/\b[a-z]+\d+\b/gu) ?? []).every((word) => loreSlot(word)))
+      .slice(0, 8);
+  }
+  const names = {};
+  for (const [slot, name] of Object.entries(isRecord(value?.names) ? value.names : {})) {
+    const kept = text(name, 60);
+    if (loreSlot(slot) && kept) names[loreSlot(slot)] = kept;
+  }
+  return { keys, names };
+}
+
 /** A schedule entry, checked: { from, to (hours 0–24, half hours), activity, place (a place id or name) }. */
 export function checkEntry(raw, places = null) {
   if (!isRecord(raw)) return null;
@@ -432,6 +540,7 @@ export async function activate(context) {
         talk: true,
         moments: true,
         plans: true,
+        loreSetup: true,
         illustrate: true,
       }));
 
@@ -668,6 +777,72 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return { entries };
         } catch (error) {
           logger.warn("[wanderworld] plan failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // A world's setup from its lorebooks, for any lorebook: the model reads a batch of entries and gives
+      // each the keywords the client links by, and names for the places the lore names.
+      routes.post("/lore-setup", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const entries = (Array.isArray(body.entries) ? body.entries : [])
+          .filter(isRecord)
+          .slice(0, LORE_BATCH)
+          .filter((entry) => !/^character card\b/iu.test(text(entry.title, 120))) // only the Engine's cards are cards
+          .map((entry) => ({
+            title: text(entry.title, 120) || "Entry",
+            keys: (Array.isArray(entry.keys) ? entry.keys : []).map((key) => text(key, 60)).filter(Boolean).slice(0, 12),
+            content: block(entry.content, 600),
+          }));
+        // The cast's cards and the persona, read here from the Engine: entries of their own, first, in the
+        // order asked (someone who's gone keeps their place, so the answer lines up).
+        const cardIds = ids(body.characterIds, LORE_BATCH - 1);
+        const records = cardIds.length ? await resources.listCharacters(cardIds) : [];
+        const cards = cardIds.map((id) => {
+          const record = records.find((item) => item?.id === id);
+          const card = record ? characterCard(record) : null;
+          const words = card ? [card.description, card.personality, card.scenario].filter(Boolean).join("\n") : "";
+          return {
+            title: `Character card: ${card?.name ?? "(gone)"}`,
+            keys: [],
+            content: replaceNames(words, card?.name ?? "", text(body.persona, MAX.name) || "the player").slice(0, 900),
+          };
+        });
+        const personaId = idOf(body.personaId);
+        if (personaId) {
+          const [record] = await resources.listPersonas([personaId]);
+          const card = personaCard(record, text(body.persona, MAX.name));
+          cards.push({
+            title: `Character card: player (${card.name})`,
+            keys: [],
+            content: [card.description, card.personality, card.appearance].filter(Boolean).join("\n").slice(0, 900),
+          });
+        }
+        entries.unshift(...cards);
+        entries.length = Math.min(entries.length, LORE_BATCH);
+        if (!entries.length) return reply.status(400).send({ error: "Nothing to read." });
+        const messages = loreSetupMessages({
+          setting: text(body.setting, 600),
+          worldName: text(body.worldName, MAX.name),
+          persona: text(body.persona, MAX.name),
+          characters: (Array.isArray(body.characters) ? body.characters : []).map((name) => text(name, MAX.name)).filter(Boolean).slice(0, 60),
+          places: body.places === true,
+          people: body.people === true,
+          placed: (Array.isArray(body.placed) ? body.placed : [])
+            .filter(isRecord)
+            .map((item) => ({ slot: loreSlot(item.slot), name: text(item.name, 60), title: text(item.title, 120) }))
+            .filter((item) => item.slot)
+            .slice(0, 120),
+          entries,
+        });
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await model.chatComplete(messages, { temperature: 0.2, maxTokens: 2400 });
+          const value = readJson(result?.content, api.runtime.json?.parseJsonish);
+          if (!value) return reply.status(502).send({ error: "The model didn't give a usable setup." });
+          return checkLoreSetup(value, entries.length);
+        } catch (error) {
+          logger.warn("[wanderworld] lore setup failed: %s", error?.message ?? error);
           return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
         }
       });

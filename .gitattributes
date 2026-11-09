@@ -52,3 +52,7 @@
 # No Windows-native scripts (.bat, .cmd, .ps1) exist in this tree, so nothing
 # is pinned to CRLF. Add `eol=crlf` alongside the first one that lands —
 # cmd.exe and PowerShell expect CRLF in scripts they execute.
+
+# Wanderworld bundles three.js, whose shader sources keep their own trailing whitespace inside strings;
+# `git diff --check` would otherwise reject every rebuild of the generated bundle.
+packages/wanderworld/client.js -whitespace

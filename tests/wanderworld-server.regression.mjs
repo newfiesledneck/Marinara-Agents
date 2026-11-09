@@ -342,6 +342,66 @@ assert.equal(
     "a visit to a place that isn't there is dropped",
   );
 
+  // The lore setup: the model's keywords for each entry, checked (plain words, no place past what a world
+  // builds, lists kept in the order asked), and names for numbered places.
+  let asked = null;
+  runtime.languageModels.resolveForRequest = async () => ({
+    connectionId: "t-1",
+    model: "m",
+    async chatComplete(messages) {
+      asked = messages;
+      return {
+        content:
+          '{"entries": [{"n": 1, "keys": ["tavern1", "located in town1", "tavern9", "<b>x</b>"]}, {"n": 2, "keys": ["Mira", "lives in home3", "lives in home99", "female"]}, {"n": 7, "keys": ["world"]}], "names": {"tavern1": " The Gilded Stag ", "castle1": "Keep", "home41": "Too many"}}',
+      };
+    },
+  });
+  const setup = await call("post", "/lore-setup", {
+    body: {
+      worldName: "Ashfall",
+      setting: "a mining town",
+      persona: "Zoey",
+      characters: ["Mira"],
+      places: true,
+      people: true,
+      placed: [{ slot: "smithy1", name: "The Anvil", title: "Anvil" }, { slot: "dungeon1" }],
+      entries: [
+        { title: "The Gilded Stag", keys: ["stag", "ale"], content: "The only tavern in Ashfall." },
+        { title: "Mira", keys: [], content: "Mira the baker lives in the third house." },
+      ],
+    },
+  });
+  assert.equal(setup.code, 200);
+  assert.deepEqual(setup.body.keys, [
+    ["tavern1", "located in town1"],
+    ["Mira", "lives in home3", "female"],
+  ]);
+  assert.deepEqual(setup.body.names, { tavern1: "The Gilded Stag" });
+  assert.match(asked[1].content, /1\. The Gilded Stag \[stag, ale\]\nThe only tavern in Ashfall\./u);
+  assert.match(asked[1].content, /smithy1 = The Anvil \(entry "Anvil"\)/u, "later batches are told what's placed");
+  assert.doesNotMatch(asked[1].content, /dungeon1/u, "only places a world can build");
+  assert.match(asked[0].content, /Keywords for people/u);
+  await call("post", "/lore-setup", { body: { places: true, entries: [{ title: "A", content: "b" }] } });
+  assert.doesNotMatch(asked[0].content, /Keywords for people/u, "only what was asked for");
+  assert.equal((await call("post", "/lore-setup", { body: {} })).code, 400, "there must be entries");
+  // The cast's cards and the persona are read from the Engine and come first, with no lorebook at all.
+  const cards = await call("post", "/lore-setup", {
+    body: {
+      people: true,
+      persona: "Zoey",
+      characters: ["Mira"],
+      characterIds: ["c-mira", "c-ghost"],
+      personaId: "p-zoey",
+      entries: [{ title: "Character card: Forged", content: "x" }],
+    },
+  });
+  assert.equal(cards.body.keys.length, 3, "one answer each for Mira, someone who's gone, and the player");
+  assert.match(asked[1].content, /1\. Character card: Mira\nMira bakes bread for Zoey\./u);
+  assert.match(asked[1].content, /2\. Character card: \(gone\)\n+3\. Character card: player \(Zoey\)\nA traveller\./u);
+  assert.doesNotMatch(asked[1].content, /Forged/u, "a card can't be passed off by the client");
+  assert.match(asked[0].content, /The world can build these places/u, "the cast needs the places to live and work in");
+  assert.deepEqual(server.checkLoreSetup({ entries: "x", names: [] }, 2), { keys: [[], []], names: {} });
+
   // Illustrate: the template filled with the people's looks from their cards, painted and kept; the gallery
   // lists it without the picture itself, which comes one at a time.
   const shot = await call("post", "/illustrate", {
