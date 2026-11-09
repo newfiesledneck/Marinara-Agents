@@ -94,6 +94,9 @@ export function checkWorld(raw) {
     // (exact names, done when the world is built), "ai" (for the AI part to do), or "none".
     lorebooks: Array.isArray(raw.lorebooks) ? raw.lorebooks.filter((id) => typeof id === "string").slice(0, 50) : [],
     loreLinking: ["keywords", "ai", "none"].includes(raw.loreLinking) ? raw.loreLinking : "none",
+    // The same for characters: linking their entries by name and setting them up from the keywords
+    // (body, how they see the player).
+    characterLinking: ["keywords", "ai", "none"].includes(raw.characterLinking) ? raw.characterLinking : "none",
     // True until the keyword links have been made (the first time the world is built).
     lorePending: raw.lorePending === true,
     // Place groups ({ id, name, members }); null until the player (or the AI) changes the defaults.
