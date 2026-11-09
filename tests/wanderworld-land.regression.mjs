@@ -199,7 +199,7 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
   );
   const built = createWorld(seed, landscape);
   for (const outpost of built.layout.outposts) {
-    if (outpost.kind === "cave") continue;
+    if (outpost.kind === "cave" || outpost.kind === "pond") continue; // a pond's middle is its water
     const ground = heightAt(outpost.x, outpost.z);
     assert.ok(
       ground > -0.3,
@@ -552,6 +552,30 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
     assert.ok(toRiver > 7 && toRiver < 13, `seed ${seed}: on the bank (${toRiver.toFixed(1)} m from the river)`);
     built.dispose();
   }
+}
+
+// A pond: deep enough to swim in its middle, shallow at the shore, dry just past it, walkers kept out of
+// it, and its shore sandy like a riverbank. The lore's pond1 brings one.
+{
+  const { slotsOf } = await import("../packages/wanderworld/src/zones.js");
+  const landscape = landscapeNeeds(
+    landscapeWith(77, { places: "none", towns: "none", farms: "none", landmarks: "none", river: "no" }),
+    { pond: 1 },
+    77,
+  );
+  const built = createWorld(77, landscape);
+  const pond = built.layout.outposts.find((place) => place.kind === "pond");
+  assert.ok(pond, "pond1 brings a pond");
+  assert.ok(
+    waterAt(pond.x, pond.z).depth > 1.3,
+    `swimming depth in the middle (${waterAt(pond.x, pond.z).depth.toFixed(2)} m)`,
+  );
+  assert.ok(waterAt(pond.x + 7.5, pond.z).depth < 0.6, "shallow at the shore");
+  assert.equal(waterAt(pond.x + 11, pond.z).depth, 0, "dry past it");
+  assert.ok(heightAt(pond.x + 11, pond.z) > -0.3, "and the ground there above the water");
+  const zones = buildZones(built.layout, 77);
+  assert.equal(zones.byId.get(slotsOf(zones).get("pond1"))?.outpostKind, "pond", "named pond1");
+  built.dispose();
 }
 
 console.log("wanderworld land regression: OK");

@@ -35,7 +35,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
 import { caveGeometry } from "./caves.js";
 import { createAwnings, createFountain, createLamps, createSmoke, createWindowLights } from "./fixtures.js";
-import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand } from "./land.js";
+import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand, POND_RADIUS } from "./land.js";
 import { createWeather, WEATHER_LOOK } from "./weather.js";
 import {
   barrel,
@@ -727,6 +727,38 @@ function placeLocal(town, outpost, geometry) {
 
 /** Landmarks out in the country, each built from plain shapes (no kit models), with its colliders. */
 const LANDMARKS = {
+  /** A pond in a hollow: reeds and ferns round the shore, a few mossy stones, a bench looking over it. */
+  pond(random, town, outpost) {
+    const shore = POND_RADIUS + 0.6;
+    for (let i = 0; i < 26; i++) {
+      const angle = random() * Math.PI * 2;
+      const distance = shore + random() * 2.2;
+      const model = ["grass-wispy-tall", "grass-wispy-tall", "grass-common-tall", "fern-1"][Math.floor(random() * 4)];
+      placeKitPlant(town, null, {
+        model,
+        x: outpost.x + Math.sin(angle) * distance,
+        z: outpost.z + Math.cos(angle) * distance,
+        y: -0.25,
+        angle: random() * 6.3,
+        scale: 0.7 + random() * 0.4,
+      });
+    }
+    const stones = [];
+    for (let i = 0; i < 5; i++) {
+      const angle = random() * Math.PI * 2;
+      const distance = shore + 1.2 + random() * 1.5;
+      const [lx, lz] = [Math.sin(angle) * distance, Math.cos(angle) * distance];
+      stones.push(
+        slab(0.8 + random() * 0.6, 0.4 + random() * 0.3, 0.6 + random() * 0.5, random() * 0.3)
+          .rotateY(random() * 3)
+          .translate(lx, -0.3, lz),
+      );
+    }
+    placeLocal(town, outpost, weathered(mergeGeometries(stones)));
+    // The bench on the town side, looking out over the water.
+    const seat = toWorld(outpost.x, outpost.z, outpost.facing, 0, shore + 3.2);
+    placeBench(town, seat.x, seat.z, (outpost.facing + 2) % 4);
+  },
   /** Old ruins: broken stone walls round a long-gone hall, a fallen arch's stones in the grass. */
   ruins(random, town, outpost) {
     const at = (lx, lz) => toWorld(outpost.x, outpost.z, outpost.facing, lx, lz);
@@ -1805,10 +1837,37 @@ function buildCountry(random, town, land, ground) {
       ),
     );
   }
+  const waters = [];
+  // The water: deeper blue down the middle, lighter and clearer at the banks, with a soft sheen.
+  const deep = new Color(0x3f7499);
+  const shallow = new Color(0x6fa5b8);
+  for (const pond of land.ponds()) {
+    // A pond's water: a disc deep in the middle, clear at its edge (which runs under the shore).
+    const positions = [];
+    const colours = [];
+    const uvs = [];
+    const ring = 28;
+    const point = (x, z, colour) => {
+      positions.push(x, land.waterLevel, z);
+      colours.push(colour.r, colour.g, colour.b);
+      uvs.push((x + worldSize / 2) / worldSize, (worldSize / 2 - z) / worldSize);
+    };
+    for (let i = 0; i < ring; i++) {
+      const [a, b] = [(i / ring) * Math.PI * 2, ((i + 1) / ring) * Math.PI * 2];
+      const r = pond.r + 1.5;
+      point(pond.x, pond.z, deep); // counter-clockwise from above, so it faces up
+      point(pond.x + Math.sin(a) * r, pond.z + Math.cos(a) * r, shallow);
+      point(pond.x + Math.sin(b) * r, pond.z + Math.cos(b) * r, shallow);
+    }
+    const disc = new BufferGeometry();
+    disc.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    disc.setAttribute("color", new Float32BufferAttribute(colours, 3));
+    disc.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    disc.computeVertexNormals();
+    waters.push(disc);
+  }
+  if (waters.length) meshes.push(new Mesh(mergeGeometries(waters), waterMaterial(ground)));
   if (land.river) {
-    // The water: deeper blue down the middle, lighter and clearer at the banks, with a soft sheen.
-    const deep = new Color(0x3f7499);
-    const shallow = new Color(0x6fa5b8);
     // Out to the top of each bank, so the water always meets the slope (its edges run under the ground).
     const water = ribbon(land.river.points, land.river.width + land.river.bank * 2, {
       heightOf: () => land.waterLevel,

@@ -399,7 +399,7 @@ world's preview (they're read when the world is made), a zoomable map, marking p
 **Saved for later (not forgotten)**
 
 - New kinds of place: ~~a mill, ruins, a watchtower, a graveyard, standing stones~~ (0.4.58, `LANDMARKS`
-  in world.js, numbered ruins1, mill1…). Still to come: a lake or pond (needs swimmable water off the river),
+  in world.js, numbered ruins1, mill1…). ~~A pond~~ (0.4.66, swimmable). Still to come: a bigger lake,
   more cave kinds (a mine, a grotto), a coast, farms in fuller detail.
 - Weather: ~~rain, snow and mist~~ (0.4.60, `weather.js`, Settings → Weather, off by default). Still to
   come, only if they look good: wet darker ground, snow lying on the ground, rain sounds, and seasons

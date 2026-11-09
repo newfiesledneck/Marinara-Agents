@@ -74,6 +74,7 @@ const LANDMARK_NAMES = {
   stones: ["the standing stones", "the Old Ring", "the Whispering Stones", "the Nine Maidens"],
   graveyard: ["the graveyard", "the old churchyard", "the quiet acre"],
   mill: ["the mill", "the watermill", "Millbrook Mill", "the old mill"],
+  pond: ["the pond", "the duck pond", "Stillwater Pond", "the mere"],
 };
 
 /** Default names and sign words by building kind. */
@@ -282,7 +283,7 @@ export function buildZones(layout, seed) {
           x: outpost.x,
           z: outpost.z,
           r:
-            { cave: 7, hamlet: 24, farm: 26, ruins: 12, watchtower: 8, stones: 10, graveyard: 10, mill: 9 }[
+            { cave: 7, hamlet: 24, farm: 26, ruins: 12, watchtower: 8, stones: 10, graveyard: 10, mill: 9, pond: 11 }[
               outpost.kind
             ] ?? 15,
         },
@@ -665,6 +666,7 @@ const KIND_WORDS = {
   "outpost:stones": ["standing stones", "stone circle", "stones"],
   "outpost:graveyard": ["graveyard", "cemetery", "churchyard"],
   "outpost:mill": ["mill", "watermill", "miller"],
+  "outpost:pond": ["pond", "lake", "mere"],
 };
 
 const plain = (word) =>
@@ -869,6 +871,7 @@ export const NEEDED_KINDS = [
   "stones",
   "graveyard",
   "mill",
+  "pond",
   "cave",
   "road",
   "garden",

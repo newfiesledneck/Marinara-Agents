@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.66 — 2026-11-09
+
+- Ponds: a landmark of its own, water in a hollow deep enough to swim in the middle and shallow at its sandy shore, ringed with reeds, ferns and mossy stones, with a bench looking over it. Comes with Landmarks in New world, or by the lore's pond1.
+
 ## 0.4.65 — 2026-11-09
 
 - Fix: a mill far along the river no longer stands in the water; it always steps straight across onto the town's bank.
