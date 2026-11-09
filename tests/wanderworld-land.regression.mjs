@@ -34,7 +34,14 @@ assert.equal(chosen.hills, "flat");
 assert.equal(chosen.mountains.length, 3);
 assert.equal(chosen.river, null);
 assert.equal(chosen.outposts.length, 4);
-assert.deepEqual(landscapeWith(31, { hills: "surprise" }), seeded, "Surprise me keeps the seed's choices");
+{
+  // Surprise me keeps the seed's land; the settlement is picked from the seed too (a new world's own).
+  const { settlement, ...land } = landscapeWith(31, { hills: "surprise" });
+  const { settlement: ignored, ...seededLand } = seeded;
+  assert.deepEqual(land, seededLand, "Surprise me keeps the seed's choices");
+  assert.ok(["hamlet", "village", "town", "city"].includes(settlement.kind), "and picks a settlement");
+  assert.equal(ignored.kind, "town", "a world without one stays the town it always was");
+}
 
 // ── A world built from one ──
 const landscape = {
@@ -47,7 +54,11 @@ const landscape = {
   ],
 };
 const world = createWorld(31, landscape);
-assert.deepEqual(world.landscape, landscape, "the world keeps the landscape it was built with");
+assert.deepEqual(
+  world.landscape,
+  { ...landscape, settlement: { kind: "town", market: "square", roads: "cobble", side: null } },
+  "the world keeps the landscape it was built with (a town, when none was given)",
+);
 for (const [x, z] of [
   [0, 0],
   [40, -40],
@@ -204,6 +215,38 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
     built.dispose();
   }
   assert.ok(spread.massive > spread.small * 1.5, "a massive world's places spread further out");
+}
+
+// Settlements: a hamlet to a city, each bigger than the last; a village's market is stalls (no fountain),
+// a hamlet's a green; a market can sit off to one side; too many homes in the lore grows a settlement.
+{
+  const counts = {};
+  for (const kind of ["hamlet", "village", "town", "city"]) {
+    const landscape = { ...landscapeWith(91, { places: "none" }), settlement: { kind } };
+    const built = createWorld(91, landscape);
+    counts[kind] = built.layout.buildings.length;
+    assert.equal(built.layout.settlement.kind, kind);
+    if (kind === "village") {
+      assert.equal(built.fountain, null, "a village's market has no fountain");
+      assert.equal(built.layout.settlement.market, "stalls");
+      assert.equal(buildZones(built.layout, 91).byId.get("plaza").name, "the market", "its market is the market");
+    }
+    if (kind === "hamlet") assert.equal(buildZones(built.layout, 91).byId.get("plaza").name, "the green");
+    built.dispose();
+  }
+  assert.ok(
+    counts.hamlet < counts.village && counts.village < counts.town && counts.town < counts.city,
+    `each kind is bigger than the last (${JSON.stringify(counts)})`,
+  );
+  const offside = createWorld(92, {
+    ...landscapeWith(92, { places: "none" }),
+    settlement: { kind: "town", side: "east" },
+  });
+  assert.ok(offside.layout.plaza.x > 10, "a market off to the east sits east of the middle");
+  assert.ok(offside.spawn.x > 10, "and a first visit starts by it");
+  offside.dispose();
+  const grown = landscapeNeeds({ ...landscapeWith(93, {}), settlement: { kind: "hamlet" } }, { home: 30 }, 93);
+  assert.equal(grown.settlement.kind, "town", "a hamlet too small for thirty homes grows into a town");
 }
 
 // A world with no landscape given still builds, from the seed.

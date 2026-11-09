@@ -160,6 +160,32 @@ export function createMenu(layer, handlers, art = null) {
         ],
       ],
       [
+        "settlement",
+        "Settlement",
+        [
+          ["hamlet", "A hamlet"],
+          ["village", "A village"],
+          ["town", "A town"],
+          ["city", "A city"],
+        ],
+      ],
+      [
+        "marketAt",
+        "Market",
+        [
+          ["middle", "In the middle"],
+          ["side", "Off to one side"],
+        ],
+      ],
+      [
+        "roads",
+        "Streets",
+        [
+          ["cobble", "Cobbled, with sidewalks"],
+          ["dirt", "Dirt paths"],
+        ],
+      ],
+      [
         "size",
         "World size",
         [

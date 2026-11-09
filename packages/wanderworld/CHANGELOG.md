@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.50 — 2026-11-09
+
+- Settlements: a hamlet, village, town or city, chosen in New world or left to the seed. Each has its own size and buildings: a hamlet of houses round a green, a village with stalls, a tavern and a temple, a town with its fountain square, a city with more of everything.
+- The market can sit off to one side instead of in the middle, and streets can be cobbled (with kerbs and sidewalks) or dirt paths.
+- Cottages and inns out in the country are their own kinds, kept apart from the town's houses and taverns: "home" lore, home numbers and the Homes group stay in town.
+- A lorebook naming more homes than a settlement holds makes it bigger. Worlds made before keep their town as it was.
+
 ## 0.4.49 — 2026-11-09
 
 - World size: Small, Normal, Large, Huge or Massive (up to three times as wide), chosen in New world (or Auto) and when regenerating. Bigger worlds spread their places further out and are just as wooded.
