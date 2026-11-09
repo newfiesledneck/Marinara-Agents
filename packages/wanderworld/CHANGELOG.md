@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.60 — 2026-11-09
+
+- Weather (Settings → Weather, off by default): rain falling in streaks, drifting snow, or mist, each greying the sky, dimming the sun and drawing the fog in. "Changing" turns every few minutes, the same for a world each time and mostly clear; or pick one kind to keep.
+- Fix: unlit windows and lamp glows no longer show as pale squares in fog and mist.
+
 ## 0.4.59 — 2026-11-09
 
 - City walls and gates: a new city is ringed by a crenellated stone wall with round corner towers and a gatehouse wherever a road leaves town and in the middle of each side. New world's "Walls" choice gives any settlement walls or none. Townsfolk and your party find their way out and in by the gates. The map shows the wall.

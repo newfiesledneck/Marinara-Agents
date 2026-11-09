@@ -401,7 +401,9 @@ world's preview (they're read when the world is made), a zoomable map, marking p
 - New kinds of place: ~~a mill, ruins, a watchtower, a graveyard, standing stones~~ (0.4.58, `LANDMARKS`
   in world.js, numbered ruins1, mill1…). Still to come: a lake or pond (needs swimmable water off the river),
   more cave kinds (a mine, a grotto), a coast, farms in fuller detail.
-- Weather and seasons, only if they look good: the Engine's chat weather (`WeatherEffects.tsx`, with
+- Weather: ~~rain, snow and mist~~ (0.4.60, `weather.js`, Settings → Weather, off by default). Still to
+  come, only if they look good: wet darker ground, snow lying on the ground, rain sounds, and seasons
+  (autumn colours on the trees). Notes from before: the Engine's chat weather (`WeatherEffects.tsx`, with
   `weather-renderer`) is a 2D overlay; it's a guide to the look and the weather names, but here it
   would be rain and snow falling in the scene, fog density, the sky's tint, wet darker ground, snow on
   the ground through the snow layer, autumn colours on the trees.

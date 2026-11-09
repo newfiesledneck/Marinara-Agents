@@ -147,6 +147,7 @@ export function createLamps(lamps) {
         opacity: 0,
         depthWrite: false,
         blending: AdditiveBlending,
+        fog: false, // fog would add its own colour on top (additive): pale squares in mist
       }),
     );
     pools = new InstancedMesh(
@@ -158,6 +159,7 @@ export function createLamps(lamps) {
         opacity: 0,
         depthWrite: false,
         blending: AdditiveBlending,
+        fog: false, // fog would add its own colour on top (additive): pale squares in mist
         polygonOffset: true,
         polygonOffsetFactor: -6,
         polygonOffsetUnits: -6,
@@ -334,6 +336,7 @@ export function createWindowLights(windows) {
       transparent: true,
       depthWrite: false,
       blending: AdditiveBlending,
+      fog: false, // fog would add its own colour on top (additive): pale squares in mist
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,

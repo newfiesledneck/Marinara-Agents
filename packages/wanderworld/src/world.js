@@ -36,6 +36,7 @@ import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
 import { caveGeometry } from "./caves.js";
 import { createAwnings, createFountain, createLamps, createSmoke, createWindowLights } from "./fixtures.js";
 import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand } from "./land.js";
+import { createWeather, WEATHER_LOOK } from "./weather.js";
 import {
   barrel,
   bench,
@@ -2472,6 +2473,10 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   );
   // Lamp posts with lanterns that light up at night, and the fountain on the square (fixtures.js).
   const lamps = createLamps(town.lamps);
+  // Rain, snow or mist round the player (weather.js), easing in and out.
+  const weather = createWeather();
+  scene.add(weather.group);
+  const sky_ = { kind: "clear", target: "clear", amount: 0, x: spawn.x, z: spawn.z, distance: 170 };
   // Added with the kit's buildings (addBuildings): lit windows and chimney smoke.
   let windowLights = null;
   let smoke = null;
@@ -2605,6 +2610,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   }
   /** Where the player is, so the detailed nature near them is the nature drawn. Cheap to call every frame. */
   function follow(x, z) {
+    sky_.x = x;
+    sky_.z = z;
     lamps.follow(x, z);
     terrain.follow(x, z);
     if (!natureLayers.length || (x - view.x) ** 2 + (z - view.z) ** 2 < 64) return;
@@ -2652,6 +2659,12 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   /** Moves the doors on: each swings about a second to open or shut. */
   function update(dt) {
     ground.uTime.value += dt;
+    // The weather eases out of one kind before easing into the next.
+    if (sky_.target !== sky_.kind) {
+      sky_.amount = Math.max(0, sky_.amount - dt / 5);
+      if (sky_.amount === 0) sky_.kind = sky_.target;
+    } else if (sky_.kind !== "clear") sky_.amount = Math.min(1, sky_.amount + dt / 8);
+    weather.update(dt, { x: sky_.x, y: heightAt(sky_.x, sky_.z), z: sky_.z }, sky_.kind, sky_.amount);
     fountain.update(dt);
     smoke?.update(dt);
     let moved = false;
@@ -2672,6 +2685,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
 
   /** How far you can see: the fog closes in from 40% of `distance` to all of it. */
   function setDrawDistance(distance) {
+    sky_.distance = distance;
     scene.fog.near = distance * 0.4;
     scene.fog.far = distance;
     view.radius = distance;
@@ -2680,6 +2694,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
 
   const sunDirection = new Vector3();
   const skyColor = new Color();
+  const weatherGrey = new Color();
   /**
    * Lights the world for `hour` (0–24): the sun rises at 6 and sets at 18, the sky warms at dawn and
    * dusk, and the lamps glow from evening until morning. Returns how dark it is (0 day … 1 night).
@@ -2700,6 +2715,16 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       .copy(NIGHT_SKY)
       .lerp(DUSK_SKY, Math.min(1, daylight * 2))
       .lerp(DAY_SKY, Math.max(0, daylight * 2 - 1));
+    // Weather: a greyer sky, a dimmer sun and the fog drawn in, as much as it has set in.
+    const look = WEATHER_LOOK[sky_.kind] ?? WEATHER_LOOK.clear;
+    const weight = sky_.amount;
+    if (weight > 0) {
+      skyColor.lerp(weatherGrey.setHex(0x8f989f).multiplyScalar(0.3 + 0.7 * daylight), look.grey * weight);
+      sun.intensity *= 1 - look.dim * weight;
+      sky.intensity *= 1 - look.dim * weight * 0.5;
+    }
+    scene.fog.far = sky_.distance * (1 - look.fog * weight);
+    scene.fog.near = scene.fog.far * 0.4 * (1 - look.fog * weight * 0.7);
     scene.background.copy(skyColor);
     scene.fog.color.copy(skyColor);
     const dark = 1 - daylight;
@@ -2936,6 +2961,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   }
 
   function dispose() {
+    weather.dispose();
     scene.traverse((object) => {
       // Kit geometry and materials are shared by every world (kit.js keeps them).
       if (!object.geometry?.userData.shared) object.geometry?.dispose();
@@ -2956,6 +2982,12 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     resolveCollisions,
     clearSight,
     dispose,
+    /** The weather to ease into: "clear", "rain", "snow" or "mist" (weather.js). */
+    setWeather(kind) {
+      sky_.target = WEATHER_LOOK[kind] ? kind : "clear";
+    },
+    /** The weather now and how far it has set in (0–1). */
+    weatherNow: () => ({ kind: sky_.kind, amount: sky_.amount }),
     buildingCount: town.buildings.length,
     /** The town's plan for naming places (zones.js): buildings (door i is building i), gardens, meadows,
      *  streets and the square. */
