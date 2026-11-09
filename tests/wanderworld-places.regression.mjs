@@ -5,12 +5,14 @@ import { createSaves, checkWorld } from "../packages/wanderworld/src/saves.js";
 import { createWorld, SPAWN } from "../packages/wanderworld/src/world.js";
 import {
   buildZones,
+  carrySetup,
   checkGroups,
   defaultGroups,
   describe,
   groupsAt,
   nameOf,
   newGroupId,
+  remapZones,
   signOf,
   zoneAt,
 } from "../packages/wanderworld/src/zones.js";
@@ -141,9 +143,42 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
     { id: "group:a", name: "twice" },
     { id: "wilds", name: "no prefix" },
   ]);
-  assert.deepEqual(checked, [{ id: "group:a", name: "Coast", members: ["forest"] }]);
+  assert.deepEqual(checked, [{ id: "group:a", name: "Coast", members: ["forest"], parent: null }]);
   assert.equal(checkGroups(undefined), null, "no groups saved yet: the defaults apply");
   assert.deepEqual(checkWorld({ id: "w", seed: "s", groups: checked }).groups, checked, "groups are saved");
+
+  // Subgroups: a group inside another passes on the outer one's lore.
+  const nested = [
+    { id: "group:town-homes", name: "Homes", members: [], parent: null },
+    { id: "group:mill-lane", name: "Mill Lane homes", members: [home.id], parent: "group:town-homes" },
+  ];
+  assert.deepEqual(
+    groupsAt(nested, [home]).map((group) => group.id),
+    ["group:mill-lane", "group:town-homes"],
+    "a home in a subgroup is in its parent group too",
+  );
+  assert.ok(
+    zones.byId.get(home.parent).kind === "street" || zones.byId.get(home.parent).kind === "plaza",
+    "a building sits on its street",
+  );
+
+  // A new layout keeps the setup: each place's name, lore and groups go to the same kind of place.
+  const other = buildZones(createWorld(99).layout, 99);
+  const map = remapZones(zones, other);
+  const tavern = zones.zones.find((zone) => zone.buildingKind === "tavern");
+  assert.equal(other.byId.get(map.get(tavern.id)).buildingKind, "tavern", "the tavern is still a tavern");
+  const carried = carrySetup(
+    {
+      names: { [tavern.id]: "The Rusty Tankard", town: "Oakhold" },
+      lore: { [tavern.id]: [{ lorebookId: "b", entryId: "e", title: "Ale" }], world: [], "group:x": [] },
+      groups: [{ id: "group:x", name: "X", members: [tavern.id, "river"], parent: null }],
+    },
+    map,
+  );
+  assert.equal(carried.names[map.get(tavern.id)], "The Rusty Tankard");
+  assert.equal(carried.names.town, "Oakhold");
+  assert.ok(carried.lore[map.get(tavern.id)] && carried.lore.world && carried.lore["group:x"], "lore is kept");
+  assert.ok(carried.groups[0].members.includes(map.get(tavern.id)), "the group still holds the tavern");
 }
 
 console.log("wanderworld places regression: OK");

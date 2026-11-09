@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.30 — 2026-11-08
+
+- Journal → Places shows the world's setup as a tree: the whole world, its characters, then each place inside the one it sits in (town, street, building), then groups. Lore can be tied at every level.
+- Lore for the whole world is active everywhere; a character's lore is active while you talk to them or while they're with you.
+- Groups can sit inside other groups and pass their lore down.
+- Regenerating with a new layout keeps the setup: names, lore and groups move to the same kind of place (the tavern stays the tavern).
+
 ## 0.4.29 — 2026-11-08
 
 - Place groups: gather places under a name, like every home in town, or the forest, mountains, cottages and river as the wilds. Lore tied to a group is active anywhere in it, along with each place's own.

@@ -69,9 +69,10 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
   dislikes you keeps away, a sworn enemy comes to have words.
 - **Scenes:** doors, caves and the fountain offer things to do and a box for your own line; choosing sets
   up a scene request (who's there, who came with you, the time) for the AI part to play out.
-- **Lore:** tie lorebook entries to places in Journal → Places (choose which lorebooks to list), or to
-  groups of places (The wilds, Homes, or your own) so they're active anywhere in the group; the Lore
-  button shows what's active where you are.
+- **Lore and the world's setup:** Journal → Places shows the world as a tree (the whole world, its
+  characters, the town, its streets and buildings, the wilds, and groups of places) and lorebook entries
+  can be tied at any level: active where you are and everywhere above it, or while you're with that
+  character. The Lore button shows what's active now.
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster). A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the

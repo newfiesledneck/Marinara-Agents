@@ -233,7 +233,12 @@ export function createHud(root, handlers) {
     label.style.cssText = "display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;";
     const reshuffle = document.createElement("input");
     reshuffle.type = "checkbox";
-    label.append(reshuffle, document.createTextNode("A new town layout too (place names and place lore are cleared)"));
+    label.append(
+      reshuffle,
+      document.createTextNode(
+        "A new town layout too (names, lore and groups move to the same kind of place: the tavern stays the tavern)",
+      ),
+    );
     const yes = button("Regenerate", "Rebuild this world now", () => {
       drawRegenerate(false);
       handlers.onRegenerate(reshuffle.checked);
@@ -263,6 +268,7 @@ export function createHud(root, handlers) {
     onGroupRename: (id, name) => handlers.onGroupRename(id, name),
     onGroupDelete: (id) => handlers.onGroupDelete(id),
     onGroupMember: (id, zoneId, on) => handlers.onGroupMember(id, zoneId, on),
+    onGroupParent: (id, parent) => handlers.onGroupParent(id, parent),
     onPartyWait: (id, wait) => handlers.onPartyWait(id, wait),
     onPartyLeave: (id) => handlers.onPartyLeave(id),
     onSetRelation: (from, to, fields, both) => handlers.onSetRelation(from, to, fields, both),

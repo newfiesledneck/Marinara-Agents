@@ -24,7 +24,20 @@ import { kitModels, kitTexture } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
 import { createHangingSign, createNoticeboard, createSign } from "./signs.js";
-import { buildZones, chainOf, defaultGroups, describe, groupsAt, nameOf, newGroupId, signOf, zoneAt } from "./zones.js";
+import {
+  buildZones,
+  carrySetup,
+  chainOf,
+  defaultGroups,
+  describe,
+  groupsAt,
+  nameOf,
+  newGroupId,
+  remapZones,
+  signOf,
+  WORLD_ID,
+  zoneAt,
+} from "./zones.js";
 import { landscapeWith } from "./land.js";
 import { ACTIONS, describeScene, sceneRequest } from "./interactions.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
@@ -573,8 +586,8 @@ function choicesOf(landscape) {
 /**
  * Builds the world on screen afresh from its New world choices with this version's land, keeping its
  * people, relationships, party, notes, lore and names. `reshuffle` also gives it a new seed (a new town
- * layout and land): then place names and lore tied to places are cleared, as those places are gone.
- * The player starts again at the square.
+ * layout and land); its setup still stands: each place's name, lore and groups move to the same kind of
+ * place in the new layout (zones.js `remapZones`). The player starts again at the square.
  */
 function regenerateWorld(reshuffle = false) {
   const save = core.save;
@@ -584,7 +597,13 @@ function regenerateWorld(reshuffle = false) {
   const seed = reshuffle ? `world-${Date.now().toString(36)}` : core.save.seed;
   const landscape = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
   const next = { ...core.save, seed, landscape, choices, place: null };
-  if (reshuffle) Object.assign(next, { names: {}, lore: {}, groups: null });
+  if (reshuffle && core.zones) {
+    // The setup stays: every place's name, lore and groups go to the same kind of place in the new layout.
+    const built = createWorld(hashString(seed), landscape);
+    const map = remapZones(core.zones, buildZones(built.layout, hashString(seed)));
+    built.dispose();
+    Object.assign(next, carrySetup({ ...core.save, groups: core.save.groups ?? null }, map));
+  }
   core.saves.write(next);
   // Drop the world in memory so playing builds it again from the save.
   core.save = null;
@@ -701,21 +720,17 @@ function namedZones(residents) {
  * What the Lore panel shows: every entry active here, nearest place first, with the place it's tied to,
  * its lorebook and (once the lorebooks are read) its text.
  */
-function activeLore(zone, placeNamesHere) {
-  let names = placeNamesHere;
+function activeLore(zone, names) {
   const lore = core.save?.lore ?? {};
   const books = new Map((core.lorebooks ?? []).map((book) => [book.id, book]));
-  const chain = chainOf(core.zones, zone);
-  const groups = groupsAt(placeGroups(), chain);
-  for (const group of groups) names = { ...names, [group.id]: `${group.name} (group)` };
-  const entries = [...chain, ...groups].flatMap((at) =>
-    (lore[at.id] ?? []).map((entry) => {
+  const entries = loreSources(zone, names).flatMap((source) =>
+    (lore[source.id] ?? []).map((entry) => {
       const book = books.get(entry.lorebookId);
       const found = book?.entries.find((item) => item.id === entry.entryId);
       return {
         title: found?.title ?? entry.title,
         book: book?.name ?? "",
-        from: names[at.id],
+        from: source.label,
         content: found?.content ?? null,
       };
     }),
@@ -735,8 +750,26 @@ function openLore() {
 /** Lorebook entries tied to a zone or the zones it sits in. */
 function loreAt(zone) {
   const lore = core.save?.lore ?? {};
-  const chain = chainOf(core.zones, zone);
-  return [...chain, ...groupsAt(placeGroups(), chain)].flatMap((at) => lore[at.id] ?? []);
+  return loreSources(zone).flatMap((source) => lore[source.id] ?? []);
+}
+
+/**
+ * Everything whose lore is active here, nearest first: the people you're talking with or travelling
+ * with, the place and the places it sits in, the groups those are in, and the whole world.
+ * Each { id, label }.
+ */
+function loreSources(zone, names = {}) {
+  const chain = core.zones ? chainOf(core.zones, zone) : [];
+  const people = new Map();
+  if (core.talking) people.set(core.talking.id, `${core.talking.name} (talking)`);
+  for (const member of core.crowd.party())
+    if (!people.has(member.id)) people.set(member.id, `${member.name} (in your party)`);
+  return [
+    ...[...people].map(([id, label]) => ({ id: `character:${id}`, label })),
+    ...chain.map((at) => ({ id: at.id, label: names[at.id] ?? at.name })),
+    ...groupsAt(placeGroups(), chain).map((group) => ({ id: group.id, label: `${group.name} (group)` })),
+    { id: WORLD_ID, label: `${core.save?.name ?? "the world"} (the whole world)` },
+  ];
 }
 
 /** This world's place groups: the saved ones, or the defaults until they're changed. */
@@ -769,6 +802,8 @@ const groupHandlers = {
       core.saves.write(core.save);
     }
   },
+  onGroupParent: (id, parent) =>
+    editGroups((groups) => groups.map((group) => (group.id === id ? { ...group, parent: parent || null } : group))),
   onGroupMember: (id, zoneId, on) =>
     editGroups((groups) =>
       groups.map((group) =>
@@ -868,8 +903,17 @@ function journalData(zone, snapshot, residents, names) {
     party: core.crowd.party(),
     relationsChanged: core.relationsChanged,
     partyChanged: core.partyChanged,
+    worldLore: { id: WORLD_ID, name: core.save?.name ?? "This world", lore: (lore[WORLD_ID] ?? []).length },
+    characters: (core.characters ?? [])
+      .filter((character) => core.cast?.has(character.id))
+      .map((character) => ({
+        id: `character:${character.id}`,
+        name: character.name,
+        lore: (lore[`character:${character.id}`] ?? []).length,
+      })),
     places: zones.zones.map((at) => ({
       id: at.id,
+      parent: at.parent,
       kind: at.kind === "building" ? at.buildingKind : at.kind,
       name: names[at.id],
       defaultName: zoneName(at, residents, false),
@@ -936,8 +980,17 @@ async function readLorebooks() {
 function editZoneLore(id) {
   const zone = core.zones?.byId.get(id);
   const group = placeGroups().find((entry) => entry.id === id);
-  if ((!zone && !group) || !core.save) return;
-  const title = group ? group.name : zoneName(zone, residentsOf(core.crowd.snapshot()));
+  const character = id.startsWith("character:")
+    ? (core.characters ?? []).find((entry) => `character:${entry.id}` === id)
+    : null;
+  if ((!zone && !group && !character && id !== WORLD_ID) || !core.save) return;
+  const title = character
+    ? character.name
+    : id === WORLD_ID
+      ? `the whole world (${core.save.name})`
+      : group
+        ? group.name
+        : zoneName(zone, residentsOf(core.crowd.snapshot()));
   const chosen = () => new Set((core.save.lore[id] ?? []).map((entry) => `${entry.lorebookId}/${entry.entryId}`));
   const toggle = (book, entry, on) => {
     const kept = (core.save.lore[id] ?? []).filter((at) => !(at.lorebookId === book.id && at.entryId === entry.id));

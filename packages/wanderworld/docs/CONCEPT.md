@@ -190,6 +190,14 @@ signs that carry a picture by default._
   editor). An on-screen list shows which entries are active where the player stands (walking into the
   forest shows "Wilderness"). Showing and choosing them works in the client (the lorebook list is read
   like the character list); sending them to the model is S4's prompt context.
+- **The setup tree (0.4.30):** the whole world (`world`) → its places, each inside the one it sits in
+  (town → street or square → building; the forest → mountains, river, outposts → their buildings) →
+  groups, which can sit inside other groups; and characters (`character:<id>`). Lore can be tied at
+  any level and is active where you are, in every place and group above it, everywhere for the world,
+  and for whoever you're talking to or travelling with. The setup survives a regenerate, even with a
+  new layout: each place keeps its identity by kind and order (the second home, the first inn) and its
+  names, lore and group places move with it (`remapZones`, `carrySetup`). S2's brief writes this setup;
+  the player views and changes it in Journal → Places.
 - **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
   forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
   every place in it, on top of each place's own and the places it sits in. A world's groups are plain

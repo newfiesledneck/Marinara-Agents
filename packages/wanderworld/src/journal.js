@@ -69,7 +69,8 @@ export function createJournal(panelCss, handlers) {
   panel.append(tabs, body);
   let tab = "here";
   let data = null;
-  let groupEdit = null; // the id of the group whose places are being chosen
+  let groupEdit = null;
+  const openNodes = new Set(["world", "places", "town", "groups"]); // which rows of the Places tree are open // the id of the group whose places are being chosen
   let picker = null; // { zone, lorebooks, chosen, onToggle } while choosing lore for a place
 
   const section = (label) => element("div", "font-weight:700;margin-top:4px;opacity:0.9;", label);
@@ -251,54 +252,149 @@ export function createJournal(panelCss, handlers) {
   const openBooks = new Set();
   let chooserOpen = null; // whether "Lorebooks shown" is open (null: open only when none are shown)
 
+  /**
+   * The world's setup as a tree, each level with its own lore: the whole world; its characters (their
+   * lore is active while you talk to them or they're in your party); the places, each inside the one it
+   * sits in (town → street → building); and groups of places, which can sit inside other groups.
+   */
   function drawPlaces() {
     if (picker) return drawPicker();
     if (groupEdit && data.groups.some((group) => group.id === groupEdit)) return drawGroup();
     groupEdit = null;
-    // Groups: places gathered together, each with lore active anywhere in it.
-    body.append(section("Groups"));
-    body.append(line("Lore tied to a group is active in every place in it, with each place's own.", MUTED));
-    for (const group of data.groups) {
-      const row = element("div", "display:flex;align-items:center;gap:6px;");
+    const loreButton = (node) =>
+      button(node.lore ? `Lore (${node.lore})` : "Lore", SMALL, () => handlers.onLore(node.id));
+    /** A row in the tree at `depth`, with a fold toggle when it has `children`. */
+    const treeRow = (depth, key, hasChildren, ...parts) => {
+      const row = element("div", `display:flex;align-items:center;gap:6px;padding-left:${depth * 14}px;`);
+      const open = openNodes.has(key);
+      const fold = element(
+        "button",
+        "width:18px;flex:none;border:0;background:none;cursor:pointer;font-size:11px;color:inherit;padding:0;",
+        hasChildren ? (open ? "▾" : "▸") : "",
+      );
+      fold.type = "button";
+      if (hasChildren)
+        fold.addEventListener("click", () => {
+          if (open) openNodes.delete(key);
+          else openNodes.add(key);
+          draw();
+        });
+      row.append(fold, ...parts);
+      body.append(row);
+      return open;
+    };
+    const nameField = (value, placeholder, onChange) => {
       const name = element("input", `flex:1;min-width:0;${FIELD}`);
-      name.value = group.name;
+      name.value = value;
+      name.placeholder = placeholder;
       name.maxLength = 60;
-      name.addEventListener("change", () => handlers.onGroupRename(group.id, name.value.trim()));
+      name.addEventListener("change", () => onChange(name.value.trim()));
       name.addEventListener("keydown", (event) => {
         if (event.key === "Enter") name.blur();
       });
-      row.append(
-        name,
+      return name;
+    };
+    const kindTag = (kind) => element("span", "font-size:11px;opacity:0.6;width:54px;flex:none;", kind);
+
+    body.append(
+      line(
+        "The world's setup: tie lore to the whole world, a character, any place, or a group. Lore is active where you are, in every place above it, and for whoever you're with.",
+        MUTED,
+      ),
+    );
+    // The whole world, at the top.
+    const worldOpen = treeRow(
+      0,
+      "world",
+      true,
+      element("span", "flex:1;font-weight:700;font-size:13px;", `🌍 ${data.worldLore.name}`),
+      loreButton(data.worldLore),
+    );
+    if (!worldOpen) return;
+
+    // Characters.
+    if (
+      data.characters.length &&
+      treeRow(1, "characters", true, element("span", "flex:1;font-weight:600;font-size:13px;", "Characters"))
+    ) {
+      for (const character of data.characters) {
+        treeRow(
+          2,
+          character.id,
+          false,
+          element("span", "flex:1;font-size:13px;", character.name),
+          loreButton(character),
+        );
+      }
+    }
+
+    // Places, each under the one it sits in.
+    const children = new Map();
+    for (const place of data.places) {
+      const parent = place.parent ?? "";
+      if (!children.has(parent)) children.set(parent, []);
+      children.get(parent).push(place);
+    }
+    const drawPlace = (place, depth) => {
+      const kids = children.get(place.id) ?? [];
+      const open = treeRow(
+        depth,
+        place.id,
+        kids.length > 0,
+        kindTag(place.kind),
+        nameField(place.name, place.defaultName, (value) => {
+          if (value !== place.name) handlers.onRename(place.id, value === place.defaultName ? "" : value);
+        }),
+        loreButton(place),
+      );
+      if (open) for (const kid of kids) drawPlace(kid, depth + 1);
+    };
+    if (treeRow(1, "places", true, element("span", "flex:1;font-weight:600;font-size:13px;", "Places"))) {
+      for (const place of children.get("") ?? []) drawPlace(place, 2);
+    }
+
+    // Groups, each under the group it sits in.
+    const groupKids = new Map();
+    const ids = new Set(data.groups.map((group) => group.id));
+    for (const group of data.groups) {
+      const parent = group.parent && ids.has(group.parent) ? group.parent : "";
+      if (!groupKids.has(parent)) groupKids.set(parent, []);
+      groupKids.get(parent).push(group);
+    }
+    const drawGroupRow = (group, depth, seen) => {
+      if (seen.has(group.id)) return; // a loop of parents is drawn once
+      seen.add(group.id);
+      const kids = groupKids.get(group.id) ?? [];
+      const inside = element("select", `${FIELD}max-width:90px;`);
+      inside.title = "The group this one sits inside";
+      for (const [value, label] of [
+        ["", "(top)"],
+        ...data.groups.filter((other) => other.id !== group.id).map((other) => [other.id, other.name]),
+      ]) {
+        const option = element("option", "", label);
+        option.value = value;
+        inside.append(option);
+      }
+      inside.value = group.parent && ids.has(group.parent) ? group.parent : "";
+      inside.addEventListener("change", () => handlers.onGroupParent(group.id, inside.value));
+      const open = treeRow(
+        depth,
+        group.id,
+        kids.length > 0,
+        nameField(group.name, "Group", (value) => handlers.onGroupRename(group.id, value)),
+        inside,
         button(`Places (${group.members.length})`, SMALL, () => ((groupEdit = group.id), draw())),
-        button(group.lore ? `Lore (${group.lore})` : "Lore", SMALL, () => handlers.onLore(group.id)),
+        loreButton(group),
         button("✕", SMALL, () => handlers.onGroupDelete(group.id)),
       );
-      body.append(row);
-    }
-    body.append(button("+ New group", SMALL, () => handlers.onGroupCreate("New group")));
-    body.append(section("Places"));
-    body.append(line("Rename a place, or tie lorebook entries to it. Shops show their name on the sign.", MUTED));
-    for (const place of data.places) {
-      const row = element("div", "display:flex;align-items:center;gap:6px;");
-      const name = element(
-        "input",
-        "flex:1;min-width:0;font:13px system-ui;border-radius:6px;border:1px solid #b89a6a;background:#fbf6e9;color:#2b1e10;padding:3px 6px;",
-      );
-      name.value = place.name;
-      name.placeholder = place.defaultName;
-      name.title = `${place.kind}: ${place.defaultName}`;
-      name.maxLength = 60;
-      const commit = () => {
-        const value = name.value.trim();
-        if (value !== place.name) handlers.onRename(place.id, value === place.defaultName ? "" : value);
-      };
-      name.addEventListener("change", commit);
-      name.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") name.blur();
-      });
-      const lore = button(place.lore ? `Lore (${place.lore})` : "Lore", SMALL, () => handlers.onLore(place.id));
-      row.append(element("span", "font-size:11px;opacity:0.6;width:58px;flex:none;", place.kind), name, lore);
-      body.append(row);
+      if (open) for (const kid of kids) drawGroupRow(kid, depth + 1, seen);
+    };
+    if (treeRow(1, "groups", true, element("span", "flex:1;font-weight:600;font-size:13px;", "Groups"))) {
+      const seen = new Set();
+      for (const group of groupKids.get("") ?? []) drawGroupRow(group, 2, seen);
+      const add = button("+ New group", SMALL, () => handlers.onGroupCreate("New group"));
+      add.style.marginLeft = "28px";
+      body.append(add);
     }
   }
 
