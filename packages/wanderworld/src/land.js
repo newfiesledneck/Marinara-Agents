@@ -148,19 +148,21 @@ export function landscapeWith(seed, choices = {}) {
     layout: SETTLEMENT_LAYOUTS.includes(choices.layout) ? choices.layout : usual[Math.floor(pick() * usual.length)],
     walls: choices.walls === "yes" || (choices.walls !== "no" && kind === "city"),
   });
+  // A bigger world left to the seed gets more out in it, so there's something to walk to.
+  const roomy = { large: 1, huge: 2, massive: 3 }[choices.size] ?? 0;
   // More settlements out in the country: as chosen, or now and then a hamlet.
-  const more = { none: 0, one: 1, two: 2 }[choices.towns] ?? (pick() < 0.25 ? 1 : 0);
+  const more = { none: 0, one: 1, two: 2 }[choices.towns] ?? (pick() < 0.25 ? 1 : 0) + (roomy >= 2 ? 1 : 0);
   for (let i = 0; i < more && landscape.outposts.length < MAX_OUTPOSTS; i++) {
     landscape.outposts.push({ kind: "hamlet", side: SIDES[Math.floor(pick() * SIDES.length)] });
   }
   // Farms: as chosen, or often one.
-  const farms = { none: 0, one: 1, two: 2 }[choices.farms] ?? (pick() < 0.4 ? 1 : 0);
+  const farms = { none: 0, one: 1, two: 2 }[choices.farms] ?? (pick() < 0.4 ? 1 : 0) + (roomy >= 2 ? 1 : 0);
   for (let i = 0; i < farms && landscape.outposts.length < MAX_OUTPOSTS; i++) {
     landscape.outposts.push({ kind: "farm", side: SIDES[Math.floor(pick() * SIDES.length)] });
   }
   // Landmarks: as chosen (a few, several), or now and then one or two. A mill only with a river to turn it.
   const landmarks =
-    { none: 0, few: 2, several: 4 }[choices.landmarks] ?? (pick() < 0.6 ? 1 + Math.floor(pick() * 2) : 0);
+    { none: 0, few: 2, several: 4 }[choices.landmarks] ?? (pick() < 0.6 ? 1 + Math.floor(pick() * 2) : 0) + roomy;
   const kinds = LANDMARK_KINDS.filter((kind) => kind !== "mill" || landscape.river);
   const start = Math.floor(pick() * kinds.length);
   for (let i = 0; i < landmarks && landscape.outposts.length < MAX_OUTPOSTS; i++) {

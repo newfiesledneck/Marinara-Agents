@@ -1473,14 +1473,8 @@ function buildTown(random, land, ground, needs = {}) {
     const line = (k - blocksPerSide / 2) * PITCH;
     for (let a = 0; a < blocksPerSide; a++) {
       const along = centres[a];
-      if (hasStreetX(k, a))
-        town.roadPieces.push(
-          painted(new PlaneGeometry(span, STREET).rotateX(-Math.PI / 2).translate(along, 0.03, line), ROAD),
-        );
-      if (hasStreetZ(k, a))
-        town.roadPieces.push(
-          painted(new PlaneGeometry(STREET, span).rotateX(-Math.PI / 2).translate(line, 0.035, along), ROAD),
-        );
+      if (hasStreetX(k, a)) town.roadPieces.push(streetPiece(span, STREET, along, 0.03, line));
+      if (hasStreetZ(k, a)) town.roadPieces.push(streetPiece(STREET, span, line, 0.035, along));
     }
   }
   // The market: a paved square with a fountain (a town or city), stalls on paving or packed earth (a
@@ -1493,7 +1487,7 @@ function buildTown(random, land, ground, needs = {}) {
     );
     town.kerbs.push(roundedLoop(px, pz, BLOCK / 2, 0.12, 0.6));
   } else if (look.market === "stalls") {
-    town.roadPieces.push(painted(new PlaneGeometry(BLOCK, BLOCK).rotateX(-Math.PI / 2).translate(px, 0.034, pz), ROAD));
+    town.roadPieces.push(streetPiece(BLOCK, BLOCK, px, 0.034, pz));
   }
   // Now and then a wagon left at the side of a street, halfway along a block (clear of the crossings'
   // lamps), never next to the plaza.
@@ -1976,6 +1970,33 @@ function blockEdges(town, ground) {
   );
 }
 
+const SOFT_EDGE = 0.9; // metres a dirt street fades into the grass, each way from its edge
+
+/**
+ * A flat piece of street, `width` by `depth` at (x, y, z). Cobbles end at their kerb; a dirt street is a
+ * path: its rim fades out over the grass (alpha in its colours, 0 round the outside), so no edge is sharp.
+ */
+function streetPiece(width, depth, x, y, z) {
+  if (look.roads !== "dirt")
+    return painted(new PlaneGeometry(width, depth).rotateX(-Math.PI / 2).translate(x, y, z), ROAD);
+  const geometry = new PlaneGeometry(1, 1, 3, 3).rotateX(-Math.PI / 2);
+  const across = (size) => [-size / 2 - SOFT_EDGE, -size / 2 + SOFT_EDGE, size / 2 - SOFT_EDGE, size / 2 + SOFT_EDGE];
+  const xs = across(width);
+  const zs = across(depth);
+  const position = geometry.attributes.position;
+  const colour = new Color(ROAD);
+  const colours = new Float32Array(position.count * 4);
+  for (let i = 0; i < position.count; i++) {
+    const column = i % 4;
+    const row = Math.floor(i / 4);
+    position.setXYZ(i, x + xs[column], y, z + zs[row]);
+    const rim = column === 0 || column === 3 || row === 0 || row === 3;
+    colours.set([colour.r, colour.g, colour.b, rim ? 0 : 1], i * 4);
+  }
+  geometry.setAttribute("color", new Float32BufferAttribute(colours, 4));
+  return geometry;
+}
+
 /** Flat pieces (roads, paving) merged into one mesh, with texture coordinates in metres / `tile`. */
 /** Pieces merged into one geometry, or an empty one when there are none (a sparse hamlet). */
 function mergeOrEmpty(pieces) {
@@ -1993,7 +2014,9 @@ function groundMesh(pieces, tile) {
     uv[i * 2 + 1] = position.getZ(i) / tile;
   }
   geometry.setAttribute("uv", new Float32BufferAttribute(uv, 2));
-  return new Mesh(geometry, new MeshLambertMaterial({ vertexColors: true }));
+  // Colours with alpha (dirt streets, fading at the rim): drawn over the grass without hiding it.
+  const soft = geometry.attributes.color?.itemSize === 4;
+  return new Mesh(geometry, new MeshLambertMaterial({ vertexColors: true, transparent: soft, depthWrite: !soft }));
 }
 
 /**
@@ -2987,6 +3010,14 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     ]) {
       if (!map) continue;
       mesh.material.map = map;
+      const colours = mesh.geometry.attributes.color;
+      if (colours?.itemSize === 4) {
+        // A soft-edged street keeps its colours for their alpha: white, so the texture isn't tinted.
+        for (let i = 0; i < colours.count; i++) colours.setXYZ(i, 1, 1, 1);
+        colours.needsUpdate = true;
+        mesh.material.needsUpdate = true;
+        continue;
+      }
       mesh.material.vertexColors = false;
       mesh.material.needsUpdate = true;
     }

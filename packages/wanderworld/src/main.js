@@ -1912,8 +1912,10 @@ function setBody(id, body) {
     core.save = { ...core.save, bodies: { ...core.bodies } };
     core.saves.write(core.save);
   }
-  if (id === core.personaId) void choosePersona(id);
-  else updateCast();
+  if (id === core.personaId) {
+    core.hud?.setPersonas(core.personas ?? [], core.personaId, core.bodies); // its body picker shows it too
+    void choosePersona(id);
+  } else updateCast();
 }
 
 function toggleCharacter(id, chosen) {

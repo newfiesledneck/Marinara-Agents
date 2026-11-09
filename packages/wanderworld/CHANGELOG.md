@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.76 — 2026-11-09
+
+- Dirt streets in a hamlet or village are paths now: their edges fade into the grass instead of ending in a hard line.
+- A Large, Huge or Massive world left to the seed gets more places out in it (landmarks, and for Huge and Massive another farm and hamlet), so there is something to walk to. What you choose by hand stays as chosen.
+- Fixed: your body picker in the bar didn't show the body the AI's setup gave your persona until the world was reopened.
+
 ## 0.4.75 — 2026-11-09
 
 - The AI's world setup has more room to answer (for models that think first), and the Journal's lore choices are worded as New world's.

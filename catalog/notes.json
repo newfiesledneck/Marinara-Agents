@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.76",
+          "date": "2026-11-09",
+          "notes": "- Dirt streets in a hamlet or village are paths now: their edges fade into the grass instead of ending in a hard line.\n- A Large, Huge or Massive world left to the seed gets more places out in it (landmarks, and for Huge and Massive another farm and hamlet), so there is something to walk to. What you choose by hand stays as chosen.\n- Fixed: your body picker in the bar didn't show the body the AI's setup gave your persona until the world was reopened.",
+          "highlight": false
+        },
+        {
           "version": "0.4.75",
           "date": "2026-11-09",
           "notes": "- The AI's world setup has more room to answer (for models that think first), and the Journal's lore choices are worded as New world's.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.57",
           "date": "2026-11-09",
           "notes": "- Homes and work set by hand: Journal → People → \"Set homes and work…\" gives each character a home (or Auto) and a workplace, with whether they own it. Places show their numbered names (home6, smithy1) to match lorebooks.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.56",
-          "date": "2026-11-09",
-          "notes": "- Maps: New world shows a map of the world your choices make, redrawn as you change them, with Reroll for another. Regenerate shows the rebuilt world's map, with Reroll for another new layout.\n- Journal → Map: the region you're in from above, with you, the town, hamlets, farms, inns, cottages and caves by name, and the regions beyond each edge.",
           "highlight": false
         }
       ]
