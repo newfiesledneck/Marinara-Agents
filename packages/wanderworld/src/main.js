@@ -51,6 +51,7 @@ const TAG = `marinara-capability-${PACKAGE_ID}`;
 const FIRST_SEED = "wanderworld";
 const WALK_SPEED = 1.4; // metres per second: a natural walking pace (times the walk speed setting)
 const RUN_SPEED = 5; // with Shift
+const GATHER_RADIUS = 6; // metres: "everyone near me" in the Party tab means this close
 const SWIM_DEPTH = 1.3; // metres of water from which the player swims instead of wading
 const WADE_DEPTH = 0.35; // from here up to swimming depth, wading slows them
 const SWIM_SPEED = 1.5; // metres per second swimming (Shift: SWIM_SPRINT)
@@ -2213,6 +2214,29 @@ function attach(element) {
     onSetTraits: setTraits,
     onPartyLeave: (id) => {
       core.crowd.setFollowing(id, false);
+      partyChanged();
+    },
+    // Everyone standing right round the player (a small circle) joins; everyone in the party leaves.
+    onPartyGather: () => {
+      const { x, z } = core.player.position;
+      const near = core.crowd
+        .present(core.space)
+        .filter((person) => Math.hypot(person.position.x - x, person.position.z - z) <= GATHER_RADIUS);
+      const joining = near.filter((person) => !core.crowd.inParty(person.id));
+      for (const person of joining) core.crowd.setFollowing(person.id, true);
+      core.hud?.setNotice(
+        joining.length === 1
+          ? `${joining[0].name} comes along with you.`
+          : joining.length
+            ? `${joining.length} people come along with you.`
+            : near.length
+              ? "Everyone close by is already with you."
+              : "Nobody's standing close enough. Walk up to them first.",
+      );
+      partyChanged();
+    },
+    onPartyDisband: () => {
+      for (const member of core.crowd.party()) core.crowd.setFollowing(member.id, false);
       partyChanged();
     },
     onZoneLore: editZoneLore,

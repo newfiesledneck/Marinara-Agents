@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.34 — 2026-11-08
+
+- Party tab: "Everyone near me comes along" brings everyone standing within a few steps of you into the party, and "Everyone parts ways" sends the whole party off again.
+
 ## 0.4.33 — 2026-11-08
 
 - Characters can be set up from their lore: an entry named or keyed after a character in town, with keywords like "enemy", "sworn enemy", "mentor", "sister", "male" or "female", sets their body and how they see you (only what isn't set yet).
