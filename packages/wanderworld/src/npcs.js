@@ -12,7 +12,7 @@ import { findModel, loadModelCharacter } from "./models.js";
 import { createPerson } from "./people.js";
 import { tagColourOf } from "./relationships.js";
 import { fill, greetingFor, moodOf, pickExchange } from "./dialogue.js";
-import { hashString, heightAt, rng } from "./world.js";
+import { hashString, heightAt, rng, waterAt } from "./world.js";
 
 export const MAX_PEOPLE = 30; // far-off and out-of-sight people animate less often, so thirty stays smooth
 const WANDER_RADIUS = 9;
@@ -241,6 +241,16 @@ export function createCrowd() {
   // ── Finding the way ──
 
   /** True when a body can walk straight from `a` to `b` in `space` without walking into anything. */
+  /** Whether the straight way from `a` to `b` goes through the river (deeper than wading). */
+  function overWater(a, b) {
+    const steps = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 2);
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      if (waterAt(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t).depth > 0.4) return true;
+    }
+    return false;
+  }
+
   function clearPath(space, a, b) {
     const steps = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5);
     for (let i = 1; i < steps; i++) {
@@ -257,7 +267,33 @@ export function createCrowd() {
    */
   function nextPoint(person, target) {
     const from = person.group.position;
+    // Across the river: by the bridge that makes the shortest way round (on, across the deck, then on).
+    if (person.space === world && world.bridges?.length && overWater(from, target)) {
+      let best = null;
+      let bestCost = Infinity;
+      for (const bridge of world.bridges) {
+        for (const [near, far] of [
+          [bridge.a, bridge.b],
+          [bridge.b, bridge.a],
+        ]) {
+          if (overWater(from, near)) continue; // that end is across the water from here
+          const cost =
+            Math.hypot(near.x - from.x, near.z - from.z) +
+            Math.hypot(far.x - near.x, far.z - near.z) +
+            Math.hypot(target.x - far.x, target.z - far.z);
+          if (cost < bestCost) {
+            best = [near, far];
+            bestCost = cost;
+          }
+        }
+      }
+      if (best) return Math.hypot(best[0].x - from.x, best[0].z - from.z) > 1.2 ? best[0] : best[1];
+    }
     if (person.space !== world || clearPath(world, from, target)) return target;
+    // Out in the wilds, going somewhere else out there (after the party, to the inn): no streets to
+    // follow, so straight across country (trees push them round). Into town, the streets.
+    const outside = (at) => Math.max(Math.abs(at.x), Math.abs(at.z)) > (world.layout?.townHalf ?? Infinity) + 3;
+    if (outside(from) && outside(target)) return target;
     let best = null;
     let bestCost = Infinity;
     for (const point of world.waypoints) {
@@ -839,7 +875,10 @@ export function createCrowd() {
     const position = person.group.position;
     person.state = "walk";
     person.rethink = (person.rethink ?? 0) - dt;
-    if (!person.next || person.rethink <= 0) {
+    // Reached a point on the way (a street corner, a bridge's end): choose the next one at once.
+    const reached =
+      person.next && person.next !== target && Math.hypot(person.next.x - position.x, person.next.z - position.z) < 0.6;
+    if (!person.next || person.rethink <= 0 || reached) {
       person.rethink = 0.5;
       person.visited = new Set();
       person.next = nextPoint(person, target) ?? target;

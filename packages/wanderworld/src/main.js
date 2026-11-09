@@ -89,7 +89,9 @@ const CAMERA_FOLLOW = 12; // how quickly the camera catches up (higher is snappi
 /** Presses on these never start a camera drag: they're the HUD's own controls. */
 const UI_SELECTOR = "button, select, input, label, textarea, form, [data-wanderworld-ui]";
 // This package's own browser storage: worlds live in saves.js; bodies are the same in every world.
-const BODIES_KEY = "wanderworld.bodies"; // { [character or persona id]: "male" | "female" }
+// Bodies chosen before they were kept per world ({ [id]: "male" | "female" }): an older world takes them
+// once, the first time it's opened; after that each world keeps its own (save.bodies).
+const BODIES_KEY = "wanderworld.bodies";
 const PERSONA_KEY = "wanderworld.persona"; // the persona a new world starts with: the one played last
 const NEARBY = 12; // metres: who counts as nearby
 const ZONE_SETTLE = 0.6; // seconds in a new place before its name shows
@@ -537,6 +539,12 @@ function playWorld(id) {
     return;
   }
   savePlace(true);
+  // This world's bodies (an older world starts from the ones chosen before worlds kept their own).
+  core.bodies = { ...(save.bodies ?? core.legacyBodies ?? {}) };
+  if (!save.bodies) {
+    save.bodies = { ...core.bodies };
+    core.saves.write(save);
+  }
   core.save = save;
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
@@ -630,6 +638,7 @@ async function createNewWorld({
   // Who lives there and who you play, from New world. Worlds are separate: nobody moves in from another.
   save.persona = persona ?? core.personaId;
   save.cast = cast ?? [];
+  save.bodies = {}; // everyone auto until set here, by hand or by lore
   core.saves.write(save);
   playWorld(save.id);
 }
@@ -1401,7 +1410,11 @@ function updateCast() {
 function setBody(id, body) {
   if (body === "male" || body === "female") core.bodies[id] = body;
   else delete core.bodies[id];
-  store(BODIES_KEY, JSON.stringify(core.bodies));
+  // Saved with this world only: another world keeps its own choice.
+  if (core.save) {
+    core.save = { ...core.save, bodies: { ...core.bodies } };
+    core.saves.write(core.save);
+  }
   if (id === core.personaId) void choosePersona(id);
   else updateCast();
 }
@@ -1424,14 +1437,15 @@ async function loadPeople() {
   core.characterFolders = folders;
   try {
     const bodies = JSON.parse(readStored(BODIES_KEY) ?? "{}");
-    core.bodies = Object.fromEntries(
+    core.legacyBodies = Object.fromEntries(
       Object.entries(bodies && typeof bodies === "object" ? bodies : {}).filter(
         ([, body]) => body === "male" || body === "female",
       ),
     );
   } catch {
-    core.bodies = {}; // a damaged saved copy: everyone is auto
+    core.legacyBodies = {}; // a damaged saved copy: everyone is auto
   }
+  core.bodies = {}; // until a world is opened
   core.cast = core.cast ?? new Set();
   core.hud?.setCharacters(characters, core.cast, core.bodies);
   const remembered = readStored(PERSONA_KEY);

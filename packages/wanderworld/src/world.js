@@ -2162,5 +2162,14 @@ export function createWorld(seed, landscape = null, needs = {}) {
     setTime,
     /** True when (x, z) is inside a building (with `margin`), so someone walking there would be stopped. */
     blocked: (x, z, margin = 0.3) => collider.insideBox(x, z, margin),
+    /** Where to step on and off each bridge (just past its ends): [{ a: { x, z }, b: { x, z } }]. */
+    bridges: land.bridges.map((bridge) => {
+      const reach = bridge.length / 2 + 1.5;
+      const [ax, az] = bridge.along;
+      return {
+        a: { x: bridge.x - ax * reach, z: bridge.z - az * reach },
+        b: { x: bridge.x + ax * reach, z: bridge.z + az * reach },
+      };
+    }),
   };
 }

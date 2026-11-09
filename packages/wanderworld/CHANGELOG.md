@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.46 — 2026-11-09
+
+- Body choices are kept per world: setting someone's body in one world (by hand or by lore) doesn't change another. Older worlds start from the choices made before.
+- Inns and cottages never stand in the river: they move further out until they're on dry ground.
+- Caves have no road leading to them: they're found up on the hillsides.
+- Followers and townsfolk cross the wilds straight to where they're going, and cross the river by the nearest bridge instead of wading in.
+
 ## 0.4.45 — 2026-11-08
 
 - New world starts with nobody living in it: characters from your other worlds no longer come along. Each world keeps its own cast, relationships, lore, homes and party in its own save.
