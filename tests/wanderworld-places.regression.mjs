@@ -7,6 +7,8 @@ import {
   buildZones,
   carrySetup,
   checkGroups,
+  matchLore,
+  mergeLore,
   defaultGroups,
   describe,
   groupsAt,
@@ -179,6 +181,57 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
   assert.equal(carried.names.town, "Oakhold");
   assert.ok(carried.lore[map.get(tavern.id)] && carried.lore.world && carried.lore["group:x"], "lore is kept");
   assert.ok(carried.groups[0].members.includes(map.get(tavern.id)), "the group still holds the tavern");
+
+  // Lorebook entries link to places by exact names and keywords.
+  const books = [
+    {
+      id: "b",
+      entries: [
+        { id: "1", title: zones.town, keys: [] },
+        { id: "2", title: "Old ale", keys: ["Tavern"] },
+        { id: "3", title: "Wolves", keys: ["the woods", "wolf"] },
+        { id: "4", title: "Gods", keys: ["World"] },
+        { id: "5", title: "Mira", keys: [] },
+        { id: "6", title: "Unrelated", keys: ["taverns are fun"] },
+      ],
+    },
+  ];
+  const linked = matchLore(books, {
+    zones,
+    names: {},
+    groups,
+    name: "My world",
+    characters: [{ id: "c1", name: "Mira" }],
+  });
+  assert.deepEqual(
+    linked.town.map((entry) => entry.entryId),
+    ["1"],
+    "an entry named after the town goes to the town",
+  );
+  assert.ok(
+    linked[tavern.id].some((entry) => entry.entryId === "2"),
+    "a 'tavern' keyword goes to the tavern",
+  );
+  assert.ok(
+    linked.forest.some((entry) => entry.entryId === "3"),
+    "'the woods' goes to the forest",
+  );
+  assert.ok(
+    linked.world.some((entry) => entry.entryId === "4"),
+    "'World' goes to the whole world",
+  );
+  assert.ok(
+    linked["character:c1"].some((entry) => entry.entryId === "5"),
+    "a character's name goes to them",
+  );
+  assert.ok(
+    !Object.values(linked)
+      .flat()
+      .some((entry) => entry.entryId === "6"),
+    "only exact matches link",
+  );
+  const merged = mergeLore({ town: [{ lorebookId: "b", entryId: "1", title: "x" }] }, linked);
+  assert.equal(merged.town.length, 1, "linking again adds nothing twice");
 }
 
 console.log("wanderworld places regression: OK");

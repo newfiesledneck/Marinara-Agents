@@ -506,6 +506,53 @@ export function createJournal(panelCss, handlers) {
 
   function drawWorld() {
     const world = data.world;
+    // The world's setup: its setting words, its lorebooks, and how their entries are linked to places.
+    body.append(section("Setup"));
+    const setting = element("textarea", `${FIELD}resize:vertical;min-height:44px;width:100%;box-sizing:border-box;`);
+    setting.value = world.setting;
+    setting.placeholder = 'Setting, e.g. "a cosy fishing village"';
+    setting.maxLength = 600;
+    setting.addEventListener("change", () => handlers.onSetSetup({ setting: setting.value.trim() }));
+    body.append(setting);
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Lorebooks for this world"));
+    if (!world.allLorebooks) {
+      body.append(line("Reading your lorebooks…", MUTED));
+      handlers.onWantLorebooks();
+    } else if (!world.allLorebooks.length) body.append(line("No lorebooks found.", MUTED));
+    else {
+      const chosen = new Set(world.lorebooks);
+      const list = element("div", "display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto;");
+      for (const book of world.allLorebooks) {
+        const label = element("label", "display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;");
+        const box = element("input");
+        box.type = "checkbox";
+        box.checked = chosen.has(book.id);
+        box.addEventListener("change", () => {
+          if (box.checked) chosen.add(book.id);
+          else chosen.delete(book.id);
+          handlers.onSetSetup({ lorebooks: [...chosen] });
+        });
+        label.append(box, element("span", "", book.name));
+        list.append(label);
+      }
+      body.append(list);
+    }
+    const linking = element("select", `${FIELD}width:100%;`);
+    for (const [value, text] of [
+      ["keywords", "Link entries to places by matching names"],
+      ["ai", "Let the AI link entries (with the AI update)"],
+      ["none", "I'll tie them myself"],
+    ]) {
+      const option = element("option", "", text);
+      option.value = value;
+      linking.append(option);
+    }
+    linking.value = world.loreLinking;
+    linking.addEventListener("change", () => handlers.onSetSetup({ loreLinking: linking.value }));
+    body.append(linking);
+    if (world.loreLinking === "keywords")
+      body.append(button("Link lore by name now", SMALL, () => handlers.onLinkLore()));
+    body.append(section("This world"));
     for (const [label, value] of [
       ["World", world.name],
       ["Town", world.town],
@@ -543,7 +590,7 @@ export function createJournal(panelCss, handlers) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
       // No redraw under the cursor in the lists with buttons and fields.
-      const lists = tab === "places" || tab === "party" || tab === "relations";
+      const lists = tab === "places" || tab === "party" || tab === "relations" || tab === "world";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.
       if (picker && body.childElementCount) return;
       const changed = next.partyChanged || next.relationsChanged || next.placesChanged;

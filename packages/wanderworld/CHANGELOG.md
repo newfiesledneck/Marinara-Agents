@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.31 — 2026-11-08
+
+- New world asks for the world's setting, which lorebooks it uses, and how their entries are linked to places: by matching names (an entry named or keyed "tavern", "the woods" or the town's name goes there), by the AI once the AI update arrives, or by hand.
+- Journal → World shows and changes that setup later, with a button to link lore by name again.
+- Keyword links also reach groups, characters (by name) and the whole world ("world").
+
 ## 0.4.30 — 2026-11-08
 
 - Journal → Places shows the world's setup as a tree: the whole world, its characters, then each place inside the one it sits in (town, street, building), then groups. Lore can be tied at every level.

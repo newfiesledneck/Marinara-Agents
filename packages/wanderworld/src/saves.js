@@ -88,6 +88,14 @@ export function checkWorld(raw) {
         )
       : null,
     lore: checkLore(raw.lore),
+    // The world's setting in words ("a cosy fishing village"), for the AI to write the world from.
+    setting: text(raw.setting).slice(0, 600),
+    // The lorebooks this world draws on (ids), and how their entries are linked to places: "keywords"
+    // (exact names, done when the world is built), "ai" (for the AI part to do), or "none".
+    lorebooks: Array.isArray(raw.lorebooks) ? raw.lorebooks.filter((id) => typeof id === "string").slice(0, 50) : [],
+    loreLinking: ["keywords", "ai", "none"].includes(raw.loreLinking) ? raw.loreLinking : "none",
+    // True until the keyword links have been made (the first time the world is built).
+    lorePending: raw.lorePending === true,
     // Place groups ({ id, name, members }); null until the player (or the AI) changes the defaults.
     groups: checkGroups(raw.groups),
     // Notes pinned to the noticeboard by the player (later the AI pins quests and news there too).
