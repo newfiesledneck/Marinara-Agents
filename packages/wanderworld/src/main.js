@@ -36,6 +36,8 @@ import {
   remapZones,
   signOf,
   WORLD_ID,
+  matchLore,
+  mergeLore,
   zoneAt,
 } from "./zones.js";
 import { landscapeWith } from "./land.js";
@@ -336,6 +338,7 @@ function buildWorld(seed, place = null) {
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
+  if (core.save?.lorePending) linkLore();
   const boardSpot = core.world.noticeboard;
   core.board = boardSpot
     ? createNoticeboard({
@@ -560,9 +563,13 @@ function openMenu() {
   core.menu?.show();
 }
 
-function createNewWorld({ name, seed, choices }) {
+function createNewWorld({ name, seed, choices, setting = "", lorebooks = [], loreLinking = "keywords" }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
+  save.setting = setting;
+  save.lorebooks = lorebooks;
+  save.loreLinking = lorebooks.length ? loreLinking : "none";
+  save.lorePending = lorebooks.length > 0 && loreLinking === "keywords";
   save.landscape = landscapeWith(hashString(save.seed), choices);
   save.choices = choices ?? null;
   // A new world starts with the persona and cast of the one played last.
@@ -736,6 +743,49 @@ function activeLore(zone, names) {
     }),
   );
   return { place: names[zone.id], entries, loading: !core.lorebooks };
+}
+
+/**
+ * Links the world's lorebooks to its places by exact names and keywords (zones.js `matchLore`): an
+ * entry named or keyed "Briarwood", "the smithy" or "forest" goes to that place, and so on. Adds to
+ * what's there. Done once when a world is made (if chosen), and again from Journal → World.
+ */
+function linkLore() {
+  const save = core.save;
+  if (!save || !core.zones) return Promise.resolve(0);
+  return readLorebooks()
+    .then((books) => {
+      if (core.save?.id !== save.id) return 0;
+      const chosen = books.filter((book) => core.save.lorebooks.includes(book.id));
+      const names = namedZones(residentsOf(core.crowd.snapshot()));
+      const found = matchLore(chosen, {
+        zones: core.zones,
+        names,
+        groups: placeGroups(),
+        name: core.save.name,
+        characters: (core.characters ?? []).filter((character) => core.cast?.has(character.id)),
+      });
+      const count = Object.values(found).reduce((sum, entries) => sum + entries.length, 0);
+      core.save = { ...core.save, lore: mergeLore(core.save.lore, found), lorePending: false };
+      core.saves.write(core.save);
+      core.placesChanged = true;
+      core.journalAt = 0;
+      core.zoneCheck = 0;
+      return count;
+    })
+    .catch((error) => {
+      console.warn("[wanderworld] couldn't link lore", error);
+      return 0;
+    });
+}
+
+/** Changes the world's setup from Journal → World: its setting words, lorebooks or how lore is linked. */
+function setSetup(fields) {
+  if (!core.save) return;
+  core.save = { ...core.save, ...fields };
+  core.saves.write(core.save);
+  core.placesChanged = true;
+  core.journalAt = 0;
 }
 
 /** Opens the Lore panel: the lore active where the player is (reading the lorebooks' text if needed). */
@@ -922,6 +972,10 @@ function journalData(zone, snapshot, residents, names) {
     groups: placeGroups().map((group) => ({ ...group, lore: (lore[group.id] ?? []).length })),
     placesChanged: core.placesChanged,
     world: {
+      setting: core.save?.setting ?? "",
+      lorebooks: core.save?.lorebooks ?? [],
+      loreLinking: core.save?.loreLinking ?? "none",
+      allLorebooks: core.lorebooks?.map((book) => ({ id: book.id, name: book.name })) ?? null,
       name: core.save?.name ?? "",
       town: names.town,
       time: clockText(),
@@ -947,7 +1001,7 @@ function renameZone(id, name) {
 
 /** The Engine's lorebooks with their entries: [{ id, name, entries: [{ id, title }] }], read once. */
 async function readLorebooks() {
-  if (core.lorebooks) return core.lorebooks;
+  if (core.lorebooks?.length) return core.lorebooks; // none yet (or none found): ask again
   const getJson = async (path) => {
     const response = await fetch(path, { credentials: "same-origin" });
     if (!response.ok) throw new Error(`GET ${path} → ${response.status}`);
@@ -966,6 +1020,10 @@ async function readLorebooks() {
             entry.name || entry.comment || (Array.isArray(entry.keys) ? entry.keys.join(", ") : "") || "Entry",
           ),
           content: typeof entry.content === "string" ? entry.content.slice(0, 4000) : "",
+          // Its keywords, for linking it to places by name.
+          keys: (Array.isArray(entry.keys) ? entry.keys : typeof entry.keys === "string" ? entry.keys.split(",") : [])
+            .map((key) => String(key).trim())
+            .filter(Boolean),
         }));
       } catch (error) {
         console.warn(`[wanderworld] couldn't read lorebook ${book.name}`, error);
@@ -2112,6 +2170,28 @@ function attach(element) {
       partyChanged();
     },
     onZoneLore: editZoneLore,
+    onSetSetup: setSetup,
+    onLinkLore: () =>
+      linkLore().then((count) =>
+        core.hud?.setNotice(
+          count
+            ? `Linked ${count} lore entries to places, characters and the world.`
+            : "No entries matched a place, group or character by name.",
+        ),
+      ),
+    onWantLorebooks: () => {
+      if (core.lorebooksAsked) return; // once: the World tab redraws while they're read
+      core.lorebooksAsked = true;
+      readLorebooks()
+        .catch((error) => {
+          console.warn("[wanderworld] couldn't read lorebooks", error);
+          core.lorebooks = []; // shown as none found (a later picker opens tries again)
+        })
+        .finally(() => {
+          core.placesChanged = true;
+          core.journalAt = 0;
+        });
+    },
     ...groupHandlers,
     onOpenLore: openLore,
     onToggleFullscreen: toggleFullscreen,
@@ -2150,6 +2230,7 @@ function attach(element) {
       last: () => core.saves.last(),
       onPlay: playWorld,
       onCreate: createNewWorld,
+      lorebooks: () => readLorebooks().then((books) => books.map((book) => ({ id: book.id, name: book.name }))),
       onRename: (id, name) => {
         core.saves.rename(id, name);
         if (core.save?.id === id) core.save = { ...core.save, name };

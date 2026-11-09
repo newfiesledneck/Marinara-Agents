@@ -510,3 +510,88 @@ export function carrySetup({ names = {}, lore = {}, groups = null }, map) {
       : null,
   };
 }
+
+// ── Lore from the world's lorebooks, matched to its places ───────────────────
+
+/** Words that name each kind of place, besides its own name ("the smithy" answers to "blacksmith"). */
+const KIND_WORDS = {
+  town: ["town"],
+  plaza: ["market square", "square", "market"],
+  fountain: ["fountain"],
+  forest: ["forest", "woods"],
+  river: ["river"],
+  mountains: ["mountains", "mountain"],
+  road: ["road"],
+  cave: ["cave"],
+  garden: ["garden"],
+  meadow: ["meadow"],
+  "building:home": ["home", "house"],
+  "building:shop": ["shop", "store", "general store"],
+  "building:tavern": ["tavern", "pub"],
+  "building:smithy": ["smithy", "blacksmith", "forge"],
+  "building:temple": ["temple", "chapel", "shrine"],
+  "building:hall": ["hall", "town hall"],
+  "outpost:inn": ["inn"],
+  "outpost:cottage": ["cottage"],
+};
+
+const plain = (word) =>
+  String(word ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/^(the|a|an)\s+/u, "");
+
+/**
+ * Lore for a new world from its lorebooks: every entry whose name or a keyword is exactly the name of a
+ * place (as named in this world, or its kind: "tavern", "forest"), a group, a character or the world
+ * itself is tied to it. `books`: [{ id, entries: [{ id, title, keys }] }]; `world`: { zones, names,
+ * groups, name, characters: [{ id, name }] }. Returns { [id]: [{ lorebookId, entryId, title }] }.
+ */
+export function matchLore(books, world) {
+  const targets = new Map(); // plain word → ids
+  const add = (word, id) => {
+    const key = plain(word);
+    if (!key) return;
+    if (!targets.has(key)) targets.set(key, new Set());
+    targets.get(key).add(id);
+  };
+  for (const zone of world.zones.zones) {
+    add(nameOf(zone, world.names), zone.id);
+    add(zone.name, zone.id);
+    const kind =
+      zone.kind === "building"
+        ? `building:${zone.buildingKind}`
+        : zone.outpostKind
+          ? `outpost:${zone.outpostKind}`
+          : zone.kind;
+    for (const word of KIND_WORDS[kind] ?? []) add(word, zone.id);
+  }
+  for (const group of world.groups ?? []) add(group.name, group.id);
+  for (const character of world.characters ?? []) add(character.name, `character:${character.id}`);
+  add(world.name, WORLD_ID);
+  add("world", WORLD_ID);
+  const lore = {};
+  for (const book of books) {
+    for (const entry of book.entries) {
+      const ids = new Set();
+      for (const word of [entry.title, ...(entry.keys ?? [])])
+        for (const id of targets.get(plain(word)) ?? []) ids.add(id);
+      for (const id of ids) {
+        lore[id] ??= [];
+        lore[id].push({ lorebookId: book.id, entryId: entry.id, title: entry.title });
+      }
+    }
+  }
+  return lore;
+}
+
+/** Adds `extra` lore to `lore` (both { id: entries }), leaving out entries a place already has. */
+export function mergeLore(lore, extra) {
+  const out = { ...lore };
+  for (const [id, entries] of Object.entries(extra)) {
+    const have = new Set((out[id] ?? []).map((entry) => `${entry.lorebookId}/${entry.entryId}`));
+    const added = entries.filter((entry) => !have.has(`${entry.lorebookId}/${entry.entryId}`));
+    if (added.length) out[id] = [...(out[id] ?? []), ...added];
+  }
+  return out;
+}

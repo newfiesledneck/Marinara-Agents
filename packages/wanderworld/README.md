@@ -72,7 +72,8 @@ not listed in the catalog yet. The plan and milestones are in [docs/CONCEPT.md](
 - **Lore and the world's setup:** Journal → Places shows the world as a tree (the whole world, its
   characters, the town, its streets and buildings, the wilds, and groups of places) and lorebook entries
   can be tied at any level: active where you are and everywhere above it, or while you're with that
-  character. The Lore button shows what's active now.
+  character. New world picks the world's setting and lorebooks, and can link entries to places by name
+  (Journal → World changes it later). The Lore button shows what's active now.
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster). A day lasts 20 minutes, with dawn, dusk, and lamps lit at night.
 - **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
   around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the

@@ -7,7 +7,7 @@ const FONT = "system-ui,sans-serif";
 // The menu's card is parchment, its choices wooden boards with cream lettering.
 const PANEL =
   `${PARCHMENT_EDGED}padding:26px 28px;display:flex;flex-direction:column;gap:10px;` +
-  "width:min(420px,calc(100% - 32px));pointer-events:auto;";
+  "width:min(420px,calc(100% - 32px));max-height:calc(100% - 32px);overflow-y:auto;box-sizing:border-box;pointer-events:auto;";
 const BIG =
   `font:600 17px ${SERIF};border:1px solid #4e341d;border-radius:9px;padding:11px 16px;cursor:pointer;text-align:left;` +
   "background:linear-gradient(#7a5532,#5f4126);color:#f6ecd6;box-shadow:0 2px 4px rgba(0,0,0,0.25);";
@@ -40,7 +40,8 @@ function ago(time) {
 }
 
 /**
- * `handlers`: list() → saved worlds, last() → the last played or null, onPlay(id), onCreate({ name, seed }),
+ * `handlers`: list() → saved worlds, last() → the last played or null, onPlay(id), lorebooks() → a promise
+ * of [{ id, name }], onCreate({ name, seed, choices, setting, lorebooks, loreLinking }),
  * onRename(id, name), onDelete(id), onSettings(), suggestName() → a name for a new world.
  * `art`: { background, portrait (the backdrop on tall screens), logo } image URLs, or null for the painted
  * gradient and a lettered title.
@@ -167,15 +168,61 @@ export function createMenu(layer, handlers, art = null) {
       select.addEventListener("change", () => (choices[key] = select.value));
       pickers.append(element("span", "opacity:0.8;", label), select);
     }
+    // The world's setting in words, its lorebooks, and how their entries are linked to places.
+    const setting = element("textarea", `${INPUT}resize:vertical;min-height:44px;font:13px system-ui;`);
+    setting.placeholder = 'Setting (optional), e.g. "a cosy fishing village where the old gods still listen"';
+    setting.maxLength = 600;
+    const lorebooks = new Set();
+    const bookList = element(
+      "div",
+      "display:flex;flex-direction:column;gap:2px;max-height:110px;overflow-y:auto;font-size:13px;",
+      "Reading your lorebooks…",
+    );
+    Promise.resolve(handlers.lorebooks?.())
+      .then((books) => {
+        if (!books?.length) return void (bookList.textContent = "No lorebooks found.");
+        bookList.replaceChildren(
+          ...books.map((book) => {
+            const label = element("label", "display:flex;gap:6px;align-items:center;cursor:pointer;");
+            const box = element("input");
+            box.type = "checkbox";
+            box.addEventListener("change", () => (box.checked ? lorebooks.add(book.id) : lorebooks.delete(book.id)));
+            label.append(box, element("span", "", book.name));
+            return label;
+          }),
+        );
+      })
+      .catch(() => (bookList.textContent = "Couldn't read your lorebooks."));
+    const linking = element("select", `${INPUT}padding:5px 8px;`);
+    for (const [value, text] of [
+      ["keywords", "Link entries to places by matching names"],
+      ["ai", "Let the AI link entries to the right places (with the AI update)"],
+      ["none", "Don't link: I'll tie them myself"],
+    ]) {
+      const option = element("option", "", text);
+      option.value = value;
+      linking.append(option);
+    }
     const create = button("Create and play", BIG, () =>
-      handlers.onCreate({ name: name.value.trim(), seed: seed.value.trim(), choices }),
+      handlers.onCreate({
+        name: name.value.trim(),
+        seed: seed.value.trim(),
+        choices,
+        setting: setting.value.trim(),
+        lorebooks: [...lorebooks],
+        loreLinking: linking.value,
+      }),
     );
     card.append(
       element("div", "font:700 17px system-ui;", "New world"),
       element("div", "font:12px system-ui;opacity:0.75;", "Name"),
       name,
       seed,
+      setting,
       pickers,
+      element("div", "font:12px system-ui;opacity:0.75;", "Lorebooks for this world"),
+      bookList,
+      linking,
       element(
         "div",
         "font:12px system-ui;opacity:0.7;",

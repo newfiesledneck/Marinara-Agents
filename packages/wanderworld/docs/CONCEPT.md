@@ -198,6 +198,10 @@ signs that carry a picture by default._
   new layout: each place keeps its identity by kind and order (the second home, the first inn) and its
   names, lore and group places move with it (`remapZones`, `carrySetup`). S2's brief writes this setup;
   the player views and changes it in Journal → Places.
+- **Setup at New world (0.4.31):** `setting` (words), `lorebooks` (ids) and `loreLinking`: "keywords"
+  links entries whose name or a keyword is exactly a place's name or kind word, a group's or a
+  character's name, or "world" (`zones.js` `matchLore`), once at the first build and again on request;
+  "ai" leaves it for S2, which links entries to places by meaning; "none" is by hand.
 - **Place groups (0.4.29):** places gathered under a name however they lie (every home in town; the
   forest, mountains, a shepherd's cottage and the river as "the wilds"). Lore on a group is active in
   every place in it, on top of each place's own and the places it sits in. A world's groups are plain
