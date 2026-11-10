@@ -100,4 +100,41 @@ export const HELP = [
   },
 ];
 
+/**
+ * Credits and thanks (Menu → Settings → Credits, and the main menu): [{ title, lines }]. The models and
+ * animations are listed as the kit's own notes have them (kit/CREDITS.md, src/clips/CREDITS.md).
+ */
+export const CREDITS = [
+  {
+    title: "Wanderworld",
+    lines: ["Made by ThatOneCan, for Marinara Engine."],
+  },
+  {
+    title: "Thank you, Marinara",
+    lines: [
+      "To Marinara, and to every one of the developers who build Marinara Engine with her: thank you.",
+      "Wanderworld only exists because of what you made. You built an engine where a package can have a place of its own, reach the characters, personas and lorebooks people have already poured themselves into, and call on their own models, and then you left the door open for the rest of us to build in it. That kind of openness is rare, and it takes real generosity to keep it that way.",
+      "Every street in here stands on your work. I hope walking round it feels a little like being thanked.",
+    ],
+  },
+  {
+    title: "Models and animations: Quaternius",
+    lines: [
+      "The buildings, props, plants, people and recorded animations are converted from free packs by Quaternius (quaternius.com), who releases them into the public domain (CC0 1.0). No credit is asked for. It's given gladly: none of this would look like anything without them.",
+      "Medieval Village MegaKit: the houses. Plaster, brick and wood-grid walls, round doors and door frames, thin and wide round windows, round-tile roofs in every size, the tower roof, brick roof fronts, exterior corners, the balcony, chimneys and vines, and their plaster, brick, tile, wood-trim and metal textures.",
+      "Fantasy Props MegaKit (with pieces from the Medieval Village MegaKit): the market stalls and stall cart, wagon, barrels and apple barrels, crates and farm crates, wooden fences, benches, buckets, bags, and the furniture indoors: tables, chairs, stools, beds, cabinets, shelves and bookcases, books, bottles, mugs, pots and the cauldron, candlesticks, the chandelier, wall lanterns and torches, the anvil, workbenches, weapon stand, training dummy, chest, coin pile, banner and vase.",
+      "Stylized Nature MegaKit: the common, twisted, dead and pine trees with their bark and leaves, bushes and flowering bushes, ferns, clover, flowers, grasses, mushrooms, plants, pebbles, rocks and the rock path.",
+      "Universal Base Characters and Modular Character Outfits - Fantasy: the townsfolk. The male and female bodies and heads, the peasant outfits and their colours, eyes, and the hair and beards.",
+      "Universal Animation Library: Idle, Walk, Jog, Sprint, Idle Talking, Sitting (enter, idle, talking, exit) and Swim (forward, idle).",
+    ],
+  },
+  {
+    title: "Art, and the code underneath",
+    lines: [
+      "The menu and loading art, the logo, the store banner and the ground, water, rock and wood textures were made for Wanderworld by ThatOneCan with an image generator.",
+      "Drawn with three.js. Your own 3D avatars load through @pixiv/three-vrm and mmd-parser. All three are MIT licensed.",
+    ],
+  },
+];
+
 export { KEYWORD_GUIDE, keywordGroups };

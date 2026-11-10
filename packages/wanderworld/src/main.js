@@ -5010,7 +5010,7 @@ function attach(element) {
         if (core.save?.id === id) core.save = { ...core.save, name };
       },
       onDelete: deleteWorld,
-      onSettings: () => core.hud?.openSettings(),
+      onSettings: (section) => core.hud?.openSettings(section),
       suggestName,
     },
     {
