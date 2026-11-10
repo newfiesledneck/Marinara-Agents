@@ -211,13 +211,6 @@ export function checkWorld(raw) {
           .map((word) => text(word).slice(0, 40))
           .slice(0, 12),
       })),
-    // Places the player has been, by region: { [region]: [zone ids] } (a place speaks up the first time).
-    visited: Object.fromEntries(
-      Object.entries(isRecord(raw.visited) ? raw.visited : {})
-        .filter(([, zones]) => Array.isArray(zones))
-        .slice(0, 60)
-        .map(([region, zones]) => [region, zones.filter((id) => typeof id === "string").slice(0, 400)]),
-    ),
     // The errand taken from the noticeboard: { id, person, place, text, done }, or null; and how many are done.
     errand:
       isRecord(raw.errand) && typeof raw.errand.id === "string"

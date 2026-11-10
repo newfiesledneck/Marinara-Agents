@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.90",
+          "date": "2026-11-09",
+          "notes": "- Settings → AI has a switch for each thing that can call the model: AI moments as a whole, and arriving somewhere, using things, reading the noticeboard, sitting down and joining someone, each on its own. Arrivals are off to start with. With one off, the world answers with its written lines.\n- Arriving somewhere is told with more sense: only once you've been there a few seconds, never for streets, not for any of the last five places told, and not straight after another. It's told each time you come back after being elsewhere, not only the first time.\n- The telling knows who's about: an empty square isn't called busy.\n- Lamp posts stand on the corners of the blocks, on the kerb, not out in the street.",
+          "highlight": false
+        },
+        {
           "version": "0.4.89",
           "date": "2026-11-09",
           "notes": "- A narrator card (Menu → Settings → AI): pick one of your characters to tell scenes, moments or both in its voice. With it, a scene can start with nobody else there.\n- A scene from anywhere: the chat window's Scene button, or \"/scene …\", opens one right where you stand with whoever's near, your party, the narrator, or the narrator alone. A scene's card asks whether the narrator joins the people there.\n- What you do is told even when nobody's near, and so is reading the noticeboard.\n- \"/camp\" lights a campfire to sit by, tell a story at, and put out.\n- Talking to someone offers joining what they're doing: lend a hand, eat with them, sit with them, keep them company.",
@@ -307,12 +313,6 @@
           "version": "0.4.71",
           "date": "2026-11-09",
           "notes": "- Scenes you start in the world are planned by Wanderworld, so the Engine's scene dialog (with choices remembered from other chats) no longer comes up. Settings → AI: scene point of view, tense, and a prompt preset picked for every scene; Journal → World: scene instructions for that world. If planning fails, the Engine's own planner takes over.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.70",
-          "date": "2026-11-09",
-          "notes": "- Up to five people hear what you say or do, and anyone you name (\"/s Hey Ingrid!\") is one of them if they're in earshot, with the nearest others.",
           "highlight": false
         }
       ]

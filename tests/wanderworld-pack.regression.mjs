@@ -51,6 +51,10 @@ assert.equal(pickLine([], "a"), "");
 assert.equal(pickLine(["{who} is {doing}."], "k", { who: "Tam", doing: "at work" }), "Tam is at work.");
 assert.ok(arrivalLine("forest", "seed:forest", words));
 assert.equal(arrivalLine("street", "seed:street", words), "", "a street has nothing to say for itself");
+// A place with people about is told one way, an empty one another.
+assert.notEqual(arrivalLine("plaza", "k", words, true), arrivalLine("plaza", "k", words, false));
+assert.match(arrivalLine("plaza", "k", words, true), /business/u);
+assert.doesNotMatch(arrivalLine("plaza", "k", words, false), /business|bustl/iu, "an empty square isn't called busy");
 
 // Errands: to someone, found where they usually are; the same until it's done, then another.
 const people = [

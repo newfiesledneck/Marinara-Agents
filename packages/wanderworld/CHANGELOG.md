@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.4.90 — 2026-11-09
+
+- Settings → AI has a switch for each thing that can call the model: AI moments as a whole, and arriving somewhere, using things, reading the noticeboard, sitting down and joining someone, each on its own. Arrivals are off to start with. With one off, the world answers with its written lines.
+- Arriving somewhere is told with more sense: only once you've been there a few seconds, never for streets, not for any of the last five places told, and not straight after another. It's told each time you come back after being elsewhere, not only the first time.
+- The telling knows who's about: an empty square isn't called busy.
+- Lamp posts stand on the corners of the blocks, on the kerb, not out in the street.
+
 ## 0.4.89 — 2026-11-09
 
 - A narrator card (Menu → Settings → AI): pick one of your characters to tell scenes, moments or both in its voice. With it, a scene can start with nobody else there.

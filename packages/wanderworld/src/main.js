@@ -169,6 +169,8 @@ const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, th
 const WEATHER_PERIOD = 240; // seconds of play between changes of the weather
 const TRAVEL_REACH = 6; // metres from the world's edge where "Travel to…" shows
 const OPPOSITE = { north: "south", east: "west", south: "north", west: "east" }; // every kind of usable needs one
+const ARRIVE_SETTLE = 3; // seconds in a place before it's told (passing through, or a misstep, isn't arriving)
+const ARRIVE_GAP = 45; // seconds between one arrival's telling and the next
 const SIGHT_EVERY = 140; // seconds between lines about who's near (the world's voice)
 const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
 const TAP_RADIUS = 70; // screen pixels a tap may land from something and still pick it
@@ -652,6 +654,8 @@ function playWorld(id) {
       resume();
       void pullRecaps();
       core.momentLog = [];
+      core.toldPlaces = [];
+      core.arriveZone = null;
       core.hud?.illustrate.reset();
       core.hud?.illustrate.restore();
       core.hud?.restoreChat();
@@ -1445,7 +1449,7 @@ function makeCamp() {
   fire.position.set(ahead.x, heightAt(ahead.x, ahead.z), ahead.z);
   core.world.scene.add(fire);
   core.world.camp = { kind: "campfire", x: ahead.x, z: ahead.z, object: fire, flame };
-  void runMoment({ action: "makes camp and lights a fire", audience: "party" }).then(
+  void runMoment({ action: "makes camp and lights a fire", audience: "party", source: "thing" }).then(
     (done) => !done && narrate(null, pickLine(PACK.camp, `${ahead.x}`, lineWords())),
   );
 }
@@ -1516,28 +1520,35 @@ function lineWords(who = "") {
 }
 
 /**
- * The world speaks up on first coming to a place (Settings → The world's voice): what its lore says, or
- * else the setting pack's line for that kind of place; with "arrivals by AI" the model writes it. And an
- * errand taken from the noticeboard is done when the player reaches its place with its person near.
+ * The world speaks up on coming to a place (Settings → The world's voice): what its lore says, or else
+ * the setting pack's line for that kind of place, quiet or busy by who's about; with Settings → AI
+ * letting arrivals call the model, the model writes it. Only once the player has settled there, not for
+ * streets, not for one of the last five places told, and not hard on the last telling: walking round
+ * town says little, coming out of the forest into it says something.
  */
 function arrive(zone, names) {
   const save = core.save;
-  if (!save || core.interior) return;
-  const voice = core.settings.narration ?? "lines";
-  const seen = save.visited?.[save.region] ?? [];
-  if (seen.includes(zone.id)) return;
-  core.save = { ...save, visited: { ...save.visited, [save.region]: [...seen, zone.id].slice(-400) } };
-  if (voice === "off" || zone.kind === "street" || zone.kind === "road") return;
+  if (!save || core.interior || (core.settings.narration ?? "lines") === "off") return;
+  if (zone.kind === "street" || zone.kind === "road") return; // getting about isn't arriving
+  // Not the same few places over again (going round town), and not one place hard on another.
+  const told = core.toldPlaces ?? [];
+  if (told.includes(zone.id) || core.clock - (core.toldAt ?? -ARRIVE_GAP) < ARRIVE_GAP) return;
+  core.toldPlaces = [...told, zone.id].slice(-5);
+  core.toldAt = core.clock;
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
+  // Who's about, so an empty square isn't called busy.
+  const at = core.player.position;
+  const about = core.crowd
+    .snapshot()
+    .filter((person) => person.state !== "inside" && Math.hypot(person.x - at.x, person.z - at.z) < 18).length;
   // The place's own lore (the first entry tied to it), when it has some.
   const tie = save.lore?.[zone.id]?.[0];
-  const told = tie && activeLore(zone, names).entries.find((entry) => entry.title === tie.title && entry.content);
-  const line = told
-    ? `${names[zone.id]}. ${told.content.split(/(?<=[.!?])\s/u)[0]}`
-    : arrivalLine(kind, `${save.seed}:${zone.id}`, lineWords());
-  const canAsk = voice === "ai" && core.settings.aiTalk && core.settings.aiMoments && core.ai.known()?.moments;
-  if (!canAsk) return void (line && narrate(null, line));
-  void runMoment({ action: `comes to ${names[zone.id]} for the first time` }).then((done) => {
+  const lore = tie && activeLore(zone, names).entries.find((entry) => entry.title === tie.title && entry.content);
+  const line = lore
+    ? `${names[zone.id]}. ${lore.content.split(/(?<=[.!?])\s/u)[0]}`
+    : arrivalLine(kind, `${save.seed}:${zone.id}`, lineWords(), about > 0);
+  const company = about ? `${about} ${about === 1 ? "person is" : "people are"} about` : "nobody else is about";
+  void runMoment({ action: `comes into ${names[zone.id]}, where ${company}`, source: "arrive" }).then((done) => {
     if (!done && line) narrate(null, line);
   });
 }
@@ -2287,6 +2298,10 @@ function stepPlaces(dt) {
     // The town's own name the first time; after that the place itself.
     if (core.zoneShown !== null || zone.kind !== "town") core.hud?.showZone(names[zone.id]);
     core.zoneShown = zone.id;
+  }
+  // A place is told once the player has settled there (not for passing through, or stepping in by mistake).
+  if (core.arriveZone !== zone.id && core.clock - core.zoneSince >= ARRIVE_SETTLE) {
+    core.arriveZone = zone.id;
     arrive(zone, names);
   }
   finishErrand();
@@ -2677,7 +2692,7 @@ function sit(seat) {
   core.mode = "sit";
   glideTo(seat.x, seat.z, seat.angle, 0.45);
   // People round about may say something to someone sitting down by them.
-  later(0.6, () => void runMoment({ action: "sits down on a bench", needListeners: true }));
+  later(0.6, () => void runMoment({ action: "sits down on a bench", needListeners: true, source: "seat" }));
 }
 
 function standUp() {
@@ -3108,6 +3123,7 @@ async function runMoment({
   audience = "nearby",
   needListeners = false,
   listenersExtra = [],
+  source = "chat",
 }) {
   if (!core.save || !core.zones) return false;
   if (line) {
@@ -3115,6 +3131,9 @@ async function runMoment({
     narrate(personaName(), voice === "whisper" ? `(whispers) ${line}` : voice === "shout" ? `(shouts) ${line}` : line);
   }
   if (!core.settings.aiTalk || !core.settings.aiMoments || !core.ai.known()?.moments || core.momentBusy) return false;
+  // Settings → AI: each kind of moment can be kept from calling the model (what's typed always may).
+  const allowed = { arrive: "aiArrive", thing: "aiThings", board: "aiBoard", seat: "aiSeats", join: "aiJoin" }[source];
+  if (allowed && !core.settings[allowed]) return false;
   const listeners = momentListeners(voice, audience, listenersExtra, `${line} ${action}`);
   if (needListeners && !listeners.length) return false;
   core.momentBusy = true;
@@ -3339,7 +3358,7 @@ function choose(id) {
     const person = { id: talking.id, name: talking.name };
     endTalk();
     narrate(personaName(), `*${joining.verb}*`);
-    void runMoment({ action: joining.verb, listenersExtra: [person] }).then(
+    void runMoment({ action: joining.verb, listenersExtra: [person], source: "join" }).then(
       (done) =>
         !done && narrate(null, pickLine(joining.lines, `${person.id}:${Math.floor(core.clock / 30)}`, lineWords())),
     );
@@ -3659,6 +3678,7 @@ function openScene(thing) {
         action: request.verb ? `${request.verb} (${thing.title})` : `is at ${thing.title}`,
         line: request.line,
         listenersExtra: thing.inside,
+        source: request.line ? "chat" : "thing", // their own words are always heard
       }).then((done) => {
         // No AI answering: the setting pack's own line for it, so something still happens.
         const told = done
@@ -3763,7 +3783,7 @@ function boardErrand(names) {
 
 function openNoticeboard() {
   core.sceneDoor = core.world.noticeboard.use; // walking away closes it, like a door's card
-  void runMoment({ action: "stops to read the notes on the noticeboard" });
+  void runMoment({ action: "stops to read the notes on the noticeboard", source: "board" });
   const town = core.zones ? namedZones(residentsOf(core.crowd.snapshot())).town : "town";
   const show = () => {
     const notes = noticeboardNotes();
