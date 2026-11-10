@@ -723,6 +723,80 @@ assert.equal(
     assert.match(read.problem, /so nothing was changed/u);
     assert.equal(read.reply, "Done, they're married.");
   }
+  // Every other kind of edit: what holds up comes through in one fixed shape, the rest is dropped.
+  const more = server.readAssistant(
+    fenced(
+      JSON.stringify({
+        edits: [
+          {
+            do: "set",
+            person: "Mira",
+            body: "female",
+            voice: "gruff",
+            aggression: 400,
+            stance: "none",
+            knowsYou: "yes",
+          },
+          { do: "set", person: "Mira", voice: "robot" },
+          {
+            do: "day",
+            person: "Mira",
+            entries: [
+              { from: 8, to: 12, activity: "work" },
+              { from: 9, to: 9, activity: "eat" },
+              { from: 1, to: 2, activity: "fly" },
+            ],
+          },
+          { do: "day", person: "Mira", usual: true },
+          {
+            do: "add_person",
+            name: "Wren Tolley",
+            body: "robot",
+            description: "An apprentice.",
+            with: "Oswin",
+            id: "c-mira",
+          },
+          { do: "add_person", name: "Nobody" },
+          { do: "remove_person", person: "Wren Tolley" },
+          { do: "faction", name: "The Guild", add: ["Jake", 7, "Fen"] },
+          { do: "group", name: "The docks", delete: true },
+          { do: "rename", place: "tavern1", name: "The Drowned Bell" },
+          { do: "hours", place: "tavern1", from: 0, to: 6 },
+          { do: "hours", place: "tavern1", from: 30, to: 6 },
+          { do: "world", look: "art nouveau", ageMin: 21, ageMax: "none", seed: "x" },
+          { do: "world", ageMin: 0 },
+          { do: "notice", text: "Lost cat.", by: "the reeve" },
+          { do: "errand", person: "Mira", text: "Take this letter to Mira." },
+        ],
+      }),
+    ),
+  );
+  assert.deepEqual(more.edits, [
+    { do: "set", person: "Mira", body: "female", voice: "gruff", aggression: 100, stance: "" },
+    { do: "day", person: "Mira", entries: [{ from: 8, to: 12, activity: "work", place: "" }] },
+    { do: "day", person: "Mira", entries: [] },
+    {
+      do: "add_person",
+      name: "Wren Tolley",
+      body: "",
+      description: "An apprentice.",
+      personality: "",
+      appearance: "",
+      home: "",
+      with: "Oswin",
+      work: "",
+      owner: false,
+    },
+    { do: "remove_person", person: "Wren Tolley" },
+    { do: "faction", name: "The Guild", delete: false, add: ["Jake", "Fen"], remove: [] },
+    { do: "group", name: "The docks", delete: true, add: [], remove: [] },
+    { do: "rename", place: "tavern1", name: "The Drowned Bell" },
+    { do: "hours", place: "tavern1", open: false, from: 0, to: 6 },
+    { do: "world", look: "art nouveau", ageMin: 21, ageMax: null },
+    { do: "notice", text: "Lost cat.", by: "the reeve" },
+    { do: "errand", person: "Mira", text: "Take this letter to Mira.", done: "" },
+  ]);
+  assert.match(more.problem, /^4 of the assistant's changes weren't/u);
   const cut = server.readAssistant('On it.\n```wanderworld\n{"edits": [{"do": "lore", "about": "Ja');
   assert.deepEqual([cut.reply, cut.edits.length], ["On it.", 0]);
   assert.match(cut.problem, /cut short/u);

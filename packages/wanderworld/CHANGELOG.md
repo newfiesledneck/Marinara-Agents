@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.5 — 2026-11-11
+
+- The AI assistant can do more, always as a proposal you confirm: add or remove people this world invented, set someone's day, body, voice, temperament, stance and who knows whom, rename places and set when they're closed, make groups of places and factions of people, change the world's setting, picture look and ages, pin a note to the noticeboard and give you an errand.
+- Undo: after a Confirm, "Undo these changes" puts the world back as it was.
+- It can say why a lore entry is or isn't active where you stand: it's sent what's active there and what every entry is tied to.
+
 ## 0.5.4 — 2026-11-10
 
 - New layouts in New world: scattered houses with no streets (the tavern, temple and shops face the market, dirt ways lead in), round a pond (houses along the edge, the pond in the middle), and four quarters with a green between them.

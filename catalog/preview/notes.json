@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.5",
+          "date": "2026-11-11",
+          "notes": "- The AI assistant can do more, always as a proposal you confirm: add or remove people this world invented, set someone's day, body, voice, temperament, stance and who knows whom, rename places and set when they're closed, make groups of places and factions of people, change the world's setting, picture look and ages, pin a note to the noticeboard and give you an errand.\n- Undo: after a Confirm, \"Undo these changes\" puts the world back as it was.\n- It can say why a lore entry is or isn't active where you stand: it's sent what's active there and what every entry is tied to.",
+          "highlight": false
+        },
+        {
           "version": "0.5.4",
           "date": "2026-11-10",
           "notes": "- New layouts in New world: scattered houses with no streets (the tavern, temple and shops face the market, dirt ways lead in), round a pond (houses along the edge, the pond in the middle), and four quarters with a green between them.\n- The AI assistant now proposes: you read each change (rewritten lore with what it says now) and press Confirm or Cancel. Nothing changes before that.\n- It rewrites lore whole and keeps its detail: \"make Jake a sorcerer\" works that into what's there.\n- Ages: set them for a world you have in Journal → World. Any age from 1, and they're only the usual range: your lore, setting and cards win (an elf can be a thousand).",
@@ -307,12 +313,6 @@
           "version": "0.4.88",
           "date": "2026-11-09",
           "notes": "- More to do in the world: market stalls, wagons, barrels and crates, and out in the country the farm, graveyard, standing stones, mill, pond, watchtower and ruins each have a card of things to do. With AI on each is a moment; without it the world still answers with lines of its own.\n- The world's voice (Settings → World): a line on first coming to a place (its lore, when it has some) and now and then about who's near. On without AI by default; arrivals can be written by AI.\n- The noticeboard has an errand to someone in the world: take it and it's marked on your map; reach them and it's done, and they think better of you.\n- The chat window tells narration, your lines and other people's apart. With it closed, narration shows as a caption over the world, and Chat shows a dot.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.87",
-          "date": "2026-11-09",
-          "notes": "- Journal → People → Relationships is back as an overview to read: how everyone sees each other and you, person by person. Changing one is done in Edit people.\n- Hints in the game point to Menu → Settings now that Settings lives in the Menu.",
           "highlight": false
         }
       ]
