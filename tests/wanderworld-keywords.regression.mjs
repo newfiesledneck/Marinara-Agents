@@ -39,6 +39,44 @@ assert.deepEqual(traitsFromWords(["shy", "Grumpy", "tall"]), { sociability: 15, 
 assert.equal(voiceFromWords(["voice Gruff"]), "gruff");
 assert.equal(voiceFromWords(["voice operatic", "gruff"]), "", "only the voices there are, and only as 'voice …'");
 
+// How someone acts toward the player, and who knows whom.
+{
+  const { stanceFromWords, knowingFromWords } = await import("../packages/wanderworld/src/keywords.js");
+  assert.equal(stanceFromWords(["Tam", "Rude"]), "rude");
+  assert.equal(stanceFromWords(["confronts"]), "aggressive", "an aggressive temperament is its own keyword");
+  assert.equal(stanceFromWords(["attacks"]), "attacks");
+  assert.equal(stanceFromWords(["aggressive", "shy"]), "", "temperament words aren't stances");
+  assert.deepEqual(knowingFromWords(["known", "Knows You"]), { known: true, knowsYou: true });
+  assert.deepEqual(knowingFromWords(["knows"]), { known: false, knowsYou: false });
+  // What there is to say depends on who it is, and introductions come first.
+  const { choicesFor, labelOf } = await import("../packages/wanderworld/src/dialogue.js");
+  const stranger = choicesFor([], { mood: "stranger", known: false, theyKnow: false, you: "Zoey", seed: "c-1" });
+  assert.deepEqual(
+    stranger.slice(0, 2).map((choice) => choice.id),
+    ["whoAreYou", "introduce"],
+  );
+  assert.equal(stranger[1].label, "I'm Zoey.");
+  assert.equal(stranger.at(-1).id, "bye");
+  assert.equal(stranger.length, 6, "a handful, and Goodbye");
+  const close = choicesFor([], { mood: "close", known: true, theyKnow: true, you: "Zoey", seed: "c-1" }).map(
+    (choice) => choice.id,
+  );
+  assert.ok(
+    !close.includes("whoAreYou") && !close.includes("problem"),
+    "not what a stranger or an enemy would be asked",
+  );
+  const cold = choicesFor([], { mood: "cold", known: true, theyKnow: true, you: "Zoey", seed: "c-2" }).map(
+    (choice) => choice.id,
+  );
+  assert.ok(cold.includes("problem") || cold.includes("truce"));
+  assert.notDeepEqual(
+    choicesFor([], { mood: "neutral", known: true, theyKnow: true, seed: "c-1" }),
+    choicesFor([], { mood: "neutral", known: true, theyKnow: true, seed: "c-9" }),
+    "not the same handful for everyone",
+  );
+  assert.equal(labelOf("introduce", "Zoey"), "I'm Zoey.");
+}
+
 // Places: hours.
 assert.deepEqual(closedFromWords(["tavern1", "closed 22-6"]), { from: 22, to: 6 });
 assert.deepEqual(closedFromWords(["closed 0:30 - 7:15"]), { from: 0.5, to: 7.25 });

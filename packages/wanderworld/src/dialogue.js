@@ -157,6 +157,88 @@ const TOPICS = {
       cold: ["I don't see why I should.", "Mind your own business."],
     },
   },
+  // More to say, by who it is. `when(context)` says whether it's offered: context is { mood, known (the
+  // player knows their name), theyKnow (they know the player's) }. Without AI the answer is `reply`.
+  whoAreYou: {
+    label: "I don't think we've met. What's your name?",
+    when: (context) => !context.known,
+    reply: {
+      neutral: ["{name}. And you are?", "Folk call me {name}.", "{name}. Who's asking?"],
+      cold: ["{name}. Not that it's your business."],
+    },
+  },
+  introduce: {
+    label: "I'm {you}.",
+    when: (context) => !context.theyKnow,
+    reply: { neutral: ["Well met, {you}.", "{you}. I'll remember that."], cold: ["If you say so, {you}."] },
+  },
+  newHere: {
+    label: "I'm new around here.",
+    when: (context) => context.mood === "stranger",
+    reply: { neutral: ["Then mind the river after rain, and try {tavern}.", "Welcome to {town}. It grows on you."] },
+  },
+  weather: {
+    label: "Some weather we're having.",
+    when: (context) => ["stranger", "neutral"].includes(context.mood),
+    reply: { neutral: ["It'll turn by evening. It always does.", "Can't complain. Well, I can."] },
+  },
+  work: {
+    label: "How's work?",
+    when: (context) => ["neutral", "warm", "family"].includes(context.mood),
+    reply: { neutral: ["Never done. You?", "Keeps me fed."], warm: ["Better for a visit. Stay a minute?"] },
+  },
+  rumours: {
+    label: "Heard any rumours?",
+    when: (context) => context.mood !== "cold",
+    reply: {
+      neutral: [
+        "Only that something's been at the hens up by {wild}.",
+        "They say {tavern} waters the ale. I wouldn't know.",
+      ],
+    },
+  },
+  help: {
+    label: "Need a hand with anything?",
+    when: (context) => ["neutral", "warm", "close", "family"].includes(context.mood),
+    reply: {
+      neutral: ["Kind of you. Not today.", "Ask me tomorrow, when the cart comes in."],
+      warm: ["From you? Always. Later, though."],
+    },
+  },
+  goodToSee: {
+    label: "It's good to see you.",
+    when: (context) => ["warm", "close", "family"].includes(context.mood),
+    reply: {
+      warm: ["And you! It's been too long.", "You too. Truly."],
+      close: ["I was hoping you'd come by."],
+      family: ["Look at you. Come here."],
+    },
+  },
+  walkLater: {
+    label: "Fancy a walk later?",
+    when: (context) => ["warm", "close"].includes(context.mood),
+    reply: { warm: ["I'd like that. By {street}?", "If the weather holds, yes."], close: ["With you? Anywhere."] },
+  },
+  missed: {
+    label: "I've missed you.",
+    when: (context) => context.mood === "close",
+    reply: { close: ["Don't. You'll make me say it back.", "Then stay longer this time."] },
+  },
+  family: {
+    label: "How's the family?",
+    when: (context) => context.mood === "family",
+    reply: { family: ["Loud. Come to supper and see.", "Asking after you, as ever."] },
+  },
+  problem: {
+    label: "What's your problem with me?",
+    when: (context) => context.mood === "cold",
+    reply: { cold: ["You know what you did.", "Where would you like me to start?"] },
+  },
+  truce: {
+    label: "Can we call a truce?",
+    when: (context) => context.mood === "cold",
+    reply: { cold: ["We'll see.", "Words are cheap. Show me."] },
+  },
   eat: {
     label: "Know a good place to eat?",
     reply: {
@@ -198,12 +280,25 @@ const ANSWERS = {
   cold: ["Are you finished?", "I don't care.", "Hmph."],
 };
 
-/** Choices for the player: `[{ id, label }]`, the ones not asked yet first, and always Goodbye. */
-export function choicesFor(asked = []) {
-  const topics = Object.entries(TOPICS)
-    .filter(([id]) => !asked.includes(id))
-    .map(([id, topic]) => ({ id, label: topic.label }));
-  return [...topics, { id: "bye", label: "Goodbye." }];
+/**
+ * Choices for the player: `[{ id, label }]`, by who it is (`context`: { mood, known, theyKnow, you (the
+ * player's name), seed }), not ones asked already, a handful at a time and not the same handful for
+ * everyone, and always Goodbye.
+ */
+export function choicesFor(asked = [], context = {}) {
+  const offered = Object.entries(TOPICS)
+    .filter(([id, topic]) => !asked.includes(id) && (topic.when ? topic.when(context) : true))
+    .map(([id, topic], at) => ({ id, label: topic.label.replace("{you}", context.you ?? "a traveller"), at }));
+  // Introductions first; the rest in an order of this person's own.
+  const mix = (text) => {
+    let value = 7;
+    for (const char of text) value = (Math.imul(value, 31) + char.charCodeAt(0)) | 0;
+    return Math.abs(value);
+  };
+  const rank = (entry) =>
+    ["whoAreYou", "introduce"].includes(entry.id) ? -1 : mix(`${context.seed ?? ""}:${entry.id}`);
+  offered.sort((a, b) => rank(a) - rank(b));
+  return [...offered.slice(0, 5).map(({ id, label }) => ({ id, label })), { id: "bye", label: "Goodbye." }];
 }
 
 const one = (lines, random) => lines[Math.floor(random() * lines.length)];
@@ -216,6 +311,6 @@ export function lineFor(what, mood, words, random = Math.random) {
 }
 
 /** What the player's choice is, as they say it. */
-export function labelOf(id) {
-  return id === "bye" ? "Goodbye." : (TOPICS[id]?.label ?? "");
+export function labelOf(id, you = "a traveller") {
+  return id === "bye" ? "Goodbye." : (TOPICS[id]?.label ?? "").replace("{you}", you);
 }

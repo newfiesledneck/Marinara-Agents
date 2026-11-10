@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.4.92 — 2026-11-09
+
+- Knowing goes both ways: someone who doesn't know your name won't use it. They learn it when you say it (or "I'm …"), you learn theirs when they say it. The small "i" beside a conversation's title explains both and has a switch for each.
+- What you can say in a conversation depends on who it is: introductions for strangers, different things for friends, family, someone close and someone cold, and not the same handful for everyone.
+- When someone comes at you or attacks, a card says so, explains there's no fighting yet, and offers talking, a moment, a scene, or turning aggressive approaches off.
+- Speech bubbles say who's speaking in place of the name tag ("Stranger: Hi there!") and stack instead of overlapping. The wheel zooms a conversation's view in and out.
+- New keywords: ww: rude, ww: confronts, ww: attacks, ww: afraid, ww: avoids, ww: known, ww: knows you.
+
 ## 0.4.91 — 2026-11-09
 
 - Knowing people: someone you haven't met is a Stranger, over their head and in what's written, until you learn their name. You know anyone you have a relationship with or who travels with you; a name is learned when they say it, when a note names them, or when you say so while talking (the name button). Menu → Settings → Display: show all names, only people you know, or none.

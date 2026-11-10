@@ -66,6 +66,19 @@ export function traitsFromWords(words) {
   return out;
 }
 
+/** How someone acts toward the player, whatever they feel: the keyword, and what it's kept as. */
+const STANCE_WORDS = { rude: "rude", confronts: "aggressive", attacks: "attacks", afraid: "afraid", avoids: "avoids" };
+
+/** How someone acts toward the player, from "rude", "confronts", "attacks", "afraid" or "avoids": the stance, or "". */
+export function stanceFromWords(words) {
+  return words.map((word) => STANCE_WORDS[clean(word).toLowerCase()]).find(Boolean) ?? "";
+}
+
+/** Who knows whom by name, from "known" (the player knows them) and "knows you" (they know the player). */
+export function knowingFromWords(words) {
+  return { known: has(words, "known"), knowsYou: has(words, "knows you") };
+}
+
 /** How someone talks, from "voice gruff": a name from VOICES, or "". */
 export function voiceFromWords(words) {
   const voice = after(words, /^voice\s+(\w+)$/iu)[0]?.toLowerCase();
@@ -140,6 +153,7 @@ export function creatureFromWords(words) {
 
 const SIMPLE = [
   /^(character|monster|creature|hostile|world|walls|night|day|you|player|persona)$/iu,
+  /^(rude|confronts|attacks|afraid|avoids|known|knows you)$/iu,
   /^named?\s+\S/iu,
   /^(group of|located in|lives in|works at|owner of|owner|found in|faction|member of|drops?)\s+\S/iu,
   /^(pack|danger)\s+\d+$/iu,

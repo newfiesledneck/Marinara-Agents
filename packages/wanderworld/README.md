@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.91)
+## What it does now (0.4.92)
 
 ### The world
 
@@ -173,7 +173,10 @@ only walk about.
   them while talking. Anyone you have a relationship with is known from the start. "Look at them" in a
   conversation and "People here" in the chat window show what the people near you look like. Edit
   people can set how someone acts toward you apart from how they feel: rude, aggressive, attacks on
-  sight, afraid, or avoids you.
+  sight, afraid, or avoids you. It goes both ways: someone who doesn't know your name won't use it until
+  you say it, and the "i" beside a conversation's title explains and switches both. When someone comes at
+  you, a card says so and offers talking, a moment or a scene (there's no fighting yet), or turning
+  aggressive approaches off.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it
@@ -225,6 +228,8 @@ links nothing. Put them in an entry's keys, next to its usual ones.
 | `ww: work 10:15-18:45`, `ww: home 22-7:15`, `ww: eat 12-13 at tavern1` | a character's entry | Their day (home, work, eat, visit, sit, walk), over the usual one; quarter hours, and over midnight. |
 | `ww: shy`, `ww: quiet`, `ww: friendly`, `ww: outgoing`; `ww: passive`, `ww: gentle`, `ww: calm`, `ww: grumpy`, `ww: fierce`, `ww: aggressive` | a character's entry | Their manner and temperament. |
 | `ww: voice gruff` (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly) | a character's entry | How they talk, instead of the setting's way. |
+| `ww: rude`, `ww: confronts`, `ww: attacks`, `ww: afraid`, `ww: avoids` | a character's entry | How they act toward you, whatever they feel: won't greet you, comes at you, attacks on sight, or keeps away. |
+| `ww: known`, `ww: knows you` | a character's entry | You know their name from the start; they know yours. (Anyone with a relationship to you knows you both ways already.) |
 | `ww: member of Thieves Guild` | a character's entry | Puts them in that faction; the faction's entry is lore for each member. |
 | `ww: faction Thieves Guild` | any entry | The entry is that faction's lore. |
 | `ww: character Mira Saxton` | any entry | The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means. Otherwise a person is made who lives in that world only, and one model call writes who they are, their manner and their looks from the entry: `ww: character Mira Little` beside a card called Mira Saxton gives you both. Cards you didn't choose are never pulled in. |
