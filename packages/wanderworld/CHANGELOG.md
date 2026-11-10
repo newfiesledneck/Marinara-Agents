@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.97 — 2026-11-09
+
+- Fixed: Settings opened from the main menu didn't load your connections, so a connection you had chosen showed as "(not found)". They load there now, as they do in a world.
+
 ## 0.4.96 — 2026-11-09
 
 - Credits: the thanks to Marinara and the Marinara Engine developers says more of how Wanderworld came to be, and the art line is shorter.
