@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.19)
+## What it does now (0.5.20)
 
 ### The world
 
@@ -69,7 +69,8 @@ from **Load world** or clear the site's data.
   character packs, chosen from their name; a body picker sets Auto, Male or Female, per world).
 - **Choose a look:** for anyone without a 3D model, your persona included, the Look button beside the
   body choice opens a card: an outfit (townsfolk, or the ranger), or each piece of one from either (top,
-  sleeves, legs, boots), the ranger's hood and pauldrons on or off (on anyone), each outfit's cloth, a
+  sleeves, legs, boots) or None for any of them (the body shows there, in dark underclothes: bare arms,
+  a bare chest, bare feet), the ranger's hood and pauldrons on or off (on anyone), each outfit's cloth, a
   colour of your own for any piece (the square beside it), hair, hair colour and skin (from a list, or
   any colour you pick), beard and height. The colour picker has its own Use this colour, No colour and
   Cancel buttons. Changes show at once and are kept with the world; Reset forgets them. About one in
@@ -378,7 +379,8 @@ still count, and come first.
 - Walk-in rooms are unfinished and off by default.
 - A look can be chosen once someone lives in the world, and there are two outfits to mix. The hood
   goes over whatever hair they have. A piece given a colour of its own is that colour all over (its
-  leather and trim too), and sleeves take the hands' gloves with them. Someone with a 3D model shows
+  leather and trim too), and sleeves take the hands' gloves with them. The bare body is the pack's
+  broader build, so where a bare piece meets a clothed one the join can show a little. Someone with a 3D model shows
   the model; their look is kept for when it isn't there.
 - The smith holds a hammer and a drinker a mug; nobody else holds a tool (the watering has no can), and
   the smith's swing is a wood-chopper's. The forge's hearth doesn't glow at night. A seller and a buyer

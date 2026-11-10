@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.5.19",
+  "version": "0.5.20",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -111,6 +111,10 @@
         "kit/people/clothes-red.webp",
         "kit/people/clothes-teal.webp",
         "kit/people/eyes.webp",
+        "kit/people/female-none-arms.json",
+        "kit/people/female-none-feet.json",
+        "kit/people/female-none-legs.json",
+        "kit/people/female-none-top.json",
         "kit/people/female-peasant-arms.json",
         "kit/people/female-peasant-feet.json",
         "kit/people/female-peasant-legs.json",
@@ -134,6 +138,10 @@
         "kit/people/head-male.json",
         "kit/people/head-male.webp",
         "kit/people/index.json",
+        "kit/people/male-none-arms.json",
+        "kit/people/male-none-feet.json",
+        "kit/people/male-none-legs.json",
+        "kit/people/male-none-top.json",
         "kit/people/male-peasant-arms.json",
         "kit/people/male-peasant-feet.json",
         "kit/people/male-peasant-legs.json",
@@ -287,8 +295,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "26e7621159f6c103d37860648ef85287f8331ecc458b6164106b1dd2e6c0fcf8",
-      "bytes": 2219743
+      "sha256": "3429cd63b54b2504c1d0c6c9fdd1c312c6d8ebd8bd4e7ac43bd1a3a0d97979c4",
+      "bytes": 2219868
     },
     {
       "path": "server.mjs",
@@ -671,6 +679,26 @@
       "bytes": 772
     },
     {
+      "path": "kit/people/female-none-arms.json",
+      "sha256": "bdc33ff59044efa7671816cbc6dbccdb580833b50ab5ec2138c5be31038c060a",
+      "bytes": 119862
+    },
+    {
+      "path": "kit/people/female-none-feet.json",
+      "sha256": "525fc34d71546de044c08444b47a6afb20486895bc2ade8aa706d96edf84fc3f",
+      "bytes": 64359
+    },
+    {
+      "path": "kit/people/female-none-legs.json",
+      "sha256": "9ef673f999c809f18f633f45fbeb02385d65ee1b28030f09ab65af2c3d1b9cc5",
+      "bytes": 63365
+    },
+    {
+      "path": "kit/people/female-none-top.json",
+      "sha256": "f7c32ed94235d3b2eeedbd4f8aa2ae79d319be7a2975e749cfc926251310b279",
+      "bytes": 48673
+    },
+    {
       "path": "kit/people/female-peasant-arms.json",
       "sha256": "6469488b4c3a5267e04bdc76cc06315c8ce08884065bb26e989c1f553e5812dd",
       "bytes": 214129
@@ -782,8 +810,28 @@
     },
     {
       "path": "kit/people/index.json",
-      "sha256": "212dc8b121107004ce5fb26a9b596124afc6044cedbe196f256f40f5a9ac2f2e",
-      "bytes": 3052
+      "sha256": "ae8ab80bc8cd35899c03ff69599853e26efba1b0e2a9edaa4ba9c3a4dd04bd2d",
+      "bytes": 3196
+    },
+    {
+      "path": "kit/people/male-none-arms.json",
+      "sha256": "7dafe538c77079365a86bf98a65ec50a68ec38f0565ee0c9678a349c75b4ffd0",
+      "bytes": 125924
+    },
+    {
+      "path": "kit/people/male-none-feet.json",
+      "sha256": "7a0be7c83c7695ae0a823f99874e75f097e9ab08b5c6e8f62e1820875b1d836a",
+      "bytes": 67428
+    },
+    {
+      "path": "kit/people/male-none-legs.json",
+      "sha256": "b5fb1dd8acd885ba3461812f7afd252c2e25a36d6229efd4d57ba67ac0bea486",
+      "bytes": 64483
+    },
+    {
+      "path": "kit/people/male-none-top.json",
+      "sha256": "f4318776439f7a35ad99d94bc410f0e2e1a5d2fd9325987866913d83c547066b",
+      "bytes": 43363
     },
     {
       "path": "kit/people/male-peasant-arms.json",

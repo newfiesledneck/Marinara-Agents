@@ -7,7 +7,7 @@ import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
 import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
-import { COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, PIECES, SKIN_TONES } from "./looks.js";
+import { BARE, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, PIECES, SKIN_TONES } from "./looks.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
@@ -308,8 +308,9 @@ export function createHud(root, handlers) {
       // Its pieces, each from any outfit and in a colour of its own if you like; the ranger's hood and
       // pauldrons on or off.
       for (const [piece, label] of PIECES) {
-        pick(label, piece, outfitNames, now[piece]);
-        tintRow(piece, label);
+        pick(label, piece, [...outfitNames, [BARE, "None"]], now[piece]);
+        // (A piece left off is skin: its colour is the skin's.)
+        if (now[piece] !== BARE) tintRow(piece, label);
       }
       for (const [extra, label] of EXTRAS) {
         pick(

@@ -141,6 +141,29 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   assert.equal(dyed.height, 1.1);
   assert.deepEqual(dyed.tints, { top: 0x336699 });
   assert.equal(dyed.skinTint, 0x9955cc);
+  // Any piece can be left off: the body shows there, and no outfit's colour is asked for it.
+  for (const sex of ["male", "female"]) {
+    for (const [piece] of PIECES) assert.ok(kitFiles.has(`${sex}-none-${piece}.json`), `the bare ${sex} ${piece}`);
+    const bare = lookFor("Rook", index, sex, { top: "none", arms: "none", legs: "none", feet: "none" });
+    assert.deepEqual(
+      bare.parts,
+      PIECES.map(([piece]) => `${sex}-none-${piece}`),
+    );
+    assert.deepEqual(bare.worn, [], "nothing worn, so no cloth to choose");
+    const half = lookFor("Rook", index, sex, { outfit: "ranger", top: "none" });
+    assert.deepEqual(half.worn, ["ranger"]);
+    assert.equal(half.choices.hood, false, "no hood without the ranger's top, unless said");
+    for (const chosen of [
+      { top: "none" },
+      { top: "none", arms: "none", legs: "none", feet: "none", skinTint: 0x44aa66 },
+      { feet: "none", outfit: "ranger" },
+    ]) {
+      const person = await createPerson("Rook", sex, chosen);
+      person.update(0.1, 0, {});
+      person.dispose();
+    }
+  }
+  assert.equal(checkLook({ top: "none", legs: "nothing" }).top, "none");
   // Cropped hair is cut for each body's own head.
   for (const sex of ["male", "female"]) {
     const cropped = await createPerson("Rook", sex, {

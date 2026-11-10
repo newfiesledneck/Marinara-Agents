@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.20 — 2026-11-11
+
+- Look card: any piece (top, sleeves, legs, boots) can be set to None, which shows the body there: bare arms, a bare chest, bare feet. The body wears dark underclothes, so leaving everything off is still decent.
+
 ## 0.5.19 — 2026-11-11
 
 - Look card: every piece (top, sleeves, legs, boots, hood, pauldrons) can have a colour of its own, and it comes out as the colour you pick instead of darkening the cloth. Skin can be any colour too.

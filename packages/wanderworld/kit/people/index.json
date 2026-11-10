@@ -30,18 +30,22 @@
       ],
       "pieces": {
         "top": [
+          "none",
           "peasant",
           "ranger"
         ],
         "arms": [
+          "none",
           "peasant",
           "ranger"
         ],
         "legs": [
+          "none",
           "peasant",
           "ranger"
         ],
         "feet": [
+          "none",
           "peasant",
           "ranger"
         ],
@@ -82,18 +86,22 @@
       ],
       "pieces": {
         "top": [
+          "none",
           "peasant",
           "ranger"
         ],
         "arms": [
+          "none",
           "peasant",
           "ranger"
         ],
         "legs": [
+          "none",
           "peasant",
           "ranger"
         ],
         "feet": [
+          "none",
           "peasant",
           "ranger"
         ],

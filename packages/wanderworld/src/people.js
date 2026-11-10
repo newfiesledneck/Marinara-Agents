@@ -23,6 +23,7 @@ import {
 } from "three";
 import { humanoidFromSkeleton } from "./models.js";
 import {
+  BARE,
   COLOUR_FIELD,
   EXTRAS,
   HAIR_COLOURS,
@@ -208,7 +209,7 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
   });
   const parts = PIECES.map(([piece]) => `${sex}-${choices[piece]}-${piece}`);
   for (const [extra, , kind] of EXTRAS) if (choices[extra]) parts.push(`${sex}-${kind}-${extra}`);
-  const worn = new Set(PIECES.map(([piece]) => choices[piece]));
+  const worn = new Set(PIECES.map(([piece]) => choices[piece]).filter((kind) => kind !== BARE));
   for (const [extra, , kind] of EXTRAS) if (choices[extra]) worn.add(kind);
   return {
     sex,
