@@ -45,7 +45,7 @@ export const HELP = [
     title: "Getting about",
     lines: [
       "WASD or the arrow keys walk; Shift runs. Drag to look round, scroll (or pinch) to zoom. On a touch screen there's a stick in the corner.",
-      "Anyone without a 3D model, you included, can be given a look: the Look button beside the body choice (in People, and by Play as) sets outfit, colours, hair, skin, beard and height.",
+      "Anyone without a 3D model, you included, can be given a look: the Look button beside the body choice (in People, and by Play as) sets the outfit or each piece of it, the hood and pauldrons, colours (your own too, for clothes and hair), hair, skin, beard and height.",
       "Space jumps. C sits you down on the ground wherever you are, and C again lies you down; move, or press E, to get up. The chat window has Jump and Sit buttons, and on a touch screen they're by your thumb too; Settings → Moving has a toggle for the C key, for each of the two touch buttons, and for the chat window's buttons. A home's bed (with Walk into buildings on) is somewhere to lie down. Anyone travelling with you finds a seat or stands by.",
       "Outside each settlement there's a campsite or two: sit on the logs by the fire, or use the tent to sleep. You choose how long; the clock jumps on, and everyone not close by is where that hour has them.",
       "People have places to work and rest out of doors: the smith at the open forge, sellers and buyers at the market stalls, a farm's people in its fields, and others at a garden's beds, by a pond or in a meadow's grass.",

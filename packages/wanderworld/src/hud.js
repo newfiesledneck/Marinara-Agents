@@ -7,7 +7,7 @@ import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
 import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
-import { HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, SKIN_TONES } from "./looks.js";
+import { COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, PIECES, SKIN_TONES } from "./looks.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
@@ -116,7 +116,7 @@ export function createHud(root, handlers) {
     if (!info) return;
     const card = document.createElement("div");
     card.setAttribute("data-wanderworld-ui", "");
-    card.style.cssText = `${PANEL}display:flex;top:56px;right:auto;left:50%;transform:translateX(-50%);gap:8px;width:min(320px,calc(100% - 24px));z-index:5;`;
+    card.style.cssText = `${PANEL}display:flex;top:56px;right:auto;left:8px;gap:6px;width:min(300px,calc(100% - 16px));z-index:5;`;
     lookCard = card;
     layer.append(card);
     let chosen = { ...info.chosen };
@@ -131,10 +131,10 @@ export function createHud(root, handlers) {
         ? "They have a 3D model, which is what's shown. This look is for when it isn't there."
         : "For anyone without a 3D model. Changes show at once and are kept with this world.";
       const rows = [title, note];
-      const set = (key, value) => {
-        chosen = { ...chosen, [key]: value };
-        // Another outfit has its own colours: the colour goes back to its usual one.
-        if (key === "outfit") delete chosen.colour;
+      // `patch`: the choices to make; one given as undefined is unmade (back to how the name has it).
+      const set = (patch) => {
+        chosen = { ...chosen, ...patch };
+        for (const key of Object.keys(chosen)) if (chosen[key] === undefined) delete chosen[key];
         handlers.onSetLook(id, chosen);
         void handlers.lookOf(id).then((next) => {
           if (!next || lookCard !== card) return;
@@ -152,7 +152,7 @@ export function createHud(root, handlers) {
         line.append(name, control);
         rows.push(line);
       };
-      const pick = (label, key, options, value, read = (text) => text) => {
+      const pick = (label, key, options, value, read = (text) => text, also = {}) => {
         const select = document.createElement("select");
         select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
         select.setAttribute("aria-label", label);
@@ -163,24 +163,94 @@ export function createHud(root, handlers) {
           select.append(item);
         }
         select.value = String(value);
-        select.addEventListener("change", () => set(key, read(select.value)));
+        select.addEventListener("change", () => set({ ...also, [key]: read(select.value) }));
         row(label, select);
       };
-      pick(
-        "Outfit",
-        "outfit",
-        now.outfits.map((name) => [name, OUTFITS[name].label]),
-        now.outfit,
+      const hex = (value) => `#${value.toString(16).padStart(6, "0")}`;
+      const outfitNames = now.outfits.map((name) => [name, OUTFITS[name].label]);
+      // A whole outfit: choosing one puts every piece back to it.
+      pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
+        top: undefined,
+        arms: undefined,
+        legs: undefined,
+        feet: undefined,
+        hood: undefined,
+        pauldrons: undefined,
+      });
+      // Its pieces, each from any outfit, and the ranger's hood and pauldrons on or off.
+      for (const [piece, label] of PIECES) pick(label, piece, outfitNames, now[piece]);
+      for (const [extra, label] of EXTRAS) {
+        pick(
+          label,
+          extra,
+          [
+            ["yes", "On"],
+            ["no", "Off"],
+          ],
+          now[extra] ? "yes" : "no",
+          (text) => text === "yes",
+        );
+      }
+      // Each outfit's cloth has its own colours: only those with a piece on show.
+      for (const kind of now.worn) {
+        const field = COLOUR_FIELD[kind];
+        pick(
+          now.worn.length > 1 ? `${OUTFITS[kind].label} colour` : "Colour",
+          field,
+          OUTFITS[kind].colours,
+          now[field],
+        );
+      }
+      // A colour of your own laid over the clothes (it darkens and turns them; white leaves them be).
+      const swatch = (label, value, onPick, onClear) => {
+        const holder = document.createElement("span");
+        holder.style.cssText = "display:flex;gap:6px;align-items:center;";
+        const input = document.createElement("input");
+        input.type = "color";
+        input.value = hex(value);
+        input.setAttribute("aria-label", label);
+        input.style.cssText = "flex:1;min-width:0;height:36px;padding:0;border:0;background:none;";
+        input.addEventListener("change", () => onPick(parseInt(input.value.slice(1), 16)));
+        holder.append(input);
+        if (onClear) {
+          const clear = button("None", `No ${label.toLowerCase()}`, onClear);
+          clear.style.cssText += "padding:6px 10px;font-size:12px;";
+          holder.append(clear);
+        }
+        row(label, holder);
+      };
+      swatch(
+        "Clothes tint",
+        now.tint ?? 0xffffff,
+        (value) => set({ tint: value === 0xffffff ? undefined : value }),
+        () => set({ tint: undefined }),
       );
-      pick("Colour", "colour", OUTFITS[now.outfit].colours, now.colour);
       pick("Hair", "hair", HAIRSTYLES, now.hair);
-      pick(
-        "Hair colour",
-        "hairColour",
-        HAIR_COLOURS.map(([, text], i) => [i, text]),
-        now.hairColour,
-        Number,
-      );
+      // Hair colour: one from the list, or your own.
+      {
+        const select = document.createElement("select");
+        select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+        select.setAttribute("aria-label", "Hair colour");
+        for (const [value, text] of [
+          ...HAIR_COLOURS.map(([, name], i) => [String(i), name]),
+          ["custom", "Your own…"],
+        ]) {
+          const item = document.createElement("option");
+          item.value = value;
+          item.textContent = text;
+          select.append(item);
+        }
+        select.value = now.hairTint === null ? String(now.hairColour) : "custom";
+        select.addEventListener("change", () =>
+          set(
+            select.value === "custom"
+              ? { hairTint: HAIR_COLOURS[now.hairColour][0] }
+              : { hairColour: Number(select.value), hairTint: undefined },
+          ),
+        );
+        row("Hair colour", select);
+        if (now.hairTint !== null) swatch("Your hair colour", now.hairTint, (value) => set({ hairTint: value }));
+      }
       pick(
         "Skin",
         "skin",
@@ -207,7 +277,7 @@ export function createHud(root, handlers) {
       height.step = "0.02";
       height.value = String(now.height);
       height.setAttribute("aria-label", "Height");
-      height.addEventListener("change", () => set("height", Number(height.value)));
+      height.addEventListener("change", () => set({ height: Number(height.value) }));
       row("Height", height);
       const buttons = document.createElement("div");
       buttons.style.cssText = "display:flex;gap:8px;";

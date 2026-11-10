@@ -22,10 +22,36 @@
             "ranger-b",
             "ranger-wine",
             "ranger-dusk",
-            "ranger-grey"
+            "ranger-grey",
+            "ranger-rust",
+            "ranger-moss"
           ]
         }
-      ]
+      ],
+      "pieces": {
+        "top": [
+          "peasant",
+          "ranger"
+        ],
+        "arms": [
+          "peasant",
+          "ranger"
+        ],
+        "legs": [
+          "peasant",
+          "ranger"
+        ],
+        "feet": [
+          "peasant",
+          "ranger"
+        ],
+        "hood": [
+          "ranger"
+        ],
+        "pauldrons": [
+          "ranger"
+        ]
+      }
     },
     "female": {
       "outfits": [
@@ -48,10 +74,36 @@
             "ranger-b",
             "ranger-wine",
             "ranger-dusk",
-            "ranger-grey"
+            "ranger-grey",
+            "ranger-rust",
+            "ranger-moss"
           ]
         }
-      ]
+      ],
+      "pieces": {
+        "top": [
+          "peasant",
+          "ranger"
+        ],
+        "arms": [
+          "peasant",
+          "ranger"
+        ],
+        "legs": [
+          "peasant",
+          "ranger"
+        ],
+        "feet": [
+          "peasant",
+          "ranger"
+        ],
+        "hood": [
+          "ranger"
+        ],
+        "pauldrons": [
+          "ranger"
+        ]
+      }
     }
   },
   "hair": {
