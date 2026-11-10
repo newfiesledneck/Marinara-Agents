@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.18",
+        "version": "0.5.19",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5049,6 +5049,12 @@
               "kit/people/male-ranger-legs.json",
               "kit/people/male-ranger-pauldrons.json",
               "kit/people/male-ranger-top.json",
+              "kit/people/plain-head-female.webp",
+              "kit/people/plain-head-male.webp",
+              "kit/people/plain-peasant.webp",
+              "kit/people/plain-ranger.webp",
+              "kit/people/plain-skin-female.webp",
+              "kit/people/plain-skin-male.webp",
               "kit/people/ranger-a.webp",
               "kit/people/ranger-b.webp",
               "kit/people/ranger-dusk.webp",
@@ -5186,8 +5192,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "efb4293f4100f05afd814a97ccc024285824aa15d69db2b7a6604663d6cb2a79",
-            "bytes": 2216807
+            "sha256": "26e7621159f6c103d37860648ef85287f8331ecc458b6164106b1dd2e6c0fcf8",
+            "bytes": 2219743
           },
           {
             "path": "server.mjs",
@@ -5536,8 +5542,8 @@
           },
           {
             "path": "kit/people/clothes-b.webp",
-            "sha256": "0e4c76eacbd0c2fb9670109eb37f017e6994d3344b38a2953bfd1c121fbf790b",
-            "bytes": 14502
+            "sha256": "8c8998ccffb6a9523d9c268fd3cf42ff106bd1f41d01cb2f73a0075b9b753f0c",
+            "bytes": 15566
           },
           {
             "path": "kit/people/clothes-blue.webp",
@@ -5561,8 +5567,8 @@
           },
           {
             "path": "kit/people/clothes-teal.webp",
-            "sha256": "25f554b0741f659287e6ba79cfe7e066530f9699fc27cb33ec46901b96434be3",
-            "bytes": 16580
+            "sha256": "947dc1c5faa4b6cbebb118b623c2f753cc16971b81cf02ac549bd59fff28bd28",
+            "bytes": 23148
           },
           {
             "path": "kit/people/eyes.webp",
@@ -5681,8 +5687,8 @@
           },
           {
             "path": "kit/people/index.json",
-            "sha256": "f3c9da94853013195e83607670f316e24236f0391a2ad9d007cc5e832b7c67b0",
-            "bytes": 2341
+            "sha256": "212dc8b121107004ce5fb26a9b596124afc6044cedbe196f256f40f5a9ac2f2e",
+            "bytes": 3052
           },
           {
             "path": "kit/people/male-peasant-arms.json",
@@ -5733,6 +5739,36 @@
             "path": "kit/people/male-ranger-top.json",
             "sha256": "6c07c85a51a2f8cab1a27417a3e8605292145267b0fbccced73987bd8ea92395",
             "bytes": 175301
+          },
+          {
+            "path": "kit/people/plain-head-female.webp",
+            "sha256": "c8f6e1d8888500e5bf2f485ad5b4979330a779589231220945e018b8038c9a03",
+            "bytes": 6256
+          },
+          {
+            "path": "kit/people/plain-head-male.webp",
+            "sha256": "1e392911e43a3df8ea968c38457867f3b4d656838befa54fa2df2479856e7120",
+            "bytes": 6600
+          },
+          {
+            "path": "kit/people/plain-peasant.webp",
+            "sha256": "33010df3d98aa2617d3ef648cb782fe9129229e0578b032d109ae73c06d97c15",
+            "bytes": 14902
+          },
+          {
+            "path": "kit/people/plain-ranger.webp",
+            "sha256": "93adebfc25df1566139feef3edb98fe38b2fb67d8cd03be11a557669b75d8e27",
+            "bytes": 18422
+          },
+          {
+            "path": "kit/people/plain-skin-female.webp",
+            "sha256": "a5158594334b91301dd4e398df57c25008c3c9903b89b7cfda35dfcf1268621b",
+            "bytes": 6476
+          },
+          {
+            "path": "kit/people/plain-skin-male.webp",
+            "sha256": "17ed6b47c5cb7cb54628864925f845cd33f919d02dde127afe6646377720a742",
+            "bytes": 6168
           },
           {
             "path": "kit/people/ranger-a.webp",
@@ -6377,9 +6413,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.18.zip",
-        "sha256": "da08c5715e2e75c0d6df05a6feef34a454054cc8c489cb024ae64b928842c9b4",
-        "bytes": 14526002
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.19.zip",
+        "sha256": "a079f73dfe91f4b04d52258d13db806a1eb78f75ef82e4fd21c7d50274a10c69",
+        "bytes": 14598185
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

@@ -129,8 +129,9 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
     skin: 4,
     hair: "none",
     height: 1.1,
-    tint: 0x336699,
+    tints: { top: 0x336699 },
     hairTint: 0x00ff88,
+    skinTint: 0x9955cc,
   });
   assert.equal(dyed.hairColour, 0x00ff88, "a colour of her own goes over the list's");
   assert.equal(dyed.choices.hairColour, 9);
@@ -138,7 +139,19 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   assert.deepEqual(dyed.skin, SKIN_TONES[4][0]);
   assert.equal(dyed.hair, "none");
   assert.equal(dyed.height, 1.1);
-  assert.equal(dyed.tint, 0x336699);
+  assert.deepEqual(dyed.tints, { top: 0x336699 });
+  assert.equal(dyed.skinTint, 0x9955cc);
+  // Cropped hair is cut for each body's own head.
+  for (const sex of ["male", "female"]) {
+    const cropped = await createPerson("Rook", sex, {
+      hair: "cropped",
+      skinTint: 0xcc3333,
+      tints: { top: 0x2255aa, legs: 0xaa8822, hood: 0x111111 },
+      hood: true,
+    });
+    cropped.update(0.1, 0, {});
+    cropped.dispose();
+  }
   assert.equal(lookFor("Tam", index, "male", { beard: true }).beard, true);
   assert.equal(lookFor("Tam", index, "female", { beard: true }).beard, false, "a beard is a man's");
   // Every mix of pieces, with and without the hood and pauldrons, loads and stands, for both bodies.
@@ -148,7 +161,7 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
     for (let mix = 0; mix < kinds.length ** PIECES.length; mix++) {
       const chosen = { hood: mix % 2 === 0, pauldrons: mix % 3 === 0, hair: mix % 5 === 0 ? "none" : "long" };
       PIECES.forEach(([piece], at) => (chosen[piece] = kinds[Math.floor(mix / kinds.length ** at) % kinds.length]));
-      if (mix % 4 === 0) chosen.tint = 0x8844aa;
+      if (mix % 4 === 0) chosen.tints = { top: 0x8844aa, feet: 0x224466 };
       const person = await createPerson("Rook", sex, chosen);
       person.update(0.1, 0, {});
       let meshes = 0;
@@ -171,16 +184,31 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
       top: "toga",
       legs: "peasant",
       hood: false,
-      tint: 0x112233,
+      tints: { top: 0x112233, hat: 5, legs: -1 },
       hairTint: -4,
+      skinTint: 0xff0000,
     }),
-    { outfit: "ranger", legs: "peasant", hood: false, colour: "clothes-red", tint: 0x112233, height: 1.12 },
+    {
+      outfit: "ranger",
+      legs: "peasant",
+      hood: false,
+      colour: "clothes-red",
+      tints: { top: 0x112233 },
+      skinTint: 0xff0000,
+      height: 1.12,
+    },
   );
   assert.deepEqual(
     checkLook({ colour: "ranger-wine" }),
     { rangerColour: "ranger-wine" },
     "an older look's ranger colour is kept as that",
   );
+  assert.deepEqual(
+    checkLook({ tint: 0x445566 }).tints,
+    { top: 0x445566, arms: 0x445566, legs: 0x445566, feet: 0x445566, hood: 0x445566, pauldrons: 0x445566 },
+    "an older look's one tint is on every piece",
+  );
+  assert.equal(checkLook({ hair: "buzzedfemale" }).hair, "cropped", "an older look's cropped hair");
   assert.deepEqual(checkLook("ranger"), {});
   assert.deepEqual(checkLook({ hairColour: 3, skin: 0, beard: false, hair: "long", hairTint: 0xabcdef }), {
     hair: "long",
@@ -189,6 +217,18 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
     skin: 0,
     beard: false,
   });
+  // The kit says how light each piece and each skin is, for colours of one's own.
+  for (const sex of ["male", "female"]) {
+    for (const name of [`skin-${sex}`, `head-${sex}`]) {
+      assert.ok(index.tones[name] > 15 && index.tones[name] < 256, `${name}'s tone`);
+      assert.ok(kitFiles.has(`plain-${name}.webp`), `the plain ${name}`);
+    }
+    for (const outfit of kinds) {
+      assert.ok(kitFiles.has(`plain-${outfit}.webp`));
+      for (const [piece] of PIECES)
+        assert.ok(index.tones[`${sex}-${outfit}-${piece}`] > 15, `${sex} ${outfit} ${piece}'s tone`);
+    }
+  }
   assert.equal(Object.keys(COLOUR_FIELD).join(), kinds.join(), "every outfit has a field for its colour");
 }
 

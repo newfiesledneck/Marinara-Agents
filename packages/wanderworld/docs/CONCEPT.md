@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.18, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.19, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.18: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.19: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.18, 2026-11-11)
+## Outstanding (as of 0.5.19, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -725,15 +725,16 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   close by where that hour has them.
 - _Planned, in the order they're cheapest (asked for 2026-11; only what can be built here, so nothing
   that needs a pack converted in Blender first):_
-  1. _Looks (in, 0.5.17 and 0.5.18):_ `looks.js` holds the menus and `checkLook`; the kit's people are
+  1. _Looks (in, 0.5.17 to 0.5.19;_ a colour of one's own goes on the kit's plain, grey copy of the
+     texture, times the colour over the piece's tone, `index.tones`, so it shows as picked_):_ `looks.js` holds the menus and `checkLook`; the kit's people are
      packed as pieces (`scripts/build-wanderworld-people.mjs`: a skeleton file and top, arms, legs, feet,
      hood and pauldrons per outfit and body, each piece's cloth marked with its outfit);
      `people.js lookFor(name, index, body, chosen)` lays choices over what the name gives and lists the
      pieces to load; `save.looks` keeps them; `hud.js openLook` is the card. _Next:_ a look by trade
      (smith, farmer, guard, sorcerer) once there are outfits for them (the paid tiers of Modular
      Character Outfits - Fantasy drop straight into this; the Ultimate Modular Men / Women packs have
-     glTF but flat colours and their own rigs to map onto the humanoid bones), more accessories, a
-     tint per piece, and choosing a look in New world.
+     glTF but flat colours and their own rigs to map onto the humanoid bones), more accessories, and
+     choosing a look in New world.
   2. _An OBJ reader for `scripts/build-wanderworld-kit.mjs`,_ so the flat-coloured packs that ship no glTF
      can be used without Blender: Farm Buildings (barn, silo, windmill, well, coop: the farm), the two
      dungeon packs (cave and cellar pieces), Medieval Weapons (a real hammer, tools in hand).
