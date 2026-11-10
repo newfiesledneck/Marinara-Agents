@@ -2462,6 +2462,7 @@ function journalData(zone, snapshot, residents, names) {
       setting: core.save?.setting ?? "",
       look: core.save?.look ?? "",
       usualLook: PACK.look,
+      ages: core.save?.ages ?? { min: null, max: null },
       sceneInstructions: core.save?.sceneInstructions ?? "",
       lorebooks: core.save?.lorebooks ?? [],
       loreLinking: core.save?.loreLinking ?? "none",
@@ -3165,7 +3166,11 @@ function savePerson(id, changes) {
 
 // ── The AI assistant (Settings → AI assistant; assistant.js, server.mjs `/assistant`) ──────────
 
-/** One turn with the assistant: the world as it stands goes with the chat; what it changes is applied here. */
+/**
+ * One turn with the assistant: the world as it stands goes with the chat. What it wants to change comes
+ * back as a proposal (nothing is changed yet): { reply, problem, proposed: [{ line, before, after }],
+ * skipped: [text], apply() → { changes, skipped } } — `apply` (null with nothing to do) is the player's Confirm.
+ */
 async function askAssistant(history) {
   const save = core.save;
   if (!save || !core.zones) throw new Error("Open a world first: the assistant works on the world you're in.");
@@ -3181,6 +3186,7 @@ async function askAssistant(history) {
     worldName: save.name,
     setting: save.setting,
     persona: personaName(),
+    ages: save.ages ?? null,
     history,
     people: (core.characters ?? [])
       .filter((person) => core.cast?.has(person.id))
@@ -3192,8 +3198,8 @@ async function askAssistant(history) {
           name: person.name,
           invented: !!local,
           about: local
-            ? [local.description, local.personality].filter(Boolean).join(" ")
-            : String(person.description ?? "").slice(0, 2000),
+            ? [local.description, local.personality, local.appearance].filter(Boolean).join(" ")
+            : String(person.description ?? "").slice(0, 3000),
           home: placeWords(house.home),
           work: placeWords(house.work),
           owner: !!house.owner,
@@ -3211,7 +3217,20 @@ async function askAssistant(history) {
       .slice(0, 9000),
   });
   if (core.save?.id !== save.id) throw new Error("Another world was opened meanwhile, so nothing was changed.");
-  return { reply: answer?.reply ?? "", problem: answer?.problem ?? "", ...applyAssistantEdits(answer?.edits ?? []) };
+  const edits = answer?.edits ?? [];
+  const proposal = applyAssistantEdits(edits, true);
+  return {
+    reply: answer?.reply ?? "",
+    problem: answer?.problem ?? "",
+    proposed: proposal.changes,
+    skipped: proposal.skipped,
+    apply: proposal.changes.length
+      ? () => {
+          if (core.save?.id !== save.id) throw new Error("Another world is open now, so nothing was changed.");
+          return applyAssistantEdits(edits, false);
+        }
+      : null,
+  };
 }
 
 /** This world's own lore about `target` (a zone id, "character:<id>", the world): its entry in the save's book. */
@@ -3221,11 +3240,12 @@ function worldNote(save, target) {
 }
 
 /**
- * Applies the assistant's edits (already checked for shape by the server) to this world, each on its own:
- * one that names nobody here, or a place that isn't one, is left out and said. Returns { changes, skipped },
- * lines for the player to read.
+ * The assistant's edits (already checked for shape by the server) against this world, each on its own:
+ * one that names nobody here, or a place that isn't one, is left out and said. With `dry` nothing is
+ * changed: it's the proposal the player reads before Confirm. Returns { changes: [{ line, before, after }],
+ * skipped: [text] }; `before` and `after` are the old and new text of a rewrite.
  */
-function applyAssistantEdits(edits) {
+function applyAssistantEdits(edits, dry) {
   const changes = [];
   const skipped = [];
   if (!core.save || !core.zones) return { changes, skipped };
@@ -3248,13 +3268,19 @@ function applyAssistantEdits(edits) {
   const findPlace = (words) => {
     const slot = /\(?\b([a-z]+\d+)\)?\s*$/iu.exec(words)?.[1]?.toLowerCase();
     if (slot && slots.has(slot)) return slots.get(slot);
-    if (slots.has(words.toLowerCase().trim())) return slots.get(words.toLowerCase().trim());
     const named = Object.entries(names).filter(([, known]) => bare(known) === bare(words));
     return named.length === 1 ? named[0][0] : null;
   };
   const slotOf = new Map([...slots].map(([slot, id]) => [id, slot]));
+  const placeLabel = (id, fallback) => `${names[id] ?? fallback}${slotOf.get(id) ? ` (${slotOf.get(id)})` : ""}`;
   const nobody = (name) => `Nobody called "${name}" is in this world.`;
   const { homes, workplaces } = housingData(names);
+  // Homes and work as these edits leave them, so "with Sarah" finds the home an edit before it gave her.
+  const housing = { ...core.save.housing };
+  // The lore and cards as these edits leave them (the same person may come up twice).
+  let book = core.save.book.entries;
+  let lore = core.save.lore;
+  let locals = core.save.locals;
   for (const item of edits) {
     if (item.do === "relate") {
       const [from, to] = [findPerson(item.from, true), findPerson(item.to, true)];
@@ -3266,33 +3292,28 @@ function applyAssistantEdits(edits) {
       }
       const set = (a, b, role) => {
         const now = core.relations.get(a.id, b.id);
-        if (item.kind === "none") return setRelation(a.id, b.id, null, false);
-        setRelation(
-          a.id,
-          b.id,
-          { kind: item.kind, role, level: item.level ?? (now?.kind === item.kind ? now.level : 70) },
-          false,
-        );
+        const level = item.level ?? (now?.kind === item.kind ? now.level : 70);
+        if (!dry) setRelation(a.id, b.id, item.kind === "none" ? null : { kind: item.kind, role, level }, false);
+        changes.push({
+          line:
+            item.kind === "none"
+              ? `${a.name} has nothing set toward ${b.name} any more.`
+              : `${a.name} toward ${b.name}: ${KINDS[item.kind]?.label ?? item.kind}${role ? `, as ${b.name}'s ${role}` : ""} (${level} of 100).`,
+        });
       };
       set(from, to, item.role);
       if (item.both) set(to, from, item.backRole);
-      const words = (a, b) =>
-        item.kind === "none"
-          ? `${a.name} no longer has anything set toward ${b.name}.`
-          : `${core.relations.describe(a.id, b.id, ids)}.`;
-      changes.push(words(from, to));
-      if (item.both) changes.push(words(to, from));
     } else if (item.do === "home" || item.do === "work") {
       const person = findPerson(item.person);
       if (!person) {
         skipped.push(nobody(item.person));
         continue;
       }
-      const now = core.save.housing?.[person.id] ?? {};
+      const now = housing[person.id] ?? {};
       let place = null;
       if (item.with) {
         const other = findPerson(item.with);
-        place = other ? (core.save.housing?.[other.id]?.home ?? null) : null;
+        place = other ? (housing[other.id]?.home ?? null) : null;
         if (!place) {
           skipped.push(
             other
@@ -3303,23 +3324,21 @@ function applyAssistantEdits(edits) {
         }
       } else if (bare(item.place) !== "none") {
         place = findPlace(item.place);
-        const allowed = (item.do === "home" ? homes : workplaces).some((entry) => entry.id === place);
-        if (!allowed) {
+        if (!(item.do === "home" ? homes : workplaces).some((entry) => entry.id === place)) {
           skipped.push(`"${item.place}" isn't a place someone can ${item.do === "home" ? "live in" : "work at"} here.`);
           continue;
         }
       }
-      setHousingByHand(
-        person.id,
+      housing[person.id] =
         item.do === "home"
-          ? { home: place, work: now.work ?? null, owner: now.owner }
-          : { home: now.home ?? null, work: place, owner: item.owner },
-      );
-      changes.push(
-        place
-          ? `${person.name} ${item.do === "home" ? "lives at" : item.owner ? "owns" : "works at"} ${names[place] ?? item.place}${slotOf.get(place) ? ` (${slotOf.get(place)})` : ""}.`
-          : `${person.name} has no ${item.do === "home" ? "home" : "work"} set now.`,
-      );
+          ? { home: place, work: now.work ?? null, owner: !!now.owner }
+          : { home: now.home ?? null, work: place, owner: item.owner };
+      if (!dry) setHousingByHand(person.id, housing[person.id]);
+      changes.push({
+        line: place
+          ? `${person.name} ${item.do === "home" ? "lives at" : item.owner ? "owns" : "works at"} ${placeLabel(place, item.place)}.`
+          : `${person.name} has no ${item.do === "home" ? "home" : "work"} set.`,
+      });
     } else if (item.do === "lore") {
       const person = findPerson(item.about, true);
       const target =
@@ -3335,29 +3354,26 @@ function applyAssistantEdits(edits) {
         continue;
       }
       const title = target === WORLD_ID ? core.save.name : (person?.name ?? names[target] ?? item.about);
-      const old = worldNote(core.save, target);
+      const tied = new Set((lore[target] ?? []).filter((tie) => tie.lorebookId === "world").map((tie) => tie.entryId));
+      const old = book.find((entry) => tied.has(entry.id)) ?? null;
       const content = item.text.replace(/\s+/gu, " ").trim().slice(0, 1500);
-      if (!old && core.save.book.entries.length >= 60) {
-        skipped.push(`This world's own lore is full (60 entries), so nothing was written about ${title}.`);
+      if (!old && book.length >= 60) {
+        skipped.push(`This world's own lore is full (60 entries), so nothing can be written about ${title}.`);
         continue;
       }
-      const id = old?.id ?? `note-${Date.now().toString(36)}${core.save.book.entries.length}`;
-      const entries = old
-        ? core.save.book.entries.map((entry) => (entry.id === id ? { ...entry, content } : entry))
-        : [...core.save.book.entries, { id, title: String(title).slice(0, 120), content }];
-      const lore = old
-        ? core.save.lore
-        : {
-            ...core.save.lore,
-            [target]: [...(core.save.lore[target] ?? []), { lorebookId: "world", entryId: id, title }],
-          };
-      core.save = { ...core.save, book: { entries }, lore };
-      changes.push(
-        `${old ? "Rewrote" : "Wrote"} this world's lore about ${title}: "${content.length > 160 ? `${content.slice(0, 160)}…` : content}"`,
-      );
+      const id = old?.id ?? `note-${Date.now().toString(36)}${book.length}`;
+      book = old
+        ? book.map((entry) => (entry.id === id ? { ...entry, content } : entry))
+        : [...book, { id, title: String(title).slice(0, 120), content }];
+      if (!old) lore = { ...lore, [target]: [...(lore[target] ?? []), { lorebookId: "world", entryId: id, title }] };
+      changes.push({
+        line: `${old ? "Rewrite" : "Write"} this world's lore about ${title}.`,
+        before: old?.content ?? "",
+        after: content,
+      });
     } else if (item.do === "card") {
       const person = findPerson(item.person);
-      const local = person && core.save.locals.find((entry) => entry.id === person.id);
+      const local = person && locals.find((entry) => entry.id === person.id);
       if (!local) {
         skipped.push(
           person
@@ -3366,16 +3382,17 @@ function applyAssistantEdits(edits) {
         );
         continue;
       }
-      const parts = Object.fromEntries(
-        ["description", "personality", "appearance"].filter((part) => item[part]).map((part) => [part, item[part]]),
+      const parts = ["description", "personality", "appearance"].filter((part) => item[part]);
+      const words = (from) => parts.map((part) => `${part}: ${from[part] ?? ""}`).join("\n\n");
+      changes.push({ line: `Rewrite ${person.name}'s ${parts.join(", ")}.`, before: words(local), after: words(item) });
+      locals = locals.map((entry) =>
+        entry.id === local.id ? { ...entry, ...Object.fromEntries(parts.map((part) => [part, item[part]])) } : entry,
       );
-      const locals = core.save.locals.map((entry) => (entry.id === local.id ? { ...entry, ...parts } : entry));
-      core.save = { ...core.save, locals };
-      core.characters = peopleOf(core.save);
-      changes.push(`Changed ${person.name}'s ${Object.keys(parts).join(", ")}.`);
     }
   }
-  if (changes.length) {
+  if (!dry && changes.length) {
+    core.save = { ...core.save, book: { entries: book }, lore, locals };
+    core.characters = peopleOf(core.save);
     core.saves.write(core.save);
     core.placesChanged = true;
     core.relationsChanged = true;

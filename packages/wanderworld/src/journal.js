@@ -572,6 +572,36 @@ export function createJournal(panelCss, handlers) {
     look.setAttribute("aria-label", "How this world looks in pictures");
     look.addEventListener("change", () => handlers.onSetSetup({ look: look.value.trim() }));
     body.append(look);
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Ages of the people the AI makes"));
+    body.append(
+      explain(
+        "The usual ages of people the AI invents or fills in for this world from now on (linking lore by AI, the AI assistant), when nothing says how old they are. It never overrides your lore, setting or cards, and nobody already here is changed. Any age from 1; an empty box is no limit that way.",
+      ),
+    );
+    {
+      const ageBox = (value, label) => {
+        const box = element("input", `${FIELD}width:72px;`);
+        box.type = "number";
+        box.min = "1";
+        box.max = "100000";
+        box.value = value ?? "";
+        box.placeholder = "any";
+        box.setAttribute("aria-label", label);
+        return box;
+      };
+      const ageMin = ageBox(world.ages?.min, "Youngest usual age of the people the AI makes");
+      const ageMax = ageBox(world.ages?.max, "Oldest usual age of the people the AI makes");
+      const ageOf = (box) => {
+        const value = Math.round(Number(box.value));
+        return box.value.trim() !== "" && value >= 1 && value <= 100000 ? value : null;
+      };
+      const save = () => handlers.onSetSetup({ ages: { min: ageOf(ageMin), max: ageOf(ageMax) } });
+      ageMin.addEventListener("change", save);
+      ageMax.addEventListener("change", save);
+      const row = element("div", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;");
+      row.append(element("span", "", "from"), ageMin, element("span", "", "to"), ageMax);
+      body.append(row);
+    }
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Scene instructions for this world"));
     body.append(
       explain(

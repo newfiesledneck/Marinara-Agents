@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.4",
+          "date": "2026-11-10",
+          "notes": "- New layouts in New world: scattered houses with no streets (the tavern, temple and shops face the market, dirt ways lead in), round a pond (houses along the edge, the pond in the middle), and four quarters with a green between them.\n- The AI assistant now proposes: you read each change (rewritten lore with what it says now) and press Confirm or Cancel. Nothing changes before that.\n- It rewrites lore whole and keeps its detail: \"make Jake a sorcerer\" works that into what's there.\n- Ages: set them for a world you have in Journal → World. Any age from 1, and they're only the usual range: your lore, setting and cards win (an elf can be a thousand).",
+          "highlight": false
+        },
+        {
           "version": "0.5.3",
           "date": "2026-11-10",
           "notes": "- New: Settings → AI assistant. Talk with the AI about the world you're in, or have it change the world: who's what to whom (\"make Jake and Sarah a married couple who live together\"), where people live and work, this world's own lore about a person, a place or the whole world (\"rewrite Jason's lore to make him a sorcerer who prays at the shrine\"), and the cards of people the world invented.\n- Every change is listed after the answer, with what was left out and why. An answer whose changes can't be read changes nothing and says so.\n- It only changes this world: never your character cards, personas or lorebooks in the Engine, nor the settings.",
@@ -307,12 +313,6 @@
           "version": "0.4.87",
           "date": "2026-11-09",
           "notes": "- Journal → People → Relationships is back as an overview to read: how everyone sees each other and you, person by person. Changing one is done in Edit people.\n- Hints in the game point to Menu → Settings now that Settings lives in the Menu.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.86",
-          "date": "2026-11-09",
-          "notes": "- The person window lets you pick a role for a relationship again (family: sister, parent, cousin…; colleague: employer, apprentice…; mentor: mentor or student), beside its kind and strength. A role a lorebook gave (\"father\", \"wife\") stays on offer.",
           "highlight": false
         }
       ]

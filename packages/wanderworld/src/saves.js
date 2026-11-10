@@ -158,8 +158,8 @@ export function checkWorld(raw) {
     setting: text(raw.setting).slice(0, 600),
     // How old the people the AI makes may be: { min, max } in years, null for no limit either way.
     ages: {
-      min: Number.isInteger(raw.ages?.min) && raw.ages.min >= 0 && raw.ages.min <= 999 ? raw.ages.min : null,
-      max: Number.isInteger(raw.ages?.max) && raw.ages.max >= 0 && raw.ages.max <= 999 ? raw.ages.max : null,
+      min: Number.isInteger(raw.ages?.min) && raw.ages.min >= 1 && raw.ages.min <= 100000 ? raw.ages.min : null,
+      max: Number.isInteger(raw.ages?.max) && raw.ages.max >= 1 && raw.ages.max <= 100000 ? raw.ages.max : null,
     },
     // How the world looks in pictures ({world_look}); "" is the setting pack's own.
     look: text(raw.look).slice(0, 200),

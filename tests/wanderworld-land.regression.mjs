@@ -290,6 +290,30 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
     }
     world.dispose();
   }
+  // The layouts that are only built when chosen: houses scattered round the market (its landmarks on the
+  // lots facing it, no streets to name), a pond in the middle with the houses along the edge, four quarters.
+  for (const layout of ["scattered", "pond", "quarters"]) {
+    const world = createWorld(96, { ...landscapeWith(96, { places: "none" }), settlement: { kind: "town", layout } });
+    const kinds = world.layout.buildings.map((building) => building.kind);
+    assert.ok(kinds.length > 12);
+    assert.ok(world.waypoints.length > 4);
+    const zones = buildZones(world.layout, 96);
+    if (layout === "scattered") {
+      for (const kind of ["tavern", "temple", "hall", "shop"]) assert.ok(kinds.includes(kind));
+      assert.equal(zones.zones.filter((zone) => zone.kind === "street").length, 0, "scattered: no streets to name");
+      assert.ok(
+        zones.zones.some((zone) => zone.kind === "building" && zone.parent === "town"),
+        "a house out on open ground is in town, not on the market",
+      );
+    }
+    if (layout === "pond") {
+      const pond = world.layout.outposts.find((outpost) => outpost.inTown);
+      assert.deepEqual([pond?.x, pond?.z], [0, 0], "pond: the pond is in the middle");
+      assert.ok(Math.abs(world.layout.plaza.z) > 30, "pond: the market is out at the edge");
+      assert.ok(waterAt(0, 0).depth > 0.5);
+    }
+    world.dispose();
+  }
   assert.ok(
     built.crossroads < built.grid && built.street < built.grid,
     `fewer blocks than a grid (${JSON.stringify(built)})`,

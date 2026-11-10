@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.4 — 2026-11-10
+
+- New layouts in New world: scattered houses with no streets (the tavern, temple and shops face the market, dirt ways lead in), round a pond (houses along the edge, the pond in the middle), and four quarters with a green between them.
+- The AI assistant now proposes: you read each change (rewritten lore with what it says now) and press Confirm or Cancel. Nothing changes before that.
+- It rewrites lore whole and keeps its detail: "make Jake a sorcerer" works that into what's there.
+- Ages: set them for a world you have in Journal → World. Any age from 1, and they're only the usual range: your lore, setting and cards win (an elf can be a thousand).
+
 ## 0.5.3 — 2026-11-10
 
 - New: Settings → AI assistant. Talk with the AI about the world you're in, or have it change the world: who's what to whom ("make Jake and Sarah a married couple who live together"), where people live and work, this world's own lore about a person, a place or the whole world ("rewrite Jason's lore to make him a sorcerer who prays at the shrine"), and the cards of people the world invented.

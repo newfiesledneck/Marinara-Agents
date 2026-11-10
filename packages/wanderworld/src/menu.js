@@ -201,6 +201,9 @@ export function createMenu(layer, handlers, art = null) {
           ["crossroads", "A crossroads"],
           ["street", "Along one street"],
           ["ring", "Round the market"],
+          ["scattered", "Scattered houses, no streets"],
+          ["pond", "Round a pond, houses at the edge"],
+          ["quarters", "Four quarters and a green"],
         ],
       ],
       [
@@ -359,8 +362,8 @@ export function createMenu(layer, handlers, art = null) {
     const ageBox = (value, label) => {
       const box = element("input", `${INPUT}width:64px;`);
       box.type = "number";
-      box.min = "0";
-      box.max = "999";
+      box.min = "1";
+      box.max = "100000";
       box.value = value;
       box.placeholder = "any";
       box.setAttribute("aria-label", label);
@@ -370,7 +373,7 @@ export function createMenu(layer, handlers, art = null) {
     const ageMax = ageBox("", "Oldest age of the people the AI makes");
     const ageOf = (box) => {
       const value = Math.round(Number(box.value));
-      return box.value.trim() !== "" && value >= 0 && value <= 999 ? value : null;
+      return box.value.trim() !== "" && value >= 1 && value <= 100000 ? value : null;
     };
     const agesRow = element("label", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:13px system-ui;");
     agesRow.append(
@@ -563,7 +566,7 @@ export function createMenu(layer, handlers, art = null) {
       newPeopleRow,
       agesRow,
       explainLine(
-        "The ages are for everyone the AI invents or fills in (people a lorebook names but doesn't describe), family from your cards included: someone outside them isn't made. An age your own lore or cards give a character is left as it is. Empty either box for no limit that way.",
+        "The usual ages of people the AI invents or fills in, when nothing says how old they are. It never overrides your lore, setting or cards: an elf your lore makes a thousand years old stays a thousand. Any age from 1; empty either box for no limit that way. You can change it later in Journal → World.",
       ),
       explainLine(
         "With nothing chosen above, the AI can still make a whole world: it writes the world and its places first, then people who belong there, then fits your own characters in among them. Each is one more model call. The people it invents aren't Engine characters: they live, talk and keep their days in this world only, and can't be cast in scenes.",
