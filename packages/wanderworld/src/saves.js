@@ -192,7 +192,7 @@ export function checkWorld(raw) {
         appearance: text(person.appearance).slice(0, 500),
       }))
       .filter((person) => person.name),
-    // Creatures the world's lore describes ("ww: monster", "ww: creature", "ww: hostile"), kept for what
+    // Creatures the world's lore describes (ww:monster, ww:creature, ww:hostile), kept for what
     // will use them: [{ lorebookId, entryId, name, kind, hostile }].
     creatures: (Array.isArray(raw.creatures) ? raw.creatures : [])
       .filter((creature) => isRecord(creature) && typeof creature.entryId === "string")

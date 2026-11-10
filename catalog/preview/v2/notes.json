@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.93",
+          "date": "2026-11-09",
+          "notes": "- Lorebook keywords are written ww:<what>:<value> now: ww:lives in:home3, ww:body:woman, ww:temperament:aggressive, ww:acts:rude, ww:enemy of:you, ww:owned by:Mira. \"ww\" marks it, <what> says what it's for, <value> is what's given. Spaces and capitals don't matter, and \"you\", \"me\" and \"player\" all mean you. A key with no <what> (ww:tavern1, ww:Mira) names what the entry is about. The older one-word forms no longer do anything; Journal → World → Check ww: keywords lists them and says how each is written now.\n- Menu → Settings → Help: instructions for everything, a section at a time, with every keyword and a prompt to copy for Professor Mari (or any assistant) to add or fix a lorebook's keys.",
+          "highlight": false
+        },
+        {
           "version": "0.4.92",
           "date": "2026-11-09",
           "notes": "- Knowing goes both ways: someone who doesn't know your name won't use it. They learn it when you say it (or \"I'm …\"), you learn theirs when they say it. The small \"i\" beside a conversation's title explains both and has a switch for each.\n- What you can say in a conversation depends on who it is: introductions for strangers, different things for friends, family, someone close and someone cold, and not the same handful for everyone.\n- When someone comes at you or attacks, a card says so, explains there's no fighting yet, and offers talking, a moment, a scene, or turning aggressive approaches off.\n- Speech bubbles say who's speaking in place of the name tag (\"Stranger: Hi there!\") and stack instead of overlapping. The wheel zooms a conversation's view in and out.\n- New keywords: ww: rude, ww: confronts, ww: attacks, ww: afraid, ww: avoids, ww: known, ww: knows you.",
@@ -307,12 +313,6 @@
           "version": "0.4.74",
           "date": "2026-11-09",
           "notes": "- The AI's setup of a new world is shown before the land is built: everyone's body, home, work and relationships, the places the world will get, the names and the lore tied to them, with the map and world size. From there: build it, ask the AI again, or go back to the settings (the setup is kept).\n- A model call that fails is tried once more; if it still fails, what did come through is kept, the review says what's missing, and \"Ask the AI again\" asks only for that. Building with a partial setup works, and Journal → World can finish it later.\n- The loading screen now also waits for your own figure.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.73",
-          "date": "2026-11-09",
-          "notes": "- New world can be set up by the AI, ready to play: it reads your characters' cards and persona (no lorebook needed) and any lorebooks you choose, and sets who's a man or a woman, how people know each other and you, where everyone lives and works, which lore belongs to which place, names for the places the lore names, and builds the places that takes. The loading screen says what it's doing until the world is ready. Journal → World can run it again. Lorebook keywords and setting things by hand work as before.",
           "highlight": false
         }
       ]

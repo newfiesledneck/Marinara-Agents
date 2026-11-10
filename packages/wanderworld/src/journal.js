@@ -633,7 +633,7 @@ export function createJournal(panelCss, handlers) {
     }
     body.append(
       explain(
-        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww: smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Menu → Settings → Regenerate this world builds what's new.",
+        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww:smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Menu → Settings → Regenerate this world builds what's new.",
       ),
     );
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Season"));
@@ -655,7 +655,7 @@ export function createJournal(panelCss, handlers) {
     body.append(section("Keywords"));
     body.append(
       explain(
-        "Wanderworld acts only on lorebook keywords that start with \"ww:\". This lists any it didn't understand: a typo, a place this world doesn't have, a name nobody here has.",
+        "Wanderworld acts only on lorebook keys written ww:<what>:<value> (Menu → Settings → Help lists them all). This lists any it didn't understand, and why: one written a way it doesn't read, a place this world doesn't have, a name nobody here has.",
       ),
     );
     body.append(
@@ -673,7 +673,7 @@ export function createJournal(panelCss, handlers) {
         ),
       );
       for (const item of world.keywords.unknown)
-        body.append(line(`ww: ${item.word}  (${item.entry}, in ${item.book})`, "font-size:12px;"));
+        body.append(line(`${item.word}: ${item.why}  (${item.entry}, in ${item.book})`, "font-size:12px;"));
     }
     if (world.book.length) {
       body.append(section("Written for this world"));
