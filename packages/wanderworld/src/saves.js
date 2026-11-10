@@ -202,8 +202,17 @@ export function checkWorld(raw) {
         description: text(person.description).slice(0, 1200),
         personality: text(person.personality).slice(0, 500),
         appearance: text(person.appearance).slice(0, 500),
+        // The region they live in, when it isn't the home one ("x,z"): they're seen there.
+        ...(typeof person.region === "string" && REGION_KEY.test(person.region) && person.region !== "0,0"
+          ? { region: person.region }
+          : {}),
       }))
       .filter((person) => person.name),
+    // The chat with the AI assistant, as it was left: [{ role, text }], the newest last.
+    assistantChat: (Array.isArray(raw.assistantChat) ? raw.assistantChat : [])
+      .filter((turn) => isRecord(turn) && typeof turn.text === "string" && turn.text)
+      .slice(-40)
+      .map((turn) => ({ role: turn.role === "assistant" ? "assistant" : "user", text: turn.text.slice(0, 6000) })),
     // Creatures the world's lore describes (ww:monster, ww:creature, ww:hostile), kept for what
     // will use them: [{ lorebookId, entryId, name, kind, hostile }].
     creatures: (Array.isArray(raw.creatures) ? raw.creatures : [])

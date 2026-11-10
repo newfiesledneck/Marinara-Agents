@@ -16,6 +16,19 @@ function adminSecret() {
   }
 }
 
+/**
+ * Whether the Engine's Debug Mode is on (Settings → Advanced → Message Tools). ponytail: read from the
+ * Engine client's own saved settings, as Quartermaster does, since a Home tab isn't handed it; if the
+ * Engine renames that key this is simply off. Read at each request: it can be switched while playing.
+ */
+export function debugMode() {
+  try {
+    return JSON.parse(globalThis.localStorage?.getItem("marinara-engine-ui") ?? "null")?.state?.debugMode === true;
+  } catch {
+    return false;
+  }
+}
+
 /** Why a request failed, in words the player can act on. */
 function failure(response, body) {
   const message = body && typeof body.error === "string" ? body.error : "";
@@ -39,7 +52,8 @@ async function request(path, { method = "GET", body, timeout = 120000 } = {}) {
       method,
       headers,
       credentials: "same-origin",
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // Every request says whether Debug Mode is on, so the server part can show what it sends a model.
+      body: body === undefined ? undefined : JSON.stringify({ ...body, debugMode: debugMode() }),
       signal: controller.signal,
     });
     const data = await response.json().catch(() => null);

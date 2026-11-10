@@ -353,7 +353,11 @@ export function createHud(root, handlers) {
   const aiStatus = document.createElement("div");
   aiStatus.style.cssText = "font-size:12px;line-height:1.35;opacity:0.85;";
   aiStatus.textContent = "Checking for Wanderworld's server part…";
-  settingsPanel.append(aiStatus);
+  const aiDebug = document.createElement("div");
+  aiDebug.style.cssText = "font-size:12px;line-height:1.35;opacity:0.85;";
+  aiDebug.textContent =
+    "To see what is sent: turn on the Engine's Debug Mode (Settings → Advanced). Every request Wanderworld makes to a model, with its answer, and every picture request (connection, model, size, prompt) is then written to the Engine's console.";
+  settingsPanel.append(aiStatus, aiDebug);
   const connectionLists = [];
   const connectionChoice = (name, label, kind, empty) => {
     const select = document.createElement("select");
@@ -542,15 +546,20 @@ export function createHud(root, handlers) {
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
   // The AI assistant: a chat about this world, which can change its lore and people (assistant.js).
+  let assistant = null;
   heading("AI assistant");
   {
     const about = document.createElement("div");
     about.style.cssText = `font-size:12px;line-height:1.4;color:${INK_SOFT};`;
     about.textContent =
-      "Talk with the AI about the world you're in: its people, places and lore, why some lore is or isn't active where you stand, or how Wanderworld works. It can also change this world for you: who's what to whom, where people live and work, their days and how they are, new people (and taking away ones this world invented), this world's own lore, place names and closing hours, groups and factions, the setting, and notes and errands on the noticeboard. It shows you each change first, in full, and makes none until you press Confirm; Undo puts the last ones back. It never touches your character cards, personas or lorebooks in the Engine, or these settings. One model call a message, on the conversations connection (Settings → AI).";
+      "Ask about the world you're in, or ask for a change to it. You see every change first, can rewrite it or leave it out, and nothing happens until you press Confirm; Undo takes it back. It never touches your cards, personas or lorebooks in the Engine. Not sure what to ask? The buttons under the chat are ready-made requests, and Help lists everything it can do.";
     settingsPanel.append(
       about,
-      createAssistant((history) => handlers.onAssistant(history)),
+      (assistant = createAssistant({
+        onAsk: (history, options) => handlers.onAssistant(history, options),
+        onChat: (turns) => handlers.onAssistantChat?.(turns),
+        onLorebooks: () => handlers.onAssistantBooks?.() ?? Promise.resolve([]),
+      })),
     );
   }
   // Help: the instructions, a fold for each part (help.js).
@@ -1395,6 +1404,10 @@ export function createHud(root, handlers) {
     /** Opens the chat window (after a world loads, if it was left open). */
     restoreChat() {
       if (chatFloat.isOpen()) chatFloat.setOpen(true);
+    },
+    /** The assistant's chat as a world left it: [{ role, text }]. */
+    setAssistantChat(turns) {
+      assistant?.setChat(turns);
     },
     /** The chat as a world left it: [{ who, text, mine }], in place of what's there. */
     setChat(lines) {

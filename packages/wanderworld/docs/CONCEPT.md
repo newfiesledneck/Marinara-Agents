@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.9, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.10, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,15 +493,20 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.9: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
+_0.5.1 to 0.5.10: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
 
-**The AI assistant (S6, built 0.5.3 to 0.5.5).** Settings → AI assistant is a chat with the model about
-the open world. Each turn sends the world as it stands (the cast with card excerpts, homes, work,
-relationships, days and this world's lore about them; numbered places; groups, factions, the noticeboard;
-what lore is active where the player stands and what every entry is tied to; the Help text) and the last
-twelve turns. The model answers in words and, when asked for a change, one fenced `wanderworld` block of
+**The AI assistant (S6, built 0.5.3 to 0.5.10).** Settings → AI assistant is a chat with the model about
+the open world. Each turn sends the last twelve turns and only the parts of the world the message needs
+(`src/assistant-context.js`): everyone's name, home and work, the groups and the factions always go; the
+rest (everyone in detail, relationships, places, days, where the player is, lore ties, the world's lore,
+the noticeboard, the Help text, ages, the recent chat, scene recaps) goes when a ready-made request names
+it (`PICKS`, each with its `needs`) or the typed words are about it (`TOPICS`; the message before rides
+along). People the message names go in full. The model is told what was left out and may answer with
+`{"need": [...]}`, once, to be asked again with it; the answer says what was sent. A keyword draft
+(`task: "keywords"`, `keywordMessages`) sends the Help's keyword prompt, the names and places, and only
+the lorebook entries the player ticked; nothing in its answer is read as an edit. The model answers in words and, when asked for a change, one fenced `wanderworld` block of
 JSON edits. `readAssistant` (server) takes the block out of the words and checks every edit field by
 field against fixed lists and lengths: anything else is dropped and counted; a block that isn't JSON, isn't
 the format or was cut short changes nothing and says so. `applyAssistantEdits` (client) then resolves
@@ -515,8 +520,23 @@ back only the difference between the two copies (`src/undo.js`, a three-way merg
 now, so what changed since by hand or through play stays), then brings the cast, homes, days, names and
 signs back in line. Edits: relate, home, work, set (body, voice, temperament, manner, stance,
 knowing), day, add_person, remove_person (invented people only), faction, lore, card (invented people
-only), rename, hours, group, world (setting, look, ages), notice, errand. Lore is rewritten whole and told
+only), rename, hours, group, world (setting, look, ages), notice, unpin, errand (and dropping it), scene
+(started through `sceneHere` once the rest is applied; not undone). A faction's lore is one entry of the
+world's book tied to every member, kept in step as members join and leave, and never taken for a member's
+own. Someone added while away lives in that region (`locals[].region`, `isHere`). The chat is kept in
+the save (`assistantChat`); proposals and Undo last the session. Lore is rewritten whole and told
 to keep its detail. It cannot reach Engine cards, personas, lorebooks, settings, the map or buildings.
+
+**What every call sends, and seeing it (0.5.10).** Each route builds its prompt from what that call is
+for: a conversation gets the two cards, the place, the relationship, the lore active there and the last
+lines; a moment the listeners' cards cut short, the active lore and the last lines, and the list of
+places only when something is said to someone (a plan can only come of that); a day plan one card and
+the places; a scene plan the cast's cards cut short; a picture only the filled template. With the
+Engine's Debug Mode on (the client reads it from the Engine's saved UI settings, as Quartermaster does,
+and sends `debugMode` with each request; `isDebugAgentsEnabled` on the server also counts), `askModel`
+and `paint` write every request and answer through `logger.debugOverride`: `[debug/wanderworld/<call>]`
+with the model, temperature, token limit and the messages, and for a picture the connection, model, size,
+style and prompt.
 
 **Security notes (for the PR):** the assistant's context includes text from cards and lorebooks, which
 someone else may have written, so a card could try to steer it. What limits that: its only power is the
@@ -659,7 +679,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.9, 2026-11-11)
+## Outstanding (as of 0.5.10, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -714,8 +734,8 @@ world would choose its pack when it's made; one pack is built in today.
 - A look for spring and fall (tree and grass tints).
 - People made for a world: renaming one, and adding or removing one by hand (the AI assistant adds and
   removes them; the Journal can't yet).
-- The AI assistant: keeping its chat with the world, more than one step of Undo, lore for a faction, and
-  taking down notes it pinned.
+- The AI assistant: checking a keyword draft against the world before showing it, Undo that survives
+  leaving the world, and Engine characters who live in another region.
 - A layout with real winding lanes (scattered houses have dirt ways in and no streets), and the three
   newer layouts among those "Surprise me" picks.
 - An errand's marker that follows the person, instead of pointing at their house.
@@ -730,11 +750,12 @@ world would choose its pack when it's made; one pack is built in today.
 
 - People a world made for itself can't be cast in Engine scenes: the Engine casts its own characters.
 - The world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
-- Another region has no townsfolk of its own; walk-in rooms are unfinished and off by default.
+- Another region has only the people the assistant was asked for there; walk-in rooms are unfinished and
+  off by default.
 - The camera doesn't avoid trees, so foliage can fill the view.
 - Quartermaster works in scenes started from Wanderworld, not in the world (see Later).
-- The AI assistant's chat isn't kept; Undo reaches back one Confirm and takes back only what the assistant
-  changed (something it added goes even if edited since). A world's own lore entries hold 1,500 characters, 60 a world.
+- The AI assistant's Undo lasts the session and takes back only what the assistant changed (something it
+  added goes even if edited since; a scene it started isn't undone). A world's own lore entries hold 1,500 characters, 60 a world.
 - An existing world on a crossroads, one-street or ring layout gains the pond, houses and gardens on its
   open ground when it's next opened (its other buildings keep their numbers), and loses the names of
   "streets" that ran across open ground, with any lore tied to them.

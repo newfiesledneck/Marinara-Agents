@@ -90,9 +90,13 @@ export const HELP = [
     lines: [
       "Menu → Settings → AI assistant is a chat about the world you're in. Ask about its people, places and lore, why a lore entry is or isn't active where you stand, or how something works.",
       'Ask for a change and it proposes one: "make Jake and Sarah a married couple who live together", "add a blacksmith\'s apprentice who lives with Oswin", "Mira works mornings and is at the tavern every evening", "call the tavern the Drowned Bell, closed after midnight", "make a Thieves\' Guild with Jake and Fen", "pin a note about the lost cat".',
-      "You see every change in full first (rewritten lore with what it says now) and nothing happens until you press Confirm. Before that you can rewrite any of the text it wrote, pick another kind for a relationship, and untick a change to leave it out. Cancel drops it all. After a Confirm, Undo these changes takes back what the assistant changed, and only that: anything you changed yourself since stays.",
+      "You see every change in full first (rewritten lore with what it says now) and nothing happens until you press Confirm. Before that you can rewrite any of the text it wrote (or have it written again), change its choices (a relationship's kind and strength, a home, work, body, voice), and untick a change to leave it out. Cancel drops it all. After a Confirm, Undo these changes takes back what the assistant changed, and only that: anything you changed yourself since stays.",
       "It can set relationships, homes and work, days, body, voice, temperament, manner, how someone acts toward you and who knows whose name; add people and remove ones this world invented; write this world's own lore about a person, a place or the whole world (keeping the detail that's there); rename places and set when they're closed; make groups of places and factions; change the setting, the picture look and the ages; pin notes and give you an errand.",
-      "It only changes the world you're in. Your character cards, personas and lorebooks in the Engine, these settings, the map and the buildings are never touched. One model call a message.",
+      "It can also write a faction's lore (every member then knows it), take notes down from the noticeboard, drop your errand, and suggest a scene that starts in the Engine when you confirm. Ask for people while you're in another region and they live there.",
+      "The buttons under the chat are ready-made requests, for when you don't know what to ask: a few always in view, and More things to ask lists the rest with what each does. One ending in … is put in the box for you to finish.",
+      "Draft ww: keywords (in that list) lets you pick a lorebook and tick its entries, twenty at most. Only those are sent, and you get each entry's keys as text to copy into your lorebook: the assistant can't change Engine lorebooks.",
+      "Only the parts of the world your message needs are sent with it, and the small line under each answer says which. If the model needs a part that was left out it asks, and is asked again with it (a second call). The chat is kept with the world; Start over forgets it.",
+      "It only changes the world you're in. Your character cards, personas and lorebooks in the Engine, these settings, the map and the buildings are never touched.",
     ],
   },
   {
@@ -102,6 +106,7 @@ export const HELP = [
       'Illustrate paints the moment. With "Have the AI rewrite the prompt" on, the last lines of the chat go with it, so the picture shows what you\'re doing now, not only where you stand.',
       "Menu → Settings → AI has a switch for each thing that can call the model. With one off, the world answers with its own written lines.",
       "A narrator card (one of your characters) can tell scenes, moments or both in its voice, and lets a scene start with nobody else there.",
+      "To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced): every request to a model and its answer, and every picture request with its connection, model, size and prompt, is written to the Engine's console.",
     ],
   },
   { title: "Lorebook keywords", keywords: true },

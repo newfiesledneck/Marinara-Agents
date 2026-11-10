@@ -834,4 +834,151 @@ assert.equal(
   assert.deepEqual(heard.at(-1).slice(1), [{ role: "user", content: "Hello" }]);
 }
 
+// The assistant, a part of the world at a time: what was left out is said, and it may ask for a part once.
+{
+  const fenced = (body) => `\`\`\`wanderworld\n${body}\n\`\`\``;
+  const asked = server.assistantMessages({
+    worldName: "Larkspur",
+    history: [{ role: "user", text: "Hello" }],
+    people: [{ name: "Mira", relations: [] }],
+    places: [],
+    groups: [],
+    factions: [],
+    ties: [],
+    entries: [],
+    chat: "Zoey: Morning.",
+    recaps: "At the mill: they argued.",
+    omitted: ["places", "help", "made-up"],
+  })[0].content;
+  assert.match(asked, /# Left out[\s\S]*places \(the list of places\); help \(how Wanderworld works\)\./u);
+  assert.doesNotMatch(asked, /made-up/u);
+  assert.match(asked, /\{"need": \["places"\]\}/u, "how to ask for a part");
+  assert.match(asked, /## The recent chat[^\n]*\nZoey: Morning\./u);
+  assert.match(asked, /## Recaps of scenes[^\n]*\nAt the mill: they argued\./u);
+  const last = server.assistantMessages({
+    history: [{ role: "user", text: "Hello" }],
+    people: [],
+    places: [],
+    groups: [],
+    factions: [],
+    ties: [],
+    entries: [],
+    omitted: ["places"],
+    final: true,
+  })[0].content;
+  assert.doesNotMatch(last, /"need"/u, "the second asking is the last");
+  assert.deepEqual(server.readAssistant(fenced('{"need": ["places", "weather", "places"]}')).need, ["places"]);
+  assert.equal(server.readAssistant(fenced('{"need": ["weather"]}')).need, undefined, "a part there isn't");
+
+  // The new edits: notes taken down, the errand dropped, a scene.
+  const more = server.readAssistant(
+    fenced(
+      JSON.stringify({
+        edits: [
+          { do: "unpin", notes: ["note2", "Note 9", "note2", "note41"] },
+          { do: "unpin", all: true },
+          { do: "unpin", notes: [] },
+          { do: "errand", cancel: true },
+          {
+            do: "scene",
+            place: "tavern1",
+            people: ["Mira", "Brin", "Cole", "Fen", "Hank"],
+            premise: "A quarrel over the bill.",
+          },
+          { do: "scene", place: "tavern1", people: [], premise: "Nobody is in it." },
+        ],
+      }),
+    ),
+  );
+  assert.deepEqual(more.edits, [
+    { do: "unpin", all: false, notes: [2] },
+    { do: "unpin", all: true, notes: [] },
+    { do: "errand", cancel: true },
+    { do: "scene", place: "tavern1", people: ["Mira", "Brin", "Cole", "Fen"], premise: "A quarrel over the bill." },
+  ]);
+  assert.match(more.problem, /^2 of the assistant's changes weren't/u);
+
+  // A keyword draft: the chosen entries, the player's instructions, and no edits read from the answer.
+  const heard = [];
+  const logged = [];
+  runtime.logger.debugOverride = (on, ...args) => logged.push([on, ...args]);
+  runtime.languageModels.resolveForRequest = async () => ({
+    model: "m-1",
+    async chatComplete(messages, options) {
+      heard.push({ messages, options });
+      return { content: `1. The Gull: ww:tavern1\n${fenced('{"edits": [{"do": "unpin", "all": true}]}')}` };
+    },
+  });
+  const draft = await call("post", "/assistant", {
+    body: {
+      task: "keywords",
+      debugMode: true,
+      keywordPrompt: "Add the keys.",
+      bookEntries: [{ title: "The Gull", keys: "tavern, ale", content: "A tavern by the quay." }, { title: "" }],
+      people: [{ name: "Mira" }],
+      places: [{ slot: "tavern1", name: "The Gull" }],
+    },
+  });
+  assert.deepEqual(draft.body.edits, [], "words to copy: nothing in a draft is a change");
+  assert.match(draft.body.reply, /ww:tavern1/u);
+  assert.match(
+    heard[0].messages[1].content,
+    /^Add the keys\.\n\n# The entries\n\n1\. The Gull\nKeys now: tavern, ale\nA tavern by the quay\.$/u,
+  );
+  assert.doesNotMatch(heard[0].messages[0].content, /"do": "relate"/u, "none of the edit instructions");
+  assert.equal(
+    (await call("post", "/assistant", { body: { task: "keywords", keywordPrompt: "Add.", bookEntries: [] } })).code,
+    400,
+    "no entries chosen",
+  );
+  // Debug Mode: the request and the answer go to the console, and the model is told too.
+  assert.equal(heard[0].options.debugMode, true);
+  assert.deepEqual(
+    logged.map(([on, format, what]) => [on, `[debug/wanderworld/${what}]`, format.split(" ")[1]]),
+    [
+      [true, "[debug/wanderworld/keywords]", "request"],
+      [true, "[debug/wanderworld/keywords]", "response"],
+    ],
+  );
+  assert.match(String(logged[0].at(-1)), /^── system ──\n[\s\S]*\n\n── user ──\nAdd the keys\./u);
+  logged.length = 0;
+  await call("post", "/talk", { body: { characterId: "c-mira", line: "Hello" } });
+  assert.deepEqual(
+    logged.map(([on]) => on),
+    [false, false],
+    "off unless Debug Mode is on",
+  );
+  // A picture's request says what was sent: the connection, its model, the size and the prompt.
+  logged.length = 0;
+  await call("post", "/image", { body: { prompt: "A quay at dawn.", width: 640, height: 512, debugMode: true } });
+  assert.deepEqual(logged[0].slice(0, 6), [
+    true,
+    "[debug/wanderworld/image] request (connection %s, model %s, %dx%d, style %s, %d characters):\n%s",
+    "Painter",
+    "sdxl",
+    640,
+    512,
+  ]);
+  assert.equal(logged[0].at(-1), "A quay at dawn.");
+  assert.match(logged[1][1], /image\] response/u);
+  delete runtime.logger.debugOverride;
+
+  // A moment: the places (for plans) go only when something is said to someone.
+  const moment = (line, listeners) =>
+    server.momentMessages({
+      persona: { name: "Zoey", card: "" },
+      listeners,
+      action: "waves",
+      line,
+      voice: "talk",
+      lore: [],
+      recent: [],
+      places: [{ id: "tav", name: "the tavern" }],
+    })[0].content;
+  const mira = [{ id: "c-mira", name: "Mira", distance: 2, doing: "" }];
+  assert.match(moment("Meet me at noon?", mira), /Places in the world[\s\S]*"plans"/u);
+  assert.doesNotMatch(moment("", mira), /Places in the world|"plans"/u, "nothing said");
+  assert.doesNotMatch(moment("Hello?", []), /Places in the world|"plans"/u, "nobody to hear");
+}
+
 console.log("wanderworld server regression: OK");

@@ -615,3 +615,57 @@ console.log("wanderworld regression: OK");
   assert.deepEqual(reviseEdits(edits, []).edits, [], "an edit the proposal didn't show is never made");
   console.log("ok: the assistant's proposal is applied as the player left it");
 }
+
+// ── What goes with a message to the assistant ────────────────────────────────────────────────────────────
+{
+  const { assistantNeeds, mentioned, PARTS, PICKS } = await import("../packages/wanderworld/src/assistant-context.js");
+  const needs = (...texts) => [...assistantNeeds(texts)].sort();
+  assert.deepEqual(needs("Make Jake and Sarah married"), ["relations"]);
+  assert.ok(needs("Move Jake into home3").includes("places"));
+  assert.ok(needs("How do I tie lore to a place?").includes("help"));
+  assert.ok(!needs("Make Jake a sorcerer").includes("help"), "the long parts stay out of a plain request");
+  assert.deepEqual(needs("hmm"), ["board", "places", "relations"], "nothing to go on: the usual parts");
+  assert.ok(needs("What happened yesterday?", "yes, do that").includes("recaps"), "the message before rides along");
+  assert.ok(!needs("What happened?", "Rename tavern1", "ok").includes("recaps"), "but not the one before that");
+  const gaps = PICKS.find((pick) => pick.id === "gaps");
+  assert.deepEqual([...assistantNeeds(["anything about lore and help"], gaps)].sort(), [...gaps.needs].sort());
+  assert.ok(assistantNeeds(["hi"], gaps, ["chat", "made-up"]).has("chat"), "a part the model asked for");
+  assert.ok(!assistantNeeds(["hi"], gaps, ["made-up"]).has("made-up"));
+  assert.deepEqual(mentioned(["Jake Marlow", "Sarah", "Al"], ["make jake taller", "also Alfred"]), ["Jake Marlow"]);
+  for (const pick of PICKS) {
+    assert.ok(pick.label && pick.note, `${pick.id} says what it does`);
+    assert.equal([pick.ask, pick.fill, pick.picker].filter(Boolean).length, 1, `${pick.id} does one thing`);
+    for (const part of pick.needs) assert.ok(Object.hasOwn(PARTS, part), `${pick.id}: ${part}`);
+  }
+  assert.ok(PICKS.filter((pick) => pick.common).length <= 4, "a few always in view");
+
+  // The proposal's choices: places from the world, a number kept in range, a fixed list held to.
+  const { editableFields, reviseEdits } = await import("../packages/wanderworld/src/assistant-edits.js");
+  const lists = { homes: [{ value: "home3", label: "a house (home3)" }], works: [], voices: ["gruff"] };
+  const home = editableFields({ do: "home", person: "Jake", place: "The Old Mill", with: "" }, lists)[0];
+  assert.deepEqual(
+    home.options.map((option) => option.value),
+    ["The Old Mill", "none", "home3"],
+    "what the edit has is always among the choices",
+  );
+  assert.deepEqual(editableFields({ do: "home", person: "Jake", place: "", with: "Sarah" }, lists), []);
+  const edits = [
+    { do: "relate", from: "Jake", to: "Sarah", kind: "friend", role: "", backRole: "", level: null, both: false },
+    { do: "set", person: "Jake", body: "male", voice: "", stance: "rude" },
+    { do: "home", person: "Jake", place: "home1", with: "" },
+  ];
+  assert.deepEqual(
+    editableFields(edits[0]).map((part) => part.key),
+    ["kind", "level", "role"],
+  );
+  const left = reviseEdits(edits, [
+    { edit: 0, keep: true, values: { level: "250", kind: "rival" } },
+    { edit: 1, keep: true, values: { body: "robot", voice: "gruff", stance: "" } },
+    { edit: 2, keep: true, values: { place: "home3" } },
+  ]).edits;
+  assert.deepEqual([left[0].level, left[0].kind], [100, "rival"]);
+  assert.deepEqual([left[1].body, left[1].voice, left[1].stance], ["male", "gruff", ""]);
+  assert.equal(left[2].place, "home3");
+  assert.equal(reviseEdits(edits, [{ edit: 0, keep: true, values: { level: "" } }]).edits[0].level, null);
+  console.log("ok: the assistant's context and choices");
+}

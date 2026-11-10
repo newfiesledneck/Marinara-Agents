@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.5.10 — 2026-11-11
+
+- The assistant has ready-made requests: a few buttons always in view and a list of more, each saying what it does (fill in the gaps, check for problems, noticeboard notes, lore for a place or faction, add people to this region, suggest a scene, turn a scene into changes, and more).
+- It can draft ww: keywords for lorebook entries you pick; only those entries are sent.
+- New for it: faction lore, taking notes down, dropping an errand, starting a scene, people who live in another region.
+- In a proposal: dropdowns for home, work, body, voice and stance, a strength slider, and "Write it again". Its chat is kept with the world, and every confirmed set keeps its Undo.
+- Only the parts of the world a message needs are sent, and it says which. Moments send the list of places only when a plan could come of it.
+- With the Engine's Debug Mode on, every model and picture request and its answer is written to the Engine's console.
+
 ## 0.5.9 — 2026-11-11
 
 - In the assistant's proposal, a relationship's kind is a dropdown (friend, partner, family, rival… or nothing, to end it), and its roles (husband, mentor…) can be rewritten, before you confirm.
