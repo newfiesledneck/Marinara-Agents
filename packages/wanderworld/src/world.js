@@ -268,6 +268,7 @@ let streetLines = STREET_LINES;
 let plaza = { x: 0, z: 0 }; // the market's middle
 let look = { kind: "town", market: "square", roads: "cobble", side: null, layout: "grid" };
 let blocks = null; // "a,b" of every block that's built (null: all of them, the grid)
+let openPlan = { pond: null, lots: [] }; // what stands on the blocks a layout leaves open (planOpenGround)
 
 /** Whether block (a, b) of the settlement is built (its layout decides). */
 const hasBlock = (a, b) =>
@@ -279,7 +280,7 @@ const hasStreetX = (k, a) => hasBlock(a, k - 1) || hasBlock(a, k);
 const hasStreetZ = (k, b) => hasBlock(k - 1, b) || hasBlock(k, b);
 
 /** Sets the settlement for the world being built (its size, market and roads). */
-function useSettlement(settlement) {
+function useSettlement(settlement, seed = 0) {
   look = settlement;
   gateLanes = [];
   const layout = settlement.layout ?? "grid";
@@ -311,6 +312,67 @@ function useSettlement(settlement) {
     for (let a = 0; a < blocksPerSide; a++)
       for (let b = 0; b < blocksPerSide; b++) if (keep(a, b)) blocks.add(`${a},${b}`);
   }
+  openPlan = planOpenGround(seed);
+}
+
+/**
+ * What stands on the ground a layout leaves open inside the settlement, so it isn't bare fields: a pond
+ * where four open blocks meet, and here and there a house or two off the streets, a garden, a meadow, a
+ * few trees. Seeded apart from everything else, and built after it (buildTown), so the buildings a world
+ * already had keep their numbers.
+ */
+function planOpenGround(seed) {
+  const plan = { pond: null, lots: [] };
+  if (!blocks) return plan;
+  const random = rng((seed ^ 0x6c8e9cf5) >>> 0);
+  const centre = (i) => (i - (blocksPerSide - 1) / 2) * PITCH;
+  const open = (a, b) => a >= 0 && b >= 0 && a < blocksPerSide && b < blocksPerSide && !hasBlock(a, b);
+  const crossings = [];
+  for (let i = 1; i < blocksPerSide; i++) {
+    for (let j = 1; j < blocksPerSide; j++) {
+      if (open(i - 1, j - 1) && open(i, j - 1) && open(i - 1, j) && open(i, j))
+        crossings.push({ x: (i - blocksPerSide / 2) * PITCH, z: (j - blocksPerSide / 2) * PITCH });
+    }
+  }
+  if (crossings.length) plan.pond = crossings[Math.floor(random() * crossings.length)];
+  for (let a = 0; a < blocksPerSide; a++) {
+    for (let b = 0; b < blocksPerSide; b++) {
+      if (!open(a, b)) continue;
+      const [x, z] = [centre(a), centre(b)];
+      // The four blocks round the pond are its shore.
+      if (plan.pond && Math.abs(x - plan.pond.x) < PITCH && Math.abs(z - plan.pond.z) < PITCH) continue;
+      const roll = random();
+      if (roll < 0.3) {
+        // A house, or two in opposite halves of the block, wherever they happened to be built.
+        const two = random() < 0.45;
+        const alongX = random() < 0.5;
+        const houses = (two ? [-1, 1] : [0]).map((half) => {
+          const near = half * (4 + random() * 0.5);
+          const far = (random() * 2 - 1) * 4.5;
+          const at = {
+            x: x + (alongX ? near : far) + (two ? 0 : (random() * 2 - 1) * 4),
+            z: z + (alongX ? far : near),
+          };
+          return {
+            ...at,
+            width: 5.5 + random() * 2,
+            depth: 5 + random() * 2,
+            facing: random() < 0.7 ? facingFor(plaza.x - at.x, plaza.z - at.z) : Math.floor(random() * 4),
+          };
+        });
+        plan.lots.push({ kind: "houses", x, z, houses });
+      } else if (roll < 0.5) plan.lots.push({ kind: "meadow", x, z });
+      else if (roll < 0.62)
+        plan.lots.push({
+          kind: "garden",
+          x: x + (random() * 2 - 1) * 4,
+          z: z + (random() * 2 - 1) * 4,
+          facing: Math.floor(random() * 4),
+        });
+      else if (roll < 0.8) plan.lots.push({ kind: "trees", x, z });
+    }
+  }
+  return plan;
 }
 
 /** True when (x, z) is inside the town's footprint plus a margin, where no trees or rocks grow. */
@@ -1123,8 +1185,8 @@ function blockEdge(town, cx, cz, half) {
 }
 
 /** An empty block at the town's edge, left as a meadow: a few trees, wildflowers and long grass. */
-function placeMeadow(random, town, cx, cz) {
-  blockEdge(town, cx, cz, BLOCK / 2);
+function placeMeadow(random, town, cx, cz, kerbed = true) {
+  if (kerbed) blockEdge(town, cx, cz, BLOCK / 2);
   town.meadows.push({ x: cx, z: cz, half: BLOCK / 2 });
   const spot = (margin) => ({
     x: cx + (random() * 2 - 1) * (BLOCK / 2 - margin),
@@ -1378,7 +1440,7 @@ function fillBlock(random, town, cx, cz, role) {
   }
 }
 
-function buildTown(random, land, ground, needs = {}) {
+function buildTown(random, land, ground, needs = {}, seed = 0) {
   const kind = SETTLEMENTS[look.kind] ?? SETTLEMENTS.town;
   // Buildings the lore needs beyond what every town has (one hall, temple and tavern by the square, a
   // few shops facing it): they take the place of houses here and there.
@@ -1510,6 +1572,31 @@ function buildTown(random, land, ground, needs = {}) {
   if (look.walls) placeWalls(town, land);
   // The country round it (inns and cottages join the town's buildings before they're merged).
   const country = buildCountry(random, town, land, ground);
+  // The ground the layout leaves open, last of all (and from numbers of its own), so every building
+  // before it keeps its number in a world made before there was anything here.
+  const fill = rng((seed ^ 0x2f1b3a67) >>> 0);
+  for (const lot of openPlan.lots) {
+    if (lot.kind === "houses") {
+      for (const house of lot.houses)
+        placeBuilding(
+          fill,
+          town,
+          makeSpec(fill, "home", { width: house.width, depth: house.depth }),
+          house.x,
+          house.z,
+          house.facing,
+        );
+    } else if (lot.kind === "meadow") placeMeadow(fill, town, lot.x, lot.z, false);
+    else if (lot.kind === "garden") placeGarden(fill, town, lot.x, lot.z, 6, lot.facing);
+    else {
+      for (let i = 0; i < 1 + Math.floor(fill() * 3); i++) {
+        const at = { x: lot.x + (fill() * 2 - 1) * 7, z: lot.z + (fill() * 2 - 1) * 7 };
+        const model = ["commontree-1", "commontree-2", "commontree-4"][Math.floor(fill() * 3)];
+        placeKitPlant(town, null, { model, x: at.x, z: at.z, angle: fill() * Math.PI * 2, scale: 0.6 + fill() * 0.2 });
+        town.circles.push({ x: at.x, z: at.z, r: 0.35 });
+      }
+    }
+  }
   const mesh = new Mesh(mergeOrEmpty(town.pieces), new MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   // Lamp posts at every street crossing inside the town.
   const lamps = [];
@@ -2457,24 +2544,37 @@ function scatter(random, count, scaleMin, scaleRange) {
   return points;
 }
 
-/** Each street: one strip per grid line in each direction, with an id that stays the same. */
+/**
+ * Each street: one strip per grid line in each direction, with an id that stays the same. Only as far as
+ * it's laid (open ground past its last block is no street), and only when it runs along two blocks or
+ * more: the short way through between two houses of a crossroads' arm has no name of its own.
+ */
 function streetStrips() {
-  const length = blocksPerSide * PITCH + STREET;
   const strips = [];
-  const laid = (test) => Array.from({ length: blocksPerSide }, (_, a) => a).some(test);
+  // From the first block the street is laid along to the last, in metres.
+  const reach = (test) => {
+    const laid = Array.from({ length: blocksPerSide }, (_, a) => a).filter(test);
+    if (laid.length < 2) return null;
+    return {
+      min: (laid[0] - blocksPerSide / 2) * PITCH - STREET / 2,
+      max: (laid[laid.length - 1] + 1 - blocksPerSide / 2) * PITCH + STREET / 2,
+    };
+  };
   for (let i = 0; i <= blocksPerSide; i++) {
     const line = (i - blocksPerSide / 2) * PITCH;
     // The street with its sidewalks and doorsteps: someone at a front door is on the street.
     const across = { min: line - STREET / 2 - 2.5, max: line + STREET / 2 + 2.5 };
-    if (laid((a) => hasStreetX(i, a)))
+    const alongX = reach((a) => hasStreetX(i, a));
+    if (alongX)
       strips.push({
         id: `street:x${i}`,
-        box: { minX: -length / 2, maxX: length / 2, minZ: across.min, maxZ: across.max },
+        box: { minX: alongX.min, maxX: alongX.max, minZ: across.min, maxZ: across.max },
       });
-    if (laid((b) => hasStreetZ(i, b)))
+    const alongZ = reach((b) => hasStreetZ(i, b));
+    if (alongZ)
       strips.push({
         id: `street:z${i}`,
-        box: { minX: across.min, maxX: across.max, minZ: -length / 2, maxZ: length / 2 },
+        box: { minX: across.min, maxX: across.max, minZ: alongZ.min, maxZ: alongZ.max },
       });
   }
   return strips;
@@ -2525,6 +2625,8 @@ function mapInfo(built) {
       index: outpost.index,
     })),
     town: {
+      // Houses off the streets, on ground the layout leaves open.
+      houses: openPlan.lots.flatMap((lot) => lot.houses ?? []).map((house) => ({ x: house.x, z: house.z })),
       blocks: blocksBuilt,
       block: BLOCK,
       street: STREET,
@@ -2539,14 +2641,16 @@ function mapInfo(built) {
  * `seed`, `landscape` and `size`, without touching the world being played.
  */
 export function previewMap(seed, landscape, size = "normal") {
-  const saved = { worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks, gateLanes };
+  const saved = { worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks, gateLanes, openPlan };
   try {
     worldSize = WORLD_SIZES[size] ?? WORLD_SIZE;
     const checked = checkLandscape(landscape, seed);
-    useSettlement(checked.settlement);
-    return mapInfo(createLand(checked, seed, { townHalf, worldHalf: worldSize / 2, streetLines }));
+    useSettlement(checked.settlement, seed);
+    return mapInfo(
+      createLand(checked, seed, { townHalf, worldHalf: worldSize / 2, streetLines, townPond: openPlan.pond }),
+    );
   } finally {
-    ({ worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks, gateLanes } = saved);
+    ({ worldSize, look, blocksPerSide, townHalf, streetLines, plaza, blocks, gateLanes, openPlan } = saved);
   }
 }
 
@@ -2558,12 +2662,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   const baseTrees = Math.round(BASE_TREES * areaScale);
   const baseRocks = Math.round(BASE_ROCKS * areaScale);
   const checked = checkLandscape(landscape, seed);
-  useSettlement(checked.settlement);
+  useSettlement(checked.settlement, seed);
   const spawn = { x: plaza.x, z: plaza.z + (look.market === "square" ? FOUNTAIN_RADIUS + 4 : 4) };
   land = createLand(checked, seed, {
     townHalf: townHalf,
     worldHalf: worldSize / 2,
     streetLines,
+    townPond: openPlan.pond,
   });
   const scene = new Scene();
   scene.background = new Color(SKY);
@@ -2575,7 +2680,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   scene.add(sun);
 
   const ground = terrainUniforms();
-  const town = buildTown(random, land, ground, needs ?? {});
+  const town = buildTown(random, land, ground, needs ?? {}, seed);
   const { country } = town;
   scene.add(
     town.mesh,
@@ -3193,6 +3298,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         name: outpost.name ?? null,
         x: outpost.x,
         z: outpost.z,
+        ...(outpost.inTown ? { inTown: true } : {}),
         door: country.doorOf.get(outpost.index) ?? null,
         doors: country.doorsOf.get(outpost.index) ?? [],
       })),

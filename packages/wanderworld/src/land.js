@@ -312,7 +312,7 @@ function crossing(a, b) {
  * clear(x, z, margin) (nothing grows or stands there), waterLevel }. `townHalf` is the town's half-size,
  * `worldHalf` the world's; the town itself stays level.
  */
-export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }) {
+export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, townPond = null }) {
   const random = rng(seed ^ 0x1b873593);
   const hillScale = HILL_SCALE[landscape.hills] ?? 1;
   const edge = worldHalf - 4;
@@ -444,6 +444,21 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines }
     placed.push(place);
     return place;
   });
+  // A pond inside the settlement, on ground its layout leaves open (world.js): the last of the places, so
+  // the others keep their numbers. No road to it; its bench is on the side the market is.
+  if (townPond) {
+    const facing = ((Math.round(Math.atan2(-townPond.x, -townPond.z) / (Math.PI / 2)) % 4) + 4) % 4;
+    outposts.push({
+      kind: "pond",
+      side: null,
+      index: outposts.length,
+      x: townPond.x,
+      z: townPond.z,
+      facing,
+      angle: (facing * Math.PI) / 2,
+      inTown: true,
+    });
+  }
 
   // Roads. Hamlets and farms each get one from the end of the street on their side nearest them, out and
   // round to the front. An inn on a side with one of those roads stands beside it, where its own short

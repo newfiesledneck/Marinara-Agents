@@ -283,12 +283,13 @@ export function buildZones(layout, seed) {
           x: outpost.x,
           z: outpost.z,
           r:
-            { cave: 7, hamlet: 24, farm: 26, ruins: 12, watchtower: 8, stones: 10, graveyard: 10, mill: 9, pond: 11 }[
+            // (A pond's holds its shore, the reeds and the bench looking over it.)
+            { cave: 7, hamlet: 24, farm: 26, ruins: 12, watchtower: 8, stones: 10, graveyard: 10, mill: 9, pond: 15 }[
               outpost.kind
             ] ?? 15,
         },
       },
-      parent: "forest",
+      parent: outpost.inTown ? "town" : "forest",
       sign: null,
     });
     for (const door of outpost.doors?.length
@@ -501,7 +502,11 @@ const WILD_KINDS = new Set(["forest", "outskirts", "mountains", "river", "road",
 export function defaultGroups(zones) {
   const members = (test) => zones.zones.filter(test).map((zone) => zone.id);
   return [
-    { id: `${GROUP_PREFIX}wilds`, name: "The wilds", members: members((zone) => WILD_KINDS.has(zone.kind)) },
+    {
+      id: `${GROUP_PREFIX}wilds`,
+      name: "The wilds",
+      members: members((zone) => WILD_KINDS.has(zone.kind) && zone.parent !== "town"),
+    },
     {
       id: `${GROUP_PREFIX}homes`,
       name: "Homes",

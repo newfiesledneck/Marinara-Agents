@@ -1567,12 +1567,17 @@ function arrive(zone, names) {
 }
 
 /** An errand is done on reaching its person, wherever they are: they answer, and think better of you. */
-function finishErrand() {
+function finishErrand(atDoor = false) {
   const errand = core.save?.errand;
-  if (!errand || core.interior || core.mode !== "walk") return;
+  if (!errand || core.mode !== "walk") return;
   const person = core.crowd.snapshot().find((entry) => entry.id === errand.person);
-  const at = core.player.position;
-  if (!person || person.state === "inside" || Math.hypot(person.x - at.x, person.z - at.z) > 3.5) return;
+  if (!person) return;
+  // Reached: beside them out of doors, in the room with them, or at their door with them in (atDoor).
+  if (!atDoor) {
+    const at = core.player.position;
+    const here = core.interior ? person.inRoom : person.state !== "inside" && !person.inRoom;
+    if (!here || Math.hypot(person.x - at.x, person.z - at.z) > 3.5) return;
+  }
   core.save = { ...core.save, errand: null, errandsDone: (core.save.errandsDone ?? 0) + 1, waypoint: null };
   const now = core.relations.get(errand.person, "player");
   setRelation(errand.person, "player", {
@@ -3537,6 +3542,8 @@ async function illustrateMoment({
       setting: core.save.setting ?? "",
       look: core.save.look || PACK.look,
       recent,
+      // The last of the chat, for the rewrite: what's being done right now is in there, not in "standing".
+      chat: core.momentLog.slice(-8).map((line) => ({ who: line.who, text: line.text })),
     },
     caption: `${placeWords()}, ${clockText()}`,
     connectionId: core.settings.imageConnection || null,
@@ -3956,7 +3963,12 @@ function openScene(thing) {
       core.journalAt = 0;
       // Played out at once as a moment: a line of narration, and whoever's there may answer.
       void runMoment({
-        action: request.verb ? `${request.verb} (${thing.title})` : `is at ${thing.title}`,
+        // Nobody in: said, so the telling doesn't have someone come to the door.
+        action: `${request.verb ? `${request.verb} (${thing.title})` : `is at ${thing.title}`}${
+          thing.kind === "door" && thing.empty && !thing.inside.length
+            ? `. ${thing.empty} Nobody answers or comes to the door`
+            : ""
+        }`,
         line: request.line,
         listenersExtra: thing.inside,
         source: request.line ? "chat" : "thing", // their own words are always heard
@@ -3980,6 +3992,12 @@ function knock(door) {
   core.sceneDoor = door;
   const zone = core.zones?.byId.get(`building:${door.index}`);
   const home = door.index === playerHomeDoor();
+  // An errand to someone here: done if they're in, and said plainly if they're not.
+  const errand = core.save?.errand;
+  if (errand && zone && errand.place === zone.id) {
+    if (core.crowd.inside(door).some((person) => person.id === errand.person)) finishErrand(true);
+    else core.hud?.setNotice("Whoever your errand is for isn't in. Come back later, or find them out and about.");
+  }
   openScene({
     kind: home ? "home" : "door",
     zone,

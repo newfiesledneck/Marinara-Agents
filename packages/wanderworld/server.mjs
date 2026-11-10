@@ -39,7 +39,8 @@ const MAX = {
   lore: 12,
   loreText: 1500,
   prompt: 1500,
-  picture: 6000, // an Illustrate prompt: whole appearances for the player and up to eight others
+  appearance: 8000, // a card's whole Appearance, as pictures use it
+  picture: 24000, // an Illustrate prompt: whole appearances for the player and up to eight others
   people: 20,
   transcript: 30,
 };
@@ -74,6 +75,9 @@ const PICTURE_KIND = "picture";
 /** What the model is told when it rewrites a picture's prompt, unless the player has written their own. */
 export const IMPROVE_INSTRUCTION =
   "Rewrite what follows as a prompt for an image generator. Keep every fact in it: who is there, what they look like, where and when it is, the weather, what they're doing. Lead with the subject, then the setting, the light, the mood and the style. One paragraph, concrete and visual, under 120 words. No names of real artists, no words or captions in the picture. Answer with the prompt only.";
+/** Added to whatever the rewrite is told, when the last of the chat goes with the prompt. */
+export const IMPROVE_CHAT_NOTE =
+  'After the prompt, under "The chat", come the last things said and done here, oldest first. Paint the moment they end on. Where they say more than the facts do, or something else (the facts say standing, the chat says kneeling by the pond, meditating), the chat is right about what each person is doing, their pose, what they hold and their mood. Take only what could be seen, and none of the words spoken.';
 const MAX_PICTURES = 60; // per world, oldest let go first
 /** What people can do on a schedule (the client acts each out; npcs.js). */
 export const ACTIVITIES = ["home", "work", "eat", "visit", "sit", "walk"];
@@ -116,7 +120,7 @@ function characterCard(record) {
     personality: block(inner.personality, MAX.card / 2),
     scenario: block(inner.scenario, MAX.card / 2),
     examples: block(inner.mes_example, MAX.card / 2),
-    appearance: block(extensions.appearance ?? inner.appearance, MAX.card / 2),
+    appearance: block(extensions.appearance ?? inner.appearance, MAX.appearance),
   };
 }
 
@@ -127,7 +131,7 @@ function personaCard(record, fallbackName) {
     name: text(data.name, MAX.name) || fallbackName || "The traveller",
     description: block(data.description, MAX.card),
     personality: block(data.personality, MAX.card / 2),
-    appearance: block(data.appearance, MAX.card / 2),
+    appearance: block(data.appearance, MAX.appearance),
   };
 }
 
@@ -151,9 +155,9 @@ export function talkMessages(input) {
     style,
     section(`${character.name}`, [card(character.description), card(character.personality)].filter(Boolean).join("\n\n")),
     section("Their situation", card(character.scenario)),
-    section(`How ${character.name} looks`, card(character.appearance)),
+    section(`How ${character.name} looks`, card(cutWords(character.appearance, MAX.card / 2))),
     section(`How ${character.name} talks (examples)`, card(character.examples)),
-    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, persona.appearance].filter(Boolean).join("\n\n")),
+    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card / 2)].filter(Boolean).join("\n\n")),
     section("The world", input.setting),
     section(
       "Right now",
@@ -1170,13 +1174,21 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           .map((person) => {
             const card = cards.get(idOf(person.id));
             const name = card?.name ?? text(person.name, MAX.name);
-            return card?.appearance ? `${name}: ${cutWords(card.appearance, 600)}` : "";
+            return card?.appearance ? `${name}: ${cutWords(card.appearance, MAX.appearance)}` : "";
           })
           .filter(Boolean);
+        // The last of the chat, oldest first: "Zoey: I kneel by the pond."
+        const chat = (Array.isArray(facts.chat) ? facts.chat : [])
+          .filter(isRecord)
+          .slice(-8)
+          .map((line) => [text(line.who, MAX.name), cutWords(text(line.text, 2000), 300)])
+          .filter(([, said]) => said)
+          .map(([who, said]) => `${who || "Narrator"}: ${said}`)
+          .join("\n");
         const values = {
           persona: persona.name,
           // "Zoey: tall, red-haired…", or nothing when the card has no appearance (so no dangling name).
-          persona_appearance: persona.appearance ? `${persona.name}: ${cutWords(persona.appearance, 1500)}` : "",
+          persona_appearance: persona.appearance ? `${persona.name}: ${cutWords(persona.appearance, MAX.appearance)}` : "",
           people: people.map((person) => `${cards.get(idOf(person.id))?.name ?? text(person.name, MAX.name)}${text(person.doing, 80) ? ` (${text(person.doing, 80)})` : ""}`).join(", "),
           people_appearance: looks.join("; "),
           place: text(facts.place, 200),
@@ -1188,6 +1200,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           setting: text(facts.setting, 400),
           world_look: text(facts.look, 200),
           recent: text(facts.recent, 400),
+          recent_chat: chat.replace(/\n/gu, " "),
         };
         // The prompt: the one the player approved (after a review), or the template filled in and, when
         // asked, rewritten by the model to the player's instruction. A rewrite that fails leaves it as it was.
@@ -1199,8 +1212,11 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             const model = await languageModels.resolveForRequest({ connectionId: idOf(body.textConnectionId) || undefined });
             const result = await model.chatComplete(
               [
-                { role: "system", content: block(body.instruction, 1500) || IMPROVE_INSTRUCTION },
-                { role: "user", content: prompt },
+                {
+                  role: "system",
+                  content: `${block(body.instruction, 1500) || IMPROVE_INSTRUCTION}${chat ? `\n\n${IMPROVE_CHAT_NOTE}` : ""}`,
+                },
+                { role: "user", content: chat ? `${prompt}\n\n## The chat\n${chat}` : prompt },
               ],
               { temperature: 0.7, maxTokens: 600 },
             );

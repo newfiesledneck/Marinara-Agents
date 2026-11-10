@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.1",
+          "date": "2026-11-10",
+          "notes": "- Illustrate: with the AI rewrite on, the last lines of the chat go with the prompt, so the picture shows what you're doing now (kneeling by the pond), not just \"standing\". New {recent_chat} placeholder.\n- The Illustrate window is all picture; the gallery, prompt and settings are a scroll down.\n- A crossroads, one-street or ring settlement no longer has bare fields inside it: a pond where there's room, houses off the streets, gardens, meadows and trees. Worlds you have get them too.\n- Street names are only where a street is laid, not out across open ground.\n- A pond's place reaches its shore and bench.\n- Fixed: a noticeboard errand to someone at home (or in a room with you) never finished; it does now at their door or beside them indoors. Knocking where nobody is in no longer has someone answer.\n- {persona_appearance} and {people_appearance} use the whole Appearance block.",
+          "highlight": false
+        },
+        {
           "version": "0.5.0",
           "date": "2026-11-09",
           "notes": "- New world: the first map is marked as a first idea. Lorebooks and the AI's setup add the places the lore needs, so the map you get can differ.\n- The review before a world is built shows the map it will get, and \"Reroll the map\" gives another without asking the AI again: the people, places and lore stay, and every place they need is on the new map.\n- When the AI invents people, it reads your persona's and your chosen characters' cards first. Family and close ones the cards speak of (a father, a brother, a wife, an old friend) who aren't among your characters are made before anyone is invented, your persona's own family first, with how they're related set.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.84",
           "date": "2026-11-09",
           "notes": "- Journal → People → Edit people lists everyone with an Edit button. It opens a window with everything Wanderworld keeps about that person: body, voice, temperament and manner, home and work, their day, how they see you and you them, and how they and each other person see one another. Save or Cancel. A character with a card keeps who they are and their looks from the card; someone made for the world can have those changed too.\n- Every button shows it was clicked: it dips while pressed and stays lit for a moment after.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.83",
-          "date": "2026-11-09",
-          "notes": "- A place with closing hours (ww: closed 22-6) says so on its door card while it's shut, and the AI is told too.\n- Wording caught up with what the AI does now, in the door card, the Journal's lore picker and the relationships notes.",
           "highlight": false
         }
       ]
