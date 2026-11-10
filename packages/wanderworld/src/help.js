@@ -80,19 +80,33 @@ export const HELP = [
       'New world: a name, who you play, who lives there, the land, and under "Setting the world up" how much the AI does for you.',
       "The AI can set your characters up from their cards (bodies, homes, work, relationships), read your lorebooks and tie their lore to places, write the world's own lore and places from nothing, and invent people to live there. Each is a model call or two, and you see all of it before the land is built.",
       "Or do it by hand: lorebook keywords (below), and the Journal for anything else.",
+      "Layouts: a grid of streets, a crossroads, one street, round the market, scattered houses with no streets, round a pond with the houses at the edge, or four quarters and a green. Ground a layout leaves open gets a pond, a few houses, gardens and meadows.",
+      "Ages: the usual ages of people the AI invents (21 and up unless you change it; any age from 1). Your lore, setting and cards always win over it. Journal → World changes it later.",
+      "The first map on New world is an idea, not a promise: lore adds places. With the AI, the review shows the real map, and Reroll the map there changes only the land.",
+    ],
+  },
+  {
+    title: "The AI assistant",
+    lines: [
+      "Menu → Settings → AI assistant is a chat about the world you're in. Ask about its people, places and lore, why a lore entry is or isn't active where you stand, or how something works.",
+      'Ask for a change and it proposes one: "make Jake and Sarah a married couple who live together", "add a blacksmith\'s apprentice who lives with Oswin", "Mira works mornings and is at the tavern every evening", "call the tavern the Drowned Bell, closed after midnight", "make a Thieves\' Guild with Jake and Fen", "pin a note about the lost cat".',
+      "You see every change in full first (rewritten lore with what it says now) and nothing happens until you press Confirm. Cancel drops it. After a Confirm, Undo these changes puts the world back as it was before them.",
+      "It can set relationships, homes and work, days, body, voice, temperament, manner, how someone acts toward you and who knows whose name; add people and remove ones this world invented; write this world's own lore about a person, a place or the whole world (keeping the detail that's there); rename places and set when they're closed; make groups of places and factions; change the setting, the picture look and the ages; pin notes and give you an errand.",
+      "It only changes the world you're in. Your character cards, personas and lorebooks in the Engine, these settings, the map and the buildings are never touched. One model call a message.",
     ],
   },
   {
     title: "AI, and what it costs",
     lines: [
-      "Every AI call uses one of your Engine connections. A reply in a conversation, a moment, a day planned, a scene planned and a picture are one call each. Walking about calls nothing.",
+      "Every AI call uses one of your Engine connections. A reply in a conversation, a moment, a day planned, a scene planned, a picture, a picture's prompt rewritten and a message to the AI assistant are one call each. Walking about calls nothing.",
+      'Illustrate paints the moment. With "Have the AI rewrite the prompt" on, the last lines of the chat go with it, so the picture shows what you\'re doing now, not only where you stand.',
       "Menu → Settings → AI has a switch for each thing that can call the model. With one off, the world answers with its own written lines.",
       "A narrator card (one of your characters) can tell scenes, moments or both in its voice, and lets a scene start with nobody else there.",
     ],
   },
   { title: "Lorebook keywords", keywords: true },
   {
-    title: "A prompt for your assistant",
+    title: "A prompt for writing your keywords",
     lines: [
       "Copy this and give it to Professor Mari (or any assistant) along with your lorebook. It explains the keywords and asks for each entry's keys to be added or corrected.",
     ],

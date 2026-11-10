@@ -2634,37 +2634,46 @@ function scatter(random, count, scaleMin, scaleRange) {
 }
 
 /**
- * Each street: one strip per grid line in each direction, with an id that stays the same. Only as far as
- * it's laid (open ground past its last block is no street), and only when it runs along two blocks or
- * more: the short way through between two houses of a crossroads' arm has no name of its own.
+ * Each street: a strip for every unbroken run of blocks it's laid along, on each grid line in each
+ * direction, with an id that stays the same (a second run on a line, past a gap, gets "-2"). Open ground
+ * is no street, and neither is a run of one block: the short way through between two houses of a
+ * crossroads' arm has no name of its own.
  */
 function streetStrips() {
   const strips = [];
-  // From the first block the street is laid along to the last, in metres.
-  const reach = (test) => {
-    const laid = Array.from({ length: blocksPerSide }, (_, a) => a).filter(test);
-    if (laid.length < 2) return null;
-    return {
-      min: (laid[0] - blocksPerSide / 2) * PITCH - STREET / 2,
-      max: (laid[laid.length - 1] + 1 - blocksPerSide / 2) * PITCH + STREET / 2,
-    };
+  const runs = (test) => {
+    const found = [];
+    let from = null;
+    for (let a = 0; a <= blocksPerSide; a++) {
+      const laid = a < blocksPerSide && test(a);
+      if (laid && from === null) from = a;
+      if (laid || from === null) continue;
+      if (a - from >= 2)
+        found.push({
+          min: (from - blocksPerSide / 2) * PITCH - STREET / 2,
+          max: (a - blocksPerSide / 2) * PITCH + STREET / 2,
+        });
+      from = null;
+    }
+    return found;
   };
+  const suffix = (n) => (n ? `-${n + 1}` : "");
   for (let i = 0; i <= blocksPerSide; i++) {
     const line = (i - blocksPerSide / 2) * PITCH;
     // The street with its sidewalks and doorsteps: someone at a front door is on the street.
     const across = { min: line - STREET / 2 - 2.5, max: line + STREET / 2 + 2.5 };
-    const alongX = reach((a) => hasStreetX(i, a));
-    if (alongX)
+    runs((a) => hasStreetX(i, a)).forEach((run, n) =>
       strips.push({
-        id: `street:x${i}`,
-        box: { minX: alongX.min, maxX: alongX.max, minZ: across.min, maxZ: across.max },
-      });
-    const alongZ = reach((b) => hasStreetZ(i, b));
-    if (alongZ)
+        id: `street:x${i}${suffix(n)}`,
+        box: { minX: run.min, maxX: run.max, minZ: across.min, maxZ: across.max },
+      }),
+    );
+    runs((b) => hasStreetZ(i, b)).forEach((run, n) =>
       strips.push({
-        id: `street:z${i}`,
-        box: { minX: across.min, maxX: across.max, minZ: alongZ.min, maxZ: alongZ.max },
-      });
+        id: `street:z${i}${suffix(n)}`,
+        box: { minX: across.min, maxX: across.max, minZ: run.min, maxZ: run.max },
+      }),
+    );
   }
   return strips;
 }

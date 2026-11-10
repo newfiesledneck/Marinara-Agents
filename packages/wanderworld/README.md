@@ -28,12 +28,15 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.5)
+## What it does now (0.5.6)
 
 ### The world
 
 - **A settlement of its own kind:** a hamlet round a green, a village with a stall market, a town with a
-  fountain square, or a city; laid out as a grid, a crossroads, along one street or round the market; the
+  fountain square, or a city; laid out as a grid, a crossroads, along one street or round the market, or
+  (when you choose them) as scattered houses with no streets, round a pond with the houses along the edge,
+  or in four quarters with a green between them. Ground a layout leaves open inside the settlement gets a
+  pond where there's room, a few houses off the streets, gardens, meadows and trees. The
   market in the middle or off to one side, stone walls and gates (new cities have them), and cobbled streets
   with sidewalks or dirt paths (New world, or left to the seed). In a town: a town hall, a temple, a tavern
   and shops round the square with market stalls and benches; homes, a smithy and fenced gardens along cobbled
@@ -113,14 +116,28 @@ With it running:
   people agree to in moments ("meet me at noon by the fountain") goes into their day.
 - **Illustrate:** a window that paints the current moment (where, when, the weather, who's with you and
   what they're doing, their looks from their cards) from a prompt template you can edit, with the world's
-  gallery. It moves, resizes and stays open while you play. The picture takes the window; the gallery, the
-  template (with every placeholder explained), the size and the rest fold away under it. Pick the picture's
-  size (a few usual ones, or your own width and height). "Improve the prompt with AI" has a model rewrite
-  the filled-in template first, on a connection of its own if you like (apart from the one conversations
-  use), to an instruction you can edit (sentences or tags), and can show you the result to change or approve
-  before it's painted. A sentence of the template whose placeholders all come out empty is left out. `{world_look}` says what
-  the world looks like wherever you are (yours to set in Journal → World), so pictures match it;
-  `{setting}` is only what you wrote in the world's Setting box.
+  gallery. It moves, resizes and stays open while you play. The picture fills the window; the gallery, the
+  template (with every placeholder explained), the size and the rest are a scroll down, folded. Pick the
+  picture's size (a few usual ones, or your own width and height). "Improve the prompt with AI" has a model
+  rewrite the filled-in template first, on a connection of its own if you like (apart from the one
+  conversations use), to an instruction you can edit (sentences or tags), and can show you the result to
+  change or approve before it's painted. The rewrite is also given the last lines of the chat, so the
+  picture shows what you're doing now (kneeling by the pond), not only where you stand. A sentence of the
+  template whose placeholders all come out empty is left out. `{world_look}` says what the world looks like
+  wherever you are (yours to set in Journal → World), so pictures match it; `{setting}` is only what you
+  wrote in the world's Setting box. Appearances are used whole, however long.
+- **The AI assistant** (Menu → Settings → AI assistant): a chat about the world you're in, which can also
+  change it. Ask about its people, places and lore, or why a lore entry is or isn't active where you stand.
+  Ask for a change ("make Jake and Sarah a married couple who live together", "rewrite Jason's lore to make
+  him a sorcerer who prays at the shrine", "add a blacksmith's apprentice who lives with Oswin") and it
+  proposes one: every change is shown in full, rewritten lore beside what it says now, and nothing happens
+  until you press **Confirm**. **Undo these changes** puts the world back as it was before the last ones.
+  It can set relationships, homes and work, days, body, voice, temperament, how someone acts toward you and
+  who knows whose name; add people and remove ones the world invented; write this world's own lore about a
+  person, a place or the whole world, keeping the detail that's there; rename places and set closing hours;
+  make groups of places and factions; change the setting, picture look and ages; and pin notes or give you
+  an errand. It changes only that world: never your cards, personas or lorebooks in the Engine, the
+  settings, the map or the buildings. An answer whose changes can't be read changes nothing and says so.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
   the Engine with everyone there (one of your characters at least), your persona and the world's lorebooks.
   Wanderworld plans it itself (point of view, tense and prompt preset from Menu → Settings → AI, and the world's
@@ -135,7 +152,8 @@ With it running:
 Every AI call uses a connection of yours, so it costs what that connection costs. Menu → Settings → AI
 has a switch for each thing that can make one (arriving somewhere, using things, the noticeboard,
 sitting down, joining someone); arrivals are off to start with. A conversation reply, a
-moment, a day's schedule, a scene plan and a picture are one call each, and setting a world up is one
+moment, a day's schedule, a scene plan, a picture, a picture's prompt rewritten and a message to the AI
+assistant are one call each, and setting a world up is one
 call for the cast, one for every 40 lorebook entries, and one each for written lore and new people; nothing calls a model while you
 only walk about.
 
@@ -146,7 +164,7 @@ only walk about.
   more hamlets, farms and landmarks, the world's size from Small to Massive, the setting and lorebooks,
   with a map of the world it makes and Reroll), Load world (thumbnails, Rename, Delete) and Settings. Each
   world keeps everything in its own save in this package's browser storage: where you were, the time, the
-  cast, bodies, relationships, lore, groups, homes, schedules, notes and scenes.
+  cast, bodies, relationships, lore, groups, homes, schedules, notes, scenes and the last of the chat.
 - **A world set up for you:** in New world, "let the AI set them up" reads your characters' cards and
   persona, and any lorebooks you choose, and makes the world ready to play: who's a man or a woman, how
   people know each other and you, where everyone lives and works, which lore belongs to which place,
@@ -158,7 +176,12 @@ only walk about.
 - **A world written for you:** with no lorebook, or none of your characters, the AI can still make a
   whole world. "World lore" has it write the world's premise and named places with their own lore, kept
   in that world and active where you stand; "new people" has it invent up to 12 people around those
-  places and your cast, each with a description, personality, looks, home, work and relationships. They
+  places and your cast, each with a description, personality, looks, home, work and relationships. Family
+  and close ones your persona's and characters' cards speak of (a father, a brother, an old friend) are made
+  first. "Ages of the people the AI makes" sets their usual ages (21 and up unless you change it, any age
+  from 1; your lore, setting and cards always win), in New world or later in Journal → World. The first map
+  on New world is an idea; the review shows the map the world gets, and "Reroll the map" there changes only
+  the land. They
   aren't Engine characters: they live, talk and keep their days in that world only. A lorebook entry
   about someone with no card can become one of them too. The steps feed each other in order: your
   lorebooks, the world and its places, new people, then your own characters fitted in among them.
@@ -168,7 +191,8 @@ only walk about.
   people nearby answer; with it off, the world answers with lines of its own. The **world's voice**
   (Menu → Settings → World) adds a line on coming to a place (its lore, when it has some; quiet or busy
   by who's about; not for streets or places told lately) and now and then about who's near; with the chat window closed it shows as a caption. The noticeboard offers
-  an **errand** to someone in the world: take it, it's marked on your map, and reaching them finishes it.
+  an **errand** to someone in the world: take it, it's marked on your map, and reaching them (out of doors,
+  at their door when they're in, or in the room with them) finishes it.
 - **A narrator, and scenes from anywhere:** pick one of your character cards as the narrator (Menu →
   Settings → AI) and it tells scenes, moments or both in its voice. The chat window's **Scene** button, or
   `/scene …`, starts a scene right where you stand: with whoever's near and your party, with the narrator
@@ -192,7 +216,8 @@ only walk about.
   of every relationship, and Edit people: a window per person with everything Wanderworld keeps about them — body, voice, temperament,
   home and work, their day, and relationships both ways — to change and Save or Cancel); Party; Places (the setup tree); Map (the region from above, with names and
   where each edge leads; it zooms and pans, a closer look names the buildings, a click sets a waypoint,
-  and your home is marked); and World (setting, scene instructions, lorebooks, lore linking, the season,
+  and your home is marked); and World (setting, how the world looks in pictures, the ages of people the AI makes, scene
+  instructions, lorebooks, lore linking, the season,
   the lore written for the world, and a check of your `ww:` keywords that lists any it didn't
   understand).
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster).
@@ -301,6 +326,11 @@ still count, and come first.
 - Walk-in rooms are unfinished and off by default.
 - The AI's world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
 - Quartermaster works inside scenes started from Wanderworld (they are roleplay chats), not in the world.
+- The AI assistant's chat isn't kept when you leave, and Undo reaches back one Confirm. Undo puts back
+  everything the assistant can change as it was then, so anything that changed in those since (a
+  relationship that grew through play) goes back too.
+- The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
+- A world's own lore entries hold 1,500 characters each, 60 entries a world.
 
 ## How it works
 
@@ -331,8 +361,11 @@ still count, and come first.
   build the default people.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
-  plans, world setup from cards and lorebooks, pictures and the gallery, scene plans, scene creation, and scene contexts and recaps, plus a
-  scene origin for the Engine. Every request body is checked there. `src/ai.js` is the client's side of
+  plans, world setup from cards and lorebooks, pictures and the gallery, the AI assistant, scene plans, scene creation, and scene contexts and recaps, plus a
+  scene origin for the Engine. Every request body is checked there, and so is what a model answers: the
+  assistant's changes are read field by field (`readAssistant`) before the client ever sees them.
+  `src/assistant.js` is the assistant's chat; `main.js` (`applyAssistantEdits`) checks each change against
+  the world, shows it, and makes it through the same setters the Journal uses. `src/ai.js` is the client's side of
   it, `src/map.js` draws the maps, `src/weather.js` the weather, `src/pack.js` the setting pack (the things to use, what's said about them
   and places when no AI answers, and the errands: every word of the setting, so another setting is
   another pack), `src/setup.js` sums the AI's setup up for the review, and `src/illustrate.js` and
