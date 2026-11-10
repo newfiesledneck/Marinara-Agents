@@ -257,6 +257,7 @@ export function createCrowd() {
       frame: 0,
       random: rng(hashString(`npc:${id}`)),
       tag: nameTag(name),
+      label: name, // what the tag says: their name, or what a stranger is called
       shadow: blobShadow(),
     };
     person.tag.visible = namesVisible;
@@ -1418,6 +1419,23 @@ export function createCrowd() {
     setNamesVisible(visible) {
       namesVisible = visible;
       for (const person of people.values()) person.tag.visible = visible;
+    },
+    /** What's written over each head: `labelOf(id, name)` → the words (their name, or "Stranger"). */
+    setLabels(labelOf) {
+      for (const person of people.values()) {
+        const label = labelOf(person.id, person.name) || person.name;
+        if (label === person.label) continue;
+        const old = person.tag;
+        person.label = label;
+        person.tag = nameTag(label);
+        person.tag.position.copy(old.position);
+        person.tag.scale.copy(old.scale);
+        person.tag.visible = old.visible;
+        person.group.remove(old);
+        old.material.map.dispose();
+        old.material.dispose();
+        person.group.add(person.tag);
+      }
     },
     /** Whether people without a 3D model are dressed from the kit (true) or drawn simply (false). */
     setDressed(dressed) {

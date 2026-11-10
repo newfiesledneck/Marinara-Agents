@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.91 — 2026-11-09
+
+- Knowing people: someone you haven't met is a Stranger, over their head and in what's written, until you learn their name. You know anyone you have a relationship with or who travels with you; a name is learned when they say it, when a note names them, or when you say so while talking (the name button). Menu → Settings → Display: show all names, only people you know, or none.
+- Looking at people: "Look at them" in a conversation, and "People here" in the chat window, show what each person near you looks like, from their card.
+- How someone acts toward you can be set apart from how they feel (Edit people): rude, aggressive, attacks on sight, afraid, or avoids you. It changes what they do when you come near and what the AI is told.
+
 ## 0.4.90 — 2026-11-09
 
 - Settings → AI has a switch for each thing that can call the model: AI moments as a whole, and arriving somewhere, using things, reading the noticeboard, sitting down and joining someone, each on its own. Arrivals are off to start with. With one off, the world answers with its written lines.

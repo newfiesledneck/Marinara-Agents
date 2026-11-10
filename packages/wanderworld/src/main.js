@@ -389,7 +389,8 @@ function applySettings() {
   setAnimationStyle(settings.animation);
   core.shadow.visible = settings.shadows;
   core.crowd.setShadows(settings.shadows);
-  core.crowd.setNamesVisible(settings.names);
+  if (core.relations) refreshNames();
+  else core.crowd.setNamesVisible(settings.names !== "none");
   core.crowd.setDressed(settings.people === "kit");
   core.sound.setEnabled(settings.sound);
   core.sound.setVolume(settings.volume);
@@ -655,6 +656,8 @@ function playWorld(id) {
       void pullRecaps();
       core.momentLog = [];
       core.toldPlaces = [];
+      core.looks = new Map();
+      core.peopleHereKey = null;
       core.arriveZone = null;
       core.hud?.illustrate.reset();
       core.hud?.illustrate.restore();
@@ -1589,7 +1592,7 @@ function noticeSomeone() {
   narrate(
     null,
     pickLine(PACK.sights, `${near.person.id}:${Math.floor(core.clock)}`, {
-      who: near.person.name,
+      who: knows(near.person.id) ? near.person.name : "a stranger",
       doing: doingWords(near.person),
     }),
   );
@@ -2305,6 +2308,10 @@ function stepPlaces(dt) {
     arrive(zone, names);
   }
   finishErrand();
+  if (core.clock - (core.peopleAt ?? -9) > 2) {
+    core.peopleAt = core.clock;
+    refreshPeopleHere();
+  }
   core.sightAt ??= core.clock - SIGHT_EVERY + 40; // the first one a little after arriving
   if (core.clock - core.sightAt >= SIGHT_EVERY) {
     core.sightAt = core.clock;
@@ -2594,7 +2601,7 @@ function updateCast() {
   core.crowd.setCast(chosen);
   useSchedules();
   core.crowd.setShadows(core.settings.shadows);
-  core.crowd.setNamesVisible(core.settings.names);
+  refreshNames();
   core.hud?.setCharacters(core.characters ?? [], core.cast, core.bodies);
   savePlace(true);
 }
@@ -2719,7 +2726,10 @@ function talkTo(person) {
   glideTo(x, z, Math.atan2(-dx, -dz), 0.5);
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
-  core.talk.start(person.name, !!(core.settings.aiTalk && core.ai.known()?.talk));
+  core.talk.start(nameFor(person.id, person.name), !!(core.settings.aiTalk && core.ai.known()?.talk));
+  core.talk.setKnown(knows(person.id), nameFor(person.id, person.name));
+  core.talk.setLooks("");
+  void looksOf([person.id]).then((looks) => core.talking?.id === person.id && core.talk.setLooks(looks[person.id]));
   core.talk.setInParty(core.crowd.inParty(person.id));
   core.talk.setChoices([{ id: "join", label: joiningOf(person).label }, ...choicesFor()], choose);
   later(0.6, () => answer(core.talking, "greet"));
@@ -2731,6 +2741,7 @@ function toggleParty() {
   if (!talking) return;
   const joining = !core.crowd.inParty(talking.id);
   core.crowd.setFollowing(talking.id, joining);
+  if (joining) learn(talking.id); // nobody travels with a stranger
   core.talk.setInParty(joining);
   core.talk.line(
     null,
@@ -2740,10 +2751,141 @@ function toggleParty() {
   partyChanged();
 }
 
+/**
+ * How someone acts toward the player when it's set apart from how they feel (Edit people): the warmth
+ * the crowd acts on (npcs.js: cold keeps away, colder comes at you) and the words the AI is told.
+ */
+const STANCE_WARMTH = { rude: -0.15, afraid: -0.6, avoids: -0.6, aggressive: -1, attacks: -2 };
+const STANCE_WORDS = {
+  rude: "is rude and short with them",
+  aggressive: "is aggressive toward them, quick to square up",
+  attacks: "attacks them on sight",
+  afraid: "is afraid of them",
+  avoids: "avoids them and wants to be elsewhere",
+};
+
+/**
+ * Whether the player knows someone by name: with Settings → Names on "Show all names" everyone is known;
+ * otherwise those they've been told of (`save.known`), anyone either has a relationship with, and
+ * anyone travelling with them. A stranger is called "Stranger" over their head and in what's written.
+ */
+function knows(id) {
+  if (core.settings.names === "all" || !core.save) return true;
+  return (
+    core.save.known.includes(id) ||
+    !!core.relations.get(id, "player") ||
+    !!core.relations.get("player", id) ||
+    core.crowd.inParty(id)
+  );
+}
+
+/** What someone is called to the player: their name, or "Stranger". */
+function nameFor(id, name) {
+  return knows(id) ? name : "Stranger";
+}
+
+/** The names over heads, as the setting and who's known have it now. */
+function refreshNames() {
+  core.crowd.setLabels(nameFor);
+  core.crowd.setNamesVisible(core.settings.names !== "none");
+}
+
+/** The player learns someone's name (it came up, or they said so). */
+function learn(id) {
+  if (!core.save || knows(id)) return;
+  core.save = { ...core.save, known: [...core.save.known, id].slice(-200) };
+  core.saves.write(core.save);
+  refreshNames();
+  const name = (core.characters ?? []).find((person) => person.id === id)?.name;
+  if (name) narrate(null, `(You know ${name} by name now.)`);
+  if (core.talking?.id === id) core.talk.setKnown(true, name ?? core.talking.name);
+}
+
+/** Learns the names of any of `people` ([{ id, name }]) that `text` gives away by using them. */
+function learnFrom(text, people) {
+  for (const person of people) {
+    const first = person.name.split(/\s+/u)[0];
+    if (
+      first.length >= 3 &&
+      new RegExp(`(^|[^\\p{L}])${first.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}([^\\p{L}]|$)`, "iu").test(text)
+    )
+      learn(person.id);
+  }
+}
+
+/** How someone stands toward the player, in words for the AI: how they feel, how they act, and whether they've met. */
+function towardPlayer(id, name, names) {
+  return [
+    core.relations.get(id, "player") ? core.relations.describe(id, "player", names) : "",
+    STANCE_WORDS[core.save?.stances?.[id]] ? `${name} ${STANCE_WORDS[core.save.stances[id]]}.` : "",
+    knows(id) ? "" : `${personaName()} doesn't know ${name}'s name yet: they haven't been introduced.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** What people look like, from their cards (asked for once each, a few at a time): { [id]: words }. */
+async function looksOf(wanted) {
+  core.looks ??= new Map();
+  const missing = wanted.filter((id) => !core.looks.has(id)).slice(0, 12);
+  if (missing.length && core.ai.known()) {
+    for (const id of missing) core.looks.set(id, ""); // asked: not again while it's on its way
+    try {
+      for (const [id, words] of Object.entries(await core.ai.looks(missing))) core.looks.set(id, words);
+    } catch {
+      for (const id of missing) core.looks.delete(id);
+    }
+  }
+  return Object.fromEntries(wanted.map((id) => [id, core.looks.get(id) ?? ""]));
+}
+
+/** The chat window's "People here": whoever's within a few steps (and whoever you're talking to), and what they look like. */
+function refreshPeopleHere() {
+  if (!core.world || core.interior) return;
+  const at = core.player.position;
+  const near = core.crowd
+    .snapshot()
+    .filter((person) => person.state !== "inside" && Math.hypot(person.x - at.x, person.z - at.z) < 10)
+    .slice(0, 8);
+  const key = near.map((person) => `${person.id}:${knows(person.id)}`).join("|");
+  void looksOf(near.map((person) => person.id)).then((looks) => {
+    const now = `${key}#${Object.values(looks).join("").length}`;
+    if (now === core.peopleHereKey) return;
+    core.peopleHereKey = now;
+    core.hud?.setPeopleHere(near.map((person) => ({ name: nameFor(person.id, person.name), looks: looks[person.id] })));
+  });
+}
+
+/** The person you're talking to: whether you know their name, switched by hand. */
+function toggleKnown() {
+  const talking = core.talking;
+  if (!talking || !core.save) return;
+  if (core.settings.names === "all")
+    return void core.talk.line(null, "Names are all shown (Menu → Settings → Display).", true);
+  if (!core.save.known.includes(talking.id) && knows(talking.id))
+    return void core.talk.line(
+      null,
+      "You know them already: you have a history, or they're travelling with you.",
+      true,
+    );
+  const known = core.save.known.includes(talking.id);
+  core.save = {
+    ...core.save,
+    known: known ? core.save.known.filter((id) => id !== talking.id) : [...core.save.known, talking.id],
+  };
+  core.saves.write(core.save);
+  refreshNames();
+  core.talk.setKnown(!known, nameFor(talking.id, talking.name));
+}
+
 /** This world's relationships: the crowd behaves by them and they're saved with the world. */
 function useRelations(relations) {
   core.relations = relations;
-  core.crowd.setRelations((from, to) => relations.feeling(from, to));
+  core.crowd.setRelations((from, to) => {
+    const feeling = relations.feeling(from, to);
+    const warmth = to === "player" ? STANCE_WARMTH[core.save?.stances?.[from]] : undefined;
+    return warmth === undefined ? feeling : { ...feeling, warmth };
+  });
   core.crowd.setTraits((id) => checkTraits(core.save?.traits?.[id]));
 }
 
@@ -2866,6 +3008,8 @@ function personData(id) {
     homes,
     workplaces,
     kinds: relations.kinds,
+    known: knows(id),
+    stance: core.save.stances?.[id] ?? "",
     toPlayer: core.relations.get(id, "player") ?? null,
     fromPlayer: core.relations.get("player", id) ?? null,
     others: (core.characters ?? [])
@@ -2902,6 +3046,16 @@ function savePerson(id, changes) {
     core.save = { ...core.save, voices };
   }
   if (changes.schedule !== undefined) setSchedule(id, changes.schedule, "you");
+  if (changes.stance !== undefined) {
+    const stances = { ...core.save.stances };
+    if (STANCE_WARMTH[changes.stance] !== undefined) stances[id] = changes.stance;
+    else delete stances[id];
+    core.save = { ...core.save, stances };
+  }
+  if (changes.known !== undefined) {
+    const known = core.save.known.filter((entry) => entry !== id);
+    core.save = { ...core.save, known: changes.known ? [...known, id] : known };
+  }
   if (changes.traits) setTraits(id, changes.traits);
   if (changes.housing) setHousingByHand(id, changes.housing);
   const same = (a, b) =>
@@ -2915,6 +3069,7 @@ function savePerson(id, changes) {
   core.placesChanged = true;
   core.relationsChanged = true;
   core.journalAt = 0;
+  refreshNames();
   core.hud?.setNotice(`Saved.`);
 }
 
@@ -3026,7 +3181,8 @@ function showReply(talking, line, reply) {
   talking.history.push({ from: "character", text: reply });
   core.crowd.setSpeaking(talking.id, true);
   core.talk.say(talking.group, reply, Math.min(12, 3 + reply.length / 22));
-  core.talk.line(talking.name, reply);
+  core.talk.line(nameFor(talking.id, talking.name), reply);
+  learnFrom(reply, [talking]); // they gave their name
   later(2.6, () => {
     if (core.talking === talking) core.crowd.setSpeaking(talking.id, false);
   });
@@ -3098,7 +3254,7 @@ function momentListeners(voice, audience, extra = [], text = "") {
     name: person.name,
     distance: Math.round(distance),
     doing: inside.has(person.id) ? "inside" : doingWords(person),
-    feeling: core.relations.get(person.id, "player") ? core.relations.describe(person.id, "player", names) : "",
+    feeling: towardPlayer(person.id, person.name, names),
     inParty: party.has(person.id),
   }));
 }
@@ -3173,7 +3329,8 @@ async function runMoment({
         if (group) core.talk.say(group, reply.text, Math.min(10, 3 + reply.text.length / 22));
         core.crowd.setSpeaking(reply.id, true);
         later(2.6, () => core.crowd.setSpeaking(reply.id, false));
-        narrate(listener?.name ?? "Someone", reply.text);
+        narrate(listener ? nameFor(listener.id, listener.name) : "Someone", reply.text);
+        if (listener) learnFrom(reply.text, [listener]);
       });
     });
     const placeNames = Object.fromEntries(places.map((place) => [place.id, place.name]));
@@ -3326,7 +3483,7 @@ function talkPayload(talking, line) {
     time: clockText(),
     weather: weatherWord(),
     nearby,
-    relationship: core.relations.get(talking.id, "player") ? core.relations.describe(talking.id, "player", names) : "",
+    relationship: towardPlayer(talking.id, talking.name, names),
     setting: core.save?.setting ?? "",
     lore: zone
       ? loreAt(zone)
@@ -3628,7 +3785,7 @@ function openScene(thing) {
   core.hud.setScene(
     {
       title,
-      people: thing.inside.map((person) => person.name),
+      people: thing.inside.map((person) => nameFor(person.id, person.name)),
       empty: thing.empty,
       party,
       actions: (ACTIONS[thing.kind] ?? []).map(({ id, label }) => ({ id, label })),
@@ -3812,6 +3969,7 @@ function openNoticeboard() {
           };
           core.saves.write(core.save);
           narrate(null, `You take the note down: "${errand.text}"`);
+          learn(errand.person);
           core.hud?.setNotice("Errand taken: it's marked on your map.");
           show();
         },
@@ -3880,7 +4038,7 @@ function usable() {
   for (const person of core.crowd.present(space)) {
     list.push({
       kind: "person",
-      label: `Talk to ${person.name}`,
+      label: `Talk to ${nameFor(person.id, person.name)}`,
       x: person.position.x,
       z: person.position.z,
       y: 2.45,
@@ -4705,7 +4863,7 @@ function attach(element) {
     maxPeople: MAX_PEOPLE,
     loadingArt: `${ART}loading-bg.webp`,
   });
-  core.talk = createTalk(core.hud.layer, { onSend: say, onLeave: endTalk, onParty: toggleParty });
+  core.talk = createTalk(core.hud.layer, { onSend: say, onLeave: endTalk, onParty: toggleParty, onKnown: toggleKnown });
   core.input = createInput();
   core.hud.layer.append(core.input.stickElement);
   core.element.addEventListener("keydown", () => core.sound.unlock());

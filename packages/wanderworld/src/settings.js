@@ -37,7 +37,8 @@ export const SETTINGS = {
   /** How fast dragging and the arrow keys turn the camera. */
   lookSpeed: { value: 1, min: 0.4, max: 2.5 },
   invertLook: { value: false },
-  names: { value: true },
+  // Whose name is over their head: everyone's, only people the player knows (a stranger is "Stranger"), or nobody's.
+  names: { value: "known", options: ["all", "known", "none"] },
   /** Short explanations under settings, in the Journal and on New world. */
   explanations: { value: true },
   hint: { value: true },

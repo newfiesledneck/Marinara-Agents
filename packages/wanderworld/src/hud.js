@@ -208,7 +208,8 @@ export function createHud(root, handlers) {
     combat: "Where people may confront (and later fight) you: safe places are towns, inns and cottages.",
     sound: "Footsteps, doors and the world's sounds.",
     volume: "How loud those sounds are.",
-    names: "Names over people's heads, tinted by how they see you.",
+    names:
+      "Names over people's heads, tinted by how they see you. With \"Only people I know\", someone you haven't met is a Stranger, here and in what's written, until you learn their name (it comes up, or you say you know them while talking).",
     hint: "The line of controls at the bottom of the screen.",
     stats: "Frames per second and other numbers at the top.",
     explanations: "These lines under settings, and the ones in the Journal and on New world.",
@@ -531,7 +532,11 @@ export function createHud(root, handlers) {
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
   heading("Display");
-  toggle("names", "Names over people");
+  choice("names", "Names over people", {
+    all: "Show all names",
+    known: "Only people I know",
+    none: "Hide all names",
+  });
   toggle("hint", "Controls hint");
   toggle("stats", "Frame rate");
   toggle("explanations", "Show explanations");
@@ -751,7 +756,17 @@ export function createHud(root, handlers) {
     commandList.append(code, words);
   }
   commands.append(commandsTitle, commandList);
-  chat.frame.append(narration, speakBar, commands);
+  // Who's close by and what they look like, folded away like the commands.
+  const peopleHere = document.createElement("details");
+  peopleHere.style.cssText = `padding:0 10px 6px;font-size:11px;color:${INK_SOFT};`;
+  const peopleTitle = document.createElement("summary");
+  peopleTitle.style.cssText = "cursor:pointer;";
+  peopleTitle.textContent = "People here";
+  const peopleLooks = document.createElement("div");
+  peopleLooks.style.cssText =
+    "display:flex;flex-direction:column;gap:4px;padding-top:3px;max-height:120px;overflow-y:auto;";
+  peopleHere.append(peopleTitle, peopleLooks);
+  chat.frame.append(narration, speakBar, commands, peopleHere);
   let narrationTimer = null;
   // Narration with the chat window closed: a caption over the world for a few seconds, then gone (it's
   // in the window when it's opened).
@@ -830,6 +845,19 @@ export function createHud(root, handlers) {
   root.append(layer);
 
   const hud = {
+    /** Who's close by, for the chat window's "People here": [{ name, looks }]. */
+    setPeopleHere(list) {
+      peopleTitle.textContent = list.length ? `People here (${list.length})` : "People here";
+      peopleLooks.replaceChildren(
+        ...list.map((person) => {
+          const line = document.createElement("div");
+          const name = document.createElement("b");
+          name.textContent = `${person.name}  `;
+          line.append(name, document.createTextNode(person.looks || "…"));
+          return line;
+        }),
+      );
+    },
     /** Opens the person editor (person.js) for `person`. */
     editPerson: (person) => personEditor.open(person),
     layer,

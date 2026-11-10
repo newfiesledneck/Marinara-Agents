@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.91",
+          "date": "2026-11-09",
+          "notes": "- Knowing people: someone you haven't met is a Stranger, over their head and in what's written, until you learn their name. You know anyone you have a relationship with or who travels with you; a name is learned when they say it, when a note names them, or when you say so while talking (the name button). Menu → Settings → Display: show all names, only people you know, or none.\n- Looking at people: \"Look at them\" in a conversation, and \"People here\" in the chat window, show what each person near you looks like, from their card.\n- How someone acts toward you can be set apart from how they feel (Edit people): rude, aggressive, attacks on sight, afraid, or avoids you. It changes what they do when you come near and what the AI is told.",
+          "highlight": false
+        },
+        {
           "version": "0.4.90",
           "date": "2026-11-09",
           "notes": "- Settings → AI has a switch for each thing that can call the model: AI moments as a whole, and arriving somewhere, using things, reading the noticeboard, sitting down and joining someone, each on its own. Arrivals are off to start with. With one off, the world answers with its written lines.\n- Arriving somewhere is told with more sense: only once you've been there a few seconds, never for streets, not for any of the last five places told, and not straight after another. It's told each time you come back after being elsewhere, not only the first time.\n- The telling knows who's about: an empty square isn't called busy.\n- Lamp posts stand on the corners of the blocks, on the kerb, not out in the street.",
@@ -307,12 +313,6 @@
           "version": "0.4.72",
           "date": "2026-11-09",
           "notes": "- Offered to Engine staging testers from Agents → Download Agents. The README has install steps, what each permission is for, known limits, and credits for the Quaternius CC0 packs the world is built from.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.71",
-          "date": "2026-11-09",
-          "notes": "- Scenes you start in the world are planned by Wanderworld, so the Engine's scene dialog (with choices remembered from other chats) no longer comes up. Settings → AI: scene point of view, tense, and a prompt preset picked for every scene; Journal → World: scene instructions for that world. If planning fails, the Engine's own planner takes over.",
           "highlight": false
         }
       ]

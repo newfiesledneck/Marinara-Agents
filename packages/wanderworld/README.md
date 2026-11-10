@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.90)
+## What it does now (0.4.91)
 
 ### The world
 
@@ -168,6 +168,12 @@ only walk about.
   as well, or with the narrator alone when nobody else is there. What you do is narrated even with
   nobody about. `/camp` lights a campfire for you and your party, and talking to someone offers joining
   what they're doing.
+- **Strangers and people you know:** someone you haven't met is a Stranger, over their head and in what's
+  written, until you learn their name: they say it, a note names them, they join you, or you say you know
+  them while talking. Anyone you have a relationship with is known from the start. "Look at them" in a
+  conversation and "People here" in the chat window show what the people near you look like. Edit
+  people can set how someone acts toward you apart from how they feel: rude, aggressive, attacks on
+  sight, afraid, or avoids you.
 - **Use things** with E, a click or a tap: sit on benches, read and pin to the noticeboard, swim, and open a
   door, a cave or the fountain for a card of things to do (go in, knock, toss a coin…) plus your own line
   and who comes along. With AI on, what you choose plays out as a moment, or as a full scene with "Play it

@@ -478,6 +478,15 @@ assert.equal(
   });
   assert.doesNotMatch(asked[0].content, /Forged/u, "an Engine character is always read from the Engine");
 
+  // What people look like, for looking at them: the card's appearance, or a world's own person's.
+  const looks = await call("post", "/looks", {
+    body: {
+      ids: ["c-mira", "local:new-1", "c-ghost"],
+      locals: [{ id: "local:new-1", name: "Oswin", appearance: "Soot to the elbows." }],
+    },
+  });
+  assert.deepEqual(looks.body.looks, { "c-mira": "flour on her apron", "local:new-1": "Soot to the elbows." });
+
   // Illustrate: the template filled with the people's looks from their cards, painted and kept; the gallery
   // lists it without the picture itself, which comes one at a time.
   const shot = await call("post", "/illustrate", {
