@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.9",
+          "date": "2026-11-11",
+          "notes": "- In the assistant's proposal, a relationship's kind is a dropdown (friend, partner, family, rival… or nothing, to end it), and its roles (husband, mentor…) can be rewritten, before you confirm.",
+          "highlight": false
+        },
+        {
           "version": "0.5.8",
           "date": "2026-11-11",
           "notes": "- The assistant's proposal can be edited before you confirm. Each change has a tick, so you can leave some out and keep the rest, and the text it wrote (lore, a new person's name and card, a place's name, the world's setting and look, a note, an errand) is in boxes you can rewrite. What you confirm is what you see.",
@@ -307,12 +313,6 @@
           "version": "0.4.92",
           "date": "2026-11-09",
           "notes": "- Knowing goes both ways: someone who doesn't know your name won't use it. They learn it when you say it (or \"I'm …\"), you learn theirs when they say it. The small \"i\" beside a conversation's title explains both and has a switch for each.\n- What you can say in a conversation depends on who it is: introductions for strangers, different things for friends, family, someone close and someone cold, and not the same handful for everyone.\n- When someone comes at you or attacks, a card says so, explains there's no fighting yet, and offers talking, a moment, a scene, or turning aggressive approaches off.\n- Speech bubbles say who's speaking in place of the name tag (\"Stranger: Hi there!\") and stack instead of overlapping. The wheel zooms a conversation's view in and out.\n- New keywords: ww: rude, ww: confronts, ww: attacks, ww: afraid, ww: avoids, ww: known, ww: knows you.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.91",
-          "date": "2026-11-09",
-          "notes": "- Knowing people: someone you haven't met is a Stranger, over their head and in what's written, until you learn their name. You know anyone you have a relationship with or who travels with you; a name is learned when they say it, when a note names them, or when you say so while talking (the name button). Menu → Settings → Display: show all names, only people you know, or none.\n- Looking at people: \"Look at them\" in a conversation, and \"People here\" in the chat window, show what each person near you looks like, from their card.\n- How someone acts toward you can be set apart from how they feel (Edit people): rude, aggressive, attacks on sight, afraid, or avoids you. It changes what they do when you come near and what the AI is told.",
           "highlight": false
         }
       ]

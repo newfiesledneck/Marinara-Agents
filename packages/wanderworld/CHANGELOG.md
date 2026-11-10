@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.9 — 2026-11-11
+
+- In the assistant's proposal, a relationship's kind is a dropdown (friend, partner, family, rival… or nothing, to end it), and its roles (husband, mentor…) can be rewritten, before you confirm.
+
 ## 0.5.8 — 2026-11-11
 
 - The assistant's proposal can be edited before you confirm. Each change has a tick, so you can leave some out and keep the rest, and the text it wrote (lore, a new person's name and card, a place's name, the world's setting and look, a note, an errand) is in boxes you can rewrite. What you confirm is what you see.
