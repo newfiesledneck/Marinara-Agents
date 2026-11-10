@@ -477,7 +477,8 @@ const DOING = {
 /**
  * One line saying where someone is and what they're doing: "Jake is sitting on a bench by the fountain
  * in the market square". `who`: { name, state, zone, seat (true when on a bench or chair), talkingTo, with
- * (who they're chatting or sitting with) }.
+ * (who they're chatting or sitting with), doing (words for what they're at, when the world has a spot for
+ * it: "minding a market stall") }.
  */
 export function describe(zones, who, names = {}) {
   const place = placeWords(zones, who.zone, names);
@@ -486,6 +487,7 @@ export function describe(zones, who, names = {}) {
   if (who.state === "sit" && who.seat) doing = who.with ? `sitting on a bench with ${who.with}` : "sitting on a bench";
   if (who.state === "talk" && who.talkingTo) doing = `talking with ${who.talkingTo}`;
   if (who.state === "chat") doing = who.with ? `chatting with ${who.with}` : "chatting";
+  if (who.doing) doing = who.doing; // at a spot made for something: the pack's words for it
   return `${who.name} is ${doing} ${place}`;
 }
 

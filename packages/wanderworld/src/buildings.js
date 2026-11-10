@@ -184,6 +184,95 @@ export function makeSpec(random, kind, { width, depth } = {}) {
   return spec;
 }
 
+// ── Style ────────────────────────────────────────────────────────────────────
+
+/**
+ * What multiplies a kit texture whose average colour is `base` so it reads as `target`: [r, g, b], worked
+ * out in linear light (as the multiplying is done), kept within what still looks like the texture.
+ */
+function tintTo(target, base) {
+  const [to, from] = [new Color(target), new Color(base)];
+  return [to.r / from.r, to.g / from.g, to.b / from.b].map((value) => Math.round(Math.min(4, value) * 1000) / 1000);
+}
+const TILES = 0xb05530; // the kit's roof tiles, on average
+const PLASTER_BASE = 0xb09e7f; // and its plaster
+const AS_IT_IS = [1, 1, 1];
+/** Roofs: the kit's terracotta (most often), old dark tiles, bleached, brown, slates, mossy. */
+const ROOF_TINTS = [
+  AS_IT_IS,
+  AS_IT_IS,
+  AS_IT_IS,
+  ...[0x8a4530, 0xb8763e, 0x7a5a3c, 0x5f6b78, 0x4a5258, 0x6b5a70, 0x6f7048].map((hex) => tintTo(hex, TILES)),
+];
+/** Plaster: as it is, whitewash, cream, ochre, rose, pale blue, sage, weathered, warm. */
+const WALL_TINTS = [
+  AS_IT_IS,
+  AS_IT_IS,
+  ...[0xe6e0d2, 0xe2d2a8, 0xd4b47c, 0xd2b4a8, 0xb8c4ca, 0xb8c2a8, 0xa89c8a, 0xc8a888].map((hex) =>
+    tintTo(hex, PLASTER_BASE),
+  ),
+];
+const SLATES = ROOF_TINTS.slice(6, 9);
+const STONY = [AS_IT_IS, WALL_TINTS[2], WALL_TINTS[8]];
+
+/**
+ * How a building is dressed beyond its spec: choices of look that change nothing about where it stands,
+ * where its door is or what blocks the way. `random` is the building's own (seeded from where it
+ * stands), so a town's buildings keep their numbers and places whatever is added here.
+ *
+ * { roofTint, wallTint ([r, g, b]), ridge ("x" along the front, "z" front to back, where the roof can go
+ * either way), windows ("round" | "flat"), dormers (0–2), porch ("none" | "door" | "front"), chimney
+ * (1 | 2), vines (0–1, how overgrown) }
+ */
+export function styleFor(spec, random) {
+  const chance = (p) => random() < p;
+  const landmark = spec.kind === "temple" || spec.kind === "hall";
+  const style = {
+    roofTint: pick(random, ROOF_TINTS),
+    wallTint: pick(random, WALL_TINTS),
+    ridge: chance(0.5) ? "x" : "z",
+    windows: chance(0.4) ? "flat" : "round",
+    dormers: 0,
+    porch: "none",
+    chimney: chance(0.4) ? 2 : 1,
+    vines: chance(0.3) ? 0.2 + random() * 0.5 : 0.1,
+  };
+  if (!landmark && chance(spec.floors > 1 ? 0.3 : 0.45)) style.dormers = spec.width >= 8 && chance(0.6) ? 2 : 1;
+  // A lean-to over the door (a home, now and then), or all along the front (most taverns, in place of the
+  // balcony). A shop has its awning; the smithy its forge.
+  if (spec.kind === "home" && chance(0.3)) style.porch = "door";
+  if (spec.kind === "tavern" && chance(0.65)) style.porch = "front";
+  // The landmarks keep to stone and slate.
+  if (landmark) {
+    style.roofTint = pick(random, SLATES);
+    style.wallTint = pick(random, STONY);
+    style.windows = "round";
+  }
+  return style;
+}
+
+/** How far a porch's lean-to reaches from the wall, and how high its posts stand. */
+export const PORCH_OUT = 1.5;
+export const PORCH_HEIGHT = 2.2;
+
+/**
+ * A smithy's forge: the part of its footprint left open to the street, under the same roof. The door
+ * goes to one end of the front, the room behind it takes that end, and the rest is the forge.
+ * Returns { doorX, roomX (the room's middle), roomWidth, x0, x1 (the forge, along the front) }.
+ */
+export function forgeBay(width, doorX) {
+  const end = doorX <= 0 ? -1 : 1;
+  const roomWidth = width >= 8 ? 4 : 2;
+  const edge = end * (width / 2 - roomWidth); // where the room ends and the forge begins
+  return {
+    doorX: end * (width / 2 - 1),
+    roomX: end * (width / 2 - roomWidth / 2),
+    roomWidth,
+    x0: Math.min(edge, -end * (width / 2)),
+    x1: Math.max(edge, -end * (width / 2)),
+  };
+}
+
 // ── Building ─────────────────────────────────────────────────────────────────
 
 /** A window on the +z face at (x, y): frame, glass and sill, with shutters and a flower box if the spec has them. */
@@ -296,18 +385,32 @@ function roofParts(pieces, random, spec, width, depth, height) {
 
 /**
  * Builds a building from its spec, facing +z (its street front) with its long side along x, centred on
- * the origin and standing on y = 0. Returns the merged geometry, where its door is (local x on the front)
- * and its footprint (for collision, including a tower or porch).
+ * the origin and standing on y = 0. Returns the merged geometry, where its door is (local x on the front),
+ * its footprint (what blocks the way) and, for a smithy, its forge (`bay`: forgeBay).
  */
 export function buildBuilding(random, spec) {
-  const { width, depth, floors } = spec;
+  const { width: full, depth, floors } = spec;
   const height = floors * FLOOR_HEIGHT;
   const d = depth / 2;
   const pieces = [];
+  // The door sits in the middle of one of the 2 m wall segments (as the kit's door wall has it): a shop's
+  // at the end beside its window, a landmark's at the middle, a house's anywhere along the front.
+  const segments = Math.max(1, Math.round(full / 2));
+  const middle = segments % 2 ? 0 : 1;
+  const landmark = spec.kind === "tavern" || spec.kind === "temple" || spec.kind === "hall";
+  const anySegment = -full / 2 + 1 + 2 * Math.min(segments - 1, Math.floor(random() * segments));
+  const frontDoor = spec.shopWindow ? full / 2 - 1 : landmark ? middle : anySegment;
+  // A smithy's walls go round its room only; the rest of the footprint is its forge, open to the street.
+  const bay = spec.kind === "smithy" && full >= 6 ? forgeBay(full, frontDoor) : null;
+  const width = bay ? bay.roomWidth : full;
+  const shift = bay ? bay.roomX : 0;
+  const walls = []; // built round the middle of the walls, moved to where they stand at the end
+  const doorX = bay ? bay.doorX : frontDoor;
+  const localDoor = doorX - shift; // along the walls' own front
   // Body and a darker plinth it stands on.
-  pieces.push(box(width, height, depth, 0, height / 2, 0, spec.wallColor));
+  walls.push(box(width, height, depth, 0, height / 2, 0, spec.wallColor));
   const plinth = new Color(spec.walls === "stone" ? spec.wallColor : 0x8a8478).multiplyScalar(0.85).getHex();
-  pieces.push(
+  walls.push(
     box(
       width + 0.2,
       spec.walls === "stone" ? 0.8 : 0.45,
@@ -318,20 +421,13 @@ export function buildBuilding(random, spec) {
       plinth,
     ),
   );
-  wallDetail(pieces, random, spec, width, depth, height);
+  wallDetail(walls, random, spec, width, depth, height);
 
   // The door's frame, a dark doorway behind it and the step; a shop's door sits to one side of its window.
   // The door itself is separate (world.js) so it can swing open.
-  // The door sits in the middle of one of the 2 m wall segments (as the kit's door wall has it): a shop's
-  // at the end beside its window, a landmark's at the middle, a house's anywhere along the front.
-  const segments = Math.max(1, Math.round(width / 2));
-  const middle = segments % 2 ? 0 : 1;
-  const landmark = spec.kind === "tavern" || spec.kind === "temple" || spec.kind === "hall";
-  const anySegment = -width / 2 + 1 + 2 * Math.min(segments - 1, Math.floor(random() * segments));
-  const doorX = spec.shopWindow ? width / 2 - 1 : landmark ? middle : anySegment;
-  pieces.push(box(1.45, 2.45, 0.1, doorX, 1.22, d + 0.05, spec.walls === "timber" ? BEAM : TRIM));
-  pieces.push(box(DOOR_WIDTH, DOOR_HEIGHT, 0.04, doorX, DOOR_HEIGHT / 2, d + 0.11, DOORWAY));
-  pieces.push(box(1.7, 0.18, 0.7, doorX, 0.09, d + 0.35, plinth));
+  walls.push(box(1.45, 2.45, 0.1, localDoor, 1.22, d + 0.05, spec.walls === "timber" ? BEAM : TRIM));
+  walls.push(box(DOOR_WIDTH, DOOR_HEIGHT, 0.04, localDoor, DOOR_HEIGHT / 2, d + 0.11, DOORWAY));
+  walls.push(box(1.7, 0.18, 0.7, localDoor, 0.09, d + 0.35, plinth));
 
   // Windows: a row per floor on the front and back, one or two on each side.
   const perFloor = Math.max(1, Math.round(width / 2.7));
@@ -340,31 +436,48 @@ export function buildBuilding(random, spec) {
     const y = floor * FLOOR_HEIGHT + (tall ? 1.9 : 1.75);
     for (let i = 0; i < perFloor; i++) {
       const x = -width / 2 + (width / perFloor) * (i + 0.5);
-      const clearOfDoor = Math.abs(x - doorX) > 1.6;
-      if (floor === 0 && spec.shopWindow && x < doorX - 1.2) {
+      const clearOfDoor = Math.abs(x - localDoor) > 1.6;
+      if (floor === 0 && spec.shopWindow && x < localDoor - 1.2) {
         if (i === 0)
-          windowParts(pieces, random, spec, -width / 2 + (doorX - 1.2 + width / 2) / 2, 1.5, d, { wide: true });
+          windowParts(walls, random, spec, -width / 2 + (localDoor - 1.2 + width / 2) / 2, 1.5, d, { wide: true });
       } else if (floor > 0 || clearOfDoor) {
-        windowParts(pieces, random, spec, x, y, d, { tall });
+        windowParts(walls, random, spec, x, y, d, { tall });
       }
       const back = [];
       windowParts(back, random, { ...spec, flowerBoxes: false }, x, y, d, { tall });
-      for (const piece of back) pieces.push(piece.rotateY(Math.PI));
+      for (const piece of back) walls.push(piece.rotateY(Math.PI));
     }
     if (depth >= 5.5) {
       for (const side of [1, -1]) {
         const sidePieces = [];
         windowParts(sidePieces, random, { ...spec, flowerBoxes: false }, 0, y, width / 2, { tall });
-        for (const piece of sidePieces) pieces.push(piece.rotateY((side * Math.PI) / 2));
+        for (const piece of sidePieces) walls.push(piece.rotateY((side * Math.PI) / 2));
       }
     }
   }
+  for (const piece of walls) pieces.push(shift ? piece.translate(shift, 0, 0) : piece);
+  if (bay) {
+    // The forge: its back wall, posts at its corners and along its open sides, and beams on them.
+    const [x0, x1] = [bay.x0, bay.x1];
+    const outer = Math.abs(x0) > Math.abs(x1) ? x0 : x1;
+    pieces.push(box(x1 - x0, height, 0.3, (x0 + x1) / 2, height / 2, -d + 0.15, spec.wallColor));
+    for (const [x, z] of [
+      [outer, d - 0.12],
+      [(x0 + x1) / 2, d - 0.12],
+      [outer, 0],
+      [outer, -d + 0.12],
+    ]) {
+      pieces.push(box(0.24, height, 0.24, x - Math.sign(outer) * 0.12, height / 2, z, BEAM));
+    }
+    pieces.push(box(x1 - x0, 0.3, 0.24, (x0 + x1) / 2, height - 0.15, d - 0.12, BEAM));
+    pieces.push(box(0.24, 0.3, depth, outer - Math.sign(outer) * 0.12, height - 0.15, 0, BEAM));
+  }
 
-  const top = roofParts(pieces, random, spec, width, depth, height);
-  let footprint = { minX: -width / 2, maxX: width / 2, minZ: -d, maxZ: d };
+  const top = roofParts(pieces, random, spec, full, depth, height);
+  let footprint = { minX: shift - width / 2, maxX: shift + width / 2, minZ: -d, maxZ: d };
 
   if (spec.chimney && spec.roof !== "flat") {
-    const cx = (random() < 0.5 ? -1 : 1) * (width / 2 - 0.9);
+    const cx = (random() < 0.5 ? -1 : 1) * (full / 2 - 0.9);
     const big = spec.kind === "smithy";
     pieces.push(
       box(
@@ -430,7 +543,7 @@ export function buildBuilding(random, spec) {
     const spire = slopedRoof(size + 0.5, size + 0.5, spec.kind === "temple" ? size * 1.6 : size * 0.5, true);
     pieces.push(painted(spire.translate(tx, towerHeight, tz), spec.roofColor));
   }
-  return { geometry: mergeGeometries(pieces), doorX, footprint };
+  return { geometry: mergeGeometries(pieces), doorX, footprint, bay };
 }
 
 // ── Town props ───────────────────────────────────────────────────────────────

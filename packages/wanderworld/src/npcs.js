@@ -14,6 +14,8 @@ import { tagColourOf } from "./relationships.js";
 import { fill, greetingFor, moodOf, pickExchange } from "./dialogue.js";
 import { hashString, heightAt, onBridgeAt, rng, waterAt } from "./world.js";
 import { entryAt, inRange } from "./schedules.js";
+import { LIE_SECONDS } from "./clips.js";
+import { actCall } from "./pack.js";
 
 export const MAX_PEOPLE = 30; // far-off and out-of-sight people animate less often, so thirty stays smooth
 const WANDER_RADIUS = 9;
@@ -52,6 +54,10 @@ const HOSTILE_WARMTH = -0.85; // a sworn enemy confronts the player
 const BUBBLE_DISTANCE = 18; // metres from the player within which townsfolk's chatter shows
 /** What someone says as they move off from a person they dislike (conversations are in dialogue.js). */
 const COLD_REMARKS = ["Hmph.", "Oh. It's you.", "Can't stop, sorry."];
+const SPOT_SEARCH = 45; // metres within which someone looks for a place to rest or a stall to look over
+const WORK_SPOT = 70; // metres from their workplace a stall may be
+const WORK_OUTSIDE = 0.75; // of shifts spent at the forge, the stall or the field when there is one, not indoors
+const CALL_DISTANCE = 9; // metres within which someone at work calls out to whoever is near
 const NIGHT_FROM = 21;
 const NIGHT_TO = 6.5;
 
@@ -164,7 +170,7 @@ export function createCrowd() {
       return true;
     };
     if (entry.activity === "home") return stayIn(person.home);
-    if (entry.activity === "work") return stayIn(person.work);
+    if (entry.activity === "work") return workOutside(person) || stayIn(person.work);
     if ((entry.activity === "eat" || entry.activity === "visit") && entry.door) return stayIn(entry.door);
     const near = entry.point ?? (entry.door ? { x: entry.door.x, z: entry.door.z } : null);
     if (entry.activity === "sit" && near) {
@@ -285,9 +291,13 @@ export function createCrowd() {
     person.tag.material.dispose();
   }
 
+  /** Gives up their seat, and the spot they were working or resting at. */
   function leaveSeat(person) {
     if (person.seat && person.seat.taken === person.id) person.seat.taken = null;
     person.seat = null;
+    if (person.spot && person.spot.taken === person.id) person.spot.taken = null;
+    person.spot = null;
+    person.act = null;
   }
 
   // ── Finding the way ──
@@ -378,6 +388,48 @@ export function createCrowd() {
     person.plan = [{ walk: seat.approach }, { sit: seconds }];
   }
 
+  /** A free spot (world.spots) that passes `test`, within `radius` of `near`; a seeded choice among them. */
+  function freeSpot(person, near, radius, test) {
+    const free = (world.spots ?? []).filter(
+      (spot) =>
+        !spot.taken &&
+        test(spot) &&
+        Math.hypot(spot.x - near.x, spot.z - near.z) < radius &&
+        !world.blocked(spot.x, spot.z, 0.2) &&
+        waterAt(spot.x, spot.z).depth < 0.2,
+    );
+    return free.length ? free[Math.floor(person.random() * free.length)] : null;
+  }
+
+  /** Goes to `spot` (by its way in, when it has one) and does what's done there for `seconds`. */
+  function takeSpot(person, spot, seconds) {
+    spot.taken = person.id;
+    person.spot = spot;
+    const there = { x: spot.x, z: spot.z };
+    person.plan = spot.approach
+      ? [{ walk: spot.approach }, { walk: there, straight: true }, { act: seconds }]
+      : [{ walk: there }, { act: seconds }];
+  }
+
+  /**
+   * A shift out of doors, where their work has a place for it: the smith at the forge, a farmer in the
+   * fields, someone from a shop at a market stall. Most shifts, when there is one free; the rest are
+   * spent indoors as before. Returns true when they're off to it.
+   */
+  function workOutside(person) {
+    const work = person.work;
+    if (!work || person.random() > WORK_OUTSIDE) return false;
+    const spot = freeSpot(
+      person,
+      work,
+      WORK_SPOT,
+      (entry) => entry.role === "work" && (entry.door === work.index || (entry.kind && entry.kind === work.kind)),
+    );
+    if (!spot) return false;
+    takeSpot(person, spot, 70 + person.random() * 90);
+    return true;
+  }
+
   /** Walks to `door`, opens it, steps in and stays `seconds` (Infinity: until morning). */
   function goInto(person, door, seconds) {
     person.plan = [
@@ -415,6 +467,10 @@ export function createCrowd() {
     // Working hours: off to work (the smithy, the shop…) for a good while, now and then.
     if (ruled && person.work && hour >= 8 && hour < 18 && clock > person.workUntil && person.random() < 0.5) {
       person.workUntil = clock + 90 + person.random() * 60; // a break between shifts
+      if (workOutside(person)) {
+        person.workUntil += 80;
+        return;
+      }
       return goInto(person, person.work, 60 + person.random() * 90);
     }
     if (
@@ -438,6 +494,21 @@ export function createCrowd() {
       const goHome = !places.length || person.random() < 0.35;
       const door = goHome ? person.home : places[Math.floor(person.random() * places.length)];
       if (door) return goInto(person, door, 20 + person.random() * 40);
+    }
+    if (roll >= 0.5 && roll < 0.74 && clock > person.restUntil && !isNight(hour)) {
+      // Somewhere to be a while: looking over a stall (while someone's selling, mostly), tending a
+      // garden, sitting by the water or lying in the grass.
+      const trading = hour >= 8 && hour < 18;
+      const spot = freeSpot(
+        person,
+        person.group.position,
+        SPOT_SEARCH,
+        (entry) =>
+          entry.role === "rest" ||
+          (entry.role === "browse" && trading && (entry.seller?.taken || person.random() < 0.25)),
+      );
+      if (spot)
+        return takeSpot(person, spot, spot.act === "browse" ? 8 + person.random() * 10 : 25 + person.random() * 35);
     }
     for (let tries = 0; tries < 6; tries++) {
       const angle = person.random() * Math.PI * 2;
@@ -687,7 +758,7 @@ export function createCrowd() {
       if (person.partner) return false; // busy with someone: greeting and keeping away wait
       // Keeping away from a player they dislike (a sworn enemy doesn't back off: it comes at them).
       const dislikes = toPlayer.warmth < AVOID_WARMTH && (toPlayer.warmth > hostileAt || !allowed);
-      if (dislikes && playerDistance < AVOID_DISTANCE && person.state !== "sit") {
+      if (dislikes && playerDistance < AVOID_DISTANCE && person.state !== "sit" && person.state !== "busy") {
         if (flee(view.player)) {
           if (person.random() < 0.5) say(person, view, COLD_REMARKS[Math.floor(person.random() * COLD_REMARKS.length)]);
           return true;
@@ -699,7 +770,8 @@ export function createCrowd() {
         playerDistance < GREET_DISTANCE * (0.6 + 0.8 * sociability) &&
         playerDistance > STOP_DISTANCE + 0.5 &&
         clock - person.greetedAt > GREET_AGAIN / approach &&
-        person.state !== "sit"
+        person.state !== "sit" &&
+        person.state !== "busy"
       ) {
         person.greetedAt = clock;
         lastApproach = clock;
@@ -792,6 +864,16 @@ export function createCrowd() {
       person.group.rotation.y = seat.angle;
       person.state = "sit";
       person.wait = step.sit;
+    } else if (step.act !== undefined) {
+      // At their spot: turned the way it's done, and doing it.
+      const spot = person.spot;
+      if (!spot) return;
+      person.group.position.set(spot.x, groundY(person, spot.x, spot.z), spot.z);
+      person.group.rotation.y = spot.angle;
+      person.state = "busy";
+      person.act = spot.act;
+      person.wait = step.act;
+      person.nextLine = clock + 4 + person.random() * 8;
     } else {
       person.state = "idle";
       person.wait = step.wait ?? 1;
@@ -1069,6 +1151,31 @@ export function createCrowd() {
         person.state = "idle";
         person.wait = 0.6;
       }
+    } else if (person.state === "busy") {
+      // Working or resting at a spot: till the time's up, or night falls.
+      person.wait -= dt;
+      const spot = person.spot;
+      if (spot && clock > person.nextLine && playerDistance < CALL_DISTANCE) {
+        // Saying something now and then, to whoever is near: a seller only with someone at the stall.
+        person.nextLine = clock + 14 + person.random() * 16;
+        const heard =
+          spot.act !== "vend" ||
+          playerDistance < 5 ||
+          [...people.values()].some((other) => other.spot?.seller === spot && other.state === "busy");
+        const line = heard
+          ? actCall(spot.act, `${person.id}:${Math.floor(clock)}`, { place: view.placeName ?? "town" })
+          : "";
+        if (line) say(person, view, line);
+      }
+      if (!spot || person.wait <= 0 || (space === world && isNight(view.hour))) {
+        const lying = person.act === "lie";
+        leaveSeat(person);
+        // Back out the way they came in (a garden's gate, a field's, the forge's arches), not through a fence.
+        person.plan = spot?.approach ? [{ walk: spot.approach, straight: true }] : [];
+        person.restUntil = clock + 50 + person.random() * 70;
+        person.state = "idle";
+        person.wait = lying ? LIE_SECONDS + 0.2 : 0.7; // on their feet again before they walk off
+      }
     } else if (near) {
       // Someone came up to them: stop and face them.
       person.group.rotation.y = approachAngle(person.group.rotation.y, towardPlayer, 6 * dt);
@@ -1170,6 +1277,7 @@ export function createCrowd() {
     const pose = person.character.update(person.animate, speed, {
       swim: person.swimming,
       sit: person.state === "sit",
+      act: person.state === "busy" ? person.act : null,
       lookAt,
       talk: (person.state === "talk" || person.state === "chat" || person.state === "sit") && person.speaking,
       wave,
@@ -1200,7 +1308,7 @@ export function createCrowd() {
     },
     /**
      * Everyone as plain facts, for saying where they are (zones.js): [{ id, name, state, x, z,
-     * inDoor (door index or null), home (door index or null), seated, inRoom }].
+     * inDoor (door index or null), home (door index or null), seated, doing (an act or null), inRoom }].
      */
     snapshot() {
       return [...people.values()].map((person) => ({
@@ -1213,6 +1321,7 @@ export function createCrowd() {
         home: person.home?.index ?? null,
         work: person.work?.index ?? null,
         seated: !!person.seat && person.state === "sit",
+        doing: person.state === "busy" ? person.act : null, // what they're at, at a spot made for it (clips.js ACTS)
         with:
           person.state === "chat"
             ? (person.partner?.name ?? null)
@@ -1401,7 +1510,7 @@ export function createCrowd() {
         const { approach } = person.seat;
         person.group.position.set(approach.x, groundY(person, approach.x, approach.z), approach.z);
       }
-      leaveSeat(person);
+      leaveSeat(person); // and whatever they were at, at a spot
       person.plan = [];
       person.leaving = false;
       person.state = "talk";

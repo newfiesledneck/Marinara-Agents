@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.5.11 — 2026-11-11
+
+- Buildings no longer all look alike: roofs in terracotta, dark tile, brown, slate or moss, plaster in six colours, gables to the street or along it, round or square windows, dormers, lean-to porches, more ivy or less.
+- A smithy's forge is open to the street, framed by arches, with hearth, anvil and workbench. Most taverns have a porch with benches.
+- People work and rest where you can see them: the smith at the anvil, sellers and buyers at market stalls, farmhands in the fields, others tending gardens, sitting by a pond or lying in the grass.
+- You can jump (Space), sit on the ground and lie down (C; touch: Jump and Sit buttons), and you reach out to what you use.
+- New animations from Universal Animation Library 1 and 2 (CC0). The download is about 0.35 MB larger.
+- Fixed: sitting down and standing up ended on a flick back to their first pose.
+
 ## 0.5.10 — 2026-11-11
 
 - The assistant has ready-made requests: a few buttons always in view and a list of more, each saying what it does (fill in the gaps, check for problems, noticeboard notes, lore for a place or faction, add people to this region, suggest a scene, turn a scene into changes, and more).

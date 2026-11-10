@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.11",
+          "date": "2026-11-11",
+          "notes": "- Buildings no longer all look alike: roofs in terracotta, dark tile, brown, slate or moss, plaster in six colours, gables to the street or along it, round or square windows, dormers, lean-to porches, more ivy or less.\n- A smithy's forge is open to the street, framed by arches, with hearth, anvil and workbench. Most taverns have a porch with benches.\n- People work and rest where you can see them: the smith at the anvil, sellers and buyers at market stalls, farmhands in the fields, others tending gardens, sitting by a pond or lying in the grass.\n- You can jump (Space), sit on the ground and lie down (C; touch: Jump and Sit buttons), and you reach out to what you use.\n- New animations from Universal Animation Library 1 and 2 (CC0). The download is about 0.35 MB larger.\n- Fixed: sitting down and standing up ended on a flick back to their first pose.",
+          "highlight": false
+        },
+        {
           "version": "0.5.10",
           "date": "2026-11-11",
           "notes": "- The assistant has ready-made requests: a few buttons always in view and a list of more, each saying what it does (fill in the gaps, check for problems, noticeboard notes, lore for a place or faction, add people to this region, suggest a scene, turn a scene into changes, and more).\n- It can draft ww: keywords for lorebook entries you pick; only those entries are sent.\n- New for it: faction lore, taking notes down, dropping an errand, starting a scene, people who live in another region.\n- In a proposal: dropdowns for home, work, body, voice and stance, a strength slider, and \"Write it again\". Its chat is kept with the world, and every confirmed set keeps its Undo.\n- Only the parts of the world a message needs are sent, and it says which. Moments send the list of places only when a plan could come of it.\n- With the Engine's Debug Mode on, every model and picture request and its answer is written to the Engine's console.",
@@ -307,12 +313,6 @@
           "version": "0.4.94",
           "date": "2026-11-09",
           "notes": "- Prompts read \"[E] Look over the stall\" and can be clicked or tapped, not only used with E. On a touch screen they're bigger and drop the \"[E]\".\n- The main menu has Help, and Credits and thanks. Settings opened from there shows one section at a time like in a world, and has a × to close it.\n- Credits: Menu → Settings → Credits, and the main menu. Thanks to Marinara and the Marinara Engine developers, and to Quaternius, with the packs and the models and animations used from each.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.93",
-          "date": "2026-11-09",
-          "notes": "- Lorebook keywords are written ww:<what>:<value> now: ww:lives in:home3, ww:body:woman, ww:temperament:aggressive, ww:acts:rude, ww:enemy of:you, ww:owned by:Mira. \"ww\" marks it, <what> says what it's for, <value> is what's given. Spaces and capitals don't matter, and \"you\", \"me\" and \"player\" all mean you. A key with no <what> (ww:tavern1, ww:Mira) names what the entry is about. The older one-word forms no longer do anything; Journal → World → Check ww: keywords lists them and says how each is written now.\n- Menu → Settings → Help: instructions for everything, a section at a time, with every keyword and a prompt to copy for Professor Mari (or any assistant) to add or fix a lorebook's keys.",
           "highlight": false
         }
       ]

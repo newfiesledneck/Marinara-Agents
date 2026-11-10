@@ -364,6 +364,35 @@ const JOINING = {
   },
 };
 
+/**
+ * What people do at the places the world makes for it (world.js spots; the clips are clips.js ACTS):
+ * `doing` is what's said of someone at it, `calls` what they say aloud now and then.
+ */
+const ACTS = {
+  hammer: {
+    doing: "hammering at the anvil in the open forge",
+    calls: ["Mind the sparks.", "Hot work, this.", "Nearly there."],
+  },
+  craft: { doing: "working at the forge's bench", calls: ["Where did I put the tongs?"] },
+  farm: { doing: "working in the field", calls: ["The weeds never rest.", "Good soil, this."] },
+  tend: { doing: "kneeling at the flower beds, tending them", calls: ["There. That's better."] },
+  vend: {
+    doing: "minding a market stall",
+    calls: [
+      "Fresh this morning!",
+      "Have a look. No charge for looking.",
+      "Best in {place}, and that's a promise.",
+      "Apples! Carrots! Get them while they're crisp!",
+    ],
+  },
+  browse: {
+    doing: "looking over a stall's goods",
+    calls: ["How much for these?", "Hm. And that one?", "I'll think about it."],
+  },
+  ground: { doing: "sitting on the ground, taking it easy", calls: [] },
+  lie: { doing: "lying in the grass", calls: [] },
+};
+
 /** Told the first time the player comes to a kind of place, when it has no lore of its own to tell. */
 const ARRIVALS = {
   town: {
@@ -447,7 +476,18 @@ export const PACK = {
   errands: ERRANDS,
   joining: JOINING,
   camp: CAMP,
+  acts: ACTS,
 };
+
+/** What's said of someone doing `act` at a place made for it ("minding a market stall"); "" for none. */
+export function actWords(act) {
+  return PACK.acts[act]?.doing ?? "";
+}
+
+/** Something said aloud by someone doing `act`, the same for the same `key`; "" when they keep quiet. */
+export function actCall(act, key, words) {
+  return pickLine(PACK.acts[act]?.calls, key, words);
+}
 
 /** Which kind of thing a prop the town places is, by its model's name; undefined for plain clutter. */
 export const PROP_THINGS = {

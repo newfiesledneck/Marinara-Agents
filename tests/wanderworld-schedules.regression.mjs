@@ -67,8 +67,14 @@ run(5, 8);
 assert.equal(crowd.scheduledNow("c-smith", 10).activity, "work");
 run(120, 10);
 const atWork = crowd.snapshot().find((person) => person.id === "c-smith");
-assert.equal(atWork.state, "inside", "in at work during the shift");
-assert.equal(atWork.inDoor, workDoor.index, "at their workplace");
+// At work: indoors at their workplace, or out at the place it has for it (a smithy's forge, a shop's
+// market stall), or on the way there.
+assert.ok(
+  (atWork.state === "inside" && atWork.inDoor === workDoor.index) ||
+    (atWork.state === "busy" && ["hammer", "craft", "vend", "farm"].includes(atWork.doing)) ||
+    atWork.state === "walk",
+  `at work during the shift (${atWork.state}, ${atWork.doing})`,
+);
 run(5, 11.5);
 const after = crowd.snapshot().find((person) => person.id === "c-smith");
 assert.notEqual(after.state, "inside", "out once the shift is over");

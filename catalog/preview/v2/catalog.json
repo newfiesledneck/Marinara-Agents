@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.10",
+        "version": "0.5.11",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -543,6 +543,7 @@
               "kit/props/weaponstand.json",
               "kit/props/workbench-drawers.json",
               "kit/props/workbench.json",
+              "kit/village/balcony-cross-straight.json",
               "kit/village/balcony-simple-straight.json",
               "kit/village/corner-exterior-brick.json",
               "kit/village/corner-exterior-wood.json",
@@ -550,8 +551,11 @@
               "kit/village/doorframe-round-wooddark.json",
               "kit/village/index.json",
               "kit/village/prop-chimney.json",
+              "kit/village/prop-chimney2.json",
               "kit/village/prop-vine1.json",
+              "kit/village/prop-vine2.json",
               "kit/village/prop-vine4.json",
+              "kit/village/roof-dormer-roundtile.json",
               "kit/village/roof-front-brick4.json",
               "kit/village/roof-front-brick6.json",
               "kit/village/roof-front-brick8.json",
@@ -569,6 +573,10 @@
               "kit/village/roof-roundtiles-8x14.json",
               "kit/village/roof-roundtiles-8x8.json",
               "kit/village/roof-tower-roundtiles.json",
+              "kit/village/roof-wooden-2x1-center.json",
+              "kit/village/roof-wooden-2x1-l.json",
+              "kit/village/roof-wooden-2x1-r.json",
+              "kit/village/roof-wooden-2x1.json",
               "kit/village/t-brick-basecolor.webp",
               "kit/village/t-metalornaments-basecolor.webp",
               "kit/village/t-plaster-basecolor.webp",
@@ -577,16 +585,22 @@
               "kit/village/t-unevenbrick-basecolor.webp",
               "kit/village/t-vineleaf-png.webp",
               "kit/village/t-woodtrim-basecolor.webp",
+              "kit/village/wall-arch.json",
               "kit/village/wall-plaster-door-round.json",
               "kit/village/wall-plaster-straight.json",
               "kit/village/wall-plaster-window-thin-round.json",
+              "kit/village/wall-plaster-window-wide-flat.json",
+              "kit/village/wall-plaster-window-wide-flat2.json",
               "kit/village/wall-plaster-window-wide-round.json",
               "kit/village/wall-plaster-woodgrid.json",
               "kit/village/wall-unevenbrick-door-round.json",
               "kit/village/wall-unevenbrick-straight.json",
+              "kit/village/wall-unevenbrick-window-wide-flat.json",
               "kit/village/wall-unevenbrick-window-wide-round.json",
               "kit/village/window-thin-round1.json",
+              "kit/village/window-wide-flat1.json",
               "kit/village/window-wide-round1.json",
+              "kit/village/windowshutters-wide-flat-open.json",
               "kit/village/windowshutters-wide-round-open.json"
             ]
           }
@@ -599,8 +613,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "c3b6cbcbf76ab72212507c5e613f322f7292942f808293361d29eee17e85a48b",
-            "bytes": 1847085
+            "sha256": "23a0d9744e70da30f1259ae1f3c6f364ed4870725bb58d1ebea684208d2c41c7",
+            "bytes": 2196604
           },
           {
             "path": "server.mjs",
@@ -1343,6 +1357,11 @@
             "bytes": 35380
           },
           {
+            "path": "kit/village/balcony-cross-straight.json",
+            "sha256": "a739ea1ae5b73ffff3503d272a6e1b0d287bf2ea968e58b1e8d03b3fc20f9a54",
+            "bytes": 5665
+          },
+          {
             "path": "kit/village/balcony-simple-straight.json",
             "sha256": "106deceba8dee218dfadfff4c8f3c5aae8eb4383d6b8d1e5a554aa992439a18b",
             "bytes": 39161
@@ -1369,8 +1388,8 @@
           },
           {
             "path": "kit/village/index.json",
-            "sha256": "e5fad93b014cf2c87214c572521ddd511f259f06d3b5b57bb66378f8075e7e00",
-            "bytes": 4625
+            "sha256": "9bb59915402dfebda2b40889302e5e2ea570d99c8b363c8d2607a1f9420ed239",
+            "bytes": 6363
           },
           {
             "path": "kit/village/prop-chimney.json",
@@ -1378,14 +1397,29 @@
             "bytes": 14521
           },
           {
+            "path": "kit/village/prop-chimney2.json",
+            "sha256": "978ea574b1c07d1394deb8ac449695bae8c9f1b13251e607de317086665548d4",
+            "bytes": 3410
+          },
+          {
             "path": "kit/village/prop-vine1.json",
             "sha256": "6647d34cb43ba3acc545ea6980070c3e592df63537567904ea84c2547ce61065",
             "bytes": 3658
           },
           {
+            "path": "kit/village/prop-vine2.json",
+            "sha256": "692b2c2d854c2148484ad54aa025f8e8760ff85366a6e5d9e6730ffbaab9f2cb",
+            "bytes": 2133
+          },
+          {
             "path": "kit/village/prop-vine4.json",
             "sha256": "c25a4ca471ba3e7fcacfff85bd33c1821a037f71b34f2fa357366025a8f6733a",
             "bytes": 1553
+          },
+          {
+            "path": "kit/village/roof-dormer-roundtile.json",
+            "sha256": "95c5ddcca544b9cb0e2057127d631439742ecf1e274c00d874593b57aefb433a",
+            "bytes": 32355
           },
           {
             "path": "kit/village/roof-front-brick4.json",
@@ -1473,6 +1507,26 @@
             "bytes": 110867
           },
           {
+            "path": "kit/village/roof-wooden-2x1-center.json",
+            "sha256": "eb26596b01cca81e77bd572c0098b24a304faa9cccba381a138a9cf1f60e1762",
+            "bytes": 2678
+          },
+          {
+            "path": "kit/village/roof-wooden-2x1-l.json",
+            "sha256": "d843b6e1a70b0e04213e35e5b03d3f80884d68e055317515832f7f568ff230d1",
+            "bytes": 7171
+          },
+          {
+            "path": "kit/village/roof-wooden-2x1-r.json",
+            "sha256": "558b4af165ecc979ed6aa0ac3bc0ee6922fdeb58ec773726f860015083f9ea1b",
+            "bytes": 7171
+          },
+          {
+            "path": "kit/village/roof-wooden-2x1.json",
+            "sha256": "a4730ae583946085767c46c82626e509ae747c4ce62a268b50cf99ef3e8dad32",
+            "bytes": 9995
+          },
+          {
             "path": "kit/village/t-brick-basecolor.webp",
             "sha256": "5ca25458f35c0785040b527ff5b66ffa5004a89d332f1c5358d1f3b5eabd98c8",
             "bytes": 15914
@@ -1513,6 +1567,11 @@
             "bytes": 19352
           },
           {
+            "path": "kit/village/wall-arch.json",
+            "sha256": "26f0824eb8af577965289dc7f4720e222ed7c8548a5905ccb3bcc8b575443a85",
+            "bytes": 6311
+          },
+          {
             "path": "kit/village/wall-plaster-door-round.json",
             "sha256": "f46cdb27ed002f72f2f8ef46af5218ba7d20c373fa7ea93a1ba6f4e9652645cb",
             "bytes": 5241
@@ -1526,6 +1585,16 @@
             "path": "kit/village/wall-plaster-window-thin-round.json",
             "sha256": "dd39bc3b7c442d78d94653ce9080c5fe35bdc73d31382c018885c674badefc31",
             "bytes": 5696
+          },
+          {
+            "path": "kit/village/wall-plaster-window-wide-flat.json",
+            "sha256": "ad4d0055213f5b5689111299cffe77d8aea941bfc3caa25ec74f40129133d4f4",
+            "bytes": 3502
+          },
+          {
+            "path": "kit/village/wall-plaster-window-wide-flat2.json",
+            "sha256": "5601ff7027713a8917b37f2c7124016f0742315b74d339a82c3e5866f94627a8",
+            "bytes": 4373
           },
           {
             "path": "kit/village/wall-plaster-window-wide-round.json",
@@ -1548,6 +1617,11 @@
             "bytes": 2421
           },
           {
+            "path": "kit/village/wall-unevenbrick-window-wide-flat.json",
+            "sha256": "13a8bdd201360d5eccb54a4bd78f051802023c08ee40d63c4a89ce64c53bc174",
+            "bytes": 3131
+          },
+          {
             "path": "kit/village/wall-unevenbrick-window-wide-round.json",
             "sha256": "07aa39db81058bbdc54d0971b6eb838a9f2f2a3fc3897dfa1020d424e7b46361",
             "bytes": 3835
@@ -1558,9 +1632,19 @@
             "bytes": 13936
           },
           {
+            "path": "kit/village/window-wide-flat1.json",
+            "sha256": "cfb108ea6a3696916456c9afcc29ed0bec68c656b88dd8c8c666ed4dc1b5441a",
+            "bytes": 7265
+          },
+          {
             "path": "kit/village/window-wide-round1.json",
             "sha256": "09a826afc48b62139cc0a359fec1c9d5e31abfa81cfaa2a47f781e6af6f289f7",
             "bytes": 11848
+          },
+          {
+            "path": "kit/village/windowshutters-wide-flat-open.json",
+            "sha256": "a415296bf77f35afbb2ad8e01edf19cc89fb37061431d97d687a53e9da5fbb2f",
+            "bytes": 5379
           },
           {
             "path": "kit/village/windowshutters-wide-round-open.json",
@@ -1580,9 +1664,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.10.zip",
-        "sha256": "a4c299b0a94a3dd1834bb4cee2036fd5db6cdda1b1789b411522514ab7f74acc",
-        "bytes": 12070183
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.11.zip",
+        "sha256": "10ca9d5bfde8e4474210eac1ba2d2cedde068702bb446d26164cf36bddfb0d33",
+        "bytes": 12527190
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

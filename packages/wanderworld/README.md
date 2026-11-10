@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.10)
+## What it does now (0.5.11)
 
 ### The world
 
@@ -231,11 +231,29 @@ only walk about.
   the lore written for the world, and a check of your `ww:` keywords that lists any it didn't
   understand).
 - **Swimming:** wade into the river and swim where it's deep (Shift swims faster).
-- **Animation:** recorded clips from Quaternius's Universal Animation Library (idle, walk, jog, sprint,
-  sitting, talking, swimming), or the hand-made motion (Menu → Settings → Animation).
-- **Controls.** Computer: WASD walks, Shift runs, drag (left or middle mouse button) or the arrow keys look
-  around, the wheel or + / − zoom, E uses, Esc stands up or leaves a conversation. Touch screen: the stick
-  walks (all the way out runs), dragging elsewhere looks around, pinching zooms, and Use or a tap uses.
+- **Buildings each their own:** every building is dressed from where it stands: tiles in terracotta, old
+  dark tile, brown, slate or moss; plaster whitewashed, cream, ochre, rose, pale blue or sage; the gable
+  to the street or along it; round or square windows; dormers; a lean-to over the door; more ivy or less.
+  A smithy's forge stands open to the street under its roof, framed by arches (hearth, anvil, workbench,
+  weapon rack), and most taverns have a porch along the front with benches under it. None of it moves a
+  door or a wall, so an older world keeps its homes and workplaces (a smithy's door goes to one end of
+  its front).
+- **People at work and at rest:** the smith hammers at the anvil or works at the bench, someone from a
+  shop minds a market stall while others look over the goods, a farm's people hoe, sow and water its
+  fields, and anyone with time kneels at a garden's beds, sits by a pond or lies in a meadow's grass.
+  Most shifts are spent out where you can see them when the work has such a place; the rest indoors as
+  before. They say a word now and then, and the Journal, the AI and pictures are told what they're at.
+- **Jump, sit, lie down:** Space jumps. C sits you down on the ground where you stand, C again lies you
+  down, and moving (or E) gets you up; the party waits with you. You reach out a hand to what you use.
+- **Animation:** recorded clips from Quaternius's Universal Animation Library and Universal Animation
+  Library 2 (idle, walk, jog, sprint, sitting, talking, swimming, a jump and its landing, working, farm
+  work, kneeling, folded arms, lying down, reaching and picking up), or the hand-made motion (Menu →
+  Settings → Animation), which has none of the new ones: there people sit for what's low and stand for
+  the rest.
+- **Controls.** Computer: WASD walks, Shift runs, Space jumps, C sits or lies down, drag (left or middle
+  mouse button) or the arrow keys look around, the wheel or + / − zoom, E uses, Esc stands up or leaves a
+  conversation. Touch screen: the stick walks (all the way out runs), dragging elsewhere looks around,
+  pinching zooms, Use or a tap uses, and Jump and Sit are by your thumb.
 - **Settings:** resolution, draw distance (Tiny to Max; what costs the most is measured in
   [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, sound, confrontations, people coming up to you,
@@ -415,7 +433,7 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
-Fantasy, and the Universal Animation Library. Thank you, Quaternius. The full list, with which folder
+Fantasy, and the Universal Animation Library and Universal Animation Library 2. Thank you, Quaternius. The full list, with which folder
 comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and
 [src/clips/CREDITS.md](src/clips/CREDITS.md).
 

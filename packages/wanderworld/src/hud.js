@@ -55,8 +55,8 @@ const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always 
 
 /**
  * `handlers`: onMenu, onToggleFullscreen, onPickPersona(id), onToggleCharacter(id, chosen),
- * onSetBody(id, body), onSetting(name, value), onUse(), onRenameZone(id, name), onZoneLore(id), and
- * `maxPeople`.
+ * onSetBody(id, body), onSetting(name, value), onUse(), onJump(), onRest(), onRenameZone(id, name),
+ * onZoneLore(id), and `maxPeople`.
  */
 export function createHud(root, handlers) {
   const { maxPeople } = handlers;
@@ -727,11 +727,17 @@ export function createHud(root, handlers) {
   const use = button("Use", "Use what's in front of you", () => handlers.onUse());
   // Bottom right, under the thumb that isn't on the stick.
   use.style.cssText += "position:absolute;bottom:32px;right:20px;padding:16px 20px;font-size:15px;display:none;";
+  // On touch screens, above it: Jump, and Sit (which becomes Lie down once you're sitting on the ground).
+  const jump = button("Jump", "Jump", () => handlers.onJump());
+  const rest = button("Sit", "Sit down on the ground; again to lie down", () => handlers.onRest());
+  const THUMB = `position:absolute;right:20px;padding:12px 16px;font-size:14px;display:${touch ? "" : "none"};`;
+  jump.style.cssText += `${THUMB}bottom:96px;`;
+  rest.style.cssText += `${THUMB}bottom:148px;`;
 
   const hint = document.createElement("div");
   hint.textContent = touch
     ? "Stick to walk · drag to look · pinch to zoom · tap someone or something to use it"
-    : "WASD walk · Shift run · drag or arrows to look · scroll to zoom · E or click to use · Esc to leave";
+    : "WASD walk · Shift run · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · Esc to leave";
   // On touch screens the hint sits under the bar, clear of the stick and the Use button.
   hint.style.cssText = touch
     ? `${CHIP}position:absolute;top:84px;left:8px;font-size:12px;opacity:0.8;max-width:min(80%,420px);`
@@ -936,6 +942,8 @@ export function createHud(root, handlers) {
     scene,
     prompt,
     use,
+    jump,
+    rest,
     hint,
     zoneTitle,
     status,
@@ -1113,6 +1121,13 @@ export function createHud(root, handlers) {
       prompt.style.left = `${x}px`;
       prompt.style.top = `${y}px`;
     },
+    /** The thumb's Jump and Sit buttons: `resting` is "" (walking), "ground" or "lie"; hidden when `shown` is false. */
+    setThumbs(resting, shown) {
+      const show = shown && touch ? "" : "none";
+      jump.style.display = resting ? "none" : show;
+      rest.style.display = resting === "lie" ? "none" : show;
+      rest.textContent = resting === "ground" ? "Lie down" : "Sit";
+    },
     /** The place line: `text` ("Briarwood · Mill Lane") and the titles of the lore active there. */
     setPlace(text, lore = []) {
       place.style.display = text ? "" : "none";
@@ -1194,6 +1209,7 @@ export function createHud(root, handlers) {
       if (open) {
         // Nothing of the world left over the menu: the use prompt, the thumb's button, a caption.
         hud.setPrompt(null);
+        hud.setThumbs("", false);
         caption.style.opacity = "0";
       }
       for (const panel of panels) panel.style.display = "none";

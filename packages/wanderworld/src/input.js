@@ -1,11 +1,11 @@
 // The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, + / -
-// zoom, E uses what's in front of you and Esc leaves (a seat, a conversation). Camera dragging, pinching
-// and clicking live in main.js.
+// zoom, E uses what's in front of you, Space jumps, C sits down on the ground (again: lies down) and Esc
+// leaves (a seat, a conversation). Camera dragging, pinching and clicking live in main.js.
 //
 // `read()` returns { x, y, amount, run, yaw, pitch, zoom }: (x, y) is the walking direction (x right,
 // y forward, a unit vector or zero), `amount` how hard (the stick walks gently when pushed a little),
-// `yaw` and `pitch` the arrow keys' look direction, and `zoom` the + / - keys. `take("use")` and
-// `take("leave")` report a press of E or Esc once.
+// `yaw` and `pitch` the arrow keys' look direction, and `zoom` the + / - keys. `take("use")`,
+// `take("leave")`, `take("jump")` and `take("rest")` report a press of E, Esc, Space or C once.
 
 const KEYS = {
   w: "forward",
@@ -23,7 +23,7 @@ const KEYS = {
   _: "zoomOut",
 };
 /** Keys that act once per press rather than while held. */
-const PRESSES = { e: "use", escape: "leave", j: "journal" };
+const PRESSES = { e: "use", escape: "leave", j: "journal", " ": "jump", c: "rest" };
 
 const STICK_SIZE = 116;
 const KNOB_SIZE = 48;
@@ -46,6 +46,7 @@ export function createInput() {
     if (key === "escape" && !event.repeat) pressed.add("leave");
     if (isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
     if (PRESSES[key] && !event.repeat) pressed.add(PRESSES[key]);
+    if (key === " ") event.preventDefault(); // a jump; don't scroll the Home panel
     const action = KEYS[key];
     if (!action) return;
     held.add(action);

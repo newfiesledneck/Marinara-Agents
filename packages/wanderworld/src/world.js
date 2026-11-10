@@ -32,7 +32,7 @@ import {
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { DOOR_PIECE, housePieces, WALL_FACE } from "./houses.js";
+import { DOOR_PIECE, housePieces, porchPosts, WALL_FACE } from "./houses.js";
 import { caveGeometry } from "./caves.js";
 import { createAwnings, createFountain, createLamps, createSmoke, createWindowLights } from "./fixtures.js";
 import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand, POND_RADIUS } from "./land.js";
@@ -42,6 +42,10 @@ import {
   bench,
   box,
   buildBuilding,
+  FLOOR_HEIGHT,
+  PORCH_HEIGHT,
+  PORCH_OUT,
+  styleFor,
   bush,
   crate,
   DOOR,
@@ -595,15 +599,127 @@ function placeKitPlant(town, fallback, { model, x, z, angle = 0, scale = 1, y = 
   town.natureSlots.push({ model, x, z, angle, scale, y, tilt });
 }
 
+/**
+ * A place to be doing something: { x, z, angle (which way they face there), approach (where to walk to
+ * first, or null), act (what they do: clips.js ACTS), role ("work" | "rest" | "browse"), door (work: the
+ * building's door it belongs to, or null), kind (work: for anyone working at a building of this kind),
+ * taken (who has it) }.
+ */
+function placeSpot(town, spot) {
+  town.spots.push({ approach: null, door: null, kind: null, taken: null, ...spot });
+  return town.spots[town.spots.length - 1];
+}
+
+/**
+ * A smithy's forge, in the part of its footprint left open (`bay`: buildings.js forgeBay): a stone floor,
+ * the hearth against the back wall under its hood, the anvil on its block, a workbench, a rack of
+ * weapons, a quenching bucket; the spots where the smith works; and what blocks the way.
+ */
+function placeForge(town, spec, bay, x, z, facing, door) {
+  const turn = (facing * Math.PI) / 2;
+  const at = (lx, lz) => toWorld(x, z, facing, lx, lz);
+  const d = spec.depth / 2;
+  const height = FLOOR_HEIGHT;
+  const centre = (bay.x0 + bay.x1) / 2;
+  const out = Math.abs(bay.x0) > Math.abs(bay.x1) ? -1 : 1; // which way the forge's open side is
+  const [outer, inner] = out < 0 ? [bay.x0, bay.x1] : [bay.x1, bay.x0];
+  const STONE = 0x6f6a62;
+  const hearthZ = -d + 0.85;
+  const anvil = { x: centre + out * 0.45, z: 0.55 };
+  const pieces = [
+    painted(
+      new PlaneGeometry(bay.x1 - bay.x0 - 0.3, spec.depth - 0.3).rotateX(-Math.PI / 2).translate(centre, 0.05, 0),
+      0x6a655c,
+    ),
+    box(1.6, 0.9, 1.1, centre, 0.45, hearthZ, STONE), // the hearth
+    box(1.7, 0.12, 1.2, centre, 0.92, hearthZ, 0x5a564f),
+    box(1.15, 0.1, 0.65, centre, 1.0, hearthZ + 0.05, 0xff7a1a), // its coals
+    box(0.6, 0.08, 0.3, centre - 0.1, 1.06, hearthZ, 0xffc040),
+    box(1.6, height - 1.9, 0.55, centre, 1.9 + (height - 1.9) / 2, -d + 0.58, 0x77726a), // the hood
+    painted(new CylinderGeometry(0.3, 0.34, 0.5, 8).translate(anvil.x, 0.25, anvil.z), 0x6b4a2f), // the anvil's block
+  ];
+  town.pieces.push(mergeGeometries(pieces).rotateY(turn).translate(x, 0, z));
+  const prop = (model, fallback, lx, lz, more = {}) => {
+    const spot = at(lx, lz);
+    placeKitProp(town, fallback, { model, x: spot.x, z: spot.z, angle: turn, ...more });
+    return spot;
+  };
+  prop("anvil", box(0.9, 0.4, 0.35, 0, 0.2, 0, 0x3a3d40), anvil.x, anvil.z, { y: 0.5 });
+  prop("workbench", box(1.9, 0.85, 0.9, 0, 0.42, 0, 0x8a6440), inner + out * 0.62, 0.9, { angle: turn + Math.PI / 2 });
+  prop("weaponstand", box(1.2, 1.1, 0.8, 0, 0.55, 0, 0x6b4a2f), outer - out * 0.7, -d + 1.05, {
+    angle: turn - (out * Math.PI) / 2,
+  });
+  prop("bucket-metal", crate(0.35), anvil.x + out * 0.85, anvil.z + 0.55);
+  prop("barrel", barrel(), inner + out * 0.5, -d + 0.75);
+  // What blocks the way: the back wall, the hearth, the bench, and what stands about.
+  const block = (minX, maxX, minZ, maxZ, low = false) =>
+    town.boxes.push({ ...footprintBox(x, z, facing, { minX, maxX, minZ, maxZ }), ...(low ? { low: true } : {}) });
+  block(bay.x0, bay.x1, -d, -d + 0.3);
+  block(centre - 0.85, centre + 0.85, -d, hearthZ + 0.6, true);
+  block(Math.min(inner, inner + out * 1.15), Math.max(inner, inner + out * 1.15), -0.1, 1.9, true);
+  const round = (lx, lz, r) => town.circles.push({ ...at(lx, lz), r });
+  round(anvil.x, anvil.z, 0.42);
+  round(outer - out * 0.7, -d + 1.05, 0.55);
+  round(inner + out * 0.5, -d + 0.75, 0.38);
+  // The feet of the arches along the front and the open side.
+  for (let lx = bay.x0; lx <= bay.x1 + 0.01; lx += 2) round(lx, d - 0.1, 0.14);
+  for (let lz = -d; lz < d - 0.5; lz += 2) round(outer, lz, 0.14);
+  // The smith: at the anvil, facing the street; or at the bench.
+  const way = at(centre + out * 0.4, d + 1.1); // in from the street, through the arches
+  placeSpot(town, { ...at(anvil.x, anvil.z - 0.72), angle: turn, approach: way, act: "hammer", role: "work", door });
+  placeSpot(town, {
+    ...at(inner + out * 1.55, 0.9),
+    angle: turn - (out * Math.PI) / 2,
+    approach: way,
+    act: "craft",
+    role: "work",
+    door,
+  });
+}
+
 /** Builds a building from its spec at (x, z) facing `facing`, with its door, collision box and street clutter. */
 function placeBuilding(random, town, spec, x, z, facing) {
-  const { geometry, doorX, footprint } = buildBuilding(random, spec);
-  // The simple building goes into its own mesh, hidden once the village kit's version stands in its place.
-  town.buildingPieces.push(geometry.rotateY((facing * Math.PI) / 2).translate(x, 0, z));
-  const outline = footprintBox(x, z, facing, footprint);
-  town.buildings.push({ spec, doorX, x, z, facing, box: outline });
-  town.boxes.push(outline);
+  // How it's dressed, from where it stands: nothing the town's own numbers are spent on.
+  spec.style = styleFor(spec, rng(hashString(`style:${Math.round(x * 10)}:${Math.round(z * 10)}`)));
+  const { geometry, doorX, footprint, bay } = buildBuilding(random, spec);
+  spec.bay = bay ?? null;
   const d = spec.depth / 2;
+  const turn = (facing * Math.PI) / 2;
+  // The simple building goes into its own mesh, hidden once the village kit's version stands in its place.
+  town.buildingPieces.push(geometry.rotateY(turn).translate(x, 0, z));
+  const outline = footprintBox(x, z, facing, footprint);
+  // Its place on the map is its whole footprint; what blocks the way is its walls (a smithy's forge is open).
+  const whole = footprintBox(x, z, facing, { minX: -spec.width / 2, maxX: spec.width / 2, minZ: -d, maxZ: d });
+  town.buildings.push({ spec, doorX, x, z, facing, box: bay ? whole : outline });
+  town.boxes.push(outline);
+  if (bay) placeForge(town, spec, bay, x, z, facing, town.doors.length);
+  // A lean-to porch's posts (and, till the kit's is in, a plain one), and benches under a tavern's.
+  const posts = porchPosts(spec.style.porch, spec.width, doorX);
+  if (posts.length) {
+    const [from, to] = [posts[0], posts[posts.length - 1]];
+    const plain = [
+      painted(
+        new BoxGeometry(to - from + 0.3, 0.08, PORCH_OUT + 0.2)
+          .rotateX(0.5)
+          .translate((from + to) / 2, PORCH_HEIGHT + 0.4, d + PORCH_OUT / 2),
+        0x7a5a3c,
+      ),
+    ];
+    for (const lx of posts) {
+      plain.push(box(0.16, PORCH_HEIGHT, 0.16, lx, PORCH_HEIGHT / 2, d + PORCH_OUT - 0.12, 0x6b4a2f));
+      town.circles.push({ ...toWorld(x, z, facing, lx, d + PORCH_OUT - 0.12), r: 0.13 });
+    }
+    town.buildingPieces.push(mergeGeometries(plain).rotateY(turn).translate(x, 0, z));
+  }
+  const frontPorch = spec.style.porch === "front";
+  if (frontPorch) {
+    for (const side of [-1, 1]) {
+      const lx = side * (spec.width / 2 - 1.2);
+      if (Math.abs(lx - doorX) < 3.4) continue;
+      const seat = toWorld(x, z, facing, lx, d + 0.42);
+      placeBench(town, seat.x, seat.z, facing);
+    }
+  }
   // Dark behind the doorway: unseen inside the simple building, it's what an open kit door shows.
   placeProp(
     town,
@@ -640,26 +756,32 @@ function placeBuilding(random, town, spec, x, z, facing) {
       if (Math.abs(lx) > room) break;
       const at = toWorld(x, z, facing, lx, d + 0.45);
       const angle = random() * Math.PI * 2;
+      // Nothing stands in the forge's way in, or where a porch's benches are (the town's numbers are
+      // spent all the same, so everything after stays where it was).
+      const clear =
+        (bay && lx > bay.x0 - 0.3 && lx < bay.x1 + 0.3) || (frontPorch && Math.abs(lx) > spec.width / 2 - 2.4);
       if (!trade && random() < 0.6) {
         const [model, size] = GARDEN_PLANTS[Math.floor(random() * GARDEN_PLANTS.length)];
-        placeKitPlant(town, bush(random, 0.45), {
-          model,
-          x: at.x,
-          z: at.z,
-          angle,
-          scale: size * (0.8 + random() * 0.4),
-        });
-        town.circles.push({ x: at.x, z: at.z, r: 0.3 });
+        const stand = bush(random, 0.45);
+        const scale = size * (0.8 + random() * 0.4);
+        if (!clear) {
+          placeKitPlant(town, stand, { model, x: at.x, z: at.z, angle, scale });
+          town.circles.push({ x: at.x, z: at.z, r: 0.3 });
+        }
         along += 0.9;
       } else if (random() < 0.3) {
         const size = 0.55 + random() * 0.2;
-        placeKitProp(town, crate(size), { model: "crate-wooden", x: at.x, z: at.z, angle, scale: size / 0.85 });
-        town.circles.push({ x: at.x, z: at.z, r: 0.4 });
+        if (!clear) {
+          placeKitProp(town, crate(size), { model: "crate-wooden", x: at.x, z: at.z, angle, scale: size / 0.85 });
+          town.circles.push({ x: at.x, z: at.z, r: 0.4 });
+        }
         along += 0.85;
       } else {
         const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * DOORSTEP_CLUTTER.length)];
-        placeKitProp(town, fallback(), { model, x: at.x, z: at.z, angle });
-        town.circles.push({ x: at.x, z: at.z, r });
+        if (!clear) {
+          placeKitProp(town, fallback(), { model, x: at.x, z: at.z, angle });
+          town.circles.push({ x: at.x, z: at.z, r });
+        }
         along += 0.75;
       }
     }
@@ -728,6 +850,7 @@ function placeFarm(random, town, outpost) {
   const at = (lx, lz) => toWorld(x, z, facing, lx, lz);
   const turn = (facing * Math.PI) / 2;
   const house = at(-6.5, 1.5);
+  const farmDoor = town.doors.length; // the farmhouse's, placed next: whoever works there works its fields
   placeBuilding(random, town, makeSpec(random, "home", { width: 7, depth: 6 }), house.x, house.z, facing);
   // The barn: plank walls under a steep roof, big doors to the yard. Built here, not from the kit.
   const barn = at(7, 0);
@@ -770,6 +893,22 @@ function placeFarm(random, town, outpost) {
       rows.push(box(0.42, tall, fieldD - 2, lx, 0.12 + tall / 2, 0, colour));
     }
     town.pieces.push(mergeGeometries(rows).rotateY(turn).translate(centre.x, 0, centre.z));
+    // Between the rows, in through the gate: places to hoe, sow and water.
+    const gate = at(side * 9.5, -15 + fieldD / 2 + 0.9);
+    for (const [lx, lz, sideways] of [
+      [-3.675, 3.5, 1],
+      [0.075, -1, -1],
+      [3.825, -4.5, 1],
+    ]) {
+      placeSpot(town, {
+        ...at(side * 9.5 + lx, -15 + lz),
+        angle: turn + (sideways * Math.PI) / 2,
+        approach: gate,
+        act: "farm",
+        role: "work",
+        door: farmDoor,
+      });
+    }
   }
   // The yard: crates of what the farm grows by the house, barrels by the barn, a wagon.
   for (const [model, lx, lz] of [
@@ -1179,6 +1318,14 @@ function placeGarden(random, town, x, z, size, facing) {
   const seat = at(-corner, -half + 0.9);
   placeBench(town, seat.x, seat.z, facing);
   town.waypoints.push(at(0, half + 0.8)); // in front of the gate, so people find the way in to the bench
+  // By the beds along the side away from the tree: a place to kneel and tend them.
+  placeSpot(town, {
+    ...at(-corner * (half - 1.35), 0.4),
+    angle: (facing * Math.PI) / 2 - (corner * Math.PI) / 2,
+    approach: at(0, half + 0.8),
+    act: "tend",
+    role: "rest",
+  });
 }
 
 /**
@@ -1244,6 +1391,17 @@ function blockEdge(town, cx, cz, half) {
 function placeMeadow(random, town, cx, cz, kerbed = true) {
   if (kerbed) blockEdge(town, cx, cz, BLOCK / 2);
   town.meadows.push({ x: cx, z: cz, half: BLOCK / 2 });
+  // Places in the grass to sit or lie a while (from numbers of their own, as with all the spots).
+  const own = rng(hashString(`meadow:${Math.round(cx)}:${Math.round(cz)}`));
+  for (const act of ["ground", "lie", "ground"]) {
+    placeSpot(town, {
+      x: cx + (own() * 2 - 1) * (BLOCK / 2 - 3),
+      z: cz + (own() * 2 - 1) * (BLOCK / 2 - 3),
+      angle: own() * Math.PI * 2,
+      act,
+      role: "rest",
+    });
+  }
   const spot = (margin) => ({
     x: cx + (random() * 2 - 1) * (BLOCK / 2 - margin),
     z: cz + (random() * 2 - 1) * (BLOCK / 2 - margin),
@@ -1262,6 +1420,9 @@ function placeMeadow(random, town, cx, cz, kerbed = true) {
     placeKitPlant(town, null, { model, x: at.x, z: at.z, angle: random() * Math.PI * 2, scale: size * 1.2 });
   }
 }
+
+/** What of a stall blocks the way: its counter and posts, not the ground behind where its seller stands. */
+const STALL_BOX = { minX: -1.3, maxX: 1.3, minZ: -0.65, maxZ: 0.8 };
 
 /** A wagon left at the side of a street at (x, z), lying along x (`alongX`) or z. */
 function placeWagon(random, town, x, z, alongX) {
@@ -1286,9 +1447,30 @@ function placeNoticeboard(town, px, pz) {
   town.boxes.push({ minX: px - 3.6, maxX: px - 1.6, minZ: pz + 7.25, maxZ: pz + 7.75, low: true });
 }
 
+/** Where a stall's seller stands behind its counter, and where someone looking at its goods stands. */
+function stallSpots(town, x, z, facing) {
+  const angle = (facing * Math.PI) / 2;
+  const seller = placeSpot(town, {
+    ...toWorld(x, z, facing, 0, -1.05),
+    angle,
+    approach: toWorld(x, z, facing, 1.9, -1.05),
+    act: "vend",
+    role: "work",
+    kind: "shop",
+  });
+  placeSpot(town, {
+    ...toWorld(x, z, facing, 0.25, 1.5),
+    angle: angle + Math.PI,
+    act: "browse",
+    role: "browse",
+    seller,
+  });
+}
+
 /** A stall facing `facing`, with goods on its counter and a barrel or sack at its side. */
 function placeStall(random, town, x, z, facing) {
   const angle = (facing * Math.PI) / 2;
+  stallSpots(town, x, z, facing);
   placeKitProp(town, marketStall(random), { model: "stall-empty", x, z, angle, scale: 1.3 });
   for (const side of [-0.45, 0.45]) {
     const at = toWorld(x, z, facing, side, 0.15);
@@ -1300,7 +1482,7 @@ function placeStall(random, town, x, z, facing) {
       angle: angle + (random() - 0.5) * 0.3,
     });
   }
-  town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
+  town.boxes.push(footprintBox(x, z, facing, STALL_BOX));
   const beside = toWorld(x, z, facing, random() < 0.5 ? -1.6 : 1.6, 0);
   const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * 3)];
   placeKitProp(town, fallback(), { model, x: beside.x, z: beside.z, angle: random() * Math.PI * 2 });
@@ -1333,6 +1515,7 @@ function placeMarket(random, town) {
       const angle = (facing * Math.PI) / 2;
       x += px;
       z += pz;
+      stallSpots(town, x, z, facing);
       placeKitProp(town, marketStall(random), { model: "stall-empty", x, z, angle, scale: 1.3 });
       // Goods on the counter, in the kit's crates.
       for (const side of [-0.45, 0.45]) {
@@ -1345,7 +1528,7 @@ function placeMarket(random, town) {
           angle: angle + (random() - 0.5) * 0.3,
         });
       }
-      town.boxes.push(footprintBox(x, z, facing, { minX: -1.3, maxX: 1.3, minZ: -0.9, maxZ: 0.9 }));
+      town.boxes.push(footprintBox(x, z, facing, STALL_BOX));
       // A barrel or a sack at the stall's side.
       const beside = toWorld(x, z, facing, random() < 0.5 ? -1.6 : 1.6, 0);
       const [model, fallback, r] = DOORSTEP_CLUTTER[Math.floor(random() * 3)];
@@ -1523,6 +1706,7 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
     circles: [],
     doors: [],
     seats: [],
+    spots: [], // places to be doing something (placeSpot)
   };
   const centres = [];
   for (let i = 0; i < blocksPerSide; i++) centres.push((i - (blocksPerSide - 1) / 2) * PITCH);
@@ -1628,6 +1812,21 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
   if (look.walls) placeWalls(town, land);
   // The country round it (inns and cottages join the town's buildings before they're merged).
   const country = buildCountry(random, town, land, ground);
+  // By each pond: places on the shore to sit and look at the water.
+  for (const pond of land.ponds()) {
+    const own = rng(hashString(`pond:${Math.round(pond.x)}:${Math.round(pond.z)}`));
+    for (let i = 0; i < 4; i++) {
+      const angle = ((i + own() * 0.7) / 4) * Math.PI * 2;
+      const reach = pond.r + 1.3;
+      placeSpot(town, {
+        x: pond.x + Math.sin(angle) * reach,
+        z: pond.z + Math.cos(angle) * reach,
+        angle: angle + Math.PI, // facing the water
+        act: "ground",
+        role: "rest",
+      });
+    }
+  }
   // The ground the layout leaves open, last of all (and from numbers of its own), so every building
   // before it keeps its number in a world made before there was anything here.
   const fill = rng((seed ^ 0x2f1b3a67) >>> 0);
@@ -1736,6 +1935,7 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
     lamps,
     doors: town.doors,
     seats: town.seats,
+    spots: town.spots,
   };
 }
 
@@ -3262,12 +3462,17 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   /** Swaps the town's simple buildings for ones assembled from the village kit, once it has loaded. */
   function addBuildings(models) {
     const groups = new Map();
+    const tintsOf = new Map(); // model → each copy's tints, in step with its matrices
     const at = new Matrix4();
     town.buildings.forEach((building, i) => {
       at.makeRotationY((building.facing * Math.PI) / 2).setPosition(building.x, 0, building.z);
-      for (const { model, matrix } of housePieces(building.spec, building.doorX, seed ^ (i * 2654435761))) {
-        if (!groups.has(model)) groups.set(model, []);
+      for (const { model, matrix, tints } of housePieces(building.spec, building.doorX, seed ^ (i * 2654435761))) {
+        if (!groups.has(model)) {
+          groups.set(model, []);
+          tintsOf.set(model, []);
+        }
         groups.get(model).push(at.clone().multiply(matrix));
+        tintsOf.get(model).push(tints);
       }
     });
     if ([...groups.keys(), DOOR_PIECE].some((model) => !models.has(model))) return; // something missing: keep the simple ones
@@ -3286,10 +3491,14 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       door.hinge = door.kitHinge;
       placeDoor(door);
     }
+    const tint = new Color();
     for (const [model, matrices] of groups) {
-      for (const { geometry, material } of models.get(model)) {
+      for (const { geometry, material, texture } of models.get(model)) {
         const instanced = new InstancedMesh(geometry, material, matrices.length);
         matrices.forEach((matrix, i) => instanced.setMatrixAt(i, matrix));
+        // Each building's own colour of tiles and plaster: only the parts that are tiles or plaster.
+        const part = ["roundtiles", "plaster"].find((name) => (texture ?? "").includes(name));
+        if (part) tintsOf.get(model).forEach((tints, i) => instanced.setColorAt(i, tint.setRGB(...tints[part])));
         instanced.computeBoundingSphere();
         instanced.userData.kit = true;
         scene.add(instanced);
@@ -3305,7 +3514,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       return box;
     };
     const windows = [];
-    for (const model of ["window-wide-round1", "window-thin-round1"]) {
+    for (const model of ["window-wide-round1", "window-wide-flat1", "window-thin-round1"]) {
       if (!groups.has(model)) continue;
       const box = boxOf(model);
       for (const matrix of groups.get(model)) windows.push({ matrix, box });
@@ -3313,12 +3522,17 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     windowLights = createWindowLights(windows);
     scene.add(windowLights.mesh);
     windowLights.setTime(lastDark, lastHour);
-    if (groups.has("prop-chimney")) {
-      const box = boxOf("prop-chimney");
+    const tops = [];
+    for (const model of ["prop-chimney", "prop-chimney2"]) {
+      if (!groups.has(model)) continue;
+      const box = boxOf(model);
       const top = new Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2);
       // About two chimneys in three have a fire lit.
-      const lit = groups.get("prop-chimney").filter((_, i) => (i * 7919) % 3 !== 0);
-      smoke = createSmoke(lit.map((matrix) => top.clone().applyMatrix4(matrix)));
+      const lit = groups.get(model).filter((_, i) => (i * 7919) % 3 !== 0);
+      tops.push(...lit.map((matrix) => top.clone().applyMatrix4(matrix)));
+    }
+    if (tops.length) {
+      smoke = createSmoke(tops);
       scene.add(smoke.object);
     }
   }
@@ -3431,6 +3645,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     landscape: land.landscape,
     /** Bench seats: { x, z, angle, approach, height, taken }. */
     seats: town.seats,
+    /** Places to be doing something (placeSpot): the forge, stalls, fields, gardens, the shore, the grass. */
+    spots: town.spots,
     /** Points along the middle of every street (crossings and halfway between), for finding a way round
      *  buildings. */
     waypoints: [...streetWaypoints(), ...town.waypoints],
