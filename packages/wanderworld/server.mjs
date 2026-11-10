@@ -320,6 +320,141 @@ async function writersCards(resources, body) {
     .filter((card) => card.text);
 }
 
+// ── The AI assistant ─────────────────────────────────────────────────────────
+/** The kinds of relationship an edit may set (relationships.js KINDS), and "none" to end one. */
+const ASSISTANT_KINDS = ["acquaintance", "friend", "romance", "partner", "family", "colleague", "mentor", "rival", "enemy", "fear", "none"];
+const ASSISTANT_MAX_EDITS = 20;
+
+/** What the assistant is told: who it is, and the one format its changes come in. */
+export const ASSISTANT_INSTRUCTION = [
+  "You are the assistant for a player's world in Wanderworld, a small walkable 3D world of their characters, for roleplay. You talk with the player about their world: its people, places, lore, and how Wanderworld works. Answer plainly and briefly, in ordinary sentences, like a helpful chat assistant. If you don't know, say so.",
+  "You can also change this world when the player asks you to. Only then, and only what they asked for: put ONE block at the very end of your answer, fenced exactly like this, holding one JSON object:",
+  '```wanderworld\n{"edits": [ ... ]}\n```',
+  `Each edit is one of these (names exactly as they are listed under "People"; places by their numbered name, like home3 or tavern1, from "Places"):
+- {"do": "relate", "from": "Jake", "to": "Sarah", "kind": "partner", "role": "husband", "backRole": "wife", "level": 80, "both": true}: how "from" sees "to". "kind" is one of ${ASSISTANT_KINDS.join(", ")} ("none" ends it). "role" is what "from" is to "to" (optional: husband, sister, mentor…), "backRole" what "to" is to "from". "level" is 0 to 100 (how strong; optional). "both": true sets it both ways. The player is "player".
+- {"do": "home", "person": "Jake", "place": "home3"} or {"do": "home", "person": "Jake", "with": "Sarah"}: where they live ("with": in the same home as someone). "place": "none" for no home.
+- {"do": "work", "person": "Jake", "place": "smithy1", "owner": false}: where they work. "place": "none" for no work.
+- {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name) or "world" (the whole world). The text REPLACES what this world's lore says of them now (shown to you as "lore"), so write it whole: keep what should stay. At most 1400 characters. It is used when they talk, in moments and scenes.
+- {"do": "card", "person": "Oswin", "description": "...", "personality": "...", "appearance": "..."}: for people marked "invented" only (this world made them); give only the parts to change.`,
+  "Rules: you change nothing but through such edits, and only in this world. You cannot change the player's character cards, personas or lorebooks in the Engine, nor Wanderworld's settings, the map or buildings: say so, and say where the player can (Menu → Settings, Journal). Never claim a change you put no edit for. To make two people a couple who live together: one relate edit with both, and a home edit. With no change asked for, write no block at all. In your sentences say briefly what you are changing; the player is shown a list of what was really done.",
+].join("\n\n");
+
+/**
+ * Reads the assistant's answer: its words, and the changes it asks for, each checked (a trust boundary:
+ * the model's text is no better than anyone's). Returns { reply, edits, problem }: a block that isn't
+ * JSON, or isn't the format, changes nothing and says so in `problem`; an edit that doesn't hold up is
+ * left out and counted there.
+ */
+export function readAssistant(raw) {
+  const answer = String(raw ?? "").replace(/<think>[\s\S]*?<\/think>/giu, "");
+  const fence = /```wanderworld\s*([\s\S]*?)```/giu;
+  const blocks = [...answer.matchAll(fence)].map((match) => match[1].trim());
+  // An unclosed block (the answer was cut short) is taken out of the words too.
+  const reply = block(answer.replace(fence, "").replace(/```wanderworld[\s\S]*$/iu, ""), 4000);
+  if (/```wanderworld/iu.test(answer) && !blocks.length)
+    return { reply, edits: [], problem: "The assistant's changes were cut short, so nothing was changed. Ask again." };
+  if (!blocks.length) return { reply, edits: [], problem: "" };
+  const nothing = (why) => ({ reply, edits: [], problem: `${why}, so nothing was changed. Ask again, or put it another way.` });
+  let parsed;
+  try {
+    parsed = JSON.parse(blocks.at(-1));
+  } catch {
+    return nothing("The assistant's changes couldn't be read (they weren't valid JSON)");
+  }
+  const list = Array.isArray(parsed) ? parsed : isRecord(parsed) ? parsed.edits : null;
+  if (!Array.isArray(list)) return nothing("The assistant's changes weren't in the format Wanderworld reads");
+  const name = (value) => text(value, 80);
+  const edits = [];
+  let dropped = 0;
+  for (const item of list.slice(0, ASSISTANT_MAX_EDITS)) {
+    const made = isRecord(item) ? readAssistantEdit(item, name) : null;
+    if (made) edits.push(made);
+    else dropped++;
+  }
+  dropped += Math.max(0, list.length - ASSISTANT_MAX_EDITS);
+  return {
+    reply,
+    edits,
+    problem: dropped ? `${dropped} of the assistant's changes ${dropped === 1 ? "wasn't" : "weren't"} in a form Wanderworld reads and ${dropped === 1 ? "was" : "were"} left out.` : "",
+  };
+}
+
+/** One edit, checked field by field: the edit as Wanderworld applies it, or null. */
+function readAssistantEdit(item, name) {
+  if (item.do === "relate") {
+    const [from, to] = [name(item.from), name(item.to)];
+    if (!from || !to || !ASSISTANT_KINDS.includes(item.kind)) return null;
+    return {
+      do: "relate",
+      from,
+      to,
+      kind: item.kind,
+      role: text(item.role, 30),
+      backRole: text(item.backRole, 30),
+      level: Number.isFinite(item.level) ? Math.max(0, Math.min(100, Math.round(item.level))) : null,
+      both: item.both === true,
+    };
+  }
+  if (item.do === "home" || item.do === "work") {
+    const person = name(item.person);
+    const [place, beside] = [text(item.place, 80), item.do === "home" ? name(item.with) : ""];
+    if (!person || (!place && !beside)) return null;
+    return { do: item.do, person, place, with: beside, owner: item.do === "work" && item.owner === true };
+  }
+  if (item.do === "lore") {
+    const [about, words] = [name(item.about), block(item.text, 1400)];
+    return about && words ? { do: "lore", about, text: words } : null;
+  }
+  if (item.do === "card") {
+    const person = name(item.person);
+    const parts = Object.fromEntries(
+      [
+        ["description", 1200],
+        ["personality", 600],
+        ["appearance", 600],
+      ]
+        .map(([part, max]) => [part, block(item[part], max)])
+        .filter(([, words]) => words),
+    );
+    return person && Object.keys(parts).length ? { do: "card", person, ...parts } : null;
+  }
+  return null;
+}
+
+/** The messages for one turn with the assistant: what it's told, the world as it stands, and the chat. */
+export function assistantMessages(input) {
+  const world = [
+    section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
+    input.persona && section("The player", input.persona),
+    section(
+      "People",
+      input.people
+        .map((person) =>
+          [
+            `${person.name}${person.invented ? " (invented)" : ""}`,
+            person.about && `  about: ${person.about}`,
+            person.home && `  lives at: ${person.home}`,
+            person.work && `  ${person.owner ? "owns" : "works at"}: ${person.work}`,
+            person.relations.length && `  ${person.relations.join("; ")}`,
+            person.lore && `  lore: ${person.lore}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        )
+        .join("\n"),
+    ),
+    section("Places", input.places.map((place) => `${place.slot}${place.name ? ` = ${place.name}` : ""}`).join("\n")),
+    section("This world's own lore", input.entries.map((entry) => `${entry.title}: ${entry.content}`).join("\n\n")),
+    input.help && section("How Wanderworld works", input.help),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return [
+    { role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}` },
+    ...input.history.map((turn) => ({ role: turn.role, content: turn.text })),
+  ];
+}
+
 /** An age from the client: a whole number of years from 0 to 999, or null for no limit. */
 const ageOf = (value) => (Number.isInteger(value) && value >= 0 && value <= 999 ? value : null);
 
@@ -795,6 +930,7 @@ export async function activate(context) {
         loreSetup: true,
         worldWrite: true,
         illustrate: true,
+        assistant: true,
       }));
 
       routes.get("/connections", async (request, reply) => {
@@ -1178,6 +1314,50 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
 
       // Illustrate the moment: the user's template filled with where and when, who's there (their looks
       // from their cards), what's going on; painted, and kept in the world's gallery.
+      // The AI assistant: one turn of its chat. The answer's changes come back checked, for the client
+      // to apply to the world it holds (nothing is changed here).
+      routes.post("/assistant", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const list = (value, max) => (Array.isArray(value) ? value : []).filter(isRecord).slice(0, max);
+        const history = list(body.history, 12)
+          .map((turn) => ({ role: turn.role === "assistant" ? "assistant" : "user", text: block(turn.text, 3000) }))
+          .filter((turn) => turn.text);
+        if (history.at(-1)?.role !== "user") return reply.status(400).send({ error: "Ask something first." });
+        const messages = assistantMessages({
+          worldName: text(body.worldName, MAX.name),
+          setting: text(body.setting, 600),
+          persona: text(body.persona, MAX.name),
+          history,
+          people: list(body.people, 40)
+            .map((person) => ({
+              name: text(person.name, 80),
+              invented: person.invented === true,
+              about: cutWords(text(person.about, 2000), 400),
+              home: text(person.home, 120),
+              work: text(person.work, 120),
+              owner: person.owner === true,
+              relations: (Array.isArray(person.relations) ? person.relations : []).map((line) => text(line, 100)).filter(Boolean).slice(0, 12),
+              lore: text(person.lore, 1500),
+            }))
+            .filter((person) => person.name),
+          places: list(body.places, 160)
+            .map((place) => ({ slot: text(place.slot, 30), name: text(place.name, 80) }))
+            .filter((place) => place.slot),
+          entries: list(body.entries, 60)
+            .map((entry) => ({ title: text(entry.title, 120), content: text(entry.content, 1500) }))
+            .filter((entry) => entry.title && entry.content),
+          help: block(body.help, 9000),
+        });
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await model.chatComplete(messages, { temperature: 0.4, maxTokens: 2500 });
+          return readAssistant(result?.content);
+        } catch (error) {
+          logger.warn("[wanderworld] the assistant didn't answer: %s", error?.message ?? error);
+          return reply.status(502).send({ error: `The assistant didn't answer: ${error?.message ?? error}` });
+        }
+      });
+
       routes.post("/illustrate", async (request, reply) => {
         const body = isRecord(request.body) ? request.body : {};
         const worldId = idOf(body.worldId);
