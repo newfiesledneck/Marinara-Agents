@@ -774,7 +774,7 @@ export interface ChapterShift {
 
 /** One love interest's progress and the state of things between him and the protagonist. */
 export interface LiState {
-  /** Affection points may fall within the reached level. Level = min(10, 1 + floor(points / 300)). */
+  /** Affection points may fall within the reached level. Level: shared/economy.ts levelOf (200 points to level 2, 50 more for each after). */
   points: number;
   stage: number;
   /** −3..+3, starting at 0; moved only by first-play choices, capped per beat and per chapter. */
@@ -810,6 +810,13 @@ export interface LiState {
   angst: string[];
   /** Dated firsts for the Love Timeline: first-kind → ISO time. */
   firsts: Record<string, string>;
+  /**
+   * Their romantic firsts with the protagonist (the maintainer, 2026-11-10): null until it happens, then the one sentence
+   * a chapter's summary wrote about how and in which chapter it happened. Set once and never overwritten (S/memory).
+   */
+  firstKiss: string | null;
+  firstTime: string | null;
+  firstConfession: string | null;
   /** Indexes into his bible's `mask.tells` the protagonist has learned to read (Read Him, M5). */
   tellsLearned: number[];
   /**

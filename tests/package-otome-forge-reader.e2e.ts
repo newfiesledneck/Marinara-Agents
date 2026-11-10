@@ -773,11 +773,20 @@ test("Otome Hearth waits: What happened so far… while a chapter is planned, Wh
   await expect(soFar.locator("p")).toHaveCount(SO_FAR.length);
   await expect(lead.getByRole("heading", { name: "What happened so far…" })).toBeVisible();
   await expect(status, "the summary is never announced as status").not.toContainText("SO-FAR");
+  if (test.info().project.name.includes("chromium")) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 8 });
+  }
   // By keyboard: it is the stop before Cancel, and End scrolls it.
   await page.keyboard.press("Shift+Tab");
   await expect(soFar).toBeFocused();
   await page.keyboard.press("End");
-  await expect.poll(() => soFar.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  // Wait until End has reached the bottom, not merely started: Home pressed while End is still scrolling can leave the
+  // box at the bottom (CI mobile-chromium, #2223's run: scrollTop 2328).
+  await expect
+    .poll(() => soFar.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop))
+    .toBeLessThanOrEqual(1);
+  expect(await soFar.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await page.keyboard.press("Home");
   await expect.poll(() => soFar.evaluate((element) => element.scrollTop)).toBe(0);
   if (!mobile) {
@@ -1078,8 +1087,31 @@ test("Otome Hearth waits: the personality quiz while a chapter inside an arc is 
   newcomer = true;
   await page.goto("about:blank");
   const third = await openStory(page);
+  // Someone from your cards (the maintainer, 2026-11-10): the cards lay out as setup's tiles, and a tap shows a check
+  // and readies Bring them in. The classes this used had no styles, so the list fell apart and a tap showed nothing.
+  const cardNames = ["Albedo", "Alhaitham", "Arlecchino", "Bob", "Capitano", "Columbina"];
+  await page.route("**/api/characters/catalog?**", (route) =>
+    route.fulfill({
+      json: {
+        items: cardNames.map((name) => ({ id: `card-${name.toLowerCase()}`, name })),
+        hasMore: false,
+      },
+    }),
+  );
   await third.getByRole("button", { name: /Meet someone new/ }).click();
   const arrives = page.getByRole("dialog", { name: "Who arrives?" });
+  const tiles = arrives.getByRole("list", { name: "Someone from your cards" }).getByRole("button");
+  await expect(tiles).toHaveCount(cardNames.length);
+  const [first, second] = await Promise.all([tiles.nth(0).boundingBox(), tiles.nth(1).boundingBox()]);
+  expect(Math.abs(first!.y - second!.y), "two cards share a row").toBeLessThan(2);
+  const arlecchino = tiles.filter({ hasText: "Arlecchino" });
+  await expect(arlecchino).toHaveAttribute("aria-pressed", "false");
+  await arlecchino.click();
+  await expect(arlecchino).toHaveAttribute("aria-pressed", "true");
+  await expect(arlecchino.locator(".of-tile-check")).toBeVisible();
+  await expect(arrives.getByText("he/him", { exact: true })).toBeVisible();
+  await arrives.getByText("he/him", { exact: true }).click();
+  await expect(arrives.getByRole("button", { name: "Bring them in" })).toBeEnabled();
   await arrives.getByLabel("Someone new, invented for this story").check();
   await arrives.getByLabel("Their name").fill("Noor");
   await arrives.getByText("he/him", { exact: true }).click();
@@ -2847,7 +2879,7 @@ test("Otome Hearth Settings → Images offers Side character sprites, off, with 
     .filter({ has: page.getByRole("switch", { name: "Side character sprites" }) });
   await expect(row).toContainText("speaks in two different chapters");
   await expect(row).toContainText(
-    "Paints 1 image · per recurring side character, plus 1 call on your Planning connection to write their look (none for a character card)",
+    "Paints 1 image · per recurring side character, plus 1 call on your Messages connection to write their look (none for a character card)",
   );
   await toggle.check();
   await root.getByRole("button", { name: "Save changes" }).click();

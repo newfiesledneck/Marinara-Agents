@@ -1,5 +1,49 @@
 # Otome Hearth release notes
 
+## 0.22.4 — 2026-11-10
+
+- **Firsts are remembered for good.** A love interest's first kiss, first time and first confession with you are now kept permanently. When a chapter's summary is written, it notes any of the three that happened there for the first time, in one sentence saying how and in which chapter, and that sentence goes with them into every later scene, so the story never treats it as a first again. Each one also joins the Love Timeline, and the calendar marks it every year, as "First kiss with Kai". Stories you've already started begin with none noted.
+
+## 0.22.3 — 2026-11-10
+
+- **Love interests can show they want you.** The slow burn now holds back love, not attraction. Through their first four stages, a love interest may flirt, tease and say outright that they find you attractive, as far as their mask lets them, but still won't confess or become your partner. A kiss given out of feeling waits for their fifth stage, where a confession can come too.
+- **Your affection level shows in the story.** Each love interest's affection level now reaches the scenes, so the higher it is, the more drawn to you they act, within what their stage allows.
+- The README now gives the right affection level costs: level 2 takes 200 points, and each level after it 50 more.
+
+## 0.22.2 — 2026-11-10
+
+- **Wardrobe and Wish art shows faster.** Looks, faces and wardrobe banner art now use the cut-outs Otome Hearth already saves on the server. Before, your browser downloaded each full painting, sent it to Marinara Engine to remove its backdrop and waited for the result, for every look and face on screen. Art that isn't cut out yet still shows the old way, and is cut out in the background for your next visit.
+
+## 0.22.1 — 2026-11-10
+
+- **A stray thought no longer costs the whole scene.** While a love interest is still behind their mask, the story can't show their thoughts. When the model writes one anyway, Otome Hearth now drops just that line and keeps the rest of the scene, instead of asking the model to write it again. This works the same in Confrontations and Closers.
+
+## 0.22.0 — 2026-11-10
+
+- **Portraits and expressions paint by themselves.** With an image connection, a new story paints every love interest's portrait and yours once their bibles are written. With **Expressions** on, their faces follow in the background. Card characters are painted too, instead of using their Engine sprites or avatar. **Ask before painting** and prompt review still hold the portraits for **Paint the cast**. Without an image connection, your Engine sprites and avatars are used as before.
+- **Someone new gets a portrait in Your cast.** A love interest who arrives at the end of an arc now appears in **Your cast** with their portrait: it paints by itself with an image connection, or waits for **Paint the cast** with **Ask before painting** or prompt review on. Someone who arrived before this update gets theirs the next time you open the story.
+- Stories you've already started keep their **Paint the cast** button: portraits waiting there don't start painting by themselves.
+
+## 0.21.6 — 2026-11-10
+
+- **Figurine and birthday scenes no longer count as your last Character Story.** One you read after a Character Story no longer takes its place: the next main chapter picks up from that Character Story, and main, route and repair chapters keep it as the last one you played. Their love interest still remembers the scene.
+
+## 0.21.5 — 2026-11-10
+
+- **Choosing a card for someone new works again.** When you bring someone new into the story from your cards at the end of an arc, your cards show as a grid of tiles, and the one you tap gets a check, as in setup.
+
+## 0.21.4 — 2026-11-10
+
+- **Your Messages model designs the small art.** Side characters' looks, love interests' stickers and their Claw Machine plushies are now written by your Messages connection instead of Planning. There's nothing new to set: left on **Same as Story**, Messages uses your Story connection.
+
+## 0.21.3 — 2026-11-10
+
+- **Love interests stop repeating their habits.** The signs written in a love interest's bible (how they act when stressed, their tics, what gives them away) are now only some of the ways they can react. They show one now and then among other, fresh reactions, and never repeat the same gesture or sentence within a chapter.
+
+## 0.21.2 — 2026-11-09
+
+- **The next main chapter carries on from a Character Story.** When a Character Story is the last thing you played, the next main chapter picks up from how it ended, including any choice you made at its end. Love interests who weren't in it still don't know what happened there.
+
 ## 0.21.1 — 2026-11-09
 
 - **A scene's key image gives way when the scene moves on.** Once the story goes to another place, that place's background takes over instead of the image staying until the end of the scene. Naming the same room again keeps it.

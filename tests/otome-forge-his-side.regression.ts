@@ -547,7 +547,7 @@ test("a gate notes his side in the read's write, once; Read writes it with no ca
     ),
   );
   assert.ok(turn.includes("Never retell the scene above"), "a scene the protagonist never saw, not a retelling");
-  assert.ok(turn.includes("Slow burn: Kai never says what they feel"), "his card is at the moment's stage");
+  assert.ok(turn.includes("Slow burn: Kai does not confess what they feel"), "his card is at the moment's stage");
   assert.ok(!(system(prompt) + turn).includes("Kai has chosen the protagonist"), "never his stage now");
   assert.ok(!turn.includes("TOLD-LATER") && !turn.includes("A rupture stands between them"), "nothing later");
   assert.ok(turn.includes("- Thought lines: Kai only."));
@@ -820,10 +820,11 @@ test("every other chapter's P6 is byte for byte the builder's from before his si
     storySoFar: ["Node 1.", "Node 2."],
   });
   assert.ok(/PLAYER CHOICES/u.test(mainMessages[1]!.content), "the fixture reaches the choice rules");
-  assert.equal(sha(mainMessages), "001d3b1180971167040077b3d46b7b5cfe134ae9f284751c2b5cddf8f84b8c0a", "a main chapter");
+  // Retaken 2026-11-10: betweenYou's slow burn and affection level lines changed on purpose.
+  assert.equal(sha(mainMessages), "0e6052b18cba97b7d3551b6727733c71b010b5699530adde22470bfae777f1a4", "a main chapter");
   assert.equal(
     sha(beatMessages({ ...common, chapter: story, node: story.nodes[0]!, storySoFar: [], hisSide: "A SCENE" })),
-    "03d87c8b341e4c5c2a26820c9659d980427dd0a851c816bbc7e6a811fee1162d",
+    "136a39a3ea08819b220e8331c561857ddd2d5ca8f6844abd3eb4d9b37a8c396e",
     "a Character Story, even with a scene handed to it",
   );
 });
