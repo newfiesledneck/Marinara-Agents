@@ -21,9 +21,11 @@ function button(label, css, onClick) {
 
 /**
  * The assistant's rows for the Settings panel. `onAsk(history)` → Promise<{ reply, problem,
- * proposed: [{ line, before, after }], skipped: [text], apply }>, where history is
- * [{ role: "user" | "assistant", text }], the newest last, and `apply()` (null with nothing proposed)
- * makes the changes and returns { changes: [{ line }], skipped: [text] }.
+ * proposed: [{ line, before, after, edit, fields }], skipped: [text], apply }>, where history is
+ * [{ role: "user" | "assistant", text }], the newest last, and `apply(revised)` (null with nothing
+ * proposed) makes the changes and returns { changes: [{ line }], skipped: [text], undo }. `edit` groups a
+ * proposal's lines by the edit they come from, `fields` are that edit's parts the player may rewrite, and
+ * `revised` is what they left: [{ edit, keep, values: { key: text } }].
  */
 export function createAssistant(onAsk) {
   const box = element("div", "display:flex;flex-direction:column;gap:6px;");
@@ -91,30 +93,68 @@ export function createAssistant(onAsk) {
 
   /**
    * A proposal: every change in full (a rewrite with its new text, and what it says now folded under it),
-   * what can't be done, and Confirm / Cancel. `turn` is the chat's record of it, filled in with the outcome.
+   * what can't be done, and Confirm / Cancel. Each change has a tick to leave it out, and its written
+   * parts can be rewritten before Confirm. `turn` is the chat's record of it, filled in with the outcome.
    */
   const propose = ({ proposed, skipped, problem, apply }, turn, reply) => {
     const node = card();
     node.append(element("div", "font-weight:700;", "Proposed changes (nothing is changed yet)"));
+    node.append(
+      element(
+        "div",
+        `color:${INK_SOFT};`,
+        "Untick a change to leave it out. You can rewrite the text before you confirm.",
+      ),
+    );
+    const groups = new Map(); // an edit's index → { keep: its tick, inputs: Map(key → the box it's typed in) }
     for (const change of proposed) {
-      node.append(element("div", "padding-left:10px;", `• ${change.line}`));
+      let group = groups.get(change.edit);
+      const line = element("label", "display:flex;gap:6px;align-items:flex-start;padding-left:2px;");
+      if (group)
+        line.style.paddingLeft = "26px"; // more of the same edit
+      else {
+        group = { keep: element("input", "flex:none;width:18px;height:18px;margin:0;"), inputs: new Map() };
+        group.keep.type = "checkbox";
+        group.keep.checked = true;
+        group.keep.setAttribute("aria-label", "Make this change");
+        groups.set(change.edit, group);
+        line.append(group.keep);
+      }
+      line.append(element("span", "", change.line));
+      node.append(line);
+      for (const part of change.fields ?? []) {
+        const typed = element(
+          part.multi ? "textarea" : "input",
+          `${INK_INPUT}width:100%;box-sizing:border-box;font:13px system-ui,sans-serif;${part.multi ? "min-height:84px;resize:vertical;" : ""}`,
+        );
+        if (!part.multi) typed.type = "text";
+        typed.value = part.value;
+        typed.maxLength = part.max;
+        typed.setAttribute("aria-label", part.label);
+        typed.addEventListener("keydown", (event) => event.stopPropagation()); // typing here doesn't walk
+        const wrap = element("div", "margin:2px 0 2px 26px;display:flex;flex-direction:column;gap:2px;");
+        wrap.append(element("div", `color:${INK_SOFT};`, part.label), typed);
+        node.append(wrap);
+        group.inputs.set(part.key, typed);
+      }
       if (!change.after) continue;
-      node.append(
-        element(
-          "div",
-          "margin:2px 0 2px 18px;padding:5px 7px;border-radius:6px;background:rgba(107,74,43,0.1);white-space:pre-wrap;overflow-wrap:anywhere;",
-          change.after,
-        ),
-      );
+      if (!change.fields?.length)
+        node.append(
+          element(
+            "div",
+            "margin:2px 0 2px 26px;padding:5px 7px;border-radius:6px;background:rgba(107,74,43,0.1);white-space:pre-wrap;overflow-wrap:anywhere;",
+            change.after,
+          ),
+        );
       if (change.before) {
-        const fold = element("details", "margin-left:18px;");
+        const fold = element("details", "margin-left:26px;");
         fold.append(
           element("summary", "cursor:pointer;", "What it says now"),
           element("div", `white-space:pre-wrap;overflow-wrap:anywhere;color:${INK_SOFT};`, change.before),
         );
         node.append(fold);
       } else if (change.before === "")
-        node.append(element("div", `margin-left:18px;color:${INK_SOFT};`, "(Nothing is written there yet.)"));
+        node.append(element("div", `margin-left:26px;color:${INK_SOFT};`, "(Nothing is written there yet.)"));
     }
     list(node, "Can't be done", skipped);
     trouble(node, problem);
@@ -124,6 +164,10 @@ export function createAssistant(onAsk) {
     const close = (words, record) => {
       pending = null;
       row.remove();
+      for (const group of groups.values()) {
+        group.keep.disabled = true;
+        for (const typed of group.inputs.values()) typed.readOnly = true;
+      }
       outcome.textContent = words;
       node.append(outcome);
       turn.text = `${said}\n${record}`;
@@ -137,8 +181,19 @@ export function createAssistant(onAsk) {
       button("Confirm", `${INK_BUTTON}background:#6b4a2b;color:#f6ecd6;`, () => {
         if (pending !== mine) return;
         try {
-          const done = apply();
-          close("Done.", `The player confirmed. Changed: ${done.changes.map((change) => change.line).join(" ")}`);
+          const done = apply(
+            [...groups].map(([edit, group]) => ({
+              edit,
+              keep: group.keep.checked,
+              values: Object.fromEntries([...group.inputs].map(([key, typed]) => [key, typed.value])),
+            })),
+          );
+          close(
+            done.changes.length ? "Done." : "Nothing was changed.",
+            done.changes.length
+              ? `The player confirmed (after any rewriting of their own). Changed: ${done.changes.map((change) => change.line).join(" ")}`
+              : "The player left every change out: nothing was changed.",
+          );
           const after = card();
           list(
             after,
@@ -172,7 +227,7 @@ export function createAssistant(onAsk) {
             after.append(undo);
             lastUndo = undo;
           }
-          log.append(after);
+          if (after.childElementCount) log.append(after);
         } catch (error) {
           close(`Not changed: ${error?.message ?? error}`, "It failed: nothing was changed.");
         }
