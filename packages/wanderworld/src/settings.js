@@ -37,6 +37,10 @@ export const SETTINGS = {
   /** How fast dragging and the arrow keys turn the camera. */
   lookSpeed: { value: 1, min: 0.4, max: 2.5 },
   invertLook: { value: false },
+  /** C sits you down on the ground (and again lies you down). Off for anyone who'd rather the key did nothing. */
+  restKey: { value: true },
+  /** On touch screens, the Jump and Sit buttons by the thumb (the chat window has them too). */
+  thumbButtons: { value: true },
   // Whose name is over their head: everyone's, only people the player knows (a stranger is "Stranger"), or nobody's.
   names: { value: "known", options: ["all", "known", "none"] },
   /** Short explanations under settings, in the Journal and on New world. */

@@ -50,7 +50,15 @@ const kit = JSON.parse(
     const built = buildBuilding(rng(i), spec);
     spec.bay = built.bay ?? null;
     const pieces = housePieces(spec, built.doorX, i);
-    for (const { model, matrix, tints } of pieces) {
+    for (const { model, matrix, tints, skip } of pieces) {
+      // An upstairs plaster wall leaves its stone course off; timbering over a stone course, its plaster.
+      if (skip) {
+        assert.ok(
+          (skip === "brick" && /^wall-plaster-window-.*-round$/u.test(model)) ||
+            (skip === "plaster" && model === "wall-plaster-woodgrid"),
+          `${model} leaves off ${skip}`,
+        );
+      }
       assert.ok(kit.models[model], `the kit has ${model}`);
       assert.ok(matrix.elements.every(Number.isFinite), `${model} is placed somewhere real`);
       assert.equal(tints.roundtiles, style.roofTint);

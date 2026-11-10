@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.11)
+## What it does now (0.5.12)
 
 ### The world
 
@@ -244,7 +244,9 @@ only walk about.
   Most shifts are spent out where you can see them when the work has such a place; the rest indoors as
   before. They say a word now and then, and the Journal, the AI and pictures are told what they're at.
 - **Jump, sit, lie down:** Space jumps. C sits you down on the ground where you stand, C again lies you
-  down, and moving (or E) gets you up; the party waits with you. You reach out a hand to what you use.
+  down, and moving (or E) gets you up; the party waits with you. The chat window has Jump and Sit buttons
+  too, and Settings → Moving can turn the C key and the touch buttons off. You reach out a hand to what
+  you use, pick up or drink when that's what you chose, and a home's bed is somewhere to lie down.
 - **Animation:** recorded clips from Quaternius's Universal Animation Library and Universal Animation
   Library 2 (idle, walk, jog, sprint, sitting, talking, swimming, a jump and its landing, working, farm
   work, kneeling, folded arms, lying down, reaching and picking up), or the hand-made motion (Menu →

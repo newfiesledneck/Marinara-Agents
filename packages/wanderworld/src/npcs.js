@@ -378,7 +378,10 @@ export function createCrowd() {
   // ── Plans: what someone does next ──
 
   function freeSeat(person, seats, near, radius) {
-    const free = seats.filter((seat) => !seat.taken && Math.hypot(seat.x - near.x, seat.z - near.z) < radius);
+    // (A seat with a pose of its own, a bed to lie on, is the player's.)
+    const free = seats.filter(
+      (seat) => !seat.taken && !seat.pose && Math.hypot(seat.x - near.x, seat.z - near.z) < radius,
+    );
     return free.length ? free[Math.floor(person.random() * free.length)] : null;
   }
 

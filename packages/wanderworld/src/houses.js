@@ -39,6 +39,7 @@ export const HOUSE_PIECES = [
   "wall-unevenbrick-window-wide-flat",
   "wall-unevenbrick-door-round",
   "wall-plaster-straight",
+  "wall-plaster-straight-base",
   "wall-plaster-woodgrid",
   "wall-plaster-window-wide-round",
   "wall-plaster-window-wide-flat",
@@ -97,7 +98,8 @@ export function porchPosts(kind, width, doorX) {
 }
 
 /**
- * The kit pieces for one building: [{ model, matrix, tints }] in the building's space. `doorX` is the
+ * The kit pieces for one building: [{ model, matrix, tints, skip }] in the building's space (`skip` names
+ * a texture whose part of the model is left out, "" for none). `doorX` is the
  * door's segment centre on the front; `seed` makes the same building come out the same every time.
  * `tints` (the same for all of a building's pieces) says what its tiles and plaster are multiplied by:
  * { roundtiles: [r, g, b], plaster: [r, g, b] }, matched against each part's texture.
@@ -108,7 +110,7 @@ export function housePieces(spec, doorX, seed) {
   const bay = spec.bay ?? null;
   const tints = { roundtiles: style.roofTint ?? [1, 1, 1], plaster: style.wallTint ?? [1, 1, 1] };
   const pieces = [];
-  const add = (model, matrix) => pieces.push({ model, matrix, tints });
+  const add = (model, matrix, skip = "") => pieces.push({ model, matrix, tints, skip });
   const { width, depth } = spec;
   const hx = width / 2;
   const hz = depth / 2;
@@ -132,6 +134,9 @@ export function housePieces(spec, doorX, seed) {
         const z = side.along === "x" ? side.at : c;
         const ground = level === 0;
         const material = ground && brickBase ? "unevenbrick" : "plaster";
+        // A plaster ground floor stands on a course of stone all the way round (its windowed walls and its
+        // door's have one, so the plain walls between do too); upstairs has none.
+        const based = ground && material === "plaster";
         const isDoor = withDoor && side.front && ground && Math.abs(c - doorX) < 0.01;
         const matrix = place(x, y, z, side.angle);
         if (isDoor) {
@@ -143,22 +148,34 @@ export function housePieces(spec, doorX, seed) {
         if (random() < windowChance) {
           const thin = !flat && material === "plaster" && random() < 0.3;
           if (flat) {
-            // Square windows: the plaster wall has one with bracing under it, for a timbered house.
-            add(
-              material === "plaster" && timber ? "wall-plaster-window-wide-flat2" : `wall-${material}-window-wide-flat`,
-              matrix,
-            );
+            // Square windows: the kit's plaster wall for them comes with a stone course at its foot (the
+            // ground floor's) and without (upstairs).
+            const wall =
+              material !== "plaster"
+                ? `wall-${material}-window-wide-flat`
+                : based
+                  ? "wall-plaster-window-wide-flat"
+                  : "wall-plaster-window-wide-flat2";
+            add(wall, matrix);
             add("window-wide-flat1", matrix);
             if (spec.shutters && side.front && random() < 0.6) add("windowshutters-wide-flat-open", matrix);
           } else {
-            add(`wall-${material}-window-${thin ? "thin" : "wide"}-round`, matrix);
+            // (The round-windowed plaster walls all have the stone course: upstairs it's left off.)
+            add(
+              `wall-${material}-window-${thin ? "thin" : "wide"}-round`,
+              matrix,
+              material === "plaster" && !ground ? "brick" : "",
+            );
             add(thin ? "window-thin-round1" : "window-wide-round1", matrix);
             if (!thin && spec.shutters && side.front && random() < 0.6) add("windowshutters-wide-round-open", matrix);
           }
         } else {
-          add(`wall-${material}-straight`, matrix);
+          add(based ? "wall-plaster-straight-base" : `wall-${material}-straight`, matrix);
           // Timber framing is only the beams: it goes over a plain plaster wall.
-          if (material === "plaster" && (timber || !ground) && random() < 0.6) add("wall-plaster-woodgrid", matrix);
+          if (material === "plaster" && (timber || !ground) && random() < 0.6) {
+            // (Its own strip of plaster at the foot lies where the stone course does: left off there.)
+            add("wall-plaster-woodgrid", matrix, based ? "plaster" : "");
+          }
           // Ivy on a bare ground-floor wall, now and then: the kit's vines hang down from their origin, so
           // it goes up near the eaves and out onto the wall's face.
           else if (ground && random() < ivy) {
