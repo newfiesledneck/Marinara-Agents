@@ -758,6 +758,12 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   settings later (each a setting pack of its own: `pack.js`): Modular Sci-Fi MegaKit, Sci-Fi Essentials
   Kit, Ultimate Space Kit, Cyberpunk Game Kit, Zombie Apocalypse Kit, Pirate Kit. Only packs with a glTF
   folder can be converted here (or OBJ, once the kit builder reads it); FBX-only packs need Blender.
+- _Other CC0 makers (searched 2026-11, licences to be confirmed on each pack's own page before use):_
+  **KayKit** (Kay Lousberg, itch.io: Adventurers, Skeletons, Dungeon Remastered, Medieval Hexagon,
+  Character Animations, the "Bits" packs; OBJ, FBX and glTF; free tiers CC0, with paid extras) and
+  **Kenney** (kenney.nl: 270+ packs, GLB among the formats). Both are flat-coloured and chunkier than the
+  textured Quaternius kits, so they suit props, tools and creatures better than buildings beside the
+  kit's. Poly Pizza is mostly CC-BY (attribution), a CC0 subset only; Synty is paid, not CC0.
 - _Paid tiers that would help (the maintainer may buy them later; nothing here depends on them):_ the
   Pro and Source tiers of **Modular Character Outfits - Fantasy** (12 outfits against the free tier's
   two: the looks by trade in plan item 1), **Universal Base Characters** (six body builds and twenty
