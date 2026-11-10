@@ -748,6 +748,24 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   8. _Campfires people light for themselves,_ anywhere friends meet in the wilds, and tents at them.
   9. _A group in conversation:_ talking to one of a group (E) brings the others into the same call, as
      moments do now.
+- _Asset packs (all by Quaternius, CC0; listed 2026-11)._ On hand: Medieval Village MegaKit, Fantasy
+  Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
+  Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,
+  Updated Modular Dungeon, Medieval Weapons, Downtown City MegaKit, Ultimate Nature, Textured Stylized
+  Trees, Ultimate Gun Pack (not used yet). To get, for the plan above: Ultimate Animated Animal Pack,
+  Ultimate Modular Men, Ultimate Modular Women, Farm Animal Pack, Bestiary - Dungeon Monsters Kit,
+  Ultimate Monsters, Ultimate Modular Ruins, Ultimate Crops, Ultimate Food, Ultimate RPG Pack. For other
+  settings later (each a setting pack of its own: `pack.js`): Modular Sci-Fi MegaKit, Sci-Fi Essentials
+  Kit, Ultimate Space Kit, Cyberpunk Game Kit, Zombie Apocalypse Kit, Pirate Kit. Only packs with a glTF
+  folder can be converted here (or OBJ, once the kit builder reads it); FBX-only packs need Blender.
+- _Paid tiers that would help (the maintainer may buy them later; nothing here depends on them):_ the
+  Pro and Source tiers of **Modular Character Outfits - Fantasy** (12 outfits against the free tier's
+  two: the looks by trade in plan item 1), **Universal Base Characters** (six body builds and twenty
+  hairstyles against two and six: more varied people), **Universal Animation Library 1 and 2** (the
+  remaining third or so of each: more work, emotes and combat), and the MegaKits (Medieval Village,
+  Fantasy Props, Stylized Nature: more wall, roof and prop variety). The tier pages say the free tier
+  is 60 to 70 percent of a pack; which pieces are in which tier isn't listed there, so check before
+  buying for one thing in particular.
 - _Not done:_ the hearth doesn't glow at night or light the smith; nobody carries a tool (the hammer
   swing is a wood-chopper's, the watering has no can); a seller and a buyer don't talk to each other;
   hamlets and inns have no stalls; the player can't work a spot; Engine models with unusual proportions
