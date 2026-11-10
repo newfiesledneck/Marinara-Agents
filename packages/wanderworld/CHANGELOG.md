@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.13 — 2026-11-11
+
+- Fixed: upstairs walls with round windows had a band under the window that stepped in, where the stone course had been taken off. It's filled flush with plaster now.
+- Settings → Moving has a toggle each for the Jump button and the Sit and lie down button, in place of one for both. Each hides its button in the chat window and by the thumb on touch screens; Space still jumps, and C still sits unless that is turned off too.
+
 ## 0.5.12 — 2026-11-11
 
 - Fixed: patches of grey stone under some windows, out of place on a plastered wall. A plaster ground floor now stands on a stone course all the way round, and upstairs walls have none.
