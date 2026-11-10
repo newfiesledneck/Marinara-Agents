@@ -46,7 +46,7 @@ export const PLACEHOLDERS = {
   time_of_day: "Like: early morning, morning, midday, afternoon, dusk, evening, night",
   weather: "Rain, snow or mist. Empty in clear weather.",
   world_look:
-    "What this world looks like wherever you are, so pictures match it. Yours to set in Journal → World (How this world looks in pictures). Until you do: medieval fantasy, pre-industrial, nothing modern",
+    "What this world looks like wherever you are, so pictures match it. Yours to set in Journal → World (How this world looks in pictures). Until you do: medieval fantasy",
   setting:
     "Whatever you wrote in this world's Setting box (New world, or Journal → World), word for word. Empty if you left the box empty: it is your own text, nothing is added to it.",
   recent: "The narrator's last line in the chat, if there is one.",

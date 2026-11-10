@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.101 — 2026-11-09
+
+- Fixed: a prompt like "[E] Talk to Brenna" (or a caption) could stay on screen over the main menu. Going to the menu clears them.
+- The usual {world_look} is just "medieval fantasy" now: an image model that doesn't reason could read "nothing modern" as "modern".
+
 ## 0.4.100 — 2026-11-09
 
 - Illustrate: a sentence of the template whose placeholders all come out empty is left out of the prompt, so no more "With them:." when nobody's there.
