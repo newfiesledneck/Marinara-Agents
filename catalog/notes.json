@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.0",
+          "date": "2026-11-09",
+          "notes": "- New world: the first map is marked as a first idea. Lorebooks and the AI's setup add the places the lore needs, so the map you get can differ.\n- The review before a world is built shows the map it will get, and \"Reroll the map\" gives another without asking the AI again: the people, places and lore stay, and every place they need is on the new map.\n- When the AI invents people, it reads your persona's and your chosen characters' cards first. Family and close ones the cards speak of (a father, a brother, a wife, an old friend) who aren't among your characters are made before anyone is invented, your persona's own family first, with how they're related set.",
+          "highlight": true
+        },
+        {
           "version": "0.4.101",
           "date": "2026-11-09",
           "notes": "- Fixed: a prompt like \"[E] Talk to Brenna\" (or a caption) could stay on screen over the main menu. Going to the menu clears them.\n- The usual {world_look} is just \"medieval fantasy\" now: an image model that doesn't reason could read \"nothing modern\" as \"modern\".",
@@ -1519,12 +1525,6 @@
           "version": "0.4.83",
           "date": "2026-11-09",
           "notes": "- A place with closing hours (ww: closed 22-6) says so on its door card while it's shut, and the AI is told too.\n- Wording caught up with what the AI does now, in the door card, the Journal's lore picker and the relationships notes.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.82",
-          "date": "2026-11-09",
-          "notes": "- The Journal's map zooms and pans: scroll or use + and −, drag to move about. All the way out is the whole region; closer in names the buildings (the tavern, the smithy, then every house).\n- Click the map to set a waypoint (a red flag); under the map it says how far it is and which way. Your home is marked with a little house.\n- The regions to the east and west are written up the sides, like the ones along the top and bottom, so the middle of the map stays clear.",
           "highlight": false
         }
       ]

@@ -298,6 +298,25 @@ function checkKeys(list) {
 }
 
 /**
+ * What the player's persona and the chosen characters' cards say, for inventing the people round them
+ * (their family first): [{ name, player, text }], the persona first. Nobody without anything written.
+ */
+async function writersCards(resources, body) {
+  const personaId = idOf(body.personaId);
+  const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
+  const wanted = ids(body.characterIds, 20);
+  const records = wanted.length ? await resources.listCharacters(wanted) : [];
+  const words = (card, max) => cutWords([card.description, card.personality].filter(Boolean).join(" "), max);
+  return [
+    personaRecord && { ...personaCard(personaRecord, text(body.persona, MAX.name)), player: true },
+    ...records.map((record) => characterCard(record)),
+  ]
+    .filter(Boolean)
+    .map((card) => ({ name: card.name, player: !!card.player, text: words(card, card.player ? 1500 : 500) }))
+    .filter((card) => card.text);
+}
+
+/**
  * The messages that have the model write a world of its own, a step at a time, each fed by the last:
  * "places" writes the premise and the places with their lore (around the setting, the people already
  * there and what's placed already); "people" invents `count` new people around those places and people.
@@ -343,13 +362,14 @@ export function worldWriteMessages(input) {
         content: [
           `You invent ${input.count} new people who live in a small 3D world, for a roleplay sandbox. Answer with one JSON object and nothing else.`,
           world,
+          `First, the people the cards already speak of. Read "What the cards say", if it's there: anyone it names or mentions as family of the player or of a listed character, or as close to them (a father, a brother, a wife, a child, a mentor, an old friend), who isn't one of the listed characters, is made before anyone is invented: under the name the card gives them (or one that fits, when it gives none), true to what the card says of them, with who they are to that person in "keys". The player's own family comes before anyone else's. Someone the card says is dead, gone or far away is left out. Only the places left over go to people you invent.`,
           `Build them around the places and the people already there: every workplace should have someone, families share homes, and some of them should know, love, envy or owe the listed characters. Don't reuse a listed name. Give each:
 - "name": a name that fits the world.
 - "body": "male" or "female".
 - "description": 60 to 120 words: who they are, their age and trade, their history here, what they want.
 - "personality": 20 to 40 words, with how they talk.
 - "appearance": 20 to 40 words.
-- "keys": where they belong, as keywords: "lives in <home>" ("lives in home4"; people who share a house share its number, and homes under "Already placed" are taken unless they'd live there), "works at <place>" or "owner of <place>", how they see the player (one of friend, romance, partner, family, colleague, mentor, rival, enemy, fear, or nothing for a stranger), and how they stand toward others as "<word> of <Name>" with one of those words or brother, sister, father, mother, son, daughter, husband, wife ("sister of Mira").`,
+- "keys": where they belong, as keywords: "lives in <home>" ("lives in home4"; people who share a house share its number, and homes under "Already placed" are taken unless they'd live there), "works at <place>" or "owner of <place>", what they are to the player as one bare word (one of friend, romance, partner, family, colleague, mentor, rival, enemy, fear, or for the player's family brother, sister, father, mother, son, daughter, husband, wife; nothing for a stranger), and how they stand toward others as "<word> of <Name>" with one of those words or brother, sister, father, mother, son, daughter, husband, wife ("sister of Mira").`,
           `{"people": [{"name": "", "body": "female", "description": "", "personality": "", "appearance": "", "keys": ["lives in home4", "works at smithy1", "rival of Mira"]}]}`,
         ].join("\n\n"),
       },
@@ -361,6 +381,8 @@ export function worldWriteMessages(input) {
           section("Places", input.places.map((item) => `${item.slot} = ${item.name}${item.lore ? `: ${item.lore.slice(0, 240)}` : ""}`).join("\n")),
           cast,
           input.persona && section("The player", input.persona),
+          input.cards?.length &&
+            section("What the cards say", input.cards.map((card) => `${card.name}${card.player ? " (the player)" : ""}: ${card.text}`).join("\n\n")),
           placed,
         ]
           .filter(Boolean)
@@ -1102,6 +1124,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           worldName: text(body.worldName, MAX.name),
           setting: text(body.setting, 600),
           persona: text(body.persona, MAX.name),
+          cards: step === "people" ? await writersCards(resources, body) : [],
           premise: block(body.premise, 1500),
           places: (Array.isArray(body.places) ? body.places : [])
             .filter(isRecord)
