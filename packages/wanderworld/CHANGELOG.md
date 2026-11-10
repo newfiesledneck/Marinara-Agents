@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.2 — 2026-11-10
+
+- New world: "Ages of the people the AI makes", from 21 with no upper limit unless you change it (empty a box for no limit that way). It holds for everyone the AI invents or fills in, family from your cards included: someone outside the range isn't made. Ages your own lore or cards give are left alone. Kept with the world.
+
 ## 0.5.1 — 2026-11-10
 
 - Illustrate: with the AI rewrite on, the last lines of the chat go with the prompt, so the picture shows what you're doing now (kneeling by the pond), not just "standing". New {recent_chat} placeholder.

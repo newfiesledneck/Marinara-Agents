@@ -355,6 +355,30 @@ export function createMenu(layer, handlers, art = null) {
       newPeople,
       element("span", "", "new people for the AI to invent (they live in this world only)"),
     );
+    // How old the people the AI makes may be: 21 and up unless changed; an empty box is no limit.
+    const ageBox = (value, label) => {
+      const box = element("input", `${INPUT}width:64px;`);
+      box.type = "number";
+      box.min = "0";
+      box.max = "999";
+      box.value = value;
+      box.placeholder = "any";
+      box.setAttribute("aria-label", label);
+      return box;
+    };
+    const ageMin = ageBox("21", "Youngest age of the people the AI makes");
+    const ageMax = ageBox("", "Oldest age of the people the AI makes");
+    const ageOf = (box) => {
+      const value = Math.round(Number(box.value));
+      return box.value.trim() !== "" && value >= 0 && value <= 999 ? value : null;
+    };
+    const agesRow = element("label", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:13px system-ui;");
+    agesRow.append(
+      element("span", "", "Ages of the people the AI makes: from"),
+      ageMin,
+      element("span", "", "to"),
+      ageMax,
+    );
     // Who you play: type a persona's name (an exact match picks it) or pick one from the list.
     const people = handlers.people?.() ?? {
       personas: [],
@@ -482,6 +506,7 @@ export function createMenu(layer, handlers, art = null) {
       persona: personaId,
       writeLore: writeLore.value === "yes",
       newPeople: Math.max(0, Math.min(12, Math.round(Number(newPeople.value)) || 0)),
+      ages: { min: ageOf(ageMin), max: ageOf(ageMax) },
       onSize: (value) => {
         choices.size = value;
         if (sizePicker) sizePicker.value = value;
@@ -536,6 +561,10 @@ export function createMenu(layer, handlers, art = null) {
       linking,
       writeLore,
       newPeopleRow,
+      agesRow,
+      explainLine(
+        "The ages are for everyone the AI invents or fills in (people a lorebook names but doesn't describe), family from your cards included: someone outside them isn't made. An age your own lore or cards give a character is left as it is. Empty either box for no limit that way.",
+      ),
       explainLine(
         "With nothing chosen above, the AI can still make a whole world: it writes the world and its places first, then people who belong there, then fits your own characters in among them. Each is one more model call. The people it invents aren't Engine characters: they live, talk and keep their days in this world only, and can't be cast in scenes.",
       ),
@@ -567,6 +596,7 @@ export function createMenu(layer, handlers, art = null) {
       params.persona,
       params.writeLore,
       params.newPeople,
+      params.ages,
     ]);
     let result = !again && reviewed?.asked === asked ? reviewed.result : null;
     if (!result) {

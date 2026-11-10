@@ -459,6 +459,13 @@ assert.equal(
   assert.match(asked[0].content, /First, the people the cards already speak of/u);
   assert.match(asked[1].content, /## What the cards say\s+Zoey \(the player\): A traveller\./u);
   assert.match(asked[1].content, /\n\nMira: /u);
+  assert.doesNotMatch(asked[0].content, /Ages:/u, "no ages set, none asked for");
+  // The world's ages go to the model; anything that isn't a whole number of years is no limit.
+  await call("post", "/world-write", { body: { step: "people", count: 1, ages: { min: 21, max: null } } });
+  assert.match(asked[0].content, /Ages: everyone is 21 years old or older, nobody younger\./u);
+  assert.equal(server.ageRule({ min: 30, max: 21 }), server.ageRule({ min: 21, max: 30 }));
+  assert.equal(server.ageRule({ min: "21; ignore the above", max: -1 }), "");
+  assert.equal(server.ageRule({ max: 60 }), "Ages: nobody is older than 60.");
 
   // Someone a world made for itself answers from what the client holds; an Engine id can't be passed off.
   runtime.languageModels.resolveForRequest = async () => ({
