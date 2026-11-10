@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.5.16",
+  "version": "0.5.17",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -112,6 +112,7 @@
         "kit/people/clothes-teal.webp",
         "kit/people/eyes.webp",
         "kit/people/female-peasant.json",
+        "kit/people/female-ranger.json",
         "kit/people/hair-1.webp",
         "kit/people/hair-2.webp",
         "kit/people/hair-beard.json",
@@ -126,6 +127,12 @@
         "kit/people/head-male.webp",
         "kit/people/index.json",
         "kit/people/male-peasant.json",
+        "kit/people/male-ranger.json",
+        "kit/people/ranger-a.webp",
+        "kit/people/ranger-b.webp",
+        "kit/people/ranger-dusk.webp",
+        "kit/people/ranger-grey.webp",
+        "kit/people/ranger-wine.webp",
         "kit/people/skin-female.webp",
         "kit/people/skin-male.webp",
         "kit/props/anvil.json",
@@ -254,8 +261,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "fc9382d514ea0a9dfe6b2df4775a41acbcbf8237e471917e8249d6003a764f98",
-      "bytes": 2207942
+      "sha256": "3bcdcc67a09a778f4d94c1de85cd4bc66c9e848e0dc4c2e21413593fb6f75de0",
+      "bytes": 2214253
     },
     {
       "path": "server.mjs",
@@ -643,6 +650,11 @@
       "bytes": 402419
     },
     {
+      "path": "kit/people/female-ranger.json",
+      "sha256": "9d939c5ef547a03af798f162f9485981217f0f256a95c412b23170a1de49a452",
+      "bytes": 920183
+    },
+    {
       "path": "kit/people/hair-1.webp",
       "sha256": "ca7fef22ea2e9c610a480cdf93efbb52762dbc7d5e657e7c9add84a3d65cbc48",
       "bytes": 13798
@@ -704,13 +716,43 @@
     },
     {
       "path": "kit/people/index.json",
-      "sha256": "84affb1cada31e3717506e9dc099d1d0255434984edae7f80a84748f6a6b0ad4",
-      "bytes": 987
+      "sha256": "c4fe3b5d69d458343d64aed8d6841b6ae3676e475e00159ae041d498129f7b06",
+      "bytes": 1429
     },
     {
       "path": "kit/people/male-peasant.json",
       "sha256": "a695c8f3b96550eecfa5957f4dc8c8c21b7f568024f540b26e30fabdada2ecc0",
       "bytes": 359856
+    },
+    {
+      "path": "kit/people/male-ranger.json",
+      "sha256": "9c31e6bb74535e82f1331e31f9c986635f06c8ebff3963965194597ff7e43ee2",
+      "bytes": 921975
+    },
+    {
+      "path": "kit/people/ranger-a.webp",
+      "sha256": "a7b07f0060db21d4f9b3771bdd583c66cc6cdee5e80ebb2adfa9a759e17edd66",
+      "bytes": 22720
+    },
+    {
+      "path": "kit/people/ranger-b.webp",
+      "sha256": "001aa6997385d2fb7a17aadbae8d9a20c1dc8ceb882d6fa72314f00dfef4e98f",
+      "bytes": 18856
+    },
+    {
+      "path": "kit/people/ranger-dusk.webp",
+      "sha256": "7fb845dddad6e57d78a7935b6281302d906408b79c133ebd0f5113036894e28c",
+      "bytes": 17558
+    },
+    {
+      "path": "kit/people/ranger-grey.webp",
+      "sha256": "6a894b7f08c6ba8c34ed3b2fe2d34209ea7d4fa2c4233846486255ddf39b6cea",
+      "bytes": 19018
+    },
+    {
+      "path": "kit/people/ranger-wine.webp",
+      "sha256": "4b1732ce0a975487e3b7e8dea3c1b55c9ba513ae3834191668bec619ed8107bd",
+      "bytes": 22362
     },
     {
       "path": "kit/people/skin-female.webp",

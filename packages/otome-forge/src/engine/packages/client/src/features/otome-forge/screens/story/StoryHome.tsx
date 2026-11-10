@@ -19,6 +19,7 @@ import {
   BookHeart,
   BookOpen,
   CalendarHeart,
+  Check,
   Eye,
   Feather,
   Heart,
@@ -37,12 +38,13 @@ import {
 } from "lucide-react";
 import { otomeErrorCode, useOtomeApi, type RequestBody } from "../../api";
 import { Avatar } from "../../components/Avatar";
-import { ChapterPaintCost } from "../../components/CostHint";
+import { ChapterPaintCost, CostHint, usePaintsByItself } from "../../components/CostHint";
 import { DeclinedPanel } from "../../components/DeclinedPanel";
 import { Dialog } from "../../components/Dialog";
 import { useCharacterOptions } from "../../hooks/use-engine-resources";
 import { cancelStoryWork, runPath, storyQueryKey, useChapter, useStory } from "../../hooks/use-reader";
-import { accentOf } from "../../lib/accent";
+import { runQueryKey } from "../../hooks/use-run";
+import { accentOf, nameAccent } from "../../lib/accent";
 import { emptyPronouns, resolvePronouns, type PronounChoice } from "../setup/draft";
 import { PronounPicker } from "../setup/parts";
 import { ARCHETYPES, ARCHETYPE_IDS } from "../../shared/archetypes";
@@ -203,7 +205,9 @@ export function StoryHome({ runKey, view, onOpenChapter }: StoryHomeProps) {
         </p>
       ) : null}
       {reading ? <ContinueCard runKey={runKey} entry={reading} view={view} onOpen={onOpenChapter} /> : null}
-      {story.data.arcChoice && !reading ? <ArcChoiceCard runKey={runKey} options={story.data.arcChoice} /> : null}
+      {story.data.arcChoice && !reading ? (
+        <ArcChoiceCard runKey={runKey} options={story.data.arcChoice} images={view.world.images} />
+      ) : null}
       {next ? (
         <section className="of-section of-glass of-story-next" aria-labelledby="of-story-next">
           <p className="of-eyebrow">{t("ui.otomeForge.story.chapterNumber", { number: next.number })}</p>
@@ -773,7 +777,15 @@ function StorySoFar({ runKey }: { runKey: string }) {
  * The end of an arc (#1983 M2/M3): three ways on, each explained, and the cost before the tap. Breathing room and the
  * story going on plan the next arc; someone new first writes them, then the arc that brings them in.
  */
-function ArcChoiceCard({ runKey, options }: { runKey: string; options: { options: ArcChoice[]; castFull: boolean } }) {
+function ArcChoiceCard({
+  runKey,
+  options,
+  images,
+}: {
+  runKey: string;
+  options: { options: ArcChoice[]; castFull: boolean };
+  images: RunView["world"]["images"];
+}) {
   const { t } = useTranslation();
   const otome = useOtomeApi();
   const queryClient = useQueryClient();
@@ -787,6 +799,9 @@ function ArcChoiceCard({ runKey, options }: { runKey: string; options: { options
     try {
       await otome.post(`${runPath(runKey)}/arcs`, { choice, ...(newcomer ? { newcomer } : {}) });
       void queryClient.invalidateQueries({ queryKey: storyQueryKey(runKey) });
+      // Someone new gets their paint step on the run's next read (S/setup/forge.ts forgeCast), painting by itself or
+      // waiting in Your cast.
+      if (newcomer) void queryClient.invalidateQueries({ queryKey: runQueryKey(runKey) });
       setArriving(false);
     } catch (error) {
       setFailed(error);
@@ -844,6 +859,7 @@ function ArcChoiceCard({ runKey, options }: { runKey: string; options: { options
       {arriving ? (
         <NewcomerDialog
           runKey={runKey}
+          images={images}
           busy={busy === "newcomer"}
           onClose={() => setArriving(false)}
           onArrive={(newcomer) => void plan("newcomer", newcomer)}
@@ -859,11 +875,13 @@ function ArcChoiceCard({ runKey, options }: { runKey: string; options: { options
  */
 function NewcomerDialog({
   runKey,
+  images,
   busy,
   onClose,
   onArrive,
 }: {
   runKey: string;
+  images: RunView["world"]["images"];
   busy: boolean;
   onClose: () => void;
   onArrive: (newcomer: Record<string, unknown>) => void;
@@ -877,6 +895,7 @@ function NewcomerDialog({
   // A card carries no pronouns of its own: the player picks them, as setup asks (#1985 review).
   const [pronouns, setPronouns] = useState<PronounChoice>(emptyPronouns());
   const resolved = resolvePronouns(pronouns);
+  const byItself = usePaintsByItself(images);
   return (
     <Dialog
       title={t("ui.otomeForge.story.newcomerTitle")}
@@ -918,6 +937,12 @@ function NewcomerDialog({
       ) : (
         <>
           <p className="of-hint">{t("ui.otomeForge.story.newcomerCost")}</p>
+          {images.connectionId ? (
+            <CostHint
+              images={1}
+              note={t(byItself ? "ui.otomeForge.story.newcomerLookAutoNote" : "ui.otomeForge.story.newcomerLookNote")}
+            />
+          ) : null}
           <fieldset className="of-field">
             <label>
               <input type="radio" checked={mode === "card"} onChange={() => setMode("card")} />{" "}
@@ -930,21 +955,37 @@ function NewcomerDialog({
           </fieldset>
           <PronounPicker legend={t("ui.otomeForge.story.newcomerPronouns")} value={pronouns} onChange={setPronouns} />
           {mode === "card" ? (
-            <ul className="of-cast-picks">
-              {cards.items.map((card) => (
-                <li key={card.id}>
-                  <button
-                    type="button"
-                    className="of-cast-pick of-glass"
-                    aria-pressed={cardId === card.id}
-                    data-chosen={cardId === card.id}
-                    onClick={() => setCardId(card.id)}
-                  >
-                    <Avatar name={card.name} url={card.avatarUrl} accent="var(--of-champagne)" size={32} />
-                    <span>{card.name}</span>
-                  </button>
-                </li>
-              ))}
+            // Setup's card tiles (CastStep): a grid with a check on the one chosen. The of-cast-pick classes this used
+            // had no styles, so the list fell apart and a tap showed nothing.
+            <ul className="of-tiles of-tiles--scroll" aria-label={t("ui.otomeForge.story.newcomerCard")}>
+              {cards.items.map((card) => {
+                const picked = cardId === card.id;
+                return (
+                  <li key={card.id}>
+                    <button
+                      type="button"
+                      className="of-tile of-glass"
+                      data-checked={picked}
+                      aria-pressed={picked}
+                      title={card.name}
+                      onClick={() => setCardId(card.id)}
+                    >
+                      <Avatar
+                        name={card.name}
+                        url={card.avatarUrl}
+                        crop={card.avatarCrop}
+                        accent={nameAccent(card.name)}
+                      />
+                      <span className="of-tile-name">{card.name}</span>
+                      {picked ? (
+                        <span className="of-tile-check" aria-hidden="true">
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <>

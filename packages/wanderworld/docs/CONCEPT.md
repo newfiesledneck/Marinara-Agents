@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.16, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.17, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.16: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.17: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.16, 2026-11-11)
+## Outstanding (as of 0.5.17, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -725,10 +725,12 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   close by where that hour has them.
 - _Planned, in the order they're cheapest (asked for 2026-11; only what can be built here, so nothing
   that needs a pack converted in Blender first):_
-  1. _A second everyday look:_ the Ranger outfit (hood, pauldrons) from the outfits pack already used,
-     chosen for some people by name; later, a look by trade (smith, farmer, guard, sorcerer) once there
-     are outfits for them (the paid tiers of Modular Character Outfits - Fantasy, or the Ultimate Modular
-     Men / Women packs, which have glTF but their own rigs to map onto the humanoid bones).
+  1. _Looks (the ranger outfit and the Look card are in, 0.5.17:_ `looks.js` holds the menus and
+     `checkLook`, `people.js lookFor(name, index, body, chosen)` lays choices over what the name gives,
+     `save.looks` keeps them, `hud.js openLook` is the card). _Next:_ a look by trade (smith, farmer,
+     guard, sorcerer) once there are outfits for them (the paid tiers of Modular Character Outfits -
+     Fantasy, or the Ultimate Modular Men / Women packs, which have glTF but flat colours and their own
+     rigs to map onto the humanoid bones), accessories, and choosing a look in New world.
   2. _An OBJ reader for `scripts/build-wanderworld-kit.mjs`,_ so the flat-coloured packs that ship no glTF
      can be used without Blender: Farm Buildings (barn, silo, windmill, well, coop: the farm), the two
      dungeon packs (cave and cellar pieces), Medieval Weapons (a real hammer, tools in hand).
@@ -748,6 +750,47 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   8. _Campfires people light for themselves,_ anywhere friends meet in the wilds, and tents at them.
   9. _A group in conversation:_ talking to one of a group (E) brings the others into the same call, as
      moments do now.
+- _Asset packs (all by Quaternius, CC0; listed 2026-11)._ On hand: Medieval Village MegaKit, Fantasy
+  Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
+  Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,
+  Updated Modular Dungeon, Medieval Weapons, Downtown City MegaKit, Ultimate Nature, Textured Stylized
+  Trees, Ultimate Gun Pack (not used yet). (Now downloaded, 2026-11-10: the Quaternius packs are in `_planning/Wanderworld asset packs/Quaternius Assets`, others beside that folder; KayKit was left out as too cartoonish. FBX reads without Blender: tried on Farm Buildings; an animated FBX is still to be tried.) To get, for the plan above: Ultimate Animated Animal Pack,
+  Ultimate Modular Men, Ultimate Modular Women, Farm Animal Pack, Bestiary - Dungeon Monsters Kit,
+  Ultimate Monsters, Ultimate Modular Ruins, Ultimate Crops, Ultimate Food, Ultimate RPG Pack. For other
+  settings later (each a setting pack of its own: `pack.js`): Modular Sci-Fi MegaKit, Sci-Fi Essentials
+  Kit, Ultimate Space Kit, Cyberpunk Game Kit, Zombie Apocalypse Kit, Pirate Kit. Only packs with a glTF
+  folder can be converted here (or OBJ, once the kit builder reads it); FBX-only packs need Blender.
+- _Other CC0 makers (searched 2026-11, licences to be confirmed on each pack's own page before use):_
+  **KayKit** (Kay Lousberg, itch.io: Adventurers, Skeletons, Dungeon Remastered, Medieval Hexagon,
+  Character Animations, the "Bits" packs; OBJ, FBX and glTF; free tiers CC0, with paid extras) and
+  **Kenney** (kenney.nl: 270+ packs, GLB among the formats). Both are flat-coloured and chunkier than the
+  textured Quaternius kits, so they suit props, tools and creatures better than buildings beside the
+  kit's. Poly Pizza is mostly CC-BY (attribution), a CC0 subset only; Synty is paid, not CC0.
+- _Downloads that need credit (CC-BY 3.0), and the rule for using them._ The maintainer has these from
+  Poly Pizza (poly.pizza), kept with the other packs, none used yet. **CC0** (no credit needed): Crystal
+  Pack, Signs pack and Medieval Torture Devices, all by iPoly3D. **CC-BY 3.0**
+  (https://creativecommons.org/licenses/by/3.0/): Slime Enemy by Charlie; Urban Clutter by Superlink121;
+  Animals by molochdadev; Animal Kit, Wizardus Maximus and Adventurer by madtrollstudio (a Bear by
+  madtrollstudio is in the folder too: confirm its licence on its page); Goblin by joney_lol; Goblin by
+  Eric Oudin; Dragon Rigged by na3ee1; Monster & Medieval Kits by Don Carson; Colossus pre Tilt Brush by
+  Darwin Yamamoto; Giant Spider by Zane Brant; Saddle, and two different Horses, by Poly by Google.
+  CC-BY lets us use, convert and change a model, commercially too, on these terms: name the work and
+  its maker, link the licence, and say that it was changed (converting it to the kit's format, cutting
+  its size or recolouring it all count). So the moment one of these goes into the package: (1) a line
+  in `kit/CREDITS.md` of the form "Giant Spider by Zane Brant [CC-BY 3.0] via Poly Pizza, converted and
+  resized", with the licence link at the foot of that file; (2) the same line on Help's credits page,
+  with the link; (3) the README's Credits says some models are CC-BY and points to both. Whoever passes
+  the package on has to keep those credits, which CC0 art never asks. Check each model's own page for
+  its licence before using it (the list above is as downloaded), and ask the maintainer of the catalog
+  whether a package may ship CC-BY art at all before the first one goes in.
+- _Paid tiers that would help (the maintainer may buy them later; nothing here depends on them):_ the
+  Pro and Source tiers of **Modular Character Outfits - Fantasy** (12 outfits against the free tier's
+  two: the looks by trade in plan item 1), **Universal Base Characters** (six body builds and twenty
+  hairstyles against two and six: more varied people), **Universal Animation Library 1 and 2** (the
+  remaining third or so of each: more work, emotes and combat), and the MegaKits (Medieval Village,
+  Fantasy Props, Stylized Nature: more wall, roof and prop variety). The tier pages say the free tier
+  is 60 to 70 percent of a pack; which pieces are in which tier isn't listed there, so check before
+  buying for one thing in particular.
 - _Not done:_ the hearth doesn't glow at night or light the smith; nobody carries a tool (the hammer
   swing is a wood-chopper's, the watering has no can); a seller and a buyer don't talk to each other;
   hamlets and inns have no stalls; the player can't work a spot; Engine models with unusual proportions

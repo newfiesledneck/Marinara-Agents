@@ -55,6 +55,7 @@
 //     (#2155) and the prologue (S/story/beats.ts). Its NO_CHOICES_SENTENCE must stay the kit's sentence word for word
 //     (Elsewhere)
 //   GUIDE, prologueFraming, prologueEnding: the prologue's node, framing and hand-off (S/story/prologue.ts, beats.ts)
+//   storyHandOff: the last Character Story's hand-off to the next main chapter's plan (P5) and first scene (P6)
 //   stageGoal, arcFraming: what a route stage is for, and P6's route, repair, story, extra-story and his side's framing
 //   routePlanMessages, repairPlanMessages: P10 route plan, P11 repair plan (S/story/routes-plan.ts)
 //   confrontationMessages: P12 Confrontation (S/story/beats.ts)
@@ -210,7 +211,7 @@ import {
   STORY_PLACE,
   stillToMend,
 } from "../../../../client/src/features/otome-forge/shared/dates.js";
-import type { PrestigeKind } from "../../../../client/src/features/otome-forge/shared/economy.js";
+import { levelOf, type PrestigeKind } from "../../../../client/src/features/otome-forge/shared/economy.js";
 import {
   FACES,
   FACE_LOOKS,
@@ -382,6 +383,7 @@ export const WRITING_RULES = [
   "Every cruelty has a reason the love interest believes, and the love interest keeps whatever red lines they have.",
   "A love interest may be genuinely evil, a monster or a villain, as dark as this story's Darkness allows: taming them is the point, so never soften them before the story earns it.",
   "A face may contradict the words it speaks.",
+  "A love interest's tells, tics and habits are a few possible signs among many, never all they do: show one only now and then, among other, fresh reactions, and never reuse the same one, or a sentence already written, within a chapter.",
   "Write what the protagonist feels in their body when something happens to them, not only the action.",
   "All characters, player included, can change; for better, or worse.",
   "Character change must be earned and consistent with established identity and canonical character cards; it is not automatic redemption or a replacement personality.",
@@ -685,10 +687,13 @@ function render(unit: SceneCardUnit, stage: number, learnedTells: readonly numbe
     ),
     sentence(
       ["Mask: ", one(bible.mask.presents)],
-      ["Tells (let them slip; never explain them): ", list(bible.mask.tells)],
+      [
+        "Tells (a few possible signs among others; let one slip now and then, never explain it): ",
+        list(bible.mask.tells),
+      ],
     ),
     sentence(["The protagonist has learned to read these tells and may call them out: ", list(learned)]),
-    sentence(["Hidden (never state it; it may show only as these tells): ", list(hidden)]),
+    sentence(["Hidden (never state it; it may show only in hints, such as these tells): ", list(hidden)]),
     sentence(["The protagonist knows: ", list(known)]),
     // Darkness comes last, so a card cut to fit keeps the red lines and moral code it kept before. It shows at every
     // stage, so the bible keeps it to what they are; a secret's events stay in secrets (bibleMessages, Setup).
@@ -1235,16 +1240,18 @@ export const SLOW_BURN_LAST_STAGE = 4;
 
 /**
  * Where the romance stands, by stage (#1960; moved later by the maintainer on 2026-11-03): a slow burn through stage 4,
- * where neither names what they feel; in stage 5 a confession may come when a scene has earned it, and by the finale
- * at the latest; in stage 6, if it has not come yet, it must. Desire is not feeling: the content contract alone
- * decides what bodies may do, at any stage.
+ * where neither confesses what they feel; in stage 5 a confession may come when a scene has earned it, and by the
+ * finale at the latest; in stage 6, if it has not come yet, it must. The slow burn holds back love, not attraction (the
+ * maintainer, 2026-11-10): flirting and saying outright that they want the protagonist are open at any stage, and a kiss
+ * given out of feeling waits for stage 5. Desire is not feeling: the content contract alone decides what bodies may do,
+ * at any stage.
  */
 function romanceLine(name: string, stage: number): string {
   if (stage <= SLOW_BURN_LAST_STAGE) {
-    return `Slow burn: ${name} never says what they feel for the protagonist, and neither does the protagonist. It shows in tension, glances, deflections and near misses, with no confession and no becoming a couple yet. Desire is not feeling: they may still act on desire, out of lust or to get what they want, as far as the content contract allows, and feelings may grow from it later.`;
+    return `Slow burn: ${name} does not confess what they feel for the protagonist, and neither does the protagonist, and they do not become a couple yet. The slow burn holds back love, not attraction: ${name} may flirt, tease, and say outright that they find the protagonist attractive or want them, in their own way and as far as their mask lets them at this stage. A kiss given out of feeling waits for stage 5. Desire is not feeling: they may still act on desire, out of lust or to get what they want, as far as the content contract allows, and feelings may grow from it later.`;
   }
   if (stage < LAST_STAGE) {
-    return `The slow burn may break: when a scene has earned it, ${name} may confess what they feel, if they have not yet; by the finale of their route at the latest, they say it.`;
+    return `The slow burn may break: ${name} may kiss the protagonist, and when a scene has earned it, ${name} may confess what they feel, if they have not yet; by the finale of their route at the latest, they say it.`;
   }
   // The finale asks for the words, but Ease off can end it first, so the story so far says whether they were spoken.
   return `${name} has chosen the protagonist. If the story has not yet shown ${name} saying what they feel, ${name} says it in words at the first moment a scene allows; once said, it is no longer hidden between them.`;
@@ -1273,6 +1280,8 @@ export function betweenYou(unit: Pick<Unit, "name">, liState: LiState, also: rea
   const lines = [
     `Between ${unit.name} and the protagonist: trust ${trust}, tension ${tension}.`,
     romanceLine(unit.name, liState.stage),
+    // The affection level the player sees: how drawn they are, shown within what the stage allows (2026-11-10).
+    `Affection level ${levelOf(liState.points)} of 10: how drawn ${unit.name} is to the protagonist. The higher it is, the more it shows in what ${unit.name} does and says, within what their stage allows.`,
   ];
   for (const grievance of shown) {
     const holder = grievance.by === "li" ? unit.name : "the protagonist";
@@ -1287,7 +1296,52 @@ export function betweenYou(unit: Pick<Unit, "name">, liState: LiState, also: rea
   }
   const told = liState.disclosures.slice(-3).map((item) => item.text);
   if (told.length) lines.push(`The protagonist has told ${unit.name}: ${told.join(" ")}`);
+  // Their romantic firsts, once a chapter's summary recorded them (S/memory/memory.ts): sent with them from then on.
+  // The short label ("first time"), not the ask's clarifying phrase: the sentence itself says what happened.
+  for (const [field, , , label] of ROMANTIC_FIRSTS) {
+    const sentence = liState[field];
+    if (sentence)
+      lines.push(`${unit.name} and the protagonist's ${label.toLowerCase()} has already happened: ${sentence}`);
+  }
   return lines.join("\n");
+}
+
+/**
+ * The romantic firsts a chapter's summary reports once each (LiState.firstKiss and the rest): the field, how the summary
+ * names it, and its Love Timeline kind and label, which the calendar shows every year ("First kiss with Kai").
+ */
+export const ROMANTIC_FIRSTS = [
+  ["firstKiss", "first kiss", "first-kiss", "First kiss"],
+  ["firstTime", "first time (the first time they had sex)", "first-time", "First time"],
+  [
+    "firstConfession",
+    "first confession (the first time either said outright that they love the other)",
+    "first-confession",
+    "First confession",
+  ],
+] as const satisfies ReadonlyArray<readonly [keyof LiState, string, `first-${string}`, string]>;
+
+/**
+ * What a chapter summary also reports (the maintainer, 2026-11-10): for each love interest, only the firsts not
+ * recorded yet, each null unless it happens in this part of the story for the first time, else one sentence on how and
+ * in which chapter. "" once every first of every love interest is recorded, so nothing is asked again.
+ */
+export function romanticFirstsAsk(units: ReadonlyArray<Pick<Unit, "id" | "name">>, state: RunState): string {
+  const open = units
+    .map((unit) => {
+      const liState = liStateOf(state, unit.id);
+      return { name: unit.name, fields: ROMANTIC_FIRSTS.filter(([field]) => !liState[field]).map(([field]) => field) };
+    })
+    .filter((entry) => entry.fields.length);
+  if (!open.length) return "";
+  const shape = Object.fromEntries(
+    open.map(({ name, fields }) => [name, Object.fromEntries(fields.map((field) => [field, null]))]),
+  );
+  return [
+    `Also return "firsts", shaped exactly like ${JSON.stringify(shape)}.`,
+    `Set a field to ONE sentence saying how it happened and in which chapter (by the source's title) only when it happens in the supplied source between that love interest and the protagonist for the first time; leave it null otherwise.`,
+    ROMANTIC_FIRSTS.map(([field, what]) => `${field}: their ${what}.`).join(" "),
+  ].join(" ");
 }
 
 /**
@@ -1786,6 +1840,8 @@ export interface ChapterPlanInput {
    * can read the story context it caches. Otherwise nothing is marked: nothing would read it (#2091).
    */
   sharesCache?: boolean;
+  /** The last Character Story's title when this chapter picks up from it (recallText `handOff`, storyHandOff), or "". */
+  handOff?: string;
 }
 
 /** P5's rule, while a side-with scene may come; the story's content settings decide how heated the argument gets. */
@@ -1807,6 +1863,7 @@ export function chapterPlanMessages({
   judgment = false,
   thoughts = "",
   sharesCache = true,
+  handOff = "",
 }: ChapterPlanInput): OtomeMessage[] {
   const leadUnit = units.find((unit) => unit.id === lead);
   const others = units.filter((unit) => unit.id !== lead);
@@ -1924,6 +1981,7 @@ export function chapterPlanMessages({
     recalls.trim(),
     ...thoughtsLines(player, thoughts, "plan"),
     "",
+    ...(number > 1 && handOff ? [storyHandOff(handOff, "plan")] : []),
     `Plan main chapter ${number} now, led by ${leadUnit?.name ?? lead} (id ${lead}).`,
     otomeContractReminder("planner"),
   ];
@@ -2058,6 +2116,8 @@ export interface BeatMessagesInput {
   arc?: StoryArc | null;
   /** #2155: his side's scene as the protagonist lived it (S/story/his-side.ts hisSideSource), or none. */
   hisSide?: string;
+  /** The last Character Story's title when this chapter picks up from it (recallText `handOff`, storyHandOff), or "". */
+  handOff?: string;
 }
 
 export function beatMessages({
@@ -2074,6 +2134,7 @@ export function beatMessages({
   arc = null,
   prologue = "",
   hisSide = "",
+  handOff = "",
 }: BeatMessagesInput): OtomeMessage[] {
   const backgrounds = savedBackgrounds(world);
   // #2155: his side tells one scene again from his point of view: only he thinks, and it offers no choice. Only his
@@ -2133,6 +2194,9 @@ export function beatMessages({
       ? [
           `The prologue, the protagonist alone before they meet anyone in this story, ended like this. Pick up from it; never tell it again:\n${prologue.trim()}`,
         ]
+      : []),
+    ...(handOff && chapter.kind === "main" && (chapter.number ?? 0) > 1 && node.i === 0
+      ? [storyHandOff(handOff, "scene")]
       : []),
     "",
     ...(backgrounds ? [backgrounds, PLACE_REUSE_RULE, ""] : []),
@@ -2260,6 +2324,28 @@ function dateGiftText(gift: GiftId, name: string, i: number): string {
   return `Earlier tonight the protagonist gave ${name} ${what}; it may still colour the evening.${gift === "aphrodisiac" ? " It was an aphrodisiac, and its effect is still building: desire between them rises, as far as the content contract allows." : ""}`;
 }
 
+// ── The last Character Story's hand-off (P5, P6) ──
+
+/**
+ * When the last Character Story is the newest thing that happened (S/story/canon.ts recallText `handOff`), the next
+ * main chapter's plan and its first scene pick up from how it ended, as chapter 1's first scene picks up from the
+ * prologue (the maintainer's, 2026-11-09). Its text is in STORY MEMORY, under its own heading; this line names it with
+ * the task. Chapter 1 opens on the opening situation instead.
+ * ponytail: the fitter may leave the Character Story in full out (only when the reply would otherwise get less than its
+ * floor; its summary always stays), and this line is written before the prompt is fitted, so it says what to do then:
+ * continue from the previous chapter (Dottore on #2209). The upgrade path is the fitter reporting which optional blocks
+ * it kept, and the line going only with a kept block.
+ */
+export function storyHandOff(title: string, task: "plan" | "scene"): string {
+  const what = `The Character Story "${title}" is the last chapter played, after the previous chapter.`;
+  const source = 'as STORY MEMORY gives it under "Last Character Story"';
+  const pick =
+    task === "plan"
+      ? `This chapter picks up from how that story ended, ${source}, and from any choice the protagonist made at its end: the chapter's first node opens on what follows from them.`
+      : `Pick up from how that story ended, ${source}, and from any choice the protagonist made at its end; never tell it again.`;
+  return `${what} ${pick} If STORY MEMORY does not give it, continue from the previous chapter. Only the people who were in it know what happened there.`;
+}
+
 // ── The prologue (P6's framing for it, and its hand-off to chapter 1) ──
 
 export const GUIDE =
@@ -2384,7 +2470,7 @@ function hisSideFraming(name: string): string[] {
     `This is ${name.toUpperCase()}'S SIDE: a scene the protagonist was not there for, beside the scene above: what led ${name} to it, or what ${name} did right after the protagonist left, whichever tells more. Never retell the scene above; it stays exactly as it happened. Never repeat the bracketed game markers.`,
     `The narration stays with ${name}: what ${name} sees, notices and feels in their body. The protagonist is not in it, or only leaving at its start; where the writing rules speak of what the protagonist feels, write what ${name} feels. Keep everything How it's written asks but the point of view.`,
     `${name}'s thoughts show what ${name} wanted, feared and kept back then, in ${name}'s own voice, and only what ${name} knew at that moment, nothing that happened later. How far ${name} admits their feelings, even to themselves, keeps to the romance line on ${name}'s card.`,
-    `A Hidden line on the card is never stated, even in thought; it presses on ${name} only as the tells do. The protagonist never learns any of this.`,
+    `A Hidden line on the card is never stated, even in thought; it presses on ${name} only in hints, as the tells do. The protagonist never learns any of this.`,
   ];
 }
 
@@ -2892,9 +2978,13 @@ export function timelineFoldMessages(timeline: string): OtomeMessage[] {
   ];
 }
 
-/** The request's messages, its system message ending with the job's rules (and a chapter summary's own wording). */
-export const withRules = (request: SummaryRequest, { rules }: SummaryJob): OtomeMessage[] => {
-  const ending = request.kind === "detail" ? `${rules}\n${CHAPTER_SUMMARY_WORDING}` : rules;
+/**
+ * The request's messages, its system message ending with the job's rules (and a chapter summary's own wording, then
+ * `firsts`, its romanticFirstsAsk).
+ */
+export const withRules = (request: SummaryRequest, { rules }: SummaryJob, firsts = ""): OtomeMessage[] => {
+  const ending =
+    request.kind === "detail" ? [rules, CHAPTER_SUMMARY_WORDING, firsts].filter(Boolean).join("\n") : rules;
   return request.messages.map((message, index) =>
     index === 0 && message.role === "system" ? { ...message, content: `${message.content}\n\n${ending}` } : message,
   );

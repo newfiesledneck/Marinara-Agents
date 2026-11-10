@@ -7,6 +7,7 @@ import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
 import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
+import { HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, SKIN_TONES } from "./looks.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
@@ -55,8 +56,8 @@ const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always 
 
 /**
  * `handlers`: onMenu, onToggleFullscreen, onPickPersona(id), onToggleCharacter(id, chosen),
- * onSetBody(id, body), onSetting(name, value), onUse(), onJump(), onRest(), onRenameZone(id, name),
- * onZoneLore(id), and `maxPeople`.
+ * onSetBody(id, body), onSetLook(id, look), lookOf(id), onSetting(name, value), onUse(), onJump(),
+ * onRest(), onRenameZone(id, name), onZoneLore(id), and `maxPeople`.
  */
 export function createHud(root, handlers) {
   const { maxPeople } = handlers;
@@ -97,8 +98,136 @@ export function createHud(root, handlers) {
     handlers.onPickPersona(persona.value);
     personaBody.value = bodies[persona.value] ?? "auto";
   });
-  personaLabel.append(persona, personaBody);
+  // And how it's dressed, coloured and so on (the Look card, below).
+  const personaLook = button("Look", "Choose how you look without a 3D model", () => openLook(persona.value));
+  personaLook.style.cssText += "padding:2px 8px;font-size:12px;";
+  personaLabel.append(persona, personaBody, personaLook);
   let bodies = {};
+
+  // The Look card: what someone without a 3D model wears and looks like. Every change shows at once.
+  let lookCard = null;
+  const closeLook = () => {
+    lookCard?.remove();
+    lookCard = null;
+  };
+  async function openLook(id) {
+    closeLook();
+    const info = await handlers.lookOf(id);
+    if (!info) return;
+    const card = document.createElement("div");
+    card.setAttribute("data-wanderworld-ui", "");
+    card.style.cssText = `${PANEL}display:flex;top:56px;right:auto;left:50%;transform:translateX(-50%);gap:8px;width:min(320px,calc(100% - 24px));z-index:5;`;
+    lookCard = card;
+    layer.append(card);
+    let chosen = { ...info.chosen };
+    let now = info.now;
+    const draw = () => {
+      const title = document.createElement("div");
+      title.style.cssText = "font-weight:700;font-size:14px;";
+      title.textContent = `${info.name || "Their"} look`;
+      const note = document.createElement("div");
+      note.style.cssText = "font-size:12px;opacity:0.8;line-height:1.35;";
+      note.textContent = info.hasModel
+        ? "They have a 3D model, which is what's shown. This look is for when it isn't there."
+        : "For anyone without a 3D model. Changes show at once and are kept with this world.";
+      const rows = [title, note];
+      const set = (key, value) => {
+        chosen = { ...chosen, [key]: value };
+        // Another outfit has its own colours: the colour goes back to its usual one.
+        if (key === "outfit") delete chosen.colour;
+        handlers.onSetLook(id, chosen);
+        void handlers.lookOf(id).then((next) => {
+          if (!next || lookCard !== card) return;
+          now = next.now;
+          card.replaceChildren(...draw());
+        });
+      };
+      const row = (label, control) => {
+        const line = document.createElement("label");
+        line.style.cssText = "display:flex;align-items:center;gap:8px;font-size:13px;";
+        const name = document.createElement("span");
+        name.style.cssText = "min-width:92px;";
+        name.textContent = label;
+        control.style.flex = "1";
+        line.append(name, control);
+        rows.push(line);
+      };
+      const pick = (label, key, options, value, read = (text) => text) => {
+        const select = document.createElement("select");
+        select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+        select.setAttribute("aria-label", label);
+        for (const [option, text] of options) {
+          const item = document.createElement("option");
+          item.value = String(option);
+          item.textContent = text;
+          select.append(item);
+        }
+        select.value = String(value);
+        select.addEventListener("change", () => set(key, read(select.value)));
+        row(label, select);
+      };
+      pick(
+        "Outfit",
+        "outfit",
+        now.outfits.map((name) => [name, OUTFITS[name].label]),
+        now.outfit,
+      );
+      pick("Colour", "colour", OUTFITS[now.outfit].colours, now.colour);
+      pick("Hair", "hair", HAIRSTYLES, now.hair);
+      pick(
+        "Hair colour",
+        "hairColour",
+        HAIR_COLOURS.map(([, text], i) => [i, text]),
+        now.hairColour,
+        Number,
+      );
+      pick(
+        "Skin",
+        "skin",
+        SKIN_TONES.map(([, text], i) => [i, text]),
+        now.skin,
+        Number,
+      );
+      if (now.sex === "male") {
+        pick(
+          "Beard",
+          "beard",
+          [
+            ["yes", "Bearded"],
+            ["no", "Clean-shaven"],
+          ],
+          now.beard ? "yes" : "no",
+          (text) => text === "yes",
+        );
+      }
+      const height = document.createElement("input");
+      height.type = "range";
+      height.min = String(HEIGHTS[0]);
+      height.max = String(HEIGHTS[1]);
+      height.step = "0.02";
+      height.value = String(now.height);
+      height.setAttribute("aria-label", "Height");
+      height.addEventListener("change", () => set("height", Number(height.value)));
+      row("Height", height);
+      const buttons = document.createElement("div");
+      buttons.style.cssText = "display:flex;gap:8px;";
+      const reset = button("As their name has it", "Forget these choices: back to the look their name gives", () => {
+        chosen = {};
+        handlers.onSetLook(id, null);
+        void handlers.lookOf(id).then((next) => {
+          if (!next || lookCard !== card) return;
+          now = next.now;
+          card.replaceChildren(...draw());
+        });
+      });
+      const done = button("Done", "Close", closeLook);
+      for (const control of [reset, done]) control.style.cssText += "flex:1;padding:8px 10px;";
+      buttons.append(reset, done);
+      rows.push(buttons);
+      return rows;
+    };
+    card.append(...draw());
+  }
 
   const panels = [];
   const togglePanel = (panel) => {
@@ -1118,7 +1247,13 @@ export function createHud(root, handlers) {
         name.style.flex = "1";
         const body = bodyPicker((value) => handlers.onSetBody(character.id, value));
         body.value = bodies[character.id] ?? "auto";
-        entry.append(box, name, body);
+        // Their look can be chosen once they're in town (a look is kept with this world's people).
+        const look = button("Look", `Choose how ${character.name} looks without a 3D model`, () =>
+          openLook(character.id),
+        );
+        look.style.cssText += "padding:2px 8px;font-size:12px;";
+        look.style.display = chosen.has(character.id) ? "" : "none";
+        entry.append(box, name, body, look);
         return entry;
       });
       const inTown = sorted.filter((character) => chosen.has(character.id)).length;
@@ -1290,6 +1425,7 @@ export function createHud(root, handlers) {
         // Nothing of the world left over the menu: the use prompt, the thumb's button, a caption.
         hud.setPrompt(null);
         hud.setThumbs("", false);
+        closeLook();
         caption.style.opacity = "0";
       }
       for (const panel of panels) panel.style.display = "none";

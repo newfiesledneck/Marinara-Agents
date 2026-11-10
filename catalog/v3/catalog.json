@@ -565,7 +565,7 @@
         },
         "id": "conversation-calls",
         "name": "Calls",
-        "version": "1.1.8",
+        "version": "1.1.9",
         "description": "Adds live audio and video calls with Conversation characters. Add as both a Command and an Agent in Chat Settings → Agents → Commands/Calls for Conversation mode.",
         "engine": {
           "min": "2.4.1",
@@ -595,12 +595,12 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "75849ff5da2351e5f3df02bfd33748c267c3a3e4e4fe68cbc9485ed1a23a686f",
-            "bytes": 405479
+            "sha256": "b150c98befecfad159166a05a1fd677f44e11d25d9208dba7ddfba2cda094ee7",
+            "bytes": 405990
           },
           {
             "path": "client.js",
-            "sha256": "1e5acfa3919839ab71f9b8315c2a67c62770e659abf41d1ccbef545bffa5d3c0",
+            "sha256": "e687a23e2ec5b880f92df085b3d2ad75e3a6113b85f5a42b80ea3edb2ffb2b44",
             "bytes": 170673
           }
         ],
@@ -618,9 +618,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/conversation-calls.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/conversation-calls-1.1.8.zip",
-        "sha256": "51865dcfbdc27976300f6388d80a26a39ca63c4342ff2f38220542574a5184c8",
-        "bytes": 578451
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/conversation-calls-1.1.9.zip",
+        "sha256": "5ba5b1ea656455b6bbbc616cc12bc79996da577663e76d0810335bb8b69403f7",
+        "bytes": 578962
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#conversation-calls"
     },
@@ -3284,7 +3284,7 @@
         },
         "id": "noodle",
         "name": "Noodle",
-        "version": "1.5.13",
+        "version": "1.5.14",
         "description": "A pretend social network where your characters post, share photos, and talk about your chats. Install it, restart Marinara Engine when prompted, then open Home → Noodle.",
         "localizations": {
           "de": {
@@ -3367,12 +3367,12 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "10cb572a67318bab0c909d95af57ddf090a143edbfc72502f2f930a30ebd64c3",
-            "bytes": 546858
+            "sha256": "87b1a5a8873492f114c6cd4da188ebb3e5aaa448890ad5670e1b0828f091dd06",
+            "bytes": 547374
           },
           {
             "path": "client.js",
-            "sha256": "1c3b726cdb96522d96651849aa6e5fe65fd1b4f7214558574c64040257b00348",
+            "sha256": "f3d7a473323e6dc5f8b58b934a07757eccd99e6365b1143c2cedb52bf24324c5",
             "bytes": 733315
           },
           {
@@ -3394,9 +3394,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/noodle.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/noodle-1.5.13.zip",
-        "sha256": "e7de7502261f80acfea5b4cd7e33bce295b63a1799b3d9b9b4622a2865fa120f",
-        "bytes": 1312919
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/noodle-1.5.14.zip",
+        "sha256": "1bb336cc0541322d386d503cde31767a8da6065038233f1a97c96f2d6450c31b",
+        "bytes": 1313435
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/noodle/README.md"
     },
@@ -3413,7 +3413,7 @@
         },
         "id": "otome-forge",
         "name": "Otome Hearth",
-        "version": "0.21.1",
+        "version": "0.22.4",
         "description": "An otome game in its own Home tab, made from your own characters: love interests who remember what you chose, their messages to you, dates and mini-games, and wishes for outfits and memories paid for only with Starlight you earn. Install it, restart Marinara Engine when prompted, then open Home → Otome Hearth.",
         "engine": {
           "min": "2.5.1",
@@ -3447,13 +3447,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "8429a18da67730a2b689ba8222c1f24af05087e856d1e3b81808d4e0c1d78f46",
-            "bytes": 672036
+            "sha256": "477d4cc3753c20e029f4ff31a80824b27e8805e56bab7f2c798c2249e73d4d4c",
+            "bytes": 679627
           },
           {
             "path": "client.js",
-            "sha256": "4dd07f2b2c82a93cff4ad3a847fffee89fe11ead4aa232b8787007d95f79b73b",
-            "bytes": 1371733
+            "sha256": "46f55d799d0c30718cfe384d7d378e5a4cea8354ea1fe96b29f10c2d1a2febf6",
+            "bytes": 1373050
           },
           {
             "path": "otome-hearth-icon.png",
@@ -3481,9 +3481,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/otome-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.21.1.zip",
-        "sha256": "ac4009a71494bf4578d4370db4fc539ab4dec269727e5fefacf8ecbb698ee06e",
-        "bytes": 2195421
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.22.4.zip",
+        "sha256": "50bb96d4fe0595ea25c7ca7d4e93caa78d1014965bcae2a1f32e3b4311b40f2b",
+        "bytes": 2204329
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/otome-forge/README.md"
     },
@@ -4468,7 +4468,7 @@
         },
         "id": "slurp2",
         "name": "Slurp",
-        "version": "0.4.18",
+        "version": "0.4.19",
         "description": "A private social app for your characters. Turn characters and personas into Creators, post public or locked photos, and watch a simulated audience follow, subscribe, unlock, comment, and message them. By default, it is tuned for an adult experience. Install it, restart Marinara Engine when prompted, then open Home → Slurp.",
         "localizations": {
           "de": {
@@ -4537,13 +4537,13 @@
           },
           {
             "path": "server.mjs",
-            "sha256": "71054a56bfdb8cd4d28a09c99a00f8dd180ce740cf606371d0ecc22acf3c8a2c",
-            "bytes": 2164536
+            "sha256": "a2ac5968a5f11cafb05373c4f2be55892d2aef080cbbcc346e28688073d4b726",
+            "bytes": 2165107
           },
           {
             "path": "client.js",
-            "sha256": "174f826104ba12aaf20b12599a572bd5cb927d93a1031717fd0bf02b9aa748c6",
-            "bytes": 2910591
+            "sha256": "933841cfd0ed1e1634c4c25b2f24f24b41dd176be30b79f65365ee3bdea15dc2",
+            "bytes": 2910773
           },
           {
             "path": "slurp2-logo.png",
@@ -4596,9 +4596,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/slurp2.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.18.zip",
-        "sha256": "be13c0f314f58580bebf3f264589af4ffb0d346d8393967c4b8bdb38423008ef",
-        "bytes": 6133255
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.19.zip",
+        "sha256": "2199054e10090c3603070bf4b218c16727d2bef02e84b35067283982b49bb4d5",
+        "bytes": 6134008
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/slurp2/README.md"
     },
@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.16",
+        "version": "0.5.17",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5017,6 +5017,7 @@
               "kit/people/clothes-teal.webp",
               "kit/people/eyes.webp",
               "kit/people/female-peasant.json",
+              "kit/people/female-ranger.json",
               "kit/people/hair-1.webp",
               "kit/people/hair-2.webp",
               "kit/people/hair-beard.json",
@@ -5031,6 +5032,12 @@
               "kit/people/head-male.webp",
               "kit/people/index.json",
               "kit/people/male-peasant.json",
+              "kit/people/male-ranger.json",
+              "kit/people/ranger-a.webp",
+              "kit/people/ranger-b.webp",
+              "kit/people/ranger-dusk.webp",
+              "kit/people/ranger-grey.webp",
+              "kit/people/ranger-wine.webp",
               "kit/people/skin-female.webp",
               "kit/people/skin-male.webp",
               "kit/props/anvil.json",
@@ -5159,8 +5166,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "fc9382d514ea0a9dfe6b2df4775a41acbcbf8237e471917e8249d6003a764f98",
-            "bytes": 2207942
+            "sha256": "3bcdcc67a09a778f4d94c1de85cd4bc66c9e848e0dc4c2e21413593fb6f75de0",
+            "bytes": 2214253
           },
           {
             "path": "server.mjs",
@@ -5548,6 +5555,11 @@
             "bytes": 402419
           },
           {
+            "path": "kit/people/female-ranger.json",
+            "sha256": "9d939c5ef547a03af798f162f9485981217f0f256a95c412b23170a1de49a452",
+            "bytes": 920183
+          },
+          {
             "path": "kit/people/hair-1.webp",
             "sha256": "ca7fef22ea2e9c610a480cdf93efbb52762dbc7d5e657e7c9add84a3d65cbc48",
             "bytes": 13798
@@ -5609,13 +5621,43 @@
           },
           {
             "path": "kit/people/index.json",
-            "sha256": "84affb1cada31e3717506e9dc099d1d0255434984edae7f80a84748f6a6b0ad4",
-            "bytes": 987
+            "sha256": "c4fe3b5d69d458343d64aed8d6841b6ae3676e475e00159ae041d498129f7b06",
+            "bytes": 1429
           },
           {
             "path": "kit/people/male-peasant.json",
             "sha256": "a695c8f3b96550eecfa5957f4dc8c8c21b7f568024f540b26e30fabdada2ecc0",
             "bytes": 359856
+          },
+          {
+            "path": "kit/people/male-ranger.json",
+            "sha256": "9c31e6bb74535e82f1331e31f9c986635f06c8ebff3963965194597ff7e43ee2",
+            "bytes": 921975
+          },
+          {
+            "path": "kit/people/ranger-a.webp",
+            "sha256": "a7b07f0060db21d4f9b3771bdd583c66cc6cdee5e80ebb2adfa9a759e17edd66",
+            "bytes": 22720
+          },
+          {
+            "path": "kit/people/ranger-b.webp",
+            "sha256": "001aa6997385d2fb7a17aadbae8d9a20c1dc8ceb882d6fa72314f00dfef4e98f",
+            "bytes": 18856
+          },
+          {
+            "path": "kit/people/ranger-dusk.webp",
+            "sha256": "7fb845dddad6e57d78a7935b6281302d906408b79c133ebd0f5113036894e28c",
+            "bytes": 17558
+          },
+          {
+            "path": "kit/people/ranger-grey.webp",
+            "sha256": "6a894b7f08c6ba8c34ed3b2fe2d34209ea7d4fa2c4233846486255ddf39b6cea",
+            "bytes": 19018
+          },
+          {
+            "path": "kit/people/ranger-wine.webp",
+            "sha256": "4b1732ce0a975487e3b7e8dea3c1b55c9ba513ae3834191668bec619ed8107bd",
+            "bytes": 22362
           },
           {
             "path": "kit/people/skin-female.webp",
@@ -6215,9 +6257,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.16.zip",
-        "sha256": "4c0cb1e55126f98ad5de4532262b0239f33fd8e8cb30603c0e05a1f0f1df17bb",
-        "bytes": 12541812
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.17.zip",
+        "sha256": "6ecbe6feff135773507f4e04cb164f067250226d001f4e5d2e6f7f567d52cec1",
+        "bytes": 14493548
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

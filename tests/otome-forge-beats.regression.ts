@@ -24,7 +24,10 @@
 // #2126: a storyline chapter's plan and scenes are given the last Character Story (never an extra story or a date),
 // whoever leads it and whoever is in the scene, in the story context they share, titled private between the
 // protagonist and its love interest (and anyone who speaks in it): by its summary, in full while it has none, once
-// even when the timeline holds it, and beside a head that condensed it; without the option, nothing changes.
+// even when the timeline holds it, and beside a head that condensed it; without the option, nothing changes. The
+// hand-off: while it is the newest thing that happened, the next main chapter's plan and first scene (never chapter 1,
+// a later scene or a route chapter) pick up from it, with the task, so the story context they share stays the same. A
+// figurine or birthday scene is never the last Character Story, and the hand-off looks past one.
 // #2146: a chapter's closing decision takes the player's own words: saved as one more option of that big choice, with no
 // effects, carried into the next chapter's cached story context; every other choice, a blank, too long or mismatched
 // body, and a beat not being read are refused and save nothing.
@@ -44,6 +47,8 @@ import {
   OWN_ANSWER_MAX,
   OWN_OPTION,
 } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/arcs.ts";
+import { birthdaySceneKey } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/birthdays.ts";
+import { figurineSceneKey } from "../packages/otome-forge/src/engine/packages/client/src/features/otome-forge/shared/shop.ts";
 import { estimateTextTokens } from "@forge-kit/shared-token-estimator.mjs";
 import { z } from "zod";
 import { generateJson } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/generation.ts";
@@ -54,6 +59,7 @@ import {
   closerMessages,
   confrontationMessages,
   sideWithInstruction,
+  storyHandOff,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/prompts.ts";
 import { createOtomeMemory } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/memory.ts";
 import { readMemorySources } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/memory/sources.ts";
@@ -75,6 +81,7 @@ import { normalizeWorld } from "../packages/otome-forge/src/engine/packages/serv
 import {
   normalizeBeatReply,
   segmentLists,
+  withoutMaskedThoughts,
 } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/beats.ts";
 import { normalizeConfrontationReply } from "../packages/otome-forge/src/engine/packages/server/src/services/otome-forge/story/confrontation.ts";
 import {
@@ -416,14 +423,22 @@ test("Ease off cuts the canon with its marker, makes no model call, and drops th
   assert.equal(veiled.body.world.content.limits["non-consent"], "line", "a Line is never raised to a Veil");
 });
 
-test("a refusal is a 422 that writes nothing; a LI's thought before stage 2 gets the repair turn", async () => {
+test("a refusal is a 422 that writes nothing; a LI's thought before stage 2 is dropped, with no repair turn", async () => {
   const t = await storyWorld({
     runKey: "r-decl-aaaaaa",
     replies: [
       json(planReply()),
       "I can't help with writing this scene.",
       "I'm unable to continue this story.",
-      json(beatReply({ segments: [...beatReply().segments, { speaker: "Kai", text: "Don't leave.", thought: true }] })),
+      json(
+        beatReply({
+          segments: [
+            ...beatReply().segments,
+            { speaker: "Kai", text: "Don't leave.", thought: true },
+            { speaker: "", text: "The lamp steadies." },
+          ],
+        }),
+      ),
       json(beatReply()),
     ],
   });
@@ -432,15 +447,78 @@ test("a refusal is a 422 that writes nothing; a LI's thought before stage 2 gets
   assert.equal(declined.status, 422);
   assert.equal(declined.body.code, "declined");
   assert.equal(await t.store.readDoc(beatId(t.runId, "main-1", 0), normalizeBeat), null);
-  const repaired = await t.call("POST", beatPath, {}, node(0));
-  assert.equal(repaired.status, 200);
-  assert.match(
-    t.calls
-      .filter((entry) => !isArcPlan(entry.messages))
-      .at(-1)!
-      .messages.at(-1)!.content,
-    /Kai is still behind their mask/,
+  const written = await t.call("POST", beatPath, {}, node(0));
+  assert.equal(written.status, 200);
+  const saved = (await t.store.readDoc(beatId(t.runId, "main-1", 0), normalizeBeat))!;
+  assert.deepEqual(
+    saved.segments.map((segment) => segment.text),
+    [...beatReply().segments.map((segment: { text: string }) => segment.text), "The lamp steadies."],
+    "that reply is kept, with only his thought line gone",
   );
+});
+
+test("a masked love interest's thought line is dropped, and each choice's and the CG's `at` moves with it", () => {
+  const units = [{ id: KAI, name: "Kai Arden" }];
+  const at = { i: 0, kind: "beat", guide: "Rain.", cast: [KAI] } as ChapterNode;
+  const masked = normalizeState({ lis: { [KAI]: {} } });
+  const context = { node: at, units, state: masked, last: false };
+  const option = (text: string, segments: object[]) => ({
+    text,
+    selection: { kind: "dialogue", text },
+    segments,
+  });
+  const reply = {
+    segments: [
+      { speaker: "", text: "Rain on the glass." },
+      { speaker: "Kai", text: "Stay.", thought: true },
+      { speaker: "Kai", text: "You're late." },
+      { speaker: "Kai", text: "Don't go.", thought: true },
+    ],
+    choices: [
+      {
+        kind: "small",
+        at: 2,
+        options: [
+          option("Apologise", [
+            { speaker: "Kai", text: "Hm." },
+            { speaker: "Kai", text: "Fine.", thought: true },
+          ]),
+          option("Shrug", [{ speaker: "", text: "Silence." }]),
+        ],
+      },
+      {
+        kind: "small",
+        at: 1,
+        options: [option("Wave", [{ speaker: "Kai", text: "Hm." }]), option("Wait", [{ speaker: "", text: "Rain." }])],
+      },
+    ],
+  };
+  const beat = normalizeBeatReply(reply, context);
+  assert.ok(typeof beat === "object", String(beat));
+  assert.deepEqual(
+    beat.segments.map((segment) => segment.text),
+    ["Rain on the glass.", "You're late."],
+  );
+  // The choice after "You're late." follows it still; the one anchored on the dropped thought moves to the line before.
+  assert.deepEqual(
+    beat.choices.map((choice) => choice.at),
+    [0, 1],
+  );
+  assert.deepEqual(
+    beat.choices[1]!.options[0]!.segments.map((segment) => segment.text),
+    ["Hm."],
+    "a branch loses its masked thought too",
+  );
+  const moved = withoutMaskedThoughts(context, reply.segments);
+  assert.deepEqual(
+    [0, 1, 2, 3, "2", "x"].map((index) => moved.at(index)),
+    [0, 0, 1, 1, 1, "x"],
+    "the CG's `at` moves the same way",
+  );
+  // His side keeps its own rule: there, his thoughts are the point.
+  const pov = normalizeBeatReply({ segments: reply.segments.slice(0, 3) }, { ...context, pov: KAI });
+  assert.ok(typeof pov === "object", String(pov));
+  assert.equal(pov.segments.length, 3);
 });
 
 test("a love interest's thought under his first name alone keeps the stage and one-per-beat rules", () => {
@@ -449,9 +527,12 @@ test("a love interest's thought under his first name alone keeps the stage and o
   const thought = (speaker: string) => ({ speaker, text: "Stay.", thought: true });
   const reply = (...lines: object[]) => ({ segments: [{ speaker: "", text: "Rain on the glass." }, ...lines] });
   const masked = normalizeState({ lis: { [KAI]: {} } });
-  assert.match(
-    String(normalizeBeatReply(reply(thought("Kai")), { node: at, units, state: masked, last: false })),
-    /Kai Arden is still behind their mask/,
+  const kept = normalizeBeatReply(reply(thought("Kai")), { node: at, units, state: masked, last: false });
+  assert.ok(typeof kept === "object", String(kept));
+  assert.deepEqual(
+    kept.segments.map((segment) => segment.text),
+    ["Rain on the glass."],
+    "a masked love interest's thought is dropped, by his first name too",
   );
   const open = normalizeState({ lis: { [KAI]: { stage: 2 } } });
   assert.match(
@@ -3536,4 +3617,101 @@ test("a chapter another love interest leads plans and writes its scenes with the
   for (const messages of [plan, scene]) {
     assert.equal(whole(messages).split("MIR-STORY").length, 2, "once, in the story context");
   }
+});
+
+test("the next main chapter's plan and first scene pick up from the last Character Story (the hand-off)", async () => {
+  // The maintainer's (2026-11-09): after a Character Story, the main story did not carry on its last choice. Its plan
+  // and first scene now pick up from it, as chapter 1's first scene picks up from the prologue, with the task only.
+  const t = await storyWorld({ runKey: "r-handoff-aaaaaa", replies: router() });
+  await completeChapter(
+    t,
+    { key: "main-1", kind: "main", number: 1, lead: KAI, title: "Night 1" },
+    "NIGHT-ONE: the quay goes dark.",
+    "2026-10-28T09:00:00.000Z",
+  );
+  await completeChapter(
+    t,
+    { key: "story-item-ledger-0001", kind: "story", li: MIR, lead: MIR, title: "The Ledger Room" },
+    "MIR-STORY: she shows her the forged page.",
+    "2026-10-28T10:00:00.000Z",
+  );
+  assert.equal((await t.call("POST", "/runs/:run/chapters/next", { lead: SOL })).status, 200);
+  const main2 = (i: number) => ({ key: "main-2", i: String(i) });
+  assert.equal((await t.call("POST", beatPath, {}, main2(0))).status, 200);
+  await t.settle();
+  const plan = t.calls.find((call) => isPlanner(call.messages))!.messages;
+  const scene = (n: number) =>
+    t.calls.find((call) => new RegExp(`Narrate node ${n} of`, "u").test(call.messages.at(-1)!.content))!.messages;
+  assert.ok(plan.at(-1)!.content.includes(storyHandOff("The Ledger Room", "plan")), plan.at(-1)!.content);
+  assert.ok(scene(1).at(-1)!.content.includes(storyHandOff("The Ledger Room", "scene")), scene(1).at(-1)!.content);
+  const named = 'The Character Story "The Ledger Room"';
+  assert.ok(!whole(scene(2)).includes(named), "the first scene only");
+  // With the task only: the story context every scene shares stays the same.
+  assert.equal(scene(1)[0]!.content, plan[0]!.content);
+  for (const messages of [plan, scene(1)]) assert.equal(whole(messages).split(named).length, 2, "once");
+
+  // Only while it is the newest thing that happened: a date after it, or another kind of storyline, takes none.
+  const handOff = (options: Partial<Parameters<typeof recallText>[2]> = {}) =>
+    recallText({ store: t.store }, t.runId, {
+      job: "narration",
+      cast: [SOL],
+      continues: "main",
+      cached: {},
+      lastStory: true,
+      ...options,
+    }).then((context) => context.handOff);
+  assert.equal(await handOff(), "The Ledger Room");
+  assert.equal(await handOff({ continues: MIR }), undefined, "a route chapter's prompts take none");
+  assert.equal(await handOff({ lastStory: false }), undefined);
+  // His side (#2155) is part of the chapter it follows, so read after the Character Story it takes nothing away.
+  await completeChapter(
+    t,
+    {
+      key: `side-${KAI}-1`,
+      kind: "story",
+      li: KAI,
+      lead: KAI,
+      title: "Night 1",
+      hisSide: {
+        arc: 1,
+        ref: "main-1/0",
+        moment: "stage",
+        stage: 3,
+        trust: 0,
+        tension: 0,
+        open: [],
+        rupture: null,
+        at: "2026-10-28T10:30:00.000Z",
+      },
+    },
+    "KAI-SIDE: he watches the quay go dark.",
+    "2026-10-28T10:30:00.000Z",
+  );
+  assert.equal(await handOff(), "The Ledger Room", "his side after it keeps the hand-off");
+  // A figurine (#2128) or birthday (#2153) scene never counts toward the story (the maintainer's, 2026-11-10): read
+  // after the Character Story, neither takes its place as the last one, nor the hand-off.
+  for (const [key, title, line, at] of [
+    [figurineSceneKey(KAI), "Kai in Miniature", "KAI-FIGURINE: he sets it on the shelf.", "2026-10-28T10:40:00.000Z"],
+    [birthdaySceneKey(SOL, 2026), "Sol's Birthday", "SOL-BIRTHDAY: a cake on the quay.", "2026-10-28T10:50:00.000Z"],
+  ] as const) {
+    const li = key.includes(KAI) ? KAI : SOL;
+    await completeChapter(t, { key, kind: "story", li, lead: li, title }, line, at);
+    assert.equal(await handOff(), "The Ledger Room", `${title} after it keeps the hand-off`);
+    const context = await recallText({ store: t.store }, t.runId, {
+      job: "narration",
+      cast: [li],
+      continues: "main",
+      cached: {},
+      lastStory: true,
+    });
+    assert.ok(context.text.includes('# Last Character Story in full: "The Ledger Room"'), context.text);
+    assert.ok(!context.text.includes(`"${title}" (private between`), `${title} is never the last Character Story`);
+  }
+  await completeChapter(
+    t,
+    { key: "date-1", kind: "date", li: KAI, lead: KAI, title: "Jellyfish Hour" },
+    "KAI-DATE: Kai counts jellyfish.",
+    "2026-10-28T11:00:00.000Z",
+  );
+  assert.equal(await handOff(), undefined, "the date came after it");
 });
