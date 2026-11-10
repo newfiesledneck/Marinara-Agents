@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.97",
+          "date": "2026-11-09",
+          "notes": "- Fixed: Settings opened from the main menu didn't load your connections, so a connection you had chosen showed as \"(not found)\". They load there now, as they do in a world.",
+          "highlight": false
+        },
+        {
           "version": "0.4.96",
           "date": "2026-11-09",
           "notes": "- Credits: the thanks to Marinara and the Marinara Engine developers says more of how Wanderworld came to be, and the art line is shorter.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.78",
           "date": "2026-11-09",
           "notes": "- Lorebook keywords for Wanderworld now need the prefix \"ww:\" (\"ww: tavern1\", \"ww:woman\", \"ww: lives in home3\"), so a lorebook's ordinary trigger words (\"town\", \"man\", \"enemy\") never set anything by accident, and an entry's title alone links nothing. Lorebooks keyed the old way need the prefix added.\n- New keywords: a day (\"ww: work 10:15-18:45\", \"ww: home 22-7:15\", \"ww: eat 12-13 at tavern1\"), a place's name (\"ww: name The Gilded Stag\" beside \"ww: tavern1\"), and \"ww: character\" to make a person of an entry with no card. Schedules keep quarter hours.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.77",
-          "date": "2026-11-09",
-          "notes": "- New world can be written by the AI from nothing: \"World lore: let the AI write this world and its places\" writes a premise and named places with their own lore, kept in the world and active where you stand.\n- \"New people for the AI to invent\": up to 12 people built around those places and your cast, with a description, personality, looks, home, work and relationships. They live in that world only (not Engine characters), talk and keep their days like anyone, and can't be cast in scenes.\n- A lorebook entry about someone with no card can become a person in the world.\n- The steps feed each other in order: lorebooks, the world and its places, new people, then your own characters fitted in among them. All of it shows in the review before the land is built.",
           "highlight": false
         }
       ]

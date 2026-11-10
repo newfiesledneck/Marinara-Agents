@@ -1159,6 +1159,7 @@ export function createHud(root, handlers) {
     openSettings(section = null) {
       if (settingsPanel.style.display === "none") togglePanel(settingsPanel);
       showSection(section ?? shownSection);
+      void loadAi(); // the connections, presets and characters its lists offer, as the in-world button does
     },
     /** While the main menu is up: the bar, hint and panels go. */
     setMenuOpen(open) {
