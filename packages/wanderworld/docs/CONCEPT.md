@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.13, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.14, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.13: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.14: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.13, 2026-11-11)
+## Outstanding (as of 0.5.14, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -703,6 +703,14 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
 - _Clips._ `clips.js ACTS` maps an act to the clips it loops through; "ground" is the sitting clip with
   the legs folded by hand, "lie" the getting-up clip played backwards and held. `step` also takes `air`
   (the jump) and `gesture` (once). The hand-made motion has none of these.
+- _Walls._ The kit's windowed plaster walls come with a stone course at the foot and its plain ones
+  without, so `houses.js` gives a plaster ground floor the course all round (`wall-plaster-straight-base`)
+  and takes it off upstairs. A piece can leave one of its parts out (`skip`, a texture's name): the
+  course of an upstairs round-windowed wall (filled flush by the timbering piece's plaster strip), and
+  that strip where timbering lies over a course (they share a plane and flickered).
+- _The player._ Space jumps (`core.air`); C or the buttons sit, then lie (`rest()`: a seat with `ground`);
+  a bed is a seat with `pose: "lie"` and a `lift`; using a thing makes a gesture. Settings → Moving:
+  `restKey`, `jumpButton` and `restButton` (touch), `chatMoves` (the chat window's).
 - _Not done:_ the hearth doesn't glow at night or light the smith; nobody carries a tool (the hammer
   swing is a wood-chopper's, the watering has no can); a seller and a buyer don't talk to each other;
   hamlets and inns have no stalls; the player can't work a spot; Engine models with unusual proportions
