@@ -482,3 +482,92 @@ assert.deepEqual(loadSettings().resolution, "auto", "a damaged saved copy loads 
 delete globalThis.localStorage;
 
 console.log("wanderworld regression: OK");
+
+// ── The assistant's Undo takes back its own changes and nothing else ─────────────────────────────────────
+{
+  const { undoOnly, withoutLeftovers } = await import("../packages/wanderworld/src/undo.js");
+  const world = (extra = {}) => ({
+    setting: "a fishing village",
+    look: "",
+    names: { b1: "The Gull" },
+    stances: {},
+    voices: {},
+    traits: {},
+    schedules: {},
+    bodies: null,
+    housing: { a: { home: "b2" } },
+    cast: ["a", "b"],
+    known: [],
+    knowsMe: [],
+    locals: [],
+    factions: [],
+    errand: null,
+    lore: {},
+    book: { entries: [{ id: "e1", title: "Brin", content: "A baker." }] },
+    relationships: [{ from: "a", to: "b", kind: "friend", score: 10 }],
+    ...extra,
+  });
+  const whole = (path) => path.length === 1 && path[0] === "errand";
+  const before = world();
+  // The assistant: renames a place, makes a and b married, rewrites a lore entry, adds Wren with a home.
+  const wren = { id: "local:wren", name: "Wren" };
+  const after = world({
+    names: { b1: "The Anchor" },
+    relationships: [{ from: "a", to: "b", kind: "spouse", score: 10 }],
+    book: { entries: [{ id: "e1", title: "Brin", content: "A baker and a sorcerer." }] },
+    locals: [wren],
+    cast: ["a", "b", "local:wren"],
+    housing: { a: { home: "b2" }, "local:wren": { home: "b3" } },
+    errand: { id: "x", person: "local:wren", text: "Take a letter to Wren" },
+  });
+  // Then the player, by hand and through play: another name, a stance, a new setting, a warmer score,
+  // Wren given work and a voice, a note of their own.
+  const now = world({
+    ...after,
+    names: { b1: "The Anchor", b4: "Old Mill" },
+    stances: { b: "rude" },
+    setting: "a fishing town",
+    relationships: [
+      { from: "a", to: "b", kind: "spouse", score: 25 },
+      { from: "player", to: "local:wren", kind: "friend", score: 5 },
+    ],
+    housing: { a: { home: "b2" }, "local:wren": { home: "b3", work: "b1" } },
+    voices: { "local:wren": "low" },
+    book: { entries: [...after.book.entries, { id: "e2", title: "Mine", content: "By hand." }] },
+  });
+  const undone = withoutLeftovers(undoOnly(before, after, now, whole));
+  assert.deepEqual(undone.names, { b1: "The Gull", b4: "Old Mill" }, "the rename goes back, the player's stays");
+  assert.deepEqual(undone.stances, { b: "rude" });
+  assert.equal(undone.setting, "a fishing town");
+  assert.deepEqual(
+    undone.relationships,
+    [{ from: "a", to: "b", kind: "friend", score: 25 }],
+    "the kind goes back, the score play gave stays, and nothing is left about Wren",
+  );
+  assert.deepEqual(undone.book.entries, [
+    { id: "e1", title: "Brin", content: "A baker." },
+    { id: "e2", title: "Mine", content: "By hand." },
+  ]);
+  assert.deepEqual(undone.locals, []);
+  assert.deepEqual(undone.cast, ["a", "b"]);
+  assert.deepEqual(undone.housing, { a: { home: "b2" } });
+  assert.deepEqual(undone.voices, {});
+  assert.equal(undone.errand, null);
+  // The same thing changed again by the player: theirs stays.
+  assert.deepEqual(
+    undoOnly({ names: { b1: "The Gull" } }, { names: { b1: "The Anchor" } }, { names: { b1: "The Rope" } }).names,
+    { b1: "The Rope" },
+  );
+  // Someone the assistant removed comes back; an errand taken since is left whole.
+  const back = undoOnly(
+    { locals: [wren], errand: { id: "x", text: "old" } },
+    { locals: [], errand: { id: "y", text: "the assistant's" } },
+    { locals: [{ id: "local:ash", name: "Ash" }], errand: { id: "z", text: "old" } },
+    whole,
+  );
+  assert.deepEqual(back.locals, [{ id: "local:ash", name: "Ash" }, wren]);
+  assert.deepEqual(back.errand, { id: "z", text: "old" });
+  // Nothing changed since: exactly as before.
+  assert.deepEqual(undoOnly(before, after, structuredClone(after), whole), before);
+  console.log("ok: the assistant's undo takes back only its own changes");
+}

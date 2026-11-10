@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.7 — 2026-11-11
+
+- The assistant's Undo now takes back only what the assistant changed. Anything you changed yourself after its Confirm (in the Journal, or through play) stays, and if you've since changed the very same thing, yours is kept. Something the assistant added, such as a person or a lore entry, still goes.
+
 ## 0.5.6 — 2026-11-11
 
 - A review pass. Fixed: ending a group of places through the assistant left its lore ties behind; a conversation stayed open with someone the assistant had just removed (or an Undo took away); a street broken by open ground was named across the gap.

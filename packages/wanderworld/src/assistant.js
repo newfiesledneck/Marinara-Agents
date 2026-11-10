@@ -146,7 +146,7 @@ export function createAssistant(onAsk) {
             done.changes.map((change) => change.line),
           );
           list(after, "Left as it was", done.skipped);
-          // Undo, for the changes made last: an older one would take the newer ones with it.
+          // Undo, for the changes made last (it takes back those changes only; what changed since stays).
           lastUndo?.remove();
           const undo = button("Undo these changes", INK_SMALL, () => {
             if (busy) return;
@@ -154,8 +154,14 @@ export function createAssistant(onAsk) {
             lastUndo = null;
             try {
               done.undo();
-              after.append(element("div", "font-weight:700;", "Undone: the world is as it was before these changes."));
-              turn.text += "\nThe player then undid these changes: the world is as it was before them.";
+              after.append(
+                element(
+                  "div",
+                  "font-weight:700;",
+                  "Undone: these changes are taken back. Anything you changed since is kept.",
+                ),
+              );
+              turn.text += "\nThe player then undid these changes: they are taken back.";
             } catch (error) {
               after.append(element("div", "font-weight:700;color:#8e2a20;", `Not undone: ${error?.message ?? error}`));
             }

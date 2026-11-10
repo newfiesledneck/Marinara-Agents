@@ -54,6 +54,7 @@ import { HOUSE_PIECES } from "./houses.js";
 import { kitModels, kitTexture } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
+import { undoOnly, withoutLeftovers } from "./undo.js";
 import { createHangingSign, createNoticeboard, createSign } from "./signs.js";
 import {
   buildZones,
@@ -3179,7 +3180,7 @@ function savePerson(id, changes) {
  * One turn with the assistant: the world as it stands goes with the chat. What it wants to change comes
  * back as a proposal (nothing is changed yet): { reply, problem, proposed: [{ line, before, after }],
  * skipped: [text], apply() → { changes, skipped, undo() } } — `apply` (null with nothing to do) is the
- * player's Confirm, and the `undo` it returns puts the world back as it was before it.
+ * player's Confirm, and the `undo` it returns takes those changes back (and nothing changed since by hand).
  */
 async function askAssistant(history) {
   const save = core.save;
@@ -3301,7 +3302,8 @@ async function askAssistant(history) {
           const before = assistantSnapshot();
           try {
             const done = applyAssistantEdits(edits, false);
-            return { ...done, undo: () => undoAssistant(before) };
+            const after = assistantSnapshot();
+            return { ...done, undo: () => undoAssistant(before, after) };
           } catch (error) {
             // Something gave way part of the way through: back to how it was, so it's all or nothing.
             console.warn("[wanderworld] the assistant's changes failed", error);
@@ -3353,16 +3355,26 @@ const ASSISTANT_FIELDS = [
 function assistantSnapshot() {
   savePlace(true); // the cast as it is now
   const fields = Object.fromEntries(ASSISTANT_FIELDS.map((key) => [key, core.save[key]]));
+  fields.relationships = core.relations.all;
   return { id: core.save.id, fields: JSON.parse(JSON.stringify(fields)) };
 }
 
 /**
  * Undo: the world's fields back as `before` (assistantSnapshot) had them, and everything that's kept from
  * them brought back in line (who's here, their homes, days and names, how they stand, the signs). Where
- * the player is, the time and the chat are left alone.
+ * the player is, the time and the chat are left alone. With `after` (the world as the assistant's changes
+ * left it) only those changes go back: whatever has changed since by hand or through play stays (undo.js).
  */
-function undoAssistant(before) {
+function undoAssistant(before, after = null) {
   if (!core.save || core.save.id !== before.id) throw new Error("Another world is open now, so nothing was undone.");
+  if (after) {
+    // An errand, a map mark, someone's day and a place's hours are each one thing: taken back whole or left.
+    const whole = (path) =>
+      (path.length === 1 && (path[0] === "errand" || path[0] === "waypoint")) ||
+      (path.length === 2 && (path[0] === "schedules" || path[0] === "hours"));
+    const fields = withoutLeftovers(undoOnly(before.fields, after.fields, assistantSnapshot().fields, whole));
+    before = { id: before.id, fields };
+  }
   for (const member of core.crowd.party())
     if (!before.fields.cast.includes(member.id)) core.crowd.setFollowing(member.id, false);
   core.save = { ...core.save, ...JSON.parse(JSON.stringify(before.fields)) };
