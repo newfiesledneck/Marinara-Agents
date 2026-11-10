@@ -198,8 +198,9 @@ export function createHud(root, handlers) {
     invertLook: "Dragging up looks down, like a flight stick.",
     restKey:
       "The C key sits you down on the ground, and pressed again lies you down. The chat window's buttons do the same.",
-    jumpButton: "A Jump button in the chat window, and above Use on a touch screen. Space jumps either way.",
-    restButton: "A Sit button (then Lie down, then Get up) in the chat window, and above Use on a touch screen.",
+    jumpButton: "On a touch screen, a Jump button above Use.",
+    restButton: "On a touch screen, a Sit button above Use; it becomes Lie down once you're sitting on the ground.",
+    chatMoves: "Jump and Sit buttons in the chat window. Sit becomes Lie down, then Get up.",
     time: "Let the day pass, or keep it at one time of day.",
     aiMoments:
       "The model narrates what you do and people nearby may answer: one call each time. Off, the world answers with its own written lines. What you type in the chat is always a moment while this is on.",
@@ -324,8 +325,9 @@ export function createHud(root, handlers) {
   slider("lookSpeed", "Camera turn speed", 0.1, times);
   toggle("invertLook", "Invert up and down");
   toggle("restKey", "C sits and lies down");
-  toggle("jumpButton", "Jump button");
-  toggle("restButton", "Sit and lie down button");
+  toggle("jumpButton", "Jump button (touch screens)");
+  toggle("restButton", "Sit and lie down button (touch screens)");
+  toggle("chatMoves", "Jump and Sit/lie down buttons in the chat window");
   heading("World");
   settingsPanel.append(peopleButton); // who lives in this world
   choice("time", "Time", TIME_LABELS);
@@ -735,7 +737,7 @@ export function createHud(root, handlers) {
   // Bottom right, under the thumb that isn't on the stick.
   use.style.cssText += "position:absolute;bottom:32px;right:20px;padding:16px 20px;font-size:15px;display:none;";
   // On touch screens, above it: Jump, and Sit (which becomes Lie down once you're sitting on the ground).
-  const wanted = { jump: true, rest: true }; // Settings → Jump button, Sit and lie down button
+  const wanted = { jump: true, rest: true, chat: true }; // Settings → Moving: the thumb's two buttons, the chat window's
   const jump = button("Jump", "Jump", () => handlers.onJump());
   const rest = button("Sit", "Sit down on the ground; again to lie down", () => handlers.onRest());
   const THUMB = `position:absolute;right:20px;padding:12px 16px;font-size:14px;display:${touch ? "" : "none"};`;
@@ -1050,6 +1052,7 @@ export function createHud(root, handlers) {
       for (const [name, field] of Object.entries(fields)) field.set(settings[name]);
       wanted.jump = settings.jumpButton !== false;
       wanted.rest = settings.restButton !== false;
+      wanted.chat = settings.chatMoves !== false;
       hint.style.display = settings.hint ? "" : "none";
       stats.style.display = settings.stats ? "" : "none";
       // Explanations anywhere in Wanderworld's screens (settings, Journal, New world) show or hide together.
@@ -1152,9 +1155,7 @@ export function createHud(root, handlers) {
       // The chat window's: Sit, Lie down, Get up (also up from a bench or a bed).
       const label = resting === "ground" ? "Lie down" : resting ? "Get up" : "Sit";
       if (chatRest.textContent !== label) chatRest.textContent = label;
-      moves.style.display = shown && (wanted.jump || wanted.rest) ? "flex" : "none";
-      chatJump.style.display = wanted.jump ? "" : "none";
-      chatRest.style.display = wanted.rest ? "" : "none";
+      moves.style.display = shown && wanted.chat ? "flex" : "none";
       chatJump.disabled = !!resting;
     },
     /** The place line: `text` ("Briarwood · Mill Lane") and the titles of the lore active there. */

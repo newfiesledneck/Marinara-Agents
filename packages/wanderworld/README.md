@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.13)
+## What it does now (0.5.14)
 
 ### The world
 
@@ -68,8 +68,9 @@ from **Load world** or clear the site's data.
 - **Up to thirty characters live in each world,** in their own 3D models or dressed townsfolk (Quaternius's
   character packs, chosen from their name; a body picker sets Auto, Male or Female, per world).
 - **A living town:** townsfolk visit shops and the tavern, sit on benches, find their way along the streets,
-  go to work by day if they have a job, head home at night, and cross the river by a bridge or by
-  swimming. Friends meet up and hold little conversations, taking turns; name tags are tinted by how each
+  go to work by day if they have a job (indoors, or out at the forge, a market stall or the fields: see
+  Playing), rest in gardens, by ponds and in meadows, head home at night, and cross the river by a bridge
+  or by swimming. Friends meet up and hold little conversations, taking turns; name tags are tinted by how each
   person sees you (red enemies, green friends, pink romance…).
 - **Talking:** walk up and press E. They greet you by how they feel about you; pick from a few things to
   say, or type your own. With AI on they answer in character; without it, from set lines.
@@ -245,8 +246,11 @@ only walk about.
   before. They say a word now and then, and the Journal, the AI and pictures are told what they're at.
 - **Jump, sit, lie down:** Space jumps. C sits you down on the ground where you stand, C again lies you
   down, and moving (or E) gets you up; the party waits with you. The chat window has Jump and Sit buttons
-  too, and Settings → Moving can turn off the C key, the Jump button and the Sit button, each on its own. You reach out a hand to what
-  you use, pick up or drink when that's what you chose, and a home's bed is somewhere to lie down.
+  (Sit becomes Lie down, then Get up), and on a touch screen they're by your thumb as well. Settings →
+  Moving has a toggle for each: the C key, the touch Jump button, the touch Sit button, and the chat
+  window's buttons. You reach out a hand to what you use, pick something up or take a drink when that's
+  what you chose, sitting by your campfire sits you on the ground, and a home's bed is somewhere to lie
+  down (with Walk into buildings on).
 - **Animation:** recorded clips from Quaternius's Universal Animation Library and Universal Animation
   Library 2 (idle, walk, jog, sprint, sitting, talking, swimming, a jump and its landing, working, farm
   work, kneeling, folded arms, lying down, reaching and picking up), or the hand-made motion (Menu →
@@ -355,6 +359,13 @@ still count, and come first.
 - Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
   they count toward the world's thirty people. Engine characters all live in the home region.
 - Walk-in rooms are unfinished and off by default.
+- People at work hold no tools: the smith's swing is a wood-chopper's and the watering has no can. The
+  forge's hearth doesn't glow at night. A seller and a buyer at a stall don't talk to each other.
+- Hamlets and inns have no stalls, so a shop's people there work indoors. The player can't work a spot.
+- With Settings → Animation on Built-in, none of the new animations play: people sit for what's low to
+  the ground and stand for the rest, and a jump only lifts you.
+- A smithy's door stands at one end of its front. In a world made before 0.5.11 it has moved a few
+  metres; the building, its number and who works there are the same.
 - The AI's world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
 - Quartermaster works inside scenes started from Wanderworld (they are roleplay chats), not in the world.
 - The AI assistant's Undo buttons last until you leave the world or press Start over (the chat's words
@@ -381,19 +392,25 @@ still count, and come first.
   lamp posts, the fountain, lit windows, chimney smoke and awnings.
 - `src/buildings.js` is the parts kit (a building is a spec chosen from fixed menus) and `src/houses.js`
   assembles a building from the village kit on its 2 m grid; both versions share a footprint and door.
+  `styleFor` dresses each building from where it stands (tints, ridge, windows, dormers, porch, ivy)
+  without spending the town's own random numbers, so nothing moves; `forgeBay` opens a smithy's forge.
+  A plaster ground floor stands on a stone course all round; upstairs has none.
 - `src/zones.js` names the places of a world, finds the place at a point, says where someone is in words,
   and holds the setup logic: groups, numbered names, keeping the setup through a regenerate, and reading
   lorebook keywords (`matchLore`, `structureFromLore`, `needsFromLore`).
 - `src/npcs.js` runs the townsfolk: each follows their day's schedule (`src/schedules.js`) and, between
   its entries, a small plan (walk, sit, go in, chat, wait); routes along the streets in town and straight
   across country (by a bridge over the river, by the gates of a walled town), swims, follows the party,
-  and acts on relationships and temperament.
+  and acts on relationships and temperament. The world marks spots to work and rest at (`world.spots`:
+  the forge, stalls, fields, gardens, pond shores, meadows); someone takes one, is "busy" there doing its
+  act, and leaves the way they came in.
 - `src/relationships.js` holds relationship kinds, tiers and warmth, temperaments, and reading
   relationships from lore keywords; `src/dialogue.js` the set conversations; `src/interactions.js` the
   things you can do with doors and things, and the scene requests they make.
 - `src/character.js` applies motion to any humanoid and reads the Engine's personas, characters and
   character folders; `src/clips.js` plays the recorded clips (`src/clips/ual.json`, made by
-  `scripts/build-wanderworld-clips.mjs`); `src/motion.js` is the hand-made motion; `src/models.js` loads
+  `scripts/build-wanderworld-clips.mjs`): walking and running by speed, and what's done on the spot
+  (`ACTS`: work, rest, sitting or lying on the ground), a jump and one-off gestures; `src/motion.js` is the hand-made motion; `src/models.js` loads
   3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
   build the default people.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under

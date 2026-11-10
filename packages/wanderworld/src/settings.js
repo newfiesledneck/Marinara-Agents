@@ -39,9 +39,11 @@ export const SETTINGS = {
   invertLook: { value: false },
   /** C sits you down on the ground (and again lies you down). Off for anyone who'd rather the key did nothing. */
   restKey: { value: true },
-  /** The Jump button, and the Sit (then Lie down) button: in the chat window, and by the thumb on touch screens. */
+  /** On touch screens, the Jump button and the Sit (then Lie down) button by the thumb, each on its own. */
   jumpButton: { value: true },
   restButton: { value: true },
+  /** The Jump and Sit (then Lie down, then Get up) buttons in the chat window. */
+  chatMoves: { value: true },
   // Whose name is over their head: everyone's, only people the player knows (a stranger is "Stranger"), or nobody's.
   names: { value: "known", options: ["all", "known", "none"] },
   /** Short explanations under settings, in the Journal and on New world. */

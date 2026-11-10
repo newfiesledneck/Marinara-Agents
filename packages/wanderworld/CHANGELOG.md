@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.14 — 2026-11-11
+
+- The chat window keeps its Jump and Sit buttons whatever the touch buttons are set to, with its own toggle: Settings → Moving → "Jump and Sit/lie down buttons in the chat window". The Jump button and the Sit and lie down button toggles now only hide the ones by the thumb on touch screens.
+- The README, Help and plan are up to date with the last four versions.
+
 ## 0.5.13 — 2026-11-11
 
 - Fixed: upstairs walls with round windows had a band under the window that stepped in, where the stone course had been taken off. It's filled flush with plaster now.

@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.14",
+          "date": "2026-11-11",
+          "notes": "- The chat window keeps its Jump and Sit buttons whatever the touch buttons are set to, with its own toggle: Settings → Moving → \"Jump and Sit/lie down buttons in the chat window\". The Jump button and the Sit and lie down button toggles now only hide the ones by the thumb on touch screens.\n- The README, Help and plan are up to date with the last four versions.",
+          "highlight": false
+        },
+        {
           "version": "0.5.13",
           "date": "2026-11-11",
           "notes": "- Fixed: upstairs walls with round windows had a band under the window that stepped in, where the stone course had been taken off. It's filled flush with plaster now.\n- Settings → Moving has a toggle each for the Jump button and the Sit and lie down button, in place of one for both. Each hides its button in the chat window and by the thumb on touch screens; Space still jumps, and C still sits unless that is turned off too.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.97",
           "date": "2026-11-09",
           "notes": "- Fixed: Settings opened from the main menu didn't load your connections, so a connection you had chosen showed as \"(not found)\". They load there now, as they do in a world.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.96",
-          "date": "2026-11-09",
-          "notes": "- Credits: the thanks to Marinara and the Marinara Engine developers says more of how Wanderworld came to be, and the art line is shorter.",
           "highlight": false
         }
       ]
