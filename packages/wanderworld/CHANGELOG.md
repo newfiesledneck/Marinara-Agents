@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.5.19 — 2026-11-11
+
+- Look card: every piece (top, sleeves, legs, boots, hood, pauldrons) can have a colour of its own, and it comes out as the colour you pick instead of darkening the cloth. Skin can be any colour too.
+- Its own colour picker, with "Use this colour", "No colour" and "Cancel" buttons, in place of the browser's.
+- The button that forgets the choices is called Reset.
+- Fixed: cropped hair cut through a woman's head. There is one Cropped style now, cut for each body.
+- The two darkest townsfolk colours are lighter, and the colours are named for what they look like (Cream, Olive, Blue, Rose, Green, Plum, Grey).
+
 ## 0.5.18 — 2026-11-11
 
 - More in the Look card: each piece of an outfit (top, sleeves, legs, boots) can come from either outfit, the ranger's hood and pauldrons go on or off (on anyone), a colour of your own can be laid over the clothes, and hair can be any colour you pick.

@@ -113,5 +113,31 @@
     "long": "hair-long",
     "simpleparted": "hair-simpleparted",
     "beard": "hair-beard"
+  },
+  "tones": {
+    "skin-male": 142,
+    "head-male": 142,
+    "male-peasant-top": 94,
+    "male-peasant-arms": 70,
+    "male-peasant-legs": 43,
+    "male-peasant-feet": 71,
+    "male-ranger-top": 109,
+    "male-ranger-arms": 81,
+    "male-ranger-legs": 42,
+    "male-ranger-feet": 120,
+    "male-ranger-hood": 82,
+    "male-ranger-pauldrons": 169,
+    "skin-female": 148,
+    "head-female": 148,
+    "female-peasant-top": 81,
+    "female-peasant-arms": 107,
+    "female-peasant-legs": 49,
+    "female-peasant-feet": 71,
+    "female-ranger-top": 109,
+    "female-ranger-arms": 106,
+    "female-ranger-legs": 42,
+    "female-ranger-feet": 120,
+    "female-ranger-hood": 82,
+    "female-ranger-pauldrons": 169
   }
 }

@@ -40,6 +40,34 @@ function bodyPicker(onChange) {
   return select;
 }
 
+/** A colour (0xRRGGBB) as hue (0–360), strength and light (0–100 each), and back. */
+function toHsl(colour) {
+  const [r, g, b] = [(colour >> 16) & 255, (colour >> 8) & 255, colour & 255].map((value) => value / 255);
+  const [max, min] = [Math.max(r, g, b), Math.min(r, g, b)];
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (!d) return { h: 0, s: 0, l: l * 100 };
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: h * 60, s: s * 100, l: l * 100 };
+}
+function fromHsl({ h, s, l }) {
+  const [sat, light] = [s / 100, l / 100];
+  const c = (1 - Math.abs(2 * light - 1)) * sat;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = light - c / 2;
+  const [r, g, b] = [
+    [c, x, 0],
+    [x, c, 0],
+    [0, c, x],
+    [0, x, c],
+    [x, 0, c],
+    [c, 0, x],
+  ][Math.floor(h / 60) % 6];
+  const byte = (value) => Math.max(0, Math.min(255, Math.round((value + m) * 255)));
+  return (byte(r) << 16) | (byte(g) << 8) | byte(b);
+}
+
 function button(label, title, onClick) {
   const element = document.createElement("button");
   element.type = "button";
@@ -121,6 +149,8 @@ export function createHud(root, handlers) {
     layer.append(card);
     let chosen = { ...info.chosen };
     let now = info.now;
+    let picking = null; // which colour of one's own is being picked ("tint:top", "hairTint", "skinTint")
+    let draft = null; // the colour in the picker, as { h, s, l }, until it's used or cancelled
     const draw = () => {
       const title = document.createElement("div");
       title.style.cssText = "font-weight:700;font-size:14px;";
@@ -143,7 +173,8 @@ export function createHud(root, handlers) {
         });
       };
       const row = (label, control) => {
-        const line = document.createElement("label");
+        // (Not a <label>: a row may hold a second control, the square for a colour of one's own.)
+        const line = document.createElement("div");
         line.style.cssText = "display:flex;align-items:center;gap:8px;font-size:13px;";
         const name = document.createElement("span");
         name.style.cssText = "min-width:92px;";
@@ -168,6 +199,103 @@ export function createHud(root, handlers) {
       };
       const hex = (value) => `#${value.toString(16).padStart(6, "0")}`;
       const outfitNames = now.outfits.map((name) => [name, OUTFITS[name].label]);
+      // A colour of your own, for a piece, the hair or the skin: a small square beside its row opens the
+      // picker under it, and nothing changes until "Use this colour".
+      const square = (key, colour, label) => {
+        const open = button(colour === null ? "Colour" : "", label, () => {
+          picking = picking === key ? null : key;
+          draft = null;
+          card.replaceChildren(...draw());
+        });
+        open.style.cssText += `flex:0 0 auto;min-width:36px;min-height:36px;padding:0 8px;font-size:11px;${
+          colour === null ? "" : `background:${hex(colour)};border:2px solid rgba(0,0,0,0.35);`
+        }`;
+        open.setAttribute("aria-label", label);
+        return open;
+      };
+      const picker = (key, colour, onUse, onClear) => {
+        if (picking !== key) return;
+        // Hue, strength and light, so it works the same on a phone as with a mouse.
+        draft ??= toHsl(colour ?? 0x8a6a4a);
+        const panel = document.createElement("div");
+        panel.style.cssText =
+          "display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;background:rgba(0,0,0,0.12);font-size:12px;";
+        const preview = document.createElement("div");
+        preview.style.cssText = "height:26px;border-radius:6px;border:2px solid rgba(0,0,0,0.35);";
+        const show = () => (preview.style.background = hex(fromHsl(draft)));
+        panel.append(preview);
+        for (const [part, label, max] of [
+          ["h", "Colour", 360],
+          ["s", "Strength", 100],
+          ["l", "Light", 100],
+        ]) {
+          const line = document.createElement("label");
+          line.style.cssText = "display:flex;align-items:center;gap:8px;";
+          const name = document.createElement("span");
+          name.style.cssText = "min-width:56px;";
+          name.textContent = label;
+          const slider = document.createElement("input");
+          slider.type = "range";
+          slider.min = "0";
+          slider.max = String(max);
+          slider.value = String(Math.round(draft[part]));
+          slider.style.flex = "1";
+          slider.setAttribute("aria-label", label);
+          slider.addEventListener("input", () => {
+            draft = { ...draft, [part]: Number(slider.value) };
+            show();
+          });
+          line.append(name, slider);
+          panel.append(line);
+        }
+        show();
+        const buttons = document.createElement("div");
+        buttons.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+        const close = () => {
+          picking = null;
+          draft = null;
+        };
+        const use = button("Use this colour", "Set this colour", () => {
+          const chosenColour = fromHsl(draft);
+          close();
+          onUse(chosenColour);
+        });
+        const cancel = button("Cancel", "Leave it as it was", () => {
+          close();
+          card.replaceChildren(...draw());
+        });
+        buttons.append(use);
+        if (onClear) {
+          buttons.append(
+            button("No colour", "Back to the cloth's own colour", () => {
+              close();
+              onClear();
+            }),
+          );
+        }
+        buttons.append(cancel);
+        for (const control of buttons.children) control.style.cssText += "flex:1;padding:8px 6px;font-size:12px;";
+        panel.append(buttons);
+        rows.push(panel);
+      };
+      const tintOf = (piece) => now.tints[piece] ?? null;
+      const setTint = (piece, colour) => {
+        const tints = { ...now.tints };
+        if (colour === null) delete tints[piece];
+        else tints[piece] = colour;
+        set({ tints: Object.keys(tints).length ? tints : undefined });
+      };
+      const tintRow = (piece, label) => {
+        rows[rows.length - 1].append(
+          square(`tint:${piece}`, tintOf(piece), `A colour of your own for the ${label.toLowerCase()}`),
+        );
+        picker(
+          `tint:${piece}`,
+          tintOf(piece),
+          (colour) => setTint(piece, colour),
+          () => setTint(piece, null),
+        );
+      };
       // A whole outfit: choosing one puts every piece back to it.
       pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
         top: undefined,
@@ -177,8 +305,12 @@ export function createHud(root, handlers) {
         hood: undefined,
         pauldrons: undefined,
       });
-      // Its pieces, each from any outfit, and the ranger's hood and pauldrons on or off.
-      for (const [piece, label] of PIECES) pick(label, piece, outfitNames, now[piece]);
+      // Its pieces, each from any outfit and in a colour of its own if you like; the ranger's hood and
+      // pauldrons on or off.
+      for (const [piece, label] of PIECES) {
+        pick(label, piece, outfitNames, now[piece]);
+        tintRow(piece, label);
+      }
       for (const [extra, label] of EXTRAS) {
         pick(
           label,
@@ -190,73 +322,58 @@ export function createHud(root, handlers) {
           now[extra] ? "yes" : "no",
           (text) => text === "yes",
         );
+        if (now[extra]) tintRow(extra, label);
       }
       // Each outfit's cloth has its own colours: only those with a piece on show.
       for (const kind of now.worn) {
         const field = COLOUR_FIELD[kind];
-        pick(
-          now.worn.length > 1 ? `${OUTFITS[kind].label} colour` : "Colour",
-          field,
-          OUTFITS[kind].colours,
-          now[field],
-        );
+        pick(now.worn.length > 1 ? `${OUTFITS[kind].label} cloth` : "Cloth", field, OUTFITS[kind].colours, now[field]);
       }
-      // A colour of your own laid over the clothes (it darkens and turns them; white leaves them be).
-      const swatch = (label, value, onPick, onClear) => {
-        const holder = document.createElement("span");
-        holder.style.cssText = "display:flex;gap:6px;align-items:center;";
-        const input = document.createElement("input");
-        input.type = "color";
-        input.value = hex(value);
-        input.setAttribute("aria-label", label);
-        input.style.cssText = "flex:1;min-width:0;height:36px;padding:0;border:0;background:none;";
-        input.addEventListener("change", () => onPick(parseInt(input.value.slice(1), 16)));
-        holder.append(input);
-        if (onClear) {
-          const clear = button("None", `No ${label.toLowerCase()}`, onClear);
-          clear.style.cssText += "padding:6px 10px;font-size:12px;";
-          holder.append(clear);
-        }
-        row(label, holder);
-      };
-      swatch(
-        "Clothes tint",
-        now.tint ?? 0xffffff,
-        (value) => set({ tint: value === 0xffffff ? undefined : value }),
-        () => set({ tint: undefined }),
+      pick(
+        "Hair",
+        "hair",
+        HAIRSTYLES.map(([style, text]) => [style, text]),
+        now.hair,
       );
-      pick("Hair", "hair", HAIRSTYLES, now.hair);
-      // Hair colour: one from the list, or your own.
-      {
+      // Hair and skin: one from the list, or a colour of your own.
+      const listOrOwn = (label, list, at, own, key, ownKey) => {
         const select = document.createElement("select");
         select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
-        select.setAttribute("aria-label", "Hair colour");
-        for (const [value, text] of [
-          ...HAIR_COLOURS.map(([, name], i) => [String(i), name]),
-          ["custom", "Your own…"],
-        ]) {
+        select.setAttribute("aria-label", label);
+        for (const [value, text] of [...list.map((name, i) => [String(i), name]), ["own", "Your own…"]]) {
           const item = document.createElement("option");
           item.value = value;
           item.textContent = text;
           select.append(item);
         }
-        select.value = now.hairTint === null ? String(now.hairColour) : "custom";
-        select.addEventListener("change", () =>
-          set(
-            select.value === "custom"
-              ? { hairTint: HAIR_COLOURS[now.hairColour][0] }
-              : { hairColour: Number(select.value), hairTint: undefined },
-          ),
-        );
-        row("Hair colour", select);
-        if (now.hairTint !== null) swatch("Your hair colour", now.hairTint, (value) => set({ hairTint: value }));
-      }
-      pick(
+        select.value = own === null ? String(at) : "own";
+        select.addEventListener("change", () => {
+          if (select.value === "own") {
+            // Nothing changes yet: the picker opens, and its button sets the colour.
+            picking = ownKey;
+            draft = null;
+            card.replaceChildren(...draw());
+          } else set({ [key]: Number(select.value), [ownKey]: undefined });
+        });
+        row(label, select);
+        if (own !== null) rows[rows.length - 1].append(square(ownKey, own, `Change your own ${label.toLowerCase()}`));
+        picker(ownKey, own, (colour) => set({ [ownKey]: colour }));
+      };
+      listOrOwn(
+        "Hair colour",
+        HAIR_COLOURS.map(([, name]) => name),
+        now.hairColour,
+        now.hairTint,
+        "hairColour",
+        "hairTint",
+      );
+      listOrOwn(
         "Skin",
-        "skin",
-        SKIN_TONES.map(([, text], i) => [i, text]),
+        SKIN_TONES.map(([, name]) => name),
         now.skin,
-        Number,
+        now.skinTint,
+        "skin",
+        "skinTint",
       );
       if (now.sex === "male") {
         pick(
@@ -281,7 +398,8 @@ export function createHud(root, handlers) {
       row("Height", height);
       const buttons = document.createElement("div");
       buttons.style.cssText = "display:flex;gap:8px;";
-      const reset = button("As their name has it", "Forget these choices: back to the look their name gives", () => {
+      const reset = button("Reset", "Forget these choices: back to the look their name gives", () => {
+        picking = null;
         chosen = {};
         handlers.onSetLook(id, null);
         void handlers.lookOf(id).then((next) => {

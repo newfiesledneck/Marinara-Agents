@@ -6,9 +6,10 @@
 //     top, arms, legs, feet,        or any one piece of it from another outfit
 //     hood, pauldrons,              the ranger's, on or off (on with the ranger's top unless said)
 //     colour, rangerColour,         the cloth of the townsfolk pieces, and of the ranger's
-//     tint,                         a colour laid over all the clothes (0xRRGGBB)
+//     tints: { top, arms, … },      a colour of your own for any piece (0xRRGGBB), in place of its cloth's
 //     hair, hairColour, hairTint,   the style, a colour from the list, or one of your own (0xRRGGBB)
-//     skin, beard, height }
+//     skin, skinTint,               a skin tone from the list, or a colour of your own (0xRRGGBB)
+//     beard, height }
 //
 // (Which body, "male" or "female", is kept apart: save.bodies.)
 
@@ -17,11 +18,11 @@ export const OUTFITS = {
   peasant: {
     label: "Townsfolk",
     colours: [
-      ["clothes-a", "Brown"],
-      ["clothes-b", "Green"],
+      ["clothes-a", "Cream"],
+      ["clothes-b", "Olive"],
       ["clothes-blue", "Blue"],
-      ["clothes-red", "Red"],
-      ["clothes-teal", "Teal"],
+      ["clothes-red", "Rose"],
+      ["clothes-teal", "Green"],
       ["clothes-plum", "Plum"],
       ["clothes-grey", "Grey"],
     ],
@@ -61,14 +62,15 @@ export const HAIRSTYLES = [
   ["simpleparted", "Parted"],
   ["long", "Long"],
   ["buns", "Buns"],
-  ["buzzed", "Cropped"],
-  ["buzzedfemale", "Cropped, soft"],
+  ["cropped", "Cropped"],
   ["none", "None"],
 ];
+/** The kit's file for a hairstyle: cropped hair is cut to each body's own head. */
+export const HAIR_FILE = (hair, sex) => (hair === "cropped" ? (sex === "female" ? "buzzedfemale" : "buzzed") : hair);
 /** What a name alone picks from. */
 export const USUAL_HAIR = {
-  male: ["buzzed", "simpleparted", "long", "simpleparted"],
-  female: ["buns", "long", "simpleparted", "buzzedfemale"],
+  male: ["cropped", "simpleparted", "long", "simpleparted"],
+  female: ["buns", "long", "simpleparted", "cropped"],
 };
 
 /** Hair colours: [hex, label]; a look holds the place in this list. */
@@ -104,6 +106,7 @@ export const SKIN_TONES = [
 export const HEIGHTS = [0.88, 1.12];
 
 const isColour = (value) => Number.isInteger(value) && value >= 0 && value <= 0xffffff;
+const isRecord = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 
 /**
  * A look as saved or sent, made safe: only the choices there are, each one of its menu (or left out).
@@ -122,12 +125,21 @@ export function checkLook(raw) {
     const chosen = [raw[field], raw.colour].find((value) => colours.includes(value));
     if (chosen) look[field] = chosen;
   }
-  if (isColour(raw.tint)) look.tint = raw.tint;
-  if (HAIRSTYLES.some(([style]) => style === raw.hair)) look.hair = raw.hair;
+  // A colour of its own for any piece. (A look saved with one tint for all the clothes has it on each.)
+  const tints = {};
+  for (const [piece] of [...PIECES, ...EXTRAS]) {
+    const colour = isRecord(raw.tints) && isColour(raw.tints[piece]) ? raw.tints[piece] : raw.tint;
+    if (isColour(colour)) tints[piece] = colour;
+  }
+  if (Object.keys(tints).length) look.tints = tints;
+  // (Cropped hair was once two styles, one for each body.)
+  const hair = raw.hair === "buzzed" || raw.hair === "buzzedfemale" ? "cropped" : raw.hair;
+  if (HAIRSTYLES.some(([style]) => style === hair)) look.hair = hair;
   const within = (value, count) => Number.isInteger(value) && value >= 0 && value < count;
   if (within(raw.hairColour, HAIR_COLOURS.length)) look.hairColour = raw.hairColour;
   if (isColour(raw.hairTint)) look.hairTint = raw.hairTint;
   if (within(raw.skin, SKIN_TONES.length)) look.skin = raw.skin;
+  if (isColour(raw.skinTint)) look.skinTint = raw.skinTint;
   if (typeof raw.beard === "boolean") look.beard = raw.beard;
   if (Number.isFinite(raw.height)) look.height = Math.max(HEIGHTS[0], Math.min(HEIGHTS[1], Number(raw.height)));
   return look;

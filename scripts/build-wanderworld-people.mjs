@@ -267,6 +267,39 @@ function texture(source, name, size = TEXTURE_SIZE, filter = "") {
   return name;
 }
 
+/**
+ * How light a made texture is (0–255), on average: over the texture coordinates given (`uvs`: arrays of
+ * u, v pairs, a piece's own), or over all of it that isn't empty black.
+ */
+function toneOf(name, uvs = null) {
+  const size = 128;
+  const grey = execFileSync(
+    FFMPEG,
+    ["-v", "error", "-i", join(OUT, `${name}.webp`), "-vf", `scale=${size}:${size},format=gray`, "-f", "rawvideo", "-"],
+    { maxBuffer: 1 << 24 },
+  );
+  let sum = 0;
+  let count = 0;
+  if (uvs?.length) {
+    for (const values of uvs) {
+      for (let i = 0; i + 1 < values.length; i += 2) {
+        const wrap = (value) => value - Math.floor(value);
+        const x = Math.min(size - 1, Math.floor(wrap(values[i]) * size));
+        const y = Math.min(size - 1, Math.floor(wrap(values[i + 1]) * size));
+        sum += grey[y * size + x];
+        count++;
+      }
+    }
+  } else {
+    for (const value of grey) {
+      if (value < 12) continue;
+      sum += value;
+      count++;
+    }
+  }
+  return Math.max(16, Math.round(count ? sum / count : 128));
+}
+
 function main() {
   const [baseDir, outfitDir] = process.argv.slice(2);
   if (!baseDir || !outfitDir)
@@ -295,17 +328,25 @@ function main() {
   const mask = tunicMask(join(outfitDir, "Exports/glTF (Godot-Unreal)/Modular Parts"), TEXTURE_SIZE);
   const colourways = [
     texture(peasant, "clothes-a"),
-    texture(peasant2, "clothes-b"),
+    // (The pack's second colourway is very dark: lifted, so it reads as brown and olive, not black.)
+    texture(peasant2, "clothes-b", TEXTURE_SIZE, "eq=gamma=1.5"),
     recolour(peasant, "clothes-blue", "hue=h=190:s=1.3", mask),
     recolour(peasant, "clothes-red", "hue=h=-25:s=1.5", mask),
-    recolour(peasant2, "clothes-teal", "hue=h=110:s=1.4", mask),
+    recolour(peasant2, "clothes-teal", "hue=h=110:s=1.4,eq=gamma=1.7", mask),
     recolour(peasant, "clothes-plum", "hue=h=-65:s=0.75", mask),
     recolour(peasant, "clothes-grey", "hue=s=0.25,eq=brightness=0.04", mask),
   ];
   rmSync(mask);
+  // Plain cloth and skin: the same textures with their colour taken out, for a piece (or skin) given a
+  // colour of its own. Multiplying a coloured cloth by another colour only muddies it; a grey one, times
+  // the colour over the piece's own tone (index.tones, measured below), comes out as the colour picked.
+  index.tones = {};
+  const plain = (source, name) => texture(source, name, TEXTURE_SIZE, "hue=s=0,eq=gamma=1.25");
+  plain(peasant, "plain-peasant");
   // The ranger outfit: the pack's two colourways, and a few more by turning the whole cloth's colours.
   const ranger = join(outfitTextures, "Ranger/T_Ranger_BaseColor.png");
   const ranger3 = join(outfitTextures, "Ranger/T_Ranger_3_BaseColor.png");
+  plain(ranger, "plain-ranger");
   const rangerColourways = [
     texture(ranger, "ranger-a"),
     texture(ranger3, "ranger-b"),
@@ -322,8 +363,12 @@ function main() {
     ["female", "Female"],
   ]) {
     texture(join(outfitTextures, `Base/T_Regular_${Sex}_Dark_BaseColor.png`), `skin-${sex}`);
+    plain(join(outfitTextures, `Base/T_Regular_${Sex}_Dark_BaseColor.png`), `plain-skin-${sex}`);
+    index.tones[`skin-${sex}`] = toneOf(`plain-skin-${sex}`);
     const headSkin = sex === "male" ? "T_Superhero_Male_Dark.png" : "T_Superhero_Female_Dark_BaseColor.png";
     texture(join(bodies, headSkin), `head-${sex}`);
+    plain(join(bodies, headSkin), `plain-head-${sex}`);
+    index.tones[`head-${sex}`] = toneOf(`plain-head-${sex}`);
 
     // The head: the base body's triangles held by the head and neck, plus its eyes and eyebrows.
     const base = readGltf(join(bodies, `Superhero_${Sex}_FullBody.gltf`));
@@ -364,10 +409,18 @@ function main() {
           .map((name) => join(parts, `${Sex}_${outfit}_${name}.gltf`))
           .find((candidate) => existsSync(candidate));
         if (!path) throw new Error(`No ${Sex} ${outfit} ${file} piece in the pack`);
-        const part = packPart(skinnedPrimitives(readGltf(path)), {
+        const primitives = skinnedPrimitives(readGltf(path));
+        const part = packPart(primitives, {
           texture: (primitive) => (/Regular/iu.test(primitive.texture ?? "") ? `skin-${sex}` : `clothes-${kind}`),
         });
         const name = `${sex}-${kind}-${piece}`;
+        // How light this piece's cloth is in the plain texture, where its own triangles lie on it.
+        index.tones[name] = toneOf(
+          `plain-${kind}`,
+          primitives
+            .filter((primitive) => !/Regular/iu.test(primitive.texture ?? ""))
+            .map((primitive) => primitive.uv.values),
+        );
         writeFileSync(join(OUT, `${name}.json`), JSON.stringify(part));
         (index.sexes[sex].pieces[piece] ??= []).push(kind);
       }

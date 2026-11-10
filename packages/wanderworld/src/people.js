@@ -26,6 +26,7 @@ import {
   COLOUR_FIELD,
   EXTRAS,
   HAIR_COLOURS,
+  HAIR_FILE,
   OUTFITS,
   PIECES,
   RANGER_SHARE,
@@ -196,7 +197,8 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
     choices[field] = colourways[kind];
   }
   Object.assign(choices, {
-    tint: chosen.tint ?? null,
+    tints: { ...(chosen.tints ?? {}) },
+    skinTint: chosen.skinTint ?? null,
     hair: chosen.hair ?? usualHair,
     hairColour: chosen.hairColour ?? usualHairColour,
     hairTint: chosen.hairTint ?? null,
@@ -212,7 +214,8 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
     sex,
     parts,
     colourways,
-    tint: choices.tint,
+    tints: choices.tints,
+    skinTint: choices.skinTint,
     hair: choices.hair,
     beard: choices.beard,
     skin: SKIN_TONES[choices.skin][0],
@@ -236,7 +239,7 @@ export async function createPerson(name, build = "auto", chosen = {}) {
   const index = await load("index.json");
   const look = lookFor(name, index, build, chosen);
   const parts = [`skeleton-${look.sex}`, ...look.parts, `head-${look.sex}`];
-  if (look.hair !== "none") parts.push(`hair-${look.hair}`);
+  if (look.hair !== "none") parts.push(`hair-${HAIR_FILE(look.hair, look.sex)}`);
   if (look.beard) parts.push("hair-beard");
   const [body, ...rest] = await Promise.all(parts.map((part) => load(`${part}.json`)));
 
@@ -263,21 +266,38 @@ export async function createPerson(name, build = "auto", chosen = {}) {
 
   const skinTint = new Color(...look.skin);
   const hairTint = new Color(look.hairColour);
-  const clothTint = look.tint === null ? 0xffffff : look.tint;
-  const materialFor = (name) => {
+  // A colour of one's own (a piece's, or the skin's) goes on the plain, grey texture: times the colour
+  // over how light that piece is there (the kit's `tones`), it comes out as the colour picked.
+  const painted = (colour, tone) => {
+    const [want, grey] = [new Color(colour), new Color().setRGB(tone / 255, tone / 255, tone / 255, SRGBColorSpace)];
+    return new Color(Math.min(6, want.r / grey.r), Math.min(6, want.g / grey.g), Math.min(6, want.b / grey.b));
+  };
+  const tones = index.tones ?? {};
+  const materialFor = (name, partName) => {
     const isSkin = name.startsWith("skin-") || name.startsWith("head-");
     const isHair = name.startsWith("hair-");
-    // A piece's cloth is named for its outfit ("clothes-ranger"): that outfit's colour, under the tint.
-    const cloth = name.startsWith("clothes-") ? look.colourways[name.slice("clothes-".length)] : null;
-    const color = isSkin ? skinTint : isHair ? hairTint : cloth ? clothTint : 0xffffff;
-    return new MeshLambertMaterial({ map: texture(cloth ?? name), color });
+    if (isSkin && look.skinTint !== null && tones[name]) {
+      return new MeshLambertMaterial({ map: texture(`plain-${name}`), color: painted(look.skinTint, tones[name]) });
+    }
+    // A piece's cloth is named for its outfit ("clothes-ranger"): that outfit's colour, or the piece's own.
+    const kind = name.startsWith("clothes-") ? name.slice("clothes-".length) : null;
+    const piece = partName.slice(partName.lastIndexOf("-") + 1);
+    if (kind && look.tints[piece] !== undefined && tones[partName]) {
+      return new MeshLambertMaterial({
+        map: texture(`plain-${kind}`),
+        color: painted(look.tints[piece], tones[partName]),
+      });
+    }
+    const map = texture(kind ? look.colourways[kind] : name);
+    return new MeshLambertMaterial({ map, color: isSkin ? skinTint : isHair ? hairTint : 0xffffff });
   };
-  for (const part of rest) {
+  for (const [at, part] of rest.entries()) {
+    const partName = parts[at + 1];
     const partBones = part.joints.map((jointName) => bones.get(jointName) ?? root);
     const inverses = part.joints.map((_, i) => new Matrix4().fromArray(part.inverseBind, i * 16));
     const skeleton = new Skeleton(partBones, inverses);
     for (const mesh of part.meshes) {
-      const skinned = new SkinnedMesh(geometryOf(mesh), materialFor(mesh.texture));
+      const skinned = new SkinnedMesh(geometryOf(mesh), materialFor(mesh.texture, partName));
       skinned.frustumCulled = false;
       root.add(skinned);
       skinned.bind(skeleton, skinned.matrixWorld);

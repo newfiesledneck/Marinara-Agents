@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.19",
+          "date": "2026-11-11",
+          "notes": "- Look card: every piece (top, sleeves, legs, boots, hood, pauldrons) can have a colour of its own, and it comes out as the colour you pick instead of darkening the cloth. Skin can be any colour too.\n- Its own colour picker, with \"Use this colour\", \"No colour\" and \"Cancel\" buttons, in place of the browser's.\n- The button that forgets the choices is called Reset.\n- Fixed: cropped hair cut through a woman's head. There is one Cropped style now, cut for each body.\n- The two darkest townsfolk colours are lighter, and the colours are named for what they look like (Cream, Olive, Blue, Rose, Green, Plum, Grey).",
+          "highlight": false
+        },
+        {
           "version": "0.5.18",
           "date": "2026-11-11",
           "notes": "- More in the Look card: each piece of an outfit (top, sleeves, legs, boots) can come from either outfit, the ranger's hood and pauldrons go on or off (on anyone), a colour of your own can be laid over the clothes, and hair can be any colour you pick.\n- Fixed: choosing a colour could switch the outfit back to townsfolk. Each outfit now keeps its own colour, and only the ones being worn are offered.\n- Fixed: the ranger's extra colours were so dark they looked black. They're lighter, and there are two more (rust and moss).\n- Changing your own look no longer flashes the plain stand-in figure while the new one loads.",
@@ -308,12 +314,6 @@
           "date": "2026-11-09",
           "notes": "- New world: the first map is marked as a first idea. Lorebooks and the AI's setup add the places the lore needs, so the map you get can differ.\n- The review before a world is built shows the map it will get, and \"Reroll the map\" gives another without asking the AI again: the people, places and lore stay, and every place they need is on the new map.\n- When the AI invents people, it reads your persona's and your chosen characters' cards first. Family and close ones the cards speak of (a father, a brother, a wife, an old friend) who aren't among your characters are made before anyone is invented, your persona's own family first, with how they're related set.",
           "highlight": true
-        },
-        {
-          "version": "0.4.101",
-          "date": "2026-11-09",
-          "notes": "- Fixed: a prompt like \"[E] Talk to Brenna\" (or a caption) could stay on screen over the main menu. Going to the menu clears them.\n- The usual {world_look} is just \"medieval fantasy\" now: an image model that doesn't reason could read \"nothing modern\" as \"modern\".",
-          "highlight": false
         }
       ]
     }
