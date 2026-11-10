@@ -156,6 +156,11 @@ export function checkWorld(raw) {
     lore: checkLore(raw.lore),
     // The world's setting in words ("a cosy fishing village"), for the AI to write the world from.
     setting: text(raw.setting).slice(0, 600),
+    // How old the people the AI makes may be: { min, max } in years, null for no limit either way.
+    ages: {
+      min: Number.isInteger(raw.ages?.min) && raw.ages.min >= 0 && raw.ages.min <= 999 ? raw.ages.min : null,
+      max: Number.isInteger(raw.ages?.max) && raw.ages.max >= 0 && raw.ages.max <= 999 ? raw.ages.max : null,
+    },
     // How the world looks in pictures ({world_look}); "" is the setting pack's own.
     look: text(raw.look).slice(0, 200),
     // The chat as it was left: the last lines, [{ who, text }].

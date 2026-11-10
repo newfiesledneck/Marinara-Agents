@@ -320,6 +320,18 @@ async function writersCards(resources, body) {
     .filter((card) => card.text);
 }
 
+/** An age from the client: a whole number of years from 0 to 999, or null for no limit. */
+const ageOf = (value) => (Number.isInteger(value) && value >= 0 && value <= 999 ? value : null);
+
+/** How old the people the model makes may be, as a sentence ("" when the world sets no limit). */
+export function ageRule(ages) {
+  const [min, max] = [ageOf(ages?.min), ageOf(ages?.max)];
+  if (min === null && max === null) return "";
+  if (max === null) return `Ages: everyone is ${min} years old or older, nobody younger.`;
+  if (min === null) return `Ages: nobody is older than ${max}.`;
+  return `Ages: everyone is between ${Math.min(min, max)} and ${Math.max(min, max)} years old, nobody younger or older.`;
+}
+
 /**
  * The messages that have the model write a world of its own, a step at a time, each fed by the last:
  * "places" writes the premise and the places with their lore (around the setting, the people already
@@ -336,6 +348,7 @@ export function worldWriteMessages(input) {
     "Already placed",
     input.placed.map((item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (${item.title})` : ""}`).join("\n"),
   );
+  const ages = ageRule(input.ages);
   if (input.step === "detail") {
     return [
       {
@@ -343,8 +356,11 @@ export function worldWriteMessages(input) {
         content: [
           "You fill in the people of a small 3D world from what its lore says of them, for a roleplay sandbox. Answer with one JSON object and nothing else.",
           `For each numbered person give "n" (their number) and, staying true to what's written and inventing only what's missing: "body" ("male" or "female"), "description" (60 to 120 words: who they are, their age and trade, their history here, what they want), "personality" (20 to 40 words, with how they talk) and "appearance" (20 to 40 words).`,
+          ages && `${ages} That is for anyone whose age the lore doesn't give (what the lore says of someone stays); say each one's age in their description.`,
           `{"people": [{"n": 1, "body": "female", "description": "", "personality": "", "appearance": ""}]}`,
-        ].join("\n\n"),
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
       },
       {
         role: "user",
@@ -374,8 +390,11 @@ export function worldWriteMessages(input) {
 - "personality": 20 to 40 words, with how they talk.
 - "appearance": 20 to 40 words.
 - "keys": where they belong, as keywords: "lives in <home>" ("lives in home4"; people who share a house share its number, and homes under "Already placed" are taken unless they'd live there), "works at <place>" or "owner of <place>", what they are to the player as one bare word (one of friend, romance, partner, family, colleague, mentor, rival, enemy, fear, or for the player's family brother, sister, father, mother, son, daughter, husband, wife; nothing for a stranger), and how they stand toward others as "<word> of <Name>" with one of those words or brother, sister, father, mother, son, daughter, husband, wife ("sister of Mira").`,
+          ages && `${ages} Say each one's age in their description. It holds for the people from the cards too: someone a card makes younger or older than that is left out, not made.`,
           `{"people": [{"name": "", "body": "female", "description": "", "personality": "", "appearance": "", "keys": ["lives in home4", "works at smithy1", "rival of Mira"]}]}`,
-        ].join("\n\n"),
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
       },
       {
         role: "user",
@@ -1129,6 +1148,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           setting: text(body.setting, 600),
           persona: text(body.persona, MAX.name),
           cards: step === "people" ? await writersCards(resources, body) : [],
+          ages: isRecord(body.ages) ? body.ages : null,
           premise: block(body.premise, 1500),
           places: (Array.isArray(body.places) ? body.places : [])
             .filter(isRecord)

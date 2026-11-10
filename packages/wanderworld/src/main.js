@@ -911,6 +911,7 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
           ...common(),
           step: "people",
           count,
+          ages: save.ages ?? null,
           // Their cards, read on the server: the family they speak of is made first.
           personaId: save.persona || null,
           characterIds: cast.map((entry) => entry.id),
@@ -996,6 +997,7 @@ async function planNewWorld(
     persona,
     writeLore = false,
     newPeople = 0,
+    ages = null,
   },
   previous,
 ) {
@@ -1005,6 +1007,7 @@ async function planNewWorld(
     setting,
     lorebooks,
     ...linkingOf(lorebooks, loreLinking, characterLinking, write),
+    ages,
     cast: cast ?? [],
     persona: persona ?? core.personaId,
     loreKeys: previous?.loreKeys ?? {},
@@ -1065,10 +1068,12 @@ async function createNewWorld({
   setup = null, // the AI's setup, as the menu reviewed it (planNewWorld)
   writeLore = false,
   newPeople = 0,
+  ages = null,
 }) {
   const save = core.saves.create({ name: name || suggestName(), seed });
   if (!save) return;
   save.setting = setting;
+  save.ages = ages ?? { min: null, max: null };
   save.lorebooks = lorebooks;
   Object.assign(save, linkingOf(lorebooks, loreLinking, characterLinking, { lore: writeLore, people: newPeople }));
   save.lorePending = save.loreLinking !== "none" || save.characterLinking !== "none";
@@ -1787,6 +1792,7 @@ async function detailLocals() {
   try {
     const result = await core.ai.worldWrite({
       step: "detail",
+      ages: save.ages ?? null,
       connectionId: core.settings.textConnection || null,
       worldName: save.name,
       setting: save.setting,

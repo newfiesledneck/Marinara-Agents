@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.2",
+          "date": "2026-11-10",
+          "notes": "- New world: \"Ages of the people the AI makes\", from 21 with no upper limit unless you change it (empty a box for no limit that way). It holds for everyone the AI invents or fills in, family from your cards included: someone outside the range isn't made. Ages your own lore or cards give are left alone. Kept with the world.",
+          "highlight": false
+        },
+        {
           "version": "0.5.1",
           "date": "2026-11-10",
           "notes": "- Illustrate: with the AI rewrite on, the last lines of the chat go with the prompt, so the picture shows what you're doing now (kneeling by the pond), not just \"standing\". New {recent_chat} placeholder.\n- The Illustrate window is all picture; the gallery, prompt and settings are a scroll down.\n- A crossroads, one-street or ring settlement no longer has bare fields inside it: a pond where there's room, houses off the streets, gardens, meadows and trees. Worlds you have get them too.\n- Street names are only where a street is laid, not out across open ground.\n- A pond's place reaches its shore and bench.\n- Fixed: a noticeboard errand to someone at home (or in a room with you) never finished; it does now at their door or beside them indoors. Knocking where nobody is in no longer has someone answer.\n- {persona_appearance} and {people_appearance} use the whole Appearance block.",
@@ -307,12 +313,6 @@
           "version": "0.4.85",
           "date": "2026-11-09",
           "notes": "- Everything about a person is managed in one place: Journal → People → Edit people → Edit. Their day is edited there now (lines of hours, what they do and where, or planned by the AI), next to home and work and their relationships. The separate Schedules, Homes and work, and Relationships pages are gone from the Journal.\n- The top bar is shorter: Journal, Lore, Illustrate, Chat and Menu. Menu holds who you play as, Settings, full screen and the way back to the main menu.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.84",
-          "date": "2026-11-09",
-          "notes": "- Journal → People → Edit people lists everyone with an Edit button. It opens a window with everything Wanderworld keeps about that person: body, voice, temperament and manner, home and work, their day, how they see you and you them, and how they and each other person see one another. Save or Cancel. A character with a card keeps who they are and their looks from the card; someone made for the world can have those changed too.\n- Every button shows it was clicked: it dips while pressed and stays lit for a moment after.",
           "highlight": false
         }
       ]
