@@ -8,8 +8,14 @@ import { INK, INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, PARCHMENT, SERIF } fro
 /** The template a new player starts from; {placeholders} are filled in on the server from the moment. */
 export const DEFAULT_TEMPLATE =
   "{persona} {activity} at {place}, {time_of_day}, {weather}. With them: {people}. " +
-  "{persona_appearance}. {people_appearance}. {setting}. " +
+  "{persona_appearance}. {people_appearance}. {world_look}. {setting}. " +
   "A detailed illustration of this moment, {place_kind}, no text.";
+/** The template before {world_look}: one still saved unchanged becomes the new one. */
+const OLDER_TEMPLATE = DEFAULT_TEMPLATE.replace("{world_look}. ", "");
+
+/** For image models that want tags, not sentences. */
+export const TAG_INSTRUCTION =
+  "Rewrite what follows as a prompt for an image generator that wants comma-separated tags, not sentences. Keep every fact in it: how many people and who, what each looks like and wears, what they're doing, where and when it is, the weather, the setting. Start with the number of people and the subject, then looks and clothes, then the pose, then the place, the light and the style. Short tags, most important first, at most 60 of them. No names of real artists, no text in the picture. Answer with the tags only.";
 
 /** What the model is told when it rewrites the prompt (server.mjs has the same, for when this is empty). */
 export const DEFAULT_INSTRUCTION =
@@ -26,18 +32,24 @@ export const SIZES = [
 
 /** What each placeholder becomes, for the help under the template. */
 export const PLACEHOLDERS = {
-  persona: "your persona's name",
-  persona_appearance: "how your persona looks, with their name (their card)",
-  people: "who's with you, and what they're doing",
-  people_appearance: "how they look, each with their name (their cards)",
-  activity: "what you're doing: sitting, talking with someone, swimming…",
-  place: "where you are, and the places it's in",
-  place_kind: "what kind of place: a tavern, a street, the woods…",
-  time: "the clock: 14:20",
-  time_of_day: "morning, midday, dusk, night…",
-  weather: "rain, snow or mist, if any",
-  setting: "the world's setting words (New world, Journal → World)",
-  recent: "the last line of narration",
+  persona: "Your persona's name. Like: Zoey",
+  persona_appearance:
+    "Your persona's name and their Appearance, from the persona in the Engine. Empty if that persona has no Appearance written. Like: Zoey: tall, red hair in a braid, a green travelling cloak",
+  people:
+    "The characters within a few steps of you (and your companions a little further), each with what they're doing. Up to five. Like: Mira (sitting), Tam (walking)",
+  people_appearance:
+    "Each of those characters' names and Appearance, from their cards. Someone with no Appearance is left out. Like: Mira: flour on her apron; Tam: a patched grey coat",
+  activity: "What you're doing. Like: standing, sitting on a bench, talking with Mira, swimming",
+  place: "Where you are, and the places it's in. Like: the Gilded Stag, in Larkspur",
+  place_kind: "What kind of place it is. Like: a tavern, a town street, a market square, the woods",
+  time: "The clock. Like: 14:20",
+  time_of_day: "Like: early morning, morning, midday, afternoon, dusk, evening, night",
+  weather: "Rain, snow or mist. Empty in clear weather.",
+  world_look:
+    "What Wanderworld's world looks like, so the picture matches it. Always: medieval fantasy village, timber-framed plaster houses with tiled roofs, cobbled lanes, market stalls, lantern light",
+  setting:
+    "Whatever you wrote in this world's Setting box (New world, or Journal → World), word for word. Empty if you left the box empty: it is your own text, nothing is added to it.",
+  recent: "The narrator's last line in the chat, if there is one.",
 };
 
 function element(tag, css, text) {
@@ -92,6 +104,8 @@ export function createIllustrateWindow(layer, handlers) {
     h: 480,
     open: false,
     template: DEFAULT_TEMPLATE,
+    gallery: false,
+    rewriteConnection: "",
     width: 1024,
     height: 640,
     improve: false,
@@ -99,8 +113,14 @@ export function createIllustrateWindow(layer, handlers) {
     instruction: DEFAULT_INSTRUCTION,
   });
   const { state } = floating;
+  if (state.template === OLDER_TEMPLATE) state.template = DEFAULT_TEMPLATE;
 
-  const body = element("div", "flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:8px 10px;");
+  // The picture takes the room there is; everything else is folded away in the tray under it.
+  const body = element(
+    "div",
+    "flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:6px;padding:8px 10px;",
+  );
+  const tray = element("div", "flex:0 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;");
   const paint = button(
     "Illustrate the current moment",
     `${INK_BUTTON}background:#6b4a2b;color:#f6ecd6;`,
@@ -109,14 +129,22 @@ export function createIllustrateWindow(layer, handlers) {
   const status = element("div", `font-size:12px;color:${INK_SOFT};`);
   const picture = element(
     "img",
-    "width:100%;flex:1 1 auto;min-height:120px;object-fit:contain;border-radius:8px;background:rgba(107,74,43,0.12);display:none;",
+    "width:100%;flex:1 1 0;min-height:45%;object-fit:contain;border-radius:8px;background:rgba(107,74,43,0.12);display:none;",
   );
   const caption = element("div", "font-size:12px;font-style:italic;");
   // The gallery: a strip of its own height that scrolls, however many pictures there are.
   const gallery = element(
     "div",
-    "display:flex;flex-wrap:wrap;gap:6px;max-height:112px;overflow-y:auto;flex:0 0 auto;padding:2px;",
+    "display:flex;flex-wrap:wrap;gap:6px;max-height:112px;overflow-y:auto;flex:0 0 auto;padding:2px;margin-top:4px;",
   );
+  const galleryFold = element("details", "font-size:12px;");
+  const galleryTitle = element("summary", "cursor:pointer;font-weight:700;", "Gallery");
+  galleryFold.open = !!state.gallery;
+  galleryFold.addEventListener("toggle", () => {
+    state.gallery = galleryFold.open;
+    floating.save();
+  });
+  galleryFold.append(galleryTitle, gallery);
 
   const templateFold = element("details", "font-size:12px;");
   templateFold.append(element("summary", "cursor:pointer;font-weight:700;", "Prompt template"));
@@ -129,10 +157,32 @@ export function createIllustrateWindow(layer, handlers) {
     state.template = template.value;
     floating.save();
   });
-  const help = element("div", `color:${INK_SOFT};line-height:1.4;margin-top:4px;`);
-  help.textContent = Object.entries(PLACEHOLDERS)
-    .map(([name, words]) => `{${name}}: ${words}`)
-    .join(" · ");
+  const help = element("div", "margin-top:4px;");
+  help.append(
+    element(
+      "div",
+      `color:${INK_SOFT};line-height:1.4;`,
+      "The template is the prompt, with {words in braces} swapped for what's true right now. Write anything else round them: it's sent as it is. Click one below to put it in. An empty one leaves nothing behind.",
+    ),
+  );
+  const macros = element(
+    "div",
+    "max-height:190px;overflow-y:auto;margin-top:4px;border:1px solid rgba(107,74,43,0.35);border-radius:6px;",
+  );
+  for (const [name, words] of Object.entries(PLACEHOLDERS)) {
+    const row = element("div", "padding:5px 7px;border-bottom:1px solid rgba(107,74,43,0.2);line-height:1.4;");
+    const insert = button(`{${name}}`, `${INK_SMALL}font:700 12px ui-monospace,monospace;padding:2px 6px;`, () => {
+      const at = template.selectionStart ?? template.value.length;
+      template.setRangeText(`{${name}}`, at, template.selectionEnd ?? at, "end");
+      state.template = template.value;
+      floating.save();
+      template.focus();
+    });
+    insert.title = "Put this in the template";
+    row.append(insert, element("div", `color:${INK_SOFT};margin-top:2px;`, words));
+    macros.append(row);
+  }
+  help.append(macros);
   const reset = button("Back to the usual template", `${INK_SMALL}margin-top:4px;`, () => {
     template.value = state.template = DEFAULT_TEMPLATE;
     floating.save();
@@ -203,20 +253,61 @@ export function createIllustrateWindow(layer, handlers) {
     state.instruction = instruction.value;
     floating.save();
   });
+  // Which connection rewrites it: its own, apart from the one conversations and narration use.
+  const connection = element("select", `${INK_INPUT}max-width:100%;padding:3px 6px;`);
+  connection.setAttribute("aria-label", "The connection that rewrites the prompt");
+  const fillConnections = (list) => {
+    const options = [
+      ["", "Same as conversations"],
+      ...list.map((entry) => [entry.id, entry.model ? `${entry.name} (${entry.model})` : entry.name]),
+    ];
+    if (state.rewriteConnection && !list.some((entry) => entry.id === state.rewriteConnection))
+      options.push([state.rewriteConnection, list.length ? "(not found)" : "(your choice)"]);
+    connection.replaceChildren(
+      ...options.map(([value, words]) => {
+        const option = element("option", "", words);
+        option.value = value;
+        return option;
+      }),
+    );
+    connection.value = state.rewriteConnection;
+  };
+  fillConnections([]);
+  connection.addEventListener("change", () => {
+    state.rewriteConnection = connection.value;
+    floating.save();
+  });
+  const loadConnections = async () => {
+    try {
+      fillConnections((await handlers.onConnections?.())?.text ?? []);
+    } catch {
+      // The list stays as it was: the choice already made still goes through.
+    }
+  };
+  improveFold.addEventListener("toggle", () => improveFold.open && void loadConnections());
+  const connectionRow = element("label", "display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;");
+  connectionRow.append(element("span", "font-weight:700;", "Rewritten by"), connection);
+  const instructionButtons = element("div", "display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;");
+  const useInstruction = (words) => () => {
+    instruction.value = state.instruction = words;
+    floating.save();
+  };
+  instructionButtons.append(
+    button("The usual instruction (sentences)", INK_SMALL, useInstruction(DEFAULT_INSTRUCTION)),
+    button("A tag-style instruction", INK_SMALL, useInstruction(TAG_INSTRUCTION)),
+  );
   improveFold.append(
     element(
       "div",
       `color:${INK_SOFT};line-height:1.4;margin-top:4px;`,
-      "The template above only fills in the facts. With this on, your model rewrites that into a fuller prompt first: one more call, on the conversations connection.",
+      "The template only fills in the facts. With this on, a model rewrites that into a better prompt first: one more call, on the connection chosen here, which can be a different one from your conversations'.",
     ),
     tick("improve", "Have the AI rewrite the prompt before painting"),
     tick("review", "Show me the rewritten prompt first, to change or approve"),
+    connectionRow,
     element("div", "font-weight:700;margin-top:6px;", "What the AI is told"),
     instruction,
-    button("Back to the usual instruction", `${INK_SMALL}margin-top:4px;`, () => {
-      instruction.value = state.instruction = DEFAULT_INSTRUCTION;
-      floating.save();
-    }),
+    instructionButtons,
   );
   // The review: the rewritten prompt, to change, then paint or drop.
   const review = element("div", "display:none;flex-direction:column;gap:4px;font-size:12px;");
@@ -235,7 +326,7 @@ export function createIllustrateWindow(layer, handlers) {
   );
   review.append(element("div", "font-weight:700;", "The prompt, before it's painted"), reviewText, reviewButtons);
   const promptFold = element("details", "font-size:12px;");
-  promptFold.append(element("summary", "cursor:pointer;font-weight:700;", "The prompt it made"));
+  promptFold.append(element("summary", "cursor:pointer;font-weight:700;", "The prompt that was painted"));
   const promptText = element(
     "div",
     `color:${INK_SOFT};line-height:1.4;white-space:pre-wrap;`,
@@ -243,7 +334,8 @@ export function createIllustrateWindow(layer, handlers) {
   );
   promptFold.append(promptText);
 
-  body.append(paint, status, review, picture, caption, gallery, templateFold, improveFold, sizeFold, promptFold);
+  tray.append(galleryFold, templateFold, improveFold, sizeFold, promptFold);
+  body.append(paint, status, review, picture, caption, tray);
   frame.append(body);
 
   const pictures = new Map(); // id → { image, prompt, caption }
@@ -268,6 +360,7 @@ export function createIllustrateWindow(layer, handlers) {
       status.textContent = error?.message ?? String(error);
       return;
     }
+    galleryTitle.textContent = list.length ? `Gallery (${list.length})` : "Gallery";
     gallery.replaceChildren(
       ...list.map((entry) => {
         // Each picture: click it to show it; the small × in its corner deletes it.
@@ -317,6 +410,7 @@ export function createIllustrateWindow(layer, handlers) {
       height: state.height,
       improve: !!state.improve,
       instruction: state.instruction,
+      rewriteConnection: state.rewriteConnection,
     };
     paint.disabled = true;
     try {

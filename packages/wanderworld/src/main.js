@@ -3468,7 +3468,16 @@ function playerDoing() {
  * (the party and anyone close by, and what they're doing), what the player is doing and the last line
  * of narration. Their looks come from their cards on the server. Kept in the world's gallery.
  */
-async function illustrateMoment({ template, width, height, improve, instruction, previewOnly = false, prompt = "" }) {
+async function illustrateMoment({
+  template,
+  width,
+  height,
+  improve,
+  instruction,
+  rewriteConnection = "",
+  previewOnly = false,
+  prompt = "",
+}) {
   if (!core.save || !core.zones) throw new Error("Open a world first.");
   if (!core.ai.known()?.illustrate) throw new Error("Wanderworld's server part isn't running: restart the Engine.");
   const at = core.interior ? core.interior.door : core.player.position;
@@ -3515,6 +3524,7 @@ async function illustrateMoment({ template, width, height, improve, instruction,
       weather: weatherWord(),
       activity: playerDoing(),
       setting: core.save.setting ?? "",
+      look: PACK.look,
       recent,
     },
     caption: `${placeWords()}, ${clockText()}`,
@@ -3526,7 +3536,7 @@ async function illustrateMoment({ template, width, height, improve, instruction,
     instruction,
     previewOnly,
     prompt,
-    textConnectionId: core.settings.textConnection || null,
+    textConnectionId: rewriteConnection || core.settings.textConnection || null,
   });
 }
 

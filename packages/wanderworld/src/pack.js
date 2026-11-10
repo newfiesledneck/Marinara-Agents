@@ -439,6 +439,8 @@ const CAMP = [
 
 export const PACK = {
   id: "fantasy",
+  /** What this setting looks like, in a picture's prompt ({world_look}). */
+  look: "medieval fantasy village, timber-framed plaster houses with tiled roofs, cobbled lanes, market stalls, lantern light",
   things: THINGS,
   arrivals: ARRIVALS,
   sights: SIGHTS,

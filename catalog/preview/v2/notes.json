@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.99",
+          "date": "2026-11-09",
+          "notes": "- Illustrate: the picture takes the window now. The gallery, template, size and the rest fold away under it.\n- Fixed: appearances were cut off mid-word in the prompt. Your persona's is sent whole (up to 1500 characters), other people's up to 600, ending on a whole word.\n- New {world_look} in the template says what Wanderworld's world looks like (a medieval fantasy village), so pictures stop coming out modern. {setting} is still only what you wrote in the world's Setting box. An unchanged template picks it up by itself; add {world_look} to one you've edited.\n- Every placeholder is explained, one to a row, in a list that scrolls; click one to put it in the template.\n- \"Improve the prompt with AI\" can use a connection of its own, apart from the one conversations use, and has a tag-style instruction to start from.",
+          "highlight": false
+        },
+        {
           "version": "0.4.98",
           "date": "2026-11-09",
           "notes": "- Illustrate: choose the picture's size, from a few usual ones (landscape, wide, square, portrait) or your own width and height.\n- Illustrate: \"Improve the prompt with AI\" has your model rewrite the template's prompt into a fuller one before it's painted (one more call, on the conversations connection). You can edit what the model is told, and tick \"show me first\" to read, change or drop the rewritten prompt before anything is painted.\n- Townsfolk's chatter only shows over their heads when they're near you and in sight, not across town or through walls, and no more than three bubbles are up at once.",
@@ -307,12 +313,6 @@
           "version": "0.4.80",
           "date": "2026-11-09",
           "notes": "- More \"ww:\" keywords, each one short thing: the world's shape on its \"ww: world\" entry (ww: city, ww: walls, ww: size large, ww: season winter); a place's hours and owner (ww: closed 22-6, ww: owner Mira); temperament and voice (ww: shy, ww: grumpy, ww: voice gruff); factions (ww: faction Thieves Guild, ww: member of Thieves Guild); and a creature's details, kept for later (ww: found in forest1, ww: night, ww: pack 4, ww: danger 2, ww: drops gold).\n- Seasons: winter lays snow over the land.\n- Four more ways to talk (gruff, formal, cheerful, sly), and a person can have their own.\n- People made from lore get their details (who they are, manner, looks) from one model call, kept as their own card in the world. An owner a place names who isn't anyone yet becomes a new person.\n- \"ww: character Name\" only ties to a card you chose for that world; cards you left out are never pulled in.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.79",
-          "date": "2026-11-09",
-          "notes": "- \"ww: character Mira Saxton\": the entry is that person. A card of exactly that name is who it means and joins the world; with no such card (a \"Mira Little\" beside the card \"Mira Saxton\") a new person is made for that world. With no name after it, the entry's title is the name.\n- \"ww: monster Goblin\", \"ww: creature\" and \"ww: hostile\" mark an entry as a creature. Nothing uses them yet: they are kept with the world (Journal → World lists them) for when the wilds have creatures.",
           "highlight": false
         }
       ]

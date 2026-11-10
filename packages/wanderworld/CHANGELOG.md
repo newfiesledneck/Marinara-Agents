@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.4.99 — 2026-11-09
+
+- Illustrate: the picture takes the window now. The gallery, template, size and the rest fold away under it.
+- Fixed: appearances were cut off mid-word in the prompt. Your persona's is sent whole (up to 1500 characters), other people's up to 600, ending on a whole word.
+- New {world_look} in the template says what Wanderworld's world looks like (a medieval fantasy village), so pictures stop coming out modern. {setting} is still only what you wrote in the world's Setting box. An unchanged template picks it up by itself; add {world_look} to one you've edited.
+- Every placeholder is explained, one to a row, in a list that scrolls; click one to put it in the template.
+- "Improve the prompt with AI" can use a connection of its own, apart from the one conversations use, and has a tag-style instruction to start from.
+
 ## 0.4.98 — 2026-11-09
 
 - Illustrate: choose the picture's size, from a few usual ones (landscape, wide, square, portrait) or your own width and height.
