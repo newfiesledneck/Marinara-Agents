@@ -324,20 +324,37 @@ async function writersCards(resources, body) {
 /** The kinds of relationship an edit may set (relationships.js KINDS), and "none" to end one. */
 const ASSISTANT_KINDS = ["acquaintance", "friend", "romance", "partner", "family", "colleague", "mentor", "rival", "enemy", "fear", "none"];
 const ASSISTANT_MAX_EDITS = 20;
+/** How someone may act toward the player (main.js STANCE_WARMTH), and "none" for nothing special. */
+const ASSISTANT_STANCES = ["rude", "aggressive", "attacks", "afraid", "avoids", "none"];
 
 /** What the assistant is told: who it is, and the one format its changes come in. */
 export const ASSISTANT_INSTRUCTION = [
   "You are the assistant for a player's world in Wanderworld, a small walkable 3D world of their characters, for roleplay. You talk with the player about their world: its people, places, lore, and how Wanderworld works. Answer plainly and briefly, in ordinary sentences, like a helpful chat assistant. If you don't know, say so.",
   "You can also propose changes to this world when the player asks for one. Only then, and only what they asked for: put ONE block at the very end of your answer, fenced exactly like this, holding one JSON object:",
   '```wanderworld\n{"edits": [ ... ]}\n```',
-  `Each edit is one of these (names exactly as they are listed under "People"; places by their numbered name, like home3 or tavern1, from "Places"):
+  `Each edit is one of these (people by their names exactly as listed under "People"; places by their numbered name, like home3 or tavern1, from "Places"). Edits are made in order, so a later one may name someone an earlier one added.
+People and how they stand:
 - {"do": "relate", "from": "Jake", "to": "Sarah", "kind": "partner", "role": "husband", "backRole": "wife", "level": 80, "both": true}: how "from" sees "to". "kind" is one of ${ASSISTANT_KINDS.join(", ")} ("none" ends it). "role" is what "from" is to "to" (optional: husband, sister, mentor…), "backRole" what "to" is to "from". "level" is 0 to 100 (how strong; optional). "both": true sets it both ways. The player is "player".
 - {"do": "home", "person": "Jake", "place": "home3"} or {"do": "home", "person": "Jake", "with": "Sarah"}: where they live ("with": in the same home as someone). "place": "none" for no home.
 - {"do": "work", "person": "Jake", "place": "smithy1", "owner": false}: where they work. "place": "none" for no work.
+- {"do": "set", "person": "Mira", "body": "female", "voice": "gruff", "aggression": 20, "sociability": 80, "stance": "rude", "knowsYou": true, "known": true}: give only what changes. "body" is male, female or auto. "voice" is one of ${Object.keys(TALK_STYLES).join(", ")}, or none. "aggression" (passive 0 to aggressive 100) and "sociability" (shy 0 to outgoing 100). "stance" is how they act toward the player whatever they feel: ${ASSISTANT_STANCES.join(", ")}. "knowsYou": they know the player's name; "known": the player knows theirs.
+- {"do": "day", "person": "Mira", "entries": [{"from": 8, "to": 12, "activity": "work", "place": ""}, {"from": 18, "to": 22, "activity": "visit", "place": "tavern1"}]}: their day, replacing the one they have. Hours 0 to 24 (halves allowed; "to" below "from" runs past midnight). "activity" is one of ${ACTIVITIES.join(", ")}; "place" is empty for their own home or work and for a walk. Hours left out are theirs to spend as usual. {"do": "day", "person": "Mira", "usual": true} gives them back a usual day.
+- {"do": "add_person", "name": "Wren Tolley", "body": "female", "description": "...", "personality": "...", "appearance": "...", "home": "home4", "work": "smithy1", "owner": false}: someone new, who lives in this world only. "description" 60 to 120 words (who they are, their age and trade, their history here, what they want), "personality" 20 to 40 words with how they talk, "appearance" 20 to 40 words. "with": "Oswin" in place of "home" to live with someone. Follow it with relate edits for who they are to others.
+- {"do": "remove_person", "person": "Wren Tolley"}: for people marked "invented" only. They and everything about them go.
+- {"do": "faction", "name": "The Thieves' Guild", "add": ["Jake", "Fen"], "remove": []}: a group of people, made if there is none by that name. {"do": "faction", "name": "...", "delete": true} ends it.
+Lore:
 - {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name) or "world" (the whole world). It is used when they talk, in moments and scenes. At most 1400 characters.
-- {"do": "card", "person": "Oswin", "description": "...", "personality": "...", "appearance": "..."}: for people marked "invented" only (this world made them); give only the parts to change.`,
+- {"do": "card", "person": "Oswin", "description": "...", "personality": "...", "appearance": "..."}: for people marked "invented" only; give only the parts to change.
+Places and the world:
+- {"do": "rename", "place": "tavern1", "name": "The Drowned Bell"}: a place's name (its sign too). An empty "name" gives back its first one.
+- {"do": "hours", "place": "tavern1", "from": 0, "to": 6}: when a place is CLOSED, from and to in hours (closed after midnight until six). {"do": "hours", "place": "tavern1", "open": true}: never closed.
+- {"do": "group", "name": "The docks", "add": ["tavern1", "home3"], "remove": []}: a group of places (lore tied to a group is active in all of them), made if there is none by that name. {"do": "group", "name": "...", "delete": true} ends it.
+- {"do": "world", "setting": "...", "look": "...", "ageMin": 21, "ageMax": "none"}: give only what changes. "setting": the world in a few words (at most 600 characters). "look": how it looks in pictures, a few words. "ageMin" and "ageMax": the usual ages of people the AI makes, a number from 1, or "none".
+- {"do": "notice", "text": "...", "by": "the reeve"}: pins a note to the noticeboard.
+- {"do": "errand", "person": "Mira", "text": "Take this letter to Mira.", "done": "Mira reads it twice and thanks you."}: an errand for the player, to go to that person; "done" is told when they reach them.`,
   `Lore and card text REPLACES what is there now (shown to you as "lore", and for invented people "about"), so what you write is the whole of it, rewritten: never a summary, never only the new part. Keep every detail that is there, in the same voice and at no less than the same length and level of detail, and weave the change in where it belongs; change or drop only what the request contradicts. A small request ("make Jake a sorcerer") changes little: the lore stays as rich as it was, with his sorcery worked through it. A detailed request may add as much as it asks for. When one of the player's own characters has no lore here yet, their card ("about") still stands by itself: write what is new or different about them in this world, as fully as the request deserves, without repeating the card.`,
-  "Rules: nothing changes until the player has read your proposal and confirmed it, so say what you propose, not that it is done. You propose changes only through such edits, and only to this world. You cannot change the player's character cards, personas or lorebooks in the Engine, nor Wanderworld's settings, the map or buildings: say so, and say where the player can (Menu → Settings, Journal). Never describe a change you put no edit for. To make two people a couple who live together: one relate edit with both, and a home edit. With no change asked for, write no block at all.",
+  `Why lore is or isn't active: an entry is active where the player stands when it is tied to that place, to a place that one sits in, to a group either belongs to, to someone they are talking or travelling with, to the player, or to the whole world. "Where the player is" lists what is active now and what it comes from; "What lore is tied to" lists every tie. Explain from those, and say what would have to change (the Journal's Places tab ties lore to places by hand).`,
+  "Rules: nothing changes until the player has read your proposal and confirmed it (and they can undo it afterwards), so say what you propose, not that it is done. You propose changes only through such edits, and only to this world. You cannot change the player's character cards, personas or lorebooks in the Engine, nor Wanderworld's settings in the Menu, the map or the buildings: say so, and say where the player can (Menu → Settings, Journal). Never describe a change you put no edit for. Stay within what was asked: no extra people, lore or relationships the player didn't ask for. To make two people a couple who live together: one relate edit with both, and a home edit. With no change asked for, write no block at all.",
 ].join("\n\n");
 
 /**
@@ -419,6 +436,88 @@ function readAssistantEdit(item, name) {
     );
     return person && Object.keys(parts).length ? { do: "card", person, ...parts } : null;
   }
+  const names = (value) => (Array.isArray(value) ? value : []).map(name).filter(Boolean).slice(0, 30);
+  const hour = (value) => (Number.isFinite(value) && value >= 0 && value <= 24 ? Math.round(value * 4) / 4 : null);
+  const score = (value) => (Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null);
+  if (item.do === "set") {
+    const person = name(item.person);
+    const fields = {
+      ...(["male", "female", "auto"].includes(item.body) ? { body: item.body } : {}),
+      ...(item.voice === "none" || Object.hasOwn(TALK_STYLES, item.voice) ? { voice: item.voice === "none" ? "" : item.voice } : {}),
+      ...(score(item.aggression) !== null ? { aggression: score(item.aggression) } : {}),
+      ...(score(item.sociability) !== null ? { sociability: score(item.sociability) } : {}),
+      ...(ASSISTANT_STANCES.includes(item.stance) ? { stance: item.stance === "none" ? "" : item.stance } : {}),
+      ...(typeof item.knowsYou === "boolean" ? { knowsYou: item.knowsYou } : {}),
+      ...(typeof item.known === "boolean" ? { known: item.known } : {}),
+    };
+    return person && Object.keys(fields).length ? { do: "set", person, ...fields } : null;
+  }
+  if (item.do === "day") {
+    const person = name(item.person);
+    if (!person) return null;
+    if (item.usual === true) return { do: "day", person, entries: [] };
+    const entries = (Array.isArray(item.entries) ? item.entries : [])
+      .filter(isRecord)
+      .slice(0, 12)
+      .map((entry) => ({ from: hour(entry.from), to: hour(entry.to), activity: entry.activity, place: text(entry.place, 80) }))
+      .filter((entry) => entry.from !== null && entry.to !== null && entry.from !== entry.to && ACTIVITIES.includes(entry.activity));
+    return entries.length ? { do: "day", person, entries } : null;
+  }
+  if (item.do === "add_person") {
+    const made = {
+      do: "add_person",
+      name: text(item.name, 60),
+      body: ["male", "female"].includes(item.body) ? item.body : "",
+      description: block(item.description, 1200),
+      personality: block(item.personality, 500),
+      appearance: block(item.appearance, 500),
+      home: text(item.home, 80),
+      with: name(item.with),
+      work: text(item.work, 80),
+      owner: item.owner === true,
+    };
+    return made.name && made.description ? made : null;
+  }
+  if (item.do === "remove_person") {
+    const person = name(item.person);
+    return person ? { do: "remove_person", person } : null;
+  }
+  if (item.do === "faction" || item.do === "group") {
+    const title = text(item.name, 60);
+    if (!title) return null;
+    if (item.delete === true) return { do: item.do, name: title, delete: true, add: [], remove: [] };
+    const [add, remove] = [names(item.add), names(item.remove)];
+    return { do: item.do, name: title, delete: false, add, remove };
+  }
+  if (item.do === "rename") {
+    const place = text(item.place, 80);
+    return place && typeof item.name === "string" ? { do: "rename", place, name: text(item.name, 60) } : null;
+  }
+  if (item.do === "hours") {
+    const place = text(item.place, 80);
+    if (!place) return null;
+    if (item.open === true) return { do: "hours", place, open: true };
+    const [from, to] = [hour(item.from), hour(item.to)];
+    return from !== null && to !== null && from !== to ? { do: "hours", place, open: false, from, to } : null;
+  }
+  if (item.do === "world") {
+    const age = (value) => (value === "none" ? { value: null } : ageOf(value) !== null ? { value: ageOf(value) } : null);
+    const fields = {
+      ...(block(item.setting, 600) ? { setting: text(item.setting, 600) } : {}),
+      ...(text(item.look, 200) ? { look: text(item.look, 200) } : {}),
+      ...(age(item.ageMin) ? { ageMin: age(item.ageMin).value } : {}),
+      ...(age(item.ageMax) ? { ageMax: age(item.ageMax).value } : {}),
+    };
+    return Object.keys(fields).length ? { do: "world", ...fields } : null;
+  }
+  if (item.do === "notice") {
+    const words = text(item.text, 400);
+    return words ? { do: "notice", text: words, by: text(item.by, 60) } : null;
+  }
+  if (item.do === "errand") {
+    const [person, words] = [name(item.person), text(item.text, 400)];
+    return person && words ? { do: "errand", person, text: words, done: text(item.done, 400) } : null;
+  }
   return null;
 }
 
@@ -437,6 +536,7 @@ export function assistantMessages(input) {
             person.home && `  lives at: ${person.home}`,
             person.work && `  ${person.owner ? "owns" : "works at"}: ${person.work}`,
             person.relations.length && `  ${person.relations.join("; ")}`,
+            person.more && `  ${person.more}`,
             person.lore && `  lore: ${person.lore}`,
           ]
             .filter(Boolean)
@@ -445,6 +545,11 @@ export function assistantMessages(input) {
         .join("\n"),
     ),
     section("Places", input.places.map((place) => `${place.slot}${place.name ? ` = ${place.name}` : ""}`).join("\n")),
+    section("Groups of places", input.groups.join("\n")),
+    section("Factions", input.factions.join("\n")),
+    section("Where the player is", input.here),
+    section("What lore is tied to", input.ties.join("\n")),
+    section("The noticeboard", input.board),
     section("This world's own lore", input.entries.map((entry) => `${entry.title}: ${entry.content}`).join("\n\n")),
     ageRule(input.ages) && section("Ages", `${ageRule(input.ages)} ${AGES_YIELD}`),
     input.help && section("How Wanderworld works", input.help),
@@ -1344,8 +1449,14 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
               owner: person.owner === true,
               relations: (Array.isArray(person.relations) ? person.relations : []).map((line) => text(line, 100)).filter(Boolean).slice(0, 12),
               lore: text(person.lore, 1500),
+              more: text(person.more, 400),
             }))
             .filter((person) => person.name),
+          groups: (Array.isArray(body.groups) ? body.groups : []).map((line) => text(line, 400)).filter(Boolean).slice(0, 40),
+          factions: (Array.isArray(body.factions) ? body.factions : []).map((line) => text(line, 400)).filter(Boolean).slice(0, 40),
+          ties: (Array.isArray(body.ties) ? body.ties : []).map((line) => text(line, 300)).filter(Boolean).slice(0, 120),
+          here: block(body.here, 1500),
+          board: block(body.board, 1200),
           places: list(body.places, 160)
             .map((place) => ({ slot: text(place.slot, 30), name: text(place.name, 80) }))
             .filter((place) => place.slot),
