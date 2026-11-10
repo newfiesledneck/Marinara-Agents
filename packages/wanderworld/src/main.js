@@ -911,6 +911,9 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
           ...common(),
           step: "people",
           count,
+          // Their cards, read on the server: the family they speak of is made first.
+          personaId: save.persona || null,
+          characterIds: cast.map((entry) => entry.id),
           premise: book.entries.find((entry) => entry.id === "world")?.content ?? save.setting,
           places: [...placed.keys()].map((slot) => ({
             slot,

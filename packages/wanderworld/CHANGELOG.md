@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.0 — 2026-11-09
+
+- New world: the first map is marked as a first idea. Lorebooks and the AI's setup add the places the lore needs, so the map you get can differ.
+- The review before a world is built shows the map it will get, and "Reroll the map" gives another without asking the AI again: the people, places and lore stay, and every place they need is on the new map.
+- When the AI invents people, it reads your persona's and your chosen characters' cards first. Family and close ones the cards speak of (a father, a brother, a wife, an old friend) who aren't among your characters are made before anyone is invented, your persona's own family first, with how they're related set.
+
 ## 0.4.101 — 2026-11-09
 
 - Fixed: a prompt like "[E] Talk to Brenna" (or a caption) could stay on screen over the main menu. Going to the menu clears them.

@@ -487,6 +487,12 @@ export function createMenu(layer, handlers, art = null) {
         if (sizePicker) sizePicker.value = value;
         redraw();
       },
+      // The review rerolled the map: the settings a step back show the same one.
+      onSeed: (value) => {
+        previewSeed = value;
+        seed.value = "";
+        redraw();
+      },
     });
     // With the AI setting the world up, its setup is shown for a look before the land is built.
     const byAi = (params) =>
@@ -513,7 +519,9 @@ export function createMenu(layer, handlers, art = null) {
       setting,
       pickers,
       preview,
-      explainLine("A map of the world these choices make. Reroll for another; lorebooks may add places to it."),
+      explainLine(
+        "A map these choices could make: a first idea, not a promise. Lorebooks, and the AI setting the world up, add the places the lore needs, so the map you get can differ. With the AI, you see the real one (and can reroll it) before the world is built.",
+      ),
       reroll,
       element("div", "font:12px system-ui;opacity:0.75;", "Lorebooks for this world"),
       explainLine(
@@ -621,6 +629,17 @@ export function createMenu(layer, handlers, art = null) {
       params.onSize(size.value);
       draw();
     });
+    // Another map, same world: only the seed changes, so what the AI wrote still fits (the places it
+    // needs are built into whichever land comes up).
+    const mapRow = element("div", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;");
+    mapRow.append(
+      button("Reroll the map", SMALL, () => {
+        params.seed = randomSeed();
+        params.onSeed?.(params.seed);
+        draw();
+      }),
+      size,
+    );
     const failed = setup.failed ?? [];
     card.replaceChildren(
       element("div", "font:700 17px system-ui;", `${params.name || "Your world"}, before it's built`),
@@ -664,7 +683,11 @@ export function createMenu(layer, handlers, art = null) {
         : []),
       head("The land"),
       map,
-      size,
+      line(
+        "This is the map your world gets, with every place above on it. Reroll for another: the people, places and lore stay as they are, and the AI isn't asked again.",
+        "opacity:0.8;",
+      ),
+      mapRow,
       line(
         "Other land settings are a step back. Everything above can be changed once you're in, in the Journal.",
         "opacity:0.7;",

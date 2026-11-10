@@ -450,6 +450,15 @@ assert.equal(
   );
   assert.match(asked[0].content, /^You invent 2 new people/u);
   assert.match(asked[1].content, /tavern1 = The Drowned Bell: Low beams\./u, "people are built around the places");
+  assert.doesNotMatch(asked[1].content, /What the cards say/u, "no cards named, none read");
+  // With the persona and the chosen cards named, what they say goes to the model, the player first, and the
+  // family they speak of is asked for before anyone is invented.
+  await call("post", "/world-write", {
+    body: { step: "people", count: 2, characters: ["Mira"], personaId: "p-zoey", characterIds: ["c-mira"] },
+  });
+  assert.match(asked[0].content, /First, the people the cards already speak of/u);
+  assert.match(asked[1].content, /## What the cards say\s+Zoey \(the player\): A traveller\./u);
+  assert.match(asked[1].content, /\n\nMira: /u);
 
   // Someone a world made for itself answers from what the client holds; an Engine id can't be passed off.
   runtime.languageModels.resolveForRequest = async () => ({
