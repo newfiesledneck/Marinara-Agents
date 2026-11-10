@@ -677,6 +677,81 @@ function placeForge(town, spec, bay, x, z, facing, door) {
   });
 }
 
+/**
+ * A campsite at (x, z), its tent's mouth turned `angle`: a ring of stones round a small fire, two logs to
+ * sit by, a tent with a bedroll in it, and places on the ground round the fire (spots that share `camp`).
+ */
+function placeCamp(town, x, z, angle, camp) {
+  const y = heightAt(x, z);
+  const pieces = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    pieces.push(
+      painted(
+        new DodecahedronGeometry(0.16, 0).scale(1, 0.7, 1).translate(Math.sin(a) * 0.55, 0.08, Math.cos(a) * 0.55),
+        0x7f7a72,
+      ),
+    );
+  }
+  for (const turn of [0.4, 1.9, 3.5]) {
+    pieces.push(
+      painted(
+        new CylinderGeometry(0.06, 0.07, 0.7, 5)
+          .rotateZ(Math.PI / 2)
+          .rotateY(turn)
+          .translate(0, 0.1, 0),
+        0x3a2a1e,
+      ),
+    );
+  }
+  pieces.push(painted(new ConeGeometry(0.2, 0.55, 5).translate(0, 0.4, 0), 0xff8a1e));
+  pieces.push(painted(new ConeGeometry(0.11, 0.36, 5).translate(0.05, 0.38, 0.04), 0xffd24a));
+  // Two logs to lean on, either side of the fire, behind where people sit.
+  for (const side of [-1, 1]) {
+    pieces.push(
+      painted(new CylinderGeometry(0.17, 0.19, 1.5, 6).rotateX(Math.PI / 2).translate(side * 2.2, 0.17, 0.5), 0x6b4a2f),
+    );
+  }
+  // The tent: canvas over a ridge pole, its mouth toward the fire, a bedroll inside.
+  const tent = new BufferGeometry();
+  const [w, h, l, back] = [1.2, 1.45, 2.4, -2.2];
+  // prettier-ignore
+  const skin = [
+    [-w, 0, back], [0, h, back], [0, h, back - l],   [-w, 0, back], [0, h, back - l], [-w, 0, back - l], // one side
+    [w, 0, back], [0, h, back - l], [0, h, back],    [w, 0, back], [w, 0, back - l], [0, h, back - l], // the other
+    [-w, 0, back - l], [0, h, back - l], [w, 0, back - l], // the back
+  ];
+  // Each face twice, the second the other way round, so the canvas shows from inside as well.
+  const inside = [];
+  for (let i = 0; i < skin.length; i += 3) inside.push(skin[i], skin[i + 2], skin[i + 1]);
+  tent.setAttribute("position", new Float32BufferAttribute([...skin, ...inside].flat(), 3));
+  tent.computeVertexNormals();
+  pieces.push(painted(tent, 0xcbbd9a));
+  pieces.push(box(0.06, h, 0.06, 0, h / 2, back, 0x5a4636));
+  pieces.push(box(0.7, 0.1, 1.7, 0.25, 0.06, back - 1.1, 0x8a4a3a));
+  const merged = mergeGeometries(pieces.map((piece) => (piece.index ? piece.toNonIndexed() : piece)));
+  const turned = merged.rotateY(angle).translate(x, y, z);
+  town.pieces.push(turned);
+  const local = (lx, lz) => ({
+    x: x + lx * Math.cos(angle) + lz * Math.sin(angle),
+    z: z - lx * Math.sin(angle) + lz * Math.cos(angle),
+  });
+  town.circles.push({ x, z, r: 0.6 });
+  const tentAt = local(0, back - l / 2);
+  town.circles.push({ ...tentAt, r: 1.15 });
+  // Places round the fire, facing it (not on the tent's side).
+  for (const [i, turn] of [-2.1, -1.05, 0, 1.05, 2.1].entries()) {
+    const at = local(Math.sin(turn) * 1.55, Math.cos(turn) * 1.55);
+    placeSpot(town, {
+      ...at,
+      angle: Math.atan2(x - at.x, z - at.z),
+      act: i % 2 ? "drink" : "ground",
+      role: "camp",
+      camp,
+    });
+  }
+}
+
 /** Builds a building from its spec at (x, z) facing `facing`, with its door, collision box and street clutter. */
 function placeBuilding(random, town, spec, x, z, facing) {
   // How it's dressed, from where it stands: nothing the town's own numbers are spent on.
@@ -1812,6 +1887,26 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
   if (look.walls) placeWalls(town, land);
   // The country round it (inns and cottages join the town's buildings before they're merged).
   const country = buildCountry(random, town, land, ground);
+  // A campsite or two out past the edge of the settlement, on dry and fairly level ground: somewhere for
+  // friends to sit round a fire. (From numbers of their own.)
+  {
+    const own = rng((seed ^ 0x51c0ffee) >>> 0);
+    let made = 0;
+    for (let tries = 0; tries < 40 && made < 2; tries++) {
+      const angle = own() * Math.PI * 2;
+      const reach = townHalf + 16 + own() * 26;
+      const [x, z] = [Math.sin(angle) * reach, Math.cos(angle) * reach];
+      const edge = worldSize / 2 - 12;
+      if (Math.abs(x) > edge || Math.abs(z) > edge || inTown(x, z, 10)) continue;
+      const heights = [0, 1, 2, 3].map((i) => heightAt(x + Math.sin(i * 1.57) * 3.5, z + Math.cos(i * 1.57) * 3.5));
+      if (Math.max(...heights) - Math.min(...heights) > 0.7) continue;
+      if ([0, 1, 2, 3, 4].some((i) => waterAt(x + Math.sin(i * 1.26) * 5, z + Math.cos(i * 1.26) * 5).depth > 0))
+        continue;
+      if (land.roads.some((road) => road.points.some((point) => Math.hypot(point.x - x, point.z - z) < 7))) continue;
+      if (town.boxes.some((b) => x > b.minX - 6 && x < b.maxX + 6 && z > b.minZ - 6 && z < b.maxZ + 6)) continue;
+      placeCamp(town, x, z, Math.atan2(-x, -z), `camp${made++}`);
+    }
+  }
   // By each pond: places on the shore to sit and look at the water.
   for (const pond of land.ponds()) {
     const own = rng(hashString(`pond:${Math.round(pond.x)}:${Math.round(pond.z)}`));

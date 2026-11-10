@@ -4414,8 +4414,17 @@ function momentListeners(voice, audience, extra = [], text = "") {
       distance: inside.has(person.id) ? 2 : Math.hypot(person.x - at.x, person.z - at.z),
     }))
     .filter(({ person, distance }) => distance <= range && (audience !== "party" || party.has(person.id)));
-  // Anyone the player names ("Hey Ingrid!") is among them if they're in earshot; then the nearest.
-  return pickListeners(heard, text).map(({ person, distance }) => ({
+  // Anyone the player names ("Hey Ingrid!") is among them if they're in earshot; then the nearest. Friends
+  // out together are heard as one: whoever is picked brings the rest of their company in earshot (eight
+  // at most), so one call answers for the group.
+  const picked = pickListeners(heard, text);
+  for (const { person } of [...picked]) {
+    for (const id of person.company ?? []) {
+      const friend = heard.find((entry) => entry.person.id === id);
+      if (friend && !picked.includes(friend) && picked.length < 8) picked.push(friend);
+    }
+  }
+  return picked.map(({ person, distance }) => ({
     id: person.id,
     name: person.name,
     distance: Math.round(distance),
