@@ -571,3 +571,37 @@ console.log("wanderworld regression: OK");
   assert.deepEqual(undoOnly(before, after, structuredClone(after), whole), before);
   console.log("ok: the assistant's undo takes back only its own changes");
 }
+
+// ── The assistant's proposal as the player left it ───────────────────────────────────────────────────────
+{
+  const { editableFields, reviseEdits } = await import("../packages/wanderworld/src/assistant-edits.js");
+  const edits = [
+    { do: "lore", about: "Jake", text: "A smith." },
+    { do: "relate", from: "Jake", to: "Sarah", kind: "partner" },
+    { do: "card", person: "Wren", description: "Tall.", appearance: "Grey coat." },
+    { do: "rename", place: "tavern1", name: "The Bell" },
+    { do: "notice", text: "Lost cat.", by: "" },
+    { do: "home", person: "Jake", place: "home3" },
+  ];
+  assert.deepEqual(
+    editableFields(edits[2]).map((part) => part.key),
+    ["description", "appearance"],
+    "only the parts the edit has",
+  );
+  assert.deepEqual(editableFields(edits[1]), []);
+  const left = reviseEdits(edits, [
+    { edit: 0, keep: true, values: { text: "  A smith,\tand a sorcerer.  ", about: "Sarah" } },
+    { edit: 1, keep: false, values: {} },
+    { edit: 2, keep: true, values: { description: "", appearance: "A red coat." } },
+    { edit: 3, keep: true, values: { name: "x".repeat(200) } },
+    { edit: 4, keep: true, values: { text: "   " } },
+  ]);
+  assert.deepEqual(left.edits, [
+    { do: "lore", about: "Jake", text: "A smith, and a sorcerer." },
+    { do: "card", person: "Wren", appearance: "A red coat." },
+    { do: "rename", place: "tavern1", name: "x".repeat(60) },
+  ]);
+  assert.equal(left.skipped.length, 1, "the note left empty is said");
+  assert.deepEqual(reviseEdits(edits, []).edits, [], "an edit the proposal didn't show is never made");
+  console.log("ok: the assistant's proposal is applied as the player left it");
+}

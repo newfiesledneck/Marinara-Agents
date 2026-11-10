@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.8 — 2026-11-11
+
+- The assistant's proposal can be edited before you confirm. Each change has a tick, so you can leave some out and keep the rest, and the text it wrote (lore, a new person's name and card, a place's name, the world's setting and look, a note, an errand) is in boxes you can rewrite. What you confirm is what you see.
+
 ## 0.5.7 — 2026-11-11
 
 - The assistant's Undo now takes back only what the assistant changed. Anything you changed yourself after its Confirm (in the Journal, or through play) stays, and if you've since changed the very same thing, yours is kept. Something the assistant added, such as a person or a lore entry, still goes.

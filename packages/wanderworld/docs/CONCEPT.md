@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.7, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.8, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.7: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
+_0.5.1 to 0.5.8: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
 
@@ -506,7 +506,10 @@ JSON edits. `readAssistant` (server) takes the block out of the words and checks
 field against fixed lists and lengths: anything else is dropped and counted; a block that isn't JSON, isn't
 the format or was cut short changes nothing and says so. `applyAssistantEdits` (client) then resolves
 names and numbered places against the world, once dry for the proposal the player reads and once for real
-on Confirm, through the setters the Journal uses. Confirm first copies every field the assistant can touch
+on Confirm, through the setters the Journal uses. The proposal is editable: each edit has a tick, and its
+written parts (`src/assistant-edits.js`: lore text, a card's parts, a new person's name and card, a place's
+name, the setting and look, a note, an errand) are boxes the player may rewrite; Confirm applies the edits
+as they left them, cut to the server's limits, and never an edit the proposal didn't show. Confirm first copies every field the assistant can touch
 (`ASSISTANT_FIELDS`) and copies them again after; a failure part-way puts the first copy back. Undo takes
 back only the difference between the two copies (`src/undo.js`, a three-way merge with the world as it is
 now, so what changed since by hand or through play stays), then brings the cast, homes, days, names and
@@ -656,7 +659,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.7, 2026-11-11)
+## Outstanding (as of 0.5.8, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 

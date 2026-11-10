@@ -55,6 +55,7 @@ import { kitModels, kitTexture } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
 import { undoOnly, withoutLeftovers } from "./undo.js";
+import { editableFields, reviseEdits } from "./assistant-edits.js";
 import { createHangingSign, createNoticeboard, createSign } from "./signs.js";
 import {
   buildZones,
@@ -3179,7 +3180,7 @@ function savePerson(id, changes) {
 /**
  * One turn with the assistant: the world as it stands goes with the chat. What it wants to change comes
  * back as a proposal (nothing is changed yet): { reply, problem, proposed: [{ line, before, after }],
- * skipped: [text], apply() → { changes, skipped, undo() } } — `apply` (null with nothing to do) is the
+ * skipped: [text], apply(revised) → { changes, skipped, undo() } } — `apply` (null with nothing to do) is the
  * player's Confirm, and the `undo` it returns takes those changes back (and nothing changed since by hand).
  */
 async function askAssistant(history) {
@@ -3297,13 +3298,19 @@ async function askAssistant(history) {
     proposed: proposal.changes,
     skipped: proposal.skipped,
     apply: proposal.changes.length
-      ? () => {
+      ? (revised = null) => {
           if (core.save?.id !== save.id) throw new Error("Another world is open now, so nothing was changed.");
+          // The proposal as the player left it: text they rewrote, changes they left out.
+          const chosen = revised ? reviseEdits(edits, revised) : { edits, skipped: [] };
           const before = assistantSnapshot();
           try {
-            const done = applyAssistantEdits(edits, false);
+            const done = applyAssistantEdits(chosen.edits, false);
             const after = assistantSnapshot();
-            return { ...done, undo: () => undoAssistant(before, after) };
+            return {
+              changes: done.changes,
+              skipped: [...chosen.skipped, ...done.skipped],
+              undo: done.changes.length ? () => undoAssistant(before, after) : null,
+            };
           } catch (error) {
             // Something gave way part of the way through: back to how it was, so it's all or nothing.
             console.warn("[wanderworld] the assistant's changes failed", error);
@@ -3400,8 +3407,9 @@ function undoAssistant(before, after = null) {
  * one that names nobody here, or a place that isn't one, is left out and said. With `dry` nothing is
  * changed: it's the proposal the player reads before Confirm, made by the same steps. Every change goes
  * through what the Journal uses (setRelation, setHousingByHand, savePerson, setSchedule, renameZone…), so
- * it's checked the same way. Returns { changes: [{ line, before, after }], skipped: [text] }; `before`
- * and `after` are the old and new text of a rewrite.
+ * it's checked the same way. Returns { changes: [{ line, before, after, edit, fields }], skipped: [text] };
+ * `before` and `after` are the old and new text of a rewrite, `edit` the index of the edit it came from,
+ * and `fields` (dry only, on an edit's first change) the parts the player may rewrite before Confirm.
  */
 function applyAssistantEdits(edits, dry) {
   const changes = [];
@@ -3477,7 +3485,9 @@ function applyAssistantEdits(edits, dry) {
     });
     return found;
   };
+  const starts = []; // where each edit's changes begin
   for (const item of edits) {
+    starts.push(changes.length);
     if (item.do === "relate") {
       const [from, to] = [findPerson(item.from, true), findPerson(item.to, true)];
       if (!from || !to || from.id === to.id) {
@@ -3866,6 +3876,11 @@ function applyAssistantEdits(edits, dry) {
       changes.push({ line: `An errand for you, to ${person.name} (marked on your map).`, after: item.text });
     }
   }
+  starts.forEach((start, at) => {
+    const end = starts[at + 1] ?? changes.length;
+    for (let index = start; index < end; index += 1) changes[index].edit = at;
+    if (dry && end > start) changes[start].fields = editableFields(edits[at]);
+  });
   if (!dry && changes.length) {
     core.save = { ...core.save, book: { entries: book }, lore, locals, factions };
     core.characters = peopleOf(core.save);
