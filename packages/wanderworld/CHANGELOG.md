@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.98 — 2026-11-09
+
+- Illustrate: choose the picture's size, from a few usual ones (landscape, wide, square, portrait) or your own width and height.
+- Illustrate: "Improve the prompt with AI" has your model rewrite the template's prompt into a fuller one before it's painted (one more call, on the conversations connection). You can edit what the model is told, and tick "show me first" to read, change or drop the rewritten prompt before anything is painted.
+- Townsfolk's chatter only shows over their heads when they're near you and in sight, not across town or through walls, and no more than three bubbles are up at once.
+
 ## 0.4.97 — 2026-11-09
 
 - Fixed: Settings opened from the main menu didn't load your connections, so a connection you had chosen showed as "(not found)". They load there now, as they do in a world.

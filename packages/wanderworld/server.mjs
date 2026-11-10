@@ -70,6 +70,9 @@ const TALK_STYLES = {
 };
 const LENGTHS = { short: [1, 2, 160], medium: [1, 3, 320], long: [2, 5, 600] }; // sentences and max tokens
 const PICTURE_KIND = "picture";
+/** What the model is told when it rewrites a picture's prompt, unless the player has written their own. */
+export const IMPROVE_INSTRUCTION =
+  "Rewrite what follows as a prompt for an image generator. Keep every fact in it: who is there, what they look like, where and when it is, the weather, what they're doing. Lead with the subject, then the setting, the light, the mood and the style. One paragraph, concrete and visual, under 120 words. No names of real artists, no words or captions in the picture. Answer with the prompt only.";
 const MAX_PICTURES = 60; // per world, oldest let go first
 /** What people can do on a schedule (the client acts each out; npcs.js). */
 export const ACTIVITIES = ["home", "work", "eat", "visit", "sit", "walk"];
@@ -1140,8 +1143,32 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           setting: text(facts.setting, 400),
           recent: text(facts.recent, 400),
         };
-        const prompt = fillTemplate(template, values);
+        // The prompt: the one the player approved (after a review), or the template filled in and, when
+        // asked, rewritten by the model to the player's instruction. A rewrite that fails leaves it as it was.
+        let prompt = block(body.prompt, 2000) || fillTemplate(template, values);
         if (!prompt) return reply.status(400).send({ error: "The template came out empty." });
+        let improved = false;
+        if (body.improve === true && !block(body.prompt, 2000)) {
+          try {
+            const model = await languageModels.resolveForRequest({ connectionId: idOf(body.textConnectionId) || undefined });
+            const result = await model.chatComplete(
+              [
+                { role: "system", content: block(body.instruction, 1500) || IMPROVE_INSTRUCTION },
+                { role: "user", content: prompt },
+              ],
+              { temperature: 0.7, maxTokens: 600 },
+            );
+            const rewritten = block(String(result?.content ?? "").replace(/<think>[\s\S]*?<\/think>/giu, ""), 2000).replace(/^["'\s]+|["'\s]+$/gu, "");
+            if (rewritten) {
+              prompt = rewritten;
+              improved = true;
+            }
+          } catch (error) {
+            logger.warn("[wanderworld] the picture prompt wasn't rewritten: %s", error?.message ?? error);
+          }
+        }
+        // For a look before it's painted.
+        if (body.previewOnly === true) return { prompt, improved };
         const styleProfileId = STYLE_PROFILE_IDS.has(body.styleProfileId) ? body.styleProfileId : "";
         const width = Number.isInteger(body.width) ? Math.max(256, Math.min(1536, body.width)) : 1024;
         const height = Number.isInteger(body.height) ? Math.max(256, Math.min(1536, body.height)) : 640;
@@ -1173,7 +1200,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           const all = (await documents.list(PACKAGE_ID, PICTURE_KIND)).filter((doc) => doc.data?.worldId === worldId);
           all.sort((a, b) => String(b.data?.at).localeCompare(String(a.data?.at)));
           for (const old of all.slice(MAX_PICTURES)) await removeDocument(documents, old.id).catch(() => false);
-          return { id, image: result.image, prompt, caption, at };
+          return { id, image: result.image, prompt, caption, at, improved };
         } catch (error) {
           logger.warn("[wanderworld] illustrate failed: %s", error?.message ?? error);
           return reply.status(502).send({ error: text(error?.message, 300) || "The picture couldn't be made." });

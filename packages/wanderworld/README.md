@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.97)
+## What it does now (0.4.98)
 
 ### The world
 
@@ -113,7 +113,10 @@ With it running:
   people agree to in moments ("meet me at noon by the fountain") goes into their day.
 - **Illustrate:** a window that paints the current moment (where, when, the weather, who's with you and
   what they're doing, their looks from their cards) from a prompt template you can edit, with the world's
-  gallery. It moves, resizes and stays open while you play.
+  gallery. It moves, resizes and stays open while you play. Pick the picture's size (a few usual ones, or
+  your own width and height). "Improve the prompt with AI" has your model rewrite the filled-in template
+  into a fuller prompt first, to an instruction you can edit, and can show you the result to change or
+  approve before it's painted.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
   the Engine with everyone there (one of your characters at least), your persona and the world's lorebooks.
   Wanderworld plans it itself (point of view, tense and prompt preset from Menu → Settings → AI, and the world's
