@@ -467,6 +467,13 @@ const CAMP = [
   "The fire takes. {place} looks different with a light of your own in it.",
 ];
 
+/** Sleeping in a tent: what's told on waking, by how long it was ({hours}) and the hour it is now ({clock}). */
+const SLEEP = [
+  "You sleep. When you wake it's {clock}, and the fire has burned low.",
+  "{hours} later you crawl out of the tent. It's {clock}.",
+  "You wake stiff, rested, and unsure for a moment where you are. It's {clock}.",
+];
+
 export const PACK = {
   id: "fantasy",
   /** What this setting looks like wherever you are, in a picture's prompt ({world_look}), unless the world has its own. */
@@ -478,6 +485,7 @@ export const PACK = {
   joining: JOINING,
   camp: CAMP,
   acts: ACTS,
+  sleep: SLEEP,
 };
 
 /** What's said of someone doing `act` at a place made for it ("minding a market stall"); "" for none. */

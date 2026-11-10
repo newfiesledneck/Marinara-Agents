@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.16 — 2026-11-11
+
+- Campfires burn: a flickering flame, a light that comes up as it gets dark, and smoke.
+- A campsite's logs are seats, turned to face the fire and clear of the tent.
+- Sleep in a campsite's tent: choose how long (an hour to eight, or until morning or evening), the screen dims, and the clock jumps on. Everyone not close by is where that hour has them: at home, at work, or out.
+- Townsfolk nap in the tent too.
+
 ## 0.5.15 — 2026-11-11
 
 - The smith holds a hammer at the anvil, and anyone drinking holds a mug.

@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.15)
+## What it does now (0.5.16)
 
 ### The world
 
@@ -246,9 +246,14 @@ only walk about.
   before. They say a word now and then, and the Journal, the AI and pictures are told what they're at.
   The smith holds a hammer, and anyone drinking a mug.
 - **Friends out together:** after a chat, friends make an outing of it, two to four of them: a drink at
-  the tavern (most often in the evening), round the fire at a campsite outside the settlement (a ring of
-  stones, logs, a tent), or back to one of their houses. When a moment picks one of them, the rest of
+  the tavern (most often in the evening), round the fire at a campsite outside the settlement, or back
+  to one of their houses. When a moment picks one of them, the rest of
   the group in earshot comes with them in the same call.
+- **Campsites:** a campsite or two outside each settlement: a fire that flickers, lights the ground as
+  it gets dark and smokes, two logs to sit on, and a tent. Use the tent to sleep: choose how long (an
+  hour to eight, or until morning or evening), the screen dims and the clock jumps on. The party and
+  anyone close by stay as they are; everyone else is where that hour has them (home, work, or out at
+  their door). With Settings → Time fixed, you rest but the hour stays. Townsfolk nap in the tent too.
 - **Jump, sit, lie down:** Space jumps. C sits you down on the ground where you stand, C again lies you
   down, and moving (or E) gets you up; the party waits with you. The chat window has Jump and Sit buttons
   (Sit becomes Lie down, then Get up), and on a touch screen they're by your thumb as well. Settings →
@@ -367,6 +372,8 @@ still count, and come first.
 - The smith holds a hammer and a drinker a mug; nobody else holds a tool (the watering has no can), and
   the smith's swing is a wood-chopper's. The forge's hearth doesn't glow at night. A seller and a buyer
   at a stall don't talk to each other.
+- Sleeping is in a campsite's tent only (not a bed, nor your own "/camp" fire), and nothing happens
+  while you sleep but the clock: no events, no dreams, no AI call.
 - A group out together is brought into a moment as one; a conversation (E on one of them) is still with
   that one person.
 - Hamlets and inns have no stalls, so a shop's people there work indoors. The player can't work a spot.

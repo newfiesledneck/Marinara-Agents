@@ -1463,6 +1463,42 @@ async function sceneHere(typed, set = null) {
   narrate(null, `(${words})`);
 }
 
+/** How far from the sleeper people stay as they are when time jumps (metres). */
+const SLEEP_NEAR = 30;
+
+/**
+ * Sleeps in a campsite's tent: lies down on its bedroll, the screen dims, the clock jumps on by `length`
+ * (hours, or "morning" / "evening": till 7:00 or 19:00), and everyone not close by is where that hour has
+ * them (npcs.js resettle). With Settings → Time fixed, there's rest but the hour doesn't change.
+ */
+function sleepIn(camp, length) {
+  if (core.mode !== "walk" || core.interior) return;
+  const until = length === "morning" ? 7 : length === "evening" ? 19 : null;
+  const hours = until === null ? Number(length) || 8 : (until - core.hour + 24) % 24 || 24;
+  sit({ ...camp.bed, approach: camp.mouth, pose: "lie", lift: 0, tent: true, taken: null });
+  core.input?.release();
+  later(1.4, () => {
+    core.hud?.setFade(true);
+    later(0.9, () => {
+      const fixed = core.settings.time === "day" || core.settings.time === "night";
+      if (!fixed) core.hour = (core.hour + hours) % 24;
+      core.dark = core.world.setTime(core.hour);
+      core.crowd.resettle(core.hour, core.player.position, SLEEP_NEAR);
+      savePlace(true);
+      const words = {
+        ...lineWords(),
+        hours: hours >= 1.5 ? `${Math.round(hours)} hours` : "An hour",
+        clock: clockText(),
+      };
+      narrate(
+        null,
+        fixed ? "(You rest. Time is standing still: Settings → Time.)" : pickLine(PACK.sleep, `${core.clock}`, words),
+      );
+      later(0.6, () => core.hud?.setFade(false));
+    });
+  });
+}
+
 /** A campfire where the player stands ("/camp"): a few logs, a flame and its light, to sit by with the party. */
 function makeCamp() {
   if (!core.world || core.interior) return;
@@ -2731,7 +2767,11 @@ function sit(seat) {
   core.mode = "sit";
   glideTo(seat.x, seat.z, seat.angle, 0.45);
   // People round about may say something to someone sitting down by them.
-  const action = seat.pose === "lie" ? "lies down on the bed" : "sits down on a bench";
+  const action = seat.tent
+    ? "lies down in the tent to sleep"
+    : seat.pose === "lie"
+      ? "lies down on the bed"
+      : "sits down on a bench";
   later(0.6, () => void runMoment({ action, needListeners: true, source: "seat" }));
 }
 
@@ -5314,6 +5354,18 @@ function usable() {
       y: 1.6,
       mark: cave.mouth,
       act: () => enterCave(cave),
+    });
+  }
+  // A campsite's tent: somewhere to sleep.
+  for (const camp of core.interior ? [] : (core.world?.camps ?? [])) {
+    list.push({
+      kind: "thing",
+      label: "Sleep in the tent",
+      x: camp.mouth.x,
+      z: camp.mouth.z,
+      y: 1.2,
+      reach: 2.2,
+      act: () => core.hud?.openSleep((length) => sleepIn(camp, length)),
     });
   }
   for (const thing of core.interior ? [] : [...worldThings(), ...(core.world?.camp ? [core.world.camp] : [])]) {

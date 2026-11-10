@@ -737,6 +737,7 @@ export function createHud(root, handlers) {
   // Bottom right, under the thumb that isn't on the stick.
   use.style.cssText += "position:absolute;bottom:32px;right:20px;padding:16px 20px;font-size:15px;display:none;";
   // On touch screens, above it: Jump, and Sit (which becomes Lie down once you're sitting on the ground).
+  let sleepCard = null; // the tent's card, while it's open (openSleep)
   const wanted = { jump: true, rest: true, chat: true }; // Settings → Moving: the thumb's two buttons, the chat window's
   const jump = button("Jump", "Jump", () => handlers.onJump());
   const rest = button("Sit", "Sit down on the ground; again to lie down", () => handlers.onRest());
@@ -1157,6 +1158,55 @@ export function createHud(root, handlers) {
       if (chatRest.textContent !== label) chatRest.textContent = label;
       moves.style.display = shown && wanted.chat ? "flex" : "none";
       chatJump.disabled = !!resting;
+    },
+    /**
+     * The tent's card: how long to sleep, then Sleep or Not now. `onSleep(hours)` is given the choice
+     * (a number of hours, or "morning"). Closes itself either way; `closeSleep()` closes it from outside.
+     */
+    openSleep(onSleep) {
+      hud.closeSleep();
+      const card = document.createElement("div");
+      card.setAttribute("data-wanderworld-ui", "");
+      card.style.cssText = `${PANEL}display:flex;top:auto;right:auto;left:50%;bottom:120px;transform:translateX(-50%);gap:8px;min-width:240px;`;
+      const title = document.createElement("div");
+      title.style.cssText = "font-weight:700;font-size:14px;";
+      title.textContent = "Sleep in the tent";
+      const note = document.createElement("div");
+      note.style.cssText = "font-size:12px;opacity:0.8;line-height:1.35;";
+      note.textContent = "Time moves on while you sleep, and people go about their day.";
+      const length = document.createElement("select");
+      length.style.cssText = "font:inherit;padding:8px;border-radius:6px;min-height:40px;";
+      for (const [value, label] of [
+        ["1", "An hour"],
+        ["2", "Two hours"],
+        ["4", "Four hours"],
+        ["8", "Eight hours"],
+        ["morning", "Until morning (7:00)"],
+        ["evening", "Until evening (19:00)"],
+      ]) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        length.append(option);
+      }
+      length.value = "8";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;";
+      const go = button("Sleep", "Lie down in the tent and sleep", () => {
+        const chosen = length.value;
+        hud.closeSleep();
+        onSleep(Number(chosen) || chosen);
+      });
+      const no = button("Not now", "Leave the tent be", () => hud.closeSleep());
+      for (const control of [go, no]) control.style.cssText += "flex:1;padding:10px 12px;";
+      row.append(go, no);
+      card.append(title, note, length, row);
+      layer.append(card);
+      sleepCard = card;
+    },
+    closeSleep() {
+      sleepCard?.remove();
+      sleepCard = null;
     },
     /** The place line: `text` ("Briarwood · Mill Lane") and the titles of the lore active there. */
     setPlace(text, lore = []) {

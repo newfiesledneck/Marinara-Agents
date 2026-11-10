@@ -268,6 +268,51 @@ const world = createWorld(51, null, { smithy: 2 });
     });
   }
   assert.equal(crowd.present(town).length, 0, "and home at night, from the fire too");
+  // Campsites: seats on the logs, a bedroll in the tent, and the way in clear.
+  assert.ok(town.camps.length >= 1 && town.camps.length <= 2, "a campsite or two");
+  for (const camp of town.camps) {
+    const logSeats = town.seats.filter((seat) => Math.hypot(seat.x - camp.x, seat.z - camp.z) < 3.5);
+    assert.equal(logSeats.length, 4, "two seats on each of the two logs");
+    for (const seat of logSeats) {
+      assert.ok(!town.blocked(seat.approach.x, seat.approach.z, 0.1), "you can stand in front of a log seat");
+      assert.ok(
+        Math.hypot(seat.x - camp.mouth.x, seat.z - camp.mouth.z) > 1.6,
+        "the logs are clear of the tent's mouth",
+      );
+    }
+    assert.ok(
+      Math.hypot(camp.bed.x - camp.x, camp.bed.z - camp.z) > 2.5,
+      "the bedroll is in the tent, back from the fire",
+    );
+    assert.ok(
+      town.spots.some((spot) => spot.act === "lie" && spot.camp === camp.id),
+      "anyone can nap in the tent",
+    );
+  }
+  // The player sleeps: everyone far off is where the hour has them; the party and whoever is near stay.
+  for (let elapsed = 0; elapsed < 200; elapsed += 0.1) {
+    time += 0.1;
+    crowd.update(0.1, {
+      player,
+      space: town,
+      playerSitting: false,
+      hour: 12,
+      time,
+      isVisible: () => false,
+      onFootstep() {},
+    });
+  }
+  const out = crowd.present(town);
+  assert.ok(out.length >= 6, "by midday they're out again");
+  const [stays, follows] = [out[0], out[1]];
+  crowd.setFollowing(follows.id, true);
+  crowd.resettle(23, { x: stays.position.x, z: stays.position.z }, 1);
+  const after = crowd.present(town).map((person) => person.id);
+  assert.ok(after.includes(stays.id), "someone close by stays where they are");
+  assert.ok(after.includes(follows.id), "and so does the party");
+  assert.ok(after.length <= 3, `the rest are home for the night (${after.length} still out)`);
+  crowd.resettle(12, { x: 0, z: 9999 }, 1);
+  assert.ok(crowd.present(town).length >= 10, "and at midday they're out at their doors");
   town.dispose();
 }
 
