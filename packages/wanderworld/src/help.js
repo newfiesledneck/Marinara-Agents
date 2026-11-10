@@ -131,8 +131,8 @@ export const CREDITS = [
   {
     title: "Art, and the code underneath",
     lines: [
-      "The menu and loading art, the logo, the store banner and the ground, water, rock and wood textures were made for Wanderworld by ThatOneCan with an image generator.",
-      "Drawn with three.js. Your own 3D avatars load through @pixiv/three-vrm and mmd-parser. All three are MIT licensed.",
+      "The menu and loading art, the logo, the store banner and the ground, water, rock and wood textures were made for Wanderworld by ThatOneCan with ComfyUI.",
+      "Drawn with three.js. Your own 3D avatars come from the 3D Avatars package, made by Marinara: Wanderworld reads the model you set up there, so you walk about as yourself.",
     ],
   },
 ];

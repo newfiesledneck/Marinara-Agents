@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.95 — 2026-11-09
+
+- The brown buttons are wooden boards now (the kit's wood grain, still easy to read), and Credits and Thanks is a slab of stone.
+- Credits: the art is credited as made with ComfyUI, and your 3D avatars to the 3D Avatars package, made by Marinara.
+
 ## 0.4.94 — 2026-11-09
 
 - Prompts read "[E] Look over the stall" and can be clicked or tapped, not only used with E. On a touch screen they're bigger and drop the "[E]".

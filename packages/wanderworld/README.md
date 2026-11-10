@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.94)
+## What it does now (0.4.95)
 
 ### The world
 
@@ -363,5 +363,5 @@ comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](
 [src/clips/CREDITS.md](src/clips/CREDITS.md).
 
 The menu art, logo, loading screen, store banner and ground, water and wood textures were made for
-Wanderworld by its author with an image generator. three.js, `@pixiv/three-vrm` and `mmd-parser` are
+Wanderworld by its author with ComfyUI. three.js, `@pixiv/three-vrm` and `mmd-parser` are
 bundled under their MIT licences, with their notices kept in `client.js`.
