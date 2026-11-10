@@ -328,15 +328,16 @@ const ASSISTANT_MAX_EDITS = 20;
 /** What the assistant is told: who it is, and the one format its changes come in. */
 export const ASSISTANT_INSTRUCTION = [
   "You are the assistant for a player's world in Wanderworld, a small walkable 3D world of their characters, for roleplay. You talk with the player about their world: its people, places, lore, and how Wanderworld works. Answer plainly and briefly, in ordinary sentences, like a helpful chat assistant. If you don't know, say so.",
-  "You can also change this world when the player asks you to. Only then, and only what they asked for: put ONE block at the very end of your answer, fenced exactly like this, holding one JSON object:",
+  "You can also propose changes to this world when the player asks for one. Only then, and only what they asked for: put ONE block at the very end of your answer, fenced exactly like this, holding one JSON object:",
   '```wanderworld\n{"edits": [ ... ]}\n```',
   `Each edit is one of these (names exactly as they are listed under "People"; places by their numbered name, like home3 or tavern1, from "Places"):
 - {"do": "relate", "from": "Jake", "to": "Sarah", "kind": "partner", "role": "husband", "backRole": "wife", "level": 80, "both": true}: how "from" sees "to". "kind" is one of ${ASSISTANT_KINDS.join(", ")} ("none" ends it). "role" is what "from" is to "to" (optional: husband, sister, mentor…), "backRole" what "to" is to "from". "level" is 0 to 100 (how strong; optional). "both": true sets it both ways. The player is "player".
 - {"do": "home", "person": "Jake", "place": "home3"} or {"do": "home", "person": "Jake", "with": "Sarah"}: where they live ("with": in the same home as someone). "place": "none" for no home.
 - {"do": "work", "person": "Jake", "place": "smithy1", "owner": false}: where they work. "place": "none" for no work.
-- {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name) or "world" (the whole world). The text REPLACES what this world's lore says of them now (shown to you as "lore"), so write it whole: keep what should stay. At most 1400 characters. It is used when they talk, in moments and scenes.
+- {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name) or "world" (the whole world). It is used when they talk, in moments and scenes. At most 1400 characters.
 - {"do": "card", "person": "Oswin", "description": "...", "personality": "...", "appearance": "..."}: for people marked "invented" only (this world made them); give only the parts to change.`,
-  "Rules: you change nothing but through such edits, and only in this world. You cannot change the player's character cards, personas or lorebooks in the Engine, nor Wanderworld's settings, the map or buildings: say so, and say where the player can (Menu → Settings, Journal). Never claim a change you put no edit for. To make two people a couple who live together: one relate edit with both, and a home edit. With no change asked for, write no block at all. In your sentences say briefly what you are changing; the player is shown a list of what was really done.",
+  `Lore and card text REPLACES what is there now (shown to you as "lore", and for invented people "about"), so what you write is the whole of it, rewritten: never a summary, never only the new part. Keep every detail that is there, in the same voice and at no less than the same length and level of detail, and weave the change in where it belongs; change or drop only what the request contradicts. A small request ("make Jake a sorcerer") changes little: the lore stays as rich as it was, with his sorcery worked through it. A detailed request may add as much as it asks for. When one of the player's own characters has no lore here yet, their card ("about") still stands by itself: write what is new or different about them in this world, as fully as the request deserves, without repeating the card.`,
+  "Rules: nothing changes until the player has read your proposal and confirmed it, so say what you propose, not that it is done. You propose changes only through such edits, and only to this world. You cannot change the player's character cards, personas or lorebooks in the Engine, nor Wanderworld's settings, the map or buildings: say so, and say where the player can (Menu → Settings, Journal). Never describe a change you put no edit for. To make two people a couple who live together: one relate edit with both, and a home edit. With no change asked for, write no block at all.",
 ].join("\n\n");
 
 /**
@@ -445,6 +446,7 @@ export function assistantMessages(input) {
     ),
     section("Places", input.places.map((place) => `${place.slot}${place.name ? ` = ${place.name}` : ""}`).join("\n")),
     section("This world's own lore", input.entries.map((entry) => `${entry.title}: ${entry.content}`).join("\n\n")),
+    ageRule(input.ages) && section("Ages", `${ageRule(input.ages)} ${AGES_YIELD}`),
     input.help && section("How Wanderworld works", input.help),
   ]
     .filter(Boolean)
@@ -455,10 +457,14 @@ export function assistantMessages(input) {
   ];
 }
 
-/** An age from the client: a whole number of years from 0 to 999, or null for no limit. */
-const ageOf = (value) => (Number.isInteger(value) && value >= 0 && value <= 999 ? value : null);
+/** An age from the client: a whole number of years from 1 up (an elf may be a thousand), or null for no limit. */
+const ageOf = (value) => (Number.isInteger(value) && value >= 1 && value <= 100000 ? value : null);
 
-/** How old the people the model makes may be, as a sentence ("" when the world sets no limit). */
+/** Said with the ages wherever they go: they're the usual, and never override what's written. */
+const AGES_YIELD =
+  "That is the usual range, for anyone whose age nothing gives: an age the world's lore, its setting or a card states or implies for someone stands, whatever it is (an elf may be a thousand years old).";
+
+/** How old the people the model makes usually are, as a sentence ("" when the world sets no limit). */
 export function ageRule(ages) {
   const [min, max] = [ageOf(ages?.min), ageOf(ages?.max)];
   if (min === null && max === null) return "";
@@ -491,7 +497,7 @@ export function worldWriteMessages(input) {
         content: [
           "You fill in the people of a small 3D world from what its lore says of them, for a roleplay sandbox. Answer with one JSON object and nothing else.",
           `For each numbered person give "n" (their number) and, staying true to what's written and inventing only what's missing: "body" ("male" or "female"), "description" (60 to 120 words: who they are, their age and trade, their history here, what they want), "personality" (20 to 40 words, with how they talk) and "appearance" (20 to 40 words).`,
-          ages && `${ages} That is for anyone whose age the lore doesn't give (what the lore says of someone stays); say each one's age in their description.`,
+          ages && `${ages} ${AGES_YIELD} Say each one's age in their description.`,
           `{"people": [{"n": 1, "body": "female", "description": "", "personality": "", "appearance": ""}]}`,
         ]
           .filter(Boolean)
@@ -525,7 +531,7 @@ export function worldWriteMessages(input) {
 - "personality": 20 to 40 words, with how they talk.
 - "appearance": 20 to 40 words.
 - "keys": where they belong, as keywords: "lives in <home>" ("lives in home4"; people who share a house share its number, and homes under "Already placed" are taken unless they'd live there), "works at <place>" or "owner of <place>", what they are to the player as one bare word (one of friend, romance, partner, family, colleague, mentor, rival, enemy, fear, or for the player's family brother, sister, father, mother, son, daughter, husband, wife; nothing for a stranger), and how they stand toward others as "<word> of <Name>" with one of those words or brother, sister, father, mother, son, daughter, husband, wife ("sister of Mira").`,
-          ages && `${ages} Say each one's age in their description. It holds for the people from the cards too: someone a card makes younger or older than that is left out, not made.`,
+          ages && `${ages} ${AGES_YIELD} Say each one's age in their description.`,
           `{"people": [{"name": "", "body": "female", "description": "", "personality": "", "appearance": "", "keys": ["lives in home4", "works at smithy1", "rival of Mira"]}]}`,
         ]
           .filter(Boolean)
@@ -1332,7 +1338,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .map((person) => ({
               name: text(person.name, 80),
               invented: person.invented === true,
-              about: cutWords(text(person.about, 2000), 400),
+              about: cutWords(text(person.about, 3000), 1200),
               home: text(person.home, 120),
               work: text(person.work, 120),
               owner: person.owner === true,
@@ -1347,6 +1353,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .map((entry) => ({ title: text(entry.title, 120), content: text(entry.content, 1500) }))
             .filter((entry) => entry.title && entry.content),
           help: block(body.help, 9000),
+          ages: isRecord(body.ages) ? body.ages : null,
         });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });

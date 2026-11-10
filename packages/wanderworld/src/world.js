@@ -286,13 +286,25 @@ function useSettlement(settlement, seed = 0) {
   const layout = settlement.layout ?? "grid";
   // A crossroads or one long street needs more blocks along its lines to hold as many homes.
   const kindBlocks = SETTLEMENTS[settlement.kind]?.blocks ?? BLOCKS_PER_SIDE;
-  blocksPerSide = layout === "grid" ? kindBlocks : Math.max(3, kindBlocks + (layout === "ring" ? 0 : 2));
+  blocksPerSide =
+    layout === "grid"
+      ? kindBlocks
+      : layout === "scattered"
+        ? Math.max(3, kindBlocks)
+        : layout === "pond"
+          ? Math.max(4, kindBlocks)
+          : layout === "quarters"
+            ? Math.max(3, kindBlocks | 1) // an odd count, so the green's cross runs through the middle
+            : Math.max(3, kindBlocks + (layout === "ring" ? 0 : 2));
   townHalf = (blocksPerSide * PITCH) / 2;
   streetLines = Array.from({ length: blocksPerSide + 1 }, (_, i) => (i - blocksPerSide / 2) * PITCH);
   // The market's block: the middle one (for an even count, the one just short of it), or one to a side.
   const base = Math.floor((blocksPerSide - 1) / 2);
-  const step = { north: [0, -1], south: [0, 1], west: [-1, 0], east: [1, 0] }[settlement.side] ?? [0, 0];
-  const index = (axis) => Math.max(0, Math.min(blocksPerSide - 1, base + step[axis]));
+  // (Round a pond the market is out at an edge, the south one unless a side is chosen: the pond has the middle.)
+  const side = layout === "pond" ? (settlement.side ?? "south") : settlement.side;
+  const step = { north: [0, -1], south: [0, 1], west: [-1, 0], east: [1, 0] }[side] ?? [0, 0];
+  const reach = layout === "pond" ? blocksPerSide : 1;
+  const index = (axis) => Math.max(0, Math.min(blocksPerSide - 1, base + step[axis] * reach));
   const centre = (i) => (i - (blocksPerSide - 1) / 2) * PITCH;
   plaza = { x: centre(index(0)), z: centre(index(1)), i: index(0), j: index(1) };
   // The layout's blocks: all of them (grid), a plus along two main streets (crossroads), one long row
@@ -305,6 +317,12 @@ function useSettlement(settlement, seed = 0) {
       crossroads: (a, b) => a === middle || b === middle,
       street: (a, b) => b === middle,
       ring: (a, b) => !((a === 0 || a === outer) && (b === 0 || b === outer)),
+      // Only the market: every house stands where it likes (planOpenGround).
+      scattered: () => false,
+      // The blocks along the edge, by the walls; the middle is open, with a pond in it.
+      pond: (a, b) => a === 0 || a === outer || b === 0 || b === outer,
+      // Four quarters, a cross of open green between them.
+      quarters: (a, b) => a !== middle && b !== middle,
     }[layout] ?? (() => true);
   blocks = null;
   if (layout !== "grid") {
@@ -334,17 +352,55 @@ function planOpenGround(seed) {
         crossings.push({ x: (i - blocksPerSide / 2) * PITCH, z: (j - blocksPerSide / 2) * PITCH });
     }
   }
-  if (crossings.length) plan.pond = crossings[Math.floor(random() * crossings.length)];
+  const style = look.layout;
+  if (style === "pond") {
+    // In the very middle: where four blocks meet (an even count), or on the middle block with open
+    // ground on its four sides.
+    const m = (blocksPerSide - 1) / 2;
+    const fits = Number.isInteger(m)
+      ? open(m, m) && open(m - 1, m) && open(m + 1, m) && open(m, m - 1) && open(m, m + 1)
+      : crossings.some((at) => at.x === 0 && at.z === 0);
+    if (fits) plan.pond = { x: 0, z: 0 };
+  } else if (style === "scattered") {
+    // Not on the lines the gates open onto: the ways in stay dry.
+    const gate = (Math.floor((blocksPerSide + 1) / 2) - blocksPerSide / 2) * PITCH;
+    const dry = crossings.filter((at) => at.x !== gate && at.z !== gate);
+    if (dry.length) plan.pond = dry[Math.floor(random() * dry.length)];
+  } else if (crossings.length) plan.pond = crossings[Math.floor(random() * crossings.length)];
+  // How often an open block gets houses, a meadow, a garden, trees (the rest stays bare), and two houses.
+  const [houses_, meadow_, garden_, trees_, pair_] = {
+    scattered: [0.85, 0.9, 0.95, 1, 0.75],
+    pond: [0.1, 0.45, 0.65, 0.9, 0.3],
+  }[style] ?? [0.3, 0.5, 0.62, 0.8, 0.45];
   for (let a = 0; a < blocksPerSide; a++) {
     for (let b = 0; b < blocksPerSide; b++) {
       if (!open(a, b)) continue;
       const [x, z] = [centre(a), centre(b)];
       // The four blocks round the pond are its shore.
       if (plan.pond && Math.abs(x - plan.pond.x) < PITCH && Math.abs(z - plan.pond.z) < PITCH) continue;
+      // Scattered: the lots round the market face it, one building each: its tavern, temple, shops (buildTown).
+      if (style === "scattered" && Math.max(Math.abs(a - plaza.i), Math.abs(b - plaza.j)) === 1) {
+        plan.lots.push({
+          kind: "houses",
+          x,
+          z,
+          ring: true,
+          houses: [
+            {
+              x,
+              z,
+              width: 6 + random() * 1.5,
+              depth: 5.5 + random() * 1.5,
+              facing: facingFor(plaza.x - x, plaza.z - z),
+            },
+          ],
+        });
+        continue;
+      }
       const roll = random();
-      if (roll < 0.3) {
+      if (roll < houses_) {
         // A house, or two in opposite halves of the block, wherever they happened to be built.
-        const two = random() < 0.45;
+        const two = random() < pair_;
         const alongX = random() < 0.5;
         const houses = (two ? [-1, 1] : [0]).map((half) => {
           const near = half * (4 + random() * 0.5);
@@ -361,15 +417,15 @@ function planOpenGround(seed) {
           };
         });
         plan.lots.push({ kind: "houses", x, z, houses });
-      } else if (roll < 0.5) plan.lots.push({ kind: "meadow", x, z });
-      else if (roll < 0.62)
+      } else if (roll < meadow_) plan.lots.push({ kind: "meadow", x, z });
+      else if (roll < garden_)
         plan.lots.push({
           kind: "garden",
           x: x + (random() * 2 - 1) * 4,
           z: z + (random() * 2 - 1) * 4,
           facing: Math.floor(random() * 4),
         });
-      else if (roll < 0.8) plan.lots.push({ kind: "trees", x, z });
+      else if (roll < trees_) plan.lots.push({ kind: "trees", x, z });
     }
   }
   return plan;
@@ -1575,8 +1631,41 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
   // The ground the layout leaves open, last of all (and from numbers of its own), so every building
   // before it keeps its number in a world made before there was anything here.
   const fill = rng((seed ^ 0x2f1b3a67) >>> 0);
-  for (const lot of openPlan.lots) {
-    if (lot.kind === "houses") {
+  // Scattered houses have no blocks round the market for its landmarks: they take the lots facing it
+  // (then any lot with one house): what the kind of settlement has, and what the lore needs beyond that.
+  const landmarks = [];
+  if (look.layout === "scattered") {
+    landmarks.push(...kind.ring.filter((role) => role !== "homes").map((role) => (role === "shops" ? "shop" : role)));
+    for (const want of ["tavern", "smithy", "shop", "temple", "hall"]) {
+      for (let n = landmarks.filter((role) => role === want).length; n < Math.min(12, needs[want] ?? 0); n++)
+        landmarks.push(want);
+    }
+    // Dirt ways in from each side, along the line its gate is on, as far as the market.
+    const gate = streetLines[Math.floor(streetLines.length / 2)];
+    for (const [alongX, sign] of [
+      [true, 1],
+      [true, -1],
+      [false, 1],
+      [false, -1],
+    ]) {
+      const spot = (along, across) => (alongX ? { x: along, z: across } : { x: across, z: along });
+      const market = alongX ? plaza.z : plaza.x;
+      if (Math.abs(gate - (alongX ? plaza.x : plaza.z)) > PITCH) continue; // the market isn't on this way in
+      const [from, to] = [sign * (townHalf + 2), market + sign * (BLOCK / 2 + STREET)];
+      if ((from - to) * sign > 6) town.gateTracks.push([spot(gate, from), spot(gate, to)]);
+    }
+  }
+  const SIZES = { tavern: [11.5, 8.5], hall: [13.5, 10], temple: [13.5, 10] };
+  const lots = [...openPlan.lots].sort((a, b) => (b.ring ? 1 : 0) - (a.ring ? 1 : 0)); // the market's lots first
+  for (const lot of lots) {
+    if (lot.kind === "houses" && lot.houses.length === 1 && landmarks.length) {
+      const role = landmarks.shift();
+      const [house] = lot.houses;
+      const [width, depth] = SIZES[role] ?? [house.width, house.depth];
+      // A big one stands in the middle of its lot, so it's clear of the lots beside it.
+      const at = SIZES[role] ? { x: lot.x, z: lot.z } : house;
+      placeBuilding(fill, town, makeSpec(fill, role, { width, depth }), at.x, at.z, house.facing);
+    } else if (lot.kind === "houses") {
       for (const house of lot.houses)
         placeBuilding(
           fill,
@@ -2589,6 +2678,17 @@ function streetWaypoints() {
     for (let j = 0; j < lines.length; j++) {
       const onStreet = hasStreetX(j, k - 1) || hasStreetX(j, k) || hasStreetZ(k, j - 1) || hasStreetZ(k, j);
       if (onStreet) points.push({ x: a, z: lines[j] });
+      // Open ground has no streets, but people still cross it: where the lines between its blocks
+      // meet (houses stand inside the blocks), clear of the pond.
+      else if (
+        blocks &&
+        k > 0 &&
+        j > 0 &&
+        k < lines.length - 1 &&
+        j < lines.length - 1 &&
+        !(openPlan.pond && Math.hypot(a - openPlan.pond.x, lines[j] - openPlan.pond.z) < 14)
+      )
+        points.push({ x: a, z: lines[j] });
       if (j < lines.length - 1) {
         const middle = (lines[j] + lines[j + 1]) / 2;
         if (hasStreetZ(k, j)) points.push({ x: a, z: middle });

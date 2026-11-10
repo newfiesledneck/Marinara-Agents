@@ -327,7 +327,7 @@ export function buildZones(layout, seed) {
   const streetsAndSquare = zones.filter((zone) => zone.kind === "street" || zone.kind === "plaza");
   const onStreet = (box) => {
     let best = "town";
-    let bestGap = Infinity;
+    let bestGap = 14; // further from any street than this (a house out on open ground): just in town
     for (const zone of streetsAndSquare) {
       const other = zone.shape.box;
       const gap =

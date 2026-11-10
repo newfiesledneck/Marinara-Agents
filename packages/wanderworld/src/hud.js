@@ -547,7 +547,7 @@ export function createHud(root, handlers) {
     const about = document.createElement("div");
     about.style.cssText = `font-size:12px;line-height:1.4;color:${INK_SOFT};`;
     about.textContent =
-      "Talk with the AI about the world you're in: its people, places and lore, or how Wanderworld works. It can also change this world for you: who's what to whom, where people live and work, this world's own lore about a person, a place or the whole world, and the cards of people this world invented. Each change is listed after its answer. It never touches your character cards, personas or lorebooks in the Engine, or these settings. One model call a message, on the conversations connection (Settings → AI).";
+      "Talk with the AI about the world you're in: its people, places and lore, or how Wanderworld works. It can also change this world for you: who's what to whom, where people live and work, this world's own lore about a person, a place or the whole world, and the cards of people this world invented. It shows you each change first, in full, and makes none until you press Confirm. It never touches your character cards, personas or lorebooks in the Engine, or these settings. One model call a message, on the conversations connection (Settings → AI).";
     settingsPanel.append(
       about,
       createAssistant((history) => handlers.onAssistant(history)),

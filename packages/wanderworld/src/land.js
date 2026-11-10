@@ -22,7 +22,7 @@ const HAMLET_FLAT = 24; // metres round a hamlet's middle that are level
 const FARM_FLAT = 28; // and round a farm's yard and fields
 /** Kinds of settlement, smallest first, with their usual market and roads and about how many homes they hold. */
 export const SETTLEMENT_KINDS = ["hamlet", "village", "town", "city"];
-export const SETTLEMENT_LAYOUTS = ["grid", "crossroads", "street", "ring"];
+export const SETTLEMENT_LAYOUTS = ["grid", "crossroads", "street", "ring", "scattered", "pond", "quarters"];
 /** The layouts each kind is usually laid out in, when left to the seed. */
 const USUAL_LAYOUTS = {
   hamlet: ["street", "crossroads"],
@@ -50,7 +50,8 @@ export function checkSettlement(raw) {
     market: ["square", "stalls", "green"].includes(raw?.market) ? raw.market : usual.market,
     roads: ["cobble", "dirt"].includes(raw?.roads) ? raw.roads : usual.roads,
     side: SIDES.includes(raw?.side) ? raw.side : null,
-    // How its blocks are laid out: all of them (grid), a plus (crossroads), one long street, or a ring.
+    // How its blocks are laid out: all of them (grid), a plus (crossroads), one long street, a ring; or
+    // (only when chosen) houses scattered round the market, a ring of blocks round a pond, four quarters.
     layout: SETTLEMENT_LAYOUTS.includes(raw?.layout) ? raw.layout : "grid",
     // A stone wall round it with gates where its roads leave (new cities have them; older worlds don't).
     walls: raw?.walls === true,
