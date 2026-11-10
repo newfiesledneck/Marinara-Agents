@@ -4,7 +4,7 @@
 // the same name always gives the same person. Pictures aren't drawn in Node, so images are stubbed.
 // Run: node tests/wanderworld-people.regression.mjs
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Box3, Vector3 } from "three";
@@ -29,7 +29,7 @@ const looks = new Set();
 for (const name of ["Bram", "Ivy", "Hank", "Lena", "Odo", "Sera", "Cole", "Brin"]) {
   const look = lookFor(name, index);
   assert.deepEqual(lookFor(name, index), look, "the same name always gives the same look");
-  looks.add(`${look.outfit}/${look.colourway}/${look.hair}`);
+  looks.add(`${look.choices.outfit}/${look.colourways[look.choices.outfit]}/${look.hair}`);
 
   const person = await createPerson(name);
   person.update(1 / 60, 0);
@@ -72,70 +72,124 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
 
 // ── Looks chosen by hand ─────────────────────────────────────────────────────
 {
-  const { checkLook, HAIR_COLOURS, OUTFITS, SKIN_TONES } = await import("../packages/wanderworld/src/looks.js");
-  // Every outfit and colour on the menus is in the kit, for both bodies.
+  const { checkLook, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, OUTFITS, PIECES, SKIN_TONES } =
+    await import("../packages/wanderworld/src/looks.js");
+  const kitFiles = new Set(await readdir(kit));
+  // Every outfit, colour and piece on the menus is in the kit, for both bodies.
   for (const sex of ["male", "female"]) {
+    assert.ok(kitFiles.has(`skeleton-${sex}.json`), `the ${sex} skeleton`);
     for (const [outfit, { colours }] of Object.entries(OUTFITS)) {
       const packed = index.sexes[sex].outfits.find((entry) => entry.name === `${sex}-${outfit}`);
       assert.ok(packed, `the kit has the ${sex} ${outfit} outfit`);
       assert.deepEqual([...packed.colourways].sort(), colours.map(([name]) => name).sort(), `${outfit}'s colours`);
+      for (const [name] of colours) assert.ok(kitFiles.has(`${name}.webp`), `the ${name} cloth`);
+      for (const [piece] of PIECES)
+        assert.ok(kitFiles.has(`${sex}-${outfit}-${piece}.json`), `${sex} ${outfit} ${piece}`);
     }
+    for (const [extra, , outfit] of EXTRAS)
+      assert.ok(kitFiles.has(`${sex}-${outfit}-${extra}.json`), `${sex} ${extra}`);
   }
   const usual = lookFor("Mira", index, "female");
   // One thing chosen changes only that.
   const hooded = lookFor("Mira", index, "female", { outfit: "ranger" });
-  assert.equal(hooded.outfit, "female-ranger");
-  assert.ok(
-    OUTFITS.ranger.colours.some(([name]) => name === hooded.colourway),
-    "a ranger wears a ranger's colour",
-  );
+  assert.deepEqual(hooded.parts, [
+    "female-ranger-top",
+    "female-ranger-arms",
+    "female-ranger-legs",
+    "female-ranger-feet",
+    "female-ranger-hood",
+    "female-ranger-pauldrons",
+  ]);
   assert.equal(hooded.hair, usual.hair, "her hair is as it was");
   assert.deepEqual(hooded.skin, usual.skin, "and her skin");
+  // The hood and the pauldrons come off; a piece comes from another outfit; each outfit keeps its colour.
+  const bare = lookFor("Mira", index, "female", { outfit: "ranger", hood: false, pauldrons: false, legs: "peasant" });
+  assert.deepEqual(bare.parts, [
+    "female-ranger-top",
+    "female-ranger-arms",
+    "female-peasant-legs",
+    "female-ranger-feet",
+  ]);
+  assert.deepEqual([...bare.worn].sort(), ["peasant", "ranger"]);
+  const mixed = lookFor("Mira", index, "female", {
+    outfit: "peasant",
+    hood: true,
+    colour: "clothes-red",
+    rangerColour: "ranger-wine",
+  });
+  assert.ok(mixed.parts.includes("female-ranger-hood") && mixed.parts.includes("female-peasant-top"));
+  assert.deepEqual(mixed.colourways, { peasant: "clothes-red", ranger: "ranger-wine" });
+  assert.equal(
+    lookFor("Mira", index, "female", { outfit: "peasant" }).worn.join(),
+    "peasant",
+    "no hood on a townsperson unless said",
+  );
   const dyed = lookFor("Mira", index, "female", {
     hairColour: 9,
     skin: 4,
     hair: "none",
     height: 1.1,
-    colour: "clothes-red",
-    outfit: "peasant",
+    tint: 0x336699,
+    hairTint: 0x00ff88,
   });
-  assert.equal(dyed.hairColour, HAIR_COLOURS[9][0]);
+  assert.equal(dyed.hairColour, 0x00ff88, "a colour of her own goes over the list's");
+  assert.equal(dyed.choices.hairColour, 9);
+  assert.equal(lookFor("Mira", index, "female", { hairColour: 9 }).hairColour, HAIR_COLOURS[9][0]);
   assert.deepEqual(dyed.skin, SKIN_TONES[4][0]);
   assert.equal(dyed.hair, "none");
   assert.equal(dyed.height, 1.1);
-  assert.equal(dyed.colourway, "clothes-red");
+  assert.equal(dyed.tint, 0x336699);
   assert.equal(lookFor("Tam", index, "male", { beard: true }).beard, true);
   assert.equal(lookFor("Tam", index, "female", { beard: true }).beard, false, "a beard is a man's");
-  // Whoever is dressed from a chosen look loads and stands like anyone.
-  for (const chosen of [
-    { outfit: "ranger", hair: "none" },
-    { outfit: "ranger", colour: "ranger-wine", beard: true },
-  ]) {
-    const person = await createPerson("Rook", "male", chosen);
-    assert.ok(person.object && typeof person.update === "function");
-    person.update(0.1, 0, {});
-    person.dispose();
+  // Every mix of pieces, with and without the hood and pauldrons, loads and stands, for both bodies.
+  const kinds = Object.keys(OUTFITS);
+  let built = 0;
+  for (const sex of ["male", "female"]) {
+    for (let mix = 0; mix < kinds.length ** PIECES.length; mix++) {
+      const chosen = { hood: mix % 2 === 0, pauldrons: mix % 3 === 0, hair: mix % 5 === 0 ? "none" : "long" };
+      PIECES.forEach(([piece], at) => (chosen[piece] = kinds[Math.floor(mix / kinds.length ** at) % kinds.length]));
+      if (mix % 4 === 0) chosen.tint = 0x8844aa;
+      const person = await createPerson("Rook", sex, chosen);
+      person.update(0.1, 0, {});
+      let meshes = 0;
+      person.object.traverse((object) => object.isSkinnedMesh && meshes++);
+      assert.ok(meshes >= 5, `a ${sex} in ${JSON.stringify(chosen)} is dressed (${meshes} meshes)`);
+      person.dispose();
+      built++;
+    }
   }
+  assert.equal(built, 32);
   // What's saved is only what's on the menus.
   assert.deepEqual(
-    checkLook({ outfit: "ranger", colour: "clothes-red", hair: "mohawk", skin: 99, beard: "yes", height: 5 }),
-    {
+    checkLook({
       outfit: "ranger",
-      height: 1.12,
-    },
+      colour: "clothes-red",
+      hair: "mohawk",
+      skin: 99,
+      beard: "yes",
+      height: 5,
+      top: "toga",
+      legs: "peasant",
+      hood: false,
+      tint: 0x112233,
+      hairTint: -4,
+    }),
+    { outfit: "ranger", legs: "peasant", hood: false, colour: "clothes-red", tint: 0x112233, height: 1.12 },
   );
   assert.deepEqual(
     checkLook({ colour: "ranger-wine" }),
-    { colour: "ranger-wine", outfit: "ranger" },
-    "a colour brings its outfit",
+    { rangerColour: "ranger-wine" },
+    "an older look's ranger colour is kept as that",
   );
   assert.deepEqual(checkLook("ranger"), {});
-  assert.deepEqual(checkLook({ hairColour: 3, skin: 0, beard: false, hair: "long" }), {
+  assert.deepEqual(checkLook({ hairColour: 3, skin: 0, beard: false, hair: "long", hairTint: 0xabcdef }), {
     hair: "long",
     hairColour: 3,
+    hairTint: 0xabcdef,
     skin: 0,
     beard: false,
   });
+  assert.equal(Object.keys(COLOUR_FIELD).join(), kinds.join(), "every outfit has a field for its colour");
 }
 
 console.log("wanderworld people regression: OK");

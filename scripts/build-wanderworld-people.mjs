@@ -11,7 +11,7 @@
 // of a person binds to one shared skeleton built from the outfit's. So a head cut from the base body, or a
 // hairstyle rigged to its head bone, sits right on an outfit's body without reshaping anything.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -309,9 +309,12 @@ function main() {
   const rangerColourways = [
     texture(ranger, "ranger-a"),
     texture(ranger3, "ranger-b"),
-    texture(ranger, "ranger-wine", TEXTURE_SIZE, "hue=h=-95:s=1.05"),
-    texture(ranger3, "ranger-dusk", TEXTURE_SIZE, "hue=h=150:s=0.8"),
-    texture(ranger, "ranger-grey", TEXTURE_SIZE, "hue=s=0.2,eq=brightness=-0.03"),
+    // (The outfit is dark leather and wool: each of these is lifted as well as turned, or it reads as black.)
+    texture(ranger, "ranger-wine", TEXTURE_SIZE, "hue=h=-100:s=0.85,eq=gamma=1.25"),
+    texture(ranger3, "ranger-dusk", TEXTURE_SIZE, "hue=h=150:s=0.9,eq=gamma=1.3"),
+    texture(ranger, "ranger-grey", TEXTURE_SIZE, "hue=s=0.15,eq=gamma=1.6:brightness=0.03"),
+    texture(ranger3, "ranger-rust", TEXTURE_SIZE, "hue=h=-20:s=1.15,eq=gamma=1.3"),
+    texture(ranger, "ranger-moss", TEXTURE_SIZE, "hue=h=25:s=1.05,eq=gamma=1.3"),
   ];
 
   for (const [sex, Sex] of [
@@ -343,18 +346,35 @@ function main() {
     });
     writeFileSync(join(OUT, `head-${sex}.json`), JSON.stringify(head));
 
-    // Outfits: the whole clothed body (hands and arms in the skin texture), with the skeleton. Everyday
-    // clothes for most, and the pack's ranger outfit (hood, pauldrons) for a traveller or adventurer.
-    index.sexes[sex] = { outfits: [] };
+    // Outfits, in the pack's own pieces (top, arms, legs, feet; the ranger's hood and pauldrons), so a
+    // person can wear any mix of them: each piece its own file, the skeleton they all bind to in another.
+    // A piece's cloth is marked by its outfit ("clothes-peasant"), so each outfit keeps its own colours.
+    index.sexes[sex] = { outfits: [], pieces: {} };
+    const parts = join(outfitDir, "Exports/glTF (Godot-Unreal)/Modular Parts");
+    const whole = readGltf(join(outfits, `${Sex}_Peasant.gltf`));
+    const frame = packPart(skinnedPrimitives(whole), { texture: () => "", skeleton: skeletonOf(whole) });
+    writeFileSync(join(OUT, `skeleton-${sex}.json`), JSON.stringify({ ...frame, meshes: [] }));
     for (const outfit of ["Peasant", "Ranger"]) {
-      const gltf = readGltf(join(outfits, `${Sex}_${outfit}.gltf`));
-      const part = packPart(skinnedPrimitives(gltf), {
-        texture: (primitive) => (/Regular/iu.test(primitive.texture ?? "") ? `skin-${sex}` : "clothes"),
-        skeleton: skeletonOf(gltf),
+      const kind = outfit.toLowerCase();
+      const pieces = { top: "Body", arms: "Arms", legs: "Legs", feet: "Feet" };
+      if (outfit === "Ranger") Object.assign(pieces, { hood: "Head_Hood", pauldrons: "Acc_Pauldrons" });
+      for (const [piece, file] of Object.entries(pieces)) {
+        // (The pack names two of the man's pieces differently.)
+        const path = [file, `${file}_Boots`, file.replace(/s$/u, "")]
+          .map((name) => join(parts, `${Sex}_${outfit}_${name}.gltf`))
+          .find((candidate) => existsSync(candidate));
+        if (!path) throw new Error(`No ${Sex} ${outfit} ${file} piece in the pack`);
+        const part = packPart(skinnedPrimitives(readGltf(path)), {
+          texture: (primitive) => (/Regular/iu.test(primitive.texture ?? "") ? `skin-${sex}` : `clothes-${kind}`),
+        });
+        const name = `${sex}-${kind}-${piece}`;
+        writeFileSync(join(OUT, `${name}.json`), JSON.stringify(part));
+        (index.sexes[sex].pieces[piece] ??= []).push(kind);
+      }
+      index.sexes[sex].outfits.push({
+        name: `${sex}-${kind}`,
+        colourways: outfit === "Ranger" ? rangerColourways : colourways,
       });
-      const name = `${sex}-${outfit.toLowerCase()}`;
-      writeFileSync(join(OUT, `${name}.json`), JSON.stringify(part));
-      index.sexes[sex].outfits.push({ name, colourways: outfit === "Ranger" ? rangerColourways : colourways });
     }
   }
 

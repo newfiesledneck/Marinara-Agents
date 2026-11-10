@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.17)
+## What it does now (0.5.18)
 
 ### The world
 
@@ -68,10 +68,11 @@ from **Load world** or clear the site's data.
 - **Up to thirty characters live in each world,** in their own 3D models or dressed townsfolk (Quaternius's
   character packs, chosen from their name; a body picker sets Auto, Male or Female, per world).
 - **Choose a look:** for anyone without a 3D model, your persona included, the Look button beside the
-  body choice opens a card: outfit (townsfolk, or the ranger with hood and pauldrons), its colour, hair,
-  hair colour (natural ones and a few that aren't), skin, beard and height. Changes show at once and
-  are kept with the world; "As their name has it" forgets them. About one in four people is dressed as
-  a ranger unless you choose.
+  body choice opens a card: an outfit (townsfolk, or the ranger), or each piece of one from either (top,
+  sleeves, legs, boots), the ranger's hood and pauldrons on or off (on anyone), each outfit's colour, a
+  colour of your own laid over the clothes, hair, hair colour (from a list, or any you pick), skin,
+  beard and height. Changes show at once and are kept with the world; "As their name has it" forgets
+  them. About one in four people is dressed as a ranger unless you choose.
 - **A living town:** townsfolk visit shops and the tavern, sit on benches, find their way along the streets,
   go to work by day if they have a job (indoors, or out at the forge, a market stall or the fields: see
   Playing), rest in gardens, by ponds and in meadows, head home at night, and cross the river by a bridge
@@ -374,9 +375,10 @@ still count, and come first.
 - Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
   they count toward the world's thirty people. Engine characters all live in the home region.
 - Walk-in rooms are unfinished and off by default.
-- A look can be chosen once someone lives in the world, and there are two outfits to choose from. A
-  ranger's hood is always up, over whatever hair they have. Someone with a 3D model shows the model;
-  their look is kept for when it isn't there.
+- A look can be chosen once someone lives in the world, and there are two outfits to mix. The hood
+  goes over whatever hair they have. A clothes tint multiplies the cloth's colour, so it darkens and
+  turns it and can't lighten it. Someone with a 3D model shows the model; their look is kept for when
+  it isn't there.
 - The smith holds a hammer and a drinker a mug; nobody else holds a tool (the watering has no can), and
   the smith's swing is a wood-chopper's. The forge's hearth doesn't glow at night. A seller and a buyer
   at a stall don't talk to each other.

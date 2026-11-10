@@ -2637,12 +2637,13 @@ function setCharacter(character) {
 }
 
 /** Shows the persona's own 3D model when it has one, and the built-in person until then or instead. */
-async function choosePersona(id) {
+/** Plays as persona `id`. `redress`: the same persona with a new body or look, so no stand-in shows meanwhile. */
+async function choosePersona(id, redress = false) {
   const persona = core.personas?.find((entry) => entry.id === id) ?? null;
   core.personaId = persona?.id ?? null;
   if (persona) store(PERSONA_KEY, persona.id);
   const load = ++core.personaLoad;
-  setCharacter(createFigure(persona?.name ?? ""));
+  if (!redress || !core.character) setCharacter(createFigure(persona?.name ?? ""));
   const model = persona ? await findModel({ type: "persona", id: persona.id }) : null;
   if (load !== core.personaLoad) return;
   if (!model && core.settings.people !== "kit") return;
@@ -2709,7 +2710,7 @@ function setLook(id, look) {
     core.save = { ...core.save, looks: { ...core.looks } };
     core.saves.write(core.save);
   }
-  if (id === core.personaId) void choosePersona(id);
+  if (id === core.personaId) void choosePersona(id, true);
   else updateCast();
 }
 

@@ -1,7 +1,16 @@
 // What a default person (people.js: someone without a 3D model) can look like, as plain data: the menus
-// the Look card offers, and the check a saved look goes through. A look is the choices made by hand:
-// { outfit, colour, hair, hairColour, skin, beard, height }, each optional; whatever isn't chosen stays
-// as their name has it. (Which body, "male" or "female", is kept apart: save.bodies.)
+// the Look card offers, and the check a saved look goes through. A look is the choices made by hand, each
+// optional; whatever isn't chosen stays as their name has it:
+//
+//   { outfit,                       the outfit they're dressed in, all of a piece
+//     top, arms, legs, feet,        or any one piece of it from another outfit
+//     hood, pauldrons,              the ranger's, on or off (on with the ranger's top unless said)
+//     colour, rangerColour,         the cloth of the townsfolk pieces, and of the ranger's
+//     tint,                         a colour laid over all the clothes (0xRRGGBB)
+//     hair, hairColour, hairTint,   the style, a colour from the list, or one of your own (0xRRGGBB)
+//     skin, beard, height }
+//
+// (Which body, "male" or "female", is kept apart: save.bodies.)
 
 /** Outfits, and the colours each comes in: [value (the kit's texture name), label]. */
 export const OUTFITS = {
@@ -22,12 +31,28 @@ export const OUTFITS = {
     colours: [
       ["ranger-a", "Forest"],
       ["ranger-b", "Tan"],
-      ["ranger-wine", "Wine"],
-      ["ranger-dusk", "Dusk"],
+      ["ranger-wine", "Violet"],
+      ["ranger-dusk", "Dusk blue"],
+      ["ranger-rust", "Rust"],
+      ["ranger-moss", "Moss"],
       ["ranger-grey", "Grey"],
     ],
   },
 };
+/** Which look field holds each outfit's colour. */
+export const COLOUR_FIELD = { peasant: "colour", ranger: "rangerColour" };
+/** The pieces every outfit has: [look field, label]. */
+export const PIECES = [
+  ["top", "Top"],
+  ["arms", "Sleeves"],
+  ["legs", "Legs"],
+  ["feet", "Boots"],
+];
+/** Pieces only one outfit has, worn or not: [look field, label, the outfit]. */
+export const EXTRAS = [
+  ["hood", "Hood", "ranger"],
+  ["pauldrons", "Pauldrons", "ranger"],
+];
 /** How often a name alone gives each outfit (the rest are townsfolk). */
 export const RANGER_SHARE = 0.25;
 
@@ -78,24 +103,30 @@ export const SKIN_TONES = [
 /** Heights a look may have, as a share of the usual. */
 export const HEIGHTS = [0.88, 1.12];
 
+const isColour = (value) => Number.isInteger(value) && value >= 0 && value <= 0xffffff;
+
 /**
  * A look as saved or sent, made safe: only the choices there are, each one of its menu (or left out).
- * Returns {} for anything else.
+ * Returns {} for anything else. (A look saved when a colour belonged to its outfit, with a ranger's
+ * colour under `colour`, is read as that.)
  */
 export function checkLook(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const look = {};
-  if (Object.hasOwn(OUTFITS, raw.outfit)) look.outfit = raw.outfit;
-  // A colour belongs to its outfit: without one chosen, any outfit's colour names it.
-  const outfit =
-    look.outfit ?? Object.keys(OUTFITS).find((name) => OUTFITS[name].colours.some(([c]) => c === raw.colour));
-  if (outfit && OUTFITS[outfit].colours.some(([colour]) => colour === raw.colour)) {
-    look.colour = raw.colour;
-    look.outfit = outfit;
+  const outfit = (value) => Object.hasOwn(OUTFITS, value);
+  if (outfit(raw.outfit)) look.outfit = raw.outfit;
+  for (const [piece] of PIECES) if (outfit(raw[piece])) look[piece] = raw[piece];
+  for (const [extra] of EXTRAS) if (typeof raw[extra] === "boolean") look[extra] = raw[extra];
+  for (const [kind, field] of Object.entries(COLOUR_FIELD)) {
+    const colours = OUTFITS[kind].colours.map(([name]) => name);
+    const chosen = [raw[field], raw.colour].find((value) => colours.includes(value));
+    if (chosen) look[field] = chosen;
   }
+  if (isColour(raw.tint)) look.tint = raw.tint;
   if (HAIRSTYLES.some(([style]) => style === raw.hair)) look.hair = raw.hair;
   const within = (value, count) => Number.isInteger(value) && value >= 0 && value < count;
   if (within(raw.hairColour, HAIR_COLOURS.length)) look.hairColour = raw.hairColour;
+  if (isColour(raw.hairTint)) look.hairTint = raw.hairTint;
   if (within(raw.skin, SKIN_TONES.length)) look.skin = raw.skin;
   if (typeof raw.beard === "boolean") look.beard = raw.beard;
   if (Number.isFinite(raw.height)) look.height = Math.max(HEIGHTS[0], Math.min(HEIGHTS[1], Number(raw.height)));

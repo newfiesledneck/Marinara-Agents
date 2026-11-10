@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.18 — 2026-11-11
+
+- More in the Look card: each piece of an outfit (top, sleeves, legs, boots) can come from either outfit, the ranger's hood and pauldrons go on or off (on anyone), a colour of your own can be laid over the clothes, and hair can be any colour you pick.
+- Fixed: choosing a colour could switch the outfit back to townsfolk. Each outfit now keeps its own colour, and only the ones being worn are offered.
+- Fixed: the ranger's extra colours were so dark they looked black. They're lighter, and there are two more (rust and moss).
+- Changing your own look no longer flashes the plain stand-in figure while the new one loads.
+
 ## 0.5.17 — 2026-11-11
 
 - A Look card for anyone without a 3D model, your persona included: the Look button beside the body choice (People, and Play as) sets outfit, colour, hair, hair colour, skin, beard and height. Changes show at once and are kept with the world.

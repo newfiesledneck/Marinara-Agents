@@ -22,7 +22,17 @@ import {
   Uint16BufferAttribute,
 } from "three";
 import { humanoidFromSkeleton } from "./models.js";
-import { HAIR_COLOURS, OUTFITS, RANGER_SHARE, SKIN_TONES, USUAL_HAIR, USUAL_HAIR_COLOURS } from "./looks.js";
+import {
+  COLOUR_FIELD,
+  EXTRAS,
+  HAIR_COLOURS,
+  OUTFITS,
+  PIECES,
+  RANGER_SHARE,
+  SKIN_TONES,
+  USUAL_HAIR,
+  USUAL_HAIR_COLOURS,
+} from "./looks.js";
 import { hashString, rng } from "./world.js";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/people/";
@@ -140,6 +150,10 @@ function geometryOf(mesh) {
 /**
  * A person's look: from their name, with whatever was chosen for them by hand (`chosen`: looks.js) over
  * it. The name's choices are made the same way whatever is chosen, so changing one thing changes only that.
+ *
+ * Returns what createPerson builds from ({ sex, parts: the kit's piece files, colourways: { outfit: its
+ * cloth's texture }, tint, hair, beard, skin, hairColour, height, seed }), `choices` (every field of a
+ * look, filled in, as the Look card shows it) and `worn` (the outfits with a piece on show).
  */
 export function lookFor(name, index, body = "auto", chosen = {}) {
   const random = rng(hashString(`${name || "wanderer"}:kit`));
@@ -148,47 +162,72 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
   const fromName = random() < 0.5 ? "male" : "female";
   const sex = body === "male" || body === "female" ? body : fromName;
   const outfits = index.sexes[sex].outfits;
-  const named = (kind) => outfits.find((entry) => entry.name === `${sex}-${kind}`);
+  const has = (kind) => outfits.some((entry) => entry.name === `${sex}-${kind}`);
+  const coloursOf = (kind) => outfits.find((entry) => entry.name === `${sex}-${kind}`)?.colourways ?? [];
   // Most are townsfolk; now and then someone is dressed for the road.
-  const usual = (random() < RANGER_SHARE && named("ranger")) || named("peasant") || outfits[0];
-  const usualColour = pick(usual.colourways);
-  const outfit = (chosen.outfit && named(chosen.outfit)) || usual;
+  const usual = random() < RANGER_SHARE && has("ranger") ? "ranger" : "peasant";
+  const usualColour = pick(coloursOf(usual));
   const usualHair = pick(USUAL_HAIR[sex]);
   const usualBeard = sex === "male" && random() < 0.3;
   const usualSkin = Math.floor(random() * SKIN_TONES.length);
   const usualHairColour = Math.floor(random() * USUAL_HAIR_COLOURS);
   const usualHeight = 0.94 + random() * 0.12;
-  const colours = outfit.colourways;
+
+  const outfit = chosen.outfit && has(chosen.outfit) ? chosen.outfit : usual;
+  const choices = { outfit };
+  // Each piece is the outfit's unless another's was chosen for it (and the kit has that piece).
+  for (const [piece] of PIECES) {
+    const kind = chosen[piece];
+    choices[piece] = kind && index.sexes[sex].pieces?.[piece]?.includes(kind) ? kind : outfit;
+  }
+  // The ranger's hood and pauldrons go with the ranger's top, unless said.
+  for (const [extra, , kind] of EXTRAS) choices[extra] = chosen[extra] ?? choices.top === kind;
+  // Each outfit's cloth: the colour chosen for it, the name's own for the outfit the name gave, or one
+  // from the name for the other.
+  const colourways = {};
+  for (const [kind, field] of Object.entries(COLOUR_FIELD)) {
+    const colours = coloursOf(kind);
+    if (!colours.length) continue;
+    colourways[kind] = colours.includes(chosen[field])
+      ? chosen[field]
+      : kind === usual
+        ? usualColour
+        : colours[hashString(`${name}:${kind}`) % colours.length];
+    choices[field] = colourways[kind];
+  }
+  Object.assign(choices, {
+    tint: chosen.tint ?? null,
+    hair: chosen.hair ?? usualHair,
+    hairColour: chosen.hairColour ?? usualHairColour,
+    hairTint: chosen.hairTint ?? null,
+    skin: chosen.skin ?? usualSkin,
+    beard: sex === "male" && (chosen.beard ?? usualBeard),
+    height: chosen.height ?? usualHeight,
+  });
+  const parts = PIECES.map(([piece]) => `${sex}-${choices[piece]}-${piece}`);
+  for (const [extra, , kind] of EXTRAS) if (choices[extra]) parts.push(`${sex}-${kind}-${extra}`);
+  const worn = new Set(PIECES.map(([piece]) => choices[piece]));
+  for (const [extra, , kind] of EXTRAS) if (choices[extra]) worn.add(kind);
   return {
     sex,
-    outfit: outfit.name,
-    colourway: colours.includes(chosen.colour)
-      ? chosen.colour
-      : outfit === usual
-        ? usualColour
-        : colours[hashString(`${name}:colour`) % colours.length],
-    hair: chosen.hair ?? usualHair,
-    beard: sex === "male" && (chosen.beard ?? usualBeard),
-    skin: SKIN_TONES[chosen.skin ?? usualSkin][0],
-    hairColour: HAIR_COLOURS[chosen.hairColour ?? usualHairColour][0],
-    height: chosen.height ?? usualHeight,
+    parts,
+    colourways,
+    tint: choices.tint,
+    hair: choices.hair,
+    beard: choices.beard,
+    skin: SKIN_TONES[choices.skin][0],
+    hairColour: choices.hairTint ?? HAIR_COLOURS[choices.hairColour][0],
+    height: choices.height,
     seed: hashString(`${name}:motion`),
-    // What's on show in the Look card: the same things as plain choices.
-    choices: {
-      outfit: outfit.name.slice(sex.length + 1),
-      hair: chosen.hair ?? usualHair,
-      beard: sex === "male" && (chosen.beard ?? usualBeard),
-      skin: chosen.skin ?? usualSkin,
-      hairColour: chosen.hairColour ?? usualHairColour,
-      height: chosen.height ?? usualHeight,
-    },
+    choices,
+    worn: [...worn],
   };
 }
 
 /** How `name` looks now, as the Look card's choices (looks.js), with their sex: loads the kit's index. */
 export async function lookChoices(name, body = "auto", chosen = {}) {
   const look = lookFor(name, await load("index.json"), body, chosen);
-  return { ...look.choices, colour: look.colourway, sex: look.sex, outfits: Object.keys(OUTFITS) };
+  return { ...look.choices, sex: look.sex, worn: look.worn, outfits: Object.keys(OUTFITS) };
 }
 
 /** The default person for `name` with `build` ("male", "female" or "auto") and whatever look was
@@ -196,7 +235,7 @@ export async function lookChoices(name, body = "auto", chosen = {}) {
 export async function createPerson(name, build = "auto", chosen = {}) {
   const index = await load("index.json");
   const look = lookFor(name, index, build, chosen);
-  const parts = [look.outfit, `head-${look.sex}`];
+  const parts = [`skeleton-${look.sex}`, ...look.parts, `head-${look.sex}`];
   if (look.hair !== "none") parts.push(`hair-${look.hair}`);
   if (look.beard) parts.push("hair-beard");
   const [body, ...rest] = await Promise.all(parts.map((part) => load(`${part}.json`)));
@@ -224,13 +263,16 @@ export async function createPerson(name, build = "auto", chosen = {}) {
 
   const skinTint = new Color(...look.skin);
   const hairTint = new Color(look.hairColour);
+  const clothTint = look.tint === null ? 0xffffff : look.tint;
   const materialFor = (name) => {
     const isSkin = name.startsWith("skin-") || name.startsWith("head-");
     const isHair = name.startsWith("hair-");
-    const map = texture(name === "clothes" ? look.colourway : name);
-    return new MeshLambertMaterial({ map, color: isSkin ? skinTint : isHair ? hairTint : 0xffffff });
+    // A piece's cloth is named for its outfit ("clothes-ranger"): that outfit's colour, under the tint.
+    const cloth = name.startsWith("clothes-") ? look.colourways[name.slice("clothes-".length)] : null;
+    const color = isSkin ? skinTint : isHair ? hairTint : cloth ? clothTint : 0xffffff;
+    return new MeshLambertMaterial({ map: texture(cloth ?? name), color });
   };
-  for (const part of [body, ...rest]) {
+  for (const part of rest) {
     const partBones = part.joints.map((jointName) => bones.get(jointName) ?? root);
     const inverses = part.joints.map((_, i) => new Matrix4().fromArray(part.inverseBind, i * 16));
     const skeleton = new Skeleton(partBones, inverses);
