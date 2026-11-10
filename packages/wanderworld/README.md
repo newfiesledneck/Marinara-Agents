@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.89)
+## What it does now (0.4.90)
 
 ### The world
 
@@ -125,7 +125,9 @@ With it running:
   scene point of view, tense and prompt preset, and the picture style (the Engine's built-in style
   profiles, or your default one).
 
-Every AI call uses a connection of yours, so it costs what that connection costs. A conversation reply, a
+Every AI call uses a connection of yours, so it costs what that connection costs. Menu → Settings → AI
+has a switch for each thing that can make one (arriving somewhere, using things, the noticeboard,
+sitting down, joining someone); arrivals are off to start with. A conversation reply, a
 moment, a day's schedule, a scene plan and a picture are one call each, and setting a world up is one
 call for the cast, one for every 40 lorebook entries, and one each for written lore and new people; nothing calls a model while you
 only walk about.
@@ -157,8 +159,8 @@ only walk about.
   the farm, graveyard, standing stones, mill, pond, watchtower and ruins each open a card of things to do
   (browse, haggle, read the stones, skip a stone…). With AI on, each is a moment the model narrates and
   people nearby answer; with it off, the world answers with lines of its own. The **world's voice**
-  (Menu → Settings → World) adds a line on first coming to a place (its lore, when it has some) and now
-  and then about who's near; with the chat window closed it shows as a caption. The noticeboard offers
+  (Menu → Settings → World) adds a line on coming to a place (its lore, when it has some; quiet or busy
+  by who's about; not for streets or places told lately) and now and then about who's near; with the chat window closed it shows as a caption. The noticeboard offers
   an **errand** to someone in the world: take it, it's marked on your map, and reaching them finishes it.
 - **A narrator, and scenes from anywhere:** pick one of your character cards as the narrator (Menu →
   Settings → AI) and it tells scenes, moments or both in its voice. The chat window's **Scene** button, or

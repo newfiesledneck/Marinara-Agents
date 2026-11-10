@@ -366,8 +366,17 @@ const JOINING = {
 
 /** Told the first time the player comes to a kind of place, when it has no lore of its own to tell. */
 const ARRIVALS = {
-  town: ["{place}. Smoke from the chimneys, and somebody's dog announcing you."],
-  plaza: ["The square opens out, and with it the {time}'s business."],
+  town: {
+    quiet: ["{place}. Smoke from the chimneys, and nobody about to see you come in."],
+    busy: ["{place}. Smoke from the chimneys, and somebody's dog announcing you."],
+  },
+  plaza: {
+    quiet: [
+      "The square lies open and empty, the {time} to itself.",
+      "Nobody in the square. Your steps sound larger than they are.",
+    ],
+    busy: ["The square opens out, and with it the {time}'s business."],
+  },
   street: [],
   forest: [
     "Under the trees the light goes green and the road's noise falls away behind you.",
@@ -388,7 +397,10 @@ const ARRIVALS = {
   inn: ["A lit window by the road: an inn."],
   cottage: ["A cottage, keeping to itself."],
   hamlet: ["A few roofs gathered round a well-trodden yard."],
-  tavern: ["Warmth, and the smell of whatever's in the pot."],
+  tavern: {
+    quiet: ["Warmth, a banked fire, and nobody at the tables."],
+    busy: ["Warmth, voices, and the smell of whatever's in the pot."],
+  },
   smithy: ["Heat rolls out of the door, and the ring of a hammer."],
   temple: ["Cool stone, and voices kept low."],
   shop: [],
@@ -462,9 +474,13 @@ export function thingLine(kind, choice, key, words) {
   return pickLine(PACK.things[kind]?.choices.find((entry) => entry.id === choice)?.lines, key, words);
 }
 
-/** What's told on first coming to a kind of place. */
-export function arrivalLine(kind, key, words) {
-  return pickLine(PACK.arrivals[kind], key, words);
+/**
+ * What's told on coming to a kind of place. A kind can have lines for when people are about (`busy`)
+ * and for when nobody is, so an empty square isn't called bustling.
+ */
+export function arrivalLine(kind, key, words, busy = false) {
+  const lines = PACK.arrivals[kind];
+  return pickLine(Array.isArray(lines) ? lines : lines?.[busy ? "busy" : "quiet"], key, words);
 }
 
 /**

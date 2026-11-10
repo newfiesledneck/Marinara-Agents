@@ -56,6 +56,13 @@ export const SETTINGS = {
   aiTalk: { value: true },
   /** Moments: what you do and say out loud gets a line of narration and replies from whoever hears. */
   aiMoments: { value: true },
+  // What may call the model for a moment, each on its own (what's typed in the chat always may): arriving
+  // somewhere, using things (and doors' and caves' cards), the noticeboard, sitting down, joining someone.
+  aiArrive: { value: false },
+  aiThings: { value: true },
+  aiBoard: { value: true },
+  aiSeats: { value: true },
+  aiJoin: { value: true },
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },

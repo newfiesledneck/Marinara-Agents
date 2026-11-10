@@ -187,11 +187,19 @@ export function createHud(root, handlers) {
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "Dragging up looks down, like a flight stick.",
     time: "Let the day pass, or keep it at one time of day.",
+    aiMoments:
+      "The model narrates what you do and people nearby may answer: one call each time. Off, the world answers with its own written lines. What you type in the chat is always a moment while this is on.",
+    aiArrive:
+      "A call each time you come somewhere new (not streets, not places told lately). Off by default: it adds up.",
+    aiThings: "A call when you choose something on a card: a stall, the fountain, a door, a campfire.",
+    aiBoard: "A call when you stop at the noticeboard.",
+    aiSeats: "A call when you sit down with someone near.",
+    aiJoin: "A call when you join someone in what they're doing.",
     narratorCard:
       "One of your character cards as the narrator. It tells things in its voice, and a scene can start with nobody else there: alone in the woods, with only the narrator.",
     narratorUse: "What the narrator card is used for.",
     narration:
-      "A line in the chat window on first coming to a place (its lore, when it has some) and now and then about who's near. By AI, each new place is one model call.",
+      "A line on coming somewhere new (its lore, when it has some) and now and then about who's near. Written lines, unless Settings → AI lets arrivals call the model.",
     weather: "Rain, snow or mist, changing every few minutes or always one. Off keeps the sky clear.",
     timeSpeed: "How fast the day passes while it's moving.",
     interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
@@ -303,11 +311,7 @@ export function createHud(root, handlers) {
   heading("World");
   settingsPanel.append(peopleButton); // who lives in this world
   choice("time", "Time", TIME_LABELS);
-  choice("narration", "The world's voice", {
-    off: "Off",
-    lines: "On (no AI)",
-    ai: "On, arrivals by AI",
-  });
+  choice("narration", "The world's voice", { off: "Off", lines: "On" });
   choice("weather", "Weather", {
     off: "Off (always clear)",
     changing: "Changing",
@@ -376,6 +380,12 @@ export function createHud(root, handlers) {
     row(label, select, name);
   };
   toggle("aiTalk", "AI conversations");
+  toggle("aiMoments", "AI moments");
+  toggle("aiArrive", "…when you arrive somewhere");
+  toggle("aiThings", "…when you use things");
+  toggle("aiBoard", "…when you read the noticeboard");
+  toggle("aiSeats", "…when you sit down");
+  toggle("aiJoin", "…when you join someone");
   connectionChoice("textConnection", "Conversations use", "text", "Engine default");
   connectionChoice("sceneConnection", "Scenes use", "text", "Same as conversations");
   choice("talkStyle", "How people talk", {

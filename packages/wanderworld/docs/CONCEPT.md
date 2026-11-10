@@ -623,7 +623,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.4.89, 2026-11-09)
+## Outstanding (as of 0.4.90, 2026-11-09)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -660,6 +660,11 @@ tables), the default bodies and outfits (`people.js`), the kinds of place and th
 world would choose its pack when it's made; one pack is built in today.
 
 **Agreed, not started**
+
+- Guards: some people stand at the gates of a walled town or walk a round of its streets. It needs two
+  new things to do in a day (stand guard at a place, patrol a round) in `npcs.js` and the schedules, a
+  way to make someone a guard (Edit people, and a `ww: guard` keyword), and something for them to do
+  about a hostile creature once those exist.
 
 - People who come to you with something to say start a moment of their own (today they walk up and
   greet you).

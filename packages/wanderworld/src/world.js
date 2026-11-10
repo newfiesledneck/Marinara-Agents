@@ -1516,8 +1516,9 @@ function buildTown(random, land, ground, needs = {}) {
   for (let i = 1; i < blocksPerSide; i++) {
     for (let j = 1; j < blocksPerSide; j++) {
       const lamp = {
-        x: (i - blocksPerSide / 2) * PITCH + STREET / 2 - 0.4,
-        z: (j - blocksPerSide / 2) * PITCH + STREET / 2 - 0.4,
+        // Just inside the block's corner: on the kerb's sidewalk (or the lot's grass, by a dirt street).
+        x: (i - blocksPerSide / 2) * PITCH + STREET / 2 + 0.5,
+        z: (j - blocksPerSide / 2) * PITCH + STREET / 2 + 0.5,
       };
       // Dirt streets have lamps only at the market's corners; any street, only where streets meet.
       if (look.roads === "dirt" && Math.max(Math.abs(lamp.x - plaza.x), Math.abs(lamp.z - plaza.z)) > PITCH) continue;
