@@ -14,6 +14,7 @@ export function setAnimationStyle(style) {
   animationStyle = style === "builtin" ? "builtin" : "recorded";
 }
 const WAVE_BONES = ["rightUpperArm", "rightLowerArm", "rightHand"];
+const LOW_ACTS = new Set(["ground", "lie", "tend"]);
 const overlay = new Quaternion();
 const overlayEuler = new Euler(0, 0, 0, "YXZ");
 
@@ -116,7 +117,9 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
   return {
     object,
     update(dt, speed, options) {
-      const pose = motion(dt, speed, options);
+      // The hand-made motion has nothing for the acts (clips.js): low ones it sits for, the rest it stands.
+      const low = animationStyle !== "recorded" && LOW_ACTS.has(options?.act);
+      const pose = motion(dt, speed, low ? { ...options, sit: true } : options);
       if (animationStyle === "recorded") {
         const clip = player(dt, speed, options);
         for (const [name, local] of clip.locals) {

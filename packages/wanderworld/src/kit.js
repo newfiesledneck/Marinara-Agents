@@ -85,7 +85,8 @@ function part(set, mesh) {
     side: mesh.cutout || mesh.doubleSided ? DoubleSide : FrontSide,
   });
   material.userData.shared = true;
-  return { geometry, material };
+  // `texture` names the part's texture ("" for none), for tinting some parts of a model and not others.
+  return { geometry, material, texture: mesh.texture ?? "" };
 }
 
 /** A kit texture for tiling across the ground (its own copy, repeating; the image is shared). */
@@ -95,7 +96,7 @@ export function kitTexture(set, name) {
   return map;
 }
 
-/** A kit model as its parts ([{ geometry, material }]), loaded once. Rejects if it can't be loaded. */
+/** A kit model as its parts ([{ geometry, material, texture }]), loaded once. Rejects if it can't be loaded. */
 export function kitModel(set, name) {
   const key = `${set}/${name}`;
   if (!models.has(key)) {

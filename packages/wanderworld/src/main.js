@@ -25,6 +25,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { blobShadow, listCharacterFolders, listCharacters, listPersonas, setAnimationStyle } from "./character.js";
+import { LIE_SECONDS } from "./clips.js";
 import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
@@ -32,7 +33,7 @@ import { createInterior } from "./interiors.js";
 import { findModel, loadModelCharacter } from "./models.js";
 import { summariseSetup } from "./setup.js";
 import { HELP, KEYWORD_PROMPT } from "./help.js";
-import { arrivalLine, errandFor, PACK, pickLine, PROP_THINGS, thingLine } from "./pack.js";
+import { actWords, arrivalLine, errandFor, PACK, pickLine, PROP_THINGS, thingLine } from "./pack.js";
 import {
   creatureFromWords,
   structureFromKeywords,
@@ -2391,7 +2392,8 @@ function journalData(zone, snapshot, residents, names) {
   const playerWho = {
     name: personaName(),
     state: core.mode === "sit" ? "sit" : core.mode === "talk" ? "talk" : "idle",
-    seat: core.mode === "sit",
+    seat: core.mode === "sit" && !core.seat?.ground,
+    doing: core.seat?.ground ? (core.seat.ground === "lie" ? "lying on the ground" : "sitting on the ground") : "",
     talkingTo: core.talking?.name ?? null,
     zone,
   };
@@ -2403,6 +2405,7 @@ function journalData(zone, snapshot, residents, names) {
       name: person.name,
       state: person.state,
       seat: person.seated,
+      doing: person.doing ? actWords(person.doing) : "",
       zone: zoneOfPerson(person),
     }),
   }));
@@ -2737,7 +2740,35 @@ function standUp() {
   core.mode = "walk";
   core.seat = null;
   if (seat.taken === "player") seat.taken = null;
-  glideTo(seat.approach.x, seat.approach.z, seat.angle, 0.35);
+  // Up off the ground takes a moment (getting up from lying, longer): no walking till they're on their feet.
+  if (seat.ground) core.stillUntil = core.clock + (seat.ground === "lie" ? LIE_SECONDS : 0.45);
+  else glideTo(seat.approach.x, seat.approach.z, seat.angle, 0.35);
+}
+
+/**
+ * Sits down on the ground where the player stands; sitting there already, lies down. A seat like any
+ * other (so standing up, the party sitting too and the prompt all work), with `ground` saying which.
+ */
+function rest() {
+  if (core.mode === "sit" && core.seat?.ground === "ground") {
+    core.seat.ground = "lie";
+    later(1, () => void runMoment({ action: "lies down on the ground", needListeners: true, source: "seat" }));
+    return;
+  }
+  if (core.mode !== "walk" || core.swimming || core.air || core.glide || core.clock < (core.stillUntil ?? 0)) return;
+  const { x, z } = core.player.position;
+  core.walkTo = null;
+  core.seat = { x, z, angle: core.player.rotation.y, approach: { x, z }, ground: "ground", taken: "player" };
+  core.mode = "sit";
+  later(0.8, () => void runMoment({ action: "sits down on the ground", needListeners: true, source: "seat" }));
+}
+
+/** A jump: straight up, or along with however the player is moving. */
+const JUMP_SPEED = 4.6; // metres a second, upward
+const GRAVITY = 13;
+function jump() {
+  if (core.mode !== "walk" || core.swimming || core.air || core.glide || core.clock < (core.stillUntil ?? 0)) return;
+  core.air = { height: 0, speed: JUMP_SPEED };
 }
 
 function talkTo(person) {
@@ -4349,6 +4380,7 @@ const VOICE_RANGE = { whisper: 2.5, talk: 9, shout: 28 };
 /** What someone is doing, in a few words, for a moment's listeners and the Illustrate prompt. */
 function doingWords(person) {
   if (person.seated) return person.with ? `sitting with ${person.with}` : "sitting on a bench";
+  if (person.doing && actWords(person.doing)) return actWords(person.doing);
   if (person.state === "chat" || person.with) return person.with ? `chatting with ${person.with}` : "chatting";
   if (person.state === "walk") return "walking along";
   const entry = core.crowd.scheduledNow(person.id, core.hour);
@@ -4519,6 +4551,8 @@ function speak(typed) {
 
 /** What the player is doing right now, in a few words. */
 function playerDoing() {
+  if (core.mode === "sit" && core.seat?.ground)
+    return core.seat.ground === "lie" ? "lying on the ground" : "sitting on the ground";
   if (core.mode === "sit") return "sitting on a bench";
   if (core.talking) return `talking with ${core.talking.name}`;
   if (core.swimming) return "swimming";
@@ -5473,6 +5507,8 @@ function pickTarget() {
 function use() {
   if (core.mode === "sit") return standUp();
   if (core.mode !== "walk") return;
+  // A hand out to whatever it is (a door, a board, a barrel); not to a person or a seat.
+  if (core.target && core.target.kind !== "person" && core.target.kind !== "seat") core.gesture = "interact";
   core.target?.act();
 }
 
@@ -5673,7 +5709,8 @@ function movePlayer(dt, input) {
       glide.then?.();
     }
   } else if (core.mode === "walk") {
-    const { x, y } = input;
+    // Getting up off the ground: no steps till they're on their feet.
+    const { x, y } = core.clock < (core.stillUntil ?? 0) ? NO_INPUT : input;
     const keyed = x || y;
     if (keyed) core.walkTo = null;
     const walkTo = core.walkTo;
@@ -5735,7 +5772,17 @@ function movePlayer(dt, input) {
   const target = core.interior ? 0 : core.swimming ? water.level : heightAt(position.x, position.z);
   const wet = !core.interior && water && (water.depth > 0.3 || core.swimming);
   position.y = wet ? position.y + (target - position.y) * Math.min(1, dt * 6) : target;
+  // A jump: up and back down onto whatever ground is under them by then.
+  if (core.air) {
+    core.air.speed -= GRAVITY * dt;
+    core.air.height += core.air.speed * dt;
+    if (core.air.height <= 0 || core.swimming || core.mode !== "walk") core.air = null;
+    else position.y = target + core.air.height;
+  }
   core.shadow.visible = core.settings.shadows && !core.swimming;
+  if (core.air)
+    core.shadow.position.y = 0.06 - core.air.height; // the shadow stays on the ground
+  else core.shadow.position.y = 0.06;
   return dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
 }
 
@@ -5808,6 +5855,8 @@ function step(dt) {
     else if (core.mode === "sit") standUp();
   }
   if (input?.take("use")) use();
+  if (input?.take("jump")) jump();
+  if (input?.take("rest")) rest();
   if (input?.take("journal")) core.hud?.toggleJournal();
 
   stepClock(dt);
@@ -5824,13 +5873,19 @@ function step(dt) {
       Math.atan2(other.x - core.player.position.x, other.z - core.player.position.z) - core.player.rotation.y;
     lookAt = Math.atan2(Math.sin(turn), Math.cos(turn));
   }
+  const onGround = core.mode === "sit" ? (core.seat?.ground ?? null) : null;
   const pose = core.character?.update(dt, speed, {
-    sit: core.mode === "sit",
+    sit: core.mode === "sit" && !onGround,
+    act: onGround,
+    gesture: core.gesture,
+    air: !!core.air,
     lookAt,
     talk: false,
     swim: core.swimming,
   });
+  core.gesture = null;
   if (pose?.footstep) core.sound.footstep(0, pose.running);
+  core.hud?.setThumbs(onGround ?? "", core.mode === "walk" || !!onGround);
 
   // The town lives on while the player is indoors: doors, people, the clock. An open door stays open
   // while the player stands at it.
@@ -6077,6 +6132,8 @@ function attach(element) {
       core.sound.unlock();
       use();
     },
+    onJump: jump,
+    onRest: rest,
     maxPeople: MAX_PEOPLE,
     loadingArt: `${ART}loading-bg.webp`,
   });

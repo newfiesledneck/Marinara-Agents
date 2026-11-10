@@ -177,20 +177,27 @@ const random = rng(7);
 for (const kind of KINDS) {
   const spec = makeSpec(random, kind);
   assert.equal(spec.kind, kind);
-  const { geometry, footprint, doorX } = buildBuilding(random, spec);
+  const { geometry, footprint, doorX, bay } = buildBuilding(random, spec);
   geometry.computeBoundingBox();
   const bounds = geometry.boundingBox;
   assert.ok(bounds.max.y > 3, `a ${kind} stands taller than a person`);
   assert.ok(Math.abs(doorX) < spec.width / 2, `a ${kind}'s door is on its front wall`);
   // The footprint covers the walls (overhangs, signs and sills may stick out a little past it).
-  assert.ok(
-    footprint.minX <= -spec.width / 2 && footprint.maxX >= spec.width / 2,
-    `a ${kind}'s footprint covers its width`,
-  );
-  assert.ok(
-    bounds.min.x > footprint.minX - 1.5 && bounds.max.x < footprint.maxX + 1.5,
-    `a ${kind} stays near its footprint`,
-  );
+  // (A smithy's walls go round its room only: the rest of its width is its forge, open to the street.)
+  if (bay) {
+    assert.equal(kind, "smithy", "only a smithy has a forge");
+    assert.equal(footprint.maxX - footprint.minX, bay.roomWidth, "the smithy's walls go round its room");
+    assert.equal(bay.x1 - bay.x0 + bay.roomWidth, spec.width, "room and forge make up its whole width");
+    assert.ok(doorX > footprint.minX && doorX < footprint.maxX, "the smithy's door is in its room's wall");
+    assert.ok(bay.x1 <= footprint.minX || bay.x0 >= footprint.maxX, "the forge is beside the room, not in it");
+  } else {
+    assert.ok(
+      footprint.minX <= -spec.width / 2 && footprint.maxX >= spec.width / 2,
+      `a ${kind}'s footprint covers its width`,
+    );
+  }
+  const [left, right] = bay ? [-spec.width / 2, spec.width / 2] : [footprint.minX, footprint.maxX];
+  assert.ok(bounds.min.x > left - 1.5 && bounds.max.x < right + 1.5, `a ${kind} stays near its footprint`);
   geometry.dispose();
 }
 assert.equal(makeSpec(random, "spaceship").kind, "home", "an unknown kind falls back to a home");

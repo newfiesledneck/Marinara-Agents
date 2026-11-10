@@ -1,5 +1,5 @@
-// Recorded motion: animations from Quaternius's Universal Animation Library (CC0, public domain),
-// converted by scripts/build-wanderworld-clips.mjs into clips/ual.json. Settings → Animation switches
+// Recorded motion: animations from Quaternius's Universal Animation Library and Universal Animation
+// Library 2 (CC0, public domain), converted by scripts/build-wanderworld-clips.mjs into clips/ual.json. Settings → Animation switches
 // between these and the hand-made motion (motion.js), which stays the fallback; to drop the recorded
 // clips entirely, delete clips/ and this file and the import in character.js.
 //
@@ -8,6 +8,10 @@
 // present parent's, so rigs without optional bones (upper chest, shoulders, fingers) still play right.
 // Walking and running blend between the walk, jog and sprint clips by speed, with their steps in step,
 // and play at the rate that matches the ground actually covered, so feet don't skate.
+//
+// Standing still, a body can be doing something (`act`: ACTS below): working at an anvil, a field or a
+// stall, kneeling at a flower bed, sitting or lying on the ground. It can make a gesture once (`gesture`:
+// reaching for something, picking it up), and be in the air (`air`: a jump, then its landing).
 import { Euler, Quaternion, Vector3 } from "three";
 import data from "./clips/ual.json" with { type: "json" };
 
@@ -41,6 +45,65 @@ for (const side of ["left", "right"]) {
   PARENT[`${side}ThumbProximal`] = `${side}ThumbMetacarpal`;
   PARENT[`${side}ThumbDistal`] = `${side}ThumbProximal`;
 }
+
+/**
+ * What a body can be doing on the spot: the clips it goes through, over and over, each [clip, times
+ * through]. "ground" (sitting on the ground) and "lie" (lying down) are poses held, handled apart.
+ */
+const ACTS = {
+  hammer: [
+    ["chop", 5],
+    ["idle", 1],
+  ],
+  craft: [
+    ["interact", 1],
+    ["idle", 1],
+    ["pickUp", 1],
+    ["idle", 1],
+  ],
+  farm: [
+    ["harvest", 2],
+    ["idle", 1],
+    ["plant", 1],
+    ["water", 1],
+    ["idle", 1],
+  ],
+  tend: [
+    ["kneel", 1],
+    ["idle", 1],
+  ],
+  vend: [
+    ["foldArms", 3],
+    ["idle", 1],
+  ],
+  browse: [
+    ["idle", 1],
+    ["pickUp", 1],
+    ["idle", 2],
+    ["interact", 1],
+  ],
+  lean: [["lean", 1]],
+  dance: [["dance", 1]],
+  drink: [
+    ["drink", 1],
+    ["idle", 2],
+  ],
+  ground: [],
+  lie: [],
+};
+/** Every act there is, for whoever chooses one. */
+export const ACT_NAMES = Object.keys(ACTS);
+/** Seconds it takes to lie down, and to get up again (callers keep a body still that long). */
+export const LIE_SECONDS = 1.55;
+/** Gestures made once, over whatever else the body is doing. */
+const GESTURES = new Set(["interact", "pickUp", "drink"]);
+/** Sitting on the ground: how far the hips come down (leg lengths), and how the legs fold (radians
+ *  from hanging straight down: thighs past level, knees up; shins sloping down to the feet). */
+const GROUND_HIPS = -0.83;
+const GROUND_LEGS = { UpperLeg: -1.95, LowerLeg: -0.85, Foot: -0.25, Toes: -0.25 };
+const GROUND_SPLAY = 0.16; // each knee turned out this much
+/** Seconds of the landing clip that are the landing itself (the rest is standing back up, slowly). */
+const LANDING = 0.55;
 
 /** Leg lengths the swimming stroke is raised by, so the swimmer's back breaks the surface. */
 const SWIM_LIFT = 0.1;
@@ -113,6 +176,13 @@ function sample(clip, t, out) {
 
 const makePose = () => ({ rotations: BONES.map(() => new Quaternion()), hips: [0, 0, 0] });
 
+/** Copies pose `from` into `to`. */
+function copyPose(to, from) {
+  for (let bone = 0; bone < COUNT; bone++) to.rotations[bone].copy(from.rotations[bone]);
+  for (let axis = 0; axis < 3; axis++) to.hips[axis] = from.hips[axis];
+  return to;
+}
+
 /** Blends `from` towards `to` by `amount` (0 keeps `from`), in place. */
 function blend(from, to, amount) {
   if (amount <= 0) return from;
@@ -130,8 +200,10 @@ function blend(from, to, amount) {
  * out from its own bone lengths, gives how fast a planted foot slides back at normal playback. Playing at
  * real speed ÷ that keeps its feet planted, whatever its proportions.
  *
- * `step(dt, speed, { sit, talk })` returns { locals: Map(bone → local Quaternion), hips: [x, y, z]
- * in metres, footstep: "left" | "right" | null, running }.
+ * `step(dt, speed, { sit, talk, swim, act, gesture, air })` returns { locals: Map(bone → local
+ * Quaternion), hips: [x, y, z] in metres, footstep: "left" | "right" | null, running }. `act` is one
+ * of ACT_NAMES (or nothing); `gesture` a gesture to make once, given on the frame it starts; `air`
+ * true while the body is off the ground.
  */
 export function createClipPlayer({ present, offset, legLength }) {
   const parentOf = {};
@@ -142,7 +214,26 @@ export function createClipPlayer({ present, offset, legLength }) {
   }
   const index = Object.fromEntries(BONES.map((bone, i) => [bone, i]));
   const used = BONES.filter((bone) => present(bone));
-  const poses = { a: makePose(), b: makePose(), c: makePose(), out: makePose() };
+  const poses = {
+    a: makePose(),
+    b: makePose(),
+    c: makePose(),
+    out: makePose(),
+    act: makePose(),
+    last: makePose(), // the act's pose as it was when its clip last changed, to ease from
+  };
+  // Sitting on the ground: the legs' turns, the same every frame.
+  const groundLegs = [];
+  for (const [side, sign] of [
+    ["left", 1],
+    ["right", -1],
+  ]) {
+    for (const [part, angle] of Object.entries(GROUND_LEGS)) {
+      const at = BONES.indexOf(`${side}${part}`);
+      if (at < 0) continue;
+      groundLegs.push([at, new Quaternion().setFromEuler(new Euler(angle, sign * GROUND_SPLAY, 0, "YXZ"))]);
+    }
+  }
   const legChain = (side) => [`${side}UpperLeg`, `${side}LowerLeg`, `${side}Foot`].filter((bone) => present(bone));
 
   /** Where an ankle is in the body's space for a pose: hips, then down the leg (each bone's turn is in
@@ -191,6 +282,54 @@ export function createClipPlayer({ present, offset, legLength }) {
   let seatTime = 0;
   let swimming = 0;
   let stroke = 0; // through the swimming stroke, 0…1
+  // Doing something on the spot: the act, how far it has faded in, which of its clips and how far into it.
+  let act = null;
+  let acting = 0;
+  let actPart = 0;
+  let actTime = 0;
+  let actEase = 1; // 0…1 from the last clip's pose into this one's
+  // Lying down: "none" → "down" (lying down) → "lying" → "up" (getting up) → "none".
+  let lying = "none";
+  let lieTime = 0;
+  let gesture = null;
+  let gestureTime = 0;
+  let airborne = 0;
+  let wasInAir = false;
+  let landing = Infinity; // seconds since coming down
+
+  /** The pose of `name` (an act but "lie") after another `dt`, into poses.act. */
+  function actPose(name, dt, talkAmount) {
+    const pose = poses.act;
+    if (name === "ground") {
+      sample(CLIPS.sit, (idleTime / CLIPS.sit.duration) % 1, pose);
+      if (talkAmount > 0.01)
+        blend(pose, sample(CLIPS.sitTalk, (idleTime / CLIPS.sitTalk.duration) % 1, poses.a), talkAmount);
+      for (const [at, turn] of groundLegs) pose.rotations[at].copy(turn);
+      pose.hips[0] = 0;
+      pose.hips[1] = GROUND_HIPS;
+      pose.hips[2] = 0;
+      return pose;
+    }
+    const parts = ACTS[name];
+    let [clipName, times] = parts[actPart % parts.length];
+    actTime += dt;
+    if (actTime >= CLIPS[clipName].duration * times) {
+      // On to its next clip, easing from where this one left the body.
+      copyPose(poses.last, pose);
+      actEase = parts.length > 1 ? 0 : 1;
+      actPart = (actPart + 1) % parts.length;
+      actTime = 0;
+      [clipName] = parts[actPart];
+    }
+    const clip = CLIPS[clipName];
+    sample(clip, (actTime / clip.duration) % 1, pose);
+    if (actEase < 1) {
+      actEase = Math.min(1, actEase + dt / 0.3);
+      blend(copyPose(poses.b, poses.last), pose, smoothstep(0, 1, actEase));
+      copyPose(pose, poses.b);
+    }
+    return pose;
+  }
 
   /**
    * How to play walking and running at a pace: the walk clip is a slow stroll, so a faster walk both
@@ -239,7 +378,11 @@ export function createClipPlayer({ present, offset, legLength }) {
 
   const swimSpeed = Math.max(0.3, CLIPS.swim.speed * legLength);
 
-  return function step(dt, speed, { sit = false, talk = false, swim = false } = {}) {
+  return function step(
+    dt,
+    speed,
+    { sit = false, talk = false, swim = false, act: wanted = null, gesture: made = null, air = false } = {},
+  ) {
     dt = Math.min(0.1, Math.max(0, Number.isFinite(dt) ? dt : 0));
     speed = Math.max(0, Number.isFinite(speed) ? speed : 0);
     pace = ease(pace, speed, dt, 0.12);
@@ -251,6 +394,25 @@ export function createClipPlayer({ present, offset, legLength }) {
     const out = poses.out;
     sample(CLIPS.idle, (idleTime / CLIPS.idle.duration) % 1, out);
     if (talking > 0.01) blend(out, sample(CLIPS.talk, (idleTime / CLIPS.talk.duration) % 1, poses.a), talking);
+
+    // Doing something on the spot. One act fades out before another fades in.
+    const want = wanted && ACTS[wanted] && !sit && !swim ? wanted : null;
+    if (want === "lie" && (lying === "none" || lying === "up")) {
+      lying = "down";
+      lieTime = 0;
+    } else if (want !== "lie" && (lying === "down" || lying === "lying")) {
+      lying = "up";
+      lieTime = 0;
+    }
+    const standing = want === "lie" ? null : want;
+    if (act !== standing && acting < 0.02) {
+      act = standing;
+      actPart = 0;
+      actTime = 0;
+      actEase = 1;
+    }
+    acting = ease(acting, act && act === standing ? 1 : 0, dt, act === "ground" ? 0.22 : 0.14);
+    if (act && acting > 0.01) blend(out, actPose(act, dt, talking), acting * (1 - moving));
 
     // Moving: walk, jog and sprint in step with each other, at the rate that matches the ground.
     const before = phase;
@@ -300,6 +462,60 @@ export function createClipPlayer({ present, offset, legLength }) {
       blend(out, seated, amount);
     }
 
+    // Lying down, lying there, getting up: the getting-up clip, played backwards to lie down.
+    if (lying !== "none") {
+      lieTime += dt;
+      const clip = CLIPS.getUp;
+      if (lying === "down" && lieTime >= clip.duration) lying = "lying";
+      if (lying === "up" && lieTime >= clip.duration) lying = "none";
+      if (lying !== "none") {
+        const through = lying === "down" ? 1 - lieTime / clip.duration : lying === "up" ? lieTime / clip.duration : 0;
+        const down = sample(clip, through, poses.c);
+        const amount =
+          lying === "down"
+            ? smoothstep(0, 0.2, lieTime)
+            : lying === "up"
+              ? 1 - smoothstep(clip.duration - 0.2, clip.duration, lieTime)
+              : 1;
+        blend(out, down, amount);
+      }
+    }
+
+    // A gesture made once (reaching out, picking something up), standing.
+    if (made && GESTURES.has(made) && !gesture) {
+      gesture = made;
+      gestureTime = 0;
+    }
+    if (gesture) {
+      const clip = CLIPS[gesture];
+      gestureTime += dt;
+      if (gestureTime >= clip.duration) gesture = null;
+      else {
+        const amount = Math.min(
+          smoothstep(0, 0.15, gestureTime),
+          1 - smoothstep(clip.duration - 0.25, clip.duration, gestureTime),
+        );
+        blend(
+          out,
+          sample(clip, gestureTime / clip.duration, poses.c),
+          amount * (1 - moving) * (seat === "none" ? 1 : 0),
+        );
+      }
+    }
+
+    // In the air (a jump), and the landing after it.
+    airborne = ease(airborne, air ? 1 : 0, dt, 0.07);
+    if (wasInAir && !air) landing = 0;
+    wasInAir = air;
+    landing += dt;
+    if (landing < LANDING)
+      blend(
+        out,
+        sample(CLIPS.land, landing / CLIPS.land.duration, poses.c),
+        (1 - smoothstep(0.15, LANDING, landing)) * (1 - moving * 0.6),
+      );
+    if (airborne > 0.01) blend(out, sample(CLIPS.jump, (idleTime / CLIPS.jump.duration) % 1, poses.c), airborne);
+
     // Swimming: treading water, blending into the stroke as they move, at the rate that matches the pace.
     swimming = ease(swimming, swim ? 1 : 0, dt, 0.25);
     if (swimming > 0.01) {
@@ -326,7 +542,7 @@ export function createClipPlayer({ present, offset, legLength }) {
     const hips = out.hips.map((value) => value * legLength);
     // Heels land at the start and halfway through each walk and run cycle (the clips start on the left foot).
     let footstep = null;
-    if (moving > 0.5 && seat === "none" && swimming < 0.5) {
+    if (moving > 0.5 && seat === "none" && swimming < 0.5 && airborne < 0.5) {
       const crossed = (mark) => (before <= phase ? before < mark && mark <= phase : mark > before || mark <= phase);
       if (crossed(0.02)) footstep = "left";
       else if (crossed(0.52)) footstep = "right";

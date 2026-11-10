@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.10, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.11, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,8 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.10: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
+_0.5.1 to 0.5.11: buildings dressed each in their own style, the open forge, places to work and rest
+out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
 
@@ -679,9 +680,33 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.10, 2026-11-11)
+## Outstanding (as of 0.5.11, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
+
+**A livelier town (0.5.11).** How it's built, for whoever takes it further:
+
+- _Style._ `buildings.js styleFor(spec, random)` dresses a building beyond its spec (roof and plaster
+  tint, which way the ridge runs, round or square windows, dormers, a porch, which chimney, how much ivy)
+  from numbers seeded by where it stands, so the town's own random stream, and with it every building's
+  place, kind and door number, is untouched. `houses.js` reads `spec.style`; the tints are per-instance
+  colours on the kit's tile and plaster parts only (`kit.js` gives each part its texture's name). The
+  world brief can choose a style from the same menus later.
+- _The forge._ `forgeBay` splits a smithy's footprint into its room (walled, with the door at that end)
+  and the forge (open, arches on the street side). What blocks the way is the room, the back wall, the
+  hearth and the things standing about; its place on the map is still the whole footprint.
+- _Spots._ `world.spots` (`placeSpot`): { x, z, angle, approach, act, role, door | kind, taken }. Work
+  spots belong to a building's door (the forge, a farm's fields) or to a kind of building (a market stall
+  to anyone who works at a shop); rest and browse spots are anyone's. `npcs.js` takes one (`takeSpot`),
+  walks to its way in, then straight to it, is "busy" there, and leaves by the way in. A snapshot's
+  `doing` is the act, and `pack.js` has the words for it and what's said aloud.
+- _Clips._ `clips.js ACTS` maps an act to the clips it loops through; "ground" is the sitting clip with
+  the legs folded by hand, "lie" the getting-up clip played backwards and held. `step` also takes `air`
+  (the jump) and `gesture` (once). The hand-made motion has none of these.
+- _Not done:_ the hearth doesn't glow at night or light the smith; nobody carries a tool (the hammer
+  swing is a wood-chopper's, the watering has no can); a seller and a buyer don't talk to each other;
+  hamlets and inns have no stalls; the player can't work a spot; Engine models with unusual proportions
+  may sit a little into or above the ground; and none of it has been seen on a phone.
 
 **Before the pull request**
 

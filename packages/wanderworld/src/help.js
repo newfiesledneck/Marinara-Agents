@@ -45,6 +45,8 @@ export const HELP = [
     title: "Getting about",
     lines: [
       "WASD or the arrow keys walk; Shift runs. Drag to look round, scroll (or pinch) to zoom. On a touch screen there's a stick in the corner.",
+      "Space jumps. C sits you down on the ground wherever you are, and C again lies you down; move, or press E, to get up. On a touch screen Jump and Sit are by your thumb. Anyone travelling with you finds a seat or stands by.",
+      "People have places to work and rest out of doors: the smith at the open forge, sellers and buyers at the market stalls, a farm's people in its fields, and others at a garden's beds, by a pond or in a meadow's grass.",
       "E, a click or a tap uses whatever the prompt names: a door, a bench, a person, a market stall.",
       "The bar along the top has the Journal, the Lore active where you stand, Illustrate, the Chat window and the Menu (who you play, Settings, full screen, the main menu).",
     ],
@@ -141,11 +143,12 @@ export const CREDITS = [
     title: "Models and animations: Quaternius",
     lines: [
       "The buildings, props, plants, people and recorded animations are converted from free packs by Quaternius (quaternius.com), who releases them into the public domain (CC0 1.0). No credit is asked for. It's given gladly: none of this would look like anything without them.",
-      "Medieval Village MegaKit: the houses. Plaster, brick and wood-grid walls, round doors and door frames, thin and wide round windows, round-tile roofs in every size, the tower roof, brick roof fronts, exterior corners, the balcony, chimneys and vines, and their plaster, brick, tile, wood-trim and metal textures.",
+      "Medieval Village MegaKit: the houses. Plaster, brick and wood-grid walls, round doors and door frames, thin and wide round windows, square windows and their shutters, round-tile roofs in every size, the tower roof, the dormer, the wooden lean-to roofs, brick roof fronts, the arches of the forge, exterior corners, the balconies, chimneys and vines, and their plaster, brick, tile, wood-trim and metal textures.",
       "Fantasy Props MegaKit (with pieces from the Medieval Village MegaKit): the market stalls and stall cart, wagon, barrels and apple barrels, crates and farm crates, wooden fences, benches, buckets, bags, and the furniture indoors: tables, chairs, stools, beds, cabinets, shelves and bookcases, books, bottles, mugs, pots and the cauldron, candlesticks, the chandelier, wall lanterns and torches, the anvil, workbenches, weapon stand, training dummy, chest, coin pile, banner and vase.",
       "Stylized Nature MegaKit: the common, twisted, dead and pine trees with their bark and leaves, bushes and flowering bushes, ferns, clover, flowers, grasses, mushrooms, plants, pebbles, rocks and the rock path.",
       "Universal Base Characters and Modular Character Outfits - Fantasy: the townsfolk. The male and female bodies and heads, the peasant outfits and their colours, eyes, and the hair and beards.",
-      "Universal Animation Library: Idle, Walk, Jog, Sprint, Idle Talking, Sitting (enter, idle, talking, exit) and Swim (forward, idle).",
+      "Universal Animation Library: Idle, Walk, Jog, Sprint, Idle Talking, Sitting (enter, idle, talking, exit), Swim (forward, idle), Jump (loop, land), Fixing Kneeling, Interact, Pick Up Table and Dance.",
+      "Universal Animation Library 2: Tree Chopping (the smith's hammer), Farm Harvest, Plant Seed and Watering, Idle Fold Arms, Idle Rail, Lay To Idle (lying down and getting up) and Consume.",
     ],
   },
   {

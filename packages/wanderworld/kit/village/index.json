@@ -288,6 +288,118 @@
         0.15
       ],
       "triangles": 31
+    },
+    "wall-unevenbrick-window-wide-flat": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 88
+    },
+    "wall-plaster-window-wide-flat": {
+      "size": [
+        2,
+        3.12,
+        0.41
+      ],
+      "triangles": 96
+    },
+    "wall-plaster-window-wide-flat2": {
+      "size": [
+        2,
+        3.15,
+        0.41
+      ],
+      "triangles": 122
+    },
+    "wall-arch": {
+      "size": [
+        2,
+        3,
+        0.06
+      ],
+      "triangles": 196
+    },
+    "window-wide-flat1": {
+      "size": [
+        1.61,
+        1.58,
+        0.68
+      ],
+      "triangles": 160
+    },
+    "windowshutters-wide-flat-open": {
+      "size": [
+        2.48,
+        1.42,
+        0.46
+      ],
+      "triangles": 120
+    },
+    "roof-dormer-roundtile": {
+      "size": [
+        1.97,
+        2.67,
+        2.44
+      ],
+      "triangles": 904
+    },
+    "roof-wooden-2x1": {
+      "size": [
+        2.26,
+        1.25,
+        1.56
+      ],
+      "triangles": 224
+    },
+    "roof-wooden-2x1-l": {
+      "size": [
+        2.13,
+        1.25,
+        1.56
+      ],
+      "triangles": 158
+    },
+    "roof-wooden-2x1-r": {
+      "size": [
+        2.13,
+        1.25,
+        1.56
+      ],
+      "triangles": 158
+    },
+    "roof-wooden-2x1-center": {
+      "size": [
+        2,
+        1.21,
+        1.5
+      ],
+      "triangles": 52
+    },
+    "prop-chimney2": {
+      "size": [
+        0.95,
+        3,
+        0.99
+      ],
+      "triangles": 130
+    },
+    "balcony-cross-straight": {
+      "size": [
+        2,
+        1.23,
+        0.21
+      ],
+      "triangles": 132
+    },
+    "prop-vine2": {
+      "size": [
+        1.39,
+        2.6,
+        0.21
+      ],
+      "triangles": 45
     }
   }
 }
