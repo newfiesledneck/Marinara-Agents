@@ -4,7 +4,19 @@
 //
 // Every body is a three-vrm humanoid, moved by motion.js on its normalized humanoid bones: a model in any
 // of the Engine's 3D avatar formats (loaded by models.js), or the built-in person (figure.js).
-import { CanvasTexture, Euler, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3 } from "three";
+import {
+  BoxGeometry,
+  CanvasTexture,
+  CylinderGeometry,
+  Euler,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  PlaneGeometry,
+  Quaternion,
+  Vector3,
+} from "three";
 import { createClipPlayer } from "./clips.js";
 import { createMotion } from "./motion.js";
 
@@ -15,6 +27,41 @@ export function setAnimationStyle(style) {
 }
 const WAVE_BONES = ["rightUpperArm", "rightLowerArm", "rightHand"];
 const LOW_ACTS = new Set(["ground", "lie", "tend"]);
+
+/**
+ * Things held in a hand while something is done with them: a hammer at the anvil, a mug to drink
+ * from. Each is a few plain shapes, made once and shared (so never disposed: `userData.sharedShadow`
+ * keeps disposeTree off them), laid out for a hand at rest in the T-pose: the grip at the origin, the
+ * thing reaching out the thumb's side (+z).
+ */
+const HELD_FOR = { hammer: "hammer", drink: "mug" };
+/** Which hand each is held in (the drinking clip lifts the left). */
+const HELD_HAND = { hammer: "right", mug: "left" };
+let heldParts = null;
+function heldThing(name) {
+  if (!heldParts) {
+    const part = (geometry, hex) => {
+      const mesh = new Mesh(geometry, new MeshLambertMaterial({ color: hex, flatShading: true }));
+      mesh.userData.sharedShadow = true;
+      return mesh;
+    };
+    const along = (geometry) => geometry.rotateX(Math.PI / 2); // a cylinder's length along z
+    heldParts = {
+      hammer: [
+        part(along(new CylinderGeometry(0.014, 0.016, 0.34, 6)).translate(0, 0, 0.1), 0x6b4a2f),
+        part(new BoxGeometry(0.11, 0.05, 0.055).translate(0, 0, 0.27), 0x3a3d40),
+      ],
+      mug: [
+        part(along(new CylinderGeometry(0.042, 0.038, 0.11, 8)).translate(0, 0, 0.03), 0x8a6440),
+        part(along(new CylinderGeometry(0.044, 0.044, 0.012, 8)).translate(0, 0, 0.07), 0x3a3d40),
+        part(along(new CylinderGeometry(0.03, 0.03, 0.004, 8)).translate(0, 0, 0.086), 0xe8dcc0),
+      ],
+    };
+  }
+  const group = new Group();
+  for (const mesh of heldParts[name]) group.add(mesh.clone());
+  return group;
+}
 const overlay = new Quaternion();
 const overlayEuler = new Euler(0, 0, 0, "YXZ");
 
@@ -114,9 +161,32 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
     hipWidth: span("leftUpperLeg", "rightUpperLeg") / 2 || 0.09,
     seed: seed ?? Math.floor(Math.random() * 2 ** 32),
   });
+  // What's in hand (a hammer, a mug), by what the body is doing; a drink taken as a gesture
+  // keeps its mug for as long as the drinking takes.
+  let held = null;
+  let heldName = null;
+  let sipping = 0;
+  function hold(name) {
+    if (name === heldName) return;
+    held?.removeFromParent();
+    heldName = name;
+    held = null;
+    const side = HELD_HAND[name] === "left" ? -1 : 1; // the left hand lies the other way along x
+    const hand = name && bone(`${HELD_HAND[name]}Hand`);
+    if (!hand) return;
+    held = heldThing(name);
+    // In the hand's own space: a little way into the palm, turned with the rig, at the model's own size.
+    held.position.set(-0.075 * side * unit * mirror, -0.025 * unit, 0.01 * unit * mirror);
+    held.rotation.y = mirror < 0 ? Math.PI : 0;
+    held.scale.setScalar(unit);
+    hand.add(held);
+  }
   return {
     object,
     update(dt, speed, options) {
+      if (options?.gesture === "drink") sipping = 1.3;
+      sipping = Math.max(0, sipping - dt);
+      hold(sipping > 0 ? "mug" : (HELD_FOR[options?.act] ?? null));
       // The hand-made motion has nothing for the acts (clips.js): low ones it sits for, the rest it stands.
       const low = animationStyle !== "recorded" && LOW_ACTS.has(options?.act);
       const pose = motion(dt, speed, low ? { ...options, sit: true } : options);

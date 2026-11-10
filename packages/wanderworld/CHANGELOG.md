@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.15 — 2026-11-11
+
+- The smith holds a hammer at the anvil, and anyone drinking holds a mug.
+- Campsites outside the settlement: a fire in a ring of stones, logs, and a tent with a bedroll.
+- Friends make an outing of it after a chat: two to four of them go for a drink at the tavern (most often in the evening), sit round a campfire, or go back to one of their houses.
+- Friends out together are heard as one: when a moment picks one of them, the rest of the group in earshot is included in the same call.
+
 ## 0.5.14 — 2026-11-11
 
 - The chat window keeps its Jump and Sit buttons whatever the touch buttons are set to, with its own toggle: Settings → Moving → "Jump and Sit/lie down buttons in the chat window". The Jump button and the Sit and lie down button toggles now only hide the ones by the thumb on touch screens.

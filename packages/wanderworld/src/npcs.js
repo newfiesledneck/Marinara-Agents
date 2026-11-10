@@ -45,6 +45,9 @@ const SOCIAL_SEARCH = 35; // metres within which someone looks for company
 const SOCIAL_CHANCE = 0.35; // of a new plan being to see someone
 const CHAT_SECONDS = [10, 22];
 const TOGETHER = 0.45; // warmth at which two who've chatted go and sit or walk together
+const OUTING = 0.45; // of those times, how often they make an outing of it (the tavern, a campfire, a house)
+const OUTING_FRIENDS = 2; // friends nearby who may come along, beyond the two
+const CAMP_SEARCH = 140; // metres to a campsite worth the walk
 const AVOID_DISTANCE = 7; // metres: someone they dislike this close, they move off
 const AVOID_WARMTH = -0.3;
 const GREET_DISTANCE = 9; // metres: someone fond of the player comes over to say hello
@@ -455,6 +458,7 @@ export function createCrowd() {
   }
 
   function nextPlan(person, hour) {
+    person.company = null; // whatever they were out doing together is done
     if (person.space !== world) {
       // In the room with the player: sit for a while, or stand somewhere and look about.
       const seat = clock > person.restUntil ? freeSeat(person, room.room.seats, { x: 0, z: 0 }, 50) : null;
@@ -611,6 +615,59 @@ export function createCrowd() {
     }
   }
 
+  /**
+   * Friends make an outing of it: the two who were talking, and a friend or two of the first who's near
+   * and free. For a drink at the tavern (most likely as the day goes on), round the fire at a campsite
+   * outside town, or back to the first one's house. Each is the others' `company` until their next plan.
+   * Returns true when they're off.
+   */
+  function outing(person, other) {
+    const here = person.group.position;
+    const friends = [...people.values()]
+      .filter(
+        (who) =>
+          who !== person &&
+          who !== other &&
+          !who.company &&
+          available(who) &&
+          Math.hypot(who.group.position.x - here.x, who.group.position.z - here.z) < SOCIAL_SEARCH &&
+          Math.min(feeling(person.id, who.id).warmth, feeling(who.id, person.id).warmth) >= TOGETHER,
+      )
+      .slice(0, OUTING_FRIENDS);
+    const company = [person, other, ...friends];
+    const hour = viewNow?.hour ?? 12;
+    const seconds = 80 + person.random() * 80;
+    const tavern = world.doors
+      .filter((door) => door.kind === "tavern")
+      .sort((a, b) => Math.hypot(a.x - here.x, a.z - here.z) - Math.hypot(b.x - here.x, b.z - here.z))[0];
+    // A campsite with room for them all.
+    const camps = new Map();
+    for (const spot of world.spots ?? []) {
+      if (spot.role !== "camp" || spot.taken || Math.hypot(spot.x - here.x, spot.z - here.z) > CAMP_SEARCH) continue;
+      if (!camps.has(spot.camp)) camps.set(spot.camp, []);
+      camps.get(spot.camp).push(spot);
+    }
+    const camp = [...camps.values()].find((spots) => spots.length >= company.length);
+    const roll = person.random();
+    const evening = hour >= 16;
+    let go = null;
+    if (tavern && roll < (evening ? 0.6 : 0.3)) go = (who) => goInto(who, tavern, seconds);
+    else if (camp && roll < 0.8) go = (who, i) => takeSpot(who, camp[i], seconds);
+    else if (person.home) go = (who) => goInto(who, person.home, seconds);
+    if (!go) return false;
+    company.forEach((who, i) => {
+      leaveSeat(who);
+      who.partner = null;
+      go(who, i);
+      who.state = "idle";
+      who.wait = 0.4 + i * 0.5; // setting off one after another, not in step
+      who.company = company;
+      who.socialUntil = clock + seconds + 60;
+      who.visitUntil = 0;
+    });
+    return true;
+  }
+
   /** A chat has ended: warm company goes on together (to a bench, or a stroll); the rest part ways. */
   function endChat(person) {
     const other = person.partner;
@@ -630,6 +687,7 @@ export function createCrowd() {
     if (!other || person.space !== world) return;
     const warmth = Math.min(feeling(person.id, other.id).warmth, feeling(other.id, person.id).warmth);
     if (warmth < TOGETHER || person.random() < 0.3) return;
+    if (person.random() < OUTING && outing(person, other)) return;
     // Two seats side by side on one bench (each bench's two seats sit next to each other in the list).
     const benches = [];
     for (let i = 0; i + 1 < world.seats.length; i += 2) {
@@ -1325,6 +1383,10 @@ export function createCrowd() {
         work: person.work?.index ?? null,
         seated: !!person.seat && person.state === "sit",
         doing: person.state === "busy" ? person.act : null, // what they're at, at a spot made for it (clips.js ACTS)
+        // Who they're out with (friends at the tavern, round a campfire, at a house): ids, without their own.
+        company: (person.company ?? [])
+          .filter((who) => who !== person && who.company === person.company && people.has(who.id))
+          .map((who) => who.id),
         with:
           person.state === "chat"
             ? (person.partner?.name ?? null)

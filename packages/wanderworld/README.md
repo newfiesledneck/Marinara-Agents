@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.14)
+## What it does now (0.5.15)
 
 ### The world
 
@@ -244,6 +244,11 @@ only walk about.
   fields, and anyone with time kneels at a garden's beds, sits by a pond or lies in a meadow's grass.
   Most shifts are spent out where you can see them when the work has such a place; the rest indoors as
   before. They say a word now and then, and the Journal, the AI and pictures are told what they're at.
+  The smith holds a hammer, and anyone drinking a mug.
+- **Friends out together:** after a chat, friends make an outing of it, two to four of them: a drink at
+  the tavern (most often in the evening), round the fire at a campsite outside the settlement (a ring of
+  stones, logs, a tent), or back to one of their houses. When a moment picks one of them, the rest of
+  the group in earshot comes with them in the same call.
 - **Jump, sit, lie down:** Space jumps. C sits you down on the ground where you stand, C again lies you
   down, and moving (or E) gets you up; the party waits with you. The chat window has Jump and Sit buttons
   (Sit becomes Lie down, then Get up), and on a touch screen they're by your thumb as well. Settings →
@@ -359,8 +364,11 @@ still count, and come first.
 - Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
   they count toward the world's thirty people. Engine characters all live in the home region.
 - Walk-in rooms are unfinished and off by default.
-- People at work hold no tools: the smith's swing is a wood-chopper's and the watering has no can. The
-  forge's hearth doesn't glow at night. A seller and a buyer at a stall don't talk to each other.
+- The smith holds a hammer and a drinker a mug; nobody else holds a tool (the watering has no can), and
+  the smith's swing is a wood-chopper's. The forge's hearth doesn't glow at night. A seller and a buyer
+  at a stall don't talk to each other.
+- A group out together is brought into a moment as one; a conversation (E on one of them) is still with
+  that one person.
 - Hamlets and inns have no stalls, so a shop's people there work indoors. The player can't work a spot.
 - With Settings → Animation on Built-in, none of the new animations play: people sit for what's low to
   the ground and stand for the rest, and a jump only lifts you.

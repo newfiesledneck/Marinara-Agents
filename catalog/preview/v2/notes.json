@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.15",
+          "date": "2026-11-11",
+          "notes": "- The smith holds a hammer at the anvil, and anyone drinking holds a mug.\n- Campsites outside the settlement: a fire in a ring of stones, logs, and a tent with a bedroll.\n- Friends make an outing of it after a chat: two to four of them go for a drink at the tavern (most often in the evening), sit round a campfire, or go back to one of their houses.\n- Friends out together are heard as one: when a moment picks one of them, the rest of the group in earshot is included in the same call.",
+          "highlight": false
+        },
+        {
           "version": "0.5.14",
           "date": "2026-11-11",
           "notes": "- The chat window keeps its Jump and Sit buttons whatever the touch buttons are set to, with its own toggle: Settings → Moving → \"Jump and Sit/lie down buttons in the chat window\". The Jump button and the Sit and lie down button toggles now only hide the ones by the thumb on touch screens.\n- The README, Help and plan are up to date with the last four versions.",
@@ -307,12 +313,6 @@
           "version": "0.4.98",
           "date": "2026-11-09",
           "notes": "- Illustrate: choose the picture's size, from a few usual ones (landscape, wide, square, portrait) or your own width and height.\n- Illustrate: \"Improve the prompt with AI\" has your model rewrite the template's prompt into a fuller one before it's painted (one more call, on the conversations connection). You can edit what the model is told, and tick \"show me first\" to read, change or drop the rewritten prompt before anything is painted.\n- Townsfolk's chatter only shows over their heads when they're near you and in sight, not across town or through walls, and no more than three bubbles are up at once.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.97",
-          "date": "2026-11-09",
-          "notes": "- Fixed: Settings opened from the main menu didn't load your connections, so a connection you had chosen showed as \"(not found)\". They load there now, as they do in a world.",
           "highlight": false
         }
       ]

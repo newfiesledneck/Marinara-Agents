@@ -390,6 +390,7 @@ const ACTS = {
     calls: ["How much for these?", "Hm. And that one?", "I'll think about it."],
   },
   ground: { doing: "sitting on the ground, taking it easy", calls: [] },
+  drink: { doing: "sitting with a drink in hand", calls: ["Here's to that.", "Pass it round."] },
   lie: { doing: "lying in the grass", calls: [] },
 };
 

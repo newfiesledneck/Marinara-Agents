@@ -105,7 +105,8 @@ const world = createWorld(51, null, { smithy: 2 });
   assert.ok(world.spots.length > 10, `the world marks places to be (${world.spots.length})`);
   for (const spot of world.spots) {
     assert.ok(ACT_NAMES.includes(spot.act), `a spot's act is one the clips have (${spot.act})`);
-    assert.ok(["work", "rest", "browse"].includes(spot.role));
+    assert.ok(["work", "rest", "browse", "camp"].includes(spot.role));
+    if (spot.role === "camp") assert.ok(spot.camp, "a campsite's places know their camp");
     assert.ok(Number.isFinite(spot.x) && Number.isFinite(spot.z) && Number.isFinite(spot.angle));
     assert.equal(spot.taken, null);
     assert.ok(actWords(spot.act), `the pack says what ${spot.act} is`);
@@ -198,6 +199,76 @@ const world = createWorld(51, null, { smithy: 2 });
   assert.equal(crowd.present(world).length, 0, "at night everyone leaves their spot for home");
   assert.equal(world.spots.filter((spot) => spot.taken).length, 0, "and no spot is left held");
   world.dispose();
+}
+
+// ── Friends go out together ──────────────────────────────────────────────────
+{
+  const town = createWorld(4242);
+  const camps = town.spots.filter((spot) => spot.role === "camp");
+  assert.ok(camps.length >= 5, `there's a campsite outside town (${camps.length} places round fires)`);
+  for (const spot of camps) {
+    assert.ok(
+      Math.max(Math.abs(spot.x), Math.abs(spot.z)) > town.layout.townHalf,
+      "campsites are outside the settlement",
+    );
+    assert.ok(!town.blocked(spot.x, spot.z, 0.2), "a place by the fire is clear");
+  }
+  const crowd = createCrowd();
+  crowd.setDressed(false);
+  crowd.setWorld(town);
+  crowd.setCast(Array.from({ length: 12 }, (_, i) => ({ id: `f-${i}`, name: `Friend ${i}` })));
+  crowd.setRelations(() => ({ kind: "friend", level: 80, warmth: 0.8 })); // everyone's fond of everyone
+  const player = { x: 0, y: 0, z: 400 };
+  let time = 0;
+  const outings = new Set(); // sizes of company seen
+  const where = new Set();
+  for (const hour of [10, 13, 17, 19]) {
+    for (let elapsed = 0; elapsed < 600; elapsed += 0.1) {
+      time += 0.1;
+      crowd.update(0.1, {
+        player,
+        space: town,
+        playerSitting: false,
+        hour,
+        time,
+        isVisible: () => false,
+        onFootstep() {},
+      });
+      town.update(0.1);
+      if (Math.round(time * 10) % 30) continue;
+      const all = crowd.snapshot();
+      for (const person of all) {
+        if (!person.company.length) continue;
+        outings.add(person.company.length + 1);
+        assert.ok(!person.company.includes(person.id), "someone's company is the others");
+        for (const id of person.company) {
+          assert.ok(all.find((other) => other.id === id).company.includes(person.id), "company goes both ways");
+        }
+        if (person.doing === "ground" || person.doing === "drink") where.add("camp");
+        if (person.state === "inside") where.add("indoors");
+      }
+    }
+  }
+  assert.ok(outings.size > 0, "friends go out together");
+  assert.ok(
+    [...outings].every((size) => size >= 2 && size <= 4),
+    `in twos to fours (${[...outings]})`,
+  );
+  assert.ok(where.has("indoors"), `to the tavern or a house (${[...where]})`);
+  for (let elapsed = 0; elapsed < 400; elapsed += 0.1) {
+    time += 0.1;
+    crowd.update(0.1, {
+      player,
+      space: town,
+      playerSitting: false,
+      hour: 23,
+      time,
+      isVisible: () => false,
+      onFootstep() {},
+    });
+  }
+  assert.equal(crowd.present(town).length, 0, "and home at night, from the fire too");
+  town.dispose();
 }
 
 // ── The clips ────────────────────────────────────────────────────────────────
