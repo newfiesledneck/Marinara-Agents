@@ -752,7 +752,7 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
   Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,
   Updated Modular Dungeon, Medieval Weapons, Downtown City MegaKit, Ultimate Nature, Textured Stylized
-  Trees, Ultimate Gun Pack (not used yet). To get, for the plan above: Ultimate Animated Animal Pack,
+  Trees, Ultimate Gun Pack (not used yet). (Now downloaded, 2026-11-10: the Quaternius packs are in `_planning/Wanderworld asset packs/Quaternius Assets`, others beside that folder; KayKit was left out as too cartoonish. FBX reads without Blender: tried on Farm Buildings; an animated FBX is still to be tried.) To get, for the plan above: Ultimate Animated Animal Pack,
   Ultimate Modular Men, Ultimate Modular Women, Farm Animal Pack, Bestiary - Dungeon Monsters Kit,
   Ultimate Monsters, Ultimate Modular Ruins, Ultimate Crops, Ultimate Food, Ultimate RPG Pack. For other
   settings later (each a setting pack of its own: `pack.js`): Modular Sci-Fi MegaKit, Sci-Fi Essentials
@@ -764,6 +764,23 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   **Kenney** (kenney.nl: 270+ packs, GLB among the formats). Both are flat-coloured and chunkier than the
   textured Quaternius kits, so they suit props, tools and creatures better than buildings beside the
   kit's. Poly Pizza is mostly CC-BY (attribution), a CC0 subset only; Synty is paid, not CC0.
+- _Downloads that need credit (CC-BY 3.0), and the rule for using them._ The maintainer has these from
+  Poly Pizza (poly.pizza), kept with the other packs, none used yet. **CC0** (no credit needed): Crystal
+  Pack, Signs pack and Medieval Torture Devices, all by iPoly3D. **CC-BY 3.0**
+  (https://creativecommons.org/licenses/by/3.0/): Slime Enemy by Charlie; Urban Clutter by Superlink121;
+  Animals by molochdadev; Animal Kit, Wizardus Maximus and Adventurer by madtrollstudio (a Bear by
+  madtrollstudio is in the folder too: confirm its licence on its page); Goblin by joney_lol; Goblin by
+  Eric Oudin; Dragon Rigged by na3ee1; Monster & Medieval Kits by Don Carson; Colossus pre Tilt Brush by
+  Darwin Yamamoto; Giant Spider by Zane Brant; Saddle, and two different Horses, by Poly by Google.
+  CC-BY lets us use, convert and change a model, commercially too, on these terms: name the work and
+  its maker, link the licence, and say that it was changed (converting it to the kit's format, cutting
+  its size or recolouring it all count). So the moment one of these goes into the package: (1) a line
+  in `kit/CREDITS.md` of the form "Giant Spider by Zane Brant [CC-BY 3.0] via Poly Pizza, converted and
+  resized", with the licence link at the foot of that file; (2) the same line on Help's credits page,
+  with the link; (3) the README's Credits says some models are CC-BY and points to both. Whoever passes
+  the package on has to keep those credits, which CC0 art never asks. Check each model's own page for
+  its licence before using it (the list above is as downloaded), and ask the maintainer of the catalog
+  whether a package may ship CC-BY art at all before the first one goes in.
 - _Paid tiers that would help (the maintainer may buy them later; nothing here depends on them):_ the
   Pro and Source tiers of **Modular Character Outfits - Fantasy** (12 outfits against the free tier's
   two: the looks by trade in plan item 1), **Universal Base Characters** (six body builds and twenty
