@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.100",
+          "date": "2026-11-09",
+          "notes": "- Illustrate: a sentence of the template whose placeholders all come out empty is left out of the prompt, so no more \"With them:.\" when nobody's there.\n- Journal → World → \"How this world looks in pictures\": the words {world_look} puts in every picture's prompt are yours to set per world. The usual ones are now about the era, not one place (\"medieval fantasy, pre-industrial, nothing modern\"), so the woods don't get houses painted into them.\n- The chat is kept with the world: its last 30 lines are there again when you come back.",
+          "highlight": false
+        },
+        {
           "version": "0.4.99",
           "date": "2026-11-09",
           "notes": "- Illustrate: the picture takes the window now. The gallery, template, size and the rest fold away under it.\n- Fixed: appearances were cut off mid-word in the prompt. Your persona's is sent whole (up to 1500 characters), other people's up to 600, ending on a whole word.\n- New {world_look} in the template says what Wanderworld's world looks like (a medieval fantasy village), so pictures stop coming out modern. {setting} is still only what you wrote in the world's Setting box. An unchanged template picks it up by itself; add {world_look} to one you've edited.\n- Every placeholder is explained, one to a row, in a list that scrolls; click one to put it in the template.\n- \"Improve the prompt with AI\" can use a connection of its own, apart from the one conversations use, and has a tag-style instruction to start from.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.81",
           "date": "2026-11-09",
           "notes": "- Journal → People is a roster you can read: everyone in the world by faction, with where they live and work and how they see you, and the creatures from the lore. It no longer shifts about. Buttons along the top open what they're doing right now, schedules, homes and work, relationships (no longer a tab of its own), and voices and details.\n- Voices and details: pick how each person talks, and edit the people a world made for itself. Journal → World: edit the lore written for the world, set the season, and check your ww: keywords (it lists any it didn't understand).\n- Settings come a section at a time (Graphics, Moving, World, AI, Display), and choosing who lives in the world moved from the top bar into Settings → World.\n- Floating windows (chat, Illustrate) stay inside the view when the browser window is made smaller.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.80",
-          "date": "2026-11-09",
-          "notes": "- More \"ww:\" keywords, each one short thing: the world's shape on its \"ww: world\" entry (ww: city, ww: walls, ww: size large, ww: season winter); a place's hours and owner (ww: closed 22-6, ww: owner Mira); temperament and voice (ww: shy, ww: grumpy, ww: voice gruff); factions (ww: faction Thieves Guild, ww: member of Thieves Guild); and a creature's details, kept for later (ww: found in forest1, ww: night, ww: pack 4, ww: danger 2, ww: drops gold).\n- Seasons: winter lays snow over the land.\n- Four more ways to talk (gruff, formal, cheerful, sly), and a person can have their own.\n- People made from lore get their details (who they are, manner, looks) from one model call, kept as their own card in the world. An owner a place names who isn't anyone yet becomes a new person.\n- \"ww: character Name\" only ties to a card you chose for that world; cards you left out are never pulled in.",
           "highlight": false
         }
       ]

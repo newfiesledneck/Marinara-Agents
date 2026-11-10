@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.100 — 2026-11-09
+
+- Illustrate: a sentence of the template whose placeholders all come out empty is left out of the prompt, so no more "With them:." when nobody's there.
+- Journal → World → "How this world looks in pictures": the words {world_look} puts in every picture's prompt are yours to set per world. The usual ones are now about the era, not one place ("medieval fantasy, pre-industrial, nothing modern"), so the woods don't get houses painted into them.
+- The chat is kept with the world: its last 30 lines are there again when you come back.
+
 ## 0.4.99 — 2026-11-09
 
 - Illustrate: the picture takes the window now. The gallery, template, size and the rest fold away under it.
