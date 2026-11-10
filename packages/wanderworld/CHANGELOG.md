@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.4.96 — 2026-11-09
+
+- Credits: the thanks to Marinara and the Marinara Engine developers says more of how Wanderworld came to be, and the art line is shorter.
+
 ## 0.4.95 — 2026-11-09
 
 - The brown buttons are wooden boards now (the kit's wood grain, still easy to read), and Credits and Thanks is a slab of stone.

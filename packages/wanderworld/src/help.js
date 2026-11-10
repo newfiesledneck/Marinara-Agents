@@ -113,8 +113,9 @@ export const CREDITS = [
     title: "Thank you, Marinara",
     lines: [
       "To Marinara, and to every one of the developers who build Marinara Engine with her: thank you.",
+      "A few short months ago I had never done any kind of project with code, and I never would have tried if it weren't for Marinara Engine and the community around it. The openness here, letting regular users make feature requests and build their own things to contribute, is what got me to take that first step with third-party extensions, then to make Quartermaster, and now this: a project I never would have guessed I'd attempt.",
       "Wanderworld only exists because of what you made. You built an engine where a package can have a place of its own, reach the characters, personas and lorebooks people have already poured themselves into, and call on their own models, and then you left the door open for the rest of us to build in it. That kind of openness is rare, and it takes real generosity to keep it that way.",
-      "Every street in here stands on your work. I hope walking round it feels a little like being thanked.",
+      "Thank you for building it, and for letting us build on it.",
     ],
   },
   {
@@ -131,7 +132,7 @@ export const CREDITS = [
   {
     title: "Art, and the code underneath",
     lines: [
-      "The menu and loading art, the logo, the store banner and the ground, water, rock and wood textures were made for Wanderworld by ThatOneCan with ComfyUI.",
+      "The art and textures not credited above were generated in ComfyUI by ThatOneCan.",
       "Drawn with three.js. Your own 3D avatars come from the 3D Avatars package, made by Marinara: Wanderworld reads the model you set up there, so you walk about as yourself.",
     ],
   },
