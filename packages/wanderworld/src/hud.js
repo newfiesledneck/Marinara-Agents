@@ -892,7 +892,7 @@ export function createHud(root, handlers) {
     true,
   );
   const illustrate = createIllustrateWindow(layer, {
-    onIllustrate: (template) => handlers.onIllustrate(template),
+    onIllustrate: (options) => handlers.onIllustrate(options),
     onGallery: () => handlers.onGallery(),
     onPicture: (id) => handlers.onPictureOf(id),
     onDelete: (id) => handlers.onDeletePicture(id),

@@ -509,6 +509,53 @@ assert.equal(
   );
   await call("delete", "/picture/:id", { params: { id: gallery[0].id } });
   assert.equal((await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures.length, 0);
+
+  // The prompt can be rewritten by the model first (to the player's instruction, or the usual one), looked
+  // over before anything is painted, and then painted as approved without another rewrite.
+  const heard = [];
+  runtime.languageModels.resolveForRequest = async () => ({
+    connectionId: "t-1",
+    model: "m",
+    async chatComplete(messages) {
+      heard.push(messages);
+      return { content: '<think>hm</think>"A warm bakery at dawn, flour in the light."' };
+    },
+  });
+  const scene = {
+    worldId: "w1",
+    template: "{persona} at {place}",
+    facts: { place: "the bakery" },
+    personaId: "p-zoey",
+  };
+  const draft = await call("post", "/illustrate", { body: { ...scene, improve: true, previewOnly: true } });
+  assert.deepEqual(draft.body, { prompt: "A warm bakery at dawn, flour in the light.", improved: true });
+  assert.equal(heard[0][0].content, server.IMPROVE_INSTRUCTION);
+  assert.equal(heard[0][1].content, "Zoey at the bakery");
+  assert.equal(
+    (await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures.length,
+    0,
+    "a look paints nothing",
+  );
+  await call("post", "/illustrate", {
+    body: { ...scene, improve: true, previewOnly: true, instruction: "Make it noir." },
+  });
+  assert.equal(heard[1][0].content, "Make it noir.", "the player's own instruction");
+  const painted = await call("post", "/illustrate", {
+    body: { ...scene, improve: true, prompt: "Just the bakery, please." },
+  });
+  assert.equal(painted.body.prompt, "Just the bakery, please.", "an approved prompt is painted as it is");
+  assert.equal(heard.length, 2, "and isn't rewritten again");
+  runtime.languageModels.resolveForRequest = async () => ({
+    async chatComplete() {
+      throw new Error("down");
+    },
+  });
+  const plain = await call("post", "/illustrate", { body: { ...scene, improve: true, previewOnly: true } });
+  assert.deepEqual(
+    plain.body,
+    { prompt: "Zoey at the bakery", improved: false },
+    "a rewrite that fails leaves the prompt",
+  );
 }
 
 // Scenes Wanderworld plans itself: the plan is checked and carries the player's point of view, tense and

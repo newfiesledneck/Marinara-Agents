@@ -172,6 +172,8 @@ const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, th
 const WEATHER_PERIOD = 240; // seconds of play between changes of the weather
 const TRAVEL_REACH = 6; // metres from the world's edge where "Travel to…" shows
 const OPPOSITE = { north: "south", east: "west", south: "north", west: "east" }; // every kind of usable needs one
+const CHATTER_DISTANCE = 11; // metres within which townsfolk's own chatter shows over their heads
+const CHATTER_AT_ONCE = 3; // bubbles up at once, chatter included
 const ARRIVE_SETTLE = 3; // seconds in a place before it's told (passing through, or a misstep, isn't arriving)
 const ARRIVE_GAP = 45; // seconds between one arrival's telling and the next
 const SIGHT_EVERY = 140; // seconds between lines about who's near (the world's voice)
@@ -3466,7 +3468,7 @@ function playerDoing() {
  * (the party and anyone close by, and what they're doing), what the player is doing and the last line
  * of narration. Their looks come from their cards on the server. Kept in the world's gallery.
  */
-async function illustrateMoment(template) {
+async function illustrateMoment({ template, width, height, improve, instruction, previewOnly = false, prompt = "" }) {
   if (!core.save || !core.zones) throw new Error("Open a world first.");
   if (!core.ai.known()?.illustrate) throw new Error("Wanderworld's server part isn't running: restart the Engine.");
   const at = core.interior ? core.interior.door : core.player.position;
@@ -3518,6 +3520,13 @@ async function illustrateMoment(template) {
     caption: `${placeWords()}, ${clockText()}`,
     connectionId: core.settings.imageConnection || null,
     styleProfileId: core.settings.imageStyle,
+    width,
+    height,
+    improve,
+    instruction,
+    previewOnly,
+    prompt,
+    textConnectionId: core.settings.textConnection || null,
   });
 }
 
@@ -4767,7 +4776,14 @@ function step(dt) {
     time: core.clock,
     isVisible: (position) => frustum.containsPoint(projected.set(position.x, position.y + 1, position.z)),
     onFootstep: (position, running, distance) => core.sound.footstep(distance, running),
-    onSay: (group, text, id, name) => core.talk?.say(group, text, 3.5, id ? nameFor(id, name) : ""),
+    onSay: (group, text, id, name) => {
+      // Only from someone near and in plain sight, and only a few at once: not a town's worth through the walls.
+      const at = core.player.position;
+      const far = Math.hypot(group.position.x - at.x, group.position.z - at.z);
+      if (far > CHATTER_DISTANCE || core.talk.bubbleCount() >= CHATTER_AT_ONCE) return;
+      if (core.space.clearSight(at.x, at.z, group.position.x, group.position.z) < 0.95) return;
+      core.talk.say(group, text, 3.5, id ? nameFor(id, name) : "");
+    },
     playerName: personaName(),
     playerNameFor: (id) => (theyKnow(id) ? personaName() : "you there"),
     onConfront: confronted,

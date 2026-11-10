@@ -249,6 +249,8 @@ export function createTalk(layer, handlers) {
         placed.push({ group, top: lift + bubble.sprite.scale.y });
       }
     },
+    /** How many bubbles are up. */
+    bubbleCount: () => bubbles.size,
     clearBubbles() {
       for (const group of [...bubbles.keys()]) removeBubble(group);
     },

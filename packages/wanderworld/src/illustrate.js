@@ -11,6 +11,19 @@ export const DEFAULT_TEMPLATE =
   "{persona_appearance}. {people_appearance}. {setting}. " +
   "A detailed illustration of this moment, {place_kind}, no text.";
 
+/** What the model is told when it rewrites the prompt (server.mjs has the same, for when this is empty). */
+export const DEFAULT_INSTRUCTION =
+  "Rewrite what follows as a prompt for an image generator. Keep every fact in it: who is there, what they look like, where and when it is, the weather, what they're doing. Lead with the subject, then the setting, the light, the mood and the style. One paragraph, concrete and visual, under 120 words. No names of real artists, no words or captions in the picture. Answer with the prompt only.";
+
+/** Picture sizes on offer: [width, height, what it's called]. Any other size can be typed in. */
+export const SIZES = [
+  [1024, 640, "Landscape"],
+  [1280, 720, "Wide"],
+  [1024, 1024, "Square"],
+  [640, 1024, "Portrait"],
+  [768, 512, "Small landscape"],
+];
+
 /** What each placeholder becomes, for the help under the template. */
 export const PLACEHOLDERS = {
   persona: "your persona's name",
@@ -79,6 +92,11 @@ export function createIllustrateWindow(layer, handlers) {
     h: 480,
     open: false,
     template: DEFAULT_TEMPLATE,
+    width: 1024,
+    height: 640,
+    improve: false,
+    review: false,
+    instruction: DEFAULT_INSTRUCTION,
   });
   const { state } = floating;
 
@@ -120,6 +138,102 @@ export function createIllustrateWindow(layer, handlers) {
     floating.save();
   });
   templateFold.append(template, help, reset);
+
+  // How big the picture is: one of the usual sizes, or your own.
+  const sizeFold = element("details", "font-size:12px;");
+  sizeFold.append(element("summary", "cursor:pointer;font-weight:700;", "Picture size"));
+  const number = (key) => {
+    const input = element("input", `${INK_INPUT}width:74px;padding:3px 6px;`);
+    input.type = "number";
+    input.min = "256";
+    input.max = "1536";
+    input.step = "64";
+    input.value = String(state[key]);
+    input.setAttribute("aria-label", key === "width" ? "Width in pixels" : "Height in pixels");
+    input.addEventListener("change", () => {
+      state[key] = Math.max(256, Math.min(1536, Math.round(Number(input.value) / 64) * 64 || 1024));
+      input.value = String(state[key]);
+      floating.save();
+    });
+    return input;
+  };
+  const width = number("width");
+  const height = number("height");
+  const sizes = element("div", "display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;");
+  for (const [w, h, name] of SIZES) {
+    sizes.append(
+      button(`${name} ${w}×${h}`, INK_SMALL, () => {
+        width.value = String((state.width = w));
+        height.value = String((state.height = h));
+        floating.save();
+      }),
+    );
+  }
+  const sizeRow = element("div", "display:flex;gap:6px;align-items:center;margin-top:4px;");
+  sizeRow.append(
+    width,
+    element("span", "", "×"),
+    height,
+    element("span", `color:${INK_SOFT};`, "pixels (256 to 1536; your image model may round them)"),
+  );
+  sizeFold.append(sizes, sizeRow);
+
+  // The prompt, rewritten by the model before it's painted, and looked over first if wanted.
+  const improveFold = element("details", "font-size:12px;");
+  improveFold.append(element("summary", "cursor:pointer;font-weight:700;", "Improve the prompt with AI"));
+  const tick = (key, words) => {
+    const row = element("label", "display:flex;gap:6px;align-items:flex-start;margin-top:4px;");
+    const box = element("input");
+    box.type = "checkbox";
+    box.checked = !!state[key];
+    box.addEventListener("change", () => {
+      state[key] = box.checked;
+      floating.save();
+    });
+    row.append(box, element("span", "", words));
+    return row;
+  };
+  const instruction = element(
+    "textarea",
+    `${INK_INPUT}width:100%;box-sizing:border-box;min-height:80px;font:12px ui-monospace,monospace;resize:vertical;margin-top:4px;`,
+  );
+  instruction.value = state.instruction;
+  instruction.setAttribute("aria-label", "What the model is told when it rewrites the prompt");
+  instruction.addEventListener("input", () => {
+    state.instruction = instruction.value;
+    floating.save();
+  });
+  improveFold.append(
+    element(
+      "div",
+      `color:${INK_SOFT};line-height:1.4;margin-top:4px;`,
+      "The template above only fills in the facts. With this on, your model rewrites that into a fuller prompt first: one more call, on the conversations connection.",
+    ),
+    tick("improve", "Have the AI rewrite the prompt before painting"),
+    tick("review", "Show me the rewritten prompt first, to change or approve"),
+    element("div", "font-weight:700;margin-top:6px;", "What the AI is told"),
+    instruction,
+    button("Back to the usual instruction", `${INK_SMALL}margin-top:4px;`, () => {
+      instruction.value = state.instruction = DEFAULT_INSTRUCTION;
+      floating.save();
+    }),
+  );
+  // The review: the rewritten prompt, to change, then paint or drop.
+  const review = element("div", "display:none;flex-direction:column;gap:4px;font-size:12px;");
+  const reviewText = element(
+    "textarea",
+    `${INK_INPUT}width:100%;box-sizing:border-box;min-height:110px;font:12px system-ui,sans-serif;resize:vertical;`,
+  );
+  reviewText.setAttribute("aria-label", "The prompt that will be painted");
+  const reviewButtons = element("div", "display:flex;gap:6px;");
+  reviewButtons.append(
+    button("Paint this", INK_BUTTON, () => void illustrate(reviewText.value.trim())),
+    button("Never mind", INK_SMALL, () => {
+      review.style.display = "none";
+      status.textContent = "";
+    }),
+  );
+  review.append(element("div", "font-weight:700;", "The prompt, before it's painted"), reviewText, reviewButtons);
   const promptFold = element("details", "font-size:12px;");
   promptFold.append(element("summary", "cursor:pointer;font-weight:700;", "The prompt it made"));
   const promptText = element(
@@ -129,7 +243,7 @@ export function createIllustrateWindow(layer, handlers) {
   );
   promptFold.append(promptText);
 
-  body.append(paint, status, picture, caption, gallery, templateFold, promptFold);
+  body.append(paint, status, review, picture, caption, gallery, templateFold, improveFold, sizeFold, promptFold);
   frame.append(body);
 
   const pictures = new Map(); // id → { image, prompt, caption }
@@ -195,11 +309,29 @@ export function createIllustrateWindow(layer, handlers) {
     }
     if (!list.length && !status.textContent) status.textContent = "No pictures yet in this world.";
   }
-  async function illustrate() {
+  /** Paints the moment. `approved`: a prompt the player has looked over, painted as it is. */
+  async function illustrate(approved = "") {
+    const options = {
+      template: state.template,
+      width: state.width,
+      height: state.height,
+      improve: !!state.improve,
+      instruction: state.instruction,
+    };
     paint.disabled = true;
-    status.textContent = "Painting the moment…";
     try {
-      const made = await handlers.onIllustrate(state.template);
+      // To be looked over first: the rewritten prompt comes back by itself.
+      if (state.improve && state.review && !approved) {
+        status.textContent = "Writing the prompt…";
+        const draft = await handlers.onIllustrate({ ...options, previewOnly: true });
+        reviewText.value = draft.prompt ?? "";
+        review.style.display = "flex";
+        status.textContent = draft.improved ? "" : "The AI didn't rewrite it, so this is the template's own prompt.";
+        return;
+      }
+      review.style.display = "none";
+      status.textContent = state.improve && !approved ? "Writing the prompt, then painting…" : "Painting the moment…";
+      const made = await handlers.onIllustrate({ ...options, prompt: approved });
       pictures.set(made.id, made);
       status.textContent = "";
       shown = null;
