@@ -161,11 +161,11 @@ export function housePieces(spec, doorX, seed) {
             if (spec.shutters && side.front && random() < 0.6) add("windowshutters-wide-flat-open", matrix);
           } else {
             // (The round-windowed plaster walls all have the stone course: upstairs it's left off.)
-            add(
-              `wall-${material}-window-${thin ? "thin" : "wide"}-round`,
-              matrix,
-              material === "plaster" && !ground ? "brick" : "",
-            );
+            const upstairs = material === "plaster" && !ground;
+            add(`wall-${material}-window-${thin ? "thin" : "wide"}-round`, matrix, upstairs ? "brick" : "");
+            // (Where the course was, the wall behind is set back: the timbering piece's strip of plaster,
+            // without its beams, fills it flush.)
+            if (upstairs) add("wall-plaster-woodgrid", matrix, "woodtrim");
             add(thin ? "window-thin-round1" : "window-wide-round1", matrix);
             if (!thin && spec.shutters && side.front && random() < 0.6) add("windowshutters-wide-round-open", matrix);
           }

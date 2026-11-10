@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.13",
+          "date": "2026-11-11",
+          "notes": "- Fixed: upstairs walls with round windows had a band under the window that stepped in, where the stone course had been taken off. It's filled flush with plaster now.\n- Settings → Moving has a toggle each for the Jump button and the Sit and lie down button, in place of one for both. Each hides its button in the chat window and by the thumb on touch screens; Space still jumps, and C still sits unless that is turned off too.",
+          "highlight": false
+        },
+        {
           "version": "0.5.12",
           "date": "2026-11-11",
           "notes": "- Fixed: patches of grey stone under some windows, out of place on a plastered wall. A plaster ground floor now stands on a stone course all the way round, and upstairs walls have none.\n- The chat window has Jump and Sit buttons (Sit becomes Lie down, then Get up), so they work with a click or a tap as well as Space and C.\n- Settings → Moving: \"C sits and lies down\" turns the key off, and \"Jump and Sit buttons (touch screens)\" hides the thumb buttons; the chat window's stay.\n- Using a thing shows: you pick something up or take a drink, and choosing to sit by your campfire sits you down on the ground. In a home (with Walk into buildings on) the bed is somewhere to lie down.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.96",
           "date": "2026-11-09",
           "notes": "- Credits: the thanks to Marinara and the Marinara Engine developers says more of how Wanderworld came to be, and the art line is shorter.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.95",
-          "date": "2026-11-09",
-          "notes": "- The brown buttons are wooden boards now (the kit's wood grain, still easy to read), and Credits and Thanks is a slab of stone.\n- Credits: the art is credited as made with ComfyUI, and your 3D avatars to the 3D Avatars package, made by Marinara.",
           "highlight": false
         }
       ]
