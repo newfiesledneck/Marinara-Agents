@@ -82,6 +82,7 @@ function nameTag(name) {
   sprite.scale.set((width / 48) * 0.32, 0.32, 1);
   sprite.position.y = TAG_HEIGHT;
   sprite.renderOrder = 10;
+  sprite.userData.nameTag = true; // a speech bubble takes its place while they speak (talk.js)
   sprite.paint = (colour) => {
     paint(colour);
     texture.needsUpdate = true;
@@ -732,7 +733,8 @@ export function createCrowd() {
   function say(person, view, text) {
     if (!view.onSay) return;
     const distance = Math.hypot(person.group.position.x - view.player.x, person.group.position.z - view.player.z);
-    if (person.space === view.space && distance < BUBBLE_DISTANCE) view.onSay(person.group, text);
+    if (person.space === view.space && distance < BUBBLE_DISTANCE)
+      view.onSay(person.group, text, person.id, person.name);
   }
 
   /** Starts the next step of someone's plan. */
@@ -764,12 +766,13 @@ export function createCrowd() {
       person.state = "idle";
       person.wait = 3;
       person.lastWave = -Infinity; // a wave as they say hello
-      say(person, viewNow, `Hey, ${viewNow?.playerName ?? "you"}!`);
+      say(person, viewNow, `Hey, ${viewNow?.playerNameFor?.(person.id) ?? viewNow?.playerName ?? "you"}!`);
     } else if (step.confront) {
       person.state = "idle";
       person.wait = 6;
       person.confronting = clock + 6;
       say(person, viewNow, "You! You've got some nerve showing your face here.");
+      viewNow?.onConfront?.(person.id, person.name);
     } else if (step.door !== undefined) {
       world.setDoor(step.door, true, 3);
       person.state = "idle";
@@ -1430,7 +1433,7 @@ export function createCrowd() {
         person.tag = nameTag(label);
         person.tag.position.copy(old.position);
         person.tag.scale.copy(old.scale);
-        person.tag.visible = old.visible;
+        person.tag.visible = namesVisible;
         person.group.remove(old);
         old.material.map.dispose();
         old.material.dispose();

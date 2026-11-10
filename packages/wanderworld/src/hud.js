@@ -844,7 +844,60 @@ export function createHud(root, handlers) {
   );
   root.append(layer);
 
+  // Someone comes at the player: there's no combat yet, so the card says so and offers what there is.
+  const confront = document.createElement("div");
+  confront.setAttribute("data-wanderworld-ui", "");
+  confront.style.cssText =
+    `${PARCHMENT}position:absolute;left:50%;top:22%;transform:translateX(-50%);display:none;flex-direction:column;gap:8px;` +
+    "max-width:min(420px,calc(100% - 24px));padding:12px 14px;border-radius:10px;pointer-events:auto;font-size:13px;line-height:1.4;";
+  layer.append(confront);
+
   const hud = {
+    /**
+     * The card for someone coming at the player: `info` is { name, attacks }, `actions` { onTalk, onSay,
+     * onScene, onStop (no more aggressive approaches) }; null takes it away.
+     */
+    setConfront(info, actions = {}) {
+      confront.style.display = info ? "flex" : "none";
+      if (!info) return;
+      const title = document.createElement("div");
+      title.style.cssText = `font:700 15px ${SERIF};`;
+      title.textContent = info.attacks
+        ? `${info.name} attacks you!`
+        : `${info.name} comes at you, looking for trouble.`;
+      const words = document.createElement("div");
+      words.textContent =
+        "There's no fighting in Wanderworld yet, so nothing happens by itself. You can talk to them, say or do something about it in the chat (a moment), or play it out as a scene.";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+      const act = (label, run, small = false) => {
+        const node = button(label, label, () => {
+          confront.style.display = "none";
+          run?.();
+        });
+        node.style.cssText = small ? INK_SMALL : INK_BUTTON;
+        return node;
+      };
+      row.append(
+        act("Talk to them", actions.onTalk),
+        act("Say something", actions.onSay),
+        act("Play it as a scene", actions.onScene),
+      );
+      const foot = document.createElement("div");
+      foot.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;align-items:center;";
+      foot.append(act("Stop aggressive approaches", actions.onStop, true), act("Close", null, true));
+      const hintLine = document.createElement("div");
+      hintLine.style.cssText = `font-size:12px;color:${INK_SOFT};`;
+      hintLine.textContent =
+        '"Stop aggressive approaches" turns them off in Menu → Settings → World; you can turn them back on there.';
+      confront.replaceChildren(title, words, row, foot, hintLine);
+    },
+    /** Opens the chat window with the cursor in its box. */
+    focusChat() {
+      if (!chatFloat.isOpen()) chatFloat.setOpen(true);
+      chatButton.textContent = "Chat";
+      speakInput.focus();
+    },
     /** Who's close by, for the chat window's "People here": [{ name, looks }]. */
     setPeopleHere(list) {
       peopleTitle.textContent = list.length ? `People here (${list.length})` : "People here";

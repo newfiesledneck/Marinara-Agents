@@ -10,12 +10,13 @@ const BUBBLE_HEIGHT = 2.5;
 const BUBBLE_WIDTH = 420; // canvas pixels a line wraps at
 
 /** A speech bubble: wrapped text on a rounded card, drawn once to a canvas. */
-function bubbleSprite(text) {
+function bubbleSprite(text, who = "") {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   const font = "500 26px system-ui, sans-serif";
   context.font = font;
-  const words = String(text).split(/\s+/u);
+  // Who's speaking leads the words ("Stranger: Hi there!"): their name tag gives way to it while it's up.
+  const words = `${who ? `${who}: ` : ""}${text}`.split(/\s+/u);
   const lines = [];
   let line = "";
   for (const word of words) {
@@ -79,11 +80,29 @@ export function createTalk(layer, handlers) {
   party.type = "button";
   party.style.cssText = leave.style.cssText;
   party.addEventListener("click", () => handlers.onParty?.());
-  // Whether the player knows their name: a stranger until they say so (or it comes up).
+  // [i]: who knows whose name, explained, with a switch for each.
   const known = document.createElement("button");
   known.type = "button";
-  known.style.cssText = leave.style.cssText;
-  known.addEventListener("click", () => handlers.onKnown?.());
+  known.textContent = "i";
+  known.title = "Names: whether you know theirs, and they know yours";
+  known.setAttribute("aria-label", "About names");
+  known.style.cssText = `${leave.style.cssText}width:22px;height:22px;padding:0;border-radius:50%;font:italic 700 13px Georgia,serif;`;
+  const info = document.createElement("div");
+  info.style.cssText = `display:none;flex-direction:column;gap:4px;font-size:12px;line-height:1.35;border:1px solid rgba(107,74,43,0.4);border-radius:8px;padding:6px 8px;`;
+  const knowing = (which) => {
+    const row = document.createElement("label");
+    row.style.cssText = "display:flex;gap:6px;align-items:flex-start;";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    const words = document.createElement("span");
+    box.addEventListener("change", () => handlers.onKnowing?.(which, box.checked));
+    row.append(box, words);
+    info.append(row);
+    return { box, words };
+  };
+  const mine = knowing("mine");
+  const theirs = knowing("theirs");
+  known.addEventListener("click", () => (info.style.display = info.style.display === "none" ? "flex" : "none"));
   header.append(title, known, party, leave);
   // What they look like, folded away under the title.
   const looks = document.createElement("details");
@@ -120,7 +139,7 @@ export function createTalk(layer, handlers) {
   // Things to say: a few choices (dialogue.js), above the box for your own words.
   const choices = document.createElement("div");
   choices.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
-  panel.append(header, looks, log, note, choices, form);
+  panel.append(header, info, looks, log, note, choices, form);
   layer.append(panel);
 
   function line(who, text, muted = false) {
@@ -137,6 +156,7 @@ export function createTalk(layer, handlers) {
     const bubble = bubbles.get(group);
     if (!bubble) return;
     bubble.sprite.removeFromParent();
+    for (const tag of bubble.tags) tag.visible = true;
     bubble.sprite.material.map.dispose();
     bubble.sprite.material.dispose();
     bubbles.delete(group);
@@ -146,13 +166,23 @@ export function createTalk(layer, handlers) {
     get open() {
       return panel.style.display !== "none";
     },
-    /** The name button: says whether the player knows their name, and changes it. `shown`: what they're called now. */
-    setKnown(isKnown, shown) {
-      known.textContent = isKnown ? "I know them" : "A stranger";
-      known.title = isKnown
-        ? "You know their name. Click to forget it."
-        : "You don't know their name. Click once you do.";
-      title.textContent = `Talking with ${shown}`;
+    /**
+     * Who knows whose name, for the [i] panel: `state` is { name (theirs), shown (what they're called
+     * now), mine (the player knows it), theirs (they know the player's), you (the player's name),
+     * fixed (both are known for good: a history together, or all names are shown) }.
+     */
+    setKnowing(state) {
+      title.textContent = `Talking with ${state.shown}`;
+      mine.box.checked = state.mine;
+      theirs.box.checked = state.theirs;
+      mine.box.disabled = theirs.box.disabled = !!state.fixed;
+      mine.words.textContent = state.mine
+        ? `You know their name: ${state.name}. Untick to forget it, and they're a Stranger again.`
+        : "You don't know this person's name, so they're a Stranger to you. Tick this once you do (or ask them: it's learned when they say it).";
+      theirs.words.textContent = state.theirs
+        ? `They know your name: ${state.you}. Untick, and they won't use it.`
+        : "They don't know your name, so they won't use it. Tick this once they do (or tell them: it's learned when you say it).";
+      if (state.fixed) theirs.words.textContent += ` ${state.fixed}`;
     },
     /** What they look like, for the fold under the title ("" while it isn't known). */
     setLooks(words) {
@@ -192,17 +222,31 @@ export function createTalk(layer, handlers) {
       );
     },
     /** A bubble over `group` (someone's group) saying `text` for `seconds`. */
-    say(group, text, seconds = 4) {
+    say(group, text, seconds = 4, who = "") {
       removeBubble(group);
-      const sprite = bubbleSprite(text);
+      const sprite = bubbleSprite(text, who);
+      // Their name tag (npcs.js) steps aside for the bubble, which says who it is.
+      const tags = group.children.filter((child) => child.visible && child.userData?.nameTag);
+      for (const tag of tags) tag.visible = false;
       group.add(sprite);
-      bubbles.set(group, { sprite, left: seconds });
+      bubbles.set(group, { sprite, left: seconds, tags });
     },
     /** Counts bubbles down and takes them away when their time is up. */
     update(dt) {
       for (const [group, bubble] of bubbles) {
         bubble.left -= dt;
         if (bubble.left <= 0) removeBubble(group);
+      }
+      // People standing together: each bubble sits above the ones already up, not over them.
+      const placed = [];
+      for (const [group, bubble] of bubbles) {
+        let lift = 0;
+        for (const below of placed) {
+          if (Math.hypot(below.group.position.x - group.position.x, below.group.position.z - group.position.z) < 3.2)
+            lift = Math.max(lift, below.top + 0.1);
+        }
+        bubble.sprite.position.y = BUBBLE_HEIGHT + lift;
+        placed.push({ group, top: lift + bubble.sprite.scale.y });
       }
     },
     clearBubbles() {

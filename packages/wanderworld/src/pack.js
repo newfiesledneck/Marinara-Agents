@@ -358,7 +358,7 @@ const JOINING = {
     lines: ["{who} shifts along. For a while you both watch {place} go by.", "You sit with {who}, in no hurry."],
   },
   other: {
-    label: "Keep them company",
+    label: "Spend some time with them",
     verb: "keeps {who} company for a while",
     lines: ["You fall in beside {who} for a while.", "{who} seems glad enough of the company."],
   },

@@ -213,6 +213,8 @@ export function checkWorld(raw) {
       })),
     // People the player knows by name (besides anyone they have a relationship with): [ids].
     known: (Array.isArray(raw.known) ? raw.known : []).filter((id) => typeof id === "string").slice(0, 200),
+    // People who know the player by name (besides anyone with a relationship either way): [ids].
+    knowsMe: (Array.isArray(raw.knowsMe) ? raw.knowsMe : []).filter((id) => typeof id === "string").slice(0, 200),
     // How someone acts toward the player, when it isn't left to how they feel: { [id]: "rude" | "aggressive" |
     // "afraid" | "avoids" | "attacks" }.
     stances: Object.fromEntries(

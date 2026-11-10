@@ -303,6 +303,11 @@ export function createPersonEditor(layer, handlers) {
     knows.checked = !!person.known;
     const knowsRow = element("label", "display:flex;gap:6px;align-items:center;");
     knowsRow.append(knows, element("span", "", "You know their name (a stranger otherwise)"));
+    const knowsYou = element("input");
+    knowsYou.type = "checkbox";
+    knowsYou.checked = !!person.knowsYou;
+    const knowsYouRow = element("label", "display:flex;gap:6px;align-items:center;");
+    knowsYouRow.append(knowsYou, element("span", "", "They know your name (they won't use it otherwise)"));
     const stance = choice(
       [
         ["", "As they feel about you"],
@@ -315,9 +320,10 @@ export function createPersonEditor(layer, handlers) {
       person.stance ?? "",
       "How they act toward you",
     );
-    body.append(knowsRow, field("How they act toward you", stance));
+    body.append(knowsRow, knowsYouRow, field("How they act toward you", stance));
     reads.push((changes) => {
       changes.known = knows.checked;
+      changes.knowsYou = knowsYou.checked;
       changes.stance = stance.value;
     });
     const relations = [

@@ -35,6 +35,8 @@ import { arrivalLine, errandFor, PACK, pickLine, PROP_THINGS, thingLine } from "
 import {
   creatureFromWords,
   structureFromKeywords,
+  knowingFromWords,
+  stanceFromWords,
   traitsFromWords,
   unknownKeywords,
   voiceFromWords,
@@ -1877,6 +1879,20 @@ function setupCharactersFromLore(books) {
       setTraits(character.id, traits);
       set++;
     }
+    const stance = stanceFromWords(words);
+    if (stance && !core.save.stances?.[character.id]) {
+      core.save = { ...core.save, stances: { ...core.save.stances, [character.id]: stance } };
+      set++;
+    }
+    const knowing = knowingFromWords(words);
+    if (knowing.known && !core.save.known.includes(character.id)) {
+      core.save = { ...core.save, known: [...core.save.known, character.id] };
+      set++;
+    }
+    if (knowing.knowsYou && !core.save.knowsMe.includes(character.id)) {
+      core.save = { ...core.save, knowsMe: [...core.save.knowsMe, character.id] };
+      set++;
+    }
     const voice = voiceFromWords(words);
     if (voice && !core.save.voices?.[character.id]) {
       core.save = { ...core.save, voices: { ...core.save.voices, [character.id]: voice } };
@@ -2727,11 +2743,14 @@ function talkTo(person) {
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
   core.talk.start(nameFor(person.id, person.name), !!(core.settings.aiTalk && core.ai.known()?.talk));
-  core.talk.setKnown(knows(person.id), nameFor(person.id, person.name));
+  showKnowing();
   core.talk.setLooks("");
   void looksOf([person.id]).then((looks) => core.talking?.id === person.id && core.talk.setLooks(looks[person.id]));
   core.talk.setInParty(core.crowd.inParty(person.id));
-  core.talk.setChoices([{ id: "join", label: joiningOf(person).label }, ...choicesFor()], choose);
+  core.talk.setChoices(
+    [{ id: "join", label: joiningOf(person).label }, ...choicesFor([], choiceContext(core.talking))],
+    choose,
+  );
   later(0.6, () => answer(core.talking, "greet"));
 }
 
@@ -2742,6 +2761,7 @@ function toggleParty() {
   const joining = !core.crowd.inParty(talking.id);
   core.crowd.setFollowing(talking.id, joining);
   if (joining) learn(talking.id); // nobody travels with a stranger
+  if (joining) teach([talking.id]);
   core.talk.setInParty(joining);
   core.talk.line(
     null,
@@ -2798,7 +2818,7 @@ function learn(id) {
   refreshNames();
   const name = (core.characters ?? []).find((person) => person.id === id)?.name;
   if (name) narrate(null, `(You know ${name} by name now.)`);
-  if (core.talking?.id === id) core.talk.setKnown(true, name ?? core.talking.name);
+  if (core.talking?.id === id) showKnowing();
 }
 
 /** Learns the names of any of `people` ([{ id, name }]) that `text` gives away by using them. */
@@ -2819,6 +2839,7 @@ function towardPlayer(id, name, names) {
     core.relations.get(id, "player") ? core.relations.describe(id, "player", names) : "",
     STANCE_WORDS[core.save?.stances?.[id]] ? `${name} ${STANCE_WORDS[core.save.stances[id]]}.` : "",
     knows(id) ? "" : `${personaName()} doesn't know ${name}'s name yet: they haven't been introduced.`,
+    theyKnow(id) ? "" : `${name} doesn't know ${personaName()}'s name, and must not use it until told.`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -2856,26 +2877,92 @@ function refreshPeopleHere() {
   });
 }
 
-/** The person you're talking to: whether you know their name, switched by hand. */
-function toggleKnown() {
+/**
+ * Whether someone knows the player by name: like `knows`, the other way round (`save.knowsMe`, a
+ * relationship either way, or travelling together). Someone who doesn't won't use it.
+ */
+function theyKnow(id) {
+  if (core.settings.names === "all" || !core.save) return true;
+  return (
+    core.save.knowsMe.includes(id) ||
+    !!core.relations.get(id, "player") ||
+    !!core.relations.get("player", id) ||
+    core.crowd.inParty(id)
+  );
+}
+
+/** They learn the player's name (it was said in their hearing, or the player said so). */
+function teach(ids) {
+  const fresh = ids.filter((id) => core.save && !theyKnow(id));
+  if (!fresh.length) return;
+  core.save = { ...core.save, knowsMe: [...core.save.knowsMe, ...fresh].slice(-200) };
+  core.saves.write(core.save);
+  if (core.talking && fresh.includes(core.talking.id)) showKnowing();
+}
+
+/** Teaches `ids` the player's name when `text` (something the player said) gives it. */
+function teachFrom(text, ids) {
+  const first = personaName().split(/\s+/u)[0];
+  if (first.length >= 3 && text.toLowerCase().includes(first.toLowerCase())) teach(ids);
+}
+
+/** The conversation's [i] panel: who knows whose name, as it stands. */
+function showKnowing() {
+  const talking = core.talking;
+  if (!talking) return;
+  const explicit = core.save?.known.includes(talking.id) || core.save?.knowsMe.includes(talking.id);
+  const fixed =
+    core.settings.names === "all"
+      ? "All names are shown (Menu → Settings → Display), so there are no strangers."
+      : !explicit && knows(talking.id) && theyKnow(talking.id)
+        ? "You have a history, or travel together: you know each other."
+        : "";
+  core.talk.setKnowing({
+    name: talking.name,
+    shown: nameFor(talking.id, talking.name),
+    mine: knows(talking.id),
+    theirs: theyKnow(talking.id),
+    you: personaName(),
+    fixed,
+  });
+}
+
+/** The [i] panel's switches: the player knows their name ("mine"), or they know the player's ("theirs"). */
+function setKnowing(which, on) {
   const talking = core.talking;
   if (!talking || !core.save) return;
-  if (core.settings.names === "all")
-    return void core.talk.line(null, "Names are all shown (Menu → Settings → Display).", true);
-  if (!core.save.known.includes(talking.id) && knows(talking.id))
-    return void core.talk.line(
-      null,
-      "You know them already: you have a history, or they're travelling with you.",
-      true,
-    );
-  const known = core.save.known.includes(talking.id);
-  core.save = {
-    ...core.save,
-    known: known ? core.save.known.filter((id) => id !== talking.id) : [...core.save.known, talking.id],
-  };
+  const field = which === "mine" ? "known" : "knowsMe";
+  const rest = core.save[field].filter((id) => id !== talking.id);
+  core.save = { ...core.save, [field]: on ? [...rest, talking.id] : rest };
   core.saves.write(core.save);
   refreshNames();
-  core.talk.setKnown(!known, nameFor(talking.id, talking.name));
+  showKnowing();
+}
+
+/**
+ * Someone comes at the player (npcs.js): there's no combat yet, so a card says what's happened and what
+ * can be done about it: talk, a moment in the chat, a scene, or no more of it. Not one hard on another.
+ */
+function confronted(id, name) {
+  if (core.mode !== "walk" || core.clock - (core.confrontedAt ?? -60) < 30) return;
+  core.confrontedAt = core.clock;
+  const shown = nameFor(id, name);
+  narrate(null, `${shown} comes at you.`);
+  core.hud?.setConfront(
+    { name: shown, attacks: core.save?.stances?.[id] === "attacks" },
+    {
+      onTalk: () => {
+        const person = core.crowd.present(core.space).find((entry) => entry.id === id);
+        if (person) talkTo(person);
+      },
+      onSay: () => core.hud?.focusChat(),
+      onScene: () => void sceneHere(`${name} comes at me, spoiling for a fight`),
+      onStop: () => {
+        changeSetting("combat", "off");
+        core.hud?.setNotice("Aggressive approaches are off. Menu → Settings → World turns them back on.");
+      },
+    },
+  );
 }
 
 /** This world's relationships: the crowd behaves by them and they're saved with the world. */
@@ -3009,6 +3096,7 @@ function personData(id) {
     workplaces,
     kinds: relations.kinds,
     known: knows(id),
+    knowsYou: theyKnow(id),
     stance: core.save.stances?.[id] ?? "",
     toPlayer: core.relations.get(id, "player") ?? null,
     fromPlayer: core.relations.get("player", id) ?? null,
@@ -3051,6 +3139,10 @@ function savePerson(id, changes) {
     if (STANCE_WARMTH[changes.stance] !== undefined) stances[id] = changes.stance;
     else delete stances[id];
     core.save = { ...core.save, stances };
+  }
+  if (changes.knowsYou !== undefined) {
+    const knowsMe = core.save.knowsMe.filter((entry) => entry !== id);
+    core.save = { ...core.save, knowsMe: changes.knowsYou ? [...knowsMe, id] : knowsMe };
   }
   if (changes.known !== undefined) {
     const known = core.save.known.filter((entry) => entry !== id);
@@ -3133,18 +3225,19 @@ function partyChanged() {
 function say(text) {
   const talking = core.talking;
   if (!talking) return;
+  teachFrom(text, [talking.id]);
   core.talk.line(personaName(), text);
-  core.talk.say(core.player, text, 4);
+  core.talk.say(core.player, text, 4, personaName());
   later(0.7, () => {
     if (core.talking !== talking) return;
-    core.talk.say(talking.group, "…", 1.2);
+    core.talk.say(talking.group, "…", 1.2, nameFor(talking.id, talking.name));
     core.crowd.setSpeaking(talking.id, true);
   });
   later(1.6, () => answer(talking, "answer", text));
 }
 
 /** The words a conversation's lines can use: who's talking, the town and a few of its places. */
-function talkWords(name) {
+function talkWords(name, id = null) {
   const names = core.zones ? namedZones(residentsOf(core.crowd.snapshot())) : {};
   const find = (test) => core.zones?.zones.find(test);
   const title = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
@@ -3153,7 +3246,7 @@ function talkWords(name) {
   const street = find((zone) => zone.kind === "street");
   return {
     name,
-    you: personaName(),
+    you: !id || theyKnow(id) ? personaName() : "stranger",
     town: names.town ?? "town",
     tavern: tavern ? title(names[tavern.id]) : "The tavern",
     wild: wild ? names[wild.id] : "the woods",
@@ -3165,7 +3258,8 @@ function talkWords(name) {
 /** The one you're talking to answers (`what`: "greet", "bye", "answer" or a topic, dialogue.js). */
 function answer(talking, what, line = "") {
   if (core.talking !== talking) return;
-  const setLine = () => lineFor(what, moodOf(core.relations.feeling(talking.id, "player")), talkWords(talking.name));
+  const setLine = () =>
+    lineFor(what, moodOf(core.relations.feeling(talking.id, "player")), talkWords(talking.name, talking.id));
   // (A goodbye stays a set line: the conversation closes before a model could answer.)
   const known = core.characters?.some((entry) => entry.id === talking.id);
   if (what !== "bye" && core.settings.aiTalk && core.ai.known()?.talk && known) {
@@ -3180,7 +3274,7 @@ function showReply(talking, line, reply) {
   if (line) talking.history.push({ from: "player", text: line });
   talking.history.push({ from: "character", text: reply });
   core.crowd.setSpeaking(talking.id, true);
-  core.talk.say(talking.group, reply, Math.min(12, 3 + reply.length / 22));
+  core.talk.say(talking.group, reply, Math.min(12, 3 + reply.length / 22), nameFor(talking.id, talking.name));
   core.talk.line(nameFor(talking.id, talking.name), reply);
   learnFrom(reply, [talking]); // they gave their name
   later(2.6, () => {
@@ -3193,7 +3287,7 @@ function showReply(talking, line, reply) {
  * a set line, and says why once.
  */
 async function aiAnswer(talking, line, setLine) {
-  core.talk.say(talking.group, "…", 60);
+  core.talk.say(talking.group, "…", 60, nameFor(talking.id, talking.name));
   core.crowd.setSpeaking(talking.id, true);
   try {
     const { reply } = await core.ai.talk(talkPayload(talking, line));
@@ -3283,7 +3377,7 @@ async function runMoment({
 }) {
   if (!core.save || !core.zones) return false;
   if (line) {
-    core.talk.say(core.player, line, Math.min(10, 3 + line.length / 22));
+    core.talk.say(core.player, line, Math.min(10, 3 + line.length / 22), personaName());
     narrate(personaName(), voice === "whisper" ? `(whispers) ${line}` : voice === "shout" ? `(shouts) ${line}` : line);
   }
   if (!core.settings.aiTalk || !core.settings.aiMoments || !core.ai.known()?.moments || core.momentBusy) return false;
@@ -3291,6 +3385,11 @@ async function runMoment({
   const allowed = { arrive: "aiArrive", thing: "aiThings", board: "aiBoard", seat: "aiSeats", join: "aiJoin" }[source];
   if (allowed && !core.settings[allowed]) return false;
   const listeners = momentListeners(voice, audience, listenersExtra, `${line} ${action}`);
+  if (line)
+    teachFrom(
+      line,
+      listeners.map((person) => person.id),
+    );
   if (needListeners && !listeners.length) return false;
   core.momentBusy = true;
   try {
@@ -3326,7 +3425,13 @@ async function runMoment({
       const listener = listeners.find((person) => person.id === reply.id);
       later(0.3 + i * 1.8, () => {
         const group = core.crowd.groupOf(reply.id);
-        if (group) core.talk.say(group, reply.text, Math.min(10, 3 + reply.text.length / 22));
+        if (group)
+          core.talk.say(
+            group,
+            reply.text,
+            Math.min(10, 3 + reply.text.length / 22),
+            listener ? nameFor(listener.id, listener.name) : "",
+          );
         core.crowd.setSpeaking(reply.id, true);
         later(2.6, () => core.crowd.setSpeaking(reply.id, false));
         narrate(listener ? nameFor(listener.id, listener.name) : "Someone", reply.text);
@@ -3505,6 +3610,17 @@ function talkPayload(talking, line) {
   };
 }
 
+/** Who a conversation is with, for what there is to say (dialogue.js choicesFor). */
+function choiceContext(talking) {
+  return {
+    mood: moodOf(core.relations.feeling(talking.id, "player")),
+    known: knows(talking.id),
+    theyKnow: theyKnow(talking.id),
+    you: personaName(),
+    seed: talking.id,
+  };
+}
+
 /** The player picks something to say from the choices. */
 function choose(id) {
   const talking = core.talking;
@@ -3521,9 +3637,10 @@ function choose(id) {
     );
     return;
   }
-  const text = labelOf(id);
+  const text = labelOf(id, personaName());
+  teachFrom(text, [talking.id]); // "I'm Zoey."
   core.talk.line(personaName(), text);
-  core.talk.say(core.player, text, 3);
+  core.talk.say(core.player, text, 3, personaName());
   if (id === "bye") {
     core.talk.setChoices([], () => {});
     later(0.7, () => answer(talking, "bye", text));
@@ -3533,7 +3650,7 @@ function choose(id) {
     return;
   }
   talking.asked.push(id);
-  core.talk.setChoices(choicesFor(talking.asked), choose);
+  core.talk.setChoices(choicesFor(talking.asked, choiceContext(talking)), choose);
   later(0.8, () => answer(talking, id, text));
 }
 
@@ -4337,6 +4454,8 @@ function tap(clientX, clientY) {
 
 /** Multiplies the camera distance by `factor` (below 1 zooms in), within the zoom limits. */
 function zoomBy(factor) {
+  // In a conversation it's the two-shot that comes closer or pulls back.
+  if (core.mode === "talk") return void (core.talkZoom = Math.max(0.55, Math.min(3, (core.talkZoom ?? 1) * factor)));
   core.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, core.zoom * factor));
 }
 
@@ -4569,7 +4688,8 @@ function placeCamera(dt) {
     }
     const sideX = baseX * talking.side;
     const sideZ = baseZ * talking.side;
-    cameraTarget.set(midX + sideX * 2.7, lookY + 0.15, midZ + sideZ * 2.7);
+    const away = 2.7 * (core.talkZoom ?? 1);
+    cameraTarget.set(midX + sideX * away, lookY + 0.15 + (away - 2.7) * 0.25, midZ + sideZ * away);
     lookTarget.set(midX, lookY + 0.05, midZ);
     core.camera.position.lerp(cameraTarget, 1 - Math.exp(-4 * dt));
     core.camera.lookAt(lookTarget);
@@ -4670,8 +4790,10 @@ function step(dt) {
     time: core.clock,
     isVisible: (position) => frustum.containsPoint(projected.set(position.x, position.y + 1, position.z)),
     onFootstep: (position, running, distance) => core.sound.footstep(distance, running),
-    onSay: (group, text) => core.talk?.say(group, text, 3.5),
+    onSay: (group, text, id, name) => core.talk?.say(group, text, 3.5, id ? nameFor(id, name) : ""),
     playerName: personaName(),
+    playerNameFor: (id) => (theyKnow(id) ? personaName() : "you there"),
+    onConfront: confronted,
     aggressionAllowed,
     playerSwimming: core.swimming,
     approach: core.settings.approach,
@@ -4863,7 +4985,12 @@ function attach(element) {
     maxPeople: MAX_PEOPLE,
     loadingArt: `${ART}loading-bg.webp`,
   });
-  core.talk = createTalk(core.hud.layer, { onSend: say, onLeave: endTalk, onParty: toggleParty, onKnown: toggleKnown });
+  core.talk = createTalk(core.hud.layer, {
+    onSend: say,
+    onLeave: endTalk,
+    onParty: toggleParty,
+    onKnowing: setKnowing,
+  });
   core.input = createInput();
   core.hud.layer.append(core.input.stickElement);
   core.element.addEventListener("keydown", () => core.sound.unlock());
