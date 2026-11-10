@@ -588,10 +588,20 @@ console.log("wanderworld regression: OK");
     ["description", "appearance"],
     "only the parts the edit has",
   );
-  assert.deepEqual(editableFields(edits[1]), []);
+  assert.deepEqual(
+    editableFields({ ...edits[1], role: "husband", backRole: "wife", both: false }).map((part) => part.key),
+    ["kind", "role"],
+    "the role back only when it's set both ways",
+  );
+  const kind = editableFields(edits[1])[0];
+  assert.ok(kind.options.some((option) => option.value === "none") && kind.options.length > 5);
+  const chosen = (values) =>
+    reviseEdits([{ ...edits[1], role: "husband" }], [{ edit: 0, keep: true, values }]).edits[0];
+  assert.deepEqual(chosen({ kind: "rival", role: " foe " }), { ...edits[1], kind: "rival", role: "foe" });
+  assert.equal(chosen({ kind: "overlord" }).kind, "partner", "a kind that isn't one stays as proposed");
   const left = reviseEdits(edits, [
     { edit: 0, keep: true, values: { text: "  A smith,\tand a sorcerer.  ", about: "Sarah" } },
-    { edit: 1, keep: false, values: {} },
+    { edit: 1, keep: false, values: { kind: "enemy" } },
     { edit: 2, keep: true, values: { description: "", appearance: "A red coat." } },
     { edit: 3, keep: true, values: { name: "x".repeat(200) } },
     { edit: 4, keep: true, values: { text: "   " } },

@@ -103,7 +103,7 @@ export function createAssistant(onAsk) {
       element(
         "div",
         `color:${INK_SOFT};`,
-        "Untick a change to leave it out. You can rewrite the text before you confirm.",
+        "Untick a change to leave it out. You can rewrite the text, or pick another kind, before you confirm.",
       ),
     );
     const groups = new Map(); // an edit's index → { keep: its tick, inputs: Map(key → the box it's typed in) }
@@ -124,12 +124,21 @@ export function createAssistant(onAsk) {
       node.append(line);
       for (const part of change.fields ?? []) {
         const typed = element(
-          part.multi ? "textarea" : "input",
+          part.options ? "select" : part.multi ? "textarea" : "input",
           `${INK_INPUT}width:100%;box-sizing:border-box;font:13px system-ui,sans-serif;${part.multi ? "min-height:84px;resize:vertical;" : ""}`,
         );
-        if (!part.multi) typed.type = "text";
+        if (part.options)
+          for (const option of part.options) {
+            const choice = element("option", "", option.label);
+            choice.value = option.value;
+            typed.append(choice);
+          }
+        else if (part.multi) typed.maxLength = part.max;
+        else {
+          typed.type = "text";
+          typed.maxLength = part.max;
+        }
         typed.value = part.value;
-        typed.maxLength = part.max;
         typed.setAttribute("aria-label", part.label);
         typed.addEventListener("keydown", (event) => event.stopPropagation()); // typing here doesn't walk
         const wrap = element("div", "margin:2px 0 2px 26px;display:flex;flex-direction:column;gap:2px;");
@@ -166,7 +175,10 @@ export function createAssistant(onAsk) {
       row.remove();
       for (const group of groups.values()) {
         group.keep.disabled = true;
-        for (const typed of group.inputs.values()) typed.readOnly = true;
+        for (const typed of group.inputs.values()) {
+          typed.readOnly = true;
+          if (typed.tagName === "SELECT") typed.disabled = true;
+        }
       }
       outcome.textContent = words;
       node.append(outcome);

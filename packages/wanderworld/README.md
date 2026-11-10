@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.8)
+## What it does now (0.5.9)
 
 ### The world
 
@@ -131,7 +131,7 @@ With it running:
   Ask for a change ("make Jake and Sarah a married couple who live together", "rewrite Jason's lore to make
   him a sorcerer who prays at the shrine", "add a blacksmith's apprentice who lives with Oswin") and it
   proposes one: every change is shown in full, rewritten lore beside what it says now, and nothing happens
-  until you press **Confirm**. Before you confirm you can rewrite the text it wrote (lore, a new person, a name, a note) and untick any
+  until you press **Confirm**. Before you confirm you can rewrite the text it wrote (lore, a new person, a name, a note), pick another kind for a relationship, and untick any
   change to leave it out. **Undo these changes** takes back the last ones, and only those: what you changed yourself since stays.
   It can set relationships, homes and work, days, body, voice, temperament, how someone acts toward you and
   who knows whose name; add people and remove ones the world invented; write this world's own lore about a
