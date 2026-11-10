@@ -136,6 +136,9 @@ function personaCard(record, fallbackName) {
 }
 
 const section = (title, body) => (body ? `## ${title}\n${body}` : "");
+/** A request's messages as the console shows them when debugging: each under its role. */
+export const debugMessages = (messages) =>
+  messages.map((message) => `── ${message.role} ──\n${message.content}`).join("\n\n");
 const replaceNames = (value, character, persona) =>
   value.replace(/\{\{char\}\}/giu, character).replace(/\{\{user\}\}/giu, persona);
 
@@ -324,6 +327,22 @@ async function writersCards(resources, body) {
 /** The kinds of relationship an edit may set (relationships.js KINDS), and "none" to end one. */
 const ASSISTANT_KINDS = ["acquaintance", "friend", "romance", "partner", "family", "colleague", "mentor", "rival", "enemy", "fear", "none"];
 const ASSISTANT_MAX_EDITS = 20;
+/** The parts of a world that may be left out of a message to the assistant (assistant-context.js PARTS). */
+const ASSISTANT_PARTS = ["people", "relations", "places", "days", "here", "ties", "lore", "board", "help", "ages", "chat", "recaps"];
+const ASSISTANT_PART_WORDS = {
+  people: "everyone in detail (only names, homes and work are listed for most)",
+  relations: "relationships",
+  places: "the list of places",
+  days: "people's days and closing hours",
+  here: "where the player is and the lore active there",
+  ties: "what lore is tied to",
+  lore: "this world's own lore",
+  board: "the noticeboard",
+  help: "how Wanderworld works",
+  ages: "ages",
+  chat: "the recent chat",
+  recaps: "scene recaps",
+};
 /** How someone may act toward the player (main.js STANCE_WARMTH), and "none" for nothing special. */
 const ASSISTANT_STANCES = ["rude", "aggressive", "attacks", "afraid", "avoids", "none"];
 
@@ -343,7 +362,7 @@ People and how they stand:
 - {"do": "remove_person", "person": "Wren Tolley"}: for people marked "invented" only. They and everything about them go.
 - {"do": "faction", "name": "The Thieves' Guild", "add": ["Jake", "Fen"], "remove": []}: a group of people, made if there is none by that name. {"do": "faction", "name": "...", "delete": true} ends it.
 Lore:
-- {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name) or "world" (the whole world). It is used when they talk, in moments and scenes. At most 1400 characters.
+- {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name), a faction (its name; every member then knows it) or "world" (the whole world). It is used when they talk, in moments and scenes. At most 1400 characters.
 - {"do": "card", "person": "Oswin", "description": "...", "personality": "...", "appearance": "..."}: for people marked "invented" only; give only the parts to change.
 Places and the world:
 - {"do": "rename", "place": "tavern1", "name": "The Drowned Bell"}: a place's name (its sign too). An empty "name" gives back its first one.
@@ -351,7 +370,10 @@ Places and the world:
 - {"do": "group", "name": "The docks", "add": ["tavern1", "home3"], "remove": []}: a group of places (lore tied to a group is active in all of them), made if there is none by that name. {"do": "group", "name": "...", "delete": true} ends it.
 - {"do": "world", "setting": "...", "look": "...", "ageMin": 21, "ageMax": "none"}: give only what changes. "setting": the world in a few words (at most 600 characters). "look": how it looks in pictures, a few words. "ageMin" and "ageMax": the usual ages of people the AI makes, a number from 1, or "none".
 - {"do": "notice", "text": "...", "by": "the reeve"}: pins a note to the noticeboard.
-- {"do": "errand", "person": "Mira", "text": "Take this letter to Mira.", "done": "Mira reads it twice and thanks you."}: an errand for the player, to go to that person; "done" is told when they reach them.`,
+- {"do": "errand", "person": "Mira", "text": "Take this letter to Mira.", "done": "Mira reads it twice and thanks you."}: an errand for the player, to go to that person; "done" is told when they reach them. They can have one at a time. {"do": "errand", "cancel": true} drops the one they have.
+- {"do": "unpin", "notes": ["note1", "note3"]}: takes notes down from the noticeboard, by their numbers there. {"do": "unpin", "all": true} takes them all down.
+A scene:
+- {"do": "scene", "place": "tavern1", "people": ["Brin", "Cole"], "premise": "..."}: a roleplay scene to play in the Engine, only when the player asks for a scene: where it is, who is in it (one to four of their own characters, not invented people), and how it opens in a sentence or two. It starts when they confirm. One at most, and nothing else changes with it.`,
   `Lore and card text REPLACES what is there now (shown to you as "lore", and for invented people "about"), so what you write is the whole of it, rewritten: never a summary, never only the new part. Keep every detail that is there, in the same voice and at no less than the same length and level of detail, and weave the change in where it belongs; change or drop only what the request contradicts. A small request ("make Jake a sorcerer") changes little: the lore stays as rich as it was, with his sorcery worked through it. A detailed request may add as much as it asks for. When one of the player's own characters has no lore here yet, their card ("about") still stands by itself: write what is new or different about them in this world, as fully as the request deserves, without repeating the card.`,
   `Why lore is or isn't active: an entry is active where the player stands when it is tied to that place, to a place that one sits in, to a group either belongs to, to someone they are talking or travelling with, to the player, or to the whole world. "Where the player is" lists what is active now and what it comes from; "What lore is tied to" lists every tie. Explain from those, and say what would have to change (the Journal's Places tab ties lore to places by hand).`,
   "Rules: nothing changes until the player has read your proposal and confirmed it (and they can undo it afterwards), so say what you propose, not that it is done. You propose changes only through such edits, and only to this world. You cannot change the player's character cards, personas or lorebooks in the Engine, nor Wanderworld's settings in the Menu, the map or the buildings: say so, and say where the player can (Menu → Settings, Journal). Never describe a change you put no edit for. Stay within what was asked: no extra people, lore or relationships the player didn't ask for. To make two people a couple who live together: one relate edit with both, and a home edit. With no change asked for, write no block at all.",
@@ -378,6 +400,11 @@ export function readAssistant(raw) {
     parsed = JSON.parse(blocks.at(-1));
   } catch {
     return nothing("The assistant's changes couldn't be read (they weren't valid JSON)");
+  }
+  // Asking for a part of the world that was left out: nothing else is read from such an answer.
+  if (isRecord(parsed) && Array.isArray(parsed.need) && !Array.isArray(parsed.edits)) {
+    const need = [...new Set(parsed.need.filter((part) => ASSISTANT_PARTS.includes(part)))];
+    if (need.length) return { reply, edits: [], problem: "", need };
   }
   const list = Array.isArray(parsed) ? parsed : isRecord(parsed) ? parsed.edits : null;
   if (!Array.isArray(list)) return nothing("The assistant's changes weren't in the format Wanderworld reads");
@@ -514,15 +541,66 @@ function readAssistantEdit(item, name) {
     const words = text(item.text, 400);
     return words ? { do: "notice", text: words, by: text(item.by, 60) } : null;
   }
+  if (item.do === "unpin") {
+    if (item.all === true) return { do: "unpin", all: true, notes: [] };
+    const notes = [
+      ...new Set(
+        (Array.isArray(item.notes) ? item.notes : [])
+          .map((note) => Number(/^note(\d{1,2})$/iu.exec(String(note).trim())?.[1] ?? 0))
+          .filter((number) => number >= 1 && number <= 40),
+      ),
+    ];
+    return notes.length ? { do: "unpin", all: false, notes } : null;
+  }
+  if (item.do === "scene") {
+    const [place, premise] = [text(item.place, 80), text(item.premise, 600)];
+    const people = (Array.isArray(item.people) ? item.people : []).map(name).filter(Boolean).slice(0, 4);
+    return premise && people.length ? { do: "scene", place, people, premise } : null;
+  }
   if (item.do === "errand") {
+    if (item.cancel === true) return { do: "errand", cancel: true };
     const [person, words] = [name(item.person), text(item.text, 400)];
     return person && words ? { do: "errand", person, text: words, done: text(item.done, 400) } : null;
   }
   return null;
 }
 
-/** The messages for one turn with the assistant: what it's told, the world as it stands, and the chat. */
+/**
+ * The messages for drafting "ww:" keywords for lorebook entries the player chose: their instructions for
+ * it (the Help's own prompt), the places and people the keys may name, and those entries alone.
+ */
+export function keywordMessages(input) {
+  const world = [
+    section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
+    section("People here (a key may name one)", input.people.map((person) => person.name).join(", ")),
+    section(
+      "Places here (a key may name one by its number)",
+      input.places.map((place) => `${place.slot}${place.name ? ` = ${place.name}` : ""}`).join("\n"),
+    ),
+    section("Groups of places", input.groups.join("\n")),
+    section("Factions", input.factions.join("\n")),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const entries = input.bookEntries
+    .map((entry, at) => `${at + 1}. ${entry.title}\nKeys now: ${entry.keys || "(none)"}\n${entry.content}`)
+    .join("\n\n");
+  return [
+    {
+      role: "system",
+      content: `You help a player prepare lorebook entries for Wanderworld, a small walkable 3D world of their characters. Answer in plain text, entry by entry, with each entry's keys on one line, separated by commas, ready to copy. Use the numbered places and the names below where an entry is about one of them. You cannot change the lorebook yourself, and you write no edit block.\n\n# This world\n\n${world}`,
+    },
+    { role: "user", content: `${input.keywordPrompt}\n\n# The entries\n\n${entries}` },
+  ];
+}
+
+/**
+ * The messages for one turn with the assistant: what it's told, the world as it stands, and the chat.
+ * The client sends only the parts of the world the message needs (assistant-context.js); `omitted` names
+ * the ones left out, which the model may ask for unless this is already the second asking (`final`).
+ */
 export function assistantMessages(input) {
+  const omitted = (input.omitted ?? []).filter((part) => ASSISTANT_PARTS.includes(part));
   const world = [
     section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
     input.persona && section("The player", input.persona),
@@ -551,13 +629,22 @@ export function assistantMessages(input) {
     section("What lore is tied to", input.ties.join("\n")),
     section("The noticeboard", input.board),
     section("This world's own lore", input.entries.map((entry) => `${entry.title}: ${entry.content}`).join("\n\n")),
+    section("The recent chat in the world (oldest first)", input.chat ?? ""),
+    section("Recaps of scenes played from this world (oldest first)", input.recaps ?? ""),
     ageRule(input.ages) && section("Ages", `${ageRule(input.ages)} ${AGES_YIELD}`),
     input.help && section("How Wanderworld works", input.help),
   ]
     .filter(Boolean)
     .join("\n\n");
+  const left = omitted.length
+    ? `\n\n# Left out\n\nTo keep this short, these parts of the world were not sent this time: ${omitted.map((part) => `${part} (${ASSISTANT_PART_WORDS[part]})`).join("; ")}. Never guess at what is in them. ${
+        input.final
+          ? "If one is needed, say which and why, and what you can do without it."
+          : `If you cannot answer well or make the change properly without one, answer with nothing but this block, naming what you need, and you will be asked again with it:\n\`\`\`wanderworld\n{"need": ["${omitted[0]}"]}\n\`\`\``
+      }`
+    : "";
   return [
-    { role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}` },
+    { role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}${left}` },
     ...input.history.map((turn) => ({ role: turn.role, content: turn.text })),
   ];
 }
@@ -810,6 +897,7 @@ export function momentMessages(input) {
   ]
     .filter(Boolean)
     .join(" ");
+  const planning = !!people && !!input.line && input.places.length > 0;
   const system = [
     "You are the narrator of Wanderworld, a small living world the player walks around in. Write only what happens in this one moment, as JSON.",
     `The player is ${input.persona.name}.${input.persona.card ? " " + input.persona.card : ""} Never write ${input.persona.name}'s words, thoughts or choices.`,
@@ -831,12 +919,18 @@ export function momentMessages(input) {
     ),
     section("What they know (lore)", input.lore.join("\n\n")),
     section("Just before", input.recent.map((line) => `${line.who}: ${line.text}`).join("\n")),
-    section("Places in the world (for plans)", input.places.map((place) => place.name).join(", ")),
+    // A plan (someone agreeing to be somewhere at a time) can only come of something said to someone:
+    // the list of places, and the plans in the answer, go only then.
+    planning && section("Places in the world (for plans)", input.places.map((place) => place.name).join(", ")),
     `Answer with one JSON object and nothing else:
 {"narration": "at most two short sentences: what ${input.persona.name} sees, hears or finds; empty if nothing worth saying",
- "replies": [{"id": "an id from Who can hear", "text": "what they say aloud, at most one short *action*"}],
- "plans": [{"id": "an id from Who can hear", "from": 12, "to": 13, "activity": "${ACTIVITIES.join("|")}", "place": "a place from the list"}]}
-Only people who heard (a whisper carries a couple of metres, a shout across a square) may reply, and only if they would: zero to three replies, the most fitting first. Add a plan only when someone agrees to be somewhere at a time; otherwise leave plans empty.`,
+ "replies": [{"id": "an id from Who can hear", "text": "what they say aloud, at most one short *action*"}]${
+   planning
+     ? `,
+ "plans": [{"id": "an id from Who can hear", "from": 12, "to": 13, "activity": "${ACTIVITIES.join("|")}", "place": "a place from the list"}]`
+     : ""
+ }}
+Only people who heard (a whisper carries a couple of metres, a shout across a square) may reply, and only if they would: zero to three replies, the most fitting first.${planning ? " Add a plan only when someone agrees to be somewhere at a time; otherwise leave plans empty." : ""}`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -1029,6 +1123,79 @@ export async function activate(context) {
   const { documents } = persistence;
   const scenesOn = typeof api.registerSceneOrigin === "function";
 
+  // The Engine's Debug Mode (Settings → Advanced), which the client sends with each request as it's a
+  // browser setting, or the server's own override. With it on, every model and image request and its
+  // answer is written to the Engine's console (`debugOverride` shows them whatever the log level;
+  // off, they're ordinary debug lines).
+  const debugOf = (body) => body?.debugMode === true || (api.runtime.isDebugAgentsEnabled?.() ?? false);
+
+  /** Asks `model` (resolved for this request), with the request and the answer logged for debugging. */
+  const askModel = async (what, body, model, messages, options) => {
+    const debug = debugOf(body);
+    logger.debugOverride?.(
+      debug,
+      "[debug/wanderworld/%s] request (model %s, temperature %s, max tokens %s, %d characters):\n%s",
+      what,
+      model?.model ?? "?",
+      options?.temperature ?? "default",
+      options?.maxTokens ?? "default",
+      messages.reduce((sum, message) => sum + String(message.content).length, 0),
+      debugMessages(messages),
+    );
+    const started = Date.now();
+    const result = await model.chatComplete(messages, { ...options, debugMode: debug });
+    const content = typeof result?.content === "string" ? result.content : "";
+    logger.debugOverride?.(
+      debug,
+      "[debug/wanderworld/%s] response (%d characters, %d ms):\n%s",
+      what,
+      content.length,
+      Date.now() - started,
+      content,
+    );
+    return result;
+  };
+
+  /**
+   * A picture from the Engine. The avatar route takes a prompt override for its own id, which keeps it
+   * from writing a portrait. What's sent (connection, model, size, style, prompt) is logged for debugging.
+   */
+  const paint = async (body, connection, { name, prompt, width, height, styleProfileId }) => {
+    const debug = debugOf(body);
+    logger.debugOverride?.(
+      debug,
+      "[debug/wanderworld/image] request (connection %s, model %s, %dx%d, style %s, %d characters):\n%s",
+      connection.name,
+      connection.model || "?",
+      width,
+      height,
+      styleProfileId || "the user's default",
+      prompt.length,
+      prompt,
+    );
+    const started = Date.now();
+    const result = await engineFetch("/api/characters/avatar-generation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        connectionId: connection.id,
+        name,
+        appearance: prompt,
+        width,
+        height,
+        ...(styleProfileId ? { styleProfileId } : {}),
+        promptOverrides: [{ id: `avatar:${name}`, prompt }],
+      }),
+    });
+    logger.debugOverride?.(
+      debug,
+      "[debug/wanderworld/image] response (%d ms, %s)",
+      Date.now() - started,
+      typeof result?.image === "string" ? `a picture of about ${Math.round((result.image.length * 3) / 4 / 1024)} KB` : "no picture",
+    );
+    return result;
+  };
+
   const releaseRoutes = await api.registerPrivilegedRoutes(
     async (routes) => {
       routes.get("/status", async () => ({
@@ -1100,7 +1267,7 @@ export async function activate(context) {
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
           const [, , maxTokens] = LENGTHS[input.length] ?? LENGTHS.medium;
-          const result = await model.chatComplete(talkMessages(input), { temperature, maxTokens });
+          const result = await askModel("talk", body, model, talkMessages(input), { temperature, maxTokens });
           const line = cleanReply(result?.content, input.character.name);
           if (!line) return reply.status(502).send({ error: "The model sent back an empty reply." });
           return { reply: line, connectionId: model.connectionId, model: model.model };
@@ -1121,20 +1288,7 @@ export async function activate(context) {
           const connection = await imageConnection(idOf(body.connectionId));
           if (!connection) return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
           const name = slug(body.name);
-          // The avatar route takes a prompt override for its own id, which keeps it from writing a portrait.
-          const result = await engineFetch("/api/characters/avatar-generation", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              connectionId: connection.id,
-              name,
-              appearance: prompt,
-              width,
-              height,
-              ...(styleProfileId ? { styleProfileId } : {}),
-              promptOverrides: [{ id: `avatar:${name}`, prompt }],
-            }),
-          });
+          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId });
           if (typeof result?.image !== "string" || !result.image.startsWith("data:image/")) {
             return reply.status(502).send({ error: "The Engine sent back no picture." });
           }
@@ -1236,7 +1390,7 @@ export async function activate(context) {
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
           const temperature = Number.isFinite(body.temperature) ? Math.max(0, Math.min(1.5, body.temperature)) : 0.9;
-          const result = await model.chatComplete(momentMessages(input), { temperature, maxTokens: 700 });
+          const result = await askModel("moment", body, model, momentMessages(input), { temperature, maxTokens: 700 });
           const value = readJson(result?.content, api.runtime.json?.parseJsonish);
           if (!value) return reply.status(502).send({ error: "The model's answer wasn't readable." });
           return checkMoment(value, heard, places);
@@ -1274,7 +1428,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const ask = text(body.request, 400);
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await model.chatComplete(
+          const result = await askModel("plan", body, model,
             [
               { role: "system", content: system },
               { role: "user", content: ask ? `Plan the day, and: ${ask}` : "Plan the day." },
@@ -1363,7 +1517,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
           // Room to answer for a model that thinks first.
-          const result = await model.chatComplete(messages, { temperature: 0.2, maxTokens: 4000 });
+          const result = await askModel("lore-setup", body, model, messages, { temperature: 0.2, maxTokens: 4000 });
           const value = readJson(result?.content, api.runtime.json?.parseJsonish);
           if (!value) return reply.status(502).send({ error: "The model didn't give a usable setup." });
           return checkLoreSetup(value, entries.length);
@@ -1410,7 +1564,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await model.chatComplete(messages, { temperature: 0.8, maxTokens: 6000 });
+          const result = await askModel("world-write", body, model, messages, { temperature: 0.8, maxTokens: 6000 });
           const value = readJson(result?.content, api.runtime.json?.parseJsonish);
           const checked = value ? checkWorldWrite(value, step, { count, taken: characters }) : null;
           if (!checked || !(checked.people ?? checked.places).some(Boolean)) {
@@ -1435,8 +1589,20 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           .filter((turn) => turn.text);
         // The chat starts with something the player said (the oldest turns kept may begin mid-way).
         while (history.length && history[0].role !== "user") history.shift();
-        if (history.at(-1)?.role !== "user") return reply.status(400).send({ error: "Ask something first." });
-        const messages = assistantMessages({
+        const keywords = body.task === "keywords";
+        if (!keywords && history.at(-1)?.role !== "user") return reply.status(400).send({ error: "Ask something first." });
+        const bookEntries = list(body.bookEntries, 20)
+          .map((entry) => ({ title: text(entry.title, 120), keys: text(entry.keys, 600), content: cutWords(text(entry.content, 6000), 1500) }))
+          .filter((entry) => entry.title);
+        if (keywords && (!bookEntries.length || !block(body.keywordPrompt, 12000)))
+          return reply.status(400).send({ error: "Choose the lorebook entries to draft keywords for." });
+        const messages = (keywords ? keywordMessages : assistantMessages)({
+          bookEntries,
+          keywordPrompt: block(body.keywordPrompt, 12000),
+          chat: block(body.chat, 5000),
+          recaps: block(body.recaps, 8000),
+          omitted: (Array.isArray(body.omitted) ? body.omitted : []).filter((part) => typeof part === "string").slice(0, 20),
+          final: body.final === true,
           worldName: text(body.worldName, MAX.name),
           setting: text(body.setting, 600),
           persona: text(body.persona, MAX.name),
@@ -1458,7 +1624,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           factions: (Array.isArray(body.factions) ? body.factions : []).map((line) => text(line, 400)).filter(Boolean).slice(0, 40),
           ties: (Array.isArray(body.ties) ? body.ties : []).map((line) => text(line, 300)).filter(Boolean).slice(0, 120),
           here: block(body.here, 1500),
-          board: block(body.board, 1200),
+          board: block(body.board, 3000),
           places: list(body.places, 160)
             .map((place) => ({ slot: text(place.slot, 30), name: text(place.name, 80) }))
             .filter((place) => place.slot),
@@ -1470,7 +1636,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await model.chatComplete(messages, { temperature: 0.4, maxTokens: 4000 });
+          const result = await askModel(keywords ? "keywords" : "assistant", body, model, messages, { temperature: 0.4, maxTokens: 4000 });
+          // A keyword draft is words to copy: nothing in it is read as a change.
+          if (keywords)
+            return { reply: block(String(result?.content ?? "").replace(/<think>[\s\S]*?<\/think>/giu, ""), 12000), edits: [], problem: "" };
           return readAssistant(result?.content);
         } catch (error) {
           logger.warn("[wanderworld] the assistant didn't answer: %s", error?.message ?? error);
@@ -1530,7 +1699,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         if (body.improve === true && !block(body.prompt, MAX.picture)) {
           try {
             const model = await languageModels.resolveForRequest({ connectionId: idOf(body.textConnectionId) || undefined });
-            const result = await model.chatComplete(
+            const result = await askModel("illustrate", body, model,
               [
                 {
                   role: "system",
@@ -1558,19 +1727,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           const connection = await imageConnection(idOf(body.connectionId));
           if (!connection) return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
           const name = slug(values.place || "moment");
-          const result = await engineFetch("/api/characters/avatar-generation", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              connectionId: connection.id,
-              name,
-              appearance: prompt,
-              width,
-              height,
-              ...(styleProfileId ? { styleProfileId } : {}),
-              promptOverrides: [{ id: `avatar:${name}`, prompt }],
-            }),
-          });
+          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId });
           if (typeof result?.image !== "string" || !result.image.startsWith("data:image/")) {
             return reply.status(502).send({ error: "The Engine sent back no picture." });
           }
@@ -1653,7 +1810,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           const model = await languageModels.resolveForRequest({
             connectionId: sceneContext.connectionId || undefined,
           });
-          const result = await model.chatComplete(
+          const result = await askModel("scene-plan", body, model,
             [
               { role: "system", content: system },
               { role: "user", content: text(body.prompt, 1500) || `${persona.name} meets ${initiator.name}.` },

@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.9)
+## What it does now (0.5.10)
 
 ### The world
 
@@ -131,13 +131,22 @@ With it running:
   Ask for a change ("make Jake and Sarah a married couple who live together", "rewrite Jason's lore to make
   him a sorcerer who prays at the shrine", "add a blacksmith's apprentice who lives with Oswin") and it
   proposes one: every change is shown in full, rewritten lore beside what it says now, and nothing happens
-  until you press **Confirm**. Before you confirm you can rewrite the text it wrote (lore, a new person, a name, a note), pick another kind for a relationship, and untick any
-  change to leave it out. **Undo these changes** takes back the last ones, and only those: what you changed yourself since stays.
+  until you press **Confirm**. Before you confirm you can rewrite the text it wrote (or press **Write it
+  again**), change its choices (a relationship's kind and strength, a home, work, body, voice, stance) and
+  untick any change to leave it out. **Undo these changes** takes back that set, and only that: what you
+  changed yourself since stays, and an older set can still be undone after a newer one.
+  Not sure what to ask? Buttons under the chat are ready-made requests: **Fill in the gaps**, **Check for
+  problems**, **What's happened lately?**, and a list of more that says what each does (noticeboard notes,
+  lore for a place or a faction, people for the region you're in, a scene to play, a scene's recap turned
+  into changes, why lore isn't active, clearing the board). **Draft ww: keywords** lets you pick a lorebook
+  and its entries and gives you their keys as text to copy; only those entries are sent.
+  Only the parts of the world a message needs go to the model, and each answer says which went. The chat is
+  kept with the world.
   It can set relationships, homes and work, days, body, voice, temperament, how someone acts toward you and
   who knows whose name; add people and remove ones the world invented; write this world's own lore about a
   person, a place or the whole world, keeping the detail that's there; rename places and set closing hours;
-  make groups of places and factions; change the setting, picture look and ages; and pin notes or give you
-  an errand. It changes only that world: never your cards, personas or lorebooks in the Engine, the
+  make groups of places and factions and write a faction's lore; change the setting, picture look and
+  ages; pin notes, take them down, give you an errand or drop it; and start a scene it suggested. It changes only that world: never your cards, personas or lorebooks in the Engine, the
   settings, the map or the buildings. An answer whose changes can't be read changes nothing and says so.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
   the Engine with everyone there (one of your characters at least), your persona and the world's lorebooks.
@@ -323,13 +332,20 @@ still count, and come first.
 - A scene needs at least one of your character cards: someone there, or the narrator card. The Engine
   casts its own characters only, so people a world invented can't be in scenes.
 - Only the Engine's built-in picture style profiles are listed; your own default profile is "Engine default".
-- Another region has no townsfolk of its own yet: only your party travels.
+- Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
+  they count toward the world's thirty people. Engine characters all live in the home region.
 - Walk-in rooms are unfinished and off by default.
 - The AI's world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
 - Quartermaster works inside scenes started from Wanderworld (they are roleplay chats), not in the world.
-- The AI assistant's chat isn't kept when you leave, and Undo reaches back one Confirm. Undo takes back
-  only what the assistant changed; if you've since changed the very same thing yourself, yours stays.
-  Something the assistant added (a person, a lore entry) goes even if you've edited it since.
+- The AI assistant's Undo buttons last until you leave the world or press Start over (the chat's words
+  are kept; its proposals aren't). Undo takes back only what the assistant changed; if you've since
+  changed the very same thing yourself, yours stays. Something the assistant added (a person, a lore
+  entry) goes even if you've edited it since. A scene it started isn't undone.
+- What goes with a message to the assistant is chosen from its words; when that falls short the model
+  asks for the missing part and is asked again, which costs a second call.
+- Debug Mode (the Engine's, Settings → Advanced) writes every model and picture request Wanderworld
+  makes, with the answer, to the Engine's console. It is read from the Engine's saved settings in the
+  browser, since a Home tab isn't told it.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
 - A world's own lore entries hold 1,500 characters each, 60 entries a world.
 
