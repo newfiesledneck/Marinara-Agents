@@ -89,6 +89,9 @@ export function createAi(locals = () => []) {
     plan: (payload) => request("/plan", { method: "POST", body: { ...payload, locals: locals() } }),
     /** A batch of lorebook entries read for a world's setup: { keys: [[keywords] per entry], names: { place: name } }. */
     loreSetup: (payload) => request("/lore-setup", { method: "POST", body: payload, timeout: 240000 }),
+    /** What people look like, from their cards: { [id]: words }. */
+    looks: (wanted) =>
+      request("/looks", { method: "POST", body: { ids: wanted, locals: locals() } }).then((body) => body?.looks ?? {}),
     /** A world written for itself, a step at a time: { premise, places } or { people } (server.mjs `/world-write`). */
     worldWrite: (payload) => request("/world-write", { method: "POST", body: payload, timeout: 240000 }),
     /** Illustrates the moment from the user's template: { id, image, prompt, caption, at }; kept in the gallery. */

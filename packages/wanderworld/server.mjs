@@ -974,6 +974,21 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         }
       });
 
+      // What people look like, for looking at them: from each card's appearance, or else the start of
+      // its description. No model call.
+      routes.post("/looks", async (request) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const records = await listPeople(resources, ids(body.ids, 12), body.locals);
+        return {
+          looks: Object.fromEntries(
+            records.map((record) => {
+              const card = characterCard(record);
+              return [record.id, (card.appearance || card.description).slice(0, 500)];
+            }),
+          ),
+        };
+      });
+
       // A world's setup from its lorebooks, for any lorebook: the model reads a batch of entries and gives
       // each the keywords the client links by, and names for the places the lore names.
       routes.post("/lore-setup", async (request, reply) => {

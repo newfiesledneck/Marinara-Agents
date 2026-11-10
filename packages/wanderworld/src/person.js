@@ -298,6 +298,28 @@ export function createPersonEditor(layer, handlers) {
     const toPlayer = relationFields(person.kinds, person.toPlayer, `How ${person.name} sees you`);
     const fromPlayer = relationFields(person.kinds, person.fromPlayer, `How you see ${person.name}`);
     body.append(field(`${person.name} sees you as`, toPlayer.row), field(`You see ${person.name} as`, fromPlayer.row));
+    const knows = element("input");
+    knows.type = "checkbox";
+    knows.checked = !!person.known;
+    const knowsRow = element("label", "display:flex;gap:6px;align-items:center;");
+    knowsRow.append(knows, element("span", "", "You know their name (a stranger otherwise)"));
+    const stance = choice(
+      [
+        ["", "As they feel about you"],
+        ["rude", "Rude to you"],
+        ["aggressive", "Aggressive: comes at you"],
+        ["attacks", "Attacks you on sight"],
+        ["afraid", "Afraid of you"],
+        ["avoids", "Avoids you"],
+      ],
+      person.stance ?? "",
+      "How they act toward you",
+    );
+    body.append(knowsRow, field("How they act toward you", stance));
+    reads.push((changes) => {
+      changes.known = knows.checked;
+      changes.stance = stance.value;
+    });
     const relations = [
       { from: person.id, to: "player", fields: toPlayer },
       { from: "player", to: person.id, fields: fromPlayer },

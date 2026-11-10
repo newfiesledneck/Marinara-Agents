@@ -79,7 +79,21 @@ export function createTalk(layer, handlers) {
   party.type = "button";
   party.style.cssText = leave.style.cssText;
   party.addEventListener("click", () => handlers.onParty?.());
-  header.append(title, party, leave);
+  // Whether the player knows their name: a stranger until they say so (or it comes up).
+  const known = document.createElement("button");
+  known.type = "button";
+  known.style.cssText = leave.style.cssText;
+  known.addEventListener("click", () => handlers.onKnown?.());
+  header.append(title, known, party, leave);
+  // What they look like, folded away under the title.
+  const looks = document.createElement("details");
+  looks.style.cssText = `font-size:12px;color:${INK_SOFT};`;
+  const looksTitle = document.createElement("summary");
+  looksTitle.style.cssText = "cursor:pointer;";
+  looksTitle.textContent = "Look at them";
+  const looksText = document.createElement("div");
+  looksText.style.cssText = "padding:3px 0 2px 12px;line-height:1.4;";
+  looks.append(looksTitle, looksText);
   const log = document.createElement("div");
   log.style.cssText = "max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;";
   const note = document.createElement("div");
@@ -106,7 +120,7 @@ export function createTalk(layer, handlers) {
   // Things to say: a few choices (dialogue.js), above the box for your own words.
   const choices = document.createElement("div");
   choices.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
-  panel.append(header, log, note, choices, form);
+  panel.append(header, looks, log, note, choices, form);
   layer.append(panel);
 
   function line(who, text, muted = false) {
@@ -131,6 +145,18 @@ export function createTalk(layer, handlers) {
   return {
     get open() {
       return panel.style.display !== "none";
+    },
+    /** The name button: says whether the player knows their name, and changes it. `shown`: what they're called now. */
+    setKnown(isKnown, shown) {
+      known.textContent = isKnown ? "I know them" : "A stranger";
+      known.title = isKnown
+        ? "You know their name. Click to forget it."
+        : "You don't know their name. Click once you do.";
+      title.textContent = `Talking with ${shown}`;
+    },
+    /** What they look like, for the fold under the title ("" while it isn't known). */
+    setLooks(words) {
+      looksText.textContent = words || "Nothing stands out.";
     },
     /** The party button: "Part ways" when they're with you, else "Come with me". */
     setInParty(inParty) {

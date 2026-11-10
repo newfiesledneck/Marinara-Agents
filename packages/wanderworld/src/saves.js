@@ -211,6 +211,15 @@ export function checkWorld(raw) {
           .map((word) => text(word).slice(0, 40))
           .slice(0, 12),
       })),
+    // People the player knows by name (besides anyone they have a relationship with): [ids].
+    known: (Array.isArray(raw.known) ? raw.known : []).filter((id) => typeof id === "string").slice(0, 200),
+    // How someone acts toward the player, when it isn't left to how they feel: { [id]: "rude" | "aggressive" |
+    // "afraid" | "avoids" | "attacks" }.
+    stances: Object.fromEntries(
+      Object.entries(isRecord(raw.stances) ? raw.stances : {})
+        .filter(([, stance]) => ["rude", "aggressive", "afraid", "avoids", "attacks"].includes(stance))
+        .slice(0, 100),
+    ),
     // The errand taken from the noticeboard: { id, person, place, text, done }, or null; and how many are done.
     errand:
       isRecord(raw.errand) && typeof raw.errand.id === "string"

@@ -623,7 +623,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.4.90, 2026-11-09)
+## Outstanding (as of 0.4.91, 2026-11-09)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
