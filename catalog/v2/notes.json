@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.95",
+          "date": "2026-11-09",
+          "notes": "- The brown buttons are wooden boards now (the kit's wood grain, still easy to read), and Credits and Thanks is a slab of stone.\n- Credits: the art is credited as made with ComfyUI, and your 3D avatars to the 3D Avatars package, made by Marinara.",
+          "highlight": false
+        },
+        {
           "version": "0.4.94",
           "date": "2026-11-09",
           "notes": "- Prompts read \"[E] Look over the stall\" and can be clicked or tapped, not only used with E. On a touch screen they're bigger and drop the \"[E]\".\n- The main menu has Help, and Credits and thanks. Settings opened from there shows one section at a time like in a world, and has a × to close it.\n- Credits: Menu → Settings → Credits, and the main menu. Thanks to Marinara and the Marinara Engine developers, and to Quaternius, with the packs and the models and animations used from each.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.76",
           "date": "2026-11-09",
           "notes": "- Dirt streets in a hamlet or village are paths now: their edges fade into the grass instead of ending in a hard line.\n- A Large, Huge or Massive world left to the seed gets more places out in it (landmarks, and for Huge and Massive another farm and hamlet), so there is something to walk to. What you choose by hand stays as chosen.\n- Fixed: your body picker in the bar didn't show the body the AI's setup gave your persona until the world was reopened.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.75",
-          "date": "2026-11-09",
-          "notes": "- The AI's world setup has more room to answer (for models that think first), and the Journal's lore choices are worded as New world's.",
           "highlight": false
         }
       ]

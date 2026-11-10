@@ -1,7 +1,7 @@
 // The main menu: Continue, New world, Load world and Settings, over a painted backdrop. It opens first,
 // and the in-game Menu button comes back to it (saving the world first). The Load list shows each saved
 // world with a thumbnail, when it was last played, and Rename and Delete.
-import { INK_INPUT, INK_SMALL, PARCHMENT_EDGED, SERIF } from "./ui.js";
+import { INK_INPUT, INK_SMALL, PARCHMENT_EDGED, SERIF, STONE, WOOD } from "./ui.js";
 import { mapCanvas, randomSeed } from "./map.js";
 
 const FONT = "system-ui,sans-serif";
@@ -11,7 +11,7 @@ const PANEL =
   "width:min(420px,calc(100% - 32px));max-height:calc(100% - 32px);overflow-y:auto;box-sizing:border-box;pointer-events:auto;";
 const BIG =
   `font:600 17px ${SERIF};border:1px solid #4e341d;border-radius:9px;padding:11px 16px;cursor:pointer;text-align:left;` +
-  "background:linear-gradient(#7a5532,#5f4126);color:#f6ecd6;box-shadow:0 2px 4px rgba(0,0,0,0.25);";
+  `${WOOD}box-shadow:0 2px 4px rgba(0,0,0,0.25);`;
 const SMALL = INK_SMALL;
 const INPUT = `${INK_INPUT}width:100%;`;
 
@@ -116,9 +116,8 @@ export function createMenu(layer, handlers, art = null) {
       button("Help", BIG, () => handlers.onSettings("Help")),
     );
     // Credits and thanks: set apart from the rest, in gold.
-    const credits = button("♥  Credits and thanks", BIG, () => handlers.onSettings("Credits"));
-    credits.style.cssText +=
-      "background:linear-gradient(#f6dc8c,#d9a93c);color:#3b2a18;border:2px solid #b8862a;box-shadow:0 0 12px rgba(230,185,80,0.7);";
+    const credits = button("♥  Credits and Thanks", BIG, () => handlers.onSettings("Credits"));
+    credits.style.cssText += `${STONE}border:2px solid #c9a24a;box-shadow:0 0 10px rgba(230,190,90,0.55);`;
     card.append(credits);
   }
 

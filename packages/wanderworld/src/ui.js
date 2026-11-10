@@ -21,10 +21,23 @@ export const PARCHMENT_EDGED =
   `background:#e8d5ad url("${ART}parchment-edged.webp") center/100% 100% no-repeat;color:${INK};` +
   "border-radius:6px;box-shadow:0 8px 28px rgba(30,18,6,0.45);";
 
+/**
+ * A wooden board for a button: the kit's wood grain under a brown wash dark enough for cream lettering
+ * to read (the plain brown shows until the picture's in, and if it never comes).
+ */
+export const WOOD =
+  `background:linear-gradient(rgba(96,64,34,0.5),rgba(52,33,16,0.62)),url("${ART}wood-beam.webp") #6b4a2b;` +
+  "background-size:auto,260px;color:#f8eed8;text-shadow:0 1px 2px rgba(20,10,0,0.75);";
+
+/** A slab of stone for a button that should stand apart: grey rock under a wash, lettering as on the wood. */
+export const STONE =
+  `background:linear-gradient(rgba(70,72,78,0.35),rgba(30,32,38,0.6)),url("${ART}cliff-rock.webp") #7d7a74;` +
+  "background-size:auto,300px;color:#f8f1dd;text-shadow:0 1px 3px rgba(0,0,0,0.85);";
+
 /** The main button on parchment: dark wood with cream lettering. */
 export const INK_BUTTON =
   `font:600 13px ${SERIF};border:1px solid #4e341d;border-radius:7px;padding:5px 12px;cursor:pointer;` +
-  "background:linear-gradient(#7a5532,#5f4126);color:#f6ecd6;box-shadow:0 1px 2px rgba(0,0,0,0.25);";
+  `${WOOD}box-shadow:0 1px 2px rgba(0,0,0,0.25);`;
 
 /** A small button on parchment: an inked outline. */
 export const INK_SMALL =
