@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.15, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.16, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.15: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.16: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.15, 2026-11-11)
+## Outstanding (as of 0.5.16, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -717,14 +717,37 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   chatted and up to two more friends to the tavern, a campsite or a house; each has the others as
   `company` (in the snapshot) until their next plan, and `momentListeners` brings a picked person's
   company in earshot along.
-- _Asked for, not built (and what each needs):_ animals and monsters (a second kind of body: the clip
-  player and `character.js` assume a humanoid; Quaternius's Ultimate Animated Animals has glTF with its
-  own skeletons and clips, so it needs its own converter and a simple mover, not the humanoid one);
-  more looks for people without a model (the outfits pack on hand has only Peasant and Ranger; Ranger
-  is unused and is the cheapest next look; the older Ultimate Modular Men/Women packs have their own
-  rigs and would need mapping to the humanoid bones); a watchtower or other building with stairs to
-  climb (the ground is a height field and collision is 2D, so an upper floor needs a second walkable
-  level); campfires people light for themselves anywhere; the hearth's glow.
+- _Campfires and sleep (0.5.16)._ `placeCamp` records each campsite (`world.camps`); `createWorld`
+  gives each a flame that flickers, a point light that comes up with the dark, and smoke (`createSmoke`).
+  Its logs are ordinary seats. The tent is a "lie" spot for townsfolk and, for the player, a thing to
+  use: `hud.openSleep` asks how long, `main.js sleepIn` lies them down, dims the screen, moves `core.hour`
+  on and calls `npcs.js resettle(hour, near, radius)`, which puts everyone but the party and those
+  close by where that hour has them.
+- _Planned, in the order they're cheapest (asked for 2026-11; only what can be built here, so nothing
+  that needs a pack converted in Blender first):_
+  1. _A second everyday look:_ the Ranger outfit (hood, pauldrons) from the outfits pack already used,
+     chosen for some people by name; later, a look by trade (smith, farmer, guard, sorcerer) once there
+     are outfits for them (the paid tiers of Modular Character Outfits - Fantasy, or the Ultimate Modular
+     Men / Women packs, which have glTF but their own rigs to map onto the humanoid bones).
+  2. _An OBJ reader for `scripts/build-wanderworld-kit.mjs`,_ so the flat-coloured packs that ship no glTF
+     can be used without Blender: Farm Buildings (barn, silo, windmill, well, coop: the farm), the two
+     dungeon packs (cave and cellar pieces), Medieval Weapons (a real hammer, tools in hand).
+  3. _Things in hand for more acts:_ a watering can, a hoe, a basket at a stall, a whetstone at the forge.
+  4. _The forge at night:_ the hearth's glow and light, as the campfires have.
+  5. _Animals:_ the Ultimate Animated Animal Pack (glTF, its own skeletons and a dozen clips each) needs
+     its own converter and a second, simpler kind of body beside the humanoid one (`character.js` and
+     `clips.js` assume a humanoid): walk, idle, eat, run, with a mover that wanders a patch (deer in the
+     woods, a dog at a house, horses and farm animals at the farm). Monsters the same way (Ultimate
+     Monsters, the Bestiary kit) once there's something for them to do. Ogres and goblins can be the
+     humanoid body at another size with the clips there are.
+  6. _Hand-made creatures_ (a spider, say) where no pack has one: a few jointed shapes moved by code, as
+     the first townsfolk were (`figure.js`, `motion.js`); rougher than the packs, so only to fill gaps.
+  7. _Stairs and towers:_ the ground is one height at each point and collision is flat, so a tower to
+     climb needs a second walkable level (a height override inside a footprint, entered by its stair).
+     A watchtower with stairs that are only seen is cheap and can come first.
+  8. _Campfires people light for themselves,_ anywhere friends meet in the wilds, and tents at them.
+  9. _A group in conversation:_ talking to one of a group (E) brings the others into the same call, as
+     moments do now.
 - _Not done:_ the hearth doesn't glow at night or light the smith; nobody carries a tool (the hammer
   swing is a wood-chopper's, the watering has no can); a seller and a buyer don't talk to each other;
   hamlets and inns have no stalls; the player can't work a spot; Engine models with unusual proportions

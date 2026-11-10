@@ -46,6 +46,7 @@ export const HELP = [
     lines: [
       "WASD or the arrow keys walk; Shift runs. Drag to look round, scroll (or pinch) to zoom. On a touch screen there's a stick in the corner.",
       "Space jumps. C sits you down on the ground wherever you are, and C again lies you down; move, or press E, to get up. The chat window has Jump and Sit buttons, and on a touch screen they're by your thumb too; Settings → Moving has a toggle for the C key, for each of the two touch buttons, and for the chat window's buttons. A home's bed (with Walk into buildings on) is somewhere to lie down. Anyone travelling with you finds a seat or stands by.",
+      "Outside each settlement there's a campsite or two: sit on the logs by the fire, or use the tent to sleep. You choose how long; the clock jumps on, and everyone not close by is where that hour has them.",
       "People have places to work and rest out of doors: the smith at the open forge, sellers and buyers at the market stalls, a farm's people in its fields, and others at a garden's beds, by a pond or in a meadow's grass.",
       "E, a click or a tap uses whatever the prompt names: a door, a bench, a person, a market stall.",
       "The bar along the top has the Journal, the Lore active where you stand, Illustrate, the Chat window and the Menu (who you play, Settings, full screen, the main menu).",

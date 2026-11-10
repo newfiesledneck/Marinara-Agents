@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.16",
+          "date": "2026-11-11",
+          "notes": "- Campfires burn: a flickering flame, a light that comes up as it gets dark, and smoke.\n- A campsite's logs are seats, turned to face the fire and clear of the tent.\n- Sleep in a campsite's tent: choose how long (an hour to eight, or until morning or evening), the screen dims, and the clock jumps on. Everyone not close by is where that hour has them: at home, at work, or out.\n- Townsfolk nap in the tent too.",
+          "highlight": false
+        },
+        {
           "version": "0.5.15",
           "date": "2026-11-11",
           "notes": "- The smith holds a hammer at the anvil, and anyone drinking holds a mug.\n- Campsites outside the settlement: a fire in a ring of stones, logs, and a tent with a bedroll.\n- Friends make an outing of it after a chat: two to four of them go for a drink at the tavern (most often in the evening), sit round a campfire, or go back to one of their houses.\n- Friends out together are heard as one: when a moment picks one of them, the rest of the group in earshot is included in the same call.",
@@ -307,12 +313,6 @@
           "version": "0.4.99",
           "date": "2026-11-09",
           "notes": "- Illustrate: the picture takes the window now. The gallery, template, size and the rest fold away under it.\n- Fixed: appearances were cut off mid-word in the prompt. Your persona's is sent whole (up to 1500 characters), other people's up to 600, ending on a whole word.\n- New {world_look} in the template says what Wanderworld's world looks like (a medieval fantasy village), so pictures stop coming out modern. {setting} is still only what you wrote in the world's Setting box. An unchanged template picks it up by itself; add {world_look} to one you've edited.\n- Every placeholder is explained, one to a row, in a list that scrolls; click one to put it in the template.\n- \"Improve the prompt with AI\" can use a connection of its own, apart from the one conversations use, and has a tag-style instruction to start from.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.98",
-          "date": "2026-11-09",
-          "notes": "- Illustrate: choose the picture's size, from a few usual ones (landscape, wide, square, portrait) or your own width and height.\n- Illustrate: \"Improve the prompt with AI\" has your model rewrite the template's prompt into a fuller one before it's painted (one more call, on the conversations connection). You can edit what the model is told, and tick \"show me first\" to read, change or drop the rewritten prompt before anything is painted.\n- Townsfolk's chatter only shows over their heads when they're near you and in sight, not across town or through walls, and no more than three bubbles are up at once.",
           "highlight": false
         }
       ]

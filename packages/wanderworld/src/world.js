@@ -21,11 +21,13 @@ import {
   InstancedMesh,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   MeshPhongMaterial,
   Object3D,
   LinearFilter,
   PlaneGeometry,
+  PointLight,
   RepeatWrapping,
   Scene,
   SRGBColorSpace,
@@ -704,14 +706,22 @@ function placeCamp(town, x, z, angle, camp) {
       ),
     );
   }
-  pieces.push(painted(new ConeGeometry(0.2, 0.55, 5).translate(0, 0.4, 0), 0xff8a1e));
-  pieces.push(painted(new ConeGeometry(0.11, 0.36, 5).translate(0.05, 0.38, 0.04), 0xffd24a));
-  // Two logs to lean on, either side of the fire, behind where people sit.
-  for (const side of [-1, 1]) {
+  // (The flame, its light and its smoke are made with the world: createWorld, from town.camps.)
+  // Two logs to sit on, out to either side of the fire and turned to face it, clear of the tent's mouth.
+  const logs = [-1, 1].map((side) => {
+    const bearing = side * 0.97; // round from the far side of the fire toward this one
+    const at = [Math.sin(bearing) * 2.3, Math.cos(bearing) * 2.3];
     pieces.push(
-      painted(new CylinderGeometry(0.17, 0.19, 1.5, 6).rotateX(Math.PI / 2).translate(side * 2.2, 0.17, 0.5), 0x6b4a2f),
+      painted(
+        new CylinderGeometry(0.2, 0.22, 1.7, 7)
+          .rotateX(Math.PI / 2)
+          .rotateY(Math.PI / 2 + bearing)
+          .translate(at[0], 0.2, at[1]),
+        0x6b4a2f,
+      ),
     );
-  }
+    return { at, along: [Math.cos(bearing), -Math.sin(bearing)] };
+  });
   // The tent: canvas over a ridge pole, its mouth toward the fire, a bedroll inside.
   const tent = new BufferGeometry();
   const [w, h, l, back] = [1.2, 1.45, 2.4, -2.2];
@@ -739,8 +749,30 @@ function placeCamp(town, x, z, angle, camp) {
   town.circles.push({ x, z, r: 0.6 });
   const tentAt = local(0, back - l / 2);
   town.circles.push({ ...tentAt, r: 1.15 });
+  const facingFire = (at) => Math.atan2(x - at.x, z - at.z);
+  // Two seats on each log, and a way to them from the fire's side.
+  for (const log of logs) {
+    for (const along of [-0.42, 0.42]) {
+      const [lx, lz] = [log.at[0] + log.along[0] * along, log.at[1] + log.along[1] * along];
+      const seat = local(lx, lz);
+      town.seats.push({
+        ...seat,
+        angle: facingFire(seat),
+        approach: local(lx * 0.72, lz * 0.72),
+        height: 0.4,
+        taken: null,
+      });
+    }
+    town.circles.push({ ...local(log.at[0], log.at[1]), r: 0.45 });
+  }
+  // The tent: lying on its bedroll (anyone, for a rest; the player, to sleep: main.js), in by its mouth.
+  const mouth = local(0, back + 0.55);
+  const bed = local(0.25, back - 1.15);
+  // (Lying down, the head goes back from the way they face: facing the fire, it's at the tent's far end.)
+  placeSpot(town, { ...bed, angle, approach: mouth, act: "lie", role: "rest", camp });
+  town.camps.push({ id: camp, x, y, z, angle, mouth, bed: { ...bed, angle } });
   // Places round the fire, facing it (not on the tent's side).
-  for (const [i, turn] of [-2.1, -1.05, 0, 1.05, 2.1].entries()) {
+  for (const [i, turn] of [-2.2, -1.4, 0, 1.4, 2.2].entries()) {
     const at = local(Math.sin(turn) * 1.55, Math.cos(turn) * 1.55);
     placeSpot(town, {
       ...at,
@@ -1782,6 +1814,7 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
     doors: [],
     seats: [],
     spots: [], // places to be doing something (placeSpot)
+    camps: [], // campsites (placeCamp): { id, x, y, z, angle, mouth, bed }
   };
   const centres = [];
   for (let i = 0; i < blocksPerSide; i++) centres.push((i - (blocksPerSide - 1) / 2) * PITCH);
@@ -2031,6 +2064,7 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
     doors: town.doors,
     seats: town.seats,
     spots: town.spots,
+    camps: town.camps,
   };
 }
 
@@ -3123,6 +3157,28 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   const weather = createWeather();
   scene.add(weather.group);
   const sky_ = { kind: "clear", target: "clear", amount: 0, x: spawn.x, z: spawn.z, distance: 170 };
+  // Each campsite's fire: a flame that flickers, a light that comes up as the day goes, and its smoke.
+  const fires = town.camps.map((camp) => {
+    const flame = new Mesh(
+      new ConeGeometry(0.2, 0.6, 6).translate(0, 0.3, 0),
+      new MeshBasicMaterial({ color: 0xff8a1e }),
+    );
+    const heart = new Mesh(
+      new ConeGeometry(0.11, 0.38, 5).translate(0, 0.19, 0),
+      new MeshBasicMaterial({ color: 0xffd24a }),
+    );
+    flame.position.set(camp.x, camp.y + 0.1, camp.z);
+    heart.position.set(camp.x + 0.03, camp.y + 0.1, camp.z + 0.03);
+    const light = new PointLight(0xffa24a, 0, 16, 1.6);
+    light.position.set(camp.x, camp.y + 0.9, camp.z);
+    scene.add(flame, heart, light);
+    return { flame, heart, light, phase: camp.x * 1.7 + camp.z };
+  });
+  const fireSmoke = town.camps.length
+    ? createSmoke(town.camps.map((camp) => new Vector3(camp.x, camp.y + 0.7, camp.z)))
+    : null;
+  if (fireSmoke) scene.add(fireSmoke.object);
+  let fireTime = 0;
   // Added with the kit's buildings (addBuildings): lit windows and chimney smoke.
   let windowLights = null;
   let smoke = null;
@@ -3340,6 +3396,16 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     weather.update(dt, { x: sky_.x, y: heightAt(sky_.x, sky_.z), z: sky_.z }, sky_.kind, sky_.amount);
     fountain.update(dt);
     smoke?.update(dt);
+    fireSmoke?.update(dt);
+    fireTime += dt;
+    for (const fire of fires) {
+      // A flame that leaps and leans a little, and a light that wavers with it (brighter as it gets dark).
+      const leap = 1 + Math.sin(fireTime * 9 + fire.phase) * 0.12 + Math.sin(fireTime * 23 + fire.phase * 2) * 0.07;
+      fire.flame.scale.set(1 / Math.sqrt(leap), leap, 1 / Math.sqrt(leap));
+      fire.heart.scale.set(1, 2 - leap, 1);
+      fire.flame.rotation.z = Math.sin(fireTime * 5 + fire.phase) * 0.08;
+      fire.light.intensity = (1.5 + 6.5 * lastDark) * (0.88 + (leap - 1) * 1.2);
+    }
     let moved = false;
     for (const door of doors) {
       if (door.target === 1 && Number.isFinite(door.closeIn)) {
@@ -3406,6 +3472,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     lastHour = hour;
     windowLights?.setTime(dark, hour);
     smoke?.setDark(dark);
+    fireSmoke?.setDark(dark);
     return dark;
   }
 
@@ -3750,6 +3817,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     seats: town.seats,
     /** Places to be doing something (placeSpot): the forge, stalls, fields, gardens, the shore, the grass. */
     spots: town.spots,
+    /** Campsites: { id, x, y, z, angle, mouth (where to stand at the tent), bed ({ x, z, angle }: its bedroll) }. */
+    camps: town.camps,
     /** Points along the middle of every street (crossings and halfway between), for finding a way round
      *  buildings. */
     waypoints: [...streetWaypoints(), ...town.waypoints],

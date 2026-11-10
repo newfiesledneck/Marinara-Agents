@@ -1440,6 +1440,55 @@ export function createCrowd() {
           waiting: !!person.waiting,
         }));
     },
+    /**
+     * Time has jumped (the player slept): everyone is where `hour` has them. Indoors by their schedule
+     * (home, work, a meal or a visit) or, with no schedule, at home by night; otherwise out at their own
+     * door with the day ahead. The party, and anyone within `radius` of `near`, stays as they are.
+     */
+    resettle(hour, near, radius) {
+      if (!world) return;
+      for (const person of people.values()) {
+        if (person.following || person.state === "talk") continue;
+        if (person.space && person.space !== world) continue; // in the room with the player
+        const at = person.group.position;
+        if (person.space === world && Math.hypot(at.x - near.x, at.z - near.z) < radius) continue;
+        leaveSeat(person);
+        if (person.partner?.partner === person) person.partner.partner = null;
+        person.partner = null;
+        person.together = null;
+        person.company = null;
+        person.plan = [];
+        person.speaking = false;
+        const entry = entryAt(person.schedule, hour);
+        const door =
+          entry?.activity === "home"
+            ? person.home
+            : entry?.activity === "work"
+              ? person.work
+              : (entry?.activity === "eat" || entry?.activity === "visit") && entry.door
+                ? entry.door
+                : !person.schedule?.length && isNight(hour)
+                  ? person.home
+                  : null;
+        if (door) {
+          person.inDoor = door;
+          person.stay = Infinity;
+          person.until = entry ?? null;
+          hide(person);
+          continue;
+        }
+        // Out: at their own door (or where their schedule has them be), free to make a plan.
+        const spot = entry?.point ?? person.home ?? at;
+        person.inDoor = null;
+        person.until = null;
+        person.space = world;
+        world.scene.add(person.group);
+        person.group.visible = true;
+        person.group.position.set(spot.x, groundY(person, spot.x, spot.z), spot.z);
+        person.state = "idle";
+        person.wait = person.random() * 3;
+      }
+    },
     /** Whether `id` walks with the player. */
     inParty(id) {
       return party.includes(id);
