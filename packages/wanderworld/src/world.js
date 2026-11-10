@@ -3466,13 +3466,17 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     const at = new Matrix4();
     town.buildings.forEach((building, i) => {
       at.makeRotationY((building.facing * Math.PI) / 2).setPosition(building.x, 0, building.z);
-      for (const { model, matrix, tints } of housePieces(building.spec, building.doorX, seed ^ (i * 2654435761))) {
+      for (const { model, matrix, tints, skip } of housePieces(
+        building.spec,
+        building.doorX,
+        seed ^ (i * 2654435761),
+      )) {
         if (!groups.has(model)) {
           groups.set(model, []);
           tintsOf.set(model, []);
         }
         groups.get(model).push(at.clone().multiply(matrix));
-        tintsOf.get(model).push(tints);
+        tintsOf.get(model).push({ tints, skip });
       }
     });
     if ([...groups.keys(), DOOR_PIECE].some((model) => !models.has(model))) return; // something missing: keep the simple ones
@@ -3493,12 +3497,16 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     }
     const tint = new Color();
     for (const [model, matrices] of groups) {
-      for (const { geometry, material, texture } of models.get(model)) {
-        const instanced = new InstancedMesh(geometry, material, matrices.length);
-        matrices.forEach((matrix, i) => instanced.setMatrixAt(i, matrix));
+      for (const { geometry, material, texture = "" } of models.get(model)) {
+        // A copy may leave one part out (the stone course of an upstairs wall): this part's copies are the rest.
+        const dressed = tintsOf.get(model);
+        const kept = matrices.map((_, i) => i).filter((i) => !(dressed[i].skip && texture.includes(dressed[i].skip)));
+        if (!kept.length) continue;
+        const instanced = new InstancedMesh(geometry, material, kept.length);
+        kept.forEach((from, i) => instanced.setMatrixAt(i, matrices[from]));
         // Each building's own colour of tiles and plaster: only the parts that are tiles or plaster.
-        const part = ["roundtiles", "plaster"].find((name) => (texture ?? "").includes(name));
-        if (part) tintsOf.get(model).forEach((tints, i) => instanced.setColorAt(i, tint.setRGB(...tints[part])));
+        const part = ["roundtiles", "plaster"].find((name) => texture.includes(name));
+        if (part) kept.forEach((from, i) => instanced.setColorAt(i, tint.setRGB(...dressed[from].tints[part])));
         instanced.computeBoundingSphere();
         instanced.userData.kit = true;
         scene.add(instanced);

@@ -94,6 +94,7 @@ const SETS = {
       "Wall_UnevenBrick_Window_Wide_Flat",
       "Wall_Plaster_Window_Wide_Flat",
       "Wall_Plaster_Window_Wide_Flat2",
+      "Wall_Plaster_Straight_Base",
       "Wall_Arch",
       "Window_Wide_Flat1",
       "WindowShutters_Wide_Flat_Open",

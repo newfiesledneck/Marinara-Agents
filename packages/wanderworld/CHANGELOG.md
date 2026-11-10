@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.12 — 2026-11-11
+
+- Fixed: patches of grey stone under some windows, out of place on a plastered wall. A plaster ground floor now stands on a stone course all the way round, and upstairs walls have none.
+- The chat window has Jump and Sit buttons (Sit becomes Lie down, then Get up), so they work with a click or a tap as well as Space and C.
+- Settings → Moving: "C sits and lies down" turns the key off, and "Jump and Sit buttons (touch screens)" hides the thumb buttons; the chat window's stay.
+- Using a thing shows: you pick something up or take a drink, and choosing to sit by your campfire sits you down on the ground. In a home (with Walk into buildings on) the bed is somewhere to lie down.
+
 ## 0.5.11 — 2026-11-11
 
 - Buildings no longer all look alike: roofs in terracotta, dark tile, brown, slate or moss, plaster in six colours, gables to the street or along it, round or square windows, dormers, lean-to porches, more ivy or less.

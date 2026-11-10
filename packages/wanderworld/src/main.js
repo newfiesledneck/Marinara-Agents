@@ -2731,7 +2731,8 @@ function sit(seat) {
   core.mode = "sit";
   glideTo(seat.x, seat.z, seat.angle, 0.45);
   // People round about may say something to someone sitting down by them.
-  later(0.6, () => void runMoment({ action: "sits down on a bench", needListeners: true, source: "seat" }));
+  const action = seat.pose === "lie" ? "lies down on the bed" : "sits down on a bench";
+  later(0.6, () => void runMoment({ action, needListeners: true, source: "seat" }));
 }
 
 function standUp() {
@@ -2742,7 +2743,7 @@ function standUp() {
   if (seat.taken === "player") seat.taken = null;
   // Up off the ground takes a moment (getting up from lying, longer): no walking till they're on their feet.
   if (seat.ground) core.stillUntil = core.clock + (seat.ground === "lie" ? LIE_SECONDS : 0.45);
-  else glideTo(seat.approach.x, seat.approach.z, seat.angle, 0.35);
+  else glideTo(seat.approach.x, seat.approach.z, seat.angle, seat.pose === "lie" ? LIE_SECONDS : 0.35);
 }
 
 /**
@@ -4553,6 +4554,7 @@ function speak(typed) {
 function playerDoing() {
   if (core.mode === "sit" && core.seat?.ground)
     return core.seat.ground === "lie" ? "lying on the ground" : "sitting on the ground";
+  if (core.mode === "sit" && core.seat?.pose === "lie") return "lying on a bed";
   if (core.mode === "sit") return "sitting on a bench";
   if (core.talking) return `talking with ${core.talking.name}`;
   if (core.swimming) return "swimming";
@@ -5062,6 +5064,9 @@ function openScene(thing) {
         if (told) narrate(null, told);
       });
       if (thing.kind === "campfire" && request.action === "douse") dousCamp();
+      // What's done shows: down by the fire to sit at it, a drink drunk, a hand to anything else.
+      if (thing.kind === "campfire" && request.action === "sit") rest();
+      else core.gesture = /drink|sip|taste/iu.test(`${request.action} ${request.verb ?? ""}`) ? "drink" : "pickUp";
       return describeScene(request);
     },
   );
@@ -5251,7 +5256,7 @@ function usable() {
     if (seat.taken && seat.taken !== "player") continue;
     list.push({
       kind: "seat",
-      label: "Sit",
+      label: seat.pose === "lie" ? "Lie down" : "Sit",
       x: seat.approach.x,
       z: seat.approach.z,
       y: 0.9,
@@ -5772,6 +5777,10 @@ function movePlayer(dt, input) {
   const target = core.interior ? 0 : core.swimming ? water.level : heightAt(position.x, position.z);
   const wet = !core.interior && water && (water.depth > 0.3 || core.swimming);
   position.y = wet ? position.y + (target - position.y) * Math.min(1, dt * 6) : target;
+  // Up on a bed (a seat with a `lift`), easing up onto it and back down.
+  core.lift =
+    (core.lift ?? 0) + ((core.mode === "sit" ? (core.seat?.lift ?? 0) : 0) - (core.lift ?? 0)) * Math.min(1, dt * 5);
+  if (core.lift > 0.005) position.y += core.lift;
   // A jump: up and back down onto whatever ground is under them by then.
   if (core.air) {
     core.air.speed -= GRAVITY * dt;
@@ -5856,7 +5865,7 @@ function step(dt) {
   }
   if (input?.take("use")) use();
   if (input?.take("jump")) jump();
-  if (input?.take("rest")) rest();
+  if (input?.take("rest") && core.settings.restKey) rest();
   if (input?.take("journal")) core.hud?.toggleJournal();
 
   stepClock(dt);
@@ -5873,7 +5882,7 @@ function step(dt) {
       Math.atan2(other.x - core.player.position.x, other.z - core.player.position.z) - core.player.rotation.y;
     lookAt = Math.atan2(Math.sin(turn), Math.cos(turn));
   }
-  const onGround = core.mode === "sit" ? (core.seat?.ground ?? null) : null;
+  const onGround = core.mode === "sit" ? (core.seat?.ground ?? core.seat?.pose ?? null) : null;
   const pose = core.character?.update(dt, speed, {
     sit: core.mode === "sit" && !onGround,
     act: onGround,
@@ -5885,7 +5894,7 @@ function step(dt) {
   });
   core.gesture = null;
   if (pose?.footstep) core.sound.footstep(0, pose.running);
-  core.hud?.setThumbs(onGround ?? "", core.mode === "walk" || !!onGround);
+  core.hud?.setThumbs(onGround ?? (core.mode === "sit" ? "seat" : ""), core.mode === "walk" || core.mode === "sit");
 
   // The town lives on while the player is indoors: doors, people, the clock. An open door stays open
   // while the player stands at it.

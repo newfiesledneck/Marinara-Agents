@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.12",
+          "date": "2026-11-11",
+          "notes": "- Fixed: patches of grey stone under some windows, out of place on a plastered wall. A plaster ground floor now stands on a stone course all the way round, and upstairs walls have none.\n- The chat window has Jump and Sit buttons (Sit becomes Lie down, then Get up), so they work with a click or a tap as well as Space and C.\n- Settings → Moving: \"C sits and lies down\" turns the key off, and \"Jump and Sit buttons (touch screens)\" hides the thumb buttons; the chat window's stay.\n- Using a thing shows: you pick something up or take a drink, and choosing to sit by your campfire sits you down on the ground. In a home (with Walk into buildings on) the bed is somewhere to lie down.",
+          "highlight": false
+        },
+        {
           "version": "0.5.11",
           "date": "2026-11-11",
           "notes": "- Buildings no longer all look alike: roofs in terracotta, dark tile, brown, slate or moss, plaster in six colours, gables to the street or along it, round or square windows, dormers, lean-to porches, more ivy or less.\n- A smithy's forge is open to the street, framed by arches, with hearth, anvil and workbench. Most taverns have a porch with benches.\n- People work and rest where you can see them: the smith at the anvil, sellers and buyers at market stalls, farmhands in the fields, others tending gardens, sitting by a pond or lying in the grass.\n- You can jump (Space), sit on the ground and lie down (C; touch: Jump and Sit buttons), and you reach out to what you use.\n- New animations from Universal Animation Library 1 and 2 (CC0). The download is about 0.35 MB larger.\n- Fixed: sitting down and standing up ended on a flick back to their first pose.",
@@ -307,12 +313,6 @@
           "version": "0.4.95",
           "date": "2026-11-09",
           "notes": "- The brown buttons are wooden boards now (the kit's wood grain, still easy to read), and Credits and Thanks is a slab of stone.\n- Credits: the art is credited as made with ComfyUI, and your 3D avatars to the 3D Avatars package, made by Marinara.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.94",
-          "date": "2026-11-09",
-          "notes": "- Prompts read \"[E] Look over the stall\" and can be clicked or tapped, not only used with E. On a touch screen they're bigger and drop the \"[E]\".\n- The main menu has Help, and Credits and thanks. Settings opened from there shows one section at a time like in a world, and has a × to close it.\n- Credits: Menu → Settings → Credits, and the main menu. Thanks to Marinara and the Marinara Engine developers, and to Quaternius, with the packs and the models and animations used from each.",
           "highlight": false
         }
       ]

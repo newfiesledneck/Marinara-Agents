@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.5.11",
+  "version": "0.5.12",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -227,6 +227,7 @@
         "kit/village/t-woodtrim-basecolor.webp",
         "kit/village/wall-arch.json",
         "kit/village/wall-plaster-door-round.json",
+        "kit/village/wall-plaster-straight-base.json",
         "kit/village/wall-plaster-straight.json",
         "kit/village/wall-plaster-window-thin-round.json",
         "kit/village/wall-plaster-window-wide-flat.json",
@@ -253,8 +254,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "23a0d9744e70da30f1259ae1f3c6f364ed4870725bb58d1ebea684208d2c41c7",
-      "bytes": 2196604
+      "sha256": "ce73b81a70720ce1ee40580c3901f4911d71eb11a0e96d0b1f66c78db58c5b08",
+      "bytes": 2198651
     },
     {
       "path": "server.mjs",
@@ -1028,8 +1029,8 @@
     },
     {
       "path": "kit/village/index.json",
-      "sha256": "9bb59915402dfebda2b40889302e5e2ea570d99c8b363c8d2607a1f9420ed239",
-      "bytes": 6363
+      "sha256": "d8bae5b65106263fc4b955c7c01732f278cb2c0ee75bf9c5f863b207ac5ae02b",
+      "bytes": 6491
     },
     {
       "path": "kit/village/prop-chimney.json",
@@ -1215,6 +1216,11 @@
       "path": "kit/village/wall-plaster-door-round.json",
       "sha256": "f46cdb27ed002f72f2f8ef46af5218ba7d20c373fa7ea93a1ba6f4e9652645cb",
       "bytes": 5241
+    },
+    {
+      "path": "kit/village/wall-plaster-straight-base.json",
+      "sha256": "cc5a25470750f845c6f33ceaa79061990fa30a57f0b3cf3f08a90324df22656a",
+      "bytes": 2761
     },
     {
       "path": "kit/village/wall-plaster-straight.json",

@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.11",
+        "version": "0.5.12",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -587,6 +587,7 @@
               "kit/village/t-woodtrim-basecolor.webp",
               "kit/village/wall-arch.json",
               "kit/village/wall-plaster-door-round.json",
+              "kit/village/wall-plaster-straight-base.json",
               "kit/village/wall-plaster-straight.json",
               "kit/village/wall-plaster-window-thin-round.json",
               "kit/village/wall-plaster-window-wide-flat.json",
@@ -613,8 +614,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "23a0d9744e70da30f1259ae1f3c6f364ed4870725bb58d1ebea684208d2c41c7",
-            "bytes": 2196604
+            "sha256": "ce73b81a70720ce1ee40580c3901f4911d71eb11a0e96d0b1f66c78db58c5b08",
+            "bytes": 2198651
           },
           {
             "path": "server.mjs",
@@ -1388,8 +1389,8 @@
           },
           {
             "path": "kit/village/index.json",
-            "sha256": "9bb59915402dfebda2b40889302e5e2ea570d99c8b363c8d2607a1f9420ed239",
-            "bytes": 6363
+            "sha256": "d8bae5b65106263fc4b955c7c01732f278cb2c0ee75bf9c5f863b207ac5ae02b",
+            "bytes": 6491
           },
           {
             "path": "kit/village/prop-chimney.json",
@@ -1577,6 +1578,11 @@
             "bytes": 5241
           },
           {
+            "path": "kit/village/wall-plaster-straight-base.json",
+            "sha256": "cc5a25470750f845c6f33ceaa79061990fa30a57f0b3cf3f08a90324df22656a",
+            "bytes": 2761
+          },
+          {
             "path": "kit/village/wall-plaster-straight.json",
             "sha256": "fe8d7eeae3f063bed3c3cdef856175400c9eb131451c6d9c91e316f4183d25b6",
             "bytes": 3462
@@ -1664,9 +1670,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.11.zip",
-        "sha256": "10ca9d5bfde8e4474210eac1ba2d2cedde068702bb446d26164cf36bddfb0d33",
-        "bytes": 12527190
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.12.zip",
+        "sha256": "a21b6222b4cd0e813716a7500cfe3ae75543b9e419adf6b9e6b045ed4d16881b",
+        "bytes": 12532521
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

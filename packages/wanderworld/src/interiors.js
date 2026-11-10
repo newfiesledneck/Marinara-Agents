@@ -277,6 +277,30 @@ export function createInterior(door, seed) {
     solid(0.9, 0.5, 0.5, hx - 0.55, 0.25, hz - 1.4, WOOD, { name: "chest-wood", angle: -Math.PI / 2, scale: 0.7 });
     rug(-0.6, 0.2, 2.4, 1.8);
     shelf(0.6, back, true, random() < 0.7);
+    // The bed is somewhere to lie down (for the player; townsfolk keep to the chairs), head to the wall:
+    // from beside it or its foot, wherever the room's furniture leaves standing room.
+    const clear = (x, z) =>
+      Math.abs(x) < hx - 0.4 &&
+      Math.abs(z) < hz - 0.4 &&
+      !boxes.some((b) => x > b.minX - 0.4 && x < b.maxX + 0.4 && z > b.minZ - 0.4 && z < b.maxZ + 0.4);
+    const beside = [
+      [hx - 1.85, back + 1.1],
+      [hx - 1.85, back + 0.4],
+      [hx - 1.85, back + 1.7],
+      [hx - 0.65, back + 2.25],
+    ].find(([x, z]) => clear(x, z));
+    if (beside) {
+      seats.push({
+        x: hx - 0.65,
+        z: back + 0.75,
+        angle: 0,
+        approach: { x: beside[0], z: beside[1] },
+        height: 0.62,
+        pose: "lie",
+        lift: 0.62,
+        taken: null,
+      });
+    }
   }
 
   const scene = new Scene();
@@ -319,7 +343,12 @@ export function createInterior(door, seed) {
   );
   // Where to stand before sitting: in front of the seat if that's clear, else beside it or behind it (a
   // chair at a table faces the table).
-  for (const seat of seats) {
+  for (const seat of [...seats]) {
+    if (seat.pose) {
+      // The bed keeps the place chosen beside it, or isn't to be lain on where there's no room to stand.
+      if (collider.insideBox(seat.approach.x, seat.approach.z, 0.15)) seats.splice(seats.indexOf(seat), 1);
+      continue;
+    }
     const fx = Math.sin(seat.angle);
     const fz = Math.cos(seat.angle);
     const spots = [
