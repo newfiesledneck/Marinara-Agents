@@ -1378,15 +1378,20 @@ export function createHud(root, handlers) {
     restoreChat() {
       if (chatFloat.isOpen()) chatFloat.setOpen(true);
     },
+    /** The chat as a world left it: [{ who, text, mine }], in place of what's there. */
+    setChat(lines) {
+      narration.replaceChildren();
+      for (const line of lines) hud.narrate(line.who, line.text, line.mine, true);
+    },
     /** A line in the narration box: `who` null for the narrator. */
     /**
      * A line for the chat window: narration (no `who`: set apart, in italics), something the player
      * said or did (`mine`), or someone else's. With the window closed, narration shows as a caption
      * over the world instead of opening it, and the Chat button shows there's something to read.
      */
-    narrate(who, text, mine = false) {
+    narrate(who, text, mine = false, quiet = false) {
       const line = document.createElement("div");
-      if (who) {
+      if (who && who !== "Narrator") {
         // Who's speaking, in their colour: the player's lines one side of the eye, everyone else's the other.
         line.style.cssText = `margin:3px 0;padding:3px 8px;border-radius:8px;background:${
           mine ? "rgba(52,92,140,0.13)" : "rgba(140,74,32,0.12)"
@@ -1403,6 +1408,7 @@ export function createHud(root, handlers) {
       narration.append(line);
       while (narration.childElementCount > 60) narration.firstElementChild.remove();
       narration.scrollTop = narration.scrollHeight;
+      if (quiet) return; // the chat put back as it was: nothing new to point at
       if (!chatFloat.isOpen()) {
         chatButton.textContent = "Chat •"; // something to read
         if (!who) {

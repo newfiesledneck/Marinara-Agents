@@ -156,6 +156,13 @@ export function checkWorld(raw) {
     lore: checkLore(raw.lore),
     // The world's setting in words ("a cosy fishing village"), for the AI to write the world from.
     setting: text(raw.setting).slice(0, 600),
+    // How the world looks in pictures ({world_look}); "" is the setting pack's own.
+    look: text(raw.look).slice(0, 200),
+    // The chat as it was left: the last lines, [{ who, text }].
+    log: (Array.isArray(raw.log) ? raw.log : [])
+      .filter((line) => isRecord(line) && typeof line.text === "string")
+      .slice(-30)
+      .map((line) => ({ who: text(line.who).slice(0, MAX_NAME) || "Narrator", text: line.text.slice(0, 1200) })),
     // The player's instructions for scenes started in this world (Wanderworld plans its scenes).
     sceneInstructions: text(raw.sceneInstructions).slice(0, 1000),
     // The lorebooks this world draws on (ids), and how their entries are linked to places: "keywords"

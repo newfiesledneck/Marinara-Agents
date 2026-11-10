@@ -46,7 +46,7 @@ export const PLACEHOLDERS = {
   time_of_day: "Like: early morning, morning, midday, afternoon, dusk, evening, night",
   weather: "Rain, snow or mist. Empty in clear weather.",
   world_look:
-    "What Wanderworld's world looks like, so the picture matches it. Always: medieval fantasy village, timber-framed plaster houses with tiled roofs, cobbled lanes, market stalls, lantern light",
+    "What this world looks like wherever you are, so pictures match it. Yours to set in Journal → World (How this world looks in pictures). Until you do: medieval fantasy, pre-industrial, nothing modern",
   setting:
     "Whatever you wrote in this world's Setting box (New world, or Journal → World), word for word. Empty if you left the box empty: it is your own text, nothing is added to it.",
   recent: "The narrator's last line in the chat, if there is one.",
@@ -162,7 +162,7 @@ export function createIllustrateWindow(layer, handlers) {
     element(
       "div",
       `color:${INK_SOFT};line-height:1.4;`,
-      "The template is the prompt, with {words in braces} swapped for what's true right now. Write anything else round them: it's sent as it is. Click one below to put it in. An empty one leaves nothing behind.",
+      "The template is the prompt, with {words in braces} swapped for what's true right now. Write anything else round them: it's sent as it is. Click one below to put it in. A sentence whose {words} all come out empty is left out whole, so \"With them: {people}.\" goes when nobody's there.",
     ),
   );
   const macros = element(

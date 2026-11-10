@@ -573,8 +573,20 @@ export function checkMoment(value, listeners, places) {
 
 /** A prompt from the user's template: {name} placeholders filled, unknown ones dropped, spacing tidied. */
 export function fillTemplate(template, values) {
-  return String(template)
-    .replace(/\{(\w+)\}/gu, (match, key) => (typeof values[key] === "string" ? values[key] : ""))
+  const value = (key) => (typeof values[key] === "string" ? values[key].trim() : "");
+  return (
+    String(template)
+      // A sentence of the template whose placeholders all came out empty goes, words and all:
+      // "With them: {people}." says nothing when nobody's there.
+      .split(/(?<=[.!?\n])\s+/u)
+      .filter((sentence) => {
+        const keys = [...sentence.matchAll(/\{(\w+)\}/gu)].map((match) => match[1]);
+        return !keys.length || keys.some(value);
+      })
+      .join(" ")
+  )
+    .replace(/\{(\w+)\}/gu, (match, key) => value(key))
+    .replace(/^[\s,.]+/u, "")
     .replace(/[ \t]+/gu, " ")
     .replace(/\s+([,.])/gu, "$1")
     .replace(/([,.]){2,}/gu, "$1")

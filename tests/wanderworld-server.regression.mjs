@@ -500,6 +500,20 @@ assert.equal(
   });
   assert.equal(shot.code, 200);
   assert.equal(shot.body.prompt, "Zoey with Mira (kneading dough) at the bakery, morning. Mira: flour on her apron");
+  // A sentence of the template whose placeholders all came out empty is left out whole; one with something
+  // in it stays, and empty items in a list of tags leave no stray commas.
+  assert.equal(
+    server.fillTemplate("{persona} at {place}, {weather}. With them: {people}. {looks}. {world_look}. No text.", {
+      persona: "Zoey",
+      place: "the square",
+      weather: "",
+      people: "",
+      looks: " ",
+      world_look: "medieval fantasy",
+    }),
+    "Zoey at the square. medieval fantasy. No text.",
+  );
+  assert.equal(server.fillTemplate("{weather}, {persona}, {people}, night", { persona: "Zoey" }), "Zoey, night");
   // A long appearance ends on a whole word (a clause, when one ends near), never mid-word; a short one is whole.
   assert.equal(server.cutWords("tall, dark kohl, and a little scar", 26), "tall, dark kohl, and a");
   assert.equal(server.cutWords("tall, dark kohl, and a little scar", 20), "tall, dark kohl");

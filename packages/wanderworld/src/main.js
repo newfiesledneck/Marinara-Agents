@@ -659,7 +659,9 @@ function playWorld(id) {
       core.hud?.setLoading(null);
       resume();
       void pullRecaps();
-      core.momentLog = [];
+      // The chat as it was left in this world.
+      core.momentLog = save.log ?? [];
+      core.hud?.setChat(core.momentLog.map((line) => ({ ...line, mine: line.who === personaName() })));
       core.toldPlaces = [];
       core.looks = new Map();
       core.peopleHereKey = null;
@@ -2443,6 +2445,8 @@ function journalData(zone, snapshot, residents, names) {
     placesChanged: core.placesChanged,
     world: {
       setting: core.save?.setting ?? "",
+      look: core.save?.look ?? "",
+      usualLook: PACK.look,
       sceneInstructions: core.save?.sceneInstructions ?? "",
       lorebooks: core.save?.lorebooks ?? [],
       loreLinking: core.save?.loreLinking ?? "none",
@@ -3335,6 +3339,10 @@ function momentListeners(voice, audience, extra = [], text = "") {
 /** A line in the narration box and the moment log (`who` null for the narrator). */
 function narrate(who, text) {
   core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text }].slice(-30);
+  if (core.save) {
+    core.save.log = core.momentLog;
+    core.saves.write(core.save);
+  }
   core.hud?.narrate(who, text, !!who && who === personaName());
 }
 
@@ -3524,7 +3532,7 @@ async function illustrateMoment({
       weather: weatherWord(),
       activity: playerDoing(),
       setting: core.save.setting ?? "",
-      look: PACK.look,
+      look: core.save.look || PACK.look,
       recent,
     },
     caption: `${placeWords()}, ${clockText()}`,

@@ -559,6 +559,19 @@ export function createJournal(panelCss, handlers) {
     setting.maxLength = 600;
     setting.addEventListener("change", () => handlers.onSetSetup({ setting: setting.value.trim() }));
     body.append(setting);
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "How this world looks in pictures"));
+    body.append(
+      explain(
+        `A few words that go in every picture's prompt, wherever you are ({world_look} in Illustrate's template): the era and the style, not one place. Left empty, it's "${world.usualLook}".`,
+      ),
+    );
+    const look = element("textarea", `${FIELD}resize:vertical;min-height:36px;width:100%;box-sizing:border-box;`);
+    look.value = world.look ?? "";
+    look.placeholder = world.usualLook ?? "";
+    look.maxLength = 200;
+    look.setAttribute("aria-label", "How this world looks in pictures");
+    look.addEventListener("change", () => handlers.onSetSetup({ look: look.value.trim() }));
+    body.append(look);
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Scene instructions for this world"));
     body.append(
       explain(

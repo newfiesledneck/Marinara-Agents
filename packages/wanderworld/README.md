@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.99)
+## What it does now (0.4.100)
 
 ### The world
 
@@ -118,7 +118,8 @@ With it running:
   size (a few usual ones, or your own width and height). "Improve the prompt with AI" has a model rewrite
   the filled-in template first, on a connection of its own if you like (apart from the one conversations
   use), to an instruction you can edit (sentences or tags), and can show you the result to change or approve
-  before it's painted. `{world_look}` says what Wanderworld's world looks like, so pictures match it;
+  before it's painted. A sentence of the template whose placeholders all come out empty is left out. `{world_look}` says what
+  the world looks like wherever you are (yours to set in Journal → World), so pictures match it;
   `{setting}` is only what you wrote in the world's Setting box.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
   the Engine with everyone there (one of your characters at least), your persona and the world's lorebooks.
