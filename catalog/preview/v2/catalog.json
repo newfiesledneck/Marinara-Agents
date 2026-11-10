@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.0",
+        "version": "0.5.1",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -599,13 +599,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "9407b0dd832e26beecb2113e7cf149f1c92f42408e05a85904f18ce2596788b2",
-            "bytes": 1787389
+            "sha256": "fc0c5b9d8e3b3d3d389b4647e8202cc144bd974d66d8f7df9a4d9e8ec5124e2a",
+            "bytes": 1790502
           },
           {
             "path": "server.mjs",
-            "sha256": "c8af01696a6a777211c66aab319cf21d6a000f8f36520f48e06af4dc4310419c",
-            "bytes": 78481
+            "sha256": "578445030a94aef4b9df5717996665a13f92e9600b9d8f36c7f88bb63ba04038",
+            "bytes": 79765
           },
           {
             "path": "wanderworld-icon.webp",
@@ -1580,9 +1580,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.0.zip",
-        "sha256": "d9e0b2265aea5547d1e78faba3e88ef93c5c1edc04d91169f7de336396623219",
-        "bytes": 11978035
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.1.zip",
+        "sha256": "1e6b926fbbe821924e1cb479ffced5907ccfe5a1e45b22ed20665d507e1a9115",
+        "bytes": 11982432
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

@@ -268,6 +268,26 @@ for (const seed of [71, 72, 73, 74, 75, 76]) {
     built[layout] = world.layout.buildings.length;
     assert.ok(world.layout.buildings.length > 6, `${layout}: a settlement with houses`);
     assert.ok(world.waypoints.length > 4, `${layout}: streets to walk`);
+    if (layout === "crossroads") {
+      // Open ground inside it: no street's name out in a field, a pond with its bench in its zone, and
+      // houses off the streets that leave the buildings before them where they were.
+      const zones = buildZones(world.layout, 94);
+      const half = world.layout.townHalf;
+      const corner = zoneAt(zones, half - 14, half - 14);
+      assert.notEqual(corner.kind, "street", `no street in an open corner (${corner.id})`);
+      const pond = world.layout.outposts.find((outpost) => outpost.inTown);
+      assert.ok(pond && Math.max(Math.abs(pond.x), Math.abs(pond.z)) < half, "a pond on the open ground in town");
+      assert.ok(waterAt(pond.x, pond.z).depth > 0.5, "with water in it");
+      const byBench = zoneAt(zones, pond.x + 12.5, pond.z);
+      assert.equal(byBench.outpostKind, "pond", "the bench by a pond is at the pond");
+      assert.equal(byBench.parent, "town", "and a pond in town is in town");
+      assert.ok(world.map.town.houses.length > 0, "houses off the streets");
+      const last = world.layout.buildings.at(-1).box;
+      assert.ok(
+        world.map.town.houses.some((house) => house.x > last.minX && house.x < last.maxX),
+        "built after every other building",
+      );
+    }
     world.dispose();
   }
   assert.ok(

@@ -143,6 +143,12 @@ export function drawMap(canvas, info, options = {}) {
     context.fillRect(x, y, town.block * scale, town.block * scale);
   }
 
+  // Houses off the streets.
+  context.fillStyle = "#a2552f";
+  for (const house of town.houses ?? []) {
+    const [x, y] = toPixel(house.x - 3.5, house.z - 3.5);
+    context.fillRect(x, y, 7 * scale, 7 * scale);
+  }
   if (town.walls) {
     const [x, y] = toPixel(-town.walls, -town.walls);
     context.strokeStyle = "#6f6a60";

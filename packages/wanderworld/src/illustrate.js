@@ -34,11 +34,11 @@ export const SIZES = [
 export const PLACEHOLDERS = {
   persona: "Your persona's name. Like: Zoey",
   persona_appearance:
-    "Your persona's name and their Appearance, from the persona in the Engine. Empty if that persona has no Appearance written. Like: Zoey: tall, red hair in a braid, a green travelling cloak",
+    "Your persona's name and their Appearance, from the persona in the Engine. The whole Appearance block is used, however long: a very long one can make the prompt too long for some image models (the AI rewrite shortens it). Empty if that persona has no Appearance written. Like: Zoey: tall, red hair in a braid, a green travelling cloak",
   people:
     "The characters within a few steps of you (and your companions a little further), each with what they're doing. Up to five. Like: Mira (sitting), Tam (walking)",
   people_appearance:
-    "Each of those characters' names and Appearance, from their cards. Someone with no Appearance is left out. Like: Mira: flour on her apron; Tam: a patched grey coat",
+    "Each of those characters' names and Appearance, from their cards, each one whole (so several long ones make a long prompt). Someone with no Appearance is left out. Like: Mira: flour on her apron; Tam: a patched grey coat",
   activity: "What you're doing. Like: standing, sitting on a bench, talking with Mira, swimming",
   place: "Where you are, and the places it's in. Like: the Gilded Stag, in Larkspur",
   place_kind: "What kind of place it is. Like: a tavern, a town street, a market square, the woods",
@@ -50,6 +50,8 @@ export const PLACEHOLDERS = {
   setting:
     "Whatever you wrote in this world's Setting box (New world, or Journal → World), word for word. Empty if you left the box empty: it is your own text, nothing is added to it.",
   recent: "The narrator's last line in the chat, if there is one.",
+  recent_chat:
+    "The last few lines of the chat, yours and everyone's, word for word. The AI rewrite is given these anyway (so it can paint what you're doing right now); put this in the template only if your image model copes with raw chat.",
 };
 
 function element(tag, css, text) {
@@ -115,12 +117,16 @@ export function createIllustrateWindow(layer, handlers) {
   const { state } = floating;
   if (state.template === OLDER_TEMPLATE) state.template = DEFAULT_TEMPLATE;
 
-  // The picture takes the room there is; everything else is folded away in the tray under it.
-  const body = element(
+  // The picture fills the window (the stage is as tall as the window shows); everything else is folded
+  // away under it, a scroll down.
+  const body = element("div", "flex:1;min-height:0;overflow-y:auto;padding:8px 10px;");
+  const stage = element("div", "display:flex;flex-direction:column;gap:6px;box-sizing:border-box;");
+  const tray = element("div", "display:flex;flex-direction:column;gap:6px;margin-top:10px;");
+  const more = element(
     "div",
-    "flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:6px;padding:8px 10px;",
+    `display:none;font-size:11px;color:${INK_SOFT};text-align:center;`,
+    "Scroll down for the gallery, the prompt and the settings",
   );
-  const tray = element("div", "flex:0 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;");
   const paint = button(
     "Illustrate the current moment",
     `${INK_BUTTON}background:#6b4a2b;color:#f6ecd6;`,
@@ -129,7 +135,7 @@ export function createIllustrateWindow(layer, handlers) {
   const status = element("div", `font-size:12px;color:${INK_SOFT};`);
   const picture = element(
     "img",
-    "width:100%;flex:1 1 0;min-height:45%;object-fit:contain;border-radius:8px;background:rgba(107,74,43,0.12);display:none;",
+    "width:100%;flex:1 1 0;min-height:0;object-fit:contain;border-radius:8px;background:rgba(107,74,43,0.12);display:none;",
   );
   const caption = element("div", "font-size:12px;font-style:italic;");
   // The gallery: a strip of its own height that scrolls, however many pictures there are.
@@ -335,7 +341,8 @@ export function createIllustrateWindow(layer, handlers) {
   promptFold.append(promptText);
 
   tray.append(galleryFold, templateFold, improveFold, sizeFold, promptFold);
-  body.append(paint, status, review, picture, caption, tray);
+  stage.append(paint, status, review, picture, caption, more);
+  body.append(stage, tray);
   frame.append(body);
 
   const pictures = new Map(); // id → { image, prompt, caption }
@@ -344,6 +351,10 @@ export function createIllustrateWindow(layer, handlers) {
     shown = id;
     picture.src = value.image;
     picture.style.display = "";
+    // With a picture to show, the stage is the whole of what the window shows.
+    stage.style.height = "100%";
+    more.style.display = "";
+    body.scrollTop = 0;
     caption.textContent = value.caption ?? "";
     promptText.textContent = value.prompt ?? "";
     for (const thumb of gallery.children) thumb.style.outline = thumb.dataset.id === id ? `2px solid ${INK}` : "";

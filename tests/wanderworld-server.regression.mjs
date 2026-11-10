@@ -585,6 +585,17 @@ assert.equal(
   });
   assert.equal(painted.body.prompt, "Just the bakery, please.", "an approved prompt is painted as it is");
   assert.equal(heard.length, 2, "and isn't rewritten again");
+  // The last of the chat goes with the prompt, so the picture is of what's being done now.
+  await call("post", "/illustrate", {
+    body: {
+      ...scene,
+      improve: true,
+      previewOnly: true,
+      facts: { place: "the pond", chat: [{ who: "Zoey", text: "I kneel by the pond and meditate." }, { text: "" }] },
+    },
+  });
+  assert.ok(heard[2][0].content.endsWith(server.IMPROVE_CHAT_NOTE), "the rewrite is told about the chat");
+  assert.equal(heard[2][1].content, "Zoey at the pond\n\n## The chat\nZoey: I kneel by the pond and meditate.");
   runtime.languageModels.resolveForRequest = async () => ({
     async chatComplete() {
       throw new Error("down");

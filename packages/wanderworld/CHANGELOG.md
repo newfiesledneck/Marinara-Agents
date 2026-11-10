@@ -1,5 +1,15 @@
 # Wanderworld release notes
 
+## 0.5.1 — 2026-11-10
+
+- Illustrate: with the AI rewrite on, the last lines of the chat go with the prompt, so the picture shows what you're doing now (kneeling by the pond), not just "standing". New {recent_chat} placeholder.
+- The Illustrate window is all picture; the gallery, prompt and settings are a scroll down.
+- A crossroads, one-street or ring settlement no longer has bare fields inside it: a pond where there's room, houses off the streets, gardens, meadows and trees. Worlds you have get them too.
+- Street names are only where a street is laid, not out across open ground.
+- A pond's place reaches its shore and bench.
+- Fixed: a noticeboard errand to someone at home (or in a room with you) never finished; it does now at their door or beside them indoors. Knocking where nobody is in no longer has someone answer.
+- {persona_appearance} and {people_appearance} use the whole Appearance block.
+
 ## 0.5.0 — 2026-11-09
 
 - New world: the first map is marked as a first idea. Lorebooks and the AI's setup add the places the lore needs, so the map you get can differ.
