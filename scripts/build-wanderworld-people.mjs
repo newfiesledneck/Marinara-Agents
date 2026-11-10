@@ -251,7 +251,7 @@ function recolour(source, name, filter, mask, size = TEXTURE_SIZE) {
 }
 
 /** A texture shrunk to its size. */
-function texture(source, name, size = TEXTURE_SIZE) {
+function texture(source, name, size = TEXTURE_SIZE, filter = "") {
   execFileSync(FFMPEG, [
     "-v",
     "error",
@@ -259,7 +259,7 @@ function texture(source, name, size = TEXTURE_SIZE) {
     "-i",
     source,
     "-vf",
-    `scale=${size}:${size}`,
+    `scale=${size}:${size}${filter ? `,${filter}` : ""}`,
     "-quality",
     "82",
     join(OUT, `${name}.webp`),
@@ -303,6 +303,16 @@ function main() {
     recolour(peasant, "clothes-grey", "hue=s=0.25,eq=brightness=0.04", mask),
   ];
   rmSync(mask);
+  // The ranger outfit: the pack's two colourways, and a few more by turning the whole cloth's colours.
+  const ranger = join(outfitTextures, "Ranger/T_Ranger_BaseColor.png");
+  const ranger3 = join(outfitTextures, "Ranger/T_Ranger_3_BaseColor.png");
+  const rangerColourways = [
+    texture(ranger, "ranger-a"),
+    texture(ranger3, "ranger-b"),
+    texture(ranger, "ranger-wine", TEXTURE_SIZE, "hue=h=-95:s=1.05"),
+    texture(ranger3, "ranger-dusk", TEXTURE_SIZE, "hue=h=150:s=0.8"),
+    texture(ranger, "ranger-grey", TEXTURE_SIZE, "hue=s=0.2,eq=brightness=-0.03"),
+  ];
 
   for (const [sex, Sex] of [
     ["male", "Male"],
@@ -333,10 +343,10 @@ function main() {
     });
     writeFileSync(join(OUT, `head-${sex}.json`), JSON.stringify(head));
 
-    // Outfits: the whole clothed body (hands and arms in the skin texture), with the skeleton. Only the
-    // everyday clothes: the pack's ranger outfit reads as an adventurer, not a townsperson.
+    // Outfits: the whole clothed body (hands and arms in the skin texture), with the skeleton. Everyday
+    // clothes for most, and the pack's ranger outfit (hood, pauldrons) for a traveller or adventurer.
     index.sexes[sex] = { outfits: [] };
-    for (const outfit of ["Peasant"]) {
+    for (const outfit of ["Peasant", "Ranger"]) {
       const gltf = readGltf(join(outfits, `${Sex}_${outfit}.gltf`));
       const part = packPart(skinnedPrimitives(gltf), {
         texture: (primitive) => (/Regular/iu.test(primitive.texture ?? "") ? `skin-${sex}` : "clothes"),
@@ -344,7 +354,7 @@ function main() {
       });
       const name = `${sex}-${outfit.toLowerCase()}`;
       writeFileSync(join(OUT, `${name}.json`), JSON.stringify(part));
-      index.sexes[sex].outfits.push({ name, colourways });
+      index.sexes[sex].outfits.push({ name, colourways: outfit === "Ranger" ? rangerColourways : colourways });
     }
   }
 

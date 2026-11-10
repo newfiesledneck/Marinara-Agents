@@ -221,7 +221,9 @@ export function createCrowd() {
     person.hasModel = !!model;
     if (!model && !dressPeople) return;
     try {
-      const character = model ? await loadModelCharacter(model) : await createPerson(person.name, person.body);
+      const character = model
+        ? await loadModelCharacter(model)
+        : await createPerson(person.name, person.body, person.look);
       if (people.get(person.id) !== person) {
         character.dispose();
         return;
@@ -232,11 +234,12 @@ export function createCrowd() {
     }
   }
 
-  function add({ id, name, body = "auto" }) {
+  function add({ id, name, body = "auto", look = {} }) {
     const person = {
       id,
       name,
       body, // "male", "female" or "auto": which default body they get without a 3D model
+      look, // what was chosen for that body by hand (looks.js): outfit, colours, hair…
       group: new Group(),
       character: null,
       home: null,
@@ -1489,6 +1492,11 @@ export function createCrowd() {
         person.wait = person.random() * 3;
       }
     },
+    /** Whether `id` has a 3D model of their own (true), is dressed from the kit (false), or isn't here (null). */
+    hasModel(id) {
+      const person = people.get(id);
+      return person ? !!person.hasModel : null;
+    },
     /** Whether `id` walks with the player. */
     inParty(id) {
       return party.includes(id);
@@ -1554,9 +1562,13 @@ export function createCrowd() {
       for (const entry of wanted.values()) {
         const person = people.get(entry.id);
         if (!person) add(entry);
-        else if ((entry.body ?? "auto") !== person.body) {
-          // A new body choice: redress them (only matters without their own 3D model).
+        else if (
+          (entry.body ?? "auto") !== person.body ||
+          JSON.stringify(entry.look ?? {}) !== JSON.stringify(person.look)
+        ) {
+          // A new body or look: redress them (only matters without their own 3D model).
           person.body = entry.body ?? "auto";
+          person.look = entry.look ?? {};
           if (!person.hasModel && dressPeople) void loadModel(person);
         }
       }

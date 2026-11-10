@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.17 — 2026-11-11
+
+- A Look card for anyone without a 3D model, your persona included: the Look button beside the body choice (People, and Play as) sets outfit, colour, hair, hair colour, skin, beard and height. Changes show at once and are kept with the world.
+- A second outfit, the ranger (hood and pauldrons) in five colours; about one in four townsfolk now wears it unless you choose otherwise. More hair colours, and a bare head.
+
 ## 0.5.16 — 2026-11-11
 
 - Campfires burn: a flickering flame, a light that comes up as it gets dark, and smoke.

@@ -22,6 +22,7 @@ import {
   Uint16BufferAttribute,
 } from "three";
 import { humanoidFromSkeleton } from "./models.js";
+import { HAIR_COLOURS, OUTFITS, RANGER_SHARE, SKIN_TONES, USUAL_HAIR, USUAL_HAIR_COLOURS } from "./looks.js";
 import { hashString, rng } from "./world.js";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/people/";
@@ -69,21 +70,6 @@ for (const [side, s] of [
   BONES[`${side}ThumbProximal`] = `thumb_02_${s}`;
   BONES[`${side}ThumbDistal`] = `thumb_03_${s}`;
 }
-
-// Skin tones as a tint on the pack's skin; hair colours as a tint on its pale hair.
-const SKIN = [
-  [1.12, 1.06, 1.02],
-  [1.0, 0.97, 0.94],
-  [0.9, 0.8, 0.72],
-  [0.74, 0.6, 0.5],
-  [0.56, 0.43, 0.35],
-  [0.42, 0.31, 0.25],
-];
-const HAIR = [0x2b1d14, 0x4a2f1c, 0x7a4a26, 0xb08850, 0xe0c890, 0x1a1a1a, 0x8c2f1e, 0xbcbcbc];
-const HAIRSTYLES = {
-  male: ["buzzed", "simpleparted", "long", "simpleparted"],
-  female: ["buns", "long", "simpleparted", "buzzedfemale"],
-};
 
 const files = new Map();
 const textures = new Map();
@@ -151,33 +137,67 @@ function geometryOf(mesh) {
   return geometry;
 }
 
-/** A person's look, from their name. */
-export function lookFor(name, index, body = "auto") {
+/**
+ * A person's look: from their name, with whatever was chosen for them by hand (`chosen`: looks.js) over
+ * it. The name's choices are made the same way whatever is chosen, so changing one thing changes only that.
+ */
+export function lookFor(name, index, body = "auto", chosen = {}) {
   const random = rng(hashString(`${name || "wanderer"}:kit`));
   const pick = (list) => list[Math.floor(random() * list.length)];
   // The body chosen in the People menu (later: from the character card), or else one from the name.
   const fromName = random() < 0.5 ? "male" : "female";
   const sex = body === "male" || body === "female" ? body : fromName;
-  const outfit = pick(index.sexes[sex].outfits);
+  const outfits = index.sexes[sex].outfits;
+  const named = (kind) => outfits.find((entry) => entry.name === `${sex}-${kind}`);
+  // Most are townsfolk; now and then someone is dressed for the road.
+  const usual = (random() < RANGER_SHARE && named("ranger")) || named("peasant") || outfits[0];
+  const usualColour = pick(usual.colourways);
+  const outfit = (chosen.outfit && named(chosen.outfit)) || usual;
+  const usualHair = pick(USUAL_HAIR[sex]);
+  const usualBeard = sex === "male" && random() < 0.3;
+  const usualSkin = Math.floor(random() * SKIN_TONES.length);
+  const usualHairColour = Math.floor(random() * USUAL_HAIR_COLOURS);
+  const usualHeight = 0.94 + random() * 0.12;
+  const colours = outfit.colourways;
   return {
     sex,
     outfit: outfit.name,
-    colourway: pick(outfit.colourways),
-    hair: pick(HAIRSTYLES[sex]),
-    beard: sex === "male" && random() < 0.3,
-    skin: pick(SKIN),
-    hairColour: pick(HAIR),
-    height: 0.94 + random() * 0.12,
+    colourway: colours.includes(chosen.colour)
+      ? chosen.colour
+      : outfit === usual
+        ? usualColour
+        : colours[hashString(`${name}:colour`) % colours.length],
+    hair: chosen.hair ?? usualHair,
+    beard: sex === "male" && (chosen.beard ?? usualBeard),
+    skin: SKIN_TONES[chosen.skin ?? usualSkin][0],
+    hairColour: HAIR_COLOURS[chosen.hairColour ?? usualHairColour][0],
+    height: chosen.height ?? usualHeight,
     seed: hashString(`${name}:motion`),
+    // What's on show in the Look card: the same things as plain choices.
+    choices: {
+      outfit: outfit.name.slice(sex.length + 1),
+      hair: chosen.hair ?? usualHair,
+      beard: sex === "male" && (chosen.beard ?? usualBeard),
+      skin: chosen.skin ?? usualSkin,
+      hairColour: chosen.hairColour ?? usualHairColour,
+      height: chosen.height ?? usualHeight,
+    },
   };
 }
 
-/** The default person for `name` with `build` ("male", "female" or "auto"), as a walking character.
- *  Rejects if the kit can't be loaded. */
-export async function createPerson(name, build = "auto") {
+/** How `name` looks now, as the Look card's choices (looks.js), with their sex: loads the kit's index. */
+export async function lookChoices(name, body = "auto", chosen = {}) {
+  const look = lookFor(name, await load("index.json"), body, chosen);
+  return { ...look.choices, colour: look.colourway, sex: look.sex, outfits: Object.keys(OUTFITS) };
+}
+
+/** The default person for `name` with `build` ("male", "female" or "auto") and whatever look was
+ *  `chosen` for them (looks.js), as a walking character. Rejects if the kit can't be loaded. */
+export async function createPerson(name, build = "auto", chosen = {}) {
   const index = await load("index.json");
-  const look = lookFor(name, index, build);
-  const parts = [look.outfit, `head-${look.sex}`, `hair-${look.hair}`];
+  const look = lookFor(name, index, build, chosen);
+  const parts = [look.outfit, `head-${look.sex}`];
+  if (look.hair !== "none") parts.push(`hair-${look.hair}`);
   if (look.beard) parts.push("hair-beard");
   const [body, ...rest] = await Promise.all(parts.map((part) => load(`${part}.json`)));
 

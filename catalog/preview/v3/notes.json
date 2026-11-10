@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.17",
+          "date": "2026-11-11",
+          "notes": "- A Look card for anyone without a 3D model, your persona included: the Look button beside the body choice (People, and Play as) sets outfit, colour, hair, hair colour, skin, beard and height. Changes show at once and are kept with the world.\n- A second outfit, the ranger (hood and pauldrons) in five colours; about one in four townsfolk now wears it unless you choose otherwise. More hair colours, and a bare head.",
+          "highlight": false
+        },
+        {
           "version": "0.5.16",
           "date": "2026-11-11",
           "notes": "- Campfires burn: a flickering flame, a light that comes up as it gets dark, and smoke.\n- A campsite's logs are seats, turned to face the fire and clear of the tent.\n- Sleep in a campsite's tent: choose how long (an hour to eight, or until morning or evening), the screen dims, and the clock jumps on. Everyone not close by is where that hour has them: at home, at work, or out.\n- Townsfolk nap in the tent too.",
@@ -307,12 +313,6 @@
           "version": "0.4.100",
           "date": "2026-11-09",
           "notes": "- Illustrate: a sentence of the template whose placeholders all come out empty is left out of the prompt, so no more \"With them:.\" when nobody's there.\n- Journal → World → \"How this world looks in pictures\": the words {world_look} puts in every picture's prompt are yours to set per world. The usual ones are now about the era, not one place (\"medieval fantasy, pre-industrial, nothing modern\"), so the woods don't get houses painted into them.\n- The chat is kept with the world: its last 30 lines are there again when you come back.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.99",
-          "date": "2026-11-09",
-          "notes": "- Illustrate: the picture takes the window now. The gallery, template, size and the rest fold away under it.\n- Fixed: appearances were cut off mid-word in the prompt. Your persona's is sent whole (up to 1500 characters), other people's up to 600, ending on a whole word.\n- New {world_look} in the template says what Wanderworld's world looks like (a medieval fantasy village), so pictures stop coming out modern. {setting} is still only what you wrote in the world's Setting box. An unchanged template picks it up by itself; add {world_look} to one you've edited.\n- Every placeholder is explained, one to a row, in a list that scrolls; click one to put it in the template.\n- \"Improve the prompt with AI\" can use a connection of its own, apart from the one conversations use, and has a tag-style instruction to start from.",
           "highlight": false
         }
       ]

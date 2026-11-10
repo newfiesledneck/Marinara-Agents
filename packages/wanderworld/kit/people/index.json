@@ -14,6 +14,16 @@
             "clothes-plum",
             "clothes-grey"
           ]
+        },
+        {
+          "name": "male-ranger",
+          "colourways": [
+            "ranger-a",
+            "ranger-b",
+            "ranger-wine",
+            "ranger-dusk",
+            "ranger-grey"
+          ]
         }
       ]
     },
@@ -29,6 +39,16 @@
             "clothes-teal",
             "clothes-plum",
             "clothes-grey"
+          ]
+        },
+        {
+          "name": "female-ranger",
+          "colourways": [
+            "ranger-a",
+            "ranger-b",
+            "ranger-wine",
+            "ranger-dusk",
+            "ranger-grey"
           ]
         }
       ]

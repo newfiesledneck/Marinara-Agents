@@ -10,6 +10,7 @@
 
 import { checkScene } from "./interactions.js";
 import { checkEntry } from "./schedules.js";
+import { checkLook } from "./looks.js";
 import { checkGroups } from "./zones.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
 
@@ -308,6 +309,15 @@ export function checkWorld(raw) {
     bodies: isRecord(raw.bodies)
       ? Object.fromEntries(Object.entries(raw.bodies).filter(([, body]) => body === "male" || body === "female"))
       : null,
+    // What was chosen by hand for each one's look, without a 3D model: { [id]: look } (looks.js checkLook).
+    looks: isRecord(raw.looks)
+      ? Object.fromEntries(
+          Object.entries(raw.looks)
+            .slice(0, 200)
+            .map(([id, look]) => [id, checkLook(look)])
+            .filter(([, look]) => Object.keys(look).length),
+        )
+      : {},
     // How big the world is (world.js WORLD_SIZES): small, normal, large, huge or massive.
     worldSize: ["small", "normal", "large", "huge", "massive"].includes(raw.worldSize) ? raw.worldSize : "normal",
     // The least the world must have for its lore ({ kind: count }, zones.js `needsFromLore`).

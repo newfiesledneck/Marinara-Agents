@@ -70,4 +70,72 @@ for (const name of ["Bram", "Ivy", "Hank", "Lena", "Odo", "Sera", "Cole", "Brin"
 }
 assert.ok(looks.size >= 5, `different names look different (${looks.size} looks for 8 names)`);
 
+// ── Looks chosen by hand ─────────────────────────────────────────────────────
+{
+  const { checkLook, HAIR_COLOURS, OUTFITS, SKIN_TONES } = await import("../packages/wanderworld/src/looks.js");
+  // Every outfit and colour on the menus is in the kit, for both bodies.
+  for (const sex of ["male", "female"]) {
+    for (const [outfit, { colours }] of Object.entries(OUTFITS)) {
+      const packed = index.sexes[sex].outfits.find((entry) => entry.name === `${sex}-${outfit}`);
+      assert.ok(packed, `the kit has the ${sex} ${outfit} outfit`);
+      assert.deepEqual([...packed.colourways].sort(), colours.map(([name]) => name).sort(), `${outfit}'s colours`);
+    }
+  }
+  const usual = lookFor("Mira", index, "female");
+  // One thing chosen changes only that.
+  const hooded = lookFor("Mira", index, "female", { outfit: "ranger" });
+  assert.equal(hooded.outfit, "female-ranger");
+  assert.ok(
+    OUTFITS.ranger.colours.some(([name]) => name === hooded.colourway),
+    "a ranger wears a ranger's colour",
+  );
+  assert.equal(hooded.hair, usual.hair, "her hair is as it was");
+  assert.deepEqual(hooded.skin, usual.skin, "and her skin");
+  const dyed = lookFor("Mira", index, "female", {
+    hairColour: 9,
+    skin: 4,
+    hair: "none",
+    height: 1.1,
+    colour: "clothes-red",
+    outfit: "peasant",
+  });
+  assert.equal(dyed.hairColour, HAIR_COLOURS[9][0]);
+  assert.deepEqual(dyed.skin, SKIN_TONES[4][0]);
+  assert.equal(dyed.hair, "none");
+  assert.equal(dyed.height, 1.1);
+  assert.equal(dyed.colourway, "clothes-red");
+  assert.equal(lookFor("Tam", index, "male", { beard: true }).beard, true);
+  assert.equal(lookFor("Tam", index, "female", { beard: true }).beard, false, "a beard is a man's");
+  // Whoever is dressed from a chosen look loads and stands like anyone.
+  for (const chosen of [
+    { outfit: "ranger", hair: "none" },
+    { outfit: "ranger", colour: "ranger-wine", beard: true },
+  ]) {
+    const person = await createPerson("Rook", "male", chosen);
+    assert.ok(person.object && typeof person.update === "function");
+    person.update(0.1, 0, {});
+    person.dispose();
+  }
+  // What's saved is only what's on the menus.
+  assert.deepEqual(
+    checkLook({ outfit: "ranger", colour: "clothes-red", hair: "mohawk", skin: 99, beard: "yes", height: 5 }),
+    {
+      outfit: "ranger",
+      height: 1.12,
+    },
+  );
+  assert.deepEqual(
+    checkLook({ colour: "ranger-wine" }),
+    { colour: "ranger-wine", outfit: "ranger" },
+    "a colour brings its outfit",
+  );
+  assert.deepEqual(checkLook("ranger"), {});
+  assert.deepEqual(checkLook({ hairColour: 3, skin: 0, beard: false, hair: "long" }), {
+    hair: "long",
+    hairColour: 3,
+    skin: 0,
+    beard: false,
+  });
+}
+
 console.log("wanderworld people regression: OK");

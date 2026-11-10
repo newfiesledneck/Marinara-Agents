@@ -46,7 +46,8 @@ import {
   VOICES,
   worldFromLore,
 } from "./keywords.js";
-import { createPerson } from "./people.js";
+import { createPerson, lookChoices } from "./people.js";
+import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
@@ -248,6 +249,7 @@ const core = {
   characters: null, // [{ id, name }] from the Engine
   cast: new Set(), // the character ids living in town
   bodies: {}, // chosen default bodies by id ("male" | "female"; missing means auto)
+  looks: {}, // and what else was chosen for them by hand (looks.js), by id
   crowd: createCrowd(),
   sound: createSound(),
   settings: loadSettings(),
@@ -645,6 +647,7 @@ function playWorld(id) {
     save.bodies = { ...core.bodies };
     core.saves.write(save);
   }
+  core.looks = { ...(save.looks ?? {}) };
   core.save = save;
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
@@ -2648,7 +2651,8 @@ async function choosePersona(id) {
     // Their own 3D model, or else a person dressed from the kit.
     const character = model
       ? await loadModelCharacter(model)
-      : await createPerson(persona?.name ?? "", core.bodies[persona?.id] ?? "auto");
+      : await createPerson(persona?.name ?? "", core.bodies[persona?.id] ?? "auto", core.looks[persona?.id] ?? {});
+    core.personaHasModel = !!model;
     if (load !== core.personaLoad) {
       character.dispose();
       return;
@@ -2665,7 +2669,11 @@ function updateCast() {
   // Whoever lives in this region, and the party that came along (isHere).
   const chosen = (core.characters ?? [])
     .filter((character) => core.cast.has(character.id) && isHere(character))
-    .map((character) => ({ ...character, body: core.bodies[character.id] ?? "auto" }));
+    .map((character) => ({
+      ...character,
+      body: core.bodies[character.id] ?? "auto",
+      look: core.looks[character.id] ?? {},
+    }));
   core.crowd.setCast(chosen);
   useSchedules();
   core.crowd.setShadows(core.settings.shadows);
@@ -2687,6 +2695,35 @@ function setBody(id, body) {
     core.hud?.setPersonas(core.personas ?? [], core.personaId, core.bodies); // its body picker shows it too
     void choosePersona(id);
   } else updateCast();
+}
+
+/**
+ * Sets what `id` (a character or the persona) looks like without a 3D model: `look` is the choices made
+ * by hand (looks.js), or null to go back to what their name gives. Kept with this world.
+ */
+function setLook(id, look) {
+  const checked = checkLook(look);
+  if (Object.keys(checked).length) core.looks[id] = checked;
+  else delete core.looks[id];
+  if (core.save) {
+    core.save = { ...core.save, looks: { ...core.looks } };
+    core.saves.write(core.save);
+  }
+  if (id === core.personaId) void choosePersona(id);
+  else updateCast();
+}
+
+/** What the Look card needs for `id`: their name, how they look now, and whether a 3D model hides it. */
+async function lookOf(id) {
+  const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
+  const name = persona?.name ?? (core.characters ?? []).find((entry) => entry.id === id)?.name ?? "";
+  const hasModel = persona ? !!core.personaHasModel : !!core.crowd.hasModel(id);
+  const chosen = core.looks[id] ?? {};
+  try {
+    return { id, name, hasModel, chosen, now: await lookChoices(name, core.bodies[id] ?? "auto", chosen) };
+  } catch {
+    return null; // the kit's people couldn't be loaded
+  }
 }
 
 function toggleCharacter(id, chosen) {
@@ -6180,6 +6217,8 @@ function attach(element) {
     onPickPersona: (id) => void choosePersona(id),
     onToggleCharacter: toggleCharacter,
     onSetBody: setBody,
+    onSetLook: setLook,
+    lookOf,
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
     onRegeneratePreview: previewRegenerate,
