@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.96",
+          "date": "2026-11-09",
+          "notes": "- Credits: the thanks to Marinara and the Marinara Engine developers says more of how Wanderworld came to be, and the art line is shorter.",
+          "highlight": false
+        },
+        {
           "version": "0.4.95",
           "date": "2026-11-09",
           "notes": "- The brown buttons are wooden boards now (the kit's wood grain, still easy to read), and Credits and Thanks is a slab of stone.\n- Credits: the art is credited as made with ComfyUI, and your 3D avatars to the 3D Avatars package, made by Marinara.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.77",
           "date": "2026-11-09",
           "notes": "- New world can be written by the AI from nothing: \"World lore: let the AI write this world and its places\" writes a premise and named places with their own lore, kept in the world and active where you stand.\n- \"New people for the AI to invent\": up to 12 people built around those places and your cast, with a description, personality, looks, home, work and relationships. They live in that world only (not Engine characters), talk and keep their days like anyone, and can't be cast in scenes.\n- A lorebook entry about someone with no card can become a person in the world.\n- The steps feed each other in order: lorebooks, the world and its places, new people, then your own characters fitted in among them. All of it shows in the review before the land is built.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.76",
-          "date": "2026-11-09",
-          "notes": "- Dirt streets in a hamlet or village are paths now: their edges fade into the grass instead of ending in a hard line.\n- A Large, Huge or Massive world left to the seed gets more places out in it (landmarks, and for Huge and Massive another farm and hamlet), so there is something to walk to. What you choose by hand stays as chosen.\n- Fixed: your body picker in the bar didn't show the body the AI's setup gave your persona until the world was reopened.",
           "highlight": false
         }
       ]
