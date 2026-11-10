@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.3",
+          "date": "2026-11-10",
+          "notes": "- New: Settings → AI assistant. Talk with the AI about the world you're in, or have it change the world: who's what to whom (\"make Jake and Sarah a married couple who live together\"), where people live and work, this world's own lore about a person, a place or the whole world (\"rewrite Jason's lore to make him a sorcerer who prays at the shrine\"), and the cards of people the world invented.\n- Every change is listed after the answer, with what was left out and why. An answer whose changes can't be read changes nothing and says so.\n- It only changes this world: never your character cards, personas or lorebooks in the Engine, nor the settings.",
+          "highlight": false
+        },
+        {
           "version": "0.5.2",
           "date": "2026-11-10",
           "notes": "- New world: \"Ages of the people the AI makes\", from 21 with no upper limit unless you change it (empty a box for no limit that way). It holds for everyone the AI invents or fills in, family from your cards included: someone outside the range isn't made. Ages your own lore or cards give are left alone. Kept with the world.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.86",
           "date": "2026-11-09",
           "notes": "- The person window lets you pick a role for a relationship again (family: sister, parent, cousin…; colleague: employer, apprentice…; mentor: mentor or student), beside its kind and strength. A role a lorebook gave (\"father\", \"wife\") stays on offer.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.85",
-          "date": "2026-11-09",
-          "notes": "- Everything about a person is managed in one place: Journal → People → Edit people → Edit. Their day is edited there now (lines of hours, what they do and where, or planned by the AI), next to home and work and their relationships. The separate Schedules, Homes and work, and Relationships pages are gone from the Journal.\n- The top bar is shorter: Journal, Lore, Illustrate, Chat and Menu. Menu holds who you play as, Settings, full screen and the way back to the main menu.",
           "highlight": false
         }
       ]

@@ -686,4 +686,68 @@ assert.equal(
   globalThis.fetch = realFetch;
 }
 
+// The AI assistant: its words come back as they are; its changes only when they hold up, each checked.
+{
+  const fenced = (json) => `Done, they're married.\n\n\`\`\`wanderworld\n${json}\n\`\`\``;
+  assert.deepEqual(server.readAssistant("<think>hm</think>Brenna runs the bakery."), {
+    reply: "Brenna runs the bakery.",
+    edits: [],
+    problem: "",
+  });
+  const good = server.readAssistant(
+    fenced(
+      JSON.stringify({
+        edits: [
+          { do: "relate", from: "Jake", to: "Sarah", kind: "partner", role: "husband", level: 250, both: true },
+          { do: "home", person: "Jake", with: "Sarah" },
+          { do: "lore", about: "Jason", text: "A sorcerer who prays at the shrine." },
+          { do: "relate", from: "Jake", to: "Sarah", kind: "owns" },
+          { do: "delete-everything" },
+          "home",
+          { do: "work", person: "Jake" },
+          { do: "card", person: "Oswin", name: "Hacked" },
+        ],
+      }),
+    ),
+  );
+  assert.equal(good.reply, "Done, they're married.", "the block isn't shown as words");
+  assert.deepEqual(good.edits, [
+    { do: "relate", from: "Jake", to: "Sarah", kind: "partner", role: "husband", backRole: "", level: 100, both: true },
+    { do: "home", person: "Jake", place: "", with: "Sarah", owner: false },
+    { do: "lore", about: "Jason", text: "A sorcerer who prays at the shrine." },
+  ]);
+  assert.match(good.problem, /^5 of the assistant's changes weren't/u, "what doesn't hold up is left out, and said");
+  for (const broken of [fenced('{"edits": [{"do": "home", '), fenced('{"changes": []}'), fenced("42")]) {
+    const read = server.readAssistant(broken);
+    assert.deepEqual(read.edits, [], "a malformed block changes nothing");
+    assert.match(read.problem, /so nothing was changed/u);
+    assert.equal(read.reply, "Done, they're married.");
+  }
+  const cut = server.readAssistant('On it.\n```wanderworld\n{"edits": [{"do": "lore", "about": "Ja');
+  assert.deepEqual([cut.reply, cut.edits.length], ["On it.", 0]);
+  assert.match(cut.problem, /cut short/u);
+  // The route: the world's facts and the chat go to the model, and its answer comes back read.
+  const heard = [];
+  runtime.languageModels.resolveForRequest = async () => ({
+    async chatComplete(messages) {
+      heard.push(messages);
+      return { content: fenced('{"edits": [{"do": "work", "person": "Mira", "place": "tavern1", "owner": true}]}') };
+    },
+  });
+  const turn = await call("post", "/assistant", {
+    body: {
+      worldName: "Larkspur",
+      history: [{ role: "user", text: "Give Mira the tavern." }],
+      people: [{ name: "Mira", relations: ["friend of Zoey"], lore: "Bakes at dawn." }, { name: "" }],
+      places: [{ slot: "tavern1", name: "The Drowned Bell" }],
+    },
+  });
+  assert.deepEqual(turn.body.edits, [{ do: "work", person: "Mira", place: "tavern1", with: "", owner: true }]);
+  assert.ok(heard[0][0].content.startsWith(server.ASSISTANT_INSTRUCTION));
+  assert.match(heard[0][0].content, /## People\s+Mira\n {2}friend of Zoey\n {2}lore: Bakes at dawn\./u);
+  assert.match(heard[0][0].content, /tavern1 = The Drowned Bell/u);
+  assert.deepEqual(heard[0].at(-1), { role: "user", content: "Give Mira the tavern." });
+  assert.equal((await call("post", "/assistant", { body: { history: [] } })).code, 400, "nothing asked");
+}
+
 console.log("wanderworld server regression: OK");

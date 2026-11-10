@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.3 — 2026-11-10
+
+- New: Settings → AI assistant. Talk with the AI about the world you're in, or have it change the world: who's what to whom ("make Jake and Sarah a married couple who live together"), where people live and work, this world's own lore about a person, a place or the whole world ("rewrite Jason's lore to make him a sorcerer who prays at the shrine"), and the cards of people the world invented.
+- Every change is listed after the answer, with what was left out and why. An answer whose changes can't be read changes nothing and says so.
+- It only changes this world: never your character cards, personas or lorebooks in the Engine, nor the settings.
+
 ## 0.5.2 — 2026-11-10
 
 - New world: "Ages of the people the AI makes", from 21 with no upper limit unless you change it (empty a box for no limit that way). It holds for everyone the AI invents or fills in, family from your cards included: someone outside the range isn't made. Ages your own lore or cards give are left alone. Kept with the world.

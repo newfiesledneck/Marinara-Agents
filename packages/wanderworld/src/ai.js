@@ -94,6 +94,8 @@ export function createAi(locals = () => []) {
       request("/looks", { method: "POST", body: { ids: wanted, locals: locals() } }).then((body) => body?.looks ?? {}),
     /** A world written for itself, a step at a time: { premise, places } or { people } (server.mjs `/world-write`). */
     worldWrite: (payload) => request("/world-write", { method: "POST", body: payload, timeout: 240000 }),
+    /** One turn with the AI assistant: { reply, edits (checked, for the world), problem } (server.mjs `/assistant`). */
+    assistant: (payload) => request("/assistant", { method: "POST", body: payload, timeout: 240000 }),
     /** Illustrates the moment from the user's template: { id, image, prompt, caption, at }; kept in the gallery. */
     illustrate: (payload) =>
       request("/illustrate", { method: "POST", body: { ...payload, locals: locals() }, timeout: 300000 }),

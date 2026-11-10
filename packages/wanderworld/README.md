@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.2)
+## What it does now (0.5.3)
 
 ### The world
 
