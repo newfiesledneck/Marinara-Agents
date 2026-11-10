@@ -3,7 +3,7 @@
 // optional; whatever isn't chosen stays as their name has it:
 //
 //   { outfit,                       the outfit they're dressed in, all of a piece
-//     top, arms, legs, feet,        or any one piece of it from another outfit
+//     top, arms, legs, feet,        or any one piece of it from another outfit, or "none" (left off)
 //     hood, pauldrons,              the ranger's, on or off (on with the ranger's top unless said)
 //     colour, rangerColour,         the cloth of the townsfolk pieces, and of the ranger's
 //     tints: { top, arms, … },      a colour of your own for any piece (0xRRGGBB), in place of its cloth's
@@ -40,6 +40,9 @@ export const OUTFITS = {
     ],
   },
 };
+/** What a piece can be: one of the outfits', or left off ("none": the body shows there, in its underclothes). */
+export const BARE = "none";
+export const PIECE_KINDS = [...Object.keys(OUTFITS), BARE];
 /** Which look field holds each outfit's colour. */
 export const COLOUR_FIELD = { peasant: "colour", ranger: "rangerColour" };
 /** The pieces every outfit has: [look field, label]. */
@@ -118,7 +121,7 @@ export function checkLook(raw) {
   const look = {};
   const outfit = (value) => Object.hasOwn(OUTFITS, value);
   if (outfit(raw.outfit)) look.outfit = raw.outfit;
-  for (const [piece] of PIECES) if (outfit(raw[piece])) look[piece] = raw[piece];
+  for (const [piece] of PIECES) if (PIECE_KINDS.includes(raw[piece])) look[piece] = raw[piece];
   for (const [extra] of EXTRAS) if (typeof raw[extra] === "boolean") look[extra] = raw[extra];
   for (const [kind, field] of Object.entries(COLOUR_FIELD)) {
     const colours = OUTFITS[kind].colours.map(([name]) => name);

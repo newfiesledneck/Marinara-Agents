@@ -391,10 +391,50 @@ function main() {
     });
     writeFileSync(join(OUT, `head-${sex}.json`), JSON.stringify(head));
 
+    // The rest of the base body, cut the same way into the pieces an outfit has, for a piece left off:
+    // the body shows there, in the underclothes painted on its skin. Each triangle goes to the piece that
+    // holds most of it (the hips go with the legs, so trousers or a bare top never leave a gap there).
+    const regionOf = (joint) =>
+      /^(Head|neck)/u.test(joint)
+        ? "head"
+        : /^(spine|clavicle)/u.test(joint)
+          ? "top"
+          : /^(upperarm|lowerarm|hand|index|middle|pinky|ring|thumb)/u.test(joint)
+            ? "arms"
+            : /^(foot|ball)/u.test(joint)
+              ? "feet"
+              : /^calf/u.test(joint)
+                ? "shins"
+                : "legs";
+    const skin = headParts.filter((primitive) => roles(primitive) === "head");
+    for (const piece of ["top", "arms", "legs", "feet"]) {
+      const bare = packPart(skin, {
+        texture: () => `head-${sex}`,
+        keep: (primitive) => {
+          const region = (v) => {
+            let best = 0;
+            for (let c = 1; c < 4; c++)
+              if (primitive.weights.values[v * 4 + c] > primitive.weights.values[v * 4 + best]) best = c;
+            return regionOf(primitive.jointNames[primitive.joints.values[v * 4 + best]]);
+          };
+          return (tri) => {
+            const regions = tri.map(region);
+            // The piece two of its corners are in, or its first corner's.
+            const most = regions.find((name, i) => regions.indexOf(name) !== i) ?? regions[0];
+            // (What's all the head's is the head's file; a triangle the head only shares goes to the top.)
+            if (most === "head") return piece === "top" && !regions.every((name) => name === "head");
+            // (The shins go with the legs and with the feet: bare feet under trousers still have ankles.)
+            return most === piece || (most === "shins" && (piece === "legs" || piece === "feet"));
+          };
+        },
+      });
+      writeFileSync(join(OUT, `${sex}-none-${piece}.json`), JSON.stringify(bare));
+    }
+
     // Outfits, in the pack's own pieces (top, arms, legs, feet; the ranger's hood and pauldrons), so a
     // person can wear any mix of them: each piece its own file, the skeleton they all bind to in another.
     // A piece's cloth is marked by its outfit ("clothes-peasant"), so each outfit keeps its own colours.
-    index.sexes[sex] = { outfits: [], pieces: {} };
+    index.sexes[sex] = { outfits: [], pieces: { top: ["none"], arms: ["none"], legs: ["none"], feet: ["none"] } };
     const parts = join(outfitDir, "Exports/glTF (Godot-Unreal)/Modular Parts");
     const whole = readGltf(join(outfits, `${Sex}_Peasant.gltf`));
     const frame = packPart(skinnedPrimitives(whole), { texture: () => "", skeleton: skeletonOf(whole) });

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.20",
+          "date": "2026-11-11",
+          "notes": "- Look card: any piece (top, sleeves, legs, boots) can be set to None, which shows the body there: bare arms, a bare chest, bare feet. The body wears dark underclothes, so leaving everything off is still decent.",
+          "highlight": false
+        },
+        {
           "version": "0.5.19",
           "date": "2026-11-11",
           "notes": "- Look card: every piece (top, sleeves, legs, boots, hood, pauldrons) can have a colour of its own, and it comes out as the colour you pick instead of darkening the cloth. Skin can be any colour too.\n- Its own colour picker, with \"Use this colour\", \"No colour\" and \"Cancel\" buttons, in place of the browser's.\n- The button that forgets the choices is called Reset.\n- Fixed: cropped hair cut through a woman's head. There is one Cropped style now, cut for each body.\n- The two darkest townsfolk colours are lighter, and the colours are named for what they look like (Cream, Olive, Blue, Rose, Green, Plum, Grey).",
@@ -308,12 +314,6 @@
           "date": "2026-11-10",
           "notes": "- Illustrate: with the AI rewrite on, the last lines of the chat go with the prompt, so the picture shows what you're doing now (kneeling by the pond), not just \"standing\". New {recent_chat} placeholder.\n- The Illustrate window is all picture; the gallery, prompt and settings are a scroll down.\n- A crossroads, one-street or ring settlement no longer has bare fields inside it: a pond where there's room, houses off the streets, gardens, meadows and trees. Worlds you have get them too.\n- Street names are only where a street is laid, not out across open ground.\n- A pond's place reaches its shore and bench.\n- Fixed: a noticeboard errand to someone at home (or in a room with you) never finished; it does now at their door or beside them indoors. Knocking where nobody is in no longer has someone answer.\n- {persona_appearance} and {people_appearance} use the whole Appearance block.",
           "highlight": false
-        },
-        {
-          "version": "0.5.0",
-          "date": "2026-11-09",
-          "notes": "- New world: the first map is marked as a first idea. Lorebooks and the AI's setup add the places the lore needs, so the map you get can differ.\n- The review before a world is built shows the map it will get, and \"Reroll the map\" gives another without asking the AI again: the people, places and lore stay, and every place they need is on the new map.\n- When the AI invents people, it reads your persona's and your chosen characters' cards first. Family and close ones the cards speak of (a father, a brother, a wife, an old friend) who aren't among your characters are made before anyone is invented, your persona's own family first, with how they're related set.",
-          "highlight": true
         }
       ]
     }
