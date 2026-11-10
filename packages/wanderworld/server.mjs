@@ -39,6 +39,7 @@ const MAX = {
   lore: 12,
   loreText: 1500,
   prompt: 1500,
+  picture: 6000, // an Illustrate prompt: whole appearances for the player and up to eight others
   people: 20,
   transcript: 30,
 };
@@ -83,6 +84,15 @@ const VOICES = { whisper: "whispers", talk: "says", shout: "shouts" };
 
 const text = (value, max) => (typeof value === "string" ? value.replace(/\s+/gu, " ").trim().slice(0, max) : "");
 const block = (value, max) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+/** Cut to `max` characters at the end of a word (of a clause, when one ends near enough): never mid-word. */
+export const cutWords = (value, max) => {
+  const words = text(value, 100000);
+  if (words.length <= max) return words;
+  const cut = words.slice(0, max + 1);
+  const clause = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "), cut.lastIndexOf(", "));
+  const end = clause > max * 0.7 ? clause : cut.lastIndexOf(" ");
+  return cut.slice(0, end > 0 ? end : max).replace(/[\s,;.]+$/u, "");
+};
 const idOf = (value) => {
   const id = text(value, MAX.id);
   return /^[\w:./@-]+$/u.test(id) ? id : "";
@@ -569,7 +579,7 @@ export function fillTemplate(template, values) {
     .replace(/\s+([,.])/gu, "$1")
     .replace(/([,.]){2,}/gu, "$1")
     .trim()
-    .slice(0, MAX.prompt);
+    .slice(0, MAX.picture);
 }
 
 const POVS = {
@@ -1125,13 +1135,13 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           .map((person) => {
             const card = cards.get(idOf(person.id));
             const name = card?.name ?? text(person.name, MAX.name);
-            return card?.appearance ? `${name}: ${card.appearance.slice(0, 300)}` : "";
+            return card?.appearance ? `${name}: ${cutWords(card.appearance, 600)}` : "";
           })
           .filter(Boolean);
         const values = {
           persona: persona.name,
           // "Zoey: tall, red-haired…", or nothing when the card has no appearance (so no dangling name).
-          persona_appearance: persona.appearance ? `${persona.name}: ${persona.appearance.slice(0, 300)}` : "",
+          persona_appearance: persona.appearance ? `${persona.name}: ${cutWords(persona.appearance, 1500)}` : "",
           people: people.map((person) => `${cards.get(idOf(person.id))?.name ?? text(person.name, MAX.name)}${text(person.doing, 80) ? ` (${text(person.doing, 80)})` : ""}`).join(", "),
           people_appearance: looks.join("; "),
           place: text(facts.place, 200),
@@ -1141,14 +1151,15 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           weather: text(facts.weather, 40),
           activity: text(facts.activity, 160),
           setting: text(facts.setting, 400),
+          world_look: text(facts.look, 200),
           recent: text(facts.recent, 400),
         };
         // The prompt: the one the player approved (after a review), or the template filled in and, when
         // asked, rewritten by the model to the player's instruction. A rewrite that fails leaves it as it was.
-        let prompt = block(body.prompt, 2000) || fillTemplate(template, values);
+        let prompt = block(body.prompt, MAX.picture) || fillTemplate(template, values);
         if (!prompt) return reply.status(400).send({ error: "The template came out empty." });
         let improved = false;
-        if (body.improve === true && !block(body.prompt, 2000)) {
+        if (body.improve === true && !block(body.prompt, MAX.picture)) {
           try {
             const model = await languageModels.resolveForRequest({ connectionId: idOf(body.textConnectionId) || undefined });
             const result = await model.chatComplete(

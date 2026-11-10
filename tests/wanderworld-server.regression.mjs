@@ -500,6 +500,23 @@ assert.equal(
   });
   assert.equal(shot.code, 200);
   assert.equal(shot.body.prompt, "Zoey with Mira (kneading dough) at the bakery, morning. Mira: flour on her apron");
+  // A long appearance ends on a whole word (a clause, when one ends near), never mid-word; a short one is whole.
+  assert.equal(server.cutWords("tall, dark kohl, and a little scar", 26), "tall, dark kohl, and a");
+  assert.equal(server.cutWords("tall, dark kohl, and a little scar", 20), "tall, dark kohl");
+  assert.equal(server.cutWords("one two three four five", 12), "one two");
+  assert.equal(server.cutWords("short  and\nwhole", 300), "short and whole");
+  const long = `${"a long green cloak, ".repeat(40)}and boots`;
+  assert.equal(server.cutWords(long, 1500), long, "an appearance of 800 characters is kept whole");
+  // What the world looks like comes from the game ({world_look}); {setting} is only the player's own words.
+  const looked = await call("post", "/illustrate", {
+    body: {
+      worldId: "w1",
+      template: "{place}. {world_look}. {setting}. No text.",
+      facts: { place: "the bakery", look: "medieval fantasy village" },
+      previewOnly: true,
+    },
+  });
+  assert.equal(looked.body.prompt, "the bakery. medieval fantasy village. No text.");
   const gallery = (await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures;
   assert.equal(gallery.length, 1);
   assert.equal(gallery[0].image, undefined, "the list carries no image data");
