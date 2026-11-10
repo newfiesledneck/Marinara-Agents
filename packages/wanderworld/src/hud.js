@@ -1169,6 +1169,11 @@ export function createHud(root, handlers) {
       if (!open) chatFloat.place();
       illustrate.frame.style.display = open ? "none" : illustrate.isOpen() ? "flex" : "none";
       hint.style.visibility = open ? "hidden" : "";
+      if (open) {
+        // Nothing of the world left over the menu: the use prompt, the thumb's button, a caption.
+        hud.setPrompt(null);
+        caption.style.opacity = "0";
+      }
       for (const panel of panels) panel.style.display = "none";
       if (open) {
         scene.style.display = "none";

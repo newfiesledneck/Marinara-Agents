@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.101",
+          "date": "2026-11-09",
+          "notes": "- Fixed: a prompt like \"[E] Talk to Brenna\" (or a caption) could stay on screen over the main menu. Going to the menu clears them.\n- The usual {world_look} is just \"medieval fantasy\" now: an image model that doesn't reason could read \"nothing modern\" as \"modern\".",
+          "highlight": false
+        },
+        {
           "version": "0.4.100",
           "date": "2026-11-09",
           "notes": "- Illustrate: a sentence of the template whose placeholders all come out empty is left out of the prompt, so no more \"With them:.\" when nobody's there.\n- Journal → World → \"How this world looks in pictures\": the words {world_look} puts in every picture's prompt are yours to set per world. The usual ones are now about the era, not one place (\"medieval fantasy, pre-industrial, nothing modern\"), so the woods don't get houses painted into them.\n- The chat is kept with the world: its last 30 lines are there again when you come back.",
@@ -307,12 +313,6 @@
           "version": "0.4.82",
           "date": "2026-11-09",
           "notes": "- The Journal's map zooms and pans: scroll or use + and −, drag to move about. All the way out is the whole region; closer in names the buildings (the tavern, the smithy, then every house).\n- Click the map to set a waypoint (a red flag); under the map it says how far it is and which way. Your home is marked with a little house.\n- The regions to the east and west are written up the sides, like the ones along the top and bottom, so the middle of the map stays clear.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.81",
-          "date": "2026-11-09",
-          "notes": "- Journal → People is a roster you can read: everyone in the world by faction, with where they live and work and how they see you, and the creatures from the lore. It no longer shifts about. Buttons along the top open what they're doing right now, schedules, homes and work, relationships (no longer a tab of its own), and voices and details.\n- Voices and details: pick how each person talks, and edit the people a world made for itself. Journal → World: edit the lore written for the world, set the season, and check your ww: keywords (it lists any it didn't understand).\n- Settings come a section at a time (Graphics, Moving, World, AI, Display), and choosing who lives in the world moved from the top bar into Settings → World.\n- Floating windows (chat, Illustrate) stay inside the view when the browser window is made smaller.",
           "highlight": false
         }
       ]
