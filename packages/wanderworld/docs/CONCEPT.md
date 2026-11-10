@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.6, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.7, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.6: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
+_0.5.1 to 0.5.7: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
 
@@ -507,8 +507,10 @@ field against fixed lists and lengths: anything else is dropped and counted; a b
 the format or was cut short changes nothing and says so. `applyAssistantEdits` (client) then resolves
 names and numbered places against the world, once dry for the proposal the player reads and once for real
 on Confirm, through the setters the Journal uses. Confirm first copies every field the assistant can touch
-(`ASSISTANT_FIELDS`); Undo, and any failure part-way, puts them back and brings the cast, homes, days,
-names and signs back in line. Edits: relate, home, work, set (body, voice, temperament, manner, stance,
+(`ASSISTANT_FIELDS`) and copies them again after; a failure part-way puts the first copy back. Undo takes
+back only the difference between the two copies (`src/undo.js`, a three-way merge with the world as it is
+now, so what changed since by hand or through play stays), then brings the cast, homes, days, names and
+signs back in line. Edits: relate, home, work, set (body, voice, temperament, manner, stance,
 knowing), day, add_person, remove_person (invented people only), faction, lore, card (invented people
 only), rename, hours, group, world (setting, look, ages), notice, errand. Lore is rewritten whole and told
 to keep its detail. It cannot reach Engine cards, personas, lorebooks, settings, the map or buildings.
@@ -654,7 +656,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.6, 2026-11-11)
+## Outstanding (as of 0.5.7, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -728,8 +730,8 @@ world would choose its pack when it's made; one pack is built in today.
 - Another region has no townsfolk of its own; walk-in rooms are unfinished and off by default.
 - The camera doesn't avoid trees, so foliage can fill the view.
 - Quartermaster works in scenes started from Wanderworld, not in the world (see Later).
-- The AI assistant's chat isn't kept; Undo reaches back one Confirm and puts back everything the assistant
-  can change as it was then. A world's own lore entries hold 1,500 characters, 60 a world.
+- The AI assistant's chat isn't kept; Undo reaches back one Confirm and takes back only what the assistant
+  changed (something it added goes even if edited since). A world's own lore entries hold 1,500 characters, 60 a world.
 - An existing world on a crossroads, one-street or ring layout gains the pond, houses and gardens on its
   open ground when it's next opened (its other buildings keep their numbers), and loses the names of
   "streets" that ran across open ground, with any lore tied to them.

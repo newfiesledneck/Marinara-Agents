@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.6)
+## What it does now (0.5.7)
 
 ### The world
 
@@ -131,7 +131,7 @@ With it running:
   Ask for a change ("make Jake and Sarah a married couple who live together", "rewrite Jason's lore to make
   him a sorcerer who prays at the shrine", "add a blacksmith's apprentice who lives with Oswin") and it
   proposes one: every change is shown in full, rewritten lore beside what it says now, and nothing happens
-  until you press **Confirm**. **Undo these changes** puts the world back as it was before the last ones.
+  until you press **Confirm**. **Undo these changes** takes back the last ones, and only those: what you changed yourself since stays.
   It can set relationships, homes and work, days, body, voice, temperament, how someone acts toward you and
   who knows whose name; add people and remove ones the world invented; write this world's own lore about a
   person, a place or the whole world, keeping the detail that's there; rename places and set closing hours;
@@ -258,59 +258,59 @@ lists any it didn't understand, and why.
 
 **What an entry is about**
 
-| Keyword | On | What it does |
-| --- | --- | --- |
-| `ww:tavern1, ww:home6, ww:forest1` | any entry | The entry is that place's lore. Places are numbered by kind (Journal → Places shows each one's). A number the world doesn't have yet is built: ww:smithy3 makes three smithies. |
-| `ww:tavern, ww:forest` | any entry | Lore for every place of that kind. |
-| `ww:world` | any entry | Lore that's active everywhere. |
-| `ww:Mira, ww:you` | any entry | The entry is about that character (by their name), or about you. |
-| `ww:character:Mira Saxton` | any entry | The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means; otherwise a person is made for that world from the entry, and one model call fills in their details. |
-| `ww:faction:Thieves Guild` | any entry | The entry is that faction's lore, active for each of its members. |
+| Keyword                            | On        | What it does                                                                                                                                                                                                                                                 |
+| ---------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ww:tavern1, ww:home6, ww:forest1` | any entry | The entry is that place's lore. Places are numbered by kind (Journal → Places shows each one's). A number the world doesn't have yet is built: ww:smithy3 makes three smithies.                                                                              |
+| `ww:tavern, ww:forest`             | any entry | Lore for every place of that kind.                                                                                                                                                                                                                           |
+| `ww:world`                         | any entry | Lore that's active everywhere.                                                                                                                                                                                                                               |
+| `ww:Mira, ww:you`                  | any entry | The entry is about that character (by their name), or about you.                                                                                                                                                                                             |
+| `ww:character:Mira Saxton`         | any entry | The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means; otherwise a person is made for that world from the entry, and one model call fills in their details. |
+| `ww:faction:Thieves Guild`         | any entry | The entry is that faction's lore, active for each of its members.                                                                                                                                                                                            |
 
 **Places**
 
-| Keyword | On | What it does |
-| --- | --- | --- |
-| `ww:name:The Gilded Stag` | a place's entry | Names the place. |
-| `ww:located in:town2` | a place's entry | Puts the place inside another place or group. |
-| `ww:group of:home` | any entry | Makes a group of every place of that kind, with the entry as its lore. |
-| `ww:closed:22-6` | a place's entry | When it's closed: its door says so and the AI is told. |
-| `ww:owned by:Mira` | a building's entry | Mira owns it. If nobody in the world is called that, a person is made. |
+| Keyword                   | On                 | What it does                                                           |
+| ------------------------- | ------------------ | ---------------------------------------------------------------------- |
+| `ww:name:The Gilded Stag` | a place's entry    | Names the place.                                                       |
+| `ww:located in:town2`     | a place's entry    | Puts the place inside another place or group.                          |
+| `ww:group of:home`        | any entry          | Makes a group of every place of that kind, with the entry as its lore. |
+| `ww:closed:22-6`          | a place's entry    | When it's closed: its door says so and the AI is told.                 |
+| `ww:owned by:Mira`        | a building's entry | Mira owns it. If nobody in the world is called that, a person is made. |
 
 **People**
 
-| Keyword | On | What it does |
-| --- | --- | --- |
-| `ww:body:woman (or man)` | a character's entry | Their body, when they have no 3D model. |
-| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1` | a character's entry | Home and work. |
-| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1` | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be. |
-| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)` | a character's entry | What they're like with anyone they're against: how readily they square up. |
-| `ww:manner:shy (shy, quiet, friendly, outgoing)` | a character's entry | How readily they come over and greet people. |
-| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way. |
-| `ww:member of:Thieves Guild` | a character's entry | Puts them in that faction. |
+| Keyword                                                                                | On                  | What it does                                                                               |
+| -------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
+| `ww:body:woman (or man)`                                                               | a character's entry | Their body, when they have no 3D model.                                                    |
+| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1`                          | a character's entry | Home and work.                                                                             |
+| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1`                        | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be. |
+| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)`        | a character's entry | What they're like with anyone they're against: how readily they square up.                 |
+| `ww:manner:shy (shy, quiet, friendly, outgoing)`                                       | a character's entry | How readily they come over and greet people.                                               |
+| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way.                                               |
+| `ww:member of:Thieves Guild`                                                           | a character's entry | Puts them in that faction.                                                                 |
 
 **People and you**
 
-| Keyword | On | What it does |
-| --- | --- | --- |
-| `ww:enemy of:you, ww:friend of:you, ww:sister of:you` | a character's entry | What they are to you. Any relationship (friend, rival, enemy, mentor, family…) or role (sister, father, wife…). |
-| `ww:sister of:Tam, ww:rival of:Fen, ww:friends with:Mira` | a character's entry | What they are to someone else (one way; the other's entry says theirs). |
+| Keyword                                                    | On                  | What it does                                                                                                           |
+| ---------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `ww:enemy of:you, ww:friend of:you, ww:sister of:you`      | a character's entry | What they are to you. Any relationship (friend, rival, enemy, mentor, family…) or role (sister, father, wife…).        |
+| `ww:sister of:Tam, ww:rival of:Fen, ww:friends with:Mira`  | a character's entry | What they are to someone else (one way; the other's entry says theirs).                                                |
 | `ww:acts:rude (rude, aggressive, attacks, afraid, avoids)` | a character's entry | What they do when they see you, whatever they are to you: won't greet you, comes at you, attacks on sight, keeps away. |
-| `ww:i know:them` | a character's entry | You know their name from the start (a Stranger otherwise). |
-| `ww:knows:you` | a character's entry | They know your name from the start (they won't use it otherwise). |
+| `ww:i know:them`                                           | a character's entry | You know their name from the start (a Stranger otherwise).                                                             |
+| `ww:knows:you`                                             | a character's entry | They know your name from the start (they won't use it otherwise).                                                      |
 
 **The world**
 
-| Keyword | On | What it does |
-| --- | --- | --- |
-| `ww:settlement:city (hamlet, village, town, city)` | the entry keyed ww:world | The main settlement's size, where New world left it on Surprise me. (ww:town3 adds two hamlets.) |
-| `ww:walls, ww:size:large, ww:season:winter` | the entry keyed ww:world | Walls, the world's size (small, normal, large, huge, massive), and the season (winter lies under snow). |
+| Keyword                                            | On                       | What it does                                                                                            |
+| -------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `ww:settlement:city (hamlet, village, town, city)` | the entry keyed ww:world | The main settlement's size, where New world left it on Surprise me. (ww:town3 adds two hamlets.)        |
+| `ww:walls, ww:size:large, ww:season:winter`        | the entry keyed ww:world | Walls, the world's size (small, normal, large, huge, massive), and the season (winter lies under snow). |
 
 **Creatures**
 
-| Keyword | On | What it does |
-| --- | --- | --- |
-| `ww:monster:Goblin, ww:creature:Deer, ww:hostile` | any entry | Marks the entry as a creature (a monster, or a hostile creature, attacks). Kept for later: nothing uses them yet. |
+| Keyword                                                                            | On                 | What it does                                                                                                                                        |
+| ---------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:monster:Goblin, ww:creature:Deer, ww:hostile`                                  | any entry          | Marks the entry as a creature (a monster, or a hostile creature, attacks). Kept for later: nothing uses them yet.                                   |
 | `ww:found in:forest1, ww:active:night, ww:pack:4, ww:danger:2, ww:drops:wolf pelt` | a creature's entry | Where and when it's met, how many together (1 to 10), how dangerous (1 to 10), and what it might leave. One thing each: repeat ww:drops:… for more. |
 
 Choose "link lorebook entries by their ww: keywords" (places) and "set up from ww: keywords"
@@ -326,9 +326,9 @@ still count, and come first.
 - Walk-in rooms are unfinished and off by default.
 - The AI's world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
 - Quartermaster works inside scenes started from Wanderworld (they are roleplay chats), not in the world.
-- The AI assistant's chat isn't kept when you leave, and Undo reaches back one Confirm. Undo puts back
-  everything the assistant can change as it was then, so anything that changed in those since (a
-  relationship that grew through play) goes back too.
+- The AI assistant's chat isn't kept when you leave, and Undo reaches back one Confirm. Undo takes back
+  only what the assistant changed; if you've since changed the very same thing yourself, yours stays.
+  Something the assistant added (a person, a lore entry) goes even if you've edited it since.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
 - A world's own lore entries hold 1,500 characters each, 60 entries a world.
 

@@ -1408,6 +1408,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.7",
+          "date": "2026-11-11",
+          "notes": "- The assistant's Undo now takes back only what the assistant changed. Anything you changed yourself after its Confirm (in the Journal, or through play) stays, and if you've since changed the very same thing, yours is kept. Something the assistant added, such as a person or a lore entry, still goes.",
+          "highlight": false
+        },
+        {
           "version": "0.5.6",
           "date": "2026-11-11",
           "notes": "- A review pass. Fixed: ending a group of places through the assistant left its lore ties behind; a conversation stayed open with someone the assistant had just removed (or an Undo took away); a street broken by open ground was named across the gap.\n- The assistant has more room to answer, so a long list of changes isn't cut short.\n- Help has a page on the AI assistant, and on layouts, ages and the first map. The README and the plan are up to date.",
@@ -1519,12 +1525,6 @@
           "version": "0.4.90",
           "date": "2026-11-09",
           "notes": "- Settings → AI has a switch for each thing that can call the model: AI moments as a whole, and arriving somewhere, using things, reading the noticeboard, sitting down and joining someone, each on its own. Arrivals are off to start with. With one off, the world answers with its written lines.\n- Arriving somewhere is told with more sense: only once you've been there a few seconds, never for streets, not for any of the last five places told, and not straight after another. It's told each time you come back after being elsewhere, not only the first time.\n- The telling knows who's about: an empty square isn't called busy.\n- Lamp posts stand on the corners of the blocks, on the kerb, not out in the street.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.89",
-          "date": "2026-11-09",
-          "notes": "- A narrator card (Menu → Settings → AI): pick one of your characters to tell scenes, moments or both in its voice. With it, a scene can start with nobody else there.\n- A scene from anywhere: the chat window's Scene button, or \"/scene …\", opens one right where you stand with whoever's near, your party, the narrator, or the narrator alone. A scene's card asks whether the narrator joins the people there.\n- What you do is told even when nobody's near, and so is reading the noticeboard.\n- \"/camp\" lights a campfire to sit by, tell a story at, and put out.\n- Talking to someone offers joining what they're doing: lend a hand, eat with them, sit with them, keep them company.",
           "highlight": false
         }
       ]
