@@ -4,7 +4,7 @@
 import { createJournal } from "./journal.js";
 import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
-import { HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
+import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
@@ -144,6 +144,13 @@ export function createHud(root, handlers) {
   const sectionStyle = document.createElement("style");
   sectionStyle.textContent = "[data-wanderworld-settings-hidden]{display:none!important}";
   settingsPanel.append(sectionStyle, sectionTabs);
+  const closeSettings = document.createElement("button");
+  closeSettings.type = "button";
+  closeSettings.textContent = "×";
+  closeSettings.title = "Close";
+  closeSettings.setAttribute("aria-label", "Close settings");
+  closeSettings.style.cssText = `${INK_SMALL}margin-left:auto;padding:0 9px;font-size:16px;`;
+  closeSettings.addEventListener("click", () => (settingsPanel.style.display = "none"));
   let shownSection = "";
   const showSection = (name) => {
     shownSection = name;
@@ -155,7 +162,8 @@ export function createHud(root, handlers) {
       // by an attribute, so each row's own display (and whatever shows or hides it) is left alone.
       child.toggleAttribute("data-wanderworld-settings-hidden", !!child.dataset.settingsHeading || current !== name);
     }
-    for (const tab of sectionTabs.children) tab.style.opacity = tab.textContent === name ? "1" : "0.6";
+    for (const tab of sectionTabs.children)
+      if (tab !== closeSettings) tab.style.opacity = tab.textContent === name ? "1" : "0.6";
   };
   const heading = (text) => {
     const element = document.createElement("div");
@@ -168,7 +176,7 @@ export function createHud(root, handlers) {
     tab.textContent = text;
     tab.style.cssText = INK_BUTTON;
     tab.addEventListener("click", () => showSection(text));
-    sectionTabs.append(tab);
+    sectionTabs.append(tab, closeSettings); // the close button stays last
     if (!shownSection) shownSection = text;
   };
   // What each setting does, in a line under it (hidden with Show explanations off).
@@ -583,6 +591,20 @@ export function createHud(root, handlers) {
     }
     settingsPanel.append(fold);
   }
+  // Credits and thanks.
+  heading("Credits");
+  for (const part of CREDITS) {
+    const title = document.createElement("div");
+    title.style.cssText = `font:700 14px ${SERIF};margin-top:8px;`;
+    title.textContent = part.title;
+    settingsPanel.append(title);
+    for (const words of part.lines) {
+      const line = document.createElement("div");
+      line.style.cssText = "font-size:12px;line-height:1.45;margin-top:4px;";
+      line.textContent = words;
+      settingsPanel.append(line);
+    }
+  }
   heading("Display");
   choice("names", "Names over people", {
     all: "Show all names",
@@ -675,8 +697,11 @@ export function createHud(root, handlers) {
   top.append(title, clock, place, stats, spacer, menuButton, controls);
 
   // The "use" prompt over whatever you could use, and on touch screens a Use button by the stick.
-  const prompt = document.createElement("div");
-  prompt.style.cssText = `${CHIP}position:absolute;left:0;top:0;transform:translate(-50%,-100%);font:600 13px system-ui,sans-serif;display:none;white-space:nowrap;`;
+  const prompt = document.createElement("button");
+  prompt.type = "button";
+  prompt.setAttribute("data-wanderworld-ui", "");
+  prompt.style.cssText = `${CHIP}position:absolute;left:0;top:0;transform:translate(-50%,-100%);font:600 13px system-ui,sans-serif;display:none;white-space:nowrap;border:0;cursor:pointer;pointer-events:auto;min-height:32px;`;
+  prompt.addEventListener("click", () => handlers.onUse());
   const use = button("Use", "Use what's in front of you", () => handlers.onUse());
   // Bottom right, under the thumb that isn't on the stick.
   use.style.cssText += "position:absolute;bottom:32px;right:20px;padding:16px 20px;font-size:15px;display:none;";
@@ -1055,11 +1080,13 @@ export function createHud(root, handlers) {
     /** The use prompt: `label` ("Sit", "Talk to Mira") at screen point (x, y), or null to hide it. */
     setPrompt(label, x, y) {
       const show = !!label;
+      // On a touch screen the thumb's Use button does it too; the prompt over the thing can always be tapped.
       use.style.display = show && touch ? "" : "none";
-      prompt.style.display = show && !touch && Number.isFinite(x) ? "" : "none";
+      prompt.style.display = show && Number.isFinite(x) ? "" : "none";
       if (!show) return;
       use.textContent = label;
-      prompt.textContent = `E  ${label}`;
+      prompt.textContent = touch ? label : `[E] ${label}`;
+      prompt.style.padding = touch ? "8px 14px" : "";
       prompt.style.left = `${x}px`;
       prompt.style.top = `${y}px`;
     },
@@ -1129,8 +1156,9 @@ export function createHud(root, handlers) {
       for (const panel of panels) panel.style.display = "none";
     },
     /** Opens the Settings panel (from the main menu). */
-    openSettings() {
+    openSettings(section = null) {
       if (settingsPanel.style.display === "none") togglePanel(settingsPanel);
+      showSection(section ?? shownSection);
     },
     /** While the main menu is up: the bar, hint and panels go. */
     setMenuOpen(open) {

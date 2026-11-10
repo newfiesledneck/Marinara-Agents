@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.4.94 — 2026-11-09
+
+- Prompts read "[E] Look over the stall" and can be clicked or tapped, not only used with E. On a touch screen they're bigger and drop the "[E]".
+- The main menu has Help, and Credits and thanks. Settings opened from there shows one section at a time like in a world, and has a × to close it.
+- Credits: Menu → Settings → Credits, and the main menu. Thanks to Marinara and the Marinara Engine developers, and to Quaternius, with the packs and the models and animations used from each.
+
 ## 0.4.93 — 2026-11-09
 
 - Lorebook keywords are written ww:<what>:<value> now: ww:lives in:home3, ww:body:woman, ww:temperament:aggressive, ww:acts:rude, ww:enemy of:you, ww:owned by:Mira. "ww" marks it, <what> says what it's for, <value> is what's given. Spaces and capitals don't matter, and "you", "me" and "player" all mean you. A key with no <what> (ww:tavern1, ww:Mira) names what the entry is about. The older one-word forms no longer do anything; Journal → World → Check ww: keywords lists them and says how each is written now.

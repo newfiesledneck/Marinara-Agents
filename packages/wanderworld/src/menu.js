@@ -43,7 +43,7 @@ function ago(time) {
 /**
  * `handlers`: list() → saved worlds, last() → the last played or null, onPlay(id), lorebooks() → a promise
  * of [{ id, name }], onCreate({ name, seed, choices, setting, lorebooks, loreLinking }),
- * onRename(id, name), onDelete(id), onSettings(), suggestName() → a name for a new world.
+ * onRename(id, name), onDelete(id), onSettings(section: "Help" | "Credits" | none), suggestName() → a name for a new world.
  * `art`: { background, portrait (the backdrop on tall screens), logo } image URLs, or null for the painted
  * gradient and a lettered title.
  */
@@ -113,7 +113,13 @@ export function createMenu(layer, handlers, art = null) {
       button("New world", BIG, newWorld),
       loadButton,
       button("Settings", BIG, () => handlers.onSettings()),
+      button("Help", BIG, () => handlers.onSettings("Help")),
     );
+    // Credits and thanks: set apart from the rest, in gold.
+    const credits = button("♥  Credits and thanks", BIG, () => handlers.onSettings("Credits"));
+    credits.style.cssText +=
+      "background:linear-gradient(#f6dc8c,#d9a93c);color:#3b2a18;border:2px solid #b8862a;box-shadow:0 0 12px rgba(230,185,80,0.7);";
+    card.append(credits);
   }
 
   function newWorld() {

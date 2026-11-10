@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.4.94",
+          "date": "2026-11-09",
+          "notes": "- Prompts read \"[E] Look over the stall\" and can be clicked or tapped, not only used with E. On a touch screen they're bigger and drop the \"[E]\".\n- The main menu has Help, and Credits and thanks. Settings opened from there shows one section at a time like in a world, and has a × to close it.\n- Credits: Menu → Settings → Credits, and the main menu. Thanks to Marinara and the Marinara Engine developers, and to Quaternius, with the packs and the models and animations used from each.",
+          "highlight": false
+        },
+        {
           "version": "0.4.93",
           "date": "2026-11-09",
           "notes": "- Lorebook keywords are written ww:<what>:<value> now: ww:lives in:home3, ww:body:woman, ww:temperament:aggressive, ww:acts:rude, ww:enemy of:you, ww:owned by:Mira. \"ww\" marks it, <what> says what it's for, <value> is what's given. Spaces and capitals don't matter, and \"you\", \"me\" and \"player\" all mean you. A key with no <what> (ww:tavern1, ww:Mira) names what the entry is about. The older one-word forms no longer do anything; Journal → World → Check ww: keywords lists them and says how each is written now.\n- Menu → Settings → Help: instructions for everything, a section at a time, with every keyword and a prompt to copy for Professor Mari (or any assistant) to add or fix a lorebook's keys.",
@@ -307,12 +313,6 @@
           "version": "0.4.75",
           "date": "2026-11-09",
           "notes": "- The AI's world setup has more room to answer (for models that think first), and the Journal's lore choices are worded as New world's.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.74",
-          "date": "2026-11-09",
-          "notes": "- The AI's setup of a new world is shown before the land is built: everyone's body, home, work and relationships, the places the world will get, the names and the lore tied to them, with the map and world size. From there: build it, ask the AI again, or go back to the settings (the setup is kept).\n- A model call that fails is tried once more; if it still fails, what did come through is kept, the review says what's missing, and \"Ask the AI again\" asks only for that. Building with a partial setup works, and Journal → World can finish it later.\n- The loading screen now also waits for your own figure.",
           "highlight": false
         }
       ]
