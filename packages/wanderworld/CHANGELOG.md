@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.4.93 — 2026-11-09
+
+- Lorebook keywords are written ww:<what>:<value> now: ww:lives in:home3, ww:body:woman, ww:temperament:aggressive, ww:acts:rude, ww:enemy of:you, ww:owned by:Mira. "ww" marks it, <what> says what it's for, <value> is what's given. Spaces and capitals don't matter, and "you", "me" and "player" all mean you. A key with no <what> (ww:tavern1, ww:Mira) names what the entry is about. The older one-word forms no longer do anything; Journal → World → Check ww: keywords lists them and says how each is written now.
+- Menu → Settings → Help: instructions for everything, a section at a time, with every keyword and a prompt to copy for Professor Mari (or any assistant) to add or fix a lorebook's keys.
+
 ## 0.4.92 — 2026-11-09
 
 - Knowing goes both ways: someone who doesn't know your name won't use it. They learn it when you say it (or "I'm …"), you learn theirs when they say it. The small "i" beside a conversation's title explains both and has a switch for each.

@@ -4,6 +4,7 @@
 import { createJournal } from "./journal.js";
 import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
+import { HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
@@ -209,7 +210,7 @@ export function createHud(root, handlers) {
     sound: "Footsteps, doors and the world's sounds.",
     volume: "How loud those sounds are.",
     names:
-      "Names over people's heads, tinted by how they see you. With \"Only people I know\", someone you haven't met is a Stranger, here and in what's written, until you learn their name (it comes up, or you say you know them while talking).",
+      'Names over people\'s heads, tinted by how they see you. With "Only people I know", someone you haven\'t met is a Stranger, here and in what\'s written, until you learn their name (it comes up, or you tick it in the "i" of a conversation).',
     hint: "The line of controls at the bottom of the screen.",
     stats: "Frames per second and other numbers at the top.",
     explanations: "These lines under settings, and the ones in the Journal and on New world.",
@@ -222,7 +223,7 @@ export function createHud(root, handlers) {
     imageStyle:
       "The look of pictures, from the Engine's style profiles. Engine default uses the one you set in the Engine.",
     talkStyle:
-      "How people talk to you, on top of who they are. Someone with a voice of their own (Journal, or a lorebook's ww: voice gruff) keeps it.",
+      "How people talk to you, on top of who they are. Someone with a voice of their own (Journal, or a lorebook's ww:voice:gruff) keeps it.",
     replyLength: "How long people's replies are.",
     aiTemperature: "Higher is more surprising, lower more predictable.",
     scenePov:
@@ -531,6 +532,57 @@ export function createHud(root, handlers) {
   settingsPanel.append(regenerate);
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
+  // Help: the instructions, a fold for each part (help.js).
+  heading("Help");
+  for (const part of HELP) {
+    const fold = document.createElement("details");
+    fold.style.cssText = "border-top:1px solid rgba(107,74,43,0.3);padding:4px 0;";
+    const summary = document.createElement("summary");
+    summary.style.cssText = "cursor:pointer;font-weight:600;";
+    summary.textContent = part.title;
+    fold.append(summary);
+    const say = (words, css = "") => {
+      const node = document.createElement("div");
+      node.style.cssText = `font-size:12px;line-height:1.4;margin-top:4px;${css}`;
+      node.textContent = words;
+      fold.append(node);
+      return node;
+    };
+    for (const words of part.lines ?? []) say(words);
+    if (part.keywords) {
+      say(
+        'Wanderworld acts only on lorebook keys written ww:<what>:<value>. "ww" marks it as Wanderworld\'s, <what> says what it\'s for, <value> is what\'s given. Spaces round the colons and capitals don\'t matter. A key with no <what> (ww:tavern1, ww:Mira, ww:world) names what the entry is about. "you", "me" and "player" all mean you; "them", "char" and "character" all mean the person the entry is about. Journal → World → Check ww: keywords lists any it didn\'t understand.',
+      );
+      for (const group of keywordGroups) {
+        say(group, "font-weight:700;margin-top:8px;");
+        for (const entry of KEYWORD_GUIDE.filter((item) => item.group === group)) {
+          say(entry.write, "font-family:ui-monospace,Consolas,monospace;font-size:11px;margin-top:6px;");
+          say(`On ${entry.on}. ${entry.does}`, `color:${INK_SOFT};margin-top:1px;`);
+        }
+      }
+    }
+    if (part.prompt) {
+      const box = document.createElement("textarea");
+      box.readOnly = true;
+      box.value = part.prompt;
+      box.rows = 8;
+      box.setAttribute("aria-label", part.title);
+      box.style.cssText = `${INK_INPUT}width:100%;box-sizing:border-box;font:11px ui-monospace,Consolas,monospace;margin-top:4px;resize:vertical;`;
+      const copy = button("Copy the prompt", "Copy it, to paste to your assistant", async () => {
+        try {
+          await navigator.clipboard.writeText(part.prompt);
+          copy.textContent = "Copied";
+        } catch {
+          box.select(); // no clipboard here: it's selected, so Ctrl+C takes it
+          copy.textContent = "Selected: press Ctrl+C";
+        }
+        setTimeout(() => (copy.textContent = "Copy the prompt"), 2500);
+      });
+      copy.style.cssText = `${INK_SMALL}margin-top:4px;`;
+      fold.append(box, copy);
+    }
+    settingsPanel.append(fold);
+  }
   heading("Display");
   choice("names", "Names over people", {
     all: "Show all names",

@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.4.92)
+## What it does now (0.4.93)
 
 ### The world
 
@@ -88,7 +88,7 @@ from **Load world** or clear the site's data.
   that start with `ww:` so ordinary trigger words never set anything: which place, group, character or
   the whole world an entry belongs to; place names and what sits inside what; a character's body, home,
   work, day, how they see you and how they stand toward others; people made from entries with no card;
-  and your own entry (`ww: player`), whose lore is always active and can give you a home (you start at
+  and your own entry (`ww:you`), whose lore is always active and can give you a home (you start at
   your front door). The full list is under [Lorebook keywords](#lorebook-keywords).
 - **Regenerate this world** (Settings) rebuilds it from its setup with this version's land and the
   lorebooks' current needs, keeping its people, relationships, lore, groups and homes; optionally a new
@@ -147,7 +147,7 @@ only walk about.
   it's doing, then the setup is shown for a look before the land is built: build it, ask again, or go
   back and change the settings. A call that fails is tried again; what came through is kept and only
   the missing part is asked for again. The same can be spelled out with keywords on lorebook entries
-  (`ww: tavern1`, `ww: lives in home3`, `ww: sister of Mira`), or set by hand in the Journal.
+  (`ww:tavern1`, `ww:lives in:home3`, `ww:sister of:Mira`), or set by hand in the Journal.
 - **A world written for you:** with no lorebook, or none of your characters, the AI can still make a
   whole world. "World lore" has it write the world's premise and named places with their own lore, kept
   in that world and active where you stand; "new people" has it invent up to 12 people around those
@@ -208,39 +208,78 @@ them) and each world's newest 60 pictures.
 
 ### Lorebook keywords
 
-Wanderworld acts only on lorebook keywords that start with `ww:` (`ww:man` and `ww: man` are the
-same), so an entry's ordinary trigger words never set anything by accident, and an entry's title alone
-links nothing. Put them in an entry's keys, next to its usual ones.
+Wanderworld acts only on lorebook keys written `ww:<what>:<value>`, so an entry's ordinary trigger words
+never set anything by accident, and an entry's title alone links nothing. `ww` marks the key as
+Wanderworld's, `<what>` says what it's for, `<value>` is what's given. Put them in an entry's keys, next
+to its usual ones.
+
+- Spaces round the colons and capitals don't matter: `ww : owned by : Mira` is `ww:owned by:Mira`.
+- A key with no `<what>` names what the entry is about: `ww:tavern1`, `ww:Mira`, `ww:world`.
+- `you`, `me`, `I`, `player` and `persona` all mean you; `them`, `they`, `him`, `her`, `char` and
+  `character` all mean the person the entry is about. `ww:i know:char` is `ww:you know:them`.
+- Keys are separated by commas in the Engine's lorebook editor, so a key can't hold one; `-` and `:` in
+  a value are fine (`ww:work:10:15-18:45`). Each key says one thing: repeat it for more.
+
+Menu → Settings → Help in the game has this list too, and a prompt to give an assistant (Professor Mari,
+or any) along with a lorebook so it adds or corrects the keys. Journal → World → Check ww: keywords
+lists any it didn't understand, and why.
+
+**What an entry is about**
 
 | Keyword | On | What it does |
 | --- | --- | --- |
-| `ww: tavern1`, `ww: home6`, `ww: forest1` | any entry | The entry is that place's lore (places are numbered by kind: Journal → Places shows each one's name). A number the world doesn't have yet is built: `ww: smithy3` makes three smithies. |
-| `ww: tavern`, `ww: forest` | any entry | Lore for every place of that kind. |
-| `ww: world` | any entry | Lore active everywhere. |
-| `ww: Mira`, `ww: player` | any entry | The entry is about that character (their name), or about you. |
-| `ww: name The Gilded Stag` | a place's entry | Names the place. |
-| `ww: located in town2` | a place's entry | Puts the place inside another place or group. |
-| `ww: group of home` | any entry | Makes a group of every place of that kind, with the entry as its lore. |
-| `ww: man`, `ww: woman` (or male, female, boy, girl) | a character's entry | Their body. |
-| `ww: lives in home6`, `ww: works at smithy1`, `ww: owner of tavern1` | a character's entry | Home and work. |
-| `ww: friend`, `ww: enemy`, `ww: mentor`, `ww: sister`… | a character's entry | How they see you. |
-| `ww: sister of Tam`, `ww: rival of Fen` | a character's entry | How they stand toward someone else (one way; the other's entry says theirs). |
-| `ww: work 10:15-18:45`, `ww: home 22-7:15`, `ww: eat 12-13 at tavern1` | a character's entry | Their day (home, work, eat, visit, sit, walk), over the usual one; quarter hours, and over midnight. |
-| `ww: shy`, `ww: quiet`, `ww: friendly`, `ww: outgoing`; `ww: passive`, `ww: gentle`, `ww: calm`, `ww: grumpy`, `ww: fierce`, `ww: aggressive` | a character's entry | Their manner and temperament. |
-| `ww: voice gruff` (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly) | a character's entry | How they talk, instead of the setting's way. |
-| `ww: rude`, `ww: confronts`, `ww: attacks`, `ww: afraid`, `ww: avoids` | a character's entry | How they act toward you, whatever they feel: won't greet you, comes at you, attacks on sight, or keeps away. |
-| `ww: known`, `ww: knows you` | a character's entry | You know their name from the start; they know yours. (Anyone with a relationship to you knows you both ways already.) |
-| `ww: member of Thieves Guild` | a character's entry | Puts them in that faction; the faction's entry is lore for each member. |
-| `ww: faction Thieves Guild` | any entry | The entry is that faction's lore. |
-| `ww: character Mira Saxton` | any entry | The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means. Otherwise a person is made who lives in that world only, and one model call writes who they are, their manner and their looks from the entry: `ww: character Mira Little` beside a card called Mira Saxton gives you both. Cards you didn't choose are never pulled in. |
-| `ww: closed 22-6` | a place's entry | When the place is closed: its door card says so, and the AI is told. People's own days aren't changed by it. |
-| `ww: owner Mira` | a building's entry | Mira owns it (the other way round from `ww: owner of tavern1` on Mira's entry). If nobody in the world is called that, a new person is made. |
-| `ww: city`, `ww: town`, `ww: village`, `ww: hamlet`; `ww: walls`; `ww: size large`; `ww: season winter` | the entry keyed `ww: world` | The world's shape, wherever New world left it on "Surprise me": the main settlement (`town1`, whatever its size; `ww: town3` adds two hamlets), walls, the world's size, and the season (winter lies under snow). |
-| `ww: monster Goblin`, `ww: creature Deer`, `ww: hostile` | any entry | Marks the entry as a creature (a monster, or a hostile creature, attacks). Kept with the world for later: nothing uses them yet. |
-| `ww: found in forest1`, `ww: night` or `ww: day`, `ww: pack 4`, `ww: danger 2`, `ww: drops wolf pelt` | a creature's entry | Where and when it's met, how many together (1 to 10), how dangerous (1 to 10), and what it might leave. One thing per keyword: repeat `ww: drops …` for more. |
+| `ww:tavern1, ww:home6, ww:forest1` | any entry | The entry is that place's lore. Places are numbered by kind (Journal → Places shows each one's). A number the world doesn't have yet is built: ww:smithy3 makes three smithies. |
+| `ww:tavern, ww:forest` | any entry | Lore for every place of that kind. |
+| `ww:world` | any entry | Lore that's active everywhere. |
+| `ww:Mira, ww:you` | any entry | The entry is about that character (by their name), or about you. |
+| `ww:character:Mira Saxton` | any entry | The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means; otherwise a person is made for that world from the entry, and one model call fills in their details. |
+| `ww:faction:Thieves Guild` | any entry | The entry is that faction's lore, active for each of its members. |
 
-Keywords are separated by commas in the Engine's lorebook editor, so a keyword can't hold one; `-` and
-`:` are fine (`ww: work 10:15-18:45`). Each keyword says one thing.
+**Places**
+
+| Keyword | On | What it does |
+| --- | --- | --- |
+| `ww:name:The Gilded Stag` | a place's entry | Names the place. |
+| `ww:located in:town2` | a place's entry | Puts the place inside another place or group. |
+| `ww:group of:home` | any entry | Makes a group of every place of that kind, with the entry as its lore. |
+| `ww:closed:22-6` | a place's entry | When it's closed: its door says so and the AI is told. |
+| `ww:owned by:Mira` | a building's entry | Mira owns it. If nobody in the world is called that, a person is made. |
+
+**People**
+
+| Keyword | On | What it does |
+| --- | --- | --- |
+| `ww:body:woman (or man)` | a character's entry | Their body, when they have no 3D model. |
+| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1` | a character's entry | Home and work. |
+| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1` | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be. |
+| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)` | a character's entry | What they're like with anyone they're against: how readily they square up. |
+| `ww:manner:shy (shy, quiet, friendly, outgoing)` | a character's entry | How readily they come over and greet people. |
+| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way. |
+| `ww:member of:Thieves Guild` | a character's entry | Puts them in that faction. |
+
+**People and you**
+
+| Keyword | On | What it does |
+| --- | --- | --- |
+| `ww:enemy of:you, ww:friend of:you, ww:sister of:you` | a character's entry | What they are to you. Any relationship (friend, rival, enemy, mentor, family…) or role (sister, father, wife…). |
+| `ww:sister of:Tam, ww:rival of:Fen, ww:friends with:Mira` | a character's entry | What they are to someone else (one way; the other's entry says theirs). |
+| `ww:acts:rude (rude, aggressive, attacks, afraid, avoids)` | a character's entry | What they do when they see you, whatever they are to you: won't greet you, comes at you, attacks on sight, keeps away. |
+| `ww:i know:them` | a character's entry | You know their name from the start (a Stranger otherwise). |
+| `ww:knows:you` | a character's entry | They know your name from the start (they won't use it otherwise). |
+
+**The world**
+
+| Keyword | On | What it does |
+| --- | --- | --- |
+| `ww:settlement:city (hamlet, village, town, city)` | the entry keyed ww:world | The main settlement's size, where New world left it on Surprise me. (ww:town3 adds two hamlets.) |
+| `ww:walls, ww:size:large, ww:season:winter` | the entry keyed ww:world | Walls, the world's size (small, normal, large, huge, massive), and the season (winter lies under snow). |
+
+**Creatures**
+
+| Keyword | On | What it does |
+| --- | --- | --- |
+| `ww:monster:Goblin, ww:creature:Deer, ww:hostile` | any entry | Marks the entry as a creature (a monster, or a hostile creature, attacks). Kept for later: nothing uses them yet. |
+| `ww:found in:forest1, ww:active:night, ww:pack:4, ww:danger:2, ww:drops:wolf pelt` | a creature's entry | Where and when it's met, how many together (1 to 10), how dangerous (1 to 10), and what it might leave. One thing each: repeat ww:drops:… for more. |
 
 Choose "link lorebook entries by their ww: keywords" (places) and "set up from ww: keywords"
 (characters) in New world or Journal → World. With the AI setting things up instead, `ww:` keywords

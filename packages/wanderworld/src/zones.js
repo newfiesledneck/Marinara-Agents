@@ -754,7 +754,7 @@ export { plain as plainWord };
 
 /**
  * The words a lore entry is linked by: its Wanderworld keywords (in a lorebook, the keys written
- * "ww: …": main.js `wanderKeys`). Its title counts only where Wanderworld named the entry itself
+ * "ww:…": keywords.js `readKeys`). Its title counts only where Wanderworld named the entry itself
  * (`byTitle`: someone's card), never for a lorebook's: "Home" or "The Forest" is just what it's called.
  */
 const wordsOf = (entry) => (entry.byTitle ? [entry.title, ...(entry.keys ?? [])] : (entry.keys ?? []));

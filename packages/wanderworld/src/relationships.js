@@ -279,7 +279,7 @@ const RELATION_WORDS = {
 };
 
 /** A relationship a single word (or phrase) names: "enemy", "sworn enemy", "sister", "in love"; or null. */
-function relationOf(word) {
+export function relationOf(word) {
   if (RELATION_WORDS[word]) return { role: "", ...RELATION_WORDS[word] };
   if (KINDS.family.roles.includes(word)) return { kind: "family", level: 60, role: word };
   for (const [kind, spec] of Object.entries(KINDS)) {

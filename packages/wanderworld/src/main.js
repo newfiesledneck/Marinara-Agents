@@ -36,6 +36,7 @@ import {
   creatureFromWords,
   structureFromKeywords,
   knowingFromWords,
+  readKeys,
   stanceFromWords,
   traitsFromWords,
   unknownKeywords,
@@ -710,7 +711,7 @@ async function chosenBooks(save) {
       // by their name: "name Mira Saxton", or else the entry's title.
       if (keys.some((key) => key.toLowerCase() === "character")) keys.push(loreName({ ...entry, keys }));
       // `own`: the keywords the lorebook's writer gave it, for the Journal's check.
-      return { ...entry, keys, own: book.id === "world" ? [] : (entry.keys ?? []) };
+      return { ...entry, keys, own: entry.own ?? [] };
     }),
   }));
 }
@@ -1085,7 +1086,7 @@ async function createNewWorld({
   playWorld(save.id);
 }
 
-/** What a world's lorebooks say of its shape ("ww: world" with "ww: city", "ww: walls", "ww: size large", "ww: season winter"). */
+/** What a world's lorebooks say of its shape (ww:world with ww:settlement:city, ww:walls, ww:size:large, ww:season:winter). */
 async function loreShape(save) {
   try {
     return save.loreLinking === "none" ? {} : worldFromLore(await chosenBooks(save));
@@ -1690,7 +1691,7 @@ function linkLore() {
 
 /**
  * What the lorebooks say beyond lore and housing (keywords.js): when places are closed, who owns a place
- * by the place's own entry ("ww: owner Mira": someone here of that name, or else a new person of that
+ * by the place's own entry ("ww:owned by:Mira": someone here of that name, or else a new person of that
  * name), and factions with their members, whose entry is lore for each of them. Returns how many
  * things it set.
  */
@@ -1803,7 +1804,7 @@ async function detailLocals() {
 }
 
 /**
- * Brings in the people a lorebook describes: an entry keyed "ww: character Mira Saxton" is that person
+ * Brings in the people a lorebook describes: an entry keyed "ww:character:Mira Saxton" is that person
  * (with no name there, its title is the name). A card of exactly that name is who it means, and
  * joins the world; with no such card (a "Mira Little" beside the card "Mira Saxton") someone is made who
  * lives in this world only (`save.locals`), with the entry's text as who they are.
@@ -1846,7 +1847,7 @@ function peopleFromLore(books) {
 function nameFromLore(books = []) {
   const slots = slotsOf(core.zones);
   const names = { ...core.save.names };
-  // And the names a lorebook spells out ("ww: tavern1" with "ww: name The Gilded Stag").
+  // And the names a lorebook spells out (ww:tavern1 with ww:name:The Gilded Stag).
   const world = { zones: core.zones, names: {}, groups: [], name: "", characters: [] };
   for (const [id, name] of Object.entries(namesFromLore(books, world))) names[id] ??= name;
   for (const [slot, name] of Object.entries(core.save.loreNames ?? {})) {
@@ -2477,30 +2478,6 @@ function renameZone(id, name) {
 }
 
 /** The Engine's lorebooks with their entries: [{ id, name, entries: [{ id, title }] }], read once. */
-/**
- * A lorebook entry's keys, told apart: `keys` are Wanderworld's, written with the prefix "ww:" ("ww:
- * tavern1", "ww:man", "ww: work 10:15-18:45", "ww: character Mira Saxton") and kept without it; `triggers` are everything else, the
- * lorebook's own trigger words, which Wanderworld never acts on (the AI reads them as hints only).
- */
-function wanderKeys(raw) {
-  const all = (Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : [])
-    .map((key) => String(key).trim())
-    .filter(Boolean);
-  const own = (key) => /^ww\s*:/iu.test(key);
-  return {
-    keys: all
-      .filter(own)
-      .map((key) => key.replace(/^ww\s*:\s*/iu, "").trim())
-      .filter(Boolean)
-      // "character Mira Saxton", "monster Goblin": what it is, and its name with it.
-      .flatMap((key) => {
-        const named = /^(character|monster|creature|hostile)\s+(.+)$/iu.exec(key);
-        return named ? [named[1].toLowerCase(), `name ${named[2].trim()}`] : [key];
-      }),
-    triggers: all.filter((key) => !own(key)),
-  };
-}
-
 async function readLorebooks() {
   if (core.lorebooks?.length) return core.lorebooks; // none yet (or none found): ask again
   const getJson = async (path) => {
@@ -2521,7 +2498,7 @@ async function readLorebooks() {
             entry.name || entry.comment || (Array.isArray(entry.keys) ? entry.keys.join(", ") : "") || "Entry",
           ),
           content: typeof entry.content === "string" ? entry.content.slice(0, 4000) : "",
-          ...wanderKeys(entry.keys),
+          ...readKeys(entry.keys),
         }));
       } catch (error) {
         console.warn(`[wanderworld] couldn't read lorebook ${book.name}`, error);
@@ -3545,7 +3522,7 @@ async function illustrateMoment(template) {
 }
 
 /** Where the player is, in words: the place and the places it's in. */
-/** " (closed until 06:00)" when a place's hours (a lorebook's "ww: closed 22-6") say it's shut now, else "". */
+/** " (closed until 06:00)" when a place's hours (a lorebook's ww:closed:22-6) say it's shut now, else "". */
 function closedWords(zoneId) {
   const hours = core.save?.hours?.[zoneId];
   return hours && inRange(core.hour, hours.from, hours.to) ? ` (closed until ${hourText(hours.to)})` : "";

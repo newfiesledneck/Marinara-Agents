@@ -132,7 +132,75 @@ assert.deepEqual(
   ["Thieves Guild", "g", ["Mira Little", "character:c-tam", "Fen"]],
 );
 
-// The check: what Wanderworld understands, and what it doesn't.
+// How keywords are written: ww:<what>:<value>, read into the plain words the rest works on.
+{
+  const { readKeyword, readKeys, KEYWORD_GUIDE } = await import("../packages/wanderworld/src/keywords.js");
+  const words = (key) => readKeyword(key)?.words;
+  assert.equal(readKeyword("town"), null, "not Wanderworld's: an ordinary trigger word");
+  assert.equal(readKeyword("wwii"), null);
+  // Names of what an entry is about, and flags.
+  assert.deepEqual(readKeyword("ww:tavern1"), { words: ["tavern1"], problem: "", id: true });
+  assert.deepEqual(words("WW : Mira Saxton"), ["Mira Saxton"]);
+  assert.deepEqual(words("ww:world"), ["world"]);
+  assert.deepEqual(words("ww:walls"), ["walls"]);
+  assert.deepEqual(words("ww:walls:no"), []);
+  assert.deepEqual(words("ww:character"), ["character"]);
+  assert.deepEqual(words("ww:character:Mira Saxton"), ["character", "name Mira Saxton"]);
+  assert.deepEqual(words("ww:monster:Goblin"), ["monster", "name Goblin"]);
+  // <what>:<value>, spaces and capitals as they come, colons inside a value kept.
+  assert.deepEqual(words("ww : owned by : Mira"), ["owner Mira"]);
+  assert.deepEqual(words("ww:owned by:Mira"), ["owner Mira"]);
+  assert.deepEqual(words("ww:Lives In:home3"), ["lives in home3"]);
+  assert.deepEqual(words("ww:work:10:15-18:45"), ["work 10:15-18:45"]);
+  assert.deepEqual(words("ww:eat:12-13 at tavern1"), ["eat 12-13 at tavern1"]);
+  assert.deepEqual(words("ww:closed:22:30-6"), ["closed 22:30-6"]);
+  assert.deepEqual(words("ww:name:The Gilded Stag"), ["name The Gilded Stag"]);
+  assert.deepEqual(words("ww:body:Woman"), ["woman"]);
+  assert.deepEqual(words("ww:temperament:aggressive"), ["aggressive"]);
+  assert.deepEqual(words("ww:manner:shy"), ["shy"]);
+  assert.deepEqual(words("ww:acts:aggressive"), ["confronts"], "how they act isn't their temperament");
+  assert.deepEqual(words("ww:acts:rude"), ["rude"]);
+  assert.deepEqual(words("ww:settlement:city"), ["city"]);
+  assert.deepEqual(words("ww:active:night"), ["night"]);
+  assert.deepEqual(words("ww:drops:wolf pelt"), ["drops wolf pelt"]);
+  // Relationships: to the player however they're called, or to someone by name.
+  for (const you of ["you", "me", "I", "player", "persona"]) assert.deepEqual(words(`ww:enemy of:${you}`), ["enemy"]);
+  assert.deepEqual(words("ww:sister of:Tam"), ["sister of Tam"]);
+  assert.deepEqual(words("ww:friends with:Mira"), ["friends with Mira"]);
+  // Who knows whom, said either way.
+  for (const key of ["ww:i know:char", "ww:you know:them", "ww:I know:her", "ww:player knows:character"])
+    assert.deepEqual(words(key), ["known"], key);
+  for (const key of ["ww:knows:you", "ww:they know:me", "ww:char knows:player", "ww:she knows:you"])
+    assert.deepEqual(words(key), ["knows you"], key);
+  // What doesn't read says why, and an old one-word keyword says how it's written now.
+  assert.match(readKeyword("ww:shy").problem, /ww:manner:shy/u);
+  assert.match(readKeyword("ww:aggressive").problem, /ww:temperament:aggressive/u);
+  assert.match(readKeyword("ww:man").problem, /ww:body:man/u);
+  assert.match(readKeyword("ww:rude").problem, /ww:acts:rude/u);
+  assert.match(readKeyword("ww:city").problem, /ww:settlement:city/u);
+  assert.match(readKeyword("ww:lives in home3").problem, /colon before the value/u);
+  assert.match(readKeyword("ww:body:tall").problem, /one of/u);
+  assert.match(readKeyword("ww:dances with:Mira").problem, /isn't something Wanderworld sets/u);
+  assert.match(readKeyword("ww:").problem, /nothing after/u);
+  assert.deepEqual(readKeyword("ww:shy").words, [], "and it sets nothing");
+  // An entry's keys, told apart.
+  assert.deepEqual(readKeys(["town", "ww:tavern1", "ww:owned by:Mira", "ww:shy", "ale"]), {
+    keys: ["tavern1", "owner Mira"],
+    own: ["ww:tavern1", "ww:owned by:Mira", "ww:shy"],
+    triggers: ["town", "ale"],
+  });
+  assert.deepEqual(readKeys("gods, ww : world").keys, ["world"]);
+  // Everything the instructions list reads cleanly.
+  for (const entry of KEYWORD_GUIDE) {
+    for (const key of entry.write.replace(/\(.*?\)/gu, "").split(",")) {
+      const written = key.trim();
+      if (!written) continue;
+      assert.equal(readKeyword(written)?.problem, "", `the guide's own example reads: ${written}`);
+    }
+  }
+}
+
+// The check: what Wanderworld understands, and what it doesn't, with why.
 const unknown = unknownKeywords(
   [
     {
@@ -142,45 +210,27 @@ const unknown = unknownKeywords(
         {
           id: "1",
           title: "Tam",
-          keys: [
-            "Tam",
-            "man",
-            "shy",
-            "voice gruff",
-            "lives in home3",
-            "work 10:15-18:45",
-            "sister of Mira",
-            "enemy",
-            "member of Guild",
-            "lives at home3",
-            "voice operatic",
-            "tavern9",
+          own: [
+            "ww:Tam",
+            "ww:body:man",
+            "ww:manner:shy",
+            "ww:lives in:home3",
+            "ww:lives at:home3",
+            "ww:shy",
+            "ww:tavern9",
           ],
         },
-        {
-          id: "2",
-          title: "Goblin",
-          keys: [
-            "monster",
-            "name Goblin",
-            "night",
-            "pack 3",
-            "danger 2",
-            "drops gold",
-            "found in forest1",
-            "pack many",
-          ],
-        },
-        {
-          id: "3",
-          title: "World",
-          keys: ["world", "city", "walls", "size large", "season winter", "smithy3", "Nobody"],
-        },
+        { id: "2", title: "Goblin", own: ["ww:monster:Goblin", "ww:active:night", "ww:pack:3", "ww:Nobody"] },
       ],
     },
   ],
   world,
-).map((item) => item.word);
-assert.deepEqual(unknown, ["lives at home3", "voice operatic", "pack many", "Nobody"]);
+);
+assert.deepEqual(
+  unknown.map((item) => item.word),
+  ["ww:lives at:home3", "ww:shy", "ww:Nobody"],
+);
+assert.match(unknown[1].why, /ww:manner:shy/u);
+assert.equal(unknown[2].why, "nothing here is called that");
 
 console.log("wanderworld keywords regression: OK");
