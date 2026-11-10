@@ -4,18 +4,20 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.4.23, 2026-11-08: a detailed, lively seeded town with named places, saved worlds and a Journal,
-that you can walk round, sit down in and talk in (a preview, without the AI yet), with up to thirty of your
-characters living their day in it, indoors and out.**
-Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet; those come once there is a
-working concept worth proposing. Held in `INCOMPLETE_PACKAGE_IDS`, so no published catalog lists it;
-tested through a dev catalog.
+Status: **0.5.6, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
+world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
+set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
+Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet: both are drafted and wait on one
+last check, a world made on a real Engine with a real model. In `STAGING_ONLY_PACKAGE_IDS`, so only the
+staging catalog's preview lane lists it; tested through a dev catalog.
 
-As built: a 5 × 5-block town (about 60 buildings) around a plaza, forest outside; the player and up to
-thirty townsfolk walk in their own 3D Avatars model (VRM, GLB, FBX or MMD) or a built-in person.
-1.01 MB `client.js` (three.js, GLTF/FBX/TGA loaders, three-vrm, mmd-parser). About 13 draw calls and
-58k triangles with four townsfolk; 120 fps in a desktop browser test. Not yet measured on a phone or in a
-real Engine. The store banner is a placeholder screenshot and needs real art before a PR.
+As built: a hamlet, village, town or city in one of seven layouts, with hills, mountains, a river, and
+farms, hamlets, inns and landmarks out in the country; the player and the townsfolk walk in their own 3D
+Avatars model (VRM, GLB, FBX or MMD) or a dressed townsperson from Quaternius's CC0 packs. 1.8 MB
+`client.js` (three.js, loaders, three-vrm, mmd-parser), a 12 MB artifact with 191 kit files, and a
+hand-written `server.mjs`. Readings by draw distance are in [PERFORMANCE.md](PERFORMANCE.md). Not yet
+measured on a real phone. The store banner is the author's own art.
 
 ### Why a Home game, not a Game Mode Experience
 
@@ -485,7 +487,36 @@ Engine's `/api/scene/create` over loopback (`POST /scene-start`) with the chosen
 the Home tab's `startScene` takes no preset and shows the Engine's dialog with choices remembered from
 other chats. A failed plan falls back to `startScene`._
 
-**Security notes (for the PR):** every route body is checked (ids by pattern, text by length, numbers
+_0.4.72 to 0.5.0: offered to staging testers; the AI sets a world up from cards, persona and lorebooks
+(`POST /lore-setup`, reviewed before the land is built, with retries), writes a world's own lore and
+invents its people (`POST /world-write`: places, people, detail; family from the cards first); keywords
+became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
+campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
+
+_0.5.1 to 0.5.6: the chat goes with a picture's rewrite; open ground in a settlement is put to use and
+streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
+people the AI makes; and the AI assistant (`POST /assistant`), below._
+
+**The AI assistant (S6, built 0.5.3 to 0.5.5).** Settings → AI assistant is a chat with the model about
+the open world. Each turn sends the world as it stands (the cast with card excerpts, homes, work,
+relationships, days and this world's lore about them; numbered places; groups, factions, the noticeboard;
+what lore is active where the player stands and what every entry is tied to; the Help text) and the last
+twelve turns. The model answers in words and, when asked for a change, one fenced `wanderworld` block of
+JSON edits. `readAssistant` (server) takes the block out of the words and checks every edit field by
+field against fixed lists and lengths: anything else is dropped and counted; a block that isn't JSON, isn't
+the format or was cut short changes nothing and says so. `applyAssistantEdits` (client) then resolves
+names and numbered places against the world, once dry for the proposal the player reads and once for real
+on Confirm, through the setters the Journal uses. Confirm first copies every field the assistant can touch
+(`ASSISTANT_FIELDS`); Undo, and any failure part-way, puts them back and brings the cast, homes, days,
+names and signs back in line. Edits: relate, home, work, set (body, voice, temperament, manner, stance,
+knowing), day, add_person, remove_person (invented people only), faction, lore, card (invented people
+only), rename, hours, group, world (setting, look, ages), notice, errand. Lore is rewritten whole and told
+to keep its detail. It cannot reach Engine cards, personas, lorebooks, settings, the map or buildings.
+
+**Security notes (for the PR):** the assistant's context includes text from cards and lorebooks, which
+someone else may have written, so a card could try to steer it. What limits that: its only power is the
+edit list above, every edit is shown to the player and needs Confirm, edits reach one world's save and
+nothing in the Engine, and its words are shown as plain text. Every route body is checked (ids by pattern, text by length, numbers
 clamped, style profile ids from a fixed list); the connection list carries only id, name, provider,
 model and default flag (the Engine already masks keys, and none are read); the loopback goes only to
 127.0.0.1 on the Engine's own port, to two fixed paths; model calls use `languageModels.resolveForRequest`
@@ -623,15 +654,16 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.5, 2026-11-09)
+## Outstanding (as of 0.5.6, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
 **Before the pull request**
 
 - Everything the AI does has only run against a stand-in model in a test harness: conversations,
-  moments, schedules, scene plans, pictures, the world setup, the written lore, the invented people and
-  the details call. A world made on a real Engine with a real model is the one check still owed.
+  moments, schedules, scene plans, pictures and their rewritten prompts, the world setup, the written lore,
+  the invented people (family from the cards, ages), the details call and the AI assistant (whether a real
+  model keeps to the edit format, and keeps a long lore's detail when asked for a small change). A world made on a real Engine with a real model is the one check still owed.
 - Then the feature-request issue and a draft pull request to `staging`, from a clean branch (one commit,
   the latest artifact only: `feat/wanderworld` carries every development build).
 
@@ -675,7 +707,13 @@ world would choose its pack when it's made; one pack is built in today.
 - A waypoint marker in the world (a beam, or an arrow on the bar).
 - Closing hours that matter: people leave at closing, the door says no.
 - A look for spring and fall (tree and grass tints).
-- People made for a world: renaming, removing, and adding one by hand.
+- People made for a world: renaming one, and adding or removing one by hand (the AI assistant adds and
+  removes them; the Journal can't yet).
+- The AI assistant: keeping its chat with the world, more than one step of Undo, lore for a faction, and
+  taking down notes it pinned.
+- A layout with real winding lanes (scattered houses have dirt ways in and no streets), and the three
+  newer layouts among those "Surprise me" picks.
+- An errand's marker that follows the person, instead of pointing at their house.
 
 **Later (decided 2026-11-09: not now)**
 
@@ -690,6 +728,11 @@ world would choose its pack when it's made; one pack is built in today.
 - Another region has no townsfolk of its own; walk-in rooms are unfinished and off by default.
 - The camera doesn't avoid trees, so foliage can fill the view.
 - Quartermaster works in scenes started from Wanderworld, not in the world (see Later).
+- The AI assistant's chat isn't kept; Undo reaches back one Confirm and puts back everything the assistant
+  can change as it was then. A world's own lore entries hold 1,500 characters, 60 a world.
+- An existing world on a crossroads, one-street or ring layout gains the pond, houses and gardens on its
+  open ground when it's next opened (its other buildings keep their numbers), and loses the names of
+  "streets" that ran across open ground, with any lore tied to them.
 
 **Keywords: kept short on purpose**
 

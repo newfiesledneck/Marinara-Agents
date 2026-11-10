@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.6 — 2026-11-11
+
+- A review pass. Fixed: ending a group of places through the assistant left its lore ties behind; a conversation stayed open with someone the assistant had just removed (or an Undo took away); a street broken by open ground was named across the gap.
+- The assistant has more room to answer, so a long list of changes isn't cut short.
+- Help has a page on the AI assistant, and on layouts, ages and the first map. The README and the plan are up to date.
+
 ## 0.5.5 — 2026-11-11
 
 - The AI assistant can do more, always as a proposal you confirm: add or remove people this world invented, set someone's day, body, voice, temperament, stance and who knows whom, rename places and set when they're closed, make groups of places and factions of people, change the world's setting, picture look and ages, pin a note to the noticeboard and give you an errand.

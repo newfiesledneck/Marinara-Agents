@@ -822,6 +822,16 @@ assert.equal(
   assert.match(heard[0][0].content, /tavern1 = The Drowned Bell/u);
   assert.deepEqual(heard[0].at(-1), { role: "user", content: "Give Mira the tavern." });
   assert.equal((await call("post", "/assistant", { body: { history: [] } })).code, 400, "nothing asked");
+  // The chat always starts with something the player said.
+  await call("post", "/assistant", {
+    body: {
+      history: [
+        { role: "assistant", text: "Earlier." },
+        { role: "user", text: "Hello" },
+      ],
+    },
+  });
+  assert.deepEqual(heard.at(-1).slice(1), [{ role: "user", content: "Hello" }]);
 }
 
 console.log("wanderworld server regression: OK");

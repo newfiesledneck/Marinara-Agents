@@ -1433,6 +1433,8 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const history = list(body.history, 12)
           .map((turn) => ({ role: turn.role === "assistant" ? "assistant" : "user", text: block(turn.text, 3000) }))
           .filter((turn) => turn.text);
+        // The chat starts with something the player said (the oldest turns kept may begin mid-way).
+        while (history.length && history[0].role !== "user") history.shift();
         if (history.at(-1)?.role !== "user") return reply.status(400).send({ error: "Ask something first." });
         const messages = assistantMessages({
           worldName: text(body.worldName, MAX.name),
@@ -1468,7 +1470,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await model.chatComplete(messages, { temperature: 0.4, maxTokens: 2500 });
+          const result = await model.chatComplete(messages, { temperature: 0.4, maxTokens: 4000 });
           return readAssistant(result?.content);
         } catch (error) {
           logger.warn("[wanderworld] the assistant didn't answer: %s", error?.message ?? error);

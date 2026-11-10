@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.6",
+          "date": "2026-11-11",
+          "notes": "- A review pass. Fixed: ending a group of places through the assistant left its lore ties behind; a conversation stayed open with someone the assistant had just removed (or an Undo took away); a street broken by open ground was named across the gap.\n- The assistant has more room to answer, so a long list of changes isn't cut short.\n- Help has a page on the AI assistant, and on layouts, ages and the first map. The README and the plan are up to date.",
+          "highlight": false
+        },
+        {
           "version": "0.5.5",
           "date": "2026-11-11",
           "notes": "- The AI assistant can do more, always as a proposal you confirm: add or remove people this world invented, set someone's day, body, voice, temperament, stance and who knows whom, rename places and set when they're closed, make groups of places and factions of people, change the world's setting, picture look and ages, pin a note to the noticeboard and give you an errand.\n- Undo: after a Confirm, \"Undo these changes\" puts the world back as it was.\n- It can say why a lore entry is or isn't active where you stand: it's sent what's active there and what every entry is tied to.",
@@ -307,12 +313,6 @@
           "version": "0.4.89",
           "date": "2026-11-09",
           "notes": "- A narrator card (Menu → Settings → AI): pick one of your characters to tell scenes, moments or both in its voice. With it, a scene can start with nobody else there.\n- A scene from anywhere: the chat window's Scene button, or \"/scene …\", opens one right where you stand with whoever's near, your party, the narrator, or the narrator alone. A scene's card asks whether the narrator joins the people there.\n- What you do is told even when nobody's near, and so is reading the noticeboard.\n- \"/camp\" lights a campfire to sit by, tell a story at, and put out.\n- Talking to someone offers joining what they're doing: lend a hand, eat with them, sit with them, keep them company.",
-          "highlight": false
-        },
-        {
-          "version": "0.4.88",
-          "date": "2026-11-09",
-          "notes": "- More to do in the world: market stalls, wagons, barrels and crates, and out in the country the farm, graveyard, standing stones, mill, pond, watchtower and ruins each have a card of things to do. With AI on each is a moment; without it the world still answers with lines of its own.\n- The world's voice (Settings → World): a line on first coming to a place (its lore, when it has some) and now and then about who's near. On without AI by default; arrivals can be written by AI.\n- The noticeboard has an errand to someone in the world: take it and it's marked on your map; reach them and it's done, and they think better of you.\n- The chat window tells narration, your lines and other people's apart. With it closed, narration shows as a caption over the world, and Chat shows a dot.",
           "highlight": false
         }
       ]

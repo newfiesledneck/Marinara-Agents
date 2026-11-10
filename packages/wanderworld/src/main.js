@@ -3372,6 +3372,7 @@ function undoAssistant(before) {
   const here = new Set(core.characters.map((character) => character.id));
   core.cast = new Set(core.save.cast.filter((id) => here.has(id)).slice(0, MAX_PEOPLE));
   updateCast(); // the townsfolk, their days and names; saves
+  if (core.talking && !core.cast.has(core.talking.id)) endTalk();
   useHousing();
   const names = placeNames();
   for (const sign of core.signs ?? []) sign.setWords(signOf(sign.zone, names));
@@ -3761,6 +3762,8 @@ function applyAssistantEdits(edits, dry) {
         if (!old) skipped.push(`There's no group of places called "${item.name}".`);
         else {
           if (!dry) groupHandlers.onGroupDelete(old.id);
+          // Its lore ties go with it (here too, or the end of this would put them back).
+          lore = Object.fromEntries(Object.entries(lore).filter(([key]) => key !== old.id));
           changes.push({ line: `End the group of places ${old.name} (its places stay).` });
         }
         continue;
@@ -3855,6 +3858,7 @@ function applyAssistantEdits(edits, dry) {
     core.save = { ...core.save, book: { entries: book }, lore, locals, factions };
     core.characters = peopleOf(core.save);
     if (castChanged) updateCast(); // whoever was added or taken away; saves
+    if (core.talking && !core.cast.has(core.talking.id)) endTalk(); // the one being talked to is gone
     core.saves.write(core.save);
     core.placesChanged = true;
     core.relationsChanged = true;
