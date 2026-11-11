@@ -23,13 +23,13 @@ const BASE = "/api/capability-packages/wanderworld/assets/kit/animals/";
 
 /**
  * What the game knows of each kind: how fast it walks and gallops (metres a second, the pace its clips
- * are played at: feet keep to the ground near these), how high its back is for a rider (0: not ridden),
+ * are played at: feet keep to the ground near these), how high the top of its back is where a rider sits (measured on the posed model; 0: not ridden),
  * how far along its back from its middle the rider sits, and whether it runs from people.
  */
 export const ANIMALS = {
-  horse: { walk: 1.7, gallop: 7.5, back: 1.49, seat: -0.05, timid: false },
-  "horse-white": { walk: 1.7, gallop: 7.5, back: 1.49, seat: -0.05, timid: false },
-  donkey: { walk: 1.3, gallop: 5.5, back: 1.08, seat: -0.05, timid: false },
+  horse: { walk: 1.7, gallop: 7.5, back: 1.62, seat: -0.05, timid: false },
+  "horse-white": { walk: 1.7, gallop: 7.5, back: 1.62, seat: -0.05, timid: false },
+  donkey: { walk: 1.3, gallop: 5.5, back: 1.2, seat: -0.05, timid: false },
   cow: { walk: 1.0, gallop: 4.5, back: 0, seat: 0, timid: false },
   bull: { walk: 1.0, gallop: 4.8, back: 0, seat: 0, timid: false },
   alpaca: { walk: 1.1, gallop: 5, back: 0, seat: 0, timid: false },

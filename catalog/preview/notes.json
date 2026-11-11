@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.23",
+          "date": "2026-11-11",
+          "notes": "- Riding: the rider sits on top of the horse's or donkey's back. They sat too low before, with the hips inside the animal.",
+          "highlight": false
+        },
+        {
           "version": "0.5.22",
           "date": "2026-11-11",
           "notes": "- Riding pose: the hands are lower, angled down toward the mane, and the knees sit wider round the horse with the ankles kept in.",
@@ -307,12 +313,6 @@
           "version": "0.5.4",
           "date": "2026-11-10",
           "notes": "- New layouts in New world: scattered houses with no streets (the tavern, temple and shops face the market, dirt ways lead in), round a pond (houses along the edge, the pond in the middle), and four quarters with a green between them.\n- The AI assistant now proposes: you read each change (rewritten lore with what it says now) and press Confirm or Cancel. Nothing changes before that.\n- It rewrites lore whole and keeps its detail: \"make Jake a sorcerer\" works that into what's there.\n- Ages: set them for a world you have in Journal → World. Any age from 1, and they're only the usual range: your lore, setting and cards win (an elf can be a thousand).",
-          "highlight": false
-        },
-        {
-          "version": "0.5.3",
-          "date": "2026-11-10",
-          "notes": "- New: Settings → AI assistant. Talk with the AI about the world you're in, or have it change the world: who's what to whom (\"make Jake and Sarah a married couple who live together\"), where people live and work, this world's own lore about a person, a place or the whole world (\"rewrite Jason's lore to make him a sorcerer who prays at the shrine\"), and the cards of people the world invented.\n- Every change is listed after the answer, with what was left out and why. An answer whose changes can't be read changes nothing and says so.\n- It only changes this world: never your character cards, personas or lorebooks in the Engine, nor the settings.",
           "highlight": false
         }
       ]

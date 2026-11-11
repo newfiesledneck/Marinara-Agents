@@ -2790,8 +2790,9 @@ function resetMode() {
   core.mode = "walk";
 }
 
-/** How high a rider's seat is in the sitting pose, above where they'd stand (metres). */
-const RIDE_SEAT = 0.5;
+/** How high the underside of a rider's seat is in the riding pose, above where they'd stand (metres):
+ *  the hips ride about a hand above the animal's back, so nothing of the rider is inside it. */
+const RIDE_SEAT = 0.39;
 const RIDE_RADIUS = 0.6; // what a horse and rider take up
 const RIDE_WALK = 1.5; // a ridden walk is brisker than the animal's own amble, by this much
 

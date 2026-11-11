@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.23 — 2026-11-11
+
+- Riding: the rider sits on top of the horse's or donkey's back. They sat too low before, with the hips inside the animal.
+
 ## 0.5.22 — 2026-11-11
 
 - Riding pose: the hands are lower, angled down toward the mane, and the knees sit wider round the horse with the ankles kept in.
