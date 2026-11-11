@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.5.52 — 2026-11-11
+
+- Journal → Home: where you live and who with.
+- Move into any house that stands empty, and choose which housemates come along; the rest stay where they are.
+- Ask someone to move in, or a housemate to leave.
+- Have someone round: they head for your home and stay about three hours.
+- People who know you and don't dislike you say yes. Rules only, with no AI call.
+
 ## 0.5.51 — 2026-11-11
 
 - Costumes: the Look card has "Dressed as", which swaps the built-in person's clothes for a whole ready-made character: king, farmer, adventurer (man or woman), witch or hooded rogue.

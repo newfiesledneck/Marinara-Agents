@@ -21,7 +21,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.5.51";
+const VERSION = "0.5.52";
 // A Home tab with its own icon, serving its own asset files (the kit: people, props), and a server part for
 // model calls, pictures and scenes. Capability API 1.66 is the scene origin (`scenes`); the Engine minimum
 // matches Slurp 2's, the other package with scenes.

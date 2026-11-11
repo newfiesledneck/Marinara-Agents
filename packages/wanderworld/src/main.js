@@ -56,6 +56,7 @@ import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
 import { createMemories } from "./memory.js";
+import { homeToLeaveFor, housingAfterMove, vacantHomes, VISIT_HOURS, visitFrom, visitOver } from "./household.js";
 import { ANIMALS, animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
@@ -679,6 +680,7 @@ function playWorld(id) {
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
   core.social = createSocial(save.social ?? {});
+  core.invites = new Map(); // who's been asked round (Journal → Home): this world's, and only while it's open
   core.memories = createMemories(save.memories ?? {});
   core.away = {}; // when each part of the world was last left (socialTick)
   core.area = null;
@@ -2196,6 +2198,131 @@ function setHousingByHand(id, { home, work, owner }) {
   core.journalAt = 0;
 }
 
+// ── Your household (Journal → Home) ─────────────────────────────────────────
+// Where the player lives, who with, and who's coming round. All by rules: no model is called.
+
+/** Whether `id` would come round, or move in: they know the player and don't dislike them. */
+function welcomeFrom(id) {
+  return knows(id) && core.relations.feeling(id, PLAYER_ID).warmth >= 0;
+}
+
+/** Journal → Home: the player's home, who lives there, the empty houses, and who could be asked. */
+function householdData(snapshot, names) {
+  if (!core.zones || !core.save) return null;
+  const mine = core.save.housing?.[PLAYER_ID]?.home ?? null;
+  const myDoor = playerHomeDoor();
+  const slots = new Map([...slotsOf(core.zones)].map(([slot, id]) => [id, slot]));
+  const farFrom = (zone) => {
+    const door = core.world?.doors[zone.door];
+    return door ? Math.hypot(door.x - core.player.position.x, door.z - core.player.position.z) : Infinity;
+  };
+  const mates = myDoor === null ? [] : snapshot.filter((person) => person.home === myDoor);
+  const mateIds = new Set(mates.map((mate) => mate.id));
+  return {
+    home: mine && myDoor !== null ? { id: mine, name: names[mine] ?? "your home" } : null,
+    mates: mates.map((mate) => ({ id: mate.id, name: mate.name })),
+    // (Empty houses are all "a house": each is told apart by its numbered name, as on the map and in lore.)
+    // The nearest twenty: a town has more empty houses than a list on a phone should.
+    vacant: vacantHomes(core.zones.zones, snapshot, mine)
+      .map((zone) => ({ zone, far: farFrom(zone) }))
+      .sort((a, b) => a.far - b.far)
+      .slice(0, 20)
+      .map(({ zone }) => ({
+        id: zone.id,
+        name: `${names[zone.id] ?? zone.name}${slots.has(zone.id) ? ` (${slots.get(zone.id)})` : ""}`,
+      })),
+    friends: snapshot
+      .filter((person) => !mateIds.has(person.id) && welcomeFrom(person.id))
+      .map((person) => ({ id: person.id, name: person.name, coming: core.invites?.has(person.id) === true })),
+    visitHours: VISIT_HOURS,
+  };
+}
+
+/** Writes who lives where, and has everyone (and the animals kept at home) go by it. */
+function commitHousing(housing) {
+  core.save = { ...core.save, housing };
+  core.saves.write(core.save);
+  useHousing();
+  syncPets();
+  core.placesChanged = true;
+  core.journalAt = 0;
+}
+
+/** The player moves to the empty house `zoneId`; of those they live with, `bring` (ids) come too, the rest stay. */
+function moveHome(zoneId, bring = []) {
+  if (!core.save || !core.zones) return;
+  const snapshot = core.crowd.snapshot();
+  const old = core.save.housing?.[PLAYER_ID]?.home ?? null;
+  // (Only a house that still stands empty: someone may have moved in since it was listed.)
+  if (!vacantHomes(core.zones.zones, snapshot, old).some((zone) => zone.id === zoneId)) return;
+  const oldDoor = playerHomeDoor();
+  const mates = oldDoor === null ? [] : snapshot.filter((person) => person.home === oldDoor);
+  const along = mates.filter((mate) => bring.includes(mate.id));
+  const housing = housingAfterMove(core.save.housing, {
+    who: PLAYER_ID,
+    from: old,
+    to: zoneId,
+    mates: mates.map((mate) => mate.id),
+    bring,
+  });
+  commitHousing(housing);
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const withThem = along.length ? `, and ${along.map((mate) => mate.name).join(" and ")} with you` : "";
+  narrate(null, `(You move into ${names[zoneId] ?? "your new home"}${withThem}.)`);
+  for (const mate of along) recall([mate.id], `You moved house with ${personaName()}.`);
+}
+
+/** `id` comes to live at the player's home, if they would (welcomeFrom). */
+function moveIn(id) {
+  const mine = core.save?.housing?.[PLAYER_ID]?.home ?? null;
+  const person = core.crowd.snapshot().find((entry) => entry.id === id);
+  if (!mine || !person) return;
+  if (!welcomeFrom(id)) return void narrate(null, `(${person.name} would rather not.)`);
+  const now = core.save.housing?.[id] ?? { home: null, work: null, owner: false };
+  commitHousing({ ...core.save.housing, [id]: { ...now, home: mine } });
+  narrate(null, `(${person.name} moves in with you.)`);
+  recall([id], `You moved in with ${personaName()}, at their home.`);
+}
+
+/** `id` leaves the player's home: for an empty house if there is one, or else the least crowded. */
+function moveOut(id) {
+  const mine = core.save?.housing?.[PLAYER_ID]?.home ?? null;
+  const snapshot = core.crowd.snapshot();
+  const person = snapshot.find((entry) => entry.id === id);
+  if (!mine || !person) return;
+  const other = homeToLeaveFor(core.zones.zones, snapshot, mine);
+  const now = core.save.housing?.[id] ?? { home: null, work: null, owner: false };
+  commitHousing({ ...core.save.housing, [id]: { ...now, home: other?.id ?? null } });
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  narrate(null, `(${person.name} moves out${other ? `, to ${names[other.id] ?? "another house"}` : ""}.)`);
+  recall([id], `${personaName()} asked you to move out of their home.`);
+}
+
+/** Asks `id` round: they head for the player's home and stay a few hours (VISIT_HOURS), if they would. */
+function inviteOver(id) {
+  const person = core.crowd.snapshot().find((entry) => entry.id === id);
+  if (!person || playerHomeDoor() === null) return;
+  if (!welcomeFrom(id)) return void narrate(null, `(${person.name} would rather not.)`);
+  core.invites ??= new Map();
+  core.invites.set(id, visitFrom(core.hour, core.social?.day ?? 0));
+  useSchedules();
+  core.placesChanged = true;
+  narrate(null, `(${person.name} says they'll come round to yours.)`);
+  recall([id], `${personaName()} asked you round to their home.`);
+}
+
+/** Ends the visits whose time is up (called with the social life, every couple of seconds). */
+function endVisits() {
+  if (!core.invites?.size) return;
+  let ended = false;
+  for (const [id, visit] of core.invites) {
+    if (!visitOver(visit, core.hour, core.social?.day ?? 0)) continue;
+    core.invites.delete(id);
+    ended = true;
+  }
+  if (ended) useSchedules();
+}
+
 // ── Schedules (schedules.js) ────────────────────────────────────────────────
 
 /** The places a schedule can name: buildings with a door, the market, places out in the country. */
@@ -2257,6 +2384,12 @@ function useSchedules() {
   for (const character of core.characters ?? []) {
     if (!core.cast?.has(character.id)) continue;
     map[character.id] = scheduleOf(character.id).entries.map((entry) => ({ ...entry, ...where(entry.place) }));
+  }
+  // Whoever's been asked round goes to the player's home first, for as long as the visit lasts.
+  const mine = playerHomeDoor();
+  for (const [id, visit] of core.invites ?? []) {
+    if (mine === null || !core.cast?.has(id)) continue;
+    map[id] = [{ from: visit.from, to: visit.to, activity: "visit", door: mine, point: null }, ...(map[id] ?? [])];
   }
   core.crowd.setSchedules(map);
 }
@@ -2534,6 +2667,7 @@ function journalData(zone, snapshot, residents, names) {
     relations: relationsData(),
     lately: core.settings.worldLog ? [...(core.social?.log ?? [])].slice(-20).reverse() : [],
     party: core.crowd.party(),
+    household: householdData(snapshot, names),
     animals: core.save ? partyAnimals() : [],
     relationsChanged: core.relationsChanged,
     partyChanged: core.partyChanged,
@@ -2775,6 +2909,7 @@ function socialTick(dt) {
   if (!core.save || !core.social || !core.zones) return;
   core.socialWait = (core.socialWait ?? 0) + dt;
   if (core.socialWait < 2) return;
+  endVisits();
   const hours = (core.socialWait * 24 * (core.settings.timeSpeed ?? 1)) / DAY_SECONDS;
   core.socialWait = 0;
   const snapshot = core.crowd.snapshot();
@@ -6929,6 +7064,10 @@ function attach(element) {
       partyChanged();
     },
     onPetOut: petOut,
+    onMoveHome: moveHome,
+    onMoveIn: moveIn,
+    onMoveOut: moveOut,
+    onInviteOver: inviteOver,
     onPartyLeave: (id) => {
       core.crowd.setFollowing(id, false);
       partyChanged();
