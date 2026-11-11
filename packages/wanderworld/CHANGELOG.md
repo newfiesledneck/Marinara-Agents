@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.57 — 2026-11-11
+
+- More to find out in the country: a gallows, a pillory and sometimes a cage beside a watchtower; crystals among the standing stones; a signpost off the corner of an inn or a cottage.
+- They're CC0 models by iPoly3D (Medieval Torture Devices, Signs pack, Crystal Pack), credited in Help, the README and `kit/CREDITS.md`.
+- Nothing already in a world moves: they're placed from numbers of their own.
+
 ## 0.5.56 — 2026-11-11
 
 - Journal → Home says that furnishing needs Settings → Walk into buildings switched on, when it's off.

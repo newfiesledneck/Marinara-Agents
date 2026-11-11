@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.5.56",
+  "version": "0.5.57",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -70,6 +70,9 @@
         "kit/fantasy/outfits/ranger-moss.webp",
         "kit/fantasy/outfits/ranger-rust.webp",
         "kit/fantasy/outfits/ranger-wine.webp",
+        "kit/fantasy/props/crystal-3saqxqooti-glb-0.webp",
+        "kit/fantasy/props/crystal-5dxobg8vsp-glb-0.webp",
+        "kit/fantasy/props/crystal-7do2pm4f8o-glb-0.webp",
         "kit/fantasy/props/index.json",
         "kit/fantasy/props/models.json",
         "kit/fantasy/props/saddle-by-poly-by-google-dsmm-v4sknr-glb-0.webp",
@@ -151,8 +154,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "3a340d63e6cb8a08959e1350d09e72557a9a0c8accacd655c5f83159ffc34984",
-      "bytes": 2313398
+      "sha256": "96a763339bb61e759b5c521f0e30bded8216984d7525b2a595cc698284552864",
+      "bytes": 2314341
     },
     {
       "path": "server.mjs",
@@ -330,14 +333,29 @@
       "bytes": 21826
     },
     {
+      "path": "kit/fantasy/props/crystal-3saqxqooti-glb-0.webp",
+      "sha256": "15ff3a232bc3f3b05f35391837302f57bf147947cca12b0ed1e94a3c4613dc79",
+      "bytes": 1790
+    },
+    {
+      "path": "kit/fantasy/props/crystal-5dxobg8vsp-glb-0.webp",
+      "sha256": "15ff3a232bc3f3b05f35391837302f57bf147947cca12b0ed1e94a3c4613dc79",
+      "bytes": 1790
+    },
+    {
+      "path": "kit/fantasy/props/crystal-7do2pm4f8o-glb-0.webp",
+      "sha256": "15ff3a232bc3f3b05f35391837302f57bf147947cca12b0ed1e94a3c4613dc79",
+      "bytes": 1790
+    },
+    {
       "path": "kit/fantasy/props/index.json",
-      "sha256": "acb64a2c018321b69748fd8b76c799f4fa0b4e4e2e2b3004991228aeac600554",
-      "bytes": 6210
+      "sha256": "dbe52f1188770656afa46360e64572d6de0df7502ba9334dc373cea5da5a9fb0",
+      "bytes": 7116
     },
     {
       "path": "kit/fantasy/props/models.json",
-      "sha256": "d4e90206c968977732630e9fb3900eb1721499d6f9a575fec93ade2261356d0a",
-      "bytes": 2347427
+      "sha256": "2fde01cfffae4092f773a27e0858684532519dc5d247cfd24b14495f280445cf",
+      "bytes": 2516685
     },
     {
       "path": "kit/fantasy/props/saddle-by-poly-by-google-dsmm-v4sknr-glb-0.webp",

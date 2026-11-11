@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.56, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.57, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.56: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.57: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.56, 2026-11-11)
+## Outstanding (as of 0.5.57, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -809,10 +809,12 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   - _Hostile people (0.5.50):_ bandits, witches and wizards are default people dressed for it
     (`people.js OUTLAWS`: the ranger's hood and a sword; a pointed hat and a staff made in code),
     listed with the monsters and run by the herd, so they need no card and no AI.
-  - _Not used, licence unchecked:_ the Poly Pizza zips with no maker in their names (Signs pack, Crystal
-    Pack, Medieval Torture Devices: a pillory, a gallows, cages). Each model's own licence has to be read
-    on its page first. Every model of Fantasy Props MegaKit (Standard) is already in the kit, so more
-    props need more packs (or OBJ reading, item 2).
+  - _CC0 from Poly Pizza, and in (0.5.57):_ iPoly3D's Medieval Torture Devices, Signs pack and Crystal
+    Pack: a gallows, a pillory and a cage by a watchtower, signposts at inns and cottages, crystals among
+    standing stones (`world.js dressPlace`, from numbers of its own). Their other models (more signs
+    and crystals, a guillotine, an iron maiden) are there for the taking. Every model of Fantasy Props
+    MegaKit (Standard) is already in the kit, so beyond these, more props need more packs (or OBJ
+    reading, item 2).
 - _What brings people back (listed with the user, 2026-11-11)._ What each is, and where it stands. "In"
   is in the game now; "part" has its groundwork; the rest is wanted. Everything that calls the model
   gets a switch of its own.

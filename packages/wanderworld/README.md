@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.56)
+## What it does now (0.5.57)
 
 ### The world
 
@@ -279,6 +279,8 @@ only walk about.
   level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
   Relationships ends with Lately, the record of it, and coming back to the town or the country after
   a few hours away says what happened there. Settings → Living world has a switch for each part.
+- **Out in the country, more to find:** a gallows, a pillory and sometimes a cage beside a watchtower,
+  crystals pushing up among the standing stones, a signpost off the corner of an inn or a cottage.
 - **Market days and festivals:** once a week it's market day, once in four weeks an evening festival;
   for those hours a good share of the town gathers in the market square, and a line says so
   (`src/events.js`; rules only, with a switch in Settings → Living world).
@@ -580,6 +582,9 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
 Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, Ultimate Modular Men, Ultimate Modular Women, and the Universal Animation Library and Universal Animation Library 2.
+
+The gallows, pillory, cage, signposts and crystals are by iPoly3D (Medieval Torture Devices, Signs pack
+and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
