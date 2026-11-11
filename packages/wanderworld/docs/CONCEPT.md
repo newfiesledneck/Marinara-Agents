@@ -779,6 +779,45 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
         Off, the log stays plain and the rules still move relationships.
         Switches wanted: relationships changing by themselves; keeping the log; the AI's batches (and how
         often, and how many characters to a batch). Each defaults to what costs nothing.
+- _What brings people back (listed with the user, 2026-11-11)._ What each is, and where it stands. "In"
+  is in the game now; "part" has its groundwork; the rest is wanted. Everything that calls the model
+  gets a switch of its own.
+  1. _"While you were away from here."_ A short recap of what's happened: who fell out, who visited
+     whom, what was pinned to the noticeboard. Only for time spent with Wanderworld open (item 10
+     above): nothing happens while it's closed. Wanted.
+  2. _Characters who remember and seek you out:_ someone crossing the square to bring up what you said
+     last time. Part: people come up to greet or confront you (Settings: People coming up to you); they
+     don't yet carry what was said.
+  3. _A home that's yours:_ furnish it, keep your animals there, have people visit. Part: your home comes
+     from your lore, a horse and a dog sent home keep to its door. Not furnished, and nobody calls.
+  4. _Small goals with an end:_ errands and noticeboard jobs that take ten minutes and change something
+     you can see. Part: people ask errands of you and the noticeboard takes notes; no jobs with an end.
+  5. _Seasons and events:_ a market day, a festival, first snow. Part: a world has a season (`ww:season`)
+     and weather; nothing happens only sometimes.
+  6. _Discovery:_ places and creatures out in the country that aren't on the map until found. Wanted.
+  7. _Progression, for those who turn it on:_ skills, gear, a character sheet (as Quartermaster has).
+     Wanted.
+  8. _Keepsakes:_ a journal that writes itself, and pictures of moments to look back on and share. Part:
+     Illustrate makes a picture of where you are; the Journal doesn't write itself.
+  9. _Relationships that move_ by themselves. Wanted (item 10 above).
+  10. _A record of it:_ a log of what happened, kept with the world. Wanted (item 10 above).
+  11. _People remember only what they know,_ and only that goes to the model for them. Part: who knows
+      whom by name is kept; what each person saw or was told isn't.
+  12. _Only what's relevant goes to the model,_ never the whole lore or history. In: the lore sent is
+      what's tied to where you are and who's there, and people are told in full only when named.
+  13. _Buy, move, build, furnish._ Wanted.
+  14. _A world built from your lore._ In: places, numbers of them, names, who lives and works where, and
+      the world's size, season and walls come from lorebook keywords or the AI's reading of the lore.
+  15. _Build your own map,_ or change the one you have. Wanted.
+  16. _Own a business:_ fit it out, employ characters, have customers. Part: a character can own or work
+      at a place by lore; the player can't.
+  17. _Go to a friend's, have friends over; people can come into a moment or interrupt one._ Part: friends
+      go out together and to each other's houses on their own, and people nearby join a moment. Nobody
+      visits the player, and nobody walks in on a scene.
+  18. _Only people nearby are sent to the model,_ so it can't bring someone into a moment who isn't there.
+      In: a moment's listeners are whoever is within earshot (shouts and whispers reach differently).
+  19. _Up to thirty characters in one world_ (`MAX_PEOPLE`; more later), and scenes with any of them,
+      without adding and removing cards and lorebooks from a chat or keeping several chats. In.
 - _Asset packs (all by Quaternius, CC0; listed 2026-11)._ On hand: Medieval Village MegaKit, Fantasy
   Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
   Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,
