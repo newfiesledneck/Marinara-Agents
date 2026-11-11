@@ -372,7 +372,7 @@ for (const seed of [4242, 51, 7, 99, 1234, 5, 6, 8]) {
           "tents stand apart",
         );
       const out = Math.hypot(tent.bed.x - camp.x, tent.bed.z - camp.z);
-      assert.ok(out > 3 && out < 5, `a tent stands back from the fire (${out.toFixed(1)} m)`);
+      assert.ok(out > 3 && out < 5.6, `a tent stands back from the fire (${out.toFixed(1)} m)`);
       assert.ok(
         town.spots.some((spot) => spot.act === "lie" && spot.camp === camp.id && spot.x === tent.bed.x),
         "each tent has a place to lie down",

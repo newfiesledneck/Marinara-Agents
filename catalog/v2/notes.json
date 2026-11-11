@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.33",
+          "date": "2026-11-11",
+          "notes": "- Campsites are laid out unevenly, each its own way: tents stand a little further from the fire, at different distances and anywhere round it, and the logs sit wherever there's room between them, some turned a little. No log blocks a tent's mouth.",
+          "highlight": false
+        },
+        {
           "version": "0.5.32",
           "date": "2026-11-11",
           "notes": "- A campsite has one, two or three tents round its one fire. Each has a bedroll to rest on, and you can sleep in any of them.\n- Three tents come with three logs to sit on; one or two tents with one or two logs.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.14",
           "date": "2026-11-11",
           "notes": "- The chat window keeps its Jump and Sit buttons whatever the touch buttons are set to, with its own toggle: Settings → Moving → \"Jump and Sit/lie down buttons in the chat window\". The Jump button and the Sit and lie down button toggles now only hide the ones by the thumb on touch screens.\n- The README, Help and plan are up to date with the last four versions.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.13",
-          "date": "2026-11-11",
-          "notes": "- Fixed: upstairs walls with round windows had a band under the window that stepped in, where the stone course had been taken off. It's filled flush with plaster now.\n- Settings → Moving has a toggle each for the Jump button and the Sit and lie down button, in place of one for both. Each hides its button in the chat window and by the thumb on touch screens; Space still jumps, and C still sits unless that is turned off too.",
           "highlight": false
         }
       ]

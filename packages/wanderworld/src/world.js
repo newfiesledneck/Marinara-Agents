@@ -134,7 +134,7 @@ const TREE_UNDERGROWTH = 0.35;
 /** Campsites are at least this far from each other (metres): each its own place, out of sight of the next. */
 const CAMP_APART = 70;
 /** Nothing grows within this of a campsite's fire (metres): room for its tent and the logs round it. */
-const CAMP_CLEARING = 7.5;
+const CAMP_CLEARING = 8;
 const UNDERGROWTH = 700;
 /** Kit trees, with how often each grows and how big it is drawn (its own size is 7–17 m). */
 const KIT_TREES = [
@@ -716,34 +716,85 @@ function placeCamp(town, x, z, angle, camp) {
     );
   }
   // (The flame, its light and its smoke are made with the world: createWorld, from town.camps.)
-  // The tents: one, two or three round the one fire (from numbers of the campsite's own). The first is
-  // straight across from the logs; a second and third stand to either side of it, a little further back.
+  // How it's laid out, from numbers of the campsite's own: one, two or three tents and one to three logs
+  // (three with three tents), each somewhere of its own round the fire, unevenly, as people pitch them.
+  // A bearing is round the fire from straight ahead of it; a tent's is the way its mouth looks out from.
   const tentRandom = rng(hashString(`tents:${Math.round(x)}:${Math.round(z)}`));
   const roll = tentRandom();
-  const side = tentRandom() < 0.5 ? -1 : 1;
-  const TENT_APART = 1.35; // radians round the fire between two tents
-  const tents = [
-    { turn: 0, back: -2.2 },
-    ...(roll > 0.4 ? [{ turn: side * TENT_APART, back: -2.6 }] : []),
-    ...(roll > 0.75 ? [{ turn: -side * TENT_APART, back: -2.6 }] : []),
-  ];
+  const tentCount = roll > 0.75 ? 3 : roll > 0.4 ? 2 : 1;
+  const logCount = tentCount === 3 ? 3 : tentRandom() < 0.5 ? 1 : 2;
+  const apart = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+  // (Tents stand further out than the logs, so only a tent's mouth has to be kept clear of a log.)
+  const TENT_APART = 1.05; // radians between two tents
+  const LOG_APART = 0.85; // between two logs
+  const MOUTH_CLEAR = 0.8; // between a log and a tent's mouth
+  let tents = null;
+  let logSpots = null;
+  // One at a time, each tried a few times for somewhere that fits what's already there; a camp that
+  // can't be finished is begun again.
+  const somewhere = (make, fits) => {
+    for (let tries = 0; tries < 24; tries++) {
+      const made = make();
+      if (fits(made)) return made;
+    }
+    return null;
+  };
+  for (let tries = 0; tries < 40 && !logSpots; tries++) {
+    const pitched = [];
+    const laid = [];
+    for (let n = 0; n < tentCount && pitched.length === n; n++) {
+      const tent = somewhere(
+        // The first is about where a lone tent always was: across the fire from the way in.
+        () => ({
+          bearing: n === 0 ? Math.PI + (tentRandom() - 0.5) * 0.9 : tentRandom() * Math.PI * 2,
+          back: -(3.3 + tentRandom() * 1),
+        }),
+        (tent) => pitched.every((other) => apart(tent.bearing, other.bearing) >= TENT_APART),
+      );
+      if (tent) pitched.push(tent);
+    }
+    for (let n = 0; n < logCount && pitched.length === tentCount && laid.length === n; n++) {
+      const log = somewhere(
+        () => ({
+          bearing: tentRandom() * Math.PI * 2,
+          out: 2.0 + tentRandom() * 0.4,
+          skew: (tentRandom() - 0.5) * 0.5,
+        }),
+        (log) =>
+          laid.every((other) => apart(log.bearing, other.bearing) >= LOG_APART) &&
+          pitched.every((tent) => apart(log.bearing, tent.bearing) >= MOUTH_CLEAR),
+      );
+      if (log) laid.push(log);
+    }
+    if (pitched.length < tentCount || laid.length < logCount) continue;
+    tents = pitched;
+    logSpots = laid;
+  }
+  if (!logSpots) {
+    // (Nothing fitted: the tidy camp, tents side by side across the fire from the logs.)
+    tents = [0, 1.35, -1.35].slice(0, tentCount).map((turn) => ({ bearing: Math.PI + turn, back: -3 }));
+    logSpots = (logCount === 1 ? [0] : logCount === 2 ? [-0.97, 0.97] : [-0.97, 0, 0.97]).map((bearing) => ({
+      bearing,
+      out: 2.3,
+      skew: 0,
+    }));
+  }
+  // (`turn`: how far a tent is turned round the fire from one lying straight back from it.)
+  for (const tent of tents) tent.turn = tent.bearing - Math.PI;
   const [w, h, l] = [1.2, 1.45, 2.4];
-  // Logs to sit on, on the far side of the fire from the first tent and turned to face the fire: three
-  // where there are three tents, else one or two.
-  const logCount = tents.length === 3 ? 3 : tentRandom() < 0.5 ? 1 : 2;
-  const logs = (logCount === 1 ? [0] : logCount === 2 ? [-0.97, 0.97] : [-0.97, 0, 0.97]).map((bearing) => {
-    // (`bearing`: round from straight across the fire from the first tent.)
-    const at = [Math.sin(bearing) * 2.3, Math.cos(bearing) * 2.3];
+  // The logs, each turned to face the fire, more or less.
+  const logs = logSpots.map(({ bearing, out, skew }) => {
+    const at = [Math.sin(bearing) * out, Math.cos(bearing) * out];
     pieces.push(
       painted(
         new CylinderGeometry(0.2, 0.22, 1.7, 7)
           .rotateX(Math.PI / 2)
-          .rotateY(Math.PI / 2 + bearing)
+          .rotateY(Math.PI / 2 + bearing + skew)
           .translate(at[0], 0.2, at[1]),
         0x6b4a2f,
       ),
     );
-    return { at, along: [Math.cos(bearing), -Math.sin(bearing)] };
+    return { at, bearing, along: [Math.cos(bearing + skew), -Math.sin(bearing + skew)] };
   });
   for (const { turn, back } of tents) {
     // Canvas over a ridge pole, its mouth toward the fire, a bedroll inside.
@@ -802,9 +853,13 @@ function placeCamp(town, x, z, angle, camp) {
   // (`mouth` and `bed` are the first tent's; `tents` has them all.)
   town.camps.push({ id: camp, x, y, z, angle, ...beds[0], tents: beds });
   // Places round the fire, facing it (not on the tent's side).
-  // (Not right in front of a middle log: that's the way to its seats.)
-  for (const [i, turn] of [-2.2, -1.4, 0, 1.4, 2.2].entries()) {
-    if (turn === 0 && logCount !== 2) continue;
+  // (Up to five places round it, none in the way to a log's seats or a tent's mouth.)
+  const firstPlace = tentRandom() * Math.PI * 2;
+  for (let n = 0, i = 0; n < 8 && i < 5; n++) {
+    const turn = firstPlace + (n / 8) * Math.PI * 2;
+    if (logs.some((log) => apart(log.bearing, turn) < 0.42) || tents.some((tent) => apart(tent.bearing, turn) < 0.3))
+      continue;
+    i++;
     const at = local(Math.sin(turn) * 1.55, Math.cos(turn) * 1.55);
     placeSpot(town, {
       ...at,
