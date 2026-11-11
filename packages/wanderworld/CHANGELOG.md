@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.5.37 — 2026-11-11
+
+- Animals have a size. A dog's or a horse's is in the Look card (Small, Usual, Large, Huge), and a big horse's back is higher to sit on.
+- Lorebook keyword `ww:pet:horse:large:brown:Shadowmere` on a character's entry (or `ww:you`) gives them that animal: the size, colour, name and breed in any order. The same for `ww:pet:dog:…`.
+- Lorebook keyword `ww:monster:wolf:large:pack5` on a place's entry puts that pack there; `ww:monster:wolf` alone puts wolves there, however many. A creature's own entry with `ww:found in:…` does the same.
+- Doubled colons read the same as single: `ww::pet::horse`.
+- Without these keywords a world's animals are as before.
+
 ## 0.5.36 — 2026-11-11
 
 - Getting down from a horse or a donkey is a movement of its own, like getting on: a leg back over, a lean, and down to the ground beside it. Before, the rider dropped to the ground and slid sideways.

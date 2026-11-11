@@ -35,7 +35,10 @@ import { summariseSetup } from "./setup.js";
 import { HELP, KEYWORD_PROMPT } from "./help.js";
 import { actWords, arrivalLine, errandFor, PACK, pickLine, PROP_THINGS, thingLine } from "./pack.js";
 import {
+  ANIMAL_SIZES,
   creatureFromWords,
+  petsFromLore,
+  spawnsFromLore,
   structureFromKeywords,
   knowingFromWords,
   readKeys,
@@ -50,7 +53,7 @@ import { createPerson, lookChoices } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
-import { COATS, coatFor } from "./animals.js";
+import { animalKind, COATS, coatFor } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
@@ -486,6 +489,7 @@ function buildWorld(seed, place = null) {
   core.crowd.setWorld(core.world);
   core.herd.setWorld(core.world, hashString(seed));
   syncPets();
+  syncSpawns();
   resetMode();
   // Where to start: where they were, else at their own front door (from their lore), else the square.
   const homeDoor = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
@@ -1731,7 +1735,12 @@ function linkLore() {
           ...creature,
           ...creatureFromWords(words),
         })),
+        // What lives where, and whose animals are whose, as the lore's keywords say.
+        spawns: spawnsFromLore(chosen),
+        petLore: petsFromLore(chosen),
       };
+      syncPets();
+      syncSpawns();
       if (places) nameFromLore(chosen);
       const names = namedZones(residentsOf(core.crowd.snapshot()));
       const found = matchLore(chosen, {
@@ -2752,13 +2761,37 @@ function aboutOf(id) {
 function petsFor(owner) {
   const kept = core.pets[owner] ?? {};
   let dog = COATS[kept.dog?.kind] && kept.dog.kind !== "horse" ? kept.dog : null;
+  // What their entry's keyword gives them ("ww:pet:horse:large:brown:Shadowmere"): the size, the colour
+  // where that animal comes in it, the name, the breed.
+  const told = (role) => {
+    if (kept[role] !== undefined) return null;
+    const name =
+      owner === PLAYER_ID ? "you" : ((core.characters ?? []).find((person) => person.id === owner)?.name ?? "");
+    const pet = (core.save?.petLore ?? []).find(
+      (entry) => entry.role === role && entry.owner.toLowerCase() === name.toLowerCase(),
+    );
+    if (!pet) return null;
+    const small = pet.size === "small" || pet.size === "tiny";
+    const kind = role === "horse" ? "horse" : small || (pet.colour === "cream" && !pet.size) ? "shiba" : "husky";
+    const coat = COATS[kind][pet.colour] ? pet.colour : coatFor(kind, hashString(`${role}:${owner}`));
+    return {
+      ...(role === "dog" ? { kind } : {}),
+      coat,
+      out: true,
+      scale: ANIMAL_SIZES[pet.size] ?? 1,
+      ...(pet.name ? { name: pet.name } : {}),
+      ...(pet.species ? { species: pet.species } : {}),
+      lore: true,
+    };
+  };
+  dog ??= told("dog");
   // (What's written of someone is read once, till it changes: whether it gives them a dog, a horse.)
   if (owner !== PLAYER_ID && (kept.dog === undefined || kept.horse === undefined)) {
     const text = aboutOf(owner);
     if (dogLore.get(owner)?.[0] !== text.length)
       dogLore.set(owner, [text.length, PACK.dogLore.test(text), PACK.horseLore.test(text)]);
   }
-  if (kept.dog === undefined && owner !== PLAYER_ID) {
+  if (kept.dog === undefined && !dog && owner !== PLAYER_ID) {
     if (dogLore.get(owner)[1]) {
       const n = hashString(`dog:${owner}`);
       const kind = Object.keys(PACK.dogs)[n % Object.keys(PACK.dogs).length];
@@ -2766,7 +2799,8 @@ function petsFor(owner) {
     }
   }
   let horse = COATS.horse[kept.horse?.coat] ? kept.horse : null;
-  if (kept.horse === undefined && owner !== PLAYER_ID && dogLore.get(owner)[2])
+  horse ??= told("horse");
+  if (kept.horse === undefined && !horse && owner !== PLAYER_ID && dogLore.get(owner)[2])
     horse = { coat: coatFor("horse", hashString(`horse:${owner}`)), out: true, lore: true };
   return { dog, horse };
 }
@@ -2800,6 +2834,7 @@ function syncPets() {
         id: `pet:${owner}:dog`,
         kind: dog.kind,
         coat: dog.coat,
+        scale: dog.scale ?? 1,
         owner,
         out: dog.out !== false,
         home: beside(door, 1.4, 2),
@@ -2809,12 +2844,58 @@ function syncPets() {
         id: `pet:${owner}:horse`,
         kind: "horse",
         coat: horse.coat,
+        scale: horse.scale ?? 1,
         owner,
         out: horse.out !== false,
         home: beside(door, -3.6, 2.6),
       });
   }
   core.herd.setOwned(list);
+}
+
+/**
+ * Puts in the world the animals its lore asks for: what a place's entry says lives there ("ww:monster:
+ * wolf:large:pack5" beside "ww:forest1"), and a creature's own entry with where it's found. Only kinds
+ * the game has a body for; the rest are the lore's alone for now.
+ */
+function syncSpawns() {
+  if (!core.world || !core.save || !core.zones) return;
+  const targets = placeTargets({
+    zones: core.zones,
+    names: core.save.names ?? {},
+    groups: [],
+    name: "",
+    characters: [],
+  });
+  // Where a place is: its middle, or nowhere in particular for the country as a whole.
+  const where = (place) => {
+    if (!place) return null;
+    const id = [...(targets.get(plainWord(place)) ?? [])].find((zone) => core.zones.byId.has(zone));
+    const shape = core.zones.byId.get(id)?.shape;
+    if (shape?.circle) return { x: shape.circle.x, z: shape.circle.z };
+    if (shape?.box && core.zones.byId.get(id).kind !== "town")
+      return { x: (shape.box.minX + shape.box.maxX) / 2, z: (shape.box.minZ + shape.box.maxZ) / 2 };
+    return null;
+  };
+  const list = [];
+  const add = (id, word, size, count, place) => {
+    const kind = animalKind(word);
+    if (kind) list.push({ id, kind, scale: ANIMAL_SIZES[size] ?? 1, sized: !!size, count, at: where(place) });
+  };
+  (core.save.spawns ?? []).forEach((spawn, i) =>
+    add(`place:${i}:${spawn.place}:${spawn.kind}`, spawn.kind, spawn.size, spawn.count, spawn.place),
+  );
+  for (const creature of core.save.creatures ?? [])
+    (creature.found?.length ? creature.found : [null]).forEach((place, i) =>
+      add(
+        `creature:${creature.entryId}:${i}`,
+        creature.name,
+        creature.size,
+        creature.pack > 1 ? creature.pack : 0,
+        place,
+      ),
+    );
+  core.herd.setSpawns(list);
 }
 
 /** Chooses `id`'s dog or horse (`role`): { kind, coat, out }, or null for none. */
@@ -2843,7 +2924,11 @@ function partyAnimals() {
   const coat = (pet) => PACK.coats[pet.coat] ?? pet.coat;
   const mine = petsFor(PLAYER_ID);
   // (By name, when it has one: "Shadowmere, your black horse".)
-  const called = (pet, what) => (pet.name ? `${pet.name}, your ${coat(pet)} ${what}` : `Your ${coat(pet)} ${what}`);
+  const kindOf = (pet, what) =>
+    [(pet.scale ?? 1) >= 1.2 ? "large" : (pet.scale ?? 1) <= 0.85 ? "small" : "", coat(pet), pet.species || what]
+      .filter(Boolean)
+      .join(" ");
+  const called = (pet, what) => (pet.name ? `${pet.name}, your ${kindOf(pet, what)}` : `Your ${kindOf(pet, what)}`);
   if (mine.dog) out.push({ role: "dog", mine: true, out: mine.dog.out !== false, label: called(mine.dog, "dog") });
   if (mine.horse)
     out.push({ role: "horse", mine: true, out: mine.horse.out !== false, label: called(mine.horse, "horse") });
@@ -2855,15 +2940,17 @@ function partyAnimals() {
         mine: false,
         out: true,
         label: horse.name
-          ? `${horse.name}, ${member.name}'s ${coat(horse)} horse`
-          : `${member.name}'s ${coat(horse)} horse`,
+          ? `${horse.name}, ${member.name}'s ${kindOf(horse, "horse")}`
+          : `${member.name}'s ${kindOf(horse, "horse")}`,
       });
     if (dog && dog.out !== false)
       out.push({
         role: "dog",
         mine: false,
         out: true,
-        label: dog.name ? `${dog.name}, ${member.name}'s ${coat(dog)} dog` : `${member.name}'s ${coat(dog)} dog`,
+        label: dog.name
+          ? `${dog.name}, ${member.name}'s ${kindOf(dog, "dog")}`
+          : `${member.name}'s ${kindOf(dog, "dog")}`,
       });
   }
   return out;

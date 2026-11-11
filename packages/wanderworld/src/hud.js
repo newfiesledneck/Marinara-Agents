@@ -444,6 +444,24 @@ export function createHud(root, handlers) {
           row(label, select);
         };
         const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+        // How big it is: the nearest of the three to what it is now (a keyword may have made it bigger).
+        const SIZES = [
+          ["0.82", "Small"],
+          ["1", "Usual"],
+          ["1.25", "Large"],
+          ["1.5", "Huge"],
+        ];
+        const sizing = (label, role, pet) =>
+          choose(
+            label,
+            SIZES,
+            SIZES.reduce(
+              (best, [value]) =>
+                Math.abs(Number(value) - (pet.scale ?? 1)) < Math.abs(Number(best) - (pet.scale ?? 1)) ? value : best,
+              "1",
+            ),
+            (value) => [role, { ...pet, lore: undefined, scale: Number(value) }],
+          );
         // Its name: said in place of "your dog" wherever it's spoken of.
         const naming = (label, role, pet) => {
           const name = document.createElement("input");
@@ -474,7 +492,7 @@ export function createHud(root, handlers) {
           dog?.kind ?? "",
           (kind) => [
             "dog",
-            kind ? { kind, coat: pets.dogs[kind].coats[0][0], out: dog?.out !== false, name: dog?.name } : null,
+            kind ? { ...dog, lore: undefined, kind, coat: pets.dogs[kind].coats[0][0], out: dog?.out !== false } : null,
           ],
         );
         if (dog) {
@@ -482,12 +500,13 @@ export function createHud(root, handlers) {
             "Dog's coat",
             pets.dogs[dog.kind].coats.map(([coat, word]) => [coat, capital(word)]),
             dog.coat,
-            (coat) => ["dog", { kind: dog.kind, coat, out: dog.out !== false, name: dog.name }],
+            (coat) => ["dog", { ...dog, lore: undefined, coat }],
           );
+          sizing("Dog's size", "dog", dog);
           naming("Dog's name", "dog", dog);
           choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
             "dog",
-            { kind: dog.kind, coat: dog.coat, out: at === "out", name: dog.name },
+            { ...dog, lore: undefined, out: at === "out" },
           ]);
         }
         {
@@ -496,13 +515,14 @@ export function createHud(root, handlers) {
             "Horse",
             [["", "None"], ...pets.horses.map(([coat, word]) => [coat, capital(word)])],
             horse?.coat ?? "",
-            (coat) => ["horse", coat ? { coat, out: horse?.out !== false, name: horse?.name } : null],
+            (coat) => ["horse", coat ? { ...horse, lore: undefined, coat, out: horse?.out !== false } : null],
           );
+          if (horse) sizing("Horse's size", "horse", horse);
           if (horse) naming("Horse's name", "horse", horse);
           if (horse)
             choose("Horse is", where, horse.out !== false ? "out" : "home", (at) => [
               "horse",
-              { coat: horse.coat, out: at === "out", name: horse.name },
+              { ...horse, lore: undefined, out: at === "out" },
             ]);
         }
       }

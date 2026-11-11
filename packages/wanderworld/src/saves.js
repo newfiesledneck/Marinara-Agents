@@ -228,10 +228,33 @@ export function checkWorld(raw) {
         found: (Array.isArray(creature.found) ? creature.found : []).map((word) => text(word).slice(0, 60)).slice(0, 6),
         when: ["night", "day"].includes(creature.when) ? creature.when : "any",
         pack: Math.max(1, Math.min(10, Number(creature.pack) || 1)),
+        size: /^[a-z]{1,10}$/u.test(creature.size ?? "") ? creature.size : "",
         danger: Math.max(1, Math.min(10, Number(creature.danger) || 1)),
         drops: (Array.isArray(creature.drops) ? creature.drops : [])
           .map((word) => text(word).slice(0, 40))
           .slice(0, 12),
+      })),
+    // What lives where, as places' lore says (keywords.js spawnsFromLore), and whose animals are whose
+    // (petsFromLore): plain words, read again from the lore whenever it's linked.
+    spawns: (Array.isArray(raw.spawns) ? raw.spawns : [])
+      .filter((spawn) => isRecord(spawn) && typeof spawn.kind === "string" && typeof spawn.place === "string")
+      .slice(0, 60)
+      .map((spawn) => ({
+        place: spawn.place.slice(0, 40),
+        kind: spawn.kind.slice(0, 30),
+        size: /^[a-z]{1,10}$/u.test(spawn.size ?? "") ? spawn.size : "",
+        count: Math.max(0, Math.min(10, Number(spawn.count) || 0)),
+      })),
+    petLore: (Array.isArray(raw.petLore) ? raw.petLore : [])
+      .filter((pet) => isRecord(pet) && typeof pet.owner === "string" && (pet.role === "dog" || pet.role === "horse"))
+      .slice(0, 200)
+      .map((pet) => ({
+        owner: pet.owner.slice(0, 60),
+        role: pet.role,
+        size: /^[a-z]{1,10}$/u.test(pet.size ?? "") ? pet.size : "",
+        colour: /^[a-z]{1,12}$/u.test(pet.colour ?? "") ? pet.colour : "",
+        name: text(pet.name).slice(0, 30),
+        species: text(pet.species).slice(0, 30),
       })),
     // People the player knows by name (besides anyone they have a relationship with): [ids].
     known: (Array.isArray(raw.known) ? raw.known : []).filter((id) => typeof id === "string").slice(0, 200),
@@ -566,6 +589,10 @@ function checkPets(raw) {
         ...(role === "dog" ? { kind: raw[role].kind } : {}),
         coat: raw[role].coat,
         out: raw[role].out !== false,
+        ...(Number(raw[role].scale) >= 0.5 && Number(raw[role].scale) <= 2 ? { scale: Number(raw[role].scale) } : {}),
+        ...(typeof raw[role].species === "string" && raw[role].species.trim()
+          ? { species: raw[role].species.trim().slice(0, 30) }
+          : {}),
         ...(typeof raw[role].name === "string" && raw[role].name.trim()
           ? { name: raw[role].name.trim().slice(0, 30) }
           : {}),

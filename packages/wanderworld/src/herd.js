@@ -121,9 +121,11 @@ export function createHerd() {
   let world = null;
   let beasts = [];
   let token = 0;
+  let spawned = ""; // the lore's animals as last asked for (setSpawns)
 
   function clear() {
     token++;
+    spawned = "";
     for (const beast of beasts) {
       beast.group?.removeFromParent();
       beast.animal?.dispose();
@@ -166,6 +168,7 @@ export function createHerd() {
         .then((animal) => {
           if (mine !== token || beast.gone) return animal.dispose();
           beast.animal = animal;
+          animal.object.scale.setScalar(beast.scale ?? 1); // (its size: a large wolf, a small dog)
           beast.group = animal.object;
           const shadow = blobShadow();
           shadow.scale.setScalar(beast.kind === "horse" || beast.kind === "cow" || beast.kind === "bull" ? 2.4 : 1.4);
@@ -213,8 +216,68 @@ export function createHerd() {
         embody(beast, token);
       }
       beast.owner = entry.owner;
+      beast.scale = entry.scale ?? 1;
+      beast.animal?.object.scale.setScalar(beast.scale);
       beast.out = entry.out;
       beast.home = { x: entry.home.x, z: entry.home.z };
+    }
+  }
+
+  /**
+   * The animals a world's lore asks for: `list` is [{ id, kind, scale, count, at: { x, z } or null for
+   * anywhere out in the country }]. Each is a pack keeping together about one spot. Ones no longer
+   * listed go.
+   */
+  function setSpawns(list) {
+    if (!world) return;
+    const key = JSON.stringify(list);
+    if (key === spawned) return;
+    spawned = key;
+    beasts = beasts.filter((beast) => {
+      if (!beast.lore) return true;
+      beast.gone = true;
+      beast.group?.removeFromParent();
+      beast.animal?.dispose();
+      return false;
+    });
+    const layout = world.layout;
+    const half = layout.worldHalf - 14;
+    for (const entry of list) {
+      if (!ANIMALS[entry.kind]) continue;
+      const random = rng(hashString(`lore:${entry.id}`));
+      const dry = (x, z) => waterAt(x, z).depth <= 0 && !world.blocked(x, z, 0.8);
+      let home = entry.at && dry(entry.at.x, entry.at.z) ? entry.at : null;
+      for (let tries = 0; tries < 60 && !home; tries++) {
+        // Near where it's asked for; else out in the country, away from the houses.
+        const spot = entry.at
+          ? { x: entry.at.x + (random() * 2 - 1) * 14, z: entry.at.z + (random() * 2 - 1) * 14 }
+          : { x: (random() * 2 - 1) * half, z: (random() * 2 - 1) * half };
+        if (!entry.at && Math.max(Math.abs(spot.x), Math.abs(spot.z)) < layout.townHalf + 30) continue;
+        if (dry(spot.x, spot.z) && heightAt(spot.x, spot.z) < 22) home = spot;
+      }
+      if (!home) continue;
+      const count = entry.count || 1 + Math.floor(random() * 4);
+      for (let n = 0; n < count; n++) {
+        const angle = random() * Math.PI * 2;
+        const out = n ? 1.5 + random() * 4.5 : 0;
+        const at = { x: home.x + Math.sin(angle) * out, z: home.z + Math.cos(angle) * out };
+        const spot = dry(at.x, at.z) ? at : home;
+        const beast = {
+          ...alive(`${entry.id}:${n}`, n),
+          id: `lore:${entry.id}:${n}`,
+          kind: entry.kind,
+          coat: coatFor(entry.kind, hashString(`coat:${entry.id}:${n}`)),
+          scale: (entry.scale ?? 1) * (entry.sized ? 1 : 0.92 + random() * 0.2),
+          x: spot.x,
+          z: spot.z,
+          home: { x: home.x, z: home.z },
+          range: 22,
+          tied: false,
+          lore: true,
+        };
+        beasts.push(beast);
+        embody(beast, token);
+      }
     }
   }
 
@@ -350,6 +413,7 @@ export function createHerd() {
   return {
     setWorld,
     setOwned,
+    setSpawns,
     update,
     /** Takes everything out of the world (before it's disposed). */
     detach: clear,
@@ -361,6 +425,8 @@ export function createHerd() {
         coat: beast.coat,
         owner: beast.owned ? beast.owner : null,
         out: beast.owned ? !!beast.out : null,
+        scale: beast.scale ?? 1,
+        lore: !!beast.lore,
         x: beast.x,
         z: beast.z,
         state: beast.state,
@@ -379,7 +445,7 @@ export function createHerd() {
           owner: beast.owned ? beast.owner : null, // (someone's own: theirs to ride, not anyone's)
           x: beast.x,
           z: beast.z,
-          back: ANIMALS[beast.kind].back,
+          back: ANIMALS[beast.kind].back * (beast.scale ?? 1),
         }));
     },
     /** The rider takes `id`: it stops going about on its own. Returns { kind, x, z, angle, back, seat, walk, gallop } or null. */
@@ -391,7 +457,16 @@ export function createHerd() {
       beast.target = null;
       beast.graze = false;
       const facts = ANIMALS[beast.kind];
-      return { id, kind: beast.kind, coat: beast.coat, x: beast.x, z: beast.z, angle: beast.angle, ...facts };
+      return {
+        id,
+        kind: beast.kind,
+        coat: beast.coat,
+        x: beast.x,
+        z: beast.z,
+        angle: beast.angle,
+        ...facts,
+        back: facts.back * (beast.scale ?? 1), // (a big horse's back is higher)
+      };
     },
     /** While ridden: where the rider has taken it, facing `angle`, at `speed` metres a second; in a
      *  jump, `leap` of the way through it (0…1; null on the ground). Returns how far its back has risen
