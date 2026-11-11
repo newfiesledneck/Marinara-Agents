@@ -95,15 +95,23 @@ export const HAIR_COLOURS = [
 /** How many of those a name alone picks from (the natural ones). */
 export const USUAL_HAIR_COLOURS = 8;
 
-/** Skin tones, as what the kit's skin texture is multiplied by: [[r, g, b], label]. */
+/** Skin tones, lightest to darkest: [the colour the skin comes out as, label]. */
 export const SKIN_TONES = [
-  [[1.12, 1.06, 1.02], "Pale"],
-  [[1.0, 0.97, 0.94], "Fair"],
-  [[0.9, 0.8, 0.72], "Light"],
-  [[0.74, 0.6, 0.5], "Tan"],
-  [[0.56, 0.43, 0.35], "Brown"],
-  [[0.42, 0.31, 0.25], "Dark"],
+  [0xf3d9cb, "Pale"],
+  [0xedc0b0, "Rosy"],
+  [0xe8c3a8, "Fair"],
+  [0xd9a98a, "Light"],
+  [0xd8a970, "Golden"],
+  [0xc08a62, "Tan"],
+  [0xb0895a, "Olive"],
+  [0xa56c43, "Bronze"],
+  [0x8d5a3a, "Brown"],
+  [0x70432a, "Deep brown"],
+  [0x5c3a26, "Dark"],
+  [0x3d261a, "Ebony"],
 ];
+/** Where the six tones of the first list (a look saved before 0.5.30) are in this one. */
+const OLDER_SKIN = [0, 2, 3, 5, 8, 10];
 
 /** Heights a look may have, as a share of the usual. */
 export const HEIGHTS = [0.88, 1.12];
@@ -144,7 +152,9 @@ export function checkLook(raw) {
   const within = (value, count) => Number.isInteger(value) && value >= 0 && value < count;
   if (within(raw.hairColour, HAIR_COLOURS.length)) look.hairColour = raw.hairColour;
   if (isColour(raw.hairTint)) look.hairTint = raw.hairTint;
-  if (within(raw.skin, SKIN_TONES.length)) look.skin = raw.skin;
+  // (`skinSet` says the number is from this list; without it, it's from the first six.)
+  const skin = raw.skinSet === 2 ? raw.skin : OLDER_SKIN[raw.skin];
+  if (within(skin, SKIN_TONES.length)) Object.assign(look, { skin, skinSet: 2 });
   if (isColour(raw.skinTint)) look.skinTint = raw.skinTint;
   if (typeof raw.beard === "boolean") look.beard = raw.beard;
   if (Number.isFinite(raw.height)) look.height = Math.max(HEIGHTS[0], Math.min(HEIGHTS[1], Number(raw.height)));

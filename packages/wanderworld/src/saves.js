@@ -318,7 +318,7 @@ export function checkWorld(raw) {
             .filter(([, look]) => Object.keys(look).length),
         )
       : {},
-    // Animals of one's own, by owner id: { dog: { kind, coat, out } | null, horse: { coat, out } | null }
+    // Animals of one's own, by owner id: { dog: { kind, coat, out, name? } | null, horse: { coat, out, name? } | null }
     // (`out`: with them, not at home; a dog given as null is "none, whatever their lore says").
     pets: isRecord(raw.pets)
       ? Object.fromEntries(
@@ -566,6 +566,9 @@ function checkPets(raw) {
         ...(role === "dog" ? { kind: raw[role].kind } : {}),
         coat: raw[role].coat,
         out: raw[role].out !== false,
+        ...(typeof raw[role].name === "string" && raw[role].name.trim()
+          ? { name: raw[role].name.trim().slice(0, 30) }
+          : {}),
       };
   }
   return out;

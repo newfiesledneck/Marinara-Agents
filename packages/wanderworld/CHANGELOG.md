@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.30 — 2026-11-11
+
+- Fixed: in a world with a smithy, every prop stayed a plain shape (boxes for wagons and crates, white picket fences) even with Detailed furniture and props on. The smithy's anvil, workbench and weapon stand weren't being loaded, which held all the others back.
+- Name your dog and your horse in the Look card. The name is used in the Party tab, the Ride prompt, the chat's Send home button and what's narrated.
+- Skin tones: twelve, from Pale to Ebony, each coming out as its own colour. Brown and the darker tones no longer look grey or washed out. People without a chosen tone get one from the wider list, so some will change.
+
 ## 0.5.29 — 2026-11-11
 
 - The chat box's hint shows the action command as "/a(ction)", the rest of the word dimmer: /a and /action both work.

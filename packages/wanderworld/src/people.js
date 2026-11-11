@@ -216,10 +216,11 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
     parts,
     colourways,
     tints: choices.tints,
-    skinTint: choices.skinTint,
+    // (A tone from the list is painted on just as a colour of one's own is: it comes out as that colour.)
+    skinTint: choices.skinTint ?? SKIN_TONES[choices.skin][0],
     hair: choices.hair,
     beard: choices.beard,
-    skin: SKIN_TONES[choices.skin][0],
+    skin: [1, 1, 1],
     hairColour: choices.hairTint ?? HAIR_COLOURS[choices.hairColour][0],
     height: choices.height,
     seed: hashString(`${name}:motion`),
