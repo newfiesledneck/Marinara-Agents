@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Converts animals from Quaternius's Ultimate Animated Animals pack (CC0) into Wanderworld's kit:
-// packages/wanderworld/kit/animals/<name>.json, served as package assets and loaded by src/animals.js.
+// packages/wanderworld/kit/animals/<group>.json (farm.json: the farm's and the town's; wild.json: the
+// country's), served as package assets and loaded by src/animals.js when a world has one of that group.
 //
 // Usage: node scripts/build-wanderworld-animals.mjs "<…>/Ultimate Animated Animals - July 2021/glTF"
 //
 // Each animal in the pack is a skinned mesh in flat colours with a dozen animations, about 1.5 MB, most
-// of it keyframes. Kept here: the mesh (its materials' colours baked into vertex colours, so it draws as
-// one), the skeleton, and the few animations the game plays (standing, grazing, walking, galloping),
+// of it keyframes. Kept here: the mesh (drawn as one: each vertex says which of the pack's materials it
+// was, "Main", "Hair", "Hooves", and the file lists their colours, so the game can give a horse or a dog
+// another coat), the skeleton, and the few animations the game plays (standing, grazing, walking, galloping),
 // sampled again at a few frames a second: about a tenth the size. Sizes are in metres: each animal is
 // scaled so it stands as tall as ANIMALS says.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -18,20 +20,34 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "packages/wanderworld/kit/animals");
 
-/** Each animal kept: the pack's file, and how tall it stands (metres, ground to the top of its head or antlers). */
+/**
+ * Each animal kept: the file it goes in (src/animals.js has the same groups), the pack's file, and how
+ * tall it stands (metres, ground to the top of its head or antlers). `parts` renames the pack's
+ * materials where it left them unnamed. To drop or swap one, change this list and run the script again.
+ */
 const ANIMALS = {
-  horse: { file: "Horse", height: 2.25 },
-  "horse-white": { file: "Horse_White", height: 2.25 },
-  donkey: { file: "Donkey", height: 1.65 },
-  cow: { file: "Cow", height: 1.7 },
-  bull: { file: "Bull", height: 1.8 },
-  alpaca: { file: "Alpaca", height: 1.7 },
-  deer: { file: "Deer", height: 1.45 },
-  stag: { file: "Stag", height: 1.95 },
-  wolf: { file: "Wolf", height: 0.95 },
-  fox: { file: "Fox", height: 0.6 },
-  husky: { file: "Husky", height: 0.85 },
-  shiba: { file: "ShibaInu", height: 0.62 },
+  horse: { group: "farm", file: "Horse", height: 2.25 },
+  donkey: { group: "farm", file: "Donkey", height: 1.65 },
+  cow: { group: "farm", file: "Cow", height: 1.7 },
+  bull: { group: "farm", file: "Bull", height: 1.8 },
+  alpaca: { group: "farm", file: "Alpaca", height: 1.7 },
+  husky: {
+    group: "farm",
+    file: "Husky",
+    height: 0.85,
+    parts: {
+      Material: "Main",
+      "Material.006": "Black",
+      "Material.001": "Main_Light",
+      "Material.002": "Eyes_Black",
+      "Material.003": "Eyes_White",
+    },
+  },
+  shiba: { group: "farm", file: "ShibaInu", height: 0.62 },
+  deer: { group: "wild", file: "Deer", height: 1.45 },
+  stag: { group: "wild", file: "Stag", height: 1.95 },
+  wolf: { group: "wild", file: "Wolf", height: 0.95 },
+  fox: { group: "wild", file: "Fox", height: 0.6 },
 };
 
 /** The animations kept: the game's name, the pack's (either spelling), and frames a second. */
@@ -42,7 +58,7 @@ const CLIPS = [
   ["walk", ["Walk"], 15],
   ["gallop", ["Gallop"], 24],
   // The leap, for the ones that are ridden only (each clip adds to the file).
-  ["jump", ["Gallop_Jump"], 24, ["horse", "horse-white", "donkey"]],
+  ["jump", ["Gallop_Jump"], 24, ["horse", "donkey"]],
 ];
 
 const b64 = (typed) => Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength).toString("base64");
@@ -76,7 +92,7 @@ async function load(path) {
   return new GLTFLoader().parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), "");
 }
 
-async function convert(name, { file, height }, dir) {
+async function convert(name, { file, height, parts: renamed = {} }, dir) {
   const gltf = await load(join(dir, `${file}.gltf`));
   const scene = gltf.scene;
   scene.updateMatrixWorld(true);
@@ -90,7 +106,8 @@ async function convert(name, { file, height }, dir) {
   // The mesh: every part into one, its material's colour on each vertex, in the skeleton's bind space.
   const position = [];
   const normal = [];
-  const colour = [];
+  const part = []; // which of `parts` each vertex is
+  const parts = []; // [name, r, g, b] (0…255): the pack's materials
   const joints = [];
   const weights = [];
   const index = [];
@@ -105,6 +122,9 @@ async function convert(name, { file, height }, dir) {
     const w = geometry.attributes.skinWeight;
     const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
     const tint = material.color.clone().convertLinearToSRGB();
+    const partName = renamed[material.name] ?? material.name;
+    let partAt = parts.findIndex((entry) => entry[0] === partName);
+    if (partAt < 0) partAt = parts.push([partName, ...tint.toArray().map((value) => Math.round(value * 255))]) - 1;
     const v = new Vector3();
     for (let i = 0; i < p.count; i++) {
       // Into the bind space the bones' inverses expect (the mesh's own bind matrix).
@@ -112,7 +132,7 @@ async function convert(name, { file, height }, dir) {
       position.push(v.x, v.y, v.z);
       v.fromBufferAttribute(n, i).transformDirection(mesh.bindMatrix);
       normal.push(v.x, v.y, v.z);
-      colour.push(tint.r, tint.g, tint.b);
+      part.push(partAt);
       let total = 0;
       for (let c = 0; c < 4; c++) total += w.getComponent(i, c);
       for (let c = 0; c < 4; c++) {
@@ -150,7 +170,8 @@ async function convert(name, { file, height }, dir) {
     box: [...min, ...max].map((value) => round(value)),
     position: b64(packedPosition),
     normal: b64(new Int8Array(normal.map((value) => Math.round(value * 127)))),
-    colour: b64(new Uint8Array(colour.map((value) => Math.round(value * 255)))),
+    part: b64(new Uint8Array(part)),
+    parts,
     joints: b64(new Uint8Array(joints)),
     weights: b64(new Uint8Array(weights.map((value) => Math.round(value * 255)))),
     index: b64(count > 65535 ? new Uint32Array(index) : new Uint16Array(index)),
@@ -230,9 +251,10 @@ async function convert(name, { file, height }, dir) {
     inverseBind: skeleton.boneInverses.flatMap((matrix) => matrix.toArray().map((value) => round(value, 6))),
     clips,
   };
-  const text = JSON.stringify(animal);
-  writeFileSync(join(OUT, `${name}.json`), text);
-  return { triangles: index.length / 3, bones: bones.length, bytes: text.length, height };
+  return {
+    animal,
+    info: { triangles: index.length / 3, bones: bones.length, bytes: JSON.stringify(animal).length, height },
+  };
 }
 
 async function main() {
@@ -241,12 +263,20 @@ async function main() {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
   const index = { source: "Ultimate Animated Animals by Quaternius, CC0 1.0", animals: {} };
+  const groups = {};
   for (const [name, entry] of Object.entries(ANIMALS)) {
-    index.animals[name] = await convert(name, entry, dir);
-    const info = index.animals[name];
+    const { animal, info } = await convert(name, entry, dir);
+    (groups[entry.group] ??= {})[name] = animal;
+    index.animals[name] = { group: entry.group, ...info };
     console.log(
       `${name.padEnd(12)} ${info.triangles} triangles, ${info.bones} bones, ${(info.bytes / 1024).toFixed(0)} KB`,
     );
+  }
+  // One file a group: a package may list only so many, and a world has most of a group anyway.
+  for (const [group, animals] of Object.entries(groups)) {
+    const text = JSON.stringify({ animals });
+    writeFileSync(join(OUT, `${group}.json`), text);
+    console.log(`${group}.json: ${Object.keys(animals).join(", ")} (${(text.length / 1024).toFixed(0)} KB)`);
   }
   writeFileSync(join(OUT, "index.json"), JSON.stringify(index, null, 2));
   console.log(`wrote ${OUT}`);

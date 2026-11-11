@@ -2804,6 +2804,13 @@ const MOUNT_VAULT = 0.85; // seconds up and over onto its back
 const LEAP_PACE = 5.5; // a jump carries the animal forward at least this fast (metres a second)
 const LEAP_CLEAR = 0.2; // its back this far up, it's over a fence (metres)
 
+/** What a mount is called: "the grey horse", "the donkey". */
+function mountName(mount) {
+  const name = PACK.animals[mount?.kind] ?? "the horse";
+  const coat = mount?.kind === "horse" ? PACK.coats[mount.coat] : null;
+  return coat ? name.replace(/^the /u, `the ${coat} `) : name;
+}
+
 /** Gets up on a horse or a donkey (`id`: herd.js): from here on the stick and keys move it. */
 function ride(id) {
   if (core.mode !== "walk" || core.interior) return;
@@ -2832,7 +2839,7 @@ function ride(id) {
     1.4,
     () =>
       void runMoment({
-        action: `gets up on ${PACK.animals[mount.kind] ?? "the horse"}`,
+        action: `gets up on ${mountName(mount)}`,
         needListeners: true,
         source: "seat",
       }),
@@ -4720,7 +4727,7 @@ function speak(typed) {
 function playerDoing() {
   if (core.mode === "sit" && core.seat?.ground)
     return core.seat.ground === "lie" ? "lying on the ground" : "sitting on the ground";
-  if (core.mode === "ride") return `riding ${PACK.animals[core.mount?.kind]?.replace(/^the /u, "a ") ?? "a horse"}`;
+  if (core.mode === "ride") return `riding ${mountName(core.mount).replace(/^the /u, "a ")}`;
   if (core.mode === "sit" && core.seat?.pose === "lie") return "lying on a bed";
   if (core.mode === "sit") return "sitting on a bench";
   if (core.talking) return `talking with ${core.talking.name}`;
@@ -5478,7 +5485,7 @@ function usable() {
   for (const mount of core.interior ? [] : core.herd.mounts(core.player.position, 6)) {
     list.push({
       kind: "thing",
-      label: `Ride ${PACK.animals[mount.kind] ?? "it"}`,
+      label: `Ride ${mountName(mount)}`,
       x: mount.x,
       z: mount.z,
       y: mount.back + 0.4,

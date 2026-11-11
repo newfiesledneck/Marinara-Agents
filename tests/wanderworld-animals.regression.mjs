@@ -1,4 +1,5 @@
-// Wanderworld's animals, without a browser: each kind built from the kit files on disk (kit/animals/,
+// Wanderworld's animals, without a browser: each kind built from the kit files on disk (kit/animals/, a
+// file a group,
 // made from Quaternius's CC0 Ultimate Animated Animals by scripts/build-wanderworld-animals.mjs) stands
 // on the ground at the size it should be and poses for standing, grazing, walking and galloping; a
 // world gets a herd that keeps to dry, open ground; the timid ones run; and a horse can be ridden.
@@ -24,7 +25,7 @@ const context = new Proxy(
 );
 globalThis.document = { createElement: () => ({ getContext: () => context, width: 0, height: 0 }) };
 
-const { ANIMALS, createAnimal } = await import("../packages/wanderworld/src/animals.js");
+const { ANIMALS, COATS, coatFor, createAnimal } = await import("../packages/wanderworld/src/animals.js");
 const { createHerd, herdFor } = await import("../packages/wanderworld/src/herd.js");
 const { PACK } = await import("../packages/wanderworld/src/pack.js");
 const { createWorld, waterAt } = await import("../packages/wanderworld/src/world.js");
@@ -92,7 +93,43 @@ await assert.rejects(() =>
 );
 assert.equal((await createAnimal("dragon")).kind, "deer", "an unknown kind is a deer");
 
+// ── Files by group, and coats ────────────────────────────────────────────────
+for (const [kind, facts] of Object.entries(ANIMALS)) {
+  assert.equal(index.animals[kind].group, facts.group, `the ${kind} is in the file the game looks in`);
+  const file = JSON.parse(await readFile(join(kit, `${facts.group}.json`), "utf8"));
+  assert.ok(file.animals[kind], `${facts.group}.json has the ${kind}`);
+  // Every part a coat recolours is a part the model has.
+  const parts = new Set(file.animals[kind].mesh.parts.map(([name]) => name));
+  for (const [coat, colours] of Object.entries(COATS[kind] ?? {})) {
+    for (const [part, rgb] of Object.entries(colours)) {
+      assert.ok(parts.has(part), `the ${kind}'s ${coat} coat colours a part it has (${part})`);
+      assert.ok(rgb.length === 3 && rgb.every((value) => value >= 0 && value <= 255));
+    }
+  }
+}
+{
+  const colourOf = (animal) => {
+    let mesh;
+    animal.object.traverse((object) => object.isSkinnedMesh && (mesh = object));
+    return Array.from(mesh.geometry.attributes.color.array.slice(0, 3000)).join();
+  };
+  const seen = new Set();
+  for (const coat of Object.keys(COATS.horse)) {
+    const horse = await createAnimal("horse", coat);
+    assert.equal(horse.coat, coat);
+    seen.add(colourOf(horse));
+    assert.ok(PACK.coats[coat], `the pack has a word for a ${coat} horse`);
+    horse.dispose();
+  }
+  assert.equal(seen.size, Object.keys(COATS.horse).length, "each coat is its own colours");
+  assert.equal((await createAnimal("horse", "plaid")).coat, "bay", "an unknown coat is the first");
+  assert.equal((await createAnimal("cow", "black")).coat, null, "a cow has the one coat");
+  assert.equal(coatFor("cow", 5), null);
+  assert.ok(Object.keys(COATS.husky).length >= 3 && Object.keys(COATS.shiba).length >= 3, "dogs have coats");
+}
+
 // ── A world's herd ───────────────────────────────────────────────────────────
+const horseCoats = [];
 for (const seed of [4242, 51, 7]) {
   const world = createWorld(seed);
   const herd = herdFor(world, seed);
@@ -104,6 +141,11 @@ for (const seed of [4242, 51, 7]) {
     assert.ok(!world.blocked(beast.x, beast.z, 0.5), `the ${beast.kind} doesn't start inside something`);
     assert.ok(beast.range > 0);
   }
+  for (const beast of herd)
+    assert.equal(beast.coat, coatFor(beast.kind, 0) === null ? null : beast.coat, "only some kinds have coats");
+  for (const beast of herd.filter((entry) => COATS[entry.kind]))
+    assert.ok(COATS[beast.kind][beast.coat], `the ${beast.kind} has a coat it can have (${beast.coat})`);
+  horseCoats.push(...herd.filter((entry) => entry.kind === "horse").map((entry) => entry.coat));
   const kinds = new Set(herd.map((beast) => beast.kind));
   assert.ok(kinds.has("deer"), "deer in the country");
   assert.ok(kinds.has("husky") || kinds.has("shiba"), "a dog about the settlement");
@@ -114,6 +156,8 @@ for (const seed of [4242, 51, 7]) {
   }
   world.dispose();
 }
+
+assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...new Set(horseCoats)].join(", ")})`);
 
 // ── Going about, running away, being ridden ──────────────────────────────────
 {

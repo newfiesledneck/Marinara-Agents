@@ -1,10 +1,12 @@
 // Animals: four-legged bodies from Quaternius's Ultimate Animated Animals (CC0), made by
-// scripts/build-wanderworld-animals.mjs into kit/animals/, served as package assets and loaded when a
-// world has one of that kind (then cached). A second kind of body beside the people's humanoid one
+// scripts/build-wanderworld-animals.mjs into kit/animals/ (a file a group: the farm's and the town's,
+// the country's), served as package assets and loaded when a world has one of that group (then cached). A second kind of body beside the people's humanoid one
 // (character.js): each animal has its own skeleton and its own few animations (standing, looking about,
 // grazing, walking, galloping), played here by its own small player.
 //
-// An animal is { object, update(dt, speed, { graze }), dispose(), kind, height, back }: `object` faces
+// A horse or a dog comes in several coats (COATS): the same body, its parts in other colours.
+//
+// An animal is { object, update(dt, speed, { graze }), dispose(), kind, coat, height, back }: `object` faces
 // +z and stands on y = 0, in metres; `update` moves it for a frame in which it travelled at `speed`
 // metres a second; `back` is how high a rider sits (a horse, a donkey), in metres.
 import {
@@ -24,35 +26,117 @@ const BASE = "/api/capability-packages/wanderworld/assets/kit/animals/";
 /**
  * What the game knows of each kind: how fast it walks and gallops (metres a second, the pace its clips
  * are played at: feet keep to the ground near these), how high the top of its back is where a rider sits (measured on the posed model; 0: not ridden),
- * how far along its back from its middle the rider sits, and whether it runs from people.
+ * how far along its back from its middle the rider sits, whether it runs from people, and which of the
+ * kit's files it's in (`group`).
  */
 export const ANIMALS = {
-  horse: { walk: 1.7, gallop: 7.5, back: 1.62, seat: -0.05, timid: false },
-  "horse-white": { walk: 1.7, gallop: 7.5, back: 1.62, seat: -0.05, timid: false },
-  donkey: { walk: 1.3, gallop: 5.5, back: 1.2, seat: -0.05, timid: false },
-  cow: { walk: 1.0, gallop: 4.5, back: 0, seat: 0, timid: false },
-  bull: { walk: 1.0, gallop: 4.8, back: 0, seat: 0, timid: false },
-  alpaca: { walk: 1.1, gallop: 5, back: 0, seat: 0, timid: false },
-  deer: { walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
-  stag: { walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
-  wolf: { walk: 1.3, gallop: 6.5, back: 0, seat: 0, timid: true },
-  fox: { walk: 1.0, gallop: 5.5, back: 0, seat: 0, timid: true },
-  husky: { walk: 1.2, gallop: 5.5, back: 0, seat: 0, timid: false },
-  shiba: { walk: 1.0, gallop: 5, back: 0, seat: 0, timid: false },
+  horse: { group: "farm", walk: 1.7, gallop: 7.5, back: 1.62, seat: -0.05, timid: false },
+  donkey: { group: "farm", walk: 1.3, gallop: 5.5, back: 1.2, seat: -0.05, timid: false },
+  cow: { group: "farm", walk: 1.0, gallop: 4.5, back: 0, seat: 0, timid: false },
+  bull: { group: "farm", walk: 1.0, gallop: 4.8, back: 0, seat: 0, timid: false },
+  alpaca: { group: "farm", walk: 1.1, gallop: 5, back: 0, seat: 0, timid: false },
+  husky: { group: "farm", walk: 1.2, gallop: 5.5, back: 0, seat: 0, timid: false },
+  shiba: { group: "farm", walk: 1.0, gallop: 5, back: 0, seat: 0, timid: false },
+  deer: { group: "wild", walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
+  stag: { group: "wild", walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
+  wolf: { group: "wild", walk: 1.3, gallop: 6.5, back: 0, seat: 0, timid: true },
+  fox: { group: "wild", walk: 1.0, gallop: 5.5, back: 0, seat: 0, timid: true },
 };
 
+/**
+ * Coats: for a kind, each coat's colours for the parts it changes ([r, g, b], 0…255; a part left out
+ * keeps the pack's colour, and the first coat is the pack's own). The parts are the pack's materials:
+ * Main (the body), Main_Dark and Main_Light (its shading and markings), Hair (mane and tail), Hooves,
+ * Muzzle.
+ */
+export const COATS = {
+  horse: {
+    bay: {},
+    white: {
+      Main: [176, 177, 161],
+      Main_Dark: [160, 160, 148],
+      Main_Light: [144, 142, 144],
+      Hooves: [144, 130, 82],
+      Hair: [170, 158, 134],
+      Muzzle: [149, 123, 98],
+    },
+    black: {
+      Main: [44, 42, 42],
+      Main_Dark: [32, 31, 31],
+      Main_Light: [62, 59, 57],
+      Hooves: [52, 50, 48],
+      Hair: [22, 22, 22],
+      Muzzle: [34, 32, 31],
+    },
+    grey: {
+      Main: [128, 130, 132],
+      Main_Dark: [100, 102, 105],
+      Main_Light: [166, 168, 168],
+      Hooves: [80, 78, 74],
+      Hair: [64, 66, 70],
+      Muzzle: [72, 68, 66],
+    },
+    chestnut: {
+      Main: [150, 84, 44],
+      Main_Dark: [118, 64, 34],
+      Main_Light: [178, 112, 62],
+      Hair: [134, 74, 38],
+      Muzzle: [96, 60, 38],
+    },
+    palomino: {
+      Main: [196, 160, 98],
+      Main_Dark: [170, 134, 80],
+      Main_Light: [214, 184, 128],
+      Hooves: [120, 108, 90],
+      Hair: [232, 222, 196],
+      Muzzle: [150, 118, 84],
+    },
+    brown: {
+      Main: [80, 56, 40],
+      Main_Dark: [60, 42, 31],
+      Main_Light: [102, 72, 50],
+      Hooves: [70, 66, 60],
+      Hair: [28, 26, 26],
+      Muzzle: [46, 38, 32],
+    },
+  },
+  husky: {
+    grey: {},
+    black: { Main: [40, 40, 40] },
+    red: { Main: [142, 88, 54] },
+    white: { Main: [196, 196, 188], Main_Light: [228, 228, 220] },
+  },
+  shiba: {
+    red: {},
+    black: { Main: [46, 44, 42], Main_Light: [192, 162, 122] },
+    cream: { Main: [214, 196, 160], Main_Light: [234, 228, 212] },
+    brown: { Main: [112, 82, 56] },
+  },
+};
+
+/** The coat a kind's `n`th animal has (any whole number: a hash); null for a kind with only the one. */
+export function coatFor(kind, n) {
+  const coats = Object.keys(COATS[kind] ?? {});
+  return coats.length ? coats[Math.abs(Math.trunc(n)) % coats.length] : null;
+}
+
+// A group's file holds its animals: { animals: { horse: {…}, cow: {…} } }.
 const files = new Map();
-function load(name) {
-  if (!files.has(name)) {
+function load(kind) {
+  const group = ANIMALS[kind].group;
+  if (!files.has(group)) {
     files.set(
-      name,
-      fetch(`${BASE}${name}.json`).then((response) => {
-        if (!response.ok) throw new Error(`GET kit/animals/${name}.json → ${response.status}`);
+      group,
+      fetch(`${BASE}${group}.json`).then((response) => {
+        if (!response.ok) throw new Error(`GET kit/animals/${group}.json → ${response.status}`);
         return response.json();
       }),
     );
   }
-  return files.get(name);
+  return files.get(group).then((file) => {
+    if (!file.animals?.[kind]) throw new Error(`kit/animals/${group}.json has no ${kind}`);
+    return file.animals[kind];
+  });
 }
 
 const bytes = (base64) => Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
@@ -61,10 +145,32 @@ const view = (Type, base64) => {
   return new Type(raw.buffer, raw.byteOffset, raw.byteLength / Type.BYTES_PER_ELEMENT);
 };
 
-// Each kind's geometry, material and clips are made once and shared by every animal of that kind.
+// Each kind's shape and clips are made once and shared by every animal of that kind; each coat of it is
+// that shape with its own colours, made once too. One material draws them all.
+const material = new MeshLambertMaterial({ vertexColors: true, flatShading: true });
+material.userData.shared = true;
 const kinds = new Map();
-function partsOf(name, data) {
-  if (kinds.has(name)) return kinds.get(name);
+function partsOf(name, data, coat) {
+  const key = `${name}:${coat ?? ""}`;
+  if (kinds.has(key)) return kinds.get(key);
+  const base = shapeOf(name, data);
+  const colours = data.mesh.parts.map(([part, ...rgb]) => COATS[name]?.[coat]?.[part] ?? rgb);
+  const colour = new Uint8Array(base.part.length * 3);
+  for (let i = 0; i < base.part.length; i++) colour.set(colours[base.part[i]], i * 3);
+  const geometry = new BufferGeometry();
+  for (const [attribute, values] of Object.entries(base.geometry.attributes)) geometry.setAttribute(attribute, values);
+  geometry.setAttribute("color", new BufferAttribute(colour, 3, true));
+  geometry.setIndex(base.geometry.index);
+  geometry.boundingSphere = base.geometry.boundingSphere;
+  geometry.userData.shared = true;
+  const parts = { geometry, material, clips: base.clips };
+  kinds.set(key, parts);
+  return parts;
+}
+
+const shapes = new Map();
+function shapeOf(name, data) {
+  if (shapes.has(name)) return shapes.get(name);
   const mesh = data.mesh;
   const packed = view(Int16Array, mesh.position);
   const position = new Float32Array(packed.length);
@@ -81,7 +187,6 @@ function partsOf(name, data) {
       3,
     ),
   );
-  geometry.setAttribute("color", new BufferAttribute(view(Uint8Array, mesh.colour), 3, true));
   geometry.setAttribute("skinIndex", new BufferAttribute(Uint16Array.from(view(Uint8Array, mesh.joints)), 4));
   geometry.setAttribute(
     "skinWeight",
@@ -93,25 +198,27 @@ function partsOf(name, data) {
   geometry.setIndex(new BufferAttribute(mesh.wide ? view(Uint32Array, mesh.index) : view(Uint16Array, mesh.index), 1));
   geometry.computeBoundingSphere();
   geometry.userData.shared = true;
-  const material = new MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  material.userData.shared = true;
   const clips = Object.fromEntries(
     Object.entries(data.clips).map(([key, clip]) => [key, { ...clip, turns: view(Int16Array, clip.turns) }]),
   );
-  const parts = { geometry, material, clips };
-  kinds.set(name, parts);
-  return parts;
+  const shape = { geometry, clips, part: view(Uint8Array, mesh.part) };
+  shapes.set(name, shape);
+  return shape;
 }
 
 const ease = (current, target, dt, seconds) => current + (target - current) * (1 - Math.exp(-dt / seconds));
 const scratch = new Quaternion();
 const next = new Quaternion();
 
-/** The animal `name` (a key of ANIMALS), as a body that walks. Rejects if the kit can't be loaded. */
-export async function createAnimal(name) {
+/**
+ * The animal `name` (a key of ANIMALS) in `coat` (a key of its COATS; anything else is its first), as
+ * a body that walks. Rejects if the kit can't be loaded.
+ */
+export async function createAnimal(name, wanted = null) {
   const kind = ANIMALS[name] ? name : "deer";
+  const coat = COATS[kind] ? (COATS[kind][wanted] ? wanted : Object.keys(COATS[kind])[0]) : null;
   const data = await load(kind);
-  const { geometry, material, clips } = partsOf(kind, data);
+  const { geometry, clips } = partsOf(kind, data, coat);
   const count = data.bones.length;
 
   const root = new Group();
@@ -215,6 +322,7 @@ export async function createAnimal(name) {
   return {
     object: root,
     kind,
+    coat,
     /** Metres from the ground to its back where a rider sits (0: nobody rides this one), and how far along. */
     back: facts.back,
     seat: facts.seat,

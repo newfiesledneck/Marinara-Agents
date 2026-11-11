@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.26",
+          "date": "2026-11-11",
+          "notes": "- Horses come in seven coats (bay, white, black, grey, chestnut, palomino, brown) and each kind of dog in four. Which one an animal has comes from the world's seed, so a world with several horses has a mix. The Ride prompt names the coat.\n- The animals' files are grouped: one for the farm's and the town's, one for the country's. The package has ten fewer files, with room for monsters as a group of their own.",
+          "highlight": false
+        },
+        {
           "version": "0.5.25",
           "date": "2026-11-11",
           "notes": "- Getting on a horse or a donkey is a movement of its own: a step to its side, up beside it, a leg over and down onto its back. Before, the rider pointed at it and floated above it standing.\n- A jump carries the animal forward and over fences and benches. Houses, wagons, trees and rocks still stop it.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.7",
           "date": "2026-11-11",
           "notes": "- The assistant's Undo now takes back only what the assistant changed. Anything you changed yourself after its Confirm (in the Journal, or through play) stays, and if you've since changed the very same thing, yours is kept. Something the assistant added, such as a person or a lore entry, still goes.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.6",
-          "date": "2026-11-11",
-          "notes": "- A review pass. Fixed: ending a group of places through the assistant left its lore ties behind; a conversation stayed open with someone the assistant had just removed (or an Undo took away); a street broken by open ground was named across the gap.\n- The assistant has more room to answer, so a long list of changes isn't cut short.\n- Help has a page on the AI assistant, and on layouts, ages and the first map. The README and the plan are up to date.",
           "highlight": false
         }
       ]

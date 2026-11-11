@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.5.25",
+  "version": "0.5.26",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -37,19 +37,9 @@
     },
     "assets": {
       "paths": [
-        "kit/animals/alpaca.json",
-        "kit/animals/bull.json",
-        "kit/animals/cow.json",
-        "kit/animals/deer.json",
-        "kit/animals/donkey.json",
-        "kit/animals/fox.json",
-        "kit/animals/horse-white.json",
-        "kit/animals/horse.json",
-        "kit/animals/husky.json",
+        "kit/animals/farm.json",
         "kit/animals/index.json",
-        "kit/animals/shiba.json",
-        "kit/animals/stag.json",
-        "kit/animals/wolf.json",
+        "kit/animals/wild.json",
         "kit/art/bridge-planks.webp",
         "kit/art/cliff-rock.webp",
         "kit/art/ground-dirt.webp",
@@ -286,8 +276,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "b564271304e0e0d5de3322ffc9f3988600dca0c350d8065ef082a16928d87cd8",
-      "bytes": 2233985
+      "sha256": "b070943e21e71c7c7f515b6b0f779b147b205e9d6536e0d5681b8d9ac87beed0",
+      "bytes": 2236031
     },
     {
       "path": "server.mjs",
@@ -300,69 +290,19 @@
       "bytes": 5236
     },
     {
-      "path": "kit/animals/alpaca.json",
-      "sha256": "a71b75c85aa910390344cf1ea3932a02de41e844a7523b09740290455f0c96d4",
-      "bytes": 223447
-    },
-    {
-      "path": "kit/animals/bull.json",
-      "sha256": "2c7c5d8b07b80c9bf683e9da7045d48235b93d95e01ed9041ece0eae527875cf",
-      "bytes": 223992
-    },
-    {
-      "path": "kit/animals/cow.json",
-      "sha256": "16a24eb68618c12680b856368297224101ece795c61995aa4177a5053c709f25",
-      "bytes": 225952
-    },
-    {
-      "path": "kit/animals/deer.json",
-      "sha256": "ed250a302eb34d7eeac86b5d6bce96d2aae78a41d30a76f103334a97901af62e",
-      "bytes": 210233
-    },
-    {
-      "path": "kit/animals/donkey.json",
-      "sha256": "c089e2fe0b81debb6aedd29ec4d460def65215e189b807b5778bca581d48c7e4",
-      "bytes": 237009
-    },
-    {
-      "path": "kit/animals/fox.json",
-      "sha256": "5cff1bdc2a38fa1282a88d816b42de23b2c90f1636e3522a9745467d20882904",
-      "bytes": 185375
-    },
-    {
-      "path": "kit/animals/horse-white.json",
-      "sha256": "5b4ae782557919d4928ba2ef4fa16128585cb8ccffce677ed52dc5e85f8b8d0e",
-      "bytes": 249288
-    },
-    {
-      "path": "kit/animals/horse.json",
-      "sha256": "3f9e0b0785d68b7d6648fd5b4955c665ec96afe69d31429c45349c591fd34026",
-      "bytes": 249288
-    },
-    {
-      "path": "kit/animals/husky.json",
-      "sha256": "80ba2e42366eb59fc01006f830dc2502a03e9a873c6d6585aa8cb623d5bbdae2",
-      "bytes": 187981
+      "path": "kit/animals/farm.json",
+      "sha256": "b884a3586c71bd140efc72fdaf28cca359a73e1e0953e81e39a99163c9fd58b9",
+      "bytes": 1454264
     },
     {
       "path": "kit/animals/index.json",
-      "sha256": "2bcc194e7312eff1cd13a1a59341f4f1c802e9778b1645b5147cc1283baef8a6",
-      "bytes": 1401
+      "sha256": "6de061a3bb2ccdb8fc701f5bbdf1f6025909a2c9a28a9802f8a63f67bc1fd149",
+      "bytes": 1538
     },
     {
-      "path": "kit/animals/shiba.json",
-      "sha256": "45d1e297702d4aa02dd1428d361dbf3f12d6fc3047d5fd54b2fe1756768e83dc",
-      "bytes": 186285
-    },
-    {
-      "path": "kit/animals/stag.json",
-      "sha256": "05c16b7392ec22927b44b1c04ac9c0be769489b5c14bb835b1deffd12c73dabb",
-      "bytes": 210668
-    },
-    {
-      "path": "kit/animals/wolf.json",
-      "sha256": "c67ba32ad74968e2cbf0bcafa44d46325f7c8d4cf172dffeb54e0aa4b549e360",
-      "bytes": 193178
+      "path": "kit/animals/wild.json",
+      "sha256": "0c3b7c24b701260b96c9b08c95fb9214d0f6b3a174923749839ff82b6b748622",
+      "bytes": 756743
     },
     {
       "path": "kit/art/bridge-planks.webp",

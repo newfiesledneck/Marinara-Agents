@@ -2,76 +2,81 @@
   "source": "Ultimate Animated Animals by Quaternius, CC0 1.0",
   "animals": {
     "horse": {
+      "group": "farm",
       "triangles": 2182,
       "bones": 50,
-      "bytes": 249288,
-      "height": 2.25
-    },
-    "horse-white": {
-      "triangles": 2182,
-      "bones": 50,
-      "bytes": 249288,
+      "bytes": 237741,
       "height": 2.25
     },
     "donkey": {
+      "group": "farm",
       "triangles": 2000,
       "bones": 50,
-      "bytes": 237009,
+      "bytes": 226410,
       "height": 1.65
     },
     "cow": {
+      "group": "farm",
       "triangles": 2450,
       "bones": 42,
-      "bytes": 225952,
+      "bytes": 212868,
       "height": 1.7
     },
     "bull": {
+      "group": "farm",
       "triangles": 2418,
       "bones": 42,
-      "bytes": 223992,
+      "bytes": 211074,
       "height": 1.8
     },
     "alpaca": {
+      "group": "farm",
       "triangles": 2060,
       "bones": 46,
-      "bytes": 223447,
+      "bytes": 212534,
       "height": 1.7
     },
-    "deer": {
-      "triangles": 2098,
-      "bones": 46,
-      "bytes": 210233,
-      "height": 1.45
-    },
-    "stag": {
-      "triangles": 2054,
-      "bones": 38,
-      "bytes": 210668,
-      "height": 1.95
-    },
-    "wolf": {
-      "triangles": 1962,
-      "bones": 51,
-      "bytes": 193178,
-      "height": 0.95
-    },
-    "fox": {
-      "triangles": 1848,
-      "bones": 51,
-      "bytes": 185375,
-      "height": 0.6
-    },
     "husky": {
+      "group": "farm",
       "triangles": 1920,
       "bones": 49,
-      "bytes": 187981,
+      "bytes": 177704,
       "height": 0.85
     },
     "shiba": {
+      "group": "farm",
       "triangles": 1950,
       "bones": 46,
-      "bytes": 186285,
+      "bytes": 175858,
       "height": 0.62
+    },
+    "deer": {
+      "group": "wild",
+      "triangles": 2098,
+      "bones": 46,
+      "bytes": 198999,
+      "height": 1.45
+    },
+    "stag": {
+      "group": "wild",
+      "triangles": 2054,
+      "bones": 38,
+      "bytes": 199591,
+      "height": 1.95
+    },
+    "wolf": {
+      "group": "wild",
+      "triangles": 1962,
+      "bones": 51,
+      "bytes": 182628,
+      "height": 0.95
+    },
+    "fox": {
+      "group": "wild",
+      "triangles": 1848,
+      "bones": 51,
+      "bytes": 175481,
+      "height": 0.6
     }
   }
 }
