@@ -135,6 +135,8 @@ export const SETTINGS = {
   animalSnake: { value: true },
   animalBat: { value: true },
   animalWasp: { value: true },
+  animalFrog: { value: true },
+  animalDragon: { value: true },
   animalImp: { value: true },
   animalPuglin: { value: true },
   // The living world, by rules alone (no model is called): relationships that move with time spent

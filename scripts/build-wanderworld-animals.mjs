@@ -97,6 +97,19 @@ const ANIMALS = {
     height: 0.6,
     clips: { idle: "Wasp_Flying", walk: "Wasp_Flying", gallop: "Wasp_Flying" },
   },
+  // (A frog gets about by hopping: its jump is its walk.)
+  frog: {
+    group: "monsters",
+    fbx: "Frog.fbx",
+    height: 0.5,
+    clips: { idle: "Frog_Idle", walk: "Frog_Jump", gallop: "Frog_Jump" },
+  },
+  dragon: {
+    group: "monsters",
+    fbx: "Dragon.fbx",
+    height: 3.2,
+    clips: { idle: "Dragon_Flying", walk: "Dragon_Flying", gallop: "Dragon_Flying" },
+  },
 };
 
 /** The animations kept: the game's name, the pack's (either spelling), and frames a second. */

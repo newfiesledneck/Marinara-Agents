@@ -684,7 +684,7 @@ export function createHud(root, handlers) {
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters:
-      "Slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, imps and puglins, out in the country, alone or in twos and threes. Skeletons and bats are about only at night. They act as Hostile animals below says.",
+      "Slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, giant frogs, imps and puglins, out in the country, and now and then a dragon high overhead, alone or in twos and threes. Skeletons and bats are about only at night. They act as Hostile animals below says.",
     animalsTown:
       "The most stray dogs and horses inside the settlement itself, shared between them. Any more are put just outside it.",
     hostileAnimals:
@@ -932,6 +932,8 @@ export function createHud(root, handlers) {
     ["animalSnake", "Snakes"],
     ["animalBat", "Bats (night)"],
     ["animalWasp", "Giant wasps"],
+    ["animalFrog", "Giant frogs"],
+    ["animalDragon", "Dragons (rare, overhead)"],
     ["animalImp", "Imps"],
     ["animalPuglin", "Puglins (pig-goblins)"],
   ]);

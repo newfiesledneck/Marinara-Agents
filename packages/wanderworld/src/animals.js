@@ -63,6 +63,19 @@ export const ANIMALS = {
     when: "night",
   },
   wasp: { group: "monsters", walk: 2.2, gallop: 5, back: 0, seat: 0, timid: true, hostile: true, fly: 1.3 },
+  frog: { group: "monsters", walk: 0.8, gallop: 3, back: 0, seat: 0, timid: true, hostile: true },
+  // (`rare`: seldom about, and always alone.)
+  dragon: {
+    group: "monsters",
+    walk: 3,
+    gallop: 8,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    fly: 7,
+    rare: true,
+  },
   // (`folk`: it stands on two legs on the people's skeleton, from kit/fantasy/folk, and moves with the
   // people's clips (people.js: createFolk), `folk` times the size it's made. Quaternius's Bestiary.)
   imp: { group: "monsters", walk: 1.3, gallop: 4.4, back: 0, seat: 0, timid: true, hostile: true, folk: 0.8 },
@@ -169,6 +182,8 @@ export const SORT_OF = {
   snake: "monsters",
   bat: "monsters",
   wasp: "monsters",
+  frog: "monsters",
+  dragon: "monsters",
   imp: "monsters",
   puglin: "monsters",
 };
@@ -195,6 +210,8 @@ export const SWITCHES = {
   snake: ["snake"],
   bat: ["bat"],
   wasp: ["wasp"],
+  frog: ["frog"],
+  dragon: ["dragon"],
   imp: ["imp"],
   puglin: ["puglin"],
 };
@@ -237,6 +254,9 @@ export function animalKind(word) {
     llama: "alpaca",
     pony: "horse",
     goblin: "puglin",
+    toad: "frog",
+    wyvern: "dragon",
+    drake: "dragon",
     orc: "puglin",
     demon: "imp",
     devil: "imp",

@@ -526,6 +526,8 @@ const ANIMALS = {
   snake: "the snake",
   bat: "the bat",
   wasp: "the giant wasp",
+  frog: "the giant frog",
+  dragon: "the dragon",
   imp: "the imp",
   puglin: "the puglin",
 };

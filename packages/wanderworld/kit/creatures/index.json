@@ -126,6 +126,20 @@
       "bones": 29,
       "bytes": 327691,
       "height": 0.6
+    },
+    "frog": {
+      "group": "monsters",
+      "triangles": 4920,
+      "bones": 28,
+      "bytes": 420386,
+      "height": 0.5
+    },
+    "dragon": {
+      "group": "monsters",
+      "triangles": 1344,
+      "bones": 28,
+      "bytes": 137200,
+      "height": 3.2
     }
   }
 }

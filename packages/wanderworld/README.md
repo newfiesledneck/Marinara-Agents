@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.48)
+## What it does now (0.5.49)
 
 ### The world
 
@@ -279,8 +279,9 @@ only walk about.
   level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
   Relationships ends with Lately, the record of it, and coming back to the town or the country after
   a few hours away says what happened there. Settings → Living world has a switch for each part.
-- **Monsters:** slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, imps and
-  puglins (pig-goblins; the last two walk on two legs, with the people's animations), out in the
+- **Monsters:** slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, giant frogs,
+  imps and puglins (pig-goblins; the last two walk on two legs, with the people's animations), and
+  now and then a dragon high overhead, out in the
   country, alone or in twos and threes; skeletons and bats only at night. The Monsters slider says how
   many, each kind has its switch, and they act as "Hostile animals" says. A lorebook can place them:
   `ww:monster:slime:large:pack3` on a place's entry. Nothing fights back yet.
