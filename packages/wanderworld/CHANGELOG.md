@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.47 — 2026-11-11
+
+- Tools in hand at work: on the farm a sickle while cutting, a seed basket while sowing and a watering can while watering; a trowel for whoever kneels in the garden.
+
 ## 0.5.46 — 2026-11-11
 
 - A saddle on any horse that's someone's own: yours, or a character's. Farm and tavern horses go bare.
