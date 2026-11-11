@@ -535,8 +535,9 @@ export function createCollider(circles, boxes = []) {
       return false;
     },
     /** Pushes a circle at `position` (x, z) with `radius` out of anything it overlaps. Mutates `position`. */
-    /** Pushes `position` out of everything; a `swimmer` goes on into the water. */
-    resolve(position, radius, swimmer = false) {
+    /** Pushes `position` out of everything; a `swimmer` goes on into the water, and one `overLow`
+     *  (a horse mid-jump) passes over the low, narrow things: fences and benches. */
+    resolve(position, radius, swimmer = false, overLow = false) {
       const cx = Math.floor(position.x / GRID_CELL);
       const cz = Math.floor(position.z / GRID_CELL);
       const seen = new Set();
@@ -546,6 +547,8 @@ export function createCollider(circles, boxes = []) {
             if (seen.has(shape.id)) continue;
             seen.add(shape.id);
             if (swimmer && shape.water) continue;
+            // (Low and no deeper than a stride: a wagon is too much to clear.)
+            if (overLow && shape.low && Math.min(shape.maxX - shape.minX, shape.maxZ - shape.minZ) <= 1.2) continue;
             if (shape.kind === "circle") pushOutOfCircle(position, radius, shape);
             else pushOutOfBox(position, radius, shape);
           }
@@ -3360,7 +3363,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     refreshNature();
   }
   setDensity(DENSITIES[0]);
-  const resolveCollisions = (position, radius, swimmer) => collider.resolve(position, radius, swimmer);
+  const resolveCollisions = (position, radius, swimmer, overLow) =>
+    collider.resolve(position, radius, swimmer, overLow);
 
   /**
    * How far the camera can sit from (fromX, fromZ) toward (toX, toZ) before a building is in the way,

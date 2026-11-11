@@ -254,6 +254,7 @@ const core = {
   crowd: createCrowd(),
   herd: createHerd(), // the world's animals (herd.js)
   mount: null, // the animal being ridden: { id, kind, back, walk, gallop } (ride())
+  mounting: null, // getting up on it: { phase: "approach" | "vault", side } (ride())
   sound: createSound(),
   settings: loadSettings(),
   hud: null,
@@ -2778,6 +2779,8 @@ function personaName() {
 function resetMode() {
   if (core.mount) core.herd.release(core.mount.id);
   core.mount = null;
+  core.mounting = null;
+  core.player.rotation.z = 0;
   if (core.seat?.taken === "player") core.seat.taken = null;
   core.seat = null;
   if (core.talking) core.crowd.endTalk(core.talking.id);
@@ -2795,6 +2798,11 @@ function resetMode() {
 const RIDE_SEAT = 0.39;
 const RIDE_RADIUS = 0.6; // what a horse and rider take up
 const RIDE_WALK = 1.5; // a ridden walk is brisker than the animal's own amble, by this much
+const MOUNT_SIDE = 0.8; // getting on: how far out from its middle they stand first (metres)
+const MOUNT_STEP = 0.35; // seconds stepping to its side
+const MOUNT_VAULT = 0.85; // seconds up and over onto its back
+const LEAP_PACE = 5.5; // a jump carries the animal forward at least this fast (metres a second)
+const LEAP_CLEAR = 0.2; // its back this far up, it's over a fence (metres)
 
 /** Gets up on a horse or a donkey (`id`: herd.js): from here on the stick and keys move it. */
 function ride(id) {
@@ -2805,9 +2813,23 @@ function ride(id) {
   core.mode = "ride";
   core.walkTo = null;
   core.air = null;
-  glideTo(mount.x, mount.z, mount.angle, 0.45);
+  // Getting on: a step to its side (whichever they're nearer), facing the way it faces; then up beside
+  // it, a leg over, and down onto its back (the height and the lean are in movePlayer).
+  const right = { x: Math.cos(mount.angle), z: -Math.sin(mount.angle) };
+  const { x, z } = core.player.position;
+  const side = (x - mount.x) * right.x + (z - mount.z) * right.z < 0 ? -1 : 1;
+  core.mounting = { phase: "approach", side };
+  glideTo(mount.x + right.x * side * MOUNT_SIDE, mount.z + right.z * side * MOUNT_SIDE, mount.angle, MOUNT_STEP, () => {
+    if (core.mount !== mount) return;
+    core.mounting = { phase: "vault", side };
+    glideTo(mount.x, mount.z, mount.angle, MOUNT_VAULT, () => {
+      core.mounting = null;
+      core.player.rotation.z = 0;
+    });
+    core.glide.late = 0.38; // up first, then across
+  });
   later(
-    0.8,
+    1.4,
     () =>
       void runMoment({
         action: `gets up on ${PACK.animals[mount.kind] ?? "the horse"}`,
@@ -2820,7 +2842,7 @@ function ride(id) {
 /** Gets down, beside it where there's room; it stays about where it was left. */
 function dismount() {
   const mount = core.mount;
-  if (!mount || core.air) return; // not in the middle of a jump
+  if (!mount || core.air || core.mounting) return; // not in the middle of a jump, or of getting on
   const { x, z } = core.player.position;
   const facing = core.player.rotation.y;
   // To its left, its right, or behind: the first that isn't in something or in the river.
@@ -5461,6 +5483,7 @@ function usable() {
       z: mount.z,
       y: mount.back + 0.4,
       reach: 2.6,
+      mount: true,
       act: () => ride(mount.id),
     });
   }
@@ -5683,7 +5706,8 @@ function use() {
   if (core.mode === "ride") return dismount();
   if (core.mode !== "walk") return;
   // A hand out to whatever it is (a door, a board, a barrel); not to a person or a seat.
-  if (core.target && core.target.kind !== "person" && core.target.kind !== "seat") core.gesture = "interact";
+  if (core.target && core.target.kind !== "person" && core.target.kind !== "seat" && !core.target.mount)
+    core.gesture = "interact";
   core.target?.act();
 }
 
@@ -5875,7 +5899,9 @@ function movePlayer(dt, input) {
   if (core.glide) {
     const glide = core.glide;
     glide.t = Math.min(1, glide.t + dt / glide.seconds);
-    const ease = glide.t * glide.t * (3 - 2 * glide.t);
+    // (`late`: it holds where it is for that much of the time first.)
+    const through = glide.late ? Math.max(0, (glide.t - glide.late) / (1 - glide.late)) : glide.t;
+    const ease = through * through * (3 - 2 * through);
     position.x = glide.fromX + (glide.toX - glide.fromX) * ease;
     position.z = glide.fromZ + (glide.toZ - glide.fromZ) * ease;
     player.rotation.y = approachAngle(glide.fromAngle, glide.toAngle, ease);
@@ -5941,18 +5967,23 @@ function movePlayer(dt, input) {
     // the stick right out), turns less sharply than a person, and won't go where it would have to swim.
     const { x, y } = input;
     const mount = core.mount;
-    if (x || y) {
+    // Mid-jump it carries on the way it's facing, at a canter at least, whatever the stick says (which
+    // still turns it), and while its back is well up it passes over fences and benches.
+    const leaping = !!core.air?.mount;
+    if (x || y || leaping) {
       const sin = Math.sin(core.cameraYaw);
       const cos = Math.cos(core.cameraYaw);
-      const moveX = -sin * y + cos * x;
-      const moveZ = -cos * y - sin * x;
+      const wantX = -sin * y + cos * x;
+      const wantZ = -cos * y - sin * x;
+      const moveX = leaping ? Math.sin(player.rotation.y) : wantX;
+      const moveZ = leaping ? Math.cos(player.rotation.y) : wantZ;
       const wading = waterAt(position.x, position.z).depth > WADE_DEPTH;
-      const pace =
-        (input.run ? mount.gallop : mount.walk * RIDE_WALK * Math.max(0.4, input.amount)) * (wading ? 0.5 : 1);
+      const steered = x || y ? (input.run ? mount.gallop : mount.walk * RIDE_WALK * Math.max(0.4, input.amount)) : 0;
+      const pace = (leaping ? Math.max(steered, LEAP_PACE) : steered) * (wading ? 0.5 : 1);
       const before = { x: position.x, z: position.z };
       position.x += moveX * pace * dt;
       position.z += moveZ * pace * dt;
-      space.resolveCollisions(position, RIDE_RADIUS, true);
+      space.resolveCollisions(position, RIDE_RADIUS, true, leaping && core.air.height > LEAP_CLEAR);
       core.crowd.pushOut(position, RIDE_RADIUS, space);
       const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
       position.x = Math.max(-edge, Math.min(edge, position.x));
@@ -5961,7 +5992,8 @@ function movePlayer(dt, input) {
         position.x = before.x;
         position.z = before.z;
       }
-      player.rotation.y = approachAngle(player.rotation.y, Math.atan2(moveX, moveZ), (input.run ? 4 : 6) * dt);
+      if (x || y)
+        player.rotation.y = approachAngle(player.rotation.y, Math.atan2(wantX, wantZ), (input.run ? 4 : 6) * dt);
     }
     const speed = dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
     // (In a jump: how far through its leap it is; its back's rise and fall comes back, for the rider.)
@@ -5996,7 +6028,13 @@ function movePlayer(dt, input) {
   // Up on a mount: seated at its back's height (it has a shadow of its own).
   const riding = core.mode === "ride" && core.mount;
   const seatAt = riding ? target + core.mount.back - RIDE_SEAT + (core.air?.height ?? 0) : 0;
-  if (riding && !core.glide) position.y = seatAt;
+  if (riding && core.mounting) {
+    const t = core.mounting.phase === "vault" ? (core.glide?.t ?? 1) : 0;
+    const up = Math.min(1, Math.max(0, (t - 0.1) / 0.5)); // a beat leaning in, then up
+    // Up to its back's height and a little over, leaning in across it, then settling down astride.
+    position.y = target + (seatAt - target) * up * up * (3 - 2 * up) + 0.22 * Math.sin(Math.PI * t);
+    core.player.rotation.z = core.mounting.side * 0.3 * Math.sin(Math.PI * Math.min(1, t * 1.15));
+  } else if (riding && !core.glide) position.y = seatAt;
   else if (riding) position.y += (seatAt - position.y) * Math.min(1, dt * 10);
   core.shadow.visible = core.settings.shadows && !core.swimming && !riding;
   if (core.air)
@@ -6095,9 +6133,12 @@ function step(dt) {
   }
   const onGround = core.mode === "sit" ? (core.seat?.ground ?? core.seat?.pose ?? null) : null;
   // (Riding, it's the mount that walks: the rider sits still on it.)
-  const pose = core.character?.update(dt, core.mode === "ride" ? 0 : speed, {
+  // Getting on: on foot still while stepping to the animal's side and springing up; the legs go astride
+  // as they come level with its back.
+  const stepping = core.mounting && (core.mounting.phase === "approach" || (core.glide?.t ?? 1) < 0.3);
+  const pose = core.character?.update(dt, core.mode === "ride" && core.mounting?.phase !== "approach" ? 0 : speed, {
     sit: core.mode === "sit" && !onGround,
-    act: core.mode === "ride" ? "ride" : onGround,
+    act: core.mode === "ride" ? (stepping ? null : "ride") : onGround,
     gesture: core.gesture,
     air: !!core.air && !core.air.mount, // (a rider keeps their seat through the animal's jump)
     lookAt,

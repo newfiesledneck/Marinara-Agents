@@ -171,6 +171,25 @@ for (const seed of [4242, 51, 7]) {
     const left = herd.snapshot().find((beast) => beast.id === mountable.id);
     assert.ok(Math.hypot(left.x - carried.x, left.z - carried.z) < 6, "let go, it stays about where it was left");
   }
+  // Mid-jump, a horse passes over the low things (a fence) but not through a house.
+  {
+    let fences = 0;
+    let walls = 0;
+    const half = world.layout.townHalf + 20;
+    for (let x = -half; x <= half; x += 0.5) {
+      for (let z = -half; z <= half; z += 0.5) {
+        const pushed = (overLow) => {
+          const at = { x, z };
+          world.resolveCollisions(at, 0.6, true, overLow);
+          return Math.hypot(at.x - x, at.z - z) > 1e-6;
+        };
+        if (pushed(false) && !pushed(true)) fences++;
+        if (pushed(true)) walls++;
+      }
+    }
+    assert.ok(fences > 20, `a jump clears the low things (${fences})`);
+    assert.ok(walls > 200, `and nothing else (${walls})`);
+  }
   const cow = herd.snapshot().find((beast) => beast.kind === "cow");
   if (cow) assert.equal(herd.ride(cow.id), null, "a cow isn't for riding");
   herd.detach();

@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.25 — 2026-11-11
+
+- Getting on a horse or a donkey is a movement of its own: a step to its side, up beside it, a leg over and down onto its back. Before, the rider pointed at it and floated above it standing.
+- A jump carries the animal forward and over fences and benches. Houses, wagons, trees and rocks still stop it.
+
 ## 0.5.24 — 2026-11-11
 
 - A ridden horse or donkey jumps: Space, or the Jump button on a touch screen and in the chat window. It leaps with the pack's own galloping jump and carries on the way it was going. A jump doesn't clear fences or walls yet.

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.25",
+          "date": "2026-11-11",
+          "notes": "- Getting on a horse or a donkey is a movement of its own: a step to its side, up beside it, a leg over and down onto its back. Before, the rider pointed at it and floated above it standing.\n- A jump carries the animal forward and over fences and benches. Houses, wagons, trees and rocks still stop it.",
+          "highlight": false
+        },
+        {
           "version": "0.5.24",
           "date": "2026-11-11",
           "notes": "- A ridden horse or donkey jumps: Space, or the Jump button on a touch screen and in the chat window. It leaps with the pack's own galloping jump and carries on the way it was going. A jump doesn't clear fences or walls yet.",
@@ -307,12 +313,6 @@
           "version": "0.5.6",
           "date": "2026-11-11",
           "notes": "- A review pass. Fixed: ending a group of places through the assistant left its lore ties behind; a conversation stayed open with someone the assistant had just removed (or an Undo took away); a street broken by open ground was named across the gap.\n- The assistant has more room to answer, so a long list of changes isn't cut short.\n- Help has a page on the AI assistant, and on layouts, ages and the first map. The README and the plan are up to date.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.5",
-          "date": "2026-11-11",
-          "notes": "- The AI assistant can do more, always as a proposal you confirm: add or remove people this world invented, set someone's day, body, voice, temperament, stance and who knows whom, rename places and set when they're closed, make groups of places and factions of people, change the world's setting, picture look and ages, pin a note to the noticeboard and give you an errand.\n- Undo: after a Confirm, \"Undo these changes\" puts the world back as it was.\n- It can say why a lore entry is or isn't active where you stand: it's sent what's active there and what every entry is tied to.",
           "highlight": false
         }
       ]
