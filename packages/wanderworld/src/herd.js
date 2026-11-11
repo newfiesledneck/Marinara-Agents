@@ -8,7 +8,7 @@
 //
 // Someone's own dog or horse (`setOwned`) is one more animal here: with its owner it follows them, and
 // sent home it keeps to its spot by their door.
-import { ANIMALS, coatFor, createAnimal } from "./animals.js";
+import { ANIMALS, coatFor, createAnimal, dogBody, POPULATION } from "./animals.js";
 import { blobShadow } from "./character.js";
 import { hashString, heightAt, rng, waterAt } from "./world.js";
 
@@ -20,25 +20,30 @@ const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives u
 
 /**
  * Where a world's animals start: [{ kind, coat (a horse's or a dog's colours: animals.js COATS, or null),
- * x, z, range (metres they stray), tied (stands about one spot) }].
- * `world`: its layout (townHalf, plaza, outposts), doors and size. Plain numbers in, plain data out.
+ * scale (its size), x, z, range (metres they stray), tied (stands about one spot) }]. `world`: its layout
+ * (townHalf, plaza, outposts), doors and size. `counts`: how many of each sort ({ strays, farm, wild,
+ * hostile, monsters }; a sort at 0 has none); `off`: kinds there are none of at all. Plain numbers in,
+ * plain data out.
  */
-export function herdFor(world, seed) {
+export function herdFor(world, seed, { counts = POPULATION, off = [] } = {}) {
   const random = rng((seed ^ 0x6a09e667) >>> 0);
   const pick = (list) => list[Math.floor(random() * list.length)];
+  const on = (kind) => !off.includes(kind);
   const out = [];
-  // Coats come from numbers of their own (the seed and which animal it is), not from `random`.
-  const add = (kind, x, z, range, more = {}) =>
+  // Coats and sizes come from numbers of their own (the seed and which animal it is), not from `random`.
+  const add = (kind, x, z, range, more = {}) => {
+    const own = rng(hashString(`own:${seed}:${out.length}`));
     out.push({
       kind,
       coat: coatFor(kind, hashString(`coat:${seed}:${out.length}`)),
+      scale: 0.92 + own() * 0.2,
       x,
       z,
       range,
       tied: false,
       ...more,
     });
-  const horse = () => pick(["horse", "horse"]);
+  };
   const dry = (x, z) => waterAt(x, z).depth <= 0 && !world.blocked(x, z, 0.8);
   const near = (x, z, reach) => {
     for (let tries = 0; tries < 12; tries++) {
@@ -50,31 +55,63 @@ export function herdFor(world, seed) {
     return null;
   };
   const layout = world.layout;
-  // Farms: cattle, now and then a bull or an alpaca, a donkey, and a horse in the yard.
-  for (const outpost of layout.outposts) {
-    if (outpost.kind === "farm") {
-      // (Each `horse()` draws a number, as it did when there were two kinds of horse: worlds keep theirs.)
-      for (const kind of ["cow", "cow", pick(["bull", "alpaca", "cow"]), "donkey", horse()]) {
-        const at = near(outpost.x, outpost.z, kind === "cow" ? 14 : 9);
-        if (at) add(kind, at.x, at.z, kind === "horse" || kind === "donkey" ? 4 : 10);
-      }
-    } else if (outpost.kind === "inn" || outpost.kind === "hamlet") {
-      const at = near(outpost.x, outpost.z, 7);
-      if (at) add(outpost.kind === "inn" ? horse() : pick(["donkey", "shiba"]), at.x, at.z, 3);
+  const want = (sort) => Math.max(0, Math.round(counts[sort] ?? 0));
+
+  // The farms' animals: cattle, now and then a bull or an alpaca, a donkey and a horse at each farm; a
+  // horse by each tavern and inn and a donkey at a hamlet; then the farms again, till there are enough.
+  {
+    const farms = layout.outposts.filter((outpost) => outpost.kind === "farm");
+    const stands = [
+      ...layout.outposts
+        .filter((outpost) => outpost.kind === "inn" || outpost.kind === "hamlet")
+        .map((outpost) => ({
+          kind: outpost.kind === "inn" ? "horse" : "donkey",
+          x: outpost.x,
+          z: outpost.z,
+          reach: 7,
+          range: 3,
+        })),
+      ...world.doors
+        .filter((door) => door.kind === "tavern")
+        .map((door) => ({
+          kind: "horse",
+          x: door.x + Math.cos(door.angle) * 3.2,
+          z: door.z - Math.sin(door.angle) * 3.2,
+          reach: 0,
+          range: 1.5,
+          tied: true,
+        })),
+    ];
+    let left = want("farm");
+    const place = (kind, site) => {
+      if (left <= 0 || !on(kind)) return;
+      const at = site.reach ? near(site.x, site.z, site.reach) : dry(site.x, site.z) ? site : null;
+      if (!at) return;
+      add(kind, at.x, at.z, site.range, site.tied ? { tied: true } : {});
+      left--;
+    };
+    for (let round = 0; round < 8 && left > 0 && (farms.length || (round === 0 && stands.length)); round++) {
+      for (const farm of farms)
+        for (const kind of ["cow", "cow", pick(["bull", "alpaca", "cow"]), "donkey", "horse"])
+          place(kind, {
+            x: farm.x,
+            z: farm.z,
+            reach: kind === "cow" ? 14 : 9,
+            range: kind === "horse" || kind === "donkey" ? 4 : 10,
+          });
+      if (round === 0) for (const stand of stands) place(stand.kind, stand);
     }
   }
-  // In the settlement: a horse by each tavern, and a dog or two about the market.
-  for (const door of world.doors) {
-    if (door.kind !== "tavern") continue;
-    const side = { x: door.x + Math.cos(door.angle) * 3.2, z: door.z - Math.sin(door.angle) * 3.2 };
-    if (dry(side.x, side.z)) add(horse(), side.x, side.z, 1.5, { tied: true });
+  // Strays: dogs about the market, of whatever size (animals.js DOG_SIZES).
+  if (on("husky") || on("shiba")) {
+    const plaza = layout.plaza;
+    for (let n = 0; n < want("strays"); n++) {
+      const at = near(plaza.x, plaza.z, 22);
+      const { kind, scale } = dogBody(pick(["small", "medium", "medium", "large"]));
+      if (at) add(kind, at.x, at.z, 18, { scale });
+    }
   }
-  const plaza = layout.plaza;
-  for (const kind of [pick(["husky", "shiba"]), ...(random() < 0.5 ? [pick(["husky", "shiba"])] : [])]) {
-    const at = near(plaza.x, plaza.z, 22);
-    if (at) add(kind, at.x, at.z, 18);
-  }
-  // Out in the country: deer in twos and threes with a stag, a fox, and wolves well away from the houses.
+  // Out in the country, well away from the houses.
   const half = layout.worldHalf - 14;
   const wild = (from) => {
     for (let tries = 0; tries < 40; tries++) {
@@ -85,29 +122,43 @@ export function herdFor(world, seed) {
     }
     return null;
   };
-  const scale = Math.max(1, Math.round((layout.worldHalf / 160) ** 2));
-  for (let herd = 0; herd < 3 * scale; herd++) {
-    const at = wild(25);
-    if (!at) continue;
-    for (const kind of ["deer", "deer", random() < 0.6 ? "stag" : "deer", ...(random() < 0.5 ? ["deer"] : [])]) {
-      const spot = near(at.x, at.z, 7) ?? at;
-      add(kind, spot.x, spot.z, 16);
+  // The ones that keep their distance: a fox here and there on its own, deer in twos to fours, a stag among them.
+  {
+    let left = want("wild");
+    const grazers = ["deer", "stag"].filter(on);
+    let foxes = on("fox") ? (grazers.length ? Math.round(left * 0.2) : left) : 0;
+    for (let guard = 0; guard < 80 && left > 0 && (foxes > 0 || grazers.length); guard++) {
+      if (foxes > 0) {
+        const at = wild(15);
+        if (at) add("fox", at.x, at.z, 20);
+        foxes--;
+        left--;
+        continue;
+      }
+      const at = wild(25);
+      const size = Math.min(left, 2 + Math.floor(random() * 3));
+      for (let n = 0; n < size; n++) {
+        const kind = on("deer") && !(on("stag") && n > 0 && random() < 0.3) ? "deer" : (grazers.at(-1) ?? "deer");
+        const spot = at ? (near(at.x, at.z, 7) ?? at) : null;
+        if (spot) add(kind, spot.x, spot.z, 16);
+      }
+      left -= size;
     }
   }
-  for (let i = 0; i < scale; i++) {
-    for (let n = 0; n < 2; n++) {
-      const fox = wild(15);
-      if (fox) add("fox", fox.x, fox.z, 20);
-    }
-    // Wolves in a pack of three to five, keeping together well out from the houses.
-    const pack = wild(60);
-    if (!pack) continue;
-    const size = 3 + Math.floor(random() * 3);
-    for (let n = 0; n < size; n++) {
-      const spot = near(pack.x, pack.z, 6) ?? pack;
-      add("wolf", spot.x, spot.z, 26, { home: { x: pack.x, z: pack.z } });
+  // The ones that would attack: wolves, some alone and some in packs of two to five that keep together.
+  if (on("wolf")) {
+    let left = want("hostile");
+    for (let guard = 0; guard < 60 && left > 0; guard++) {
+      const size = Math.min(left, random() < 0.4 ? 1 : 2 + Math.floor(random() * 4));
+      const pack = wild(60);
+      for (let n = 0; n < size && pack; n++) {
+        const spot = near(pack.x, pack.z, 6) ?? pack;
+        add("wolf", spot.x, spot.z, 26, { home: { x: pack.x, z: pack.z } });
+      }
+      left -= size;
     }
   }
+  // (Monsters: none has a body yet; `counts.monsters` waits for them.)
   return out;
 }
 
@@ -133,12 +184,12 @@ export function createHerd() {
     beasts = [];
   }
 
-  function setWorld(nextWorld, seed) {
+  function setWorld(nextWorld, seed, options) {
     clear();
     world = nextWorld;
     if (!world) return;
     const mine = token;
-    beasts = herdFor(world, seed).map((start, i) => ({
+    beasts = herdFor(world, seed, options).map((start, i) => ({
       ...alive(`${seed}:${i}`, i),
       home: { x: start.x, z: start.z }, // (a pack shares one: `start.home`)
       ...start,
@@ -322,6 +373,9 @@ export function createHerd() {
     beast.angle += Math.atan2(Math.sin(heading - beast.angle), Math.cos(heading - beast.angle)) * Math.min(1, dt * 7);
   }
 
+  /** Whether `beast` can be ridden: a horse or a donkey, or a dog grown big enough. */
+  const rideable = (beast) => ANIMALS[beast.kind].back > 0 && (beast.scale ?? 1) >= (ANIMALS[beast.kind].rideFrom ?? 0);
+
   function place(beast) {
     if (!beast.group) return;
     beast.group.position.set(beast.x, heightAt(beast.x, beast.z), beast.z);
@@ -436,7 +490,7 @@ export function createHerd() {
     /** The animals within `reach` of `at` that can be ridden: [{ id, kind, x, z, back }]. */
     mounts(at, reach) {
       return beasts
-        .filter((beast) => beast.group && !beast.ridden && ANIMALS[beast.kind].back > 0)
+        .filter((beast) => beast.group && !beast.ridden && rideable(beast))
         .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
         .map((beast) => ({
           id: beast.id,
@@ -451,7 +505,7 @@ export function createHerd() {
     /** The rider takes `id`: it stops going about on its own. Returns { kind, x, z, angle, back, seat, walk, gallop } or null. */
     ride(id) {
       const beast = beasts.find((entry) => entry.id === id);
-      if (!beast?.group || beast.ridden) return null;
+      if (!beast?.group || beast.ridden || !rideable(beast)) return null;
       beast.ridden = true;
       beast.state = "idle";
       beast.target = null;
@@ -480,7 +534,7 @@ export function createHerd() {
       beast.speed = speed;
       beast.leap = leap;
       place(beast);
-      return leap === null ? 0 : (beast.animal?.rise(leap) ?? 0);
+      return leap === null ? 0 : (beast.animal?.rise(leap) ?? 0) * (beast.scale ?? 1); // (a bigger one rises further)
     },
     /** The rider gets down: it stays about where it was left. */
     release(id) {

@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.38",
+          "date": "2026-11-11",
+          "notes": "- Settings → Animals: a slider for how many of each sort a world has of its own (stray dogs, farm animals, peaceful wild animals, hostile ones, monsters), 0 for none. Animals a lorebook asks for and anyone's own are still there at 0, unless that's turned off.\n- A switch for each kind: off, there are none of it anywhere, lore or not.\n- Wolves come alone and in packs of two to five that keep together; a pack of three counts as three.\n- A dog has five sizes, evenly spaced from small to massive (the size of a small horse), and is owned or not: the size decides its body. A huge or a massive dog can be ridden.\n- Both dogs come in the same six coats.",
+          "highlight": false
+        },
+        {
           "version": "0.5.37",
           "date": "2026-11-11",
           "notes": "- Animals have a size. A dog's or a horse's is in the Look card (Small, Usual, Large, Huge), and a big horse's back is higher to sit on.\n- Lorebook keyword `ww:pet:horse:large:brown:Shadowmere` on a character's entry (or `ww:you`) gives them that animal: the size, colour, name and breed in any order. The same for `ww:pet:dog:…`.\n- Lorebook keyword `ww:monster:wolf:large:pack5` on a place's entry puts that pack there; `ww:monster:wolf` alone puts wolves there, however many. A creature's own entry with `ww:found in:…` does the same.\n- Doubled colons read the same as single: `ww::pet::horse`.\n- Without these keywords a world's animals are as before.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.19",
           "date": "2026-11-11",
           "notes": "- Look card: every piece (top, sleeves, legs, boots, hood, pauldrons) can have a colour of its own, and it comes out as the colour you pick instead of darkening the cloth. Skin can be any colour too.\n- Its own colour picker, with \"Use this colour\", \"No colour\" and \"Cancel\" buttons, in place of the browser's.\n- The button that forgets the choices is called Reset.\n- Fixed: cropped hair cut through a woman's head. There is one Cropped style now, cut for each body.\n- The two darkest townsfolk colours are lighter, and the colours are named for what they look like (Cream, Olive, Blue, Rose, Green, Plum, Grey).",
-          "highlight": false
-        },
-        {
-          "version": "0.5.18",
-          "date": "2026-11-11",
-          "notes": "- More in the Look card: each piece of an outfit (top, sleeves, legs, boots) can come from either outfit, the ranger's hood and pauldrons go on or off (on anyone), a colour of your own can be laid over the clothes, and hair can be any colour you pick.\n- Fixed: choosing a colour could switch the outfit back to townsfolk. Each outfit now keeps its own colour, and only the ones being worn are offered.\n- Fixed: the ranger's extra colours were so dark they looked black. They're lighter, and there are two more (rust and moss).\n- Changing your own look no longer flashes the plain stand-in figure while the new one loads.",
           "highlight": false
         }
       ]

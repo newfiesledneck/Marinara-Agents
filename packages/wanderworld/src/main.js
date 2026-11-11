@@ -53,7 +53,7 @@ import { createPerson, lookChoices } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
-import { animalKind, COATS, coatFor } from "./animals.js";
+import { animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
@@ -435,6 +435,11 @@ function changeSetting(name, value) {
   if (name === "resolution") core.autoScale = 1;
   if (name === "people") void choosePersona(core.personaId); // redress the player too
   if (["nature", "props", "buildings"].includes(name) && core.world) buildWorld(core.seed, currentPlace()); // redrawn
+  // How many animals, or which kinds: the world's are counted out again, once the slider has stopped.
+  if (/^animal|^loreAnimals$/u.test(name) && core.world) {
+    clearTimeout(core.restock);
+    core.restock = setTimeout(restockHerd, 350);
+  }
   saveSettings(core.settings);
   applySettings();
 }
@@ -487,7 +492,7 @@ function buildWorld(seed, place = null) {
   core.space = core.world;
   core.world.scene.add(core.player);
   core.crowd.setWorld(core.world);
-  core.herd.setWorld(core.world, hashString(seed));
+  core.herd.setWorld(core.world, hashString(seed), herdOptions());
   syncPets();
   syncSpawns();
   resetMode();
@@ -2738,6 +2743,50 @@ function setLook(id, look) {
   else updateCast();
 }
 
+// ── How many animals, and which ──────────────────────────────────────────────
+
+/** What Settings → Animals says, as the herd takes it: how many of each sort, and the kinds there are none of. */
+function herdOptions() {
+  const s = core.settings;
+  return {
+    counts: {
+      strays: s.animalsStrays,
+      farm: s.animalsFarm,
+      wild: s.animalsWild,
+      hostile: s.animalsHostile,
+      monsters: s.animalsMonsters,
+    },
+    off: Object.entries(SWITCHES).flatMap(([name, kinds]) =>
+      s[`animal${name[0].toUpperCase()}${name.slice(1)}`] === false ? kinds : [],
+    ),
+  };
+}
+
+/**
+ * Whether an animal the lore asks for, or someone's own, is in the world: never one of a kind switched
+ * off; and with "Lore's and owned animals appear even at 0" off, not one of a sort set to 0.
+ */
+function animalAllowed(kind) {
+  const { counts, off } = herdOptions();
+  return !off.includes(kind) && (core.settings.loreAnimals || counts[SORT_OF[kind]] > 0);
+}
+
+/** Counts the world's animals out again after a change in Settings → Animals. */
+function restockHerd() {
+  if (!core.world) return;
+  if (core.mount) {
+    // (Whatever was being ridden is gone with the rest: down where they are.)
+    core.mount = null;
+    core.mounting = null;
+    core.mode = "walk";
+    core.glide = null;
+    core.player.rotation.z = 0;
+  }
+  core.herd.setWorld(core.world, hashString(core.seed), herdOptions());
+  syncPets();
+  syncSpawns();
+}
+
 // ── Animals of one's own ─────────────────────────────────────────────────────
 // A dog for anyone, a horse for the player: chosen in the Look card, kept with the world (`pets`), and
 // alive in the herd (herd.js `setOwned`). Someone whose lore gives them a dog has one without being asked.
@@ -2760,7 +2809,14 @@ function aboutOf(id) {
 /** `owner`'s animals as they are now: { dog: { kind, coat, out, lore? } | null, horse: { coat, out } | null }. */
 function petsFor(owner) {
   const kept = core.pets[owner] ?? {};
-  let dog = COATS[kept.dog?.kind] && kept.dog.kind !== "horse" ? kept.dog : null;
+  // A dog as it's kept is its size, coat, name and breed; the size says which of the two bodies it has
+  // and how big (animals.js dogBody). One kept from before sizes had names has a body and a scale.
+  const asDog = (pet) => {
+    const size = DOG_SIZES[pet.size] ? pet.size : dogSizeOf(pet.kind, pet.scale);
+    const body = dogBody(size);
+    return { ...pet, size, ...body, coat: COATS[body.kind][pet.coat] ? pet.coat : Object.keys(COATS[body.kind])[0] };
+  };
+  let dog = kept.dog && typeof kept.dog === "object" ? asDog(kept.dog) : null;
   // What their entry's keyword gives them ("ww:pet:horse:large:brown:Shadowmere"): the size, the colour
   // where that animal comes in it, the name, the breed.
   const told = (role) => {
@@ -2771,11 +2827,34 @@ function petsFor(owner) {
       (entry) => entry.role === role && entry.owner.toLowerCase() === name.toLowerCase(),
     );
     if (!pet) return null;
-    const small = pet.size === "small" || pet.size === "tiny";
-    const kind = role === "horse" ? "horse" : small || (pet.colour === "cream" && !pet.size) ? "shiba" : "husky";
+    const more = {
+      out: true,
+      ...(pet.name ? { name: pet.name } : {}),
+      ...(pet.species ? { species: pet.species } : {}),
+      lore: true,
+    };
+    if (role === "dog") {
+      // (A dog's sizes are its own five; the words for other animals' sizes go to the nearest.)
+      const size =
+        {
+          tiny: "small",
+          small: "small",
+          big: "large",
+          large: "large",
+          huge: "huge",
+          massive: "massive",
+          giant: "massive",
+        }[pet.size] ?? "medium";
+      const coats = Object.keys(COATS.husky);
+      return asDog({
+        size,
+        coat: coats.includes(pet.colour) ? pet.colour : coats[hashString(`dog:${owner}`) % coats.length],
+        ...more,
+      });
+    }
+    const kind = "horse";
     const coat = COATS[kind][pet.colour] ? pet.colour : coatFor(kind, hashString(`${role}:${owner}`));
     return {
-      ...(role === "dog" ? { kind } : {}),
       coat,
       out: true,
       scale: ANIMAL_SIZES[pet.size] ?? 1,
@@ -2794,8 +2873,13 @@ function petsFor(owner) {
   if (kept.dog === undefined && !dog && owner !== PLAYER_ID) {
     if (dogLore.get(owner)[1]) {
       const n = hashString(`dog:${owner}`);
-      const kind = Object.keys(PACK.dogs)[n % Object.keys(PACK.dogs).length];
-      dog = { kind, coat: coatFor(kind, n >>> 4), out: true, lore: true };
+      const coats = Object.keys(COATS.husky);
+      dog = asDog({
+        size: ["small", "medium", "large"][n % 3],
+        coat: coats[(n >>> 4) % coats.length],
+        out: true,
+        lore: true,
+      });
     }
   }
   let horse = COATS.horse[kept.horse?.coat] ? kept.horse : null;
@@ -2820,7 +2904,10 @@ function syncPets() {
   });
   const plaza = core.world.layout.plaza;
   for (const owner of [PLAYER_ID, ...core.crowd.snapshot().map((person) => person.id)]) {
-    const { dog, horse } = petsFor(owner);
+    const theirs = petsFor(owner);
+    // (Not a kind that's switched off, nor, with that setting off, one of a sort set to 0.)
+    const dog = theirs.dog && animalAllowed(theirs.dog.kind) ? theirs.dog : null;
+    const horse = theirs.horse && animalAllowed("horse") ? theirs.horse : null;
     if (!dog && !horse) continue;
     // Home is their own door; with none, the player's animals keep to the tavern's (its yard is the stable).
     const door = doorOf(core.save.housing?.[owner]?.home) ??
@@ -2880,7 +2967,8 @@ function syncSpawns() {
   const list = [];
   const add = (id, word, size, count, place) => {
     const kind = animalKind(word);
-    if (kind) list.push({ id, kind, scale: ANIMAL_SIZES[size] ?? 1, sized: !!size, count, at: where(place) });
+    if (kind && animalAllowed(kind))
+      list.push({ id, kind, scale: ANIMAL_SIZES[size] ?? 1, sized: !!size, count, at: where(place) });
   };
   (core.save.spawns ?? []).forEach((spawn, i) =>
     add(`place:${i}:${spawn.place}:${spawn.kind}`, spawn.kind, spawn.size, spawn.count, spawn.place),
@@ -2925,7 +3013,20 @@ function partyAnimals() {
   const mine = petsFor(PLAYER_ID);
   // (By name, when it has one: "Shadowmere, your black horse".)
   const kindOf = (pet, what) =>
-    [(pet.scale ?? 1) >= 1.2 ? "large" : (pet.scale ?? 1) <= 0.85 ? "small" : "", coat(pet), pet.species || what]
+    [
+      // (A dog's size is its own word; a medium one goes without saying.)
+      what === "dog"
+        ? pet.size === "medium"
+          ? ""
+          : pet.size
+        : (pet.scale ?? 1) >= 1.2
+          ? "large"
+          : (pet.scale ?? 1) <= 0.85
+            ? "small"
+            : "",
+      coat(pet),
+      pet.species || what,
+    ]
       .filter(Boolean)
       .join(" ");
   const called = (pet, what) => (pet.name ? `${pet.name}, your ${kindOf(pet, what)}` : `Your ${kindOf(pet, what)}`);
@@ -2962,12 +3063,8 @@ function petsOf(id) {
   return {
     ...petsFor(owner),
     mine: owner === PLAYER_ID,
-    dogs: Object.fromEntries(
-      Object.entries(PACK.dogs).map(([kind, label]) => [
-        kind,
-        { label, coats: Object.keys(COATS[kind]).map((coat) => [coat, PACK.coats[coat] ?? coat]) },
-      ]),
-    ),
+    dogCoats: Object.keys(COATS.husky).map((coat) => [coat, PACK.coats[coat] ?? coat]),
+    dogSizes: Object.keys(DOG_SIZES).map((size) => [size, size[0].toUpperCase() + size.slice(1)]),
     horses: Object.keys(COATS.horse).map((coat) => [coat, PACK.coats[coat] ?? coat]),
   };
 }
@@ -3071,6 +3168,7 @@ const LEAP_CLEAR = 0.2; // its back this far up, it's over a fence (metres)
 function mountName(mount) {
   if (mount?.id === `pet:${PLAYER_ID}:horse` && core.pets[PLAYER_ID]?.horse?.name)
     return core.pets[PLAYER_ID].horse.name;
+  if (mount?.id === `pet:${PLAYER_ID}:dog` && core.pets[PLAYER_ID]?.dog?.name) return core.pets[PLAYER_ID].dog.name;
   const name = PACK.animals[mount?.kind] ?? "the horse";
   const coat = mount?.kind === "horse" ? PACK.coats[mount.coat] : null;
   return coat ? name.replace(/^the /u, `the ${coat} `) : name;
@@ -6461,7 +6559,7 @@ function step(dt) {
   const mine = core.pets[PLAYER_ID];
   core.hud?.setPets({
     names: { dog: mine?.dog?.name ?? "", horse: mine?.horse?.name ?? "" },
-    dog: !!mine?.dog && mine.dog.out !== false && !core.interior,
+    dog: !!mine?.dog && mine.dog.out !== false && !core.interior && core.mount?.id !== `pet:${PLAYER_ID}:dog`,
     horse: !!mine?.horse && mine.horse.out !== false && !core.interior && core.mount?.id !== `pet:${PLAYER_ID}:horse`,
   });
   core.hud?.setThumbs(
