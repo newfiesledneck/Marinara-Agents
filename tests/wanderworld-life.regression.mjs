@@ -344,4 +344,24 @@ const world = createWorld(51, null, { smithy: 2 });
   assert.ok(Math.abs(settle(1, { act: "no-such-act" }).hips[1] - standing) < 0.05, "an unknown act is no act");
 }
 
+// Every kit prop a world has somewhere is one the kit has, and is listed to be loaded (one missing keeps
+// every prop a plain shape): a town with a smithy, a plain one, a big one.
+{
+  const { existsSync } = await import("node:fs");
+  for (const town of [createWorld(51, null, { smithy: 2 }), createWorld(4242), createWorld(7)]) {
+    assert.ok(town.propModels.length > 3, "a world has props");
+    assert.deepEqual([...new Set(town.props.map((slot) => slot.model))].sort(), [...town.propModels].sort());
+    for (const model of town.propModels)
+      assert.ok(
+        existsSync(new URL(`../packages/wanderworld/kit/props/${model}.json`, import.meta.url)),
+        `the kit has the ${model} this world places`,
+      );
+    town.dispose();
+  }
+  assert.ok(
+    createWorld(51, null, { smithy: 2 }).propModels.includes("anvil"),
+    "a smithy's anvil is loaded with the rest",
+  );
+}
+
 console.log("wanderworld life regression: OK");

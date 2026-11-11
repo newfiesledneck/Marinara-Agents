@@ -137,7 +137,15 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   assert.equal(dyed.hairColour, 0x00ff88, "a colour of her own goes over the list's");
   assert.equal(dyed.choices.hairColour, 9);
   assert.equal(lookFor("Mira", index, "female", { hairColour: 9 }).hairColour, HAIR_COLOURS[9][0]);
-  assert.deepEqual(dyed.skin, SKIN_TONES[4][0]);
+  assert.equal(dyed.skinTint, 0x9955cc, "a skin colour of her own goes over the list's");
+  assert.equal(
+    lookFor("Mira", index, "female", { skin: 8, skinSet: 2 }).skinTint,
+    SKIN_TONES[8][0],
+    "a tone from the list comes out as its colour",
+  );
+  assert.deepEqual(checkLook({ skin: 4 }), { skin: 8, skinSet: 2 }, "an older look's Brown is still Brown");
+  assert.deepEqual(checkLook({ skin: 11, skinSet: 2 }), { skin: 11, skinSet: 2 });
+  assert.ok(SKIN_TONES.length >= 12 && SKIN_TONES.every(([colour], i) => i === 0 || colour !== SKIN_TONES[i - 1][0]));
   assert.equal(dyed.hair, "none");
   assert.equal(dyed.height, 1.1);
   assert.deepEqual(dyed.tints, { top: 0x336699 });
@@ -244,6 +252,7 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
     hairColour: 3,
     hairTint: 0xabcdef,
     skin: 0,
+    skinSet: 2,
     beard: false,
   });
   // The kit says how light each piece and each skin is, for colours of one's own.

@@ -89,6 +89,7 @@ const ROOF_OVERHANG = 1.1;
 /** How high the kit stall's counter is, drawn at the town's size. */
 const STALL_COUNTER = 1.12;
 /** Every kit prop the town uses, for loading. */
+// (A list of the usual ones; what's loaded for a world is its own `propModels`, so nothing is missed.)
 export const TOWN_PROPS = [
   "barrel",
   "barrel-apples",
@@ -3814,6 +3815,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     noticeboard: town.noticeboard,
     /** The town's props, as placed: [{ model, x, z }] (main.js makes things to use of some: pack.js PROP_THINGS). */
     props: town.propSlots.map((slot) => ({ model: slot.model, x: slot.x, z: slot.z })),
+    /** The kit props this world has somewhere (a smithy's anvil, a farm's crates): what to load for addProps. */
+    propModels: [...new Set(town.propSlots.map((slot) => slot.model))],
     /** Cave mouths: { x, z (where to stand), angle, outpost }. */
     caves: country.caves,
     /** The world's landscape, as built (land.js), for saving with it. */

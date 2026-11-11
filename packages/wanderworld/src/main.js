@@ -132,7 +132,6 @@ import {
   NATURE_MODELS,
   previewMap,
   SPAWN,
-  TOWN_PROPS,
   waterAt,
   WORLD_SIZE,
   WORLD_SIZES,
@@ -555,7 +554,7 @@ function buildWorld(seed, place = null) {
   if (core.settings.props) {
     const world = core.world;
     loads.push(
-      kitModels("props", TOWN_PROPS)
+      kitModels("props", world.propModels)
         .then((models) => {
           if (core.world === world) world.addProps(models);
         })
@@ -2826,7 +2825,8 @@ function petOut(role, out) {
   const pet = petsFor(PLAYER_ID)[role];
   if (!pet) return;
   setPet(core.personaId, role, { ...pet, lore: undefined, out });
-  narrate(null, out ? `(You call your ${role} along.)` : `(You send your ${role} home.)`);
+  const named = pet.name ? `your ${role}, ${pet.name},` : `your ${role}`;
+  narrate(null, out ? `(You call ${named} along.)` : `(You send ${named} home.)`);
 }
 
 /** The Party tab's animals: yours, and the dog of anyone travelling with you. */
@@ -2834,13 +2834,20 @@ function partyAnimals() {
   const out = [];
   const coat = (pet) => PACK.coats[pet.coat] ?? pet.coat;
   const mine = petsFor(PLAYER_ID);
-  if (mine.dog) out.push({ role: "dog", mine: true, out: mine.dog.out !== false, label: `Your ${coat(mine.dog)} dog` });
+  // (By name, when it has one: "Shadowmere, your black horse".)
+  const called = (pet, what) => (pet.name ? `${pet.name}, your ${coat(pet)} ${what}` : `Your ${coat(pet)} ${what}`);
+  if (mine.dog) out.push({ role: "dog", mine: true, out: mine.dog.out !== false, label: called(mine.dog, "dog") });
   if (mine.horse)
-    out.push({ role: "horse", mine: true, out: mine.horse.out !== false, label: `Your ${coat(mine.horse)} horse` });
+    out.push({ role: "horse", mine: true, out: mine.horse.out !== false, label: called(mine.horse, "horse") });
   for (const member of core.crowd.party()) {
     const { dog } = petsFor(member.id);
     if (dog && dog.out !== false)
-      out.push({ role: "dog", mine: false, out: true, label: `${member.name}'s ${coat(dog)} dog` });
+      out.push({
+        role: "dog",
+        mine: false,
+        out: true,
+        label: dog.name ? `${dog.name}, ${member.name}'s ${coat(dog)} dog` : `${member.name}'s ${coat(dog)} dog`,
+      });
   }
   return out;
 }
@@ -2956,6 +2963,8 @@ const LEAP_CLEAR = 0.2; // its back this far up, it's over a fence (metres)
 
 /** What a mount is called: "the grey horse", "the donkey". */
 function mountName(mount) {
+  if (mount?.id === `pet:${PLAYER_ID}:horse` && core.pets[PLAYER_ID]?.horse?.name)
+    return core.pets[PLAYER_ID].horse.name;
   const name = PACK.animals[mount?.kind] ?? "the horse";
   const coat = mount?.kind === "horse" ? PACK.coats[mount.coat] : null;
   return coat ? name.replace(/^the /u, `the ${coat} `) : name;
@@ -5636,7 +5645,7 @@ function usable() {
     if (pet.owner !== PLAYER_ID || pet.out || pet.kind === "horse" || !pet.loaded) continue;
     list.push({
       kind: "thing",
-      label: "Call the dog along",
+      label: `Call ${petsFor(PLAYER_ID).dog?.name || "the dog"} along`,
       x: pet.x,
       z: pet.z,
       y: 0.9,
@@ -6321,6 +6330,7 @@ function step(dt) {
   // Yours that are with you can be sent home from the chat window (not the horse you're sitting on).
   const mine = core.pets[PLAYER_ID];
   core.hud?.setPets({
+    names: { dog: mine?.dog?.name ?? "", horse: mine?.horse?.name ?? "" },
     dog: !!mine?.dog && mine.dog.out !== false && !core.interior,
     horse: !!mine?.horse && mine.horse.out !== false && !core.interior && core.mount?.id !== `pet:${PLAYER_ID}:horse`,
   });

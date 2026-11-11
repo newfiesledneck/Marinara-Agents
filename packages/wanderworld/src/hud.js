@@ -166,6 +166,7 @@ export function createHud(root, handlers) {
       // `patch`: the choices to make; one given as undefined is unmade (back to how the name has it).
       const set = (patch) => {
         chosen = { ...chosen, ...patch };
+        if ("skin" in patch) chosen.skinSet = 2; // (looks.js: which list its number is from)
         for (const key of Object.keys(chosen)) if (chosen[key] === undefined) delete chosen[key];
         handlers.onSetLook(id, chosen);
         void handlers.lookOf(id).then((next) => {
@@ -443,6 +444,25 @@ export function createHud(root, handlers) {
           row(label, select);
         };
         const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+        // Its name: said in place of "your dog" wherever it's spoken of.
+        const naming = (label, role, pet) => {
+          const name = document.createElement("input");
+          name.maxLength = 30;
+          name.value = pet.name ?? "";
+          name.placeholder = "A name (optional)";
+          name.style.cssText =
+            "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;box-sizing:border-box;";
+          name.setAttribute("aria-label", label);
+          name.addEventListener("change", () => {
+            handlers.onSetPet(id, role, { ...pet, lore: undefined, name: name.value.trim() || undefined });
+            void handlers.lookOf(id).then((next) => {
+              if (!next || lookCard !== card) return;
+              pets = next.pets;
+              card.replaceChildren(...draw());
+            });
+          });
+          row(label, name);
+        };
         const where = [
           ["out", pets.mine ? "With you" : "With them"],
           ["home", "At home"],
@@ -452,18 +472,22 @@ export function createHud(root, handlers) {
           "Dog",
           [["", "None"], ...Object.entries(pets.dogs).map(([kind, entry]) => [kind, entry.label])],
           dog?.kind ?? "",
-          (kind) => ["dog", kind ? { kind, coat: pets.dogs[kind].coats[0][0], out: dog?.out !== false } : null],
+          (kind) => [
+            "dog",
+            kind ? { kind, coat: pets.dogs[kind].coats[0][0], out: dog?.out !== false, name: dog?.name } : null,
+          ],
         );
         if (dog) {
           choose(
             "Dog's coat",
             pets.dogs[dog.kind].coats.map(([coat, word]) => [coat, capital(word)]),
             dog.coat,
-            (coat) => ["dog", { kind: dog.kind, coat, out: dog.out !== false }],
+            (coat) => ["dog", { kind: dog.kind, coat, out: dog.out !== false, name: dog.name }],
           );
+          naming("Dog's name", "dog", dog);
           choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
             "dog",
-            { kind: dog.kind, coat: dog.coat, out: at === "out" },
+            { kind: dog.kind, coat: dog.coat, out: at === "out", name: dog.name },
           ]);
         }
         if (pets.mine) {
@@ -472,12 +496,13 @@ export function createHud(root, handlers) {
             "Horse",
             [["", "None"], ...pets.horses.map(([coat, word]) => [coat, capital(word)])],
             horse?.coat ?? "",
-            (coat) => ["horse", coat ? { coat, out: horse?.out !== false } : null],
+            (coat) => ["horse", coat ? { coat, out: horse?.out !== false, name: horse?.name } : null],
           );
+          if (horse) naming("Horse's name", "horse", horse);
           if (horse)
             choose("Horse is", where, horse.out !== false ? "out" : "home", (at) => [
               "horse",
-              { coat: horse.coat, out: at === "out" },
+              { coat: horse.coat, out: at === "out", name: horse.name },
             ]);
         }
       }
@@ -1314,7 +1339,7 @@ export function createHud(root, handlers) {
   const petMoves = document.createElement("div");
   petMoves.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
   const sendHome = (role) => {
-    const plain = `Send ${role} home`;
+    let plain = `Send ${role} home`;
     let sure = null; // the timer while it's asking "Sure?"
     const control = button(plain, `Send your ${role} home: it goes back to your door and waits there`, () => {
       if (sure === null) {
@@ -1332,6 +1357,13 @@ export function createHud(root, handlers) {
     };
     control.style.cssText += "padding:4px 10px;font-size:12px;display:none;";
     petMoves.append(control);
+    /** Called by its name once it has one ("Send Shadowmere home"). */
+    control.rename = (name) => {
+      const next = `Send ${name || role} home`;
+      if (next === plain) return;
+      plain = next;
+      reset();
+    };
     return control;
   };
   const petButtons = { dog: sendHome("dog"), horse: sendHome("horse") };
@@ -1615,6 +1647,7 @@ export function createHud(root, handlers) {
     setPets(withYou) {
       let any = false;
       for (const [role, control] of Object.entries(petButtons)) {
+        control.rename(withYou.names?.[role] ?? "");
         const show = withYou[role] ? "" : "none";
         if (control.style.display !== show) control.style.display = show;
         any ||= !!withYou[role];
