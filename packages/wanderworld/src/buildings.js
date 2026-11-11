@@ -589,6 +589,28 @@ export function crate(size = 0.6) {
   ]);
 }
 
+/** A wagon in plain shapes, lying along z: a bed with boarded sides on four wheels, its pole out in front. */
+export function wagon() {
+  const WOOD = 0x9a7648;
+  const DARK = 0x5c4630;
+  const wheel = (x, z) =>
+    painted(new CylinderGeometry(0.5, 0.5, 0.1, 10).rotateZ(Math.PI / 2).translate(x, 0.5, z), DARK);
+  return mergeGeometries([
+    box(1.5, 0.12, 3, 0, 0.8, 0, WOOD),
+    box(0.08, 0.5, 3, -0.75, 1.1, 0, WOOD),
+    box(0.08, 0.5, 3, 0.75, 1.1, 0, WOOD),
+    box(1.5, 0.5, 0.08, 0, 1.1, -1.5, WOOD),
+    box(1.5, 0.3, 0.08, 0, 1, 1.5, WOOD),
+    box(1.7, 0.1, 0.1, 0, 0.5, -1, DARK),
+    box(1.7, 0.1, 0.1, 0, 0.5, 1, DARK),
+    wheel(-0.86, -1),
+    wheel(0.86, -1),
+    wheel(-0.86, 1),
+    wheel(0.86, 1),
+    box(0.08, 0.08, 1.3, 0, 0.62, 2.1, DARK),
+  ]);
+}
+
 /** A bush: one squashed low-poly ball. */
 export function bush(random, size = 0.8 + random() * 0.6) {
   const shade = new Color(LEAF).multiplyScalar(0.85 + random() * 0.3).getHex();

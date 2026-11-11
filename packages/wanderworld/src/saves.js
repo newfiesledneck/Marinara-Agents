@@ -318,6 +318,16 @@ export function checkWorld(raw) {
             .filter(([, look]) => Object.keys(look).length),
         )
       : {},
+    // Animals of one's own, by owner id: { dog: { kind, coat, out } | null, horse: { coat, out } | null }
+    // (`out`: with them, not at home; a dog given as null is "none, whatever their lore says").
+    pets: isRecord(raw.pets)
+      ? Object.fromEntries(
+          Object.entries(raw.pets)
+            .slice(0, 200)
+            .map(([id, entry]) => [id, checkPets(entry)])
+            .filter(([, entry]) => Object.keys(entry).length),
+        )
+      : {},
     // How big the world is (world.js WORLD_SIZES): small, normal, large, huge or massive.
     worldSize: ["small", "normal", "large", "huge", "massive"].includes(raw.worldSize) ? raw.worldSize : "normal",
     // The least the world must have for its lore ({ kind: count }, zones.js `needsFromLore`).
@@ -542,4 +552,21 @@ export function createSaves(storage = globalThis.localStorage) {
       return world;
     },
   };
+}
+
+/** One owner's animals, as kept (see `pets` above); anything else is dropped. */
+function checkPets(raw) {
+  const out = {};
+  if (!isRecord(raw)) return out;
+  const word = (value) => (typeof value === "string" && /^[a-z-]{1,20}$/u.test(value) ? value : null);
+  for (const role of ["dog", "horse"]) {
+    if (raw[role] === null) out[role] = null;
+    else if (isRecord(raw[role]) && word(raw[role].coat) && (role === "horse" || word(raw[role].kind)))
+      out[role] = {
+        ...(role === "dog" ? { kind: raw[role].kind } : {}),
+        coat: raw[role].coat,
+        out: raw[role].out !== false,
+      };
+  }
+  return out;
 }
