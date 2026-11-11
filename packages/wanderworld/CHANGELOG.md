@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.5.55 — 2026-11-11
+
+Fixes from reading back through the last ten versions.
+
+- A tool no longer stays in hand after the work is over (someone who'd been watering could lie down still holding the can).
+- Furniture isn't put down on top of what's already standing there.
+- Journal → Home lists the empty houses nearest you also when you're indoors, and shows furnishing as soon as you step inside.
+- A witch's or wizard's hat is made once and shared, so none is left behind when they go.
+
 ## 0.5.54 — 2026-11-11
 
 - Market day once a week, and an evening festival once in four: for those hours a good share of the town gathers in the market square, and a line tells you.

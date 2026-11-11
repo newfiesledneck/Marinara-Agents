@@ -2225,7 +2225,9 @@ function householdData(snapshot, names) {
   const slots = new Map([...slotsOf(core.zones)].map(([slot, id]) => [id, slot]));
   const farFrom = (zone) => {
     const door = core.world?.doors[zone.door];
-    return door ? Math.hypot(door.x - core.player.position.x, door.z - core.player.position.z) : Infinity;
+    // (Indoors, the player's place is the room's own: where they are in the world is that building's door.)
+    const here = core.interior?.door ?? core.player.position;
+    return door ? Math.hypot(door.x - here.x, door.z - here.z) : Infinity;
   };
   const mates = myDoor === null ? [] : snapshot.filter((person) => person.home === myDoor);
   const mateIds = new Set(mates.map((mate) => mate.id));
@@ -2366,6 +2368,9 @@ function furnish(piece) {
   };
   const result = placeFurniture(core.save.furnished?.[mine] ?? [], piece, at, core.interior.room);
   if (result.error) return void core.hud?.setNotice(result.error);
+  const put = result.list.at(-1);
+  if (core.interior.room.blocked(put.x, put.z, 0.1))
+    return void core.hud?.setNotice("Something's already standing there. Step to a clear bit of floor.");
   setFurniture(mine, result.list);
   // (Never left standing inside what was just put down.)
   core.space.resolveCollisions(core.player.position, PLAYER_RADIUS, true);
@@ -5769,6 +5774,8 @@ function enterBuilding(door) {
         })
         .catch((error) => console.warn("[wanderworld] detailed furniture failed to load", error));
     }
+    core.placesChanged = true; // (Journal → Home offers furnishing only indoors)
+    core.journalAt = 0;
     core.player.removeFromParent();
     room.scene.add(core.player);
     core.player.position.set(room.entry.x, 0, room.entry.z);
@@ -6209,6 +6216,8 @@ function leaveInterior(now = false) {
   const out = () => {
     core.crowd.hideRoom();
     core.interior = null;
+    core.placesChanged = true;
+    core.journalAt = 0;
     core.player.removeFromParent();
     inside.room.dispose();
     if (!core.world) return;

@@ -127,6 +127,8 @@ function heldThing(name) {
   for (const mesh of heldParts[name]) group.add(mesh.clone());
   return group;
 }
+/** A pointed hat's two shapes, by colour: made once and shared, as the things held are. */
+const hatParts = new Map();
 /** How far above the head bone (the base of the skull) a hat's brim sits, in metres. */
 const HAT_UP = 0.2;
 const overlay = new Quaternion();
@@ -254,10 +256,17 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
     wear(colour) {
       const head = bone("head");
       if (!head) return;
-      const material = new MeshLambertMaterial({ color: colour, flatShading: true });
+      if (!hatParts.has(colour)) {
+        const material = new MeshLambertMaterial({ color: colour, flatShading: true });
+        const parts = [
+          new Mesh(new CylinderGeometry(0.21, 0.21, 0.015, 12), material),
+          new Mesh(new ConeGeometry(0.115, 0.36, 10).translate(0, 0.18, 0), material),
+        ];
+        for (const mesh of parts) mesh.userData.sharedShadow = true; // (made once, for everyone in that colour)
+        hatParts.set(colour, parts);
+      }
       const hat = new Group();
-      hat.add(new Mesh(new CylinderGeometry(0.21, 0.21, 0.015, 12), material));
-      hat.add(new Mesh(new ConeGeometry(0.115, 0.36, 10).translate(0, 0.18, 0), material));
+      for (const mesh of hatParts.get(colour)) hat.add(mesh.clone());
       hat.position.set(0, HAT_UP * unit, 0.01 * unit * mirror);
       hat.rotation.x = -0.12 * mirror; // tipped back a little
       hat.scale.setScalar(unit);

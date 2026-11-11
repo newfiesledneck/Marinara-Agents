@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.55",
+          "date": "2026-11-11",
+          "notes": "Fixes from reading back through the last ten versions.\n\n- A tool no longer stays in hand after the work is over (someone who'd been watering could lie down still holding the can).\n- Furniture isn't put down on top of what's already standing there.\n- Journal → Home lists the empty houses nearest you also when you're indoors, and shows furnishing as soon as you step inside.\n- A witch's or wizard's hat is made once and shared, so none is left behind when they go.",
+          "highlight": false
+        },
+        {
           "version": "0.5.54",
           "date": "2026-11-11",
           "notes": "- Market day once a week, and an evening festival once in four: for those hours a good share of the town gathers in the market square, and a line tells you.\n- People in your party, anyone you've asked round, and anyone whose day you set by hand for those hours keep to that instead.\n- Settings → Living world has the switch. Rules only, with no AI call.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.36",
           "date": "2026-11-11",
           "notes": "- Getting down from a horse or a donkey is a movement of its own, like getting on: a leg back over, a lean, and down to the ground beside it. Before, the rider dropped to the ground and slid sideways.\n- Characters can have a horse of their own: from their lore (\"his grey mare\", \"rides a horse\") or chosen in their Look card. It follows them and waits outside, the Party tab lists it, and it isn't offered to you to ride.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.35",
-          "date": "2026-11-11",
-          "notes": "- The asset files are regrouped by setting: what any world has (nature, people's bodies, the painted art), the medieval setting's buildings, props and outfits, and the creatures. Each set's models are one file now, so the package has 93 asset files where it had 228, with room for more settings and creatures. Nothing looks different in the game.",
           "highlight": false
         }
       ]
