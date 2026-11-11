@@ -701,6 +701,8 @@ export function createHud(root, handlers) {
       "Each person keeps their own short memory: what you said in their hearing, who they spent time with. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people.",
     memorySights:
       "Anyone within sight remembers what you do, not only what you say in their hearing: getting up on a horse, going into a house, lighting a fire. Only they know it. Needs memories on. Off, people remember only what was said near them.",
+    gossip:
+      'Gossip. People who spend time together now and then tell each other something they saw or heard of you in the last few days. Whoever is told knows it as hearsay ("was told by Corvin"), keeps only a few such things, and doesn\'t pass it further. What you whisper is never passed on. Needs memories on. Off, people know only what they were there for.',
     worldEvents:
       "Once a week it's market day, and once in four weeks there's an evening festival: for those hours a good share of the town gathers in the market square, and a line says so. People in your party, people you've asked round, and anyone whose day you set by hand for those hours keep to that instead. Off, every day is like every other.",
     awayRecap:
@@ -868,6 +870,7 @@ export function createHud(root, handlers) {
   toggle("awayRecap", "Tell me what I missed");
   toggle("memories", "People remember what they saw and heard");
   toggle("memorySights", "People notice what you do");
+  toggle("gossip", "People pass on what they know");
   toggle("worldEvents", "Market days and festivals");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");

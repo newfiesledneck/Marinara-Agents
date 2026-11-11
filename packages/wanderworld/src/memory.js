@@ -13,6 +13,8 @@ export const MEMORY = {
   TEXT: 200, // characters a memory runs to
   TOPIC_DAYS: 3, // how long something the player said stays worth bringing up
   SIGHTS: 5, // of them, things only seen in passing (the oldest sight goes first)
+  HEARSAY: 3, // and things only told by someone else (the oldest goes first)
+  GOSSIP_PER_HOUR: 0.5, // how likely one of two people together is to pass something on, each hour
 };
 
 const cut = (value) =>
@@ -108,9 +110,10 @@ export function createMemories(saved = {}) {
         const list = store.get(id) ?? [];
         if (list.at(-1)?.text === line) continue;
         if (!store.has(id) && store.size >= MEMORY.PEOPLE) store.delete(store.keys().next().value);
+        const most = { saw: MEMORY.SIGHTS, told: MEMORY.HEARSAY }[how];
         const kept =
-          how === "saw" && list.filter((entry) => entry.how === "saw").length >= MEMORY.SIGHTS
-            ? list.filter((entry, i) => i !== list.findIndex((old) => old.how === "saw"))
+          most && list.filter((entry) => entry.how === how).length >= most
+            ? list.filter((entry, i) => i !== list.findIndex((old) => old.how === how))
             : list;
         const entry = {
           day,
@@ -137,6 +140,27 @@ export function createMemories(saved = {}) {
           : "";
         return `(${ago(entry.day, today)}${how}) ${entry.text}`;
       });
+    },
+    /**
+     * Gossip: `from` (called `fromName`) tells `to` the newest thing they saw or heard themselves in the
+     * last few days that `to` doesn't know: `to` remembers it as told by them. → what was passed on, or
+     * null. Only first-hand things are passed (hearsay stops with whoever was told it), and nothing that
+     * was whispered.
+     */
+    pass(from, to, fromName, day = 0) {
+      if (!from || !to || from === to || from === "player" || to === "player") return null;
+      const retold = (text) => text.replace(/ said to you: /u, ` said to ${fromName}: `);
+      const has = new Set((store.get(to) ?? []).map((entry) => entry.text));
+      const entry = [...(store.get(from) ?? [])].reverse().find(
+        (memory) =>
+          (memory.how === "saw" || memory.how === "heard") &&
+          day - memory.day <= MEMORY.TOPIC_DAYS &&
+          !/ whispered: /u.test(memory.text) && // ponytail: told by its wording; a flag on the memory if more kinds need keeping
+          !has.has(retold(memory.text)),
+      );
+      if (!entry) return null;
+      this.remember([to], retold(entry.text), day, false, "told", fromName);
+      return retold(entry.text);
     },
     /** Everything `id` remembers, newest first, for showing: [{ day, text }]. */
     list(id) {

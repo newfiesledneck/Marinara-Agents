@@ -55,7 +55,7 @@ import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
-import { createMemories, heardBy, heardLines } from "./memory.js";
+import { createMemories, heardBy, heardLines, MEMORY } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
 import {
   FURNITURE,
@@ -3113,6 +3113,14 @@ function socialTick(dt) {
   if (party.length)
     groups.push({ ids: ["player", ...party], where: zoneNames[here.id] ?? "", what: "travelling together", area });
   const names = nameIds();
+  // Gossip (Settings → People pass on what they know): now and then one of two who are together tells
+  // the other something they saw or heard themselves.
+  if (core.settings.gossip && core.settings.memories)
+    for (const group of groups) {
+      const pair = [...new Set(group.ids)].filter((id) => id !== "player").sort(() => Math.random() - 0.5);
+      if (pair.length >= 2 && Math.random() < hours * MEMORY.GOSSIP_PER_HOUR)
+        core.memories?.pass(pair[0], pair[1], names[pair[0]] || "someone", core.social.day);
+    }
   const lines = core.social.step(core.hour, hours, groups, {
     relations: core.relations,
     traits: (id) => checkTraits(core.save?.traits?.[id]),
@@ -5473,7 +5481,7 @@ async function runMoment({
   }
   // Whoever heard it remembers it, and whoever saw it done (further off than a voice carries): with or
   // without a model to tell it. (After the listeners were read, so this isn't among what they knew before.)
-  if (line) recall(heardIds, `${personaName()} said: "${line}"`, true);
+  if (line) recall(heardIds, `${personaName()} ${voice === "whisper" ? "whispered" : "said"}: "${line}"`, true);
   if (action) recall(inSight(heardIds), `${personaName()} ${action}.`, false, "saw");
   if (!core.settings.aiTalk || !core.settings.aiMoments || !core.ai.known()?.moments || core.momentBusy) return false;
   // Settings → AI: each kind of moment can be kept from calling the model (what's typed always may).
