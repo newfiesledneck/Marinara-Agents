@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.58)
+## What it does now (0.5.59)
 
 ### The world
 
@@ -214,8 +214,10 @@ only walk about.
   at their door when they're in, or in the room with them) finishes it.
 - **Narrators, and scenes from anywhere:** pick one of your character cards as the narrator of the world
   as you walk it and one as the narrator of scenes (Menu → Settings → AI; the same card or two: a short
-  voice for the world, a roleplay narrator for scenes). People are told only what they were in earshot
-  of, so nobody speaks of what you said to someone else elsewhere. The chat window's **Scene** button, or
+  voice for the world, a roleplay narrator for scenes). Each person knows only what they
+  saw, heard or were told: the AI is given every listener's knowledge as their own block (memories with
+  when and how they came by them, the chat they alone heard, lore about themselves), so nobody speaks of
+  what you said to someone else elsewhere. People in sight also remember what you do. The chat window's **Scene** button, or
   `/scene …`, starts a scene right where you stand: with whoever's near and your party, with the narrator
   as well, or with the narrator alone when nobody else is there. What you do is narrated even with
   nobody about. `/camp` lights a campfire for you and your party, and talking to someone offers joining

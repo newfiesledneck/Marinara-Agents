@@ -55,7 +55,7 @@ import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
-import { createMemories, heardLines } from "./memory.js";
+import { createMemories, heardBy, heardLines } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
 import {
   FURNITURE,
@@ -1723,10 +1723,14 @@ function noticeSomeone() {
  * What the Lore panel shows: every entry active here, nearest place first, with the place it's tied to,
  * its lorebook and (once the lorebooks are read) its text.
  */
-function activeLore(zone, names) {
+function activeLore(zone, names, also = []) {
   const lore = core.save?.lore ?? {};
   const books = new Map([...(core.lorebooks ?? []), ...worldBook(core.save)].map((book) => [book.id, book]));
-  const entries = loreSources(zone, names).flatMap((source) =>
+  const sources = loreSources(zone, names);
+  // (`also`: more people whose own lore is wanted, as ids: whoever's in earshot.)
+  for (const id of also)
+    if (!sources.some((source) => source.id === `character:${id}`)) sources.push({ id: `character:${id}`, label: "" });
+  const entries = sources.flatMap((source) =>
     (lore[source.id] ?? []).map((entry) => {
       const book = books.get(entry.lorebookId);
       const found = book?.entries.find((item) => item.id === entry.entryId);
@@ -1734,6 +1738,7 @@ function activeLore(zone, names) {
         title: found?.title ?? entry.title,
         book: book?.name ?? "",
         from: source.label,
+        source: source.id,
         own: entry.lorebookId === "world", // written for this world: its text goes to the model from here
         content: found?.content ?? null,
       };
@@ -3031,9 +3036,37 @@ function setLook(id, look) {
 
 // ── The living world ─────────────────────────────────────────────────────────
 
-/** Each of `ids` remembers `text` (memory.js): only them. `said`: the player said it to them. */
-function recall(ids, text, said) {
-  if (core.settings.memories) core.memories?.remember(ids, text, core.social?.day ?? 0, said);
+/**
+ * Each of `ids` remembers `text` (memory.js): only them. `said`: the player said it to them. `how`: how
+ * they came by it ("saw", "heard").
+ */
+function recall(ids, text, said, how = said ? "heard" : "") {
+  if (core.settings.memories) core.memories?.remember(ids, text, core.social?.day ?? 0, said, how);
+}
+
+/** How far off someone sees what the player does. */
+const SIGHT_RANGE = 14;
+
+/**
+ * The people who can see the player now (ids): out of doors, anyone within a stone's throw; indoors,
+ * nobody but those `among` (who's in the room). With "People notice what you do" off, `among` alone.
+ */
+function inSight(among = []) {
+  if (!core.settings.memorySights || core.interior) return among;
+  const { x, z } = core.player.position;
+  const known = new Set((core.characters ?? []).map((character) => character.id));
+  return [
+    ...new Set([
+      ...among,
+      ...core.crowd
+        .snapshot()
+        .filter(
+          (person) =>
+            known.has(person.id) && person.state !== "inside" && Math.hypot(person.x - x, person.z - z) <= SIGHT_RANGE,
+        )
+        .map((person) => person.id),
+    ]),
+  ];
 }
 
 /**
@@ -5393,8 +5426,8 @@ function momentListeners(voice, audience, extra = [], text = "") {
     doing: inside.has(person.id) ? "inside" : doingWords(person),
     feeling: towardPlayer(person.id, person.name, names),
     inParty: party.has(person.id),
-    // Their own memories, and nobody else's.
-    remembers: core.settings.memories ? (core.memories?.of(person.id, 4) ?? []).join(" ") : "",
+    // Their own memories, and nobody else's, each with when and how they came by it.
+    knows: core.settings.memories ? (core.memories?.known(person.id, 5, core.social?.day ?? 0) ?? []) : [],
   }));
 }
 
@@ -5438,6 +5471,10 @@ async function runMoment({
       heardIds,
     );
   }
+  // Whoever heard it remembers it, and whoever saw it done (further off than a voice carries): with or
+  // without a model to tell it. (After the listeners were read, so this isn't among what they knew before.)
+  if (line) recall(heardIds, `${personaName()} said: "${line}"`, true);
+  if (action) recall(inSight(heardIds), `${personaName()} ${action}.`, false, "saw");
   if (!core.settings.aiTalk || !core.settings.aiMoments || !core.ai.known()?.moments || core.momentBusy) return false;
   // Settings → AI: each kind of moment can be kept from calling the model (what's typed always may).
   const allowed = { arrive: "aiArrive", thing: "aiThings", board: "aiBoard", seat: "aiSeats", join: "aiJoin" }[source];
@@ -5453,33 +5490,56 @@ async function runMoment({
     const names = namedZones(residentsOf(core.crowd.snapshot()));
     const at = core.interior ? core.interior.door : core.player.position;
     const zone = zoneAt(core.zones, at.x, at.z);
-    const lore = activeLore(zone, names)
-      .entries.filter((entry) => entry.content)
-      .map((entry) => `${entry.title}: ${entry.content}`)
+    // Lore of the place, its group and the world is what anyone here knows. Lore about a person is theirs
+    // alone; lore about the player is known to those who know the player.
+    const entries = activeLore(zone, names, heardIds).entries.filter((entry) => entry.content);
+    const words = (entry) => `${entry.title}: ${entry.content}`;
+    const personal = (entry) => entry.source.startsWith("character:") || entry.source === PLAYER_ID;
+    const lore = entries
+      .filter((entry) => !personal(entry))
+      .map(words)
       .slice(0, 6);
-    // What each of them remembers goes with them alone (momentListeners); and now they remember this.
-    if (line) recall(heardIds, `${personaName()} said: "${line}"`, true);
-    else if (action) recall(heardIds, `${personaName()} ${action}.`, false);
     const places = schedulePlaces();
     // What was just said or done goes as what's happening now, not as "just before"; something done
     // (told by whoever asked for this) was seen by those here.
     const last = core.momentLog.at(-1);
     const mine = last?.who === personaName() && (!!line || last.text === "*" + action + "*");
     if (mine && !line) last.heard = heardIds;
+    // What each of them knows besides, theirs alone: their lore, their memories, and what of the chat
+    // they heard that the others here didn't. (A memory of a line that's in the chat is said once.)
+    const chat = heardLines(mine ? core.momentLog.slice(0, -1) : core.momentLog, listeners);
+    const said = [...chat.shared, ...Object.values(chat.own).flat()].map((entry) =>
+      entry.text.replace(/^\((whispers|shouts)\) /u, ""),
+    );
+    const telling = listeners.map((person) => ({
+      ...person,
+      knows: [
+        ...entries
+          .filter(
+            (entry) =>
+              entry.source === `character:${person.id}` ||
+              (entry.source === PLAYER_ID && (person.inParty || !!core.relations.get(person.id, "player"))),
+          )
+          .map((entry) => `(lore) ${words(entry)}`.slice(0, 600))
+          .slice(0, 2),
+        ...person.knows.filter((memory) => !said.some((text) => text.length > 2 && memory.includes(`"${text}"`))),
+        ...(chat.own[person.id] ?? []).map((entry) => `(just now, heard) ${entry.who}: ${entry.text}`),
+      ],
+    }));
     const result = await core.ai.moment({
       personaId: core.personaId ?? null,
       personaName: personaName(),
       action,
       line,
       voice,
-      listeners,
+      listeners: telling,
       place: placeWords(),
       time: clockText(),
       weather: weatherWord(),
       setting: core.save.setting ?? "",
       style: core.settings.talkStyle,
       lore,
-      recent: heardLines(mine ? core.momentLog.slice(0, -1) : core.momentLog, listeners),
+      recent: chat.shared,
       places: places.map(({ id, name }) => ({ id, name })),
       connectionId: core.settings.textConnection || null,
       temperature: core.settings.aiTemperature,
@@ -5774,6 +5834,14 @@ function goThrough(run) {
 }
 
 function enterBuilding(door) {
+  const into = core.zones?.byId.get(`building:${door.index}`);
+  if (into)
+    recall(
+      inSight(),
+      `${personaName()} went into ${namedZones(residentsOf(core.crowd.snapshot()))[into.id] ?? into.name}.`,
+      false,
+      "saw",
+    );
   goThrough(() => {
     core.world.setDoor(door.index, false);
     const room = createInterior(door, core.seed, core.save?.furnished?.[`building:${door.index}`] ?? []);
@@ -5851,7 +5919,10 @@ async function playAsScene(thing, request, along, withNarrator = false) {
         content: entry.text,
       })),
       ...(people.some((person) => known.has(person.id))
-        ? heardLines(core.momentLog, people, 8)
+        ? heardBy(
+            core.momentLog,
+            people.map((person) => person.id),
+          )
         : core.momentLog.slice(-8)
       ).map((line) => ({ speaker: line.who, content: line.text })),
     ].slice(-12),

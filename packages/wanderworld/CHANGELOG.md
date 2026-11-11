@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.59 — 2026-11-11
+
+- What each person knows is their own. The AI is given every listener a block of their own: their memories with when and how they came by them (saw, heard), the chat they alone heard, and lore about themselves. What everyone present heard stays one conversation in order.
+- Lore about a person goes only to that person; lore about you, only to those who know you.
+- People in sight remember what you do (getting on a horse, going into a house), not only what you say: Settings → People notice what you do.
+- Memories are kept with or without the AI.
+
 ## 0.5.58 — 2026-11-11
 
 - Your persona's and the narrator's cards are no longer cut off mid-word in what the AI is sent: more of each goes (900 and 1500 characters), ending at a sentence, and `{{user}}` and `{{char}}` in them become the names.

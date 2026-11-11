@@ -151,6 +151,8 @@ export const SETTINGS = {
   worldEvents: { value: true },
   /** Each person remembers what they themselves saw and heard (memory.js), and the model is told theirs alone. */
   memories: { value: true },
+  /** People in sight remember what the player does (getting on a horse, going into a house), not only what's said. */
+  memorySights: { value: true },
   sound: { value: true },
   volume: { value: 0.6, min: 0, max: 1 },
 };

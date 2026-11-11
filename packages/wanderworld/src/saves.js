@@ -455,7 +455,7 @@ export function checkWorld(raw) {
     scenes: Array.isArray(raw.scenes) ? raw.scenes.map(checkScene).filter(Boolean).slice(-30) : [],
     // Characters' temperaments (aggression, sociability), by id.
     traits: checkTraitMap(raw.traits),
-    // What each person remembers (memory.js checks it on the way in): { [id]: [{ day, text, said, raised }] }.
+    // What each person remembers (memory.js checks it on the way in): { [id]: [{ day, text, said, raised, how, from }] }.
     memories: isRecord(raw.memories) ? raw.memories : {},
     // What the player has put in a home by hand, in this region: { [zone id]: [{ piece, x, z, angle }] }
     // (household.js). Like homes, each region's own.

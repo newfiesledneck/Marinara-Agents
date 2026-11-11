@@ -12,6 +12,7 @@ export const MEMORY = {
   PEOPLE: 80, // people with memories
   TEXT: 200, // characters a memory runs to
   TOPIC_DAYS: 3, // how long something the player said stays worth bringing up
+  SIGHTS: 5, // of them, things only seen in passing (the oldest sight goes first)
 };
 
 const cut = (value) =>
@@ -21,31 +22,57 @@ const cut = (value) =>
     .slice(0, MEMORY.TEXT);
 
 /**
- * A world's memories. `saved`: what `state` gave before ({ [id]: [{ day, text, said, raised }] }).
- * `said` marks something the player said to them (worth bringing up later); `raised`, that they have.
+ * A world's memories. `saved`: what `state` gave before ({ [id]: [{ day, text, said, raised, how, from }] }).
+ * `said` marks something the player said to them (worth bringing up later); `raised`, that they have;
+ * `how` is how they came by it ("saw", "heard", or "told" by `from`: second-hand).
  */
+/** How a memory was come by, in the words the model is given. */
+const HOW = { saw: "saw", heard: "heard", told: "was told" };
+
+/** `day` as against `today`, in words. */
+const ago = (day, today) => {
+  const days = Math.max(0, Math.round(today - day));
+  return days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+};
+
 /**
- * The chat's lines that `listeners` ([{ id, name }]: who's in earshot now) saw or heard, for the model:
- * the last `max` of them as { who, text, only }. `log` is the chat ([{ who, text, heard: [ids] }]: `heard`
- * is who was in earshot when it was said). A line some of them missed says who did hear it (`only`); a
- * line none of them heard isn't there at all, so nobody speaks of what they weren't there for. With
- * nobody listening it's the narrator's own last lines (three), kept so the telling doesn't repeat.
+ * The chat as those in earshot now know it, for the model. `log` is the chat ([{ who, text, heard: [ids] }]:
+ * `heard` is who was in earshot when it was said), `listeners` who's here ([{ id }]).
+ * → { shared: [{ who, text }], own: { [id]: [{ who, text }] } }: `shared` is what every one of them heard
+ * (the last `max`, in order), `own` what each heard that not all of them did (the last four). A line none
+ * of them heard is in neither, so nobody can speak of what they weren't there for. With nobody listening,
+ * `shared` is the narrator's own last three lines, kept so the telling doesn't repeat itself.
  */
 export function heardLines(log, listeners, max = 12) {
+  const plain = ({ who, text }) => ({ who, text });
   if (!listeners.length)
-    return log
-      .filter((line) => line.who === "Narrator")
-      .slice(-3)
-      .map(({ who, text }) => ({ who, text }));
-  const lines = [];
+    return {
+      shared: log
+        .filter((line) => line.who === "Narrator")
+        .slice(-3)
+        .map(plain),
+      own: {},
+    };
+  const shared = [];
+  const own = Object.fromEntries(listeners.map((person) => [person.id, []]));
   for (const line of log) {
     const heard = new Set(line.heard ?? []);
     const there = listeners.filter((person) => heard.has(person.id));
     if (!there.length) continue;
-    const only = there.length < listeners.length ? there.map((person) => person.name).join(", ") : "";
-    lines.push(only ? { who: line.who, text: line.text, only } : { who: line.who, text: line.text });
+    if (there.length === listeners.length) shared.push(plain(line));
+    else for (const person of there) own[person.id].push(plain(line));
   }
-  return lines.slice(-max);
+  for (const id of Object.keys(own)) own[id] = own[id].slice(-4);
+  return { shared: shared.slice(-max), own };
+}
+
+/** The chat's last `max` lines that any of `ids` heard (a scene's cast: what they bring to it). */
+export function heardBy(log, ids, max = 8) {
+  const cast = new Set(ids);
+  return log
+    .filter((line) => (line.heard ?? []).some((id) => cast.has(id)))
+    .slice(-max)
+    .map(({ who, text }) => ({ who, text }));
 }
 
 export function createMemories(saved = {}) {
@@ -62,15 +89,18 @@ export function createMemories(saved = {}) {
             text: cut(entry.text),
             ...(entry.said === true ? { said: true } : {}),
             ...(entry.raised === true ? { raised: true } : {}),
+            ...(HOW[entry.how] ? { how: entry.how } : {}),
+            ...(typeof entry.from === "string" && entry.from.trim() ? { from: entry.from.trim().slice(0, 60) } : {}),
           })),
       ]),
   );
   return {
     /**
-     * Each of `ids` remembers `text` (on `day`); `said`: it's something the player said to them. The same
-     * thing twice running is one memory. Nobody else learns it.
+     * Each of `ids` remembers `text` (on `day`); `said`: it's something the player said to them; `how`:
+     * "saw", "heard" or "told" (by `from`). The same thing twice running is one memory. Nobody else
+     * learns it. Things only seen are kept to a few, so they don't crowd out what was said.
      */
-    remember(ids, text, day = 0, said = false) {
+    remember(ids, text, day = 0, said = false, how = "", from = "") {
       const line = cut(text);
       if (!line) return;
       for (const id of new Set(ids)) {
@@ -78,12 +108,35 @@ export function createMemories(saved = {}) {
         const list = store.get(id) ?? [];
         if (list.at(-1)?.text === line) continue;
         if (!store.has(id) && store.size >= MEMORY.PEOPLE) store.delete(store.keys().next().value);
-        store.set(id, [...list, { day, text: line, ...(said ? { said: true } : {}) }].slice(-MEMORY.EACH));
+        const kept =
+          how === "saw" && list.filter((entry) => entry.how === "saw").length >= MEMORY.SIGHTS
+            ? list.filter((entry, i) => i !== list.findIndex((old) => old.how === "saw"))
+            : list;
+        const entry = {
+          day,
+          text: line,
+          ...(said ? { said: true } : {}),
+          ...(HOW[how] ? { how } : {}),
+          ...(how === "told" && from ? { from: String(from).slice(0, 60) } : {}),
+        };
+        store.set(id, [...kept, entry].slice(-MEMORY.EACH));
       }
     },
     /** The newest `count` things `id` remembers, oldest first: plain lines. */
     of(id, count = 6) {
       return (store.get(id) ?? []).slice(-count).map((entry) => entry.text);
+    },
+    /**
+     * The newest `count` things `id` knows, oldest first, each said with when and how they came by it,
+     * as the model is told: "(yesterday, heard) …", "(today, was told by Corvin) …".
+     */
+    known(id, count = 5, today = 0) {
+      return (store.get(id) ?? []).slice(-count).map((entry) => {
+        const how = entry.how
+          ? `, ${HOW[entry.how]}${entry.how === "told" && entry.from ? ` by ${entry.from}` : ""}`
+          : "";
+        return `(${ago(entry.day, today)}${how}) ${entry.text}`;
+      });
     },
     /** Everything `id` remembers, newest first, for showing: [{ day, text }]. */
     list(id) {
