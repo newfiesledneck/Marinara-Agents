@@ -379,7 +379,15 @@ export function createJournal(panelCss, handlers) {
     }
     if (house.home) {
       heading("Furnish your home");
-      if (!house.furnish) body.append(line("Go inside your home to put furniture in it.", MUTED));
+      if (!house.furnish)
+        body.append(
+          line(
+            house.walkIn
+              ? "Go inside your home to put furniture in it."
+              : "Furniture goes in from inside your home. Turn on Menu → Settings → Walk into buildings first, then go in.",
+            MUTED,
+          ),
+        );
       else {
         body.append(
           line(

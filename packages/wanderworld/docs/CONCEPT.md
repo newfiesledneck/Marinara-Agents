@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.55, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.56, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.55: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.56: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.55, 2026-11-11)
+## Outstanding (as of 0.5.56, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -731,15 +731,22 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      packed as pieces (`scripts/build-wanderworld-people.mjs`: a skeleton file and top, arms, legs, feet,
      hood and pauldrons per outfit and body, each piece's cloth marked with its outfit);
      `people.js lookFor(name, index, body, chosen)` lays choices over what the name gives and lists the
-     pieces to load; `save.looks` keeps them; `hud.js openLook` is the card. _Next:_ a look by trade
-     (smith, farmer, guard, sorcerer) once there are outfits for them (the paid tiers of Modular
-     Character Outfits - Fantasy drop straight into this; the Ultimate Modular Men / Women packs have
-     glTF but flat colours and their own rigs to map onto the humanoid bones), more accessories, and
-     choosing a look in New world.
+     pieces to load; `save.looks` keeps them; `hud.js openLook` is the card. _Costumes (0.5.51):_ six whole characters from Ultimate Modular
+     Men and Women (king, farmer, two adventurers, witch, hooded rogue) a look can be dressed as
+     (`looks.js COSTUMES`, `people.js createCostumed`): flat colours by material, their own rig mapped
+     onto the humanoid bones (its feet re-parented to the shins in the builder, its `Body` bone as the
+     hips), skin and hair in the person's own colours. The packs' other characters are modern or
+     science fiction (suit, punk, swat, spacesuit, worker): for another setting's pack. _Next:_ a look by
+     trade (smith, guard, sorcerer) once there are outfits for them (the paid tiers of Modular Character
+     Outfits - Fantasy drop straight into the pieces), costumes given by lore or by trade and not only by
+     hand, more accessories, and choosing a look in New world.
   2. _An OBJ reader for `scripts/build-wanderworld-kit.mjs`,_ so the flat-coloured packs that ship no glTF
      can be used without Blender: Farm Buildings (barn, silo, windmill, well, coop: the farm), the two
      dungeon packs (cave and cellar pieces), Medieval Weapons (a real hammer, tools in hand).
-  3. _Things in hand for more acts:_ a watering can, a hoe, a basket at a stall, a whetstone at the forge.
+  3. _Things in hand for more acts._ In (0.5.47): a sickle, a seed basket and a watering can on the farm
+     (each for its clip of the work: `clips.js` says which is playing), a trowel in the garden; a staff and
+     a sword for those who carry one (`character.js` `carry`). All simple shapes made in code. _Next:_ a
+     basket at a stall, a whetstone at the forge, real models from Medieval Weapons.
   4. _The forge at night:_ the hearth's glow and light, as the campfires have.
   5. _Animals (in, 0.5.21):_ `scripts/build-wanderworld-animals.mjs` turns each animal of the Ultimate
      Animated Animals pack into `kit/creatures/<group>.json` (0.5.26: a file a group, `farm` and `wild`, with monsters and
@@ -750,7 +757,7 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      world's animals from its seed and moves them; `main.js` rides one (mode "ride": the player sits at
      its back's height and moves it with `herd.carry`; `clips.js` act "ride" is the seated body with
      the legs down either side and the hands forward). The outfits' pieces are bundled one file an
-     outfit, since a package may list at most 256 asset files (`validate-catalog.mjs`); the kit has 244. _Next:_ a saddle and reins, a rider that moves with the gait, jumping (the pack has the clip), others riding, remembering where a mount was left, a
+     outfit, since a package may list at most 256 asset files (`validate-catalog.mjs`); the kit has 244. _In since:_ jumping (0.5.2x), a saddle on a horse that's someone's own (0.5.46: `herd.js saddle`, the props kit's CC-BY model set on the horse's body). _Next:_ reins, a rider that moves with the gait, others riding, remembering where a mount was left, a
      hitching rail, telling the AI what's about, and monsters the same way (Ultimate Monsters, the
      Bestiary kit) once there's something for them to do. Ogres and goblins can be the humanoid body at
      another size with the clips there are.
@@ -783,32 +790,37 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
         often, and how many characters to a batch). Each defaults to what costs nothing.
 - _What the downloaded packs can do (checked 2026-11-11)._ A creature here needs a skeleton and a
   walk; a static model can't be one without more code.
-  - _Animated, and in (0.5.41, CC0):_ Monster Pack Animated (slime, skeleton, bat; a dragon unused) and
-    Easy Animated Enemy Pack (spider, rat, snake, wasp; a frog unused). FBX, read by three's FBXLoader
-    in node: no Blender. Farm Buildings' barn and windmill likewise (0.5.43).
+  - _Animated, and in (CC0):_ Monster Pack Animated (slime, skeleton, bat, 0.5.41; the dragon, 0.5.49:
+    rare, alone, high overhead) and Easy Animated Enemy Pack (spider, rat, snake, wasp, 0.5.41; the
+    frog, 0.5.49, whose jump is its walk). FBX, read by three's FBXLoader in node: no Blender. Farm
+    Buildings' barn and windmill likewise (0.5.43).
   - _Animated, not in:_ Farm Animals Animated (cow, horse, zebra walk and run; pig, sheep, llama and
     pug only stand and jump, so they'd slide). Slime Enemy by Charlie (CC-BY, animated; the CC0 slime
     is used instead).
-  - _Rigged, no animation:_ Bestiary's Imp and Puglin (CC0; the people's skeleton, so they could wear
-    the people's animations: the nearest thing to a goblin there is). Wizardus Maximus and Dragon
-    Rigged (CC-BY).
+  - _Rigged, no animation, and in (0.5.48):_ Bestiary's Imp and Puglin, on the people's skeleton, moved
+    by the people's clips (`people.js createFolk`, `kit/fantasy/folk/`). This pack is under the
+    Quaternius Asset License, not CC0: free in a game, not to be passed on as assets (said in
+    `kit/CREDITS.md`, Help and the README; parked for the maintainer's word). Not in: Wizardus Maximus
+    and Dragon Rigged (CC-BY, other rigs).
   - _Static, no skeleton (all CC-BY unless said):_ Bear, Adventurer and the 24-piece Animal Kit by
     madtrollstudio; the 60-odd Animals by molochdadev; both Goblins; Giant Spider; Colossus; the two
-    Horses and the Saddle by Poly by Google. No cat that walks is in any pack.
-  - _To use the static ones:_ a "rigid" kind of creature moved whole by code (a hop and a sway in
-    step with its pace, as toy-like games do), built from the kit's textured-model path, not the
-    skinned one. Wanted for the bear, cats, goblins, ogres. Each needs its CC-BY line in
-    `kit/CREDITS.md`, Help's credits and the README.
-  - _Still to do from the same night's list:_ tools in hand beyond the hammer and mug; a saddle and
-    reins (the Saddle is static, so it can be set on a horse's back bone); more avatars from Ultimate
-    Modular Men and Women and the Animated Men and Women packs; bandits, witches and wizards as people
-    who are hostile (the people's bodies, not the creatures').
+    Horses by Poly by Google. No cat that walks is in any pack. Left out by the user's word (no rigid
+    creatures, 2026-11-11): a body moved whole by code looked too toy-like.
+  - _Hostile people (0.5.50):_ bandits, witches and wizards are default people dressed for it
+    (`people.js OUTLAWS`: the ranger's hood and a sword; a pointed hat and a staff made in code),
+    listed with the monsters and run by the herd, so they need no card and no AI.
+  - _Not used, licence unchecked:_ the Poly Pizza zips with no maker in their names (Signs pack, Crystal
+    Pack, Medieval Torture Devices: a pillory, a gallows, cages). Each model's own licence has to be read
+    on its page first. Every model of Fantasy Props MegaKit (Standard) is already in the kit, so more
+    props need more packs (or OBJ reading, item 2).
 - _What brings people back (listed with the user, 2026-11-11)._ What each is, and where it stands. "In"
   is in the game now; "part" has its groundwork; the rest is wanted. Everything that calls the model
   gets a switch of its own.
   1. _"While you were away from here."_ A short recap of what's happened: who fell out, who visited
      whom, what was pinned to the noticeboard. Only for time spent with Wanderworld open (item 10
-     above): nothing happens while it's closed. Wanted.
+     above): nothing happens while it's closed. In: a line on coming back to the town or the country after
+     a few hours away (Settings: Tell me what I missed), from the record `social.js` keeps. The
+     noticeboard isn't part of it yet.
   2. _Characters who remember and seek you out:_ someone crossing the square to bring up what you said
      last time. In (0.5.45): each person's own memories (`memory.js`), told to the model for them alone,
      and someone you said something to comes over within a few days to bring it up.
@@ -827,12 +839,15 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      Wanted.
   8. _Keepsakes:_ a journal that writes itself, and pictures of moments to look back on and share. Part:
      Illustrate makes a picture of where you are; the Journal doesn't write itself.
-  9. _Relationships that move_ by themselves. Wanted (item 10 above).
-  10. _A record of it:_ a log of what happened, kept with the world. Wanted (item 10 above).
+  9. _Relationships that move_ by themselves. In (`social.js`, item 10 above): slowly, with time spent
+     together, with a lock on any one of them and a switch for all.
+  10. _A record of it:_ a log of what happened, kept with the world. In: Journal → Relationships, Lately
+      (Settings: Keep a record of what happens). The AI's own telling of it is still wanted.
   11. _People remember only what they know,_ and only that goes to the model for them. In (0.5.45).
   12. _Only what's relevant goes to the model,_ never the whole lore or history. In: the lore sent is
       what's tied to where you are and who's there, and people are told in full only when named.
-  13. _Buy, move, build, furnish._ Wanted.
+  13. _Buy, move, build, furnish._ Part (0.5.52, 0.5.53): moving into an empty house and furnishing your
+      own with eighteen kinds of piece. No buying (there's no money yet) and no building.
   14. _A world built from your lore._ In: places, numbers of them, names, who lives and works where, and
       the world's size, season and walls come from lorebook keywords or the AI's reading of the lore.
   15. _Build your own map,_ or change the one you have. Wanted.
