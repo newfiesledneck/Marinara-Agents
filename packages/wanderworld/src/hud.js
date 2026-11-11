@@ -681,7 +681,8 @@ export function createHud(root, handlers) {
       "Cattle, donkeys and horses at the farms, and the horses by taverns and inns. A world with no farm has only those.",
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
-    animalsMonsters: "For monsters, when the game has bodies for some. None appear yet.",
+    animalsMonsters:
+      "Slimes, skeletons, giant spiders, giant rats, snakes, bats and giant wasps, out in the country, alone or in twos and threes. Skeletons and bats are about only at night. They act as Hostile animals below says.",
     animalsTown:
       "The most stray dogs and horses inside the settlement itself, shared between them. Any more are put just outside it.",
     hostileAnimals:
@@ -869,6 +870,13 @@ export function createHud(root, handlers) {
     ["animalStag", "Stags"],
     ["animalFox", "Foxes"],
     ["animalWolf", "Wolves"],
+    ["animalSlime", "Slimes"],
+    ["animalSkeleton", "Skeletons (night)"],
+    ["animalSpider", "Giant spiders"],
+    ["animalRat", "Giant rats"],
+    ["animalSnake", "Snakes"],
+    ["animalBat", "Bats (night)"],
+    ["animalWasp", "Giant wasps"],
   ])
     toggle(name, label);
   // AI: the server part's connections and styles. The connection lists come from the Engine when the

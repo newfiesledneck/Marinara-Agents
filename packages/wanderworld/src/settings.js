@@ -128,6 +128,13 @@ export const SETTINGS = {
   animalStag: { value: true },
   animalFox: { value: true },
   animalWolf: { value: true },
+  animalSlime: { value: true },
+  animalSkeleton: { value: true },
+  animalSpider: { value: true },
+  animalRat: { value: true },
+  animalSnake: { value: true },
+  animalBat: { value: true },
+  animalWasp: { value: true },
   // The living world, by rules alone (no model is called): relationships that move with time spent
   // together, the record of what's happened, and being told what you missed on coming back somewhere.
   relationsMove: { value: true },

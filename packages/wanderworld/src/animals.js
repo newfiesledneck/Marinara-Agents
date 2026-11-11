@@ -43,6 +43,25 @@ export const ANIMALS = {
   // (`hostile`: it would attack; how it acts on that is the player's setting. Kept off, it keeps its distance.)
   wolf: { group: "wild", walk: 1.3, gallop: 6.5, back: 0, seat: 0, timid: true, hostile: true },
   fox: { group: "wild", walk: 1.0, gallop: 5.5, back: 0, seat: 0, timid: true },
+  // Monsters (Quaternius's Monster Pack Animated and Easy Animated Enemy Pack, CC0). All would attack.
+  // `fly`: how high off the ground it keeps (metres); `when`: about only then, unless lore says otherwise.
+  slime: { group: "monsters", walk: 0.9, gallop: 2.6, back: 0, seat: 0, timid: true, hostile: true },
+  skeleton: { group: "monsters", walk: 2.2, gallop: 4.2, back: 0, seat: 0, timid: true, hostile: true, when: "night" },
+  spider: { group: "monsters", walk: 1.6, gallop: 4.6, back: 0, seat: 0, timid: true, hostile: true },
+  rat: { group: "monsters", walk: 1.2, gallop: 4.4, back: 0, seat: 0, timid: true, hostile: true },
+  snake: { group: "monsters", walk: 1.0, gallop: 3, back: 0, seat: 0, timid: true, hostile: true },
+  bat: {
+    group: "monsters",
+    walk: 2.4,
+    gallop: 5.5,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    fly: 1.7,
+    when: "night",
+  },
+  wasp: { group: "monsters", walk: 2.2, gallop: 5, back: 0, seat: 0, timid: true, hostile: true, fly: 1.3 },
 };
 
 /**
@@ -138,6 +157,13 @@ export const SORT_OF = {
   stag: "wild",
   fox: "wild",
   wolf: "hostile",
+  slime: "monsters",
+  skeleton: "monsters",
+  spider: "monsters",
+  rat: "monsters",
+  snake: "monsters",
+  bat: "monsters",
+  wasp: "monsters",
 };
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
 // (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
@@ -155,6 +181,13 @@ export const SWITCHES = {
   stag: ["stag"],
   fox: ["fox"],
   wolf: ["wolf"],
+  slime: ["slime"],
+  skeleton: ["skeleton"],
+  spider: ["spider"],
+  rat: ["rat"],
+  snake: ["snake"],
+  bat: ["bat"],
+  wasp: ["wasp"],
 };
 
 /**
@@ -380,14 +413,17 @@ export async function createAnimal(name, wanted = null) {
     running = ease(running, Math.min(1, Math.max(0, between)), dt, 0.2);
     grazing = ease(grazing, graze && speed < 0.08 ? 1 : 0, dt, 0.5);
     // Standing, now and then it looks about for a while.
-    if (idleTime > lookUntil + 6 + (idleTime % 5)) lookUntil = idleTime + clips.look.duration;
+    // (A creature with no looking about or grazing of its own just stands.)
+    const look = clips.look ?? clips.idle;
+    const grazeClip = clips.graze ?? clips.idle;
+    if (idleTime > lookUntil + 6 + (idleTime % 5)) lookUntil = idleTime + look.duration;
     looking = ease(looking, idleTime < lookUntil && !graze ? 1 : 0, dt, 0.4);
 
     // From rest each frame: a clip moves only some bones about, and the rest stay where they belong.
     for (let i = 0; i < count; i++) bones[i].position.fromArray(data.rest, i * 10);
     pose(clips.idle, (idleTime / clips.idle.duration) % 1, 1);
-    pose(clips.look, (idleTime / clips.look.duration) % 1, looking);
-    pose(clips.graze, (idleTime / clips.graze.duration) % 1, grazing);
+    pose(look, (idleTime / look.duration) % 1, looking);
+    pose(grazeClip, (idleTime / grazeClip.duration) % 1, grazing);
     if (moving > 0.01) {
       // Each gait at the rate that matches the ground covered at its own pace.
       const walkRate = Math.max(0.5, speed / facts.walk) / clips.walk.duration;

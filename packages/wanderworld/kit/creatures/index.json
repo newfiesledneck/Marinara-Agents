@@ -1,5 +1,5 @@
 {
-  "source": "Ultimate Animated Animals by Quaternius, CC0 1.0",
+  "source": "Ultimate Animated Animals, Monster Pack Animated and Easy Animated Enemy Pack by Quaternius, CC0 1.0",
   "animals": {
     "horse": {
       "group": "farm",
@@ -76,6 +76,55 @@
       "triangles": 1848,
       "bones": 51,
       "bytes": 175481,
+      "height": 0.6
+    },
+    "slime": {
+      "group": "monsters",
+      "triangles": 1440,
+      "bones": 12,
+      "bytes": 124598,
+      "height": 0.8
+    },
+    "skeleton": {
+      "group": "monsters",
+      "triangles": 1810,
+      "bones": 12,
+      "bytes": 158707,
+      "height": 1.8
+    },
+    "spider": {
+      "group": "monsters",
+      "triangles": 2712,
+      "bones": 39,
+      "bytes": 260142,
+      "height": 0.9
+    },
+    "rat": {
+      "group": "monsters",
+      "triangles": 4004,
+      "bones": 31,
+      "bytes": 348394,
+      "height": 0.55
+    },
+    "snake": {
+      "group": "monsters",
+      "triangles": 1618,
+      "bones": 15,
+      "bytes": 140877,
+      "height": 0.75
+    },
+    "bat": {
+      "group": "monsters",
+      "triangles": 1046,
+      "bones": 24,
+      "bytes": 104481,
+      "height": 0.8
+    },
+    "wasp": {
+      "group": "monsters",
+      "triangles": 3736,
+      "bones": 29,
+      "bytes": 327691,
       "height": 0.6
     }
   }

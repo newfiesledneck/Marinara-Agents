@@ -191,7 +191,26 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
       left -= size;
     }
   }
-  // (Monsters: none has a body yet; `counts.monsters` waits for them.)
+  // Monsters: alone or in twos and threes of a kind, out in the country like the wolves; the night's ones
+  // (a kind's `when`) are about only then.
+  {
+    const kinds = Object.keys(ANIMALS).filter((kind) => ANIMALS[kind].group === "monsters" && on(kind));
+    let left = quiet.wild || !kinds.length ? 0 : want("monsters");
+    for (let guard = 0; guard < 80 && left > 0; guard++) {
+      const kind = pick(kinds);
+      const size = Math.min(left, random() < 0.5 ? 1 : 2 + Math.floor(random() * 2));
+      const den = wild(45) ?? wild(20) ?? wild(8);
+      if (!den) continue;
+      for (let n = 0; n < size; n++) {
+        const spot = near(den.x, den.z, 5) ?? den;
+        add(kind, spot.x, spot.z, 20, {
+          home: { x: den.x, z: den.z },
+          ...(ANIMALS[kind].when ? { when: ANIMALS[kind].when } : {}),
+        });
+      }
+      left -= size;
+    }
+  }
   return out;
 }
 
@@ -425,7 +444,9 @@ export function createHerd() {
 
   function place(beast) {
     if (!beast.group) return;
-    beast.group.position.set(beast.x, heightAt(beast.x, beast.z), beast.z);
+    // (A flyer keeps off the ground, more so the bigger it is.)
+    const up = (ANIMALS[beast.kind].fly ?? 0) * (beast.scale ?? 1);
+    beast.group.position.set(beast.x, heightAt(beast.x, beast.z) + up, beast.z);
     beast.group.rotation.y = beast.angle;
   }
 

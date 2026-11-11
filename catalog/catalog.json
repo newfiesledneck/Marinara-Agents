@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.40",
+        "version": "0.5.41",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -4944,6 +4944,7 @@
             "paths": [
               "kit/creatures/farm.json",
               "kit/creatures/index.json",
+              "kit/creatures/monsters.json",
               "kit/creatures/wild.json",
               "kit/fantasy/outfits/clothes-a.webp",
               "kit/fantasy/outfits/clothes-b.webp",
@@ -5045,8 +5046,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "6ee4c4280dea709861e14893c9761c636d88fad59d287e834d9965122650216f",
-            "bytes": 2281155
+            "sha256": "21ade1d17837806e9da6e5900c92024497e83b950455e28d6a610b9725be89d2",
+            "bytes": 2283141
           },
           {
             "path": "server.mjs",
@@ -5065,8 +5066,13 @@
           },
           {
             "path": "kit/creatures/index.json",
-            "sha256": "bd6e1b01ff43164c431d72325d4f8ca745d8cca81b67aee2877799f067719030",
-            "bytes": 1538
+            "sha256": "f736753739ae827b89d024ada1dcc1db37b415ca7eea286ba185d943f3cec252",
+            "bytes": 2543
+          },
+          {
+            "path": "kit/creatures/monsters.json",
+            "sha256": "fb0b658b541da4b8ca11ee74545d28f9f18bb00508d1046c8099010feba99739",
+            "bytes": 1464965
           },
           {
             "path": "kit/creatures/wild.json",
@@ -5531,9 +5537,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.40.zip",
-        "sha256": "8da2933aa3fd8607854f1cba668179c84fd689edea841ea09a1104d9e83138b4",
-        "bytes": 17440872
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.41.zip",
+        "sha256": "02559925d0faea073c763db4302a9a3452f0bdf2b2fa5996833b827af796b53e",
+        "bytes": 18909162
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

@@ -519,6 +519,13 @@ const ANIMALS = {
   fox: "the fox",
   husky: "the dog",
   shiba: "the dog",
+  slime: "the slime",
+  skeleton: "the skeleton",
+  spider: "the giant spider",
+  rat: "the giant rat",
+  snake: "the snake",
+  bat: "the bat",
+  wasp: "the giant wasp",
 };
 
 export const PACK = {

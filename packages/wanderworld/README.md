@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.40)
+## What it does now (0.5.41)
 
 ### The world
 
@@ -279,6 +279,10 @@ only walk about.
   level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
   Relationships ends with Lately, the record of it, and coming back to the town or the country after
   a few hours away says what happened there. Settings → Living world has a switch for each part.
+- **Monsters:** slimes, skeletons, giant spiders, giant rats, snakes, bats and giant wasps, out in the
+  country, alone or in twos and threes; skeletons and bats only at night. The Monsters slider says how
+  many, each kind has its switch, and they act as "Hostile animals" says. A lorebook can place them:
+  `ww:monster:slime:large:pack3` on a place's entry. Nothing fights back yet.
 - **How many animals:** Settings → Animals has a slider for each sort (stray dogs, farm animals, peaceful
   wild animals, hostile ones, monsters): that many of the world's own, 0 for none. What a lorebook asks
   for and anyone's own dog or horse are still there at 0, unless that's turned off. Each kind also has
@@ -527,7 +531,7 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
-Fantasy, Ultimate Animated Animals, and the Universal Animation Library and Universal Animation Library 2.
+Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, and the Universal Animation Library and Universal Animation Library 2.
 Thank you, Quaternius. The full list, with which folder
 comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and
 [src/clips/CREDITS.md](src/clips/CREDITS.md).
