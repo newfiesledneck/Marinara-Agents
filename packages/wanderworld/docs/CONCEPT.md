@@ -818,6 +818,13 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
       In: a moment's listeners are whoever is within earshot (shouts and whispers reach differently).
   19. _Up to thirty characters in one world_ (`MAX_PEOPLE`; more later), and scenes with any of them,
       without adding and removing cards and lorebooks from a chat or keeping several chats. In.
+  20. _Factions that matter._ Part: a faction is made by lore (`ww:faction:Thieves Guild` on its entry,
+      `ww:member of:…` on a member's) or by the AI assistant; its lore is active for each member, the
+      Journal lists people by faction, and the model is told who's in which. It changes nothing people
+      do. Wanted: how factions stand with each other (allied, rivals, at war) and with the player;
+      members warmer to their own and cooler to rivals (item 10's relationships); greetings and
+      confrontations that follow from it; a faction's own places; standing with a faction that the
+      player earns or loses.
 - _Asset packs (all by Quaternius, CC0; listed 2026-11)._ On hand: Medieval Village MegaKit, Fantasy
   Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
   Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,
