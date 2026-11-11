@@ -692,6 +692,15 @@ function placeForge(town, spec, bay, x, z, facing, door) {
  * A campsite at (x, z), its tent's mouth turned `angle`: a ring of stones round a small fire, two logs to
  * sit by, a tent with a bedroll in it, and places on the ground round the fire (spots that share `camp`).
  */
+/** Lifts each point of `geometry` (in the world's x and z, its y from flat ground) by the ground under it. */
+export function ontoGround(geometry) {
+  const position = geometry.attributes.position;
+  for (let i = 0; i < position.count; i++)
+    position.setY(i, position.getY(i) + heightAt(position.getX(i), position.getZ(i)));
+  position.needsUpdate = true;
+  return geometry;
+}
+
 function placeCamp(town, x, z, angle, camp) {
   const y = heightAt(x, z);
   const pieces = [];
@@ -815,8 +824,9 @@ function placeCamp(town, x, z, angle, camp) {
     pieces.push(box(0.7, 0.1, 1.7, 0.25, 0.06, back - 1.1, 0x8a4a3a).rotateY(turn));
   }
   const merged = mergeGeometries(pieces.map((piece) => (piece.index ? piece.toNonIndexed() : piece)));
-  const turned = merged.rotateY(angle).translate(x, y, z);
-  town.pieces.push(turned);
+  // Set down on the ground as it lies: every point is lifted by the ground's height under it, so on a
+  // slope a tent's hem and a log's ends follow the ground, and nothing sinks in or hangs in the air.
+  town.pieces.push(ontoGround(merged.rotateY(angle).translate(x, 0, z)));
   const local = (lx, lz) => ({
     x: x + lx * Math.cos(angle) + lz * Math.sin(angle),
     z: z - lx * Math.sin(angle) + lz * Math.cos(angle),

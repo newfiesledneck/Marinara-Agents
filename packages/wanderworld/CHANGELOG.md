@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.34 — 2026-11-11
+
+- A campsite's tents, logs and fire stones sit on the ground as it lies. On a slope they were all set at the fire's height, so a tent uphill sank in and one downhill hung in the air.
+
 ## 0.5.33 — 2026-11-11
 
 - Campsites are laid out unevenly, each its own way: tents stand a little further from the fire, at different distances and anywhere round it, and the logs sit wherever there's room between them, some turned a little. No log blocks a tent's mouth.
