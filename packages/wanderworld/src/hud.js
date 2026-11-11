@@ -1276,6 +1276,8 @@ export function createHud(root, handlers) {
     onMoveIn: (id) => handlers.onMoveIn?.(id),
     onMoveOut: (id) => handlers.onMoveOut?.(id),
     onInviteOver: (id) => handlers.onInviteOver?.(id),
+    onFurnish: (piece) => handlers.onFurnish?.(piece),
+    onUnfurnish: (index) => handlers.onUnfurnish?.(index),
     onPicture: () => handlers.onPicture?.(),
     onMap: (canvas, view) => handlers.onMap?.(canvas, view),
     onWaypoint: (at) => handlers.onWaypoint?.(at),

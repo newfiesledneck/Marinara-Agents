@@ -100,4 +100,67 @@ assert.equal(homeToLeaveFor([zones[0]], people, "building:0"), null, "nowhere el
   assert.equal(visitOver(late, 3, 1), true);
 }
 
+// ── Furnishing ───────────────────────────────────────────────────────────────
+{
+  const { checkFurnished, checkFurniture, footprint, FURNITURE, FURNITURE_MAX, placeFurniture } =
+    await import("../packages/wanderworld/src/household.js");
+  const room = { halfWidth: 3, halfDepth: 2.5, entry: { x: 0, z: 1.7 } };
+  // A piece goes where it's put, and the list isn't changed in place.
+  const none = [];
+  const one = placeFurniture(none, "chair", { x: -1, z: -1, angle: 0 }, room);
+  assert.deepEqual(one.list, [{ piece: "chair", x: -1, z: -1, angle: 0 }]);
+  assert.equal(none.length, 0);
+  // Against a wall it's moved in so it stands inside the room, turned as it is.
+  const shelf = placeFurniture([], "bookcase", { x: 9, z: -9, angle: Math.PI / 2 }, room).list[0];
+  const floor = footprint(shelf);
+  assert.ok(floor.maxX <= room.halfWidth && floor.minZ >= -room.halfDepth, "inside the walls");
+  assert.ok(
+    Math.abs(floor.maxX - floor.minX - FURNITURE.bookcase.depth) < 0.01,
+    "turned a quarter, its depth is its width",
+  );
+  // Not in the way in, not what there isn't, not more than a home holds, not what's too big for the room.
+  assert.match(placeFurniture([], "table", { x: 0, z: 1.6, angle: 0 }, room).error, /way in/u);
+  assert.ok(placeFurniture([], "throne", { x: 0, z: 0, angle: 0 }, room).error);
+  const full = Array.from({ length: FURNITURE_MAX }, () => ({ piece: "stool", x: 0, z: 0, angle: 0 }));
+  assert.match(placeFurniture(full, "stool", { x: 0, z: 0, angle: 0 }, room).error, /Take one away/u);
+  assert.match(
+    placeFurniture([], "table", { x: 0, z: 0, angle: 0 }, { halfWidth: 1, halfDepth: 1, entry: { x: 0, z: 0.5 } })
+      .error,
+    /won't fit/u,
+  );
+  // A saved copy is made safe.
+  assert.deepEqual(
+    checkFurniture([
+      { piece: "chair", x: 1.234, z: 2, angle: 1 },
+      { piece: "throne", x: 0, z: 0, angle: 0 },
+      { piece: "stool", x: "a", z: 0, angle: 0 },
+      { piece: "stool", x: 99, z: 0, angle: 0 },
+      null,
+    ]),
+    [{ piece: "chair", x: 1.23, z: 2, angle: 1 }],
+  );
+  assert.equal(checkFurniture(Array.from({ length: 90 }, () => full[0])).length, FURNITURE_MAX);
+  assert.deepEqual(
+    checkFurnished({ "building:1": [{ piece: "vase", x: 0, z: 0, angle: 0 }], "building:2": [], x: 5 }),
+    {
+      "building:1": [{ piece: "vase", x: 0, z: 0, angle: 0 }],
+    },
+  );
+  assert.deepEqual(checkFurnished(null), {});
+  // Every piece is one the props kit has.
+  const { readFile } = await import("node:fs/promises");
+  const props = JSON.parse(
+    await readFile(new URL("../packages/wanderworld/kit/fantasy/props/index.json", import.meta.url), "utf8"),
+  ).models;
+  for (const [id, piece] of Object.entries(FURNITURE)) {
+    assert.ok(props[piece.model], `the kit has the ${id}'s model`);
+    const [wide, , deep] = props[piece.model].size;
+    const [sx, , sz] = piece.scale ?? [1, 1, 1];
+    assert.ok(
+      Math.abs(wide * sx - piece.width) < 0.06 && Math.abs(deep * sz - piece.depth) < 0.06,
+      `the ${id} is as big as its model`,
+    );
+  }
+}
+
 console.log("wanderworld household regression: OK");

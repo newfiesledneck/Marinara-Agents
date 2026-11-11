@@ -10,6 +10,7 @@
 
 import { checkScene } from "./interactions.js";
 import { checkEntry } from "./schedules.js";
+import { checkFurnished } from "./household.js";
 import { checkLook } from "./looks.js";
 import { checkGroups } from "./zones.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
@@ -88,6 +89,7 @@ function checkSetup(raw) {
     lore: checkLore(raw.lore),
     groups: checkGroups(raw.groups),
     housing: checkHousing(raw.housing),
+    furnished: checkFurnished(raw.furnished),
     place: checkPlace(raw.place),
   };
 }
@@ -448,6 +450,9 @@ export function checkWorld(raw) {
     traits: checkTraitMap(raw.traits),
     // What each person remembers (memory.js checks it on the way in): { [id]: [{ day, text, said, raised }] }.
     memories: isRecord(raw.memories) ? raw.memories : {},
+    // What the player has put in a home by hand, in this region: { [zone id]: [{ piece, x, z, angle }] }
+    // (household.js). Like homes, each region's own.
+    furnished: checkFurnished(raw.furnished),
     // The world's social life (social.js): the day it is, time each pair has spent together, and the
     // record of what's happened.
     social: isRecord(raw.social)

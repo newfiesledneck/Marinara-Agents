@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.52)
+## What it does now (0.5.53)
 
 ### The world
 
@@ -281,7 +281,9 @@ only walk about.
   a few hours away says what happened there. Settings → Living world has a switch for each part.
 - **Your household (Journal → Home):** move into any house that stands empty, with whichever of the
   people you live with you choose (the rest stay); ask someone to move in, or a housemate to leave;
-  have someone round for a few hours. Rules only (`src/household.js`): no AI call.
+  have someone round for a few hours. Inside your home, the same tab furnishes it: eighteen kinds of
+  piece, put down in front of you and taken away again, kept with the world. Rules only
+  (`src/household.js`): no AI call.
 - **Costumes:** the Look card's "Dressed as" swaps the built-in person's clothes for a whole
   ready-made character (king, farmer, adventurer man or woman, witch, hooded rogue), keeping their own
   skin, hair colour and height. From Ultimate Modular Men and Women, moved by the same animations.

@@ -116,7 +116,9 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
     const box = measure();
     for (const value of [...box.min.toArray(), ...box.max.toArray()])
       assert.ok(Number.isFinite(value), `${kind} at ${speed}`);
-    assert.ok(box.min.y > -0.35 && box.max.y < wanted * 1.45, `the ${kind} keeps its shape at ${speed} m/s`);
+    // (A monster may hop or flap well clear of where it stands: a frog's jump is its walk.)
+    const tallest = wanted * (facts.group === "monsters" ? 2.6 : 1.45);
+    assert.ok(box.min.y > -0.35 && box.max.y < tallest, `the ${kind} keeps its shape at ${speed} m/s`);
   }
   // The ridden kinds leap: the back dips as it gathers itself, rises well clear, and comes back down.
   if (facts.back) {

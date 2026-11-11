@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.53 — 2026-11-11
+
+- Furnish your home: inside it, Journal → Home puts a piece down a step in front of you, and takes away any piece you added.
+- Eighteen kinds of piece: chairs and stools (which can be sat on), tables, a bench, a bookcase, a cabinet, a chest, barrels and more.
+- A piece is kept inside the walls and clear of the way in. Up to 40 a home, kept with the world.
+
 ## 0.5.52 — 2026-11-11
 
 - Journal → Home: where you live and who with.
