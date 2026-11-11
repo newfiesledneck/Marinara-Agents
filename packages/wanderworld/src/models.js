@@ -107,16 +107,31 @@ async function fetchBytes(url) {
  * Which of a character's or persona's models to load, or null when it has none in a format this loads.
  * `owner` is { type: "persona" | "character", id }.
  */
-export async function findModel(owner) {
+export async function findModel(owner, want = null) {
+  if (want === BUILT_IN) return null;
   const config = await getJson(`/api/avatar-models/${owner.type}/${encodeURIComponent(owner.id)}`);
   const kinds = config?.kinds;
   if (!kinds) return null;
-  const usable = (kind) =>
+  // (`want`: the kind chosen in the Look card, when the card has it; else the card's own choice.)
+  const kind = [want, config.activeKind, ...MODEL_KINDS].find((candidate) => candidate && usable(kinds, candidate));
+  return kind ? { owner, kind, data: kinds[kind] } : null;
+}
+
+/** The Look card's choice of the built-in person over a card's own 3D model. */
+export const BUILT_IN = "builtin";
+export const MODEL_KINDS = ["vrm", "glb-fbx", "mmd"];
+const usable = (kinds, kind) =>
+  !!(
     (kind === "vrm" && kinds.vrm?.file) ||
     (kind === "glb-fbx" && kinds["glb-fbx"]?.file && kinds["glb-fbx"]?.bones) ||
-    (kind === "mmd" && kinds.mmd?.file);
-  const kind = [config.activeKind, "vrm", "glb-fbx", "mmd"].find((candidate) => candidate && usable(candidate));
-  return kind ? { owner, kind, data: kinds[kind] } : null;
+    (kind === "mmd" && kinds.mmd?.file)
+  );
+
+/** The 3D models `owner`'s card has that can be shown: { kinds: ["vrm", …], active (the card's own choice, or null) }. */
+export async function modelKinds(owner) {
+  const config = await getJson(`/api/avatar-models/${owner.type}/${encodeURIComponent(owner.id)}`).catch(() => null);
+  const kinds = MODEL_KINDS.filter((kind) => config?.kinds && usable(config.kinds, kind));
+  return { kinds, active: kinds.includes(config?.activeKind) ? config.activeKind : (kinds[0] ?? null) };
 }
 
 // ── Humanoids from plain skeletons (GLB, FBX, MMD), as the Engine builds them ──

@@ -127,7 +127,7 @@ export function createHud(root, handlers) {
     personaBody.value = bodies[persona.value] ?? "auto";
   });
   // And how it's dressed, coloured and so on (the Look card, below).
-  const personaLook = button("Look", "Choose how you look without a 3D model", () => openLook(persona.value));
+  const personaLook = button("Look", "Choose your avatar and how you look", () => openLook(persona.value));
   personaLook.style.cssText += "padding:2px 8px;font-size:12px;";
   personaLabel.append(persona, personaBody, personaLook);
   let bodies = {};
@@ -158,9 +158,10 @@ export function createHud(root, handlers) {
       title.textContent = `${info.name || "Their"} look`;
       const note = document.createElement("div");
       note.style.cssText = "font-size:12px;opacity:0.8;line-height:1.35;";
-      note.textContent = info.hasModel
-        ? "They have a 3D model, which is what's shown. This look is for when it isn't there."
-        : "For anyone without a 3D model. Changes show at once and are kept with this world.";
+      const ownModel = info.models?.kinds.length > 0 && chosen.avatar !== "builtin";
+      note.textContent = ownModel
+        ? "Their card's 3D model is what's shown. The rest of this look is for the built-in person."
+        : "The built-in person, dressed as below. Changes show at once and are kept with this world.";
       const rows = [title, note];
       // `patch`: the choices to make; one given as undefined is unmade (back to how the name has it).
       const set = (patch) => {
@@ -198,6 +199,26 @@ export function createHud(root, handlers) {
         select.addEventListener("change", () => set({ ...also, [key]: read(select.value) }));
         row(label, select);
       };
+      // Which avatar: their card's own 3D model (each kind it has), or the built-in person instead.
+      if (info.models?.kinds.length) {
+        const MODEL_NAMES = { vrm: "VRM", "glb-fbx": "GLB / FBX", mmd: "MMD" };
+        const { kinds, active } = info.models;
+        pick(
+          "Avatar",
+          "avatar",
+          [
+            ["", `Their card's 3D model (${MODEL_NAMES[active]})`],
+            ...kinds.filter((kind) => kind !== active).map((kind) => [kind, `Their card's ${MODEL_NAMES[kind]} model`]),
+            ["builtin", "Built-in person"],
+          ],
+          kinds.includes(chosen.avatar) && chosen.avatar !== active
+            ? chosen.avatar
+            : chosen.avatar === "builtin"
+              ? "builtin"
+              : "",
+          (value) => value || undefined,
+        );
+      }
       const hex = (value) => `#${value.toString(16).padStart(6, "0")}`;
       const outfitNames = now.outfits.map((name) => [name, OUTFITS[name].label]);
       // A colour of your own, for a piece, the hair or the skin: a small square beside its row opens the
@@ -1500,7 +1521,7 @@ export function createHud(root, handlers) {
         const body = bodyPicker((value) => handlers.onSetBody(character.id, value));
         body.value = bodies[character.id] ?? "auto";
         // Their look can be chosen once they're in town (a look is kept with this world's people).
-        const look = button("Look", `Choose how ${character.name} looks without a 3D model`, () =>
+        const look = button("Look", `Choose ${character.name}'s avatar and how they look`, () =>
           openLook(character.id),
         );
         look.style.cssText += "padding:2px 8px;font-size:12px;";

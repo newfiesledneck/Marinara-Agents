@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.27)
+## What it does now (0.5.28)
 
 ### The world
 
@@ -262,6 +262,9 @@ only walk about.
   with a stag, foxes, and a pack of three to five wolves well away from the houses. They wander, graze and look about, keep out
   of the river, and the wild ones bolt when you come close. Horses come in seven coats and dogs in four,
   so a world's horses are a mix. A world's animals, and their coats, come from its seed.
+- **Avatar:** when a persona's or a character's card has a 3D model, their Look card has Avatar at the
+  top: the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), or the
+  built-in person, dressed by the rest of the card. Kept with the world.
 - **Animals of your own:** the Look card (Menu, Look beside your persona) has Dog and Horse: the kind,
   the coat, and whether each is with you or at home. With you, it follows and turns up beside you if left
   far behind; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got

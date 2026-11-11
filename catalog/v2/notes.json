@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.28",
+          "date": "2026-11-11",
+          "notes": "- Avatar in the Look card: when a persona's or a character's card has a 3D model, choose between the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), and the built-in person dressed by the rest of the card.",
+          "highlight": false
+        },
+        {
           "version": "0.5.27",
           "date": "2026-11-11",
           "notes": "- A dog and a horse of your own: the Look card has Dog and Horse, with the kind, the coat, and whether each is with you or at home. With you, it follows; at home it keeps by your door, or the tavern's if you have no home.\n- Someone in town whose lore mentions their dog has one at their heel. Their Look card can change it or take it away.\n- More wildlife: wolves in packs of three to five, more deer, more foxes.\n- With detailed props off, a wagon is drawn as a wagon, not a plain box.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.9",
           "date": "2026-11-11",
           "notes": "- In the assistant's proposal, a relationship's kind is a dropdown (friend, partner, family, rival… or nothing, to end it), and its roles (husband, mentor…) can be rewritten, before you confirm.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.8",
-          "date": "2026-11-11",
-          "notes": "- The assistant's proposal can be edited before you confirm. Each change has a tick, so you can leave some out and keep the rest, and the text it wrote (lore, a new person's name and card, a place's name, the world's setting and look, a note, an errand) is in boxes you can rewrite. What you confirm is what you see.",
           "highlight": false
         }
       ]
