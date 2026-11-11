@@ -105,6 +105,25 @@ export const SETTINGS = {
   // lets a scene start with nobody else in it. "" is no narrator card.
   narratorCard: { value: "", text: true },
   narratorUse: { value: "both", options: ["scenes", "moments", "both"] },
+  // Animals: how many of each sort a world has of its own (0: none of that sort), whether the ones its
+  // lore asks for and the ones someone owns are there even so, and each kind on or off altogether
+  // (animals.js POPULATION, SWITCHES).
+  animalsStrays: { value: 2, min: 0, max: 12 },
+  animalsFarm: { value: 12, min: 0, max: 40 },
+  animalsWild: { value: 12, min: 0, max: 40 },
+  animalsHostile: { value: 5, min: 0, max: 30 },
+  animalsMonsters: { value: 8, min: 0, max: 30 },
+  loreAnimals: { value: true },
+  animalDog: { value: true },
+  animalHorse: { value: true },
+  animalDonkey: { value: true },
+  animalCow: { value: true },
+  animalBull: { value: true },
+  animalAlpaca: { value: true },
+  animalDeer: { value: true },
+  animalStag: { value: true },
+  animalFox: { value: true },
+  animalWolf: { value: true },
   sound: { value: true },
   volume: { value: 0.6, min: 0, max: 1 },
 };

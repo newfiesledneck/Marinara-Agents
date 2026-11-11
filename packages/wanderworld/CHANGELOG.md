@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.5.38 — 2026-11-11
+
+- Settings → Animals: a slider for how many of each sort a world has of its own (stray dogs, farm animals, peaceful wild animals, hostile ones, monsters), 0 for none. Animals a lorebook asks for and anyone's own are still there at 0, unless that's turned off.
+- A switch for each kind: off, there are none of it anywhere, lore or not.
+- Wolves come alone and in packs of two to five that keep together; a pack of three counts as three.
+- A dog has five sizes, evenly spaced from small to massive (the size of a small horse), and is owned or not: the size decides its body. A huge or a massive dog can be ridden.
+- Both dogs come in the same six coats.
+
 ## 0.5.37 — 2026-11-11
 
 - Animals have a size. A dog's or a horse's is in the Look card (Small, Usual, Large, Huge), and a big horse's back is higher to sit on.

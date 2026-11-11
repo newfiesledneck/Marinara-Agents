@@ -584,9 +584,11 @@ function checkPets(raw) {
   const word = (value) => (typeof value === "string" && /^[a-z-]{1,20}$/u.test(value) ? value : null);
   for (const role of ["dog", "horse"]) {
     if (raw[role] === null) out[role] = null;
-    else if (isRecord(raw[role]) && word(raw[role].coat) && (role === "horse" || word(raw[role].kind)))
+    else if (isRecord(raw[role]) && word(raw[role].coat))
       out[role] = {
-        ...(role === "dog" ? { kind: raw[role].kind } : {}),
+        // (A dog's size is a word; one kept from before sizes had names has its body and scale instead.)
+        ...(role === "dog" && word(raw[role].kind) ? { kind: raw[role].kind } : {}),
+        ...(role === "dog" && word(raw[role].size) ? { size: raw[role].size } : {}),
         coat: raw[role].coat,
         out: raw[role].out !== false,
         ...(Number(raw[role].scale) >= 0.5 && Number(raw[role].scale) <= 2 ? { scale: Number(raw[role].scale) } : {}),

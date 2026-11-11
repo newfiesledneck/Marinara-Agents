@@ -76,7 +76,7 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
   if (facts.back) {
     const rises = Array.from({ length: 21 }, (_, i) => animal.rise(i / 20));
     assert.ok(
-      Math.max(...rises) > 0.35 && Math.max(...rises) < 1.2,
+      Math.max(...rises) > wanted * 0.2 && Math.max(...rises) < 1.2, // (for its size: a dog's is a dog's)
       `the ${kind} jumps (${Math.max(...rises).toFixed(2)} m)`,
     );
     assert.ok(Math.abs(rises[0]) < 0.01 && Math.abs(rises[20]) < 0.05, `the ${kind} lands where it stands`);
@@ -321,6 +321,27 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     const big = herd.mounts(spot, 6).find((entry) => entry.id === "pet:you:horse");
     assert.ok(Math.abs(big.back - ANIMALS.horse.back * 1.25) < 1e-6, "a large horse's back is higher");
     herd.setOwned([]);
+    // A dog big enough is ridden; a medium one isn't.
+    const { dogBody } = await import("../packages/wanderworld/src/animals.js");
+    const dogs = ["medium", "huge"].map((size) => ({
+      id: `pet:${size}:dog`,
+      ...dogBody(size),
+      coat: "black",
+      owner: size,
+      out: false,
+      home: spot,
+    }));
+    herd.setOwned(dogs);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const offered = herd.mounts(spot, 8).map((entry) => entry.id);
+    assert.ok(
+      offered.includes("pet:huge:dog") && !offered.includes("pet:medium:dog"),
+      "a huge dog can be ridden, a medium one can't",
+    );
+    assert.equal(herd.ride("pet:medium:dog"), null);
+    assert.ok(herd.ride("pet:huge:dog").back > 0.8, "and its back is high enough to sit on");
+    herd.release("pet:huge:dog");
+    herd.setOwned([]);
   }
   herd.detach();
   assert.equal(herd.snapshot().length, 0);
@@ -367,6 +388,61 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     ["wolves", "Hound", "goblin", "pony", "deer"].map(animalKind),
     ["wolf", "husky", null, "horse", "deer"],
     "the words for the animals the game has, and none for the ones it hasn't",
+  );
+}
+
+// How many of each sort, which kinds at all, and dogs by size.
+{
+  const { DOG_SIZES, dogBody, dogSizeOf, POPULATION, SORT_OF } = await import("../packages/wanderworld/src/animals.js");
+  const world = createWorld(4242);
+  const tally = (options) => {
+    const counts = {};
+    for (const beast of herdFor(world, 4242, options))
+      counts[SORT_OF[beast.kind]] = (counts[SORT_OF[beast.kind]] ?? 0) + 1;
+    return counts;
+  };
+  const none = { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: 0 };
+  assert.deepEqual(tally({ counts: none }), {}, "every sort at 0: none of the world's own");
+  assert.deepEqual(tally({ counts: { ...none, hostile: 15 } }), { hostile: 15 }, "fifteen hostile: fifteen wolves");
+  assert.deepEqual(tally({ counts: { ...none, hostile: 15 }, off: ["wolf"] }), {}, "wolves switched off: none");
+  assert.deepEqual(tally({ counts: { ...none, wild: 20, strays: 6 } }), { wild: 20, strays: 6 });
+  assert.equal(tally({ counts: { ...none, wild: 20 }, off: ["deer", "stag"] }).wild, 20, "only foxes left: all foxes");
+  assert.deepEqual(
+    tally({ counts: { ...none, strays: 6 }, off: ["husky", "shiba"] }),
+    {},
+    "dogs switched off: no strays",
+  );
+  assert.equal(tally().hostile, POPULATION.hostile, "left alone, the usual number");
+  // Wolves keep to their packs: several of them, some sharing a home, none bigger than five.
+  const packs = new Map();
+  for (const wolf of herdFor(world, 4242, { counts: { ...none, hostile: 15 } })) {
+    const key = `${wolf.home?.x ?? wolf.x}:${wolf.home?.z ?? wolf.z}`;
+    packs.set(key, (packs.get(key) ?? 0) + 1);
+  }
+  const packSizes = [...packs.values()];
+  assert.ok(
+    packs.size >= 3 && Math.max(...packSizes) <= 5 && Math.max(...packSizes) >= 2,
+    `packs of ${packSizes.join(", ")}`,
+  );
+  world.dispose();
+  // A dog's five sizes: evenly spaced, the small body for the two smaller, each standing as tall as it says.
+  const sizes = Object.values(DOG_SIZES);
+  for (let i = 2; i < sizes.length; i++)
+    assert.ok(Math.abs(sizes[i] - sizes[i - 1] - (sizes[1] - sizes[0])) < 1e-9, "evenly spaced");
+  assert.deepEqual(
+    Object.keys(DOG_SIZES).map((size) => dogBody(size).kind),
+    ["shiba", "shiba", "husky", "husky", "husky"],
+  );
+  for (const [size, tall] of Object.entries(DOG_SIZES)) {
+    const { kind, scale } = dogBody(size);
+    assert.ok(Math.abs(index.animals[kind].height * scale - tall) < 0.01, `a ${size} dog stands ${tall} m`);
+    assert.equal(dogSizeOf(kind, scale), size);
+  }
+  assert.ok(DOG_SIZES.massive > index.animals.donkey.height * 0.9, "a massive dog is the size of a small horse");
+  assert.deepEqual(
+    Object.keys(COATS.husky).sort(),
+    Object.keys(COATS.shiba).sort(),
+    "both dogs come in the same coats",
   );
 }
 

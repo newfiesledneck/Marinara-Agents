@@ -600,6 +600,6 @@ export const KEYWORD_GUIDE = [
     group: "People",
     write: "ww:pet:horse:large:brown:Shadowmere, ww:pet:dog:small:Brutus, ww:pet:dog:great dane",
     on: "a character's entry, or the one keyed ww:you",
-    does: "Their own horse or dog. After the kind, in any order: a size, a colour (bay, white, black, grey, chestnut, palomino, brown, red, cream), its name (written with a capital), and anything else is its breed. One of each. What's chosen in their Look card comes first; without either, their lore's wording decides.",
+    does: "Their own horse or dog. After the kind, in any order: a size (a dog's: small, medium, large, huge, massive), a colour (a horse's: bay, white, black, grey, chestnut, palomino, brown; a dog's: grey, brown, black, red, white, cream), its name (written with a capital), and anything else is its breed. One of each. What's chosen in their Look card comes first; without either, their lore's wording decides.",
   },
 ];

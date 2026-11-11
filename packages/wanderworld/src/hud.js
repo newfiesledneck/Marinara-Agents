@@ -488,21 +488,25 @@ export function createHud(root, handlers) {
         const dog = pets.dog;
         choose(
           "Dog",
-          [["", "None"], ...Object.entries(pets.dogs).map(([kind, entry]) => [kind, entry.label])],
-          dog?.kind ?? "",
-          (kind) => [
-            "dog",
-            kind ? { ...dog, lore: undefined, kind, coat: pets.dogs[kind].coats[0][0], out: dog?.out !== false } : null,
+          [
+            ["", "None"],
+            ["owned", "Owned"],
           ],
+          dog ? "owned" : "",
+          (owned) => ["dog", owned ? { size: "medium", coat: pets.dogCoats[0][0], out: true } : null],
         );
         if (dog) {
           choose(
             "Dog's coat",
-            pets.dogs[dog.kind].coats.map(([coat, word]) => [coat, capital(word)]),
+            pets.dogCoats.map(([coat, word]) => [coat, capital(word)]),
             dog.coat,
             (coat) => ["dog", { ...dog, lore: undefined, coat }],
           );
-          sizing("Dog's size", "dog", dog);
+          // (Small and medium are the small dog's body, the rest the big dog's; huge and massive can be ridden.)
+          choose("Dog's size", pets.dogSizes, dog.size, (size) => [
+            "dog",
+            { ...dog, lore: undefined, kind: undefined, scale: undefined, size },
+          ]);
           naming("Dog's name", "dog", dog);
           choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
             "dog",
@@ -666,6 +670,16 @@ export function createHud(root, handlers) {
     timeSpeed: "How fast the day passes while it's moving.",
     interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
     approach: "How often townsfolk come up to greet you, or confront you. 0 means never.",
+    animalsStrays: "Dogs with no owner about the settlement. 0: none of the world's own.",
+    animalsFarm:
+      "Cattle, donkeys and horses at the farms, and the horses by taverns and inns. A world with no farm has only those.",
+    animalsWild: "Deer, stags and foxes out in the country.",
+    animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
+    animalsMonsters: "For monsters, when the game has bodies for some. None appear yet.",
+    loreAnimals:
+      "On: animals a lorebook asks for, and anyone's own dog or horse, are there even with their sort set to 0. Off: a sort at 0 has none at all.",
+    animalDog:
+      "Off, there are none of that kind anywhere: not strays, not the lore's, not anyone's own. The same for each kind below.",
     approachMax: "The most people coming up to you at the same time.",
     combat: "Where people may confront (and later fight) you: safe places are towns, inns and cottages.",
     sound: "Footsteps, doors and the world's sounds.",
@@ -803,6 +817,32 @@ export function createHud(root, handlers) {
     outsideSafe: "Outside safe places",
     off: "Off",
   });
+  // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
+  heading("Animals");
+  const whole = (value) => String(Math.round(value));
+  slider("animalsStrays", "Stray dogs", 1, whole);
+  slider("animalsFarm", "Farm animals", 1, whole);
+  slider("animalsWild", "Wild animals (peaceful)", 1, whole);
+  slider("animalsHostile", "Wild animals (hostile)", 1, whole);
+  slider("animalsMonsters", "Monsters", 1, whole);
+  toggle("loreAnimals", "Lore's and owned animals appear even at 0");
+  const kindsNote = document.createElement("div");
+  kindsNote.style.cssText = "font-weight:700;margin-top:6px;opacity:0.85;font-size:12px;";
+  kindsNote.textContent = "Which kinds there are at all";
+  settingsPanel.append(kindsNote);
+  for (const [name, label] of [
+    ["animalDog", "Dogs"],
+    ["animalHorse", "Horses"],
+    ["animalDonkey", "Donkeys"],
+    ["animalCow", "Cows"],
+    ["animalBull", "Bulls"],
+    ["animalAlpaca", "Alpacas"],
+    ["animalDeer", "Deer"],
+    ["animalStag", "Stags"],
+    ["animalFox", "Foxes"],
+    ["animalWolf", "Wolves"],
+  ])
+    toggle(name, label);
   // AI: the server part's connections and styles. The connection lists come from the Engine when the
   // panel opens (they're the user's own, so they can change while playing).
   heading("AI");

@@ -35,7 +35,8 @@ export const ANIMALS = {
   cow: { group: "farm", walk: 1.0, gallop: 4.5, back: 0, seat: 0, timid: false },
   bull: { group: "farm", walk: 1.0, gallop: 4.8, back: 0, seat: 0, timid: false },
   alpaca: { group: "farm", walk: 1.1, gallop: 5, back: 0, seat: 0, timid: false },
-  husky: { group: "farm", walk: 1.2, gallop: 5.5, back: 0, seat: 0, timid: false },
+  // (A dog big enough is ridden: `rideFrom` is the size, as a multiple of its usual, from which it can be.)
+  husky: { group: "farm", walk: 1.2, gallop: 5.5, back: 0.6, seat: 0, rideFrom: 1.5, timid: false },
   shiba: { group: "farm", walk: 1.0, gallop: 5, back: 0, seat: 0, timid: false },
   deer: { group: "wild", walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
   stag: { group: "wild", walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
@@ -100,20 +101,80 @@ export const COATS = {
       Muzzle: [46, 38, 32],
     },
   },
+  // (The two dogs come in the same coats, so a dog keeps its coat whichever of them its size makes it.)
   husky: {
     grey: {},
     brown: { Main: [112, 82, 56] },
     black: { Main: [40, 40, 40] },
     red: { Main: [142, 88, 54] },
     white: { Main: [196, 196, 188], Main_Light: [228, 228, 220] },
+    cream: { Main: [214, 196, 160], Main_Light: [234, 228, 212] },
   },
   shiba: {
     red: {},
     black: { Main: [46, 44, 42], Main_Light: [192, 162, 122] },
     cream: { Main: [214, 196, 160], Main_Light: [234, 228, 212] },
     brown: { Main: [112, 82, 56] },
+    grey: { Main: [120, 122, 120] },
+    white: { Main: [226, 224, 216], Main_Light: [240, 238, 232] },
   },
 };
+
+/**
+ * Which sort each kind is, for how many of each a world has (Settings → Animals): strays about the
+ * settlement, the farms' animals, the country's that keep their distance, the country's that would
+ * attack, and monsters (none with a body yet).
+ */
+export const SORT_OF = {
+  husky: "strays",
+  shiba: "strays",
+  horse: "farm",
+  donkey: "farm",
+  cow: "farm",
+  bull: "farm",
+  alpaca: "farm",
+  deer: "wild",
+  stag: "wild",
+  fox: "wild",
+  wolf: "hostile",
+};
+/** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
+export const POPULATION = { strays: 2, farm: 12, wild: 12, hostile: 5, monsters: 8 };
+export const POPULATION_MAX = { strays: 12, farm: 40, wild: 40, hostile: 30, monsters: 30 };
+/** The kinds as a player switches them on and off: the two dogs are one ("dog"). */
+export const SWITCHES = {
+  dog: ["husky", "shiba"],
+  horse: ["horse"],
+  donkey: ["donkey"],
+  cow: ["cow"],
+  bull: ["bull"],
+  alpaca: ["alpaca"],
+  deer: ["deer"],
+  stag: ["stag"],
+  fox: ["fox"],
+  wolf: ["wolf"],
+};
+
+/**
+ * A dog's sizes, as how tall it stands (metres, to the top of its head): evenly spaced from a small dog
+ * to one the size of a small horse. The two smaller are the small dog's body, the rest the big dog's;
+ * the two largest can be ridden.
+ */
+export const DOG_SIZES = { small: 0.5, medium: 0.775, large: 1.05, huge: 1.325, massive: 1.6 };
+const DOG_HEIGHT = { shiba: 0.62, husky: 0.85 }; // how tall each body stands at its usual size
+/** The body a dog of `size` has: { kind, scale }. Anything else is a medium dog. */
+export function dogBody(size) {
+  const tall = DOG_SIZES[size] ?? DOG_SIZES.medium;
+  const kind = tall <= DOG_SIZES.medium ? "shiba" : "husky";
+  return { kind, scale: tall / DOG_HEIGHT[kind] };
+}
+/** The size nearest a dog of `kind` at `scale` (a dog kept from before sizes had names). */
+export function dogSizeOf(kind, scale = 1) {
+  const tall = (DOG_HEIGHT[kind] ?? DOG_HEIGHT.husky) * scale;
+  return Object.keys(DOG_SIZES).reduce((best, size) =>
+    Math.abs(DOG_SIZES[size] - tall) < Math.abs(DOG_SIZES[best] - tall) ? size : best,
+  );
+}
 
 /** The kind of animal a word means ("wolves", "hound"), or null for one the game has no body for ("goblin"). */
 export function animalKind(word) {

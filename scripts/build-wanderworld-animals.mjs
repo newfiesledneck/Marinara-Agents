@@ -58,7 +58,7 @@ const CLIPS = [
   ["walk", ["Walk"], 15],
   ["gallop", ["Gallop"], 24],
   // The leap, for the ones that are ridden only (each clip adds to the file).
-  ["jump", ["Gallop_Jump"], 24, ["horse", "donkey"]],
+  ["jump", ["Gallop_Jump"], 24, ["horse", "donkey", "husky"]],
 ];
 
 const b64 = (typed) => Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength).toString("base64");
