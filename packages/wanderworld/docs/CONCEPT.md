@@ -781,6 +781,28 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
         Off, the log stays plain and the rules still move relationships.
         Switches wanted: relationships changing by themselves; keeping the log; the AI's batches (and how
         often, and how many characters to a batch). Each defaults to what costs nothing.
+- _What the downloaded packs can do (checked 2026-11-11)._ A creature here needs a skeleton and a
+  walk; a static model can't be one without more code.
+  - _Animated, and in (0.5.41, CC0):_ Monster Pack Animated (slime, skeleton, bat; a dragon unused) and
+    Easy Animated Enemy Pack (spider, rat, snake, wasp; a frog unused). FBX, read by three's FBXLoader
+    in node: no Blender. Farm Buildings' barn and windmill likewise (0.5.43).
+  - _Animated, not in:_ Farm Animals Animated (cow, horse, zebra walk and run; pig, sheep, llama and
+    pug only stand and jump, so they'd slide). Slime Enemy by Charlie (CC-BY, animated; the CC0 slime
+    is used instead).
+  - _Rigged, no animation:_ Bestiary's Imp and Puglin (CC0; the people's skeleton, so they could wear
+    the people's animations: the nearest thing to a goblin there is). Wizardus Maximus and Dragon
+    Rigged (CC-BY).
+  - _Static, no skeleton (all CC-BY unless said):_ Bear, Adventurer and the 24-piece Animal Kit by
+    madtrollstudio; the 60-odd Animals by molochdadev; both Goblins; Giant Spider; Colossus; the two
+    Horses and the Saddle by Poly by Google. No cat that walks is in any pack.
+  - _To use the static ones:_ a "rigid" kind of creature moved whole by code (a hop and a sway in
+    step with its pace, as toy-like games do), built from the kit's textured-model path, not the
+    skinned one. Wanted for the bear, cats, goblins, ogres. Each needs its CC-BY line in
+    `kit/CREDITS.md`, Help's credits and the README.
+  - _Still to do from the same night's list:_ tools in hand beyond the hammer and mug; a saddle and
+    reins (the Saddle is static, so it can be set on a horse's back bone); more avatars from Ultimate
+    Modular Men and Women and the Animated Men and Women packs; bandits, witches and wizards as people
+    who are hostile (the people's bodies, not the creatures').
 - _What brings people back (listed with the user, 2026-11-11)._ What each is, and where it stands. "In"
   is in the game now; "part" has its groundwork; the rest is wanted. Everything that calls the model
   gets a switch of its own.
