@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.44",
+          "date": "2026-11-11",
+          "notes": "- Fixed: in a conversation the AI could be told it was \"Someone\", with none of the character's card, when the Engine handed the card over as text. The card is now read in whatever shape it comes, and the character's own name is always given.\n- Strangers: when you and a character don't know each other by name, the AI is told so. They are still themselves, and act as someone who hasn't met you.\n- People nearby that you don't know are marked as strangers to you in what the AI is told.",
+          "highlight": false
+        },
+        {
           "version": "0.5.43",
           "date": "2026-11-11",
           "notes": "- Farms have a proper barn, and a windmill beside it, from Quaternius's Farm Buildings (CC0). The plain barn still shows while props load and with detailed props off.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.25",
           "date": "2026-11-11",
           "notes": "- Getting on a horse or a donkey is a movement of its own: a step to its side, up beside it, a leg over and down onto its back. Before, the rider pointed at it and floated above it standing.\n- A jump carries the animal forward and over fences and benches. Houses, wagons, trees and rocks still stop it.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.24",
-          "date": "2026-11-11",
-          "notes": "- A ridden horse or donkey jumps: Space, or the Jump button on a touch screen and in the chat window. It leaps with the pack's own galloping jump and carries on the way it was going. A jump doesn't clear fences or walls yet.",
           "highlight": false
         }
       ]

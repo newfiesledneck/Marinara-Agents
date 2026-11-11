@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.44 — 2026-11-11
+
+- Fixed: in a conversation the AI could be told it was "Someone", with none of the character's card, when the Engine handed the card over as text. The card is now read in whatever shape it comes, and the character's own name is always given.
+- Strangers: when you and a character don't know each other by name, the AI is told so. They are still themselves, and act as someone who hasn't met you.
+- People nearby that you don't know are marked as strangers to you in what the AI is told.
+
 ## 0.5.43 — 2026-11-11
 
 - Farms have a proper barn, and a windmill beside it, from Quaternius's Farm Buildings (CC0). The plain barn still shows while props load and with detailed props off.

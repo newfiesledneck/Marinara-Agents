@@ -109,13 +109,29 @@ const ids = (list, max) =>
 const isRecord = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 const docId = (prefix, key) => `${prefix}-${createHash("sha256").update(key).digest("hex").slice(0, 40)}`;
 
-/** A character's card fields, from whatever shape the Engine's record holds. */
-function characterCard(record) {
-  const data = isRecord(record?.data) ? record.data : {};
-  const inner = isRecord(data.data) ? data.data : data; // a V2 card keeps them under data
+/** `value` as a record: itself, or what a JSON text of one holds (an Engine may hand a card's data over as text). */
+const recordOf = (value) => {
+  if (isRecord(value)) return value;
+  if (typeof value !== "string" || !value.trim().startsWith("{")) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * A character's card fields, from whatever shape the Engine's record holds: its data as a record or as
+ * JSON text, a V2 card's fields one level further in, or the fields on the record itself. `fallbackName`
+ * is who the game says they are, for a card that gives no name.
+ */
+export function characterCard(record, fallbackName = "") {
+  const data = recordOf(record?.data) ?? (isRecord(record) ? record : {});
+  const inner = recordOf(data.data) ?? data; // a V2 card keeps them under data
   const extensions = isRecord(inner.extensions) ? inner.extensions : {};
   return {
-    name: text(inner.name, MAX.name) || "Someone",
+    name: text(inner.name, MAX.name) || text(record?.name, MAX.name) || text(fallbackName, MAX.name) || "Someone",
     description: block(inner.description, MAX.card),
     personality: block(inner.personality, MAX.card / 2),
     scenario: block(inner.scenario, MAX.card / 2),
@@ -126,7 +142,7 @@ function characterCard(record) {
 
 /** A persona's fields. */
 function personaCard(record, fallbackName) {
-  const data = isRecord(record?.data) ? record.data : isRecord(record) ? record : {};
+  const data = recordOf(record?.data) ?? (isRecord(record) ? record : {});
   return {
     name: text(data.name, MAX.name) || fallbackName || "The traveller",
     description: block(data.description, MAX.card),
@@ -169,6 +185,18 @@ export function talkMessages(input) {
         .join("\n"),
     ),
     section(`How ${character.name} feels about ${persona.name}`, input.relationship),
+    // Strangers: they are still who they are, but neither acts as if they'd met.
+    section(
+      "Who knows whom",
+      [
+        input.knowsYou === false &&
+          `${character.name} doesn't know ${persona.name}: not their name, nor anything about them. To ${character.name} they're a stranger, till they say who they are.`,
+        input.knowsThem === false &&
+          `${persona.name} doesn't know ${character.name}'s name yet. ${character.name} can give it or not, as they would with a stranger.`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ),
     section("What they know (lore)", input.lore.join("\n\n")),
   ]
     .filter(Boolean)
@@ -1242,8 +1270,11 @@ export async function activate(context) {
               .catch(() => [])
           : [];
         const input = {
-          character: characterCard(record),
+          character: characterCard(record, body.characterName),
           persona: personaCard(personaRecord, text(body.personaName, MAX.name)),
+          // Whether each knows the other by name (missing: they do, as before this was told).
+          knowsThem: body.knowsThem !== false,
+          knowsYou: body.knowsYou !== false,
           place: text(body.place, 300),
           time: text(body.time, 80),
           weather: text(body.weather, 40),

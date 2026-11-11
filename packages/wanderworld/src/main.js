@@ -5367,12 +5367,17 @@ function talkPayload(talking, line) {
     .snapshot()
     .filter((person) => person.id !== talking.id && person.state !== "inside")
     .filter((person) => Math.hypot(person.x - position.x, person.z - position.z) < 12)
-    .map((person) => person.name)
+    // (By name, as the one talking knows them; with a word when the player doesn't.)
+    .map((person) => (knows(person.id) ? person.name : `${person.name} (a stranger to ${personaName()})`))
     .slice(0, 6)
     .join(", ");
   const names = { ...nameIds(), player: personaName() };
   return {
     characterId: talking.id,
+    // Who they are, whatever their card says or doesn't; and whether each knows the other by name.
+    characterName: talking.name,
+    knowsThem: knows(talking.id),
+    knowsYou: theyKnow(talking.id),
     personaId: core.personaId,
     personaName: personaName(),
     place: placeWords(),

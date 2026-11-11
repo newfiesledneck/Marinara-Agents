@@ -981,4 +981,59 @@ assert.equal(
   assert.doesNotMatch(moment("Hello?", []), /Places in the world|"plans"/u, "nobody to hear");
 }
 
+// A character's card is read whatever shape the Engine hands it over in, and strangers are said to be.
+{
+  const fields = { name: "Corvin", description: "An old tracker.", personality: "Dry." };
+  for (const [shape, record] of [
+    ["data as a record", { id: "c", data: fields }],
+    ["data as JSON text", { id: "c", data: JSON.stringify(fields) }],
+    ["a V2 card", { id: "c", data: { spec: "chara_card_v2", data: fields } }],
+    ["a V2 card as text", { id: "c", data: JSON.stringify({ data: fields }) }],
+    ["fields on the record", { id: "c", ...fields }],
+  ]) {
+    const card = server.characterCard(record);
+    assert.equal(card.name, "Corvin", `the name, from ${shape}`);
+    assert.equal(card.description, "An old tracker.", `and the card, from ${shape}`);
+  }
+  assert.equal(
+    server.characterCard({ id: "c", data: "not json" }, "Corvin").name,
+    "Corvin",
+    "the game's name for a card with none",
+  );
+  assert.equal(server.characterCard({ id: "c", data: {} }).name, "Someone", "and Someone only when nobody says");
+  const talk = (more) =>
+    server
+      .talkMessages({
+        character: server.characterCard({ id: "c", data: JSON.stringify(fields) }),
+        persona: { name: "Zoey", description: "", personality: "", appearance: "" },
+        place: "Tanner's Way",
+        time: "12:00",
+        weather: "",
+        nearby: "Samantha (a stranger to Zoey)",
+        relationship: "Corvin mentors Zoey",
+        setting: "",
+        lore: [],
+        history: [],
+        line: "",
+        length: "medium",
+        style: "natural",
+        ...more,
+      })
+      .map((message) => message.content)
+      .join("\n");
+  const known = talk({ knowsThem: true, knowsYou: true });
+  assert.match(known, /^You are Corvin,/u, "they are who they are");
+  assert.match(known, /An old tracker\./u, "with their card");
+  assert.doesNotMatch(
+    known,
+    /Someone|Who knows whom/u,
+    "and nothing about strangers between people who know each other",
+  );
+  const strangers = talk({ knowsThem: false, knowsYou: false });
+  assert.match(strangers, /^You are Corvin,/u, "a stranger is still themselves");
+  assert.match(strangers, /Corvin doesn't know Zoey/u);
+  assert.match(strangers, /Zoey doesn't know Corvin's name yet/u);
+  assert.match(strangers, /Samantha \(a stranger to Zoey\)/u);
+}
+
 console.log("wanderworld server regression: OK");
