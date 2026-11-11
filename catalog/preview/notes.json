@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.48",
+          "date": "2026-11-11",
+          "notes": "- Two more monsters: the imp and the puglin (a pig-goblin). They walk on two legs, moved by the people's own animations.\n- Lore can ask for them by name (`ww:monster:imp`, `ww:monster:puglin`); goblin and orc are read as a puglin, demon and devil as an imp.\n- Settings → Animals has a switch for each.",
+          "highlight": false
+        },
+        {
           "version": "0.5.47",
           "date": "2026-11-11",
           "notes": "- Tools in hand at work: on the farm a sickle while cutting, a seed basket while sowing and a watering can while watering; a trowel for whoever kneels in the garden.",
@@ -307,12 +313,6 @@
           "version": "0.5.29",
           "date": "2026-11-11",
           "notes": "- The chat box's hint shows the action command as \"/a(ction)\", the rest of the word dimmer: /a and /action both work.\n- The Journal's Party tab lists your dog and horse, with Send home and Call along, and the dog of anyone travelling with you.\n- The chat window has Send dog home and Send horse home while they're with you. Each asks \"Sure?\" before it does it.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.28",
-          "date": "2026-11-11",
-          "notes": "- Avatar in the Look card: when a persona's or a character's card has a 3D model, choose between the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), and the built-in person dressed by the rest of the card.",
           "highlight": false
         }
       ]

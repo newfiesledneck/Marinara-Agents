@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.47",
+        "version": "0.5.48",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -401,6 +401,9 @@
               "kit/creatures/index.json",
               "kit/creatures/monsters.json",
               "kit/creatures/wild.json",
+              "kit/fantasy/folk/folk-imp.webp",
+              "kit/fantasy/folk/folk-puglin.webp",
+              "kit/fantasy/folk/folk.json",
               "kit/fantasy/outfits/clothes-a.webp",
               "kit/fantasy/outfits/clothes-b.webp",
               "kit/fantasy/outfits/clothes-blue.webp",
@@ -502,8 +505,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "94a010e5c39bc0a86c3a6b446e62de5b7df6bb20c57f953b71e803b827c0218e",
-            "bytes": 2291441
+            "sha256": "6fa045ca4e924090ccd172f8239ca1f50cecd16fa65a2d4dca56a743fc96c631",
+            "bytes": 2292625
           },
           {
             "path": "server.mjs",
@@ -534,6 +537,21 @@
             "path": "kit/creatures/wild.json",
             "sha256": "0c3b7c24b701260b96c9b08c95fb9214d0f6b3a174923749839ff82b6b748622",
             "bytes": 756743
+          },
+          {
+            "path": "kit/fantasy/folk/folk-imp.webp",
+            "sha256": "1dcba670c6e0c548a3df5638571913b883999ad7f277d7d16bba67478a7dbb78",
+            "bytes": 16020
+          },
+          {
+            "path": "kit/fantasy/folk/folk-puglin.webp",
+            "sha256": "3d45fd986985ff86e2aeb30556c1d3739114db7a10f5f20af0bc14e81665182d",
+            "bytes": 9758
+          },
+          {
+            "path": "kit/fantasy/folk/folk.json",
+            "sha256": "70d8b8a3ca9a5b75f15601678e467a3b7507aa1b665beac67ee68d830ea491fc",
+            "bytes": 638660
           },
           {
             "path": "kit/fantasy/outfits/clothes-a.webp",
@@ -998,9 +1016,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.47.zip",
-        "sha256": "0dcb8b13ef4016eb7322919038984fb2d6bc0a68f6a2bd2e2253a8850d29bd8f",
-        "bytes": 19251065
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.48.zip",
+        "sha256": "a81f593e7d8b2f5423a816b1ec9fd97d30edc01b138cee473c624eb67bfe4763",
+        "bytes": 19917715
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

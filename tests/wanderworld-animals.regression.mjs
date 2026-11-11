@@ -12,9 +12,9 @@ import { Box3 } from "three";
 
 const kit = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit/creatures");
 globalThis.fetch = async (url) => {
-  const name = String(url).split("/kit/creatures/")[1];
+  const name = String(url).split("/kit/")[1]; // (creatures/…, and fantasy/folk/… for the imp and the puglin)
   try {
-    return new Response(await readFile(join(kit, name)), { status: 200 });
+    return new Response(await readFile(join(kit, "..", name)), { status: 200 });
   } catch {
     return new Response("missing", { status: 404 });
   }
@@ -23,7 +23,11 @@ const context = new Proxy(
   { measureText: (text) => ({ width: String(text).length * 14 }) },
   { get: (target, key) => target[key] ?? (() => ({ addColorStop() {} })), set: () => true },
 );
-globalThis.document = { createElement: () => ({ getContext: () => context, width: 0, height: 0 }) };
+const image = () => ({ addEventListener() {}, removeEventListener() {}, setAttribute() {}, style: {} });
+globalThis.document = {
+  createElement: () => ({ getContext: () => context, width: 0, height: 0, ...image() }),
+  createElementNS: image, // (a texture's image, for the ones built as people are)
+};
 
 const { ANIMALS, COATS, coatFor, createAnimal } = await import("../packages/wanderworld/src/animals.js");
 const { createHerd, herdFor } = await import("../packages/wanderworld/src/herd.js");
@@ -34,12 +38,45 @@ const index = JSON.parse(await readFile(join(kit, "index.json"), "utf8"));
 assert.ok(index.source.includes("CC0"), "the kit says where it's from and its licence");
 assert.deepEqual(
   Object.keys(index.animals).sort(),
-  Object.keys(ANIMALS).sort(),
+  Object.keys(ANIMALS)
+    .filter((kind) => !ANIMALS[kind].folk)
+    .sort(),
   "the kit has every animal the game knows",
 );
+// The ones on the people's skeleton (the imp, the puglin) are in the folk kit instead, each with every
+// bone the people's clips move and a texture; people.js builds them (the people suite covers that path).
+{
+  const folkDir = join(kit, "../fantasy/folk");
+  const folk = JSON.parse(await readFile(join(folkDir, "folk.json"), "utf8")).folk;
+  for (const [kind, facts] of Object.entries(ANIMALS).filter(([, facts]) => facts.folk)) {
+    assert.ok(PACK.animals[kind], `the pack has words for the ${kind}`);
+    assert.ok(facts.gallop > facts.walk && facts.walk > 0 && facts.hostile, `the ${kind} is a monster that runs`);
+    const body = folk[kind];
+    assert.ok(body?.meshes.length && body.height > 0.5 && body.height < 2.5, `the folk kit has the ${kind}`);
+    for (const bone of ["pelvis", "spine_01", "Head", "upperarm_l", "hand_r", "thigh_l", "calf_r", "foot_l"])
+      assert.ok(body.skeleton.names.includes(bone), `the ${kind} has the people's ${bone}`);
+    assert.ok((await readFile(join(folkDir, `folk-${kind}.webp`))).length > 1000, `and its texture`);
+  }
+}
 
 // ── Each kind ────────────────────────────────────────────────────────────────
 for (const [kind, facts] of Object.entries(ANIMALS)) {
+  if (facts.folk) {
+    // Built as a person is: it stands, walks and runs, whole, and doesn't leap.
+    const folk = await createAnimal(kind);
+    for (const speed of [0, facts.walk, facts.gallop]) {
+      for (let t = 0; t < 1; t += 1 / 30) folk.update(1 / 30, speed, {});
+      folk.object.updateMatrixWorld(true);
+      const box = new Box3().setFromObject(folk.object, true);
+      assert.ok(
+        Number.isFinite(box.max.y) && box.max.y > 0.4 && box.max.y < 2.4,
+        `the ${kind} keeps its shape at ${speed}`,
+      );
+    }
+    assert.equal(folk.rise(0.5), 0);
+    folk.dispose();
+    continue;
+  }
   assert.ok(PACK.animals[kind], `the pack has words for the ${kind}`);
   assert.ok(facts.gallop > facts.walk && facts.walk > 0, `the ${kind} gallops faster than it walks`);
   const animal = await createAnimal(kind);
@@ -104,6 +141,7 @@ assert.equal((await createAnimal("dragon")).kind, "deer", "an unknown kind is a 
 
 // ── Files by group, and coats ────────────────────────────────────────────────
 for (const [kind, facts] of Object.entries(ANIMALS)) {
+  if (facts.folk) continue;
   assert.equal(index.animals[kind].group, facts.group, `the ${kind} is in the file the game looks in`);
   const file = JSON.parse(await readFile(join(kit, `${facts.group}.json`), "utf8"));
   assert.ok(file.animals[kind], `${facts.group}.json has the ${kind}`);
@@ -394,8 +432,8 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   assert.deepEqual([own.pack, own.size, own.found], [4, "huge", ["forest1"]]);
   assert.ok(books[0].entries[3].keys.includes("monster") && !books[0].entries[0].keys.includes("monster"));
   assert.deepEqual(
-    ["wolves", "Hound", "goblin", "pony", "deer", "Slimes", "skeleton", "bats"].map(animalKind),
-    ["wolf", "husky", null, "horse", "deer", "slime", "skeleton", "bat"],
+    ["wolves", "Hound", "goblin", "pony", "deer", "Slimes", "skeleton", "bats", "Demons", "dragon"].map(animalKind),
+    ["wolf", "husky", "puglin", "horse", "deer", "slime", "skeleton", "bat", "imp", null],
     "the words for the animals the game has, and none for the ones it hasn't",
   );
 }
@@ -433,7 +471,7 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   }
   const slimes = herdFor(world, 4242, {
     counts: { ...none, monsters: 9 },
-    off: ["skeleton", "spider", "rat", "snake", "bat", "wasp"],
+    off: ["skeleton", "spider", "rat", "snake", "bat", "wasp", "imp", "puglin"],
   });
   assert.ok(slimes.length === 9 && slimes.every((beast) => beast.kind === "slime"), "only the kinds left on");
   // Wolves keep to their packs: several of them, some sharing a home, none bigger than five.

@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.47)
+## What it does now (0.5.48)
 
 ### The world
 
@@ -279,7 +279,8 @@ only walk about.
   level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
   Relationships ends with Lately, the record of it, and coming back to the town or the country after
   a few hours away says what happened there. Settings → Living world has a switch for each part.
-- **Monsters:** slimes, skeletons, giant spiders, giant rats, snakes, bats and giant wasps, out in the
+- **Monsters:** slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, imps and
+  puglins (pig-goblins; the last two walk on two legs, with the people's animations), out in the
   country, alone or in twos and threes; skeletons and bats only at night. The Monsters slider says how
   many, each kind has its switch, and they act as "Hostile animals" says. A lorebook can place them:
   `ww:monster:slime:large:pack3` on a place's entry. Nothing fights back yet.
@@ -541,6 +542,8 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
 Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, and the Universal Animation Library and Universal Animation Library 2.
+
+The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its maker has not endorsed Wanderworld.
 Thank you, Quaternius. The full list, with which folder

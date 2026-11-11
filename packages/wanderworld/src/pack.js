@@ -526,6 +526,8 @@ const ANIMALS = {
   snake: "the snake",
   bat: "the bat",
   wasp: "the giant wasp",
+  imp: "the imp",
+  puglin: "the puglin",
 };
 
 export const PACK = {

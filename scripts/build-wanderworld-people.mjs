@@ -32,8 +32,18 @@ const TEXTURE_SIZE = 512;
 // ── A small glTF reader: accessors, skins and images, nothing else ──
 
 function readGltf(path) {
-  const json = JSON.parse(readFileSync(path, "utf8"));
-  const buffers = json.buffers.map((buffer) => readFileSync(join(dirname(path), decodeURIComponent(buffer.uri))));
+  let json;
+  let buffers;
+  if (path.toLowerCase().endsWith(".glb")) {
+    // A binary glTF: its JSON, then its one buffer, its images inside that (each read out by `imageOf`).
+    const file = readFileSync(path);
+    const jsonLength = file.readUInt32LE(12);
+    json = JSON.parse(file.subarray(20, 20 + jsonLength).toString("utf8"));
+    buffers = [file.subarray(20 + jsonLength + 8)];
+  } else {
+    json = JSON.parse(readFileSync(path, "utf8"));
+    buffers = json.buffers.map((buffer) => readFileSync(join(dirname(path), decodeURIComponent(buffer.uri))));
+  }
   const COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
   const TYPES = {
     5120: Int8Array,
@@ -70,9 +80,16 @@ function readGltf(path) {
   const textureOf = (materialIndex) => {
     const material = json.materials?.[materialIndex];
     const texture = material?.pbrMetallicRoughness?.baseColorTexture;
-    return texture ? json.images[json.textures[texture.index].source].uri : null;
+    if (!texture) return null;
+    const source = json.textures[texture.index].source;
+    return json.images[source].uri ?? `image:${source}`;
   };
-  return { json, accessor, textureOf };
+  /** The bytes of a .glb's own image (named "image:<n>" by `textureOf`). */
+  const imageOf = (name) => {
+    const view = json.bufferViews[json.images[Number(name.slice("image:".length))].bufferView];
+    return buffers[0].subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength);
+  };
+  return { json, accessor, textureOf, imageOf };
 }
 
 /** Every skinned mesh primitive in a file: geometry, its material's texture, and its skin's joints. */
@@ -319,7 +336,54 @@ function toneOf(name, uvs = null) {
   return Math.max(16, Math.round(count ? sum / count : 128));
 }
 
+/**
+ * The monsters that stand on the people's skeleton (Quaternius's Bestiary - Dungeon Monsters Kit: the imp
+ * and the puglin), each as one part with its skeleton, into kit/fantasy/folk/folk.json with a texture
+ * each. They have no animations of their own: the game moves them with the people's.
+ */
+function folk(dir) {
+  const out = join(KIT, "fantasy/folk");
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(out, { recursive: true });
+  const all = { source: "Bestiary - Dungeon Monsters Kit by Quaternius", folk: {} };
+  for (const [name, file] of [
+    ["imp", "Imp.glb"],
+    ["puglin", "Puglin.glb"],
+  ]) {
+    const gltf = readGltf(join(dir, file));
+    const primitives = skinnedPrimitives(gltf);
+    const png = join(out, `${name}.png`);
+    writeFileSync(png, gltf.imageOf(primitives[0].texture));
+    execFileSync(FFMPEG, [
+      "-v",
+      "error",
+      "-y",
+      "-i",
+      png,
+      "-vf",
+      `scale=${TEXTURE_SIZE}:${TEXTURE_SIZE}`,
+      "-quality",
+      "82",
+      join(out, `folk-${name}.webp`),
+    ]);
+    rmSync(png);
+    let top = 0;
+    for (const primitive of primitives)
+      for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
+    all.folk[name] = {
+      height: Math.round(top * 100) / 100,
+      ...packPart(primitives, { texture: () => `folk-${name}`, skeleton: skeletonOf(gltf) }),
+    };
+  }
+  writeFileSync(join(out, "folk.json"), JSON.stringify(all));
+  console.log(`wrote ${out}`);
+}
+
 function main() {
+  if (process.argv[2] === "--folk") {
+    if (!process.argv[3]) throw new Error("Usage: build-wanderworld-people.mjs --folk <Bestiary GLB dir>");
+    return folk(process.argv[3]);
+  }
   const [baseDir, outfitDir] = process.argv.slice(2);
   if (!baseDir || !outfitDir)
     throw new Error(

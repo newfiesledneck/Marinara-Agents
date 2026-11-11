@@ -1,7 +1,8 @@
 # The kit
 
 Asset files the game loads when it needs them, served by the Engine as package assets
-(`contributions.assets.paths`). Everything except `generic/art/` is converted from free packs by
+(`contributions.assets.paths`). Everything except `generic/art/`, `fantasy/folk/` and what's listed under
+"Credit required" is converted from free packs by
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) (public domain; each download's
 licence file says so). No credit is required; this note is a courtesy.
@@ -14,6 +15,14 @@ licence file says so). No credit is required; this note is a courtesy.
 | `generic/art/`                        | Original art for Wanderworld (menu backdrops, logo, loading screen, ground, water and rock textures, the sign board, parchment, bridge planks and beams), made by the package's author with ComfyUI | converted to WebP by hand                   |
 | `creatures/`                          | Ultimate Animated Animals, its `glTF` folder; and the monsters from Monster Pack Animated and Easy Animated Enemy Pack, their `FBX` files (read here by three's FBXLoader: no Blender needed)       | `scripts/build-wanderworld-animals.mjs`     |
 | `fantasy/props/`                      | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF`, Farm Buildings `FBX` (the barn and the windmill)                                                       | `scripts/build-wanderworld-kit.mjs props`   |
+
+## Under the Quaternius Asset License
+
+`fantasy/folk/` (the imp and the puglin) is converted from Quaternius's Bestiary - Dungeon Monsters Kit
+(Standard), its `Exports/GLB` folder, by `scripts/build-wanderworld-people.mjs --folk`. That pack is not
+public domain: it's under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html),
+which allows using it in a game with no credit, and does not allow passing the models on as assets. So
+these files are for Wanderworld to load, not for reuse elsewhere; get the pack from Quaternius instead.
 
 ## Credit required (CC-BY)
 

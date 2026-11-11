@@ -9,6 +9,7 @@
 // An animal is { object, update(dt, speed, { graze }), dispose(), kind, coat, height, back }: `object` faces
 // +z and stands on y = 0, in metres; `update` moves it for a frame in which it travelled at `speed`
 // metres a second; `back` is how high a rider sits (a horse, a donkey), in metres.
+import { createFolk } from "./people.js";
 import {
   Bone,
   BufferAttribute,
@@ -62,6 +63,10 @@ export const ANIMALS = {
     when: "night",
   },
   wasp: { group: "monsters", walk: 2.2, gallop: 5, back: 0, seat: 0, timid: true, hostile: true, fly: 1.3 },
+  // (`folk`: it stands on two legs on the people's skeleton, from kit/fantasy/folk, and moves with the
+  // people's clips (people.js: createFolk), `folk` times the size it's made. Quaternius's Bestiary.)
+  imp: { group: "monsters", walk: 1.3, gallop: 4.4, back: 0, seat: 0, timid: true, hostile: true, folk: 0.8 },
+  puglin: { group: "monsters", walk: 1.1, gallop: 3.8, back: 0, seat: 0, timid: true, hostile: true, folk: 1 },
 };
 
 /**
@@ -164,6 +169,8 @@ export const SORT_OF = {
   snake: "monsters",
   bat: "monsters",
   wasp: "monsters",
+  imp: "monsters",
+  puglin: "monsters",
 };
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
 // (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
@@ -188,6 +195,8 @@ export const SWITCHES = {
   snake: ["snake"],
   bat: ["bat"],
   wasp: ["wasp"],
+  imp: ["imp"],
+  puglin: ["puglin"],
 };
 
 /**
@@ -227,6 +236,10 @@ export function animalKind(word) {
     ox: "bull",
     llama: "alpaca",
     pony: "horse",
+    goblin: "puglin",
+    orc: "puglin",
+    demon: "imp",
+    devil: "imp",
   };
   const kind = other[plain] ?? plain;
   return ANIMALS[kind] ? kind : null;
@@ -335,6 +348,23 @@ const next = new Quaternion();
 export async function createAnimal(name, wanted = null) {
   const kind = ANIMALS[name] ? name : "deer";
   const coat = COATS[kind] ? (COATS[kind][wanted] ? wanted : Object.keys(COATS[kind])[0]) : null;
+  if (ANIMALS[kind].folk) {
+    // One on the people's skeleton: a walking character, with an animal's handles on it.
+    const body = await createFolk(kind, ANIMALS[kind].folk);
+    return {
+      object: body.object,
+      kind,
+      coat,
+      back: 0,
+      seat: 0,
+      update: (dt, speed = 0) => void body.update(dt, speed, {}),
+      rise: () => 0,
+      dispose() {
+        body.object.removeFromParent();
+        body.dispose?.();
+      },
+    };
+  }
   const data = await load(kind);
   const { geometry, clips } = partsOf(kind, data, coat);
   const count = data.bones.length;
