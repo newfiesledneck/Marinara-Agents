@@ -686,11 +686,8 @@ export function createHud(root, handlers) {
     animalsTown:
       "The most stray dogs and horses inside the settlement itself, shared between them. Any more are put just outside it.",
     hostileAnimals:
-      "What a hostile animal does when you're near, where Confrontations and combat (Settings → World) allows it: keeps away and runs; comes to about six paces and holds you off; or runs in and snaps, sending you back a step. Nothing is hurt yet.",
-    loreAnimals:
-      "On: animals a lorebook asks for, and anyone's own dog or horse, are there even with their sort set to 0. Off: a sort at 0 has none at all.",
-    animalDog:
-      "Off, there are none of that kind anywhere: not strays, not the lore's, not anyone's own. The same for each kind below.",
+      "Keep their distance: they run if you come close. Square up: they come to about six paces and hold you off. Come for you: they run in and snap, sending you back a step. Nothing is hurt yet.",
+    loreAnimals: "Off: a sort set to 0 has none at all, lore's and owned ones included.",
     approachMax: "The most people coming up to you at the same time.",
     combat: "Where people may confront (and later fight) you: safe places are towns, inns and cottages.",
     sound: "Footsteps, doors and the world's sounds.",
@@ -842,34 +839,89 @@ export function createHud(root, handlers) {
   toggle("awayRecap", "Tell me what I missed");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");
+  // In groups, each with a line on what it's for and what wins over what, so it isn't a wall of switches.
+  const group = (title, note) => {
+    const head = document.createElement("div");
+    head.style.cssText = "font-weight:700;margin-top:8px;font-size:13px;";
+    head.textContent = title;
+    const about = document.createElement("div");
+    about.setAttribute("data-wanderworld-explain", "");
+    about.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;margin:-2px 0 2px;";
+    about.textContent = note;
+    settingsPanel.append(head, about);
+  };
+  /** A row of small switches side by side (one for each kind), kept like any other setting. */
+  const switches = (list) => {
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:4px 10px;";
+    for (const [name, label] of list) {
+      const item = document.createElement("label");
+      item.style.cssText = "display:flex;align-items:center;gap:6px;font-size:13px;min-height:28px;";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.addEventListener("change", () => handlers.onSetting(name, box.checked));
+      fields[name] = { set: (value) => (box.checked = value) };
+      const text = document.createElement("span");
+      text.textContent = label;
+      item.append(box, text);
+      grid.append(item);
+    }
+    settingsPanel.append(grid);
+  };
   const whole = (value) => String(Math.round(value));
+  group(
+    "How many",
+    "How many of each sort a world has of its own. 0 is none of that sort. A world can have numbers of its own (Journal → World → Animals in this world), which are used in place of these.",
+  );
   slider("animalsStrays", "Stray dogs", 1, whole);
   slider("animalsFarm", "Farm animals", 1, whole);
   slider("animalsWild", "Wild animals (peaceful)", 1, whole);
   slider("animalsHostile", "Wild animals (hostile)", 1, whole);
   slider("animalsMonsters", "Monsters", 1, whole);
   slider("animalsTown", "Most in the settlement", 1, whole);
-  toggle("loreAnimals", "Lore's and owned animals appear even at 0");
-  choice("hostileAnimals", "Hostile animals", {
+  group(
+    "Lore and owned animals",
+    "Animals a lorebook places (ww:monster:wolf:pack5), and anyone's own dog or horse, are extra to the numbers above.",
+  );
+  toggle("loreAnimals", "They appear even when their sort is at 0");
+  group(
+    "How hostile ones behave",
+    "Wolves and monsters. Only where Confrontations and combat (Settings → World) allows it: off there, they always keep their distance. A lorebook's ww:tame or ww:hostile on a creature's entry decides which kinds are hostile at all.",
+  );
+  choice("hostileAnimals", "When you're near", {
     avoid: "Keep their distance",
     threaten: "Square up to you",
     attack: "Come for you",
   });
-  const kindsNote = document.createElement("div");
-  kindsNote.style.cssText = "font-weight:700;margin-top:6px;opacity:0.85;font-size:12px;";
-  kindsNote.textContent = "Which kinds there are at all";
-  settingsPanel.append(kindsNote);
-  for (const [name, label] of [
+  group(
+    "Which kinds there are",
+    "Off, there are none of that kind anywhere. This beats everything else: the numbers above, a lorebook, and ownership.",
+  );
+  const kindHead = (text) => {
+    const head = document.createElement("div");
+    head.style.cssText =
+      "font-size:11px;font-weight:700;opacity:0.65;text-transform:uppercase;letter-spacing:0.04em;margin-top:2px;";
+    head.textContent = text;
+    settingsPanel.append(head);
+  };
+  kindHead("Farm and town");
+  switches([
     ["animalDog", "Dogs"],
     ["animalHorse", "Horses"],
     ["animalDonkey", "Donkeys"],
     ["animalCow", "Cows"],
     ["animalBull", "Bulls"],
     ["animalAlpaca", "Alpacas"],
+  ]);
+  kindHead("Wild");
+  switches([
     ["animalDeer", "Deer"],
     ["animalStag", "Stags"],
     ["animalFox", "Foxes"],
     ["animalWolf", "Wolves"],
+  ]);
+  kindHead("Monsters");
+  switches([
     ["animalSlime", "Slimes"],
     ["animalSkeleton", "Skeletons (night)"],
     ["animalSpider", "Giant spiders"],
@@ -877,8 +929,7 @@ export function createHud(root, handlers) {
     ["animalSnake", "Snakes"],
     ["animalBat", "Bats (night)"],
     ["animalWasp", "Giant wasps"],
-  ])
-    toggle(name, label);
+  ]);
   // AI: the server part's connections and styles. The connection lists come from the Engine when the
   // panel opens (they're the user's own, so they can change while playing).
   heading("AI");

@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.42 — 2026-11-11
+
+- Settings → Animals is laid out in groups: how many, lore and owned animals, how hostile ones behave, and which kinds there are. Each group says what it's for and what wins over what, and the kinds are small switches side by side under Farm and town, Wild, and Monsters.
+
 ## 0.5.41 — 2026-11-11
 
 - Monsters: slimes, skeletons, giant spiders, giant rats, snakes, bats and giant wasps, out in the country, alone or in twos and threes. Skeletons and bats are about only at night.
