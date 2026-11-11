@@ -131,6 +131,10 @@ const KIT_DOOR_WIDTH = 1.12;
 const NATURE_RING = 45;
 /** Of the trees, how many have a bush or fern at their foot. */
 const TREE_UNDERGROWTH = 0.35;
+/** Campsites are at least this far from each other (metres): each its own place, out of sight of the next. */
+const CAMP_APART = 70;
+/** Nothing grows within this of a campsite's fire (metres): room for its tent and the logs round it. */
+const CAMP_CLEARING = 7.5;
 const UNDERGROWTH = 700;
 /** Kit trees, with how often each grows and how big it is drawn (its own size is 7–17 m). */
 const KIT_TREES = [
@@ -1942,6 +1946,7 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
         continue;
       if (land.roads.some((road) => road.points.some((point) => Math.hypot(point.x - x, point.z - z) < 7))) continue;
       if (town.boxes.some((b) => x > b.minX - 6 && x < b.maxX + 6 && z > b.minZ - 6 && z < b.maxZ + 6)) continue;
+      if (town.camps.some((camp) => Math.hypot(camp.x - x, camp.z - z) < CAMP_APART)) continue;
       placeCamp(town, x, z, Math.atan2(-x, -z), `camp${made++}`);
     }
   }
@@ -3136,8 +3141,15 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     ...country.meshes,
   );
 
-  const trees = scatter(random, baseTrees * MAX_DENSITY, 1.6, 1.6);
-  const rocks = scatter(random, baseRocks * MAX_DENSITY, 0.8, 1.4);
+  // Where nothing wild grows: in a campsite's clearing, and in or right against anything built or set
+  // down (a cottage, a ruin's stones, a fence). `pad`: how much room to leave, in metres.
+  const builtOver = (x, z, pad) =>
+    town.camps.some((camp) => Math.hypot(camp.x - x, camp.z - z) < CAMP_CLEARING + pad) ||
+    town.boxes.some((b) => x > b.minX - pad && x < b.maxX + pad && z > b.minZ - pad && z < b.maxZ + pad) ||
+    town.circles.some((circle) => Math.hypot(circle.x - x, circle.z - z) < circle.r + pad);
+  // (Scattered first and taken out after, so every other tree and rock stays where its world has it.)
+  const trees = scatter(random, baseTrees * MAX_DENSITY, 1.6, 1.6).filter((tree) => !builtOver(tree.x, tree.z, 1.2));
+  const rocks = scatter(random, baseRocks * MAX_DENSITY, 0.8, 1.4).filter((rock) => !builtOver(rock.x, rock.z, 0.9));
   // The ground, in chunks: coarse everywhere, fine near the player (forest floor under the usual trees).
   const terrain = createGround(scene, ground, forestGrid(trees.slice(0, baseTrees)));
   terrain.follow(spawn.x, spawn.z);
@@ -3322,7 +3334,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     trunks.visible = crowns.visible = far || !natureLayers.length;
     if (!far) {
       if (natureLayers.length) return;
-      trunks.count = crowns.count = baseTrees * view.density;
+      trunks.count = crowns.count = Math.min(trees.length, baseTrees * view.density);
       return;
     }
     const near = NATURE_REACH.tree ** 2;
@@ -3356,10 +3368,10 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
 
   let collider = createCollider([], []);
   function setDensity(density) {
-    const treeCount = baseTrees * density;
+    const treeCount = Math.min(trees.length, baseTrees * density); // (a few were taken out of clearings)
     trunks.count = treeCount;
     crowns.count = treeCount;
-    stones.count = baseRocks * density;
+    stones.count = Math.min(rocks.length, baseRocks * density);
     collider = createCollider([...fixedCircles, ...treeCircles.slice(0, treeCount)], fixedBoxes);
     view.density = density;
     refreshNature();
@@ -3525,7 +3537,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         dummy.rotation.set(0, angle, 0);
         dummy.scale.setScalar(plantSize);
         dummy.updateMatrix();
-        place(plant, x, z, need);
+        if (!builtOver(x, z, 0.5)) place(plant, x, z, need);
       }
     });
     rocks.forEach((rock, i) => {
@@ -3550,7 +3562,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       dummy.rotation.set(0, growth() * Math.PI * 2, 0);
       dummy.scale.setScalar(size * (0.8 + growth() * 0.5));
       dummy.updateMatrix();
-      place(name, x, z, 1);
+      if (!builtOver(x, z, 0.5)) place(name, x, z, 1);
       placed++;
     }
     // The town's own plants: gardens, doorsteps, round the fountain.
