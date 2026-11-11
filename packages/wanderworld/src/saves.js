@@ -225,6 +225,7 @@ export function checkWorld(raw) {
         name: text(creature.name).slice(0, 60),
         kind: creature.kind === "monster" ? "monster" : "creature",
         hostile: creature.hostile === true,
+        tame: creature.tame === true,
         found: (Array.isArray(creature.found) ? creature.found : []).map((word) => text(word).slice(0, 60)).slice(0, 6),
         when: ["night", "day"].includes(creature.when) ? creature.when : "any",
         pack: Math.max(1, Math.min(10, Number(creature.pack) || 1)),
@@ -244,7 +245,24 @@ export function checkWorld(raw) {
         kind: spawn.kind.slice(0, 30),
         size: /^[a-z]{1,10}$/u.test(spawn.size ?? "") ? spawn.size : "",
         count: Math.max(0, Math.min(10, Number(spawn.count) || 0)),
+        temper: ["tame", "hostile"].includes(spawn.temper) ? spawn.temper : "",
+        when: ["night", "day"].includes(spawn.when) ? spawn.when : "",
       })),
+    // Places the world's own animals keep out of (ww:animals:none), as written.
+    quiet: (Array.isArray(raw.quiet) ? raw.quiet : [])
+      .filter((word) => typeof word === "string")
+      .map((word) => word.slice(0, 40))
+      .slice(0, 40),
+    // This world's own numbers of animals, over the player's settings: { strays, farm, wild, hostile,
+    // monsters, town }, or null to go by the settings.
+    population: isRecord(raw.population)
+      ? Object.fromEntries(
+          ["strays", "farm", "wild", "hostile", "monsters", "town"].map((sort) => [
+            sort,
+            Math.max(0, Math.min(60, Math.round(Number(raw.population[sort]) || 0))),
+          ]),
+        )
+      : null,
     petLore: (Array.isArray(raw.petLore) ? raw.petLore : [])
       .filter((pet) => isRecord(pet) && typeof pet.owner === "string" && (pet.role === "dog" || pet.role === "horse"))
       .slice(0, 200)

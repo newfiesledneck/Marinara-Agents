@@ -468,6 +468,20 @@ const CAMP = [
 ];
 
 /** Sleeping in a tent: what's told on waking, by how long it was ({hours}) and the hour it is now ({clock}). */
+/** A hostile animal near the player: squaring up to them, and running in ({kind}: "wolf"). */
+const BEASTS = {
+  threat: [
+    "A {kind} stands a few paces off, head low, watching you.",
+    "A {kind} has seen you. It comes no closer, and it doesn't leave.",
+    "Hackles up, a {kind} holds its ground in front of you.",
+  ],
+  attack: [
+    "A {kind} lunges and snaps; you stumble back a step.",
+    "The {kind} comes in fast, teeth first. You get clear of it, just.",
+    "A {kind} goes for you and you throw yourself back out of its way.",
+  ],
+};
+
 const SLEEP = [
   "You sleep. When you wake it's {clock}, and the fire has burned low.",
   "{hours} later you crawl out of the tent. It's {clock}.",
@@ -523,6 +537,7 @@ export const PACK = {
   dogLore: DOG_LORE,
   horseLore: HORSE_LORE,
   sleep: SLEEP,
+  beasts: BEASTS,
 };
 
 /** What's said of someone doing `act` at a place made for it ("minding a market stall"); "" for none. */

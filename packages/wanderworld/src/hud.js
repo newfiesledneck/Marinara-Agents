@@ -676,6 +676,10 @@ export function createHud(root, handlers) {
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters: "For monsters, when the game has bodies for some. None appear yet.",
+    animalsTown:
+      "The most stray dogs and horses inside the settlement itself, shared between them. Any more are put just outside it.",
+    hostileAnimals:
+      "What a hostile animal does when you're near, where Confrontations and combat (Settings → World) allows it: keeps away and runs; comes to about six paces and holds you off; or runs in and snaps, sending you back a step. Nothing is hurt yet.",
     loreAnimals:
       "On: animals a lorebook asks for, and anyone's own dog or horse, are there even with their sort set to 0. Off: a sort at 0 has none at all.",
     animalDog:
@@ -825,7 +829,13 @@ export function createHud(root, handlers) {
   slider("animalsWild", "Wild animals (peaceful)", 1, whole);
   slider("animalsHostile", "Wild animals (hostile)", 1, whole);
   slider("animalsMonsters", "Monsters", 1, whole);
+  slider("animalsTown", "Most in the settlement", 1, whole);
   toggle("loreAnimals", "Lore's and owned animals appear even at 0");
+  choice("hostileAnimals", "Hostile animals", {
+    avoid: "Keep their distance",
+    threaten: "Square up to you",
+    attack: "Come for you",
+  });
   const kindsNote = document.createElement("div");
   kindsNote.style.cssText = "font-weight:700;margin-top:6px;opacity:0.85;font-size:12px;";
   kindsNote.textContent = "Which kinds there are at all";

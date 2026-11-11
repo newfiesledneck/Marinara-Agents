@@ -372,8 +372,8 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     },
   ];
   assert.deepEqual(spawnsFromLore(books), [
-    { place: "forest1", kind: "wolf", size: "large", count: 5 },
-    { place: "forest1", kind: "deer", size: "", count: 0 },
+    { place: "forest1", kind: "wolf", size: "large", count: 5, temper: "", when: "" },
+    { place: "forest1", kind: "deer", size: "", count: 0, temper: "", when: "" },
   ]);
   assert.deepEqual(petsFromLore(books), [
     { owner: "Mira", role: "horse", size: "large", colour: "brown", name: "Shadowmere", species: "" },
@@ -438,12 +438,124 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     assert.ok(Math.abs(index.animals[kind].height * scale - tall) < 0.01, `a ${size} dog stands ${tall} m`);
     assert.equal(dogSizeOf(kind, scale), size);
   }
-  assert.ok(DOG_SIZES.massive > index.animals.donkey.height * 0.9, "a massive dog is the size of a small horse");
+  assert.ok(Math.abs(DOG_SIZES.massive - index.animals.horse.height) < 0.2, "a massive dog is as tall as a horse");
+  assert.equal(DOG_SIZES.small, 0.5, "and a small one is as small as it was");
   assert.deepEqual(
     Object.keys(COATS.husky).sort(),
     Object.keys(COATS.shiba).sort(),
     "both dogs come in the same coats",
   );
+}
+
+// Hostile animals, what the lore says a kind is like, night and day, the town's share, and quiet places.
+{
+  const { quietFromLore, readKeys, spawnsFromLore, creatureFromWords } =
+    await import("../packages/wanderworld/src/keywords.js");
+  const world = createWorld(4242);
+  const herd = createHerd();
+  const none = { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: 0, town: 0 };
+  herd.setWorld(world, 4242, { counts: none });
+  // A spot out in the open, away from town, to stand at.
+  const out = world.layout.townHalf + 60;
+  const player = { x: out, y: 0, z: out };
+  const wolfAt = (id, more = {}) => ({
+    id,
+    kind: "wolf",
+    scale: 1,
+    sized: true,
+    count: 1,
+    at: { x: out + 12, z: out },
+    ...more,
+  });
+  const run = (seconds, view) => {
+    for (let t = 0; t < seconds; t += 0.1) herd.update(0.1, { player, ...view });
+  };
+  const wolf = () => herd.snapshot().find((beast) => beast.kind === "wolf");
+  const far = () => Math.hypot(wolf().x - player.x, wolf().z - player.z);
+  herd.setSpawns([wolfAt("a")]);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(wolf().temper, "hostile", "a wolf is hostile unless something says otherwise");
+  // Squaring up: it comes to about six paces and holds there, and the game is told once.
+  run(12, { hostile: "threaten" });
+  assert.ok(far() > 4 && far() < 8, `it holds about six paces off (${far().toFixed(1)} m)`);
+  const told = herd.takeEvents();
+  assert.deepEqual(
+    told.map((event) => event.type),
+    ["threat"],
+    "and that's told, once",
+  );
+  assert.equal(herd.takeEvents().length, 0);
+  // Coming for them: it closes and snaps, then draws off.
+  run(8, { hostile: "attack" });
+  assert.ok(
+    herd.takeEvents().some((event) => event.type === "attack" && event.kind === "wolf"),
+    "let attack, it does",
+  );
+  // Somewhere confrontations aren't allowed, or kept from hostility, it leaves them be (and runs if they come close).
+  herd.setSpawns([wolfAt("b")]);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  run(10, { hostile: "attack", safe: true });
+  assert.equal(herd.takeEvents().length, 0, "nothing in a safe place");
+  run(10, { hostile: "avoid" });
+  assert.equal(herd.takeEvents().length, 0, "nor when hostile animals keep their distance");
+  // Tame by the lore: every wolf, and one the lore puts somewhere tame.
+  herd.setTempers({ wolf: "tame" });
+  assert.equal(wolf().temper, "tame");
+  run(10, { hostile: "attack" });
+  assert.equal(herd.takeEvents().length, 0, "a tame wolf is no danger");
+  herd.setTempers({});
+  herd.setSpawns([wolfAt("c", { temper: "tame" }), { ...wolfAt("d", { when: "night" }), kind: "deer" }]);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(wolf().temper, "tame", "one the lore calls tame is, among hostile ones");
+  // About only by night: out of sight by day.
+  const deer = () => herd.snapshot().find((beast) => beast.kind === "deer");
+  run(1, { night: false });
+  assert.equal(deer().shown, false, "by day it's in its den");
+  run(1, { night: true });
+  assert.equal(deer().shown, true, "and out at night");
+  herd.detach();
+
+  // The settlement's share: the rest are put outside it.
+  const inTown = (beast) => Math.max(Math.abs(beast.x), Math.abs(beast.z)) < world.layout.townHalf;
+  const crowded = herdFor(world, 4242, { counts: { ...none, strays: 10, farm: 10, town: 99 } });
+  const capped = herdFor(world, 4242, { counts: { ...none, strays: 10, farm: 10, town: 3 } });
+  assert.ok(crowded.filter(inTown).length > 3, `uncapped, the town has plenty (${crowded.filter(inTown).length})`);
+  assert.ok(capped.filter(inTown).length <= 3, `capped at three, three at most (${capped.filter(inTown).length})`);
+  assert.equal(capped.filter((beast) => beast.kind !== "horse").length, 10, "and every dog is still somewhere");
+  // Quiet places: none anywhere, none in the country, none round a spot.
+  assert.equal(herdFor(world, 4242, { quiet: { all: true } }).length, 0);
+  const tame = herdFor(world, 4242, { quiet: { wild: true } });
+  assert.ok(tame.length > 0 && tame.every((beast) => !["deer", "stag", "fox", "wolf"].includes(beast.kind)));
+  const plaza = world.layout.plaza;
+  const kept = herdFor(world, 4242, {
+    counts: { ...none, strays: 8, town: 99 },
+    quiet: { areas: [{ x: plaza.x, z: plaza.z, r: 12 }] },
+  });
+  assert.ok(
+    kept.length > 0 && kept.every((beast) => Math.hypot(beast.x - plaza.x, beast.z - plaza.z) >= 12),
+    "none where the lore keeps them out",
+  );
+  world.dispose();
+
+  // The keywords behind them.
+  const entry = (title, keys) => ({ id: title, title, keys: readKeys(keys).keys });
+  const books = [
+    {
+      id: "b",
+      name: "B",
+      entries: [
+        entry("Garden", ["ww:garden1", "ww:animals:none"]),
+        entry("Greenwood", ["ww:forest1", "ww:monster:wolf:tame:night:3"]),
+        entry("Wolf", ["ww:creature:Wolf", "ww:tame", "ww:active:night"]),
+      ],
+    },
+  ];
+  assert.deepEqual(quietFromLore(books), ["garden1"]);
+  assert.deepEqual(spawnsFromLore(books), [
+    { place: "forest1", kind: "wolf", size: "", count: 3, temper: "tame", when: "night" },
+  ]);
+  const own = creatureFromWords(books[0].entries[2].keys);
+  assert.deepEqual([own.tame, own.when], [true, "night"]);
 }
 
 // What lore says of someone with a dog or a horse of their own, and of someone without.

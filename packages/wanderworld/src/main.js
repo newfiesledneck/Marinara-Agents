@@ -38,6 +38,7 @@ import {
   ANIMAL_SIZES,
   creatureFromWords,
   petsFromLore,
+  quietFromLore,
   spawnsFromLore,
   structureFromKeywords,
   knowingFromWords,
@@ -1743,9 +1744,9 @@ function linkLore() {
         // What lives where, and whose animals are whose, as the lore's keywords say.
         spawns: spawnsFromLore(chosen),
         petLore: petsFromLore(chosen),
+        quiet: quietFromLore(chosen),
       };
-      syncPets();
-      syncSpawns();
+      restockHerd();
       if (places) nameFromLore(chosen);
       const names = namedZones(residentsOf(core.crowd.snapshot()));
       const found = matchLore(chosen, {
@@ -2311,6 +2312,7 @@ function setSetup(fields) {
   if (!core.save) return;
   core.save = { ...core.save, ...fields };
   core.saves.write(core.save);
+  if ("population" in fields) restockHerd(); // this world's own numbers of animals
   core.placesChanged = true;
   core.journalAt = 0;
 }
@@ -2566,6 +2568,9 @@ function journalData(zone, snapshot, residents, names) {
       time: clockText(),
       people: snapshot.length,
       seed: core.seed,
+      // This world's own numbers of animals (null: as Settings has them), and what Settings has.
+      population: core.save?.population ?? null,
+      populationUsual: herdOptions().counts,
     },
   };
 }
@@ -2748,13 +2753,42 @@ function setLook(id, look) {
 /** What Settings → Animals says, as the herd takes it: how many of each sort, and the kinds there are none of. */
 function herdOptions() {
   const s = core.settings;
+  // Where the lore keeps the world's own animals out of (ww:animals:none): everywhere, the country, or
+  // round a place that has a spot.
+  const quiet = { all: false, wild: false, areas: [] };
+  if (core.zones && core.save?.quiet?.length) {
+    const targets = placeTargets({
+      zones: core.zones,
+      names: core.save.names ?? {},
+      groups: [],
+      name: "",
+      characters: [],
+    });
+    for (const word of core.save.quiet) {
+      if (word === "world") quiet.all = true;
+      else if (/^(forest|wilds)\d*$/u.test(word)) quiet.wild = true;
+      for (const id of targets.get(plainWord(word)) ?? []) {
+        const shape = core.zones.byId.get(id)?.shape;
+        if (shape?.circle) quiet.areas.push({ x: shape.circle.x, z: shape.circle.z, r: shape.circle.r + 3 });
+        else if (shape?.box)
+          quiet.areas.push({
+            x: (shape.box.minX + shape.box.maxX) / 2,
+            z: (shape.box.minZ + shape.box.maxZ) / 2,
+            r: Math.hypot(shape.box.maxX - shape.box.minX, shape.box.maxZ - shape.box.minZ) / 2 + 2,
+          });
+      }
+    }
+  }
   return {
-    counts: {
+    quiet,
+    // (This world's own numbers, when it has them: Journal → World.)
+    counts: core.save?.population ?? {
       strays: s.animalsStrays,
       farm: s.animalsFarm,
       wild: s.animalsWild,
       hostile: s.animalsHostile,
       monsters: s.animalsMonsters,
+      town: s.animalsTown,
     },
     off: Object.entries(SWITCHES).flatMap(([name, kinds]) =>
       s[`animal${name[0].toUpperCase()}${name.slice(1)}`] === false ? kinds : [],
@@ -2965,14 +2999,30 @@ function syncSpawns() {
     return null;
   };
   const list = [];
-  const add = (id, word, size, count, place) => {
+  const add = (id, word, size, count, place, temper = "", when = "") => {
     const kind = animalKind(word);
     if (kind && animalAllowed(kind))
-      list.push({ id, kind, scale: ANIMAL_SIZES[size] ?? 1, sized: !!size, count, at: where(place) });
+      list.push({ id, kind, scale: ANIMAL_SIZES[size] ?? 1, sized: !!size, count, at: where(place), temper, when });
   };
   (core.save.spawns ?? []).forEach((spawn, i) =>
-    add(`place:${i}:${spawn.place}:${spawn.kind}`, spawn.kind, spawn.size, spawn.count, spawn.place),
+    add(
+      `place:${i}:${spawn.place}:${spawn.kind}`,
+      spawn.kind,
+      spawn.size,
+      spawn.count,
+      spawn.place,
+      spawn.temper,
+      spawn.when,
+    ),
   );
+  // What a creature's own entry says its kind is like here goes for every one of that kind: tame, or
+  // hostile (a monster is), and when it's about.
+  const tempers = {};
+  for (const creature of core.save.creatures ?? []) {
+    const kind = animalKind(creature.name);
+    if (kind && (creature.tame || creature.hostile)) tempers[kind] = creature.tame ? "tame" : "hostile";
+  }
+  core.herd.setTempers(tempers);
   for (const creature of core.save.creatures ?? [])
     (creature.found?.length ? creature.found : [null]).forEach((place, i) =>
       add(
@@ -2981,6 +3031,8 @@ function syncSpawns() {
         creature.size,
         creature.pack > 1 ? creature.pack : 0,
         place,
+        "",
+        creature.when === "night" || creature.when === "day" ? creature.when : "",
       ),
     );
   core.herd.setSpawns(list);
@@ -6604,7 +6656,27 @@ function step(dt) {
       );
     }
     core.owners.set(PLAYER_ID, core.player.position);
-    core.herd.update(dt, { player: core.player.position, owners: core.owners });
+    const at = core.player.position;
+    core.herd.update(dt, {
+      player: at,
+      owners: core.owners,
+      // What a hostile animal may do about the player, and whether here (Settings: animals, and where
+      // confrontations are allowed at all); and whether it's night, for the ones about only then.
+      hostile: core.settings.hostileAnimals,
+      safe: !aggressionAllowed(at.x, at.z),
+      night: core.hour < 5.5 || core.hour >= 20.5,
+    });
+    for (const event of core.herd.takeEvents()) {
+      const what = (PACK.animals[event.kind] ?? "the animal").replace(/^the /u, "");
+      narrate(null, pickLine(PACK.beasts[event.type] ?? [], `beast:${Math.floor(core.clock)}`, { kind: what }));
+      // A lunge sends them back a step (unless they're up on something, or in the middle of a move).
+      if (event.type === "attack" && core.mode === "walk" && !core.glide) {
+        const away = Math.atan2(at.x - event.x, at.z - event.z);
+        at.x += Math.sin(away) * 1.1;
+        at.z += Math.cos(away) * 1.1;
+        core.space.resolveCollisions(at, PLAYER_RADIUS, true);
+      }
+    }
   }
   core.crowd.update(dt, {
     player: core.player.position,

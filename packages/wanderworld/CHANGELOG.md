@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.5.39 — 2026-11-11
+
+- Hostile animals (Settings → Animals): a wolf keeps its distance, squares up to you about six paces off, or comes for you and sends you back a step, where confrontations are allowed. Nothing is hurt yet.
+- Lorebook keywords: `ww:tame` and `ww:hostile` on a creature's entry say what its kind is like in this world; `ww:active:night` or `day` when it's about; `ww:animals:none` on a place keeps the world's own animals out of it.
+- "Most in the settlement" caps the stray dogs and horses inside the town; the rest are put just outside.
+- Journal → World: one world's own numbers of animals.
+- Dogs are bigger at the top: massive is now as tall as a horse, and the sizes between are spaced evenly again. Huge and massive are ridden.
+
 ## 0.5.38 — 2026-11-11
 
 - Settings → Animals: a slider for how many of each sort a world has of its own (stray dogs, farm animals, peaceful wild animals, hostile ones, monsters), 0 for none. Animals a lorebook asks for and anyone's own are still there at 0, unless that's turned off.

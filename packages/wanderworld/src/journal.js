@@ -620,6 +620,59 @@ export function createJournal(panelCss, handlers) {
       row.append(element("span", "", "from"), ageMin, element("span", "", "to"), ageMax);
       body.append(row);
     }
+    // This world's own numbers of animals, over what Settings has for every world.
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Animals in this world"));
+    body.append(
+      explain(
+        "How many of each sort this world has of its own. Left off, it goes by Menu → Settings → Animals, like every other world. On, these numbers are this world's alone. 0 is none of that sort; what its lore asks for and anyone's own are as Settings has them.",
+      ),
+    );
+    {
+      const SORTS = [
+        ["strays", "Stray dogs", 12],
+        ["farm", "Farm animals", 40],
+        ["wild", "Wild (peaceful)", 40],
+        ["hostile", "Wild (hostile)", 30],
+        ["monsters", "Monsters", 30],
+        ["town", "Most in the settlement", 20],
+      ];
+      const own = element("input", "");
+      own.type = "checkbox";
+      own.checked = !!world.population;
+      own.setAttribute("aria-label", "This world has its own numbers of animals");
+      const ownRow = element("label", "display:flex;gap:8px;align-items:center;font-size:13px;");
+      ownRow.append(own, element("span", "", "This world has its own numbers"));
+      body.append(ownRow);
+      const boxes = SORTS.map(([sort, label, most]) => {
+        const box = element("input", `${FIELD}width:64px;`);
+        box.type = "number";
+        box.min = "0";
+        box.max = String(most);
+        box.value = String((world.population ?? world.populationUsual ?? {})[sort] ?? 0);
+        box.disabled = !world.population;
+        box.setAttribute("aria-label", `${label} in this world`);
+        const row = element(
+          "label",
+          "display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13px;",
+        );
+        row.append(element("span", "", label), box);
+        body.append(row);
+        return [sort, box, most];
+      });
+      const save = () =>
+        handlers.onSetSetup({
+          population: own.checked
+            ? Object.fromEntries(
+                boxes.map(([sort, box, most]) => [
+                  sort,
+                  Math.max(0, Math.min(most, Math.round(Number(box.value)) || 0)),
+                ]),
+              )
+            : null,
+        });
+      own.addEventListener("change", save);
+      for (const [, box] of boxes) box.addEventListener("change", save);
+    }
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Scene instructions for this world"));
     body.append(
       explain(
