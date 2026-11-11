@@ -203,9 +203,11 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
   {
     const kinds = Object.keys(ANIMALS).filter((kind) => ANIMALS[kind].group === "monsters" && on(kind));
     let left = quiet.wild || !kinds.length ? 0 : want("monsters");
-    for (let guard = 0; guard < 80 && left > 0; guard++) {
+    for (let guard = 0; guard < 200 && left > 0; guard++) {
+      // (A rare kind, a dragon, is let through one time in five, and is alone.)
       const kind = pick(kinds);
-      const size = Math.min(left, random() < 0.5 ? 1 : 2 + Math.floor(random() * 2));
+      if (ANIMALS[kind].rare && random() > 0.2 && kinds.some((other) => !ANIMALS[other].rare)) continue;
+      const size = ANIMALS[kind].rare ? 1 : Math.min(left, random() < 0.5 ? 1 : 2 + Math.floor(random() * 2));
       const den = wild(45) ?? wild(20) ?? wild(8);
       if (!den) continue;
       for (let n = 0; n < size; n++) {

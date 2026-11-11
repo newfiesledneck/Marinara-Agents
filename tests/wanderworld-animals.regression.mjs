@@ -135,9 +135,9 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
   animal.dispose();
 }
 await assert.rejects(() =>
-  fetch("x/kit/creatures/dragon.json").then((r) => (r.ok ? r : Promise.reject(new Error("404")))),
+  fetch("x/kit/creatures/unicorn.json").then((r) => (r.ok ? r : Promise.reject(new Error("404")))),
 );
-assert.equal((await createAnimal("dragon")).kind, "deer", "an unknown kind is a deer");
+assert.equal((await createAnimal("unicorn")).kind, "deer", "an unknown kind is a deer");
 
 // ── Files by group, and coats ────────────────────────────────────────────────
 for (const [kind, facts] of Object.entries(ANIMALS)) {
@@ -432,8 +432,10 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   assert.deepEqual([own.pack, own.size, own.found], [4, "huge", ["forest1"]]);
   assert.ok(books[0].entries[3].keys.includes("monster") && !books[0].entries[0].keys.includes("monster"));
   assert.deepEqual(
-    ["wolves", "Hound", "goblin", "pony", "deer", "Slimes", "skeleton", "bats", "Demons", "dragon"].map(animalKind),
-    ["wolf", "husky", "puglin", "horse", "deer", "slime", "skeleton", "bat", "imp", null],
+    ["wolves", "Hound", "goblin", "pony", "deer", "Slimes", "skeleton", "bats", "Demons", "wyvern", "unicorn"].map(
+      animalKind,
+    ),
+    ["wolf", "husky", "puglin", "horse", "deer", "slime", "skeleton", "bat", "imp", "dragon", null],
     "the words for the animals the game has, and none for the ones it hasn't",
   );
 }
@@ -471,7 +473,7 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   }
   const slimes = herdFor(world, 4242, {
     counts: { ...none, monsters: 9 },
-    off: ["skeleton", "spider", "rat", "snake", "bat", "wasp", "imp", "puglin"],
+    off: ["skeleton", "spider", "rat", "snake", "bat", "wasp", "frog", "dragon", "imp", "puglin"],
   });
   assert.ok(slimes.length === 9 && slimes.every((beast) => beast.kind === "slime"), "only the kinds left on");
   // Wolves keep to their packs: several of them, some sharing a home, none bigger than five.

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.49",
+          "date": "2026-11-11",
+          "notes": "- Two more monsters: the giant frog, which hops, and the dragon, which is rare, alone and high overhead.\n- Lore can ask for them (`ww:monster:frog`, `ww:monster:dragon`; toad, wyvern and drake are read too), and Settings → Animals has a switch for each.",
+          "highlight": false
+        },
+        {
           "version": "0.5.48",
           "date": "2026-11-11",
           "notes": "- Two more monsters: the imp and the puglin (a pig-goblin). They walk on two legs, moved by the people's own animations.\n- Lore can ask for them by name (`ww:monster:imp`, `ww:monster:puglin`); goblin and orc are read as a puglin, demon and devil as an imp.\n- Settings → Animals has a switch for each.",
@@ -307,12 +313,6 @@
           "version": "0.5.30",
           "date": "2026-11-11",
           "notes": "- Fixed: in a world with a smithy, every prop stayed a plain shape (boxes for wagons and crates, white picket fences) even with Detailed furniture and props on. The smithy's anvil, workbench and weapon stand weren't being loaded, which held all the others back.\n- Name your dog and your horse in the Look card. The name is used in the Party tab, the Ride prompt, the chat's Send home button and what's narrated.\n- Skin tones: twelve, from Pale to Ebony, each coming out as its own colour. Brown and the darker tones no longer look grey or washed out. People without a chosen tone get one from the wider list, so some will change.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.29",
-          "date": "2026-11-11",
-          "notes": "- The chat box's hint shows the action command as \"/a(ction)\", the rest of the word dimmer: /a and /action both work.\n- The Journal's Party tab lists your dog and horse, with Send home and Call along, and the dog of anyone travelling with you.\n- The chat window has Send dog home and Send horse home while they're with you. Each asks \"Sure?\" before it does it.",
           "highlight": false
         }
       ]

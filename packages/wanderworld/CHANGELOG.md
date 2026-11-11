@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.49 — 2026-11-11
+
+- Two more monsters: the giant frog, which hops, and the dragon, which is rare, alone and high overhead.
+- Lore can ask for them (`ww:monster:frog`, `ww:monster:dragon`; toad, wyvern and drake are read too), and Settings → Animals has a switch for each.
+
 ## 0.5.48 — 2026-11-11
 
 - Two more monsters: the imp and the puglin (a pig-goblin). They walk on two legs, moved by the people's own animations.
