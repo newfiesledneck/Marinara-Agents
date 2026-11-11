@@ -1203,6 +1203,44 @@ function placeLocal(town, outpost, geometry) {
   town.pieces.push(geometry.rotateY((outpost.facing * Math.PI) / 2).translate(outpost.x, 0, outpost.z));
 }
 
+/**
+ * Kit props that dress a place out in the country (the props kit's CC0 models by iPoly3D): the watch's
+ * gallows, pillory and cage beside its tower, crystals among the standing stones, a signpost off the
+ * corner of an inn or a cottage (`size`: its building's). From numbers of their own, seeded by where the
+ * place is, so nothing built before them moves. With no props kit they simply aren't there.
+ */
+function dressPlace(town, outpost, size = null) {
+  const random = rng(hashString(`${Math.round(outpost.x)}:${Math.round(outpost.z)}:dress`));
+  const turn = (outpost.facing * Math.PI) / 2;
+  /** `r`: how wide it stands in the way (0: walked through). */
+  const put = (model, lx, lz, { angle = 0, scale = 1, r = 0 } = {}) => {
+    const spot = toWorld(outpost.x, outpost.z, outpost.facing, lx, lz);
+    placeKitProp(town, null, { model, x: spot.x, z: spot.z, angle: turn + angle, scale });
+    if (r) town.circles.push({ x: spot.x, z: spot.z, r });
+  };
+  if (outpost.kind === "watchtower") {
+    put("gallows", -7.5, 1, { angle: 0.3, r: 1.1 });
+    put("pillory", 5.5, 3.5, { angle: -0.4, scale: 1.25, r: 0.6 });
+    if (random() < 0.6) put("cage", 6.5, -3, { angle: random() * 6.3, r: 1.1 });
+  } else if (outpost.kind === "stones") {
+    for (const model of ["crystal-1", "crystal-2", "crystal-3"]) {
+      const angle = random() * 6.3;
+      const out = 2.6 + random() * 2.2;
+      put(model, Math.cos(angle) * out, Math.sin(angle) * out, {
+        angle: random() * 6.3,
+        scale: 0.16 + random() * 0.1,
+        r: 0.5,
+      });
+    }
+  } else if (size) {
+    const side = random() < 0.5 ? -1 : 1;
+    put(random() < 0.5 ? "signpost" : "signpost-2", side * (size.width / 2 + 2.5), size.depth / 2 + 1.5, {
+      angle: (random() - 0.5) * 0.6,
+      r: 0.3,
+    });
+  }
+}
+
 /** Landmarks out in the country, each built from plain shapes (no kit models), with its colliders. */
 const LANDMARKS = {
   /** A pond in a hollow: reeds and ferns round the shore, a few mossy stones, a bench looking over it. */
@@ -2366,6 +2404,7 @@ function buildCountry(random, town, land, ground) {
     }
     if (LANDMARKS[outpost.kind]) {
       LANDMARKS[outpost.kind](random, town, outpost);
+      dressPlace(town, outpost);
       continue;
     }
     const kind = outpost.kind === "inn" ? "tavern" : "home";
@@ -2373,6 +2412,7 @@ function buildCountry(random, town, land, ground) {
     doorOf.set(outpost.index, town.doors.length);
     doorsOf.set(outpost.index, [town.doors.length]);
     placeBuilding(random, town, makeSpec(random, kind, size), outpost.x, outpost.z, outpost.facing);
+    dressPlace(town, outpost, size);
   }
   if (caveRock.length) {
     meshes.push(new Mesh(mergeGeometries(caveRock), cliffMaterial(ground)));

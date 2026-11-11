@@ -184,7 +184,19 @@ const SETS = {
     fbx: ["Barn", "Windmill"],
     // Single models from Poly Pizza, each a .glb named as it was downloaded: [our name, the file]. These
     // are CC-BY 3.0: each is credited in kit/CREDITS.md, Help's credits and the README.
-    glb: [["saddle", "Saddle by Poly by Google - dSMm_V4sKNr.glb"]],
+    // The rest are CC0, from iPoly3D's Medieval Torture Devices, Signs pack and Crystal Pack on Poly Pizza
+    // (unzipped into one folder): coloured by their materials, no textures but the crystals'.
+    glb: [
+      ["saddle", "Saddle by Poly by Google - dSMm_V4sKNr.glb"],
+      ["gallows", "Gallows.glb"],
+      ["pillory", "Pilory.glb"],
+      ["cage", "Cage.glb"],
+      ["signpost", "Wooden Sign.glb"],
+      ["signpost-2", "Wooden Sign-3MStJYAez7.glb"],
+      ["crystal-1", "Crystal-3saqXqoOti.glb"],
+      ["crystal-2", "Crystal-5dXobG8vsp.glb"],
+      ["crystal-3", "Crystal-7Do2pm4F8O.glb"],
+    ],
     textureSize: () => 512,
   },
 };

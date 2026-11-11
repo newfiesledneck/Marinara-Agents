@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.57",
+          "date": "2026-11-11",
+          "notes": "- More to find out in the country: a gallows, a pillory and sometimes a cage beside a watchtower; crystals among the standing stones; a signpost off the corner of an inn or a cottage.\n- They're CC0 models by iPoly3D (Medieval Torture Devices, Signs pack, Crystal Pack), credited in Help, the README and `kit/CREDITS.md`.\n- Nothing already in a world moves: they're placed from numbers of their own.",
+          "highlight": false
+        },
+        {
           "version": "0.5.56",
           "date": "2026-11-11",
           "notes": "- Journal → Home says that furnishing needs Settings → Walk into buildings switched on, when it's off.\n- The README's known limits and how-it-works are brought up to date with 0.5.45 to 0.5.55.",
@@ -307,12 +313,6 @@
           "version": "0.5.38",
           "date": "2026-11-11",
           "notes": "- Settings → Animals: a slider for how many of each sort a world has of its own (stray dogs, farm animals, peaceful wild animals, hostile ones, monsters), 0 for none. Animals a lorebook asks for and anyone's own are still there at 0, unless that's turned off.\n- A switch for each kind: off, there are none of it anywhere, lore or not.\n- Wolves come alone and in packs of two to five that keep together; a pack of three counts as three.\n- A dog has five sizes, evenly spaced from small to massive (the size of a small horse), and is owned or not: the size decides its body. A huge or a massive dog can be ridden.\n- Both dogs come in the same six coats.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.37",
-          "date": "2026-11-11",
-          "notes": "- Animals have a size. A dog's or a horse's is in the Look card (Small, Usual, Large, Huge), and a big horse's back is higher to sit on.\n- Lorebook keyword `ww:pet:horse:large:brown:Shadowmere` on a character's entry (or `ww:you`) gives them that animal: the size, colour, name and breed in any order. The same for `ww:pet:dog:…`.\n- Lorebook keyword `ww:monster:wolf:large:pack5` on a place's entry puts that pack there; `ww:monster:wolf` alone puts wolves there, however many. A creature's own entry with `ww:found in:…` does the same.\n- Doubled colons read the same as single: `ww::pet::horse`.\n- Without these keywords a world's animals are as before.",
           "highlight": false
         }
       ]

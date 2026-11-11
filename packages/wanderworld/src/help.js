@@ -162,6 +162,7 @@ export const CREDITS = [
       "Stylized Nature MegaKit: the common, twisted, dead and pine trees with their bark and leaves, bushes and flowering bushes, ferns, clover, flowers, grasses, mushrooms, plants, pebbles, rocks and the rock path.",
       "Universal Base Characters and Modular Character Outfits - Fantasy: the townsfolk. The male and female bodies and heads, the peasant outfits and their colours, eyes, and the hair and beards.",
       "Farm Buildings: the barn and the windmill.",
+      "Medieval Torture Devices, Signs pack and Crystal Pack by iPoly3D (CC0, from Poly Pizza): the gallows, pillory and cage by a watchtower, signposts at inns and cottages, crystals among standing stones.",
       "Ultimate Modular Men and Ultimate Modular Women: the costumes.",
       "Credit required (CC-BY 3.0, https://creativecommons.org/licenses/by/3.0/): Saddle by Poly by Google, https://poly.pizza/m/dSMm_V4sKNr, modified (converted, resized, its texture shrunk). Its maker has not endorsed Wanderworld.",
       "Monster Pack Animated and Easy Animated Enemy Pack: the slime, skeleton, giant spider, giant rat, snake, bat, giant wasp, giant frog and dragon.",
