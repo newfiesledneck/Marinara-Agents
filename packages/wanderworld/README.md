@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.26)
+## What it does now (0.5.27)
 
 ### The world
 
@@ -259,9 +259,14 @@ only walk about.
   the group in earshot comes with them in the same call.
 - **Animals:** cattle (now and then a bull or an alpaca), a donkey and a horse at each farm; a dog or
   two about the market; a horse by each tavern and inn; and out in the country deer in twos and threes
-  with a stag, a fox, and wolves well away from the houses. They wander, graze and look about, keep out
+  with a stag, foxes, and a pack of three to five wolves well away from the houses. They wander, graze and look about, keep out
   of the river, and the wild ones bolt when you come close. Horses come in seven coats and dogs in four,
   so a world's horses are a mix. A world's animals, and their coats, come from its seed.
+- **Animals of your own:** the Look card (Menu, Look beside your persona) has Dog and Horse: the kind,
+  the coat, and whether each is with you or at home. With you, it follows and turns up beside you if left
+  far behind; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
+  down from walks back there. Someone in town whose lore mentions their dog has one at their heel; their
+  Look card can change it or take it away. Kept with the world.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
   Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences and benches), it turns less sharply than you do and won't go where it
   would have to swim, and E, Esc or Get down gets you off beside it. It stays where you leave it, and

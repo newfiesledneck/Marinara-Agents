@@ -50,6 +50,7 @@ import { createPerson, lookChoices } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
+import { COATS, coatFor } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
@@ -251,6 +252,7 @@ const core = {
   cast: new Set(), // the character ids living in town
   bodies: {}, // chosen default bodies by id ("male" | "female"; missing means auto)
   looks: {}, // and what else was chosen for them by hand (looks.js), by id
+  pets: {}, // animals of one's own, by owner id (saves.js `pets`)
   crowd: createCrowd(),
   herd: createHerd(), // the world's animals (herd.js)
   mount: null, // the animal being ridden: { id, kind, back, walk, gallop } (ride())
@@ -483,6 +485,7 @@ function buildWorld(seed, place = null) {
   core.world.scene.add(core.player);
   core.crowd.setWorld(core.world);
   core.herd.setWorld(core.world, hashString(seed));
+  syncPets();
   resetMode();
   // Where to start: where they were, else at their own front door (from their lore), else the square.
   const homeDoor = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
@@ -655,6 +658,7 @@ function playWorld(id) {
     core.saves.write(save);
   }
   core.looks = { ...(save.looks ?? {}) };
+  core.pets = { ...(save.pets ?? {}) };
   core.save = save;
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
@@ -2721,6 +2725,114 @@ function setLook(id, look) {
   else updateCast();
 }
 
+// ── Animals of one's own ─────────────────────────────────────────────────────
+// A dog for anyone, a horse for the player: chosen in the Look card, kept with the world (`pets`), and
+// alive in the herd (herd.js `setOwned`). Someone whose lore gives them a dog has one without being asked.
+
+const petOwner = (id) => (id === core.personaId ? PLAYER_ID : id);
+const dogLore = new Map(); // id → [how much was read, whether it says they've a dog]
+
+/** What's written of `id`: their card, or what was made up for them, and their lore in this world. */
+function aboutOf(id) {
+  const save = core.save;
+  if (!save) return "";
+  const local = (save.locals ?? []).find((person) => person.id === id);
+  const entry = (core.characters ?? []).find((character) => character.id === id);
+  const about = local
+    ? [local.description, local.personality, local.appearance].filter(Boolean).join(" ")
+    : String(entry?.description ?? "");
+  return `${about} ${worldNote(save, `character:${id}`)?.content ?? ""}`;
+}
+
+/** `owner`'s animals as they are now: { dog: { kind, coat, out, lore? } | null, horse: { coat, out } | null }. */
+function petsFor(owner) {
+  const kept = core.pets[owner] ?? {};
+  let dog = COATS[kept.dog?.kind] && kept.dog.kind !== "horse" ? kept.dog : null;
+  if (kept.dog === undefined && owner !== PLAYER_ID) {
+    const text = aboutOf(owner);
+    if (dogLore.get(owner)?.[0] !== text.length) dogLore.set(owner, [text.length, PACK.dogLore.test(text)]);
+    if (dogLore.get(owner)[1]) {
+      const n = hashString(`dog:${owner}`);
+      const kind = Object.keys(PACK.dogs)[n % Object.keys(PACK.dogs).length];
+      dog = { kind, coat: coatFor(kind, n >>> 4), out: true, lore: true };
+    }
+  }
+  const horse = owner === PLAYER_ID && COATS.horse[kept.horse?.coat] ? kept.horse : null;
+  return { dog, horse };
+}
+
+/** Puts everyone's animals in the world as they're kept: with their owner, or at their place by their door. */
+function syncPets() {
+  if (!core.world || !core.save) return;
+  const list = [];
+  const doorOf = (zone) => {
+    const index = zone ? (core.zones?.byId.get(zone)?.door ?? null) : null;
+    return index === null ? null : (core.world.doors[index] ?? null);
+  };
+  // In front of a door and off to one side of it.
+  const beside = (door, side, out) => ({
+    x: door.x + Math.sin(door.angle) * out + Math.cos(door.angle) * side,
+    z: door.z + Math.cos(door.angle) * out - Math.sin(door.angle) * side,
+  });
+  const plaza = core.world.layout.plaza;
+  for (const owner of [PLAYER_ID, ...core.crowd.snapshot().map((person) => person.id)]) {
+    const { dog, horse } = petsFor(owner);
+    if (!dog && !horse) continue;
+    // Home is their own door; with none, the player's animals keep to the tavern's (its yard is the stable).
+    const door = doorOf(core.save.housing?.[owner]?.home) ??
+      (owner === PLAYER_ID ? core.world.doors.find((other) => other.kind === "tavern") : null) ?? {
+        x: plaza.x,
+        z: plaza.z,
+        angle: 0,
+      };
+    if (dog)
+      list.push({
+        id: `pet:${owner}:dog`,
+        kind: dog.kind,
+        coat: dog.coat,
+        owner,
+        out: dog.out !== false,
+        home: beside(door, 1.4, 2),
+      });
+    if (horse)
+      list.push({
+        id: `pet:${owner}:horse`,
+        kind: "horse",
+        coat: horse.coat,
+        owner,
+        out: horse.out !== false,
+        home: beside(door, -3.6, 2.6),
+      });
+  }
+  core.herd.setOwned(list);
+}
+
+/** Chooses `id`'s dog or horse (`role`): { kind, coat, out }, or null for none. */
+function setPet(id, role, value) {
+  if (!core.save || (role !== "dog" && role !== "horse")) return;
+  const owner = petOwner(id);
+  core.pets = { ...core.pets, [owner]: { ...core.pets[owner], [role]: value } };
+  core.save = { ...core.save, pets: core.pets };
+  core.saves.write(core.save);
+  syncPets();
+}
+
+/** What the Look card needs of `id`'s animals: what they have, and what there is to choose from. */
+function petsOf(id) {
+  const owner = petOwner(id);
+  return {
+    ...petsFor(owner),
+    mine: owner === PLAYER_ID,
+    dogs: Object.fromEntries(
+      Object.entries(PACK.dogs).map(([kind, label]) => [
+        kind,
+        { label, coats: Object.keys(COATS[kind]).map((coat) => [coat, PACK.coats[coat] ?? coat]) },
+      ]),
+    ),
+    horses: Object.keys(COATS.horse).map((coat) => [coat, PACK.coats[coat] ?? coat]),
+  };
+}
+
 /** What the Look card needs for `id`: their name, how they look now, and whether a 3D model hides it. */
 async function lookOf(id) {
   const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
@@ -2728,7 +2840,14 @@ async function lookOf(id) {
   const hasModel = persona ? !!core.personaHasModel : !!core.crowd.hasModel(id);
   const chosen = core.looks[id] ?? {};
   try {
-    return { id, name, hasModel, chosen, now: await lookChoices(name, core.bodies[id] ?? "auto", chosen) };
+    return {
+      id,
+      name,
+      hasModel,
+      chosen,
+      pets: core.save ? petsOf(id) : null,
+      now: await lookChoices(name, core.bodies[id] ?? "auto", chosen),
+    };
   } catch {
     return null; // the kit's people couldn't be loaded
   }
@@ -5481,6 +5600,20 @@ function usable() {
       act: () => enterCave(cave),
     });
   }
+  // Your own dog, at home: call it along. (Sending it home is in your Look card: it's always at your heel.)
+  for (const pet of core.interior ? [] : core.herd.snapshot()) {
+    if (pet.owner !== PLAYER_ID || pet.out || pet.kind === "horse" || !pet.loaded) continue;
+    list.push({
+      kind: "thing",
+      label: "Call the dog along",
+      x: pet.x,
+      z: pet.z,
+      y: 0.9,
+      reach: 2.2,
+      mount: true,
+      act: () => setPet(core.personaId, "dog", { ...petsFor(PLAYER_ID).dog, out: true }),
+    });
+  }
   // A horse or a donkey close by: something to ride.
   for (const mount of core.interior ? [] : core.herd.mounts(core.player.position, 6)) {
     list.push({
@@ -6180,7 +6313,24 @@ function step(dt) {
   viewProjection.multiplyMatrices(core.camera.projectionMatrix, core.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(viewProjection);
   const inside = !!core.interior;
-  if (!core.interior) core.herd.update(dt, { player: core.player.position });
+  if (!core.interior) {
+    // Where each owner of an animal is, for it to keep up with (looked up a few times a second), and
+    // now and then who has one at all (someone new in town, lore that's changed).
+    if (core.clock >= (core.petsAt ?? 0)) {
+      core.petsAt = core.clock + 4;
+      syncPets();
+    }
+    if (core.clock >= (core.ownersAt ?? 0)) {
+      core.ownersAt = core.clock + 0.3;
+      core.owners = new Map(
+        core.crowd
+          .snapshot()
+          .map((person) => [person.id, { x: person.x, z: person.z, inside: person.inDoor !== null || person.inRoom }]),
+      );
+    }
+    core.owners.set(PLAYER_ID, core.player.position);
+    core.herd.update(dt, { player: core.player.position, owners: core.owners });
+  }
   core.crowd.update(dt, {
     player: core.player.position,
     space: core.space,
@@ -6384,6 +6534,7 @@ function attach(element) {
     onToggleCharacter: toggleCharacter,
     onSetBody: setBody,
     onSetLook: setLook,
+    onSetPet: setPet,
     lookOf,
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,

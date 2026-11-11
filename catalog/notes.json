@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.27",
+          "date": "2026-11-11",
+          "notes": "- A dog and a horse of your own: the Look card has Dog and Horse, with the kind, the coat, and whether each is with you or at home. With you, it follows; at home it keeps by your door, or the tavern's if you have no home.\n- Someone in town whose lore mentions their dog has one at their heel. Their Look card can change it or take it away.\n- More wildlife: wolves in packs of three to five, more deer, more foxes.\n- With detailed props off, a wagon is drawn as a wagon, not a plain box.",
+          "highlight": false
+        },
+        {
           "version": "0.5.26",
           "date": "2026-11-11",
           "notes": "- Horses come in seven coats (bay, white, black, grey, chestnut, palomino, brown) and each kind of dog in four. Which one an animal has comes from the world's seed, so a world with several horses has a mix. The Ride prompt names the coat.\n- The animals' files are grouped: one for the farm's and the town's, one for the country's. The package has ten fewer files, with room for monsters as a group of their own.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.8",
           "date": "2026-11-11",
           "notes": "- The assistant's proposal can be edited before you confirm. Each change has a tick, so you can leave some out and keep the rest, and the text it wrote (lore, a new person's name and card, a place's name, the world's setting and look, a note, an errand) is in boxes you can rewrite. What you confirm is what you see.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.7",
-          "date": "2026-11-11",
-          "notes": "- The assistant's Undo now takes back only what the assistant changed. Anything you changed yourself after its Confirm (in the Journal, or through play) stays, and if you've since changed the very same thing, yours is kept. Something the assistant added, such as a person or a lore entry, still goes.",
           "highlight": false
         }
       ]

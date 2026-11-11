@@ -84,7 +84,7 @@ const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always 
 
 /**
  * `handlers`: onMenu, onToggleFullscreen, onPickPersona(id), onToggleCharacter(id, chosen),
- * onSetBody(id, body), onSetLook(id, look), lookOf(id), onSetting(name, value), onUse(), onJump(),
+ * onSetBody(id, body), onSetLook(id, look), onSetPet(id, role, pet), lookOf(id), onSetting(name, value), onUse(), onJump(),
  * onRest(), onRenameZone(id, name), onZoneLore(id), and `maxPeople`.
  */
 export function createHud(root, handlers) {
@@ -149,6 +149,7 @@ export function createHud(root, handlers) {
     layer.append(card);
     let chosen = { ...info.chosen };
     let now = info.now;
+    let pets = info.pets;
     let picking = null; // which colour of one's own is being picked ("tint:top", "hairTint", "skinTint")
     let draft = null; // the colour in the picker, as { h, s, l }, until it's used or cancelled
     const draw = () => {
@@ -397,6 +398,68 @@ export function createHud(root, handlers) {
       height.setAttribute("aria-label", "Height");
       height.addEventListener("change", () => set({ height: Number(height.value) }));
       row("Height", height);
+      // Their animals: a dog for anyone, and a horse of your own. Each is with them, or kept at home.
+      if (pets) {
+        const choose = (label, options, value, onChange) => {
+          const select = document.createElement("select");
+          select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          select.setAttribute("aria-label", label);
+          for (const [option, text] of options) {
+            const item = document.createElement("option");
+            item.value = option;
+            item.textContent = text;
+            select.append(item);
+          }
+          select.value = value;
+          select.addEventListener("change", () => {
+            handlers.onSetPet(id, ...onChange(select.value));
+            void handlers.lookOf(id).then((next) => {
+              if (!next || lookCard !== card) return;
+              pets = next.pets;
+              card.replaceChildren(...draw());
+            });
+          });
+          row(label, select);
+        };
+        const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+        const where = [
+          ["out", pets.mine ? "With you" : "With them"],
+          ["home", "At home"],
+        ];
+        const dog = pets.dog;
+        choose(
+          "Dog",
+          [["", "None"], ...Object.entries(pets.dogs).map(([kind, entry]) => [kind, entry.label])],
+          dog?.kind ?? "",
+          (kind) => ["dog", kind ? { kind, coat: pets.dogs[kind].coats[0][0], out: dog?.out !== false } : null],
+        );
+        if (dog) {
+          choose(
+            "Dog's coat",
+            pets.dogs[dog.kind].coats.map(([coat, word]) => [coat, capital(word)]),
+            dog.coat,
+            (coat) => ["dog", { kind: dog.kind, coat, out: dog.out !== false }],
+          );
+          choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
+            "dog",
+            { kind: dog.kind, coat: dog.coat, out: at === "out" },
+          ]);
+        }
+        if (pets.mine) {
+          const horse = pets.horse;
+          choose(
+            "Horse",
+            [["", "None"], ...pets.horses.map(([coat, word]) => [coat, capital(word)])],
+            horse?.coat ?? "",
+            (coat) => ["horse", coat ? { coat, out: horse?.out !== false } : null],
+          );
+          if (horse)
+            choose("Horse is", where, horse.out !== false ? "out" : "home", (at) => [
+              "horse",
+              { coat: horse.coat, out: at === "out" },
+            ]);
+        }
+      }
       const buttons = document.createElement("div");
       buttons.style.cssText = "display:flex;gap:8px;";
       const reset = button("Reset", "Forget these choices: back to the look their name gives", () => {

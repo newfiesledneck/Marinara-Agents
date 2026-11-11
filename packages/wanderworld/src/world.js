@@ -48,6 +48,7 @@ import {
   PORCH_HEIGHT,
   PORCH_OUT,
   styleFor,
+  wagon,
   bush,
   crate,
   DOOR,
@@ -1537,7 +1538,7 @@ const STALL_BOX = { minX: -1.3, maxX: 1.3, minZ: -0.65, maxZ: 0.8 };
 /** A wagon left at the side of a street at (x, z), lying along x (`alongX`) or z. */
 function placeWagon(random, town, x, z, alongX) {
   const angle = (alongX ? Math.PI / 2 : 0) + (random() < 0.5 ? 0 : Math.PI);
-  placeKitProp(town, crate(1.4).scale(1.2, 1, 2.6), {
+  placeKitProp(town, wagon(), {
     model: "prop-wagon",
     x,
     z,

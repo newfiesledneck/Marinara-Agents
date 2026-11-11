@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.27 — 2026-11-11
+
+- A dog and a horse of your own: the Look card has Dog and Horse, with the kind, the coat, and whether each is with you or at home. With you, it follows; at home it keeps by your door, or the tavern's if you have no home.
+- Someone in town whose lore mentions their dog has one at their heel. Their Look card can change it or take it away.
+- More wildlife: wolves in packs of three to five, more deer, more foxes.
+- With detailed props off, a wagon is drawn as a wagon, not a plain box.
+
 ## 0.5.26 — 2026-11-11
 
 - Horses come in seven coats (bay, white, black, grey, chestnut, palomino, brown) and each kind of dog in four. Which one an animal has comes from the world's seed, so a world with several horses has a mix. The Ride prompt names the coat.

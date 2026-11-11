@@ -236,6 +236,50 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   }
   const cow = herd.snapshot().find((beast) => beast.kind === "cow");
   if (cow) assert.equal(herd.ride(cow.id), null, "a cow isn't for riding");
+  // Animals of someone's own: with their owner they keep up; sent home they go back to their door.
+  {
+    const wolves = herd.snapshot().filter((beast) => beast.kind === "wolf");
+    assert.ok(wolves.length >= 3, `wolves come in a pack (${wolves.length})`);
+    const home = { x: player.x + 3, z: player.z };
+    const pets = (out) => [
+      { id: "pet:you:dog", kind: "husky", coat: "black", owner: "you", out, home },
+      { id: "pet:you:horse", kind: "horse", coat: "grey", owner: "you", out, home: { x: home.x + 3, z: home.z } },
+    ];
+    const before = herd.snapshot().length;
+    herd.setOwned(pets(true));
+    herd.setOwned(pets(true));
+    assert.equal(herd.snapshot().length, before + 2, "each is there once, however often it's said");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const dog = () => herd.snapshot().find((beast) => beast.id === "pet:you:dog");
+    assert.ok(dog().loaded && dog().owner === "you" && dog().out === true && dog().coat === "black");
+    // The owner walks off; the dog keeps up, and the horse can be ridden.
+    const owner = { x: player.x, z: player.z };
+    for (let t = 0; t < 12; t += 0.1) {
+      owner.x += 0.25;
+      herd.update(0.1, { player: owner, owners: new Map([["you", owner]]) });
+    }
+    assert.ok(Math.hypot(dog().x - owner.x, dog().z - owner.z) < 8, "a dog keeps up with its owner");
+    assert.ok(
+      herd.mounts(owner, 12).some((entry) => entry.id === "pet:you:horse"),
+      "your own horse can be ridden",
+    );
+    // Left far behind, it turns up beside them.
+    owner.x += 80;
+    herd.update(0.1, { player: owner, owners: new Map([["you", owner]]) });
+    assert.ok(Math.hypot(dog().x - owner.x, dog().z - owner.z) < 6, "left far behind, it turns up beside them");
+    // Indoors, it waits; sent home, it goes back.
+    const waited = dog();
+    herd.update(1, { player: owner, owners: new Map([["you", { x: owner.x + 20, z: owner.z, inside: true }]]) });
+    assert.equal(dog().x, waited.x, "it waits outside while they're indoors");
+    herd.setOwned(pets(false));
+    Object.assign(owner, { x: home.x + 10, z: home.z });
+    for (let t = 0; t < 240; t += 0.1) herd.update(0.1, { player: owner, owners: new Map([["you", owner]]) });
+    assert.ok(Math.hypot(dog().x - home.x, dog().z - home.z) < 30, "sent home, it heads back there");
+    herd.setOwned([pets(false)[1]]);
+    assert.equal(dog(), undefined, "no longer theirs, it's gone");
+    herd.setOwned([]);
+    assert.equal(herd.snapshot().length, before);
+  }
   herd.detach();
   assert.equal(herd.snapshot().length, 0);
   world.dispose();
