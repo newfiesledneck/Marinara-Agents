@@ -90,11 +90,13 @@ assert.deepEqual(
     "found in cave1",
     "night",
     "pack 4",
+    "size large",
     "danger 22",
     "drops wolf pelt",
     "drop gold",
   ]),
   {
+    size: "large",
     found: ["forest1", "cave1"],
     when: "night",
     pack: 4,
@@ -102,7 +104,14 @@ assert.deepEqual(
     drops: ["wolf pelt", "gold"],
   },
 );
-assert.deepEqual(creatureFromWords(["creature"]), { found: [], when: "any", pack: 1, danger: 1, drops: [] });
+assert.deepEqual(creatureFromWords(["creature", "size enormous"]), {
+  size: "", // (not a size it knows: the usual)
+  found: [],
+  when: "any",
+  pack: 1,
+  danger: 1,
+  drops: [],
+});
 
 // Owners by the place's entry, and factions with their members.
 const zones = { byId: new Map([["building:1", { id: "building:1", kind: "building", buildingKind: "tavern" }]]) };
