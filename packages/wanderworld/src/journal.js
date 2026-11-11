@@ -13,6 +13,7 @@ const TABS = [
   ["here", "Here"],
   ["people", "People"],
   ["party", "Party"],
+  ["home", "Home"],
   ["places", "Places"],
   ["map", "Map"],
   ["world", "World"],
@@ -303,6 +304,103 @@ export function createJournal(panelCss, handlers) {
       body.append(row);
     }
     animals();
+  }
+
+  // Home: where you live, who with, moving house, and having people round.
+  let leaving = null; // whoever "Ask to leave" was pressed for once (pressed again, they go)
+  const staying = new Set(); // of those you live with, whoever isn't coming when you move
+  function drawHome() {
+    const house = data.household;
+    body.append(
+      explain(
+        "Your home: who lives with you, moving house, and having people round. People who know you and don't dislike you will come. None of this uses the AI.",
+      ),
+    );
+    if (!house) return;
+    const heading = (text) => body.append(element("div", "font-weight:700;font-size:13px;margin-top:6px;", text));
+    /** A list to pick from and a button that does something with the pick; a note when there's nobody to pick. */
+    const chooser = (label, options, verb, onPick, none) => {
+      if (!options.length) return void body.append(line(none, MUTED));
+      const row = element("div", "display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+      const select = element("select", `${FIELD}flex:1;min-width:120px;min-height:32px;`);
+      select.setAttribute("aria-label", label);
+      for (const option of options) {
+        const item = element("option", "", option.name);
+        item.value = option.id;
+        select.append(item);
+      }
+      row.append(
+        select,
+        button(verb, SMALL, () => {
+          onPick(select.value);
+          draw();
+        }),
+      );
+      body.append(row);
+    };
+    heading(house.home ? `You live at ${house.home.name}` : "You have no home yet");
+    if (house.home) {
+      if (!house.mates.length) body.append(line("Nobody lives with you.", MUTED));
+      for (const mate of house.mates) {
+        const row = element("div", "display:flex;align-items:center;gap:6px;");
+        row.append(
+          element("span", "flex:1;font-size:13px;", `${mate.name} lives with you`),
+          button(leaving === mate.id ? "Sure?" : "Ask to leave", SMALL, () => {
+            if (leaving !== mate.id) leaving = mate.id;
+            else {
+              leaving = null;
+              handlers.onMoveOut?.(mate.id);
+            }
+            draw();
+          }),
+        );
+        body.append(row);
+      }
+      heading("Ask someone to move in");
+      chooser(
+        "Who moves in",
+        house.friends,
+        "Move in",
+        (id) => handlers.onMoveIn?.(id),
+        "Nobody here knows you well enough yet.",
+      );
+      heading("Have someone round");
+      body.append(line(`They head for your home and stay about ${house.visitHours} hours.`, MUTED));
+      const coming = house.friends.filter((friend) => friend.coming);
+      if (coming.length)
+        body.append(line(`On their way, or there now: ${coming.map((friend) => friend.name).join(", ")}.`));
+      chooser(
+        "Who comes round",
+        house.friends.filter((friend) => !friend.coming),
+        "Invite",
+        (id) => handlers.onInviteOver?.(id),
+        coming.length ? "Everyone you could ask is already coming." : "Nobody here knows you well enough yet.",
+      );
+    }
+    heading(house.home ? "Move house" : "Move into an empty house");
+    if (house.home && house.vacant.length && house.mates.length) {
+      body.append(line("Who comes with you (the rest stay where they are):", MUTED));
+      for (const mate of house.mates) {
+        const label = element("label", "display:flex;align-items:center;gap:6px;font-size:13px;min-height:28px;");
+        const tick = element("input");
+        tick.type = "checkbox";
+        tick.checked = !staying.has(mate.id);
+        tick.addEventListener("change", () => (tick.checked ? staying.delete(mate.id) : staying.add(mate.id)));
+        label.append(tick, element("span", "", mate.name));
+        body.append(label);
+      }
+    }
+    chooser(
+      "Which house (the nearest empty ones)",
+      house.vacant,
+      "Move here",
+      (id) =>
+        handlers.onMoveHome?.(
+          id,
+          house.mates.filter((mate) => !staying.has(mate.id)).map((mate) => mate.id),
+        ),
+      "No house stands empty just now. (Journal → People can move anyone anywhere.)",
+    );
   }
 
   let whose = "player"; // whose relationships the tab shows
@@ -954,6 +1052,7 @@ export function createJournal(panelCss, handlers) {
       here: drawHere,
       people: drawPeople,
       party: drawParty,
+      home: drawHome,
       places: drawPlaces,
       map: drawMap,
       world: drawWorld,
@@ -971,7 +1070,7 @@ export function createJournal(panelCss, handlers) {
       const peopleChanged = next.placesChanged || next.relationsChanged || next.partyChanged;
       if (tab === "people" && peopleView !== "doing" && body.childElementCount && !peopleChanged) return;
       // No redraw under the cursor in the lists with buttons and fields.
-      const lists = tab === "places" || tab === "party" || tab === "relations" || tab === "world";
+      const lists = tab === "places" || tab === "party" || tab === "home" || tab === "relations" || tab === "world";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.
       if (picker && body.childElementCount) return;
       // The World tab's clock ticks on even when the tab isn't redrawn.

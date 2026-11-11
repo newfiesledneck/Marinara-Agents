@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.52",
+          "date": "2026-11-11",
+          "notes": "- Journal → Home: where you live and who with.\n- Move into any house that stands empty, and choose which housemates come along; the rest stay where they are.\n- Ask someone to move in, or a housemate to leave.\n- Have someone round: they head for your home and stay about three hours.\n- People who know you and don't dislike you say yes. Rules only, with no AI call.",
+          "highlight": false
+        },
+        {
           "version": "0.5.51",
           "date": "2026-11-11",
           "notes": "- Costumes: the Look card has \"Dressed as\", which swaps the built-in person's clothes for a whole ready-made character: king, farmer, adventurer (man or woman), witch or hooded rogue.\n- A costume keeps the person's own skin, hair colour and height, and moves with the same animations. \"Their own clothes\" puts them back.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.33",
           "date": "2026-11-11",
           "notes": "- Campsites are laid out unevenly, each its own way: tents stand a little further from the fire, at different distances and anywhere round it, and the logs sit wherever there's room between them, some turned a little. No log blocks a tent's mouth.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.32",
-          "date": "2026-11-11",
-          "notes": "- A campsite has one, two or three tents round its one fire. Each has a bedroll to rest on, and you can sleep in any of them.\n- Three tents come with three logs to sit on; one or two tents with one or two logs.",
           "highlight": false
         }
       ]

@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.51, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.52, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.51: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.52: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.51, 2026-11-11)
+## Outstanding (as of 0.5.52, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -813,7 +813,9 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      last time. In (0.5.45): each person's own memories (`memory.js`), told to the model for them alone,
      and someone you said something to comes over within a few days to bring it up.
   3. _A home that's yours:_ furnish it, keep your animals there, have people visit. Part: your home comes
-     from your lore, a horse and a dog sent home keep to its door. Not furnished, and nobody calls.
+     from your lore or from moving into an empty house (Journal → Home, 0.5.52), a horse and a dog sent
+     home keep to its door, housemates can be asked in and out, and people come round when asked. Its
+     room is furnished as any home's is; arranging it yourself is still wanted.
   4. _Small goals with an end:_ errands and noticeboard jobs that take ten minutes and change something
      you can see. Part: people ask errands of you and the noticeboard takes notes; no jobs with an end.
   5. _Seasons and events:_ a market day, a festival, first snow. Part: a world has a season (`ww:season`)
@@ -835,8 +837,8 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   16. _Own a business:_ fit it out, employ characters, have customers. Part: a character can own or work
       at a place by lore; the player can't.
   17. _Go to a friend's, have friends over; people can come into a moment or interrupt one._ Part: friends
-      go out together and to each other's houses on their own, and people nearby join a moment. Nobody
-      visits the player, and nobody walks in on a scene.
+      go out together and to each other's houses on their own, and people nearby join a moment. People
+      come round to the player's when asked (0.5.52); nobody walks in on a scene.
   18. _Only people nearby are sent to the model,_ so it can't bring someone into a moment who isn't there.
       In: a moment's listeners are whoever is within earshot (shouts and whispers reach differently).
   19. _Up to thirty characters in one world_ (`MAX_PEOPLE`; more later), and scenes with any of them,
