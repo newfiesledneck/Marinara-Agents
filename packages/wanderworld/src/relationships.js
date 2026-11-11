@@ -125,6 +125,11 @@ export function checkRelationship(raw) {
     kind: raw.kind,
     level: clampLevel(raw.level),
     role: typeof raw.role === "string" ? raw.role.trim().slice(0, 40) : "",
+    // Locked, it never moves by itself (social.js); only a hand, lore or the AI assistant changes it.
+    locked: raw.locked === true,
+    // How attractive `from` finds `to`, 0–100, when someone has set it (null: their own view, attractionOf).
+    attraction: Number.isFinite(raw.attraction) ? clampLevel(raw.attraction) : null,
+    attractionLocked: raw.attractionLocked === true,
     notes: typeof raw.notes === "string" ? raw.notes.slice(0, 600) : "",
     history: Array.isArray(raw.history)
       ? raw.history
@@ -137,6 +142,25 @@ export function checkRelationship(raw) {
 }
 
 const tierIndex = (level) => Math.min(3, Math.floor(clampLevel(level) / 25));
+
+/**
+ * How attractive `from` finds `to`, 0–100: what's set on their record, or else a view of their own that's
+ * always the same for the same two (15…85, from their ids), so everyone has one before anyone sets it.
+ */
+export function attractionOf(from, to, record) {
+  if (Number.isFinite(record?.attraction)) return record.attraction;
+  let hash = 2166136261;
+  for (const char of `${from}>${to}`) hash = Math.imul(hash ^ char.codePointAt(0), 16777619);
+  return 15 + ((hash >>> 0) % 71);
+}
+
+/** Attraction in words, for a sentence about someone ("finds Bram very attractive"); "" in the middle. */
+export function attractionWords(level, name) {
+  if (level >= 80) return `finds ${name} very attractive`;
+  if (level >= 60) return `finds ${name} attractive`;
+  if (level <= 20) return `isn't drawn to ${name} at all`;
+  return "";
+}
 
 /** What a level is called within its kind: "best friend", "sworn enemy". */
 export function tierOf(kind, level) {
@@ -244,7 +268,10 @@ export function createRelationships(records = []) {
       const a = names[from] ?? from;
       const b = names[to] ?? to;
       const phrase = phraseOf(record.kind, record.level);
-      return record.role ? `${a} is ${b}'s ${record.role} and ${phrase} them` : `${a} ${phrase} ${b}`;
+      const words = record.role ? `${a} is ${b}'s ${record.role} and ${phrase} them` : `${a} ${phrase} ${b}`;
+      // (Only an attraction someone has set is told: nobody's unspoken view steers a conversation.)
+      const drawn = record.attraction === null ? "" : attractionWords(record.attraction, b);
+      return drawn ? `${words}, and ${drawn}` : words;
     },
   };
 }

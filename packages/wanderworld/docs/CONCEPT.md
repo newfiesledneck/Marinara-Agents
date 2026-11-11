@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.39, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.40, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.39: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.40: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.39, 2026-11-11)
+## Outstanding (as of 0.5.40, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -762,6 +762,71 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   8. _Campfires people light for themselves,_ anywhere friends meet in the wilds, and tents at them.
   9. _A group in conversation:_ talking to one of a group (E) brings the others into the same call, as
      moments do now.
+  10. _A world that goes on where the player isn't_ (asked for 2026-11-11; the rules are in, 0.5.40:
+      `social.js`, relationships that move, locks, attraction, the record, the recap; the AI's batches
+      are not). Only while Wanderworld is
+      open: nothing is to happen while it's closed, and no time is made up for on coming back. Three
+      parts, each one a switch of its own in Settings so a player can cut calls and tokens:
+      - _Relationships that move._ People who spend time together (an outing, a shared table, the same
+        workplace day after day) grow a little warmer; temperament and opposed factions now and then
+        make them cooler. By rules alone: no call needed. Today a relationship changes only by hand, by
+        lore, by the AI assistant, or after an errand for the player.
+      - _A record of what happened._ A short log kept with the world (who went out with whom, who fell
+        out, who was at the campfire), shown in the Journal and on coming back to a place as "while you
+        were away from here". Characters and the narrator are given the recent lines, so they can speak
+        of them. By rules alone for the plain facts.
+      - _The AI filling it in, in batches._ Now and then, for a handful of characters at once and in one
+        call, the model writes what each has been up to and how they stand with each other, from the
+        log and their cards. Small and occasional: a batch every so often, never per person per minute.
+        Off, the log stays plain and the rules still move relationships.
+        Switches wanted: relationships changing by themselves; keeping the log; the AI's batches (and how
+        often, and how many characters to a batch). Each defaults to what costs nothing.
+- _What brings people back (listed with the user, 2026-11-11)._ What each is, and where it stands. "In"
+  is in the game now; "part" has its groundwork; the rest is wanted. Everything that calls the model
+  gets a switch of its own.
+  1. _"While you were away from here."_ A short recap of what's happened: who fell out, who visited
+     whom, what was pinned to the noticeboard. Only for time spent with Wanderworld open (item 10
+     above): nothing happens while it's closed. Wanted.
+  2. _Characters who remember and seek you out:_ someone crossing the square to bring up what you said
+     last time. Part: people come up to greet or confront you (Settings: People coming up to you); they
+     don't yet carry what was said.
+  3. _A home that's yours:_ furnish it, keep your animals there, have people visit. Part: your home comes
+     from your lore, a horse and a dog sent home keep to its door. Not furnished, and nobody calls.
+  4. _Small goals with an end:_ errands and noticeboard jobs that take ten minutes and change something
+     you can see. Part: people ask errands of you and the noticeboard takes notes; no jobs with an end.
+  5. _Seasons and events:_ a market day, a festival, first snow. Part: a world has a season (`ww:season`)
+     and weather; nothing happens only sometimes.
+  6. _Discovery:_ places and creatures out in the country that aren't on the map until found. Wanted.
+  7. _Progression, for those who turn it on:_ skills, gear, a character sheet (as Quartermaster has).
+     Wanted.
+  8. _Keepsakes:_ a journal that writes itself, and pictures of moments to look back on and share. Part:
+     Illustrate makes a picture of where you are; the Journal doesn't write itself.
+  9. _Relationships that move_ by themselves. Wanted (item 10 above).
+  10. _A record of it:_ a log of what happened, kept with the world. Wanted (item 10 above).
+  11. _People remember only what they know,_ and only that goes to the model for them. Part: who knows
+      whom by name is kept; what each person saw or was told isn't.
+  12. _Only what's relevant goes to the model,_ never the whole lore or history. In: the lore sent is
+      what's tied to where you are and who's there, and people are told in full only when named.
+  13. _Buy, move, build, furnish._ Wanted.
+  14. _A world built from your lore._ In: places, numbers of them, names, who lives and works where, and
+      the world's size, season and walls come from lorebook keywords or the AI's reading of the lore.
+  15. _Build your own map,_ or change the one you have. Wanted.
+  16. _Own a business:_ fit it out, employ characters, have customers. Part: a character can own or work
+      at a place by lore; the player can't.
+  17. _Go to a friend's, have friends over; people can come into a moment or interrupt one._ Part: friends
+      go out together and to each other's houses on their own, and people nearby join a moment. Nobody
+      visits the player, and nobody walks in on a scene.
+  18. _Only people nearby are sent to the model,_ so it can't bring someone into a moment who isn't there.
+      In: a moment's listeners are whoever is within earshot (shouts and whispers reach differently).
+  19. _Up to thirty characters in one world_ (`MAX_PEOPLE`; more later), and scenes with any of them,
+      without adding and removing cards and lorebooks from a chat or keeping several chats. In.
+  20. _Factions that matter._ Part: a faction is made by lore (`ww:faction:Thieves Guild` on its entry,
+      `ww:member of:…` on a member's) or by the AI assistant; its lore is active for each member, the
+      Journal lists people by faction, and the model is told who's in which. It changes nothing people
+      do. Wanted: how factions stand with each other (allied, rivals, at war) and with the player;
+      members warmer to their own and cooler to rivals (item 10's relationships); greetings and
+      confrontations that follow from it; a faction's own places; standing with a faction that the
+      player earns or loses.
 - _Asset packs (all by Quaternius, CC0; listed 2026-11)._ On hand: Medieval Village MegaKit, Fantasy
   Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
   Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,

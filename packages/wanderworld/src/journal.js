@@ -206,14 +206,35 @@ export function createJournal(panelCss, handlers) {
     const { people, records } = data.relations;
     const name = new Map(people.map((person) => [person.id, person.name]));
     const shown = records.filter((record) => name.has(record.from) && name.has(record.to));
-    if (!shown.length) return void body.append(line("Nothing is set yet.", MUTED));
+    if (!shown.length) {
+      body.append(line("Nothing is set yet.", MUTED));
+      return void drawLately();
+    }
     for (const person of people) {
       const theirs = shown.filter((record) => record.from === person.id);
       if (!theirs.length) continue;
       body.append(section(person.name));
       for (const record of theirs)
-        body.append(line(`${record.words}${record.role ? ` (${record.role})` : ""}`, "font-size:13px;"));
+        body.append(
+          line(
+            `${record.words}${record.role ? ` (${record.role})` : ""}${record.locked ? " · locked" : ""}`,
+            "font-size:13px;",
+          ),
+        );
     }
+    drawLately();
+  }
+
+  /** What's happened lately, newest first: the world's own record (Settings → Living world). */
+  function drawLately() {
+    const lately = data.lately ?? [];
+    if (!lately.length) return;
+    body.append(section("Lately"));
+    body.append(explain("What the world has seen people do, newest first. Kept by rules alone: no AI writes it."));
+    for (const entry of lately)
+      body.append(
+        line(`Day ${entry.day + 1}, ${String(entry.hour).padStart(2, "0")}:00 · ${entry.text}`, "font-size:13px;"),
+      );
   }
 
   function drawDetails() {

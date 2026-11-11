@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.40 — 2026-11-11
+
+- Relationships change over time, slowly, by rules alone: people who spend time together grow a little closer (a step for an evening, a tier in a few weeks), two short-tempered people sometimes have words, and friends who never meet drift apart. Nothing happens while Wanderworld is closed.
+- A Lock on each relationship, and an Attraction level with a lock of its own, in Journal → Edit people.
+- Journal → Relationships ends with Lately, the world's record of what's happened; coming back somewhere after a few hours away says what you missed.
+- Settings → Living world: a switch for each of these. None calls the AI.
+
 ## 0.5.39 — 2026-11-11
 
 - Hostile animals (Settings → Animals): a wolf keeps its distance, squares up to you about six paces off, or comes for you and sends you back a step, where confrontations are allowed. Nothing is hurt yet.

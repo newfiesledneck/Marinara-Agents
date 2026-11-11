@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.40",
+          "date": "2026-11-11",
+          "notes": "- Relationships change over time, slowly, by rules alone: people who spend time together grow a little closer (a step for an evening, a tier in a few weeks), two short-tempered people sometimes have words, and friends who never meet drift apart. Nothing happens while Wanderworld is closed.\n- A Lock on each relationship, and an Attraction level with a lock of its own, in Journal → Edit people.\n- Journal → Relationships ends with Lately, the world's record of what's happened; coming back somewhere after a few hours away says what you missed.\n- Settings → Living world: a switch for each of these. None calls the AI.",
+          "highlight": false
+        },
+        {
           "version": "0.5.39",
           "date": "2026-11-11",
           "notes": "- Hostile animals (Settings → Animals): a wolf keeps its distance, squares up to you about six paces off, or comes for you and sends you back a step, where confrontations are allowed. Nothing is hurt yet.\n- Lorebook keywords: `ww:tame` and `ww:hostile` on a creature's entry say what its kind is like in this world; `ww:active:night` or `day` when it's about; `ww:animals:none` on a place keeps the world's own animals out of it.\n- \"Most in the settlement\" caps the stray dogs and horses inside the town; the rest are put just outside.\n- Journal → World: one world's own numbers of animals.\n- Dogs are bigger at the top: massive is now as tall as a horse, and the sizes between are spaced evenly again. Huge and massive are ridden.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.21",
           "date": "2026-11-11",
           "notes": "- Animals: cattle, a donkey and a horse at farms, a dog or two about the market, a horse by each tavern and inn, and deer, stags, foxes and wolves out in the country. They wander, graze and look about; the wild ones run when you come close.\n- Ride a horse or a donkey, sitting astride: walk up and use it. The same stick and keys move it, Shift gallops, and E, Esc or the Get down button gets you off. It stays where you leave it.\n- Models and animations from Quaternius's Ultimate Animated Animals (CC0).",
-          "highlight": false
-        },
-        {
-          "version": "0.5.20",
-          "date": "2026-11-11",
-          "notes": "- Look card: any piece (top, sleeves, legs, boots) can be set to None, which shows the body there: bare arms, a bare chest, bare feet. The body wears dark underclothes, so leaving everything off is still decent.",
           "highlight": false
         }
       ]

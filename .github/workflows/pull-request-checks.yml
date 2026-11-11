@@ -257,6 +257,7 @@ jobs:
           node tests/wanderworld-scenes.regression.mjs
           node tests/wanderworld-schedules.regression.mjs
           node tests/wanderworld-server.regression.mjs
+          node tests/wanderworld-social.regression.mjs
 
           # Pull request gate topology and the owner approval evaluator.
           node scripts/validate-pr-triage.mjs

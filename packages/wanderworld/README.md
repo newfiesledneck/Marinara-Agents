@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.39)
+## What it does now (0.5.40)
 
 ### The world
 
@@ -272,6 +272,13 @@ only walk about.
   not yours to ride); their Look card can change it or take it away. Kept with the world. The chat window has Send dog home and
   Send horse home while they're with you (each asks once more first), and the Journal's Party tab lists
   your animals, and the dog of anyone travelling with you, with Send home and Call along.
+- **A world that goes on without you** (by rules alone: no AI call, and only while Wanderworld is open).
+  People who spend time together grow a little closer, slowly: a step for an evening, two a day at
+  most, a tier in a few weeks. Two short-tempered people sometimes have words instead, and friends who
+  never meet drift apart. Each relationship has a Lock (it never moves by itself) and an Attraction
+  level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
+  Relationships ends with Lately, the record of it, and coming back to the town or the country after
+  a few hours away says what happened there. Settings → Living world has a switch for each part.
 - **How many animals:** Settings → Animals has a slider for each sort (stray dogs, farm animals, peaceful
   wild animals, hostile ones, monsters): that many of the world's own, 0 for none. What a lorebook asks
   for and anyone's own dog or horse are still there at 0, unless that's turned off. Each kind also has

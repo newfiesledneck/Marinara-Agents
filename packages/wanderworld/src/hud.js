@@ -670,6 +670,12 @@ export function createHud(root, handlers) {
     timeSpeed: "How fast the day passes while it's moving.",
     interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
     approach: "How often townsfolk come up to greet you, or confront you. 0 means never.",
+    relationsMove:
+      "People who spend time together grow a little closer, slowly: a step for an evening, a tier in a few weeks. Two short-tempered people sometimes have words instead, and friends who never meet drift apart. A relationship you lock (in Journal → Edit people) never moves; one you set by hand moves on from there.",
+    worldLog:
+      "A short record of who spent time with whom and what changed between them, in Journal → Relationships under Lately. Off, nothing is written down (relationships can still change).",
+    awayRecap:
+      "When you come back to the town or out into the country after a few hours away, a line about what happened there meanwhile. Needs the record above.",
     animalsStrays: "Dogs with no owner about the settlement. 0: none of the world's own.",
     animalsFarm:
       "Cattle, donkeys and horses at the farms, and the horses by taverns and inns. A world with no farm has only those.",
@@ -821,6 +827,18 @@ export function createHud(root, handlers) {
     outsideSafe: "Outside safe places",
     off: "Off",
   });
+  // The living world: what goes on by itself, by rules alone.
+  heading("Living world");
+  {
+    const about = document.createElement("div");
+    about.style.cssText = "font-size:12px;opacity:0.8;line-height:1.35;";
+    about.textContent =
+      "What the world does by itself while you play. All of it runs on rules: none of these calls the AI or costs anything. Nothing happens while Wanderworld is closed.";
+    settingsPanel.append(about);
+  }
+  toggle("relationsMove", "Relationships change over time");
+  toggle("worldLog", "Keep a record of what happens");
+  toggle("awayRecap", "Tell me what I missed");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");
   const whole = (value) => String(Math.round(value));
