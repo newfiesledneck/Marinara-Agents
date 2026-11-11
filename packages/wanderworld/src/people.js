@@ -25,6 +25,7 @@ import { humanoidFromSkeleton } from "./models.js";
 import {
   BARE,
   checkLook,
+  COSTUMES,
   COLOUR_FIELD,
   EXTRAS,
   HAIR_COLOURS,
@@ -44,8 +45,16 @@ import { hashString, rng } from "./world.js";
 const KIT = "/api/capability-packages/wanderworld/assets/kit/";
 const BODY_FILE = /^(?:index|bodies|eyes|hair-|head-|plain-head-|plain-skin-|skin-)/u;
 const FOLK_FILE = /^folk[-.]/u; // the monsters on the people's skeleton (the imp, the puglin)
-const urlOf = (name) =>
-  `${KIT}${FOLK_FILE.test(name) ? "fantasy/folk" : BODY_FILE.test(name) ? "generic/people" : "fantasy/outfits"}/${name}`;
+const COSTUME_FILE = /^costume-/u; // whole ready-made characters (looks.js COSTUMES)
+const dirOf = (name) =>
+  COSTUME_FILE.test(name)
+    ? "fantasy/costumes"
+    : FOLK_FILE.test(name)
+      ? "fantasy/folk"
+      : BODY_FILE.test(name)
+        ? "generic/people"
+        : "fantasy/outfits";
+const urlOf = (name) => `${KIT}${dirOf(name)}/${name}`;
 
 /** The pack's (Unreal mannequin) bone for each humanoid bone. */
 const BONES = {
@@ -138,11 +147,12 @@ function geometryOf(mesh) {
   }
   const normalRaw = view(Int8Array, mesh.normal);
   const normal = Float32Array.from(normalRaw, (value) => value / 127);
-  const uv = Float32Array.from(view(Uint16Array, mesh.uv), (value) => value / 65535);
+  // (A costume's meshes are coloured by material and have no texture coordinates.)
+  const uv = mesh.uv ? Float32Array.from(view(Uint16Array, mesh.uv), (value) => value / 65535) : null;
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new BufferAttribute(position, 3));
   geometry.setAttribute("normal", new BufferAttribute(normal, 3));
-  geometry.setAttribute("uv", new BufferAttribute(uv, 2));
+  if (uv) geometry.setAttribute("uv", new BufferAttribute(uv, 2));
   geometry.setAttribute("skinIndex", new Uint16BufferAttribute(Uint16Array.from(view(Uint8Array, mesh.joints)), 4));
   geometry.setAttribute(
     "skinWeight",
@@ -184,7 +194,7 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
   const usualHeight = 0.94 + random() * 0.12;
 
   const outfit = chosen.outfit && has(chosen.outfit) ? chosen.outfit : usual;
-  const choices = { outfit };
+  const choices = { outfit, costume: Object.hasOwn(COSTUMES, chosen.costume) ? chosen.costume : null };
   // Each piece is the outfit's unless another's was chosen for it (and the kit has that piece).
   for (const [piece] of PIECES) {
     const kind = chosen[piece];
@@ -240,7 +250,13 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
 /** How `name` looks now, as the Look card's choices (looks.js), with their sex: loads the kit's index. */
 export async function lookChoices(name, body = "auto", chosen = {}) {
   const look = lookFor(name, await load("index.json"), body, chosen);
-  return { ...look.choices, sex: look.sex, worn: look.worn, outfits: Object.keys(OUTFITS) };
+  // (In a costume, no outfit's piece is on show.)
+  return {
+    ...look.choices,
+    sex: look.sex,
+    worn: look.choices.costume ? [] : look.worn,
+    outfits: Object.keys(OUTFITS),
+  };
 }
 
 /** The default person for `name` with `build` ("male", "female" or "auto") and whatever look was
@@ -248,6 +264,11 @@ export async function lookChoices(name, body = "auto", chosen = {}) {
 export async function createPerson(name, build = "auto", chosen = {}) {
   const index = await load("index.json");
   const look = lookFor(name, index, build, chosen);
+  if (look.choices.costume) {
+    // (A costume the kit hasn't got is the person as their pieces have them.)
+    const costumed = await createCostumed(look).catch(() => null);
+    if (costumed) return costumed;
+  }
   const parts = [`skeleton-${look.sex}`, ...look.parts, `head-${look.sex}`];
   if (look.hair !== "none") parts.push(`hair-${HAIR_FILE(look.hair, look.sex)}`);
   if (look.beard) parts.push("hair-beard");
@@ -335,12 +356,77 @@ function skinOnto(root, bones, part, materialOf) {
   }
 }
 
-/** The skeleton's bone for each humanoid bone it has. */
-function humanoidNodes(bones) {
+/** The skeleton's bone for each humanoid bone it has (`map`: the pack's bone for each). */
+function humanoidNodes(bones, map = BONES) {
   const nodes = {};
-  for (const [humanoid, jointName] of Object.entries(BONES))
+  for (const [humanoid, jointName] of Object.entries(map))
     if (bones.has(jointName)) nodes[humanoid] = bones.get(jointName);
   return nodes;
+}
+
+/** The costumes' pack's bone for each humanoid bone (Quaternius's Ultimate Modular Men and Women). */
+// (Its legs hang from "Body", above its "Hips": that is the humanoid's hips, and the pack's Hips rides on it.)
+const COSTUME_BONES = {
+  hips: "Body",
+  spine: "Abdomen",
+  chest: "Torso",
+  upperChest: "Chest",
+  neck: "Neck",
+  head: "Head",
+};
+for (const [side, s] of [
+  ["left", "L"],
+  ["right", "R"],
+]) {
+  Object.assign(COSTUME_BONES, {
+    [`${side}Shoulder`]: `Shoulder.${s}`,
+    [`${side}UpperArm`]: `UpperArm.${s}`,
+    [`${side}LowerArm`]: `LowerArm.${s}`,
+    [`${side}Hand`]: `Wrist.${s}`,
+    [`${side}UpperLeg`]: `UpperLeg.${s}`,
+    [`${side}LowerLeg`]: `LowerLeg.${s}`,
+    [`${side}Foot`]: `Foot.${s}`,
+    [`${side}ThumbMetacarpal`]: `Thumb1.${s}`,
+    [`${side}ThumbProximal`]: `Thumb2.${s}`,
+    [`${side}ThumbDistal`]: `Thumb3.${s}`,
+  });
+  for (const [finger, name] of [
+    ["Index", "Index"],
+    ["Middle", "Middle"],
+    ["Ring", "Ring"],
+    ["Little", "Pinky"],
+  ]) {
+    COSTUME_BONES[`${side}${finger}Proximal`] = `${name}1.${s}`;
+    COSTUME_BONES[`${side}${finger}Intermediate`] = `${name}2.${s}`;
+    COSTUME_BONES[`${side}${finger}Distal`] = `${name}3.${s}`;
+  }
+}
+/** The costumes are made a little taller than the people: this brings them to the same height. */
+const COSTUME_SCALE = 0.98;
+
+/**
+ * The person `look` describes (lookFor) in its costume: the ready-made character, its skin and hair in the
+ * look's colours, at the look's height. Rejects if the kit hasn't got the costume.
+ */
+async function createCostumed(look) {
+  const body = await load(`costume-${look.choices.costume}.json`);
+  const { root, bones } = rigOf(body);
+  // One material for each of the costume's colours; the skin's and the hair's are the person's own.
+  const materials = new Map();
+  const materialOf = (mesh) => {
+    const name = mesh.texture;
+    if (!materials.has(name)) {
+      const colour = /^skin/iu.test(name)
+        ? new Color(look.skinTint)
+        : /^hair/iu.test(name)
+          ? new Color(look.hairColour)
+          : new Color().setRGB(...(body.colours[name] ?? [0.5, 0.5, 0.5]));
+      materials.set(name, new MeshLambertMaterial({ color: colour }));
+    }
+    return materials.get(name);
+  };
+  skinOnto(root, bones, body, materialOf);
+  return humanoidFromSkeleton(root, humanoidNodes(bones, COSTUME_BONES), () => COSTUME_SCALE * look.height, look.seed);
 }
 
 /**
