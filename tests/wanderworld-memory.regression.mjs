@@ -3,7 +3,7 @@
 // nobody else's (server.mjs).
 // Run: node tests/wanderworld-memory.regression.mjs
 import assert from "node:assert/strict";
-import { createMemories, heardLines, MEMORY } from "../packages/wanderworld/src/memory.js";
+import { createMemories, heardBy, heardLines, MEMORY } from "../packages/wanderworld/src/memory.js";
 
 const server = await import("../packages/wanderworld/server.mjs");
 
@@ -115,9 +115,9 @@ const server = await import("../packages/wanderworld/server.mjs");
           feeling: "",
           inParty: false,
           card: "",
-          remembers: "Zoey found a key.",
+          knows: ["(yesterday, heard) Zoey found a key.", "(today, was told by Tam) Zoey is new in town."],
         },
-        { id: "tam", name: "Tam", distance: 3, doing: "", feeling: "", inParty: false, card: "", remembers: "" },
+        { id: "tam", name: "Tam", distance: 3, doing: "", feeling: "", inParty: false, card: "", knows: [] },
       ],
       action: "",
       line: "Hello both.",
@@ -134,11 +134,46 @@ const server = await import("../packages/wanderworld/server.mjs");
     })
     .map((message) => message.content)
     .join("\n");
-  const [miraLine, tamLine] = ["mira", "tam"].map((id) =>
-    moment.split("\n").find((line) => line.includes(`id "${id}"`)),
+  // Each has their own entry, and what they know besides is under it and nobody else's.
+  const mira = moment.slice(moment.indexOf('- id "mira"'), moment.indexOf('- id "tam"'));
+  const tam = moment.slice(moment.indexOf('- id "tam"'), moment.indexOf("\n## ", moment.indexOf('- id "tam"')));
+  assert.match(
+    mira,
+    /\n {2}Knows besides \(Mira alone\):\n {2}· \(yesterday, heard\) Zoey found a key\.\n {2}· \(today, was told by Tam\) Zoey is new in town\./u,
   );
-  assert.match(miraLine, /Remembers \(they alone\): Zoey found a key\./u);
-  assert.doesNotMatch(tamLine, /key|Remembers/u, "Tam's line says nothing of what Mira knows");
+  assert.doesNotMatch(tam, /key|Knows besides/u, "Tam's entry says nothing of what Mira knows");
+  assert.match(moment, /Each of them knows what's in their own entry[^\n]*and nothing else/u);
+}
+
+// ── How and when they came by it, and things only seen ──────────────────────
+{
+  const memories = createMemories();
+  memories.remember(["mira"], 'Zoey said: "Hello."', 4, true, "heard");
+  memories.remember(["mira"], "Zoey got up on a horse.", 5, false, "saw");
+  memories.remember(["mira"], "Zoey sold the mill.", 6, false, "told", "Corvin");
+  memories.remember(["mira"], "An old one, from before.", 6);
+  assert.deepEqual(memories.known("mira", 5, 6), [
+    '(2 days ago, heard) Zoey said: "Hello."',
+    "(yesterday, saw) Zoey got up on a horse.",
+    "(today, was told by Corvin) Zoey sold the mill.",
+    "(today) An old one, from before.",
+  ]);
+  assert.deepEqual(memories.known("tam"), []);
+  // It's kept with the world, and a damaged copy loses only what's wrong.
+  const again = createMemories({
+    ...memories.state,
+    tam: [{ day: 1, text: "Seen.", how: "smelled", from: 7 }],
+  });
+  assert.deepEqual(again.known("mira", 5, 6), memories.known("mira", 5, 6));
+  assert.deepEqual(again.known("tam", 5, 1), ["(today) Seen."]);
+  // Things only seen are kept to a few: the oldest sight goes, what was said stays.
+  for (let i = 0; i < 9; i++) memories.remember(["rook"], `Zoey did thing ${i}.`, 1, false, "saw");
+  memories.remember(["rook"], 'Zoey said: "Remember me."', 1, true, "heard");
+  for (let i = 9; i < 12; i++) memories.remember(["rook"], `Zoey did thing ${i}.`, 1, false, "saw");
+  const rook = memories.of("rook", 20);
+  assert.equal(rook.filter((text) => text.includes("did thing")).length, MEMORY.SIGHTS);
+  assert.ok(rook.includes('Zoey said: "Remember me."'));
+  assert.equal(rook.at(-1), "Zoey did thing 11.");
 }
 
 // ── Who heard what: "Just before" holds only what those here were in earshot of ──────────────────
@@ -155,25 +190,33 @@ const server = await import("../packages/wanderworld/server.mjs");
   const corvin = { id: "corvin", name: "Corvin" };
   const samuel = { id: "samuel", name: "Samuel" };
   const aldric = { id: "aldric", name: "Aldric" };
-  assert.deepEqual(heardLines(log, [aldric]), [], "someone new knows nothing of what was said to others");
+  const texts = (lines) => lines.map((line) => line.text);
   assert.deepEqual(
-    heardLines(log, [samuel]).map((line) => line.text),
+    heardLines(log, [aldric]),
+    { shared: [], own: { aldric: [] } },
+    "someone new knows nothing of what was said to others",
+  );
+  assert.deepEqual(
+    texts(heardLines(log, [samuel]).shared),
     ["Hi, I'm Zoey", "Nice to meet you."],
     "nor the whisper he wasn't in earshot of, nor what only the player saw",
   );
-  assert.deepEqual(heardLines(log, [corvin, samuel]).at(-1), {
-    who: "Zoey",
-    text: "(whispers) Don't trust him.",
-    only: "Corvin",
-  });
-  assert.equal(heardLines(log, [corvin, samuel])[0].only, undefined, "what all of them heard isn't marked");
-  assert.equal(heardLines(log, [corvin, aldric])[0].only, "Corvin", "and Aldric is told he missed it");
-  assert.equal(heardLines(log, [corvin], 2).length, 2, "the last few");
+  // What all of them heard is the shared conversation; what only some heard is theirs alone.
+  const both = heardLines(log, [corvin, samuel]);
+  assert.deepEqual(texts(both.shared), ["Hi, I'm Zoey", "Nice to meet you."]);
+  assert.deepEqual(both.own, { corvin: [{ who: "Zoey", text: "(whispers) Don't trust him." }], samuel: [] });
+  const mixed = heardLines(log, [corvin, aldric]);
+  assert.deepEqual(mixed.shared, [], "Aldric heard none of it, so none of it is shared");
+  assert.equal(mixed.own.corvin.length, 3);
+  assert.deepEqual(mixed.own.aldric, []);
+  assert.equal(heardLines(log, [corvin], 2).shared.length, 2, "the last few");
   assert.deepEqual(
-    heardLines(log, []).map((line) => line.text),
+    texts(heardLines(log, []).shared),
     ["The forest is quiet.", "A trail winds on.", "Leaves stir."],
     "nobody near: the narrator's own last lines",
   );
+  assert.deepEqual(texts(heardBy(log, ["samuel", "aldric"])), ["Hi, I'm Zoey", "Nice to meet you."], "a scene's cast");
+  assert.deepEqual(heardBy(log, ["aldric"]), []);
   // And the server says so.
   const said = (recent, listeners) =>
     server.momentMessages({
@@ -187,11 +230,10 @@ const server = await import("../packages/wanderworld/server.mjs");
       places: [],
     })[0].content;
   const here = [{ id: "corvin", name: "Corvin", distance: 2, doing: "" }];
-  const prompt = said(heardLines(log, [corvin, aldric]), here);
-  assert.match(prompt, /## Just before\n\(All that those here saw and heard/u);
-  assert.match(prompt, /Zoey: Hi, I'm Zoey \[only Corvin heard this\]/u);
-  assert.doesNotMatch(prompt, /stranger|forest/u);
-  assert.match(said(heardLines(log, []), []), /## Just before\n\(What you told last/u);
+  const prompt = said(heardLines(log, [corvin, samuel]).shared, here);
+  assert.match(prompt, /## Just before\n\(What every one of them saw and heard, in order\.\)\nZoey: Hi, I'm Zoey\n/u);
+  assert.doesNotMatch(prompt, /stranger|forest|trust/u);
+  assert.match(said(heardLines(log, []).shared, []), /## Just before\n\(What you told last/u);
   assert.doesNotMatch(said([], here), /Just before/u, "nothing heard: no section");
 }
 

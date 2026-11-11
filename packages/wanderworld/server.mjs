@@ -939,8 +939,8 @@ export function momentMessages(input) {
         `- id "${person.id}": ${person.name}, ${person.distance} m away, ${person.doing || "standing about"}` +
         `${person.inParty ? ", travelling with " + input.persona.name : ""}` +
         `${person.feeling ? `. Feels: ${person.feeling}` : ""}` +
-        `${person.remembers ? `. Remembers (they alone): ${person.remembers}` : ""}` +
-        `${person.card ? `. ${person.card}` : ""}`,
+        `${person.card ? `. ${person.card}` : ""}` +
+        `${person.knows?.length ? `\n  Knows besides (${person.name} alone):\n${person.knows.map((known) => `  · ${known}`).join("\n")}` : ""}`,
     )
     .join("\n");
   const did = [
@@ -966,10 +966,11 @@ export function momentMessages(input) {
     ),
     section(
       "Who can hear",
-      people ||
+      (people &&
+        `Each of them knows what's in their own entry, what all of them saw and heard together, and the lore everyone here knows, and nothing else. What's in someone else's entry they don't know and can't speak of, unless it's said to them here and now.\n${people}`) ||
         "Nobody is close enough to hear. Still narrate: one or two sentences on what comes of it and what the player notices. No replies.",
     ),
-    section("What they know (lore)", input.lore.join("\n\n")),
+    section("What everyone here knows (lore)", input.lore.join("\n\n")),
     // Only what those here saw and heard (the client keeps who heard each line): what was said elsewhere
     // isn't theirs to know. With nobody here it's the narrator's own last lines, so it doesn't repeat itself.
     input.recent.length > 0 &&
@@ -978,10 +979,8 @@ export function momentMessages(input) {
         [
           !people
             ? "(What you told last: don't say it again.)"
-            : `(All that those here saw and heard of it. They know nothing of what was said or done out of their hearing.${
-                input.recent.some((line) => line.only) ? " A line marked [only …] was heard by those named and nobody else here." : ""
-              })`,
-          ...input.recent.map((line) => `${line.who}: ${line.text}${line.only ? ` [only ${line.only} heard this]` : ""}`),
+            : "(What every one of them saw and heard, in order.)",
+          ...input.recent.map((line) => `${line.who}: ${line.text}`),
         ].join("\n"),
       ),
     // A plan (someone agreeing to be somewhere at a time) can only come of something said to someone:
@@ -1409,7 +1408,7 @@ export async function activate(context) {
             distance: Number.isFinite(person.distance) ? Math.round(Math.max(0, Math.min(99, person.distance))) : 5,
             doing: text(person.doing, 120),
             feeling: text(person.feeling, 200),
-            remembers: text(person.remembers, 500),
+            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 10),
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)
@@ -1452,7 +1451,7 @@ export async function activate(context) {
           recent: (Array.isArray(body.recent) ? body.recent : [])
             .filter(isRecord)
             .slice(-12)
-            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400), only: text(line.only, 200) }))
+            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400) }))
             .filter((line) => line.text),
           places,
         };

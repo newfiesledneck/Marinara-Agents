@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.59",
+          "date": "2026-11-11",
+          "notes": "- What each person knows is their own. The AI is given every listener a block of their own: their memories with when and how they came by them (saw, heard), the chat they alone heard, and lore about themselves. What everyone present heard stays one conversation in order.\n- Lore about a person goes only to that person; lore about you, only to those who know you.\n- People in sight remember what you do (getting on a horse, going into a house), not only what you say: Settings → People notice what you do.\n- Memories are kept with or without the AI.",
+          "highlight": false
+        },
+        {
           "version": "0.5.58",
           "date": "2026-11-11",
           "notes": "- Your persona's and the narrator's cards are no longer cut off mid-word in what the AI is sent: more of each goes (900 and 1500 characters), ending at a sentence, and `{{user}}` and `{{char}}` in them become the names.\n- Two narrator cards (Settings → AI): one for the world as you walk it, one for scenes. Your earlier choice is carried over.\n- People are told only what they were in earshot of: someone new doesn't know what you said to others elsewhere. With nobody near, the narrator gets only its own last lines.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.40",
           "date": "2026-11-11",
           "notes": "- Relationships change over time, slowly, by rules alone: people who spend time together grow a little closer (a step for an evening, a tier in a few weeks), two short-tempered people sometimes have words, and friends who never meet drift apart. Nothing happens while Wanderworld is closed.\n- A Lock on each relationship, and an Attraction level with a lock of its own, in Journal → Edit people.\n- Journal → Relationships ends with Lately, the world's record of what's happened; coming back somewhere after a few hours away says what you missed.\n- Settings → Living world: a switch for each of these. None calls the AI.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.39",
-          "date": "2026-11-11",
-          "notes": "- Hostile animals (Settings → Animals): a wolf keeps its distance, squares up to you about six paces off, or comes for you and sends you back a step, where confrontations are allowed. Nothing is hurt yet.\n- Lorebook keywords: `ww:tame` and `ww:hostile` on a creature's entry say what its kind is like in this world; `ww:active:night` or `day` when it's about; `ww:animals:none` on a place keeps the world's own animals out of it.\n- \"Most in the settlement\" caps the stray dogs and horses inside the town; the rest are put just outside.\n- Journal → World: one world's own numbers of animals.\n- Dogs are bigger at the top: massive is now as tall as a horse, and the sizes between are spaced evenly again. Huge and massive are ridden.",
           "highlight": false
         }
       ]

@@ -122,7 +122,7 @@ export const HELP = [
       'Illustrate paints the moment. With "Have the AI rewrite the prompt" on, the last lines of the chat go with it, so the picture shows what you\'re doing now, not only where you stand.',
       "Menu → Settings → AI has a switch for each thing that can call the model. With one off, the world answers with its own written lines.",
       "Narrator cards (your own characters): one for the world as you walk it (keep it short: a voice and a few rules), one for scenes, which also lets a scene start with nobody else there. They can be the same card or two.",
-      "What people know: someone you talk to is told only what they were in earshot of. What you said to others elsewhere, they don't know unless you tell them.",
+      "What people know: each person knows only what they saw, heard or were told. Someone new doesn't know what you said to others elsewhere, and what one of two listeners overheard stays theirs. People in sight also notice what you do (Settings → People notice what you do).",
       "To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced): every request to a model and its answer, and every picture request with its connection, model, size and prompt, is written to the Engine's console.",
     ],
   },
