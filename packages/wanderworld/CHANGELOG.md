@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.54 — 2026-11-11
+
+- Market day once a week, and an evening festival once in four: for those hours a good share of the town gathers in the market square, and a line tells you.
+- People in your party, anyone you've asked round, and anyone whose day you set by hand for those hours keep to that instead.
+- Settings → Living world has the switch. Rules only, with no AI call.
+
 ## 0.5.53 — 2026-11-11
 
 - Furnish your home: inside it, Journal → Home puts a piece down a step in front of you, and takes away any piece you added.

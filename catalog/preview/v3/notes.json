@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.54",
+          "date": "2026-11-11",
+          "notes": "- Market day once a week, and an evening festival once in four: for those hours a good share of the town gathers in the market square, and a line tells you.\n- People in your party, anyone you've asked round, and anyone whose day you set by hand for those hours keep to that instead.\n- Settings → Living world has the switch. Rules only, with no AI call.",
+          "highlight": false
+        },
+        {
           "version": "0.5.53",
           "date": "2026-11-11",
           "notes": "- Furnish your home: inside it, Journal → Home puts a piece down a step in front of you, and takes away any piece you added.\n- Eighteen kinds of piece: chairs and stools (which can be sat on), tables, a bench, a bookcase, a cabinet, a chest, barrels and more.\n- A piece is kept inside the walls and clear of the way in. Up to 40 a home, kept with the world.",
@@ -307,12 +313,6 @@
           "version": "0.5.35",
           "date": "2026-11-11",
           "notes": "- The asset files are regrouped by setting: what any world has (nature, people's bodies, the painted art), the medieval setting's buildings, props and outfits, and the creatures. Each set's models are one file now, so the package has 93 asset files where it had 228, with room for more settings and creatures. Nothing looks different in the game.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.34",
-          "date": "2026-11-11",
-          "notes": "- A campsite's tents, logs and fire stones sit on the ground as it lies. On a slope they were all set at the fire's height, so a tent uphill sank in and one downhill hung in the air.",
           "highlight": false
         }
       ]

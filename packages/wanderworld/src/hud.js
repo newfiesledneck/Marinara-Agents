@@ -698,6 +698,8 @@ export function createHud(root, handlers) {
       "A short record of who spent time with whom and what changed between them, in Journal → Relationships under Lately. Off, nothing is written down (relationships can still change).",
     memories:
       "Each person keeps their own short memory: what you said in their hearing, who they spent time with. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people.",
+    worldEvents:
+      "Once a week it's market day, and once in four weeks there's an evening festival: for those hours a good share of the town gathers in the market square, and a line says so. People in your party, people you've asked round, and anyone whose day you set by hand for those hours keep to that instead. Off, every day is like every other.",
     awayRecap:
       "When you come back to the town or out into the country after a few hours away, a line about what happened there meanwhile. Needs the record above.",
     animalsStrays: "Dogs with no owner about the settlement. 0: none of the world's own.",
@@ -862,6 +864,7 @@ export function createHud(root, handlers) {
   toggle("worldLog", "Keep a record of what happens");
   toggle("awayRecap", "Tell me what I missed");
   toggle("memories", "People remember what they saw and heard");
+  toggle("worldEvents", "Market days and festivals");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");
   // In groups, each with a line on what it's for and what wins over what, so it isn't a wall of switches.
