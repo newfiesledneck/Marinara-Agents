@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.50",
+          "date": "2026-11-11",
+          "notes": "- Hostile people out in the country: bandits, hooded with a sword; witches and wizards, in a pointed hat with a staff. They act as the Hostile animals setting says, and are told as people, not beasts.\n- They're counted with the monsters, each kind has a switch in Settings → Animals, and lore can place them (`ww:monster:bandit:pack3`; brigand, robber, hag, mage and the like are read too).\n- They're nobody's character: no AI is used for them.",
+          "highlight": false
+        },
+        {
           "version": "0.5.49",
           "date": "2026-11-11",
           "notes": "- Two more monsters: the giant frog, which hops, and the dragon, which is rare, alone and high overhead.\n- Lore can ask for them (`ww:monster:frog`, `ww:monster:dragon`; toad, wyvern and drake are read too), and Settings → Animals has a switch for each.",
@@ -307,12 +313,6 @@
           "version": "0.5.31",
           "date": "2026-11-11",
           "notes": "- Campsites keep at least 70 m apart. In a world where two sat side by side, the second has moved.\n- Nothing wild grows in a campsite's clearing, or in or right against anything built or set down: no tree through a tent, no bush on the fire, no rock in a cottage wall or a ruin's stones. Every other tree and rock stays where it was.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.30",
-          "date": "2026-11-11",
-          "notes": "- Fixed: in a world with a smithy, every prop stayed a plain shape (boxes for wagons and crates, white picket fences) even with Detailed furniture and props on. The smithy's anvil, workbench and weapon stand weren't being loaded, which held all the others back.\n- Name your dog and your horse in the Look card. The name is used in the Party tab, the Ride prompt, the chat's Send home button and what's narrated.\n- Skin tones: twelve, from Pale to Ebony, each coming out as its own colour. Brown and the darker tones no longer look grey or washed out. People without a chosen tone get one from the wider list, so some will change.",
           "highlight": false
         }
       ]

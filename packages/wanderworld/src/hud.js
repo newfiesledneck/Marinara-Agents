@@ -684,7 +684,7 @@ export function createHud(root, handlers) {
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters:
-      "Slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, giant frogs, imps and puglins, out in the country, and now and then a dragon high overhead, alone or in twos and threes. Skeletons and bats are about only at night. They act as Hostile animals below says.",
+      "Slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, giant frogs, imps, puglins, and hostile people (bandits, witches, wizards), out in the country, and now and then a dragon high overhead, alone or in twos and threes. Skeletons and bats are about only at night. They act as Hostile animals below says.",
     animalsTown:
       "The most stray dogs and horses inside the settlement itself, shared between them. Any more are put just outside it.",
     hostileAnimals:
@@ -935,6 +935,9 @@ export function createHud(root, handlers) {
     ["animalFrog", "Giant frogs"],
     ["animalDragon", "Dragons (rare, overhead)"],
     ["animalImp", "Imps"],
+    ["animalBandit", "Bandits"],
+    ["animalWitch", "Witches"],
+    ["animalWizard", "Wizards"],
     ["animalPuglin", "Puglins (pig-goblins)"],
   ]);
   // AI: the server part's connections and styles. The connection lists come from the Engine when the

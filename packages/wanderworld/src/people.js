@@ -24,6 +24,7 @@ import {
 import { humanoidFromSkeleton } from "./models.js";
 import {
   BARE,
+  checkLook,
   COLOUR_FIELD,
   EXTRAS,
   HAIR_COLOURS,
@@ -340,6 +341,66 @@ function humanoidNodes(bones) {
   for (const [humanoid, jointName] of Object.entries(BONES))
     if (bones.has(jointName)) nodes[humanoid] = bones.get(jointName);
   return nodes;
+}
+
+/**
+ * People who are nobody's character: outlaws out in the country (animals.js lists them with the monsters).
+ * Each kind's `look(pick)` is the look one of them has (looks.js; `pick` chooses from a list), `hat` the
+ * colour of a pointed hat, and `carry` what's in their hand (character.js).
+ */
+const OUTLAWS = {
+  bandit: {
+    build: "auto",
+    carry: "sword",
+    look: (pick) => ({
+      outfit: "ranger",
+      hood: true,
+      pauldrons: pick([true, false]),
+      rangerColour: pick(["ranger-grey", "ranger-dusk", "ranger-rust"]),
+    }),
+  },
+  witch: {
+    build: "female",
+    carry: "staff",
+    hat: 0x2a1836,
+    look: (pick) => ({
+      outfit: "peasant",
+      tints: { top: 0x3a2147, arms: 0x3a2147, legs: 0x1f1a24, feet: 0x17131a },
+      hair: "long",
+      hairColour: pick([5, 7, 6]),
+    }),
+  },
+  wizard: {
+    build: "male",
+    carry: "staff",
+    hat: 0x2b4a8f,
+    look: (pick) => ({
+      outfit: "peasant",
+      tints: { top: 0x2b4a8f, arms: 0x2b4a8f, legs: 0x1d2f5c, feet: 0x2a2018 },
+      hair: "long",
+      hairColour: pick([7, 8]),
+      beard: true,
+    }),
+  },
+};
+/** The kinds of outlaw there are. */
+export const OUTLAW_KINDS = Object.keys(OUTLAWS);
+
+/**
+ * An outlaw of `kind` (a key of OUTLAWS), no two quite alike, as a walking character with `carry` (what's
+ * in their hand) beside it: { person, carry }. Rejects if the kit can't be loaded.
+ */
+export async function createOutlaw(kind) {
+  const spec = OUTLAWS[kind];
+  if (!spec) throw new Error(`No outlaw is a ${kind}`);
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
+  const person = await createPerson(
+    `${kind} ${Math.floor(Math.random() * 1e6)}`,
+    spec.build,
+    checkLook(spec.look(pick)),
+  );
+  if (spec.hat !== undefined) person.wear?.(spec.hat);
+  return { person, carry: spec.carry };
 }
 
 /**

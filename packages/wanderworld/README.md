@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.49)
+## What it does now (0.5.50)
 
 ### The world
 
@@ -279,6 +279,9 @@ only walk about.
   level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
   Relationships ends with Lately, the record of it, and coming back to the town or the country after
   a few hours away says what happened there. Settings → Living world has a switch for each part.
+- **Hostile people:** bandits (hooded, sword in hand), witches and wizards (pointed hat, staff), out
+  in the country with the monsters and counted with them. Built from the people's own bodies and
+  outfits; nobody's character, so not talked to, and no AI is used for them.
 - **Monsters:** slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, giant frogs,
   imps and puglins (pig-goblins; the last two walk on two legs, with the people's animations), and
   now and then a dragon high overhead, out in the

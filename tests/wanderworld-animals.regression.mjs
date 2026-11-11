@@ -48,7 +48,7 @@ assert.deepEqual(
 {
   const folkDir = join(kit, "../fantasy/folk");
   const folk = JSON.parse(await readFile(join(folkDir, "folk.json"), "utf8")).folk;
-  for (const [kind, facts] of Object.entries(ANIMALS).filter(([, facts]) => facts.folk)) {
+  for (const [kind, facts] of Object.entries(ANIMALS).filter(([, facts]) => facts.folk && !facts.person)) {
     assert.ok(PACK.animals[kind], `the pack has words for the ${kind}`);
     assert.ok(facts.gallop > facts.walk && facts.walk > 0 && facts.hostile, `the ${kind} is a monster that runs`);
     const body = folk[kind];
@@ -432,10 +432,38 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   assert.deepEqual([own.pack, own.size, own.found], [4, "huge", ["forest1"]]);
   assert.ok(books[0].entries[3].keys.includes("monster") && !books[0].entries[0].keys.includes("monster"));
   assert.deepEqual(
-    ["wolves", "Hound", "goblin", "pony", "deer", "Slimes", "skeleton", "bats", "Demons", "wyvern", "unicorn"].map(
-      animalKind,
-    ),
-    ["wolf", "husky", "puglin", "horse", "deer", "slime", "skeleton", "bat", "imp", "dragon", null],
+    [
+      "wolves",
+      "Hound",
+      "goblin",
+      "pony",
+      "deer",
+      "Slimes",
+      "skeleton",
+      "bats",
+      "Demons",
+      "wyvern",
+      "Brigands",
+      "sorceress",
+      "Mage",
+      "unicorn",
+    ].map(animalKind),
+    [
+      "wolf",
+      "husky",
+      "puglin",
+      "horse",
+      "deer",
+      "slime",
+      "skeleton",
+      "bat",
+      "imp",
+      "dragon",
+      "bandit",
+      "witch",
+      "wizard",
+      null,
+    ],
     "the words for the animals the game has, and none for the ones it hasn't",
   );
 }
@@ -473,7 +501,21 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   }
   const slimes = herdFor(world, 4242, {
     counts: { ...none, monsters: 9 },
-    off: ["skeleton", "spider", "rat", "snake", "bat", "wasp", "frog", "dragon", "imp", "puglin"],
+    off: [
+      "skeleton",
+      "spider",
+      "rat",
+      "snake",
+      "bat",
+      "wasp",
+      "frog",
+      "dragon",
+      "imp",
+      "puglin",
+      "bandit",
+      "witch",
+      "wizard",
+    ],
   });
   assert.ok(slimes.length === 9 && slimes.every((beast) => beast.kind === "slime"), "only the kinds left on");
   // Wolves keep to their packs: several of them, some sharing a home, none bigger than five.

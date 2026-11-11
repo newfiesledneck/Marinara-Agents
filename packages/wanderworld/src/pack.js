@@ -482,6 +482,20 @@ const BEASTS = {
   ],
 };
 
+/** The same of a hostile person (a bandit, a witch, a wizard: {kind}). */
+const OUTLAWS = {
+  threat: [
+    "A {kind} steps into your way, a few paces off, and looks you over.",
+    "A {kind} has seen you, and stands watching, one hand ready.",
+    "\u201cThat's far enough,\u201d says a {kind}, not moving out of your path.",
+  ],
+  attack: [
+    "The {kind} comes at you; you stumble back a step, out of reach.",
+    "A {kind} swings for you. You get clear of it, just.",
+    "The {kind} rushes in and you throw yourself back out of the way.",
+  ],
+};
+
 const SLEEP = [
   "You sleep. When you wake it's {clock}, and the fire has burned low.",
   "{hours} later you crawl out of the tent. It's {clock}.",
@@ -529,6 +543,9 @@ const ANIMALS = {
   frog: "the giant frog",
   dragon: "the dragon",
   imp: "the imp",
+  bandit: "the bandit",
+  witch: "the witch",
+  wizard: "the wizard",
   puglin: "the puglin",
 };
 
@@ -549,6 +566,7 @@ export const PACK = {
   horseLore: HORSE_LORE,
   sleep: SLEEP,
   beasts: BEASTS,
+  outlaws: OUTLAWS,
 };
 
 /** What's said of someone doing `act` at a place made for it ("minding a market stall"); "" for none. */

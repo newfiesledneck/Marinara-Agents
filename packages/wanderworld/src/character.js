@@ -16,6 +16,7 @@ import {
   MeshLambertMaterial,
   PlaneGeometry,
   Quaternion,
+  SphereGeometry,
   TorusGeometry,
   Vector3,
 } from "three";
@@ -40,7 +41,16 @@ const HELD_FOR = { hammer: "hammer", drink: "mug", tend: "trowel" };
 /** In an act of several clips, what each clip is done with (the farm: cutting, sowing, watering). */
 const HELD_FOR_PART = { harvest: "sickle", plant: "basket", water: "can" };
 /** Which hand each is held in (the drinking clip lifts the left). */
-const HELD_HAND = { hammer: "right", mug: "left", sickle: "right", basket: "left", can: "right", trowel: "right" };
+const HELD_HAND = {
+  hammer: "right",
+  mug: "left",
+  sickle: "right",
+  basket: "left",
+  can: "right",
+  trowel: "right",
+  staff: "right",
+  sword: "right",
+};
 let heldParts = null;
 function heldThing(name) {
   if (!heldParts) {
@@ -95,6 +105,17 @@ function heldThing(name) {
           0x9aa0a6,
         ),
       ],
+      // A staff, carried upright at the side: its length lies along the arm (x), a knob at its top.
+      staff: [
+        part(new CylinderGeometry(0.016, 0.02, 1.55, 6).rotateZ(Math.PI / 2).translate(0.05, 0, 0.05), 0x5a3d24),
+        part(new SphereGeometry(0.05, 8, 6).translate(0.85, 0, 0.05), 0x7fd4e8),
+      ],
+      // A short sword: a grip, a guard and a blade out the thumb's side.
+      sword: [
+        part(along(new CylinderGeometry(0.014, 0.014, 0.12, 6)).translate(0, 0, 0), 0x3b2a1c),
+        part(new BoxGeometry(0.11, 0.02, 0.02).translate(0, 0, 0.07), 0x8a8f96),
+        part(new BoxGeometry(0.035, 0.01, 0.56).translate(0, 0, 0.36), 0xb9c0c8),
+      ],
       mug: [
         part(along(new CylinderGeometry(0.042, 0.038, 0.11, 8)).translate(0, 0, 0.03), 0x8a6440),
         part(along(new CylinderGeometry(0.044, 0.044, 0.012, 8)).translate(0, 0, 0.07), 0x3a3d40),
@@ -106,6 +127,8 @@ function heldThing(name) {
   for (const mesh of heldParts[name]) group.add(mesh.clone());
   return group;
 }
+/** How far above the head bone (the base of the skull) a hat's brim sits, in metres. */
+const HAT_UP = 0.2;
 const overlay = new Quaternion();
 const overlayEuler = new Euler(0, 0, 0, "YXZ");
 
@@ -227,16 +250,31 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
   }
   return {
     object,
+    /** Puts a pointed hat of `colour` on their head (a witch's, a wizard's): a brim and a cone. */
+    wear(colour) {
+      const head = bone("head");
+      if (!head) return;
+      const material = new MeshLambertMaterial({ color: colour, flatShading: true });
+      const hat = new Group();
+      hat.add(new Mesh(new CylinderGeometry(0.21, 0.21, 0.015, 12), material));
+      hat.add(new Mesh(new ConeGeometry(0.115, 0.36, 10).translate(0, 0.18, 0), material));
+      hat.position.set(0, HAT_UP * unit, 0.01 * unit * mirror);
+      hat.rotation.x = -0.12 * mirror; // tipped back a little
+      hat.scale.setScalar(unit);
+      head.add(hat);
+    },
     update(dt, speed, options) {
       if (options?.gesture === "drink") sipping = 1.3;
       sipping = Math.max(0, sipping - dt);
       // The hand-made motion has nothing for the acts (clips.js): low ones it sits for, the rest it stands.
       const low = animationStyle !== "recorded" && LOW_ACTS.has(options?.act);
       const pose = motion(dt, speed, low ? { ...options, sit: true } : options);
-      if (animationStyle !== "recorded") hold(sipping > 0 ? "mug" : (HELD_FOR[options?.act] ?? null));
+      // (`carry`: something they always have in hand, a wizard's staff, unless busy with something else.)
+      const carried = HELD_HAND[options?.carry] ? options.carry : null;
+      if (animationStyle !== "recorded") hold(sipping > 0 ? "mug" : (HELD_FOR[options?.act] ?? carried));
       if (animationStyle === "recorded") {
         const clip = player(dt, speed, options);
-        hold(sipping > 0 ? "mug" : (HELD_FOR_PART[clip.part] ?? HELD_FOR[options?.act] ?? null));
+        hold(sipping > 0 ? "mug" : (HELD_FOR_PART[clip.part] ?? HELD_FOR[options?.act] ?? carried));
         for (const [name, local] of clip.locals) {
           const node = bone(name);
           node.quaternion.copy(local);
