@@ -318,6 +318,7 @@ export function createClipPlayer({ present, offset, legLength }) {
   let acting = 0;
   let actPart = 0;
   let actTime = 0;
+  let actClip = null;
   let actEase = 1; // 0…1 from the last clip's pose into this one's
   // Lying down: "none" → "down" (lying down) → "lying" → "up" (getting up) → "none".
   let lying = "none";
@@ -362,6 +363,7 @@ export function createClipPlayer({ present, offset, legLength }) {
       [clipName] = parts[actPart];
     }
     const clip = CLIPS[clipName];
+    actClip = clipName;
     sample(clip, (actTime / clip.duration) % 1, pose);
     if (actEase < 1) {
       actEase = Math.min(1, actEase + dt / 0.3);
@@ -587,6 +589,7 @@ export function createClipPlayer({ present, offset, legLength }) {
       if (crossed(0.02)) footstep = "left";
       else if (crossed(0.52)) footstep = "right";
     }
-    return { locals, hips, footstep, running: pace > 3 };
+    // (`part`: which clip of an act is playing, for whoever puts the right tool in its hand.)
+    return { locals, hips, footstep, running: pace > 3, part: acting > 0.5 ? actClip : null };
   };
 }

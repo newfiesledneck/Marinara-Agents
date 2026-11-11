@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.46)
+## What it does now (0.5.47)
 
 ### The world
 
@@ -297,6 +297,8 @@ only walk about.
   up to you, or comes for you (you're sent back a step; nothing is hurt yet). Journal → World has one
   world's own numbers. A dog has five sizes, small to massive (as tall as a horse); a huge or a massive
   one can be ridden.
+- **Tools in hand at work:** a sickle, a seed basket and a watering can on the farm, each for its
+  part of the work; a trowel in the garden; the smith's hammer and a drinker's mug as before.
 - **A saddle** on any horse that's someone's own (yours, or a character's). Farm and tavern horses
   go bare.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,

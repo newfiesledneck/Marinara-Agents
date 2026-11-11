@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.47",
+          "date": "2026-11-11",
+          "notes": "- Tools in hand at work: on the farm a sickle while cutting, a seed basket while sowing and a watering can while watering; a trowel for whoever kneels in the garden.",
+          "highlight": false
+        },
+        {
           "version": "0.5.46",
           "date": "2026-11-11",
           "notes": "- A saddle on any horse that's someone's own: yours, or a character's. Farm and tavern horses go bare.\n- The saddle is Saddle by Poly by Google (CC-BY 3.0), modified: converted, resized and its texture shrunk. Credited in Help, the README and `kit/CREDITS.md`.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.28",
           "date": "2026-11-11",
           "notes": "- Avatar in the Look card: when a persona's or a character's card has a 3D model, choose between the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), and the built-in person dressed by the rest of the card.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.27",
-          "date": "2026-11-11",
-          "notes": "- A dog and a horse of your own: the Look card has Dog and Horse, with the kind, the coat, and whether each is with you or at home. With you, it follows; at home it keeps by your door, or the tavern's if you have no home.\n- Someone in town whose lore mentions their dog has one at their heel. Their Look card can change it or take it away.\n- More wildlife: wolves in packs of three to five, more deer, more foxes.\n- With detailed props off, a wagon is drawn as a wagon, not a plain box.",
           "highlight": false
         }
       ]

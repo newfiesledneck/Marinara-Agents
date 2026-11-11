@@ -7,6 +7,7 @@
 import {
   BoxGeometry,
   CanvasTexture,
+  ConeGeometry,
   CylinderGeometry,
   Euler,
   Group,
@@ -15,6 +16,7 @@ import {
   MeshLambertMaterial,
   PlaneGeometry,
   Quaternion,
+  TorusGeometry,
   Vector3,
 } from "three";
 import { createClipPlayer } from "./clips.js";
@@ -34,9 +36,11 @@ const LOW_ACTS = new Set(["ground", "lie", "tend", "ride"]);
  * keeps disposeTree off them), laid out for a hand at rest in the T-pose: the grip at the origin, the
  * thing reaching out the thumb's side (+z).
  */
-const HELD_FOR = { hammer: "hammer", drink: "mug" };
+const HELD_FOR = { hammer: "hammer", drink: "mug", tend: "trowel" };
+/** In an act of several clips, what each clip is done with (the farm: cutting, sowing, watering). */
+const HELD_FOR_PART = { harvest: "sickle", plant: "basket", water: "can" };
 /** Which hand each is held in (the drinking clip lifts the left). */
-const HELD_HAND = { hammer: "right", mug: "left" };
+const HELD_HAND = { hammer: "right", mug: "left", sickle: "right", basket: "left", can: "right", trowel: "right" };
 let heldParts = null;
 function heldThing(name) {
   if (!heldParts) {
@@ -50,6 +54,46 @@ function heldThing(name) {
       hammer: [
         part(along(new CylinderGeometry(0.014, 0.016, 0.34, 6)).translate(0, 0, 0.1), 0x6b4a2f),
         part(new BoxGeometry(0.11, 0.05, 0.055).translate(0, 0, 0.27), 0x3a3d40),
+      ],
+      // A sickle: a short handle and a curved blade (a part of a ring) at its end.
+      sickle: [
+        part(along(new CylinderGeometry(0.014, 0.016, 0.16, 6)).translate(0, 0, 0.03), 0x6b4a2f),
+        part(
+          new TorusGeometry(0.09, 0.008, 4, 10, Math.PI * 1.1).rotateY(Math.PI / 2).translate(0, 0.09, 0.11),
+          0x9aa0a6,
+        ),
+      ],
+      // A seed basket, carried by its rim: wider at the top, hanging below the hand.
+      basket: [
+        part(new CylinderGeometry(0.11, 0.08, 0.1, 10, 1, true).translate(0, -0.09, 0.02), 0xa9824f),
+        part(new CylinderGeometry(0.08, 0.08, 0.01, 10).translate(0, -0.135, 0.02), 0x8a6a3f),
+        part(new CylinderGeometry(0.1, 0.1, 0.01, 10).translate(0, -0.07, 0.02), 0xd9c27a),
+      ],
+      // A watering can: its body below the hand, the spout reaching forward and up.
+      can: [
+        part(new CylinderGeometry(0.06, 0.065, 0.13, 10).translate(0, -0.08, 0.02), 0x6f7d86),
+        part(
+          along(new CylinderGeometry(0.012, 0.016, 0.17, 6))
+            .rotateX(-0.6)
+            .translate(0, -0.05, 0.14),
+          0x6f7d86,
+        ),
+        part(
+          along(new CylinderGeometry(0.03, 0.012, 0.025, 8))
+            .rotateX(-0.6)
+            .translate(0, -0.005, 0.215),
+          0x59656d,
+        ),
+      ],
+      // A trowel: a handle and a small pointed blade.
+      trowel: [
+        part(along(new CylinderGeometry(0.013, 0.015, 0.11, 6)).translate(0, 0, 0.01), 0x6b4a2f),
+        part(
+          along(new ConeGeometry(0.035, 0.12, 4))
+            .scale(1, 0.25, 1)
+            .translate(0, 0, 0.13),
+          0x9aa0a6,
+        ),
       ],
       mug: [
         part(along(new CylinderGeometry(0.042, 0.038, 0.11, 8)).translate(0, 0, 0.03), 0x8a6440),
@@ -186,12 +230,13 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
     update(dt, speed, options) {
       if (options?.gesture === "drink") sipping = 1.3;
       sipping = Math.max(0, sipping - dt);
-      hold(sipping > 0 ? "mug" : (HELD_FOR[options?.act] ?? null));
       // The hand-made motion has nothing for the acts (clips.js): low ones it sits for, the rest it stands.
       const low = animationStyle !== "recorded" && LOW_ACTS.has(options?.act);
       const pose = motion(dt, speed, low ? { ...options, sit: true } : options);
+      if (animationStyle !== "recorded") hold(sipping > 0 ? "mug" : (HELD_FOR[options?.act] ?? null));
       if (animationStyle === "recorded") {
         const clip = player(dt, speed, options);
+        hold(sipping > 0 ? "mug" : (HELD_FOR_PART[clip.part] ?? HELD_FOR[options?.act] ?? null));
         for (const [name, local] of clip.locals) {
           const node = bone(name);
           node.quaternion.copy(local);
