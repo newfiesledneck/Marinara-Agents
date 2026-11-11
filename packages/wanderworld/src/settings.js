@@ -113,7 +113,11 @@ export const SETTINGS = {
   animalsWild: { value: 12, min: 0, max: 40 },
   animalsHostile: { value: 5, min: 0, max: 30 },
   animalsMonsters: { value: 8, min: 0, max: 30 },
+  /** The most of them inside the settlement itself (dogs and horses share it); the rest are outside it. */
+  animalsTown: { value: 5, min: 0, max: 20 },
   loreAnimals: { value: true },
+  /** What a hostile animal does about you, where confrontations are allowed at all (`combat`). */
+  hostileAnimals: { value: "threaten", options: ["avoid", "threaten", "attack"] },
   animalDog: { value: true },
   animalHorse: { value: true },
   animalDonkey: { value: true },

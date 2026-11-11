@@ -36,11 +36,12 @@ export const ANIMALS = {
   bull: { group: "farm", walk: 1.0, gallop: 4.8, back: 0, seat: 0, timid: false },
   alpaca: { group: "farm", walk: 1.1, gallop: 5, back: 0, seat: 0, timid: false },
   // (A dog big enough is ridden: `rideFrom` is the size, as a multiple of its usual, from which it can be.)
-  husky: { group: "farm", walk: 1.2, gallop: 5.5, back: 0.6, seat: 0, rideFrom: 1.5, timid: false },
+  husky: { group: "farm", walk: 1.2, gallop: 5.5, back: 0.6, seat: 0, rideFrom: 1.9, timid: false },
   shiba: { group: "farm", walk: 1.0, gallop: 5, back: 0, seat: 0, timid: false },
   deer: { group: "wild", walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
   stag: { group: "wild", walk: 1.2, gallop: 7, back: 0, seat: 0, timid: true },
-  wolf: { group: "wild", walk: 1.3, gallop: 6.5, back: 0, seat: 0, timid: true },
+  // (`hostile`: it would attack; how it acts on that is the player's setting. Kept off, it keeps its distance.)
+  wolf: { group: "wild", walk: 1.3, gallop: 6.5, back: 0, seat: 0, timid: true, hostile: true },
   fox: { group: "wild", walk: 1.0, gallop: 5.5, back: 0, seat: 0, timid: true },
 };
 
@@ -139,8 +140,9 @@ export const SORT_OF = {
   wolf: "hostile",
 };
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
-export const POPULATION = { strays: 2, farm: 12, wild: 12, hostile: 5, monsters: 8 };
-export const POPULATION_MAX = { strays: 12, farm: 40, wild: 40, hostile: 30, monsters: 30 };
+// (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
+export const POPULATION = { strays: 2, farm: 12, wild: 12, hostile: 5, monsters: 8, town: 5 };
+export const POPULATION_MAX = { strays: 12, farm: 40, wild: 40, hostile: 30, monsters: 30, town: 20 };
 /** The kinds as a player switches them on and off: the two dogs are one ("dog"). */
 export const SWITCHES = {
   dog: ["husky", "shiba"],
@@ -157,10 +159,10 @@ export const SWITCHES = {
 
 /**
  * A dog's sizes, as how tall it stands (metres, to the top of its head): evenly spaced from a small dog
- * to one the size of a small horse. The two smaller are the small dog's body, the rest the big dog's;
+ * to one as tall as a horse. The two smaller are the small dog's body, the rest the big dog's;
  * the two largest can be ridden.
  */
-export const DOG_SIZES = { small: 0.5, medium: 0.775, large: 1.05, huge: 1.325, massive: 1.6 };
+export const DOG_SIZES = { small: 0.5, medium: 0.9125, large: 1.325, huge: 1.7375, massive: 2.15 };
 const DOG_HEIGHT = { shiba: 0.62, husky: 0.85 }; // how tall each body stands at its usual size
 /** The body a dog of `size` has: { kind, scale }. Anything else is a medium dog. */
 export function dogBody(size) {

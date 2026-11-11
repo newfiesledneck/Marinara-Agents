@@ -16,16 +16,21 @@ const NEAR = 110; // metres from the player within which an animal is moved and 
 const FLEE_FROM = 8; // metres: a timid animal this close to the player runs
 const FLEE_TO = 26; // and this far
 const WADE = 0.3; // metres of water an animal will walk into
+const THREAT_FROM = 16; // metres from the player at which a hostile animal squares up to them
+const HUNT_FROM = 22; // and from which, let attack, it comes for them
+const THREAT_EVERY = 45; // seconds between the game being told of one squaring up
 const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives up walking and turns up beside them
 
 /**
  * Where a world's animals start: [{ kind, coat (a horse's or a dog's colours: animals.js COATS, or null),
  * scale (its size), x, z, range (metres they stray), tied (stands about one spot) }]. `world`: its layout
  * (townHalf, plaza, outposts), doors and size. `counts`: how many of each sort ({ strays, farm, wild,
- * hostile, monsters }; a sort at 0 has none); `off`: kinds there are none of at all. Plain numbers in,
- * plain data out.
+ * hostile, monsters, town }; a sort at 0 has none; `town` is the most inside the settlement itself);
+ * `off`: kinds there are none of at all; `quiet`: where none of the world's own are ({ all, wild (none
+ * out in the country), areas: [{ x, z, r }] }). Plain numbers in, plain data out.
  */
-export function herdFor(world, seed, { counts = POPULATION, off = [] } = {}) {
+export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {} } = {}) {
+  if (quiet.all) return [];
   const random = rng((seed ^ 0x6a09e667) >>> 0);
   const pick = (list) => list[Math.floor(random() * list.length)];
   const on = (kind) => !off.includes(kind);
@@ -44,7 +49,11 @@ export function herdFor(world, seed, { counts = POPULATION, off = [] } = {}) {
       ...more,
     });
   };
-  const dry = (x, z) => waterAt(x, z).depth <= 0 && !world.blocked(x, z, 0.8);
+  // (Not in the water, not inside anything, and not somewhere the lore keeps animals out of.)
+  const dry = (x, z) =>
+    waterAt(x, z).depth <= 0 &&
+    !world.blocked(x, z, 0.8) &&
+    !(quiet.areas ?? []).some((area) => Math.hypot(area.x - x, area.z - z) < area.r);
   const near = (x, z, reach) => {
     for (let tries = 0; tries < 12; tries++) {
       const angle = random() * Math.PI * 2;
@@ -56,6 +65,18 @@ export function herdFor(world, seed, { counts = POPULATION, off = [] } = {}) {
   };
   const layout = world.layout;
   const want = (sort) => Math.max(0, Math.round(counts[sort] ?? 0));
+  // Only so many inside the settlement itself (dogs and horses share it); the rest go just outside it.
+  let townLeft = Math.max(0, Math.round(counts.town ?? Infinity));
+  const inTown = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < layout.townHalf;
+  const outskirts = () => {
+    for (let tries = 0; tries < 30; tries++) {
+      const angle = random() * Math.PI * 2;
+      const far = layout.townHalf * 1.42 + 6 + random() * 22;
+      const at = { x: Math.sin(angle) * far, z: Math.cos(angle) * far };
+      if (dry(at.x, at.z) && !inTown(at.x, at.z)) return at;
+    }
+    return null;
+  };
 
   // The farms' animals: cattle, now and then a bull or an alpaca, a donkey and a horse at each farm; a
   // horse by each tavern and inn and a donkey at a hamlet; then the farms again, till there are enough.
@@ -85,9 +106,15 @@ export function herdFor(world, seed, { counts = POPULATION, off = [] } = {}) {
     let left = want("farm");
     const place = (kind, site) => {
       if (left <= 0 || !on(kind)) return;
-      const at = site.reach ? near(site.x, site.z, site.reach) : dry(site.x, site.z) ? site : null;
+      let at = site.reach ? near(site.x, site.z, site.reach) : dry(site.x, site.z) ? site : null;
+      let tied = !!site.tied;
+      // (One the settlement has no more room for stands outside it, loose.)
+      if (at && inTown(at.x, at.z)) {
+        if (townLeft > 0) townLeft--;
+        else [at, tied] = [outskirts(), false];
+      }
       if (!at) return;
-      add(kind, at.x, at.z, site.range, site.tied ? { tied: true } : {});
+      add(kind, at.x, at.z, tied ? site.range : Math.max(site.range, 4), tied ? { tied: true } : {});
       left--;
     };
     for (let round = 0; round < 8 && left > 0 && (farms.length || (round === 0 && stands.length)); round++) {
@@ -106,8 +133,10 @@ export function herdFor(world, seed, { counts = POPULATION, off = [] } = {}) {
   if (on("husky") || on("shiba")) {
     const plaza = layout.plaza;
     for (let n = 0; n < want("strays"); n++) {
-      const at = near(plaza.x, plaza.z, 22);
-      const { kind, scale } = dogBody(pick(["small", "medium", "medium", "large"]));
+      // (About the market while the settlement has room; after that, about its edges.)
+      const at = townLeft > 0 ? near(plaza.x, plaza.z, 22) : outskirts();
+      if (at && inTown(at.x, at.z)) townLeft--;
+      const { kind, scale } = dogBody(pick(["small", "small", "medium"]));
       if (at) add(kind, at.x, at.z, 18, { scale });
     }
   }
@@ -123,35 +152,39 @@ export function herdFor(world, seed, { counts = POPULATION, off = [] } = {}) {
     return null;
   };
   // The ones that keep their distance: a fox here and there on its own, deer in twos to fours, a stag among them.
-  {
+  if (!quiet.wild) {
     let left = want("wild");
     const grazers = ["deer", "stag"].filter(on);
     let foxes = on("fox") ? (grazers.length ? Math.round(left * 0.2) : left) : 0;
     for (let guard = 0; guard < 80 && left > 0 && (foxes > 0 || grazers.length); guard++) {
       if (foxes > 0) {
-        const at = wild(15);
-        if (at) add("fox", at.x, at.z, 20);
+        const at = wild(15) ?? wild(6);
+        if (!at) continue; // (no room found this time: try again)
+        add("fox", at.x, at.z, 20);
         foxes--;
         left--;
         continue;
       }
-      const at = wild(25);
+      const at = wild(25) ?? wild(10);
+      if (!at) continue;
       const size = Math.min(left, 2 + Math.floor(random() * 3));
       for (let n = 0; n < size; n++) {
         const kind = on("deer") && !(on("stag") && n > 0 && random() < 0.3) ? "deer" : (grazers.at(-1) ?? "deer");
-        const spot = at ? (near(at.x, at.z, 7) ?? at) : null;
-        if (spot) add(kind, spot.x, spot.z, 16);
+        const spot = near(at.x, at.z, 7) ?? at;
+        add(kind, spot.x, spot.z, 16);
       }
       left -= size;
     }
   }
   // The ones that would attack: wolves, some alone and some in packs of two to five that keep together.
-  if (on("wolf")) {
+  if (on("wolf") && !quiet.wild) {
     let left = want("hostile");
     for (let guard = 0; guard < 60 && left > 0; guard++) {
       const size = Math.min(left, random() < 0.4 ? 1 : 2 + Math.floor(random() * 4));
-      const pack = wild(60);
-      for (let n = 0; n < size && pack; n++) {
+      // (Well out from the houses where there's room; nearer in on a small map.)
+      const pack = wild(60) ?? wild(30) ?? wild(12);
+      if (!pack) continue;
+      for (let n = 0; n < size; n++) {
         const spot = near(pack.x, pack.z, 6) ?? pack;
         add("wolf", spot.x, spot.z, 26, { home: { x: pack.x, z: pack.z } });
       }
@@ -173,6 +206,18 @@ export function createHerd() {
   let beasts = [];
   let token = 0;
   let spawned = ""; // the lore's animals as last asked for (setSpawns)
+  let tempers = {}; // what the lore says a kind is like here: { wolf: "tame", deer: "hostile" } (setTempers)
+  let clock = 0; // seconds it has run
+  let lastThreat = -Infinity; // when a hostile one last squared up to the player
+  let events = []; // what's happened that the game should tell: [{ type: "threat" | "attack", kind, x, z }]
+
+  /** What `beast` is like: "tame", "hostile", "timid" or "calm" (its own, the lore's for its kind, or its kind's). */
+  const temperOf = (beast) =>
+    beast.owned
+      ? "tame"
+      : (beast.temper ??
+        tempers[beast.kind] ??
+        (ANIMALS[beast.kind].hostile ? "hostile" : ANIMALS[beast.kind].timid ? "timid" : "calm"));
 
   function clear() {
     token++;
@@ -325,6 +370,8 @@ export function createHerd() {
           range: 22,
           tied: false,
           lore: true,
+          ...(entry.temper ? { temper: entry.temper } : {}),
+          ...(entry.when ? { when: entry.when } : {}),
         };
         beasts.push(beast);
         embody(beast, token);
@@ -393,11 +440,78 @@ export function createHerd() {
     return null;
   }
 
-  function step(beast, dt, player) {
+  /** One step toward (x, z) at `pace`, round what's in the way and not into the river; faces that way. */
+  function toward(beast, x, z, pace, dt) {
+    const dx = x - beast.x;
+    const dz = z - beast.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance < 0.05) return (beast.speed = 0);
+    const move = Math.min(distance, pace * dt);
+    const next = { x: beast.x + (dx / distance) * move, y: 0, z: beast.z + (dz / distance) * move };
+    world.resolveCollisions(next, 0.5, false);
+    if (waterAt(next.x, next.z).depth > WADE * 2) return (beast.speed = 0);
+    const moved = Math.hypot(next.x - beast.x, next.z - beast.z);
+    beast.x = next.x;
+    beast.z = next.z;
+    beast.speed = moved / Math.max(dt, 1e-4);
+    const heading = Math.atan2(dx, dz);
+    beast.angle += Math.atan2(Math.sin(heading - beast.angle), Math.cos(heading - beast.angle)) * Math.min(1, dt * 7);
+    return beast.speed;
+  }
+
+  /**
+   * A hostile one with the player in reach, where the player lets them be hostile (`view.hostile`:
+   * "threaten" or "attack"; `view.safe`: not here): it squares up to them about six metres off, backing
+   * away if they come on; or it runs in and snaps, then draws off till it's ready again. Returns false
+   * when it has nothing to do with them (it goes about as any animal does).
+   */
+  function hunt(beast, dt, player, view) {
+    if (temperOf(beast) !== "hostile" || view.safe || (view.hostile !== "threaten" && view.hostile !== "attack"))
+      return false;
+    const facts = ANIMALS[beast.kind];
+    const dx = player.x - beast.x;
+    const dz = player.z - beast.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > (view.hostile === "attack" ? HUNT_FROM : THREAT_FROM)) return false;
+    beast.state = "idle";
+    beast.target = null;
+    beast.graze = false;
+    beast.wait = 2;
+    const face = () => {
+      beast.speed = 0;
+      const heading = Math.atan2(dx, dz);
+      beast.angle += Math.atan2(Math.sin(heading - beast.angle), Math.cos(heading - beast.angle)) * Math.min(1, dt * 6);
+    };
+    beast.cool = Math.max(0, (beast.cool ?? 0) - dt);
+    if (view.hostile === "attack" && beast.cool <= 0) {
+      if (distance < 1.5) {
+        events.push({ type: "attack", kind: beast.kind, x: beast.x, z: beast.z });
+        beast.cool = 6 + beast.random() * 4;
+        face();
+      } else toward(beast, player.x, player.z, facts.gallop, dt);
+      return true;
+    }
+    // Squared up to them (or drawn off after a lunge): about six metres off, giving ground if they come on.
+    if (distance > 7)
+      toward(beast, player.x - (dx / distance) * 6, player.z - (dz / distance) * 6, facts.walk * 1.8, dt);
+    else if (distance < 4.5)
+      toward(beast, beast.x - (dx / distance) * 3, beast.z - (dz / distance) * 3, facts.walk * 1.8, dt);
+    else face();
+    if (distance < 9 && clock - lastThreat > THREAT_EVERY) {
+      lastThreat = clock;
+      events.push({ type: "threat", kind: beast.kind, x: beast.x, z: beast.z });
+    }
+    return true;
+  }
+
+  function step(beast, dt, player, view = {}) {
     const facts = ANIMALS[beast.kind];
     const toPlayer = Math.hypot(player.x - beast.x, player.z - beast.z);
-    // A timid one bolts from anyone close, straight away from them.
-    if (facts.timid && toPlayer < FLEE_FROM && beast.state !== "flee") {
+    // A timid one bolts from anyone close, straight away from them; so does a hostile one kept from hostility.
+    const temper = temperOf(beast);
+    const wary =
+      temper === "timid" || (temper === "hostile" && view.hostile !== "threaten" && view.hostile !== "attack");
+    if (wary && toPlayer < FLEE_FROM && beast.state !== "flee") {
       const away = Math.atan2(beast.x - player.x, beast.z - player.z) + (beast.random() - 0.5) * 0.8;
       beast.target = { x: beast.x + Math.sin(away) * FLEE_TO, z: beast.z + Math.cos(away) * FLEE_TO };
       beast.state = "flee";
@@ -450,14 +564,17 @@ export function createHerd() {
   function update(dt, view) {
     if (!world) return;
     const player = view.player;
+    clock += dt;
     for (const beast of beasts) {
       if (!beast.group) continue;
       const far = Math.hypot(player.x - beast.x, player.z - beast.z) > NEAR;
-      beast.group.visible = !far;
-      if (far) continue;
+      // One that's about only by night (or only by day) is out of sight, in its den, the rest of the time.
+      const away = beast.when === "night" ? !view.night : beast.when === "day" ? !!view.night : false;
+      beast.group.visible = !far && !away;
+      if (far || away) continue;
       if (!beast.ridden) {
         if (beast.owned && beast.out) follow(beast, dt, view.owners?.get(beast.owner));
-        else step(beast, dt, player);
+        else if (!hunt(beast, dt, player, view)) step(beast, dt, player, view);
         place(beast);
       }
       beast.animal.update(dt, beast.speed, { graze: beast.graze, jump: beast.ridden ? (beast.leap ?? null) : null });
@@ -468,6 +585,16 @@ export function createHerd() {
     setWorld,
     setOwned,
     setSpawns,
+    /** What the lore says a kind is like in this world: { wolf: "tame", deer: "hostile" }. */
+    setTempers(next) {
+      tempers = { ...next };
+    },
+    /** What's happened since this was last asked, for the game to tell: [{ type, kind, x, z }]. */
+    takeEvents() {
+      const taken = events;
+      events = [];
+      return taken;
+    },
     update,
     /** Takes everything out of the world (before it's disposed). */
     detach: clear,
@@ -484,6 +611,9 @@ export function createHerd() {
         x: beast.x,
         z: beast.z,
         state: beast.state,
+        temper: temperOf(beast),
+        when: beast.when ?? "any",
+        shown: !!beast.group?.visible,
         ridden: beast.ridden,
         loaded: !!beast.group,
       })),

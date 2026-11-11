@@ -146,6 +146,8 @@ export function creatureFromWords(words) {
     when:
       has(words, "night") && !has(words, "day") ? "night" : has(words, "day") && !has(words, "night") ? "day" : "any",
     pack: number(/^pack\s+(\d+)$/iu, 1),
+    // "ww:tame" on its entry: this world's are no danger and don't run (a wolf that's a friend).
+    tame: has(words, "tame"),
     danger: number(/^danger\s+(\d+)$/iu, 1),
     drops: after(words, /^drops?\s+(.+)$/iu)
       .map((item) => item.slice(0, 40))
@@ -193,13 +195,15 @@ const PET_ROLES = {
  * species (anything else: "great dane") }.
  */
 function animalParts(parts) {
-  const out = { size: "", colour: "", count: 0, name: "", species: "" };
+  const out = { size: "", colour: "", count: 0, name: "", species: "", temper: "", when: "" };
   for (const raw of parts) {
     const part = clean(raw);
     const lower = part.toLowerCase();
     const pack = /^(?:pack\s*)?(\d{1,2})$/u.exec(lower);
     if (!part) continue;
     if (pack) out.count = Math.max(1, Math.min(10, Number(pack[1])));
+    else if (lower === "tame" || lower === "hostile") out.temper = lower;
+    else if (lower === "night" || lower === "day") out.when = lower;
     else if (ANIMAL_SIZES[lower] && !out.size) out.size = lower;
     else if ((COLOURS.includes(lower) || COLOUR_WORDS[lower]) && !out.colour) out.colour = COLOUR_WORDS[lower] ?? lower;
     else if (/^\p{Lu}/u.test(part) && !out.name) out.name = part.slice(0, 30);
@@ -240,6 +244,18 @@ export function petsFromLore(books) {
 /** A word that names a place, or the whole world: what "ww:monster:wolf" beside it means "lives here". */
 const PLACE_WORD = new RegExp(String.raw`^(${NEEDED_KINDS.join("|")}|world)\d*$`, "iu");
 
+/** The places whose entries keep the world's own animals out ("animals none"), as written: ["garden1", "world"]. */
+export function quietFromLore(books) {
+  const out = new Set();
+  for (const book of books)
+    for (const entry of book.entries) {
+      const words = (entry.keys ?? []).map(clean);
+      if (!has(words, "animals none")) continue;
+      for (const word of words) if (PLACE_WORD.test(word)) out.add(word.toLowerCase());
+    }
+  return [...out].slice(0, 40);
+}
+
 /**
  * What lives where, as places' entries say ("spawn wolf:large:pack5" beside "forest1"): [{ place (as
  * written; "world" or a kind is anywhere of it), kind (as written: "wolf", "goblin"), size, count (0:
@@ -253,9 +269,16 @@ export function spawnsFromLore(books) {
       const places = words.filter((word) => PLACE_WORD.test(word));
       for (const value of after(words, /^spawn\s+(.+)$/iu)) {
         const [kind, ...rest] = value.split(":");
-        const { size, count } = animalParts(rest);
+        const { size, count, temper, when } = animalParts(rest);
         for (const place of places.length ? places : ["world"])
-          out.push({ place: place.toLowerCase(), kind: clean(kind).toLowerCase().slice(0, 30), size, count });
+          out.push({
+            place: place.toLowerCase(),
+            kind: clean(kind).toLowerCase().slice(0, 30),
+            size,
+            count,
+            temper,
+            when,
+          });
       }
     }
   return out.slice(0, 60);
@@ -302,7 +325,7 @@ const PHRASES = [
 /** Things an entry can be marked as, with or without a name after ("ww:character:Mira Saxton", "ww:monster"). */
 const MARKS = ["character", "monster", "creature"];
 /** Keys that are whole by themselves: what an entry is, or a plain yes. */
-const FLAGS = ["world", "walls", "hostile", ...MARKS];
+const FLAGS = ["world", "walls", "hostile", "tame", ...MARKS];
 
 /**
  * One key of a lorebook entry, read. Not Wanderworld's (no "ww:" in front): null. Otherwise { words:
@@ -361,6 +384,9 @@ export function readKeyword(raw) {
   if (MARKS.includes(what) || what === "hostile") return ok(what, `name ${value}`);
   if (PHRASES.includes(what)) return ok(`${what} ${value}`);
   if (what === "owned by") return ok(`owner ${value}`);
+  // A place the world's own animals keep out of: "ww:animals:none".
+  if (what === "animals")
+    return lower === "none" ? ok("animals none") : bad("animals is none: no animals of the world's own there");
   if (what === "body")
     return BODY_WORDS.includes(lower) ? ok(lower) : bad(`a body is one of: ${BODY_WORDS.join(", ")}`);
   if (what === "temperament")
@@ -594,7 +620,19 @@ export const KEYWORD_GUIDE = [
     group: "Creatures",
     write: "ww:monster:wolf, ww:creature:deer:small:pack4, ww:monster:wolf:large:pack5",
     on: "a place's entry (ww:forest1, ww:world)",
-    does: "That creature lives there. After its kind, in any order: a size and how many together (pack5, or just 5). With neither, however many and whatever size. A doubled colon reads the same: ww::monster::wolf::large::pack5.",
+    does: "That creature lives there. After its kind, in any order: a size, how many together (pack5, or just 5), tame or hostile, night or day (when it's about). With none of them, however many and whatever size. A doubled colon reads the same: ww::monster::wolf::large::pack5.",
+  },
+  {
+    group: "Creatures",
+    write: "ww:tame, ww:hostile",
+    on: "a creature's entry",
+    does: "What every one of that kind is like in this world: ww:creature:Wolf with ww:tame makes its wolves no danger; ww:creature:Deer with ww:hostile makes its deer one. ww:active:night (or day) on the same entry says when they're about.",
+  },
+  {
+    group: "Creatures",
+    write: "ww:animals:none",
+    on: "a place's entry (ww:garden1, ww:forest1, ww:world)",
+    does: "None of the world's own animals there: a place with a spot keeps them off it, ww:forest1 keeps the country's away, ww:world has none anywhere. Animals the lore itself puts somewhere, and anyone's own, still are.",
   },
   {
     group: "People",

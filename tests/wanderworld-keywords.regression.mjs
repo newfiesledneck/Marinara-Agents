@@ -100,6 +100,7 @@ assert.deepEqual(
     found: ["forest1", "cave1"],
     when: "night",
     pack: 4,
+    tame: false,
     danger: 10,
     drops: ["wolf pelt", "gold"],
   },
@@ -109,6 +110,7 @@ assert.deepEqual(creatureFromWords(["creature", "size enormous"]), {
   found: [],
   when: "any",
   pack: 1,
+  tame: false,
   danger: 1,
   drops: [],
 });

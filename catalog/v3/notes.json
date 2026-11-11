@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.39",
+          "date": "2026-11-11",
+          "notes": "- Hostile animals (Settings → Animals): a wolf keeps its distance, squares up to you about six paces off, or comes for you and sends you back a step, where confrontations are allowed. Nothing is hurt yet.\n- Lorebook keywords: `ww:tame` and `ww:hostile` on a creature's entry say what its kind is like in this world; `ww:active:night` or `day` when it's about; `ww:animals:none` on a place keeps the world's own animals out of it.\n- \"Most in the settlement\" caps the stray dogs and horses inside the town; the rest are put just outside.\n- Journal → World: one world's own numbers of animals.\n- Dogs are bigger at the top: massive is now as tall as a horse, and the sizes between are spaced evenly again. Huge and massive are ridden.",
+          "highlight": false
+        },
+        {
           "version": "0.5.38",
           "date": "2026-11-11",
           "notes": "- Settings → Animals: a slider for how many of each sort a world has of its own (stray dogs, farm animals, peaceful wild animals, hostile ones, monsters), 0 for none. Animals a lorebook asks for and anyone's own are still there at 0, unless that's turned off.\n- A switch for each kind: off, there are none of it anywhere, lore or not.\n- Wolves come alone and in packs of two to five that keep together; a pack of three counts as three.\n- A dog has five sizes, evenly spaced from small to massive (the size of a small horse), and is owned or not: the size decides its body. A huge or a massive dog can be ridden.\n- Both dogs come in the same six coats.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.20",
           "date": "2026-11-11",
           "notes": "- Look card: any piece (top, sleeves, legs, boots) can be set to None, which shows the body there: bare arms, a bare chest, bare feet. The body wears dark underclothes, so leaving everything off is still decent.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.19",
-          "date": "2026-11-11",
-          "notes": "- Look card: every piece (top, sleeves, legs, boots, hood, pauldrons) can have a colour of its own, and it comes out as the colour you pick instead of darkening the cloth. Skin can be any colour too.\n- Its own colour picker, with \"Use this colour\", \"No colour\" and \"Cancel\" buttons, in place of the browser's.\n- The button that forgets the choices is called Reset.\n- Fixed: cropped hair cut through a woman's head. There is one Cropped style now, cut for each body.\n- The two darkest townsfolk colours are lighter, and the colours are named for what they look like (Cream, Olive, Blue, Rose, Green, Plum, Grey).",
           "highlight": false
         }
       ]
