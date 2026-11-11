@@ -332,6 +332,7 @@ export function createClipPlayer({ present, offset, legLength }) {
   /** The pose of `name` (an act but "lie") after another `dt`, into poses.act. */
   function actPose(name, dt, talkAmount) {
     const pose = poses.act;
+    actClip = null; // (only an act of clips has one: not riding, sitting on the ground or lying down)
     if (name === "ride") {
       // The seated body's back and head, with the legs down either side and the hands forward.
       sample(CLIPS.sit, (idleTime / CLIPS.sit.duration) % 1, pose);
