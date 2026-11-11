@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.36",
+          "date": "2026-11-11",
+          "notes": "- Getting down from a horse or a donkey is a movement of its own, like getting on: a leg back over, a lean, and down to the ground beside it. Before, the rider dropped to the ground and slid sideways.\n- Characters can have a horse of their own: from their lore (\"his grey mare\", \"rides a horse\") or chosen in their Look card. It follows them and waits outside, the Party tab lists it, and it isn't offered to you to ride.",
+          "highlight": false
+        },
+        {
           "version": "0.5.35",
           "date": "2026-11-11",
           "notes": "- The asset files are regrouped by setting: what any world has (nature, people's bodies, the painted art), the medieval setting's buildings, props and outfits, and the creatures. Each set's models are one file now, so the package has 93 asset files where it had 228, with room for more settings and creatures. Nothing looks different in the game.",
@@ -307,12 +313,6 @@
           "version": "0.5.17",
           "date": "2026-11-11",
           "notes": "- A Look card for anyone without a 3D model, your persona included: the Look button beside the body choice (People, and Play as) sets outfit, colour, hair, hair colour, skin, beard and height. Changes show at once and are kept with the world.\n- A second outfit, the ranger (hood and pauldrons) in five colours; about one in four townsfolk now wears it unless you choose otherwise. More hair colours, and a bare head.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.16",
-          "date": "2026-11-11",
-          "notes": "- Campfires burn: a flickering flame, a light that comes up as it gets dark, and smoke.\n- A campsite's logs are seats, turned to face the fire and clear of the tent.\n- Sleep in a campsite's tent: choose how long (an hour to eight, or until morning or evening), the screen dims, and the clock jumps on. Everyone not close by is where that hour has them: at home, at work, or out.\n- Townsfolk nap in the tent too.",
           "highlight": false
         }
       ]

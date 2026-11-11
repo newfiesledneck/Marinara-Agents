@@ -490,6 +490,9 @@ const COATS = {
 /** The kinds of dog someone can have, as the Look card lists them. */
 const DOGS = { husky: "Big dog", shiba: "Small dog" };
 /** What lore says of someone with a dog of their own ("her old hound", "has a dog"). */
+/** And of someone with a horse of their own ("his grey mare", "rides a horse"). */
+const HORSE_LORE =
+  /\b(?:his|her|their|has an?|have an?|owns? an?|keeps? an?|rides? an?|loyal|faithful|trusty)\s+(?:[\w'-]+\s+){0,2}(?:horse|mare|stallion|gelding|steed|pony|charger|destrier|palfrey)\b/iu;
 const DOG_LORE =
   /\b(?:his|her|their|has an?|have an?|owns? an?|keeps? an?|pet|loyal|faithful|trusty)\s+(?:[\w'-]+\s+){0,2}(?:dog|hound|puppy|pup|mutt|mastiff|wolfhound|sheepdog)\b/iu;
 const ANIMALS = {
@@ -521,6 +524,7 @@ export const PACK = {
   coats: COATS,
   dogs: DOGS,
   dogLore: DOG_LORE,
+  horseLore: HORSE_LORE,
   sleep: SLEEP,
 };
 

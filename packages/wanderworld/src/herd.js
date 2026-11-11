@@ -376,6 +376,7 @@ export function createHerd() {
           id: beast.id,
           kind: beast.kind,
           coat: beast.coat,
+          owner: beast.owned ? beast.owner : null, // (someone's own: theirs to ride, not anyone's)
           x: beast.x,
           z: beast.z,
           back: ANIMALS[beast.kind].back,

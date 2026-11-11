@@ -490,7 +490,7 @@ export function createHud(root, handlers) {
             { kind: dog.kind, coat: dog.coat, out: at === "out", name: dog.name },
           ]);
         }
-        if (pets.mine) {
+        {
           const horse = pets.horse;
           choose(
             "Horse",
