@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.53)
+## What it does now (0.5.54)
 
 ### The world
 
@@ -279,6 +279,9 @@ only walk about.
   level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
   Relationships ends with Lately, the record of it, and coming back to the town or the country after
   a few hours away says what happened there. Settings → Living world has a switch for each part.
+- **Market days and festivals:** once a week it's market day, once in four weeks an evening festival;
+  for those hours a good share of the town gathers in the market square, and a line says so
+  (`src/events.js`; rules only, with a switch in Settings → Living world).
 - **Your household (Journal → Home):** move into any house that stands empty, with whichever of the
   people you live with you choose (the rest stay); ask someone to move in, or a housemate to leave;
   have someone round for a few hours. Inside your home, the same tab furnishes it: eighteen kinds of

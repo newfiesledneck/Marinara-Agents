@@ -56,6 +56,7 @@ import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
 import { createMemories } from "./memory.js";
+import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
 import {
   FURNITURE,
   homeToLeaveFor,
@@ -689,6 +690,7 @@ function playWorld(id) {
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
   core.social = createSocial(save.social ?? {});
+  core.eventDay = undefined; // which day's event has been told (tellEvents)
   core.invites = new Map(); // who's been asked round (Journal → Home): this world's, and only while it's open
   core.memories = createMemories(save.memories ?? {});
   core.away = {}; // when each part of the world was last left (socialTick)
@@ -2394,6 +2396,33 @@ function inviteOver(id) {
   recall([id], `${personaName()} asked you round to their home.`);
 }
 
+/**
+ * Market days and festivals (events.js): when the day turns, people's days are made again for it; a line
+ * says what today is, and another when its hours begin. Each is said once.
+ */
+function tellEvents() {
+  const day = core.social?.day ?? 0;
+  const event = core.settings.worldEvents ? eventOn(day) : null;
+  const key = `${day}:${event?.id ?? ""}`;
+  if (core.eventDay !== key) {
+    const first = core.eventDay === undefined; // (a world just opened: no "today" line in the middle of a day)
+    core.eventDay = key;
+    core.eventBegun = false;
+    useSchedules();
+    if (event && (!first || core.hour < event.from)) narrate(null, `(${eventWords(event.today)})`);
+  }
+  if (event && !core.eventBegun && eventOpen(event, core.hour)) {
+    core.eventBegun = true;
+    narrate(null, `(${eventWords(event.begins)})`);
+  }
+}
+
+/** An event's line, with this world's name for the market square. */
+function eventWords(text) {
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  return text.replace("{plaza}", names.plaza ?? "the market square");
+}
+
 /** Ends the visits whose time is up (called with the social life, every couple of seconds). */
 function endVisits() {
   if (!core.invites?.size) return;
@@ -2467,6 +2496,25 @@ function useSchedules() {
   for (const character of core.characters ?? []) {
     if (!core.cast?.has(character.id)) continue;
     map[character.id] = scheduleOf(character.id).entries.map((entry) => ({ ...entry, ...where(entry.place) }));
+  }
+  // On a market day or a festival (events.js), a share of the town is in the square for its hours: after
+  // whatever a day set by hand says for then, before the rest of it.
+  const event = core.settings.worldEvents ? eventOn(core.social?.day ?? 0) : null;
+  const plaza = core.world?.layout?.plaza;
+  if (event && plaza) {
+    for (const [id, entries] of Object.entries(map)) {
+      if (!goesTo(event, id, core.social.day)) continue;
+      // (Not someone whose day was set by hand for those hours.)
+      const during = (entry) =>
+        entry.from < entry.to
+          ? entry.from < event.to && entry.to > event.from
+          : entry.from < event.to || entry.to > event.from;
+      if (core.save?.schedules?.[id]?.entries?.length && entries.some(during)) continue;
+      map[id] = [
+        { from: event.from, to: event.to, activity: "visit", door: null, point: standAt(plaza, id) },
+        ...entries,
+      ];
+    }
   }
   // Whoever's been asked round goes to the player's home first, for as long as the visit lasts.
   const mine = playerHomeDoor();
@@ -2993,6 +3041,7 @@ function socialTick(dt) {
   core.socialWait = (core.socialWait ?? 0) + dt;
   if (core.socialWait < 2) return;
   endVisits();
+  tellEvents();
   const hours = (core.socialWait * 24 * (core.settings.timeSpeed ?? 1)) / DAY_SECONDS;
   core.socialWait = 0;
   const snapshot = core.crowd.snapshot();
