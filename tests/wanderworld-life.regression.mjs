@@ -272,7 +272,7 @@ const world = createWorld(51, null, { smithy: 2 });
   assert.ok(town.camps.length >= 1 && town.camps.length <= 2, "a campsite or two");
   for (const camp of town.camps) {
     const logSeats = town.seats.filter((seat) => Math.hypot(seat.x - camp.x, seat.z - camp.z) < 3.5);
-    assert.equal(logSeats.length, 4, "two seats on each of the two logs");
+    assert.ok([2, 4, 6].includes(logSeats.length), "two seats on each of its one, two or three logs");
     for (const seat of logSeats) {
       assert.ok(!town.blocked(seat.approach.x, seat.approach.z, 0.1), "you can stand in front of a log seat");
       assert.ok(
@@ -345,7 +345,9 @@ const world = createWorld(51, null, { smithy: 2 });
 }
 
 // Campsites keep apart, and nothing wild stands in one or in anything built.
-for (const seed of [4242, 51, 7, 99, 1234]) {
+const tentCounts = new Set();
+const logCounts = new Set();
+for (const seed of [4242, 51, 7, 99, 1234, 5, 6, 8]) {
   const town = createWorld(seed);
   for (const camp of town.camps) {
     for (const other of town.camps)
@@ -353,6 +355,31 @@ for (const seed of [4242, 51, 7, 99, 1234]) {
         other === camp || Math.hypot(other.x - camp.x, other.z - camp.z) >= 70,
         `campsites keep apart (${seed})`,
       );
+    // One to three tents, each with its own bedroll, clear of each other and of the logs' seats.
+    assert.ok(camp.tents.length >= 1 && camp.tents.length <= 3 && camp.tents[0].bed === camp.bed);
+    tentCounts.add(camp.tents.length);
+    // Two seats a log: three logs with three tents, else one or two.
+    const logs = town.seats.filter((seat) => Math.hypot(seat.x - camp.x, seat.z - camp.z) < 3).length / 2;
+    assert.ok(
+      camp.tents.length === 3 ? logs === 3 : logs === 1 || logs === 2,
+      `${camp.tents.length} tents, ${logs} logs`,
+    );
+    logCounts.add(logs);
+    for (const tent of camp.tents) {
+      for (const other of camp.tents)
+        assert.ok(
+          other === tent || Math.hypot(other.bed.x - tent.bed.x, other.bed.z - tent.bed.z) > 2.4,
+          "tents stand apart",
+        );
+      const out = Math.hypot(tent.bed.x - camp.x, tent.bed.z - camp.z);
+      assert.ok(out > 3 && out < 5, `a tent stands back from the fire (${out.toFixed(1)} m)`);
+      assert.ok(
+        town.spots.some((spot) => spot.act === "lie" && spot.camp === camp.id && spot.x === tent.bed.x),
+        "each tent has a place to lie down",
+      );
+      for (const seat of town.seats)
+        assert.ok(Math.hypot(seat.x - tent.bed.x, seat.z - tent.bed.z) > 1.6, "no tent sits on a log's seat");
+    }
     // (Pushed out of every tree and rock there is: a point in the clearing isn't moved by any.)
     town.setDensity(10);
     for (const [dx, dz] of [
@@ -374,6 +401,9 @@ for (const seed of [4242, 51, 7, 99, 1234]) {
   }
   town.dispose();
 }
+
+assert.ok(logCounts.size >= 2, `and a mix of logs (${[...logCounts].join(", ")})`);
+assert.ok(tentCounts.size >= 2, `campsites have a mix of tents (${[...tentCounts].join(", ")})`);
 
 // Every kit prop a world has somewhere is one the kit has, and is listed to be loaded (one missing keeps
 // every prop a plain shape): a town with a smithy, a plain one, a big one.

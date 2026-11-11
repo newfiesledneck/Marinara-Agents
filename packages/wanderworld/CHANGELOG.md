@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.32 — 2026-11-11
+
+- A campsite has one, two or three tents round its one fire. Each has a bedroll to rest on, and you can sleep in any of them.
+- Three tents come with three logs to sit on; one or two tents with one or two logs.
+
 ## 0.5.31 — 2026-11-11
 
 - Campsites keep at least 70 m apart. In a world where two sat side by side, the second has moved.

@@ -716,9 +716,23 @@ function placeCamp(town, x, z, angle, camp) {
     );
   }
   // (The flame, its light and its smoke are made with the world: createWorld, from town.camps.)
-  // Two logs to sit on, out to either side of the fire and turned to face it, clear of the tent's mouth.
-  const logs = [-1, 1].map((side) => {
-    const bearing = side * 0.97; // round from the far side of the fire toward this one
+  // The tents: one, two or three round the one fire (from numbers of the campsite's own). The first is
+  // straight across from the logs; a second and third stand to either side of it, a little further back.
+  const tentRandom = rng(hashString(`tents:${Math.round(x)}:${Math.round(z)}`));
+  const roll = tentRandom();
+  const side = tentRandom() < 0.5 ? -1 : 1;
+  const TENT_APART = 1.35; // radians round the fire between two tents
+  const tents = [
+    { turn: 0, back: -2.2 },
+    ...(roll > 0.4 ? [{ turn: side * TENT_APART, back: -2.6 }] : []),
+    ...(roll > 0.75 ? [{ turn: -side * TENT_APART, back: -2.6 }] : []),
+  ];
+  const [w, h, l] = [1.2, 1.45, 2.4];
+  // Logs to sit on, on the far side of the fire from the first tent and turned to face the fire: three
+  // where there are three tents, else one or two.
+  const logCount = tents.length === 3 ? 3 : tentRandom() < 0.5 ? 1 : 2;
+  const logs = (logCount === 1 ? [0] : logCount === 2 ? [-0.97, 0.97] : [-0.97, 0, 0.97]).map((bearing) => {
+    // (`bearing`: round from straight across the fire from the first tent.)
     const at = [Math.sin(bearing) * 2.3, Math.cos(bearing) * 2.3];
     pieces.push(
       painted(
@@ -731,23 +745,24 @@ function placeCamp(town, x, z, angle, camp) {
     );
     return { at, along: [Math.cos(bearing), -Math.sin(bearing)] };
   });
-  // The tent: canvas over a ridge pole, its mouth toward the fire, a bedroll inside.
-  const tent = new BufferGeometry();
-  const [w, h, l, back] = [1.2, 1.45, 2.4, -2.2];
-  // prettier-ignore
-  const skin = [
+  for (const { turn, back } of tents) {
+    // Canvas over a ridge pole, its mouth toward the fire, a bedroll inside.
+    const tent = new BufferGeometry();
+    // prettier-ignore
+    const skin = [
     [-w, 0, back], [0, h, back], [0, h, back - l],   [-w, 0, back], [0, h, back - l], [-w, 0, back - l], // one side
     [w, 0, back], [0, h, back - l], [0, h, back],    [w, 0, back], [w, 0, back - l], [0, h, back - l], // the other
     [-w, 0, back - l], [0, h, back - l], [w, 0, back - l], // the back
   ];
-  // Each face twice, the second the other way round, so the canvas shows from inside as well.
-  const inside = [];
-  for (let i = 0; i < skin.length; i += 3) inside.push(skin[i], skin[i + 2], skin[i + 1]);
-  tent.setAttribute("position", new Float32BufferAttribute([...skin, ...inside].flat(), 3));
-  tent.computeVertexNormals();
-  pieces.push(painted(tent, 0xcbbd9a));
-  pieces.push(box(0.06, h, 0.06, 0, h / 2, back, 0x5a4636));
-  pieces.push(box(0.7, 0.1, 1.7, 0.25, 0.06, back - 1.1, 0x8a4a3a));
+    // Each face twice, the second the other way round, so the canvas shows from inside as well.
+    const inside = [];
+    for (let i = 0; i < skin.length; i += 3) inside.push(skin[i], skin[i + 2], skin[i + 1]);
+    tent.setAttribute("position", new Float32BufferAttribute([...skin, ...inside].flat(), 3));
+    tent.computeVertexNormals();
+    pieces.push(painted(tent, 0xcbbd9a).rotateY(turn));
+    pieces.push(box(0.06, h, 0.06, 0, h / 2, back, 0x5a4636).rotateY(turn));
+    pieces.push(box(0.7, 0.1, 1.7, 0.25, 0.06, back - 1.1, 0x8a4a3a).rotateY(turn));
+  }
   const merged = mergeGeometries(pieces.map((piece) => (piece.index ? piece.toNonIndexed() : piece)));
   const turned = merged.rotateY(angle).translate(x, y, z);
   town.pieces.push(turned);
@@ -756,8 +771,10 @@ function placeCamp(town, x, z, angle, camp) {
     z: z - lx * Math.sin(angle) + lz * Math.cos(angle),
   });
   town.circles.push({ x, z, r: 0.6 });
-  const tentAt = local(0, back - l / 2);
-  town.circles.push({ ...tentAt, r: 1.15 });
+  // A point of a tent turned `turn` round the fire, from where it is in a tent straight across.
+  const inTent = (turn, lx, lz) =>
+    local(lx * Math.cos(turn) + lz * Math.sin(turn), -lx * Math.sin(turn) + lz * Math.cos(turn));
+  for (const { turn, back } of tents) town.circles.push({ ...inTent(turn, 0, back - l / 2), r: 1.15 });
   const facingFire = (at) => Math.atan2(x - at.x, z - at.z);
   // Two seats on each log, and a way to them from the fire's side.
   for (const log of logs) {
@@ -774,14 +791,20 @@ function placeCamp(town, x, z, angle, camp) {
     }
     town.circles.push({ ...local(log.at[0], log.at[1]), r: 0.45 });
   }
-  // The tent: lying on its bedroll (anyone, for a rest; the player, to sleep: main.js), in by its mouth.
-  const mouth = local(0, back + 0.55);
-  const bed = local(0.25, back - 1.15);
+  // Each tent: lying on its bedroll (anyone, for a rest; the player, to sleep: main.js), in by its mouth.
   // (Lying down, the head goes back from the way they face: facing the fire, it's at the tent's far end.)
-  placeSpot(town, { ...bed, angle, approach: mouth, act: "lie", role: "rest", camp });
-  town.camps.push({ id: camp, x, y, z, angle, mouth, bed: { ...bed, angle } });
+  const beds = tents.map(({ turn, back }) => {
+    const mouth = inTent(turn, 0, back + 0.55);
+    const bed = { ...inTent(turn, 0.25, back - 1.15), angle: angle + turn };
+    placeSpot(town, { ...bed, approach: mouth, act: "lie", role: "rest", camp });
+    return { mouth, bed };
+  });
+  // (`mouth` and `bed` are the first tent's; `tents` has them all.)
+  town.camps.push({ id: camp, x, y, z, angle, ...beds[0], tents: beds });
   // Places round the fire, facing it (not on the tent's side).
+  // (Not right in front of a middle log: that's the way to its seats.)
   for (const [i, turn] of [-2.2, -1.4, 0, 1.4, 2.2].entries()) {
+    if (turn === 0 && logCount !== 2) continue;
     const at = local(Math.sin(turn) * 1.55, Math.cos(turn) * 1.55);
     placeSpot(town, {
       ...at,
@@ -1823,7 +1846,7 @@ function buildTown(random, land, ground, needs = {}, seed = 0) {
     doors: [],
     seats: [],
     spots: [], // places to be doing something (placeSpot)
-    camps: [], // campsites (placeCamp): { id, x, y, z, angle, mouth, bed }
+    camps: [], // campsites (placeCamp): { id, x, y, z, angle, mouth, bed, tents: [{ mouth, bed }] }
   };
   const centres = [];
   for (let i = 0; i < blocksPerSide; i++) centres.push((i - (blocksPerSide - 1) / 2) * PITCH);

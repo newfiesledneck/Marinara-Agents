@@ -1485,6 +1485,7 @@ const SLEEP_NEAR = 30;
  * them (npcs.js resettle). With Settings → Time fixed, there's rest but the hour doesn't change.
  */
 function sleepIn(camp, length) {
+  // (`camp`: the tent slept in, { bed, mouth }: a campsite's first, or any of its others.)
   if (core.mode !== "walk" || core.interior) return;
   const until = length === "morning" ? 7 : length === "evening" ? 19 : null;
   const hours = until === null ? Number(length) || 8 : (until - core.hour + 24) % 24 || 24;
@@ -5669,15 +5670,17 @@ function usable() {
   }
   // A campsite's tent: somewhere to sleep.
   for (const camp of core.interior ? [] : (core.world?.camps ?? [])) {
-    list.push({
-      kind: "thing",
-      label: "Sleep in the tent",
-      x: camp.mouth.x,
-      z: camp.mouth.z,
-      y: 1.2,
-      reach: 2.2,
-      act: () => core.hud?.openSleep((length) => sleepIn(camp, length)),
-    });
+    for (const tent of camp.tents ?? [camp]) {
+      list.push({
+        kind: "thing",
+        label: "Sleep in the tent",
+        x: tent.mouth.x,
+        z: tent.mouth.z,
+        y: 1.2,
+        reach: 2.2,
+        act: () => core.hud?.openSleep((length) => sleepIn(tent, length)),
+      });
+    }
   }
   for (const thing of core.interior ? [] : [...worldThings(), ...(core.world?.camp ? [core.world.camp] : [])]) {
     list.push({
