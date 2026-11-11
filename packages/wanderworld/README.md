@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.36)
+## What it does now (0.5.37)
 
 ### The world
 
@@ -266,7 +266,7 @@ only walk about.
   top: the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), or the
   built-in person, dressed by the rest of the card. Kept with the world.
 - **Animals of your own:** the Look card (Menu, Look beside your persona) has Dog and Horse: the kind,
-  the coat, a name of its own, and whether each is with you or at home. With you, it follows and turns up beside you if left
+  the coat, the size, a name of its own, and whether each is with you or at home. With you, it follows and turns up beside you if left
   far behind; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
   down from walks back there. Someone in town whose lore mentions their dog or their horse has it at their heel (the horse is theirs,
   not yours to ride); their Look card can change it or take it away. Kept with the world. The chat window has Send dog home and
@@ -379,10 +379,12 @@ lists any it didn't understand, and why.
 
 **Creatures**
 
-| Keyword                                                                            | On                 | What it does                                                                                                                                        |
-| ---------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ww:monster:Goblin, ww:creature:Deer, ww:hostile`                                  | any entry          | Marks the entry as a creature (a monster, or a hostile creature, attacks). Kept for later: nothing uses them yet.                                   |
-| `ww:found in:forest1, ww:active:night, ww:pack:4, ww:danger:2, ww:drops:wolf pelt` | a creature's entry | Where and when it's met, how many together (1 to 10), how dangerous (1 to 10), and what it might leave. One thing each: repeat ww:drops:… for more. |
+| Keyword                                                                                           | On                                             | What it does                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:monster:Goblin, ww:creature:Deer, ww:hostile`                                                 | any entry                                      | Marks the entry as a creature (a monster, or a hostile creature, attacks). One the game has a body for (wolf, deer, stag, fox, dog, horse, donkey, cow, bull, alpaca) is put in the world where its entry says it's found; the rest are kept for later.                                                              |
+| `ww:found in:forest1, ww:active:night, ww:pack:4, ww:size:large, ww:danger:2, ww:drops:wolf pelt` | a creature's entry                             | Where and when it's met, how many together (1 to 10), how big (tiny, small, normal, big, large, huge, massive), how dangerous (1 to 10), and what it might leave. One thing each: repeat ww:drops:… for more.                                                                                                        |
+| `ww:monster:wolf, ww:creature:deer:small:pack4, ww:monster:wolf:large:pack5`                      | a place's entry (`ww:forest1`, `ww:world`)     | That creature lives there. After its kind, in any order: a size and how many together (`pack5`, or just `5`). With neither, however many and whatever size. A doubled colon reads the same: `ww::monster::wolf::large::pack5`.                                                                                       |
+| `ww:pet:horse:large:brown:Shadowmere, ww:pet:dog:small:Brutus, ww:pet:dog:great dane`             | a character's entry, or the one keyed `ww:you` | Their own horse or dog. After the kind, in any order: a size, a colour (bay, white, black, grey, chestnut, palomino, brown, red, cream), its name (written with a capital), and anything else is its breed. One of each. What's chosen in their Look card comes first; without either, their lore's wording decides. |
 
 Choose "link lorebook entries by their ww: keywords" (places) and "set up from ww: keywords"
 (characters) in New world or Journal → World. With the AI setting things up instead, `ww:` keywords

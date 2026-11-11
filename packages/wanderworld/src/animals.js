@@ -102,6 +102,7 @@ export const COATS = {
   },
   husky: {
     grey: {},
+    brown: { Main: [112, 82, 56] },
     black: { Main: [40, 40, 40] },
     red: { Main: [142, 88, 54] },
     white: { Main: [196, 196, 188], Main_Light: [228, 228, 220] },
@@ -113,6 +114,27 @@ export const COATS = {
     brown: { Main: [112, 82, 56] },
   },
 };
+
+/** The kind of animal a word means ("wolves", "hound"), or null for one the game has no body for ("goblin"). */
+export function animalKind(word) {
+  const plain = String(word ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/s$/u, "");
+  const other = {
+    wolve: "wolf",
+    dog: "husky",
+    hound: "husky",
+    doe: "deer",
+    mule: "donkey",
+    cattle: "cow",
+    ox: "bull",
+    llama: "alpaca",
+    pony: "horse",
+  };
+  const kind = other[plain] ?? plain;
+  return ANIMALS[kind] ? kind : null;
+}
 
 /** The coat a kind's `n`th animal has (any whole number: a hash); null for a kind with only the one. */
 export function coatFor(kind, n) {

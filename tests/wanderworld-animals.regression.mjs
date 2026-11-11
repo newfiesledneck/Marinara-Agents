@@ -282,9 +282,92 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     herd.setOwned([]);
     assert.equal(herd.snapshot().length, before);
   }
+  // What the lore asks for: a pack of five large wolves at a spot, deer anywhere; a size on someone's own.
+  {
+    const before = herd.snapshot().length;
+    const spot = { x: player.x + 30, z: player.z + 10 };
+    const asked = [
+      { id: "place:0:forest1:wolf", kind: "wolf", scale: 1.25, sized: true, count: 5, at: spot },
+      { id: "place:1:world:deer", kind: "deer", scale: 1, sized: false, count: 0, at: null },
+      { id: "place:2:world:goblin", kind: "goblin", scale: 1, sized: false, count: 3, at: null },
+    ];
+    herd.setSpawns(asked);
+    herd.setSpawns(asked);
+    const lore = herd.snapshot().filter((beast) => beast.lore);
+    const pack = lore.filter((beast) => beast.kind === "wolf");
+    assert.equal(pack.length, 5, "a pack of five where five were asked for");
+    assert.ok(
+      pack.every((beast) => beast.scale === 1.25),
+      "each as large as asked",
+    );
+    assert.ok(
+      pack.every((beast) => Math.hypot(beast.x - spot.x, beast.z - spot.z) < 22),
+      "about the place asked for",
+    );
+    const deer = lore.filter((beast) => beast.kind === "deer");
+    assert.ok(deer.length >= 1 && deer.length <= 4, `however many, where no number was given (${deer.length})`);
+    assert.ok(
+      deer.every((beast) => beast.scale > 0.9 && beast.scale < 1.13),
+      "and about the usual size",
+    );
+    assert.equal(lore.length, pack.length + deer.length, "nothing for a creature the game has no body for");
+    herd.setSpawns([]);
+    assert.equal(herd.snapshot().length, before, "no longer asked for, they're gone");
+    // A big horse of someone's own sits higher.
+    herd.setOwned([
+      { id: "pet:you:horse", kind: "horse", coat: "bay", scale: 1.25, owner: "you", out: false, home: spot },
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const big = herd.mounts(spot, 6).find((entry) => entry.id === "pet:you:horse");
+    assert.ok(Math.abs(big.back - ANIMALS.horse.back * 1.25) < 1e-6, "a large horse's back is higher");
+    herd.setOwned([]);
+  }
   herd.detach();
   assert.equal(herd.snapshot().length, 0);
   world.dispose();
+}
+
+// The keywords for animals: someone's own, and what lives where; a doubled colon reads as one.
+{
+  const { animalKind } = await import("../packages/wanderworld/src/animals.js");
+  const { petsFromLore, readKeys, readKeyword, spawnsFromLore, creatureFromWords } =
+    await import("../packages/wanderworld/src/keywords.js");
+  assert.deepEqual(
+    readKeyword("ww::pet::horse::large::brown::Shadowmere"),
+    readKeyword("ww:pet:horse:large:brown:Shadowmere"),
+  );
+  assert.ok(readKeyword("ww:pet:cat").problem, "a pet the game hasn't is said so");
+  const entry = (title, keys) => ({ id: title, title, keys: readKeys(keys).keys });
+  const books = [
+    {
+      id: "b",
+      name: "B",
+      entries: [
+        entry("Greenwood", ["ww:forest1", "ww::monster::wolf::large::pack5", "ww:creature:deer"]),
+        entry("Mira", ["ww:Mira", "ww::pet::horse::Shadowmere::brown::large", "ww:pet:dog:great dane:Brutus"]),
+        entry("Me", ["ww:you", "ww:pet:dog:small:cream"]),
+        entry("Wolf", ["ww:monster:Wolf", "ww:found in:forest1", "ww:pack:4", "ww:size:huge"]),
+      ],
+    },
+  ];
+  assert.deepEqual(spawnsFromLore(books), [
+    { place: "forest1", kind: "wolf", size: "large", count: 5 },
+    { place: "forest1", kind: "deer", size: "", count: 0 },
+  ]);
+  assert.deepEqual(petsFromLore(books), [
+    { owner: "Mira", role: "horse", size: "large", colour: "brown", name: "Shadowmere", species: "" },
+    { owner: "Mira", role: "dog", size: "", colour: "", name: "Brutus", species: "great dane" },
+    { owner: "you", role: "dog", size: "small", colour: "cream", name: "", species: "" },
+  ]);
+  // A creature's own entry is still what it is, with its size, and isn't a spawn by its mark alone.
+  const own = creatureFromWords(books[0].entries[3].keys);
+  assert.deepEqual([own.pack, own.size, own.found], [4, "huge", ["forest1"]]);
+  assert.ok(books[0].entries[3].keys.includes("monster") && !books[0].entries[0].keys.includes("monster"));
+  assert.deepEqual(
+    ["wolves", "Hound", "goblin", "pony", "deer"].map(animalKind),
+    ["wolf", "husky", null, "horse", "deer"],
+    "the words for the animals the game has, and none for the ones it hasn't",
+  );
 }
 
 // What lore says of someone with a dog or a horse of their own, and of someone without.
