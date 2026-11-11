@@ -7,7 +7,18 @@ import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
 import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
-import { BARE, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, PIECES, SKIN_TONES } from "./looks.js";
+import {
+  BARE,
+  COLOUR_FIELD,
+  COSTUMES,
+  EXTRAS,
+  HAIR_COLOURS,
+  HAIRSTYLES,
+  HEIGHTS,
+  OUTFITS,
+  PIECES,
+  SKIN_TONES,
+} from "./looks.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
@@ -319,23 +330,33 @@ export function createHud(root, handlers) {
           () => setTint(piece, null),
         );
       };
+      // A costume: a whole ready-made character, in place of an outfit's pieces and a hairstyle.
+      pick(
+        "Dressed as",
+        "costume",
+        [["", "Their own clothes (below)"], ...Object.entries(COSTUMES)],
+        now.costume ?? "",
+        (text) => text || undefined,
+      );
+      const costumed = !!now.costume;
       // A whole outfit: choosing one puts every piece back to it.
-      pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
-        top: undefined,
-        arms: undefined,
-        legs: undefined,
-        feet: undefined,
-        hood: undefined,
-        pauldrons: undefined,
-      });
+      if (!costumed)
+        pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
+          top: undefined,
+          arms: undefined,
+          legs: undefined,
+          feet: undefined,
+          hood: undefined,
+          pauldrons: undefined,
+        });
       // Its pieces, each from any outfit and in a colour of its own if you like; the ranger's hood and
       // pauldrons on or off.
-      for (const [piece, label] of PIECES) {
+      for (const [piece, label] of costumed ? [] : PIECES) {
         pick(label, piece, [...outfitNames, [BARE, "None"]], now[piece]);
         // (A piece left off is skin: its colour is the skin's.)
         if (now[piece] !== BARE) tintRow(piece, label);
       }
-      for (const [extra, label] of EXTRAS) {
+      for (const [extra, label] of costumed ? [] : EXTRAS) {
         pick(
           label,
           extra,
@@ -353,12 +374,13 @@ export function createHud(root, handlers) {
         const field = COLOUR_FIELD[kind];
         pick(now.worn.length > 1 ? `${OUTFITS[kind].label} cloth` : "Cloth", field, OUTFITS[kind].colours, now[field]);
       }
-      pick(
-        "Hair",
-        "hair",
-        HAIRSTYLES.map(([style, text]) => [style, text]),
-        now.hair,
-      );
+      if (!costumed)
+        pick(
+          "Hair",
+          "hair",
+          HAIRSTYLES.map(([style, text]) => [style, text]),
+          now.hair,
+        );
       // Hair and skin: one from the list, or a colour of your own.
       const listOrOwn = (label, list, at, own, key, ownKey) => {
         const select = document.createElement("select");
@@ -399,7 +421,7 @@ export function createHud(root, handlers) {
         "skin",
         "skinTint",
       );
-      if (now.sex === "male") {
+      if (now.sex === "male" && !costumed) {
         pick(
           "Beard",
           "beard",

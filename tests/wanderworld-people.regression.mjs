@@ -71,6 +71,46 @@ for (const name of ["Bram", "Ivy", "Hank", "Lena", "Odo", "Sera", "Cole", "Brin"
 }
 assert.ok(looks.size >= 5, `different names look different (${looks.size} looks for 8 names)`);
 
+// ── Costumes: whole ready-made characters ────────────────────────────────────
+{
+  const { checkLook, COSTUMES } = await import("../packages/wanderworld/src/looks.js");
+  assert.deepEqual(checkLook({ costume: "king" }), { costume: "king" });
+  assert.deepEqual(checkLook({ costume: "astronaut" }), {}, "only the costumes there are");
+  for (const costume of Object.keys(COSTUMES)) {
+    const look = lookFor("Odo", index, "auto", { costume });
+    assert.equal(look.choices.costume, costume);
+    const person = await createPerson("Odo", "auto", { costume });
+    let meshes = 0;
+    let named = 0;
+    person.object.traverse((object) => {
+      if (object.isSkinnedMesh) meshes++;
+      if (object.isBone && object.name === "Wrist.L") named++;
+    });
+    assert.ok(meshes >= 5 && named === 1, `the ${costume} is the costume's own body (${meshes} meshes)`);
+    const measure = () => {
+      person.object.updateMatrixWorld(true);
+      return new Box3().setFromObject(person.object, true);
+    };
+    person.update(1 / 60, 0);
+    const standing = measure();
+    const height = standing.max.y - standing.min.y;
+    assert.ok(height > 1.5 && height < 2.3, `the ${costume} is person-sized (${height.toFixed(2)} m)`);
+    assert.ok(Math.abs(standing.min.y) < 0.08, `the ${costume} stands on the ground (${standing.min.y.toFixed(3)})`);
+    // Walking and running, it keeps its shape: its feet stay under it, with its legs.
+    for (const speed of [1.4, 4.5]) {
+      for (let i = 0; i < 90; i++) person.update(1 / 60, speed);
+      const box = measure();
+      assert.ok(box.min.y > -0.25 && box.max.y < 2.4, `the ${costume} keeps its shape at ${speed} m/s`);
+      assert.ok(box.max.z - box.min.z < 1.9 && box.max.x - box.min.x < 1.6, `the ${costume}'s feet go with its legs`);
+    }
+    person.dispose();
+  }
+  // A costume the kit hasn't got is the person in their own clothes.
+  const plain = await createPerson("Odo", "auto", { costume: "king" });
+  assert.ok(plain);
+  plain.dispose();
+}
+
 // ── Looks chosen by hand ─────────────────────────────────────────────────────
 {
   const { checkLook, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, OUTFITS, PIECES, SKIN_TONES } =

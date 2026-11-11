@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.51 — 2026-11-11
+
+- Costumes: the Look card has "Dressed as", which swaps the built-in person's clothes for a whole ready-made character: king, farmer, adventurer (man or woman), witch or hooded rogue.
+- A costume keeps the person's own skin, hair colour and height, and moves with the same animations. "Their own clothes" puts them back.
+
 ## 0.5.50 — 2026-11-11
 
 - Hostile people out in the country: bandits, hooded with a sword; witches and wizards, in a pointed hat with a staff. They act as the Hostile animals setting says, and are told as people, not beasts.

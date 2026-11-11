@@ -42,7 +42,12 @@ function readGltf(path) {
     buffers = [file.subarray(20 + jsonLength + 8)];
   } else {
     json = JSON.parse(readFileSync(path, "utf8"));
-    buffers = json.buffers.map((buffer) => readFileSync(join(dirname(path), decodeURIComponent(buffer.uri))));
+    // (A buffer is a file beside it, or the data itself, written into the .gltf as base64.)
+    buffers = json.buffers.map((buffer) =>
+      buffer.uri.startsWith("data:")
+        ? Buffer.from(buffer.uri.slice(buffer.uri.indexOf(",") + 1), "base64")
+        : readFileSync(join(dirname(path), decodeURIComponent(buffer.uri))),
+    );
   }
   const COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
   const TYPES = {
@@ -104,9 +109,14 @@ function skinnedPrimitives(gltf) {
       out.push({
         name: gltf.json.meshes[node.mesh].name,
         texture: gltf.textureOf(primitive.material),
+        material: gltf.json.materials?.[primitive.material] ?? null,
         position: gltf.accessor(primitive.attributes.POSITION),
         normal: gltf.accessor(primitive.attributes.NORMAL),
-        uv: gltf.accessor(primitive.attributes.TEXCOORD_0),
+        // (A mesh coloured by its material alone may have no texture coordinates: all zero, then.)
+        uv:
+          primitive.attributes.TEXCOORD_0 === undefined
+            ? { values: new Float64Array(gltf.json.accessors[primitive.attributes.POSITION].count * 2) }
+            : gltf.accessor(primitive.attributes.TEXCOORD_0),
         joints: gltf.accessor(primitive.attributes.JOINTS_0),
         weights: gltf.accessor(primitive.attributes.WEIGHTS_0),
         index: gltf.accessor(primitive.indices),
@@ -379,7 +389,66 @@ function folk(dir) {
   console.log(`wrote ${out}`);
 }
 
+/**
+ * Costumes: whole ready-made characters (Quaternius's Ultimate Modular Men and Women, CC0: their
+ * `Individual Characters/glTF` folders), each a body, its clothes and its hair in one, coloured by its
+ * materials (no textures). One file each in kit/fantasy/costumes: its skeleton, its meshes (each named for
+ * its material, `texture`), and the materials' colours. The game moves them with the people's clips.
+ */
+const COSTUMES = {
+  // [our name, which folder (0: men, 1: women), the file]
+  king: [0, "King"],
+  farmer: [0, "Farmer"],
+  adventurer: [0, "Adventurer"],
+  witch: [1, "Witch"],
+  rogue: [1, "Medieval"],
+  wanderer: [1, "Adventurer"],
+};
+function costumes(dirs) {
+  const out = join(KIT, "fantasy/costumes");
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(out, { recursive: true });
+  for (const [name, [folder, file]] of Object.entries(COSTUMES)) {
+    const gltf = readGltf(join(dirs[folder], `${file}.gltf`));
+    const primitives = skinnedPrimitives(gltf);
+    const colours = {};
+    let top = 0;
+    for (const primitive of primitives) {
+      const colour = primitive.material?.pbrMetallicRoughness?.baseColorFactor ?? [0.5, 0.5, 0.5];
+      colours[primitive.material?.name ?? "Plain"] = colour.slice(0, 3).map((value) => Math.round(value * 1e4) / 1e4);
+      for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
+    }
+    // The pack's feet are steered from the root (for its own animations); here each is its shin's, as the
+    // people's clips move a leg.
+    const skeleton = skeletonOf(gltf);
+    for (const side of ["L", "R"]) {
+      const foot = skeleton.names.indexOf(`Foot.${side}`);
+      const shin = skeleton.names.indexOf(`LowerLeg.${side}`);
+      if (foot >= 0 && shin >= 0) skeleton.parents[foot] = shin;
+    }
+    const body = {
+      source: "Ultimate Modular Men and Ultimate Modular Women by Quaternius, CC0 1.0",
+      height: Math.round(top * 100) / 100,
+      colours,
+      ...packPart(primitives, {
+        texture: (primitive) => primitive.material?.name ?? "Plain",
+        skeleton,
+      }),
+    };
+    // (They're coloured by material, not painted: the texture coordinates aren't needed.)
+    for (const mesh of body.meshes) delete mesh.uv;
+    writeFileSync(join(out, `costume-${name}.json`), JSON.stringify(body));
+    console.log(`${name.padEnd(11)} ${primitives.length} meshes, ${Math.round(JSON.stringify(body).length / 1024)} KB`);
+  }
+  console.log(`wrote ${out}`);
+}
+
 function main() {
+  if (process.argv[2] === "--costumes") {
+    if (!process.argv[4])
+      throw new Error("Usage: build-wanderworld-people.mjs --costumes <men glTF dir> <women glTF dir>");
+    return costumes(process.argv.slice(3, 5));
+  }
   if (process.argv[2] === "--folk") {
     if (!process.argv[3]) throw new Error("Usage: build-wanderworld-people.mjs --folk <Bestiary GLB dir>");
     return folk(process.argv[3]);

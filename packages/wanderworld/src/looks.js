@@ -2,7 +2,8 @@
 // the Look card offers, and the check a saved look goes through. A look is the choices made by hand, each
 // optional; whatever isn't chosen stays as their name has it:
 //
-//   { outfit,                       the outfit they're dressed in, all of a piece
+//   { costume,                      a whole ready-made character (COSTUMES) in place of all the pieces below
+//     outfit,                       the outfit they're dressed in, all of a piece
 //     top, arms, legs, feet,        or any one piece of it from another outfit, or "none" (left off)
 //     hood, pauldrons,              the ranger's, on or off (on with the ranger's top unless said)
 //     colour, rangerColour,         the cloth of the townsfolk pieces, and of the ranger's
@@ -39,6 +40,18 @@ export const OUTFITS = {
       ["ranger-grey", "Grey"],
     ],
   },
+};
+/**
+ * Costumes: whole ready-made characters, body, clothes and hair in one (kit/fantasy/costumes), in place of
+ * an outfit's pieces: [label]. Skin, hair colour and height are still the look's own.
+ */
+export const COSTUMES = {
+  king: "King",
+  farmer: "Farmer",
+  adventurer: "Adventurer (man)",
+  witch: "Witch",
+  rogue: "Hooded rogue",
+  wanderer: "Adventurer (woman)",
 };
 /** What a piece can be: one of the outfits', or left off ("none": the body shows there, in its underclothes). */
 export const BARE = "none";
@@ -132,6 +145,7 @@ export function checkLook(raw) {
   const look = {};
   const outfit = (value) => Object.hasOwn(OUTFITS, value);
   if (outfit(raw.outfit)) look.outfit = raw.outfit;
+  if (Object.hasOwn(COSTUMES, raw.costume)) look.costume = raw.costume;
   for (const [piece] of PIECES) if (PIECE_KINDS.includes(raw[piece])) look[piece] = raw[piece];
   for (const [extra] of EXTRAS) if (typeof raw[extra] === "boolean") look[extra] = raw[extra];
   for (const [kind, field] of Object.entries(COLOUR_FIELD)) {
