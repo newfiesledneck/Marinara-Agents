@@ -90,6 +90,7 @@ const ACTS = {
   ],
   ground: [],
   lie: [],
+  ride: [], // astride a horse: a pose held, like sitting on the ground
 };
 /** Every act there is, for whoever chooses one. */
 export const ACT_NAMES = Object.keys(ACTS);
@@ -102,6 +103,13 @@ const GESTURES = new Set(["interact", "pickUp", "drink"]);
 const GROUND_HIPS = -0.83;
 const GROUND_LEGS = { UpperLeg: -1.95, LowerLeg: -0.85, Foot: -0.25, Toes: -0.25 };
 const GROUND_SPLAY = 0.16; // each knee turned out this much
+/** Astride a mount: the hips' drop (leg lengths), and each leg bone's lean forward (or back) and out to
+ *  the side, round the animal's barrel (radians from hanging straight down). */
+const RIDE_HIPS = -0.5;
+const RIDE_LEGS = { UpperLeg: [-0.72, 0.62], LowerLeg: [0.28, 0.2], Foot: [-0.1, 0.1], Toes: [-0.1, 0.1] };
+/** And the arms: which way each bone points for the left arm (out to +x at rest), the right's mirrored:
+ *  down and forward from the shoulder, then forward and in, hands together as if on the reins. */
+const RIDE_ARMS = { UpperArm: [0.22, -0.72, 0.66], LowerArm: [-0.3, -0.12, 0.95], Hand: [-0.3, -0.12, 0.95] };
 /** Seconds of the landing clip that are the landing itself (the rest is standing back up, slowly). */
 const LANDING = 0.55;
 
@@ -272,6 +280,29 @@ export function createClipPlayer({ present, offset, legLength }) {
     return count >= 3 && sum > 0 ? sum / count : clip.speed * legLength;
   }
   const locals = new Map(used.map((bone) => [bone, new Quaternion()]));
+  // Astride: the legs' and arms' turns, the same every frame.
+  const rideLimbs = [];
+  for (const [side, sign] of [
+    ["left", 1],
+    ["right", -1],
+  ]) {
+    for (const [part, [forward, out]] of Object.entries(RIDE_LEGS)) {
+      const at = BONES.indexOf(`${side}${part}`);
+      if (at < 0) continue;
+      // Leaning forward first, then out to its own side.
+      const lean = new Quaternion().setFromEuler(new Euler(forward, 0, 0));
+      rideLimbs.push([at, new Quaternion().setFromEuler(new Euler(0, 0, sign * out)).multiply(lean)]);
+    }
+    for (const [part, [x, y, z]] of Object.entries(RIDE_ARMS)) {
+      const at = BONES.indexOf(`${side}${part}`);
+      if (at < 0) continue;
+      const turn = new Quaternion().setFromUnitVectors(
+        new Vector3(sign, 0, 0),
+        new Vector3(sign * x, y, z).normalize(),
+      );
+      rideLimbs.push([at, turn]);
+    }
+  }
   let pace = 0;
   let phase = Math.random();
   let idleTime = Math.random() * 10;
@@ -300,6 +331,15 @@ export function createClipPlayer({ present, offset, legLength }) {
   /** The pose of `name` (an act but "lie") after another `dt`, into poses.act. */
   function actPose(name, dt, talkAmount) {
     const pose = poses.act;
+    if (name === "ride") {
+      // The seated body's back and head, with the legs down either side and the hands forward.
+      sample(CLIPS.sit, (idleTime / CLIPS.sit.duration) % 1, pose);
+      for (const [at, turn] of rideLimbs) pose.rotations[at].copy(turn);
+      pose.hips[0] = 0;
+      pose.hips[1] = RIDE_HIPS;
+      pose.hips[2] = 0;
+      return pose;
+    }
     if (name === "ground") {
       sample(CLIPS.sit, (idleTime / CLIPS.sit.duration) % 1, pose);
       if (talkAmount > 0.01)
@@ -411,7 +451,7 @@ export function createClipPlayer({ present, offset, legLength }) {
       actTime = 0;
       actEase = 1;
     }
-    acting = ease(acting, act && act === standing ? 1 : 0, dt, act === "ground" ? 0.22 : 0.14);
+    acting = ease(acting, act && act === standing ? 1 : 0, dt, act === "ground" || act === "ride" ? 0.22 : 0.14);
     if (act && acting > 0.01) blend(out, actPose(act, dt, talking), acting * (1 - moving));
 
     // Moving: walk, jog and sprint in step with each other, at the rate that matches the ground.

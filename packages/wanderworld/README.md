@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.20)
+## What it does now (0.5.21)
 
 ### The world
 
@@ -257,6 +257,14 @@ only walk about.
   the tavern (most often in the evening), round the fire at a campsite outside the settlement, or back
   to one of their houses. When a moment picks one of them, the rest of
   the group in earshot comes with them in the same call.
+- **Animals:** cattle (now and then a bull or an alpaca), a donkey and a horse at each farm; a dog or
+  two about the market; a horse by each tavern and inn; and out in the country deer in twos and threes
+  with a stag, a fox, and wolves well away from the houses. They wander, graze and look about, keep out
+  of the river, and the wild ones bolt when you come close. A world's animals come from its seed.
+- **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
+  Shift or the stick right out to gallop), it turns less sharply than you do and won't go where it
+  would have to swim, and E, Esc or Get down gets you off beside it. It stays where you leave it, and
+  your party runs to keep up.
 - **Campsites:** a campsite or two outside each settlement: a fire that flickers, lights the ground as
   it gets dark and smokes, two logs to sit on, and a tent. Use the tent to sleep: choose how long (an
   hour to eight, or until morning or evening), the screen dims and the clock jumps on. The party and
@@ -377,6 +385,10 @@ still count, and come first.
 - Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
   they count toward the world's thirty people. Engine characters all live in the home region.
 - Walk-in rooms are unfinished and off by default.
+- Animals are scenery and a ride for now: nothing hunts, nobody else rides, a wolf only keeps its
+  distance, and the AI isn't told about them (but is told you're riding). A rider sits astride with
+  hands forward, but there's no saddle or reins, and the pose is the same at a walk and a gallop. Horses don't jump, and where you left one isn't remembered after you leave
+  the world: it's back where the seed has it.
 - A look can be chosen once someone lives in the world, and there are two outfits to mix. The hood
   goes over whatever hair they have. A piece given a colour of its own is that colour all over (its
   leather and trim too), and sleeves take the hands' gloves with them. The bare body is the pack's
@@ -432,6 +444,9 @@ still count, and come first.
   and acts on relationships and temperament. The world marks spots to work and rest at (`world.spots`:
   the forge, stalls, fields, gardens, pond shores, meadows); someone takes one, is "busy" there doing its
   act, and leaves the way they came in.
+- `src/animals.js` is the animals' bodies (a second kind beside the humanoid: each kind's own skeleton
+  and clips from `kit/animals/`, made by `scripts/build-wanderworld-animals.mjs`), and `src/herd.js`
+  which animals a world has, where they go, and handing one to a rider (`main.js ride`, `dismount`).
 - `src/relationships.js` holds relationship kinds, tiers and warmth, temperaments, and reading
   relationships from lore keywords; `src/dialogue.js` the set conversations; `src/interactions.js` the
   things you can do with doors and things, and the scene requests they make.
@@ -480,7 +495,8 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
-Fantasy, and the Universal Animation Library and Universal Animation Library 2. Thank you, Quaternius. The full list, with which folder
+Fantasy, Ultimate Animated Animals, and the Universal Animation Library and Universal Animation Library 2.
+Thank you, Quaternius. The full list, with which folder
 comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and
 [src/clips/CREDITS.md](src/clips/CREDITS.md).
 

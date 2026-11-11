@@ -242,7 +242,15 @@ export async function createPerson(name, build = "auto", chosen = {}) {
   const parts = [`skeleton-${look.sex}`, ...look.parts, `head-${look.sex}`];
   if (look.hair !== "none") parts.push(`hair-${HAIR_FILE(look.hair, look.sex)}`);
   if (look.beard) parts.push("hair-beard");
-  const [body, ...rest] = await Promise.all(parts.map((part) => load(`${part}.json`)));
+  // An outfit's pieces come in one file ("male-ranger.json": { pieces: { top, arms, … } }); a part named
+  // "male-ranger-top" is that file's top.
+  const [body, ...rest] = await Promise.all(
+    parts.map((part) => {
+      const piece = /^(male|female)-([a-z]+)-([a-z]+)$/u.exec(part);
+      const whole = piece && !part.startsWith("hair-") && !part.startsWith("head-") && !part.startsWith("skeleton-");
+      return whole ? load(`${piece[1]}-${piece[2]}.json`).then((file) => file.pieces[piece[3]]) : load(`${part}.json`);
+    }),
+  );
 
   // The skeleton, in bind pose: each joint's world matrix is its inverse bind matrix inverted.
   const root = new Group();

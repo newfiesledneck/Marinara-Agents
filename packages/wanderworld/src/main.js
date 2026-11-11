@@ -49,6 +49,7 @@ import {
 import { createPerson, lookChoices } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
+import { createHerd } from "./herd.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
@@ -251,6 +252,8 @@ const core = {
   bodies: {}, // chosen default bodies by id ("male" | "female"; missing means auto)
   looks: {}, // and what else was chosen for them by hand (looks.js), by id
   crowd: createCrowd(),
+  herd: createHerd(), // the world's animals (herd.js)
+  mount: null, // the animal being ridden: { id, kind, back, walk, gallop } (ride())
   sound: createSound(),
   settings: loadSettings(),
   hud: null,
@@ -439,6 +442,8 @@ function buildWorld(seed, place = null) {
   // Take the player and townsfolk out first: disposing the old world frees everything still in its scene.
   core.player.removeFromParent();
   core.crowd.detach();
+  core.mount = null;
+  core.herd.detach();
   core.world?.dispose();
   for (const sign of core.signs) sign.dispose();
   core.signs = [];
@@ -476,6 +481,7 @@ function buildWorld(seed, place = null) {
   core.space = core.world;
   core.world.scene.add(core.player);
   core.crowd.setWorld(core.world);
+  core.herd.setWorld(core.world, hashString(seed));
   resetMode();
   // Where to start: where they were, else at their own front door (from their lore), else the square.
   const homeDoor = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
@@ -2770,6 +2776,8 @@ function personaName() {
 // ── Modes: sitting, talking, doors ───────────────────────────────────────────
 
 function resetMode() {
+  if (core.mount) core.herd.release(core.mount.id);
+  core.mount = null;
   if (core.seat?.taken === "player") core.seat.taken = null;
   core.seat = null;
   if (core.talking) core.crowd.endTalk(core.talking.id);
@@ -2780,6 +2788,48 @@ function resetMode() {
   core.glide = null;
   core.walkTo = null;
   core.mode = "walk";
+}
+
+/** How high a rider's seat is in the sitting pose, above where they'd stand (metres). */
+const RIDE_SEAT = 0.5;
+const RIDE_RADIUS = 0.6; // what a horse and rider take up
+const RIDE_WALK = 1.5; // a ridden walk is brisker than the animal's own amble, by this much
+
+/** Gets up on a horse or a donkey (`id`: herd.js): from here on the stick and keys move it. */
+function ride(id) {
+  if (core.mode !== "walk" || core.interior) return;
+  const mount = core.herd.ride(id);
+  if (!mount) return;
+  core.mount = mount;
+  core.mode = "ride";
+  core.walkTo = null;
+  core.air = null;
+  glideTo(mount.x, mount.z, mount.angle, 0.45);
+  later(
+    0.8,
+    () =>
+      void runMoment({
+        action: `gets up on ${PACK.animals[mount.kind] ?? "the horse"}`,
+        needListeners: true,
+        source: "seat",
+      }),
+  );
+}
+
+/** Gets down, beside it where there's room; it stays about where it was left. */
+function dismount() {
+  const mount = core.mount;
+  if (!mount) return;
+  const { x, z } = core.player.position;
+  const facing = core.player.rotation.y;
+  // To its left, its right, or behind: the first that isn't in something or in the river.
+  const spot = [Math.PI / 2, -Math.PI / 2, Math.PI]
+    .map((turn) => ({ x: x + Math.sin(facing + turn) * 1.2, z: z + Math.cos(facing + turn) * 1.2 }))
+    .find((at) => !core.space.blocked(at.x, at.z, PLAYER_RADIUS) && waterAt(at.x, at.z).depth < WADE_DEPTH) ?? { x, z };
+  core.herd.release(mount.id);
+  core.mount = null;
+  core.mode = "walk";
+  glideTo(spot.x, spot.z, facing, 0.4);
 }
 
 /** Eases the player to (x, z) facing `angle` over `seconds`, then runs `then`. */
@@ -4641,6 +4691,7 @@ function speak(typed) {
 function playerDoing() {
   if (core.mode === "sit" && core.seat?.ground)
     return core.seat.ground === "lie" ? "lying on the ground" : "sitting on the ground";
+  if (core.mode === "ride") return `riding ${PACK.animals[core.mount?.kind]?.replace(/^the /u, "a ") ?? "a horse"}`;
   if (core.mode === "sit" && core.seat?.pose === "lie") return "lying on a bed";
   if (core.mode === "sit") return "sitting on a bench";
   if (core.talking) return `talking with ${core.talking.name}`;
@@ -5394,6 +5445,18 @@ function usable() {
       act: () => enterCave(cave),
     });
   }
+  // A horse or a donkey close by: something to ride.
+  for (const mount of core.interior ? [] : core.herd.mounts(core.player.position, 6)) {
+    list.push({
+      kind: "thing",
+      label: `Ride ${PACK.animals[mount.kind] ?? "it"}`,
+      x: mount.x,
+      z: mount.z,
+      y: mount.back + 0.4,
+      reach: 2.6,
+      act: () => ride(mount.id),
+    });
+  }
   // A campsite's tent: somewhere to sleep.
   for (const camp of core.interior ? [] : (core.world?.camps ?? [])) {
     list.push({
@@ -5610,6 +5673,7 @@ function pickTarget() {
 
 function use() {
   if (core.mode === "sit") return standUp();
+  if (core.mode === "ride") return dismount();
   if (core.mode !== "walk") return;
   // A hand out to whatever it is (a door, a board, a barrel); not to a person or a seat.
   if (core.target && core.target.kind !== "person" && core.target.kind !== "seat") core.gesture = "interact";
@@ -5628,7 +5692,7 @@ function toScreen(x, y, z) {
 
 /** A click or tap on the world: use (or walk to) what's under it, or walk to that spot on the ground. */
 function tap(clientX, clientY) {
-  if (core.mode === "talk" || core.mode === "door" || !core.camera) return;
+  if (core.mode === "talk" || core.mode === "door" || core.mode === "ride" || !core.camera) return;
   if (core.mode === "sit") return standUp();
   const rect = core.stage.getBoundingClientRect();
   const x = clientX - rect.left;
@@ -5865,6 +5929,35 @@ function movePlayer(dt, input) {
         if (core.walkTo.stuck > 0.6) core.walkTo = null;
       }
     }
+  } else if (core.mode === "ride" && core.mount) {
+    // Riding: the same stick and keys, moving the animal under them. It walks, gallops with Shift (or
+    // the stick right out), turns less sharply than a person, and won't go where it would have to swim.
+    const { x, y } = input;
+    const mount = core.mount;
+    if (x || y) {
+      const sin = Math.sin(core.cameraYaw);
+      const cos = Math.cos(core.cameraYaw);
+      const moveX = -sin * y + cos * x;
+      const moveZ = -cos * y - sin * x;
+      const wading = waterAt(position.x, position.z).depth > WADE_DEPTH;
+      const pace =
+        (input.run ? mount.gallop : mount.walk * RIDE_WALK * Math.max(0.4, input.amount)) * (wading ? 0.5 : 1);
+      const before = { x: position.x, z: position.z };
+      position.x += moveX * pace * dt;
+      position.z += moveZ * pace * dt;
+      space.resolveCollisions(position, RIDE_RADIUS, true);
+      core.crowd.pushOut(position, RIDE_RADIUS, space);
+      const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
+      position.x = Math.max(-edge, Math.min(edge, position.x));
+      position.z = Math.max(-edge, Math.min(edge, position.z));
+      if (waterAt(position.x, position.z).depth > SWIM_DEPTH * 0.75) {
+        position.x = before.x;
+        position.z = before.z;
+      }
+      player.rotation.y = approachAngle(player.rotation.y, Math.atan2(moveX, moveZ), (input.run ? 4 : 6) * dt);
+    }
+    const speed = dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
+    core.herd.carry(mount.id, position.x, position.z, player.rotation.y, speed);
   } else if (core.mode === "sit" && (input.x || input.y)) {
     standUp();
   }
@@ -5887,7 +5980,11 @@ function movePlayer(dt, input) {
     if (core.air.height <= 0 || core.swimming || core.mode !== "walk") core.air = null;
     else position.y = target + core.air.height;
   }
-  core.shadow.visible = core.settings.shadows && !core.swimming;
+  // Up on a mount: seated at its back's height (it has a shadow of its own).
+  const riding = core.mode === "ride" && core.mount;
+  if (riding && !core.glide) position.y = target + core.mount.back - RIDE_SEAT;
+  else if (riding) position.y += (target + core.mount.back - RIDE_SEAT - position.y) * Math.min(1, dt * 10);
+  core.shadow.visible = core.settings.shadows && !core.swimming && !riding;
   if (core.air)
     core.shadow.position.y = 0.06 - core.air.height; // the shadow stays on the ground
   else core.shadow.position.y = 0.06;
@@ -5961,6 +6058,7 @@ function step(dt) {
   if (input?.take("leave")) {
     if (core.mode === "talk") endTalk();
     else if (core.mode === "sit") standUp();
+    else if (core.mode === "ride") dismount();
   }
   if (input?.take("use")) use();
   if (input?.take("jump")) jump();
@@ -5982,9 +6080,10 @@ function step(dt) {
     lookAt = Math.atan2(Math.sin(turn), Math.cos(turn));
   }
   const onGround = core.mode === "sit" ? (core.seat?.ground ?? core.seat?.pose ?? null) : null;
-  const pose = core.character?.update(dt, speed, {
+  // (Riding, it's the mount that walks: the rider sits still on it.)
+  const pose = core.character?.update(dt, core.mode === "ride" ? 0 : speed, {
     sit: core.mode === "sit" && !onGround,
-    act: onGround,
+    act: core.mode === "ride" ? "ride" : onGround,
     gesture: core.gesture,
     air: !!core.air,
     lookAt,
@@ -6016,6 +6115,7 @@ function step(dt) {
   viewProjection.multiplyMatrices(core.camera.projectionMatrix, core.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(viewProjection);
   const inside = !!core.interior;
+  if (!core.interior) core.herd.update(dt, { player: core.player.position });
   core.crowd.update(dt, {
     player: core.player.position,
     space: core.space,
@@ -6051,13 +6151,13 @@ function step(dt) {
 
   // The use prompt over whatever is in reach.
   core.target = core.mode === "walk" && !core.walkTo ? pickTarget() : null;
-  const label = core.mode === "sit" ? "Stand up" : core.target?.label;
+  const label = core.mode === "sit" ? "Stand up" : core.mode === "ride" ? "Get down" : core.target?.label;
   const screen = core.target
     ? toScreen(core.target.mark?.x ?? core.target.x, core.target.y, core.target.mark?.z ?? core.target.z)
     : null;
   if (core.mode === "talk" || core.hud?.boardOpen) core.hud?.setPrompt(null);
-  else if (core.mode === "sit") {
-    const head = toScreen(core.player.position.x, 1.9, core.player.position.z);
+  else if (core.mode === "sit" || core.mode === "ride") {
+    const head = toScreen(core.player.position.x, core.player.position.y + 1.9, core.player.position.z);
     core.hud?.setPrompt(label, head?.x, head?.y);
   } else core.hud?.setPrompt(label ?? null, screen?.x, screen?.y);
   savePlace();

@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.20, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.21, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.20: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.21: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.20, 2026-11-11)
+## Outstanding (as of 0.5.21, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -741,12 +741,17 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      dungeon packs (cave and cellar pieces), Medieval Weapons (a real hammer, tools in hand).
   3. _Things in hand for more acts:_ a watering can, a hoe, a basket at a stall, a whetstone at the forge.
   4. _The forge at night:_ the hearth's glow and light, as the campfires have.
-  5. _Animals:_ the Ultimate Animated Animal Pack (glTF, its own skeletons and a dozen clips each) needs
-     its own converter and a second, simpler kind of body beside the humanoid one (`character.js` and
-     `clips.js` assume a humanoid): walk, idle, eat, run, with a mover that wanders a patch (deer in the
-     woods, a dog at a house, horses and farm animals at the farm). Monsters the same way (Ultimate
-     Monsters, the Bestiary kit) once there's something for them to do. Ogres and goblins can be the
-     humanoid body at another size with the clips there are.
+  5. _Animals (in, 0.5.21):_ `scripts/build-wanderworld-animals.mjs` turns each animal of the Ultimate
+     Animated Animals pack into `kit/animals/<kind>.json` (mesh with its colours on the vertices, skeleton,
+     and five clips sampled again: about 200 KB each, a tenth of the pack's file); `animals.js` is the
+     body (a skinned mesh posed by its own small player, walk into gallop by speed); `herd.js` places a
+     world's animals from its seed and moves them; `main.js` rides one (mode "ride": the player sits at
+     its back's height and moves it with `herd.carry`; `clips.js` act "ride" is the seated body with
+     the legs down either side and the hands forward). The outfits' pieces are bundled one file an
+     outfit, since a package may list at most 256 asset files (`validate-catalog.mjs`); the kit has 244. _Next:_ a saddle and reins, a rider that moves with the gait, jumping (the pack has the clip), others riding, remembering where a mount was left, a
+     hitching rail, telling the AI what's about, and monsters the same way (Ultimate Monsters, the
+     Bestiary kit) once there's something for them to do. Ogres and goblins can be the humanoid body at
+     another size with the clips there are.
   6. _Hand-made creatures_ (a spider, say) where no pack has one: a few jointed shapes moved by code, as
      the first townsfolk were (`figure.js`, `motion.js`); rougher than the packs, so only to fill gaps.
   7. _Stairs and towers:_ the ground is one height at each point and collision is flat, so a tower to

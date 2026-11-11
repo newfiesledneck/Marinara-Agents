@@ -1,0 +1,165 @@
+// Wanderworld's animals, without a browser: each kind built from the kit files on disk (kit/animals/,
+// made from Quaternius's CC0 Ultimate Animated Animals by scripts/build-wanderworld-animals.mjs) stands
+// on the ground at the size it should be and poses for standing, grazing, walking and galloping; a
+// world gets a herd that keeps to dry, open ground; the timid ones run; and a horse can be ridden.
+// Run: node tests/wanderworld-animals.regression.mjs
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Box3 } from "three";
+
+const kit = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit/animals");
+globalThis.fetch = async (url) => {
+  const name = String(url).split("/kit/animals/")[1];
+  try {
+    return new Response(await readFile(join(kit, name)), { status: 200 });
+  } catch {
+    return new Response("missing", { status: 404 });
+  }
+};
+const context = new Proxy(
+  { measureText: (text) => ({ width: String(text).length * 14 }) },
+  { get: (target, key) => target[key] ?? (() => ({ addColorStop() {} })), set: () => true },
+);
+globalThis.document = { createElement: () => ({ getContext: () => context, width: 0, height: 0 }) };
+
+const { ANIMALS, createAnimal } = await import("../packages/wanderworld/src/animals.js");
+const { createHerd, herdFor } = await import("../packages/wanderworld/src/herd.js");
+const { PACK } = await import("../packages/wanderworld/src/pack.js");
+const { createWorld, waterAt } = await import("../packages/wanderworld/src/world.js");
+
+const index = JSON.parse(await readFile(join(kit, "index.json"), "utf8"));
+assert.ok(index.source.includes("CC0"), "the kit says where it's from and its licence");
+assert.deepEqual(
+  Object.keys(index.animals).sort(),
+  Object.keys(ANIMALS).sort(),
+  "the kit has every animal the game knows",
+);
+
+// ── Each kind ────────────────────────────────────────────────────────────────
+for (const [kind, facts] of Object.entries(ANIMALS)) {
+  assert.ok(PACK.animals[kind], `the pack has words for the ${kind}`);
+  assert.ok(facts.gallop > facts.walk && facts.walk > 0, `the ${kind} gallops faster than it walks`);
+  const animal = await createAnimal(kind);
+  const measure = () => {
+    animal.object.updateMatrixWorld(true);
+    return new Box3().setFromObject(animal.object, true);
+  };
+  const standing = measure();
+  const height = standing.max.y - standing.min.y;
+  const wanted = index.animals[kind].height;
+  assert.ok(
+    Math.abs(height - wanted) < wanted * 0.2,
+    `the ${kind} stands about ${wanted} m tall (${height.toFixed(2)})`,
+  );
+  assert.ok(Math.abs(standing.min.y) < 0.12, `the ${kind} stands on the ground (${standing.min.y.toFixed(3)})`);
+  assert.ok(standing.max.z - standing.min.z > standing.max.x - standing.min.x, `the ${kind} is longer than it is wide`);
+  if (facts.back)
+    assert.ok(facts.back < height && facts.back > height * 0.45, `the ${kind}'s back is where a rider sits`);
+  // Standing, grazing, walking and galloping all pose it, and it stays on the ground and whole.
+  for (const [speed, options] of [
+    [0, {}],
+    [0, { graze: true }],
+    [facts.walk, {}],
+    [facts.gallop, {}],
+    [0, {}],
+  ]) {
+    for (let t = 0; t < 1.5; t += 1 / 30) animal.update(1 / 30, speed, options);
+    const box = measure();
+    for (const value of [...box.min.toArray(), ...box.max.toArray()])
+      assert.ok(Number.isFinite(value), `${kind} at ${speed}`);
+    assert.ok(box.min.y > -0.35 && box.max.y < wanted * 1.45, `the ${kind} keeps its shape at ${speed} m/s`);
+  }
+  animal.dispose();
+}
+await assert.rejects(() =>
+  fetch("x/kit/animals/dragon.json").then((r) => (r.ok ? r : Promise.reject(new Error("404")))),
+);
+assert.equal((await createAnimal("dragon")).kind, "deer", "an unknown kind is a deer");
+
+// ── A world's herd ───────────────────────────────────────────────────────────
+for (const seed of [4242, 51, 7]) {
+  const world = createWorld(seed);
+  const herd = herdFor(world, seed);
+  assert.deepEqual(herdFor(world, seed), herd, "the same world has the same animals");
+  assert.ok(herd.length >= 6, `a world has animals (${herd.length})`);
+  for (const beast of herd) {
+    assert.ok(ANIMALS[beast.kind], `a ${beast.kind} is an animal the game knows`);
+    assert.ok(waterAt(beast.x, beast.z).depth <= 0, `the ${beast.kind} starts on dry ground`);
+    assert.ok(!world.blocked(beast.x, beast.z, 0.5), `the ${beast.kind} doesn't start inside something`);
+    assert.ok(beast.range > 0);
+  }
+  const kinds = new Set(herd.map((beast) => beast.kind));
+  assert.ok(kinds.has("deer"), "deer in the country");
+  assert.ok(kinds.has("husky") || kinds.has("shiba"), "a dog about the settlement");
+  // The wild ones start away from the houses.
+  const townHalf = world.layout.townHalf;
+  for (const beast of herd.filter((entry) => ["deer", "stag", "wolf", "fox"].includes(entry.kind))) {
+    assert.ok(Math.max(Math.abs(beast.x), Math.abs(beast.z)) > townHalf, `the ${beast.kind} keeps out of town`);
+  }
+  world.dispose();
+}
+
+// ── Going about, running away, being ridden ──────────────────────────────────
+{
+  const world = createWorld(4242);
+  const herd = createHerd();
+  herd.setWorld(world, 4242);
+  await new Promise((resolve) => setTimeout(resolve, 600)); // their bodies load
+  const start = herd.snapshot();
+  assert.ok(
+    start.every((beast) => beast.loaded),
+    "every animal's body loads",
+  );
+  const player = { x: 0, y: 0, z: 0 };
+  const run = (seconds) => {
+    for (let t = 0; t < seconds; t += 0.1) herd.update(0.1, { player });
+  };
+  // Left alone near the player, they wander; nothing ends up in the river or in a wall.
+  const first = start.find((beast) => beast.kind === "husky" || beast.kind === "shiba");
+  Object.assign(player, { x: first.x + 30, z: first.z });
+  run(240);
+  const later = herd.snapshot();
+  const moved = later.filter((beast, i) => Math.hypot(beast.x - start[i].x, beast.z - start[i].z) > 1);
+  assert.ok(moved.length >= 1, "animals near the player go about");
+  for (const beast of later) {
+    assert.ok(waterAt(beast.x, beast.z).depth <= 0.31, `the ${beast.kind} stays out of the river`);
+    assert.ok(Number.isFinite(beast.x) && Number.isFinite(beast.z));
+  }
+  // A deer runs from the player.
+  const deer = later.find((beast) => beast.kind === "deer");
+  Object.assign(player, { x: deer.x + 3, z: deer.z });
+  run(4);
+  const fled = herd.snapshot().find((beast) => beast.id === deer.id);
+  assert.ok(Math.hypot(fled.x - player.x, fled.z - player.z) > 9, "a deer bolts when the player comes close");
+  // A horse or a donkey can be ridden; a cow can't.
+  const mountable = herd.snapshot().find((beast) => ANIMALS[beast.kind].back > 0);
+  if (mountable) {
+    const listed = herd.mounts({ x: mountable.x, z: mountable.z }, 3);
+    assert.ok(
+      listed.some((entry) => entry.id === mountable.id),
+      "it's offered to ride",
+    );
+    const mount = herd.ride(mountable.id);
+    assert.ok(mount.back > 0.9 && mount.gallop > mount.walk);
+    assert.equal(herd.ride(mountable.id), null, "one rider at a time");
+    herd.carry(mountable.id, mountable.x + 5, mountable.z + 2, 1, 6);
+    Object.assign(player, { x: mountable.x + 5, z: mountable.z + 2 });
+    run(1);
+    const carried = herd.snapshot().find((beast) => beast.id === mountable.id);
+    assert.equal(carried.x, mountable.x + 5, "ridden, it goes where the rider takes it and nowhere else");
+    assert.equal(herd.mounts({ x: carried.x, z: carried.z }, 3).length, 0, "nobody else can take it meanwhile");
+    herd.release(mountable.id);
+    run(30);
+    const left = herd.snapshot().find((beast) => beast.id === mountable.id);
+    assert.ok(Math.hypot(left.x - carried.x, left.z - carried.z) < 6, "let go, it stays about where it was left");
+  }
+  const cow = herd.snapshot().find((beast) => beast.kind === "cow");
+  if (cow) assert.equal(herd.ride(cow.id), null, "a cow isn't for riding");
+  herd.detach();
+  assert.equal(herd.snapshot().length, 0);
+  world.dispose();
+}
+
+console.log("wanderworld animals regression: OK");

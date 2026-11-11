@@ -244,6 +244,7 @@ jobs:
 
           # Wanderworld world generation, townsfolk, schedules, scenes and the server part's request checks.
           node tests/wanderworld.regression.mjs
+          node tests/wanderworld-animals.regression.mjs
           node tests/wanderworld-crowd.regression.mjs
           node tests/wanderworld-keywords.regression.mjs
           node tests/wanderworld-land.regression.mjs

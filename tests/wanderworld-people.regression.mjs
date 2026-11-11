@@ -83,11 +83,12 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
       assert.ok(packed, `the kit has the ${sex} ${outfit} outfit`);
       assert.deepEqual([...packed.colourways].sort(), colours.map(([name]) => name).sort(), `${outfit}'s colours`);
       for (const [name] of colours) assert.ok(kitFiles.has(`${name}.webp`), `the ${name} cloth`);
+      assert.ok(kitFiles.has(`${sex}-${outfit}.json`), `the ${sex} ${outfit} outfit's pieces`);
       for (const [piece] of PIECES)
-        assert.ok(kitFiles.has(`${sex}-${outfit}-${piece}.json`), `${sex} ${outfit} ${piece}`);
+        assert.ok(index.sexes[sex].pieces[piece].includes(outfit), `${sex} ${outfit} ${piece}`);
     }
     for (const [extra, , outfit] of EXTRAS)
-      assert.ok(kitFiles.has(`${sex}-${outfit}-${extra}.json`), `${sex} ${extra}`);
+      assert.ok(index.sexes[sex].pieces[extra].includes(outfit), `${sex} ${extra}`);
   }
   const usual = lookFor("Mira", index, "female");
   // One thing chosen changes only that.
@@ -143,7 +144,9 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   assert.equal(dyed.skinTint, 0x9955cc);
   // Any piece can be left off: the body shows there, and no outfit's colour is asked for it.
   for (const sex of ["male", "female"]) {
-    for (const [piece] of PIECES) assert.ok(kitFiles.has(`${sex}-none-${piece}.json`), `the bare ${sex} ${piece}`);
+    assert.ok(kitFiles.has(`${sex}-none.json`), `the bare ${sex} body`);
+    for (const [piece] of PIECES)
+      assert.ok(index.sexes[sex].pieces[piece].includes("none"), `the bare ${sex} ${piece}`);
     const bare = lookFor("Rook", index, sex, { top: "none", arms: "none", legs: "none", feet: "none" });
     assert.deepEqual(
       bare.parts,

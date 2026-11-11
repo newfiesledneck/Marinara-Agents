@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.21",
+          "date": "2026-11-11",
+          "notes": "- Animals: cattle, a donkey and a horse at farms, a dog or two about the market, a horse by each tavern and inn, and deer, stags, foxes and wolves out in the country. They wander, graze and look about; the wild ones run when you come close.\n- Ride a horse or a donkey, sitting astride: walk up and use it. The same stick and keys move it, Shift gallops, and E, Esc or the Get down button gets you off. It stays where you leave it.\n- Models and animations from Quaternius's Ultimate Animated Animals (CC0).",
+          "highlight": false
+        },
+        {
           "version": "0.5.20",
           "date": "2026-11-11",
           "notes": "- Look card: any piece (top, sleeves, legs, boots) can be set to None, which shows the body there: bare arms, a bare chest, bare feet. The body wears dark underclothes, so leaving everything off is still decent.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.2",
           "date": "2026-11-10",
           "notes": "- New world: \"Ages of the people the AI makes\", from 21 with no upper limit unless you change it (empty a box for no limit that way). It holds for everyone the AI invents or fills in, family from your cards included: someone outside the range isn't made. Ages your own lore or cards give are left alone. Kept with the world.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.1",
-          "date": "2026-11-10",
-          "notes": "- Illustrate: with the AI rewrite on, the last lines of the chat go with the prompt, so the picture shows what you're doing now (kneeling by the pond), not just \"standing\". New {recent_chat} placeholder.\n- The Illustrate window is all picture; the gallery, prompt and settings are a scroll down.\n- A crossroads, one-street or ring settlement no longer has bare fields inside it: a pond where there's room, houses off the streets, gardens, meadows and trees. Worlds you have get them too.\n- Street names are only where a street is laid, not out across open ground.\n- A pond's place reaches its shore and bench.\n- Fixed: a noticeboard errand to someone at home (or in a room with you) never finished; it does now at their door or beside them indoors. Knocking where nobody is in no longer has someone answer.\n- {persona_appearance} and {people_appearance} use the whole Appearance block.",
           "highlight": false
         }
       ]

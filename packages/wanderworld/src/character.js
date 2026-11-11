@@ -26,7 +26,7 @@ export function setAnimationStyle(style) {
   animationStyle = style === "builtin" ? "builtin" : "recorded";
 }
 const WAVE_BONES = ["rightUpperArm", "rightLowerArm", "rightHand"];
-const LOW_ACTS = new Set(["ground", "lie", "tend"]);
+const LOW_ACTS = new Set(["ground", "lie", "tend", "ride"]);
 
 /**
  * Things held in a hand while something is done with them: a hammer at the anvil, a mug to drink
