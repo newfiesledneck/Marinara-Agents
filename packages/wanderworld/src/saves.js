@@ -446,6 +446,32 @@ export function checkWorld(raw) {
     scenes: Array.isArray(raw.scenes) ? raw.scenes.map(checkScene).filter(Boolean).slice(-30) : [],
     // Characters' temperaments (aggression, sociability), by id.
     traits: checkTraitMap(raw.traits),
+    // The world's social life (social.js): the day it is, time each pair has spent together, and the
+    // record of what's happened.
+    social: isRecord(raw.social)
+      ? {
+          day: Number.isInteger(raw.social.day) && raw.social.day >= 0 ? raw.social.day : 0,
+          pairs: isRecord(raw.social.pairs)
+            ? Object.fromEntries(
+                Object.entries(raw.social.pairs)
+                  .filter(([, pair]) => Array.isArray(pair) && pair.every((value) => Number.isFinite(value)))
+                  .slice(0, 1000)
+                  .map(([key, pair]) => [key.slice(0, 200), pair.slice(0, 3)]),
+              )
+            : {},
+          log: (Array.isArray(raw.social.log) ? raw.social.log : [])
+            .filter((line) => isRecord(line) && typeof line.text === "string")
+            .slice(-200)
+            .map((line) => ({
+              day: Number.isInteger(line.day) ? line.day : 0,
+              hour: Number.isInteger(line.hour) ? line.hour : 0,
+              text: line.text.slice(0, 240),
+              who: (Array.isArray(line.who) ? line.who : []).filter((id) => typeof id === "string").slice(0, 12),
+              where: text(line.where).slice(0, 80),
+              area: text(line.area).slice(0, 20),
+            })),
+        }
+      : null,
     relationships: Array.isArray(raw.relationships)
       ? raw.relationships.map(checkRelationship).filter(Boolean).slice(0, 2000)
       : [],

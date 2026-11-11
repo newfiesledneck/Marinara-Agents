@@ -54,6 +54,7 @@ import { createPerson, lookChoices } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
+import { createSocial } from "./social.js";
 import { animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
@@ -605,6 +606,9 @@ function savePlace(now = false, thumbnail = null) {
     persona: core.personaId,
     cast: [...(core.cast ?? [])],
     party: core.crowd.party().map((member) => member.id),
+    // (What's moved by itself since: how people stand with each other, and the record of it.)
+    relationships: core.relations.all,
+    social: core.social?.state ?? null,
     place: {
       x: outside.x,
       z: outside.z,
@@ -672,6 +676,9 @@ function playWorld(id) {
   core.save = save;
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
+  core.social = createSocial(save.social ?? {});
+  core.away = {}; // when each part of the world was last left (socialTick)
+  core.area = null;
   core.characters = peopleOf(save); // this world's own people live here only
   const known = new Set((core.characters ?? []).map((character) => character.id));
   core.cast = new Set(save.cast.filter((id) => known.has(id)).slice(0, MAX_PEOPLE));
@@ -2522,6 +2529,7 @@ function journalData(zone, snapshot, residents, names) {
         .join(". ");
     }),
     relations: relationsData(),
+    lately: core.settings.worldLog ? [...(core.social?.log ?? [])].slice(-20).reverse() : [],
     party: core.crowd.party(),
     animals: core.save ? partyAnimals() : [],
     relationsChanged: core.relationsChanged,
@@ -2746,6 +2754,82 @@ function setLook(id, look) {
   }
   if (id === core.personaId) void choosePersona(id, true);
   else updateCast();
+}
+
+// ── The living world ─────────────────────────────────────────────────────────
+
+/**
+ * Moves the world's social life on (social.js) every couple of seconds: who is together now (friends out
+ * with each other, people talking, the party with the player), by the world's own hours. And on coming
+ * back to the town or the country after a while away, says what happened there meanwhile.
+ */
+function socialTick(dt) {
+  if (!core.save || !core.social || !core.zones) return;
+  core.socialWait = (core.socialWait ?? 0) + dt;
+  if (core.socialWait < 2) return;
+  const hours = (core.socialWait * 24 * (core.settings.timeSpeed ?? 1)) / DAY_SECONDS;
+  core.socialWait = 0;
+  const snapshot = core.crowd.snapshot();
+  const zoneNames = namedZones(residentsOf(snapshot));
+  const areaOf = (zone) => (chainOf(core.zones, zone).some((entry) => entry.kind === "town") ? "town" : "country");
+  const idOf = new Map(snapshot.map((person) => [person.name, person.id]));
+  const groups = [];
+  const seen = new Set();
+  for (const person of snapshot) {
+    const ids = [
+      person.id,
+      ...person.company,
+      ...(person.with && idOf.has(person.with) ? [idOf.get(person.with)] : []),
+    ];
+    const key = [...new Set(ids)].sort().join("|");
+    if (ids.length < 2 || seen.has(key)) continue;
+    seen.add(key);
+    const zone =
+      (person.inDoor !== null && core.zones.byId.get(`building:${person.inDoor}`)) ||
+      zoneAt(core.zones, person.x, person.z);
+    const where = zoneNames[zone.id] ?? "";
+    groups.push({ ids, where, what: where ? `at ${where}` : "", area: areaOf(zone) });
+  }
+  const at = core.interior ? core.interior.door : core.player.position;
+  const here = zoneAt(core.zones, at.x, at.z);
+  const area = areaOf(here);
+  const party = core.crowd
+    .party()
+    .filter((member) => !member.waiting)
+    .map((member) => member.id);
+  if (party.length)
+    groups.push({ ids: ["player", ...party], where: zoneNames[here.id] ?? "", what: "travelling together", area });
+  const names = nameIds();
+  const lines = core.social.step(core.hour, hours, groups, {
+    relations: core.relations,
+    traits: (id) => checkTraits(core.save?.traits?.[id]),
+    name: (id) => names[id] ?? "",
+    random: Math.random,
+    moving: core.settings.relationsMove,
+    logging: core.settings.worldLog,
+  });
+  if (lines.length) {
+    core.relationsChanged = true;
+    core.journalAt = 0;
+  }
+  // Coming back somewhere after a few hours: what happened there meanwhile (not what the player was part of).
+  const now = core.social.day * 24 + core.hour;
+  if (core.area && core.area !== area) {
+    core.away[core.area] = now;
+    const left = core.away[area];
+    const missed = (core.social.log ?? []).filter(
+      (entry) => entry.area === area && entry.day * 24 + entry.hour >= left && !entry.who.includes("player"),
+    );
+    if (core.settings.awayRecap && core.settings.worldLog && left !== undefined && now - left >= 3 && missed.length)
+      narrate(
+        null,
+        `(While you were away: ${missed
+          .slice(-3)
+          .map((entry) => entry.text)
+          .join(" ")})`,
+      );
+  }
+  core.area = area;
 }
 
 // ── How many animals, and which ──────────────────────────────────────────────
@@ -3781,7 +3865,14 @@ function savePerson(id, changes) {
   if (changes.traits) setTraits(id, changes.traits);
   if (changes.housing) setHousingByHand(id, changes.housing);
   const same = (a, b) =>
-    (a?.kind ?? "") === (b?.kind ?? "") && (!a || !b || (a.level === b.level && (a.role ?? "") === (b.role ?? "")));
+    (a?.kind ?? "") === (b?.kind ?? "") &&
+    (!a ||
+      !b ||
+      (a.level === b.level &&
+        (a.role ?? "") === (b.role ?? "") &&
+        !!a.locked === !!b.locked &&
+        (a.attraction ?? null) === (b.attraction ?? null) &&
+        !!a.attractionLocked === !!b.attractionLocked));
   for (const { from, to, fields } of changes.relations ?? []) {
     const now = core.relations.get(from, to) ?? null;
     if (!same(now, fields)) setRelation(from, to, fields ? { ...now, ...fields } : null, false);
@@ -5070,6 +5161,13 @@ async function runMoment({
       .entries.filter((entry) => entry.content)
       .map((entry) => `${entry.title}: ${entry.content}`)
       .slice(0, 6);
+    // What's happened lately that someone here was part of: only what they themselves know of.
+    const here = new Set(listeners.map((person) => person.id));
+    const known = (core.settings.worldLog ? (core.social?.log ?? []) : [])
+      .filter((entry) => entry.who.some((id) => here.has(id)))
+      .slice(-3)
+      .map((entry) => entry.text);
+    if (known.length) lore.push(`Lately: ${known.join(" ")}`);
     const places = schedulePlaces();
     const result = await core.ai.moment({
       personaId: core.personaId ?? null,
@@ -6678,6 +6776,7 @@ function step(dt) {
       }
     }
   }
+  socialTick(dt);
   core.crowd.update(dt, {
     player: core.player.position,
     space: core.space,

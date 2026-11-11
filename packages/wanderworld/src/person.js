@@ -5,6 +5,7 @@
 import { makeFloating } from "./floating.js";
 import { floatingFrame } from "./illustrate.js";
 import { ACTIVITIES, ACTIVITY_WORDS, hourText } from "./schedules.js";
+import { attractionOf } from "./relationships.js";
 import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, SERIF } from "./ui.js";
 
 function element(tag, css = "", textContent) {
@@ -29,9 +30,11 @@ function choice(options, value, label) {
 /**
  * A relationship's fields: a kind (or none), a role where the kind has them (family: sister, parent…;
  * colleague: employer…; mentor: student), and how strong, 0–100. `kinds`: [{ id, label, roles }].
- * Returns { row, read() → { kind, level, role } | null }.
+ * With them: a lock (locked, it never moves by itself), and how attractive they find them, with a lock
+ * of its own. `from` and `to` are whose view of whom it is.
+ * Returns { row, read() → { kind, level, role, locked, attraction, attractionLocked } | null }.
  */
-function relationFields(kinds, record, label) {
+function relationFields(kinds, record, label, from, to) {
   const kind = choice(
     [["", "Nothing set"], ...kinds.map((entry) => [entry.id, entry.label])],
     record?.kind ?? "",
@@ -59,14 +62,55 @@ function relationFields(kinds, record, label) {
   level.type = "range";
   level.min = "0";
   level.max = "100";
-  level.step = "5";
+  level.step = "1"; // (a relationship moves a step at a time by itself; the slider mustn't round that away)
   level.value = String(record?.level ?? 50);
   level.setAttribute("aria-label", `${label}: how strongly`);
+  const tick = (text, title, on) => {
+    const wrap = element("label", "display:inline-flex;gap:3px;align-items:center;font-size:12px;");
+    const box = element("input", "");
+    box.type = "checkbox";
+    box.checked = on;
+    box.title = title;
+    box.setAttribute("aria-label", `${label}: ${title}`);
+    wrap.append(box, element("span", "", text));
+    return [wrap, box];
+  };
+  const [lockWrap, lock] = tick("Lock", "locked, it never changes by itself", record?.locked === true);
+  // How attractive they find them: their own view till it's moved (then it's set, and can be locked too).
+  const felt = attractionOf(from, to, record);
+  const attraction = element("input", "width:70px;");
+  attraction.type = "range";
+  attraction.min = "0";
+  attraction.max = "100";
+  attraction.step = "1";
+  attraction.value = String(felt);
+  attraction.setAttribute("aria-label", `${label}: how attractive they find them`);
+  const [drawnLockWrap, drawnLock] = tick(
+    "Lock",
+    "locked, attraction never changes by itself",
+    record?.attractionLocked === true,
+  );
   const row = element("span", "display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;");
-  row.append(kind, role, level);
+  const drawn = element("span", "display:inline-flex;gap:4px;align-items:center;font-size:12px;");
+  drawn.append(element("span", "", "Attraction"), attraction, drawnLockWrap);
+  row.append(kind, role, level, lockWrap, drawn);
   return {
     row,
-    read: () => (kind.value ? { kind: kind.value, level: Number(level.value), role: role.value } : null),
+    read: () =>
+      kind.value
+        ? {
+            kind: kind.value,
+            level: Number(level.value),
+            role: role.value,
+            locked: lock.checked,
+            // (Left where their own view has it, it stays unset.)
+            attraction:
+              Number(attraction.value) === felt && !Number.isFinite(record?.attraction)
+                ? null
+                : Number(attraction.value),
+            attractionLocked: drawnLock.checked,
+          }
+        : null,
   };
 }
 
@@ -295,8 +339,14 @@ export function createPersonEditor(layer, handlers) {
     });
 
     body.append(head("You and them"));
-    const toPlayer = relationFields(person.kinds, person.toPlayer, `How ${person.name} sees you`);
-    const fromPlayer = relationFields(person.kinds, person.fromPlayer, `How you see ${person.name}`);
+    const toPlayer = relationFields(person.kinds, person.toPlayer, `How ${person.name} sees you`, person.id, "player");
+    const fromPlayer = relationFields(
+      person.kinds,
+      person.fromPlayer,
+      `How you see ${person.name}`,
+      "player",
+      person.id,
+    );
     body.append(field(`${person.name} sees you as`, toPlayer.row), field(`You see ${person.name} as`, fromPlayer.row));
     const knows = element("input");
     knows.type = "checkbox";
@@ -334,8 +384,20 @@ export function createPersonEditor(layer, handlers) {
       body.append(head("Them and the others"));
       body.append(note("Each way round is its own: how they see someone, and how that someone sees them."));
       for (const other of person.others) {
-        const out = relationFields(person.kinds, other.out, `How ${person.name} sees ${other.name}`);
-        const back = relationFields(person.kinds, other.back, `How ${other.name} sees ${person.name}`);
+        const out = relationFields(
+          person.kinds,
+          other.out,
+          `How ${person.name} sees ${other.name}`,
+          person.id,
+          other.id,
+        );
+        const back = relationFields(
+          person.kinds,
+          other.back,
+          `How ${other.name} sees ${person.name}`,
+          other.id,
+          person.id,
+        );
         body.append(element("div", "font-weight:600;margin-top:2px;", other.name));
         body.append(field(`${person.name} sees them as`, out.row), field(`They see ${person.name} as`, back.row));
         relations.push({ from: person.id, to: other.id, fields: out }, { from: other.id, to: person.id, fields: back });

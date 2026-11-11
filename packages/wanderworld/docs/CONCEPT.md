@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.39, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.40, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.39: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.40: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.39, 2026-11-11)
+## Outstanding (as of 0.5.40, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -762,7 +762,9 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   8. _Campfires people light for themselves,_ anywhere friends meet in the wilds, and tents at them.
   9. _A group in conversation:_ talking to one of a group (E) brings the others into the same call, as
      moments do now.
-  10. _A world that goes on where the player isn't_ (asked for 2026-11-11). Only while Wanderworld is
+  10. _A world that goes on where the player isn't_ (asked for 2026-11-11; the rules are in, 0.5.40:
+      `social.js`, relationships that move, locks, attraction, the record, the recap; the AI's batches
+      are not). Only while Wanderworld is
       open: nothing is to happen while it's closed, and no time is made up for on coming back. Three
       parts, each one a switch of its own in Settings so a player can cut calls and tokens:
       - _Relationships that move._ People who spend time together (an outing, a shared table, the same
