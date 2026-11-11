@@ -15,6 +15,13 @@ licence file says so). No credit is required; this note is a courtesy.
 | `creatures/`                          | Ultimate Animated Animals, its `glTF` folder; and the monsters from Monster Pack Animated and Easy Animated Enemy Pack, their `FBX` files (read here by three's FBXLoader: no Blender needed)       | `scripts/build-wanderworld-animals.mjs`     |
 | `fantasy/props/`                      | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF`, Farm Buildings `FBX` (the barn and the windmill)                                                       | `scripts/build-wanderworld-kit.mjs props`   |
 
+## Credit required (CC-BY)
+
+These are not public domain: each is used under its licence, which asks for this credit and a note of
+what was changed. Their makers have not endorsed Wanderworld.
+
+- Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. In `fantasy/props/` (the `saddle` model and its texture).
+
 The kit is kept by setting: `generic/` is what any world has (nature, people's bodies, the painted art),
 `fantasy/` the medieval one's buildings, props and outfits, and `creatures/` the animals, a file a group.
 A modern or a sci-fi setting would be a folder beside `fantasy/`. Within a folder the models are one file

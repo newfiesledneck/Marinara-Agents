@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.46 — 2026-11-11
+
+- A saddle on any horse that's someone's own: yours, or a character's. Farm and tavern horses go bare.
+- The saddle is Saddle by Poly by Google (CC-BY 3.0), modified: converted, resized and its texture shrunk. Credited in Help, the README and `kit/CREDITS.md`.
+
 ## 0.5.45 — 2026-11-11
 
 - People remember, each their own: what you said to them or in their hearing, and who they spent time with. Kept by rules, with no AI call.

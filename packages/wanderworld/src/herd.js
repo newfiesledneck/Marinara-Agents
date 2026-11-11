@@ -8,8 +8,10 @@
 //
 // Someone's own dog or horse (`setOwned`) is one more animal here: with its owner it follows them, and
 // sent home it keeps to its spot by their door.
+import { Group, Mesh } from "three";
 import { ANIMALS, coatFor, createAnimal, dogBody, POPULATION } from "./animals.js";
 import { blobShadow } from "./character.js";
+import { kitModel } from "./kit.js";
 import { hashString, heightAt, rng, waterAt } from "./world.js";
 
 const NEAR = 110; // metres from the player within which an animal is moved and drawn
@@ -19,6 +21,11 @@ const WADE = 0.3; // metres of water an animal will walk into
 const THREAT_FROM = 16; // metres from the player at which a hostile animal squares up to them
 const HUNT_FROM = 22; // and from which, let attack, it comes for them
 const THREAT_EVERY = 45; // seconds between the game being told of one squaring up
+/**
+ * The saddle (the props kit's, from a Poly by Google model, CC-BY): how much smaller than it's made it
+ * goes on a horse, and how far up its own height its underside is (the stirrups hang below that).
+ */
+const SADDLE = { scale: 0.3, under: 2.95, forward: 0.05 };
 const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives up walking and turns up beside them
 
 /**
@@ -276,6 +283,25 @@ export function createHerd() {
     random: rng(hashString(`beast:${key}`)),
   });
 
+  /**
+   * A saddle on `beast`'s back (a horse that's someone's own), once the props kit has it: set on its
+   * body, so it's the size the horse is. Without the kit's model, it goes bare.
+   */
+  function saddle(beast, mine) {
+    void kitModel("props", "saddle")
+      .then((parts) => {
+        if (mine !== token || beast.gone || !beast.animal) return;
+        const seat = new Group();
+        for (const { geometry, material } of parts) seat.add(new Mesh(geometry, material));
+        seat.scale.setScalar(SADDLE.scale);
+        beast.saddleY = ANIMALS[beast.kind].back - SADDLE.under * SADDLE.scale;
+        seat.position.set(0, beast.saddleY, SADDLE.forward);
+        beast.saddle = seat;
+        beast.animal.object.add(seat);
+      })
+      .catch(() => {}); // no props kit: no saddle
+  }
+
   /** Loads `beast`'s body and puts it in the world. */
   function embody(beast, mine) {
     {
@@ -284,6 +310,7 @@ export function createHerd() {
           if (mine !== token || beast.gone) return animal.dispose();
           beast.animal = animal;
           animal.object.scale.setScalar(beast.scale ?? 1); // (its size: a large wolf, a small dog)
+          if (beast.owned && beast.kind === "horse") saddle(beast, mine);
           beast.group = animal.object;
           const shadow = blobShadow();
           shadow.scale.setScalar(beast.kind === "horse" || beast.kind === "cow" || beast.kind === "bull" ? 2.4 : 1.4);
@@ -599,6 +626,10 @@ export function createHerd() {
         place(beast);
       }
       beast.animal.update(dt, beast.speed, { graze: beast.graze, jump: beast.ridden ? (beast.leap ?? null) : null });
+      // (Its saddle goes up and down with its back in a jump.)
+      if (beast.saddle)
+        beast.saddle.position.y =
+          beast.saddleY + (beast.ridden && beast.leap != null ? beast.animal.rise(beast.leap) : 0);
     }
   }
 

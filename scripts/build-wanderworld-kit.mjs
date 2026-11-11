@@ -10,12 +10,15 @@
 //   node scripts/build-wanderworld-kit.mjs props "<…>/Fantasy Props MegaKit[Standard]/Exports/glTF" "<…>/Medieval Village MegaKit[Standard]/glTF"
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Matrix3, Matrix4, Quaternion, Vector3 } from "three";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FFMPEG = process.env.FFMPEG || "ffmpeg";
+/** Where a .glb's own images are written out, to be shrunk like any other texture. */
+const GLB_IMAGES = join(tmpdir(), "wanderworld-kit-glb");
 
 /**
  * What each set takes from its pack: where it goes in the kit (`dir`: by setting, "generic" for what any
@@ -179,6 +182,9 @@ const SETS = {
     ],
     // From Farm Buildings (CC0), which ships FBX and no glTF: flat colours, no textures, in centimetres.
     fbx: ["Barn", "Windmill"],
+    // Single models from Poly Pizza, each a .glb named as it was downloaded: [our name, the file]. These
+    // are CC-BY 3.0: each is credited in kit/CREDITS.md, Help's credits and the README.
+    glb: [["saddle", "Saddle by Poly by Google - dSMm_V4sKNr.glb"]],
     textureSize: () => 512,
   },
 };
@@ -186,8 +192,31 @@ const SETS = {
 // ── glTF: accessors, nodes, materials ──
 
 function readGltf(path) {
-  const json = JSON.parse(readFileSync(path, "utf8"));
-  const buffers = json.buffers.map((buffer) => readFileSync(join(dirname(path), decodeURIComponent(buffer.uri))));
+  let json;
+  let buffers;
+  if (path.toLowerCase().endsWith(".glb")) {
+    // A binary glTF: its JSON, then its one buffer. Its images are in the buffer too: each is written out
+    // beside the scratch files (GLB_IMAGES) and named in the JSON as a file, as a .gltf's would be.
+    const file = readFileSync(path);
+    const jsonLength = file.readUInt32LE(12);
+    json = JSON.parse(file.subarray(20, 20 + jsonLength).toString("utf8"));
+    const bin = file.subarray(20 + jsonLength + 8);
+    buffers = [bin];
+    (json.images ?? []).forEach((image, i) => {
+      if (image.uri || image.bufferView === undefined) return;
+      const view = json.bufferViews[image.bufferView];
+      const name = `${basename(path).replace(/[^a-z0-9]+/giu, "-")}-${i}.${image.mimeType === "image/jpeg" ? "jpg" : "png"}`;
+      mkdirSync(GLB_IMAGES, { recursive: true });
+      writeFileSync(
+        join(GLB_IMAGES, name),
+        bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength),
+      );
+      image.uri = name;
+    });
+  } else {
+    json = JSON.parse(readFileSync(path, "utf8"));
+    buffers = json.buffers.map((buffer) => readFileSync(join(dirname(path), decodeURIComponent(buffer.uri))));
+  }
   const COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
   const SIZES = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
   function accessor(index) {
@@ -415,12 +444,13 @@ async function main() {
   const images = new Set();
   const index = { source: set.source, models: {} };
   const models = {};
-  for (const model of [...set.models, ...(set.fbx ?? [])]) {
+  sourceDirs.push(GLB_IMAGES); // (where a .glb's images are, once it's been read)
+  const glb = new Map(set.glb ?? []);
+  for (const model of [...set.models, ...(set.fbx ?? []), ...glb.keys()]) {
     const fbx = (set.fbx ?? []).includes(model);
-    const path = sourceDirs
-      .map((dir) => join(dir, `${model}.${fbx ? "fbx" : "gltf"}`))
-      .find((candidate) => existsSync(candidate));
-    if (!path) throw new Error(`No pack has ${model}.${fbx ? "fbx" : "gltf"}`);
+    const file = glb.get(model) ?? `${model}.${fbx ? "fbx" : "gltf"}`;
+    const path = sourceDirs.map((dir) => join(dir, file)).find((candidate) => existsSync(candidate));
+    if (!path) throw new Error(`No pack has ${file}`);
     const packed = fbx ? await packFbx(path) : packModel(path, textureName);
     for (const image of packed.textures) images.add(image);
     const name = model.toLowerCase().replace(/_/gu, "-");
