@@ -3,7 +3,7 @@
 // nobody else's (server.mjs).
 // Run: node tests/wanderworld-memory.regression.mjs
 import assert from "node:assert/strict";
-import { createMemories, MEMORY } from "../packages/wanderworld/src/memory.js";
+import { createMemories, heardLines, MEMORY } from "../packages/wanderworld/src/memory.js";
 
 const server = await import("../packages/wanderworld/server.mjs");
 
@@ -139,6 +139,60 @@ const server = await import("../packages/wanderworld/server.mjs");
   );
   assert.match(miraLine, /Remembers \(they alone\): Zoey found a key\./u);
   assert.doesNotMatch(tamLine, /key|Remembers/u, "Tam's line says nothing of what Mira knows");
+}
+
+// ── Who heard what: "Just before" holds only what those here were in earshot of ──────────────────
+{
+  const log = [
+    { who: "Zoey", text: "Hi, I'm Zoey", heard: ["samuel", "corvin"] },
+    { who: "Samuel", text: "Nice to meet you.", heard: ["samuel", "corvin"] },
+    { who: "Narrator", text: "You pass a stranger.", heard: [] },
+    { who: "Zoey", text: "(whispers) Don't trust him.", heard: ["corvin"] },
+    { who: "Narrator", text: "The forest is quiet." },
+    { who: "Narrator", text: "A trail winds on." },
+    { who: "Narrator", text: "Leaves stir." },
+  ];
+  const corvin = { id: "corvin", name: "Corvin" };
+  const samuel = { id: "samuel", name: "Samuel" };
+  const aldric = { id: "aldric", name: "Aldric" };
+  assert.deepEqual(heardLines(log, [aldric]), [], "someone new knows nothing of what was said to others");
+  assert.deepEqual(
+    heardLines(log, [samuel]).map((line) => line.text),
+    ["Hi, I'm Zoey", "Nice to meet you."],
+    "nor the whisper he wasn't in earshot of, nor what only the player saw",
+  );
+  assert.deepEqual(heardLines(log, [corvin, samuel]).at(-1), {
+    who: "Zoey",
+    text: "(whispers) Don't trust him.",
+    only: "Corvin",
+  });
+  assert.equal(heardLines(log, [corvin, samuel])[0].only, undefined, "what all of them heard isn't marked");
+  assert.equal(heardLines(log, [corvin, aldric])[0].only, "Corvin", "and Aldric is told he missed it");
+  assert.equal(heardLines(log, [corvin], 2).length, 2, "the last few");
+  assert.deepEqual(
+    heardLines(log, []).map((line) => line.text),
+    ["The forest is quiet.", "A trail winds on.", "Leaves stir."],
+    "nobody near: the narrator's own last lines",
+  );
+  // And the server says so.
+  const said = (recent, listeners) =>
+    server.momentMessages({
+      persona: { name: "Zoey", card: "" },
+      listeners,
+      action: "waves",
+      line: "",
+      voice: "talk",
+      lore: [],
+      recent,
+      places: [],
+    })[0].content;
+  const here = [{ id: "corvin", name: "Corvin", distance: 2, doing: "" }];
+  const prompt = said(heardLines(log, [corvin, aldric]), here);
+  assert.match(prompt, /## Just before\n\(All that those here saw and heard/u);
+  assert.match(prompt, /Zoey: Hi, I'm Zoey \[only Corvin heard this\]/u);
+  assert.doesNotMatch(prompt, /stranger|forest/u);
+  assert.match(said(heardLines(log, []), []), /## Just before\n\(What you told last/u);
+  assert.doesNotMatch(said([], here), /Just before/u, "nothing heard: no section");
 }
 
 console.log("wanderworld memory regression: OK");

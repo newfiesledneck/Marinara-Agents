@@ -24,6 +24,30 @@ const cut = (value) =>
  * A world's memories. `saved`: what `state` gave before ({ [id]: [{ day, text, said, raised }] }).
  * `said` marks something the player said to them (worth bringing up later); `raised`, that they have.
  */
+/**
+ * The chat's lines that `listeners` ([{ id, name }]: who's in earshot now) saw or heard, for the model:
+ * the last `max` of them as { who, text, only }. `log` is the chat ([{ who, text, heard: [ids] }]: `heard`
+ * is who was in earshot when it was said). A line some of them missed says who did hear it (`only`); a
+ * line none of them heard isn't there at all, so nobody speaks of what they weren't there for. With
+ * nobody listening it's the narrator's own last lines (three), kept so the telling doesn't repeat.
+ */
+export function heardLines(log, listeners, max = 12) {
+  if (!listeners.length)
+    return log
+      .filter((line) => line.who === "Narrator")
+      .slice(-3)
+      .map(({ who, text }) => ({ who, text }));
+  const lines = [];
+  for (const line of log) {
+    const heard = new Set(line.heard ?? []);
+    const there = listeners.filter((person) => heard.has(person.id));
+    if (!there.length) continue;
+    const only = there.length < listeners.length ? there.map((person) => person.name).join(", ") : "";
+    lines.push(only ? { who: line.who, text: line.text, only } : { who: line.who, text: line.text });
+  }
+  return lines.slice(-max);
+}
+
 export function createMemories(saved = {}) {
   const store = new Map(
     Object.entries(saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {})

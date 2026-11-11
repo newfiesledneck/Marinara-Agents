@@ -101,10 +101,11 @@ export const SETTINGS = {
   sceneTense: { value: "present", options: ["present", "past"] },
   /** The prompt preset scenes start with ("" for none: the scene's own instructions alone). */
   scenePreset: { value: "", text: true },
-  // One of the user's character cards as the narrator: it tells scenes, moments or both in its voice, and
-  // lets a scene start with nobody else in it. "" is no narrator card.
+  // The user's character cards as narrators ("" is none). One tells the world as you walk it (moments and
+  // narration: a short card, a voice and a few rules); one tells scenes, and lets a scene start with nobody
+  // else in it (a roleplay narrator's card suits that).
   narratorCard: { value: "", text: true },
-  narratorUse: { value: "both", options: ["scenes", "moments", "both"] },
+  sceneNarratorCard: { value: "", text: true },
   // Animals: how many of each sort a world has of its own (0: none of that sort), whether the ones its
   // lore asks for and the ones someone owns are there even so, and each kind on or off altogether
   // (animals.js POPULATION, SWITCHES).
@@ -173,6 +174,11 @@ export function loadSettings() {
     saved = JSON.parse(globalThis.localStorage?.getItem(KEY) ?? "{}") ?? {};
   } catch {
     saved = {}; // blocked storage or a damaged copy: start from the defaults
+  }
+  // Before 0.5.58 there was one narrator card and what it was used for: now a card for each.
+  if (saved.narratorCard && saved.sceneNarratorCard === undefined) {
+    if (saved.narratorUse !== "moments") saved.sceneNarratorCard = saved.narratorCard;
+    if (saved.narratorUse === "scenes") saved.narratorCard = "";
   }
   return Object.fromEntries(Object.keys(SETTINGS).map((name) => [name, checkSetting(name, saved[name])]));
 }

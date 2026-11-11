@@ -486,6 +486,18 @@ assert.equal(checkSetting("shadows", "yes"), true, "a non-boolean switch is the 
 assert.equal(checkSetting("nonsense", 1), undefined, "unknown settings are ignored");
 globalThis.localStorage = { getItem: () => "{not json" };
 assert.deepEqual(loadSettings().resolution, "auto", "a damaged saved copy loads the defaults");
+// One narrator card and what it was for (before 0.5.58) become a card for the world and one for scenes.
+const narrators = (saved) => {
+  globalThis.localStorage = { getItem: () => JSON.stringify(saved) };
+  const { narratorCard, sceneNarratorCard } = loadSettings();
+  return [narratorCard, sceneNarratorCard];
+};
+assert.deepEqual(narrators({ narratorCard: "n1" }), ["n1", "n1"], "used for both: both");
+assert.deepEqual(narrators({ narratorCard: "n1", narratorUse: "scenes" }), ["", "n1"]);
+assert.deepEqual(narrators({ narratorCard: "n1", narratorUse: "moments" }), ["n1", ""]);
+assert.deepEqual(narrators({ narratorCard: "n1", sceneNarratorCard: "" }), ["n1", ""], "a choice made since is kept");
+assert.deepEqual(narrators({ narratorCard: "n1", sceneNarratorCard: "n2" }), ["n1", "n2"]);
+assert.deepEqual(narrators({}), ["", ""]);
 delete globalThis.localStorage;
 
 console.log("wanderworld regression: OK");

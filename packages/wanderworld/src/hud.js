@@ -684,8 +684,9 @@ export function createHud(root, handlers) {
     aiSeats: "A call when you sit down with someone near.",
     aiJoin: "A call when you join someone in what they're doing.",
     narratorCard:
-      "One of your character cards as the narrator. It tells things in its voice, and a scene can start with nobody else there: alone in the woods, with only the narrator.",
-    narratorUse: "What the narrator card is used for.",
+      "One of your character cards as the voice that tells the world as you walk it: what you see, what comes of what you do. A short card works best (a voice and a few rules); its first 1500 characters are used. None: a plain narrator.",
+    sceneNarratorCard:
+      "One of your character cards as the narrator of scenes. A roleplay narrator's card suits this. With it, a scene can start with nobody else there: alone in the woods, with only the narrator.",
     narration:
       "A line on coming somewhere new (its lore, when it has some) and now and then about who's near. Written lines, unless Settings → AI lets arrivals call the model.",
     weather: "Rain, snow or mist, changing every few minutes or always one. Off keeps the sky clear.",
@@ -1040,12 +1041,8 @@ export function createHud(root, handlers) {
   });
   choice("sceneTense", "Scene tense", { present: "Present", past: "Past" });
   connectionChoice("scenePreset", "Scene prompt preset", "presets", "None");
-  connectionChoice("narratorCard", "Narrator card", "characters", "None");
-  choice("narratorUse", "The narrator tells", {
-    scenes: "Scenes",
-    moments: "Moments and narration",
-    both: "Both",
-  });
+  connectionChoice("narratorCard", "Narrator in the world", "characters", "None");
+  connectionChoice("sceneNarratorCard", "Narrator in scenes", "characters", "None");
   slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
   connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
   choice("imageStyle", "Picture style", {
