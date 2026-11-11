@@ -6,6 +6,7 @@
 //
 // Usage (unzip the pack first; ffmpeg must be on PATH, or set FFMPEG):
 //   node scripts/build-wanderworld-kit.mjs nature "<…>/Stylized Nature MegaKit[Standard]/glTF"
+//   (props also takes the Farm Buildings pack's FBX folder, for the barn and the windmill)
 //   node scripts/build-wanderworld-kit.mjs props "<…>/Fantasy Props MegaKit[Standard]/Exports/glTF" "<…>/Medieval Village MegaKit[Standard]/glTF"
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -176,6 +177,8 @@ const SETS = {
       "Prop_WoodenFence_Single",
       "Prop_WoodenFence_Extension1",
     ],
+    // From Farm Buildings (CC0), which ships FBX and no glTF: flat colours, no textures, in centimetres.
+    fbx: ["Barn", "Windmill"],
     textureSize: () => 512,
   },
 };
@@ -231,6 +234,74 @@ function quantize(values, size) {
   }
   const box = [...min, ...max].map((value) => Math.round(value * 1e5) / 1e5);
   return { data: b64(out), box };
+}
+
+/**
+ * One model from a static FBX, as packModel gives one: its meshes by material, each a flat colour (the
+ * older packs have no textures), in metres (the packs are in centimetres).
+ */
+async function packFbx(path) {
+  // (The loader only wants these to exist: nothing is drawn here.)
+  globalThis.self ??= globalThis;
+  globalThis.document ??= {
+    createElementNS: () => ({ addEventListener() {}, removeEventListener() {}, style: {} }),
+    createElement: () => ({ getContext: () => null, style: {} }),
+  };
+  const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
+  const buffer = readFileSync(path);
+  const scene = new FBXLoader().parse(
+    buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+    "",
+  );
+  scene.updateMatrixWorld(true);
+  const groups = new Map(); // material name → { positions, normals, indices, colour }
+  const v = new Vector3();
+  scene.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    const geometry = mesh.geometry;
+    const p = geometry.attributes.position;
+    const n = geometry.attributes.normal;
+    const normalMatrix = new Matrix3().getNormalMatrix(mesh.matrixWorld);
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    // (A mesh with several materials says which each run of its corners has; one with one has no need to.)
+    const runs = geometry.groups.length
+      ? geometry.groups
+      : [{ start: 0, count: geometry.index ? geometry.index.count : p.count, materialIndex: 0 }];
+    for (const run of runs) {
+      const material = materials[run.materialIndex] ?? materials[0];
+      const group = groups.get(material.name) ?? { positions: [], normals: [], indices: [], colour: material.color };
+      groups.set(material.name, group);
+      for (let k = run.start; k < run.start + run.count; k++) {
+        const i = geometry.index ? geometry.index.getX(k) : k;
+        v.fromBufferAttribute(p, i).applyMatrix4(mesh.matrixWorld).multiplyScalar(0.01);
+        group.indices.push(group.positions.length / 3);
+        group.positions.push(v.x, v.y, v.z);
+        v.fromBufferAttribute(n, i).applyMatrix3(normalMatrix).normalize();
+        group.normals.push(v.x, v.y, v.z);
+      }
+    }
+  });
+  const meshes = [...groups.values()].map((group) => {
+    const count = group.positions.length / 3;
+    const position = quantize(group.positions, 3);
+    const uv = quantize(new Array(count * 2).fill(0), 2);
+    const indices = count > 65535 ? new Uint32Array(group.indices) : new Uint16Array(group.indices);
+    return {
+      texture: null,
+      colour: group.colour.toArray().map((value) => Math.round(value * 1000) / 1000),
+      cutout: false,
+      doubleSided: true,
+      count,
+      box: position.box,
+      uvBox: uv.box,
+      position: position.data,
+      normal: b64(new Int8Array(group.normals.map((value) => Math.round(value * 127)))),
+      uv: uv.data,
+      index: b64(indices),
+      wide: indices instanceof Uint32Array,
+    };
+  });
+  return { meshes, textures: [] };
 }
 
 /** One model: every mesh primitive, transformed by its node's world matrix and grouped by material. */
@@ -325,7 +396,7 @@ function packModel(path, textureName) {
   return { meshes, textures };
 }
 
-function main() {
+async function main() {
   const [setName, ...sourceDirs] = process.argv.slice(2);
   const set = SETS[setName];
   if (!set || !sourceDirs.length) {
@@ -344,10 +415,13 @@ function main() {
   const images = new Set();
   const index = { source: set.source, models: {} };
   const models = {};
-  for (const model of set.models) {
-    const path = sourceDirs.map((dir) => join(dir, `${model}.gltf`)).find((candidate) => existsSync(candidate));
-    if (!path) throw new Error(`No pack has ${model}.gltf`);
-    const packed = packModel(path, textureName);
+  for (const model of [...set.models, ...(set.fbx ?? [])]) {
+    const fbx = (set.fbx ?? []).includes(model);
+    const path = sourceDirs
+      .map((dir) => join(dir, `${model}.${fbx ? "fbx" : "gltf"}`))
+      .find((candidate) => existsSync(candidate));
+    if (!path) throw new Error(`No pack has ${model}.${fbx ? "fbx" : "gltf"}`);
+    const packed = fbx ? await packFbx(path) : packModel(path, textureName);
     for (const image of packed.textures) images.add(image);
     const name = model.toLowerCase().replace(/_/gu, "-");
     models[name] = { meshes: packed.meshes };
@@ -394,4 +468,4 @@ function main() {
     console.log(`  ${name.padEnd(22)} ${info.size.join(" × ")} m, ${info.triangles} triangles`);
 }
 
-main();
+await main();
