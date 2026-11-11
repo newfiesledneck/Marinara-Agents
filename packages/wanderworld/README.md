@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.25)
+## What it does now (0.5.26)
 
 ### The world
 
@@ -260,7 +260,8 @@ only walk about.
 - **Animals:** cattle (now and then a bull or an alpaca), a donkey and a horse at each farm; a dog or
   two about the market; a horse by each tavern and inn; and out in the country deer in twos and threes
   with a stag, a fox, and wolves well away from the houses. They wander, graze and look about, keep out
-  of the river, and the wild ones bolt when you come close. A world's animals come from its seed.
+  of the river, and the wild ones bolt when you come close. Horses come in seven coats and dogs in four,
+  so a world's horses are a mix. A world's animals, and their coats, come from its seed.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
   Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences and benches), it turns less sharply than you do and won't go where it
   would have to swim, and E, Esc or Get down gets you off beside it. It stays where you leave it, and
@@ -445,7 +446,8 @@ still count, and come first.
   the forge, stalls, fields, gardens, pond shores, meadows); someone takes one, is "busy" there doing its
   act, and leaves the way they came in.
 - `src/animals.js` is the animals' bodies (a second kind beside the humanoid: each kind's own skeleton
-  and clips from `kit/animals/`, made by `scripts/build-wanderworld-animals.mjs`), and `src/herd.js`
+  and clips from `kit/animals/`, a file a group, made by `scripts/build-wanderworld-animals.mjs`; a
+  horse's or a dog's coat is the same body in other colours, `COATS`), and `src/herd.js`
   which animals a world has, where they go, and handing one to a rider (`main.js ride`, `dismount`).
 - `src/relationships.js` holds relationship kinds, tiers and warmth, temperaments, and reading
   relationships from lore keywords; `src/dialogue.js` the set conversations; `src/interactions.js` the

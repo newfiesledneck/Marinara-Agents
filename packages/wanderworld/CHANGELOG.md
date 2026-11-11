@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.26 — 2026-11-11
+
+- Horses come in seven coats (bay, white, black, grey, chestnut, palomino, brown) and each kind of dog in four. Which one an animal has comes from the world's seed, so a world with several horses has a mix. The Ride prompt names the coat.
+- The animals' files are grouped: one for the farm's and the town's, one for the country's. The package has ten fewer files, with room for monsters as a group of their own.
+
 ## 0.5.25 — 2026-11-11
 
 - Getting on a horse or a donkey is a movement of its own: a step to its side, up beside it, a leg over and down onto its back. Before, the rider pointed at it and floated above it standing.
