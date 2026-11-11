@@ -377,6 +377,30 @@ export function createJournal(panelCss, handlers) {
         coming.length ? "Everyone you could ask is already coming." : "Nobody here knows you well enough yet.",
       );
     }
+    if (house.home) {
+      heading("Furnish your home");
+      if (!house.furnish) body.append(line("Go inside your home to put furniture in it.", MUTED));
+      else {
+        body.append(
+          line(
+            "A piece goes down a step in front of you, facing you. The room's own furniture stays as it is; what you add can be taken away.",
+            MUTED,
+          ),
+        );
+        chooser("Which piece", house.furnish.pieces, "Put it here", (id) => handlers.onFurnish?.(id), "");
+        for (const piece of house.furnish.placed) {
+          const row = element("div", "display:flex;align-items:center;gap:6px;");
+          row.append(
+            element("span", "flex:1;font-size:13px;", piece.name),
+            button("Take away", SMALL, () => {
+              handlers.onUnfurnish?.(piece.index);
+              draw();
+            }),
+          );
+          body.append(row);
+        }
+      }
+    }
     heading(house.home ? "Move house" : "Move into an empty house");
     if (house.home && house.vacant.length && house.mates.length) {
       body.append(line("Who comes with you (the rest stay where they are):", MUTED));

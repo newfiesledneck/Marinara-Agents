@@ -8,6 +8,7 @@
 import { Color, CylinderGeometry, HemisphereLight, Mesh, MeshLambertMaterial, PointLight, Scene } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { box, DOOR, DOOR_HEIGHT, DOOR_WIDTH, painted } from "./buildings.js";
+import { FURNITURE, footprint } from "./household.js";
 import { createCollider, hashString, rng } from "./world.js";
 
 const WALL_HEIGHT = 3;
@@ -22,9 +23,10 @@ const GOODS = [0xc8a050, 0x9a4a3a, 0x4a7a9a, 0x7a9a4a, 0xd8d0c0, 0xa86a3a];
 
 /**
  * The room behind `door` (a door from world.js, carrying its building's spec). The player enters at
- * `entry` facing into the room; `exit` is where "Leave" is offered.
+ * `entry` facing into the room; `exit` is where "Leave" is offered. `own`: pieces put there by hand
+ * (household.js: [{ piece, x, z, angle }]), standing in the room with what it has of its own.
  */
-export function createInterior(door, seed) {
+export function createInterior(door, seed, own = []) {
   const random = rng(hashString(`${seed}:inside:${door.index}`));
   const pick = (list) => list[Math.floor(random() * list.length)];
   const kind = door.spec.kind;
@@ -301,6 +303,38 @@ export function createInterior(door, seed) {
         taken: null,
       });
     }
+  }
+
+  // What was put here by hand: each a kit prop, in the way, and a seat if it's one to sit on.
+  for (const entry of own) {
+    const made = FURNITURE[entry.piece];
+    if (!made) continue;
+    const floor = footprint(entry);
+    kit(made.model, entry.x, entry.z, { angle: entry.angle, scale: made.scale ?? 1 });
+    furniture.push(
+      box(
+        floor.maxX - floor.minX,
+        0.5,
+        floor.maxZ - floor.minZ,
+        (floor.minX + floor.maxX) / 2,
+        0.25,
+        (floor.minZ + floor.maxZ) / 2,
+        WOOD,
+      ),
+    );
+    if (made.seat) {
+      // (Sat on, not walked into: a seat is stepped up to.)
+      const fx = Math.sin(entry.angle);
+      const fz = Math.cos(entry.angle);
+      seats.push({
+        x: entry.x,
+        z: entry.z,
+        angle: entry.angle,
+        approach: { x: entry.x + fx * 0.65, z: entry.z + fz * 0.65 },
+        height: SEAT_HEIGHT,
+        taken: null,
+      });
+    } else boxes.push(floor);
   }
 
   const scene = new Scene();

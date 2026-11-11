@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.53",
+          "date": "2026-11-11",
+          "notes": "- Furnish your home: inside it, Journal → Home puts a piece down a step in front of you, and takes away any piece you added.\n- Eighteen kinds of piece: chairs and stools (which can be sat on), tables, a bench, a bookcase, a cabinet, a chest, barrels and more.\n- A piece is kept inside the walls and clear of the way in. Up to 40 a home, kept with the world.",
+          "highlight": false
+        },
+        {
           "version": "0.5.52",
           "date": "2026-11-11",
           "notes": "- Journal → Home: where you live and who with.\n- Move into any house that stands empty, and choose which housemates come along; the rest stay where they are.\n- Ask someone to move in, or a housemate to leave.\n- Have someone round: they head for your home and stay about three hours.\n- People who know you and don't dislike you say yes. Rules only, with no AI call.",
@@ -307,12 +313,6 @@
           "version": "0.5.34",
           "date": "2026-11-11",
           "notes": "- A campsite's tents, logs and fire stones sit on the ground as it lies. On a slope they were all set at the fire's height, so a tent uphill sank in and one downhill hung in the air.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.33",
-          "date": "2026-11-11",
-          "notes": "- Campsites are laid out unevenly, each its own way: tents stand a little further from the fire, at different distances and anywhere round it, and the logs sit wherever there's room between them, some turned a little. No log blocks a tent's mouth.",
           "highlight": false
         }
       ]

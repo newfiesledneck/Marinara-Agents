@@ -56,7 +56,16 @@ import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
 import { createMemories } from "./memory.js";
-import { homeToLeaveFor, housingAfterMove, vacantHomes, VISIT_HOURS, visitFrom, visitOver } from "./household.js";
+import {
+  FURNITURE,
+  homeToLeaveFor,
+  housingAfterMove,
+  placeFurniture,
+  vacantHomes,
+  VISIT_HOURS,
+  visitFrom,
+  visitOver,
+} from "./household.js";
 import { ANIMALS, animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
@@ -2235,6 +2244,17 @@ function householdData(snapshot, names) {
       .filter((person) => !mateIds.has(person.id) && welcomeFrom(person.id))
       .map((person) => ({ id: person.id, name: person.name, coming: core.invites?.has(person.id) === true })),
     visitHours: VISIT_HOURS,
+    // Furnishing: only inside your own home.
+    furnish:
+      core.interior && core.interior.door.index === myDoor
+        ? {
+            pieces: Object.entries(FURNITURE).map(([id, piece]) => ({ id, name: piece.label })),
+            placed: (core.save.furnished?.[mine] ?? []).map((entry, index) => ({
+              index,
+              name: FURNITURE[entry.piece]?.label ?? entry.piece,
+            })),
+          }
+        : null,
   };
 }
 
@@ -2296,6 +2316,69 @@ function moveOut(id) {
   const names = namedZones(residentsOf(core.crowd.snapshot()));
   narrate(null, `(${person.name} moves out${other ? `, to ${names[other.id] ?? "another house"}` : ""}.)`);
   recall([id], `${personaName()} asked you to move out of their home.`);
+}
+
+/** The room the player is in, made again with the home's pieces as they are now; the player stays put. */
+function refurnish() {
+  const inside = core.interior;
+  if (!inside) return;
+  const { door } = inside;
+  const room = createInterior(door, core.seed, core.save?.furnished?.[`building:${door.index}`] ?? []);
+  core.crowd.hideRoom();
+  core.player.removeFromParent();
+  inside.room.dispose();
+  core.interior = { door, room };
+  core.space = room;
+  core.crowd.showRoom(door, room);
+  room.scene.add(core.player);
+  if (core.settings.props) {
+    kitModels("props", room.propNames)
+      .then((models) => {
+        if (core.interior?.room === room) room.addProps(models);
+      })
+      .catch((error) => console.warn("[wanderworld] detailed furniture failed to load", error));
+  }
+}
+
+/** Writes the home's pieces and shows the room with them. */
+function setFurniture(zoneId, list) {
+  const furnished = { ...core.save.furnished, [zoneId]: list };
+  if (!list.length) delete furnished[zoneId];
+  core.save = { ...core.save, furnished };
+  core.saves.write(core.save);
+  refurnish();
+  core.placesChanged = true;
+  core.journalAt = 0;
+}
+
+/** Puts `piece` (household.js FURNITURE) down a step in front of the player, facing them, in their own home. */
+function furnish(piece) {
+  const mine = core.save?.housing?.[PLAYER_ID]?.home ?? null;
+  if (!mine || !core.interior || core.interior.door.index !== playerHomeDoor()) return;
+  if (core.mode !== "walk") return void core.hud?.setNotice("Stand up first.");
+  const facing = core.player.rotation.y;
+  const at = {
+    x: core.player.position.x + Math.sin(facing) * 1.1,
+    z: core.player.position.z + Math.cos(facing) * 1.1,
+    angle: facing + Math.PI,
+  };
+  const result = placeFurniture(core.save.furnished?.[mine] ?? [], piece, at, core.interior.room);
+  if (result.error) return void core.hud?.setNotice(result.error);
+  setFurniture(mine, result.list);
+  // (Never left standing inside what was just put down.)
+  core.space.resolveCollisions(core.player.position, PLAYER_RADIUS, true);
+}
+
+/** Takes away the `index`th piece the player put in their home. */
+function unfurnish(index) {
+  const mine = core.save?.housing?.[PLAYER_ID]?.home ?? null;
+  const list = core.save?.furnished?.[mine] ?? [];
+  if (!mine || !core.interior || core.interior.door.index !== playerHomeDoor() || !list[index]) return;
+  if (core.mode !== "walk") return void core.hud?.setNotice("Stand up first.");
+  setFurniture(
+    mine,
+    list.filter((_, at) => at !== index),
+  );
 }
 
 /** Asks `id` round: they head for the player's home and stay a few hours (VISIT_HOURS), if they would. */
@@ -5626,7 +5709,7 @@ function goThrough(run) {
 function enterBuilding(door) {
   goThrough(() => {
     core.world.setDoor(door.index, false);
-    const room = createInterior(door, core.seed);
+    const room = createInterior(door, core.seed, core.save?.furnished?.[`building:${door.index}`] ?? []);
     core.interior = { door, room };
     core.space = room;
     core.crowd.showRoom(door, room);
@@ -6303,7 +6386,14 @@ function travel(side) {
   // Anyone told to wait stays behind, out of the party.
   for (const member of core.crowd.party()) if (member.waiting) core.crowd.setFollowing(member.id, false);
   const regions = { ...save.regions };
-  const setup = { names: save.names, lore: save.lore, groups: save.groups, housing: save.housing, place: save.place };
+  const setup = {
+    names: save.names,
+    lore: save.lore,
+    groups: save.groups,
+    housing: save.housing,
+    furnished: save.furnished,
+    place: save.place,
+  };
   let homeSetup = save.homeSetup;
   if (from === HOME_REGION) homeSetup = setup;
   else regions[from] = { ...regions[from], ...setup };
@@ -6335,6 +6425,7 @@ function travel(side) {
     lore: target.lore ?? {},
     groups: target.groups ?? null,
     housing: target.housing ?? {},
+    furnished: target.furnished ?? {},
     party: party.map((member) => member.id),
     place: null,
     scenes: [...(save.scenes ?? []), request].filter(Boolean).slice(-30),
@@ -7068,6 +7159,8 @@ function attach(element) {
     onMoveIn: moveIn,
     onMoveOut: moveOut,
     onInviteOver: inviteOver,
+    onFurnish: furnish,
+    onUnfurnish: unfurnish,
     onPartyLeave: (id) => {
       core.crowd.setFollowing(id, false);
       partyChanged();
