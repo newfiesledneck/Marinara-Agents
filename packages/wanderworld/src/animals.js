@@ -23,13 +23,13 @@ const BASE = "/api/capability-packages/wanderworld/assets/kit/animals/";
 
 /**
  * What the game knows of each kind: how fast it walks and gallops (metres a second, the pace its clips
- * are played at: feet keep to the ground near these), how high its back is for a rider (0: not ridden),
+ * are played at: feet keep to the ground near these), how high the top of its back is where a rider sits (measured on the posed model; 0: not ridden),
  * how far along its back from its middle the rider sits, and whether it runs from people.
  */
 export const ANIMALS = {
-  horse: { walk: 1.7, gallop: 7.5, back: 1.49, seat: -0.05, timid: false },
-  "horse-white": { walk: 1.7, gallop: 7.5, back: 1.49, seat: -0.05, timid: false },
-  donkey: { walk: 1.3, gallop: 5.5, back: 1.08, seat: -0.05, timid: false },
+  horse: { walk: 1.7, gallop: 7.5, back: 1.62, seat: -0.05, timid: false },
+  "horse-white": { walk: 1.7, gallop: 7.5, back: 1.62, seat: -0.05, timid: false },
+  donkey: { walk: 1.3, gallop: 5.5, back: 1.2, seat: -0.05, timid: false },
   cow: { walk: 1.0, gallop: 4.5, back: 0, seat: 0, timid: false },
   bull: { walk: 1.0, gallop: 4.8, back: 0, seat: 0, timid: false },
   alpaca: { walk: 1.1, gallop: 5, back: 0, seat: 0, timid: false },
@@ -166,6 +166,7 @@ export async function createAnimal(name) {
   }
 
   const facts = ANIMALS[kind];
+  const body = data.bones.indexOf("Body"); // the bone its leap lifts
   let idleTime = Math.random() * 10;
   let stride = Math.random(); // through the walk or gallop, 0…1
   let moving = 0;
@@ -173,8 +174,11 @@ export async function createAnimal(name) {
   let grazing = 0;
   let looking = 0;
   let lookUntil = 0;
+  let leaping = 0;
+  let leapAt = 0;
 
-  function update(dt, speed = 0, { graze = false } = {}) {
+  /** `jump`: how far through a leap it is (0…1), or null on the ground (only the ridden kinds leap). */
+  function update(dt, speed = 0, { graze = false, jump = null } = {}) {
     dt = Math.min(0.1, Math.max(0, Number.isFinite(dt) ? dt : 0));
     speed = Math.max(0, Number.isFinite(speed) ? speed : 0);
     idleTime += dt;
@@ -200,6 +204,11 @@ export async function createAnimal(name) {
       pose(clips.walk, stride, moving * (1 - running));
       pose(clips.gallop, stride, moving * running);
     }
+    if (clips.jump) {
+      if (jump !== null) leapAt = jump;
+      leaping = ease(leaping, jump === null ? 0 : 1, dt, 0.07);
+      pose(clips.jump, leapAt, leaping);
+    }
   }
   update(0);
 
@@ -210,6 +219,15 @@ export async function createAnimal(name) {
     back: facts.back,
     seat: facts.seat,
     update,
+    /** How far its back is above (or below) where it stands, `t` of the way through its leap (metres). */
+    rise(t) {
+      const places = clips.jump?.places[body];
+      if (!places) return 0;
+      const at = Math.min(0.999999, Math.max(0, t)) * (clips.jump.frames - 1);
+      const frame = Math.floor(at);
+      const y = places[frame * 3 + 1] + (places[frame * 3 + 4] - places[frame * 3 + 1]) * (at - frame);
+      return (y - places[1]) * data.scale;
+    },
     dispose() {
       root.removeFromParent();
       skinned.skeleton.dispose();

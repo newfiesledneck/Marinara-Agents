@@ -226,7 +226,7 @@ export function createHerd() {
         step(beast, dt, player);
         place(beast);
       }
-      beast.animal.update(dt, beast.speed, { graze: beast.graze });
+      beast.animal.update(dt, beast.speed, { graze: beast.graze, jump: beast.ridden ? (beast.leap ?? null) : null });
     }
   }
 
@@ -264,15 +264,19 @@ export function createHerd() {
       const facts = ANIMALS[beast.kind];
       return { id, kind: beast.kind, x: beast.x, z: beast.z, angle: beast.angle, ...facts };
     },
-    /** While ridden: where the rider has taken it, facing `angle`, at `speed` metres a second. */
-    carry(id, x, z, angle, speed) {
+    /** While ridden: where the rider has taken it, facing `angle`, at `speed` metres a second; in a
+     *  jump, `leap` of the way through it (0…1; null on the ground). Returns how far its back has risen
+     *  (or dipped, gathering itself) at that point, in metres. */
+    carry(id, x, z, angle, speed, leap = null) {
       const beast = beasts.find((entry) => entry.id === id);
       if (!beast?.ridden) return;
       beast.x = x;
       beast.z = z;
       beast.angle = angle;
       beast.speed = speed;
+      beast.leap = leap;
       place(beast);
+      return leap === null ? 0 : (beast.animal?.rise(leap) ?? 0);
     },
     /** The rider gets down: it stays about where it was left. */
     release(id) {
@@ -280,6 +284,7 @@ export function createHerd() {
       if (!beast) return;
       beast.ridden = false;
       beast.speed = 0;
+      beast.leap = null;
       beast.home = { x: beast.x, z: beast.z };
       beast.range = Math.min(beast.range, 4);
       beast.state = "idle";

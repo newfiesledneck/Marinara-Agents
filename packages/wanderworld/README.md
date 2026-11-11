@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.22)
+## What it does now (0.5.24)
 
 ### The world
 
@@ -262,7 +262,7 @@ only walk about.
   with a stag, a fox, and wolves well away from the houses. They wander, graze and look about, keep out
   of the river, and the wild ones bolt when you come close. A world's animals come from its seed.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
-  Shift or the stick right out to gallop), it turns less sharply than you do and won't go where it
+  Shift or the stick right out to gallop, Space or the Jump button to jump), it turns less sharply than you do and won't go where it
   would have to swim, and E, Esc or Get down gets you off beside it. It stays where you leave it, and
   your party runs to keep up.
 - **Campsites:** a campsite or two outside each settlement: a fire that flickers, lights the ground as
@@ -387,7 +387,7 @@ still count, and come first.
 - Walk-in rooms are unfinished and off by default.
 - Animals are scenery and a ride for now: nothing hunts, nobody else rides, a wolf only keeps its
   distance, and the AI isn't told about them (but is told you're riding). A rider sits astride with
-  hands forward, but there's no saddle or reins, and the pose is the same at a walk and a gallop. Horses don't jump, and where you left one isn't remembered after you leave
+  hands forward, but there's no saddle or reins, and the pose is the same at a walk and a gallop. A jump doesn't clear fences or walls yet, and where you left one isn't remembered after you leave
   the world: it's back where the seed has it.
 - A look can be chosen once someone lives in the world, and there are two outfits to mix. The hood
   goes over whatever hair they have. A piece given a colour of its own is that colour all over (its

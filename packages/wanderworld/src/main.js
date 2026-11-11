@@ -2790,8 +2790,9 @@ function resetMode() {
   core.mode = "walk";
 }
 
-/** How high a rider's seat is in the sitting pose, above where they'd stand (metres). */
-const RIDE_SEAT = 0.5;
+/** How high the underside of a rider's seat is in the riding pose, above where they'd stand (metres):
+ *  the hips ride about a hand above the animal's back, so nothing of the rider is inside it. */
+const RIDE_SEAT = 0.39;
 const RIDE_RADIUS = 0.6; // what a horse and rider take up
 const RIDE_WALK = 1.5; // a ridden walk is brisker than the animal's own amble, by this much
 
@@ -2819,7 +2820,7 @@ function ride(id) {
 /** Gets down, beside it where there's room; it stays about where it was left. */
 function dismount() {
   const mount = core.mount;
-  if (!mount) return;
+  if (!mount || core.air) return; // not in the middle of a jump
   const { x, z } = core.player.position;
   const facing = core.player.rotation.y;
   // To its left, its right, or behind: the first that isn't in something or in the river.
@@ -2895,7 +2896,13 @@ function rest() {
 /** A jump: straight up, or along with however the player is moving. */
 const JUMP_SPEED = 4.6; // metres a second, upward
 const GRAVITY = 13;
+const MOUNT_LEAP = 1.25; // seconds a ridden animal's jump takes: its own leap, start to landing
 function jump() {
+  // On a horse or a donkey, it jumps: its own leap, carrying on the way it's going, the rider with it.
+  if (core.mode === "ride") {
+    if (core.mount && !core.air && !core.glide) core.air = { height: 0, time: 0, mount: true };
+    return;
+  }
   if (core.mode !== "walk" || core.swimming || core.air || core.glide || core.clock < (core.stillUntil ?? 0)) return;
   core.air = { height: 0, speed: JUMP_SPEED };
 }
@@ -5957,7 +5964,10 @@ function movePlayer(dt, input) {
       player.rotation.y = approachAngle(player.rotation.y, Math.atan2(moveX, moveZ), (input.run ? 4 : 6) * dt);
     }
     const speed = dt > 0 ? Math.hypot(position.x - startX, position.z - startZ) / dt : 0;
-    core.herd.carry(mount.id, position.x, position.z, player.rotation.y, speed);
+    // (In a jump: how far through its leap it is; its back's rise and fall comes back, for the rider.)
+    const leap = core.air?.mount ? Math.min(1, core.air.time / MOUNT_LEAP) : null;
+    const rise = core.herd.carry(mount.id, position.x, position.z, player.rotation.y, speed, leap);
+    if (core.air?.mount) core.air.height = rise ?? 0;
   } else if (core.mode === "sit" && (input.x || input.y)) {
     standUp();
   }
@@ -5974,7 +5984,10 @@ function movePlayer(dt, input) {
     (core.lift ?? 0) + ((core.mode === "sit" ? (core.seat?.lift ?? 0) : 0) - (core.lift ?? 0)) * Math.min(1, dt * 5);
   if (core.lift > 0.005) position.y += core.lift;
   // A jump: up and back down onto whatever ground is under them by then.
-  if (core.air) {
+  if (core.air?.mount) {
+    core.air.time += dt;
+    if (core.air.time >= MOUNT_LEAP || core.mode !== "ride") core.air = null;
+  } else if (core.air) {
     core.air.speed -= GRAVITY * dt;
     core.air.height += core.air.speed * dt;
     if (core.air.height <= 0 || core.swimming || core.mode !== "walk") core.air = null;
@@ -5982,8 +5995,9 @@ function movePlayer(dt, input) {
   }
   // Up on a mount: seated at its back's height (it has a shadow of its own).
   const riding = core.mode === "ride" && core.mount;
-  if (riding && !core.glide) position.y = target + core.mount.back - RIDE_SEAT;
-  else if (riding) position.y += (target + core.mount.back - RIDE_SEAT - position.y) * Math.min(1, dt * 10);
+  const seatAt = riding ? target + core.mount.back - RIDE_SEAT + (core.air?.height ?? 0) : 0;
+  if (riding && !core.glide) position.y = seatAt;
+  else if (riding) position.y += (seatAt - position.y) * Math.min(1, dt * 10);
   core.shadow.visible = core.settings.shadows && !core.swimming && !riding;
   if (core.air)
     core.shadow.position.y = 0.06 - core.air.height; // the shadow stays on the ground
@@ -6085,14 +6099,17 @@ function step(dt) {
     sit: core.mode === "sit" && !onGround,
     act: core.mode === "ride" ? "ride" : onGround,
     gesture: core.gesture,
-    air: !!core.air,
+    air: !!core.air && !core.air.mount, // (a rider keeps their seat through the animal's jump)
     lookAt,
     talk: false,
     swim: core.swimming,
   });
   core.gesture = null;
   if (pose?.footstep) core.sound.footstep(0, pose.running);
-  core.hud?.setThumbs(onGround ?? (core.mode === "sit" ? "seat" : ""), core.mode === "walk" || core.mode === "sit");
+  core.hud?.setThumbs(
+    onGround ?? (core.mode === "sit" ? "seat" : core.mode === "ride" ? "ride" : ""),
+    core.mode === "walk" || core.mode === "sit" || core.mode === "ride",
+  );
 
   // The town lives on while the player is indoors: doors, people, the clock. An open door stays open
   // while the player stands at it.
