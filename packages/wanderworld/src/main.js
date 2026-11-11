@@ -30,7 +30,7 @@ import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
-import { findModel, loadModelCharacter } from "./models.js";
+import { BUILT_IN, findModel, loadModelCharacter, modelKinds } from "./models.js";
 import { summariseSetup } from "./setup.js";
 import { HELP, KEYWORD_PROMPT } from "./help.js";
 import { actWords, arrivalLine, errandFor, PACK, pickLine, PROP_THINGS, thingLine } from "./pack.js";
@@ -2655,9 +2655,11 @@ async function choosePersona(id, redress = false) {
   if (persona) store(PERSONA_KEY, persona.id);
   const load = ++core.personaLoad;
   if (!redress || !core.character) setCharacter(createFigure(persona?.name ?? ""));
-  const model = persona ? await findModel({ type: "persona", id: persona.id }) : null;
+  // (Their look may ask for one of their card's models, or for the built-in person over them all.)
+  const avatar = core.looks[persona?.id]?.avatar;
+  const model = persona ? await findModel({ type: "persona", id: persona.id }, avatar) : null;
   if (load !== core.personaLoad) return;
-  if (!model && core.settings.people !== "kit") return;
+  if (!model && core.settings.people !== "kit" && avatar !== BUILT_IN) return;
   if (model) core.hud?.setStatus(`Loading ${persona.name}'s model…`);
   try {
     // Their own 3D model, or else a person dressed from the kit.
@@ -2837,13 +2839,16 @@ function petsOf(id) {
 async function lookOf(id) {
   const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
   const name = persona?.name ?? (core.characters ?? []).find((entry) => entry.id === id)?.name ?? "";
-  const hasModel = persona ? !!core.personaHasModel : !!core.crowd.hasModel(id);
   const chosen = core.looks[id] ?? {};
+  // Their card's 3D models, to choose between (or to set aside for the built-in person).
+  const models = name ? await modelKinds({ type: persona ? "persona" : "character", id }) : { kinds: [], active: null };
+  const hasModel = models.kinds.length > 0 && chosen.avatar !== BUILT_IN;
   try {
     return {
       id,
       name,
       hasModel,
+      models,
       chosen,
       pets: core.save ? petsOf(id) : null,
       now: await lookChoices(name, core.bodies[id] ?? "auto", chosen),

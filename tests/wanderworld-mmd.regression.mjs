@@ -227,4 +227,30 @@ function checkPose(character, label) {
   assert.ok(deepest > 0.4, `${label}: the knee folds in the swing (deepest ${deepest.toFixed(2)})`);
 }
 
+// Which of a card's models shows: its own choice, another kind the Look card asks for, or none (built-in).
+{
+  const { findModel, modelKinds } = await import("../packages/wanderworld/src/models.js");
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) =>
+    new Response(
+      JSON.stringify(
+        String(url).includes("nobody")
+          ? {}
+          : {
+              activeKind: "mmd",
+              kinds: { vrm: { file: "a.vrm" }, mmd: { file: "b.pmx" }, "glb-fbx": { file: "c.glb" } },
+            },
+      ),
+      { status: 200 },
+    );
+  const owner = { type: "persona", id: "someone" };
+  assert.equal((await findModel(owner)).kind, "mmd", "the card's own choice by default");
+  assert.equal((await findModel(owner, "vrm")).kind, "vrm", "another kind the card has, when asked for");
+  assert.equal((await findModel(owner, "glb-fbx")).kind, "mmd", "one it can't show falls back to the card's choice");
+  assert.equal(await findModel(owner, "builtin"), null, "the built-in person over them all");
+  assert.deepEqual(await modelKinds(owner), { kinds: ["vrm", "mmd"], active: "mmd" });
+  assert.deepEqual(await modelKinds({ type: "character", id: "nobody" }), { kinds: [], active: null });
+  globalThis.fetch = realFetch;
+}
+
 console.log("wanderworld MMD regression: OK");

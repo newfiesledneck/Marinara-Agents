@@ -8,7 +8,7 @@
 import { CanvasTexture, Group, LinearFilter, Sprite, SpriteMaterial } from "three";
 import { blobShadow } from "./character.js";
 import { createFigure } from "./figure.js";
-import { findModel, loadModelCharacter } from "./models.js";
+import { BUILT_IN, findModel, loadModelCharacter } from "./models.js";
 import { createPerson } from "./people.js";
 import { tagColourOf } from "./relationships.js";
 import { fill, greetingFor, moodOf, pickExchange } from "./dialogue.js";
@@ -216,10 +216,12 @@ export function createCrowd() {
   }
 
   async function loadModel(person) {
-    const model = await findModel({ type: "character", id: person.id });
+    // (Their look may ask for one of their card's models, or for the built-in person over them all.)
+    const builtIn = person.look?.avatar === BUILT_IN;
+    const model = await findModel({ type: "character", id: person.id }, person.look?.avatar);
     if (!people.has(person.id)) return;
     person.hasModel = !!model;
-    if (!model && !dressPeople) return;
+    if (!model && !dressPeople && !builtIn) return;
     try {
       const character = model
         ? await loadModelCharacter(model)
@@ -1567,9 +1569,10 @@ export function createCrowd() {
           JSON.stringify(entry.look ?? {}) !== JSON.stringify(person.look)
         ) {
           // A new body or look: redress them (only matters without their own 3D model).
+          const avatar = person.look?.avatar;
           person.body = entry.body ?? "auto";
           person.look = entry.look ?? {};
-          if (!person.hasModel && dressPeople) void loadModel(person);
+          if (avatar !== person.look.avatar || (!person.hasModel && dressPeople)) void loadModel(person);
         }
       }
     },

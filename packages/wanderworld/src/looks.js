@@ -116,6 +116,9 @@ const isRecord = (value) => !!value && typeof value === "object" && !Array.isArr
  * Returns {} for anything else. (A look saved when a colour belonged to its outfit, with a ranger's
  * colour under `colour`, is read as that.)
  */
+/** The avatars a look can ask for by name (models.js MODEL_KINDS and BUILT_IN). */
+export const AVATARS = ["vrm", "glb-fbx", "mmd", "builtin"];
+
 export function checkLook(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const look = {};
@@ -145,5 +148,7 @@ export function checkLook(raw) {
   if (isColour(raw.skinTint)) look.skinTint = raw.skinTint;
   if (typeof raw.beard === "boolean") look.beard = raw.beard;
   if (Number.isFinite(raw.height)) look.height = Math.max(HEIGHTS[0], Math.min(HEIGHTS[1], Number(raw.height)));
+  // Which avatar shows: one of their card's 3D models, or the built-in person (missing: the card's own choice).
+  if (AVATARS.includes(raw.avatar)) look.avatar = raw.avatar;
   return look;
 }

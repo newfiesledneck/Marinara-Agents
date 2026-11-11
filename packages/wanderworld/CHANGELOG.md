@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.28 — 2026-11-11
+
+- Avatar in the Look card: when a persona's or a character's card has a 3D model, choose between the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), and the built-in person dressed by the rest of the card.
+
 ## 0.5.27 — 2026-11-11
 
 - A dog and a horse of your own: the Look card has Dog and Horse, with the kind, the coat, and whether each is with you or at home. With you, it follows; at home it keeps by your door, or the tavern's if you have no home.

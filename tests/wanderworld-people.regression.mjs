@@ -229,6 +229,9 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
     { rangerColour: "ranger-wine" },
     "an older look's ranger colour is kept as that",
   );
+  assert.deepEqual(checkLook({ avatar: "builtin" }), { avatar: "builtin" }, "a look can ask for the built-in person");
+  assert.deepEqual(checkLook({ avatar: "mmd" }), { avatar: "mmd" }, "or for one of the card's models");
+  assert.deepEqual(checkLook({ avatar: "hologram" }), {}, "and nothing else");
   assert.deepEqual(
     checkLook({ tint: 0x445566 }).tints,
     { top: 0x445566, arms: 0x445566, legs: 0x445566, feet: 0x445566, hood: 0x445566, pauldrons: 0x445566 },
