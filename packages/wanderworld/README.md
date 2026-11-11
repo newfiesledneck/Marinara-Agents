@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.44)
+## What it does now (0.5.45)
 
 ### The world
 
@@ -283,6 +283,11 @@ only walk about.
   country, alone or in twos and threes; skeletons and bats only at night. The Monsters slider says how
   many, each kind has its switch, and they act as "Hostile animals" says. A lorebook can place them:
   `ww:monster:slime:large:pack3` on a place's entry. Nothing fights back yet.
+- **People remember, each their own:** what you said to them or in their hearing, and who they spent
+  time with (`src/memory.js`; rules only). The AI is given the memories of whoever it's speaking for
+  and nobody else's, so it can't know what someone across town was told. Someone you said something
+  to may come over within a few days to bring it up. Their window in Journal → Edit people shows and
+  clears it; Settings → Living world switches it off.
 - **How many animals:** Settings → Animals has a slider for each sort (stray dogs, farm animals, peaceful
   wild animals, hostile ones, monsters): that many of the world's own, 0 for none. What a lorebook asks
   for and anyone's own dog or horse are still there at 0, unless that's turned off. Each kind also has

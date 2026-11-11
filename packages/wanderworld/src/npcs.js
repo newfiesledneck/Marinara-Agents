@@ -832,8 +832,9 @@ export function createCrowd() {
       }
       if (
         room &&
-        toPlayer.warmth >= GREET_WARMTH - 0.3 * (sociability - 0.5) &&
-        playerDistance < GREET_DISTANCE * (0.6 + 0.8 * sociability) &&
+        // (Someone with something to bring up comes from further off, and needs less liking to do it.)
+        toPlayer.warmth >= GREET_WARMTH - 0.3 * (sociability - 0.5) - (view.hasTopic?.(person.id) ? 0.2 : 0) &&
+        playerDistance < GREET_DISTANCE * (0.6 + 0.8 * sociability) * (view.hasTopic?.(person.id) ? 1.6 : 1) &&
         playerDistance > STOP_DISTANCE + 0.5 &&
         clock - person.greetedAt > GREET_AGAIN / approach &&
         person.state !== "sit" &&
@@ -904,7 +905,11 @@ export function createCrowd() {
       person.state = "idle";
       person.wait = 3;
       person.lastWave = -Infinity; // a wave as they say hello
-      say(person, viewNow, `Hey, ${viewNow?.playerNameFor?.(person.id) ?? viewNow?.playerName ?? "you"}!`);
+      // (With something the player said still on their mind, that's what they've come over about.)
+      const topic = viewNow?.topicFor?.(person.id) ?? null;
+      const you = viewNow?.playerNameFor?.(person.id) ?? viewNow?.playerName ?? "you";
+      say(person, viewNow, topic ? `${you}! I've been thinking about what you said.` : `Hey, ${you}!`);
+      if (topic) viewNow?.onTopic?.(person.id, person.name, topic);
     } else if (step.confront) {
       person.state = "idle";
       person.wait = 6;

@@ -140,6 +140,8 @@ export const SETTINGS = {
   relationsMove: { value: true },
   worldLog: { value: true },
   awayRecap: { value: true },
+  /** Each person remembers what they themselves saw and heard (memory.js), and the model is told theirs alone. */
+  memories: { value: true },
   sound: { value: true },
   volume: { value: 0.6, min: 0, max: 1 },
 };

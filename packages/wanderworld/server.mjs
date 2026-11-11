@@ -185,6 +185,12 @@ export function talkMessages(input) {
         .join("\n"),
     ),
     section(`How ${character.name} feels about ${persona.name}`, input.relationship),
+    section(
+      `What ${character.name} remembers`,
+      (input.memories ?? []).length
+        ? `Only what ${character.name} saw, heard or was told themselves. They know nothing of what happened elsewhere or was said to others.\n${input.memories.map((line) => `- ${line}`).join("\n")}`
+        : "",
+    ),
     // Strangers: they are still who they are, but neither acts as if they'd met.
     section(
       "Who knows whom",
@@ -916,6 +922,7 @@ export function momentMessages(input) {
         `- id "${person.id}": ${person.name}, ${person.distance} m away, ${person.doing || "standing about"}` +
         `${person.inParty ? ", travelling with " + input.persona.name : ""}` +
         `${person.feeling ? `. Feels: ${person.feeling}` : ""}` +
+        `${person.remembers ? `. Remembers (they alone): ${person.remembers}` : ""}` +
         `${person.card ? `. ${person.card}` : ""}`,
     )
     .join("\n");
@@ -1280,6 +1287,7 @@ export async function activate(context) {
           weather: text(body.weather, 40),
           nearby: text(body.nearby, 300),
           relationship: text(body.relationship, 400),
+          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 220)).filter(Boolean).slice(0, 8),
           setting: block(body.setting, 600),
           lore: [
             ...loreEntries.map((entry) => `${text(entry.name, MAX.name)}: ${block(entry.content, MAX.loreText)}`),
@@ -1371,6 +1379,7 @@ export async function activate(context) {
             distance: Number.isFinite(person.distance) ? Math.round(Math.max(0, Math.min(99, person.distance))) : 5,
             doing: text(person.doing, 120),
             feeling: text(person.feeling, 200),
+            remembers: text(person.remembers, 500),
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)

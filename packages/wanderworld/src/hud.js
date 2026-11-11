@@ -674,6 +674,8 @@ export function createHud(root, handlers) {
       "People who spend time together grow a little closer, slowly: a step for an evening, a tier in a few weeks. Two short-tempered people sometimes have words instead, and friends who never meet drift apart. A relationship you lock (in Journal → Edit people) never moves; one you set by hand moves on from there.",
     worldLog:
       "A short record of who spent time with whom and what changed between them, in Journal → Relationships under Lately. Off, nothing is written down (relationships can still change).",
+    memories:
+      "Each person keeps their own short memory: what you said in their hearing, who they spent time with. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people.",
     awayRecap:
       "When you come back to the town or out into the country after a few hours away, a line about what happened there meanwhile. Needs the record above.",
     animalsStrays: "Dogs with no owner about the settlement. 0: none of the world's own.",
@@ -837,6 +839,7 @@ export function createHud(root, handlers) {
   toggle("relationsMove", "Relationships change over time");
   toggle("worldLog", "Keep a record of what happens");
   toggle("awayRecap", "Tell me what I missed");
+  toggle("memories", "People remember what they saw and heard");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");
   // In groups, each with a line on what it's for and what wins over what, so it isn't a wall of switches.
