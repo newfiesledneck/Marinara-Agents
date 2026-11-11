@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.34",
+          "date": "2026-11-11",
+          "notes": "- A campsite's tents, logs and fire stones sit on the ground as it lies. On a slope they were all set at the fire's height, so a tent uphill sank in and one downhill hung in the air.",
+          "highlight": false
+        },
+        {
           "version": "0.5.33",
           "date": "2026-11-11",
           "notes": "- Campsites are laid out unevenly, each its own way: tents stand a little further from the fire, at different distances and anywhere round it, and the logs sit wherever there's room between them, some turned a little. No log blocks a tent's mouth.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.15",
           "date": "2026-11-11",
           "notes": "- The smith holds a hammer at the anvil, and anyone drinking holds a mug.\n- Campsites outside the settlement: a fire in a ring of stones, logs, and a tent with a bedroll.\n- Friends make an outing of it after a chat: two to four of them go for a drink at the tavern (most often in the evening), sit round a campfire, or go back to one of their houses.\n- Friends out together are heard as one: when a moment picks one of them, the rest of the group in earshot is included in the same call.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.14",
-          "date": "2026-11-11",
-          "notes": "- The chat window keeps its Jump and Sit buttons whatever the touch buttons are set to, with its own toggle: Settings → Moving → \"Jump and Sit/lie down buttons in the chat window\". The Jump button and the Sit and lie down button toggles now only hide the ones by the thumb on touch screens.\n- The README, Help and plan are up to date with the last four versions.",
           "highlight": false
         }
       ]

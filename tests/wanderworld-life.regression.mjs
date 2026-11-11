@@ -344,6 +344,24 @@ const world = createWorld(51, null, { smithy: 2 });
   assert.ok(Math.abs(settle(1, { act: "no-such-act" }).hips[1] - standing) < 0.05, "an unknown act is no act");
 }
 
+// Something set down on the ground follows it: each point is lifted by the ground under that point.
+{
+  const { ontoGround, heightAt } = await import("../packages/wanderworld/src/world.js");
+  const { BufferGeometry, Float32BufferAttribute } = await import("three");
+  const town = createWorld(4242);
+  const camp = town.camps[0];
+  const points = [camp.x - 4, 0, camp.z, camp.x + 4, 1.45, camp.z + 3, camp.x, 0.2, camp.z - 5];
+  const shape = new BufferGeometry();
+  shape.setAttribute("position", new Float32BufferAttribute(points, 3));
+  const set = ontoGround(shape).attributes.position;
+  for (let i = 0; i < 3; i++)
+    assert.ok(
+      Math.abs(set.getY(i) - (points[i * 3 + 1] + heightAt(points[i * 3], points[i * 3 + 2]))) < 1e-4,
+      "a point sits as high over the ground under it as it was made over flat ground",
+    );
+  town.dispose();
+}
+
 // Campsites keep apart, and nothing wild stands in one or in anything built.
 const tentCounts = new Set();
 const logCounts = new Set();
