@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.43 — 2026-11-11
+
+- Farms have a proper barn, and a windmill beside it, from Quaternius's Farm Buildings (CC0). The plain barn still shows while props load and with detailed props off.
+
 ## 0.5.42 — 2026-11-11
 
 - Settings → Animals is laid out in groups: how many, lore and owned animals, how hostile ones behave, and which kinds there are. Each group says what it's for and what wins over what, and the kinds are small switches side by side under Farm and town, Wild, and Monsters.

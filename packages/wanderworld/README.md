@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.42)
+## What it does now (0.5.43)
 
 ### The world
 
@@ -531,7 +531,7 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
-Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, and the Universal Animation Library and Universal Animation Library 2.
+Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, and the Universal Animation Library and Universal Animation Library 2.
 Thank you, Quaternius. The full list, with which folder
 comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and
 [src/clips/CREDITS.md](src/clips/CREDITS.md).

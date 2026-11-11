@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.43",
+          "date": "2026-11-11",
+          "notes": "- Farms have a proper barn, and a windmill beside it, from Quaternius's Farm Buildings (CC0). The plain barn still shows while props load and with detailed props off.",
+          "highlight": false
+        },
+        {
           "version": "0.5.42",
           "date": "2026-11-11",
           "notes": "- Settings → Animals is laid out in groups: how many, lore and owned animals, how hostile ones behave, and which kinds there are. Each group says what it's for and what wins over what, and the kinds are small switches side by side under Farm and town, Wild, and Monsters.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.24",
           "date": "2026-11-11",
           "notes": "- A ridden horse or donkey jumps: Space, or the Jump button on a touch screen and in the chat window. It leaps with the pack's own galloping jump and carries on the way it was going. A jump doesn't clear fences or walls yet.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.23",
-          "date": "2026-11-11",
-          "notes": "- Riding: the rider sits on top of the horse's or donkey's back. They sat too low before, with the hips inside the animal.",
           "highlight": false
         }
       ]

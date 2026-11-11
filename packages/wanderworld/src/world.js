@@ -1056,9 +1056,10 @@ function placeFarm(random, town, outpost) {
   const house = at(-6.5, 1.5);
   const farmDoor = town.doors.length; // the farmhouse's, placed next: whoever works there works its fields
   placeBuilding(random, town, makeSpec(random, "home", { width: 7, depth: 6 }), house.x, house.z, facing);
-  // The barn: plank walls under a steep roof, big doors to the yard. Built here, not from the kit.
+  // The barn: plank walls under a steep roof, big doors to the yard. The kit's barn (Farm Buildings) stands
+  // in its place once the props have loaded; this plain one shows till then, and with detailed props off.
   const barn = at(7, 0);
-  const [width, depth, wall] = [8, 11, 4.2];
+  const [width, depth, wall] = [9.4, 10.2, 4.2];
   const red = random() < 0.5 ? 0x8a3b2c : 0x7a4a2e;
   const pieces = [
     box(width, wall, depth, 0, wall / 2, 0, red),
@@ -1074,10 +1075,26 @@ function placeFarm(random, town, outpost) {
     box(0.18, 3.3, 0.16, 1.66, 1.65, depth / 2 + 0.08, 0xe8e0cc),
     box(1.1, 0.9, 0.1, 0, wall + 1.1, depth / 2 + 0.25, 0x3a2a1e), // the hayloft door in the gable
   ];
-  town.pieces.push(mergeGeometries(pieces).rotateY(turn).translate(barn.x, 0, barn.z));
+  placeKitProp(town, mergeGeometries(pieces), { model: "barn", x: barn.x, z: barn.z, angle: turn, scale: 1.22 });
   town.boxes.push(
     footprintBox(barn.x, barn.z, facing, { minX: -width / 2, maxX: width / 2, minZ: -depth / 2, maxZ: depth / 2 }),
   );
+  // A windmill beyond the barn, its sails toward the yard: a stone tower in plain shapes till the kit's is in.
+  const mill = at(16.5, -1.5);
+  const tower = [
+    painted(new CylinderGeometry(1.5, 2.1, 8, 10).translate(0, 4, 0), 0x8a857c),
+    painted(new ConeGeometry(1.9, 2.2, 10).translate(0, 9.1, 0), 0x5b4636),
+    box(0.3, 9, 0.12, 0, 8, 2.1, 0xd8d2c0),
+    box(9, 0.3, 0.12, 0, 8, 2.1, 0xd8d2c0),
+  ];
+  placeKitProp(town, mergeGeometries(tower.map((piece) => (piece.index ? piece.toNonIndexed() : piece))), {
+    model: "windmill",
+    x: mill.x,
+    z: mill.z,
+    angle: turn,
+    scale: 1,
+  });
+  town.circles.push({ x: mill.x, z: mill.z, r: 2.6 });
   // Fields behind, each in rows of crops on ridged earth, fenced with the gate toward the yard.
   for (const [side, crop] of [
     [-1, random() < 0.5 ? "wheat" : "greens"],

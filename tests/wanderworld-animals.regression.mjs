@@ -55,7 +55,10 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
     Math.abs(height - wanted) < wanted * (facts.group === "monsters" ? 0.5 : 0.2),
     `the ${kind} stands about ${wanted} m tall (${height.toFixed(2)})`,
   );
-  assert.ok(Math.abs(standing.min.y) < 0.12, `the ${kind} stands on the ground (${standing.min.y.toFixed(3)})`);
+  // (A flyer is in the air: its legs and wings rise and fall with its wingbeat.)
+  if (!facts.fly)
+    assert.ok(Math.abs(standing.min.y) < 0.12, `the ${kind} stands on the ground (${standing.min.y.toFixed(3)})`);
+  else assert.ok(standing.min.y > -0.1 && standing.min.y < 0.4, `the ${kind} hovers just over where it's put`);
   // (Four-legged animals; a slime, a bat or a spider is as wide as it's long.)
   if (facts.group !== "monsters")
     assert.ok(

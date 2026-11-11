@@ -13,7 +13,7 @@ licence file says so). No credit is required; this note is a courtesy.
 | `fantasy/village/`                    | Medieval Village MegaKit (Standard), its `glTF` folder                                                                                                                                              | `scripts/build-wanderworld-kit.mjs village` |
 | `generic/art/`                        | Original art for Wanderworld (menu backdrops, logo, loading screen, ground, water and rock textures, the sign board, parchment, bridge planks and beams), made by the package's author with ComfyUI | converted to WebP by hand                   |
 | `creatures/`                          | Ultimate Animated Animals, its `glTF` folder; and the monsters from Monster Pack Animated and Easy Animated Enemy Pack, their `FBX` files (read here by three's FBXLoader: no Blender needed)       | `scripts/build-wanderworld-animals.mjs`     |
-| `fantasy/props/`                      | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF`                                                                                                         | `scripts/build-wanderworld-kit.mjs props`   |
+| `fantasy/props/`                      | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF`, Farm Buildings `FBX` (the barn and the windmill)                                                       | `scripts/build-wanderworld-kit.mjs props`   |
 
 The kit is kept by setting: `generic/` is what any world has (nature, people's bodies, the painted art),
 `fantasy/` the medieval one's buildings, props and outfits, and `creatures/` the animals, a file a group.
