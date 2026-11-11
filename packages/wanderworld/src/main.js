@@ -2248,6 +2248,7 @@ function householdData(snapshot, names) {
       .filter((person) => !mateIds.has(person.id) && welcomeFrom(person.id))
       .map((person) => ({ id: person.id, name: person.name, coming: core.invites?.has(person.id) === true })),
     visitHours: VISIT_HOURS,
+    walkIn: core.settings.interiors === true, // (furnishing is done indoors: rooms have to be switched on)
     // Furnishing: only inside your own home.
     furnish:
       core.interior && core.interior.door.index === myDoor

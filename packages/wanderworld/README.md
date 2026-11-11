@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.55)
+## What it does now (0.5.56)
 
 ### The world
 
@@ -444,18 +444,30 @@ still count, and come first.
 - Only the Engine's built-in picture style profiles are listed; your own default profile is "Engine default".
 - Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
   they count toward the world's thirty people. Engine characters all live in the home region.
-- Walk-in rooms are unfinished and off by default.
-- Animals are scenery and a ride for now: nothing hunts, nobody else rides, a wolf only keeps its
-  distance, and the AI isn't told about them (but is told you're riding). A rider sits astride with
-  hands forward, but there's no saddle or reins, and the pose is the same at a walk and a gallop. Where you left one isn't remembered after you leave
-  the world: it's back where the seed has it.
-- A look can be chosen once someone lives in the world, and there are two outfits to mix. The hood
+- Walk-in rooms are unfinished and off by default (Settings → Walk into buildings). Furnishing your home
+  needs them on. The room's own furniture can't be moved or taken away, only what you add; a piece is
+  put down in front of you, not dragged about.
+- Your household is by rules: anyone who knows you and doesn't dislike you says yes to moving in or
+  coming round. There's no buying or rent, and a visit isn't a scene: someone who comes round is simply
+  there. Visits aren't kept if you close Wanderworld in the middle of one.
+- Market days and festivals bring people to the square and say so; there are no stalls, music or
+  dancing of the event's own yet. Days are counted only while Wanderworld is open.
+- Nobody but you rides, and the AI isn't told about animals or monsters (it is told you're riding). A
+  rider sits astride with hands forward; a horse that's someone's own has a saddle but no reins, and the
+  pose is the same at a walk and a gallop. Where a farm or wild animal was isn't remembered after you
+  leave the world: it's back where the seed has it. A hostile one threatens or lunges (by the Hostile
+  animals setting) and that's told in a line: there's no fighting, health or harm.
+- Bandits, witches and wizards are monsters in all but looks: they can't be talked to, no two loads
+  dress them quite alike, and a dragon overhead does what any hostile flyer does.
+- A look can be chosen once someone lives in the world, and there are two outfits to mix, or six
+  costumes (whole characters: their clothes and hairstyle can't be changed, only skin, hair colour and
+  height). The hood
   goes over whatever hair they have. A piece given a colour of its own is that colour all over (its
   leather and trim too), and sleeves take the hands' gloves with them. The bare body is the pack's
   broader build, so where a bare piece meets a clothed one the join can show a little. Someone with a 3D model shows
   the model; their look is kept for when it isn't there.
-- The smith holds a hammer and a drinker a mug; nobody else holds a tool (the watering has no can), and
-  the smith's swing is a wood-chopper's. The forge's hearth doesn't glow at night. A seller and a buyer
+- Tools in hand are simple shapes made in code (hammer, mug, sickle, seed basket, watering can, trowel,
+  staff, sword), and the smith's swing is a wood-chopper's. The forge's hearth doesn't glow at night. A seller and a buyer
   at a stall don't talk to each other.
 - Sleeping is in a campsite's tent only (not a bed, nor your own "/camp" fire), and nothing happens
   while you sleep but the clock: no events, no dreams, no AI call.
@@ -508,6 +520,13 @@ still count, and come first.
   and clips from `kit/creatures/`, a file a group, made by `scripts/build-wanderworld-animals.mjs`; a
   horse's or a dog's coat is the same body in other colours, `COATS`), and `src/herd.js`
   which animals a world has, where they go, and handing one to a rider (`main.js ride`, `dismount`).
+  Monsters are animals of the `monsters` group. Those on two legs (`folk`: the imp and the puglin from
+  `kit/fantasy/folk/`, and the bandit, witch and wizard, who are default people dressed for it) are
+  built by `people.js` and moved by the people's clips, with an animal's handles on them.
+- `src/social.js` moves relationships on with time spent together and keeps the record of it;
+  `src/memory.js` is each person's own memories; `src/household.js` the rules for the player's home
+  (empty houses, moving, who's asked in and out, visits, furniture); `src/events.js` market days and
+  festivals. All four are plain rules with no model call, each with its own regression suite.
 - `src/relationships.js` holds relationship kinds, tiers and warmth, temperaments, and reading
   relationships from lore keywords; `src/dialogue.js` the set conversations; `src/interactions.js` the
   things you can do with doors and things, and the scene requests they make.
@@ -516,7 +535,8 @@ still count, and come first.
   `scripts/build-wanderworld-clips.mjs`): walking and running by speed, and what's done on the spot
   (`ACTS`: work, rest, sitting or lying on the ground), a jump and one-off gestures; `src/motion.js` is the hand-made motion; `src/models.js` loads
   3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
-  build the default people.
+  build the default people (`people.js` also the costumes, from `kit/fantasy/costumes/`, and the
+  monsters on two legs); `src/looks.js` is what a look can be.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
   plans, world setup from cards and lorebooks, pictures and the gallery, the AI assistant, scene plans, scene creation, and scene contexts and recaps, plus a
@@ -532,7 +552,8 @@ still count, and come first.
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
   and speech bubbles, `src/signs.js` signs and the noticeboard, `src/ui.js` the parchment look,
   `src/sound.js` Web Audio sounds, `src/settings.js` the settings, `src/kit.js` the kit's models.
-- `src/interiors.js` builds the (unfinished) room behind a door, off by default.
+- `src/interiors.js` builds the (unfinished) room behind a door, off by default, with whatever the
+  player has put in it (`household.js` FURNITURE).
 - three.js 0.186.1, `@pixiv/three-vrm` 3.5.5 and `mmd-parser` 1.1.4 (the versions the Engine uses) are
   bundled into `client.js`, because the Engine does not hand its copies to packages.
 
@@ -548,7 +569,9 @@ node scripts/build-wanderworld-package.mjs
 
 Edit `src/` or `server.mjs` and rebuild; never edit `client.js`, `manifest.json` or the artifact by hand.
 Bump `VERSION` in the build script and add a `CHANGELOG.md` entry first. The regression suites are
-`tests/wanderworld*.regression.mjs`, each run with `node`.
+`tests/wanderworld*.regression.mjs`, each run with `node`. The kit's files are made from the downloaded
+packs by `scripts/build-wanderworld-kit.mjs`, `build-wanderworld-people.mjs` (also `--folk` and
+`--costumes`) and `build-wanderworld-animals.mjs`; [kit/CREDITS.md](kit/CREDITS.md) says which pack each needs.
 
 ## Credits
 
@@ -560,10 +583,12 @@ Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy P
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
-Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its maker has not endorsed Wanderworld.
-Thank you, Quaternius. The full list, with which folder
-comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and
-[src/clips/CREDITS.md](src/clips/CREDITS.md).
+Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
+(https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its
+maker has not endorsed Wanderworld.
+
+Thank you, Quaternius. The full list, with which folder comes from which pack and how to rebuild or
+remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and [src/clips/CREDITS.md](src/clips/CREDITS.md).
 
 The menu art, logo, loading screen, store banner and ground, water and wood textures were made for
 Wanderworld by its author with ComfyUI. three.js, `@pixiv/three-vrm` and `mmd-parser` are

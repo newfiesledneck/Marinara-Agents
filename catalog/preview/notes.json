@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.56",
+          "date": "2026-11-11",
+          "notes": "- Journal → Home says that furnishing needs Settings → Walk into buildings switched on, when it's off.\n- The README's known limits and how-it-works are brought up to date with 0.5.45 to 0.5.55.",
+          "highlight": false
+        },
+        {
           "version": "0.5.55",
           "date": "2026-11-11",
           "notes": "Fixes from reading back through the last ten versions.\n\n- A tool no longer stays in hand after the work is over (someone who'd been watering could lie down still holding the can).\n- Furniture isn't put down on top of what's already standing there.\n- Journal → Home lists the empty houses nearest you also when you're indoors, and shows furnishing as soon as you step inside.\n- A witch's or wizard's hat is made once and shared, so none is left behind when they go.",
@@ -307,12 +313,6 @@
           "version": "0.5.37",
           "date": "2026-11-11",
           "notes": "- Animals have a size. A dog's or a horse's is in the Look card (Small, Usual, Large, Huge), and a big horse's back is higher to sit on.\n- Lorebook keyword `ww:pet:horse:large:brown:Shadowmere` on a character's entry (or `ww:you`) gives them that animal: the size, colour, name and breed in any order. The same for `ww:pet:dog:…`.\n- Lorebook keyword `ww:monster:wolf:large:pack5` on a place's entry puts that pack there; `ww:monster:wolf` alone puts wolves there, however many. A creature's own entry with `ww:found in:…` does the same.\n- Doubled colons read the same as single: `ww::pet::horse`.\n- Without these keywords a world's animals are as before.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.36",
-          "date": "2026-11-11",
-          "notes": "- Getting down from a horse or a donkey is a movement of its own, like getting on: a leg back over, a lean, and down to the ground beside it. Before, the rider dropped to the ground and slid sideways.\n- Characters can have a horse of their own: from their lore (\"his grey mare\", \"rides a horse\") or chosen in their Look card. It follows them and waits outside, the Party tab lists it, and it isn't offered to you to ride.",
           "highlight": false
         }
       ]

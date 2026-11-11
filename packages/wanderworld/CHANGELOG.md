@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.56 — 2026-11-11
+
+- Journal → Home says that furnishing needs Settings → Walk into buildings switched on, when it's off.
+- The README's known limits and how-it-works are brought up to date with 0.5.45 to 0.5.55.
+
 ## 0.5.55 — 2026-11-11
 
 Fixes from reading back through the last ten versions.
