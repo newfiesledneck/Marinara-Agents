@@ -4,19 +4,19 @@
     "horse": {
       "triangles": 2182,
       "bones": 50,
-      "bytes": 220671,
+      "bytes": 249288,
       "height": 2.25
     },
     "horse-white": {
       "triangles": 2182,
       "bones": 50,
-      "bytes": 220671,
+      "bytes": 249288,
       "height": 2.25
     },
     "donkey": {
       "triangles": 2000,
       "bones": 50,
-      "bytes": 209148,
+      "bytes": 237009,
       "height": 1.65
     },
     "cow": {

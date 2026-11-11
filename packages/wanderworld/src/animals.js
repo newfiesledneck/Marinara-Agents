@@ -166,6 +166,7 @@ export async function createAnimal(name) {
   }
 
   const facts = ANIMALS[kind];
+  const body = data.bones.indexOf("Body"); // the bone its leap lifts
   let idleTime = Math.random() * 10;
   let stride = Math.random(); // through the walk or gallop, 0…1
   let moving = 0;
@@ -173,8 +174,11 @@ export async function createAnimal(name) {
   let grazing = 0;
   let looking = 0;
   let lookUntil = 0;
+  let leaping = 0;
+  let leapAt = 0;
 
-  function update(dt, speed = 0, { graze = false } = {}) {
+  /** `jump`: how far through a leap it is (0…1), or null on the ground (only the ridden kinds leap). */
+  function update(dt, speed = 0, { graze = false, jump = null } = {}) {
     dt = Math.min(0.1, Math.max(0, Number.isFinite(dt) ? dt : 0));
     speed = Math.max(0, Number.isFinite(speed) ? speed : 0);
     idleTime += dt;
@@ -200,6 +204,11 @@ export async function createAnimal(name) {
       pose(clips.walk, stride, moving * (1 - running));
       pose(clips.gallop, stride, moving * running);
     }
+    if (clips.jump) {
+      if (jump !== null) leapAt = jump;
+      leaping = ease(leaping, jump === null ? 0 : 1, dt, 0.07);
+      pose(clips.jump, leapAt, leaping);
+    }
   }
   update(0);
 
@@ -210,6 +219,15 @@ export async function createAnimal(name) {
     back: facts.back,
     seat: facts.seat,
     update,
+    /** How far its back is above (or below) where it stands, `t` of the way through its leap (metres). */
+    rise(t) {
+      const places = clips.jump?.places[body];
+      if (!places) return 0;
+      const at = Math.min(0.999999, Math.max(0, t)) * (clips.jump.frames - 1);
+      const frame = Math.floor(at);
+      const y = places[frame * 3 + 1] + (places[frame * 3 + 4] - places[frame * 3 + 1]) * (at - frame);
+      return (y - places[1]) * data.scale;
+    },
     dispose() {
       root.removeFromParent();
       skinned.skeleton.dispose();

@@ -41,6 +41,8 @@ const CLIPS = [
   ["graze", ["Eating"], 6],
   ["walk", ["Walk"], 15],
   ["gallop", ["Gallop"], 24],
+  // The leap, for the ones that are ridden only (each clip adds to the file).
+  ["jump", ["Gallop_Jump"], 24, ["horse", "horse-white", "donkey"]],
 ];
 
 const b64 = (typed) => Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength).toString("base64");
@@ -170,7 +172,8 @@ async function convert(name, { file, height }, dir) {
   // The animations, sampled again: every bone's turn each frame, and its place where that moves.
   const mixer = new AnimationMixer(scene);
   const clips = {};
-  for (const [key, names, fps] of CLIPS) {
+  for (const [key, names, fps, only] of CLIPS) {
+    if (only && !only.includes(name)) continue;
     const clip = gltf.animations.find((entry) => names.includes(entry.name));
     if (!clip) throw new Error(`${file} has no ${names.join(" or ")} animation`);
     const frames = Math.max(2, Math.round(clip.duration * fps) + 1);

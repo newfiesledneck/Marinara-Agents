@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.24 — 2026-11-11
+
+- A ridden horse or donkey jumps: Space, or the Jump button on a touch screen and in the chat window. It leaps with the pack's own galloping jump and carries on the way it was going. A jump doesn't clear fences or walls yet.
+
 ## 0.5.23 — 2026-11-11
 
 - Riding: the rider sits on top of the horse's or donkey's back. They sat too low before, with the hips inside the animal.

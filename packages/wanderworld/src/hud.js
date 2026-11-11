@@ -1205,7 +1205,7 @@ export function createHud(root, handlers) {
   moves.style.cssText = "display:flex;gap:6px;padding:0 10px 6px;";
   const chatJump = button("Jump", "Jump (Space)", () => handlers.onJump());
   const chatRest = button("Sit", "Sit down on the ground, then lie down, then get up (C)", () =>
-    chatRest.textContent === "Get up" ? handlers.onUse() : handlers.onRest(),
+    chatRest.textContent.startsWith("Get ") ? handlers.onUse() : handlers.onRest(),
   );
   for (const control of [chatJump, chatRest]) control.style.cssText += "padding:4px 10px;font-size:12px;";
   moves.append(chatJump, chatRest);
@@ -1470,18 +1470,20 @@ export function createHud(root, handlers) {
     },
     /**
      * The Jump and Sit buttons (by the thumb on a touch screen, and in the chat window): `resting` is ""
-     * (walking), "ground", "lie" or "seat" (on a bench); hidden when `shown` is false.
+     * (walking), "ground", "lie", "seat" (on a bench) or "ride" (on a horse: Jump only); hidden when
+     * `shown` is false.
      */
     setThumbs(resting, shown) {
       const show = (want) => (shown && touch && want ? "" : "none");
-      jump.style.display = resting ? "none" : show(wanted.jump);
-      rest.style.display = resting === "lie" || resting === "seat" ? "none" : show(wanted.rest);
+      const riding = resting === "ride";
+      jump.style.display = resting && !riding ? "none" : show(wanted.jump);
+      rest.style.display = resting === "lie" || resting === "seat" || riding ? "none" : show(wanted.rest);
       rest.textContent = resting === "ground" ? "Lie down" : "Sit";
       // The chat window's: Sit, Lie down, Get up (also up from a bench or a bed).
-      const label = resting === "ground" ? "Lie down" : resting ? "Get up" : "Sit";
+      const label = resting === "ground" ? "Lie down" : riding ? "Get down" : resting ? "Get up" : "Sit";
       if (chatRest.textContent !== label) chatRest.textContent = label;
       moves.style.display = shown && wanted.chat ? "flex" : "none";
-      chatJump.disabled = !!resting;
+      chatJump.disabled = !!resting && !riding;
     },
     /**
      * The tent's card: how long to sleep, then Sleep or Not now. `onSleep(hours)` is given the choice

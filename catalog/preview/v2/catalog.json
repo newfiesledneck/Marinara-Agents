@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.23",
+        "version": "0.5.24",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -646,8 +646,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "d513f92a32255cf2267fa3d3e1b00cea6dd2e8bdc5390d4641a69419b75e1cda",
-            "bytes": 2232114
+            "sha256": "f5f2632e3a8686566e7af7611adf1613dd9bdcc58971dacc3c34fcaac32de457",
+            "bytes": 2232937
           },
           {
             "path": "server.mjs",
@@ -681,8 +681,8 @@
           },
           {
             "path": "kit/animals/donkey.json",
-            "sha256": "fc9748ebc2ec61f31a9c278c5249db60d778f120934fa1a89fcc1d96a8c1a963",
-            "bytes": 209148
+            "sha256": "c089e2fe0b81debb6aedd29ec4d460def65215e189b807b5778bca581d48c7e4",
+            "bytes": 237009
           },
           {
             "path": "kit/animals/fox.json",
@@ -691,13 +691,13 @@
           },
           {
             "path": "kit/animals/horse-white.json",
-            "sha256": "8cfa640a50672dc6d2195baf515e0e1983cd6ae8bd28fb16fed663148f5a6e17",
-            "bytes": 220671
+            "sha256": "5b4ae782557919d4928ba2ef4fa16128585cb8ccffce677ed52dc5e85f8b8d0e",
+            "bytes": 249288
           },
           {
             "path": "kit/animals/horse.json",
-            "sha256": "33cae0dcf3b8c8fbcae817c0f84a46fdf37b2b1476bb259ad5be90c65fba2199",
-            "bytes": 220671
+            "sha256": "3f9e0b0785d68b7d6648fd5b4955c665ec96afe69d31429c45349c591fd34026",
+            "bytes": 249288
           },
           {
             "path": "kit/animals/husky.json",
@@ -706,7 +706,7 @@
           },
           {
             "path": "kit/animals/index.json",
-            "sha256": "813968023c8c2872a969228a70ff3f71369578f083863b69f7870151880c18ba",
+            "sha256": "2bcc194e7312eff1cd13a1a59341f4f1c802e9778b1645b5147cc1283baef8a6",
             "bytes": 1401
           },
           {
@@ -1862,9 +1862,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.23.zip",
-        "sha256": "f48cdcc570cc7a18b8ec984bee8266d1464dde147548337db1718b2dcd0506b4",
-        "bytes": 17706355
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.24.zip",
+        "sha256": "6604822fcf2914f0165ea8ba2d699e038ef09546cd18f90f1099ee34030b0b0e",
+        "bytes": 17792273
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

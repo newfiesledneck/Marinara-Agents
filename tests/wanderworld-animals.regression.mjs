@@ -71,6 +71,20 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
       assert.ok(Number.isFinite(value), `${kind} at ${speed}`);
     assert.ok(box.min.y > -0.35 && box.max.y < wanted * 1.45, `the ${kind} keeps its shape at ${speed} m/s`);
   }
+  // The ridden kinds leap: the back dips as it gathers itself, rises well clear, and comes back down.
+  if (facts.back) {
+    const rises = Array.from({ length: 21 }, (_, i) => animal.rise(i / 20));
+    assert.ok(
+      Math.max(...rises) > 0.35 && Math.max(...rises) < 1.2,
+      `the ${kind} jumps (${Math.max(...rises).toFixed(2)} m)`,
+    );
+    assert.ok(Math.abs(rises[0]) < 0.01 && Math.abs(rises[20]) < 0.05, `the ${kind} lands where it stands`);
+    for (let t = 0; t <= 1; t += 0.05) {
+      animal.update(1 / 30, facts.gallop, { jump: t });
+      const box = measure();
+      assert.ok(Number.isFinite(box.max.y) && box.max.y < wanted * 1.8, `the ${kind} keeps its shape in a jump`);
+    }
+  } else assert.equal(animal.rise(0.5), 0, `the ${kind} doesn't jump`);
   animal.dispose();
 }
 await assert.rejects(() =>
@@ -144,6 +158,8 @@ for (const seed of [4242, 51, 7]) {
     const mount = herd.ride(mountable.id);
     assert.ok(mount.back > 0.9 && mount.gallop > mount.walk);
     assert.equal(herd.ride(mountable.id), null, "one rider at a time");
+    assert.equal(herd.carry(mountable.id, mountable.x + 5, mountable.z + 2, 1, 6), 0, "on the ground, no rise");
+    assert.ok(herd.carry(mountable.id, mountable.x + 5, mountable.z + 2, 1, 6, 0.5) > 0.3, "mid-jump, its back is up");
     herd.carry(mountable.id, mountable.x + 5, mountable.z + 2, 1, 6);
     Object.assign(player, { x: mountable.x + 5, z: mountable.z + 2 });
     run(1);
