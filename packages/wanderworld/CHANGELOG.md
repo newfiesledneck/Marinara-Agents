@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.41 — 2026-11-11
+
+- Monsters: slimes, skeletons, giant spiders, giant rats, snakes, bats and giant wasps, out in the country, alone or in twos and threes. Skeletons and bats are about only at night.
+- The Monsters slider (Settings → Animals) now does something, each kind has its switch, and they act as "Hostile animals" says: keep away, square up, or come for you.
+- A lorebook can place them: `ww:monster:slime:large:pack3` on a place's entry.
+- Models and animations from Quaternius's Monster Pack Animated and Easy Animated Enemy Pack (CC0).
+
 ## 0.5.40 — 2026-11-11
 
 - Relationships change over time, slowly, by rules alone: people who spend time together grow a little closer (a step for an evening, a tier in a few weeks), two short-tempered people sometimes have words, and friends who never meet drift apart. Nothing happens while Wanderworld is closed.

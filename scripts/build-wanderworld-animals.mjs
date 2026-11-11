@@ -3,7 +3,12 @@
 // packages/wanderworld/kit/creatures/<group>.json (farm.json: the farm's and the town's; wild.json: the
 // country's), served as package assets and loaded by src/animals.js when a world has one of that group.
 //
-// Usage: node scripts/build-wanderworld-animals.mjs "<…>/Ultimate Animated Animals - July 2021/glTF"
+// Usage: node scripts/build-wanderworld-animals.mjs "<…>/Ultimate Animated Animals - July 2021/glTF" "<a folder
+//   holding the unzipped FBX packs>"
+//
+// The monsters are from Quaternius's older animated packs (Monster Pack Animated, Easy Animated Enemy
+// Pack; CC0), which ship FBX and no glTF: three's FBXLoader reads them here, so nothing needs Blender.
+// The second folder is searched for each one's file by name.
 //
 // Each animal in the pack is a skinned mesh in flat colours with a dozen animations, about 1.5 MB, most
 // of it keyframes. Kept here: the mesh (drawn as one: each vertex says which of the pack's materials it
@@ -11,7 +16,7 @@
 // another coat), the skeleton, and the few animations the game plays (standing, grazing, walking, galloping),
 // sampled again at a few frames a second: about a tenth the size. Sizes are in metres: each animal is
 // scaled so it stands as tall as ANIMALS says.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AnimationMixer, Quaternion, Vector3 } from "three";
@@ -48,6 +53,50 @@ const ANIMALS = {
   stag: { group: "wild", file: "Stag", height: 1.95 },
   wolf: { group: "wild", file: "Wolf", height: 0.95 },
   fox: { group: "wild", file: "Fox", height: 0.6 },
+  // Monsters (`fbx`: the file's name in an FBX pack; `clips`: the pack's animation for each of ours.
+  // Where a pack has no run, the walk stands in; a flyer's one animation is all of them).
+  slime: {
+    group: "monsters",
+    fbx: "Slime.fbx",
+    height: 0.8,
+    clips: { idle: "Slime_Idle", walk: "Slime_Walk", gallop: "Slime_Walk" },
+  },
+  skeleton: {
+    group: "monsters",
+    fbx: "Skeleton.fbx",
+    height: 1.8,
+    clips: { idle: "Skeleton_Idle", walk: "Skeleton_Running", gallop: "Skeleton_Running" },
+  },
+  spider: {
+    group: "monsters",
+    fbx: "Spider.fbx",
+    height: 0.9,
+    clips: { idle: "Spider_Idle", walk: "Spider_Walk", gallop: "Spider_Walk" },
+  },
+  rat: {
+    group: "monsters",
+    fbx: "Rat.fbx",
+    height: 0.55,
+    clips: { idle: "Rat_Idle", walk: "Rat_Walk", gallop: "Rat_Run" },
+  },
+  snake: {
+    group: "monsters",
+    fbx: "Snake.fbx",
+    height: 0.75,
+    clips: { idle: "Snake_Idle", walk: "Snake_Walk", gallop: "Snake_Walk" },
+  },
+  bat: {
+    group: "monsters",
+    fbx: "Bat.fbx",
+    height: 0.8,
+    clips: { idle: "Bat_Flying", walk: "Bat_Flying", gallop: "Bat_Flying" },
+  },
+  wasp: {
+    group: "monsters",
+    fbx: "Wasp.fbx",
+    height: 0.6,
+    clips: { idle: "Wasp_Flying", walk: "Wasp_Flying", gallop: "Wasp_Flying" },
+  },
 };
 
 /** The animations kept: the game's name, the pack's (either spelling), and frames a second. */
@@ -92,15 +141,57 @@ async function load(path) {
   return new GLTFLoader().parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), "");
 }
 
-async function convert(name, { file, height, parts: renamed = {} }, dir) {
-  const gltf = await load(join(dir, `${file}.gltf`));
+/** Every file under `dir`, however deep. */
+const filesUnder = (dir) =>
+  readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry);
+    return statSync(path).isDirectory() ? filesUnder(path) : [path];
+  });
+
+/**
+ * Loads an animated FBX as the glTF loader would give it: { scene, animations } (an animation's name is
+ * the part after the armature's: "Armature|Slime_Walk" is "Slime_Walk").
+ */
+async function loadFbx(path) {
+  // (The loader only wants these to exist: nothing is drawn here, and the packs' colours are their materials'.)
+  globalThis.self ??= globalThis;
+  globalThis.document ??= {
+    createElementNS: () => ({ addEventListener() {}, removeEventListener() {}, style: {} }),
+    createElement: () => ({ getContext: () => null, style: {} }),
+  };
+  const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
+  const buffer = readFileSync(path);
+  const scene = new FBXLoader().parse(
+    buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+    "",
+  );
+  for (const clip of scene.animations) clip.name = clip.name.split("|").pop();
+  return { scene, animations: scene.animations };
+}
+
+async function convert(name, { file, fbx, height, clips: clipNames, parts: renamed = {} }, dir, fbxDir) {
+  let gltf;
+  if (fbx) {
+    const path = fbxDir && filesUnder(fbxDir).find((entry) => entry.split(/[\\/]/u).pop() === fbx);
+    if (!path) throw new Error(`No FBX pack under ${fbxDir} has ${fbx}`);
+    gltf = await loadFbx(path);
+    file = fbx;
+  } else gltf = await load(join(dir, `${file}.gltf`));
   const scene = gltf.scene;
   scene.updateMatrixWorld(true);
   const meshes = [];
   scene.traverse((object) => object.isSkinnedMesh && meshes.push(object));
   if (!meshes.length) throw new Error(`${file} has no skinned mesh`);
-  const skeleton = meshes[0].skeleton;
-  const bones = skeleton.bones;
+  // Every bone any part is skinned to, once (a bat's body and wings come with a skeleton each), with its
+  // inverse bind matrix from whichever part has it.
+  const bones = [];
+  const inverses = [];
+  for (const mesh of meshes)
+    mesh.skeleton.bones.forEach((bone, i) => {
+      if (bones.includes(bone)) return;
+      bones.push(bone);
+      inverses.push(mesh.skeleton.boneInverses[i]);
+    });
   const at = new Map(bones.map((bone, i) => [bone, i]));
 
   // The mesh: every part into one, its material's colour on each vertex, in the skeleton's bind space.
@@ -112,19 +203,24 @@ async function convert(name, { file, height, parts: renamed = {} }, dir) {
   const weights = [];
   const index = [];
   for (const mesh of meshes) {
-    if (mesh.skeleton !== skeleton && mesh.skeleton.bones.length !== bones.length)
-      throw new Error(`${file}: its parts don't share a skeleton`);
     const geometry = mesh.geometry;
     const base = position.length / 3;
     const p = geometry.attributes.position;
     const n = geometry.attributes.normal;
     const j = geometry.attributes.skinIndex;
     const w = geometry.attributes.skinWeight;
-    const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-    const tint = material.color.clone().convertLinearToSRGB();
-    const partName = renamed[material.name] ?? material.name;
-    let partAt = parts.findIndex((entry) => entry[0] === partName);
-    if (partAt < 0) partAt = parts.push([partName, ...tint.toArray().map((value) => Math.round(value * 255))]) - 1;
+    // A mesh with several materials says which each run of its triangles has (its groups).
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const partOf = materials.map((material) => {
+      const tint = material.color.clone().convertLinearToSRGB();
+      const partName = renamed[material.name] ?? material.name;
+      const found = parts.findIndex((entry) => entry[0] === partName);
+      return found >= 0 ? found : parts.push([partName, ...tint.toArray().map((value) => Math.round(value * 255))]) - 1;
+    });
+    const materialOf = new Uint8Array(p.count);
+    for (const group of materials.length > 1 ? geometry.groups : [])
+      for (let k = group.start; k < group.start + group.count; k++)
+        materialOf[geometry.index ? geometry.index.getX(k) : k] = group.materialIndex;
     const v = new Vector3();
     for (let i = 0; i < p.count; i++) {
       // Into the bind space the bones' inverses expect (the mesh's own bind matrix).
@@ -132,7 +228,7 @@ async function convert(name, { file, height, parts: renamed = {} }, dir) {
       position.push(v.x, v.y, v.z);
       v.fromBufferAttribute(n, i).transformDirection(mesh.bindMatrix);
       normal.push(v.x, v.y, v.z);
-      part.push(partAt);
+      part.push(partOf[materialOf[i]] ?? partOf[0]);
       let total = 0;
       for (let c = 0; c < 4; c++) total += w.getComponent(i, c);
       for (let c = 0; c < 4; c++) {
@@ -193,7 +289,11 @@ async function convert(name, { file, height, parts: renamed = {} }, dir) {
   // The animations, sampled again: every bone's turn each frame, and its place where that moves.
   const mixer = new AnimationMixer(scene);
   const clips = {};
-  for (const [key, names, fps, only] of CLIPS) {
+  // (An FBX creature says which of its pack's animations is each of ours; it has no looking about or grazing.)
+  const wanted = clipNames
+    ? Object.entries(clipNames).map(([key, clipName]) => [key, [clipName], key === "idle" ? 8 : 20])
+    : CLIPS;
+  for (const [key, names, fps, only] of wanted) {
     if (only && !only.includes(name)) continue;
     const clip = gltf.animations.find((entry) => names.includes(entry.name));
     if (!clip) throw new Error(`${file} has no ${names.join(" or ")} animation`);
@@ -248,7 +348,7 @@ async function convert(name, { file, height, parts: renamed = {} }, dir) {
       const [p, q, s] = restOf(bone, i);
       return [p.x, p.y, p.z, q.x, q.y, q.z, q.w, s.x, s.y, s.z].map((value) => round(value));
     }),
-    inverseBind: skeleton.boneInverses.flatMap((matrix) => matrix.toArray().map((value) => round(value, 6))),
+    inverseBind: inverses.flatMap((matrix) => matrix.toArray().map((value) => round(value, 6))),
     clips,
   };
   return {
@@ -258,14 +358,18 @@ async function convert(name, { file, height, parts: renamed = {} }, dir) {
 }
 
 async function main() {
-  const [dir] = process.argv.slice(2);
-  if (!dir) throw new Error('Usage: build-wanderworld-animals.mjs "<Ultimate Animated Animals>/glTF"');
+  const [dir, fbxDir] = process.argv.slice(2);
+  if (!dir || !fbxDir)
+    throw new Error('Usage: build-wanderworld-animals.mjs "<Ultimate Animated Animals>/glTF" "<folder of FBX packs>"');
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
-  const index = { source: "Ultimate Animated Animals by Quaternius, CC0 1.0", animals: {} };
+  const index = {
+    source: "Ultimate Animated Animals, Monster Pack Animated and Easy Animated Enemy Pack by Quaternius, CC0 1.0",
+    animals: {},
+  };
   const groups = {};
   for (const [name, entry] of Object.entries(ANIMALS)) {
-    const { animal, info } = await convert(name, entry, dir);
+    const { animal, info } = await convert(name, entry, dir, fbxDir);
     (groups[entry.group] ??= {})[name] = animal;
     index.animals[name] = { group: entry.group, ...info };
     console.log(

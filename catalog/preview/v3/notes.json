@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.41",
+          "date": "2026-11-11",
+          "notes": "- Monsters: slimes, skeletons, giant spiders, giant rats, snakes, bats and giant wasps, out in the country, alone or in twos and threes. Skeletons and bats are about only at night.\n- The Monsters slider (Settings → Animals) now does something, each kind has its switch, and they act as \"Hostile animals\" says: keep away, square up, or come for you.\n- A lorebook can place them: `ww:monster:slime:large:pack3` on a place's entry.\n- Models and animations from Quaternius's Monster Pack Animated and Easy Animated Enemy Pack (CC0).",
+          "highlight": false
+        },
+        {
           "version": "0.5.40",
           "date": "2026-11-11",
           "notes": "- Relationships change over time, slowly, by rules alone: people who spend time together grow a little closer (a step for an evening, a tier in a few weeks), two short-tempered people sometimes have words, and friends who never meet drift apart. Nothing happens while Wanderworld is closed.\n- A Lock on each relationship, and an Attraction level with a lock of its own, in Journal → Edit people.\n- Journal → Relationships ends with Lately, the world's record of what's happened; coming back somewhere after a few hours away says what you missed.\n- Settings → Living world: a switch for each of these. None calls the AI.",
@@ -307,12 +313,6 @@
           "version": "0.5.22",
           "date": "2026-11-11",
           "notes": "- Riding pose: the hands are lower, angled down toward the mane, and the knees sit wider round the horse with the ankles kept in.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.21",
-          "date": "2026-11-11",
-          "notes": "- Animals: cattle, a donkey and a horse at farms, a dog or two about the market, a horse by each tavern and inn, and deer, stags, foxes and wolves out in the country. They wander, graze and look about; the wild ones run when you come close.\n- Ride a horse or a donkey, sitting astride: walk up and use it. The same stick and keys move it, Shift gallops, and E, Esc or the Get down button gets you off. It stays where you leave it.\n- Models and animations from Quaternius's Ultimate Animated Animals (CC0).",
           "highlight": false
         }
       ]

@@ -55,7 +55,12 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
     `the ${kind} stands about ${wanted} m tall (${height.toFixed(2)})`,
   );
   assert.ok(Math.abs(standing.min.y) < 0.12, `the ${kind} stands on the ground (${standing.min.y.toFixed(3)})`);
-  assert.ok(standing.max.z - standing.min.z > standing.max.x - standing.min.x, `the ${kind} is longer than it is wide`);
+  // (Four-legged animals; a slime, a bat or a spider is as wide as it's long.)
+  if (facts.group !== "monsters")
+    assert.ok(
+      standing.max.z - standing.min.z > standing.max.x - standing.min.x,
+      `the ${kind} is longer than it is wide`,
+    );
   if (facts.back)
     assert.ok(facts.back < height && facts.back > height * 0.45, `the ${kind}'s back is where a rider sits`);
   // Standing, grazing, walking and galloping all pose it, and it stays on the ground and whole.
@@ -385,8 +390,8 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   assert.deepEqual([own.pack, own.size, own.found], [4, "huge", ["forest1"]]);
   assert.ok(books[0].entries[3].keys.includes("monster") && !books[0].entries[0].keys.includes("monster"));
   assert.deepEqual(
-    ["wolves", "Hound", "goblin", "pony", "deer"].map(animalKind),
-    ["wolf", "husky", null, "horse", "deer"],
+    ["wolves", "Hound", "goblin", "pony", "deer", "Slimes", "skeleton", "bats"].map(animalKind),
+    ["wolf", "husky", null, "horse", "deer", "slime", "skeleton", "bat"],
     "the words for the animals the game has, and none for the ones it hasn't",
   );
 }
@@ -413,6 +418,20 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     "dogs switched off: no strays",
   );
   assert.equal(tally().hostile, POPULATION.hostile, "left alone, the usual number");
+  // Monsters: the number asked for, of the kinds switched on, the night's ones about only at night.
+  assert.equal(tally().monsters, POPULATION.monsters, "and the usual number of monsters");
+  const horde = herdFor(world, 4242, { counts: { ...none, monsters: 20 } });
+  assert.equal(horde.length, 20);
+  assert.ok(new Set(horde.map((beast) => beast.kind)).size >= 4, "of several kinds");
+  for (const beast of horde) {
+    assert.equal(ANIMALS[beast.kind].group, "monsters");
+    assert.equal(beast.when ?? "any", ANIMALS[beast.kind].when ?? "any", `the ${beast.kind} is about when its kind is`);
+  }
+  const slimes = herdFor(world, 4242, {
+    counts: { ...none, monsters: 9 },
+    off: ["skeleton", "spider", "rat", "snake", "bat", "wasp"],
+  });
+  assert.ok(slimes.length === 9 && slimes.every((beast) => beast.kind === "slime"), "only the kinds left on");
   // Wolves keep to their packs: several of them, some sharing a home, none bigger than five.
   const packs = new Map();
   for (const wolf of herdFor(world, 4242, { counts: { ...none, hostile: 15 } })) {
