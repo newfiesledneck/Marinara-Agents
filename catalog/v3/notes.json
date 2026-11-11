@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.32",
+          "date": "2026-11-11",
+          "notes": "- A campsite has one, two or three tents round its one fire. Each has a bedroll to rest on, and you can sleep in any of them.\n- Three tents come with three logs to sit on; one or two tents with one or two logs.",
+          "highlight": false
+        },
+        {
           "version": "0.5.31",
           "date": "2026-11-11",
           "notes": "- Campsites keep at least 70 m apart. In a world where two sat side by side, the second has moved.\n- Nothing wild grows in a campsite's clearing, or in or right against anything built or set down: no tree through a tent, no bush on the fire, no rock in a cottage wall or a ruin's stones. Every other tree and rock stays where it was.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.13",
           "date": "2026-11-11",
           "notes": "- Fixed: upstairs walls with round windows had a band under the window that stepped in, where the stone course had been taken off. It's filled flush with plaster now.\n- Settings → Moving has a toggle each for the Jump button and the Sit and lie down button, in place of one for both. Each hides its button in the chat window and by the thumb on touch screens; Space still jumps, and C still sits unless that is turned off too.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.12",
-          "date": "2026-11-11",
-          "notes": "- Fixed: patches of grey stone under some windows, out of place on a plastered wall. A plaster ground floor now stands on a stone course all the way round, and upstairs walls have none.\n- The chat window has Jump and Sit buttons (Sit becomes Lie down, then Get up), so they work with a click or a tap as well as Space and C.\n- Settings → Moving: \"C sits and lies down\" turns the key off, and \"Jump and Sit buttons (touch screens)\" hides the thumb buttons; the chat window's stay.\n- Using a thing shows: you pick something up or take a drink, and choosing to sit by your campfire sits you down on the ground. In a home (with Walk into buildings on) the bed is somewhere to lie down.",
           "highlight": false
         }
       ]
