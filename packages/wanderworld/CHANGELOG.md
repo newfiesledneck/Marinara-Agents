@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.29 — 2026-11-11
+
+- The chat box's hint shows the action command as "/a(ction)", the rest of the word dimmer: /a and /action both work.
+- The Journal's Party tab lists your dog and horse, with Send home and Call along, and the dog of anyone travelling with you.
+- The chat window has Send dog home and Send horse home while they're with you. Each asks "Sure?" before it does it.
+
 ## 0.5.28 — 2026-11-11
 
 - Avatar in the Look card: when a persona's or a character's card has a 3D model, choose between the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), and the built-in person dressed by the rest of the card.

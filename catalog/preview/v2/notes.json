@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.29",
+          "date": "2026-11-11",
+          "notes": "- The chat box's hint shows the action command as \"/a(ction)\", the rest of the word dimmer: /a and /action both work.\n- The Journal's Party tab lists your dog and horse, with Send home and Call along, and the dog of anyone travelling with you.\n- The chat window has Send dog home and Send horse home while they're with you. Each asks \"Sure?\" before it does it.",
+          "highlight": false
+        },
+        {
           "version": "0.5.28",
           "date": "2026-11-11",
           "notes": "- Avatar in the Look card: when a persona's or a character's card has a 3D model, choose between the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), and the built-in person dressed by the rest of the card.",
@@ -307,12 +313,6 @@
           "version": "0.5.10",
           "date": "2026-11-11",
           "notes": "- The assistant has ready-made requests: a few buttons always in view and a list of more, each saying what it does (fill in the gaps, check for problems, noticeboard notes, lore for a place or faction, add people to this region, suggest a scene, turn a scene into changes, and more).\n- It can draft ww: keywords for lorebook entries you pick; only those entries are sent.\n- New for it: faction lore, taking notes down, dropping an errand, starting a scene, people who live in another region.\n- In a proposal: dropdowns for home, work, body, voice and stance, a strength slider, and \"Write it again\". Its chat is kept with the world, and every confirmed set keeps its Undo.\n- Only the parts of the world a message needs are sent, and it says which. Moments send the list of places only when a plan could come of it.\n- With the Engine's Debug Mode on, every model and picture request and its answer is written to the Engine's console.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.9",
-          "date": "2026-11-11",
-          "notes": "- In the assistant's proposal, a relationship's kind is a dropdown (friend, partner, family, rival… or nothing, to end it), and its roles (husband, mentor…) can be rewritten, before you confirm.",
           "highlight": false
         }
       ]
