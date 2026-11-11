@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Converts animals from Quaternius's Ultimate Animated Animals pack (CC0) into Wanderworld's kit:
-// packages/wanderworld/kit/animals/<group>.json (farm.json: the farm's and the town's; wild.json: the
+// packages/wanderworld/kit/creatures/<group>.json (farm.json: the farm's and the town's; wild.json: the
 // country's), served as package assets and loaded by src/animals.js when a world has one of that group.
 //
 // Usage: node scripts/build-wanderworld-animals.mjs "<…>/Ultimate Animated Animals - July 2021/glTF"
@@ -18,7 +18,7 @@ import { AnimationMixer, Quaternion, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT = join(ROOT, "packages/wanderworld/kit/animals");
+const OUT = join(ROOT, "packages/wanderworld/kit/creatures");
 
 /**
  * Each animal kept: the file it goes in (src/animals.js has the same groups), the pack's file, and how

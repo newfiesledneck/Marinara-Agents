@@ -1,4 +1,4 @@
-// Wanderworld's animals, without a browser: each kind built from the kit files on disk (kit/animals/, a
+// Wanderworld's animals, without a browser: each kind built from the kit files on disk (kit/creatures/, a
 // file a group,
 // made from Quaternius's CC0 Ultimate Animated Animals by scripts/build-wanderworld-animals.mjs) stands
 // on the ground at the size it should be and poses for standing, grazing, walking and galloping; a
@@ -10,9 +10,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Box3 } from "three";
 
-const kit = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit/animals");
+const kit = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit/creatures");
 globalThis.fetch = async (url) => {
-  const name = String(url).split("/kit/animals/")[1];
+  const name = String(url).split("/kit/creatures/")[1];
   try {
     return new Response(await readFile(join(kit, name)), { status: 200 });
   } catch {
@@ -89,7 +89,7 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
   animal.dispose();
 }
 await assert.rejects(() =>
-  fetch("x/kit/animals/dragon.json").then((r) => (r.ok ? r : Promise.reject(new Error("404")))),
+  fetch("x/kit/creatures/dragon.json").then((r) => (r.ok ? r : Promise.reject(new Error("404")))),
 );
 assert.equal((await createAnimal("dragon")).kind, "deer", "an unknown kind is a deer");
 

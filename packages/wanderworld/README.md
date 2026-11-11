@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.34)
+## What it does now (0.5.35)
 
 ### The world
 
@@ -456,7 +456,7 @@ still count, and come first.
   the forge, stalls, fields, gardens, pond shores, meadows); someone takes one, is "busy" there doing its
   act, and leaves the way they came in.
 - `src/animals.js` is the animals' bodies (a second kind beside the humanoid: each kind's own skeleton
-  and clips from `kit/animals/`, a file a group, made by `scripts/build-wanderworld-animals.mjs`; a
+  and clips from `kit/creatures/`, a file a group, made by `scripts/build-wanderworld-animals.mjs`; a
   horse's or a dog's coat is the same body in other colours, `COATS`), and `src/herd.js`
   which animals a world has, where they go, and handing one to a rider (`main.js ride`, `dismount`).
 - `src/relationships.js` holds relationship kinds, tiers and warmth, temperaments, and reading

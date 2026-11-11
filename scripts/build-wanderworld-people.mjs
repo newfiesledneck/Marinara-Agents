@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Converts Quaternius's Universal Base Characters and Modular Character Outfits - Fantasy (both CC0, free
-// "Standard" downloads) into Wanderworld's people kit: packages/wanderworld/kit/people/*.json meshes and
+// "Standard" downloads) into Wanderworld's people kit: packages/wanderworld/kit/generic/people/ and kit/fantasy/outfits/: meshes and
 // *.webp textures, which the package serves as assets and the game loads only when someone needs a
 // default look (src/people.js).
 //
@@ -16,7 +16,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT = join(ROOT, "packages/wanderworld/kit/people");
+// Where it all goes, by setting: the bodies (skeletons, heads, hair, skin, and the bare body for a piece
+// left off) are any world's, in one file, bodies.json; the outfits and their cloth are the medieval
+// one's. src/people.js tells them apart by name the same way.
+const KIT = join(ROOT, "packages/wanderworld/kit");
+const OUT = join(KIT, "generic/people");
+const OUTFITS = join(KIT, "fantasy/outfits");
+const BODY_FILE = /^(?:index|bodies|eyes|hair-|head-|plain-head-|plain-skin-|skin-|tunic-mask)/u;
+const dirFor = (name) => (BODY_FILE.test(name) ? OUT : OUTFITS);
+/** Everything of the bodies', for bodies.json: { parts: { "hair-long": …, "head-male": …, "skeleton-male": … }, bare: { male: { pieces } } }. */
+const packed = { parts: {}, bare: {} };
 const FFMPEG = process.env.FFMPEG || "ffmpeg";
 const TEXTURE_SIZE = 512;
 
@@ -245,7 +254,7 @@ function recolour(source, name, filter, mask, size = TEXTURE_SIZE) {
     `[0]scale=${size}:${size},format=gbrp,split[a][b];[b]${filter},format=gbrp[c];[1]format=gray,format=gbrp[m];[a][c][m]maskedmerge`,
     "-quality",
     "82",
-    join(OUT, `${name}.webp`),
+    join(dirFor(name), `${name}.webp`),
   ]);
   return name;
 }
@@ -262,7 +271,7 @@ function texture(source, name, size = TEXTURE_SIZE, filter = "") {
     `scale=${size}:${size}${filter ? `,${filter}` : ""}`,
     "-quality",
     "82",
-    join(OUT, `${name}.webp`),
+    join(dirFor(name), `${name}.webp`),
   ]);
   return name;
 }
@@ -275,7 +284,17 @@ function toneOf(name, uvs = null) {
   const size = 128;
   const grey = execFileSync(
     FFMPEG,
-    ["-v", "error", "-i", join(OUT, `${name}.webp`), "-vf", `scale=${size}:${size},format=gray`, "-f", "rawvideo", "-"],
+    [
+      "-v",
+      "error",
+      "-i",
+      join(dirFor(name), `${name}.webp`),
+      "-vf",
+      `scale=${size}:${size},format=gray`,
+      "-f",
+      "rawvideo",
+      "-",
+    ],
     { maxBuffer: 1 << 24 },
   );
   let sum = 0;
@@ -306,8 +325,10 @@ function main() {
     throw new Error(
       "Usage: build-wanderworld-people.mjs <Universal Base Characters dir> <Modular Character Outfits dir>",
     );
-  rmSync(OUT, { recursive: true, force: true });
-  mkdirSync(OUT, { recursive: true });
+  for (const dir of [OUT, OUTFITS]) {
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+  }
   const bodies = join(baseDir, "Base Characters/Godot - UE");
   const hairs = join(baseDir, "Hairstyles/Rigged to Head Bone/glTF (Godot -Unreal)");
   const outfits = join(outfitDir, "Exports/glTF (Godot-Unreal)/Outfits");
@@ -389,7 +410,7 @@ function main() {
         return (tri) => tri.every((v) => headJoints.has(dominant(v)));
       },
     });
-    writeFileSync(join(OUT, `head-${sex}.json`), JSON.stringify(head));
+    packed.parts[`head-${sex}`] = head;
 
     // The rest of the base body, cut the same way into the pieces an outfit has, for a piece left off:
     // the body shows there, in the underclothes painted on its skin. Each triangle goes to the piece that
@@ -432,7 +453,7 @@ function main() {
       bareBody[piece] = bare;
     }
     // (One file for all its pieces: a package may list only so many asset files.)
-    writeFileSync(join(OUT, `${sex}-none.json`), JSON.stringify({ pieces: bareBody }));
+    packed.bare[sex] = { pieces: bareBody };
 
     // Outfits, in the pack's own pieces (top, arms, legs, feet; the ranger's hood and pauldrons), so a
     // person can wear any mix of them: each piece its own file, the skeleton they all bind to in another.
@@ -441,7 +462,7 @@ function main() {
     const parts = join(outfitDir, "Exports/glTF (Godot-Unreal)/Modular Parts");
     const whole = readGltf(join(outfits, `${Sex}_Peasant.gltf`));
     const frame = packPart(skinnedPrimitives(whole), { texture: () => "", skeleton: skeletonOf(whole) });
-    writeFileSync(join(OUT, `skeleton-${sex}.json`), JSON.stringify({ ...frame, meshes: [] }));
+    packed.parts[`skeleton-${sex}`] = { ...frame, meshes: [] };
     for (const outfit of ["Peasant", "Ranger"]) {
       const kind = outfit.toLowerCase();
       const pieces = { top: "Body", arms: "Arms", legs: "Legs", feet: "Feet" };
@@ -468,7 +489,7 @@ function main() {
         bundle[piece] = part;
         (index.sexes[sex].pieces[piece] ??= []).push(kind);
       }
-      writeFileSync(join(OUT, `${sex}-${kind}.json`), JSON.stringify({ pieces: bundle }));
+      writeFileSync(join(OUTFITS, `${sex}-${kind}.json`), JSON.stringify({ pieces: bundle }));
       index.sexes[sex].outfits.push({
         name: `${sex}-${kind}`,
         colourways: outfit === "Ranger" ? rangerColourways : colourways,
@@ -484,11 +505,12 @@ function main() {
       texture: (primitive) => (/2/u.test(primitive.texture ?? "") ? "hair-2" : "hair-1"),
     });
     const name = `hair-${style.toLowerCase()}`;
-    writeFileSync(join(OUT, `${name}.json`), JSON.stringify(part));
+    packed.parts[name] = part;
     index.hair[style.toLowerCase()] = name;
   }
+  writeFileSync(join(OUT, "bodies.json"), JSON.stringify(packed));
   writeFileSync(join(OUT, "index.json"), JSON.stringify(index, null, 2));
-  console.log(`wrote ${OUT}`);
+  console.log(`wrote ${OUT} and ${OUTFITS}`);
 }
 
 main();

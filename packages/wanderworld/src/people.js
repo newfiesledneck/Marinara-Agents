@@ -1,7 +1,7 @@
 // Default people: for anyone without a 3D model, a person put together from Quaternius's Universal Base
 // Characters and Modular Character Outfits - Fantasy (CC0): everyday clothes in one of several colours, a
 // head, a hairstyle, skin and hair tones and a height, all chosen from the name. Made by scripts/build-wanderworld-people.mjs into
-// kit/people/, served as package assets, and loaded only when needed (then cached).
+// kit/generic/people/ and kit/fantasy/outfits/, served as package assets, and loaded only when needed (then cached).
 //
 // Every part keeps its own joints' inverse bind matrices and binds to one shared skeleton (the outfit's),
 // so a head cut from the base body and a hairstyle rigged to its head bone sit right on any outfit. The
@@ -37,7 +37,12 @@ import {
 } from "./looks.js";
 import { hashString, rng } from "./world.js";
 
-const BASE = "/api/capability-packages/wanderworld/assets/kit/people/";
+// The bodies (skeletons, heads, hair, skin) are any world's, in kit/generic/people, one file for them
+// all (bodies.json); the outfits and their cloth are the medieval one's, in kit/fantasy/outfits. A file's
+// name says which it is.
+const KIT = "/api/capability-packages/wanderworld/assets/kit/";
+const BODY_FILE = /^(?:index|bodies|eyes|hair-|head-|plain-head-|plain-skin-|skin-)/u;
+const urlOf = (name) => `${KIT}${BODY_FILE.test(name) ? "generic/people" : "fantasy/outfits"}/${name}`;
 
 /** The pack's (Unreal mannequin) bone for each humanoid bone. */
 const BONES = {
@@ -91,7 +96,7 @@ function load(name) {
   if (!files.has(name)) {
     files.set(
       name,
-      fetch(`${BASE}${name}`).then((response) => {
+      fetch(urlOf(name)).then((response) => {
         if (!response.ok) throw new Error(`GET ${name} → ${response.status}`);
         return response.json();
       }),
@@ -103,7 +108,7 @@ function load(name) {
 /** A kit texture, loaded once and shared by everyone (never disposed with a person). */
 function texture(name) {
   if (!textures.has(name)) {
-    const map = loader.load(`${BASE}${name}.webp`);
+    const map = loader.load(urlOf(`${name}.webp`));
     map.flipY = false; // glTF texture coordinates
     map.colorSpace = SRGBColorSpace;
     map.userData.shared = true;
@@ -249,7 +254,10 @@ export async function createPerson(name, build = "auto", chosen = {}) {
     parts.map((part) => {
       const piece = /^(male|female)-([a-z]+)-([a-z]+)$/u.exec(part);
       const whole = piece && !part.startsWith("hair-") && !part.startsWith("head-") && !part.startsWith("skeleton-");
-      return whole ? load(`${piece[1]}-${piece[2]}.json`).then((file) => file.pieces[piece[3]]) : load(`${part}.json`);
+      // (A piece left off is the bare body's there; that, and every head, hair and skeleton, is in bodies.json.)
+      if (!whole) return load("bodies.json").then((file) => file.parts[part]);
+      if (piece[2] === "none") return load("bodies.json").then((file) => file.bare[piece[1]].pieces[piece[3]]);
+      return load(`${piece[1]}-${piece[2]}.json`).then((file) => file.pieces[piece[3]]);
     }),
   );
 

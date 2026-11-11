@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.35",
+          "date": "2026-11-11",
+          "notes": "- The asset files are regrouped by setting: what any world has (nature, people's bodies, the painted art), the medieval setting's buildings, props and outfits, and the creatures. Each set's models are one file now, so the package has 93 asset files where it had 228, with room for more settings and creatures. Nothing looks different in the game.",
+          "highlight": false
+        },
+        {
           "version": "0.5.34",
           "date": "2026-11-11",
           "notes": "- A campsite's tents, logs and fire stones sit on the ground as it lies. On a slope they were all set at the fire's height, so a tent uphill sank in and one downhill hung in the air.",
@@ -307,12 +313,6 @@
           "version": "0.5.16",
           "date": "2026-11-11",
           "notes": "- Campfires burn: a flickering flame, a light that comes up as it gets dark, and smoke.\n- A campsite's logs are seats, turned to face the fire and clear of the tent.\n- Sleep in a campsite's tent: choose how long (an hour to eight, or until morning or evening), the screen dims, and the clock jumps on. Everyone not close by is where that hour has them: at home, at work, or out.\n- Townsfolk nap in the tent too.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.15",
-          "date": "2026-11-11",
-          "notes": "- The smith holds a hammer at the anvil, and anyone drinking holds a mug.\n- Campsites outside the settlement: a fire in a ring of stones, logs, and a tent with a bedroll.\n- Friends make an outing of it after a chat: two to four of them go for a drink at the tavern (most often in the evening), sit round a campfire, or go back to one of their houses.\n- Friends out together are heard as one: when a moment picks one of them, the rest of the group in earshot is included in the same call.",
           "highlight": false
         }
       ]

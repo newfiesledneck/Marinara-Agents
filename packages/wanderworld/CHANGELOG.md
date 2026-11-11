@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.35 — 2026-11-11
+
+- The asset files are regrouped by setting: what any world has (nature, people's bodies, the painted art), the medieval setting's buildings, props and outfits, and the creatures. Each set's models are one file now, so the package has 93 asset files where it had 228, with room for more settings and creatures. Nothing looks different in the game.
+
 ## 0.5.34 — 2026-11-11
 
 - A campsite's tents, logs and fire stones sit on the ground as it lies. On a slope they were all set at the fire's height, so a tent uphill sank in and one downhill hung in the air.

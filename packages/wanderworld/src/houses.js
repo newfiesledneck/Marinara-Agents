@@ -1,4 +1,4 @@
-// Buildings from the Medieval Village MegaKit (Quaternius, CC0; kit/village/): a building's spec (from
+// Buildings from the Medieval Village MegaKit (Quaternius, CC0; kit/fantasy/village/): a building's spec (from
 // buildings.js) assembled from the kit's 2 m wall segments, window and door inserts, corner posts, a
 // round-tile roof sized to the footprint with brick gables, and now and then a chimney, a balcony or a
 // tower. Town buildings snap to the kit's grid (buildings.js), so the kit building has exactly the

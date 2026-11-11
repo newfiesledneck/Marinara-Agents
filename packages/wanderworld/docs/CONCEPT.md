@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.34, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.35, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.34: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.35: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.34, 2026-11-11)
+## Outstanding (as of 0.5.35, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -742,7 +742,7 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   3. _Things in hand for more acts:_ a watering can, a hoe, a basket at a stall, a whetstone at the forge.
   4. _The forge at night:_ the hearth's glow and light, as the campfires have.
   5. _Animals (in, 0.5.21):_ `scripts/build-wanderworld-animals.mjs` turns each animal of the Ultimate
-     Animated Animals pack into `kit/animals/<group>.json` (0.5.26: a file a group, `farm` and `wild`, with monsters and
+     Animated Animals pack into `kit/creatures/<group>.json` (0.5.26: a file a group, `farm` and `wild`, with monsters and
      other settings' creatures to be groups of their own; each animal is its mesh with its parts named so
      a horse or a dog can be given another coat, skeleton,
      and five clips sampled again: about 200 KB each, a tenth of the pack's file); `animals.js` is the
@@ -938,19 +938,19 @@ Still open:
   trees or impostors before phones.
 
 - **Quaternius buildings are in, for testing (0.4.12):** the Medieval Village MegaKit's modular pieces (CC0) in
-  `kit/village/` (1.9 MB), assembled per building by `houses.js` from the same spec the parts kit uses.
+  `kit/fantasy/village/` (1.9 MB), assembled per building by `houses.js` from the same spec the parts kit uses.
   This answers the world-from-lore question for buildings: the LLM picks specs from fixed menus (kind,
   size, floors, walls, features), and the assembler builds them; no free-form geometry. Shop signs and
   awnings aren't in the kit yet, so shops read as houses from outside.
 - **Quaternius props are in, for testing (0.4.11):** 46 props from the Fantasy Props and Medieval Village kits
-  (CC0) in `kit/props/` (2.1 MB). Town and rooms keep their simple furniture as the stand-in and record
+  (CC0) in `kit/fantasy/props/` (2.1 MB). Town and rooms keep their simple furniture as the stand-in and record
   where each kit prop goes, so the layout and collisions are the same either way.
-- **Quaternius nature is in, for testing (0.4.10):** the Stylized Nature MegaKit (CC0) in `kit/nature/` (1.8 MB):
+- **Quaternius nature is in, for testing (0.4.10):** the Stylized Nature MegaKit (CC0) in `kit/generic/nature/` (1.8 MB):
   detailed trees and rocks (everywhere since 0.4.13), undergrowth round the edge. Heavy: about 2 million more
   triangles in view. Before phones: fewer and simpler trees (lower-detail versions or impostors), and
   less undergrowth.
 - **Quaternius people are in, for testing (0.4.8):** Universal Base Characters and Modular Character
-  Outfits - Fantasy (both CC0) as package assets in `kit/people/` (3.3 MB, loaded per person). Costly: a
+  Outfits - Fantasy (both CC0) as package assets in `kit/generic/people/` and `kit/fantasy/outfits/` (3.3 MB, loaded per person). Costly: a
   dressed person is about 25–30k triangles and 7–10 draw calls, so with many on screen this needs merging
   and simpler versions before phones (Settings → People without a model → Simple meanwhile).
 - **Recorded animations are in, for testing (0.4.7):** Quaternius's Universal Animation Library (CC0,

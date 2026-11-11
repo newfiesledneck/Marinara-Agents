@@ -16,9 +16,16 @@ import { Matrix3, Matrix4, Quaternion, Vector3 } from "three";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FFMPEG = process.env.FFMPEG || "ffmpeg";
 
-/** What each set takes from its pack: model files, and the size each texture is shrunk to. */
+/**
+ * What each set takes from its pack: where it goes in the kit (`dir`: by setting, "generic" for what any
+ * world has, "fantasy" for the medieval one; src/kit.js has the same), model files, and the size each
+ * texture is shrunk to. A set's models go in one file, models.json (a package may list only so many
+ * files, and a world loads nearly all of a set anyway). To drop or swap a model, change its list and run
+ * the script again.
+ */
 const SETS = {
   nature: {
+    dir: "generic/nature",
     source: "Stylized Nature MegaKit (Standard) by Quaternius, CC0 1.0",
     models: [
       "CommonTree_1",
@@ -53,6 +60,7 @@ const SETS = {
     textureSize: (name) => (/grass/iu.test(name) ? 128 : 256),
   },
   village: {
+    dir: "fantasy/village",
     source: "Medieval Village MegaKit (Standard) by Quaternius, CC0 1.0",
     models: [
       "Wall_UnevenBrick_Straight",
@@ -110,6 +118,7 @@ const SETS = {
     textureSize: () => 512,
   },
   props: {
+    dir: "fantasy/props",
     source: "Fantasy Props MegaKit (Standard) and Medieval Village MegaKit (Standard) by Quaternius, CC0 1.0",
     models: [
       // Furniture
@@ -324,7 +333,7 @@ function main() {
       `Usage: build-wanderworld-kit.mjs <${Object.keys(SETS).join("|")}> <pack glTF folder> [more folders]`,
     );
   }
-  const out = join(ROOT, "packages/wanderworld/kit", setName);
+  const out = join(ROOT, "packages/wanderworld/kit", set.dir);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const textureName = (image) =>
@@ -334,13 +343,14 @@ function main() {
       .toLowerCase();
   const images = new Set();
   const index = { source: set.source, models: {} };
+  const models = {};
   for (const model of set.models) {
     const path = sourceDirs.map((dir) => join(dir, `${model}.gltf`)).find((candidate) => existsSync(candidate));
     if (!path) throw new Error(`No pack has ${model}.gltf`);
     const packed = packModel(path, textureName);
     for (const image of packed.textures) images.add(image);
     const name = model.toLowerCase().replace(/_/gu, "-");
-    writeFileSync(join(out, `${name}.json`), JSON.stringify({ meshes: packed.meshes }));
+    models[name] = { meshes: packed.meshes };
     const box = packed.meshes.reduce(
       (acc, mesh) =>
         [0, 1, 2].map((axis) => [Math.min(acc[axis][0], mesh.box[axis]), Math.max(acc[axis][1], mesh.box[axis + 3])]),
@@ -377,6 +387,7 @@ function main() {
       join(out, `${textureName(image)}.webp`),
     ]);
   }
+  writeFileSync(join(out, "models.json"), JSON.stringify({ models }));
   writeFileSync(join(out, "index.json"), JSON.stringify(index, null, 2));
   console.log(`wrote ${out}: ${set.models.length} models, ${images.size} textures`);
   for (const [name, info] of Object.entries(index.models))

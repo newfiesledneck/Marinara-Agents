@@ -55,7 +55,7 @@ import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { HOUSE_PIECES } from "./houses.js";
-import { kitModels, kitTexture } from "./kit.js";
+import { kitModels, kitTexture, kitUrl } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
 import { undoOnly, withoutLeftovers } from "./undo.js";
@@ -175,7 +175,7 @@ const NEARBY = 12; // metres: who counts as nearby
 const ZONE_SETTLE = 0.6; // seconds in a new place before its name shows
 const THUMBNAIL = { width: 192, height: 108 };
 const THUMBNAIL_EVERY = 90; // seconds between thumbnail refreshes while playing
-const ART = "/api/capability-packages/wanderworld/assets/kit/art/"; // the menu and loading art
+const ART = kitUrl("art"); // the menu and loading art
 const BUILD_WAIT = 10; // seconds the loading screen waits at most for the detailed kit
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
@@ -529,7 +529,7 @@ function buildWorld(seed, place = null) {
         .catch((error) => console.warn("[wanderworld] detailed buildings failed to load", error)),
     );
   }
-  // The ground's painted textures (kit/art): grass and dirt on the land, cobbled streets, stone setts on
+  // The ground's painted textures (kit/generic/art): grass and dirt on the land, cobbled streets, stone setts on
   // the sidewalks and slabs on the square. Plain colours stand in until they load.
   const groundTexture = (name) => {
     const map = kitTexture("art", name);
