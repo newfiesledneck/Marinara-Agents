@@ -12,6 +12,7 @@ licence file says so). No credit is required; this note is a courtesy.
 | `nature/`  | Stylized Nature MegaKit (Standard), its `glTF` folder                                                                                                                                               | `scripts/build-wanderworld-kit.mjs nature`  |
 | `village/` | Medieval Village MegaKit (Standard), its `glTF` folder                                                                                                                                              | `scripts/build-wanderworld-kit.mjs village` |
 | `art/`     | Original art for Wanderworld (menu backdrops, logo, loading screen, ground, water and rock textures, the sign board, parchment, bridge planks and beams), made by the package's author with ComfyUI | converted to WebP by hand                   |
+| `animals/` | Ultimate Animated Animals, its `glTF` folder                                                                                                                                                        | `scripts/build-wanderworld-animals.mjs`     |
 | `props/`   | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF`                                                                                                         | `scripts/build-wanderworld-kit.mjs props`   |
 
 The packs themselves are not in the repository. To rebuild, unzip them and run the script named above

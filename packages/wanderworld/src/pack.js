@@ -474,6 +474,22 @@ const SLEEP = [
   "You wake stiff, rested, and unsure for a moment where you are. It's {clock}.",
 ];
 
+/** The animals, in words: what each is called ("the white horse"), for a prompt or a line about it. */
+const ANIMALS = {
+  horse: "the horse",
+  "horse-white": "the white horse",
+  donkey: "the donkey",
+  cow: "the cow",
+  bull: "the bull",
+  alpaca: "the alpaca",
+  deer: "the deer",
+  stag: "the stag",
+  wolf: "the wolf",
+  fox: "the fox",
+  husky: "the dog",
+  shiba: "the dog",
+};
+
 export const PACK = {
   id: "fantasy",
   /** What this setting looks like wherever you are, in a picture's prompt ({world_look}), unless the world has its own. */
@@ -485,6 +501,7 @@ export const PACK = {
   joining: JOINING,
   camp: CAMP,
   acts: ACTS,
+  animals: ANIMALS,
   sleep: SLEEP,
 };
 

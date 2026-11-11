@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.21 — 2026-11-11
+
+- Animals: cattle, a donkey and a horse at farms, a dog or two about the market, a horse by each tavern and inn, and deer, stags, foxes and wolves out in the country. They wander, graze and look about; the wild ones run when you come close.
+- Ride a horse or a donkey, sitting astride: walk up and use it. The same stick and keys move it, Shift gallops, and E, Esc or the Get down button gets you off. It stays where you leave it.
+- Models and animations from Quaternius's Ultimate Animated Animals (CC0).
+
 ## 0.5.20 — 2026-11-11
 
 - Look card: any piece (top, sleeves, legs, boots) can be set to None, which shows the body there: bare arms, a bare chest, bare feet. The body wears dark underclothes, so leaving everything off is still decent.

@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.5.20",
+  "version": "0.5.21",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -37,6 +37,19 @@
     },
     "assets": {
       "paths": [
+        "kit/animals/alpaca.json",
+        "kit/animals/bull.json",
+        "kit/animals/cow.json",
+        "kit/animals/deer.json",
+        "kit/animals/donkey.json",
+        "kit/animals/fox.json",
+        "kit/animals/horse-white.json",
+        "kit/animals/horse.json",
+        "kit/animals/husky.json",
+        "kit/animals/index.json",
+        "kit/animals/shiba.json",
+        "kit/animals/stag.json",
+        "kit/animals/wolf.json",
         "kit/art/bridge-planks.webp",
         "kit/art/cliff-rock.webp",
         "kit/art/ground-dirt.webp",
@@ -111,20 +124,9 @@
         "kit/people/clothes-red.webp",
         "kit/people/clothes-teal.webp",
         "kit/people/eyes.webp",
-        "kit/people/female-none-arms.json",
-        "kit/people/female-none-feet.json",
-        "kit/people/female-none-legs.json",
-        "kit/people/female-none-top.json",
-        "kit/people/female-peasant-arms.json",
-        "kit/people/female-peasant-feet.json",
-        "kit/people/female-peasant-legs.json",
-        "kit/people/female-peasant-top.json",
-        "kit/people/female-ranger-arms.json",
-        "kit/people/female-ranger-feet.json",
-        "kit/people/female-ranger-hood.json",
-        "kit/people/female-ranger-legs.json",
-        "kit/people/female-ranger-pauldrons.json",
-        "kit/people/female-ranger-top.json",
+        "kit/people/female-none.json",
+        "kit/people/female-peasant.json",
+        "kit/people/female-ranger.json",
         "kit/people/hair-1.webp",
         "kit/people/hair-2.webp",
         "kit/people/hair-beard.json",
@@ -138,20 +140,9 @@
         "kit/people/head-male.json",
         "kit/people/head-male.webp",
         "kit/people/index.json",
-        "kit/people/male-none-arms.json",
-        "kit/people/male-none-feet.json",
-        "kit/people/male-none-legs.json",
-        "kit/people/male-none-top.json",
-        "kit/people/male-peasant-arms.json",
-        "kit/people/male-peasant-feet.json",
-        "kit/people/male-peasant-legs.json",
-        "kit/people/male-peasant-top.json",
-        "kit/people/male-ranger-arms.json",
-        "kit/people/male-ranger-feet.json",
-        "kit/people/male-ranger-hood.json",
-        "kit/people/male-ranger-legs.json",
-        "kit/people/male-ranger-pauldrons.json",
-        "kit/people/male-ranger-top.json",
+        "kit/people/male-none.json",
+        "kit/people/male-peasant.json",
+        "kit/people/male-ranger.json",
         "kit/people/plain-head-female.webp",
         "kit/people/plain-head-male.webp",
         "kit/people/plain-peasant.webp",
@@ -295,8 +286,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "3429cd63b54b2504c1d0c6c9fdd1c312c6d8ebd8bd4e7ac43bd1a3a0d97979c4",
-      "bytes": 2219868
+      "sha256": "21201103d101a0cb7bc8c6b73991a80c7f0e062d6986c747f4ee7375a9fab9f7",
+      "bytes": 2232112
     },
     {
       "path": "server.mjs",
@@ -307,6 +298,71 @@
       "path": "wanderworld-icon.webp",
       "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
       "bytes": 5236
+    },
+    {
+      "path": "kit/animals/alpaca.json",
+      "sha256": "a71b75c85aa910390344cf1ea3932a02de41e844a7523b09740290455f0c96d4",
+      "bytes": 223447
+    },
+    {
+      "path": "kit/animals/bull.json",
+      "sha256": "2c7c5d8b07b80c9bf683e9da7045d48235b93d95e01ed9041ece0eae527875cf",
+      "bytes": 223992
+    },
+    {
+      "path": "kit/animals/cow.json",
+      "sha256": "16a24eb68618c12680b856368297224101ece795c61995aa4177a5053c709f25",
+      "bytes": 225952
+    },
+    {
+      "path": "kit/animals/deer.json",
+      "sha256": "ed250a302eb34d7eeac86b5d6bce96d2aae78a41d30a76f103334a97901af62e",
+      "bytes": 210233
+    },
+    {
+      "path": "kit/animals/donkey.json",
+      "sha256": "fc9748ebc2ec61f31a9c278c5249db60d778f120934fa1a89fcc1d96a8c1a963",
+      "bytes": 209148
+    },
+    {
+      "path": "kit/animals/fox.json",
+      "sha256": "5cff1bdc2a38fa1282a88d816b42de23b2c90f1636e3522a9745467d20882904",
+      "bytes": 185375
+    },
+    {
+      "path": "kit/animals/horse-white.json",
+      "sha256": "8cfa640a50672dc6d2195baf515e0e1983cd6ae8bd28fb16fed663148f5a6e17",
+      "bytes": 220671
+    },
+    {
+      "path": "kit/animals/horse.json",
+      "sha256": "33cae0dcf3b8c8fbcae817c0f84a46fdf37b2b1476bb259ad5be90c65fba2199",
+      "bytes": 220671
+    },
+    {
+      "path": "kit/animals/husky.json",
+      "sha256": "80ba2e42366eb59fc01006f830dc2502a03e9a873c6d6585aa8cb623d5bbdae2",
+      "bytes": 187981
+    },
+    {
+      "path": "kit/animals/index.json",
+      "sha256": "813968023c8c2872a969228a70ff3f71369578f083863b69f7870151880c18ba",
+      "bytes": 1401
+    },
+    {
+      "path": "kit/animals/shiba.json",
+      "sha256": "45d1e297702d4aa02dd1428d361dbf3f12d6fc3047d5fd54b2fe1756768e83dc",
+      "bytes": 186285
+    },
+    {
+      "path": "kit/animals/stag.json",
+      "sha256": "05c16b7392ec22927b44b1c04ac9c0be769489b5c14bb835b1deffd12c73dabb",
+      "bytes": 210668
+    },
+    {
+      "path": "kit/animals/wolf.json",
+      "sha256": "c67ba32ad74968e2cbf0bcafa44d46325f7c8d4cf172dffeb54e0aa4b549e360",
+      "bytes": 193178
     },
     {
       "path": "kit/art/bridge-planks.webp",
@@ -679,74 +735,19 @@
       "bytes": 772
     },
     {
-      "path": "kit/people/female-none-arms.json",
-      "sha256": "bdc33ff59044efa7671816cbc6dbccdb580833b50ab5ec2138c5be31038c060a",
-      "bytes": 119862
+      "path": "kit/people/female-none.json",
+      "sha256": "b0cb31ff65b38bbff8e8018b83671630aae6ceac27ee0701a2bf5bb82f7fcda9",
+      "bytes": 296302
     },
     {
-      "path": "kit/people/female-none-feet.json",
-      "sha256": "525fc34d71546de044c08444b47a6afb20486895bc2ade8aa706d96edf84fc3f",
-      "bytes": 64359
+      "path": "kit/people/female-peasant.json",
+      "sha256": "8ee8e4e981a4bed83c8ab52e0b64bb9bf2d2f3a9370433db005777202db1cdfa",
+      "bytes": 422305
     },
     {
-      "path": "kit/people/female-none-legs.json",
-      "sha256": "9ef673f999c809f18f633f45fbeb02385d65ee1b28030f09ab65af2c3d1b9cc5",
-      "bytes": 63365
-    },
-    {
-      "path": "kit/people/female-none-top.json",
-      "sha256": "f7c32ed94235d3b2eeedbd4f8aa2ae79d319be7a2975e749cfc926251310b279",
-      "bytes": 48673
-    },
-    {
-      "path": "kit/people/female-peasant-arms.json",
-      "sha256": "6469488b4c3a5267e04bdc76cc06315c8ce08884065bb26e989c1f553e5812dd",
-      "bytes": 214129
-    },
-    {
-      "path": "kit/people/female-peasant-feet.json",
-      "sha256": "642da641b210792cac5bc4000cdb0e07bdc9dbde18a392da7117167e7b4b22c3",
-      "bytes": 80822
-    },
-    {
-      "path": "kit/people/female-peasant-legs.json",
-      "sha256": "814563c141017eebde1a765a90cbd5cd12c5d42c4dd295ee0d13774c1186544c",
-      "bytes": 54226
-    },
-    {
-      "path": "kit/people/female-peasant-top.json",
-      "sha256": "4e8bc91594043a5067c2e05963fbad4f5d468714b57593c00ff44c05bc4d7f61",
-      "bytes": 73085
-    },
-    {
-      "path": "kit/people/female-ranger-arms.json",
-      "sha256": "2d06143245c7a22e9e15b6e9ed580c3ecb4cce97a932deff842b76c14e52571f",
-      "bytes": 270910
-    },
-    {
-      "path": "kit/people/female-ranger-feet.json",
-      "sha256": "7713e424eee3b16ab67655c56d8a24c03b9c70ac1c2300b019dee8f1c2ca4e58",
-      "bytes": 365395
-    },
-    {
-      "path": "kit/people/female-ranger-hood.json",
-      "sha256": "3f645d792c8343704aedbb8ee9987f60181747a28e774bef23999453dfb9787b",
-      "bytes": 58953
-    },
-    {
-      "path": "kit/people/female-ranger-legs.json",
-      "sha256": "9ff9f7daf9668008f7aaa5c33df1b1a55971e14afb35eeac75240f44a7d1217f",
-      "bytes": 35956
-    },
-    {
-      "path": "kit/people/female-ranger-pauldrons.json",
-      "sha256": "5ac92206f6bd6756f68bce6b720397711e82c5636f0a7dfd15943188f8e5cbe9",
-      "bytes": 48719
-    },
-    {
-      "path": "kit/people/female-ranger-top.json",
-      "sha256": "402f689a1816e951b49678afd0c346e9ff49df1c88894f3ca061dbbb25005ba5",
-      "bytes": 174032
+      "path": "kit/people/female-ranger.json",
+      "sha256": "dbf2371d0a3f6316303bbca258fc5f82ba829e3a1c40ab5c2925d4927179672c",
+      "bytes": 954029
     },
     {
       "path": "kit/people/hair-1.webp",
@@ -814,74 +815,19 @@
       "bytes": 3196
     },
     {
-      "path": "kit/people/male-none-arms.json",
-      "sha256": "7dafe538c77079365a86bf98a65ec50a68ec38f0565ee0c9678a349c75b4ffd0",
-      "bytes": 125924
+      "path": "kit/people/male-none.json",
+      "sha256": "8f8aa523bdda5c016e54e1a43ee3e574f77f6e772d1d85fba5b3c29493d453b6",
+      "bytes": 301241
     },
     {
-      "path": "kit/people/male-none-feet.json",
-      "sha256": "7a0be7c83c7695ae0a823f99874e75f097e9ab08b5c6e8f62e1820875b1d836a",
-      "bytes": 67428
+      "path": "kit/people/male-peasant.json",
+      "sha256": "ece8c26a7a2e63471559a31a0c25bf1b0ddc3afd56e0b5af7c901af35f8586b7",
+      "bytes": 379334
     },
     {
-      "path": "kit/people/male-none-legs.json",
-      "sha256": "b5fb1dd8acd885ba3461812f7afd252c2e25a36d6229efd4d57ba67ac0bea486",
-      "bytes": 64483
-    },
-    {
-      "path": "kit/people/male-none-top.json",
-      "sha256": "f4318776439f7a35ad99d94bc410f0e2e1a5d2fd9325987866913d83c547066b",
-      "bytes": 43363
-    },
-    {
-      "path": "kit/people/male-peasant-arms.json",
-      "sha256": "a2c9329cb831505b493f64acde8a07206f0ec3f11fd2b8cab96cf41656d34b7f",
-      "bytes": 142715
-    },
-    {
-      "path": "kit/people/male-peasant-feet.json",
-      "sha256": "16831d4f8641943edb8b6b4f1374199e1c46628d5518f93f6a2df5d4157bbf88",
-      "bytes": 80291
-    },
-    {
-      "path": "kit/people/male-peasant-legs.json",
-      "sha256": "5684779c380ad5af87bc399f0a2fa6d3b80cc7a535344b5974b77b5ba9ac8b4d",
-      "bytes": 34267
-    },
-    {
-      "path": "kit/people/male-peasant-top.json",
-      "sha256": "b2f91a088e8e51785e4410c980c88925dc38fa72f35d20a022c6395ca888fcad",
-      "bytes": 122018
-    },
-    {
-      "path": "kit/people/male-ranger-arms.json",
-      "sha256": "cf8c232acd325a6acec005ae73c5895a4cf9431223320197cd0c9b874c254eb1",
-      "bytes": 131779
-    },
-    {
-      "path": "kit/people/male-ranger-feet.json",
-      "sha256": "41726fab735726652f66e6c520eb8dc93891794c01050ee20c1929ccdf830e78",
-      "bytes": 365259
-    },
-    {
-      "path": "kit/people/male-ranger-hood.json",
-      "sha256": "3e37d6bc87e8a78ae21208e507651cffe5328ba48c6488f4ff395cf552632666",
-      "bytes": 58817
-    },
-    {
-      "path": "kit/people/male-ranger-legs.json",
-      "sha256": "99981da0a2c217c418b9548f3bae90abbbfd38f048640c911a32487bc2477abc",
-      "bytes": 34059
-    },
-    {
-      "path": "kit/people/male-ranger-pauldrons.json",
-      "sha256": "439d30b4b9156fc3c8412c403e277175ee2e2290118edc755a88320c97ada25c",
-      "bytes": 48583
-    },
-    {
-      "path": "kit/people/male-ranger-top.json",
-      "sha256": "6c07c85a51a2f8cab1a27417a3e8605292145267b0fbccced73987bd8ea92395",
-      "bytes": 175301
+      "path": "kit/people/male-ranger.json",
+      "sha256": "e3936960201ccde65e15a735467c48a20b646f1fb9dd5b9b5d85a9c7f738e668",
+      "bytes": 813862
     },
     {
       "path": "kit/people/plain-head-female.webp",

@@ -407,6 +407,7 @@ function main() {
                 ? "shins"
                 : "legs";
     const skin = headParts.filter((primitive) => roles(primitive) === "head");
+    const bareBody = {};
     for (const piece of ["top", "arms", "legs", "feet"]) {
       const bare = packPart(skin, {
         texture: () => `head-${sex}`,
@@ -428,8 +429,10 @@ function main() {
           };
         },
       });
-      writeFileSync(join(OUT, `${sex}-none-${piece}.json`), JSON.stringify(bare));
+      bareBody[piece] = bare;
     }
+    // (One file for all its pieces: a package may list only so many asset files.)
+    writeFileSync(join(OUT, `${sex}-none.json`), JSON.stringify({ pieces: bareBody }));
 
     // Outfits, in the pack's own pieces (top, arms, legs, feet; the ranger's hood and pauldrons), so a
     // person can wear any mix of them: each piece its own file, the skeleton they all bind to in another.
@@ -443,6 +446,7 @@ function main() {
       const kind = outfit.toLowerCase();
       const pieces = { top: "Body", arms: "Arms", legs: "Legs", feet: "Feet" };
       if (outfit === "Ranger") Object.assign(pieces, { hood: "Head_Hood", pauldrons: "Acc_Pauldrons" });
+      const bundle = {}; // every piece of this outfit, in one file
       for (const [piece, file] of Object.entries(pieces)) {
         // (The pack names two of the man's pieces differently.)
         const path = [file, `${file}_Boots`, file.replace(/s$/u, "")]
@@ -461,9 +465,10 @@ function main() {
             .filter((primitive) => !/Regular/iu.test(primitive.texture ?? ""))
             .map((primitive) => primitive.uv.values),
         );
-        writeFileSync(join(OUT, `${name}.json`), JSON.stringify(part));
+        bundle[piece] = part;
         (index.sexes[sex].pieces[piece] ??= []).push(kind);
       }
+      writeFileSync(join(OUT, `${sex}-${kind}.json`), JSON.stringify({ pieces: bundle }));
       index.sexes[sex].outfits.push({
         name: `${sex}-${kind}`,
         colourways: outfit === "Ranger" ? rangerColourways : colourways,

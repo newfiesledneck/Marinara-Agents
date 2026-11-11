@@ -1,0 +1,77 @@
+{
+  "source": "Ultimate Animated Animals by Quaternius, CC0 1.0",
+  "animals": {
+    "horse": {
+      "triangles": 2182,
+      "bones": 50,
+      "bytes": 220671,
+      "height": 2.25
+    },
+    "horse-white": {
+      "triangles": 2182,
+      "bones": 50,
+      "bytes": 220671,
+      "height": 2.25
+    },
+    "donkey": {
+      "triangles": 2000,
+      "bones": 50,
+      "bytes": 209148,
+      "height": 1.65
+    },
+    "cow": {
+      "triangles": 2450,
+      "bones": 42,
+      "bytes": 225952,
+      "height": 1.7
+    },
+    "bull": {
+      "triangles": 2418,
+      "bones": 42,
+      "bytes": 223992,
+      "height": 1.8
+    },
+    "alpaca": {
+      "triangles": 2060,
+      "bones": 46,
+      "bytes": 223447,
+      "height": 1.7
+    },
+    "deer": {
+      "triangles": 2098,
+      "bones": 46,
+      "bytes": 210233,
+      "height": 1.45
+    },
+    "stag": {
+      "triangles": 2054,
+      "bones": 38,
+      "bytes": 210668,
+      "height": 1.95
+    },
+    "wolf": {
+      "triangles": 1962,
+      "bones": 51,
+      "bytes": 193178,
+      "height": 0.95
+    },
+    "fox": {
+      "triangles": 1848,
+      "bones": 51,
+      "bytes": 185375,
+      "height": 0.6
+    },
+    "husky": {
+      "triangles": 1920,
+      "bones": 49,
+      "bytes": 187981,
+      "height": 0.85
+    },
+    "shiba": {
+      "triangles": 1950,
+      "bones": 46,
+      "bytes": 186285,
+      "height": 0.62
+    }
+  }
+}
