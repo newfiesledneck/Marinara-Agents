@@ -683,6 +683,8 @@ export function createHud(root, handlers) {
     aiBoard: "A call when you stop at the noticeboard.",
     aiSeats: "A call when you sit down with someone near.",
     aiJoin: "A call when you join someone in what they're doing.",
+    aiSeparate:
+      "The strictest way to keep people from knowing what they shouldn't. One call tells the moment and picks who answers, without anyone's private knowledge; then each person who answers gets a call of their own with only what they themselves know. Up to four calls a moment instead of one, so it's slower and costs more. Off, one call writes for everyone: their knowledge is kept apart in it, which a strong model respects.",
     narratorCard:
       "One of your character cards as the voice that tells the world as you walk it: what you see, what comes of what you do. A short card works best (a voice and a few rules); its first 1500 characters are used. None: a plain narrator.",
     sceneNarratorCard:
@@ -1026,6 +1028,7 @@ export function createHud(root, handlers) {
   toggle("aiBoard", "…when you read the noticeboard");
   toggle("aiSeats", "…when you sit down");
   toggle("aiJoin", "…when you join someone");
+  toggle("aiSeparate", "A call for each person who answers");
   connectionChoice("textConnection", "Conversations use", "text", "Engine default");
   connectionChoice("sceneConnection", "Scenes use", "text", "Same as conversations");
   choice("talkStyle", "How people talk", {

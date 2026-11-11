@@ -71,6 +71,9 @@ export const SETTINGS = {
   aiBoard: { value: true },
   aiSeats: { value: true },
   aiJoin: { value: true },
+  // A moment told in separate calls: one for the narration and who answers, then one for each person who
+  // does, given their own knowledge alone. Off: one call for everything.
+  aiSeparate: { value: false },
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },
