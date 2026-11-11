@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.35)
+## What it does now (0.5.36)
 
 ### The world
 
@@ -268,8 +268,8 @@ only walk about.
 - **Animals of your own:** the Look card (Menu, Look beside your persona) has Dog and Horse: the kind,
   the coat, a name of its own, and whether each is with you or at home. With you, it follows and turns up beside you if left
   far behind; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
-  down from walks back there. Someone in town whose lore mentions their dog has one at their heel; their
-  Look card can change it or take it away. Kept with the world. The chat window has Send dog home and
+  down from walks back there. Someone in town whose lore mentions their dog or their horse has it at their heel (the horse is theirs,
+  not yours to ride); their Look card can change it or take it away. Kept with the world. The chat window has Send dog home and
   Send horse home while they're with you (each asks once more first), and the Journal's Party tab lists
   your animals, and the dog of anyone travelling with you, with Send home and Call along.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
@@ -398,7 +398,7 @@ still count, and come first.
 - Walk-in rooms are unfinished and off by default.
 - Animals are scenery and a ride for now: nothing hunts, nobody else rides, a wolf only keeps its
   distance, and the AI isn't told about them (but is told you're riding). A rider sits astride with
-  hands forward, but there's no saddle or reins, and the pose is the same at a walk and a gallop. Getting down is still a plain step to the side, and where you left one isn't remembered after you leave
+  hands forward, but there's no saddle or reins, and the pose is the same at a walk and a gallop. Where you left one isn't remembered after you leave
   the world: it's back where the seed has it.
 - A look can be chosen once someone lives in the world, and there are two outfits to mix. The hood
   goes over whatever hair they have. A piece given a colour of its own is that colour all over (its

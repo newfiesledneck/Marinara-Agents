@@ -259,9 +259,11 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
       herd.update(0.1, { player: owner, owners: new Map([["you", owner]]) });
     }
     assert.ok(Math.hypot(dog().x - owner.x, dog().z - owner.z) < 8, "a dog keeps up with its owner");
+    const mine = herd.mounts(owner, 12).find((entry) => entry.id === "pet:you:horse");
+    assert.equal(mine?.owner, "you", "a horse of someone's own says whose it is (theirs to ride, nobody else's)");
     assert.ok(
-      herd.mounts(owner, 12).some((entry) => entry.id === "pet:you:horse"),
-      "your own horse can be ridden",
+      herd.mounts(owner, 400).some((entry) => entry.owner === null),
+      "the rest are anyone's",
     );
     // Left far behind, it turns up beside them.
     owner.x += 80;
@@ -283,6 +285,19 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   herd.detach();
   assert.equal(herd.snapshot().length, 0);
   world.dispose();
+}
+
+// What lore says of someone with a dog or a horse of their own, and of someone without.
+for (const [text, dog, horse] of [
+  ["Her loyal old hound sleeps by the fire.", true, false],
+  ["She rides her grey mare to market.", false, true],
+  ["He has a horse and a temper.", false, true],
+  ["They keep a pony and a small dog.", false, true],
+  ["A baker with no pets, who hates horses.", false, false],
+  ["The workhorse of the guild, dogged in everything.", false, false],
+]) {
+  assert.equal(PACK.dogLore.test(text), dog, `a dog of their own: "${text}"`);
+  assert.equal(PACK.horseLore.test(text), horse, `a horse of their own: "${text}"`);
 }
 
 console.log("wanderworld animals regression: OK");

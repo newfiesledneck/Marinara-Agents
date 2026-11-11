@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.36 — 2026-11-11
+
+- Getting down from a horse or a donkey is a movement of its own, like getting on: a leg back over, a lean, and down to the ground beside it. Before, the rider dropped to the ground and slid sideways.
+- Characters can have a horse of their own: from their lore ("his grey mare", "rides a horse") or chosen in their Look card. It follows them and waits outside, the Party tab lists it, and it isn't offered to you to ride.
+
 ## 0.5.35 — 2026-11-11
 
 - The asset files are regrouped by setting: what any world has (nature, people's bodies, the painted art), the medieval setting's buildings, props and outfits, and the creatures. Each set's models are one file now, so the package has 93 asset files where it had 228, with room for more settings and creatures. Nothing looks different in the game.

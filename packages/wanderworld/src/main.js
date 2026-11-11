@@ -255,6 +255,7 @@ const core = {
   crowd: createCrowd(),
   herd: createHerd(), // the world's animals (herd.js)
   mount: null, // the animal being ridden: { id, kind, back, walk, gallop } (ride())
+  dismounting: null, // getting down off it: { height (how high they sat), side } (dismount())
   mounting: null, // getting up on it: { phase: "approach" | "vault", side } (ride())
   sound: createSound(),
   settings: loadSettings(),
@@ -2751,16 +2752,22 @@ function aboutOf(id) {
 function petsFor(owner) {
   const kept = core.pets[owner] ?? {};
   let dog = COATS[kept.dog?.kind] && kept.dog.kind !== "horse" ? kept.dog : null;
-  if (kept.dog === undefined && owner !== PLAYER_ID) {
+  // (What's written of someone is read once, till it changes: whether it gives them a dog, a horse.)
+  if (owner !== PLAYER_ID && (kept.dog === undefined || kept.horse === undefined)) {
     const text = aboutOf(owner);
-    if (dogLore.get(owner)?.[0] !== text.length) dogLore.set(owner, [text.length, PACK.dogLore.test(text)]);
+    if (dogLore.get(owner)?.[0] !== text.length)
+      dogLore.set(owner, [text.length, PACK.dogLore.test(text), PACK.horseLore.test(text)]);
+  }
+  if (kept.dog === undefined && owner !== PLAYER_ID) {
     if (dogLore.get(owner)[1]) {
       const n = hashString(`dog:${owner}`);
       const kind = Object.keys(PACK.dogs)[n % Object.keys(PACK.dogs).length];
       dog = { kind, coat: coatFor(kind, n >>> 4), out: true, lore: true };
     }
   }
-  const horse = owner === PLAYER_ID && COATS.horse[kept.horse?.coat] ? kept.horse : null;
+  let horse = COATS.horse[kept.horse?.coat] ? kept.horse : null;
+  if (kept.horse === undefined && owner !== PLAYER_ID && dogLore.get(owner)[2])
+    horse = { coat: coatFor("horse", hashString(`horse:${owner}`)), out: true, lore: true };
   return { dog, horse };
 }
 
@@ -2841,7 +2848,16 @@ function partyAnimals() {
   if (mine.horse)
     out.push({ role: "horse", mine: true, out: mine.horse.out !== false, label: called(mine.horse, "horse") });
   for (const member of core.crowd.party()) {
-    const { dog } = petsFor(member.id);
+    const { dog, horse } = petsFor(member.id);
+    if (horse && horse.out !== false)
+      out.push({
+        role: "horse",
+        mine: false,
+        out: true,
+        label: horse.name
+          ? `${horse.name}, ${member.name}'s ${coat(horse)} horse`
+          : `${member.name}'s ${coat(horse)} horse`,
+      });
     if (dog && dog.out !== false)
       out.push({
         role: "dog",
@@ -2938,6 +2954,7 @@ function resetMode() {
   if (core.mount) core.herd.release(core.mount.id);
   core.mount = null;
   core.mounting = null;
+  core.dismounting = null;
   core.player.rotation.z = 0;
   if (core.seat?.taken === "player") core.seat.taken = null;
   core.seat = null;
@@ -2959,6 +2976,7 @@ const RIDE_WALK = 1.5; // a ridden walk is brisker than the animal's own amble, 
 const MOUNT_SIDE = 0.8; // getting on: how far out from its middle they stand first (metres)
 const MOUNT_STEP = 0.35; // seconds stepping to its side
 const MOUNT_VAULT = 0.85; // seconds up and over onto its back
+const DISMOUNT = 0.7; // seconds down off it to the ground beside it
 const LEAP_PACE = 5.5; // a jump carries the animal forward at least this fast (metres a second)
 const LEAP_CLEAR = 0.2; // its back this far up, it's over a fence (metres)
 
@@ -3014,12 +3032,18 @@ function dismount() {
   const facing = core.player.rotation.y;
   // To its left, its right, or behind: the first that isn't in something or in the river.
   const spot = [Math.PI / 2, -Math.PI / 2, Math.PI]
-    .map((turn) => ({ x: x + Math.sin(facing + turn) * 1.2, z: z + Math.cos(facing + turn) * 1.2 }))
+    .map((turn) => ({ turn, x: x + Math.sin(facing + turn) * 1.2, z: z + Math.cos(facing + turn) * 1.2 }))
     .find((at) => !core.space.blocked(at.x, at.z, PLAYER_RADIUS) && waterAt(at.x, at.z).depth < WADE_DEPTH) ?? { x, z };
+  // Getting down is a movement too: a leg back over, a lean, and down to the ground beside it (the height
+  // and the lean are in movePlayer, from how high they sat).
+  core.dismounting = {
+    height: core.player.position.y - heightAt(x, z),
+    side: spot.turn === Math.PI / 2 ? 1 : spot.turn === -Math.PI / 2 ? -1 : 0,
+  };
   core.herd.release(mount.id);
   core.mount = null;
   core.mode = "walk";
-  glideTo(spot.x, spot.z, facing, 0.4);
+  glideTo(spot.x, spot.z, facing, DISMOUNT);
 }
 
 /** Eases the player to (x, z) facing `angle` over `seconds`, then runs `then`. */
@@ -5657,6 +5681,7 @@ function usable() {
   }
   // A horse or a donkey close by: something to ride.
   for (const mount of core.interior ? [] : core.herd.mounts(core.player.position, 6)) {
+    if (mount.owner && mount.owner !== PLAYER_ID) continue; // someone else's horse
     list.push({
       kind: "thing",
       label: `Ride ${mountName(mount)}`,
@@ -6219,6 +6244,18 @@ function movePlayer(dt, input) {
     core.player.rotation.z = core.mounting.side * 0.3 * Math.sin(Math.PI * Math.min(1, t * 1.15));
   } else if (riding && !core.glide) position.y = seatAt;
   else if (riding) position.y += (seatAt - position.y) * Math.min(1, dt * 10);
+  // Getting down: off its back, across and down to the ground beside it, leaning as the leg comes over.
+  if (core.dismounting) {
+    const t = core.glide && core.mode === "walk" ? core.glide.t : 1;
+    if (t >= 1) {
+      core.dismounting = null;
+      core.player.rotation.z = 0;
+    } else {
+      const down = Math.min(1, Math.max(0, (t - 0.15) / 0.7));
+      position.y = target + core.dismounting.height * (1 - down * down * (3 - 2 * down)) + 0.12 * Math.sin(Math.PI * t);
+      core.player.rotation.z = -core.dismounting.side * 0.28 * Math.sin(Math.PI * t);
+    }
+  }
   core.shadow.visible = core.settings.shadows && !core.swimming && !riding;
   if (core.air)
     core.shadow.position.y = 0.06 - core.air.height; // the shadow stays on the ground
@@ -6319,9 +6356,12 @@ function step(dt) {
   // Getting on: on foot still while stepping to the animal's side and springing up; the legs go astride
   // as they come level with its back.
   const stepping = core.mounting && (core.mounting.phase === "approach" || (core.glide?.t ?? 1) < 0.3);
-  const pose = core.character?.update(dt, core.mode === "ride" && core.mounting?.phase !== "approach" ? 0 : speed, {
+  // (Getting down, they're astride till the leg is over, and their feet don't walk till they land.)
+  const astride = core.dismounting && (core.glide?.t ?? 1) < 0.45;
+  const still = (core.mode === "ride" && core.mounting?.phase !== "approach") || core.dismounting;
+  const pose = core.character?.update(dt, still ? 0 : speed, {
     sit: core.mode === "sit" && !onGround,
-    act: core.mode === "ride" ? (stepping ? null : "ride") : onGround,
+    act: core.mode === "ride" ? (stepping ? null : "ride") : astride ? "ride" : onGround,
     gesture: core.gesture,
     air: !!core.air && !core.air.mount, // (a rider keeps their seat through the animal's jump)
     lookAt,
