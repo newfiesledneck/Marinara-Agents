@@ -344,6 +344,37 @@ const world = createWorld(51, null, { smithy: 2 });
   assert.ok(Math.abs(settle(1, { act: "no-such-act" }).hips[1] - standing) < 0.05, "an unknown act is no act");
 }
 
+// Campsites keep apart, and nothing wild stands in one or in anything built.
+for (const seed of [4242, 51, 7, 99, 1234]) {
+  const town = createWorld(seed);
+  for (const camp of town.camps) {
+    for (const other of town.camps)
+      assert.ok(
+        other === camp || Math.hypot(other.x - camp.x, other.z - camp.z) >= 70,
+        `campsites keep apart (${seed})`,
+      );
+    // (Pushed out of every tree and rock there is: a point in the clearing isn't moved by any.)
+    town.setDensity(10);
+    for (const [dx, dz] of [
+      [0, 0],
+      [3, 0],
+      [-3, 2],
+      [0, -5],
+      [4, 4],
+    ]) {
+      const at = { x: camp.x + dx, z: camp.z + dz };
+      const free = { ...at };
+      town.resolveCollisions(free, 0.05, true);
+      const pushed = Math.hypot(free.x - at.x, free.z - at.z);
+      assert.ok(
+        pushed < 2.2,
+        `no tree or rock stands in a campsite's clearing (${seed}: pushed ${pushed.toFixed(2)} m)`,
+      );
+    }
+  }
+  town.dispose();
+}
+
 // Every kit prop a world has somewhere is one the kit has, and is listed to be loaded (one missing keeps
 // every prop a plain shape): a town with a smithy, a plain one, a big one.
 {

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.31",
+          "date": "2026-11-11",
+          "notes": "- Campsites keep at least 70 m apart. In a world where two sat side by side, the second has moved.\n- Nothing wild grows in a campsite's clearing, or in or right against anything built or set down: no tree through a tent, no bush on the fire, no rock in a cottage wall or a ruin's stones. Every other tree and rock stays where it was.",
+          "highlight": false
+        },
+        {
           "version": "0.5.30",
           "date": "2026-11-11",
           "notes": "- Fixed: in a world with a smithy, every prop stayed a plain shape (boxes for wagons and crates, white picket fences) even with Detailed furniture and props on. The smithy's anvil, workbench and weapon stand weren't being loaded, which held all the others back.\n- Name your dog and your horse in the Look card. The name is used in the Party tab, the Ride prompt, the chat's Send home button and what's narrated.\n- Skin tones: twelve, from Pale to Ebony, each coming out as its own colour. Brown and the darker tones no longer look grey or washed out. People without a chosen tone get one from the wider list, so some will change.",
@@ -307,12 +313,6 @@
           "version": "0.5.12",
           "date": "2026-11-11",
           "notes": "- Fixed: patches of grey stone under some windows, out of place on a plastered wall. A plaster ground floor now stands on a stone course all the way round, and upstairs walls have none.\n- The chat window has Jump and Sit buttons (Sit becomes Lie down, then Get up), so they work with a click or a tap as well as Space and C.\n- Settings → Moving: \"C sits and lies down\" turns the key off, and \"Jump and Sit buttons (touch screens)\" hides the thumb buttons; the chat window's stay.\n- Using a thing shows: you pick something up or take a drink, and choosing to sit by your campfire sits you down on the ground. In a home (with Walk into buildings on) the bed is somewhere to lie down.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.11",
-          "date": "2026-11-11",
-          "notes": "- Buildings no longer all look alike: roofs in terracotta, dark tile, brown, slate or moss, plaster in six colours, gables to the street or along it, round or square windows, dormers, lean-to porches, more ivy or less.\n- A smithy's forge is open to the street, framed by arches, with hearth, anvil and workbench. Most taverns have a porch with benches.\n- People work and rest where you can see them: the smith at the anvil, sellers and buyers at market stalls, farmhands in the fields, others tending gardens, sitting by a pond or lying in the grass.\n- You can jump (Space), sit on the ground and lie down (C; touch: Jump and Sit buttons), and you reach out to what you use.\n- New animations from Universal Animation Library 1 and 2 (CC0). The download is about 0.35 MB larger.\n- Fixed: sitting down and standing up ended on a flick back to their first pose.",
           "highlight": false
         }
       ]

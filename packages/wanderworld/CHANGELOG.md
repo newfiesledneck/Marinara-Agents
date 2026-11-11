@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.31 — 2026-11-11
+
+- Campsites keep at least 70 m apart. In a world where two sat side by side, the second has moved.
+- Nothing wild grows in a campsite's clearing, or in or right against anything built or set down: no tree through a tent, no bush on the fire, no rock in a cottage wall or a ruin's stones. Every other tree and rock stays where it was.
+
 ## 0.5.30 — 2026-11-11
 
 - Fixed: in a world with a smithy, every prop stayed a plain shape (boxes for wagons and crates, white picket fences) even with Detailed furniture and props on. The smithy's anvil, workbench and weapon stand weren't being loaded, which held all the others back.
