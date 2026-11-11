@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.33 — 2026-11-11
+
+- Campsites are laid out unevenly, each its own way: tents stand a little further from the fire, at different distances and anywhere round it, and the logs sit wherever there's room between them, some turned a little. No log blocks a tent's mouth.
+
 ## 0.5.32 — 2026-11-11
 
 - A campsite has one, two or three tents round its one fire. Each has a bedroll to rest on, and you can sleep in any of them.
