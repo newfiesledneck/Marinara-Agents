@@ -1,4 +1,4 @@
-// Wanderworld's default people, built from the kit files on disk (kit/people/, made from Quaternius's
+// Wanderworld's default people, built from the kit files on disk (kit/generic/people/ and kit/fantasy/outfits/, made from Quaternius's
 // CC0 character packs by scripts/build-wanderworld-people.mjs): each name gets a person of a person's
 // height, standing on the ground, facing +z, with arms down at rest, who walks with planted feet, and
 // the same name always gives the same person. Pictures aren't drawn in Node, so images are stubbed.
@@ -9,11 +9,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Box3, Vector3 } from "three";
 
-const kit = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit/people");
+const kitRoot = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit");
+const kit = join(kitRoot, "generic/people"); // the bodies; the outfits are in fantasy/outfits
 globalThis.fetch = async (url) => {
-  const name = String(url).split("/kit/people/")[1];
+  const name = String(url).split("/kit/")[1];
   try {
-    return new Response(await readFile(join(kit, name)), { status: 200 });
+    return new Response(await readFile(join(kitRoot, name)), { status: 200 });
   } catch {
     return new Response("missing", { status: 404 });
   }
@@ -74,10 +75,12 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
 {
   const { checkLook, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, OUTFITS, PIECES, SKIN_TONES } =
     await import("../packages/wanderworld/src/looks.js");
-  const kitFiles = new Set(await readdir(kit));
+  const kitFiles = new Set([...(await readdir(kit)), ...(await readdir(join(kitRoot, "fantasy/outfits")))]);
+  const bodies = JSON.parse(await readFile(join(kit, "bodies.json"), "utf8"));
   // Every outfit, colour and piece on the menus is in the kit, for both bodies.
   for (const sex of ["male", "female"]) {
-    assert.ok(kitFiles.has(`skeleton-${sex}.json`), `the ${sex} skeleton`);
+    assert.ok(bodies.parts[`skeleton-${sex}`] && bodies.parts[`head-${sex}`], `the ${sex} skeleton and head`);
+    assert.ok(bodies.bare[sex].pieces.top, `the ${sex} body for a piece left off`);
     for (const [outfit, { colours }] of Object.entries(OUTFITS)) {
       const packed = index.sexes[sex].outfits.find((entry) => entry.name === `${sex}-${outfit}`);
       assert.ok(packed, `the kit has the ${sex} ${outfit} outfit`);
@@ -152,7 +155,7 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   assert.equal(dyed.skinTint, 0x9955cc);
   // Any piece can be left off: the body shows there, and no outfit's colour is asked for it.
   for (const sex of ["male", "female"]) {
-    assert.ok(kitFiles.has(`${sex}-none.json`), `the bare ${sex} body`);
+    assert.ok(bodies.bare[sex].pieces.legs, `the bare ${sex} body`);
     for (const [piece] of PIECES)
       assert.ok(index.sexes[sex].pieces[piece].includes("none"), `the bare ${sex} ${piece}`);
     const bare = lookFor("Rook", index, sex, { top: "none", arms: "none", legs: "none", feet: "none" });

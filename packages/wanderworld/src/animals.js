@@ -1,5 +1,5 @@
 // Animals: four-legged bodies from Quaternius's Ultimate Animated Animals (CC0), made by
-// scripts/build-wanderworld-animals.mjs into kit/animals/ (a file a group: the farm's and the town's,
+// scripts/build-wanderworld-animals.mjs into kit/creatures/ (a file a group: the farm's and the town's,
 // the country's), served as package assets and loaded when a world has one of that group (then cached). A second kind of body beside the people's humanoid one
 // (character.js): each animal has its own skeleton and its own few animations (standing, looking about,
 // grazing, walking, galloping), played here by its own small player.
@@ -21,7 +21,7 @@ import {
   SkinnedMesh,
 } from "three";
 
-const BASE = "/api/capability-packages/wanderworld/assets/kit/animals/";
+const BASE = "/api/capability-packages/wanderworld/assets/kit/creatures/";
 
 /**
  * What the game knows of each kind: how fast it walks and gallops (metres a second, the pace its clips
@@ -128,13 +128,13 @@ function load(kind) {
     files.set(
       group,
       fetch(`${BASE}${group}.json`).then((response) => {
-        if (!response.ok) throw new Error(`GET kit/animals/${group}.json → ${response.status}`);
+        if (!response.ok) throw new Error(`GET kit/creatures/${group}.json → ${response.status}`);
         return response.json();
       }),
     );
   }
   return files.get(group).then((file) => {
-    if (!file.animals?.[kind]) throw new Error(`kit/animals/${group}.json has no ${kind}`);
+    if (!file.animals?.[kind]) throw new Error(`kit/creatures/${group}.json has no ${kind}`);
     return file.animals[kind];
   });
 }

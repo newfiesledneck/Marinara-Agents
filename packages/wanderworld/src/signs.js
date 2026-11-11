@@ -11,7 +11,7 @@ const DEPTH = 0.05;
 const PIXELS = 512; // canvas width; height follows the board's shape
 const WOOD = 0x6b4426;
 
-/** The painted boards signs are drawn on (kit/art/sign-wood…), each loaded once and shared, by URL. */
+/** The painted boards signs are drawn on (kit/generic/art/sign-wood…), each loaded once and shared, by URL. */
 const boards = new Map(); // url → { image, waiting: Set of redraws for once it has loaded }
 function loadBoard(url) {
   if (!url) return null;

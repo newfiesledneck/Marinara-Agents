@@ -1,7 +1,7 @@
-// The look of Wanderworld's panels: parchment (the author's painted texture, kit/art/parchment) with
+// The look of Wanderworld's panels: parchment (the author's painted texture, kit/generic/art/parchment) with
 // brown ink and wood-brown buttons, for conversations, the Journal, the menu, building cards and the
 // noticeboard. The bar along the top stays dark glass so it doesn't cover the world.
-const ART = "/api/capability-packages/wanderworld/assets/kit/art/";
+const ART = "/api/capability-packages/wanderworld/assets/kit/generic/art/";
 
 export const INK = "#3b2a18";
 export const INK_SOFT = "rgba(59,42,24,0.72)";
@@ -52,5 +52,5 @@ export const INK_INPUT =
 /** A heading in the panels' serif. */
 export const HEADING = `font:700 16px ${SERIF};color:${INK};`;
 
-/** A pinned note's paper (kit/art/note): aged, with darkened edges. */
+/** A pinned note's paper (kit/generic/art/note): aged, with darkened edges. */
 export const NOTE_PAPER = `background:#ead9b4 url("${ART}note.webp") center/cover;color:#2e2112;`;

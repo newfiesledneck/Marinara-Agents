@@ -1,5 +1,8 @@
-// Static models from the kit (kit/<set>/, made from Quaternius's CC0 packs by
-// scripts/build-wanderworld-kit.mjs): trees, rocks, plants, props. Each model loads once and its
+// Static models from the kit (made from Quaternius's CC0 packs by scripts/build-wanderworld-kit.mjs):
+// trees, rocks, plants, props, building pieces. The kit is kept by setting: kit/generic/ is what any
+// world has (nature, people's bodies, the painted art), kit/fantasy/ the medieval one's buildings, props
+// and outfits, kit/creatures/ the animals; a modern or a sci-fi setting would be a folder beside them. A
+// set's models are one file (models.json), fetched the first time one of them is wanted. Each model loads once and its
 // geometry and materials are shared by every copy (instanced or not), so they're marked shared and never
 // disposed with a world.
 import {
@@ -15,6 +18,15 @@ import {
 } from "three";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/";
+/** Where each set is in the kit. */
+export const KIT_DIRS = {
+  nature: "generic/nature",
+  art: "generic/art",
+  village: "fantasy/village",
+  props: "fantasy/props",
+};
+/** The address of a set's folder, for what's fetched by name (the menu's art, a sign's board). */
+export const kitUrl = (set) => `${BASE}${KIT_DIRS[set]}/`;
 const files = new Map();
 const models = new Map();
 const textures = new Map();
@@ -36,7 +48,7 @@ function loadJson(path) {
 function texture(set, name) {
   const key = `${set}/${name}`;
   if (!textures.has(key)) {
-    const map = loader.load(`${BASE}${set}/${name}.webp`);
+    const map = loader.load(`${kitUrl(set)}${name}.webp`);
     map.flipY = false; // glTF texture coordinates
     map.colorSpace = SRGBColorSpace;
     map.userData.shared = true;
@@ -102,7 +114,11 @@ export function kitModel(set, name) {
   if (!models.has(key)) {
     models.set(
       key,
-      loadJson(`${set}/${name}.json`).then((data) => data.meshes.map((mesh) => part(set, mesh))),
+      loadJson(`${KIT_DIRS[set]}/models.json`).then((file) => {
+        const data = file.models?.[name];
+        if (!data) throw new Error(`kit/${KIT_DIRS[set]}/models.json has no ${name}`);
+        return data.meshes.map((mesh) => part(set, mesh));
+      }),
     );
   }
   return models.get(key);
