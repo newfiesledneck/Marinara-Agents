@@ -55,7 +55,7 @@ import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
-import { createMemories } from "./memory.js";
+import { createMemories, heardLines } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
 import {
   FURNITURE,
@@ -1461,13 +1461,12 @@ function namedZones(residents) {
 }
 
 /**
- * The user's narrator card (Settings → AI), when it's set, still one of their characters, and used for
- * `what` ("scenes" or "moments"): { id, name }, or null.
+ * The user's narrator card for `what` (Settings → AI: one for the world, "moments", and one for
+ * "scenes"), when it's set and still one of their characters: { id, name }, or null.
  */
 function narratorFor(what) {
-  const use = core.settings.narratorUse ?? "both";
-  if (use !== "both" && use !== what) return null;
-  const card = (core.engineCharacters ?? []).find((entry) => entry.id === core.settings.narratorCard);
+  const chosen = what === "scenes" ? core.settings.sceneNarratorCard : core.settings.narratorCard;
+  const card = chosen ? (core.engineCharacters ?? []).find((entry) => entry.id === chosen) : null;
   return card ? { id: card.id, name: card.name } : null;
 }
 
@@ -5399,9 +5398,12 @@ function momentListeners(voice, audience, extra = [], text = "") {
   }));
 }
 
-/** A line in the narration box and the moment log (`who` null for the narrator). */
-function narrate(who, text) {
-  core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text }].slice(-30);
+/**
+ * A line in the narration box and the moment log (`who` null for the narrator). `heard`: the ids of who
+ * was in earshot, so that later only they are told of it (memory.js heardLines).
+ */
+function narrate(who, text, heard = []) {
+  core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard }].slice(-30);
   if (core.save) {
     core.save.log = core.momentLog;
     core.saves.write(core.save);
@@ -5426,15 +5428,20 @@ async function runMoment({
   source = "chat",
 }) {
   if (!core.save || !core.zones) return false;
+  const listeners = momentListeners(voice, audience, listenersExtra, `${line} ${action}`);
+  const heardIds = listeners.map((person) => person.id);
   if (line) {
     core.talk.say(core.player, line, Math.min(10, 3 + line.length / 22), personaName());
-    narrate(personaName(), voice === "whisper" ? `(whispers) ${line}` : voice === "shout" ? `(shouts) ${line}` : line);
+    narrate(
+      personaName(),
+      voice === "whisper" ? `(whispers) ${line}` : voice === "shout" ? `(shouts) ${line}` : line,
+      heardIds,
+    );
   }
   if (!core.settings.aiTalk || !core.settings.aiMoments || !core.ai.known()?.moments || core.momentBusy) return false;
   // Settings → AI: each kind of moment can be kept from calling the model (what's typed always may).
   const allowed = { arrive: "aiArrive", thing: "aiThings", board: "aiBoard", seat: "aiSeats", join: "aiJoin" }[source];
   if (allowed && !core.settings[allowed]) return false;
-  const listeners = momentListeners(voice, audience, listenersExtra, `${line} ${action}`);
   if (line)
     teachFrom(
       line,
@@ -5451,10 +5458,14 @@ async function runMoment({
       .map((entry) => `${entry.title}: ${entry.content}`)
       .slice(0, 6);
     // What each of them remembers goes with them alone (momentListeners); and now they remember this.
-    const heardIds = listeners.map((person) => person.id);
     if (line) recall(heardIds, `${personaName()} said: "${line}"`, true);
     else if (action) recall(heardIds, `${personaName()} ${action}.`, false);
     const places = schedulePlaces();
+    // What was just said or done goes as what's happening now, not as "just before"; something done
+    // (told by whoever asked for this) was seen by those here.
+    const last = core.momentLog.at(-1);
+    const mine = last?.who === personaName() && (!!line || last.text === "*" + action + "*");
+    if (mine && !line) last.heard = heardIds;
     const result = await core.ai.moment({
       personaId: core.personaId ?? null,
       personaName: personaName(),
@@ -5468,13 +5479,13 @@ async function runMoment({
       setting: core.save.setting ?? "",
       style: core.settings.talkStyle,
       lore,
-      recent: core.momentLog.slice(-12),
+      recent: heardLines(mine ? core.momentLog.slice(0, -1) : core.momentLog, listeners),
       places: places.map(({ id, name }) => ({ id, name })),
       connectionId: core.settings.textConnection || null,
       temperature: core.settings.aiTemperature,
       narratorId: narratorFor("moments")?.id ?? null,
     });
-    if (result.narration) narrate(null, result.narration);
+    if (result.narration) narrate(null, result.narration, heardIds);
     result.replies.forEach((reply, i) => {
       const listener = listeners.find((person) => person.id === reply.id);
       later(0.3 + i * 1.8, () => {
@@ -5488,7 +5499,7 @@ async function runMoment({
           );
         core.crowd.setSpeaking(reply.id, true);
         later(2.6, () => core.crowd.setSpeaking(reply.id, false));
-        narrate(listener ? nameFor(listener.id, listener.name) : "Someone", reply.text);
+        narrate(listener ? nameFor(listener.id, listener.name) : "Someone", reply.text, heardIds);
         if (listener) learnFrom(reply.text, [listener]);
       });
     });
@@ -5500,6 +5511,7 @@ async function runMoment({
       narrate(
         null,
         `(${who}: ${ACTIVITY_WORDS[entry.activity]}${where}, ${hourText(entry.from)}–${hourText(entry.to)}.)`,
+        heardIds,
       );
     }
     return true;
@@ -5838,7 +5850,10 @@ async function playAsScene(thing, request, along, withNarrator = false) {
         speaker: entry.from === "character" ? core.talking.name : personaName(),
         content: entry.text,
       })),
-      ...core.momentLog.slice(-8).map((line) => ({ speaker: line.who, content: line.text })),
+      ...(people.some((person) => known.has(person.id))
+        ? heardLines(core.momentLog, people, 8)
+        : core.momentLog.slice(-8)
+      ).map((line) => ({ speaker: line.who, content: line.text })),
     ].slice(-12),
     notes,
     lorebookIds: core.save.lorebooks ?? [],

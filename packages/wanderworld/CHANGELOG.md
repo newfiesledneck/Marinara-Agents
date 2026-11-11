@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.58 — 2026-11-11
+
+- Your persona's and the narrator's cards are no longer cut off mid-word in what the AI is sent: more of each goes (900 and 1500 characters), ending at a sentence, and `{{user}}` and `{{char}}` in them become the names.
+- Two narrator cards (Settings → AI): one for the world as you walk it, one for scenes. Your earlier choice is carried over.
+- People are told only what they were in earshot of: someone new doesn't know what you said to others elsewhere. With nobody near, the narrator gets only its own last lines.
+
 ## 0.5.57 — 2026-11-11
 
 - More to find out in the country: a gallows, a pillory and sometimes a cage beside a watchtower; crystals among the standing stones; a signpost off the corner of an inn or a cottage.

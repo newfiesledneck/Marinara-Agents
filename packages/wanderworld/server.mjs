@@ -97,6 +97,20 @@ export const cutWords = (value, max) => {
   const end = clause > max * 0.7 ? clause : cut.lastIndexOf(" ");
   return cut.slice(0, end > 0 ? end : max).replace(/[\s,;.]+$/u, "");
 };
+/**
+ * Cut to `max` characters with its line breaks kept: at the end of a sentence or a line when one ends in
+ * the last two fifths, else at the end of a word, with "…". Never mid-word: a card cut there reads to the
+ * model as a broken instruction.
+ */
+export const cutText = (value, max) => {
+  const whole = typeof value === "string" ? value.trim() : "";
+  if (whole.length <= max) return whole;
+  const cut = whole.slice(0, max + 1);
+  const sentence = Math.max(...[". ", ".\n", "! ", "? ", "\n"].map((mark) => cut.lastIndexOf(mark)));
+  if (sentence > max * 0.6) return cut.slice(0, sentence + 1).trim();
+  const word = cut.lastIndexOf(" ");
+  return `${cut.slice(0, word > 0 ? word : max).replace(/[\s,;:]+$/u, "")}…`;
+};
 const idOf = (value) => {
   const id = text(value, MAX.id);
   return /^[\w:./@-]+$/u.test(id) ? id : "";
@@ -157,6 +171,9 @@ export const debugMessages = (messages) =>
   messages.map((message) => `── ${message.role} ──\n${message.content}`).join("\n\n");
 const replaceNames = (value, character, persona) =>
   value.replace(/\{\{char\}\}/giu, character).replace(/\{\{user\}\}/giu, persona);
+/** A card's words for a prompt: its parts joined, {{char}} and {{user}} as the names, cut to `max` cleanly. */
+export const cardWords = (parts, max, character, persona, between = " ") =>
+  cutText(replaceNames(parts.filter(Boolean).join(between), character, persona), max);
 
 /**
  * The messages for one conversation reply. `input` is the checked request: character and persona cards,
@@ -940,7 +957,7 @@ export function momentMessages(input) {
     input.narrator &&
       section(
         "Your voice",
-        `You narrate as ${input.narrator.name}. ${input.narrator.card} Keep to that voice in the narration; other people still speak as themselves.`,
+        `You narrate as ${input.narrator.name}. Keep to that voice in the narration; other people still speak as themselves. Who that is:\n${input.narrator.card}`,
       ),
     section("The world", input.setting),
     section(
@@ -953,7 +970,20 @@ export function momentMessages(input) {
         "Nobody is close enough to hear. Still narrate: one or two sentences on what comes of it and what the player notices. No replies.",
     ),
     section("What they know (lore)", input.lore.join("\n\n")),
-    section("Just before", input.recent.map((line) => `${line.who}: ${line.text}`).join("\n")),
+    // Only what those here saw and heard (the client keeps who heard each line): what was said elsewhere
+    // isn't theirs to know. With nobody here it's the narrator's own last lines, so it doesn't repeat itself.
+    input.recent.length > 0 &&
+      section(
+        "Just before",
+        [
+          !people
+            ? "(What you told last: don't say it again.)"
+            : `(All that those here saw and heard of it. They know nothing of what was said or done out of their hearing.${
+                input.recent.some((line) => line.only) ? " A line marked [only …] was heard by those named and nobody else here." : ""
+              })`,
+          ...input.recent.map((line) => `${line.who}: ${line.text}${line.only ? ` [only ${line.only} heard this]` : ""}`),
+        ].join("\n"),
+      ),
     // A plan (someone agreeing to be somewhere at a time) can only come of something said to someone:
     // the list of places, and the plans in the answer, go only then.
     planning && section("Places in the world (for plans)", input.places.map((place) => place.name).join(", ")),
@@ -1386,15 +1416,15 @@ export async function activate(context) {
           .slice(0, 5); // the client's MAX_LISTENERS
         const records = await listPeople(resources, listeners.map((person) => person.id), body.locals);
         const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
+        const personaId = idOf(body.personaId);
+        const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
+        const persona = personaCard(personaRecord, text(body.personaName, MAX.name));
         const heard = listeners
           .filter((person) => cards.has(person.id))
           .map((person) => {
             const card = cards.get(person.id);
-            return { ...person, name: card.name, card: [card.personality, card.description].filter(Boolean).join(" ").slice(0, 500) };
+            return { ...person, name: card.name, card: cardWords([card.personality, card.description], 500, card.name, persona.name) };
           });
-        const personaId = idOf(body.personaId);
-        const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
-        const persona = personaCard(personaRecord, text(body.personaName, MAX.name));
         const places = (Array.isArray(body.places) ? body.places : [])
           .filter(isRecord)
           .map((place) => ({ id: idOf(place.id), name: text(place.name, MAX.name) }))
@@ -1406,9 +1436,9 @@ export async function activate(context) {
         const narratorCard = narratorRecord ? characterCard(narratorRecord) : null;
         const input = {
           narrator: narratorCard
-            ? { name: narratorCard.name, card: [narratorCard.personality, narratorCard.description].filter(Boolean).join(" ").slice(0, 700) }
+            ? { name: narratorCard.name, card: cardWords([narratorCard.personality, narratorCard.description], 1500, narratorCard.name, persona.name, "\n") }
             : null,
-          persona: { name: persona.name, card: [persona.description, persona.appearance].filter(Boolean).join(" ").slice(0, 500) },
+          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], 900, persona.name, persona.name) },
           listeners: heard,
           action: text(body.action, 300),
           line: text(body.line, MAX.line),
@@ -1422,7 +1452,7 @@ export async function activate(context) {
           recent: (Array.isArray(body.recent) ? body.recent : [])
             .filter(isRecord)
             .slice(-12)
-            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400) }))
+            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400), only: text(line.only, 200) }))
             .filter((line) => line.text),
           places,
         };
@@ -1456,7 +1486,7 @@ export async function activate(context) {
         const current = (Array.isArray(body.current) ? body.current : []).map((entry) => checkEntry(entry)).filter(Boolean);
         const system = [
           `You plan one ordinary day for ${card.name}, who lives in Wanderworld. Answer with one JSON object and nothing else.`,
-          section(card.name, [card.description, card.personality, card.scenario].filter(Boolean).join("\n\n").slice(0, 2000)),
+          section(card.name, cutText([card.description, card.personality, card.scenario].filter(Boolean).join("\n\n"), 2000)),
           section("Their home and work", [text(body.home, MAX.name) && `Home: ${text(body.home, MAX.name)}`, text(body.work, MAX.name) && `Work: ${text(body.work, MAX.name)}`].filter(Boolean).join("\n")),
           section("Places", places.map((place) => `${place.name} (${place.kind})`).join(", ")),
           section("Their schedule now", current.map((entry) => `${entry.from}-${entry.to} ${entry.activity} ${entry.place}`).join("\n")),
@@ -1494,7 +1524,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           looks: Object.fromEntries(
             records.map((record) => {
               const card = characterCard(record);
-              return [record.id, (card.appearance || card.description).slice(0, 500)];
+              return [record.id, cutText(card.appearance || card.description, 500)];
             }),
           ),
         };
@@ -1524,7 +1554,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return {
             title: `Character card: ${card?.name ?? "(gone)"}`,
             keys: [],
-            content: replaceNames(words, card?.name ?? "", text(body.persona, MAX.name) || "the player").slice(0, 900),
+            content: cutText(replaceNames(words, card?.name ?? "", text(body.persona, MAX.name) || "the player"), 900),
           };
         });
         const personaId = idOf(body.personaId);
@@ -1534,7 +1564,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           cards.push({
             title: `Character card: player (${card.name})`,
             keys: [],
-            content: [card.description, card.personality, card.appearance].filter(Boolean).join("\n").slice(0, 900),
+            content: cutText([card.description, card.personality, card.appearance].filter(Boolean).join("\n"), 900),
           });
         }
         entries.unshift(...cards);
@@ -1828,10 +1858,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           section(
             "The people in it",
             cast
-              .map((person) => `${person.name}: ${[person.description, person.personality, person.appearance].filter(Boolean).join(" ").slice(0, 900)}`)
+              .map((person) => `${person.name}: ${cardWords([person.description, person.personality, person.appearance], 900, person.name, persona.name)}`)
               .join("\n\n"),
           ),
-          section(`The player, ${persona.name}`, [persona.description, persona.personality, persona.appearance].filter(Boolean).join(" ").slice(0, 900)),
+          section(`The player, ${persona.name}`, cardWords([persona.description, persona.personality, persona.appearance], 900, persona.name, persona.name)),
           section("Where, when and what's between them", sceneContext.notes ?? ""),
           section("Just before", sceneContext.transcript.map((line) => `${line.speaker}: ${line.content}`).join("\n")),
           section("How to write it", `${POVS[pov]}, ${TENSES[tense]}.${extra ? ` ${extra}` : ""}`),

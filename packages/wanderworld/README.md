@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.57)
+## What it does now (0.5.58)
 
 ### The world
 
@@ -212,8 +212,10 @@ only walk about.
   by who's about; not for streets or places told lately) and now and then about who's near; with the chat window closed it shows as a caption. The noticeboard offers
   an **errand** to someone in the world: take it, it's marked on your map, and reaching them (out of doors,
   at their door when they're in, or in the room with them) finishes it.
-- **A narrator, and scenes from anywhere:** pick one of your character cards as the narrator (Menu →
-  Settings → AI) and it tells scenes, moments or both in its voice. The chat window's **Scene** button, or
+- **Narrators, and scenes from anywhere:** pick one of your character cards as the narrator of the world
+  as you walk it and one as the narrator of scenes (Menu → Settings → AI; the same card or two: a short
+  voice for the world, a roleplay narrator for scenes). People are told only what they were in earshot
+  of, so nobody speaks of what you said to someone else elsewhere. The chat window's **Scene** button, or
   `/scene …`, starts a scene right where you stand: with whoever's near and your party, with the narrator
   as well, or with the narrator alone when nobody else is there. What you do is narrated even with
   nobody about. `/camp` lights a campfire for you and your party, and talking to someone offers joining

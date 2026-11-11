@@ -537,6 +537,29 @@ assert.equal(
   assert.equal(server.cutWords("short  and\nwhole", 300), "short and whole");
   const long = `${"a long green cloak, ".repeat(40)}and boots`;
   assert.equal(server.cutWords(long, 1500), long, "an appearance of 800 characters is kept whole");
+  // A card is cut at the end of a sentence or a line, never mid-word, with its line breaks kept.
+  const rules =
+    "You voice the world.\n\nCore rules:\n- Never echo the player.\n- Track continuity: gear, wounds and promises.";
+  assert.equal(server.cutText(rules, 500), rules, "one that fits is whole");
+  assert.equal(server.cutText(rules, 70), "You voice the world.\n\nCore rules:\n- Never echo the player.");
+  assert.equal(server.cutText("one two three four five six seven", 12), "one two…", "no sentence ends: at a word");
+  assert.equal(server.cutText("  short  ", 20), "short");
+  assert.equal(server.cutText(null, 20), "");
+  for (let max = 20; max < rules.length; max++) {
+    const cut = server.cutText(rules, max);
+    assert.ok(cut.length <= max + 1, "no longer than asked (but for the …)");
+    assert.ok(/[.:…]$/u.test(cut), `ends whole at ${max}: ${cut.slice(-12)}`);
+  }
+  assert.equal(
+    server.cardWords(
+      ["Kind to {{user}}.", "", "{{char}} never lies. Then a great deal more besides."],
+      40,
+      "Mira",
+      "Zoey",
+    ),
+    "Kind to Zoey. Mira never lies.",
+    "the names go in, and the cut is clean",
+  );
   // What the world looks like comes from the game ({world_look}); {setting} is only the player's own words.
   const looked = await call("post", "/illustrate", {
     body: {

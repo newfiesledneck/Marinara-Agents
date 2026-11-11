@@ -166,11 +166,18 @@ export function checkWorld(raw) {
     },
     // How the world looks in pictures ({world_look}); "" is the setting pack's own.
     look: text(raw.look).slice(0, 200),
-    // The chat as it was left: the last lines, [{ who, text }].
+    // The chat as it was left: the last lines, [{ who, text, heard }] (`heard`: the ids in earshot then).
     log: (Array.isArray(raw.log) ? raw.log : [])
       .filter((line) => isRecord(line) && typeof line.text === "string")
       .slice(-30)
-      .map((line) => ({ who: text(line.who).slice(0, MAX_NAME) || "Narrator", text: line.text.slice(0, 1200) })),
+      .map((line) => ({
+        who: text(line.who).slice(0, MAX_NAME) || "Narrator",
+        text: line.text.slice(0, 1200),
+        heard: (Array.isArray(line.heard) ? line.heard : [])
+          .filter((id) => typeof id === "string")
+          .slice(0, 12)
+          .map((id) => id.slice(0, 200)),
+      })),
     // The player's instructions for scenes started in this world (Wanderworld plans its scenes).
     sceneInstructions: text(raw.sceneInstructions).slice(0, 1000),
     // The lorebooks this world draws on (ids), and how their entries are linked to places: "keywords"
