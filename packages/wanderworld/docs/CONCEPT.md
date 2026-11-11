@@ -762,6 +762,23 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
   8. _Campfires people light for themselves,_ anywhere friends meet in the wilds, and tents at them.
   9. _A group in conversation:_ talking to one of a group (E) brings the others into the same call, as
      moments do now.
+  10. _A world that goes on where the player isn't_ (asked for 2026-11-11). Only while Wanderworld is
+      open: nothing is to happen while it's closed, and no time is made up for on coming back. Three
+      parts, each one a switch of its own in Settings so a player can cut calls and tokens:
+      - _Relationships that move._ People who spend time together (an outing, a shared table, the same
+        workplace day after day) grow a little warmer; temperament and opposed factions now and then
+        make them cooler. By rules alone: no call needed. Today a relationship changes only by hand, by
+        lore, by the AI assistant, or after an errand for the player.
+      - _A record of what happened._ A short log kept with the world (who went out with whom, who fell
+        out, who was at the campfire), shown in the Journal and on coming back to a place as "while you
+        were away from here". Characters and the narrator are given the recent lines, so they can speak
+        of them. By rules alone for the plain facts.
+      - _The AI filling it in, in batches._ Now and then, for a handful of characters at once and in one
+        call, the model writes what each has been up to and how they stand with each other, from the
+        log and their cards. Small and occasional: a batch every so often, never per person per minute.
+        Off, the log stays plain and the rules still move relationships.
+        Switches wanted: relationships changing by themselves; keeping the log; the AI's batches (and how
+        often, and how many characters to a batch). Each defaults to what costs nothing.
 - _Asset packs (all by Quaternius, CC0; listed 2026-11)._ On hand: Medieval Village MegaKit, Fantasy
   Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
   Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,
