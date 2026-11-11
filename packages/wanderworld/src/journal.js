@@ -37,7 +37,7 @@ function button(label, css, onClick) {
 
 /**
  * `handlers`: onRename(zoneId, name) (empty name puts the default back), onLore(zoneId),
- * onPartyWait(id, wait), onPartyLeave(id), onSetRelation(from, to, fields | null, both),
+ * onPartyWait(id, wait), onPartyLeave(id), onPetOut(role, out), onSetRelation(from, to, fields | null, both),
  * onSetTraits(id, { aggression, sociability }).
  */
 const SHOWN_BOOKS = "wanderworld-lorebooks-shown";
@@ -249,10 +249,27 @@ export function createJournal(panelCss, handlers) {
     all.append(button("Everyone near me comes along", SMALL, () => handlers.onPartyGather()));
     if (data.party.length) all.append(button("Everyone parts ways", SMALL, () => handlers.onPartyDisband()));
     body.append(all);
-    if (!data.party.length) {
+    if (!data.party.length)
       body.append(line("Nobody's with you. Talk to someone and ask them to come with you.", MUTED));
-      return;
-    }
+    // Animals: your own dog and horse (with you or at home), and the dog of anyone travelling with you.
+    const animals = () => {
+      for (const animal of data.animals ?? []) {
+        const row = element("div", "display:flex;align-items:center;gap:6px;");
+        row.append(
+          element(
+            "span",
+            "flex:1;font-size:13px;",
+            animal.mine && !animal.out ? `${animal.label} (at home)` : animal.label,
+          ),
+        );
+        if (animal.mine)
+          row.append(
+            button(animal.out ? "Send home" : "Call along", SMALL, () => handlers.onPetOut(animal.role, !animal.out)),
+          );
+        body.append(row);
+      }
+    };
+    if (!data.party.length) return animals();
     for (const member of data.party) {
       const row = element("div", "display:flex;align-items:center;gap:6px;");
       row.append(
@@ -264,6 +281,7 @@ export function createJournal(panelCss, handlers) {
       );
       body.append(row);
     }
+    animals();
   }
 
   let whose = "player"; // whose relationships the tab shows

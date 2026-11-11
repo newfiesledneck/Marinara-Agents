@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.28)
+## What it does now (0.5.29)
 
 ### The world
 
@@ -269,7 +269,9 @@ only walk about.
   the coat, and whether each is with you or at home. With you, it follows and turns up beside you if left
   far behind; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
   down from walks back there. Someone in town whose lore mentions their dog has one at their heel; their
-  Look card can change it or take it away. Kept with the world.
+  Look card can change it or take it away. Kept with the world. The chat window has Send dog home and
+  Send horse home while they're with you (each asks once more first), and the Journal's Party tab lists
+  your animals, and the dog of anyone travelling with you, with Send home and Call along.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
   Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences and benches), it turns less sharply than you do and won't go where it
   would have to swim, and E, Esc or Get down gets you off beside it. It stays where you leave it, and

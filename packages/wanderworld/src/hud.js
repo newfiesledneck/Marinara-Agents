@@ -1067,6 +1067,7 @@ export function createHud(root, handlers) {
     onWantLorebooks: () => handlers.onWantLorebooks(),
     onPartyWait: (id, wait) => handlers.onPartyWait(id, wait),
     onPartyLeave: (id) => handlers.onPartyLeave(id),
+    onPetOut: (role, out) => handlers.onPetOut?.(role, out),
     onPicture: () => handlers.onPicture?.(),
     onMap: (canvas, view) => handlers.onMap?.(canvas, view),
     onWaypoint: (at) => handlers.onWaypoint?.(at),
@@ -1231,10 +1232,25 @@ export function createHud(root, handlers) {
   const speakBar = document.createElement("form");
   speakBar.style.cssText = "display:flex;gap:6px;padding:6px 8px 2px;";
   const speakInput = document.createElement("input");
-  speakInput.placeholder = "Say something, or /a to do something";
   speakInput.maxLength = 600;
-  speakInput.style.cssText = `${INK_INPUT}flex:1;min-width:0;font:13px system-ui,sans-serif;`;
-  speakInput.setAttribute("aria-label", "Say something, or /a for an action");
+  speakInput.style.cssText = `${INK_INPUT}width:100%;box-sizing:border-box;font:13px system-ui,sans-serif;`;
+  speakInput.setAttribute("aria-label", "Say something, or /a (or /action) to do something");
+  // Its hint, drawn over the empty box (a placeholder can't dim part of itself): "/a" is what to type,
+  // and the rest of the word, dimmer, says what it's short for and that the whole word works too.
+  const speakBox = document.createElement("div");
+  speakBox.style.cssText = "position:relative;flex:1;min-width:0;";
+  const speakHint = document.createElement("div");
+  speakHint.setAttribute("aria-hidden", "true");
+  speakHint.style.cssText =
+    "position:absolute;inset:0;display:flex;align-items:center;padding:0 9px;pointer-events:none;" +
+    "font:13px system-ui,sans-serif;opacity:0.6;white-space:nowrap;overflow:hidden;";
+  const hintRest = document.createElement("span");
+  hintRest.style.opacity = "0.55";
+  hintRest.textContent = "(ction)";
+  speakHint.append("Say something, or /a", hintRest, "\u00a0to do something");
+  speakBox.append(speakInput, speakHint);
+  const showHint = () => (speakHint.style.display = speakInput.value ? "none" : "flex");
+  speakInput.addEventListener("input", showHint);
   const speakSend = document.createElement("button");
   speakSend.type = "submit";
   speakSend.textContent = "Say";
@@ -1242,10 +1258,11 @@ export function createHud(root, handlers) {
   const sceneHere = button("Scene", "Start a full scene right here, opening with what you've written", () => {
     const typed = speakInput.value.trim();
     speakInput.value = "";
+    showHint();
     handlers.onSceneHere?.(typed);
   });
   sceneHere.style.cssText = INK_SMALL;
-  speakBar.append(speakInput, speakSend, sceneHere);
+  speakBar.append(speakBox, speakSend, sceneHere);
   speakInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") speakInput.blur();
   });
@@ -1254,6 +1271,7 @@ export function createHud(root, handlers) {
     const typed = speakInput.value.trim();
     if (!typed) return;
     speakInput.value = "";
+    showHint();
     handlers.onSpeak?.(typed);
   });
   // The commands, folded away under the box (the list grows as commands are added).
@@ -1293,7 +1311,31 @@ export function createHud(root, handlers) {
   );
   for (const control of [chatJump, chatRest]) control.style.cssText += "padding:4px 10px;font-size:12px;";
   moves.append(chatJump, chatRest);
-  chat.frame.append(narration, speakBar, moves, commands, peopleHere);
+  const petMoves = document.createElement("div");
+  petMoves.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
+  const sendHome = (role) => {
+    const plain = `Send ${role} home`;
+    let sure = null; // the timer while it's asking "Sure?"
+    const control = button(plain, `Send your ${role} home: it goes back to your door and waits there`, () => {
+      if (sure === null) {
+        control.textContent = `Sure? Send ${role} home`;
+        sure = setTimeout(reset, 4000);
+        return;
+      }
+      reset();
+      handlers.onPetOut?.(role, false);
+    });
+    const reset = () => {
+      clearTimeout(sure);
+      sure = null;
+      control.textContent = plain;
+    };
+    control.style.cssText += "padding:4px 10px;font-size:12px;display:none;";
+    petMoves.append(control);
+    return control;
+  };
+  const petButtons = { dog: sendHome("dog"), horse: sendHome("horse") };
+  chat.frame.append(narration, speakBar, moves, petMoves, commands, peopleHere);
   let narrationTimer = null;
   // Narration with the chat window closed: a caption over the world for a few seconds, then gone (it's
   // in the window when it's opened).
@@ -1568,6 +1610,17 @@ export function createHud(root, handlers) {
       if (chatRest.textContent !== label) chatRest.textContent = label;
       moves.style.display = shown && wanted.chat ? "flex" : "none";
       chatJump.disabled = !!resting && !riding;
+    },
+    /** Which of your animals are with you (and so can be sent home from the chat window): { dog, horse }. */
+    setPets(withYou) {
+      let any = false;
+      for (const [role, control] of Object.entries(petButtons)) {
+        const show = withYou[role] ? "" : "none";
+        if (control.style.display !== show) control.style.display = show;
+        any ||= !!withYou[role];
+      }
+      const show = any ? "flex" : "none";
+      if (petMoves.style.display !== show) petMoves.style.display = show;
     },
     /**
      * The tent's card: how long to sleep, then Sleep or Not now. `onSleep(hours)` is given the choice

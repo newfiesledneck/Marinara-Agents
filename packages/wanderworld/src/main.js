@@ -2506,6 +2506,7 @@ function journalData(zone, snapshot, residents, names) {
     }),
     relations: relationsData(),
     party: core.crowd.party(),
+    animals: core.save ? partyAnimals() : [],
     relationsChanged: core.relationsChanged,
     partyChanged: core.partyChanged,
     worldLore: { id: WORLD_ID, name: core.save?.name ?? "This world", lore: (lore[WORLD_ID] ?? []).length },
@@ -2817,6 +2818,31 @@ function setPet(id, role, value) {
   core.save = { ...core.save, pets: core.pets };
   core.saves.write(core.save);
   syncPets();
+  partyChanged(); // (the Party tab lists them)
+}
+
+/** Calls your dog or horse (`role`) along, or sends it home. */
+function petOut(role, out) {
+  const pet = petsFor(PLAYER_ID)[role];
+  if (!pet) return;
+  setPet(core.personaId, role, { ...pet, lore: undefined, out });
+  narrate(null, out ? `(You call your ${role} along.)` : `(You send your ${role} home.)`);
+}
+
+/** The Party tab's animals: yours, and the dog of anyone travelling with you. */
+function partyAnimals() {
+  const out = [];
+  const coat = (pet) => PACK.coats[pet.coat] ?? pet.coat;
+  const mine = petsFor(PLAYER_ID);
+  if (mine.dog) out.push({ role: "dog", mine: true, out: mine.dog.out !== false, label: `Your ${coat(mine.dog)} dog` });
+  if (mine.horse)
+    out.push({ role: "horse", mine: true, out: mine.horse.out !== false, label: `Your ${coat(mine.horse)} horse` });
+  for (const member of core.crowd.party()) {
+    const { dog } = petsFor(member.id);
+    if (dog && dog.out !== false)
+      out.push({ role: "dog", mine: false, out: true, label: `${member.name}'s ${coat(dog)} dog` });
+  }
+  return out;
 }
 
 /** What the Look card needs of `id`'s animals: what they have, and what there is to choose from. */
@@ -6292,6 +6318,12 @@ function step(dt) {
   });
   core.gesture = null;
   if (pose?.footstep) core.sound.footstep(0, pose.running);
+  // Yours that are with you can be sent home from the chat window (not the horse you're sitting on).
+  const mine = core.pets[PLAYER_ID];
+  core.hud?.setPets({
+    dog: !!mine?.dog && mine.dog.out !== false && !core.interior,
+    horse: !!mine?.horse && mine.horse.out !== false && !core.interior && core.mount?.id !== `pet:${PLAYER_ID}:horse`,
+  });
   core.hud?.setThumbs(
     onGround ?? (core.mode === "sit" ? "seat" : core.mode === "ride" ? "ride" : ""),
     core.mode === "walk" || core.mode === "sit" || core.mode === "ride",
@@ -6459,6 +6491,7 @@ function attach(element) {
       core.crowd.setWaiting(id, wait);
       partyChanged();
     },
+    onPetOut: petOut,
     onPartyLeave: (id) => {
       core.crowd.setFollowing(id, false);
       partyChanged();
