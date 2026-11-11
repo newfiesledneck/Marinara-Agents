@@ -104,12 +104,12 @@ const GROUND_HIPS = -0.83;
 const GROUND_LEGS = { UpperLeg: -1.95, LowerLeg: -0.85, Foot: -0.25, Toes: -0.25 };
 const GROUND_SPLAY = 0.16; // each knee turned out this much
 /** Astride a mount: the hips' drop (leg lengths), and each leg bone's lean forward (or back) and out to
- *  the side, round the animal's barrel (radians from hanging straight down). */
+ *  the side (radians from hanging straight down): knees wide round the animal's barrel, ankles back in. */
 const RIDE_HIPS = -0.5;
-const RIDE_LEGS = { UpperLeg: [-0.72, 0.62], LowerLeg: [0.28, 0.2], Foot: [-0.1, 0.1], Toes: [-0.1, 0.1] };
+const RIDE_LEGS = { UpperLeg: [-0.72, 0.78], LowerLeg: [0.28, -0.06], Foot: [-0.1, 0.05], Toes: [-0.1, 0.05] };
 /** And the arms: which way each bone points for the left arm (out to +x at rest), the right's mirrored:
- *  down and forward from the shoulder, then forward and in, hands together as if on the reins. */
-const RIDE_ARMS = { UpperArm: [0.22, -0.72, 0.66], LowerArm: [-0.3, -0.12, 0.95], Hand: [-0.3, -0.12, 0.95] };
+ *  down and forward from the shoulder, then forward, in and down toward the mane, as if on the reins. */
+const RIDE_ARMS = { UpperArm: [0.2, -0.84, 0.5], LowerArm: [-0.28, -0.5, 0.82], Hand: [-0.28, -0.5, 0.82] };
 /** Seconds of the landing clip that are the landing itself (the rest is standing back up, slowly). */
 const LANDING = 0.55;
 

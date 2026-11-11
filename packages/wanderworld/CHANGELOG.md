@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.22 — 2026-11-11
+
+- Riding pose: the hands are lower, angled down toward the mane, and the knees sit wider round the horse with the ankles kept in.
+
 ## 0.5.21 — 2026-11-11
 
 - Animals: cattle, a donkey and a horse at farms, a dog or two about the market, a horse by each tavern and inn, and deer, stags, foxes and wolves out in the country. They wander, graze and look about; the wild ones run when you come close.
