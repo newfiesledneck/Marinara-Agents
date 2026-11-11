@@ -1,0 +1,144 @@
+// Wanderworld's memories (src/memory.js): each person remembers only what they themselves saw, heard or
+// were told; one can have something to bring up; and the model is told a person's own memories and
+// nobody else's (server.mjs).
+// Run: node tests/wanderworld-memory.regression.mjs
+import assert from "node:assert/strict";
+import { createMemories, MEMORY } from "../packages/wanderworld/src/memory.js";
+
+const server = await import("../packages/wanderworld/server.mjs");
+
+// ── Each their own ───────────────────────────────────────────────────────────
+{
+  const memories = createMemories();
+  memories.remember(["mira"], 'Zoey said to you: "I found a key in the well."', 2, true);
+  memories.remember(["mira", "tam"], "Mira and Tam spent time together at the tavern.", 2);
+  memories.remember(["player"], "nothing is kept for the player", 2);
+  assert.deepEqual(memories.of("mira"), [
+    'Zoey said to you: "I found a key in the well."',
+    "Mira and Tam spent time together at the tavern.",
+  ]);
+  assert.deepEqual(
+    memories.of("tam"),
+    ["Mira and Tam spent time together at the tavern."],
+    "Tam wasn't told about the key",
+  );
+  assert.deepEqual(memories.of("rook"), [], "Rook was at neither");
+  assert.deepEqual(memories.of("player"), []);
+  // The same thing twice running is one memory.
+  memories.remember(["tam"], "Mira and Tam spent time together at the tavern.", 2);
+  assert.equal(memories.of("tam").length, 1);
+  // Only so many are kept, the newest.
+  for (let i = 0; i < 40; i++) memories.remember(["tam"], `Thing ${i}`, 3);
+  assert.equal(memories.list("tam").length, MEMORY.EACH);
+  assert.equal(memories.list("tam")[0].text, "Thing 39", "newest first, for showing");
+  assert.equal(memories.of("tam", 3).at(-1), "Thing 39", "oldest first, for telling");
+  // A long one is cut.
+  memories.remember(["rook"], "x".repeat(900), 3);
+  assert.equal(memories.of("rook")[0].length, MEMORY.TEXT);
+}
+
+// ── Something to bring up ────────────────────────────────────────────────────
+{
+  const memories = createMemories();
+  assert.equal(memories.hasTopic("mira", 5), false);
+  memories.remember(["mira"], "Mira and Tam spent time together.", 5);
+  assert.equal(memories.hasTopic("mira", 5), false, "only something the player said is brought up");
+  memories.remember(["mira"], 'Zoey said to you: "Meet me at the mill."', 5, true);
+  assert.equal(memories.hasTopic("mira", 5), true);
+  assert.equal(memories.hasTopic("tam", 5), false, "and only by the one it was said to");
+  assert.match(memories.raise("mira", 6), /Meet me at the mill/u);
+  assert.equal(memories.hasTopic("mira", 6), false, "once brought up, it isn't again");
+  assert.equal(memories.raise("mira", 6), null);
+  assert.equal(memories.of("mira").length, 2, "but it's still remembered");
+  // Too long ago, it's let lie.
+  memories.remember(["tam"], 'Zoey said to you: "Old news."', 1, true);
+  assert.equal(memories.hasTopic("tam", 1 + MEMORY.TOPIC_DAYS + 1), false);
+}
+
+// ── Kept, and forgotten ──────────────────────────────────────────────────────
+{
+  const memories = createMemories();
+  memories.remember(["mira"], 'Zoey said to you: "Hello."', 1, true);
+  memories.raise("mira", 1);
+  memories.remember(["tam"], "Tam saw the fire.", 1);
+  const again = createMemories(JSON.parse(JSON.stringify(memories.state)));
+  assert.deepEqual(again.of("mira"), memories.of("mira"));
+  assert.equal(again.hasTopic("mira", 1), false, "what was brought up stays brought up");
+  again.forget("mira");
+  assert.deepEqual(again.of("mira"), []);
+  assert.equal(again.of("tam").length, 1, "forgetting is one person's");
+  again.forget();
+  assert.equal(again.of("tam").length, 0);
+  // A damaged copy is no memories, not a crash.
+  assert.deepEqual(createMemories({ mira: "oops", tam: [{ text: 5 }, null, { text: "fine" }] }).of("tam"), ["fine"]);
+  assert.deepEqual(createMemories(null).of("mira"), []);
+}
+
+// ── What the model is told ───────────────────────────────────────────────────
+{
+  const base = {
+    character: server.characterCard({ id: "c", data: { name: "Mira", description: "A baker." } }),
+    persona: { name: "Zoey", description: "", personality: "", appearance: "" },
+    place: "",
+    time: "",
+    weather: "",
+    nearby: "",
+    relationship: "",
+    setting: "",
+    lore: [],
+    history: [],
+    line: "Morning.",
+    length: "medium",
+    style: "natural",
+  };
+  const told = (input) =>
+    server
+      .talkMessages(input)
+      .map((message) => message.content)
+      .join("\n");
+  const withMemories = told({ ...base, memories: ['Zoey said to you: "I found a key in the well."'] });
+  assert.match(withMemories, /## What Mira remembers/u);
+  assert.match(withMemories, /I found a key in the well/u);
+  assert.match(withMemories, /know nothing of what happened elsewhere/u, "and it's told that's all they know");
+  assert.doesNotMatch(told({ ...base, memories: [] }), /remembers/u, "nothing remembered, nothing said of it");
+  assert.doesNotMatch(told(base), /remembers/u);
+  // In a moment, each listener's memories are their own line.
+  const moment = server
+    .momentMessages({
+      persona: { name: "Zoey", card: "" },
+      listeners: [
+        {
+          id: "mira",
+          name: "Mira",
+          distance: 2,
+          doing: "",
+          feeling: "",
+          inParty: false,
+          card: "",
+          remembers: "Zoey found a key.",
+        },
+        { id: "tam", name: "Tam", distance: 3, doing: "", feeling: "", inParty: false, card: "", remembers: "" },
+      ],
+      action: "",
+      line: "Hello both.",
+      voice: "talk",
+      place: "",
+      time: "",
+      weather: "",
+      setting: "",
+      style: "natural",
+      lore: [],
+      recent: [],
+      places: [],
+      narrator: null,
+    })
+    .map((message) => message.content)
+    .join("\n");
+  const [miraLine, tamLine] = ["mira", "tam"].map((id) =>
+    moment.split("\n").find((line) => line.includes(`id "${id}"`)),
+  );
+  assert.match(miraLine, /Remembers \(they alone\): Zoey found a key\./u);
+  assert.doesNotMatch(tamLine, /key|Remembers/u, "Tam's line says nothing of what Mira knows");
+}
+
+console.log("wanderworld memory regression: OK");

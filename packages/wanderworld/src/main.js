@@ -55,6 +55,7 @@ import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
+import { createMemories } from "./memory.js";
 import { animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
@@ -609,6 +610,7 @@ function savePlace(now = false, thumbnail = null) {
     // (What's moved by itself since: how people stand with each other, and the record of it.)
     relationships: core.relations.all,
     social: core.social?.state ?? null,
+    memories: core.memories?.state ?? {},
     place: {
       x: outside.x,
       z: outside.z,
@@ -677,6 +679,7 @@ function playWorld(id) {
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
   core.social = createSocial(save.social ?? {});
+  core.memories = createMemories(save.memories ?? {});
   core.away = {}; // when each part of the world was last left (socialTick)
   core.area = null;
   core.characters = peopleOf(save); // this world's own people live here only
@@ -2758,6 +2761,11 @@ function setLook(id, look) {
 
 // ── The living world ─────────────────────────────────────────────────────────
 
+/** Each of `ids` remembers `text` (memory.js): only them. `said`: the player said it to them. */
+function recall(ids, text, said) {
+  if (core.settings.memories) core.memories?.remember(ids, text, core.social?.day ?? 0, said);
+}
+
 /**
  * Moves the world's social life on (social.js) every couple of seconds: who is together now (friends out
  * with each other, people talking, the party with the player), by the world's own hours. And on coming
@@ -2811,6 +2819,8 @@ function socialTick(dt) {
   if (lines.length) {
     core.relationsChanged = true;
     core.journalAt = 0;
+    // Whoever was part of something remembers it.
+    for (const entry of lines) recall(entry.who, entry.text, false);
   }
   // Coming back somewhere after a few hours: what happened there meanwhile (not what the player was part of).
   const now = core.social.day * 24 + core.hour;
@@ -3814,6 +3824,7 @@ function personData(id) {
     stance: core.save.stances?.[id] ?? "",
     toPlayer: core.relations.get(id, "player") ?? null,
     fromPlayer: core.relations.get("player", id) ?? null,
+    memories: core.memories?.list(id) ?? [],
     others: (core.characters ?? [])
       .filter((other) => core.cast?.has(other.id) && other.id !== id)
       .map((other) => ({
@@ -3863,6 +3874,7 @@ function savePerson(id, changes) {
     core.save = { ...core.save, known: changes.known ? [...known, id] : known };
   }
   if (changes.traits) setTraits(id, changes.traits);
+  if (changes.forget) core.memories?.forget(id);
   if (changes.housing) setHousingByHand(id, changes.housing);
   const same = (a, b) =>
     (a?.kind ?? "") === (b?.kind ?? "") &&
@@ -5020,6 +5032,8 @@ function answer(talking, what, line = "") {
 function showReply(talking, line, reply) {
   if (line) talking.history.push({ from: "player", text: line });
   talking.history.push({ from: "character", text: reply });
+  // They remember what was said to them (and nobody else does).
+  if (line) recall([talking.id], `${personaName()} said to you: "${line}"`, true);
   core.crowd.setSpeaking(talking.id, true);
   core.talk.say(talking.group, reply, Math.min(12, 3 + reply.length / 22), nameFor(talking.id, talking.name));
   core.talk.line(nameFor(talking.id, talking.name), reply);
@@ -5107,6 +5121,8 @@ function momentListeners(voice, audience, extra = [], text = "") {
     doing: inside.has(person.id) ? "inside" : doingWords(person),
     feeling: towardPlayer(person.id, person.name, names),
     inParty: party.has(person.id),
+    // Their own memories, and nobody else's.
+    remembers: core.settings.memories ? (core.memories?.of(person.id, 4) ?? []).join(" ") : "",
   }));
 }
 
@@ -5161,13 +5177,10 @@ async function runMoment({
       .entries.filter((entry) => entry.content)
       .map((entry) => `${entry.title}: ${entry.content}`)
       .slice(0, 6);
-    // What's happened lately that someone here was part of: only what they themselves know of.
-    const here = new Set(listeners.map((person) => person.id));
-    const known = (core.settings.worldLog ? (core.social?.log ?? []) : [])
-      .filter((entry) => entry.who.some((id) => here.has(id)))
-      .slice(-3)
-      .map((entry) => entry.text);
-    if (known.length) lore.push(`Lately: ${known.join(" ")}`);
+    // What each of them remembers goes with them alone (momentListeners); and now they remember this.
+    const heardIds = listeners.map((person) => person.id);
+    if (line) recall(heardIds, `${personaName()} said: "${line}"`, true);
+    else if (action) recall(heardIds, `${personaName()} ${action}.`, false);
     const places = schedulePlaces();
     const result = await core.ai.moment({
       personaId: core.personaId ?? null,
@@ -5376,6 +5389,8 @@ function talkPayload(talking, line) {
     characterId: talking.id,
     // Who they are, whatever their card says or doesn't; and whether each knows the other by name.
     characterName: talking.name,
+    // What they themselves remember: nothing anyone else saw or was told.
+    memories: core.settings.memories ? (core.memories?.of(talking.id, 6) ?? []) : [],
     knowsThem: knows(talking.id),
     knowsYou: theyKnow(talking.id),
     personaId: core.personaId,
@@ -6802,6 +6817,13 @@ function step(dt) {
     },
     playerName: personaName(),
     playerNameFor: (id) => (theyKnow(id) ? personaName() : "you there"),
+    // Someone the player said something to lately may come over about it.
+    hasTopic: (id) => !!core.settings.memories && !!core.memories?.hasTopic(id, core.social?.day ?? 0),
+    topicFor: (id) => (core.settings.memories ? (core.memories?.raise(id, core.social?.day ?? 0) ?? null) : null),
+    onTopic: (id, name, topic) => {
+      const said = /"(.+)"/u.exec(topic)?.[1];
+      narrate(null, `(${nameFor(id, name)} has come over about what you said${said ? `: "${said}"` : ""}.)`);
+    },
     onConfront: confronted,
     aggressionAllowed,
     playerSwimming: core.swimming,

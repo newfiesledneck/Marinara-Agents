@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.45 — 2026-11-11
+
+- People remember, each their own: what you said to them or in their hearing, and who they spent time with. Kept by rules, with no AI call.
+- The AI is given the memories of whoever it's speaking for and nobody else's, so it can't know what someone else was told. Different people remember different things.
+- Someone you said something to may come over within a few days to bring it up.
+- Journal → Edit people shows what someone remembers and can clear it; Settings → Living world has the switch.
+
 ## 0.5.44 — 2026-11-11
 
 - Fixed: in a conversation the AI could be told it was "Someone", with none of the character's card, when the Engine handed the card over as text. The card is now read in whatever shape it comes, and the character's own name is always given.

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.45",
+          "date": "2026-11-11",
+          "notes": "- People remember, each their own: what you said to them or in their hearing, and who they spent time with. Kept by rules, with no AI call.\n- The AI is given the memories of whoever it's speaking for and nobody else's, so it can't know what someone else was told. Different people remember different things.\n- Someone you said something to may come over within a few days to bring it up.\n- Journal → Edit people shows what someone remembers and can clear it; Settings → Living world has the switch.",
+          "highlight": false
+        },
+        {
           "version": "0.5.44",
           "date": "2026-11-11",
           "notes": "- Fixed: in a conversation the AI could be told it was \"Someone\", with none of the character's card, when the Engine handed the card over as text. The card is now read in whatever shape it comes, and the character's own name is always given.\n- Strangers: when you and a character don't know each other by name, the AI is told so. They are still themselves, and act as someone who hasn't met you.\n- People nearby that you don't know are marked as strangers to you in what the AI is told.",
@@ -307,12 +313,6 @@
           "version": "0.5.26",
           "date": "2026-11-11",
           "notes": "- Horses come in seven coats (bay, white, black, grey, chestnut, palomino, brown) and each kind of dog in four. Which one an animal has comes from the world's seed, so a world with several horses has a mix. The Ride prompt names the coat.\n- The animals' files are grouped: one for the farm's and the town's, one for the country's. The package has ten fewer files, with room for monsters as a group of their own.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.25",
-          "date": "2026-11-11",
-          "notes": "- Getting on a horse or a donkey is a movement of its own: a step to its side, up beside it, a leg over and down onto its back. Before, the rider pointed at it and floated above it standing.\n- A jump carries the animal forward and over fences and benches. Houses, wagons, trees and rocks still stop it.",
           "highlight": false
         }
       ]

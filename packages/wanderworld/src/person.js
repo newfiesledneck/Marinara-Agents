@@ -376,6 +376,30 @@ export function createPersonEditor(layer, handlers) {
       changes.knowsYou = knowsYou.checked;
       changes.stance = stance.value;
     });
+    // What they remember: their own, and all the AI is told of what's happened when it speaks for them.
+    {
+      body.append(head("What they remember"));
+      body.append(
+        note(
+          "Only what they themselves saw, heard or were told. The AI is given these when it speaks for them, and nobody else's.",
+        ),
+      );
+      const kept = person.memories ?? [];
+      if (!kept.length) body.append(element("div", `color:${INK_SOFT};font-size:12px;`, "Nothing yet."));
+      for (const memory of kept.slice(0, 8))
+        body.append(element("div", "font-size:12px;line-height:1.35;", `Day ${memory.day + 1}: ${memory.text}`));
+      if (kept.length) {
+        const wrap = element("label", "display:flex;gap:6px;align-items:center;font-size:12px;margin-top:2px;");
+        const forget = element("input", "");
+        forget.type = "checkbox";
+        forget.setAttribute("aria-label", `${person.name} forgets everything when you save`);
+        wrap.append(forget, element("span", "", "Forget all of it when I save"));
+        body.append(wrap);
+        reads.push((changes) => {
+          changes.forget = forget.checked;
+        });
+      }
+    }
     const relations = [
       { from: person.id, to: "player", fields: toPlayer },
       { from: "player", to: person.id, fields: fromPlayer },

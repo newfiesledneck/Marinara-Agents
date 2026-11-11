@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.44, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.45, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.44: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.45: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.44, 2026-11-11)
+## Outstanding (as of 0.5.45, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -810,8 +810,8 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      whom, what was pinned to the noticeboard. Only for time spent with Wanderworld open (item 10
      above): nothing happens while it's closed. Wanted.
   2. _Characters who remember and seek you out:_ someone crossing the square to bring up what you said
-     last time. Part: people come up to greet or confront you (Settings: People coming up to you); they
-     don't yet carry what was said.
+     last time. In (0.5.45): each person's own memories (`memory.js`), told to the model for them alone,
+     and someone you said something to comes over within a few days to bring it up.
   3. _A home that's yours:_ furnish it, keep your animals there, have people visit. Part: your home comes
      from your lore, a horse and a dog sent home keep to its door. Not furnished, and nobody calls.
   4. _Small goals with an end:_ errands and noticeboard jobs that take ten minutes and change something
@@ -825,8 +825,7 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      Illustrate makes a picture of where you are; the Journal doesn't write itself.
   9. _Relationships that move_ by themselves. Wanted (item 10 above).
   10. _A record of it:_ a log of what happened, kept with the world. Wanted (item 10 above).
-  11. _People remember only what they know,_ and only that goes to the model for them. Part: who knows
-      whom by name is kept; what each person saw or was told isn't.
+  11. _People remember only what they know,_ and only that goes to the model for them. In (0.5.45).
   12. _Only what's relevant goes to the model,_ never the whole lore or history. In: the lore sent is
       what's tied to where you are and who's there, and people are told in full only when named.
   13. _Buy, move, build, furnish._ Wanted.

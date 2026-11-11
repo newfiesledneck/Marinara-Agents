@@ -446,6 +446,8 @@ export function checkWorld(raw) {
     scenes: Array.isArray(raw.scenes) ? raw.scenes.map(checkScene).filter(Boolean).slice(-30) : [],
     // Characters' temperaments (aggression, sociability), by id.
     traits: checkTraitMap(raw.traits),
+    // What each person remembers (memory.js checks it on the way in): { [id]: [{ day, text, said, raised }] }.
+    memories: isRecord(raw.memories) ? raw.memories : {},
     // The world's social life (social.js): the day it is, time each pair has spent together, and the
     // record of what's happened.
     social: isRecord(raw.social)
