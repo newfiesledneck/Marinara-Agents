@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.50 — 2026-11-11
+
+- Hostile people out in the country: bandits, hooded with a sword; witches and wizards, in a pointed hat with a staff. They act as the Hostile animals setting says, and are told as people, not beasts.
+- They're counted with the monsters, each kind has a switch in Settings → Animals, and lore can place them (`ww:monster:bandit:pack3`; brigand, robber, hag, mage and the like are read too).
+- They're nobody's character: no AI is used for them.
+
 ## 0.5.49 — 2026-11-11
 
 - Two more monsters: the giant frog, which hops, and the dragon, which is rare, alone and high overhead.

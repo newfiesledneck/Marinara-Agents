@@ -56,7 +56,7 @@ import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
 import { createMemories } from "./memory.js";
-import { animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
+import { ANIMALS, animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
 import { checkSetting, loadSettings, saveSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
@@ -6786,7 +6786,8 @@ function step(dt) {
     });
     for (const event of core.herd.takeEvents()) {
       const what = (PACK.animals[event.kind] ?? "the animal").replace(/^the /u, "");
-      narrate(null, pickLine(PACK.beasts[event.type] ?? [], `beast:${Math.floor(core.clock)}`, { kind: what }));
+      const lines = ANIMALS[event.kind]?.person ? PACK.outlaws : PACK.beasts; // (a person isn't told as a beast)
+      narrate(null, pickLine(lines[event.type] ?? [], `beast:${Math.floor(core.clock)}`, { kind: what }));
       // A lunge sends them back a step (unless they're up on something, or in the middle of a move).
       if (event.type === "attack" && core.mode === "walk" && !core.glide) {
         const away = Math.atan2(at.x - event.x, at.z - event.z);

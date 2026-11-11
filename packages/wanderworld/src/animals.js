@@ -9,7 +9,7 @@
 // An animal is { object, update(dt, speed, { graze }), dispose(), kind, coat, height, back }: `object` faces
 // +z and stands on y = 0, in metres; `update` moves it for a frame in which it travelled at `speed`
 // metres a second; `back` is how high a rider sits (a horse, a donkey), in metres.
-import { createFolk } from "./people.js";
+import { createFolk, createOutlaw } from "./people.js";
 import {
   Bone,
   BufferAttribute,
@@ -75,6 +75,40 @@ export const ANIMALS = {
     hostile: true,
     fly: 7,
     rare: true,
+  },
+  // People who are nobody's character (`person`: built as a person is, people.js: createOutlaw).
+  bandit: {
+    group: "monsters",
+    walk: 1.4,
+    gallop: 4.8,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    folk: 1,
+    person: true,
+  },
+  witch: {
+    group: "monsters",
+    walk: 1.2,
+    gallop: 4,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    folk: 1,
+    person: true,
+  },
+  wizard: {
+    group: "monsters",
+    walk: 1.2,
+    gallop: 4,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    folk: 1,
+    person: true,
   },
   // (`folk`: it stands on two legs on the people's skeleton, from kit/fantasy/folk, and moves with the
   // people's clips (people.js: createFolk), `folk` times the size it's made. Quaternius's Bestiary.)
@@ -185,6 +219,9 @@ export const SORT_OF = {
   frog: "monsters",
   dragon: "monsters",
   imp: "monsters",
+  bandit: "monsters",
+  witch: "monsters",
+  wizard: "monsters",
   puglin: "monsters",
 };
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
@@ -213,6 +250,9 @@ export const SWITCHES = {
   frog: ["frog"],
   dragon: ["dragon"],
   imp: ["imp"],
+  bandit: ["bandit"],
+  witch: ["witch"],
+  wizard: ["wizard"],
   puglin: ["puglin"],
 };
 
@@ -254,6 +294,16 @@ export function animalKind(word) {
     llama: "alpaca",
     pony: "horse",
     goblin: "puglin",
+    brigand: "bandit",
+    robber: "bandit",
+    outlaw: "bandit",
+    thief: "bandit",
+    highwayman: "bandit",
+    hag: "witch",
+    sorceres: "witch",
+    sorcerer: "wizard",
+    warlock: "wizard",
+    mage: "wizard",
     toad: "frog",
     wyvern: "dragon",
     drake: "dragon",
@@ -370,14 +420,16 @@ export async function createAnimal(name, wanted = null) {
   const coat = COATS[kind] ? (COATS[kind][wanted] ? wanted : Object.keys(COATS[kind])[0]) : null;
   if (ANIMALS[kind].folk) {
     // One on the people's skeleton: a walking character, with an animal's handles on it.
-    const body = await createFolk(kind, ANIMALS[kind].folk);
+    const outlaw = ANIMALS[kind].person ? await createOutlaw(kind) : null;
+    const body = outlaw?.person ?? (await createFolk(kind, ANIMALS[kind].folk));
+    const options = outlaw?.carry ? { carry: outlaw.carry } : {};
     return {
       object: body.object,
       kind,
       coat,
       back: 0,
       seat: 0,
-      update: (dt, speed = 0) => void body.update(dt, speed, {}),
+      update: (dt, speed = 0) => void body.update(dt, speed, options),
       rise: () => 0,
       dispose() {
         body.object.removeFromParent();

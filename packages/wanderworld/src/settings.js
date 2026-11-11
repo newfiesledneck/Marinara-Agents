@@ -138,6 +138,9 @@ export const SETTINGS = {
   animalFrog: { value: true },
   animalDragon: { value: true },
   animalImp: { value: true },
+  animalBandit: { value: true },
+  animalWitch: { value: true },
+  animalWizard: { value: true },
   animalPuglin: { value: true },
   // The living world, by rules alone (no model is called): relationships that move with time spent
   // together, the record of what's happened, and being told what you missed on coming back somewhere.
