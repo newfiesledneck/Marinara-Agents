@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.42",
+          "date": "2026-11-11",
+          "notes": "- Settings → Animals is laid out in groups: how many, lore and owned animals, how hostile ones behave, and which kinds there are. Each group says what it's for and what wins over what, and the kinds are small switches side by side under Farm and town, Wild, and Monsters.",
+          "highlight": false
+        },
+        {
           "version": "0.5.41",
           "date": "2026-11-11",
           "notes": "- Monsters: slimes, skeletons, giant spiders, giant rats, snakes, bats and giant wasps, out in the country, alone or in twos and threes. Skeletons and bats are about only at night.\n- The Monsters slider (Settings → Animals) now does something, each kind has its switch, and they act as \"Hostile animals\" says: keep away, square up, or come for you.\n- A lorebook can place them: `ww:monster:slime:large:pack3` on a place's entry.\n- Models and animations from Quaternius's Monster Pack Animated and Easy Animated Enemy Pack (CC0).",
@@ -1525,12 +1531,6 @@
           "version": "0.5.23",
           "date": "2026-11-11",
           "notes": "- Riding: the rider sits on top of the horse's or donkey's back. They sat too low before, with the hips inside the animal.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.22",
-          "date": "2026-11-11",
-          "notes": "- Riding pose: the hands are lower, angled down toward the mane, and the knees sit wider round the horse with the ankles kept in.",
           "highlight": false
         }
       ]
