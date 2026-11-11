@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.45)
+## What it does now (0.5.46)
 
 ### The world
 
@@ -297,6 +297,8 @@ only walk about.
   up to you, or comes for you (you're sent back a step; nothing is hurt yet). Journal → World has one
   world's own numbers. A dog has five sizes, small to massive (as tall as a horse); a huge or a massive
   one can be ridden.
+- **A saddle** on any horse that's someone's own (yours, or a character's). Farm and tavern horses
+  go bare.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
   Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences and benches), it turns less sharply than you do and won't go where it
   would have to swim, and E, Esc or Get down gets you off beside it. It stays where you leave it, and
@@ -537,6 +539,8 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
 Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, and the Universal Animation Library and Universal Animation Library 2.
+
+Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its maker has not endorsed Wanderworld.
 Thank you, Quaternius. The full list, with which folder
 comes from which pack and how to rebuild or remove each, is in [kit/CREDITS.md](kit/CREDITS.md) and
 [src/clips/CREDITS.md](src/clips/CREDITS.md).

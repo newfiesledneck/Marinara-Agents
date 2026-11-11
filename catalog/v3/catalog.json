@@ -4915,7 +4915,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.45",
+        "version": "0.5.46",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -4968,6 +4968,7 @@
               "kit/fantasy/outfits/ranger-wine.webp",
               "kit/fantasy/props/index.json",
               "kit/fantasy/props/models.json",
+              "kit/fantasy/props/saddle-by-poly-by-google-dsmm-v4sknr-glb-0.webp",
               "kit/fantasy/props/t-trim-cloth-basecolor.webp",
               "kit/fantasy/props/t-trim-furniture-basecolor.webp",
               "kit/fantasy/props/t-trim-metal-basecolor.webp",
@@ -5046,8 +5047,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "74b10e3cb1de64adb2ddbf8f405743a2933029647b65c980ceddb171fd707e67",
-            "bytes": 2288798
+            "sha256": "3dc696417d7527f9f4ebddeff60951f7aeecec04a031e4a7e154d66c434bdab5",
+            "bytes": 2289503
           },
           {
             "path": "server.mjs",
@@ -5181,13 +5182,18 @@
           },
           {
             "path": "kit/fantasy/props/index.json",
-            "sha256": "fb2dbfab92127c8c0aaacce1ca193689bdf2efda7153c07a769a98072bd86859",
-            "bytes": 6097
+            "sha256": "acb64a2c018321b69748fd8b76c799f4fa0b4e4e2e2b3004991228aeac600554",
+            "bytes": 6210
           },
           {
             "path": "kit/fantasy/props/models.json",
-            "sha256": "9bf46aa598c519988468c0cb8d8bcf3f3e246e411035f3ff1e3ea6ae02e4121d",
-            "bytes": 2287955
+            "sha256": "d4e90206c968977732630e9fb3900eb1721499d6f9a575fec93ade2261356d0a",
+            "bytes": 2347427
+          },
+          {
+            "path": "kit/fantasy/props/saddle-by-poly-by-google-dsmm-v4sknr-glb-0.webp",
+            "sha256": "e99a447ff8ddf71f379791a423098f9117ea360f6c1bbaa2bfb1687d08b341a9",
+            "bytes": 8868
           },
           {
             "path": "kit/fantasy/props/t-trim-cloth-basecolor.webp",
@@ -5537,9 +5543,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.45.zip",
-        "sha256": "28eefd7a415ac36c462e881d64242fe50e89c451e1d8b624cec53b4161092342",
-        "bytes": 19179486
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.46.zip",
+        "sha256": "4ff152809618df060f5ae8b9d49f12e2285a4094ba624042f039ee0d8001108f",
+        "bytes": 19249127
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

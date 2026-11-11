@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.46",
+          "date": "2026-11-11",
+          "notes": "- A saddle on any horse that's someone's own: yours, or a character's. Farm and tavern horses go bare.\n- The saddle is Saddle by Poly by Google (CC-BY 3.0), modified: converted, resized and its texture shrunk. Credited in Help, the README and `kit/CREDITS.md`.",
+          "highlight": false
+        },
+        {
           "version": "0.5.45",
           "date": "2026-11-11",
           "notes": "- People remember, each their own: what you said to them or in their hearing, and who they spent time with. Kept by rules, with no AI call.\n- The AI is given the memories of whoever it's speaking for and nobody else's, so it can't know what someone else was told. Different people remember different things.\n- Someone you said something to may come over within a few days to bring it up.\n- Journal → Edit people shows what someone remembers and can clear it; Settings → Living world has the switch.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.27",
           "date": "2026-11-11",
           "notes": "- A dog and a horse of your own: the Look card has Dog and Horse, with the kind, the coat, and whether each is with you or at home. With you, it follows; at home it keeps by your door, or the tavern's if you have no home.\n- Someone in town whose lore mentions their dog has one at their heel. Their Look card can change it or take it away.\n- More wildlife: wolves in packs of three to five, more deer, more foxes.\n- With detailed props off, a wagon is drawn as a wagon, not a plain box.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.26",
-          "date": "2026-11-11",
-          "notes": "- Horses come in seven coats (bay, white, black, grey, chestnut, palomino, brown) and each kind of dog in four. Which one an animal has comes from the world's seed, so a world with several horses has a mix. The Ride prompt names the coat.\n- The animals' files are grouped: one for the farm's and the town's, one for the country's. The package has ten fewer files, with room for monsters as a group of their own.",
           "highlight": false
         }
       ]
