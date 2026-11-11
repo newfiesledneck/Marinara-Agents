@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.48 — 2026-11-11
+
+- Two more monsters: the imp and the puglin (a pig-goblin). They walk on two legs, moved by the people's own animations.
+- Lore can ask for them by name (`ww:monster:imp`, `ww:monster:puglin`); goblin and orc are read as a puglin, demon and devil as an imp.
+- Settings → Animals has a switch for each.
+
 ## 0.5.47 — 2026-11-11
 
 - Tools in hand at work: on the farm a sickle while cutting, a seed basket while sowing and a watering can while watering; a trowel for whoever kneels in the garden.

@@ -42,7 +42,9 @@ import { hashString, rng } from "./world.js";
 // name says which it is.
 const KIT = "/api/capability-packages/wanderworld/assets/kit/";
 const BODY_FILE = /^(?:index|bodies|eyes|hair-|head-|plain-head-|plain-skin-|skin-)/u;
-const urlOf = (name) => `${KIT}${BODY_FILE.test(name) ? "generic/people" : "fantasy/outfits"}/${name}`;
+const FOLK_FILE = /^folk[-.]/u; // the monsters on the people's skeleton (the imp, the puglin)
+const urlOf = (name) =>
+  `${KIT}${FOLK_FILE.test(name) ? "fantasy/folk" : BODY_FILE.test(name) ? "generic/people" : "fantasy/outfits"}/${name}`;
 
 /** The pack's (Unreal mannequin) bone for each humanoid bone. */
 const BONES = {
@@ -261,26 +263,7 @@ export async function createPerson(name, build = "auto", chosen = {}) {
     }),
   );
 
-  // The skeleton, in bind pose: each joint's world matrix is its inverse bind matrix inverted.
-  const root = new Group();
-  const bones = new Map();
-  const worlds = body.skeleton.names.map((jointName) => {
-    const at = body.joints.indexOf(jointName);
-    return new Matrix4().fromArray(body.inverseBind, at * 16).invert();
-  });
-  body.skeleton.names.forEach((jointName, i) => {
-    const bone = new Bone();
-    bone.name = jointName;
-    const parent = body.skeleton.parents[i];
-    const local = parent >= 0 ? worlds[parent].clone().invert().multiply(worlds[i]) : worlds[i].clone();
-    local.decompose(bone.position, bone.quaternion, bone.scale);
-    bones.set(jointName, bone);
-  });
-  body.skeleton.names.forEach((jointName, i) => {
-    const parent = body.skeleton.parents[i];
-    (parent >= 0 ? bones.get(body.skeleton.names[parent]) : root).add(bones.get(jointName));
-  });
-  root.updateMatrixWorld(true);
+  const { root, bones } = rigOf(body);
 
   const skinTint = new Color(...look.skin);
   const hairTint = new Color(look.hairColour);
@@ -309,20 +292,66 @@ export async function createPerson(name, build = "auto", chosen = {}) {
     const map = texture(kind ? look.colourways[kind] : name);
     return new MeshLambertMaterial({ map, color: isSkin ? skinTint : isHair ? hairTint : 0xffffff });
   };
-  for (const [at, part] of rest.entries()) {
-    const partName = parts[at + 1];
-    const partBones = part.joints.map((jointName) => bones.get(jointName) ?? root);
-    const inverses = part.joints.map((_, i) => new Matrix4().fromArray(part.inverseBind, i * 16));
-    const skeleton = new Skeleton(partBones, inverses);
-    for (const mesh of part.meshes) {
-      const skinned = new SkinnedMesh(geometryOf(mesh), materialFor(mesh.texture, partName));
-      skinned.frustumCulled = false;
-      root.add(skinned);
-      skinned.bind(skeleton, skinned.matrixWorld);
-    }
+  for (const [at, part] of rest.entries())
+    skinOnto(root, bones, part, (mesh) => materialFor(mesh.texture, parts[at + 1]));
+  return humanoidFromSkeleton(root, humanoidNodes(bones), () => look.height, look.seed);
+}
+
+/** A body's skeleton in bind pose (each joint's world matrix is its inverse bind matrix inverted): { root, bones }. */
+function rigOf(body) {
+  const root = new Group();
+  const bones = new Map();
+  const worlds = body.skeleton.names.map((jointName) => {
+    const at = body.joints.indexOf(jointName);
+    return new Matrix4().fromArray(body.inverseBind, at * 16).invert();
+  });
+  body.skeleton.names.forEach((jointName, i) => {
+    const bone = new Bone();
+    bone.name = jointName;
+    const parent = body.skeleton.parents[i];
+    const local = parent >= 0 ? worlds[parent].clone().invert().multiply(worlds[i]) : worlds[i].clone();
+    local.decompose(bone.position, bone.quaternion, bone.scale);
+    bones.set(jointName, bone);
+  });
+  body.skeleton.names.forEach((jointName, i) => {
+    const parent = body.skeleton.parents[i];
+    (parent >= 0 ? bones.get(body.skeleton.names[parent]) : root).add(bones.get(jointName));
+  });
+  root.updateMatrixWorld(true);
+  return { root, bones };
+}
+
+/** A part's meshes, skinned to the skeleton's bones; `materialOf(mesh)` is each one's material. */
+function skinOnto(root, bones, part, materialOf) {
+  const partBones = part.joints.map((jointName) => bones.get(jointName) ?? root);
+  const inverses = part.joints.map((_, i) => new Matrix4().fromArray(part.inverseBind, i * 16));
+  const skeleton = new Skeleton(partBones, inverses);
+  for (const mesh of part.meshes) {
+    const skinned = new SkinnedMesh(geometryOf(mesh), materialOf(mesh));
+    skinned.frustumCulled = false;
+    root.add(skinned);
+    skinned.bind(skeleton, skinned.matrixWorld);
   }
+}
+
+/** The skeleton's bone for each humanoid bone it has. */
+function humanoidNodes(bones) {
   const nodes = {};
   for (const [humanoid, jointName] of Object.entries(BONES))
     if (bones.has(jointName)) nodes[humanoid] = bones.get(jointName);
-  return humanoidFromSkeleton(root, nodes, () => look.height, look.seed);
+  return nodes;
+}
+
+/**
+ * One of the monsters that stand on the people's skeleton (`kind`: "imp" or "puglin", from
+ * kit/fantasy/folk), as a walking character moved by the people's clips, `scale` times the size it's
+ * made. Rejects if the kit hasn't got it.
+ */
+export async function createFolk(kind, scale = 1) {
+  const body = (await load("folk.json")).folk[kind];
+  if (!body) throw new Error(`The kit has no ${kind}`);
+  const { root, bones } = rigOf(body);
+  const material = new MeshLambertMaterial({ map: texture(`folk-${kind}`) });
+  skinOnto(root, bones, body, () => material);
+  return humanoidFromSkeleton(root, humanoidNodes(bones), () => scale);
 }
