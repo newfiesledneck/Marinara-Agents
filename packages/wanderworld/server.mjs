@@ -949,12 +949,18 @@ export function momentMessages(input) {
   ]
     .filter(Boolean)
     .join(" ");
-  const planning = !!people && !!input.line && input.places.length > 0;
+  const planning = !!people && !!input.line && input.places.length > 0 && input.telling !== "narrator";
+  // Told in separate calls (`telling`): the narrator's call says who answers and not what they say; a
+  // speaker's call writes for that one person (`speaker`: their id), who alone has their knowledge in it.
+  const speaker = input.telling === "speaker" ? input.listeners.find((person) => person.id === input.speaker) : null;
   const system = [
-    "You are the narrator of Wanderworld, a small living world the player walks around in. Write only what happens in this one moment, as JSON.",
+    speaker
+      ? `You write for ${speaker.name}, one of the people in Wanderworld, a small living world the player walks around in. Write only what ${speaker.name} says in this one moment, as JSON.`
+      : "You are the narrator of Wanderworld, a small living world the player walks around in. Write only what happens in this one moment, as JSON.",
     `The player is ${input.persona.name}.${input.persona.card ? " " + input.persona.card : ""} Never write ${input.persona.name}'s words, thoughts or choices.`,
     TALK_STYLES[input.style] ?? TALK_STYLES.natural,
     input.narrator &&
+      !speaker &&
       section(
         "Your voice",
         `You narrate as ${input.narrator.name}. Keep to that voice in the narration; other people still speak as themselves. Who that is:\n${input.narrator.card}`,
@@ -967,7 +973,13 @@ export function momentMessages(input) {
     section(
       "Who can hear",
       (people &&
-        `Each of them knows what's in their own entry, what all of them saw and heard together, and the lore everyone here knows, and nothing else. What's in someone else's entry they don't know and can't speak of, unless it's said to them here and now.\n${people}`) ||
+        `${
+          speaker
+            ? `${speaker.name} knows what's in their own entry, what all of them saw and heard together, and the lore everyone here knows, and nothing else. The others are listed so you know who's here: what they know isn't ${speaker.name}'s to know.`
+            : input.telling === "narrator"
+              ? "What each of them knows of their own isn't given here: it's theirs to speak from, and not yours to tell."
+              : "Each of them knows what's in their own entry, what all of them saw and heard together, and the lore everyone here knows, and nothing else. What's in someone else's entry they don't know and can't speak of, unless it's said to them here and now."
+        }\n${people}`) ||
         "Nobody is close enough to hear. Still narrate: one or two sentences on what comes of it and what the player notices. No replies.",
     ),
     section("What everyone here knows (lore)", input.lore.join("\n\n")),
@@ -986,7 +998,21 @@ export function momentMessages(input) {
     // A plan (someone agreeing to be somewhere at a time) can only come of something said to someone:
     // the list of places, and the plans in the answer, go only then.
     planning && section("Places in the world (for plans)", input.places.map((place) => place.name).join(", ")),
-    `Answer with one JSON object and nothing else:
+    input.telling === "narrator" && people
+      ? `Answer with one JSON object and nothing else:
+{"narration": "at most two short sentences: what ${input.persona.name} sees, hears or finds; empty if nothing worth saying",
+ "speakers": ["the id of someone from Who can hear who answers aloud"]}
+Only people who heard (a whisper carries a couple of metres, a shout across a square) may answer, and only if they would: zero to three ids, the most fitting first. Don't write what they say: each speaks for themselves next.`
+      : speaker
+        ? `Answer with one JSON object and nothing else:
+{"replies": [{"id": "${speaker.id}", "text": "what ${speaker.name} says aloud, at most one short *action*"}]${
+            planning
+              ? `,
+ "plans": [{"id": "${speaker.id}", "from": 12, "to": 13, "activity": "${ACTIVITIES.join("|")}", "place": "a place from the list"}]`
+              : ""
+          }}
+Only ${speaker.name} replies: one reply, or an empty list if they'd say nothing.${planning ? ` Add a plan only when ${speaker.name} agrees to be somewhere at a time; otherwise leave plans empty.` : ""}`
+        : `Answer with one JSON object and nothing else:
 {"narration": "at most two short sentences: what ${input.persona.name} sees, hears or finds; empty if nothing worth saying",
  "replies": [{"id": "an id from Who can hear", "text": "what they say aloud, at most one short *action*"}]${
    planning
@@ -1000,7 +1026,17 @@ Only people who heard (a whisper carries a couple of metres, a shout across a sq
     .join("\n\n");
   return [
     { role: "system", content: system },
-    { role: "user", content: did || `${input.persona.name} looks around.` },
+    {
+      role: "user",
+      content: [
+        did || `${input.persona.name} looks around.`,
+        // (A speaker is told what's come of it so far: the narration, and whoever spoke before them.)
+        speaker && input.told?.narration,
+        ...(speaker ? (input.told?.replies ?? []).map((reply) => `${reply.name}: ${reply.text}`) : []),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
   ];
 }
 
@@ -1459,6 +1495,35 @@ export async function activate(context) {
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
           const temperature = Number.isFinite(body.temperature) ? Math.max(0, Math.min(1.5, body.temperature)) : 0.9;
+          // A call for each person who answers (the client's setting): the narrator's call is given nobody's
+          // own knowledge, and each speaker's call only theirs, so nothing can leak from one to another.
+          if (body.separate === true && heard.length) {
+            const open = (person) => ({ ...person, knows: [] });
+            const bare = (person) => ({ ...open(person), feeling: "", card: "" });
+            const first = await askModel("moment/narrator", body, model, momentMessages({ ...input, listeners: heard.map(open), telling: "narrator" }), { temperature, maxTokens: 400 });
+            const told = readJson(first?.content, api.runtime.json?.parseJsonish);
+            if (!told) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+            const out = { narration: text(told.narration, 600), replies: [], plans: [] };
+            const speakers = [...new Set((Array.isArray(told.speakers) ? told.speakers : []).map(idOf))].filter((id) => heard.some((person) => person.id === id)).slice(0, 3);
+            for (const id of speakers) {
+              const messages = momentMessages({
+                ...input,
+                listeners: heard.map((person) => (person.id === id ? person : bare(person))),
+                telling: "speaker",
+                speaker: id,
+                told: { narration: out.narration, replies: out.replies.map((said) => ({ name: heard.find((person) => person.id === said.id).name, text: said.text })) },
+              });
+              try {
+                const answer = await askModel("moment/speaker", body, model, messages, { temperature, maxTokens: 400 });
+                const said = checkMoment(readJson(answer?.content, api.runtime.json?.parseJsonish) ?? {}, heard.filter((person) => person.id === id), places);
+                out.replies.push(...said.replies.slice(0, 1));
+                out.plans.push(...said.plans);
+              } catch (error) {
+                logger.warn("[wanderworld] a speaker's reply failed: %s", error?.message ?? error); // (the others still speak)
+              }
+            }
+            return out;
+          }
           const result = await askModel("moment", body, model, momentMessages(input), { temperature, maxTokens: 700 });
           const value = readJson(result?.content, api.runtime.json?.parseJsonish);
           if (!value) return reply.status(502).send({ error: "The model's answer wasn't readable." });

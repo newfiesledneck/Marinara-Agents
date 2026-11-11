@@ -322,6 +322,66 @@ assert.equal(
     /Zoey reads the notes on the noticeboard\. Zoey shouts: "Anything new\?"/u,
   );
   assert.equal((await call("post", "/moment", { body: {} })).code, 400, "something has to happen");
+  // A call for each person who answers: the narrator's call has nobody's own knowledge in it, a speaker's
+  // only theirs, and whoever speaks second is told what the first said.
+  {
+    const asked = [];
+    const answers = [
+      '{"narration": "The square goes quiet.", "speakers": ["local:new-1", "c-mira", "c-ghost", "c-mira"]}',
+      '{"replies": [{"id": "local:new-1", "text": "Not a word from me."}, {"id": "c-mira", "text": "forged"}]}',
+      '{"replies": [{"id": "c-mira", "text": "I heard about the mill."}], "plans": [{"id": "c-mira", "from": 12, "to": 13, "activity": "visit", "place": "the fountain"}]}',
+    ];
+    runtime.languageModels.resolveForRequest = async () => ({
+      connectionId: "t-1",
+      model: "m",
+      async chatComplete(messages) {
+        asked.push(messages);
+        return { content: answers[asked.length - 1] };
+      },
+    });
+    const apart = await call("post", "/moment", {
+      body: {
+        separate: true,
+        personaId: "p-zoey",
+        line: "What's the news?",
+        listeners: [
+          { id: "c-mira", distance: 2, knows: ["(today, was told by Tam) Zoey sold the mill."] },
+          { id: "local:new-1", distance: 3, knows: ["(yesterday, saw) Zoey went into the smithy."] },
+        ],
+        locals: [{ id: "local:new-1", name: "Oswin" }],
+        places: [{ id: "fountain", name: "the fountain" }],
+      },
+    });
+    assert.equal(apart.code, 200);
+    assert.equal(asked.length, 3, "the narrator, then each of the two who answer (once each)");
+    assert.deepEqual(apart.body, {
+      narration: "The square goes quiet.",
+      replies: [
+        { id: "local:new-1", text: "Not a word from me." },
+        { id: "c-mira", text: "I heard about the mill." },
+      ],
+      plans: [{ id: "c-mira", entry: { from: 12, to: 13, activity: "visit", place: "fountain" } }],
+    });
+    const [narrator, oswin, mira] = asked.map((messages) => messages[0].content);
+    assert.doesNotMatch(narrator, /mill|smithy|Knows besides/u, "the narrator's call holds nobody's own knowledge");
+    assert.match(narrator, /"speakers"/u);
+    assert.doesNotMatch(narrator, /"replies"/u);
+    assert.match(oswin, /^You write for Oswin/u);
+    assert.match(oswin, /Knows besides \(Oswin alone\):\n {2}· \(yesterday, saw\) Zoey went into the smithy\./u);
+    assert.doesNotMatch(oswin, /mill/u, "Oswin's call has nothing of what Mira knows");
+    assert.match(mira, /Zoey sold the mill/u);
+    assert.doesNotMatch(mira, /smithy/u, "nor Mira's of what Oswin knows");
+    assert.match(asked[2][1].content, /The square goes quiet\.\nOswin: Not a word from me\.$/u, "she heard him");
+    assert.doesNotMatch(asked[1][1].content, /Oswin:/u);
+    runtime.languageModels.resolveForRequest = async () => ({
+      connectionId: "t-1",
+      model: "m",
+      async chatComplete(messages) {
+        calls.push({ messages });
+        return { content: '{"narration": "A stone skips.", "replies": []}' };
+      },
+    });
+  }
   // Nobody near: it's still told. And a narrator card, when one is set, gives the telling its voice.
   await call("post", "/moment", { body: { action: "skips a stone", personaId: "p-zoey", narratorId: "c-mira" } });
   assert.match(calls.at(-1).messages[0].content, /Nobody is close enough to hear. Still narrate/u);

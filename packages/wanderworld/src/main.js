@@ -5552,6 +5552,7 @@ async function runMoment({
       connectionId: core.settings.textConnection || null,
       temperature: core.settings.aiTemperature,
       narratorId: narratorFor("moments")?.id ?? null,
+      separate: core.settings.aiSeparate === true,
     });
     if (result.narration) narrate(null, result.narration, heardIds);
     result.replies.forEach((reply, i) => {

@@ -124,6 +124,7 @@ export const HELP = [
       "Narrator cards (your own characters): one for the world as you walk it (keep it short: a voice and a few rules), one for scenes, which also lets a scene start with nobody else there. They can be the same card or two.",
       "What people know: each person knows only what they saw, heard or were told. Someone new doesn't know what you said to others elsewhere, and what one of two listeners overheard stays theirs. People in sight also notice what you do (Settings → People notice what you do).",
       "Gossip (Settings → People pass on what they know, off to begin with): people who spend time together tell each other what they saw or heard of you. It arrives as hearsay, isn't passed further, and what you whisper stays where you said it.",
+      "A call for each person who answers (Settings → AI, off to begin with): the strictest separation. Each person's reply is written by a call that's given only what they know. Slower, and up to four calls a moment.",
       "To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced): every request to a model and its answer, and every picture request with its connection, model, size and prompt, is written to the Engine's console.",
     ],
   },

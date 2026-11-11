@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.61 — 2026-11-11
+
+- A call for each person who answers, off by default (Settings → AI): one call tells the moment and picks who answers, with nobody's private knowledge in it; then each person who answers gets a call of their own holding only what they know.
+- Later speakers hear what earlier ones said in the same moment.
+- Up to four calls a moment instead of one, so it's slower and costs more. Off, nothing changes: one call, with each person's knowledge kept apart inside it.
+
 ## 0.5.60 — 2026-11-11
 
 - Gossip, off by default (Settings → People pass on what they know): people who spend time together now and then tell each other something they saw or heard of you in the last few days.
