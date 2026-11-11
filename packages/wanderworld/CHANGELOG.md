@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.60 — 2026-11-11
+
+- Gossip, off by default (Settings → People pass on what they know): people who spend time together now and then tell each other something they saw or heard of you in the last few days.
+- It arrives as hearsay ("was told by Corvin"), only a few such things are kept, and it isn't passed further.
+- What you whisper is never passed on.
+- By rules alone: no AI call.
+
 ## 0.5.59 — 2026-11-11
 
 - What each person knows is their own. The AI is given every listener a block of their own: their memories with when and how they came by them (saw, heard), the chat they alone heard, and lore about themselves. What everyone present heard stays one conversation in order.

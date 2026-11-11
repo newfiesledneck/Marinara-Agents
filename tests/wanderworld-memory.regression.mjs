@@ -176,6 +176,32 @@ const server = await import("../packages/wanderworld/server.mjs");
   assert.equal(rook.at(-1), "Zoey did thing 11.");
 }
 
+// ── Gossip: first-hand things pass between two people, as hearsay, once ─────
+{
+  const memories = createMemories();
+  memories.remember(["corvin"], 'Zoey said to you: "I sold the mill."', 5, true, "heard");
+  memories.remember(["corvin"], 'Zoey whispered: "Don\'t trust Samuel."', 5, true, "heard");
+  assert.equal(memories.pass("corvin", "mira", "Corvin", 6), 'Zoey said to Corvin: "I sold the mill."');
+  assert.deepEqual(memories.known("mira", 5, 6), [
+    '(today, was told by Corvin) Zoey said to Corvin: "I sold the mill."',
+  ]);
+  assert.equal(memories.pass("corvin", "mira", "Corvin", 6), null, "not twice, and never what was whispered");
+  assert.equal(memories.pass("mira", "tam", "Mira", 6), null, "hearsay stops with whoever was told it");
+  assert.equal(memories.pass("corvin", "player", "Corvin", 6), null);
+  assert.equal(memories.pass("corvin", "corvin", "Corvin", 6), null);
+  assert.equal(memories.pass("corvin", "tam", "Corvin", 20), null, "old news isn't passed on");
+  // Someone who was there too isn't told what they already know.
+  memories.remember(["rook", "tam"], "Zoey got up on a horse.", 6, false, "saw");
+  assert.equal(memories.pass("rook", "tam", "Rook", 6), null);
+  // Only a few things told are kept: the oldest hearsay goes first.
+  for (let i = 0; i < 6; i++) {
+    memories.remember(["rook"], `Zoey did thing ${i}.`, 6, false, "saw");
+    memories.pass("rook", "ida", "Rook", 6);
+  }
+  assert.equal(memories.of("ida", 20).length, MEMORY.HEARSAY);
+  assert.equal(memories.of("ida", 20).at(-1), "Zoey did thing 5.");
+}
+
 // ── Who heard what: "Just before" holds only what those here were in earshot of ──────────────────
 {
   const log = [
