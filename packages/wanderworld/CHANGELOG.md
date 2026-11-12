@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.65 — 2026-11-11
+
+- The written manner for each relationship (0.5.62) is taken out: it could contradict a character's card or lore. The AI is still told what each person is to you (brother, employer, good friend, bitter rival) and what people in earshot are to each other; how they speak is left to their card and lore.
+
 ## 0.5.64 — 2026-11-11
 
 - How much people remember is yours to set: Settings → Everyday memories each (4 to 40) and Lasting memories each (0 to 30), and numbers of their own for anyone in Journal → Edit people.

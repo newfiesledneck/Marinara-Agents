@@ -78,106 +78,6 @@ export const KINDS = {
   },
 };
 
-/**
- * How each kind is spoken, tier by tier: what the model is told beside the bare word, so that "rival"
- * or "family" means what it means here and not what a model makes of it.
- */
-export const MANNERS = {
-  acquaintance: [
-    "polite and a little distant, as with someone met once",
-    "civil: a nod and small talk",
-    "comfortable and plain-spoken",
-    "familiar and easy, no ceremony",
-  ],
-  friend: [
-    "friendly and open",
-    "warm and relaxed, jokes come easily",
-    "warm and teasing, speaks their mind and takes their side",
-    "wholly at ease: blunt, affectionate, no need to explain themselves",
-  ],
-  romance: [
-    "a little warmer than with others, attentive",
-    "self-conscious and eager to please, easily flustered",
-    "openly sweet on them, hangs on their words",
-    "tender and unguarded, as with someone loved",
-  ],
-  partner: [
-    "affectionate, still finding their footing",
-    "easy intimacy: pet names and shared shorthand",
-    'devoted and protective, says "we"',
-    "complete trust: tender and frank, nothing held back",
-  ],
-  family: [
-    "dutiful but distant, a little stiff",
-    "familiar and offhand, as family are",
-    "close and frank: teases, nags and worries",
-    "fiercely loyal, speaks to them as to part of themselves",
-  ],
-  colleague: [
-    "businesslike, keeps to the work",
-    "collegial and practical",
-    "trusting: talks shop freely and asks their view",
-    "relies on them wholly, speaks in shorthand",
-  ],
-  mentor: [
-    "offers the odd word of advice",
-    "patient and instructive, corrects kindly",
-    "invested: pushes them and is proud of them",
-    "demanding and deeply proud, as with an heir",
-  ],
-  rival: [
-    "competitive in a good-natured way: needles them and likes to do one better",
-    "prickly and point-scoring, grudging with praise, but civil",
-    "cold and cutting, never gives an inch; it stays at words",
-    "icy contempt: wants to see them fail and says so, without violence",
-  ],
-  enemy: [
-    "curt and unfriendly",
-    "guarded and suspicious, gives nothing away",
-    "openly hostile: insults and threats, wants them gone",
-    "hatred: won't help them, speaks only to wound or to warn",
-  ],
-  fear: [
-    "a little on edge, careful what they say",
-    "wary: short answers, keeps their distance",
-    "frightened: placating, stammering, wants to leave",
-    "terrified: can barely speak, agrees to anything to get away",
-  ],
-};
-
-/** How a role is spoken (what the speaker is to the other): the register, whatever the warmth. */
-const ROLE_MANNERS = {
-  parent: "speaks as their parent: fond authority, advice whether it's wanted or not",
-  child: "speaks as their child: familiar, a little deferential, or defiant",
-  sibling: "speaks as a sibling: blunt and teasing, no politeness needed",
-  sister: "speaks as their sister: blunt and teasing, no politeness needed",
-  brother: "speaks as their brother: blunt and teasing, no politeness needed",
-  cousin: "speaks as a cousin: family, but not under the same roof",
-  aunt: "speaks as their aunt: fond, a little bossy",
-  uncle: "speaks as their uncle: fond, a little bossy",
-  grandparent: "speaks as their grandparent: indulgent, full of old stories",
-  spouse: "speaks as their spouse: the shorthand of a shared life",
-  wife: "speaks as their wife: the shorthand of a shared life",
-  husband: "speaks as their husband: the shorthand of a shared life",
-  employer: "speaks as their employer: gives instructions and expects them followed",
-  employee: "speaks as their employee: respectful, mindful of who pays",
-  apprentice: "speaks as their apprentice: deferential, eager to learn",
-  "partner in trade": "speaks as an equal in business: practical, shares the worry",
-  mentor: "speaks as their teacher",
-  student: "speaks as their pupil: respectful, full of questions",
-};
-
-/**
- * How someone with this relationship speaks to the other, for the model: the role's register, then the
- * kind's manner at this strength. `only`: "role" leaves the kind's manner out (a stance set by hand
- * says how they act instead).
- */
-export function mannerOf(kind, level, role = "", only = "") {
-  const as = role ? (ROLE_MANNERS[role.toLowerCase()] ?? `speaks as their ${role}`) : "";
-  const how = only === "role" ? "" : (MANNERS[kind]?.[tierIndex(level)] ?? "");
-  return [as, how].filter(Boolean).join("; ");
-}
-
 /** Townsfolk who share a town know each other a little even with no record: an acquaintance at this level. */
 export const NEIGHBOURS = { kind: "acquaintance", level: 20 };
 
@@ -360,11 +260,6 @@ export function createRelationships(records = []) {
     /** Everyone `from` has a record about: [{ to, … }]. */
     of(from) {
       return list.filter((record) => record.from === from);
-    },
-    /** How `from` speaks to `to` (mannerOf), or "" with no relationship between them. */
-    manner(from, to, only = "") {
-      const record = index.get(key(from, to));
-      return record ? mannerOf(record.kind, record.level, record.role, only) : "";
     },
     /** A relationship in words: "Sarah is best friends with Jake", "Mira is Tam's sister and is close to them". */
     describe(from, to, names) {
