@@ -390,7 +390,9 @@ export function createPersonEditor(layer, handlers) {
       const rank = (memory) => (memory.pinned ? 2 : memory.kept ? 1 : 0);
       const kept = [...(person.memories ?? [])].sort((a, b) => rank(b) - rank(a));
       if (!kept.length) body.append(element("div", `color:${INK_SOFT};font-size:12px;`, "Nothing yet."));
-      const rows = kept.slice(0, 60).map((memory) => {
+      const listed = element("div", "");
+      body.append(listed);
+      const makeRow = (memory) => {
         const row = element("div", "display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:3px 0;");
         const pin = element("input", "flex:none;width:18px;height:18px;");
         pin.type = "checkbox";
@@ -421,9 +423,22 @@ export function createPersonEditor(layer, handlers) {
           drop.setAttribute("aria-label", `${state.remove ? "Keep" : "Delete"} this memory: ${memory.text}`);
         });
         row.append(pin, words, tag, drop);
-        body.append(row);
+        listed.append(row);
         return state;
-      });
+      };
+      const rows = kept.slice(0, 60).map(makeRow);
+      if (kept.length > rows.length) {
+        const older = element("button", INK_SMALL, "");
+        older.type = "button";
+        const tell = () => (older.textContent = `Show more (${kept.length - rows.length} not shown)`);
+        older.addEventListener("click", () => {
+          rows.push(...kept.slice(rows.length, rows.length + 100).map(makeRow));
+          if (rows.length >= kept.length) older.remove();
+          else tell();
+        });
+        tell();
+        body.append(older);
+      }
       if (kept.length)
         body.append(
           note(
@@ -436,28 +451,45 @@ export function createPersonEditor(layer, handlers) {
       own.placeholder = "Something they'll always remember (your words; pinned)";
       own.setAttribute("aria-label", `Something ${person.name} will always remember`);
       body.append(own);
-      // How many they keep: their own numbers, or blank for the setting's.
-      const count = (key, max) => {
+      // How many they keep, and how many the AI is sent: their own numbers, All, or blank for the setting's.
+      const count = (key, label, blank) => {
         const input = element("input", `${INK_INPUT}padding:3px 6px;width:84px;`);
         input.type = "number";
         input.min = "0";
-        input.max = String(max);
+        input.max = "100";
         input.step = "1";
         input.inputMode = "numeric";
-        input.placeholder = String(person.memoryDefaults?.[key] ?? "share");
-        if (Number.isFinite(person.memoryLimits?.[key])) input.value = String(person.memoryLimits[key]);
-        return input;
+        input.placeholder = blank;
+        const all = element("input", "flex:none;width:18px;height:18px;margin:0;");
+        all.type = "checkbox";
+        all.setAttribute("aria-label", `${label}: all of them`);
+        const own = person.memoryLimits?.[key];
+        if (own > 100) all.checked = true;
+        else if (Number.isFinite(own)) input.value = String(own);
+        const sync = () => (input.disabled = all.checked);
+        all.addEventListener("change", sync);
+        sync();
+        const wrap = element("span", "display:flex;gap:6px;align-items:center;");
+        wrap.append(input, all, element("span", "font-size:12px;", "All"));
+        body.append(field(label, wrap));
+        return () => (all.checked ? 101 : input.value.trim() === "" ? null : Math.min(100, Number(input.value)));
       };
-      const each = count("each", 40);
-      const lasting = count("kept", 30);
-      body.append(field("Everyday memories kept", each), field("Lasting memories kept", lasting));
-      body.append(note("Blank uses the number in Settings. More for someone who should remember further back."));
-      const told = count("told", 40);
-      const keptTold = count("keptTold", 30);
-      body.append(field("Everyday memories sent to the AI", told), field("Lasting memories sent to the AI", keptTold));
+      const usual = (key) => {
+        const value = person.memoryDefaults?.[key];
+        return value > 100 ? "All" : String(value ?? "");
+      };
+      const each = count("each", "Everyday memories kept", usual("each"));
+      const lasting = count("kept", "Lasting memories kept", usual("kept"));
       body.append(
         note(
-          "Blank gives them a share of the number in Settings, split between whoever the AI is speaking for. A number here is theirs alone. More sent costs more tokens on every reply, so raise it only for people who matter.",
+          "Blank uses the number in Settings. More for someone who should remember further back; All keeps everything until you delete it.",
+        ),
+      );
+      const told = count("told", "Everyday memories sent to the AI", "share");
+      const keptTold = count("keptTold", "Lasting memories sent to the AI", "share");
+      body.append(
+        note(
+          "Blank gives them a share of the number in Settings, split between whoever the AI is speaking for. A number here is theirs alone; All sends everything they keep (the newest 120). More sent costs more tokens on every reply, so raise it only for people who matter.",
         ),
       );
       reads.push((changes) => {
@@ -474,13 +506,7 @@ export function createPersonEditor(layer, handlers) {
             pinned: pin.checked,
           }));
         changes.memory = own.value.trim();
-        const number = (input) => (input.value.trim() === "" ? null : Number(input.value));
-        changes.memoryLimits = {
-          each: number(each),
-          kept: number(lasting),
-          told: number(told),
-          keptTold: number(keptTold),
-        };
+        changes.memoryLimits = { each: each(), kept: lasting(), told: told(), keptTold: keptTold() };
       });
       if (kept.length) {
         const wrap = element("label", "display:flex;gap:6px;align-items:center;font-size:12px;margin-top:2px;");

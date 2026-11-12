@@ -654,9 +654,14 @@ console.log("wanderworld regression: OK");
   for (const pick of PICKS) {
     assert.ok(pick.label && pick.note, `${pick.id} says what it does`);
     assert.equal([pick.ask, pick.fill, pick.picker].filter(Boolean).length, 1, `${pick.id} does one thing`);
+    if (pick.picker === "memories")
+      assert.ok(pick.request && pick.needs.includes("memories"), `${pick.id} asks about memories`);
     for (const part of pick.needs) assert.ok(Object.hasOwn(PARTS, part), `${pick.id}: ${part}`);
   }
   assert.ok(PICKS.filter((pick) => pick.common).length <= 4, "a few always in view");
+  assert.ok(needs("Why does Mira remember that?").includes("memories"));
+  assert.ok(!needs("Make Jake a sorcerer").includes("memories"), "memories stay out of a plain request");
+  assert.ok(PICKS.filter((pick) => pick.picker === "memories").length >= 4);
 
   // The proposal's choices: places from the world, a number kept in range, a fixed list held to.
   const { editableFields, reviseEdits } = await import("../packages/wanderworld/src/assistant-edits.js");

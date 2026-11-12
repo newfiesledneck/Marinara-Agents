@@ -377,9 +377,9 @@ async function writersCards(resources, body) {
 // ── The AI assistant ─────────────────────────────────────────────────────────
 /** The kinds of relationship an edit may set (relationships.js KINDS), and "none" to end one. */
 const ASSISTANT_KINDS = ["acquaintance", "friend", "romance", "partner", "family", "colleague", "mentor", "rival", "enemy", "fear", "none"];
-const ASSISTANT_MAX_EDITS = 20;
+const ASSISTANT_MAX_EDITS = 60;
 /** The parts of a world that may be left out of a message to the assistant (assistant-context.js PARTS). */
-const ASSISTANT_PARTS = ["people", "relations", "places", "days", "here", "ties", "lore", "board", "help", "ages", "chat", "recaps"];
+const ASSISTANT_PARTS = ["people", "relations", "places", "days", "here", "ties", "lore", "board", "help", "ages", "chat", "recaps", "memories"];
 const ASSISTANT_PART_WORDS = {
   people: "everyone in detail (only names, homes and work are listed for most)",
   relations: "relationships",
@@ -393,6 +393,7 @@ const ASSISTANT_PART_WORDS = {
   ages: "ages",
   chat: "the recent chat",
   recaps: "scene recaps",
+  memories: "what people remember",
 };
 /** How someone may act toward the player (main.js STANCE_WARMTH), and "none" for nothing special. */
 const ASSISTANT_STANCES = ["rude", "aggressive", "attacks", "afraid", "avoids", "none"];
@@ -423,6 +424,8 @@ Places and the world:
 - {"do": "notice", "text": "...", "by": "the reeve"}: pins a note to the noticeboard.
 - {"do": "errand", "person": "Mira", "text": "Take this letter to Mira.", "done": "Mira reads it twice and thanks you."}: an errand for the player, to go to that person; "done" is told when they reach them. They can have one at a time. {"do": "errand", "cancel": true} drops the one they have.
 - {"do": "unpin", "notes": ["note1", "note3"]}: takes notes down from the noticeboard, by their numbers there. {"do": "unpin", "all": true} takes them all down.
+What people remember (each person's own: only what they saw, heard or were told; their memories are numbered under "What people remember", m1 the oldest):
+- {"do": "memory", "person": "Mira", "memory": "m3", "text": "..."}: rewords that memory (at most 200 characters, plain words in the past tense, like the others). {"do": "memory", "person": "Mira", "memory": "m3", "remove": true} deletes it. {"do": "memory", "person": "Mira", "memory": "m3", "pin": true} pins it (locked, never pushed out; "pin": false lets it go again). {"do": "memory", "person": "Mira", "add": "...", "as": "m3"} gives them a new lasting memory, dated like the memory named in "as" (left out: today). One memory to an edit.
 A scene:
 - {"do": "scene", "place": "tavern1", "people": ["Brin", "Cole"], "premise": "..."}: a roleplay scene to play in the Engine, only when the player asks for a scene: where it is, who is in it (one to four of their own characters, not invented people), and how it opens in a sentence or two. It starts when they confirm. One at most, and nothing else changes with it.`,
   `Lore and card text REPLACES what is there now (shown to you as "lore", and for invented people "about"), so what you write is the whole of it, rewritten: never a summary, never only the new part. Keep every detail that is there, in the same voice and at no less than the same length and level of detail, and weave the change in where it belongs; change or drop only what the request contradicts. A small request ("make Jake a sorcerer") changes little: the lore stays as rich as it was, with his sorcery worked through it. A detailed request may add as much as it asks for. When one of the player's own characters has no lore here yet, their card ("about") still stands by itself: write what is new or different about them in this world, as fully as the request deserves, without repeating the card.`,
@@ -608,6 +611,19 @@ function readAssistantEdit(item, name) {
     const people = (Array.isArray(item.people) ? item.people : []).map(name).filter(Boolean).slice(0, 4);
     return premise && people.length ? { do: "scene", place, people, premise } : null;
   }
+  if (item.do === "memory") {
+    const person = name(item.person);
+    const number = (value) => Number(/^m(\d{1,4})$/iu.exec(String(value ?? "").trim())?.[1] ?? 0);
+    if (!person) return null;
+    const added = text(item.add, 200);
+    if (added) return { do: "memory", person, action: "add", memory: 0, as: number(item.as), text: added };
+    const memory = number(item.memory);
+    if (!memory) return null;
+    if (item.remove === true) return { do: "memory", person, action: "remove", memory };
+    if (typeof item.pin === "boolean") return { do: "memory", person, action: item.pin ? "pin" : "unpin", memory };
+    const words = text(item.text, 200);
+    return words ? { do: "memory", person, action: "reword", memory, text: words } : null;
+  }
   if (item.do === "errand") {
     if (item.cancel === true) return { do: "errand", cancel: true };
     const [person, words] = [name(item.person), text(item.text, 400)];
@@ -680,6 +696,7 @@ export function assistantMessages(input) {
     section("What lore is tied to", input.ties.join("\n")),
     section("The noticeboard", input.board),
     section("This world's own lore", input.entries.map((entry) => `${entry.title}: ${entry.content}`).join("\n\n")),
+    section("What people remember", (input.memories ?? []).map((person) => `${person.name}:\n${person.lines.map((entry) => `  ${entry}`).join("\n")}`).join("\n\n")),
     section("The recent chat in the world (oldest first)", input.chat ?? ""),
     section("Recaps of scenes played from this world (oldest first)", input.recaps ?? ""),
     ageRule(input.ages) && section("Ages", `${ageRule(input.ages)} ${AGES_YIELD}`),
@@ -1353,7 +1370,7 @@ export async function activate(context) {
           weather: text(body.weather, 40),
           nearby: text(body.nearby, 300),
           relationship: text(body.relationship, 600),
-          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 80),
+          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 300),
           setting: block(body.setting, 600),
           lore: [
             ...loreEntries.map((entry) => `${text(entry.name, MAX.name)}: ${block(entry.content, MAX.loreText)}`),
@@ -1446,7 +1463,7 @@ export async function activate(context) {
             doing: text(person.doing, 120),
             feeling: text(person.feeling, 600),
             others: text(person.others, 500),
-            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 90),
+            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 300),
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)
@@ -1767,6 +1784,9 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           entries: list(body.entries, 60)
             .map((entry) => ({ title: text(entry.title, 120), content: text(entry.content, 1500) }))
             .filter((entry) => entry.title && entry.content),
+          memories: list(body.memories, 40)
+            .map((person) => ({ name: text(person.name, 80), lines: (Array.isArray(person.lines) ? person.lines : []).map((entry) => text(entry, 260)).filter(Boolean).slice(-150) }))
+            .filter((person) => person.name && person.lines.length),
           help: block(body.help, 9000),
           ages: isRecord(body.ages) ? body.ages : null,
         });

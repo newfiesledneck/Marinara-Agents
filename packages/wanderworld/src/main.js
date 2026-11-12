@@ -55,7 +55,7 @@ import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
-import { createMemories, heardBy, heardLines, MEMORY, toldShares } from "./memory.js";
+import { ago, createMemories, heardBy, heardLines, MEMORY, toldShares } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
 import {
   FURNITURE,
@@ -3066,8 +3066,12 @@ function memoriesTold(ids) {
   if (!core.settings.memories || !core.memories) return Object.fromEntries(ids.map((id) => [id, []]));
   const own = (key) => Object.fromEntries(ids.map((id) => [id, core.save?.memoryLimits?.[id]?.[key]]));
   const counted = core.settings.memoryToldCounted === true;
-  const each = toldShares(ids, core.settings.memoryTold, own("told"), counted);
-  const kept = toldShares(ids, core.settings.memoryKeptTold, own("keptTold"), counted);
+  // (How many each has of either kind: a share someone can't fill goes to the others.)
+  const lists = Object.fromEntries(ids.map((id) => [id, core.memories.list(id).filter((memory) => !memory.pinned)]));
+  const have = (lasting) =>
+    Object.fromEntries(ids.map((id) => [id, lists[id].filter((memory) => memory.kept === lasting).length]));
+  const each = toldShares(ids, core.settings.memoryTold, own("told"), counted, have(false));
+  const kept = toldShares(ids, core.settings.memoryKeptTold, own("keptTold"), counted, have(true));
   const today = core.social?.day ?? 0;
   return Object.fromEntries(ids.map((id) => [id, core.memories.known(id, each[id], today, kept[id])]));
 }
@@ -4394,6 +4398,36 @@ async function askAssistant(history, options = {}) {
           ? (ids[key.slice("character:".length)] ?? "")
           : (groups.find((group) => group.id === key)?.name ?? placeWords(key));
   const noteIds = save.notices.map((note) => note.id); // the board as the model is shown it: note1, note2…
+  // Whose memories go, when memories do: whoever was ticked (a ready-made request), else whoever the
+  // message names, else whoever was asked about last, else everyone. Each memory has a number, m1 the
+  // oldest, that an edit names it by; with many people only the newest of each go (600 in all).
+  const forMemories = pick?.picker === "memories";
+  if (forMemories) core.assistantMemoryOf = Array.isArray(options.memoryOf) ? options.memoryOf : null;
+  const chosenMemories = forMemories
+    ? core.assistantMemoryOf
+    : named.size
+      ? cast.filter((person) => named.has(person.name)).map((person) => person.id)
+      : (core.assistantMemoryOf ?? null);
+  const today = core.social?.day ?? 0;
+  const memoryIds = {};
+  const remembering = cast
+    .filter((person) => !chosenMemories || chosenMemories.includes(person.id))
+    .map((person) => ({ person, all: (core.memories?.list(person.id) ?? []).reverse() }))
+    .filter(({ all }) => all.length);
+  const memoryMost = Math.max(15, Math.min(150, Math.floor(600 / Math.max(1, remembering.length))));
+  const memoryLines = remembering.map(({ person, all }) => {
+    memoryIds[person.id] = all.map(({ day, text }) => ({ day, text }));
+    return {
+      name: person.name,
+      lines: all
+        .map(
+          (memory, at) =>
+            `m${at + 1} (${ago(memory.day, today)}${memory.pinned ? ", pinned" : memory.kept ? ", lasting" : ""}) ${memory.text}`,
+        )
+        .slice(-memoryMost),
+    };
+  });
+  if (forMemories && !memoryLines.length) throw new Error("Nobody chosen remembers anything yet.");
   const scenes = (save.events ?? []).filter((event) => event.kind === "scene" && event.summary);
 
   /** The request with these parts of the world (a Set of assistant-context.js PARTS) and no others. */
@@ -4478,6 +4512,7 @@ async function askAssistant(history, options = {}) {
           ].join("\n")
         : "",
       entries: entries.map((entry) => ({ title: entry.title, content: entry.content })),
+      memories: needs.has("memories") ? memoryLines : [],
       chat: needs.has("chat")
         ? core.momentLog
             .slice(-20)
@@ -4514,7 +4549,7 @@ async function askAssistant(history, options = {}) {
   }
   if (core.save?.id !== save.id) throw new Error("Another world was opened meanwhile, so nothing was changed.");
   const edits = answer?.edits ?? [];
-  const context = { noteIds };
+  const context = { noteIds, memoryIds };
   const proposal = applyAssistantEdits(edits, true, context);
   const inFull = cast.filter((person) => named.has(person.name)).map((person) => person.name);
   return {
@@ -4605,6 +4640,7 @@ const ASSISTANT_FIELDS = [
   "notices",
   "errand",
   "waypoint",
+  "memories",
 ];
 
 /** The world as it is before the assistant changes it: a copy of those fields, for Undo. */
@@ -4612,6 +4648,7 @@ function assistantSnapshot() {
   savePlace(true); // the cast as it is now
   const fields = Object.fromEntries(ASSISTANT_FIELDS.map((key) => [key, core.save[key]]));
   fields.relationships = core.relations.all;
+  fields.memories = core.memories?.state ?? {};
   return { id: core.save.id, fields: JSON.parse(JSON.stringify(fields)) };
 }
 
@@ -4636,6 +4673,13 @@ function undoAssistant(before, after = null) {
   core.save = { ...core.save, ...JSON.parse(JSON.stringify(before.fields)) };
   core.bodies = { ...core.save.bodies };
   useRelations(createRelationships(core.save.relationships));
+  // (Memories in the order they happened, so one that's brought back is where it was.)
+  core.memories = createMemories(
+    Object.fromEntries(
+      Object.entries(core.save.memories ?? {}).map(([id, list]) => [id, [...list].sort((a, b) => a.day - b.day)]),
+    ),
+    memoryLimits,
+  );
   core.characters = peopleOf(core.save);
   const here = new Set(core.characters.map((character) => character.id));
   core.cast = new Set(core.save.cast.filter((id) => here.has(id)).slice(0, MAX_PEOPLE));
@@ -4681,6 +4725,8 @@ function applyAssistantEdits(edits, dry, context = {}) {
   let hasErrand = !!core.save.errand;
   let scene = null; // a scene to start once everything else is done
   const unpinned = new Set(); // notes these edits take down
+  const touched = new Set(); // memories these edits reword or delete
+  const pins = {}; // and how many more each person has pinned by them
   // A faction's own lore (written here) is tied to every member; it isn't any one member's.
   const factionNote = (id) => factions.some((faction) => faction.lorebookId === "world" && faction.entryId === id);
   /** Ties (or unties) a faction's lore to these people. */
@@ -5211,6 +5257,62 @@ function applyAssistantEdits(edits, dry, context = {}) {
         before: found.map((note) => `• ${note.text}${note.by ? ` (from ${note.by})` : ""}`).join("\n"),
         after: "(Taken down. Undo pins them back.)",
       });
+    } else if (item.do === "memory") {
+      const person = findPerson(item.person);
+      if (!person || !core.memories) {
+        skipped.push(nobody(item.person));
+        continue;
+      }
+      // The memories by the numbers the model was shown (m1 the oldest); found again by day and words.
+      const shown = context.memoryIds?.[person.id] ?? core.memories.list(person.id).reverse();
+      const today = core.social?.day ?? 0;
+      if (item.action === "add") {
+        const day = shown[item.as - 1]?.day ?? today;
+        if (!dry) core.memories.remember([person.id], item.text, day, false, "", "", true);
+        changes.push({ line: `A new lasting memory for ${person.name} (${ago(day, today)}).`, after: item.text });
+        continue;
+      }
+      const target = shown[item.memory - 1];
+      const key = `${person.id}|${target?.day}|${target?.text}`;
+      const now =
+        target &&
+        !touched.has(key) &&
+        core.memories.list(person.id).find((memory) => memory.day === target.day && memory.text === target.text);
+      if (!now) {
+        skipped.push(`${person.name} has no memory m${item.memory} (any more).`);
+        continue;
+      }
+      const when = `${ago(now.day, today)}${now.pinned ? ", pinned" : now.kept ? ", lasting" : ""}`;
+      if (item.action === "reword") {
+        if (item.text === now.text) continue;
+        touched.add(key);
+        if (!dry) core.memories.edit(person.id, now.text, now.day, item.text);
+        changes.push({ line: `Reword a memory of ${person.name}'s (${when}).`, before: now.text, after: item.text });
+      } else if (item.action === "remove") {
+        touched.add(key);
+        if (!dry) core.memories.remove(person.id, now.text, now.day);
+        changes.push({
+          line: `Delete a memory of ${person.name}'s (${when}).`,
+          before: now.text,
+          after: "(Deleted. Undo brings it back.)",
+        });
+      } else {
+        const on = item.action === "pin";
+        if (on === now.pinned) continue;
+        const pinned = core.memories.list(person.id).filter((memory) => memory.pinned).length;
+        if (on && pinned + (dry ? (pins[person.id] ?? 0) : 0) >= MEMORY.PINNED) {
+          skipped.push(`${person.name} has ${MEMORY.PINNED} pinned memories already: unpin one first.`);
+          continue;
+        }
+        if (on) pins[person.id] = (pins[person.id] ?? 0) + 1;
+        if (!dry) core.memories.pin(person.id, now.text, now.day, on);
+        changes.push({
+          line: on
+            ? `Pin a memory of ${person.name}'s (${when}): locked, never pushed out.`
+            : `Unpin a memory of ${person.name}'s (${when}): it can be pushed out again.`,
+          after: now.text,
+        });
+      }
     } else if (item.do === "scene") {
       const zoneId = item.place ? findPlace(item.place) : null;
       const cast = item.people
@@ -5290,7 +5392,14 @@ function applyAssistantEdits(edits, dry, context = {}) {
     }
   });
   if (!dry && changes.length) {
-    core.save = { ...core.save, book: { entries: book }, lore, locals, factions };
+    core.save = {
+      ...core.save,
+      book: { entries: book },
+      lore,
+      locals,
+      factions,
+      memories: core.memories?.state ?? core.save.memories,
+    };
     core.characters = peopleOf(core.save);
     if (castChanged) updateCast(); // whoever was added or taken away; saves
     if (core.talking && !core.cast.has(core.talking.id)) endTalk(); // the one being talked to is gone
@@ -7365,6 +7474,13 @@ function attach(element) {
       core.save = { ...core.save, assistantChat: turns };
       core.saves.write(core.save);
     },
+    // Who remembers anything, for the assistant's memory requests: [{ id, name, count }].
+    onAssistantMemories: () =>
+      (core.characters ?? [])
+        .filter((person) => core.cast?.has(person.id))
+        .slice(0, 40)
+        .map((person) => ({ id: person.id, name: person.name, count: core.memories?.list(person.id).length ?? 0 }))
+        .filter((person) => person.count),
     onAssistantBooks: () =>
       readLorebooks().then((books) =>
         books.map((book) => ({

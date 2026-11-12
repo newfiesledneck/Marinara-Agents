@@ -34,6 +34,7 @@ const MOST_ENTRIES = 20; // lorebook entries a keyword draft takes (server.mjs t
  *   that edit's parts the player may change, and `revised` is what they left: [{ edit, keep, values }].
  * - `onChat(history)`: the chat as it stands, to keep with the world.
  * - `onLorebooks()` → Promise<[{ id, name, entries: [{ id, title }] }]>, for the keyword draft.
+ * - `onMemoryPeople()` → [{ id, name, count }]: who remembers anything, for the memory requests.
  * The node has `setChat(history)`: the chat a world was left with (when one is opened).
  */
 export function createAssistant(handlers) {
@@ -345,12 +346,18 @@ export function createAssistant(handlers) {
     if (typed) input.value = "";
     setBusy(true, "Thinking…");
     const asked = say(options.shown ?? text, true);
-    history.push({ role: "user", text: options.shown ?? text });
+    // (What's shown may be a short form of a ready-made request; the model is sent the request itself.)
+    history.push({ role: "user", text });
     try {
       const answer =
         (await handlers.onAsk(
           history.slice(-12).map((turn) => ({ role: turn.role, text: turn.text })),
-          { pick: options.pick ?? null, book: options.book ?? null, entries: options.entries ?? null },
+          {
+            pick: options.pick ?? null,
+            book: options.book ?? null,
+            entries: options.entries ?? null,
+            memoryOf: options.memoryOf ?? null,
+          },
         )) ?? {};
       const reply = answer.reply || "";
       if (reply) {
@@ -503,10 +510,85 @@ export function createAssistant(handlers) {
     fill();
   }
 
+  /** A memory request's choice: whose memories go with it, each ticked, or everyone's. */
+  function openMemories(pick) {
+    const people = handlers.onMemoryPeople?.() ?? [];
+    const close = button("Close", INK_SMALL, () => (picker.style.display = "none"));
+    const title = element("div", "font-weight:700;", pick.label.replace(/…$/u, ""));
+    picker.style.display = "flex";
+    if (!people.length) {
+      picker.replaceChildren(title, element("div", "", "Nobody in this world remembers anything yet."), close);
+      return;
+    }
+    const tickBox = (words) => {
+      const row = element("label", "display:flex;gap:6px;align-items:center;");
+      const tick = element("input", "flex:none;width:18px;height:18px;margin:0;");
+      tick.type = "checkbox";
+      row.append(tick, element("span", "overflow-wrap:anywhere;", words));
+      return { row, tick };
+    };
+    const everyone = tickBox("All characters' memories");
+    everyone.row.style.fontWeight = "600";
+    const list = element(
+      "div",
+      "display:flex;flex-direction:column;gap:4px;max-height:190px;overflow-y:auto;padding:2px;",
+    );
+    const ticks = people.map((person) => {
+      const { row, tick } = tickBox(`${person.name} (${person.count})`);
+      tick.addEventListener("change", () => tell());
+      list.append(row);
+      return { person, tick };
+    });
+    const count = element("div", `color:${INK_SOFT};`);
+    const chosen = () => (everyone.tick.checked ? ticks : ticks.filter(({ tick }) => tick.checked));
+    const tell = () => {
+      const total = chosen().reduce((sum, { person }) => sum + person.count, 0);
+      const sent = Math.min(total, 600);
+      count.textContent = chosen().length
+        ? `${sent} ${sent === 1 ? "memory" : "memories"} to send${total > 600 ? ` (the newest of each; ${total} in all)` : ""}: roughly ${Math.round((sent * 45) / 100) * 100 || 50} tokens, besides the rest of the request.`
+        : "Tick whose memories to send.";
+    };
+    everyone.tick.addEventListener("change", () => {
+      for (const { tick } of ticks) tick.disabled = everyone.tick.checked;
+      tell();
+    });
+    const ask = button("Ask", INK_BUTTON, () => {
+      const whose = chosen();
+      if (!whose.length) {
+        count.textContent = "Tick at least one person, or all characters.";
+        return;
+      }
+      picker.style.display = "none";
+      const all = everyone.tick.checked || whose.length === people.length;
+      const names = whose.map(({ person }) => person.name).join(", ");
+      void send(`${pick.request}\n\nWhose: ${all ? "everyone who remembers anything" : names}.`, {
+        pick: pick.id,
+        memoryOf: all ? null : whose.map(({ person }) => person.id),
+        shown: `${pick.label.replace(/…$/u, "")}: ${all ? "everyone" : names}.`,
+      });
+    });
+    const row = element("div", "display:flex;gap:6px;");
+    row.append(ask, close);
+    picker.replaceChildren(
+      title,
+      element(
+        "div",
+        `color:${INK_SOFT};`,
+        "Only the memories of whoever you tick are sent. Nothing changes until you've read what's proposed and pressed Confirm, and you can undo it.",
+      ),
+      everyone.row,
+      list,
+      count,
+      row,
+    );
+    tell();
+  }
+
   const run = (pick) => {
     if (busy) return;
     more.open = false;
     if (pick.picker === "keywords") void openKeywords();
+    else if (pick.picker === "memories") openMemories(pick);
     else if (pick.fill) {
       filled = pick;
       input.value = pick.fill;

@@ -67,6 +67,7 @@ const FIELDS = {
   notice: [field("text", "The note", 400, true, true), field("by", "From", 60)],
   errand: [field("text", "The errand", 400, true, true), field("done", "Told when it's done", 400, true)],
   scene: [field("premise", "How the scene opens", 600, true, true)],
+  memory: [field("text", "The memory", 200, false, true)],
 };
 
 const partsOf = (edit) =>

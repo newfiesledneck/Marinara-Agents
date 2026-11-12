@@ -157,14 +157,15 @@ export const SETTINGS = {
   /** People in sight remember what the player does (getting on a horse, going into a house), not only what's said. */
   memorySights: { value: true },
   /** How many everyday and lasting memories each person keeps (memory.js; a person can have numbers of their own). */
-  memoryEach: { value: 14, min: 4, max: 40 },
-  memoryKept: { value: 8, min: 0, max: 30 },
+  // (The last step of each of these, 101, is "All": memory.js MEMORY.ALL.)
+  memoryEach: { value: 14, min: 4, max: 101 },
+  memoryKept: { value: 8, min: 0, max: 101 },
   /**
    * How many of them the model is told, shared between the people it's speaking for (memory.js toldShares;
    * a person can have numbers of their own), and whether those numbers come out of the shared count.
    */
-  memoryTold: { value: 12, min: 0, max: 40 },
-  memoryKeptTold: { value: 8, min: 0, max: 30 },
+  memoryTold: { value: 12, min: 0, max: 101 },
+  memoryKeptTold: { value: 8, min: 0, max: 101 },
   memoryToldCounted: { value: false },
   /** People who spend time together pass on what they saw or heard (memory.js pass): hearsay, by rule. */
   gossip: { value: false },

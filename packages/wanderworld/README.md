@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.66)
+## What it does now (0.5.67)
 
 ### The world
 
@@ -220,10 +220,16 @@ only walk about.
   reworded, deleted, or pinned: a pinned one is locked and never pushed out, and you can write one too.
 - **How much memory the AI is sent is yours to set:** apart from how many memories are kept, two settings
   say how many everyday and lasting ones are sent, as a count shared between whoever the AI is speaking
-  for (20 between three people is 7 each, rounded up). Anyone can have a number of their own in Journal →
+  for (20 between three people is 7 each, rounded up; someone with fewer than their share leaves the rest
+  to the others). Each slider goes to a hundred and then **All**: keep everything until you delete it (a
+  thousand of each for one person at most), send everything they keep (the newest 120 of each kind). Anyone can have a number of their own, or All, in Journal →
   Edit people, and a switch says whether that comes out of the shared count (5, 5 and 10) or not (7, 7 and
   10). More sent costs more tokens on every reply, so the cheap way is a low shared number and a higher
   one for the few people who matter.
+- **The AI assistant looks after memories:** five ready-made requests (check them against the lore, clear
+  out what doesn't matter, find repeats, sum up old ones into one lasting memory, suggest what to pin).
+  Each asks whose memories to send first, a tick for each person or everyone's, with a rough token count.
+  Every rewording, deletion, pin or new memory is proposed for you to change, leave out, confirm, and undo.
 - **Relationships are told as they are:** the AI is given what each person is to you (brother, employer,
   good friend, bitter rival) and what people in earshot are to each other. How someone speaks is left to
   their card and lore.

@@ -880,6 +880,18 @@ assert.equal(
     { do: "errand", person: "Mira", text: "Take this letter to Mira.", done: "" },
   ]);
   assert.match(more.problem, /^4 of the assistant's changes weren't/u);
+  // Memory edits: one memory to an edit, by its number.
+  const memoryEdits = server.readAssistant(
+    'Here.\n```wanderworld\n{"edits": [{"do": "memory", "person": "Mira", "memory": "m3", "text": "  Zoey   paid her back. "}, {"do": "memory", "person": "Mira", "memory": "M12", "remove": true}, {"do": "memory", "person": "Mira", "memory": "m2", "pin": true}, {"do": "memory", "person": "Mira", "memory": "m2", "pin": false}, {"do": "memory", "person": "Mira", "add": "A long week on the road with Zoey.", "as": "m4"}, {"do": "memory", "person": "Mira", "memory": "three", "remove": true}, {"do": "memory", "person": "Mira", "memory": "m5"}, {"do": "memory", "memory": "m1", "remove": true}]}\n```',
+  );
+  assert.deepEqual(memoryEdits.edits, [
+    { do: "memory", person: "Mira", action: "reword", memory: 3, text: "Zoey paid her back." },
+    { do: "memory", person: "Mira", action: "remove", memory: 12 },
+    { do: "memory", person: "Mira", action: "pin", memory: 2 },
+    { do: "memory", person: "Mira", action: "unpin", memory: 2 },
+    { do: "memory", person: "Mira", action: "add", memory: 0, as: 4, text: "A long week on the road with Zoey." },
+  ]);
+  assert.match(memoryEdits.problem, /^3 of the assistant's changes weren't/u);
   const cut = server.readAssistant('On it.\n```wanderworld\n{"edits": [{"do": "lore", "about": "Ja');
   assert.deepEqual([cut.reply, cut.edits.length], ["On it.", 0]);
   assert.match(cut.problem, /cut short/u);

@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.67",
+          "date": "2026-11-11",
+          "notes": "- A share of the memories sent that someone can't fill goes to the others present (20 between three, one with 3: 3, 9 and 9).\n- The memory sliders now run to 100 and then All, kept and sent, in Settings and for each person in Journal → Edit people. All keeps everything until you delete it (1000 of each for one person at most) and sends everything kept (the newest 120 of each). The settings say what that costs in tokens.\n- The AI assistant has five memory requests under More things to ask: check against the lore, clear out what doesn't matter, find repeats, sum up old ones, suggest pins. Each asks whose memories to send (a tick each, or everyone's). Its rewordings, deletions, pins and new memories are proposed first and can be undone.\n- Edit people shows older memories on asking.",
+          "highlight": false
+        },
+        {
           "version": "0.5.66",
           "date": "2026-11-11",
           "notes": "- How many memories the AI is sent is now set apart from how many are kept: Settings → Everyday memories sent to the AI (0 to 40, 12 to start) and Lasting memories sent to the AI (0 to 30, 8 to start). The number is shared between whoever the AI is speaking for, rounded up: 20 between three people is 7 each.\n- Anyone can have numbers of their own in Journal → Edit people. A new switch says whether those come out of the shared count (5, 5 and 10) or leave the others' share alone (7, 7 and 10; off to start).\n- The settings say what this costs in tokens and how to keep it down: a low shared number, and a higher one for the people who matter.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.48",
           "date": "2026-11-11",
           "notes": "- Two more monsters: the imp and the puglin (a pig-goblin). They walk on two legs, moved by the people's own animations.\n- Lore can ask for them by name (`ww:monster:imp`, `ww:monster:puglin`); goblin and orc are read as a puglin, demon and devil as an imp.\n- Settings → Animals has a switch for each.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.47",
-          "date": "2026-11-11",
-          "notes": "- Tools in hand at work: on the farm a sickle while cutting, a seed basket while sowing and a watering can while watering; a trowel for whoever kneels in the garden.",
           "highlight": false
         }
       ]
