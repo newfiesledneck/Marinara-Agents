@@ -152,6 +152,15 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
   assert.deepEqual(checked, [{ id: "group:a", name: "Coast", members: ["forest"], parent: null }]);
   assert.equal(checkGroups(undefined), null, "no groups saved yet: the defaults apply");
   assert.deepEqual(checkWorld({ id: "w", seed: "s", groups: checked }).groups, checked, "groups are saved");
+  // How many memories someone keeps, when it isn't the setting's number: whole numbers within what's allowed.
+  assert.deepEqual(
+    checkWorld({
+      id: "w",
+      seed: "s",
+      memoryLimits: { a: { each: 99, kept: 2.4 }, b: { each: "x" }, c: { kept: -3 }, d: 5 },
+    }).memoryLimits,
+    { a: { each: 40, kept: 2 }, c: { kept: 0 } },
+  );
 
   // Subgroups: a group inside another passes on the outer one's lore.
   const nested = [

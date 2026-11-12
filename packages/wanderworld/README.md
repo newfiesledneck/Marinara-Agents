@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.63)
+## What it does now (0.5.64)
 
 ### The world
 
@@ -215,7 +215,9 @@ only walk about.
 - **People remember what mattered:** beside their everyday memories (the newest fourteen), each person
   keeps up to eight lasting ones that small talk never pushes out: a scene you played together, a night
   at your campfire, joining or leaving your party, moving house, an errand done, falling out or growing
-  closer. Tick any memory to keep it for good, or write one, in Journal → Edit people.
+  closer. How many of each is a setting, with
+  numbers of their own for anyone (family who remember more). In Journal → Edit people a memory can be
+  reworded, deleted, or pinned: a pinned one is locked and never pushed out, and you can write one too.
 - **Relationships set the tone:** the AI is told what each person is to you (brother, employer, good
   friend, bitter rival) and what that means for how they speak, in words written for each kind and
   strength, so a rival needles and stays civil and doesn't turn into a villain. People in earshot are

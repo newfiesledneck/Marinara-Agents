@@ -156,6 +156,9 @@ export const SETTINGS = {
   memories: { value: true },
   /** People in sight remember what the player does (getting on a horse, going into a house), not only what's said. */
   memorySights: { value: true },
+  /** How many everyday and lasting memories each person keeps (memory.js; a person can have numbers of their own). */
+  memoryEach: { value: 14, min: 4, max: 40 },
+  memoryKept: { value: 8, min: 0, max: 30 },
   /** People who spend time together pass on what they saw or heard (memory.js pass): hearsay, by rule. */
   gossip: { value: false },
   sound: { value: true },

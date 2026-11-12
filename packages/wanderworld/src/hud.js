@@ -705,6 +705,10 @@ export function createHud(root, handlers) {
       "Anyone within sight remembers what you do, not only what you say in their hearing: getting up on a horse, going into a house, lighting a fire. Only they know it. Needs memories on. Off, people remember only what was said near them.",
     gossip:
       'Gossip. People who spend time together now and then tell each other something they saw or heard of you in the last few days. Whoever is told knows it as hearsay ("was told by Corvin"), keeps only a few such things, and doesn\'t pass it further. What you whisper is never passed on. Needs memories on. Off, people know only what they were there for.',
+    memoryEach:
+      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. More means people recall further back, and a little more is sent to the AI for them (the newest five). Anyone can have a number of their own in Journal → Edit people.",
+    memoryKept:
+      "How many lasting memories each person keeps: what mattered (a scene, a campfire, travelling together). Only other lasting ones push them out. Memories you pin are locked and don't count against this. Anyone can have a number of their own in Journal → Edit people.",
     worldEvents:
       "Once a week it's market day, and once in four weeks there's an evening festival: for those hours a good share of the town gathers in the market square, and a line says so. People in your party, people you've asked round, and anyone whose day you set by hand for those hours keep to that instead. Off, every day is like every other.",
     awayRecap:
@@ -873,6 +877,8 @@ export function createHud(root, handlers) {
   toggle("memories", "People remember what they saw and heard");
   toggle("memorySights", "People notice what you do");
   toggle("gossip", "People pass on what they know");
+  slider("memoryEach", "Everyday memories each", 1, (value) => String(value));
+  slider("memoryKept", "Lasting memories each", 1, (value) => String(value));
   toggle("worldEvents", "Market days and festivals");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");

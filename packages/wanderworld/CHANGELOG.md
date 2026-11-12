@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.64 — 2026-11-11
+
+- How much people remember is yours to set: Settings → Everyday memories each (4 to 40) and Lasting memories each (0 to 30), and numbers of their own for anyone in Journal → Edit people.
+- A memory can be reworded when it came out wrong, or deleted with ✕ (Journal → Edit people).
+- Pinning locks a memory: nothing ever pushes it out, and only its age moves on. Thirty a person; one you write yourself is pinned from the start. Pinned ones don't count against the lasting number.
+- Memories show how long ago they were.
+
 ## 0.5.63 — 2026-11-11
 
 - Lasting memories. Each person keeps up to eight beside their everyday ones, and small talk never pushes them out: a scene you played together (its recap), a night at your campfire, joining or leaving your party, moving house, an errand done, meeting you, falling out or growing closer.

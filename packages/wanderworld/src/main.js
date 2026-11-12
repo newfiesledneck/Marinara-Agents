@@ -692,7 +692,7 @@ function playWorld(id) {
   core.social = createSocial(save.social ?? {});
   core.eventDay = undefined; // which day's event has been told (tellEvents)
   core.invites = new Map(); // who's been asked round (Journal → Home): this world's, and only while it's open
-  core.memories = createMemories(save.memories ?? {});
+  core.memories = createMemories(save.memories ?? {}, memoryLimits);
   core.away = {}; // when each part of the world was last left (socialTick)
   core.area = null;
   core.characters = peopleOf(save); // this world's own people live here only
@@ -3052,6 +3052,12 @@ function recall(ids, text, said, how = said ? "heard" : "", lasting = false) {
   if (core.settings.memories) core.memories?.remember(ids, text, core.social?.day ?? 0, said, how, "", lasting);
 }
 
+/** How many everyday and lasting memories `id` keeps: their own numbers (Edit people), else the settings'. */
+function memoryLimits(id) {
+  const own = core.save?.memoryLimits?.[id] ?? {};
+  return { each: own.each ?? core.settings.memoryEach, kept: own.kept ?? core.settings.memoryKept };
+}
+
 /**
  * Each of `ids` remembers `text` for good: something that mattered (a scene together, a night at the
  * fire, moving house), which everyday memories don't push out (memory.js `kept`).
@@ -4166,6 +4172,9 @@ function personData(id) {
     toPlayer: core.relations.get(id, "player") ?? null,
     fromPlayer: core.relations.get("player", id) ?? null,
     memories: core.memories?.list(id) ?? [],
+    today: core.social?.day ?? 0,
+    memoryLimits: core.save.memoryLimits?.[id] ?? {},
+    memoryDefaults: { each: core.settings.memoryEach, kept: core.settings.memoryKept },
     others: (core.characters ?? [])
       .filter((other) => core.cast?.has(other.id) && other.id !== id)
       .map((other) => ({
@@ -4217,9 +4226,26 @@ function savePerson(id, changes) {
   if (changes.traits) setTraits(id, changes.traits);
   if (changes.forget) core.memories?.forget(id);
   else {
-    // Memories pinned for good (or let go again), and one written by hand: lasting from the start.
-    for (const pin of changes.pins ?? []) core.memories?.pin(id, pin.text, pin.day, pin.kept);
-    if (changes.memory) core.memories?.remember([id], changes.memory, core.social?.day ?? 0, false, "", "", true);
+    // Memories set right by hand: deleted, reworded, pinned (locked) or let go; and one written by hand.
+    for (const edit of changes.memoryEdits ?? []) {
+      if (edit.remove) {
+        core.memories?.remove(id, edit.text, edit.day);
+        continue;
+      }
+      const text =
+        (edit.newText && edit.newText !== edit.text && core.memories?.edit(id, edit.text, edit.day, edit.newText)) ||
+        edit.text;
+      if (typeof edit.pinned === "boolean") core.memories?.pin(id, text, edit.day, edit.pinned);
+    }
+    if (changes.memory) core.memories?.note(id, changes.memory, core.social?.day ?? 0);
+  }
+  // How many memories they keep, when it isn't the setting's number (null: the setting's again).
+  if (changes.memoryLimits) {
+    const own = Object.fromEntries(Object.entries(changes.memoryLimits).filter(([, value]) => Number.isFinite(value)));
+    const all = { ...(core.save.memoryLimits ?? {}) };
+    if (Object.keys(own).length) all[id] = own;
+    else delete all[id];
+    core.save = { ...core.save, memoryLimits: all };
   }
   if (changes.housing) setHousingByHand(id, changes.housing);
   const same = (a, b) =>
