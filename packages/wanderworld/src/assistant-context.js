@@ -19,6 +19,7 @@ export const PARTS = {
   ages: "ages",
   chat: "the recent chat",
   recaps: "scene recaps",
+  memories: "what people remember",
 };
 
 /** What typed words are about: a part goes when one of its words is there. */
@@ -50,6 +51,7 @@ const TOPICS = [
     /\b(how (do|does|can|to|should|would)|what (is|are|does|do|can)|can (i|you|it)|wanderworld|keywords?|settings?|buttons?|journal|menu|help|explain|tutorial|features?|able to|possible)\b|ww:/u,
   ],
   [["ages"], /\b(ages?|aged|old|older|young|younger|years?|adults?|add|new|create|invent|populate)\b/u],
+  [["memories"], /\b(memor(y|ies)|remembers?|remembered|forgets?|forgot(ten)?|recalls?)\b/u],
   [
     ["chat", "recaps"],
     /\b(happen(ed|ing|s)?|recaps?|lately|recent(ly)?|earlier|today|yesterday|just now|said|told|chat|conversations?|scenes?|remember|so far|last (time|night|scene)|events?)\b/u,
@@ -98,7 +100,8 @@ export function mentioned(names, texts) {
 
 /**
  * The ready-made requests: `label` on the button, `note` what it asks or does, then either `ask` (sent
- * as it is), `fill` (put in the box for the player to finish) or `picker` (a choice to make first).
+ * as it is), `fill` (put in the box for the player to finish) or `picker` (a choice to make first; with
+ * "memories" it's whose memories go, and `request` is what's then asked).
  * `common` ones are always in view; the rest are in the list. `needs` are the parts that go with it.
  */
 export const PICKS = [
@@ -203,6 +206,51 @@ export const PICKS = [
     note: "Proposes taking down every pinned note.",
     ask: "Take down every note on the noticeboard.",
     needs: ["board"],
+  },
+  {
+    id: "memory-check",
+    label: "Check memories against the lore…",
+    note: "Choose whose. Finds memories that contradict lore, cards or relationships, and proposes rewordings or deletions.",
+    picker: "memories",
+    request:
+      "Review these people's memories against this world's lore, their cards and their relationships. Find the ones that are wrong, contradict what is written, or were garbled, and propose for each a rewording that sets it right, or its deletion if nothing of it holds. Say briefly why for each. Leave alone what is sound.",
+    needs: ["memories", "people", "relations", "lore"],
+  },
+  {
+    id: "memory-clean",
+    label: "Clear out memories that don't matter…",
+    note: "Choose whose. Proposes deleting small talk and passing sights nobody would remember, and keeps what matters.",
+    picker: "memories",
+    request:
+      "Review these people's memories and propose deleting the ones that don't matter and could be cleaned out: small talk, passing sights, things with no bearing on who they are or how they stand with anyone. Keep what a person would really remember, and never propose deleting a pinned memory. Say in a line what you kept and why.",
+    needs: ["memories", "relations"],
+  },
+  {
+    id: "memory-repeats",
+    label: "Find repeated memories…",
+    note: "Choose whose. Finds memories that say the same thing twice, or disagree with each other, and proposes which to keep.",
+    picker: "memories",
+    request:
+      "Look through these people's memories for ones that say the same thing more than once, and for ones that contradict each other. For repeats, propose deleting all but the best one (reword it if that makes it complete). For contradictions, say what disagrees and propose the fix that fits the lore and the newer memory.",
+    needs: ["memories", "lore"],
+  },
+  {
+    id: "memory-sum",
+    label: "Sum up old memories…",
+    note: "Choose whose. Proposes one lasting memory in place of several old everyday ones, so less is kept and sent.",
+    picker: "memories",
+    request:
+      "For each of these people, find groups of older everyday memories that belong together (one evening, one journey, one quarrel) and propose replacing each group with a single new lasting memory that keeps what mattered, dated like the oldest of the group, and deleting the ones it replaces. Leave the last few days, lasting memories and pinned ones as they are.",
+    needs: ["memories"],
+  },
+  {
+    id: "memory-pin",
+    label: "Suggest memories to pin…",
+    note: "Choose whose. Picks the few memories that define how each person sees you and others, and proposes pinning them.",
+    picker: "memories",
+    request:
+      "For each of these people, pick the few memories that matter most to who they are and how they stand with the player and others (three at most each), and propose pinning them so they are never pushed out. Say in a line why each.",
+    needs: ["memories", "relations"],
   },
   {
     id: "keywords",

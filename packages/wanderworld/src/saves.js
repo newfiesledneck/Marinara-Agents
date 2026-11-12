@@ -458,7 +458,7 @@ export function checkWorld(raw) {
     // What each person remembers (memory.js checks it on the way in): { [id]: [{ day, text, said, raised, how, from }] }.
     memories: isRecord(raw.memories) ? raw.memories : {},
     // How many memories someone keeps, and how many the model is told, when it isn't the setting's number:
-    // { [id]: { each, kept, told, keptTold } } (any of them).
+    // { [id]: { each, kept, told, keptTold } } (any of them; 101 is all of them).
     memoryLimits: Object.fromEntries(
       Object.entries(isRecord(raw.memoryLimits) ? raw.memoryLimits : {})
         .slice(0, 200)
@@ -466,10 +466,10 @@ export function checkWorld(raw) {
           id,
           Object.fromEntries(
             [
-              ["each", 40],
-              ["kept", 30],
-              ["told", 40],
-              ["keptTold", 30],
+              ["each", 101],
+              ["kept", 101],
+              ["told", 101],
+              ["keptTold", 101],
             ]
               .filter(([key]) => Number.isFinite(own?.[key]))
               .map(([key, max]) => [key, Math.max(0, Math.min(max, Math.round(own[key])))]),

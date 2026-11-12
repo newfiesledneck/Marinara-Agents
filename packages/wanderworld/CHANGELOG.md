@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.67 — 2026-11-11
+
+- A share of the memories sent that someone can't fill goes to the others present (20 between three, one with 3: 3, 9 and 9).
+- The memory sliders now run to 100 and then All, kept and sent, in Settings and for each person in Journal → Edit people. All keeps everything until you delete it (1000 of each for one person at most) and sends everything kept (the newest 120 of each). The settings say what that costs in tokens.
+- The AI assistant has five memory requests under More things to ask: check against the lore, clear out what doesn't matter, find repeats, sum up old ones, suggest pins. Each asks whose memories to send (a tick each, or everyone's). Its rewordings, deletions, pins and new memories are proposed first and can be undone.
+- Edit people shows older memories on asking.
+
 ## 0.5.66 — 2026-11-11
 
 - How many memories the AI is sent is now set apart from how many are kept: Settings → Everyday memories sent to the AI (0 to 40, 12 to start) and Lasting memories sent to the AI (0 to 30, 8 to start). The number is shared between whoever the AI is speaking for, rounded up: 20 between three people is 7 each.

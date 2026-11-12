@@ -9,9 +9,14 @@
 /** How much is kept. */
 export const MEMORY = {
   EACH: 14, // everyday memories a person keeps (the newest), unless set otherwise
-  EACH_MAX: 40,
+  EACH_MAX: 100,
   KEPT: 8, // and lasting ones beside them: what mattered, pushed out only by other lasting ones
-  KEPT_MAX: 30,
+  KEPT_MAX: 100,
+  ALL: 101, // a count above the most there is to choose (the slider's last step, someone's "All"): all of them
+  // ponytail: "all" still stops at this many of each kind for one person, so a world goes on fitting in
+  // the browser's storage; lift it when worlds are kept on the Engine's side.
+  MOST: 1000,
+  TOLD_MOST: 120, // and the model is told this many of each kind for one person at most, so a request stays sendable
   TOLD: 12, // everyday memories the model is told, shared between the people it speaks for (toldShares)
   KEPT_TOLD: 8, // and lasting ones, shared the same way
   PINNED: 30, // memories pinned by hand: locked, never pushed out, and beside the others
@@ -29,15 +34,38 @@ export const MEMORY = {
  * and rounded up (20 between three is 7 each). Someone with a number of their own (`own[id]`) gets that
  * whatever the split. `counted`: those numbers come out of the count first, and the rest is split between
  * the others (20, one of three set to 10: 5, 5 and 10); otherwise the others get the share they'd have
- * had anyway (7, 7 and 10).
+ * had anyway (7, 7 and 10). `have[id]` is how many each has: whoever has fewer than their share gets what
+ * they have, and what's left of it is shared between the others (20 between three, one with 3: 3, 9 and
+ * 9). A count of MEMORY.ALL or more is all of them (Infinity).
  */
-export function toldShares(ids, total, own = {}, counted = false) {
+export function toldShares(ids, total, own = {}, counted = false, have = {}) {
+  const number = (value) => (value >= MEMORY.ALL ? Infinity : Math.max(0, Math.round(value)));
   const set = (id) => Number.isFinite(own[id]);
-  const count = Math.max(0, Number.isFinite(total) ? total : 0);
-  const taken = ids.filter(set).reduce((sum, id) => sum + Math.max(0, own[id]), 0);
-  const among = counted ? ids.filter((id) => !set(id)).length : ids.length;
-  const share = among ? Math.ceil(Math.max(0, counted ? count - taken : count) / among) : 0;
-  return Object.fromEntries(ids.map((id) => [id, set(id) ? Math.max(0, Math.round(own[id])) : share]));
+  const has = (id) => (Number.isFinite(have[id]) ? Math.max(0, have[id]) : Infinity);
+  const out = {};
+  let taken = 0;
+  for (const id of ids.filter(set)) {
+    out[id] = number(own[id]);
+    taken += Math.min(out[id], has(id));
+  }
+  let open = ids.filter((id) => !set(id));
+  const count = Number.isFinite(total) ? number(total) : 0;
+  let left =
+    count === Infinity ? Infinity : counted ? Math.max(0, count - taken) : (count * open.length) / (ids.length || 1);
+  while (open.length) {
+    const share = Math.ceil(left / open.length);
+    const short = open.filter((id) => has(id) < share);
+    if (!short.length) {
+      for (const id of open) out[id] = share;
+      break;
+    }
+    for (const id of short) {
+      out[id] = has(id);
+      left -= has(id);
+    }
+    open = open.filter((id) => !short.includes(id));
+  }
+  return Object.fromEntries(ids.map((id) => [id, out[id]]));
 }
 
 const cut = (value) =>
@@ -125,8 +153,8 @@ export function createMemories(saved = {}, limitsOf = () => ({})) {
   const limits = (id) => {
     const own = limitsOf(id) ?? {};
     return {
-      each: within(own.each, MEMORY.EACH_MAX, MEMORY.EACH),
-      kept: within(own.kept, MEMORY.KEPT_MAX, MEMORY.KEPT),
+      each: own.each >= MEMORY.ALL ? MEMORY.MOST : within(own.each, MEMORY.EACH_MAX, MEMORY.EACH),
+      kept: own.kept >= MEMORY.ALL ? MEMORY.MOST : within(own.kept, MEMORY.KEPT_MAX, MEMORY.KEPT),
     };
   };
   const find = (id, text, day) => (store.get(id) ?? []).find((memory) => memory.text === text && memory.day === day);
@@ -139,7 +167,7 @@ export function createMemories(saved = {}, limitsOf = () => ({})) {
         // they next remember something.)
         (Array.isArray(list) ? list : [])
           .filter((entry) => entry && typeof entry.text === "string" && entry.text.trim())
-          .slice(-(MEMORY.EACH_MAX + MEMORY.KEPT_MAX + MEMORY.PINNED))
+          .slice(-(2 * MEMORY.MOST + MEMORY.PINNED))
           .map((entry) => ({
             day: Number.isInteger(entry.day) ? entry.day : 0,
             text: cut(entry.text),
@@ -196,10 +224,13 @@ export function createMemories(saved = {}, limitsOf = () => ({})) {
     known(id, count = 5, today = 0, lasting = 4) {
       const all = store.get(id) ?? [];
       // What's pinned and what lasted (the newest few of each, however old), then the newest of the everyday.
+      // (Each memory is in one of the three and no other, so none is told twice. Asked for all of what
+      // lasted, all that's pinned goes too.)
+      const most = (number) => Math.min(number, MEMORY.TOLD_MOST);
       const told = [
-        ...all.filter((entry) => entry.pinned).slice(-MEMORY.PINNED_TOLD),
-        ...(lasting > 0 ? all.filter((entry) => entry.kept && !entry.pinned).slice(-lasting) : []),
-        ...(count > 0 ? all.filter((entry) => !entry.kept && !entry.pinned).slice(-count) : []),
+        ...all.filter((entry) => entry.pinned).slice(-(lasting === Infinity ? MEMORY.PINNED : MEMORY.PINNED_TOLD)),
+        ...(lasting > 0 ? all.filter((entry) => entry.kept && !entry.pinned).slice(-most(lasting)) : []),
+        ...(count > 0 ? all.filter((entry) => !entry.kept && !entry.pinned).slice(-most(count)) : []),
       ];
       return told.map((entry) => {
         const how = entry.how

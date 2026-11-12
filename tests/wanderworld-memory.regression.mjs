@@ -265,6 +265,37 @@ const server = await import("../packages/wanderworld/server.mjs");
   assert.deepEqual(toldShares(["a", "b"], 0), { a: 0, b: 0 });
   assert.deepEqual(toldShares(["a"], undefined), { a: 0 });
   assert.deepEqual(toldShares([], 20), {});
+  // Someone with fewer than their share has what they have, and the rest of it goes to the others.
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, {}, false, { a: 3, b: 50, c: 50 }), { a: 3, b: 9, c: 9 });
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, {}, false, { a: 3, b: 5, c: 50 }), { a: 3, b: 5, c: 12 });
+  assert.deepEqual(toldShares(["a", "b"], 20, {}, false, { a: 2, b: 4 }), { a: 2, b: 4 }, "no more than there is");
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, {}, false, { a: 7, b: 7, c: 7 }), { a: 7, b: 7, c: 7 });
+  // Beside a number of someone's own: the others' shares, and what one of them leaves, are theirs.
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, { c: 10 }, false, { a: 3, b: 50, c: 50 }), { a: 3, b: 11, c: 10 });
+  // Counted, a number of their own takes only what they have to send.
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, { c: 10 }, true, { a: 50, b: 50, c: 4 }), { a: 8, b: 8, c: 10 });
+  // All: everything each has.
+  assert.deepEqual(toldShares(["a", "b"], MEMORY.ALL), { a: Infinity, b: Infinity });
+  assert.deepEqual(toldShares(["a", "b"], 20, { a: MEMORY.ALL }), { a: Infinity, b: 10 });
+  assert.deepEqual(toldShares(["a", "b"], 20, { a: MEMORY.ALL }, true, { a: 6, b: 50 }), { a: Infinity, b: 14 });
+}
+
+// ── All: nothing pushed out, and all of it told (none twice) ─────────────────
+{
+  const memories = createMemories({}, () => ({ each: MEMORY.ALL, kept: MEMORY.ALL }));
+  for (let i = 0; i < 150; i++) {
+    memories.remember(["mira"], `Small ${i}.`, i);
+    memories.remember(["mira"], `Big ${i}.`, i, false, "", "", true);
+  }
+  for (let i = 0; i < 10; i++) memories.pin("mira", `Big ${i}.`, i);
+  assert.equal(memories.list("mira").length, 300, "past the sliders' hundred, nothing has gone");
+  assert.equal(createMemories(memories.state).list("mira").length, 300, "nor when the world is opened again");
+  const told = memories.known("mira", Infinity, 200, Infinity);
+  assert.equal(told.length, 10 + MEMORY.TOLD_MOST + MEMORY.TOLD_MOST, "all that's pinned; the newest of the rest");
+  assert.equal(new Set(told).size, told.length, "none twice");
+  const some = memories.known("mira", 5, 200, 5);
+  assert.equal(some.length, MEMORY.PINNED_TOLD + 5 + 5);
+  assert.equal(new Set(some).size, some.length, "a pinned memory isn't among the lasting ones as well");
 }
 
 // ── How many each person keeps: the setting's numbers, or their own ──────────
