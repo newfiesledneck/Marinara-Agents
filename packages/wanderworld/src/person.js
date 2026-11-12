@@ -444,7 +444,7 @@ export function createPersonEditor(layer, handlers) {
         input.max = String(max);
         input.step = "1";
         input.inputMode = "numeric";
-        input.placeholder = String(person.memoryDefaults?.[key] ?? "");
+        input.placeholder = String(person.memoryDefaults?.[key] ?? "share");
         if (Number.isFinite(person.memoryLimits?.[key])) input.value = String(person.memoryLimits[key]);
         return input;
       };
@@ -452,6 +452,14 @@ export function createPersonEditor(layer, handlers) {
       const lasting = count("kept", 30);
       body.append(field("Everyday memories kept", each), field("Lasting memories kept", lasting));
       body.append(note("Blank uses the number in Settings. More for someone who should remember further back."));
+      const told = count("told", 40);
+      const keptTold = count("keptTold", 30);
+      body.append(field("Everyday memories sent to the AI", told), field("Lasting memories sent to the AI", keptTold));
+      body.append(
+        note(
+          "Blank gives them a share of the number in Settings, split between whoever the AI is speaking for. A number here is theirs alone. More sent costs more tokens on every reply, so raise it only for people who matter.",
+        ),
+      );
       reads.push((changes) => {
         changes.memoryEdits = rows
           .filter(
@@ -467,7 +475,12 @@ export function createPersonEditor(layer, handlers) {
           }));
         changes.memory = own.value.trim();
         const number = (input) => (input.value.trim() === "" ? null : Number(input.value));
-        changes.memoryLimits = { each: number(each), kept: number(lasting) };
+        changes.memoryLimits = {
+          each: number(each),
+          kept: number(lasting),
+          told: number(told),
+          keptTold: number(keptTold),
+        };
       });
       if (kept.length) {
         const wrap = element("label", "display:flex;gap:6px;align-items:center;font-size:12px;margin-top:2px;");

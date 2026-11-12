@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.66",
+          "date": "2026-11-11",
+          "notes": "- How many memories the AI is sent is now set apart from how many are kept: Settings → Everyday memories sent to the AI (0 to 40, 12 to start) and Lasting memories sent to the AI (0 to 30, 8 to start). The number is shared between whoever the AI is speaking for, rounded up: 20 between three people is 7 each.\n- Anyone can have numbers of their own in Journal → Edit people. A new switch says whether those come out of the shared count (5, 5 and 10) or leave the others' share alone (7, 7 and 10; off to start).\n- The settings say what this costs in tokens and how to keep it down: a low shared number, and a higher one for the people who matter.",
+          "highlight": false
+        },
+        {
           "version": "0.5.65",
           "date": "2026-11-11",
           "notes": "- The written manner for each relationship (0.5.62) is taken out: it could contradict a character's card or lore. The AI is still told what each person is to you (brother, employer, good friend, bitter rival) and what people in earshot are to each other; how they speak is left to their card and lore.",
@@ -307,12 +313,6 @@
           "version": "0.5.47",
           "date": "2026-11-11",
           "notes": "- Tools in hand at work: on the farm a sickle while cutting, a seed basket while sowing and a watering can while watering; a trowel for whoever kneels in the garden.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.46",
-          "date": "2026-11-11",
-          "notes": "- A saddle on any horse that's someone's own: yours, or a character's. Farm and tavern horses go bare.\n- The saddle is Saddle by Poly by Google (CC-BY 3.0), modified: converted, resized and its texture shrunk. Credited in Help, the README and `kit/CREDITS.md`.",
           "highlight": false
         }
       ]

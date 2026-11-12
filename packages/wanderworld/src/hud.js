@@ -706,9 +706,15 @@ export function createHud(root, handlers) {
     gossip:
       'Gossip. People who spend time together now and then tell each other something they saw or heard of you in the last few days. Whoever is told knows it as hearsay ("was told by Corvin"), keeps only a few such things, and doesn\'t pass it further. What you whisper is never passed on. Needs memories on. Off, people know only what they were there for.',
     memoryEach:
-      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. More means people recall further back, and a little more is sent to the AI for them (the newest five). Anyone can have a number of their own in Journal → Edit people.",
+      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. More means people recall further back, and a little can be sent to the AI for them (see Everyday memories sent to the AI). Anyone can have a number of their own in Journal → Edit people.",
     memoryKept:
       "How many lasting memories each person keeps: what mattered (a scene, a campfire, travelling together). Only other lasting ones push them out. Memories you pin are locked and don't count against this. Anyone can have a number of their own in Journal → Edit people.",
+    memoryTold:
+      "How many everyday memories are sent to the AI each time it speaks, shared between everyone it speaks for: 20 with two people is 10 each, with three it's 7 each (rounded up). Nobody is sent more than they keep. This costs tokens: every memory sent is roughly 30 to 60 tokens on every reply, for every person. The cheap way is to keep this low and give the few people who matter a number of their own in Journal → Edit people: that number is theirs alone and isn't shared out.",
+    memoryKeptTold:
+      "How many lasting memories are sent to the AI each time it speaks, shared between everyone it speaks for in the same way (16 with three people is 6 each). Pinned memories are sent besides, the newest six. The same goes for tokens: keep this low, and raise it for the people who matter in Journal → Edit people.",
+    memoryToldCounted:
+      "What a person's own number (Journal → Edit people) does to everyone else's share. Off, the split is not affected by overrides: with 20 shared between three and one of them set to 10, the others still get 7 each (7, 7 and 10; 24 sent). On, the split is affected by overrides: the 10 comes out of the 20 first and the others split what's left (5, 5 and 10; 20 sent), so the shared number is the most that's sent unless the overrides alone come to more.",
     worldEvents:
       "Once a week it's market day, and once in four weeks there's an evening festival: for those hours a good share of the town gathers in the market square, and a line says so. People in your party, people you've asked round, and anyone whose day you set by hand for those hours keep to that instead. Off, every day is like every other.",
     awayRecap:
@@ -879,6 +885,9 @@ export function createHud(root, handlers) {
   toggle("gossip", "People pass on what they know");
   slider("memoryEach", "Everyday memories each", 1, (value) => String(value));
   slider("memoryKept", "Lasting memories each", 1, (value) => String(value));
+  slider("memoryTold", "Everyday memories sent to the AI", 1, (value) => String(value));
+  slider("memoryKeptTold", "Lasting memories sent to the AI", 1, (value) => String(value));
+  toggle("memoryToldCounted", "Own numbers come out of the shared count");
   toggle("worldEvents", "Market days and festivals");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");

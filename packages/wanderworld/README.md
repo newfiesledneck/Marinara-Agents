@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.65)
+## What it does now (0.5.66)
 
 ### The world
 
@@ -218,6 +218,12 @@ only walk about.
   closer. How many of each is a setting, with
   numbers of their own for anyone (family who remember more). In Journal → Edit people a memory can be
   reworded, deleted, or pinned: a pinned one is locked and never pushed out, and you can write one too.
+- **How much memory the AI is sent is yours to set:** apart from how many memories are kept, two settings
+  say how many everyday and lasting ones are sent, as a count shared between whoever the AI is speaking
+  for (20 between three people is 7 each, rounded up). Anyone can have a number of their own in Journal →
+  Edit people, and a switch says whether that comes out of the shared count (5, 5 and 10) or not (7, 7 and
+  10). More sent costs more tokens on every reply, so the cheap way is a low shared number and a higher
+  one for the few people who matter.
 - **Relationships are told as they are:** the AI is given what each person is to you (brother, employer,
   good friend, bitter rival) and what people in earshot are to each other. How someone speaks is left to
   their card and lore.

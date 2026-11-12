@@ -12,7 +12,8 @@ export const MEMORY = {
   EACH_MAX: 40,
   KEPT: 8, // and lasting ones beside them: what mattered, pushed out only by other lasting ones
   KEPT_MAX: 30,
-  KEPT_TOLD: 4, // of those, how many the model is told (the newest)
+  TOLD: 12, // everyday memories the model is told, shared between the people it speaks for (toldShares)
+  KEPT_TOLD: 8, // and lasting ones, shared the same way
   PINNED: 30, // memories pinned by hand: locked, never pushed out, and beside the others
   PINNED_TOLD: 6, // of those, how many the model is told (the newest)
   PEOPLE: 80, // people with memories
@@ -22,6 +23,22 @@ export const MEMORY = {
   HEARSAY: 3, // and things only told by someone else (the oldest goes first)
   GOSSIP_PER_HOUR: 0.5, // how likely one of two people together is to pass something on, each hour
 };
+
+/**
+ * How many memories the model is told for each of `ids`, out of a count they share: `total` split evenly
+ * and rounded up (20 between three is 7 each). Someone with a number of their own (`own[id]`) gets that
+ * whatever the split. `counted`: those numbers come out of the count first, and the rest is split between
+ * the others (20, one of three set to 10: 5, 5 and 10); otherwise the others get the share they'd have
+ * had anyway (7, 7 and 10).
+ */
+export function toldShares(ids, total, own = {}, counted = false) {
+  const set = (id) => Number.isFinite(own[id]);
+  const count = Math.max(0, Number.isFinite(total) ? total : 0);
+  const taken = ids.filter(set).reduce((sum, id) => sum + Math.max(0, own[id]), 0);
+  const among = counted ? ids.filter((id) => !set(id)).length : ids.length;
+  const share = among ? Math.ceil(Math.max(0, counted ? count - taken : count) / among) : 0;
+  return Object.fromEntries(ids.map((id) => [id, set(id) ? Math.max(0, Math.round(own[id])) : share]));
+}
 
 const cut = (value) =>
   String(value ?? "")
@@ -173,14 +190,15 @@ export function createMemories(saved = {}, limitsOf = () => ({})) {
     },
     /**
      * The newest `count` things `id` knows, oldest first, each said with when and how they came by it,
-     * as the model is told: "(yesterday, heard) …", "(today, was told by Corvin) …".
+     * as the model is told: "(yesterday, heard) …", "(today, was told by Corvin) …". Before them the
+     * newest `lasting` of what lasted, and before those what's pinned.
      */
-    known(id, count = 5, today = 0) {
+    known(id, count = 5, today = 0, lasting = 4) {
       const all = store.get(id) ?? [];
       // What's pinned and what lasted (the newest few of each, however old), then the newest of the everyday.
       const told = [
         ...all.filter((entry) => entry.pinned).slice(-MEMORY.PINNED_TOLD),
-        ...all.filter((entry) => entry.kept && !entry.pinned).slice(-MEMORY.KEPT_TOLD),
+        ...(lasting > 0 ? all.filter((entry) => entry.kept && !entry.pinned).slice(-lasting) : []),
         ...(count > 0 ? all.filter((entry) => !entry.kept && !entry.pinned).slice(-count) : []),
       ];
       return told.map((entry) => {

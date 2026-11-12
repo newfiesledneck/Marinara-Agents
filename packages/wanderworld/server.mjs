@@ -1353,7 +1353,7 @@ export async function activate(context) {
           weather: text(body.weather, 40),
           nearby: text(body.nearby, 300),
           relationship: text(body.relationship, 600),
-          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 220)).filter(Boolean).slice(0, 8),
+          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 80),
           setting: block(body.setting, 600),
           lore: [
             ...loreEntries.map((entry) => `${text(entry.name, MAX.name)}: ${block(entry.content, MAX.loreText)}`),
@@ -1446,7 +1446,7 @@ export async function activate(context) {
             doing: text(person.doing, 120),
             feeling: text(person.feeling, 600),
             others: text(person.others, 500),
-            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 10),
+            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 90),
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)
