@@ -1,5 +1,8 @@
-// The player's settings, kept in this package's own browser storage. Every value is checked on the way
-// in, so a damaged or old saved copy falls back to the defaults instead of breaking the game.
+// The player's settings. All of them are kept in this browser's storage; the ones that are about the
+// game and the AI, not this device (`sharedSettings`), are kept by the Engine as well when its server
+// part is there (store.js), and those win: they're the same in every browser. Graphics, controls, sound
+// and what's shown on screen stay each device's own. Every value is checked on the way in, so a damaged
+// or old saved copy falls back to the defaults instead of breaking the game.
 
 const KEY = "wanderworld.settings";
 
@@ -173,6 +176,34 @@ export const SETTINGS = {
   volume: { value: 0.6, min: 0, max: 1 },
 };
 
+/** The settings that are this device's own: how it draws, how it's controlled, what it shows and plays. */
+export const DEVICE_SETTINGS = new Set([
+  "resolution",
+  "drawDistance",
+  "density",
+  "shadows",
+  "nature",
+  "props",
+  "buildings",
+  "people",
+  "animation",
+  "lookSpeed",
+  "invertLook",
+  "restKey",
+  "jumpButton",
+  "restButton",
+  "chatMoves",
+  "explanations",
+  "hint",
+  "stats",
+  "sound",
+  "volume",
+]);
+
+/** The settings every browser shares (the game's and the AI's), out of `settings`. */
+export const sharedSettings = (settings) =>
+  Object.fromEntries(Object.entries(settings).filter(([name]) => SETTINGS[name] && !DEVICE_SETTINGS.has(name)));
+
 /** `value` if it is allowed for `name`, else the default. */
 export function checkSetting(name, value) {
   const setting = SETTINGS[name];
@@ -185,8 +216,11 @@ export function checkSetting(name, value) {
     : setting.value;
 }
 
-/** The saved settings, each checked, with defaults for anything missing. */
-export function loadSettings() {
+/**
+ * The saved settings, each checked, with defaults for anything missing. `shared`: what the Engine keeps
+ * (the text store.js holds, or null): its values are used for everything that isn't this device's own.
+ */
+export function loadSettings(shared = null) {
   let saved = {};
   try {
     saved = JSON.parse(globalThis.localStorage?.getItem(KEY) ?? "{}") ?? {};
@@ -198,7 +232,14 @@ export function loadSettings() {
     if (saved.narratorUse !== "moments") saved.sceneNarratorCard = saved.narratorCard;
     if (saved.narratorUse === "scenes") saved.narratorCard = "";
   }
-  return Object.fromEntries(Object.keys(SETTINGS).map((name) => [name, checkSetting(name, saved[name])]));
+  let common = {};
+  try {
+    common = (typeof shared === "string" ? JSON.parse(shared) : shared) ?? {};
+  } catch {
+    common = {}; // a damaged copy: this browser's own
+  }
+  const from = (name) => (!DEVICE_SETTINGS.has(name) && Object.hasOwn(common, name) ? common[name] : saved[name]);
+  return Object.fromEntries(Object.keys(SETTINGS).map((name) => [name, checkSetting(name, from(name))]));
 }
 
 export function saveSettings(settings) {

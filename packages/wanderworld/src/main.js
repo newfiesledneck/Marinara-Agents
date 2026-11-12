@@ -68,14 +68,14 @@ import {
   visitOver,
 } from "./household.js";
 import { ANIMALS, animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
-import { checkSetting, loadSettings, saveSettings } from "./settings.js";
+import { checkSetting, DEVICE_SETTINGS, loadSettings, saveSettings, sharedSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { HOUSE_PIECES } from "./houses.js";
 import { kitModels, kitTexture, kitUrl } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
-import { createStore } from "./store.js";
+import { createStore, SHARED_SETTINGS } from "./store.js";
 import { undoOnly, withoutLeftovers } from "./undo.js";
 import { editableFields, reviseEdits } from "./assistant-edits.js";
 import { assistantNeeds, mentioned, PARTS, PICKS } from "./assistant-context.js";
@@ -457,6 +457,9 @@ function changeSetting(name, value) {
     core.restock = setTimeout(restockHerd, 350);
   }
   saveSettings(core.settings);
+  // The game's and the AI's settings are the same in every browser: the Engine keeps them.
+  if (core.store?.engine && !DEVICE_SETTINGS.has(name))
+    core.store.setItem(SHARED_SETTINGS, JSON.stringify(sharedSettings(core.settings)));
   applySettings();
 }
 
@@ -7720,7 +7723,25 @@ function attach(element) {
   else
     void core.store
       .connect()
-      .then(() => store("wanderworld.savesWithEngine", "1"))
+      .then((moved) => {
+        store("wanderworld.savesWithEngine", "1");
+        // The settings every browser shares: the Engine's, when it has them.
+        const shared = core.store.getItem(SHARED_SETTINGS);
+        if (shared) {
+          core.settings = loadSettings(shared);
+          saveSettings(core.settings);
+        } else {
+          // MIGRATION 0.5.69: the Engine has none yet, so this browser's become them. (Without this
+          // they'd be kept the first time one is changed.)
+          core.store.setItem(SHARED_SETTINGS, JSON.stringify(sharedSettings(core.settings)));
+          void core.store.flush(); // at once, not a few seconds on
+        }
+        // MIGRATION 0.5.69: said once, when worlds came over from this browser.
+        if (moved.length)
+          core.hud?.setNotice(
+            `${moved.length === 1 ? "Your saved world was" : `${moved.length} saved worlds were`} moved from this browser to the Engine, and checked there. A copy stays in this browser until a later version clears it.`,
+          );
+      })
       .catch((error) => {
         console.warn("[wanderworld] saved worlds are kept in this browser: the server part didn't answer", error);
         if (readStored("wanderworld.savesWithEngine") === "1")

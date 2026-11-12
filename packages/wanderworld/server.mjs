@@ -33,8 +33,8 @@ const PACKAGE_ID = "wanderworld";
 const ORIGIN_KIND = "scene-origin";
 const RESULT_KIND = "scene-result";
 const SAVE_KIND = "save";
-/** A save's key, as the client names them (store.js): the list of worlds, the one last played, a world. */
-const SAVE_KEY = /^wanderworld\.(worlds|lastWorld|world\.[A-Za-z0-9_-]{1,80})$/u;
+/** A save's key, as the client names them (store.js): the list of worlds, the one last played, the shared settings, a world. */
+const SAVE_KEY = /^wanderworld\.(worlds|lastWorld|shared|world\.[A-Za-z0-9_-]{1,80})$/u;
 const MAX_SAVE_CHARS = 64_000_000;
 const MAX_SAVES = 300;
 const MAX = {

@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.69 — 2026-11-11
+
+- The game's and the AI's settings are kept by the Engine now, the same in every browser: the living world, animals, memories, connections, narrators, what calls the AI. Graphics, controls, sound and what's shown on screen stay each device's own. The first browser to open this version gives the Engine its settings.
+- Moving worlds from a browser to the Engine is checked: each is read back from the Engine before the browser lets go of it, a copy stays in the browser for now, and a notice says how many moved.
+
 ## 0.5.68 — 2026-11-11
 
 - Worlds are saved by the Engine now, not in the browser: the same from any browser or device, and as big as they grow. Worlds saved in a browser move over the first time this version opens there. With no server part, they stay in the browser as before.
