@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.68, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.69, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.68: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.69: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -681,7 +681,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.68, 2026-11-11)
+## Outstanding (as of 0.5.69, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -847,7 +847,11 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      token-spending setting in one place, each the same control as in its own section; and Sum up old
      memories has a button wherever memories are set.
      _Next:_ scenes given their cast's lasting memories when they start; a world read from the Engine
-     only when it's opened (all are read on opening the tab now), and settings kept there too.
+     only when it's opened (all are read on opening the tab now). Settings that aren't a device's own
+     are with the Engine since 0.5.69 (`settings.js sharedSettings`, store key `wanderworld.shared`).
+     _To clean up after the move (marked `MIGRATION 0.5.69` in `store.js` and `main.js`):_ the
+     browser copies left as `wanderworld.backup.…`, the notice that worlds moved, and the first upload
+     of a browser's settings.
   3. _A home that's yours:_ furnish it, keep your animals there, have people visit. Part: your home comes
      from your lore or from moving into an empty house (Journal → Home, 0.5.52), a horse and a dog sent
      home keep to its door, housemates can be asked in and out, and people come round when asked. Its

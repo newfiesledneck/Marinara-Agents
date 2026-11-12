@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.69",
+          "date": "2026-11-11",
+          "notes": "- The game's and the AI's settings are kept by the Engine now, the same in every browser: the living world, animals, memories, connections, narrators, what calls the AI. Graphics, controls, sound and what's shown on screen stay each device's own. The first browser to open this version gives the Engine its settings.\n- Moving worlds from a browser to the Engine is checked: each is read back from the Engine before the browser lets go of it, a copy stays in the browser for now, and a notice says how many moved.",
+          "highlight": false
+        },
+        {
           "version": "0.5.68",
           "date": "2026-11-11",
           "notes": "- Worlds are saved by the Engine now, not in the browser: the same from any browser or device, and as big as they grow. Worlds saved in a browser move over the first time this version opens there. With no server part, they stay in the browser as before.\n- All now keeps and sends every memory, with no ceiling (a thousand of each while a world is still in a browser).\n- Settings → Token use: every setting that changes how many tokens are spent, in one place. Each is the same setting as in AI and Living world; a change in one shows in the other.\n- Sum up old memories has a button in Settings → Living world, in Token use, and in each person's window in Edit people.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.50",
           "date": "2026-11-11",
           "notes": "- Hostile people out in the country: bandits, hooded with a sword; witches and wizards, in a pointed hat with a staff. They act as the Hostile animals setting says, and are told as people, not beasts.\n- They're counted with the monsters, each kind has a switch in Settings → Animals, and lore can place them (`ww:monster:bandit:pack3`; brigand, robber, hag, mage and the like are read too).\n- They're nobody's character: no AI is used for them.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.49",
-          "date": "2026-11-11",
-          "notes": "- Two more monsters: the giant frog, which hops, and the dragon, which is rare, alone and high overhead.\n- Lore can ask for them (`ww:monster:frog`, `ww:monster:dragon`; toad, wyvern and drake are read too), and Settings → Animals has a switch for each.",
           "highlight": false
         }
       ]

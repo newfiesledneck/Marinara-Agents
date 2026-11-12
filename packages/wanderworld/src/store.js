@@ -10,8 +10,14 @@
 const INDEX = "wanderworld.worlds";
 const LAST = "wanderworld.lastWorld";
 const WORLD = "wanderworld.world.";
-/** The keys that are saves (anything else of the package's stays in the browser: settings, window places). */
-const kept = (key) => key === INDEX || key === LAST || (typeof key === "string" && key.startsWith(WORLD));
+/** The settings every browser shares (settings.js `sharedSettings`): gameplay and AI, not graphics or controls. */
+export const SHARED_SETTINGS = "wanderworld.shared";
+// MIGRATION 0.5.69: where a browser's copy of a save goes once the Engine has it. Take out, with the
+// `backup` option and its use in `connect`, once worlds have moved (and delete these keys then).
+const BACKUP = "wanderworld.backup.";
+/** The keys the Engine keeps (anything else of the package's stays in the browser: this device's settings, window places). */
+const kept = (key) =>
+  key === INDEX || key === LAST || key === SHARED_SETTINGS || (typeof key === "string" && key.startsWith(WORLD));
 
 const parsed = (json, fallback) => {
   try {
@@ -25,9 +31,10 @@ const parsed = (json, fallback) => {
  * `local`: the browser's storage (getItem, setItem, removeItem, key, length). `remote`: { all() →
  * Promise<{ [key]: text }>, put(key, text), remove(key) }, each a Promise. `delay`: how long a write
  * waits to be sent (milliseconds). `onProblem(error)`: a write the Engine didn't take (it's kept in the
- * browser instead, and goes to the Engine the next time).
+ * browser instead, and goes to the Engine the next time). `backup`: a save brought over from the browser
+ * stays there under another name ("wanderworld.backup.…"), in case the move went wrong.
  */
-export function createStore(local, remote, { delay = 4000, onProblem = () => {} } = {}) {
+export function createStore(local, remote, { delay = 4000, onProblem = () => {}, backup = true } = {}) {
   const memory = new Map(); // what the Engine keeps, as text by key
   const waiting = new Map(); // key → the timer of a write not sent yet
   const sending = new Map(); // key → the send in hand, so two for one key never cross
@@ -108,7 +115,8 @@ export function createStore(local, remote, { delay = 4000, onProblem = () => {} 
     },
     /**
      * Reads what the Engine keeps and brings over what the browser still has. Throws when the server
-     * part isn't there or doesn't answer: saves stay in the browser, as they were.
+     * part isn't there or doesn't answer, or didn't keep what it was sent: saves stay in the browser, as
+     * they were. → the ids of the worlds brought over.
      */
     async connect() {
       const held = new Map(
@@ -116,12 +124,17 @@ export function createStore(local, remote, { delay = 4000, onProblem = () => {} 
       );
       const played = (text) => Number(parsed(text, {})?.playedAt) || 0;
       const moved = new Set();
+      const sent = new Set(); // every key put here, to be read back before the browser's copy goes
+      const put = async (key, text) => {
+        await remote.put(key, text);
+        held.set(key, text);
+        sent.add(key);
+      };
       const here = localKeys();
       for (const key of here.filter((entry) => entry.startsWith(WORLD))) {
         const text = localGet(key);
         if (text === null || (held.has(key) && played(text) <= played(held.get(key)))) continue;
-        await remote.put(key, text);
-        held.set(key, text);
+        await put(key, text);
         moved.add(key.slice(WORLD.length));
       }
       // The list of worlds: the Engine's, with the browser's entry for each world it brought (or only it has).
@@ -135,19 +148,33 @@ export function createStore(local, remote, { delay = 4000, onProblem = () => {} 
       if (mineOnly.length) {
         const ids = new Set(mineOnly.map((entry) => entry.id));
         const text = JSON.stringify([...before.filter((entry) => !ids.has(entry.id)), ...mineOnly]);
-        await remote.put(INDEX, text);
-        held.set(INDEX, text);
+        await put(INDEX, text);
       }
       const last = localGet(LAST);
       if (last && (moved.has(last) || !held.has(LAST)) && held.has(WORLD + last)) {
-        await remote.put(LAST, last);
-        held.set(LAST, last);
+        await put(LAST, last);
+      }
+      // Read back: the Engine has every one of them, letter for letter, or nothing is taken from the browser.
+      if (sent.size) {
+        const now = (await remote.all()) ?? {};
+        const lost = [...sent].filter((key) => now[key] !== held.get(key));
+        if (lost.length) throw new Error(`The Engine didn't keep ${lost.length} of ${sent.size} saves it was sent.`);
       }
       // Everything is with the Engine: from here on it's read from there, and the browser's copies go.
       memory.clear();
       for (const [key, text] of held) memory.set(key, text);
       engine = true;
-      for (const key of here) localDrop(key);
+      for (const key of here) {
+        const text = localGet(key);
+        localDrop(key);
+        if (!backup || text === null) continue;
+        try {
+          local?.setItem(BACKUP + key.slice("wanderworld.".length), text);
+        } catch {
+          // full or blocked: the Engine has it (read back above)
+        }
+      }
+      return [...moved];
     },
     /** Sends every write still waiting, now (the tab is closing, or the world is). */
     flush() {

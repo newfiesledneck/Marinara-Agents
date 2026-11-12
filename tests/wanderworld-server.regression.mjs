@@ -893,6 +893,8 @@ assert.equal(
       true,
     );
     assert.equal((await call("post", "/save", { body: { key: "wanderworld.lastWorld", value: "w9" } })).body.ok, true);
+    assert.equal((await call("post", "/save", { body: { key: "wanderworld.shared", value: "{}" } })).body.ok, true);
+    assert.equal((await call("delete", "/save/:key", { params: { key: "wanderworld.shared" } })).body.removed, true);
     for (const bad of [
       { key: "wanderworld.settings", value: "{}" },
       { key: "../etc", value: "x" },

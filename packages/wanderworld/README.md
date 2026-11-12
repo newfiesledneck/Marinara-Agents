@@ -28,9 +28,12 @@ Worlds are saved by the Engine, one save per world, in the package's own storage
 from any browser or device that opens your Engine, and a world can be as big as it grows. Worlds saved in
 a browser by an earlier version move to the Engine the first time this one opens there, and then leave the
 browser. If the server part isn't running, worlds are kept in the browser as before and move over when it
-is. Settings (graphics, controls, AI choices) stay with each browser. Delete a world from **Load world**.
+is. The game's and the AI's settings (the living world, animals, memories, connections, narrators, what
+calls the AI) are kept by the Engine too, the same in every browser; graphics, controls, sound and what's
+shown on screen stay each device's own. Delete a world from **Load world**. For now a copy of each world
+that moved stays in the browser it came from (`wanderworld.backup.…`), until a later version clears it.
 
-## What it does now (0.5.68)
+## What it does now (0.5.69)
 
 ### The world
 

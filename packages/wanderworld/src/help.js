@@ -93,7 +93,7 @@ export const HELP = [
   {
     title: "Making a world",
     lines: [
-      "Where worlds are kept: by the Engine, in Wanderworld's own storage there, so they're the same from any browser or device that opens your Engine and can grow as big as they need. Worlds an earlier version kept in a browser move over the first time this one opens there. If Wanderworld's server part isn't running they're kept in the browser as before, and move over when it is. Settings stay with each browser.",
+      "Where worlds are kept: by the Engine, in Wanderworld's own storage there, so they're the same from any browser or device that opens your Engine and can grow as big as they need. Worlds an earlier version kept in a browser move over the first time this one opens there. If Wanderworld's server part isn't running they're kept in the browser as before, and move over when it is. The game's and the AI's settings (the living world, animals, memories, connections, narrators, what calls the AI) are kept by the Engine too, so they're the same in every browser; graphics, controls, sound and what's shown on screen are each device's own.",
       'New world: a name, who you play, who lives there, the land, and under "Setting the world up" how much the AI does for you.',
       "The AI can set your characters up from their cards (bodies, homes, work, relationships), read your lorebooks and tie their lore to places, write the world's own lore and places from nothing, and invent people to live there. Each is a model call or two, and you see all of it before the land is built.",
       "Or do it by hand: lorebook keywords (below), and the Journal for anything else.",
