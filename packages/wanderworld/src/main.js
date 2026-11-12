@@ -3903,10 +3903,8 @@ function towardPlayer(id, name, names) {
   // What they are to the player, and how that's spoken (a stance set by hand says how they act instead;
   // what they are, a brother or an employer, still sets the register).
   const stance = STANCE_WORDS[core.save?.stances?.[id]];
-  const manner = core.relations.manner(id, "player", stance ? "role" : "");
   return [
     core.relations.get(id, "player") ? `${core.relations.describe(id, "player", names)}.` : "",
-    manner ? `Manner toward ${personaName()}: ${manner}.` : "",
     stance ? `${name} ${stance}.` : "",
     knows(id) ? "" : `${personaName()} doesn't know ${name}'s name yet: they haven't been introduced.`,
     theyKnow(id) ? "" : `${name} doesn't know ${personaName()}'s name, and must not use it until told.`,
@@ -5496,10 +5494,7 @@ function momentListeners(voice, audience, extra = [], text = "") {
     others: picked
       .filter((other) => other.person.id !== person.id && core.relations.get(person.id, other.person.id))
       .slice(0, 2)
-      .map(
-        (other) =>
-          `${core.relations.describe(person.id, other.person.id, names)} (${core.relations.manner(person.id, other.person.id)}).`,
-      )
+      .map((other) => `${core.relations.describe(person.id, other.person.id, names)}.`)
       .join(" "),
     inParty: party.has(person.id),
     // Their own memories, and nobody else's, each with when and how they came by it.

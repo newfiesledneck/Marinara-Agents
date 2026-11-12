@@ -28,7 +28,7 @@ Worlds are saved in this browser's storage, one save per world; they don't follo
 or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
 from **Load world** or clear the site's data.
 
-## What it does now (0.5.64)
+## What it does now (0.5.65)
 
 ### The world
 
@@ -218,10 +218,9 @@ only walk about.
   closer. How many of each is a setting, with
   numbers of their own for anyone (family who remember more). In Journal → Edit people a memory can be
   reworded, deleted, or pinned: a pinned one is locked and never pushed out, and you can write one too.
-- **Relationships set the tone:** the AI is told what each person is to you (brother, employer, good
-  friend, bitter rival) and what that means for how they speak, in words written for each kind and
-  strength, so a rival needles and stays civil and doesn't turn into a villain. People in earshot are
-  told what they are to each other too.
+- **Relationships are told as they are:** the AI is given what each person is to you (brother, employer,
+  good friend, bitter rival) and what people in earshot are to each other. How someone speaks is left to
+  their card and lore.
 - **Narrators, and scenes from anywhere:** pick one of your character cards as the narrator of the world
   as you walk it and one as the narrator of scenes (Menu → Settings → AI; the same card or two: a short
   voice for the world, a roleplay narrator for scenes). Each person knows only what they

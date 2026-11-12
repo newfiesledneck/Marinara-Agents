@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.65",
+          "date": "2026-11-11",
+          "notes": "- The written manner for each relationship (0.5.62) is taken out: it could contradict a character's card or lore. The AI is still told what each person is to you (brother, employer, good friend, bitter rival) and what people in earshot are to each other; how they speak is left to their card and lore.",
+          "highlight": false
+        },
+        {
           "version": "0.5.64",
           "date": "2026-11-11",
           "notes": "- How much people remember is yours to set: Settings → Everyday memories each (4 to 40) and Lasting memories each (0 to 30), and numbers of their own for anyone in Journal → Edit people.\n- A memory can be reworded when it came out wrong, or deleted with ✕ (Journal → Edit people).\n- Pinning locks a memory: nothing ever pushes it out, and only its age moves on. Thirty a person; one you write yourself is pinned from the start. Pinned ones don't count against the lasting number.\n- Memories show how long ago they were.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.46",
           "date": "2026-11-11",
           "notes": "- A saddle on any horse that's someone's own: yours, or a character's. Farm and tavern horses go bare.\n- The saddle is Saddle by Poly by Google (CC-BY 3.0), modified: converted, resized and its texture shrunk. Credited in Help, the README and `kit/CREDITS.md`.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.45",
-          "date": "2026-11-11",
-          "notes": "- People remember, each their own: what you said to them or in their hearing, and who they spent time with. Kept by rules, with no AI call.\n- The AI is given the memories of whoever it's speaking for and nobody else's, so it can't know what someone else was told. Different people remember different things.\n- Someone you said something to may come over within a few days to bring it up.\n- Journal → Edit people shows what someone remembers and can clear it; Settings → Living world has the switch.",
           "highlight": false
         }
       ]
