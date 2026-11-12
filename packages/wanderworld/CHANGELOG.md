@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.62 — 2026-11-11
+
+- Relationships set the tone. Beside each person's name the AI is told what they are to you and what that means for how they speak: a manner written for every kind and strength (a rival needles but stays civil; a bitter rival is cold and cutting, without violence) and for a role (brother, employer, apprentice).
+- People in earshot are told what they are to each other, so two brothers speak as brothers.
+- A manner you set by hand (rude, afraid…) comes first; the role still sets the register.
+
 ## 0.5.61 — 2026-11-11
 
 - A call for each person who answers, off by default (Settings → AI): one call tells the moment and picks who answers, with nobody's private knowledge in it; then each person who answers gets a call of their own holding only what they know.
