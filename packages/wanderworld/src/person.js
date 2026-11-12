@@ -6,6 +6,7 @@ import { makeFloating } from "./floating.js";
 import { floatingFrame } from "./illustrate.js";
 import { ACTIVITIES, ACTIVITY_WORDS, hourText } from "./schedules.js";
 import { attractionOf } from "./relationships.js";
+import { ago } from "./memory.js";
 import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, SERIF } from "./ui.js";
 
 function element(tag, css = "", textContent) {
@@ -384,39 +385,89 @@ export function createPersonEditor(layer, handlers) {
           "Only what they themselves saw, heard or were told. The AI is given these when it speaks for them, and nobody else's.",
         ),
       );
-      // Lasting ones first: ticked, a memory stays for good; unticked, it's an everyday one that newer ones push out.
-      const kept = [...(person.memories ?? [])].sort((a, b) => Number(b.kept) - Number(a.kept));
+      // Pinned first, then what lasted, then the everyday (each newest first). Any of them can be set
+      // right, deleted, or pinned: a pinned one is locked, and nothing pushes it out.
+      const rank = (memory) => (memory.pinned ? 2 : memory.kept ? 1 : 0);
+      const kept = [...(person.memories ?? [])].sort((a, b) => rank(b) - rank(a));
       if (!kept.length) body.append(element("div", `color:${INK_SOFT};font-size:12px;`, "Nothing yet."));
-      const pins = kept.slice(0, 16).map((memory) => {
-        const row = element(
-          "label",
-          "display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.35;padding:3px 0;min-height:24px;",
-        );
-        const pin = element("input", "flex:none;margin-top:2px;");
+      const rows = kept.slice(0, 60).map((memory) => {
+        const row = element("div", "display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:3px 0;");
+        const pin = element("input", "flex:none;width:18px;height:18px;");
         pin.type = "checkbox";
-        pin.checked = memory.kept;
-        pin.setAttribute("aria-label", `Keep for good: ${memory.text}`);
-        row.append(pin, element("span", "", `Day ${memory.day + 1}${memory.kept ? " (lasting)" : ""}: ${memory.text}`));
+        pin.checked = memory.pinned;
+        pin.title = "Pin: locked, never forgotten";
+        pin.setAttribute("aria-label", `Pin so it's never forgotten: ${memory.text}`);
+        const words = element("input", `${INK_INPUT}padding:4px 6px;flex:1 1 170px;min-width:0;font-size:12px;`);
+        words.type = "text";
+        words.maxLength = 200;
+        words.value = memory.text;
+        const when = ago(memory.day, person.today ?? memory.day);
+        words.setAttribute("aria-label", `A memory from ${when}`);
+        const tag = element(
+          "span",
+          `flex:none;color:${INK_SOFT};font-size:11px;`,
+          `${when}${memory.pinned ? ", pinned" : memory.kept ? ", lasting" : ""}`,
+        );
+        const drop = element("button", INK_SMALL, "✕");
+        drop.type = "button";
+        drop.setAttribute("aria-label", `Delete this memory: ${memory.text}`);
+        const state = { memory, pin, words, remove: false };
+        drop.addEventListener("click", () => {
+          state.remove = !state.remove;
+          words.disabled = state.remove;
+          pin.disabled = state.remove;
+          words.style.textDecoration = state.remove ? "line-through" : "";
+          drop.textContent = state.remove ? "Undo" : "✕";
+          drop.setAttribute("aria-label", `${state.remove ? "Keep" : "Delete"} this memory: ${memory.text}`);
+        });
+        row.append(pin, words, tag, drop);
         body.append(row);
-        return { memory, pin };
+        return state;
       });
       if (kept.length)
         body.append(
           note(
-            "Ticked ones are lasting: they stay when everyday memories come and go (eight at most; a ninth lets the oldest go).",
+            "Tick to pin: a pinned memory is locked and is never pushed out, only its age moves on (thirty at most). Change the words to set one right; ✕ deletes it when you save.",
           ),
         );
       const own = element("input", `${INK_INPUT}padding:4px 6px;width:100%;box-sizing:border-box;margin-top:2px;`);
       own.type = "text";
       own.maxLength = 200;
-      own.placeholder = "Something they'll always remember (your words)";
+      own.placeholder = "Something they'll always remember (your words; pinned)";
       own.setAttribute("aria-label", `Something ${person.name} will always remember`);
       body.append(own);
+      // How many they keep: their own numbers, or blank for the setting's.
+      const count = (key, max) => {
+        const input = element("input", `${INK_INPUT}padding:3px 6px;width:84px;`);
+        input.type = "number";
+        input.min = "0";
+        input.max = String(max);
+        input.step = "1";
+        input.inputMode = "numeric";
+        input.placeholder = String(person.memoryDefaults?.[key] ?? "");
+        if (Number.isFinite(person.memoryLimits?.[key])) input.value = String(person.memoryLimits[key]);
+        return input;
+      };
+      const each = count("each", 40);
+      const lasting = count("kept", 30);
+      body.append(field("Everyday memories kept", each), field("Lasting memories kept", lasting));
+      body.append(note("Blank uses the number in Settings. More for someone who should remember further back."));
       reads.push((changes) => {
-        changes.pins = pins
-          .filter(({ memory, pin }) => pin.checked !== memory.kept)
-          .map(({ memory, pin }) => ({ day: memory.day, text: memory.text, kept: pin.checked }));
+        changes.memoryEdits = rows
+          .filter(
+            ({ memory, pin, words, remove }) =>
+              remove || pin.checked !== memory.pinned || (words.value.trim() && words.value.trim() !== memory.text),
+          )
+          .map(({ memory, pin, words, remove }) => ({
+            day: memory.day,
+            text: memory.text,
+            remove,
+            newText: words.value.trim(),
+            pinned: pin.checked,
+          }));
         changes.memory = own.value.trim();
+        const number = (input) => (input.value.trim() === "" ? null : Number(input.value));
+        changes.memoryLimits = { each: number(each), kept: number(lasting) };
       });
       if (kept.length) {
         const wrap = element("label", "display:flex;gap:6px;align-items:center;font-size:12px;margin-top:2px;");

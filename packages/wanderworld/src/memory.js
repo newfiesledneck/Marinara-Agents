@@ -8,9 +8,13 @@
 
 /** How much is kept. */
 export const MEMORY = {
-  EACH: 14, // everyday memories a person keeps (the newest)
+  EACH: 14, // everyday memories a person keeps (the newest), unless set otherwise
+  EACH_MAX: 40,
   KEPT: 8, // and lasting ones beside them: what mattered, pushed out only by other lasting ones
+  KEPT_MAX: 30,
   KEPT_TOLD: 4, // of those, how many the model is told (the newest)
+  PINNED: 30, // memories pinned by hand: locked, never pushed out, and beside the others
+  PINNED_TOLD: 6, // of those, how many the model is told (the newest)
   PEOPLE: 80, // people with memories
   TEXT: 200, // characters a memory runs to
   TOPIC_DAYS: 3, // how long something the player said stays worth bringing up
@@ -25,28 +29,37 @@ const cut = (value) =>
     .trim()
     .slice(0, MEMORY.TEXT);
 
-/** `list` with no more everyday memories than are kept, and no more lasting ones: the oldest of each go. */
-const trim = (list) => {
-  const lasting = list.filter((entry) => entry.kept);
-  const everyday = list.filter((entry) => !entry.kept);
+/**
+ * `list` with no more everyday memories than `limits.each` and no more lasting ones than `limits.kept`:
+ * the oldest of each go. A pinned memory is locked: it's never one of them, and isn't counted.
+ */
+const trim = (list, limits) => {
+  const lasting = list.filter((entry) => entry.kept && !entry.pinned);
+  const everyday = list.filter((entry) => !entry.kept && !entry.pinned);
   const gone = new Set([
-    ...lasting.slice(0, Math.max(0, lasting.length - MEMORY.KEPT)),
-    ...everyday.slice(0, Math.max(0, everyday.length - MEMORY.EACH)),
+    ...lasting.slice(0, Math.max(0, lasting.length - limits.kept)),
+    ...everyday.slice(0, Math.max(0, everyday.length - limits.each)),
   ]);
   return gone.size ? list.filter((entry) => !gone.has(entry)) : list;
 };
+
+/** A count within 0 and `max`, or `fallback` when it isn't a number. */
+const within = (value, max, fallback) =>
+  Number.isFinite(value) ? Math.max(0, Math.min(max, Math.round(value))) : fallback;
 
 /**
  * A world's memories. `saved`: what `state` gave before ({ [id]: [{ day, text, said, raised, how, from }] }).
  * `said` marks something the player said to them (worth bringing up later); `raised`, that they have;
  * `how` is how they came by it ("saw", "heard", or "told" by `from`: second-hand); `kept` marks a
- * lasting memory (a scene together, a night at a campfire, something pinned by hand).
+ * lasting memory (a scene together, a night at a campfire); `pinned`, one locked by hand, which nothing
+ * pushes out. `limitsOf(id)` → { each, kept }: how many everyday and lasting memories that person keeps
+ * (asked each time something is remembered, so a setting changed takes hold from then on).
  */
 /** How a memory was come by, in the words the model is given. */
 const HOW = { saw: "saw", heard: "heard", told: "was told" };
 
 /** `day` as against `today`, in words. */
-const ago = (day, today) => {
+export const ago = (day, today) => {
   const days = Math.max(0, Math.round(today - day));
   return days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
 };
@@ -91,26 +104,35 @@ export function heardBy(log, ids, max = 8) {
     .map(({ who, text }) => ({ who, text }));
 }
 
-export function createMemories(saved = {}) {
+export function createMemories(saved = {}, limitsOf = () => ({})) {
+  const limits = (id) => {
+    const own = limitsOf(id) ?? {};
+    return {
+      each: within(own.each, MEMORY.EACH_MAX, MEMORY.EACH),
+      kept: within(own.kept, MEMORY.KEPT_MAX, MEMORY.KEPT),
+    };
+  };
+  const find = (id, text, day) => (store.get(id) ?? []).find((memory) => memory.text === text && memory.day === day);
   const store = new Map(
     Object.entries(saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {})
       .slice(0, MEMORY.PEOPLE)
       .map(([id, list]) => [
         id,
-        trim(
-          (Array.isArray(list) ? list : [])
-            .filter((entry) => entry && typeof entry.text === "string" && entry.text.trim())
-            .slice(-(MEMORY.EACH + MEMORY.KEPT))
-            .map((entry) => ({
-              day: Number.isInteger(entry.day) ? entry.day : 0,
-              text: cut(entry.text),
-              ...(entry.said === true ? { said: true } : {}),
-              ...(entry.raised === true ? { raised: true } : {}),
-              ...(HOW[entry.how] ? { how: entry.how } : {}),
-              ...(typeof entry.from === "string" && entry.from.trim() ? { from: entry.from.trim().slice(0, 60) } : {}),
-              ...(entry.kept === true ? { kept: true } : {}),
-            })),
-        ),
+        // (All that was saved, within what anyone could keep: how many this person keeps is asked when
+        // they next remember something.)
+        (Array.isArray(list) ? list : [])
+          .filter((entry) => entry && typeof entry.text === "string" && entry.text.trim())
+          .slice(-(MEMORY.EACH_MAX + MEMORY.KEPT_MAX + MEMORY.PINNED))
+          .map((entry) => ({
+            day: Number.isInteger(entry.day) ? entry.day : 0,
+            text: cut(entry.text),
+            ...(entry.said === true ? { said: true } : {}),
+            ...(entry.raised === true ? { raised: true } : {}),
+            ...(HOW[entry.how] ? { how: entry.how } : {}),
+            ...(typeof entry.from === "string" && entry.from.trim() ? { from: entry.from.trim().slice(0, 60) } : {}),
+            ...(entry.kept === true ? { kept: true } : {}),
+            ...(entry.pinned === true ? { pinned: true } : {}),
+          })),
       ]),
   );
   return {
@@ -142,7 +164,7 @@ export function createMemories(saved = {}) {
           ...(how === "told" && from ? { from: String(from).slice(0, 60) } : {}),
           ...(lasting ? { kept: true } : {}),
         };
-        store.set(id, trim([...kept, entry]));
+        store.set(id, trim([...kept, entry], limits(id)));
       }
     },
     /** The newest `count` things `id` remembers, oldest first: plain lines. */
@@ -155,10 +177,11 @@ export function createMemories(saved = {}) {
      */
     known(id, count = 5, today = 0) {
       const all = store.get(id) ?? [];
-      // What lasted (the newest few, however old), then the newest of the everyday.
+      // What's pinned and what lasted (the newest few of each, however old), then the newest of the everyday.
       const told = [
-        ...all.filter((entry) => entry.kept).slice(-MEMORY.KEPT_TOLD),
-        ...(count > 0 ? all.filter((entry) => !entry.kept).slice(-count) : []),
+        ...all.filter((entry) => entry.pinned).slice(-MEMORY.PINNED_TOLD),
+        ...all.filter((entry) => entry.kept && !entry.pinned).slice(-MEMORY.KEPT_TOLD),
+        ...(count > 0 ? all.filter((entry) => !entry.kept && !entry.pinned).slice(-count) : []),
       ];
       return told.map((entry) => {
         const how = entry.how
@@ -188,19 +211,51 @@ export function createMemories(saved = {}) {
       this.remember([to], retold(entry.text), day, false, "told", fromName);
       return retold(entry.text);
     },
-    /** Everything `id` remembers, newest first, for showing: [{ day, text, kept }]. */
+    /** Everything `id` remembers, newest first, for showing: [{ day, text, kept, pinned }]. */
     list(id) {
-      return [...(store.get(id) ?? [])].reverse().map(({ day, text, kept }) => ({ day, text, kept: kept === true }));
+      return [...(store.get(id) ?? [])]
+        .reverse()
+        .map(({ day, text, kept, pinned }) => ({ day, text, kept: kept === true, pinned: pinned === true }));
     },
-    /** Makes `id`'s memory of `day` that reads `text` a lasting one (`on`), or an everyday one again. */
+    /**
+     * Pins `id`'s memory of `day` that reads `text` (`on`), or lets it go again. A pinned memory is
+     * locked: nothing pushes it out, whatever else is remembered; only how long ago it was moves on.
+     * → whether it was done (not when there's no such memory, or too many are pinned already).
+     */
     pin(id, text, day, on = true) {
-      const list = store.get(id) ?? [];
-      const entry = list.find((memory) => memory.text === text && memory.day === day);
+      const entry = find(id, text, day);
       if (!entry) return false;
-      if (on) entry.kept = true;
-      else delete entry.kept;
-      // (Just pinned, it counts as the newest lasting one: an older lasting one goes if there are too many, not this.)
-      store.set(id, trim(on ? [...list.filter((memory) => memory !== entry), entry] : list));
+      if (on && !entry.pinned && store.get(id).filter((memory) => memory.pinned).length >= MEMORY.PINNED) return false;
+      if (on) entry.pinned = true;
+      else delete entry.pinned;
+      if (!on) store.set(id, trim(store.get(id), limits(id)));
+      return true;
+    },
+    /** `id` remembers `text` from `day` on, written by hand: pinned from the start. → whether it was kept. */
+    note(id, text, day = 0) {
+      const line = cut(text);
+      const list = store.get(id) ?? [];
+      if (!id || id === "player" || !line || list.filter((memory) => memory.pinned).length >= MEMORY.PINNED)
+        return false;
+      store.set(id, [...list, { day, text: line, kept: true, pinned: true }]);
+      return true;
+    },
+    /** Rewrites `id`'s memory of `day` that reads `text` as `next` (set right by hand). → the new words, or null. */
+    edit(id, text, day, next) {
+      const entry = find(id, text, day);
+      const line = cut(next);
+      if (!entry || !line) return null;
+      entry.text = line;
+      return line;
+    },
+    /** `id` forgets the one memory of `day` that reads `text`, pinned or not. → whether there was one. */
+    remove(id, text, day) {
+      const entry = find(id, text, day);
+      if (!entry) return false;
+      store.set(
+        id,
+        store.get(id).filter((memory) => memory !== entry),
+      );
       return true;
     },
     /** Whether `id` has something the player said lately that they haven't brought up (as of `day`). */

@@ -196,16 +196,83 @@ const server = await import("../packages/wanderworld/server.mjs");
   assert.equal(lasting.length, MEMORY.KEPT);
   assert.equal(lasting.at(-1).text, "Big thing 4.", "the oldest lasting ones went");
   assert.equal(memories.known("mira", 0, 70).length, MEMORY.KEPT_TOLD);
-  // Pinned by hand, and let go again.
+  // Pinned by hand: locked. Nothing pushes it out, whatever else is remembered; only its age moves on.
   assert.equal(memories.pin("mira", "Small thing 39.", 42), true);
-  assert.equal(memories.list("mira").find((memory) => memory.text === "Small thing 39.").kept, true);
-  assert.equal(memories.list("mira").filter((memory) => memory.kept).length, MEMORY.KEPT, "still no more than that");
-  assert.equal(memories.pin("mira", "Small thing 39.", 42, false), true);
-  assert.equal(memories.list("mira").find((memory) => memory.text === "Small thing 39.").kept, false);
+  const pinned = () => memories.list("mira").find((memory) => memory.text === "Small thing 39.");
+  assert.equal(pinned().pinned, true);
+  for (let i = 0; i < 60; i++) {
+    memories.remember(["mira"], `Later small thing ${i}.`, 100 + i);
+    memories.remember(["mira"], `Later big thing ${i}.`, 100 + i, false, "", "", true);
+  }
+  assert.equal(pinned()?.pinned, true, "still there after a hundred and twenty newer memories");
+  assert.equal(pinned().day, 42, "and as it was");
+  assert.equal(memories.known("mira", 0, 142)[0], "(100 days ago) Small thing 39.", "told first, with its age");
+  const counts = () => {
+    const all = memories.list("mira");
+    return [
+      all.filter((memory) => memory.pinned).length,
+      all.filter((memory) => memory.kept && !memory.pinned).length,
+      all.filter((memory) => !memory.kept && !memory.pinned).length,
+    ];
+  };
+  assert.deepEqual(counts(), [1, MEMORY.KEPT, MEMORY.EACH], "it doesn't count against the others");
   assert.equal(memories.pin("mira", "Never happened.", 1), false);
+  // Written by hand: pinned from the start. Reworded, and deleted.
+  assert.equal(memories.note("mira", "  Zoey   saved her life once. ", 142), true);
+  assert.deepEqual(memories.list("mira")[0], { day: 142, text: "Zoey saved her life once.", kept: true, pinned: true });
+  assert.equal(memories.note("player", "nothing", 1), false);
+  assert.equal(
+    memories.edit("mira", "Zoey saved her life once.", 142, "Zoey pulled her from the river."),
+    "Zoey pulled her from the river.",
+  );
+  assert.equal(memories.list("mira")[0].text, "Zoey pulled her from the river.");
+  assert.equal(memories.list("mira")[0].pinned, true, "still pinned");
+  assert.equal(memories.edit("mira", "No such memory.", 1, "x"), null);
+  assert.equal(memories.edit("mira", "Zoey pulled her from the river.", 142, "   "), null, "not to nothing");
+  assert.equal(memories.remove("mira", "Zoey pulled her from the river.", 142), true);
+  assert.equal(memories.remove("mira", "Zoey pulled her from the river.", 142), false);
+  assert.deepEqual(counts(), [1, MEMORY.KEPT, MEMORY.EACH]);
+  // Unpinned, it's an everyday memory again, and the oldest of those goes.
+  assert.equal(memories.pin("mira", "Small thing 39.", 42, false), true);
+  assert.equal(pinned(), undefined, "the oldest everyday one, so it went");
+  // Only so many can be pinned.
+  for (let i = 0; i < MEMORY.PINNED + 5; i++) memories.note("tam", `Pinned ${i}.`, i);
+  assert.equal(memories.list("tam").length, MEMORY.PINNED);
+  assert.equal(memories.known("tam", 5, 40).length, MEMORY.PINNED_TOLD);
   // Kept with the world.
   const again = createMemories(memories.state);
   assert.deepEqual(again.list("mira"), memories.list("mira"));
+  assert.deepEqual(again.list("tam"), memories.list("tam"));
+}
+
+// ── How many each person keeps: the setting's numbers, or their own ──────────
+{
+  const limits = { each: 5, kept: 2 };
+  const own = { nan: { each: 20 }, odd: { each: "many", kept: -4 } };
+  const memories = createMemories({}, (id) => ({ ...limits, ...(own[id] ?? {}) }));
+  const fill = (id) => {
+    for (let i = 0; i < 30; i++) {
+      memories.remember([id], `Small ${i}.`, i);
+      memories.remember([id], `Big ${i}.`, i, false, "", "", true);
+    }
+    const all = memories.list(id);
+    return [all.filter((memory) => !memory.kept).length, all.filter((memory) => memory.kept).length];
+  };
+  assert.deepEqual(fill("tam"), [5, 2], "the setting's numbers");
+  assert.deepEqual(fill("nan"), [20, 2], "family who remember more");
+  assert.deepEqual(fill("odd"), [MEMORY.EACH, 0], "a number that isn't one is the usual; none below nothing");
+  // Turned down, it takes hold when they next remember something; nothing pinned is lost.
+  memories.pin("nan", "Small 29.", 29);
+  limits.each = 4;
+  delete own.nan;
+  memories.remember(["nan"], "One more.", 31);
+  const nan = memories.list("nan");
+  assert.equal(nan.filter((memory) => !memory.kept && !memory.pinned).length, 4);
+  assert.ok(nan.some((memory) => memory.text === "Small 29." && memory.pinned));
+  // With nothing said, the usual numbers.
+  const plain = createMemories();
+  for (let i = 0; i < 30; i++) plain.remember(["a"], `Small ${i}.`, i);
+  assert.equal(plain.list("a").length, MEMORY.EACH);
 }
 
 // ── Gossip: first-hand things pass between two people, as hearsay, once ─────

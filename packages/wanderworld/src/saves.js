@@ -457,6 +457,23 @@ export function checkWorld(raw) {
     traits: checkTraitMap(raw.traits),
     // What each person remembers (memory.js checks it on the way in): { [id]: [{ day, text, said, raised, how, from }] }.
     memories: isRecord(raw.memories) ? raw.memories : {},
+    // How many memories someone keeps when it isn't the setting's number: { [id]: { each, kept } } (either).
+    memoryLimits: Object.fromEntries(
+      Object.entries(isRecord(raw.memoryLimits) ? raw.memoryLimits : {})
+        .slice(0, 200)
+        .map(([id, own]) => [
+          id,
+          Object.fromEntries(
+            [
+              ["each", 40],
+              ["kept", 30],
+            ]
+              .filter(([key]) => Number.isFinite(own?.[key]))
+              .map(([key, max]) => [key, Math.max(0, Math.min(max, Math.round(own[key])))]),
+          ),
+        ])
+        .filter(([, own]) => Object.keys(own).length),
+    ),
     // What the player has put in a home by hand, in this region: { [zone id]: [{ piece, x, z, angle }] }
     // (household.js). Like homes, each region's own.
     furnished: checkFurnished(raw.furnished),
