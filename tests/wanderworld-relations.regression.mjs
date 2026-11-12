@@ -16,6 +16,9 @@ const {
   checkTraitMap,
   createRelationships,
   linksFromWords,
+  KINDS,
+  mannerOf,
+  MANNERS,
   phraseOf,
   setupFromWords,
   tierOf,
@@ -50,6 +53,24 @@ assert.equal(
   relations.describe("c-3", "c-1", { ...names, "c-3": "Mira" }),
   "Mira is Sarah's sister and is close to them",
 );
+// How it's spoken: the role's register, then the kind's manner at that strength.
+assert.equal(
+  relations.manner("c-3", "c-1"),
+  "speaks as their sister: blunt and teasing, no politeness needed; close and frank: teases, nags and worries",
+);
+assert.equal(relations.manner("c-3", "c-1", "role"), "speaks as their sister: blunt and teasing, no politeness needed");
+assert.equal(relations.manner("c-1", "c-2"), "wholly at ease: blunt, affectionate, no need to explain themselves");
+assert.equal(relations.manner("c-2", "c-1"), "", "no relationship, no manner");
+assert.match(mannerOf("rival", 30), /civil/u, "a rival isn't a villain");
+assert.match(mannerOf("rival", 95), /without violence/u);
+assert.equal(
+  mannerOf("colleague", 10, "quartermaster"),
+  "speaks as their quartermaster; businesslike, keeps to the work",
+);
+assert.equal(mannerOf("nonsense", 10), "");
+for (const kind of Object.keys(KINDS)) assert.equal(MANNERS[kind]?.length, 4, `${kind} has a manner for each tier`);
+for (const role of Object.values(KINDS).flatMap((kind) => kind.roles ?? []))
+  assert.notEqual(mannerOf("family", 50, role, "role"), `speaks as their ${role}`, `${role} has words of its own`);
 relations.set("c-3", "c-1", null);
 assert.equal(relations.get("c-3", "c-1"), null, "a relationship can be cleared");
 

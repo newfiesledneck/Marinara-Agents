@@ -938,7 +938,8 @@ export function momentMessages(input) {
       (person) =>
         `- id "${person.id}": ${person.name}, ${person.distance} m away, ${person.doing || "standing about"}` +
         `${person.inParty ? ", travelling with " + input.persona.name : ""}` +
-        `${person.feeling ? `. Feels: ${person.feeling}` : ""}` +
+        `${person.feeling ? `. Toward ${input.persona.name}: ${person.feeling}` : ""}` +
+        `${person.others ? ` With the others here: ${person.others}` : ""}` +
         `${person.card ? `. ${person.card}` : ""}` +
         `${person.knows?.length ? `\n  Knows besides (${person.name} alone):\n${person.knows.map((known) => `  · ${known}`).join("\n")}` : ""}`,
     )
@@ -1351,7 +1352,7 @@ export async function activate(context) {
           time: text(body.time, 80),
           weather: text(body.weather, 40),
           nearby: text(body.nearby, 300),
-          relationship: text(body.relationship, 400),
+          relationship: text(body.relationship, 600),
           memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 220)).filter(Boolean).slice(0, 8),
           setting: block(body.setting, 600),
           lore: [
@@ -1443,7 +1444,8 @@ export async function activate(context) {
             id: idOf(person.id),
             distance: Number.isFinite(person.distance) ? Math.round(Math.max(0, Math.min(99, person.distance))) : 5,
             doing: text(person.doing, 120),
-            feeling: text(person.feeling, 200),
+            feeling: text(person.feeling, 600),
+            others: text(person.others, 500),
             knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 10),
             inParty: person.inParty === true,
           }))
@@ -1499,7 +1501,7 @@ export async function activate(context) {
           // own knowledge, and each speaker's call only theirs, so nothing can leak from one to another.
           if (body.separate === true && heard.length) {
             const open = (person) => ({ ...person, knows: [] });
-            const bare = (person) => ({ ...open(person), feeling: "", card: "" });
+            const bare = (person) => ({ ...open(person), feeling: "", others: "", card: "" });
             const first = await askModel("moment/narrator", body, model, momentMessages({ ...input, listeners: heard.map(open), telling: "narrator" }), { temperature, maxTokens: 400 });
             const told = readJson(first?.content, api.runtime.json?.parseJsonish);
             if (!told) return reply.status(502).send({ error: "The model's answer wasn't readable." });
