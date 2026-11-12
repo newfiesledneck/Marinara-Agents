@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.68 — 2026-11-11
+
+- Worlds are saved by the Engine now, not in the browser: the same from any browser or device, and as big as they grow. Worlds saved in a browser move over the first time this version opens there. With no server part, they stay in the browser as before.
+- All now keeps and sends every memory, with no ceiling (a thousand of each while a world is still in a browser).
+- Settings → Token use: every setting that changes how many tokens are spent, in one place. Each is the same setting as in AI and Living world; a change in one shows in the other.
+- Sum up old memories has a button in Settings → Living world, in Token use, and in each person's window in Edit people.
+
 ## 0.5.67 — 2026-11-11
 
 - A share of the memories sent that someone can't fill goes to the others present (20 between three, one with 3: 3, 9 and 9).

@@ -75,6 +75,7 @@ import { HOUSE_PIECES } from "./houses.js";
 import { kitModels, kitTexture, kitUrl } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { createSaves } from "./saves.js";
+import { createStore } from "./store.js";
 import { undoOnly, withoutLeftovers } from "./undo.js";
 import { editableFields, reviseEdits } from "./assistant-edits.js";
 import { assistantNeeds, mentioned, PARTS, PICKS } from "./assistant-context.js";
@@ -119,7 +120,7 @@ import {
   sceneRequest,
 } from "./interactions.js";
 import { drawMap } from "./map.js";
-import { createAi } from "./ai.js";
+import { createAi, savesRemote } from "./ai.js";
 import {
   ACTIVITY_WORDS,
   checkEntry,
@@ -243,7 +244,8 @@ const core = {
   interior: null, // { door, room } while inside a building
   sceneDoor: null, // the door whose card is showing
   worldLoad: 0, // counts world loads, so a slow one that was replaced doesn't show itself
-  saves: createSaves(),
+  store: null, // where saves are kept: with the Engine, or in the browser (store.js)
+  saves: null, // the saved worlds (saves.js), through it
   save: null, // the world being played (saves.js record)
   menu: null,
   paused: true, // the main menu is up: nothing moves or draws
@@ -3055,7 +3057,12 @@ function recall(ids, text, said, how = said ? "heard" : "", lasting = false) {
 /** How many everyday and lasting memories `id` keeps: their own numbers (Edit people), else the settings'. */
 function memoryLimits(id) {
   const own = core.save?.memoryLimits?.[id] ?? {};
-  return { each: own.each ?? core.settings.memoryEach, kept: own.kept ?? core.settings.memoryKept };
+  return {
+    each: own.each ?? core.settings.memoryEach,
+    kept: own.kept ?? core.settings.memoryKept,
+    // "All" has no ceiling when the Engine keeps the world; in the browser's storage it has (memory.js).
+    most: core.store?.engine ? Infinity : MEMORY.MOST,
+  };
 }
 
 /**
@@ -4400,7 +4407,7 @@ async function askAssistant(history, options = {}) {
   const noteIds = save.notices.map((note) => note.id); // the board as the model is shown it: note1, note2…
   // Whose memories go, when memories do: whoever was ticked (a ready-made request), else whoever the
   // message names, else whoever was asked about last, else everyone. Each memory has a number, m1 the
-  // oldest, that an edit names it by; with many people only the newest of each go (600 in all).
+  // oldest, that an edit names it by.
   const forMemories = pick?.picker === "memories";
   if (forMemories) core.assistantMemoryOf = Array.isArray(options.memoryOf) ? options.memoryOf : null;
   const chosenMemories = forMemories
@@ -4414,7 +4421,10 @@ async function askAssistant(history, options = {}) {
     .filter((person) => !chosenMemories || chosenMemories.includes(person.id))
     .map((person) => ({ person, all: (core.memories?.list(person.id) ?? []).reverse() }))
     .filter(({ all }) => all.length);
-  const memoryMost = Math.max(15, Math.min(150, Math.floor(600 / Math.max(1, remembering.length))));
+  // (Whoever was ticked: all of theirs. Otherwise the newest of each, 600 in all.)
+  const memoryMost = forMemories
+    ? Infinity
+    : Math.max(15, Math.min(150, Math.floor(600 / Math.max(1, remembering.length))));
   const memoryLines = remembering.map(({ person, all }) => {
     memoryIds[person.id] = all.map(({ day, text }) => ({ day, text }));
     return {
@@ -7452,6 +7462,13 @@ function frame(time) {
 
 function attach(element) {
   core.element = element;
+  if (!core.store) {
+    core.store = createStore(globalThis.localStorage, savesRemote, {
+      onProblem: (error) => console.warn("[wanderworld] a save didn't reach the Engine; kept in this browser", error),
+    });
+    core.saves = createSaves(core.store);
+    globalThis.addEventListener?.("pagehide", () => void core.store.flush());
+  }
   // Is the server part running? (Remembered; Menu → Settings → AI asks again.) Then any scene recaps waiting.
   void core.ai.status().then(() => pullRecaps());
   element.style.cssText += ";display:block;position:relative;overflow:hidden;width:100%;height:100%;";
@@ -7677,23 +7694,41 @@ function attach(element) {
       logo: `${ART}logo.webp`,
     },
   );
-  core.saves.migrate(); // the one world from before saves becomes the first saved world
-  if (core.personas) {
-    core.hud.setPersonas(core.personas, core.personaId, core.bodies);
-    core.hud.setCharacters(core.characters ?? [], core.cast ?? new Set(), core.bodies);
-  } else {
-    void loadPeople();
-  }
-  // Back to the tab with a world in play: carry on. Otherwise the main menu.
-  if (core.world && core.save) resume();
-  else openMenu();
-  core.resizeObserver = new ResizeObserver(resize);
-  core.resizeObserver.observe(core.stage);
-  applySettings();
-  core.lastTime = 0;
-  core.statsSince = 0;
-  core.statsFrames = 0;
-  if (!core.raf) core.raf = requestAnimationFrame(frame);
+  // Saved worlds are with the Engine when its server part is there (store.js): they're read before the
+  // menu lists them. When it isn't, they're in this browser, as before.
+  const begin = () => {
+    if (core.element !== element) return; // closed meanwhile
+    core.saves.migrate(); // the one world from before saves becomes the first saved world
+    if (core.personas) {
+      core.hud.setPersonas(core.personas, core.personaId, core.bodies);
+      core.hud.setCharacters(core.characters ?? [], core.cast ?? new Set(), core.bodies);
+    } else {
+      void loadPeople();
+    }
+    // Back to the tab with a world in play: carry on. Otherwise the main menu.
+    if (core.world && core.save) resume();
+    else openMenu();
+    core.resizeObserver = new ResizeObserver(resize);
+    core.resizeObserver.observe(core.stage);
+    applySettings();
+    core.lastTime = 0;
+    core.statsSince = 0;
+    core.statsFrames = 0;
+    if (!core.raf) core.raf = requestAnimationFrame(frame);
+  };
+  if (core.store.engine) begin();
+  else
+    void core.store
+      .connect()
+      .then(() => store("wanderworld.savesWithEngine", "1"))
+      .catch((error) => {
+        console.warn("[wanderworld] saved worlds are kept in this browser: the server part didn't answer", error);
+        if (readStored("wanderworld.savesWithEngine") === "1")
+          core.hud?.setNotice(
+            "Your saved worlds are kept by the Engine, and Wanderworld's server part didn't answer, so they can't be listed now. Check that the Engine is running and the package is enabled, then open this tab again. A world started meanwhile is kept in this browser and joins the others next time.",
+          );
+      })
+      .then(begin);
 }
 
 function detach(element) {
@@ -7701,6 +7736,7 @@ function detach(element) {
   if (core.raf) cancelAnimationFrame(core.raf);
   core.raf = 0;
   if (!core.paused) savePlace(true);
+  void core.store.flush(); // what's waiting to go to the Engine goes now
   if (core.mode === "talk") endTalk();
   core.resizeObserver?.disconnect();
   core.resizeObserver = null;

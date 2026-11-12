@@ -19,16 +19,18 @@ persona and lorebooks that you explore, talk in, and start scenes from. It is an
 4. From another device, enter the Engine's Admin Secret in **Settings → Advanced → Admin Access** on that
    device, as for other packages with their own routes.
 
-What it asks for on install, and why: `routes` and `storage` (its own `/api/wanderworld` routes, scene
-contexts and recaps, and the picture gallery), `scenes` (starting Engine scenes from the world and getting
+What it asks for on install, and why: `routes` and `storage` (its own `/api/wanderworld` routes, your
+saved worlds, scene contexts and recaps, and the picture gallery), `scenes` (starting Engine scenes from the world and getting
 their recaps back) and `network` (calls to your own Engine on this machine for the connection list, image
 generation and scene creation; nothing else leaves the machine except through your Engine connections).
 
-Worlds are saved in this browser's storage, one save per world; they don't follow you to another browser
-or device yet. Uninstalling removes the package; saved worlds stay in the browser until you delete them
-from **Load world** or clear the site's data.
+Worlds are saved by the Engine, one save per world, in the package's own storage there: they're the same
+from any browser or device that opens your Engine, and a world can be as big as it grows. Worlds saved in
+a browser by an earlier version move to the Engine the first time this one opens there, and then leave the
+browser. If the server part isn't running, worlds are kept in the browser as before and move over when it
+is. Settings (graphics, controls, AI choices) stay with each browser. Delete a world from **Load world**.
 
-## What it does now (0.5.67)
+## What it does now (0.5.68)
 
 ### The world
 
@@ -182,7 +184,7 @@ only walk about.
   persona, the characters who live there from your Engine folders, the land, the settlement, walls, any
   more hamlets, farms and landmarks, the world's size from Small to Massive, the setting and lorebooks,
   with a map of the world it makes and Reroll), Load world (thumbnails, Rename, Delete) and Settings. Each
-  world keeps everything in its own save in this package's browser storage: where you were, the time, the
+  world keeps everything in its own save, kept by the Engine: where you were, the time, the
   cast, bodies, relationships, lore, groups, homes, schedules, notes, scenes and the last of the chat.
 - **A world set up for you:** in New world, "let the AI set them up" reads your characters' cards and
   persona, and any lorebooks you choose, and makes the world ready to play: who's a man or a woman, how
@@ -221,8 +223,8 @@ only walk about.
 - **How much memory the AI is sent is yours to set:** apart from how many memories are kept, two settings
   say how many everyday and lasting ones are sent, as a count shared between whoever the AI is speaking
   for (20 between three people is 7 each, rounded up; someone with fewer than their share leaves the rest
-  to the others). Each slider goes to a hundred and then **All**: keep everything until you delete it (a
-  thousand of each for one person at most), send everything they keep (the newest 120 of each kind). Anyone can have a number of their own, or All, in Journal →
+  to the others). Each slider goes to a hundred and then **All**: keep everything until you delete it,
+  send everything they keep, however much that is. Anyone can have a number of their own, or All, in Journal →
   Edit people, and a switch says whether that comes out of the shared count (5, 5 and 10) or not (7, 7 and
   10). More sent costs more tokens on every reply, so the cheap way is a low shared number and a higher
   one for the few people who matter.
@@ -230,6 +232,13 @@ only walk about.
   out what doesn't matter, find repeats, sum up old ones into one lasting memory, suggest what to pin).
   Each asks whose memories to send first, a tick for each person or everyone's, with a rough token count.
   Every rewording, deletion, pin or new memory is proposed for you to change, leave out, confirm, and undo.
+  **Sum up old memories** also has a button where memories are set: in Settings → Living world, in
+  Settings → Token use, and in each person's window in Journal → Edit people (for that person alone).
+- **Token use in one place:** Settings → Token use gathers every setting that changes how many tokens are
+  spent: which things call the AI (conversations, moments, arrivals, things, the noticeboard, sitting,
+  joining, a call for each speaker), how long replies are, and how many memories are sent. They are the
+  same settings as in AI and Living world, so a change in one place shows in the other. It also says what
+  else adds up (a long narrator card, lore tied to the whole world) and where to see exactly what is sent.
 - **Relationships are told as they are:** the AI is given what each person is to you (brother, employer,
   good friend, bitter rival) and what people in earshot are to each other. How someone speaks is left to
   their card and lore.
@@ -380,9 +389,9 @@ only walk about.
   off by default): rain, snow or mist, changing every few minutes or always one.
 
 It reads your personas, characters, character folders, lorebooks, connections, prompt presets and 3D
-Avatars models from the Engine, and changes none of them. Worlds stay in this browser for now. The server
-part keeps only scene contexts (until the Engine's planner reads them), scene recaps (until the world takes
-them) and each world's newest 60 pictures.
+Avatars models from the Engine, and changes none of them. The server part keeps your saved worlds, scene
+contexts (until the Engine's planner reads them), scene recaps (until the world takes them) and each
+world's newest 60 pictures.
 
 ### Lorebook keywords
 

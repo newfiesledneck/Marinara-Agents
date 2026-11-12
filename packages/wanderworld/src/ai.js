@@ -67,6 +67,13 @@ async function request(path, { method = "GET", body, timeout = 120000 } = {}) {
   }
 }
 
+/** Saved worlds as the server part keeps them, for store.js: every key's text, one put, one removed. */
+export const savesRemote = {
+  all: () => request("/saves", { timeout: 20000 }).then((body) => body?.keys ?? {}),
+  put: (key, value) => request("/save", { method: "POST", body: { key, value }, timeout: 60000 }),
+  remove: (key) => request(`/save/${encodeURIComponent(key)}`, { method: "DELETE", timeout: 20000 }),
+};
+
 /** The server part, as one object. `status()` is remembered once it has answered. */
 export function createAi(locals = () => []) {
   let status = null;

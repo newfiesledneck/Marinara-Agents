@@ -13,10 +13,9 @@ export const MEMORY = {
   KEPT: 8, // and lasting ones beside them: what mattered, pushed out only by other lasting ones
   KEPT_MAX: 100,
   ALL: 101, // a count above the most there is to choose (the slider's last step, someone's "All"): all of them
-  // ponytail: "all" still stops at this many of each kind for one person, so a world goes on fitting in
-  // the browser's storage; lift it when worlds are kept on the Engine's side.
+  // "All" still stops at this many of each kind for one person while a world is kept in the browser's
+  // storage, which is small; kept by the Engine (`limitsOf(id).most` is Infinity) there's no such stop.
   MOST: 1000,
-  TOLD_MOST: 120, // and the model is told this many of each kind for one person at most, so a request stays sendable
   TOLD: 12, // everyday memories the model is told, shared between the people it speaks for (toldShares)
   KEPT_TOLD: 8, // and lasting ones, shared the same way
   PINNED: 30, // memories pinned by hand: locked, never pushed out, and beside the others
@@ -97,7 +96,8 @@ const within = (value, max, fallback) =>
  * `said` marks something the player said to them (worth bringing up later); `raised`, that they have;
  * `how` is how they came by it ("saw", "heard", or "told" by `from`: second-hand); `kept` marks a
  * lasting memory (a scene together, a night at a campfire); `pinned`, one locked by hand, which nothing
- * pushes out. `limitsOf(id)` → { each, kept }: how many everyday and lasting memories that person keeps
+ * pushes out. `limitsOf(id)` → { each, kept, most }: how many everyday and lasting memories that person keeps
+ * (`most`: Infinity when "all" has no ceiling)
  * (asked each time something is remembered, so a setting changed takes hold from then on).
  */
 /** How a memory was come by, in the words the model is given. */
@@ -150,11 +150,12 @@ export function heardBy(log, ids, max = 8) {
 }
 
 export function createMemories(saved = {}, limitsOf = () => ({})) {
+  const most = (own) => (own?.most === Infinity ? Infinity : MEMORY.MOST);
   const limits = (id) => {
     const own = limitsOf(id) ?? {};
     return {
-      each: own.each >= MEMORY.ALL ? MEMORY.MOST : within(own.each, MEMORY.EACH_MAX, MEMORY.EACH),
-      kept: own.kept >= MEMORY.ALL ? MEMORY.MOST : within(own.kept, MEMORY.KEPT_MAX, MEMORY.KEPT),
+      each: own.each >= MEMORY.ALL ? most(own) : within(own.each, MEMORY.EACH_MAX, MEMORY.EACH),
+      kept: own.kept >= MEMORY.ALL ? most(own) : within(own.kept, MEMORY.KEPT_MAX, MEMORY.KEPT),
     };
   };
   const find = (id, text, day) => (store.get(id) ?? []).find((memory) => memory.text === text && memory.day === day);
@@ -167,7 +168,7 @@ export function createMemories(saved = {}, limitsOf = () => ({})) {
         // they next remember something.)
         (Array.isArray(list) ? list : [])
           .filter((entry) => entry && typeof entry.text === "string" && entry.text.trim())
-          .slice(-(2 * MEMORY.MOST + MEMORY.PINNED))
+          .slice(-(2 * most(limitsOf(id)) + MEMORY.PINNED))
           .map((entry) => ({
             day: Number.isInteger(entry.day) ? entry.day : 0,
             text: cut(entry.text),
@@ -226,11 +227,10 @@ export function createMemories(saved = {}, limitsOf = () => ({})) {
       // What's pinned and what lasted (the newest few of each, however old), then the newest of the everyday.
       // (Each memory is in one of the three and no other, so none is told twice. Asked for all of what
       // lasted, all that's pinned goes too.)
-      const most = (number) => Math.min(number, MEMORY.TOLD_MOST);
       const told = [
         ...all.filter((entry) => entry.pinned).slice(-(lasting === Infinity ? MEMORY.PINNED : MEMORY.PINNED_TOLD)),
-        ...(lasting > 0 ? all.filter((entry) => entry.kept && !entry.pinned).slice(-most(lasting)) : []),
-        ...(count > 0 ? all.filter((entry) => !entry.kept && !entry.pinned).slice(-most(count)) : []),
+        ...(lasting > 0 ? all.filter((entry) => entry.kept && !entry.pinned).slice(-lasting) : []),
+        ...(count > 0 ? all.filter((entry) => !entry.kept && !entry.pinned).slice(-count) : []),
       ];
       return told.map((entry) => {
         const how = entry.how
