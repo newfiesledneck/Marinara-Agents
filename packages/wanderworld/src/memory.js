@@ -8,7 +8,9 @@
 
 /** How much is kept. */
 export const MEMORY = {
-  EACH: 14, // memories a person keeps
+  EACH: 14, // everyday memories a person keeps (the newest)
+  KEPT: 8, // and lasting ones beside them: what mattered, pushed out only by other lasting ones
+  KEPT_TOLD: 4, // of those, how many the model is told (the newest)
   PEOPLE: 80, // people with memories
   TEXT: 200, // characters a memory runs to
   TOPIC_DAYS: 3, // how long something the player said stays worth bringing up
@@ -23,10 +25,22 @@ const cut = (value) =>
     .trim()
     .slice(0, MEMORY.TEXT);
 
+/** `list` with no more everyday memories than are kept, and no more lasting ones: the oldest of each go. */
+const trim = (list) => {
+  const lasting = list.filter((entry) => entry.kept);
+  const everyday = list.filter((entry) => !entry.kept);
+  const gone = new Set([
+    ...lasting.slice(0, Math.max(0, lasting.length - MEMORY.KEPT)),
+    ...everyday.slice(0, Math.max(0, everyday.length - MEMORY.EACH)),
+  ]);
+  return gone.size ? list.filter((entry) => !gone.has(entry)) : list;
+};
+
 /**
  * A world's memories. `saved`: what `state` gave before ({ [id]: [{ day, text, said, raised, how, from }] }).
  * `said` marks something the player said to them (worth bringing up later); `raised`, that they have;
- * `how` is how they came by it ("saw", "heard", or "told" by `from`: second-hand).
+ * `how` is how they came by it ("saw", "heard", or "told" by `from`: second-hand); `kept` marks a
+ * lasting memory (a scene together, a night at a campfire, something pinned by hand).
  */
 /** How a memory was come by, in the words the model is given. */
 const HOW = { saw: "saw", heard: "heard", told: "was told" };
@@ -83,32 +97,37 @@ export function createMemories(saved = {}) {
       .slice(0, MEMORY.PEOPLE)
       .map(([id, list]) => [
         id,
-        (Array.isArray(list) ? list : [])
-          .filter((entry) => entry && typeof entry.text === "string" && entry.text.trim())
-          .slice(-MEMORY.EACH)
-          .map((entry) => ({
-            day: Number.isInteger(entry.day) ? entry.day : 0,
-            text: cut(entry.text),
-            ...(entry.said === true ? { said: true } : {}),
-            ...(entry.raised === true ? { raised: true } : {}),
-            ...(HOW[entry.how] ? { how: entry.how } : {}),
-            ...(typeof entry.from === "string" && entry.from.trim() ? { from: entry.from.trim().slice(0, 60) } : {}),
-          })),
+        trim(
+          (Array.isArray(list) ? list : [])
+            .filter((entry) => entry && typeof entry.text === "string" && entry.text.trim())
+            .slice(-(MEMORY.EACH + MEMORY.KEPT))
+            .map((entry) => ({
+              day: Number.isInteger(entry.day) ? entry.day : 0,
+              text: cut(entry.text),
+              ...(entry.said === true ? { said: true } : {}),
+              ...(entry.raised === true ? { raised: true } : {}),
+              ...(HOW[entry.how] ? { how: entry.how } : {}),
+              ...(typeof entry.from === "string" && entry.from.trim() ? { from: entry.from.trim().slice(0, 60) } : {}),
+              ...(entry.kept === true ? { kept: true } : {}),
+            })),
+        ),
       ]),
   );
   return {
     /**
      * Each of `ids` remembers `text` (on `day`); `said`: it's something the player said to them; `how`:
      * "saw", "heard" or "told" (by `from`). The same thing twice running is one memory. Nobody else
-     * learns it. Things only seen are kept to a few, so they don't crowd out what was said.
+     * learns it. Things only seen are kept to a few, so they don't crowd out what was said. `lasting`:
+     * it mattered, and stays when everyday memories come and go (once a day at most for the same thing).
      */
-    remember(ids, text, day = 0, said = false, how = "", from = "") {
+    remember(ids, text, day = 0, said = false, how = "", from = "", lasting = false) {
       const line = cut(text);
       if (!line) return;
       for (const id of new Set(ids)) {
         if (!id || id === "player") continue;
         const list = store.get(id) ?? [];
         if (list.at(-1)?.text === line) continue;
+        if (lasting && list.some((entry) => entry.kept && entry.day === day && entry.text === line)) continue;
         if (!store.has(id) && store.size >= MEMORY.PEOPLE) store.delete(store.keys().next().value);
         const most = { saw: MEMORY.SIGHTS, told: MEMORY.HEARSAY }[how];
         const kept =
@@ -121,8 +140,9 @@ export function createMemories(saved = {}) {
           ...(said ? { said: true } : {}),
           ...(HOW[how] ? { how } : {}),
           ...(how === "told" && from ? { from: String(from).slice(0, 60) } : {}),
+          ...(lasting ? { kept: true } : {}),
         };
-        store.set(id, [...kept, entry].slice(-MEMORY.EACH));
+        store.set(id, trim([...kept, entry]));
       }
     },
     /** The newest `count` things `id` remembers, oldest first: plain lines. */
@@ -134,7 +154,13 @@ export function createMemories(saved = {}) {
      * as the model is told: "(yesterday, heard) …", "(today, was told by Corvin) …".
      */
     known(id, count = 5, today = 0) {
-      return (store.get(id) ?? []).slice(-count).map((entry) => {
+      const all = store.get(id) ?? [];
+      // What lasted (the newest few, however old), then the newest of the everyday.
+      const told = [
+        ...all.filter((entry) => entry.kept).slice(-MEMORY.KEPT_TOLD),
+        ...(count > 0 ? all.filter((entry) => !entry.kept).slice(-count) : []),
+      ];
+      return told.map((entry) => {
         const how = entry.how
           ? `, ${HOW[entry.how]}${entry.how === "told" && entry.from ? ` by ${entry.from}` : ""}`
           : "";
@@ -162,9 +188,20 @@ export function createMemories(saved = {}) {
       this.remember([to], retold(entry.text), day, false, "told", fromName);
       return retold(entry.text);
     },
-    /** Everything `id` remembers, newest first, for showing: [{ day, text }]. */
+    /** Everything `id` remembers, newest first, for showing: [{ day, text, kept }]. */
     list(id) {
-      return [...(store.get(id) ?? [])].reverse().map(({ day, text }) => ({ day, text }));
+      return [...(store.get(id) ?? [])].reverse().map(({ day, text, kept }) => ({ day, text, kept: kept === true }));
+    },
+    /** Makes `id`'s memory of `day` that reads `text` a lasting one (`on`), or an everyday one again. */
+    pin(id, text, day, on = true) {
+      const list = store.get(id) ?? [];
+      const entry = list.find((memory) => memory.text === text && memory.day === day);
+      if (!entry) return false;
+      if (on) entry.kept = true;
+      else delete entry.kept;
+      // (Just pinned, it counts as the newest lasting one: an older lasting one goes if there are too many, not this.)
+      store.set(id, trim(on ? [...list.filter((memory) => memory !== entry), entry] : list));
+      return true;
     },
     /** Whether `id` has something the player said lately that they haven't brought up (as of `day`). */
     hasTopic(id, day = 0) {

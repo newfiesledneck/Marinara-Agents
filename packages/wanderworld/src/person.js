@@ -384,10 +384,40 @@ export function createPersonEditor(layer, handlers) {
           "Only what they themselves saw, heard or were told. The AI is given these when it speaks for them, and nobody else's.",
         ),
       );
-      const kept = person.memories ?? [];
+      // Lasting ones first: ticked, a memory stays for good; unticked, it's an everyday one that newer ones push out.
+      const kept = [...(person.memories ?? [])].sort((a, b) => Number(b.kept) - Number(a.kept));
       if (!kept.length) body.append(element("div", `color:${INK_SOFT};font-size:12px;`, "Nothing yet."));
-      for (const memory of kept.slice(0, 8))
-        body.append(element("div", "font-size:12px;line-height:1.35;", `Day ${memory.day + 1}: ${memory.text}`));
+      const pins = kept.slice(0, 16).map((memory) => {
+        const row = element(
+          "label",
+          "display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.35;padding:3px 0;min-height:24px;",
+        );
+        const pin = element("input", "flex:none;margin-top:2px;");
+        pin.type = "checkbox";
+        pin.checked = memory.kept;
+        pin.setAttribute("aria-label", `Keep for good: ${memory.text}`);
+        row.append(pin, element("span", "", `Day ${memory.day + 1}${memory.kept ? " (lasting)" : ""}: ${memory.text}`));
+        body.append(row);
+        return { memory, pin };
+      });
+      if (kept.length)
+        body.append(
+          note(
+            "Ticked ones are lasting: they stay when everyday memories come and go (eight at most; a ninth lets the oldest go).",
+          ),
+        );
+      const own = element("input", `${INK_INPUT}padding:4px 6px;width:100%;box-sizing:border-box;margin-top:2px;`);
+      own.type = "text";
+      own.maxLength = 200;
+      own.placeholder = "Something they'll always remember (your words)";
+      own.setAttribute("aria-label", `Something ${person.name} will always remember`);
+      body.append(own);
+      reads.push((changes) => {
+        changes.pins = pins
+          .filter(({ memory, pin }) => pin.checked !== memory.kept)
+          .map(({ memory, pin }) => ({ day: memory.day, text: memory.text, kept: pin.checked }));
+        changes.memory = own.value.trim();
+      });
       if (kept.length) {
         const wrap = element("label", "display:flex;gap:6px;align-items:center;font-size:12px;margin-top:2px;");
         const forget = element("input", "");

@@ -1568,6 +1568,13 @@ function makeCamp() {
   fire.position.set(ahead.x, heightAt(ahead.x, ahead.z), ahead.z);
   core.world.scene.add(fire);
   core.world.camp = { kind: "campfire", x: ahead.x, z: ahead.z, object: fire, flame };
+  keep(
+    core.crowd
+      .party()
+      .filter((member) => !member.waiting)
+      .map((member) => member.id),
+    `Camped with ${personaName()} by a fire${placeWords() ? `, at ${placeWords()}` : ""}.`,
+  );
   void runMoment({ action: "makes camp and lights a fire", audience: "party", source: "thing" }).then(
     (done) => !done && narrate(null, pickLine(PACK.camp, `${ahead.x}`, lineWords())),
   );
@@ -1692,6 +1699,7 @@ function finishErrand(atDoor = false) {
     level: Math.min(100, (now?.level ?? 30) + 8),
   });
   core.hud?.setNotice(`Errand done: ${person.name} thinks a little better of you.`);
+  keep([errand.person], `${personaName()} did what your note on the noticeboard asked: "${errand.text}"`);
   void runMoment({
     action: `has come to ${person.name} as the note on the noticeboard asked: "${errand.text}"`,
     listenersExtra: [{ id: person.id, name: person.name }],
@@ -2298,7 +2306,7 @@ function moveHome(zoneId, bring = []) {
   const names = namedZones(residentsOf(core.crowd.snapshot()));
   const withThem = along.length ? `, and ${along.map((mate) => mate.name).join(" and ")} with you` : "";
   narrate(null, `(You move into ${names[zoneId] ?? "your new home"}${withThem}.)`);
-  for (const mate of along) recall([mate.id], `You moved house with ${personaName()}.`);
+  for (const mate of along) keep([mate.id], `You moved house with ${personaName()}.`);
 }
 
 /** `id` comes to live at the player's home, if they would (welcomeFrom). */
@@ -2310,7 +2318,7 @@ function moveIn(id) {
   const now = core.save.housing?.[id] ?? { home: null, work: null, owner: false };
   commitHousing({ ...core.save.housing, [id]: { ...now, home: mine } });
   narrate(null, `(${person.name} moves in with you.)`);
-  recall([id], `You moved in with ${personaName()}, at their home.`);
+  keep([id], `You moved in with ${personaName()}, at their home.`);
 }
 
 /** `id` leaves the player's home: for an empty house if there is one, or else the least crowded. */
@@ -2324,7 +2332,7 @@ function moveOut(id) {
   commitHousing({ ...core.save.housing, [id]: { ...now, home: other?.id ?? null } });
   const names = namedZones(residentsOf(core.crowd.snapshot()));
   narrate(null, `(${person.name} moves out${other ? `, to ${names[other.id] ?? "another house"}` : ""}.)`);
-  recall([id], `${personaName()} asked you to move out of their home.`);
+  keep([id], `${personaName()} asked you to move out of their home.`);
 }
 
 /** The room the player is in, made again with the home's pieces as they are now; the player stays put. */
@@ -3040,8 +3048,16 @@ function setLook(id, look) {
  * Each of `ids` remembers `text` (memory.js): only them. `said`: the player said it to them. `how`: how
  * they came by it ("saw", "heard").
  */
-function recall(ids, text, said, how = said ? "heard" : "") {
-  if (core.settings.memories) core.memories?.remember(ids, text, core.social?.day ?? 0, said, how);
+function recall(ids, text, said, how = said ? "heard" : "", lasting = false) {
+  if (core.settings.memories) core.memories?.remember(ids, text, core.social?.day ?? 0, said, how, "", lasting);
+}
+
+/**
+ * Each of `ids` remembers `text` for good: something that mattered (a scene together, a night at the
+ * fire, moving house), which everyday memories don't push out (memory.js `kept`).
+ */
+function keep(ids, text) {
+  recall(ids, text, false, "", true);
 }
 
 /** How far off someone sees what the player does. */
@@ -3133,7 +3149,7 @@ function socialTick(dt) {
     core.relationsChanged = true;
     core.journalAt = 0;
     // Whoever was part of something remembers it.
-    for (const entry of lines) recall(entry.who, entry.text, false);
+    for (const entry of lines) recall(entry.who, entry.text, false, "", entry.big === true);
   }
   // Coming back somewhere after a few hours: what happened there meanwhile (not what the player was part of).
   const now = core.social.day * 24 + core.hour;
@@ -3799,6 +3815,12 @@ function toggleParty() {
   core.crowd.setFollowing(talking.id, joining);
   if (joining) learn(talking.id); // nobody travels with a stranger
   if (joining) teach([talking.id]);
+  keep(
+    [talking.id],
+    joining
+      ? `Joined ${personaName()} to travel together${placeWords() ? `, at ${placeWords()}` : ""}.`
+      : `Parted from ${personaName()} after travelling together${placeWords() ? `, at ${placeWords()}` : ""}.`,
+  );
   core.talk.setInParty(joining);
   core.talk.line(
     null,
@@ -3939,6 +3961,7 @@ function teach(ids) {
   if (!fresh.length) return;
   core.save = { ...core.save, knowsMe: [...core.save.knowsMe, ...fresh].slice(-200) };
   core.saves.write(core.save);
+  keep(fresh, `Met ${personaName()} and learned their name${placeWords() ? `, at ${placeWords()}` : ""}.`);
   if (core.talking && fresh.includes(core.talking.id)) showKnowing();
 }
 
@@ -4193,6 +4216,11 @@ function savePerson(id, changes) {
   }
   if (changes.traits) setTraits(id, changes.traits);
   if (changes.forget) core.memories?.forget(id);
+  else {
+    // Memories pinned for good (or let go again), and one written by hand: lasting from the start.
+    for (const pin of changes.pins ?? []) core.memories?.pin(id, pin.text, pin.day, pin.kept);
+    if (changes.memory) core.memories?.remember([id], changes.memory, core.social?.day ?? 0, false, "", "", true);
+  }
   if (changes.housing) setHousingByHand(id, changes.housing);
   const same = (a, b) =>
     (a?.kind ?? "") === (b?.kind ?? "") &&
@@ -5758,7 +5786,7 @@ function talkPayload(talking, line) {
     // Who they are, whatever their card says or doesn't; and whether each knows the other by name.
     characterName: talking.name,
     // What they themselves remember: nothing anyone else saw or was told.
-    memories: core.settings.memories ? (core.memories?.of(talking.id, 6) ?? []) : [],
+    memories: core.settings.memories ? (core.memories?.known(talking.id, 6, core.social?.day ?? 0) ?? []) : [],
     knowsThem: knows(talking.id),
     knowsYou: theyKnow(talking.id),
     personaId: core.personaId,
@@ -6029,6 +6057,9 @@ async function pullRecaps() {
           summary: result.summary ?? "",
           characterIds: result.characterIds ?? [],
         });
+        // Whoever was in it remembers it, for good: a scene is something that happened to them.
+        if (result.kind === "concluded" && result.summary)
+          keep(result.characterIds ?? [], `A scene with ${personaName()}: ${result.summary}`);
       }
     }
     core.save = { ...core.save, events: events.slice(-100) };

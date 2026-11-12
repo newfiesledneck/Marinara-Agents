@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.63",
+          "date": "2026-11-11",
+          "notes": "- Lasting memories. Each person keeps up to eight beside their everyday ones, and small talk never pushes them out: a scene you played together (its recap), a night at your campfire, joining or leaving your party, moving house, an errand done, meeting you, falling out or growing closer.\n- The AI is told the newest four with how long ago they were.\n- Journal → Edit people: tick any memory to keep it for good, or write one yourself.\n- Conversations are told memories with their age too.",
+          "highlight": false
+        },
+        {
           "version": "0.5.62",
           "date": "2026-11-11",
           "notes": "- Relationships set the tone. Beside each person's name the AI is told what they are to you and what that means for how they speak: a manner written for every kind and strength (a rival needles but stays civil; a bitter rival is cold and cutting, without violence) and for a role (brother, employer, apprentice).\n- People in earshot are told what they are to each other, so two brothers speak as brothers.\n- A manner you set by hand (rude, afraid…) comes first; the role still sets the register.",
@@ -307,12 +313,6 @@
           "version": "0.5.44",
           "date": "2026-11-11",
           "notes": "- Fixed: in a conversation the AI could be told it was \"Someone\", with none of the character's card, when the Engine handed the card over as text. The card is now read in whatever shape it comes, and the character's own name is always given.\n- Strangers: when you and a character don't know each other by name, the AI is told so. They are still themselves, and act as someone who hasn't met you.\n- People nearby that you don't know are marked as strangers to you in what the AI is told.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.43",
-          "date": "2026-11-11",
-          "notes": "- Farms have a proper barn, and a windmill beside it, from Quaternius's Farm Buildings (CC0). The plain barn still shows while props load and with detailed props off.",
           "highlight": false
         }
       ]

@@ -176,6 +176,38 @@ const server = await import("../packages/wanderworld/server.mjs");
   assert.equal(rook.at(-1), "Zoey did thing 11.");
 }
 
+// ── What mattered lasts: everyday memories come and go beside it ────────────
+{
+  const memories = createMemories();
+  memories.remember(["mira"], "Camped with Zoey by a fire, at the Old Forest.", 2, false, "", "", true);
+  memories.remember(["mira"], "Camped with Zoey by a fire, at the Old Forest.", 2, false, "", "", true);
+  for (let i = 0; i < 40; i++) memories.remember(["mira"], `Small thing ${i}.`, 3 + i);
+  assert.equal(memories.list("mira").length, MEMORY.EACH + 1, "the fire is still there after forty small things");
+  const told = memories.known("mira", 3, 42);
+  assert.deepEqual(told, [
+    "(40 days ago) Camped with Zoey by a fire, at the Old Forest.",
+    "(2 days ago) Small thing 37.",
+    "(yesterday) Small thing 38.",
+    "(today) Small thing 39.",
+  ]);
+  // Only other lasting ones push a lasting one out, and the model is told the newest few.
+  for (let i = 0; i < 12; i++) memories.remember(["mira"], `Big thing ${i}.`, 50 + i, false, "", "", true);
+  const lasting = memories.list("mira").filter((memory) => memory.kept);
+  assert.equal(lasting.length, MEMORY.KEPT);
+  assert.equal(lasting.at(-1).text, "Big thing 4.", "the oldest lasting ones went");
+  assert.equal(memories.known("mira", 0, 70).length, MEMORY.KEPT_TOLD);
+  // Pinned by hand, and let go again.
+  assert.equal(memories.pin("mira", "Small thing 39.", 42), true);
+  assert.equal(memories.list("mira").find((memory) => memory.text === "Small thing 39.").kept, true);
+  assert.equal(memories.list("mira").filter((memory) => memory.kept).length, MEMORY.KEPT, "still no more than that");
+  assert.equal(memories.pin("mira", "Small thing 39.", 42, false), true);
+  assert.equal(memories.list("mira").find((memory) => memory.text === "Small thing 39.").kept, false);
+  assert.equal(memories.pin("mira", "Never happened.", 1), false);
+  // Kept with the world.
+  const again = createMemories(memories.state);
+  assert.deepEqual(again.list("mira"), memories.list("mira"));
+}
+
 // ── Gossip: first-hand things pass between two people, as hearsay, once ─────
 {
   const memories = createMemories();
