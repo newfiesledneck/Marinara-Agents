@@ -71,9 +71,10 @@ export function createSocial(saved = {}) {
 
   function step(hour, hours, groups, world) {
     const lines = [];
-    const add = (text, who, where = "", area = "") => {
+    // (`big`: it changed something between them: worth remembering for good, memory.js.)
+    const add = (text, who, where = "", area = "", big = false) => {
       if (!world.logging) return;
-      const line = { day, hour: Math.floor(hour), text, who, where, area };
+      const line = { day, hour: Math.floor(hour), text, who, where, area, ...(big ? { big: true } : {}) };
       log = [...log, line].slice(-SOCIAL.LOG);
       lines.push(line);
     };
@@ -136,7 +137,7 @@ export function createSocial(saved = {}) {
           const delta = words ? -2 : 1;
           const crossed = [move(world, a, b, delta), move(world, b, a, delta)].some(Boolean);
           const names = [world.name(a), world.name(b)];
-          if (words) add(`${names[0]} and ${names[1]} had words.`, [a, b], group.where, group.area);
+          if (words) add(`${names[0]} and ${names[1]} had words.`, [a, b], group.where, group.area, true);
           else if (crossed) {
             const record = world.relations.get(a, b) ?? world.relations.get(b, a);
             const tier = record ? tierOf(record.kind, record.level) : "";
@@ -145,6 +146,7 @@ export function createSocial(saved = {}) {
               [a, b],
               group.where,
               group.area,
+              true,
             );
           }
         }

@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.63 — 2026-11-11
+
+- Lasting memories. Each person keeps up to eight beside their everyday ones, and small talk never pushes them out: a scene you played together (its recap), a night at your campfire, joining or leaving your party, moving house, an errand done, meeting you, falling out or growing closer.
+- The AI is told the newest four with how long ago they were.
+- Journal → Edit people: tick any memory to keep it for good, or write one yourself.
+- Conversations are told memories with their age too.
+
 ## 0.5.62 — 2026-11-11
 
 - Relationships set the tone. Beside each person's name the AI is told what they are to you and what that means for how they speak: a manner written for every kind and strength (a rival needles but stays civil; a bitter rival is cold and cutting, without violence) and for a role (brother, employer, apprentice).

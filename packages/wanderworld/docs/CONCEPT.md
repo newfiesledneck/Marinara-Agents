@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.62, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.63, 2026-11-11: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
@@ -493,7 +493,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.62: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.63: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -680,7 +680,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.62, 2026-11-11)
+## Outstanding (as of 0.5.63, 2026-11-11)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -825,7 +825,16 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      noticeboard isn't part of it yet.
   2. _Characters who remember and seek you out:_ someone crossing the square to bring up what you said
      last time. In (0.5.45): each person's own memories (`memory.js`), told to the model for them alone,
-     and someone you said something to comes over within a few days to bring it up.
+     and someone you said something to comes over within a few days to bring it up. Since (0.5.58 to
+     0.5.63): who heard each chat line is kept, and the model is given each listener's knowledge as a
+     block of their own (memories with how and when they came by them, the chat they alone heard, lore
+     about themselves); people in sight remember what the player does; gossip by rule (off by
+     default) passes first-hand things on as hearsay, never a whisper; a call for each speaker (off by
+     default) for the strictest separation; relationships carry a manner for the model
+     (`relationships.js MANNERS`); and lasting memories (`kept`: scenes, campfires, the party, moves,
+     errands, relationship changes, or pinned by hand) stay when everyday ones are pushed out.
+     _Next:_ old everyday memories summed up into one lasting line (by the AI, optional), and
+     scenes given their cast's lasting memories when they start.
   3. _A home that's yours:_ furnish it, keep your animals there, have people visit. Part: your home comes
      from your lore or from moving into an empty house (Journal → Home, 0.5.52), a horse and a dog sent
      home keep to its door, housemates can be asked in and out, and people come round when asked. Its

@@ -700,7 +700,7 @@ export function createHud(root, handlers) {
     worldLog:
       "A short record of who spent time with whom and what changed between them, in Journal → Relationships under Lately. Off, nothing is written down (relationships can still change).",
     memories:
-      "Each person keeps their own short memory: what you said in their hearing, who they spent time with. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people.",
+      "Each person keeps their own memory: a short everyday one (what you said in their hearing, who they spent time with; the newest fourteen) and a lasting one for what mattered (a scene together, a night at your campfire, travelling with you, moving house, an errand, falling out or growing closer; eight, which only other lasting ones push out). Pin any memory as lasting, or write one, in Journal → Edit people. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people.",
     memorySights:
       "Anyone within sight remembers what you do, not only what you say in their hearing: getting up on a horse, going into a house, lighting a fire. Only they know it. Needs memories on. Off, people remember only what was said near them.",
     gossip:
