@@ -3,7 +3,7 @@
 // nobody else's (server.mjs).
 // Run: node tests/wanderworld-memory.regression.mjs
 import assert from "node:assert/strict";
-import { createMemories, heardBy, heardLines, MEMORY } from "../packages/wanderworld/src/memory.js";
+import { createMemories, heardBy, heardLines, MEMORY, toldShares } from "../packages/wanderworld/src/memory.js";
 
 const server = await import("../packages/wanderworld/server.mjs");
 
@@ -195,7 +195,9 @@ const server = await import("../packages/wanderworld/server.mjs");
   const lasting = memories.list("mira").filter((memory) => memory.kept);
   assert.equal(lasting.length, MEMORY.KEPT);
   assert.equal(lasting.at(-1).text, "Big thing 4.", "the oldest lasting ones went");
-  assert.equal(memories.known("mira", 0, 70).length, MEMORY.KEPT_TOLD);
+  assert.equal(memories.known("mira", 0, 70).length, 4);
+  assert.equal(memories.known("mira", 0, 70, MEMORY.KEPT).length, MEMORY.KEPT, "as many lasting ones as asked for");
+  assert.equal(memories.known("mira", 2, 70, 0).length, 2, "or none");
   // Pinned by hand: locked. Nothing pushes it out, whatever else is remembered; only its age moves on.
   assert.equal(memories.pin("mira", "Small thing 39.", 42), true);
   const pinned = () => memories.list("mira").find((memory) => memory.text === "Small thing 39.");
@@ -243,6 +245,26 @@ const server = await import("../packages/wanderworld/server.mjs");
   const again = createMemories(memories.state);
   assert.deepEqual(again.list("mira"), memories.list("mira"));
   assert.deepEqual(again.list("tam"), memories.list("tam"));
+}
+
+// ── How many are sent: a count shared between the people spoken for ──────────
+{
+  assert.deepEqual(toldShares(["a", "b"], 20), { a: 10, b: 10 });
+  assert.deepEqual(toldShares(["a", "b", "c"], 20), { a: 7, b: 7, c: 7 }, "rounded up");
+  assert.deepEqual(toldShares(["a"], 12), { a: 12 }, "one person has it all");
+  // A number of their own is theirs whatever the split, and the others' share is as it would have been.
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, { c: 10 }), { a: 7, b: 7, c: 10 });
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, { c: 0 }), { a: 7, b: 7, c: 0 });
+  // Counted, it comes out of the shared count first.
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, { c: 10 }, true), { a: 5, b: 5, c: 10 });
+  assert.deepEqual(toldShares(["a", "b", "c"], 20, { c: 15 }, true), { a: 3, b: 3, c: 15 });
+  assert.deepEqual(toldShares(["a", "b"], 20, { a: 30 }, true), { a: 30, b: 0 }, "nothing left is nothing");
+  assert.deepEqual(toldShares(["a", "b"], 20, { a: 4, b: 6 }, true), { a: 4, b: 6 });
+  // Someone else's number is nothing to those here; nonsense is no number.
+  assert.deepEqual(toldShares(["a", "b"], 20, { z: 40, a: undefined, b: "9" }, true), { a: 10, b: 10 });
+  assert.deepEqual(toldShares(["a", "b"], 0), { a: 0, b: 0 });
+  assert.deepEqual(toldShares(["a"], undefined), { a: 0 });
+  assert.deepEqual(toldShares([], 20), {});
 }
 
 // ── How many each person keeps: the setting's numbers, or their own ──────────

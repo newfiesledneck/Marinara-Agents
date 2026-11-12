@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.66 — 2026-11-11
+
+- How many memories the AI is sent is now set apart from how many are kept: Settings → Everyday memories sent to the AI (0 to 40, 12 to start) and Lasting memories sent to the AI (0 to 30, 8 to start). The number is shared between whoever the AI is speaking for, rounded up: 20 between three people is 7 each.
+- Anyone can have numbers of their own in Journal → Edit people. A new switch says whether those come out of the shared count (5, 5 and 10) or leave the others' share alone (7, 7 and 10; off to start).
+- The settings say what this costs in tokens and how to keep it down: a low shared number, and a higher one for the people who matter.
+
 ## 0.5.65 — 2026-11-11
 
 - The written manner for each relationship (0.5.62) is taken out: it could contradict a character's card or lore. The AI is still told what each person is to you (brother, employer, good friend, bitter rival) and what people in earshot are to each other; how they speak is left to their card and lore.

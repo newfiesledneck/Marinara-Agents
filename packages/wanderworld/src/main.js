@@ -55,7 +55,7 @@ import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
-import { createMemories, heardBy, heardLines, MEMORY } from "./memory.js";
+import { createMemories, heardBy, heardLines, MEMORY, toldShares } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
 import {
   FURNITURE,
@@ -3059,6 +3059,20 @@ function memoryLimits(id) {
 }
 
 /**
+ * What the model is told of what each of `ids` remembers: the settings' counts shared between them, a
+ * number of their own for anyone who has one (memory.js toldShares). { [id]: [lines] }.
+ */
+function memoriesTold(ids) {
+  if (!core.settings.memories || !core.memories) return Object.fromEntries(ids.map((id) => [id, []]));
+  const own = (key) => Object.fromEntries(ids.map((id) => [id, core.save?.memoryLimits?.[id]?.[key]]));
+  const counted = core.settings.memoryToldCounted === true;
+  const each = toldShares(ids, core.settings.memoryTold, own("told"), counted);
+  const kept = toldShares(ids, core.settings.memoryKeptTold, own("keptTold"), counted);
+  const today = core.social?.day ?? 0;
+  return Object.fromEntries(ids.map((id) => [id, core.memories.known(id, each[id], today, kept[id])]));
+}
+
+/**
  * Each of `ids` remembers `text` for good: something that mattered (a scene together, a night at the
  * fire, moving house), which everyday memories don't push out (memory.js `kept`).
  */
@@ -3900,8 +3914,7 @@ function learnFrom(text, people) {
 
 /** How someone stands toward the player, in words for the AI: how they feel, how they act, and whether they've met. */
 function towardPlayer(id, name, names) {
-  // What they are to the player, and how that's spoken (a stance set by hand says how they act instead;
-  // what they are, a brother or an employer, still sets the register).
+  // What they are to the player; a stance set by hand says how they act whatever they feel.
   const stance = STANCE_WORDS[core.save?.stances?.[id]];
   return [
     core.relations.get(id, "player") ? `${core.relations.describe(id, "player", names)}.` : "",
@@ -5484,6 +5497,7 @@ function momentListeners(voice, audience, extra = [], text = "") {
       if (friend && !picked.includes(friend) && picked.length < 8) picked.push(friend);
     }
   }
+  const told = memoriesTold(picked.map(({ person }) => person.id));
   return picked.map(({ person, distance }) => ({
     id: person.id,
     name: person.name,
@@ -5498,7 +5512,7 @@ function momentListeners(voice, audience, extra = [], text = "") {
       .join(" "),
     inParty: party.has(person.id),
     // Their own memories, and nobody else's, each with when and how they came by it.
-    knows: core.settings.memories ? (core.memories?.known(person.id, 5, core.social?.day ?? 0) ?? []) : [],
+    knows: told[person.id],
   }));
 }
 
@@ -5807,7 +5821,7 @@ function talkPayload(talking, line) {
     // Who they are, whatever their card says or doesn't; and whether each knows the other by name.
     characterName: talking.name,
     // What they themselves remember: nothing anyone else saw or was told.
-    memories: core.settings.memories ? (core.memories?.known(talking.id, 6, core.social?.day ?? 0) ?? []) : [],
+    memories: memoriesTold([talking.id])[talking.id],
     knowsThem: knows(talking.id),
     knowsYou: theyKnow(talking.id),
     personaId: core.personaId,

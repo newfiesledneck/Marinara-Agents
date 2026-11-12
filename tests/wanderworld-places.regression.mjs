@@ -157,9 +157,15 @@ assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once"
     checkWorld({
       id: "w",
       seed: "s",
-      memoryLimits: { a: { each: 99, kept: 2.4 }, b: { each: "x" }, c: { kept: -3 }, d: 5 },
+      memoryLimits: {
+        a: { each: 99, kept: 2.4 },
+        b: { each: "x" },
+        c: { kept: -3 },
+        d: 5,
+        e: { told: 99, keptTold: 7.6 },
+      },
     }).memoryLimits,
-    { a: { each: 40, kept: 2 }, c: { kept: 0 } },
+    { a: { each: 40, kept: 2 }, c: { kept: 0 }, e: { told: 40, keptTold: 8 } },
   );
 
   // Subgroups: a group inside another passes on the outer one's lore.
