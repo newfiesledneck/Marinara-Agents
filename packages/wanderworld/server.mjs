@@ -18,8 +18,11 @@
 // And a scene origin (`scenes` permission, Capability API 1.66): the Engine's scene planner asks
 // `getContext` for a scene started from Wanderworld, and `release` brings back how it ended.
 //
-// The client keeps its worlds in browser storage for now; this keeps only scene contexts and recaps
-// (`storage` permission, persistence.documents). Model calls go through api.runtime.languageModels on a
+//   GET  /saves               — every saved world's text, with the list of worlds and which was last played.
+//   POST /save                — one of those, kept ({ key, value }); DELETE /save/:key removes one.
+//
+// Saved worlds are kept here, a document each, with scene contexts, recaps and pictures (`storage`
+// permission, persistence.documents); the client checks every field of a world when it reads one. Model calls go through api.runtime.languageModels on a
 // connection the user chose (or the Engine's default). Images and the connection list come from the
 // Engine's own REST API over loopback (`network` permission), as Quartermaster and Gacha Forge do: the
 // capability runtime has no image or connection-list method.
@@ -29,6 +32,11 @@ import { createHash } from "node:crypto";
 const PACKAGE_ID = "wanderworld";
 const ORIGIN_KIND = "scene-origin";
 const RESULT_KIND = "scene-result";
+const SAVE_KIND = "save";
+/** A save's key, as the client names them (store.js): the list of worlds, the one last played, a world. */
+const SAVE_KEY = /^wanderworld\.(worlds|lastWorld|world\.[A-Za-z0-9_-]{1,80})$/u;
+const MAX_SAVE_CHARS = 64_000_000;
+const MAX_SAVES = 300;
 const MAX = {
   id: 200,
   name: 120,
@@ -1327,6 +1335,7 @@ export async function activate(context) {
         worldWrite: true,
         illustrate: true,
         assistant: true,
+        saves: true,
       }));
 
       routes.get("/connections", async (request, reply) => {
@@ -1370,7 +1379,7 @@ export async function activate(context) {
           weather: text(body.weather, 40),
           nearby: text(body.nearby, 300),
           relationship: text(body.relationship, 600),
-          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 300),
+          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 5000),
           setting: block(body.setting, 600),
           lore: [
             ...loreEntries.map((entry) => `${text(entry.name, MAX.name)}: ${block(entry.content, MAX.loreText)}`),
@@ -1463,7 +1472,7 @@ export async function activate(context) {
             doing: text(person.doing, 120),
             feeling: text(person.feeling, 600),
             others: text(person.others, 500),
-            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 300),
+            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 5000),
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)
@@ -1785,7 +1794,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .map((entry) => ({ title: text(entry.title, 120), content: text(entry.content, 1500) }))
             .filter((entry) => entry.title && entry.content),
           memories: list(body.memories, 40)
-            .map((person) => ({ name: text(person.name, 80), lines: (Array.isArray(person.lines) ? person.lines : []).map((entry) => text(entry, 260)).filter(Boolean).slice(-150) }))
+            .map((person) => ({ name: text(person.name, 80), lines: (Array.isArray(person.lines) ? person.lines : []).map((entry) => text(entry, 260)).filter(Boolean).slice(-5000) }))
             .filter((person) => person.name && person.lines.length),
           help: block(body.help, 9000),
           ages: isRecord(body.ages) ? body.ages : null,
@@ -1916,6 +1925,34 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const doc = await documents.getById(PACKAGE_ID, idOf(request.params.id));
         if (!doc || doc.kind !== PICTURE_KIND) return reply.status(404).send({ error: "No such picture" });
         return { id: doc.id, image: doc.data.image, caption: doc.data.caption, prompt: doc.data.prompt, at: doc.data.at };
+      });
+
+      // Saved worlds: text the client wrote and will check when it reads it back (saves.js checkWorld), kept
+      // by key. Only the client's own save keys are taken, and only so many, each within a size.
+      routes.get("/saves", async () => ({
+        keys: Object.fromEntries(
+          (await documents.list(PACKAGE_ID, SAVE_KIND))
+            .filter((doc) => SAVE_KEY.test(doc.data?.key ?? "") && typeof doc.data.value === "string")
+            .map((doc) => [doc.data.key, doc.data.value]),
+        ),
+      }));
+      routes.post("/save", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const key = typeof body.key === "string" ? body.key : "";
+        if (!SAVE_KEY.test(key) || typeof body.value !== "string" || body.value.length > MAX_SAVE_CHARS)
+          return reply.status(400).send({ error: "That isn't a Wanderworld save." });
+        const id = docId("save", key);
+        if (!(await documents.getById(PACKAGE_ID, id)) && (await documents.list(PACKAGE_ID, SAVE_KIND)).length >= MAX_SAVES)
+          return reply.status(400).send({ error: "There are too many saved worlds: delete one first." });
+        // (Two writes of one save can cross: the later one is tried once more against what's there now.)
+        const kept = (await putDocument(documents, id, SAVE_KIND, key, { key, value: body.value })) ?? (await putDocument(documents, id, SAVE_KIND, key, { key, value: body.value }));
+        if (!kept) return reply.status(409).send({ error: "The save was being written already: it will be tried again." });
+        return { ok: true };
+      });
+      routes.delete("/save/:key", async (request) => {
+        const key = String(request.params?.key ?? "");
+        const doc = SAVE_KEY.test(key) ? await documents.getById(PACKAGE_ID, docId("save", key)) : null;
+        return { removed: doc?.kind === SAVE_KIND ? await removeDocument(documents, doc.id) : false };
       });
 
       routes.delete("/picture/:id", async (request) => {

@@ -291,11 +291,32 @@ const server = await import("../packages/wanderworld/server.mjs");
   assert.equal(memories.list("mira").length, 300, "past the sliders' hundred, nothing has gone");
   assert.equal(createMemories(memories.state).list("mira").length, 300, "nor when the world is opened again");
   const told = memories.known("mira", Infinity, 200, Infinity);
-  assert.equal(told.length, 10 + MEMORY.TOLD_MOST + MEMORY.TOLD_MOST, "all that's pinned; the newest of the rest");
+  assert.equal(told.length, 300, "all of them: what's pinned, what lasted, the everyday");
   assert.equal(new Set(told).size, told.length, "none twice");
   const some = memories.known("mira", 5, 200, 5);
   assert.equal(some.length, MEMORY.PINNED_TOLD + 5 + 5);
   assert.equal(new Set(some).size, some.length, "a pinned memory isn't among the lasting ones as well");
+}
+
+// ── All, by where the world is kept: a ceiling in the browser, none with the Engine ──
+{
+  const fill = (memories) => {
+    for (let i = 0; i < MEMORY.MOST + 50; i++) memories.remember(["mira"], `Small ${i}.`, i);
+    return memories;
+  };
+  const all = { each: MEMORY.ALL, kept: MEMORY.ALL };
+  assert.equal(fill(createMemories({}, () => all)).list("mira").length, MEMORY.MOST);
+  const engine = fill(createMemories({}, () => ({ ...all, most: Infinity })));
+  assert.equal(engine.list("mira").length, MEMORY.MOST + 50);
+  assert.equal(
+    createMemories({ mira: Array.from({ length: 2500 }, (_, i) => ({ day: i, text: `Small ${i}.` })) }, () => ({
+      ...all,
+      most: Infinity,
+    })).list("mira").length,
+    2500,
+    "nor is any cut when the world is opened",
+  );
+  assert.equal(engine.known("mira", Infinity, 2000, Infinity).length, MEMORY.MOST + 50, "and all is all that's told");
 }
 
 // ── How many each person keeps: the setting's numbers, or their own ──────────

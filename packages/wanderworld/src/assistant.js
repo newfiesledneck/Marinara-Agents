@@ -35,7 +35,7 @@ const MOST_ENTRIES = 20; // lorebook entries a keyword draft takes (server.mjs t
  * - `onChat(history)`: the chat as it stands, to keep with the world.
  * - `onLorebooks()` → Promise<[{ id, name, entries: [{ id, title }] }]>, for the keyword draft.
  * - `onMemoryPeople()` → [{ id, name, count }]: who remembers anything, for the memory requests.
- * The node has `setChat(history)`: the chat a world was left with (when one is opened).
+ * The node has `pick(id, people)` (a ready-made request, asked from elsewhere) and `setChat(history)`: the chat a world was left with (when one is opened).
  */
 export function createAssistant(handlers) {
   const box = element("div", "display:flex;flex-direction:column;gap:6px;");
@@ -510,6 +510,16 @@ export function createAssistant(handlers) {
     fill();
   }
 
+  /** Asks a memory request about `whose` ([{ id, name }]) memories, or everyone's (`all`). */
+  function askMemories(pick, whose, all) {
+    const names = whose.map((person) => person.name).join(", ");
+    void send(`${pick.request}\n\nWhose: ${all ? "everyone who remembers anything" : names}.`, {
+      pick: pick.id,
+      memoryOf: all ? null : whose.map((person) => person.id),
+      shown: `${pick.label.replace(/…$/u, "")}: ${all ? "everyone" : names}.`,
+    });
+  }
+
   /** A memory request's choice: whose memories go with it, each ticked, or everyone's. */
   function openMemories(pick) {
     const people = handlers.onMemoryPeople?.() ?? [];
@@ -542,10 +552,9 @@ export function createAssistant(handlers) {
     const count = element("div", `color:${INK_SOFT};`);
     const chosen = () => (everyone.tick.checked ? ticks : ticks.filter(({ tick }) => tick.checked));
     const tell = () => {
-      const total = chosen().reduce((sum, { person }) => sum + person.count, 0);
-      const sent = Math.min(total, 600);
+      const sent = chosen().reduce((sum, { person }) => sum + person.count, 0);
       count.textContent = chosen().length
-        ? `${sent} ${sent === 1 ? "memory" : "memories"} to send${total > 600 ? ` (the newest of each; ${total} in all)` : ""}: roughly ${Math.round((sent * 45) / 100) * 100 || 50} tokens, besides the rest of the request.`
+        ? `${sent} ${sent === 1 ? "memory" : "memories"} to send, all of them: roughly ${Math.round((sent * 45) / 100) * 100 || 50} tokens, besides the rest of the request.`
         : "Tick whose memories to send.";
     };
     everyone.tick.addEventListener("change", () => {
@@ -559,13 +568,11 @@ export function createAssistant(handlers) {
         return;
       }
       picker.style.display = "none";
-      const all = everyone.tick.checked || whose.length === people.length;
-      const names = whose.map(({ person }) => person.name).join(", ");
-      void send(`${pick.request}\n\nWhose: ${all ? "everyone who remembers anything" : names}.`, {
-        pick: pick.id,
-        memoryOf: all ? null : whose.map(({ person }) => person.id),
-        shown: `${pick.label.replace(/…$/u, "")}: ${all ? "everyone" : names}.`,
-      });
+      askMemories(
+        pick,
+        whose.map(({ person }) => person),
+        everyone.tick.checked || whose.length === people.length,
+      );
     });
     const row = element("div", "display:flex;gap:6px;");
     row.append(ask, close);
@@ -615,6 +622,18 @@ export function createAssistant(handlers) {
     choices.append(node);
   }
   more.append(choices);
+
+  /**
+   * A ready-made request asked from elsewhere (Settings, Edit people). With `people` ([{ id, name }]) a
+   * memory request is asked about theirs at once; without, it asks whose first.
+   */
+  box.pick = (id, people = null) => {
+    const pick = PICKS.find((entry) => entry.id === id);
+    if (!pick || busy) return;
+    if (pick.picker === "memories" && people?.length) askMemories(pick, people, false);
+    else run(pick);
+    (picker.style.display === "none" ? input : picker).scrollIntoView?.({ block: "nearest" });
+  };
 
   /** The chat a world was left with (its words; proposals and undos don't come back). */
   box.setChat = (turns) => {

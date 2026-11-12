@@ -122,6 +122,7 @@ function relationFields(kinds, record, label, from, to) {
  * label, low, high }], home, work, owner, homes, workplaces: [{ id, name }], kinds: [{ id, label }],
  * toPlayer, fromPlayer: record | null, others: [{ id, name, out, back: record | null }], schedule:
  * [{ from, to, words }], scheduleBy, day: { entries, by }, places: [{ id, name }], canPlan }.
+ * `onSumUp({ id, name })`: have the assistant sum up their old memories (the window is closed for it).
  */
 export function createPersonEditor(layer, handlers) {
   const { frame, bar } = floatingFrame("Edit", () => float.setOpen(false));
@@ -445,6 +446,18 @@ export function createPersonEditor(layer, handlers) {
             "Tick to pin: a pinned memory is locked and is never pushed out, only its age moves on (thirty at most). Change the words to set one right; ✕ deletes it when you save.",
           ),
         );
+      if (kept.length && handlers.onSumUp) {
+        const sum = element("button", INK_SMALL, "Sum up old memories (AI)…");
+        sum.type = "button";
+        sum.style.alignSelf = "flex-start";
+        sum.addEventListener("click", () => handlers.onSumUp({ id: person.id, name: person.name }));
+        body.append(
+          sum,
+          note(
+            `Opens the AI assistant with ${person.name}'s memories: it proposes one lasting memory in place of several old everyday ones, for you to confirm (one AI call). This window closes without saving, so save what you changed here first.`,
+          ),
+        );
+      }
       const own = element("input", `${INK_INPUT}padding:4px 6px;width:100%;box-sizing:border-box;margin-top:2px;`);
       own.type = "text";
       own.maxLength = 200;
@@ -489,7 +502,7 @@ export function createPersonEditor(layer, handlers) {
       const keptTold = count("keptTold", "Lasting memories sent to the AI", "share");
       body.append(
         note(
-          "Blank gives them a share of the number in Settings, split between whoever the AI is speaking for. A number here is theirs alone; All sends everything they keep (the newest 120). More sent costs more tokens on every reply, so raise it only for people who matter.",
+          "Blank gives them a share of the number in Settings, split between whoever the AI is speaking for. A number here is theirs alone; All sends everything they keep. More sent costs more tokens on every reply, so raise it only for people who matter.",
         ),
       );
       reads.push((changes) => {

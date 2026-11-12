@@ -880,6 +880,34 @@ assert.equal(
     { do: "errand", person: "Mira", text: "Take this letter to Mira.", done: "" },
   ]);
   assert.match(more.problem, /^4 of the assistant's changes weren't/u);
+  // Saved worlds: kept by key, only the client's own save keys, and given back as they were.
+  {
+    const world = JSON.stringify({ id: "w9", name: "Kept", playedAt: 3 });
+    assert.equal((await call("post", "/save", { body: { key: "wanderworld.world.w9", value: world } })).body.ok, true);
+    assert.equal(
+      (
+        await call("post", "/save", {
+          body: { key: "wanderworld.world.w9", value: world.replace("Kept", "Kept again") },
+        })
+      ).body.ok,
+      true,
+    );
+    assert.equal((await call("post", "/save", { body: { key: "wanderworld.lastWorld", value: "w9" } })).body.ok, true);
+    for (const bad of [
+      { key: "wanderworld.settings", value: "{}" },
+      { key: "../etc", value: "x" },
+      { key: "wanderworld.world.w9" },
+      { key: "wanderworld.world.a/b", value: "x" },
+    ])
+      assert.equal((await call("post", "/save", { body: bad })).code, 400, JSON.stringify(bad));
+    const kept = (await call("get", "/saves")).body.keys;
+    assert.deepEqual(Object.keys(kept).sort(), ["wanderworld.lastWorld", "wanderworld.world.w9"]);
+    assert.equal(JSON.parse(kept["wanderworld.world.w9"]).name, "Kept again");
+    assert.equal((await call("delete", "/save/:key", { params: { key: "wanderworld.settings" } })).body.removed, false);
+    assert.equal((await call("delete", "/save/:key", { params: { key: "wanderworld.world.w9" } })).body.removed, true);
+    assert.deepEqual(Object.keys((await call("get", "/saves")).body.keys), ["wanderworld.lastWorld"]);
+    await call("delete", "/save/:key", { params: { key: "wanderworld.lastWorld" } });
+  }
   // Memory edits: one memory to an edit, by its number.
   const memoryEdits = server.readAssistant(
     'Here.\n```wanderworld\n{"edits": [{"do": "memory", "person": "Mira", "memory": "m3", "text": "  Zoey   paid her back. "}, {"do": "memory", "person": "Mira", "memory": "M12", "remove": true}, {"do": "memory", "person": "Mira", "memory": "m2", "pin": true}, {"do": "memory", "person": "Mira", "memory": "m2", "pin": false}, {"do": "memory", "person": "Mira", "add": "A long week on the road with Zoey.", "as": "m4"}, {"do": "memory", "person": "Mira", "memory": "three", "remove": true}, {"do": "memory", "person": "Mira", "memory": "m5"}, {"do": "memory", "memory": "m1", "remove": true}]}\n```',

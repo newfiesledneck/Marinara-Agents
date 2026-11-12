@@ -706,13 +706,13 @@ export function createHud(root, handlers) {
     gossip:
       'Gossip. People who spend time together now and then tell each other something they saw or heard of you in the last few days. Whoever is told knows it as hearsay ("was told by Corvin"), keeps only a few such things, and doesn\'t pass it further. What you whisper is never passed on. Needs memories on. Off, people know only what they were there for.',
     memoryEach:
-      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. The last step is All: nothing is pushed out unless you delete it (up to a thousand for one person, so the world still fits in your browser's storage; the save grows with it). Keeping more costs no tokens by itself: what's sent to the AI is set below. Anyone can have a number of their own in Journal → Edit people.",
+      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. The last step is All: nothing is pushed out unless you delete it, and the saved world grows with it (kept by the Engine there's no limit; in a browser's storage, a thousand for one person). Keeping more costs no tokens by itself: what's sent to the AI is set below. Anyone can have a number of their own in Journal → Edit people.",
     memoryKept:
-      "How many lasting memories each person keeps: what mattered (a scene, a campfire, travelling together). Only other lasting ones push them out. The last step is All: none is pushed out unless you delete it (up to a thousand for one person). Memories you pin are locked and don't count against this. Anyone can have a number of their own in Journal → Edit people.",
+      "How many lasting memories each person keeps: what mattered (a scene, a campfire, travelling together). Only other lasting ones push them out. The last step is All: none is pushed out unless you delete it. Memories you pin are locked and don't count against this. Anyone can have a number of their own in Journal → Edit people.",
     memoryTold:
-      "How many everyday memories are sent to the AI each time it speaks, shared between everyone it speaks for: 20 with two people is 10 each, with three it's 7 each (rounded up). Someone with fewer than their share leaves the rest of it to the others. The last step is All: everything each of them keeps, the newest 120 at most. This costs tokens: every memory sent is roughly 30 to 60 tokens on every reply, for every person, so All with a lot kept can be many thousands a reply. The cheap way is to keep this low and give the few people who matter a number of their own in Journal → Edit people: that number is theirs alone and isn't shared out.",
+      "How many everyday memories are sent to the AI each time it speaks, shared between everyone it speaks for: 20 with two people is 10 each, with three it's 7 each (rounded up). Someone with fewer than their share leaves the rest of it to the others. The last step is All: every everyday memory each of them keeps, however many. This costs tokens: every memory sent is roughly 30 to 60 tokens on every reply, for every person, so All with a lot kept can be tens of thousands a reply, and more than a small model can read. The cheap way is to keep this low and give the few people who matter a number of their own in Journal → Edit people: that number is theirs alone and isn't shared out. Sum up old memories, below, makes what's kept shorter.",
     memoryKeptTold:
-      "How many lasting memories are sent to the AI each time it speaks, shared between everyone it speaks for in the same way (16 with three people is 6 each; a share someone can't fill goes to the others). Pinned memories are sent besides, the newest six, and never twice. The last step is All: every lasting and pinned memory, the newest 120 at most. The same goes for tokens: keep this low, and raise it for the people who matter in Journal → Edit people.",
+      "How many lasting memories are sent to the AI each time it speaks, shared between everyone it speaks for in the same way (16 with three people is 6 each; a share someone can't fill goes to the others). Pinned memories are sent besides, the newest six, and never twice. The last step is All: every lasting and pinned memory, however many. The same goes for tokens: keep this low, and raise it for the people who matter in Journal → Edit people.",
     memoryToldCounted:
       "What a person's own number (Journal → Edit people) does to everyone else's share. Off, the split is not affected by overrides: with 20 shared between three and one of them set to 10, the others still get 7 each (7, 7 and 10; 24 sent). On, the split is affected by overrides: the 10 comes out of the 20 first and the others split what's left (5, 5 and 10; 20 sent), so the shared number is the most that's sent unless the overrides alone come to more.",
     worldEvents:
@@ -773,6 +773,17 @@ export function createHud(root, handlers) {
       settingsPanel.append(explain);
     }
   };
+  const addField = (name, field) => {
+    const first = fields[name];
+    fields[name] = first
+      ? {
+          set: (value) => {
+            first.set(value);
+            field.set(value);
+          },
+        }
+      : field;
+  };
   const choice = (name, label, labels) => {
     const select = document.createElement("select");
     select.style.cssText = "font:13px system-ui,sans-serif;border-radius:6px;border:0;padding:2px 4px;";
@@ -786,14 +797,14 @@ export function createHud(root, handlers) {
       const raw = select.value;
       handlers.onSetting(name, typeof SETTINGS[name].value === "number" ? Number(raw) : raw);
     });
-    fields[name] = { set: (value) => (select.value = String(value)) };
+    addField(name, { set: (value) => (select.value = String(value)) });
     row(label, select, name);
   };
   const toggle = (name, label) => {
     const box = document.createElement("input");
     box.type = "checkbox";
     box.addEventListener("change", () => handlers.onSetting(name, box.checked));
-    fields[name] = { set: (value) => (box.checked = value) };
+    addField(name, { set: (value) => (box.checked = value) });
     row(label, box, name);
   };
   const slider = (name, label, step, format) => {
@@ -812,12 +823,12 @@ export function createHud(root, handlers) {
       handlers.onSetting(name, Number(range.value));
     });
     wrap.append(range, value);
-    fields[name] = {
+    addField(name, {
       set: (next) => {
         range.value = String(next);
         value.textContent = format(next);
       },
-    };
+    });
     row(label, wrap, name);
   };
   const times = (value) => `${value.toFixed(1)}×`;
@@ -889,6 +900,7 @@ export function createHud(root, handlers) {
   slider("memoryTold", "Everyday memories sent to the AI", 1, orAll);
   slider("memoryKeptTold", "Lasting memories sent to the AI", 1, orAll);
   toggle("memoryToldCounted", "Own numbers come out of the shared count");
+  sumUpRow();
   toggle("worldEvents", "Market days and festivals");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals");
@@ -1185,8 +1197,66 @@ export function createHud(root, handlers) {
   settingsPanel.append(regenerate);
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
+  // Token use: every setting that changes how much is sent to a model, in one place. Each is the same
+  // setting as in its own section (addField): changed in either, it's changed in both.
+  heading("Token use");
+  {
+    const words = (text, bold = false) => {
+      const element = document.createElement("div");
+      element.style.cssText = bold
+        ? "font-weight:600;margin-top:6px;"
+        : `font-size:12px;line-height:1.4;color:${INK_SOFT};`;
+      element.textContent = text;
+      settingsPanel.append(element);
+    };
+    words(
+      "Everything that changes how many tokens Wanderworld spends, in one place. These are the same settings as in AI and Living world: change one here or there and it's changed in both. Every AI call sends the cards of whoever speaks, your persona, the lore active where you stand, the recent chat and their memories, so fewer calls and less in each are the two ways to spend less.",
+    );
+    words("How often the AI is called", true);
+    toggle("aiTalk", "AI conversations");
+    toggle("aiMoments", "AI moments");
+    toggle("aiArrive", "…when you arrive somewhere");
+    toggle("aiThings", "…when you use things");
+    toggle("aiBoard", "…when you read the noticeboard");
+    toggle("aiSeats", "…when you sit down");
+    toggle("aiJoin", "…when you join someone");
+    toggle("aiSeparate", "A call for each person who answers");
+    words("How much each call carries", true);
+    choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
+    toggle("memories", "People remember what they saw and heard");
+    slider("memoryTold", "Everyday memories sent to the AI", 1, orAll);
+    slider("memoryKeptTold", "Lasting memories sent to the AI", 1, orAll);
+    toggle("memoryToldCounted", "Own numbers come out of the shared count");
+    words("Keeping memories short", true);
+    sumUpRow();
+    words("What else adds up", true);
+    words(
+      "A narrator card (AI → Narrator in the world) is sent with every moment, its first 1500 characters: a short one costs less. Lore tied to the whole world, or to you, is active everywhere and goes with every call; lore tied to a place or a person goes only there (Journal → Places, Journal → Lore). Someone's own numbers for memories sent are in Journal → Edit people. The AI assistant says what it sends under each answer, and its memory requests show a rough count before you ask. Scenes and pictures are the Engine's own calls. To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced).",
+    );
+  }
   // The AI assistant: a chat about this world, which can change its lore and people (assistant.js).
   let assistant = null;
+  /** Opens the assistant on a ready-made request; with `people` ([{ id, name }]) it's asked about theirs at once. */
+  function assistantPick(pickId, people = null) {
+    if (settingsPanel.style.display === "none") togglePanel(settingsPanel);
+    showSection("AI assistant");
+    assistant?.pick(pickId, people);
+  }
+  /** A button for the assistant's "Sum up old memories", where memories are set. */
+  function sumUpRow() {
+    const node = button(
+      "Sum up old memories…",
+      "The AI assistant proposes one lasting memory in place of several old everyday ones",
+      () => assistantPick("memory-sum"),
+    );
+    node.style.alignSelf = "flex-start";
+    const explain = document.createElement("div");
+    explain.setAttribute("data-wanderworld-explain", "");
+    explain.style.cssText = "font-size:11px;opacity:0.7;margin:-4px 0 2px;line-height:1.3;";
+    explain.textContent =
+      "Opens the AI assistant and asks whose memories to send. It proposes one lasting memory in place of several old everyday ones, so less is kept and less is sent. You see every change first; nothing happens until you confirm, and it can be undone. One AI call.";
+    settingsPanel.append(node, explain);
+  }
   heading("AI assistant");
   {
     const about = document.createElement("div");
@@ -1591,6 +1661,10 @@ export function createHud(root, handlers) {
   let captionTimer = null;
   const personEditor = createPersonEditor(layer, {
     onSave: (id, changes) => handlers.onSavePerson(id, changes),
+    onSumUp: (person) => {
+      personEditor.close();
+      assistantPick("memory-sum", [person]);
+    },
     onPlan: async (id, request) => ({
       words: await handlers.onPlanSchedule(id, request),
       day: handlers.onPersonDay(id),
