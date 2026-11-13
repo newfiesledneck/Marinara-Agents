@@ -42,13 +42,15 @@ const MAX = {
   name: 120,
   line: 1200,
   history: 24,
-  card: 3000,
+  // Cards, personas, narrator cards and lore go whole: this is a ceiling on what a request may carry, far
+  // above any of them, not a cut.
+  card: 200000,
   notes: 4000,
-  lore: 12,
-  loreText: 1500,
+  lore: 60, // lore entries with one call
+  loreText: 200000,
   prompt: 1500,
-  appearance: 8000, // a card's whole Appearance, as pictures use it
-  picture: 24000, // an Illustrate prompt: whole appearances for the player and up to eight others
+  appearance: 200000, // a card's whole Appearance, as pictures use it
+  picture: 600000, // an Illustrate prompt: whole appearances for the player and up to eight others
   people: 20,
   transcript: 30,
 };
@@ -155,9 +157,9 @@ export function characterCard(record, fallbackName = "") {
   return {
     name: text(inner.name, MAX.name) || text(record?.name, MAX.name) || text(fallbackName, MAX.name) || "Someone",
     description: block(inner.description, MAX.card),
-    personality: block(inner.personality, MAX.card / 2),
-    scenario: block(inner.scenario, MAX.card / 2),
-    examples: block(inner.mes_example, MAX.card / 2),
+    personality: block(inner.personality, MAX.card),
+    scenario: block(inner.scenario, MAX.card),
+    examples: block(inner.mes_example, MAX.card),
     appearance: block(extensions.appearance ?? inner.appearance, MAX.appearance),
   };
 }
@@ -168,7 +170,7 @@ function personaCard(record, fallbackName) {
   return {
     name: text(data.name, MAX.name) || fallbackName || "The traveller",
     description: block(data.description, MAX.card),
-    personality: block(data.personality, MAX.card / 2),
+    personality: block(data.personality, MAX.card),
     appearance: block(data.appearance, MAX.appearance),
   };
 }
@@ -199,9 +201,9 @@ export function talkMessages(input) {
     style,
     section(`${character.name}`, [card(character.description), card(character.personality)].filter(Boolean).join("\n\n")),
     section("Their situation", card(character.scenario)),
-    section(`How ${character.name} looks`, card(cutWords(character.appearance, MAX.card / 2))),
+    section(`How ${character.name} looks`, card(cutWords(character.appearance, MAX.card))),
     section(`How ${character.name} talks (examples)`, card(character.examples)),
-    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card / 2)].filter(Boolean).join("\n\n")),
+    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card)].filter(Boolean).join("\n\n")),
     section("The world", input.setting),
     section(
       "Right now",
@@ -378,7 +380,7 @@ async function writersCards(resources, body) {
     ...records.map((record) => characterCard(record)),
   ]
     .filter(Boolean)
-    .map((card) => ({ name: card.name, player: !!card.player, text: words(card, card.player ? 1500 : 500) }))
+    .map((card) => ({ name: card.name, player: !!card.player, text: words(card, MAX.card) }))
     .filter((card) => card.text);
 }
 
@@ -422,7 +424,7 @@ People and how they stand:
 - {"do": "remove_person", "person": "Wren Tolley"}: for people marked "invented" only. They and everything about them go.
 - {"do": "faction", "name": "The Thieves' Guild", "add": ["Jake", "Fen"], "remove": []}: a group of people, made if there is none by that name. {"do": "faction", "name": "...", "delete": true} ends it.
 Lore:
-- {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name), a faction (its name; every member then knows it) or "world" (the whole world). It is used when they talk, in moments and scenes. At most 1400 characters.
+- {"do": "lore", "about": "Jason", "text": "..."}: this world's own lore about a person, a place (its numbered name), a faction (its name; every member then knows it) or "world" (the whole world). It is used when they talk, in moments and scenes. As long as it needs to be.
 - {"do": "card", "person": "Oswin", "description": "...", "personality": "...", "appearance": "..."}: for people marked "invented" only; give only the parts to change.
 Places and the world:
 - {"do": "rename", "place": "tavern1", "name": "The Drowned Bell"}: a place's name (its sign too). An empty "name" gives back its first one.
@@ -513,7 +515,7 @@ function readAssistantEdit(item, name) {
     return { do: item.do, person, place, with: beside, owner: item.do === "work" && item.owner === true };
   }
   if (item.do === "lore") {
-    const [about, words] = [name(item.about), block(item.text, 1400)];
+    const [about, words] = [name(item.about), block(item.text, MAX.loreText)];
     return about && words ? { do: "lore", about, text: words } : null;
   }
   if (item.do === "card") {
@@ -561,9 +563,9 @@ function readAssistantEdit(item, name) {
       do: "add_person",
       name: text(item.name, 60),
       body: ["male", "female"].includes(item.body) ? item.body : "",
-      description: block(item.description, 1200),
-      personality: block(item.personality, 500),
-      appearance: block(item.appearance, 500),
+      description: block(item.description, MAX.card),
+      personality: block(item.personality, MAX.card),
+      appearance: block(item.appearance, MAX.card),
       home: text(item.home, 80),
       with: name(item.with),
       work: text(item.work, 80),
@@ -907,8 +909,8 @@ function localRecords(raw) {
       data: {
         name: text(person.name, MAX.name),
         description: block(person.description, MAX.card),
-        personality: block(person.personality, MAX.card / 2),
-        extensions: { appearance: block(person.appearance, MAX.card / 2) },
+        personality: block(person.personality, MAX.card),
+        extensions: { appearance: block(person.appearance, MAX.card) },
       },
     }))
     .filter((record) => record.id.startsWith("local:") && record.data.name);
@@ -1478,7 +1480,7 @@ export async function activate(context) {
             doing: text(person.doing, 120),
             feeling: text(person.feeling, 600),
             others: text(person.others, 500),
-            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => text(known, 600)).filter(Boolean).slice(0, 5000),
+            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => block(known, MAX.loreText)).filter(Boolean).slice(0, 5000),
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)
@@ -1492,7 +1494,7 @@ export async function activate(context) {
           .filter((person) => cards.has(person.id))
           .map((person) => {
             const card = cards.get(person.id);
-            return { ...person, name: card.name, card: cardWords([card.personality, card.description], 500, card.name, persona.name) };
+            return { ...person, name: card.name, card: cardWords([card.personality, card.description], MAX.card, card.name, persona.name) };
           });
         const places = (Array.isArray(body.places) ? body.places : [])
           .filter(isRecord)
@@ -1505,9 +1507,9 @@ export async function activate(context) {
         const narratorCard = narratorRecord ? characterCard(narratorRecord) : null;
         const input = {
           narrator: narratorCard
-            ? { name: narratorCard.name, card: cardWords([narratorCard.personality, narratorCard.description], 1500, narratorCard.name, persona.name, "\n") }
+            ? { name: narratorCard.name, card: cardWords([narratorCard.personality, narratorCard.description], MAX.card, narratorCard.name, persona.name, "\n") }
             : null,
-          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], 900, persona.name, persona.name) },
+          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name) },
           listeners: heard,
           action: text(body.action, 300),
           line: text(body.line, MAX.line),
@@ -1517,7 +1519,7 @@ export async function activate(context) {
           weather: text(body.weather, 40),
           setting: block(body.setting, 600),
           style: text(body.style, 20),
-          lore: (Array.isArray(body.lore) ? body.lore : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean).slice(0, 6),
+          lore: (Array.isArray(body.lore) ? body.lore : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean).slice(0, MAX.lore),
           recent: (Array.isArray(body.recent) ? body.recent : [])
             .filter(isRecord)
             .slice(-12)
@@ -1584,7 +1586,7 @@ export async function activate(context) {
         const current = (Array.isArray(body.current) ? body.current : []).map((entry) => checkEntry(entry)).filter(Boolean);
         const system = [
           `You plan one ordinary day for ${card.name}, who lives in Wanderworld. Answer with one JSON object and nothing else.`,
-          section(card.name, cutText([card.description, card.personality, card.scenario].filter(Boolean).join("\n\n"), 2000)),
+          section(card.name, cutText([card.description, card.personality, card.scenario].filter(Boolean).join("\n\n"), MAX.card)),
           section("Their home and work", [text(body.home, MAX.name) && `Home: ${text(body.home, MAX.name)}`, text(body.work, MAX.name) && `Work: ${text(body.work, MAX.name)}`].filter(Boolean).join("\n")),
           section("Places", places.map((place) => `${place.name} (${place.kind})`).join(", ")),
           section("Their schedule now", current.map((entry) => `${entry.from}-${entry.to} ${entry.activity} ${entry.place}`).join("\n")),
@@ -1622,7 +1624,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           looks: Object.fromEntries(
             records.map((record) => {
               const card = characterCard(record);
-              return [record.id, cutText(card.appearance || card.description, 500)];
+              return [record.id, cutText(card.appearance || card.description, MAX.card)];
             }),
           ),
         };
@@ -1652,7 +1654,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return {
             title: `Character card: ${card?.name ?? "(gone)"}`,
             keys: [],
-            content: cutText(replaceNames(words, card?.name ?? "", text(body.persona, MAX.name) || "the player"), 900),
+            content: cutText(replaceNames(words, card?.name ?? "", text(body.persona, MAX.name) || "the player"), MAX.card),
           };
         });
         const personaId = idOf(body.personaId);
@@ -1662,7 +1664,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           cards.push({
             title: `Character card: player (${card.name})`,
             keys: [],
-            content: cutText([card.description, card.personality, card.appearance].filter(Boolean).join("\n"), 900),
+            content: cutText([card.description, card.personality, card.appearance].filter(Boolean).join("\n"), MAX.card),
           });
         }
         entries.unshift(...cards);
@@ -1760,7 +1762,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const keywords = body.task === "keywords";
         if (!keywords && history.at(-1)?.role !== "user") return reply.status(400).send({ error: "Ask something first." });
         const bookEntries = list(body.bookEntries, 20)
-          .map((entry) => ({ title: text(entry.title, 120), keys: text(entry.keys, 600), content: cutWords(text(entry.content, 6000), 1500) }))
+          .map((entry) => ({ title: text(entry.title, 120), keys: text(entry.keys, 600), content: block(entry.content, MAX.loreText) }))
           .filter((entry) => entry.title);
         if (keywords && (!bookEntries.length || !block(body.keywordPrompt, 12000)))
           return reply.status(400).send({ error: "Choose the lorebook entries to draft keywords for." });
@@ -1779,12 +1781,12 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .map((person) => ({
               name: text(person.name, 80),
               invented: person.invented === true,
-              about: cutWords(text(person.about, 3000), 1200),
+              about: block(person.about, MAX.card),
               home: text(person.home, 120),
               work: text(person.work, 120),
               owner: person.owner === true,
               relations: (Array.isArray(person.relations) ? person.relations : []).map((line) => text(line, 100)).filter(Boolean).slice(0, 12),
-              lore: text(person.lore, 1500),
+              lore: block(person.lore, MAX.loreText),
               more: text(person.more, 400),
             }))
             .filter((person) => person.name),
@@ -1797,14 +1799,14 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .map((place) => ({ slot: text(place.slot, 30), name: text(place.name, 80) }))
             .filter((place) => place.slot),
           entries: list(body.entries, 60)
-            .map((entry) => ({ title: text(entry.title, 120), content: text(entry.content, 1500) }))
+            .map((entry) => ({ title: text(entry.title, 120), content: block(entry.content, MAX.loreText) }))
             .filter((entry) => entry.title && entry.content),
           memories: list(body.memories, 40)
             .map((person) => ({ name: text(person.name, 80), lines: (Array.isArray(person.lines) ? person.lines : []).map((entry) => text(entry, 260)).filter(Boolean).slice(-5000) }))
             .filter((person) => person.name && person.lines.length),
           loreIndex: (Array.isArray(body.loreIndex) ? body.loreIndex : []).map((title) => text(title, 100)).filter(Boolean).slice(0, 250),
           found: list(body.found, 24)
-            .map((entry) => ({ title: text(entry.title, 200), content: block(entry.content, 2400) }))
+            .map((entry) => ({ title: text(entry.title, 200), content: block(entry.content, MAX.loreText) }))
             .filter((entry) => entry.title && entry.content),
           help: block(body.help, 9000),
           ages: isRecord(body.ages) ? body.ages : null,
@@ -1991,10 +1993,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           section(
             "The people in it",
             cast
-              .map((person) => `${person.name}: ${cardWords([person.description, person.personality, person.appearance], 900, person.name, persona.name)}`)
+              .map((person) => `${person.name}: ${cardWords([person.description, person.personality, person.appearance], MAX.card, person.name, persona.name)}`)
               .join("\n\n"),
           ),
-          section(`The player, ${persona.name}`, cardWords([persona.description, persona.personality, persona.appearance], 900, persona.name, persona.name)),
+          section(`The player, ${persona.name}`, cardWords([persona.description, persona.personality, persona.appearance], MAX.card, persona.name, persona.name)),
           section("Where, when and what's between them", sceneContext.notes ?? ""),
           section("Just before", sceneContext.transcript.map((line) => `${line.speaker}: ${line.content}`).join("\n")),
           section("How to write it", `${POVS[pov]}, ${TENSES[tense]}.${extra ? ` ${extra}` : ""}`),

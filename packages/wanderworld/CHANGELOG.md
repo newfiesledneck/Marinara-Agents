@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.79 — 2026-11-13
+
+- Nothing is cut short any more: character cards, personas, narrator cards and lore entries are sent to the AI whole. Before, a listener's card stopped at 500 characters, a persona at 900, a narrator card and a lore entry at 1,500.
+- Up to 60 lore entries go with a call, where 6 or 12 did.
+- Lore the assistant rewrites, lore written for a world and the cards of people made for it are kept whole too (1,500 and 1,200 characters before).
+- Longer cards and more lore cost more tokens on every call they go with: Settings, Token use, Tips says so.
+
 ## 0.5.78 — 2026-11-13
 
 - A new town round a pond: its market's stalls are set down here and there over the whole plot, turned in toward the middle, with the noticeboard and benches among them. Its green has meadows and trees, and no fenced gardens.

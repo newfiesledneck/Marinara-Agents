@@ -797,7 +797,7 @@ export function createHud(root, handlers) {
     aiSeparate:
       "For strict secrets between characters. Off: one call writes everyone's lines, with each person's knowledge kept apart inside it; strong models respect that. On: the narrator gets one call, and each person who answers gets their own with only what they know. Up to four calls per moment, so slower and dearer.",
     narratorCard:
-      "One of your character cards as the narrator's voice in moments. A short card works best: only its first 1500 characters are used. None: a plain narrator.",
+      "One of your character cards as the narrator's voice in moments. The whole card is sent with every moment, so a short one costs less. None: a plain narrator.",
     talkStyle:
       "A general tone on top of each person's own character. Someone given a voice of their own in Journal → Edit people keeps it.",
     replyLength: "How long people's replies are. Longer replies cost more tokens.",
@@ -1345,7 +1345,7 @@ export function createHud(root, handlers) {
   at("Token use", "Tips");
   for (const tip of [
     "Keep the shared memory totals low, and give the few people who matter numbers of their own in Journal → Edit people → Memory.",
-    "A narrator card is sent with every moment (its first 1500 characters). A short one costs less.",
+    "Cards, personas and lore are sent whole, never cut. A narrator card goes with every moment and each listener's card with every moment they hear, so long cards cost more on every call.",
     "Lore tied to the whole world, or to you, goes with every call. Lore tied to a place or a person goes only there (Journal → Places, Journal → Lore).",
     "The AI assistant lists what it sent under each answer, and its memory requests show a rough count before you ask.",
     "To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced).",
