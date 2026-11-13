@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.84 — 2026-11-13
+
+- Faster, most of all without a graphics card. Detailed trees, rocks and plants are drawn only where the camera looks (about a third as many at once), and people who are off screen aren't drawn.
+- Settings → Display → Graphics: "Detailed trees out to" (Near, Medium, Far) sets how far trees are drawn in full; past it simple ones stand in. "Trees and rocks" has a Sparse choice, half the usual.
+- The notice shown when the browser draws without the graphics card names the fastest settings.
+
 ## 0.5.83 — 2026-11-13
 
 - Gender shares are per world. The sliders and the custom gender's name on New world are kept with that world, and Journal → World changes them later. Settings → People → Genders is what a new world starts from, and what a world made before this follows until it's given its own in Journal → World.

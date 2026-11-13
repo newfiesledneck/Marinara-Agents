@@ -13,7 +13,9 @@ export const SETTINGS = {
   /** How far you can see before the haze, in metres. */
   drawDistance: { value: 140, options: [60, 90, 140, 200, 300, 450] },
   /** Trees and rocks outside town, as a multiple of the usual. */
-  density: { value: 1, options: [1, 4, 10] },
+  density: { value: 1, options: [0.5, 1, 4, 10] },
+  /** How far out trees are drawn in detail, in metres; past it simple ones stand in. */
+  treeDetail: { value: 180, options: [30, 70, 180] },
   shadows: { value: true },
   /** Detailed trees, rocks and plants (the kit); off keeps the simple low-poly ones. */
   nature: { value: true },
@@ -190,6 +192,7 @@ export const DEVICE_SETTINGS = new Set([
   "resolution",
   "drawDistance",
   "density",
+  "treeDetail",
   "shadows",
   "nature",
   "props",

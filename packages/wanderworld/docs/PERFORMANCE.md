@@ -56,3 +56,19 @@ Before the nature reach limits, the same Massive world at Max with 1× drew **11
 
 Still to measure: Resolution, Shadows, the detailed trees / props / buildings toggles, a full town of
 thirty characters, a phone or a laptop's integrated graphics, and inside the town looking along a street.
+
+## 0.5.84, 2026-11-13: only what the camera sees
+
+Before this, detailed nature was drawn all round the player, behind the camera too, and it is nearly all
+of the triangles: a Normal world at Medium draw distance and 1× drew about 4.6 M triangles a frame, 4.3 M
+of them detailed trees (a trunk is 2,000 to 7,000 triangles). People, the player and the animals' rigs are
+about 0.2 M and the buildings and ground about 0.1 M. The game's own work is under 1 ms a frame, so on a
+machine drawing without a graphics card it is the triangle count that decides the frame rate, not the
+resolution.
+
+- Detailed nature is drawn only inside the camera's view sideways (plus a margin, and everything within
+  30 m), and again when the camera has turned about 10°.
+- Someone off screen isn't drawn (a skinned figure can't be culled by its bounds, so the game does it).
+- "Detailed trees out to" (30, 70 or 180 m) and a Sparse density (0.5×) lower it further.
+
+Readings with these are in the next table when they're taken.

@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.84",
+          "date": "2026-11-13",
+          "notes": "- Faster, most of all without a graphics card. Detailed trees, rocks and plants are drawn only where the camera looks (about a third as many at once), and people who are off screen aren't drawn.\n- Settings → Display → Graphics: \"Detailed trees out to\" (Near, Medium, Far) sets how far trees are drawn in full; past it simple ones stand in. \"Trees and rocks\" has a Sparse choice, half the usual.\n- The notice shown when the browser draws without the graphics card names the fastest settings.",
+          "highlight": false
+        },
+        {
           "version": "0.5.83",
           "date": "2026-11-13",
           "notes": "- Gender shares are per world. The sliders and the custom gender's name on New world are kept with that world, and Journal → World changes them later. Settings → People → Genders is what a new world starts from, and what a world made before this follows until it's given its own in Journal → World.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.65",
           "date": "2026-11-11",
           "notes": "- The written manner for each relationship (0.5.62) is taken out: it could contradict a character's card or lore. The AI is still told what each person is to you (brother, employer, good friend, bitter rival) and what people in earshot are to each other; how they speak is left to their card and lore.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.64",
-          "date": "2026-11-11",
-          "notes": "- How much people remember is yours to set: Settings → Everyday memories each (4 to 40) and Lasting memories each (0 to 30), and numbers of their own for anyone in Journal → Edit people.\n- A memory can be reworded when it came out wrong, or deleted with ✕ (Journal → Edit people).\n- Pinning locks a memory: nothing ever pushes it out, and only its age moves on. Thirty a person; one you write yourself is pinned from the start. Pinned ones don't count against the lasting number.\n- Memories show how long ago they were.",
           "highlight": false
         }
       ]

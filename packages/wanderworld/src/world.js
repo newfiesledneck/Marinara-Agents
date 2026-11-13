@@ -70,7 +70,7 @@ let worldSize = WORLD_SIZE;
 const BASE_TREES = 900;
 const BASE_ROCKS = 260;
 /** Prop multipliers the fps label cycles through, to stress-test a phone. */
-export const DENSITIES = [1, 4, 10];
+export const DENSITIES = [0.5, 1, 4, 10];
 const MAX_DENSITY = DENSITIES[DENSITIES.length - 1];
 const GRID_CELL = 4; // collision grid cell, metres
 
@@ -170,6 +170,11 @@ const KIT_PLANTS = [
 /** Every kit model the nature uses, for loading. */
 /** How far each kind of detailed nature is drawn (metres, and never past the draw distance). */
 const NATURE_REACH = { plant: 70, rock: 160, tree: 180 };
+// Detailed nature is only drawn where the camera looks: inside its view sideways, and this much more
+// (radians) so a turn of the camera has it there already; all of it this near (metres), whichever way.
+const CONE_MARGIN = 0.45;
+const CONE_TURN = Math.cos(0.17); // drawn again once the camera has turned about 10°
+const CONE_NEAR = 30;
 export const NATURE_MODELS = [...KIT_TREES.map(([name]) => name), ...KIT_ROCKS, ...KIT_PLANTS.map(([name]) => name)];
 /** How far a door swings open, outward onto the street (radians). */
 const DOOR_SWING = 1.7;
@@ -3484,16 +3489,73 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   // instances rewritten to just those within sight of the player and allowed by the density whenever the
   // player has moved a little way.
   const natureLayers = []; // { meshes: InstancedMesh[], items: [{ x, z, need, matrix }] }
-  const view = { x: Infinity, z: Infinity, radius: 200, density: DENSITIES[0] };
+  const view = {
+    x: Infinity,
+    z: Infinity,
+    radius: 200,
+    density: DENSITIES[0],
+    treeReach: NATURE_REACH.tree,
+    cone: null,
+  };
+  const aim = new Vector3();
+  const corner = new Vector3();
+  /** Sets the part of the land the camera sees (`view.cone`, null for all round); true when it changed enough to draw again. */
+  function lookWith(camera) {
+    camera.getWorldDirection(aim);
+    const flat = Math.hypot(aim.x, aim.z);
+    let cone = null;
+    if (flat > 0.3) {
+      const [dx, dz] = [aim.x / flat, aim.z / flat];
+      const up = Math.tan((camera.fov * Math.PI) / 360);
+      // The widest any corner of the view reaches sideways (a camera looking up or down sees wider).
+      let widest = 0;
+      for (const [sx, sy] of [
+        [1, 1],
+        [1, -1],
+        [-1, 1],
+        [-1, -1],
+      ]) {
+        corner.set(sx * up * camera.aspect, sy * up, -1).transformDirection(camera.matrixWorld);
+        const reach = Math.hypot(corner.x, corner.z);
+        widest =
+          reach < 0.25
+            ? Math.PI
+            : Math.max(widest, Math.acos(Math.max(-1, Math.min(1, (corner.x * dx + corner.z * dz) / reach))));
+      }
+      const half = widest + CONE_MARGIN;
+      if (half < 2.6) cone = { x: camera.position.x, z: camera.position.z, dx, dz, half, cos: Math.cos(half) };
+    }
+    const was = view.cone;
+    if (!cone || !was) {
+      view.cone = cone;
+      return cone !== was;
+    }
+    if (
+      cone.dx * was.dx + cone.dz * was.dz > CONE_TURN &&
+      (cone.x - was.x) ** 2 + (cone.z - was.z) ** 2 < 16 &&
+      Math.abs(cone.half - was.half) < 0.08
+    )
+      return false;
+    view.cone = cone;
+    return true;
+  }
+  const inCone = (item) => {
+    const cone = view.cone;
+    if (!cone) return true;
+    const [ox, oz] = [item.x - cone.x, item.z - cone.z];
+    const distance = ox * ox + oz * oz;
+    return distance < CONE_NEAR ** 2 || ox * cone.dx + oz * cone.dz > cone.cos * Math.sqrt(distance);
+  };
   function refreshNature() {
     for (const { meshes, items, kind } of natureLayers) {
       // Small plants only nearby, rocks a little further, detailed trees out to a point; past that the
       // simple trees stand in (below), all under the fog.
-      const reach = (Math.min(view.radius, NATURE_REACH[kind]) + 15) ** 2;
+      const reach = (Math.min(view.radius, kind === "tree" ? view.treeReach : NATURE_REACH[kind]) + 15) ** 2;
       let count = 0;
       for (const item of items) {
         if (item.need > view.density) continue;
         if ((item.x - view.x) ** 2 + (item.z - view.z) ** 2 > reach) continue;
+        if (!inCone(item)) continue;
         for (const mesh of meshes) mesh.setMatrixAt(count, item.matrix);
         count++;
       }
@@ -3503,14 +3565,14 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       }
     }
     // Far off (past the detailed trees, out to the draw distance): the simple trees, a hundredth of the cost.
-    const far = natureLayers.length > 0 && view.radius > NATURE_REACH.tree;
+    const far = natureLayers.length > 0 && view.radius > view.treeReach;
     trunks.visible = crowns.visible = far || !natureLayers.length;
     if (!far) {
       if (natureLayers.length) return;
       trunks.count = crowns.count = Math.min(trees.length, baseTrees * view.density);
       return;
     }
-    const near = NATURE_REACH.tree ** 2;
+    const near = (view.treeReach + 15) ** 2; // where the detailed ones stop
     const out = (view.radius + 15) ** 2;
     let count = 0;
     const limit = baseTrees * view.density;
@@ -3528,12 +3590,14 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
   }
   /** Where the player is, so the detailed nature near them is the nature drawn. Cheap to call every frame. */
-  function follow(x, z) {
+  function follow(x, z, camera = null) {
     sky_.x = x;
     sky_.z = z;
     lamps.follow(x, z);
     terrain.follow(x, z);
-    if (!natureLayers.length || (x - view.x) ** 2 + (z - view.z) ** 2 < 64) return;
+    if (!natureLayers.length) return;
+    const turned = camera ? lookWith(camera) : false;
+    if (!turned && (x - view.x) ** 2 + (z - view.z) ** 2 < 64) return;
     view.x = x;
     view.z = z;
     refreshNature();
@@ -3611,6 +3675,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       moved = true;
     }
     if (moved) for (const mesh of doorMeshes) mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** How far out trees are drawn in detail (metres); past it the simple ones stand in. */
+  function setTreeReach(distance) {
+    if (view.treeReach === distance) return;
+    view.treeReach = distance;
+    refreshNature();
   }
 
   /** How far you can see: the fog closes in from 40% of `distance` to all of it. */
@@ -3735,7 +3806,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       dummy.rotation.set(0, growth() * Math.PI * 2, 0);
       dummy.scale.setScalar(size * (0.8 + growth() * 0.5));
       dummy.updateMatrix();
-      if (!builtOver(x, z, 0.5)) place(name, x, z, 1);
+      if (!builtOver(x, z, 0.5)) place(name, x, z, placed % 2 ? 1 : 0); // half of it at Sparse
       placed++;
     }
     // The town's own plants: gardens, doorsteps, round the fountain.
@@ -3744,7 +3815,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       dummy.rotation.set(slot.tilt?.[0] ?? 0, slot.angle, slot.tilt?.[1] ?? 0);
       dummy.scale.setScalar(slot.scale);
       dummy.updateMatrix();
-      place(slot.model, slot.x, slot.z, 1);
+      place(slot.model, slot.x, slot.z, 0); // at any density
     }
     if ([...placements.keys()].some((name) => !models.has(name))) return; // something missing: keep the simple ones
     trunks.visible = false;
@@ -4023,6 +4094,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     follow,
     update,
     setDrawDistance,
+    setTreeReach,
     setTime,
     /** True when (x, z) is inside a building (with `margin`), so someone walking there would be stopped. */
     blocked: (x, z, margin = 0.3) => collider.insideBox(x, z, margin),

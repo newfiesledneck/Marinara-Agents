@@ -735,7 +735,9 @@ export function createHud(root, handlers) {
       "What the custom gender is called. It is shown wherever a gender is chosen and is what the AI is told. Empty: Custom.",
     resolution: "How sharp the picture is. Auto lowers it when things get slow.",
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
-    density: "How many trees, rocks and plants grow round the town.",
+    density: "How many trees, rocks and plants grow round the town. Sparse is half the usual, and the fastest.",
+    treeDetail:
+      "Trees further off than this are drawn as simple shapes. Detailed trees are the costliest thing on screen, so Near is much faster; you'll see trees change as you walk up to them.",
     shadows: "Soft shadows under people.",
     nature: "On: detailed trees and plants. Off: simple shapes, which is faster.",
     props: "On: detailed barrels, crates, benches and stalls. Off: simple shapes.",
@@ -925,9 +927,15 @@ export function createHud(root, handlers) {
   at("Display", "Graphics");
   choice("resolution", "Resolution", RESOLUTION_LABELS);
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
-  choice("density", "Trees and rocks", { 1: "Normal", 4: "4×", 10: "10×" });
+  choice("density", "Trees and rocks", { 0.5: "Sparse", 1: "Normal", 4: "4×", 10: "10×" });
   toggle("shadows", "Shadows under people");
   toggle("nature", "Detailed trees and plants");
+  choice(
+    "treeDetail",
+    "Detailed trees out to",
+    { 30: "Near (30 m)", 70: "Medium (70 m)", 180: "Far (180 m)" },
+    "nature",
+  );
   toggle("props", "Detailed furniture and props");
   toggle("buildings", "Detailed buildings");
   choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
