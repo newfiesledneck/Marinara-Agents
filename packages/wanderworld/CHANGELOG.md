@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.78 — 2026-11-13
+
+- A new town round a pond: its market's stalls are set down here and there over the whole plot, turned in toward the middle, with the noticeboard and benches among them. Its green has meadows and trees, and no fenced gardens.
+
 ## 0.5.77 — 2026-11-13
 
 - New world, on the land step: a Massive world can have at least one of every kind of place (an inn, a cottage, a cave, a hamlet, a farm, ruins, a watchtower, standing stones, a graveyard, a mill and a pond). What the other choices leave out is added on top, with hills for the cave and a river for the mill, and two places of one kind are kept well apart.
