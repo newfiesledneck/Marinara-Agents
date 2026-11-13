@@ -108,7 +108,7 @@ export const HELP = [
       "Menu → Settings is in sections, and a section with a lot in it has tabs of its own. Each section and tab starts with a line on what it is for, and each setting has a line under it (Display → On screen → Show explanations hides them).",
       "Display: graphics, what is shown on screen, sound. Controls: moving and the camera. World: time, weather, places. People: how they act around you, their relationships, their memory. Animals: how many, which kinds, how they behave. AI: what the AI writes, scenes, pictures, connections. Token use: everything that affects what the AI costs, in one place.",
       "A setting set in a little under another only matters while that one is on, and is faint while it is off.",
-      "Journal → Edit people opens someone's own window, in tabs: About, Day, You, Others and Memory. Journal → World is in tabs too (This world, Setting, Animals, Lore), and New world is three steps: you and your people, the land, lore and the AI.",
+      "Journal → Edit people opens someone's own window, in tabs: About, Day, You, Others and Memory. Journal → World is in tabs too (This world, Setting, Animals, Lore), and New world is four steps: you and your people, the land, the AI (its connections and main switches, so they're set before a world is made), lore and setup.",
       "The main menu's Before you start gives the short version of all this; it can be hidden and opened again.",
     ],
   },

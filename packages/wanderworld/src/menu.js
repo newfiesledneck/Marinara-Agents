@@ -603,7 +603,106 @@ export function createMenu(layer, handlers, art = null) {
       if (byAi(params)) void review(params, [...card.childNodes]);
       else handlers.onCreate(params);
     });
-    // Three steps, a tab each, so it isn't one long form: who, the land, the lore and the AI.
+    // The AI, before a world is made: is it there, which connection writes what, and the two main switches.
+    // These are the player's settings for every world (Settings → AI has the same ones, and the rest).
+    const aiStep = element("div", "display:flex;flex-direction:column;gap:8px;");
+    {
+      const now = handlers.settings?.() ?? {};
+      const status = explainLine("Checking for Wanderworld's server part…");
+      const row = (label, control, about) => {
+        const line = element(
+          "label",
+          "display:flex;align-items:center;justify-content:space-between;gap:10px;font:13px system-ui;",
+        );
+        line.append(element("span", "", label), control);
+        aiStep.append(line, explainLine(about));
+      };
+      const connection = (name, label, kind, empty, about) => {
+        const select = element("select", `${INK_INPUT}max-width:190px;font:13px system-ui;`);
+        const fill = (list) => {
+          const options = [
+            ["", empty],
+            ...list.map((entry) => [entry.id, entry.model ? `${entry.name} (${entry.model})` : entry.name]),
+          ];
+          const current = handlers.settings?.()[name] ?? "";
+          if (current && !list.some((entry) => entry.id === current)) options.push([current, "(not found)"]);
+          select.replaceChildren(
+            ...options.map(([value, text]) => {
+              const option = element("option", "", text);
+              option.value = value;
+              return option;
+            }),
+          );
+          select.value = current;
+        };
+        fill([]);
+        select.addEventListener("change", () => handlers.onSetting?.(name, select.value));
+        row(label, select, about);
+        return { kind, fill };
+      };
+      const toggle = (name, label, about) => {
+        const box = element("input", "width:18px;height:18px;flex:none;");
+        box.type = "checkbox";
+        box.checked = now[name] === true;
+        box.addEventListener("change", () => handlers.onSetting?.(name, box.checked));
+        row(label, box, about);
+      };
+      aiStep.append(status);
+      const lists = [
+        connection(
+          "textConnection",
+          "Conversations and moments use",
+          "text",
+          "Engine default",
+          "The model that writes what people say and what the narrator tells. Setting a world up by AI (step 4) uses it too.",
+        ),
+        connection(
+          "sceneConnection",
+          "Scenes use",
+          "text",
+          "Same as conversations",
+          "The model that plays roleplay scenes you start in the world.",
+        ),
+        connection(
+          "imageConnection",
+          "Pictures use",
+          "image",
+          "Engine default",
+          "The image generation connection for pictures of places and moments.",
+        ),
+      ];
+      toggle(
+        "aiTalk",
+        "AI conversations",
+        "On: when you talk to someone, the AI writes their replies from their character card. Off: they use short set lines.",
+      );
+      toggle(
+        "aiMoments",
+        "AI moments",
+        "On: when something happens (you say or do something, sit down with someone), the AI narrates it and people nearby may answer. One AI call each time. Off: the game's own written lines.",
+      );
+      aiStep.append(
+        explainLine(
+          "Every AI call spends tokens on your connection. Menu → Settings → Token use has everything that affects how many, and Settings → AI has the rest: narrators, reply length, scenes and pictures.",
+        ),
+      );
+      void (async () => {
+        const up = await handlers.aiStatus?.();
+        if (!up) {
+          status.textContent =
+            "Wanderworld's server part isn't running, so the AI can't be used yet: restart the Engine. The world still works without it.";
+          return;
+        }
+        status.textContent = "Wanderworld's server part is running. Choose which of your Engine connections does what.";
+        try {
+          const found = await handlers.connections?.();
+          for (const { kind, fill } of lists) fill(found?.[kind] ?? []);
+        } catch (error) {
+          status.textContent = `Couldn't read your connections: ${error?.message ?? error}`;
+        }
+      })();
+    }
+    // Four steps, a tab each, so it isn't one long form: who, the land, the AI, the lore and setting up.
     const small = (text) => element("div", "font:12px system-ui;opacity:0.75;", text);
     const steps = [
       [
@@ -629,7 +728,12 @@ export function createMenu(layer, handlers, art = null) {
         ],
       ],
       [
-        "3. Lore and the AI",
+        "3. The AI",
+        "Optional: the world works without it. These are your settings for every world, the same ones as in Menu → Settings → AI, so you can change them any time.",
+        [aiStep],
+      ],
+      [
+        "4. Lore and setup",
         "Optional. Lorebooks give the world its lore, and the AI can set the world up from them and your characters' cards.",
         [
           small("Lorebooks for this world"),
@@ -639,7 +743,7 @@ export function createMenu(layer, handlers, art = null) {
           bookList,
           small("Setting the world up"),
           explainLine(
-            "By AI: it works out who is who, how people know each other, where they live and work, and which lore belongs where (one call for the cast, one for every 40 lorebook entries). You see the result and can reroll before the world is built. By keywords: only ww: keys are used, and no AI.",
+            "By AI: it works out who is who, how people know each other, where they live and work, and which lore belongs where (one call for the cast, one for every 40 lorebook entries, on the connection chosen in step 3). You see the result and can reroll before the world is built. By keywords: only ww: keys are used, and no AI.",
           ),
           characterLinking,
           linking,

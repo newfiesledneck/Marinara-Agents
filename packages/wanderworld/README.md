@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.74)
+## What it does now (0.5.75)
 
 ### The world
 
@@ -245,7 +245,7 @@ only walk about.
   line on what it is for, each setting says what On and Off do, and a setting that depends on another sits
   under it and goes faint while that one is off. Someone's window in Journal → Edit people is in tabs too
   (About, Day, You, Others, Memory), as are Journal → World (This world, Setting, Animals, Lore) and New
-  world (three steps), and the main menu opens with **Before you start**: a short account
+  world (four steps; one is the AI's connections and main switches, so they're set before a world is made), and the main menu opens with **Before you start**: a short account
   of what the game is, what a moment and a scene are, and what costs tokens. It can be hidden and reopened.
 - **Token use in one place:** Settings → Token use gathers every setting that changes how many tokens are
   spent: which things call the AI (conversations, moments, arrivals, things, the noticeboard, sitting,

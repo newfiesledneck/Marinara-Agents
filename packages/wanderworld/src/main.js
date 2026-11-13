@@ -7840,6 +7840,11 @@ function attach(element) {
       onDelete: deleteWorld,
       onSettings: (section) => core.hud?.openSettings(section),
       suggestName,
+      // The AI's own settings, for New world's step on it: as they are, changing one, and the Engine's connections.
+      settings: () => core.settings,
+      onSetting: changeSetting,
+      aiStatus: () => core.ai.status(true),
+      connections: () => core.ai.connections(),
     },
     {
       background: `${ART}menu-bg.webp`,
