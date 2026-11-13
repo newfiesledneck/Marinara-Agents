@@ -458,8 +458,7 @@ function changeSetting(name, value) {
   }
   saveSettings(core.settings);
   // The game's and the AI's settings are the same in every browser: the Engine keeps them.
-  if (core.store?.engine && !DEVICE_SETTINGS.has(name))
-    core.store.setItem(SHARED_SETTINGS, JSON.stringify(sharedSettings(core.settings)));
+  if (!DEVICE_SETTINGS.has(name)) core.store.setItem(SHARED_SETTINGS, JSON.stringify(sharedSettings(core.settings)));
   applySettings();
 }
 
@@ -3060,12 +3059,7 @@ function recall(ids, text, said, how = said ? "heard" : "", lasting = false) {
 /** How many everyday and lasting memories `id` keeps: their own numbers (Edit people), else the settings'. */
 function memoryLimits(id) {
   const own = core.save?.memoryLimits?.[id] ?? {};
-  return {
-    each: own.each ?? core.settings.memoryEach,
-    kept: own.kept ?? core.settings.memoryKept,
-    // "All" has no ceiling when the Engine keeps the world; in the browser's storage it has (memory.js).
-    most: core.store?.engine ? Infinity : MEMORY.MOST,
-  };
+  return { each: own.each ?? core.settings.memoryEach, kept: own.kept ?? core.settings.memoryKept };
 }
 
 /**
@@ -7466,8 +7460,8 @@ function frame(time) {
 function attach(element) {
   core.element = element;
   if (!core.store) {
-    core.store = createStore(globalThis.localStorage, savesRemote, {
-      onProblem: (error) => console.warn("[wanderworld] a save didn't reach the Engine; kept in this browser", error),
+    core.store = createStore(savesRemote, {
+      onProblem: (error) => console.warn("[wanderworld] a save didn't reach the Engine: it's tried again", error),
     });
     core.saves = createSaves(core.store);
     globalThis.addEventListener?.("pagehide", () => void core.store.flush());
@@ -7697,11 +7691,9 @@ function attach(element) {
       logo: `${ART}logo.webp`,
     },
   );
-  // Saved worlds are with the Engine when its server part is there (store.js): they're read before the
-  // menu lists them. When it isn't, they're in this browser, as before.
+  // Saved worlds are with the Engine (store.js): they're read before the menu lists them.
   const begin = () => {
     if (core.element !== element) return; // closed meanwhile
-    core.saves.migrate(); // the one world from before saves becomes the first saved world
     if (core.personas) {
       core.hud.setPersonas(core.personas, core.personaId, core.bodies);
       core.hud.setCharacters(core.characters ?? [], core.cast ?? new Set(), core.bodies);
@@ -7719,35 +7711,22 @@ function attach(element) {
     core.statsFrames = 0;
     if (!core.raf) core.raf = requestAnimationFrame(frame);
   };
-  if (core.store.engine) begin();
+  if (core.store.ready) begin();
   else
     void core.store
       .connect()
-      .then((moved) => {
-        store("wanderworld.savesWithEngine", "1");
+      .then(() => {
         // The settings every browser shares: the Engine's, when it has them.
         const shared = core.store.getItem(SHARED_SETTINGS);
-        if (shared) {
-          core.settings = loadSettings(shared);
-          saveSettings(core.settings);
-        } else {
-          // MIGRATION 0.5.69: the Engine has none yet, so this browser's become them. (Without this
-          // they'd be kept the first time one is changed.)
-          core.store.setItem(SHARED_SETTINGS, JSON.stringify(sharedSettings(core.settings)));
-          void core.store.flush(); // at once, not a few seconds on
-        }
-        // MIGRATION 0.5.69: said once, when worlds came over from this browser.
-        if (moved.length)
-          core.hud?.setNotice(
-            `${moved.length === 1 ? "Your saved world was" : `${moved.length} saved worlds were`} moved from this browser to the Engine, and checked there. A copy stays in this browser until a later version clears it.`,
-          );
+        if (!shared) return;
+        core.settings = loadSettings(shared);
+        saveSettings(core.settings);
       })
       .catch((error) => {
-        console.warn("[wanderworld] saved worlds are kept in this browser: the server part didn't answer", error);
-        if (readStored("wanderworld.savesWithEngine") === "1")
-          core.hud?.setNotice(
-            "Your saved worlds are kept by the Engine, and Wanderworld's server part didn't answer, so they can't be listed now. Check that the Engine is running and the package is enabled, then open this tab again. A world started meanwhile is kept in this browser and joins the others next time.",
-          );
+        console.warn("[wanderworld] saved worlds couldn't be read: the server part didn't answer", error);
+        core.hud?.setNotice(
+          "Wanderworld's server part didn't answer, so your saved worlds can't be read and nothing would be saved. Restart the Engine (a package's server part starts with it), then open this tab again.",
+        );
       })
       .then(begin);
 }

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.70 — 2026-11-12
+
+- Saved worlds are the Engine's alone now. The browser fallback and the move from the browser are gone, with the older conversions (the single world from before saves, the one narrator card). If the server part doesn't answer, the menu says to restart the Engine, and nothing is written.
+- All keeps every memory, with no ceiling anywhere.
+- A setting's description that states a number now follows its slider: "People remember what they saw and heard" says how many everyday and lasting memories are kept as you have them set, and the two "sent to the AI" sliders say what one, two and three people get at the current setting.
+
 ## 0.5.69 — 2026-11-11
 
 - The game's and the AI's settings are kept by the Engine now, the same in every browser: the living world, animals, memories, connections, narrators, what calls the AI. Graphics, controls, sound and what's shown on screen stay each device's own. The first browser to open this version gives the Engine its settings.

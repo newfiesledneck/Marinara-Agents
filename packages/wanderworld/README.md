@@ -25,15 +25,12 @@ their recaps back) and `network` (calls to your own Engine on this machine for t
 generation and scene creation; nothing else leaves the machine except through your Engine connections).
 
 Worlds are saved by the Engine, one save per world, in the package's own storage there: they're the same
-from any browser or device that opens your Engine, and a world can be as big as it grows. Worlds saved in
-a browser by an earlier version move to the Engine the first time this one opens there, and then leave the
-browser. If the server part isn't running, worlds are kept in the browser as before and move over when it
-is. The game's and the AI's settings (the living world, animals, memories, connections, narrators, what
-calls the AI) are kept by the Engine too, the same in every browser; graphics, controls, sound and what's
-shown on screen stay each device's own. Delete a world from **Load world**. For now a copy of each world
-that moved stays in the browser it came from (`wanderworld.backup.…`), until a later version clears it.
+from any browser or device that opens your Engine, and a world can be as big as it grows. The game's and
+the AI's settings (the living world, animals, memories, connections, narrators, what calls the AI) are
+kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
+the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.69)
+## What it does now (0.5.70)
 
 ### The world
 
@@ -217,8 +214,8 @@ only walk about.
   by who's about; not for streets or places told lately) and now and then about who's near; with the chat window closed it shows as a caption. The noticeboard offers
   an **errand** to someone in the world: take it, it's marked on your map, and reaching them (out of doors,
   at their door when they're in, or in the room with them) finishes it.
-- **People remember what mattered:** beside their everyday memories (the newest fourteen), each person
-  keeps up to eight lasting ones that small talk never pushes out: a scene you played together, a night
+- **People remember what mattered:** beside their everyday memories (the newest fourteen by default), each
+  person keeps lasting ones (eight by default) that small talk never pushes out: a scene you played together, a night
   at your campfire, joining or leaving your party, moving house, an errand done, falling out or growing
   closer. How many of each is a setting, with
   numbers of their own for anyone (family who remember more). In Journal → Edit people a memory can be

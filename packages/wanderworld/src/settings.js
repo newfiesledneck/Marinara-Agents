@@ -227,11 +227,6 @@ export function loadSettings(shared = null) {
   } catch {
     saved = {}; // blocked storage or a damaged copy: start from the defaults
   }
-  // Before 0.5.58 there was one narrator card and what it was used for: now a card for each.
-  if (saved.narratorCard && saved.sceneNarratorCard === undefined) {
-    if (saved.narratorUse !== "moments") saved.sceneNarratorCard = saved.narratorCard;
-    if (saved.narratorUse === "scenes") saved.narratorCard = "";
-  }
   let common = {};
   try {
     common = (typeof shared === "string" ? JSON.parse(shared) : shared) ?? {};

@@ -1,7 +1,6 @@
 // Saved worlds. Each world is one record under its own key, plus a small index for the Load list (name,
-// when it was last played, a thumbnail). Where they're kept is store.js's business: with the Engine when
-// Wanderworld's server part is there, in this browser's storage when it isn't; here it's only something
-// with getItem, setItem and removeItem.
+// when it was last played, a thumbnail). Where they're kept is store.js's business (with the Engine);
+// here it's only something with getItem, setItem and removeItem.
 //
 // A record holds everything the world needs to come back as it was: its seed, where the player stood,
 // the persona and cast, the names given to places (`names`, by zone id) and the lore tied to them
@@ -20,8 +19,6 @@ export const SAVE_VERSION = 1;
 const INDEX_KEY = "wanderworld.worlds";
 const WORLD_KEY = (id) => `wanderworld.world.${id}`;
 const LAST_KEY = "wanderworld.lastWorld";
-// Before saves (0.4.13 and earlier): one world, remembered in these.
-const LEGACY = { place: "wanderworld.place", cast: "wanderworld.cast", persona: "wanderworld.persona" };
 const MAX_NAME = 60;
 const MAX_THUMBNAIL = 40_000; // characters of a data URL
 
@@ -515,7 +512,7 @@ export function checkWorld(raw) {
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-/** The saved worlds in `storage` (store.js, localStorage, or anything with getItem/setItem/removeItem). */
+/** The saved worlds in `storage` (store.js, or anything with getItem/setItem/removeItem). */
 export function createSaves(storage = globalThis.localStorage) {
   const read = (key) => {
     try {
@@ -621,37 +618,6 @@ export function createSaves(storage = globalThis.localStorage) {
     },
     setLast(id) {
       write(LAST_KEY, id);
-    },
-    /**
-     * Turns the one world remembered before saves existed into the first saved world, once. Returns it,
-     * or null when there was nothing to bring over.
-     */
-    migrate() {
-      if (index().length) return null;
-      const place = parse(LEGACY.place, null);
-      if (!isRecord(place) || typeof place.seed !== "string") return null;
-      const world = put({
-        id: newId(),
-        name: "My first world",
-        seed: place.seed,
-        createdAt: Date.now(),
-        playedAt: Date.now(),
-        hour: place.hour,
-        place,
-        persona: read(LEGACY.persona),
-        cast: parse(LEGACY.cast, []),
-      });
-      if (world) {
-        write(LAST_KEY, world.id);
-        for (const key of Object.values(LEGACY)) {
-          try {
-            storage?.removeItem(key);
-          } catch {
-            // blocked storage: the old keys just stay
-          }
-        }
-      }
-      return world;
     },
   };
 }

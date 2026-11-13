@@ -486,18 +486,6 @@ assert.equal(checkSetting("shadows", "yes"), true, "a non-boolean switch is the 
 assert.equal(checkSetting("nonsense", 1), undefined, "unknown settings are ignored");
 globalThis.localStorage = { getItem: () => "{not json" };
 assert.deepEqual(loadSettings().resolution, "auto", "a damaged saved copy loads the defaults");
-// One narrator card and what it was for (before 0.5.58) become a card for the world and one for scenes.
-const narrators = (saved) => {
-  globalThis.localStorage = { getItem: () => JSON.stringify(saved) };
-  const { narratorCard, sceneNarratorCard } = loadSettings();
-  return [narratorCard, sceneNarratorCard];
-};
-assert.deepEqual(narrators({ narratorCard: "n1" }), ["n1", "n1"], "used for both: both");
-assert.deepEqual(narrators({ narratorCard: "n1", narratorUse: "scenes" }), ["", "n1"]);
-assert.deepEqual(narrators({ narratorCard: "n1", narratorUse: "moments" }), ["n1", ""]);
-assert.deepEqual(narrators({ narratorCard: "n1", sceneNarratorCard: "" }), ["n1", ""], "a choice made since is kept");
-assert.deepEqual(narrators({ narratorCard: "n1", sceneNarratorCard: "n2" }), ["n1", "n2"]);
-assert.deepEqual(narrators({}), ["", ""]);
 delete globalThis.localStorage;
 
 console.log("wanderworld regression: OK");
@@ -635,23 +623,11 @@ console.log("wanderworld regression: OK");
   console.log("ok: the assistant's proposal is applied as the player left it");
 }
 
-// ── Where saves are kept: the browser, or the Engine once it answers (store.js) ──────────────
+// ── Where saves are kept: with the Engine, read once and written through (store.js) ──────────
 {
-  const { createStore } = await import("../packages/wanderworld/src/store.js");
+  const { createStore, SHARED_SETTINGS } = await import("../packages/wanderworld/src/store.js");
   const { createSaves } = await import("../packages/wanderworld/src/saves.js");
-  const browser = () => {
-    const map = new Map();
-    return {
-      map,
-      getItem: (key) => (map.has(key) ? map.get(key) : null),
-      setItem: (key, value) => void map.set(key, String(value)),
-      removeItem: (key) => void map.delete(key),
-      key: (at) => [...map.keys()][at] ?? null,
-      get length() {
-        return map.size;
-      },
-    };
-  };
+  const { DEVICE_SETTINGS, sharedSettings } = await import("../packages/wanderworld/src/settings.js");
   const engine = (kept = {}) => {
     const keys = new Map(Object.entries(kept));
     return {
@@ -673,161 +649,90 @@ console.log("wanderworld regression: OK");
       },
     };
   };
-  // Before the Engine answers (or without a server part): the browser, exactly as before.
-  const local = browser();
-  local.setItem("wanderworld.settings", "{}");
   const remote = engine();
-  const store = createStore(local, remote, { delay: 0, backup: false });
+  const store = createStore(remote, { delay: 0 });
+  await store.connect();
   const saves = createSaves(store);
   const first = saves.create({ name: "First", seed: "one" });
   saves.setLast(first.id);
-  assert.equal(store.engine, false);
-  assert.ok(local.map.has(`wanderworld.world.${first.id}`));
-  assert.equal(remote.keys.size, 0);
-  // Connected: the browser's worlds go to the Engine and leave the browser; nothing else of the package's does.
-  await store.connect();
-  assert.equal(store.engine, true);
-  assert.deepEqual([...local.map.keys()], ["wanderworld.settings"]);
-  assert.deepEqual(
-    [...remote.keys.keys()].sort(),
-    ["wanderworld.lastWorld", `wanderworld.world.${first.id}`, "wanderworld.worlds"].sort(),
-  );
-  assert.equal(saves.list().length, 1);
-  assert.equal(saves.last().name, "First");
   // A write is held at once and sent after; the newest one for a key is the one kept.
   saves.write({ ...saves.read(first.id), name: "Renamed", playedAt: 5 });
   saves.write({ ...saves.read(first.id), name: "Renamed twice", playedAt: 6 });
   assert.equal(saves.read(first.id).name, "Renamed twice", "read back before it's sent");
   await store.flush();
-  assert.equal(JSON.parse(remote.keys.get(`wanderworld.world.${first.id}`)).name, "Renamed twice");
-  assert.equal(local.map.size, 1, "and nothing of it in the browser");
-  // Another browser: the Engine's worlds are there, and one made here before connecting joins them.
-  const other = browser();
-  const there = createStore(other, remote, { delay: 0, backup: false });
-  const otherSaves = createSaves(there);
-  const second = otherSaves.create({ name: "Second", seed: "two" });
-  await there.connect();
   assert.deepEqual(
-    otherSaves
-      .list()
-      .map((entry) => entry.name)
-      .sort(),
-    ["Renamed twice", "Second"],
+    [...remote.keys.keys()].sort(),
+    ["wanderworld.lastWorld", `wanderworld.world.${first.id}`, "wanderworld.worlds"].sort(),
   );
-  assert.equal(otherSaves.read(second.id).seed, "two");
-  // A copy in the browser played since the Engine's was written wins; an older one doesn't.
-  const stale = browser();
-  stale.setItem(
-    `wanderworld.world.${first.id}`,
-    JSON.stringify({ ...otherSaves.read(first.id), name: "Older", playedAt: 1 }),
+  assert.equal(JSON.parse(remote.keys.get(`wanderworld.world.${first.id}`)).name, "Renamed twice");
+  // Another browser: the same worlds.
+  const there = createStore(remote, { delay: 0 });
+  await there.connect();
+  const otherSaves = createSaves(there);
+  assert.deepEqual(
+    otherSaves.list().map((entry) => entry.name),
+    ["Renamed twice"],
   );
-  stale.setItem(
-    `wanderworld.world.${second.id}`,
-    JSON.stringify({ ...otherSaves.read(second.id), name: "Newer", playedAt: Date.now() + 1000 }),
-  );
-  const third = createStore(stale, remote, { delay: 0, backup: false });
-  await third.connect();
-  const thirdSaves = createSaves(third);
-  assert.equal(thirdSaves.read(first.id).name, "Renamed twice");
-  assert.equal(thirdSaves.read(second.id).name, "Newer");
-  assert.equal(stale.map.size, 0);
-  // The Engine stops answering: the write is kept in the browser, and goes over the next time.
+  assert.equal(otherSaves.last().name, "Renamed twice");
+  const second = otherSaves.create({ name: "Second", seed: "two" });
+  await there.flush();
+  // The Engine doesn't answer: nothing is read, and nothing is sent that could write over what it keeps.
   remote.down = true;
   const problems = [];
-  const shaky = createStore(stale, remote, {
-    delay: 0,
-    backup: false,
-    onProblem: (error) => problems.push(error.message),
-  });
-  await assert.rejects(shaky.connect());
-  assert.equal(shaky.engine, false, "not connected: the browser is used");
+  const blind = createStore(remote, { delay: 0, onProblem: (error) => problems.push(error.message) });
+  await assert.rejects(blind.connect());
+  assert.equal(blind.ready, false);
+  createSaves(blind).create({ name: "Never kept", seed: "x" });
   remote.down = false;
-  await shaky.connect();
+  const putsBefore = remote.puts;
+  await blind.flush();
+  assert.equal(remote.puts, putsBefore, "not connected: not sent");
+  assert.equal(JSON.parse(remote.keys.get("wanderworld.worlds")).length, 2, "the list of worlds is as it was");
+  // It stops answering mid-play: the write is held, said, and sent with the next one.
   remote.down = true;
-  const shakySaves = createSaves(shaky);
-  shakySaves.write({ ...shakySaves.read(first.id), name: "While it was down", playedAt: Date.now() + 5000 });
-  await shaky.flush();
-  assert.deepEqual([...new Set(problems)], ["down"], "said (the world and the list of worlds both)");
-  assert.ok(stale.map.has(`wanderworld.world.${first.id}`));
-  assert.equal(shakySaves.read(first.id).name, "While it was down", "still held while the tab is open");
+  there.setItem(
+    `wanderworld.world.${second.id}`,
+    JSON.stringify({ ...otherSaves.read(second.id), name: "While down" }),
+  );
+  await there.flush();
+  assert.equal(JSON.parse(remote.keys.get(`wanderworld.world.${second.id}`)).name, "Second");
+  assert.equal(otherSaves.read(second.id).name, "While down", "still held while the tab is open");
   remote.down = false;
-  const back = createStore(stale, remote, { delay: 0, backup: false });
-  await back.connect();
-  assert.equal(createSaves(back).read(first.id).name, "While it was down");
-  assert.equal(stale.map.size, 0);
+  otherSaves.setLast(second.id);
+  await there.flush();
+  assert.equal(
+    JSON.parse(remote.keys.get(`wanderworld.world.${second.id}`)).name,
+    "While down",
+    "sent with the next write",
+  );
   // Deleting a world deletes it there.
-  createSaves(back).remove(second.id);
-  await back.flush();
+  otherSaves.remove(second.id);
+  await there.flush();
   assert.ok(!remote.keys.has(`wanderworld.world.${second.id}`));
-  // The move, as it is for now: a copy of what came over stays in the browser under another name, and
-  // nothing leaves the browser when the Engine didn't keep what it was sent.
-  {
-    const mine = browser();
-    const kept = engine();
-    const before = createSaves(createStore(mine, kept, { delay: 0 }));
-    const world = before.create({ name: "Mine", seed: "m" });
-    before.setLast(world.id);
-    const text = mine.map.get(`wanderworld.world.${world.id}`);
-    const forgetful = { ...kept, all: async () => ({}), put: async () => {} };
-    await assert.rejects(createStore(mine, forgetful, { delay: 0 }).connect(), /didn't keep 3 of 3/u);
-    assert.equal(mine.map.get(`wanderworld.world.${world.id}`), text, "still in the browser, untouched");
-    const moving = createStore(mine, kept, { delay: 0 });
-    assert.deepEqual(await moving.connect(), [world.id], "says which worlds came over");
-    assert.equal(kept.keys.get(`wanderworld.world.${world.id}`), text);
-    assert.deepEqual(
-      [...mine.map.keys()].sort(),
-      ["wanderworld.backup.lastWorld", `wanderworld.backup.world.${world.id}`, "wanderworld.backup.worlds"].sort(),
-    );
-    assert.equal(mine.map.get(`wanderworld.backup.world.${world.id}`), text);
-    // Opened again: nothing comes over twice, and the copies aren't taken for worlds.
-    const again = createStore(mine, kept, { delay: 0 });
-    assert.deepEqual(await again.connect(), []);
-    assert.equal(createSaves(again).list().length, 1);
-    // A world deleted since isn't brought back from the copy.
-    createSaves(again).remove(world.id);
-    await again.flush();
-    const later = createStore(mine, kept, { delay: 0 });
-    assert.deepEqual(await later.connect(), []);
-    assert.equal(createSaves(later).list().length, 0);
-  }
   // Settings: the game's and the AI's are the Engine's, the same in every browser; a device's own stay its own.
-  {
-    const { DEVICE_SETTINGS, sharedSettings } = await import("../packages/wanderworld/src/settings.js");
-    const { SHARED_SETTINGS } = await import("../packages/wanderworld/src/store.js");
-    for (const name of DEVICE_SETTINGS) assert.ok(Object.hasOwn(SETTINGS, name), `${name} is a setting`);
-    const was = globalThis.localStorage;
-    globalThis.localStorage = browser();
-    globalThis.localStorage.setItem(
-      "wanderworld.settings",
-      JSON.stringify({ shadows: false, volume: 0.2, memoryTold: 30, gossip: true }),
-    );
-    const here = loadSettings();
-    assert.deepEqual([here.shadows, here.volume, here.memoryTold, here.gossip], [false, 0.2, 30, true]);
-    const common = sharedSettings(here);
-    assert.ok(!("shadows" in common) && !("volume" in common) && common.memoryTold === 30 && common.gossip === true);
-    assert.ok(
-      "aiMoments" in common && "textConnection" in common && "narratorCard" in common && "animalsWild" in common,
-    );
-    // Another browser, with choices of its own: the Engine's win for what's shared, and only for that.
-    globalThis.localStorage.setItem(
-      "wanderworld.settings",
-      JSON.stringify({ shadows: true, volume: 0.9, memoryTold: 5, gossip: false }),
-    );
-    const there = loadSettings(JSON.stringify({ ...common, shadows: false, madeUp: 1, memoryKeptTold: 9999 }));
-    assert.deepEqual([there.shadows, there.volume, there.memoryTold, there.gossip], [true, 0.9, 30, true]);
-    assert.equal(there.memoryKeptTold, SETTINGS.memoryKeptTold.max, "checked like any other");
-    assert.ok(!("madeUp" in there));
-    assert.equal(loadSettings("{broken").memoryTold, 5, "a damaged copy: this browser's own");
-    globalThis.localStorage = was;
-    // They're one of the keys the Engine keeps.
-    const kept = engine();
-    const store = createStore(browser(), kept, { delay: 0 });
-    await store.connect();
-    store.setItem(SHARED_SETTINGS, JSON.stringify(common));
-    await store.flush();
-    assert.equal(JSON.parse(kept.keys.get(SHARED_SETTINGS)).memoryTold, 30);
-  }
-  console.log("ok: saves are kept by the Engine once it answers, and in the browser until then");
+  for (const name of DEVICE_SETTINGS) assert.ok(Object.hasOwn(SETTINGS, name), `${name} is a setting`);
+  const was = globalThis.localStorage;
+  const browser = (saved) => ({ getItem: () => JSON.stringify(saved) });
+  globalThis.localStorage = browser({ shadows: false, volume: 0.2, memoryTold: 30, gossip: true });
+  const here = loadSettings();
+  assert.deepEqual([here.shadows, here.volume, here.memoryTold, here.gossip], [false, 0.2, 30, true]);
+  const common = sharedSettings(here);
+  assert.ok(!("shadows" in common) && !("volume" in common) && common.memoryTold === 30 && common.gossip === true);
+  assert.ok("aiMoments" in common && "textConnection" in common && "narratorCard" in common && "animalsWild" in common);
+  globalThis.localStorage = browser({ shadows: true, volume: 0.9, memoryTold: 5, gossip: false });
+  const elsewhere = loadSettings(JSON.stringify({ ...common, shadows: false, madeUp: 1, memoryKeptTold: 9999 }));
+  assert.deepEqual(
+    [elsewhere.shadows, elsewhere.volume, elsewhere.memoryTold, elsewhere.gossip],
+    [true, 0.9, 30, true],
+  );
+  assert.equal(elsewhere.memoryKeptTold, SETTINGS.memoryKeptTold.max, "checked like any other");
+  assert.ok(!("madeUp" in elsewhere));
+  assert.equal(loadSettings("{broken").memoryTold, 5, "a damaged copy: this browser's own");
+  globalThis.localStorage = was;
+  store.setItem(SHARED_SETTINGS, JSON.stringify(common));
+  await store.flush();
+  assert.equal(JSON.parse(remote.keys.get(SHARED_SETTINGS)).memoryTold, 30);
+  console.log("ok: saves and shared settings are kept by the Engine");
 }
 
 // ── What goes with a message to the assistant ────────────────────────────────────────────────────────────

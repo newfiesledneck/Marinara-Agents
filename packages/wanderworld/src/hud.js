@@ -699,20 +699,20 @@ export function createHud(root, handlers) {
       "People who spend time together grow a little closer, slowly: a step for an evening, a tier in a few weeks. Two short-tempered people sometimes have words instead, and friends who never meet drift apart. A relationship you lock (in Journal → Edit people) never moves; one you set by hand moves on from there.",
     worldLog:
       "A short record of who spent time with whom and what changed between them, in Journal → Relationships under Lately. Off, nothing is written down (relationships can still change).",
-    memories:
-      "Each person keeps their own memory: a short everyday one (what you said in their hearing, who they spent time with; the newest fourteen) and a lasting one for what mattered (a scene together, a night at your campfire, travelling with you, moving house, an errand, falling out or growing closer; eight, which only other lasting ones push out). Pin any memory as lasting, or write one, in Journal → Edit people. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people.",
+    memories: (s) =>
+      `Each person keeps their own memory: a short everyday one (what you said in their hearing, who they spent time with; ${s.memoryEach > 100 ? "all of them" : `the newest ${s.memoryEach}`}) and a lasting one for what mattered (a scene together, a night at your campfire, travelling with you, moving house, an errand, falling out or growing closer; ${s.memoryKept > 100 ? "all of them" : `${s.memoryKept}, which only other lasting ones push out`}). Pin any memory as lasting, or write one, in Journal → Edit people. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people. The numbers here are what the sliders below are set to.`,
     memorySights:
       "Anyone within sight remembers what you do, not only what you say in their hearing: getting up on a horse, going into a house, lighting a fire. Only they know it. Needs memories on. Off, people remember only what was said near them.",
     gossip:
       'Gossip. People who spend time together now and then tell each other something they saw or heard of you in the last few days. Whoever is told knows it as hearsay ("was told by Corvin"), keeps only a few such things, and doesn\'t pass it further. What you whisper is never passed on. Needs memories on. Off, people know only what they were there for.',
     memoryEach:
-      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. The last step is All: nothing is pushed out unless you delete it, and the saved world grows with it (kept by the Engine there's no limit; in a browser's storage, a thousand for one person). Keeping more costs no tokens by itself: what's sent to the AI is set below. Anyone can have a number of their own in Journal → Edit people.",
+      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. The last step is All: nothing is pushed out unless you delete it, and the saved world grows with it (there's no limit). Keeping more costs no tokens by itself: what's sent to the AI is set below. Anyone can have a number of their own in Journal → Edit people.",
     memoryKept:
       "How many lasting memories each person keeps: what mattered (a scene, a campfire, travelling together). Only other lasting ones push them out. The last step is All: none is pushed out unless you delete it. Memories you pin are locked and don't count against this. Anyone can have a number of their own in Journal → Edit people.",
-    memoryTold:
-      "How many everyday memories are sent to the AI each time it speaks, shared between everyone it speaks for: 20 with two people is 10 each, with three it's 7 each (rounded up). Someone with fewer than their share leaves the rest of it to the others. The last step is All: every everyday memory each of them keeps, however many. This costs tokens: every memory sent is roughly 30 to 60 tokens on every reply, for every person, so All with a lot kept can be tens of thousands a reply, and more than a small model can read. The cheap way is to keep this low and give the few people who matter a number of their own in Journal → Edit people: that number is theirs alone and isn't shared out. Sum up old memories, below, makes what's kept shorter.",
-    memoryKeptTold:
-      "How many lasting memories are sent to the AI each time it speaks, shared between everyone it speaks for in the same way (16 with three people is 6 each; a share someone can't fill goes to the others). Pinned memories are sent besides, the newest six, and never twice. The last step is All: every lasting and pinned memory, however many. The same goes for tokens: keep this low, and raise it for the people who matter in Journal → Edit people.",
+    memoryTold: (s) =>
+      `How many everyday memories are sent to the AI each time it speaks, shared between everyone it speaks for: 20 with two people is 10 each, with three it's 7 each (rounded up). Someone with fewer than their share leaves the rest of it to the others. The last step is All: every everyday memory each of them keeps, however many. This costs tokens: every memory sent is roughly 30 to 60 tokens on every reply, for every person, so All with a lot kept can be tens of thousands a reply, and more than a small model can read. The cheap way is to keep this low and give the few people who matter a number of their own in Journal → Edit people: that number is theirs alone and isn't shared out. Sum up old memories, below, makes what's kept shorter. ${s.memoryTold > 100 ? "As it's set now: all of them, for everyone." : `As it's set now (${s.memoryTold}): ${s.memoryTold} for one person alone, ${Math.ceil(s.memoryTold / 2)} each for two, ${Math.ceil(s.memoryTold / 3)} each for three.`}`,
+    memoryKeptTold: (s) =>
+      `How many lasting memories are sent to the AI each time it speaks, shared between everyone it speaks for in the same way (16 with three people is 6 each; a share someone can't fill goes to the others). Pinned memories are sent besides, the newest six, and never twice. The last step is All: every lasting and pinned memory, however many. The same goes for tokens: keep this low, and raise it for the people who matter in Journal → Edit people. ${s.memoryKeptTold > 100 ? "As it's set now: all of them, for everyone." : `As it's set now (${s.memoryKeptTold}): ${s.memoryKeptTold} for one person alone, ${Math.ceil(s.memoryKeptTold / 2)} each for two, ${Math.ceil(s.memoryKeptTold / 3)} each for three.`}`,
     memoryToldCounted:
       "What a person's own number (Journal → Edit people) does to everyone else's share. Off, the split is not affected by overrides: with 20 shared between three and one of them set to 10, the others still get 7 each (7, 7 and 10; 24 sent). On, the split is affected by overrides: the 10 comes out of the 20 first and the others split what's left (5, 5 and 10; 20 sent), so the shared number is the most that's sent unless the overrides alone come to more.",
     worldEvents:
@@ -758,6 +758,7 @@ export function createHud(root, handlers) {
     scenePreset:
       "The Engine prompt preset a scene starts with, picked for you each time. None: the scene's own instructions alone.",
   };
+  const explainers = []; // descriptions that state what other settings are set to
   const row = (label, control, name = null) => {
     const element = document.createElement("label");
     element.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
@@ -769,7 +770,11 @@ export function createHud(root, handlers) {
       const explain = document.createElement("div");
       explain.setAttribute("data-wanderworld-explain", "");
       explain.style.cssText = "font-size:11px;opacity:0.7;margin:-4px 0 2px;line-height:1.3;";
-      explain.textContent = EXPLAIN[name];
+      // A description that states a number another setting sets is written again whenever settings change.
+      const about = EXPLAIN[name];
+      const write = (settings) => (explain.textContent = typeof about === "function" ? about(settings) : about);
+      write(Object.fromEntries(Object.entries(SETTINGS).map(([key, setting]) => [key, setting.value])));
+      if (typeof about === "function") explainers.push(write);
       settingsPanel.append(explain);
     }
   };
@@ -1812,6 +1817,7 @@ export function createHud(root, handlers) {
     /** Shows each setting's current value, and applies the display ones. */
     setSettings(settings) {
       for (const [name, field] of Object.entries(fields)) field.set(settings[name]);
+      for (const write of explainers) write(settings);
       wanted.jump = settings.jumpButton !== false;
       wanted.rest = settings.restButton !== false;
       wanted.chat = settings.chatMoves !== false;
