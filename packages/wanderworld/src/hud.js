@@ -1114,10 +1114,10 @@ export function createHud(root, handlers) {
     ["Writing", "Scenes", "Pictures", "Connections"],
   );
   at("AI", "Connections");
-  intro("Which of your Engine connections does what, and whether Wanderworld's server part is running.");
+  intro("Which of your Engine connections does what.");
   const aiStatus = document.createElement("div");
   aiStatus.style.cssText = "font-size:12px;line-height:1.35;opacity:0.85;";
-  aiStatus.textContent = "Checking for Wanderworld's server part…";
+  aiStatus.textContent = "Checking that Wanderworld is fully loaded…";
   const aiDebug = document.createElement("div");
   aiDebug.style.cssText = "font-size:12px;line-height:1.35;opacity:0.85;";
   aiDebug.textContent =
@@ -1221,12 +1221,12 @@ export function createHud(root, handlers) {
     const status = await handlers.onAiStatus?.();
     if (!status) {
       aiStatus.textContent =
-        "Wanderworld's server part isn't running yet, so people use set lines. Restart the Engine after installing or updating Wanderworld.";
+        "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld). Until then people use set lines.";
       return;
     }
     aiStatus.textContent = status.scenes
-      ? "Server part running: conversations, pictures and scenes use your Engine's connections."
-      : "Server part running: conversations and pictures. This Engine can't start scenes from packages yet.";
+      ? "Ready: conversations, pictures and scenes use your Engine's connections."
+      : "Ready: conversations and pictures. This Engine can't start scenes from packages yet.";
     try {
       const lists = await handlers.onConnections();
       for (const { kind, fill } of connectionLists) fill(lists?.[kind] ?? []);

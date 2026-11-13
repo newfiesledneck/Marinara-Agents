@@ -35,7 +35,8 @@ function failure(response, body) {
   if (response.status === 403 && /admin.secret/iu.test(message)) {
     return "The Engine blocked Wanderworld on this device: enter the Engine's Admin Secret in Settings → Advanced → Admin Access.";
   }
-  if (response.status === 404 && !message) return "Wanderworld's server part isn't running: restart the Engine.";
+  if (response.status === 404 && !message)
+    return "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld).";
   return message || `Request failed (${response.status})`;
 }
 

@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.76 — 2026-11-12
+
+- New world is a walkthrough: Next and Back take you through its four steps and the last one makes the world. What to know before you start is said in the step it belongs to, so the main menu's Before you start box is gone.
+- Messages no longer speak of Wanderworld's "server part". When Wanderworld isn't fully loaded they say so, and that the Engine needs a restart (once, after installing or updating it).
+
 ## 0.5.75 — 2026-11-12
 
 - New world has a step for the AI, before the one that sets a world up with it: whether the server part is running, which connection writes conversations and moments, which plays scenes, which makes pictures, and the AI conversations and AI moments switches. They are your settings for every world, the same ones as in Settings → AI.

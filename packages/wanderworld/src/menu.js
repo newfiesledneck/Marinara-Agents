@@ -9,38 +9,6 @@ const FONT = "system-ui,sans-serif";
 const PANEL =
   `${PARCHMENT_EDGED}padding:26px 28px;display:flex;flex-direction:column;gap:10px;` +
   "width:min(420px,calc(100% - 32px));max-height:calc(100% - 32px);overflow-y:auto;box-sizing:border-box;pointer-events:auto;";
-/** What a new player should know first: a few lines each (the main menu's "Before you start"). */
-const INTRO = [
-  [
-    "What it is.",
-    "A small 3D world where your Engine characters live their days: they have homes, work, routines and relationships. Walk about, talk to them, and start roleplay scenes from wherever you stand.",
-  ],
-  [
-    "The AI is optional.",
-    "Everything works without it, on the game's own rules and written lines. With it, people answer in their own words and a narrator tells what happens. It uses your Engine connections, so it spends tokens: Settings → Token use has every setting that affects that.",
-  ],
-  [
-    "Moments.",
-    "A moment is one thing that happens and is told: you say or do something in the chat, sit down with someone, arrive somewhere. The narrator describes it and people nearby may answer.",
-  ],
-  [
-    "Scenes.",
-    "A scene is a full roleplay chat in the Engine, started from the world with whoever is there. When it ends, its recap comes back and people remember it.",
-  ],
-  [
-    "Memory.",
-    "Each person remembers what they saw and heard, and nobody knows what they weren't there for. The game keeps memories itself, at no cost; you choose how many are sent to the AI (Settings → People → Memory).",
-  ],
-  [
-    "Your worlds",
-    "are saved by the Engine, so they are the same from any device. Graphics, controls and sound are kept for each device.",
-  ],
-  [
-    "Stuck?",
-    "Help on this menu explains everything, and Settings → AI assistant can answer questions about your world.",
-  ],
-];
-
 const BIG =
   `font:600 17px ${SERIF};border:1px solid #4e341d;border-radius:9px;padding:11px 16px;cursor:pointer;text-align:left;` +
   `${WOOD}box-shadow:0 2px 4px rgba(0,0,0,0.25);`;
@@ -131,46 +99,8 @@ export function createMenu(layer, handlers, art = null) {
   screen.append(column);
   layer.prepend(screen); // under the HUD's panels, so Settings opens over it
 
-  // Before you start: what to know, open the first time and a button after that.
-  const INTRO_SEEN = "wanderworld.introSeen";
-  const introSeen = () => {
-    try {
-      return globalThis.localStorage?.getItem(INTRO_SEEN) === "1";
-    } catch {
-      return false; // blocked storage: it's shown each time
-    }
-  };
-  function intro(open) {
-    if (!open) {
-      const show = button("Before you start: things to know", BIG, () => show.replaceWith(intro(true)));
-      show.style.cssText += "font-size:14px;padding:8px 14px;";
-      return show;
-    }
-    const box = element(
-      "div",
-      "display:flex;flex-direction:column;gap:6px;border:1px solid rgba(107,74,43,0.5);border-radius:9px;padding:10px 12px;font:13px/1.45 system-ui,sans-serif;",
-    );
-    box.append(element("div", `font:700 16px ${SERIF};`, "Before you start"));
-    for (const [title, words] of INTRO) {
-      const line = element("div", "", "");
-      line.append(element("b", "", `${title} `), document.createTextNode(words));
-      box.append(line);
-    }
-    const hide = button("Hide this message", `${INK_SMALL}align-self:flex-start;margin-top:2px;`, () => {
-      try {
-        globalThis.localStorage?.setItem(INTRO_SEEN, "1");
-      } catch {
-        // blocked storage: it's shown again next time
-      }
-      box.replaceWith(intro(false));
-    });
-    box.append(hide);
-    return box;
-  }
-
   function home() {
     card.replaceChildren();
-    card.append(intro(!introSeen()));
     const last = handlers.last();
     if (last) {
       const resume = button("", BIG, () => handlers.onPlay(last.id));
@@ -608,7 +538,7 @@ export function createMenu(layer, handlers, art = null) {
     const aiStep = element("div", "display:flex;flex-direction:column;gap:8px;");
     {
       const now = handlers.settings?.() ?? {};
-      const status = explainLine("Checking for Wanderworld's server part…");
+      const status = explainLine("Checking that Wanderworld is fully loaded…");
       const row = (label, control, about) => {
         const line = element(
           "label",
@@ -683,6 +613,12 @@ export function createMenu(layer, handlers, art = null) {
       );
       aiStep.append(
         explainLine(
+          "Scenes: a scene is a full roleplay chat in the Engine, started from the world with whoever is there (the chat window's Scene button). When it ends its recap comes back, and people remember it.",
+        ),
+        explainLine(
+          "Memory: each person remembers what they saw and heard, and nobody knows what they weren't there for. Remembering is free; how many memories are sent to the AI is yours to set in Settings → People → Memory.",
+        ),
+        explainLine(
           "Every AI call spends tokens on your connection. Menu → Settings → Token use has everything that affects how many, and Settings → AI has the rest: narrators, reply length, scenes and pictures.",
         ),
       );
@@ -690,10 +626,10 @@ export function createMenu(layer, handlers, art = null) {
         const up = await handlers.aiStatus?.();
         if (!up) {
           status.textContent =
-            "Wanderworld's server part isn't running, so the AI can't be used yet: restart the Engine. The world still works without it.";
+            "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld). Until then the AI can't be used; the world still works without it.";
           return;
         }
-        status.textContent = "Wanderworld's server part is running. Choose which of your Engine connections does what.";
+        status.textContent = "Choose which of your Engine connections does what.";
         try {
           const found = await handlers.connections?.();
           for (const { kind, fill } of lists) fill(found?.[kind] ?? []);
@@ -707,7 +643,7 @@ export function createMenu(layer, handlers, art = null) {
     const steps = [
       [
         "1. You and your people",
-        "Who you play as, and which of your Engine characters live in this world. You can change both later.",
+        "Welcome. Wanderworld is a small 3D world where your Engine characters live their days: they have homes, work, routines and relationships. You walk about, talk to them, and start roleplay scenes from wherever you stand. First: who you play as, and which of your characters live here. Both can be changed later.",
         [small("You play as"), personaRow, personaNote, castHeading, castList],
       ],
       [
@@ -729,7 +665,7 @@ export function createMenu(layer, handlers, art = null) {
       ],
       [
         "3. The AI",
-        "Optional: the world works without it. These are your settings for every world, the same ones as in Menu → Settings → AI, so you can change them any time.",
+        "The AI is optional: everything works without it, on the game's own rules and written lines. With it, people answer in their own words and a narrator tells what happens. These are your settings for every world, the same ones as in Menu → Settings → AI.",
         [aiStep],
       ],
       [
@@ -770,15 +706,37 @@ export function createMenu(layer, handlers, art = null) {
         step.tab.style.opacity = step.label === label ? "1" : "0.6";
         step.tab.setAttribute("aria-pressed", String(step.label === label));
       }
+      at = Math.max(
+        0,
+        panes.findIndex((step) => step.label === label),
+      );
+      const last = at === panes.length - 1;
+      next.style.display = last ? "none" : "";
+      create.style.display = last ? "" : "none";
+      next.textContent = `Next: ${panes[Math.min(at + 1, panes.length - 1)].label.replace(/^\d+\. /u, "")}`;
+      back.textContent = at ? "Back" : "Back to the menu";
+      card.scrollTop = 0;
     };
+    // Next and Back walk through the steps; the last one makes the world. (A tab jumps straight to its step.)
+    let at = 0;
+    const next = button("Next", BIG, () => showStep(panes[Math.min(at + 1, panes.length - 1)].label));
+    const back = button("Back", SMALL, () => (at ? showStep(panes[at - 1].label) : home()));
+    panes
+      .at(-1)
+      .pane.append(
+        explainLine(
+          "Your world is saved by the Engine as you play, so it's the same from any device. Everything here can be changed later in the Journal and in Menu → Settings, and Help on the main menu explains the rest.",
+        ),
+      );
     card.append(
       element("div", "font:700 17px system-ui;", "New world"),
       small("Name"),
       name,
       stepBar,
       ...panes.map((step) => step.pane),
+      next,
       create,
-      button("Back", SMALL, home),
+      back,
     );
     showStep(steps[0][0]);
     name.focus();

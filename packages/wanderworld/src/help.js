@@ -93,7 +93,7 @@ export const HELP = [
   {
     title: "Making a world",
     lines: [
-      "Where worlds are kept: by the Engine, in Wanderworld's own storage there, so they're the same from any browser or device that opens your Engine and can grow as big as they need. The game's and the AI's settings (the living world, animals, memories, connections, narrators, what calls the AI) are kept there too; graphics, controls, sound and what's shown on screen are each device's own. If the menu says the server part didn't answer, restart the Engine.",
+      "Where worlds are kept: by the Engine, in Wanderworld's own storage there, so they're the same from any browser or device that opens your Engine and can grow as big as they need. The game's and the AI's settings (the living world, animals, memories, connections, narrators, what calls the AI) are kept there too; graphics, controls, sound and what's shown on screen are each device's own. If the menu says Wanderworld isn't fully loaded, restart the Engine.",
       'New world: a name, who you play, who lives there, the land, and under "Setting the world up" how much the AI does for you.',
       "The AI can set your characters up from their cards (bodies, homes, work, relationships), read your lorebooks and tie their lore to places, write the world's own lore and places from nothing, and invent people to live there. Each is a model call or two, and you see all of it before the land is built.",
       "Or do it by hand: lorebook keywords (below), and the Journal for anything else.",
@@ -108,8 +108,7 @@ export const HELP = [
       "Menu → Settings is in sections, and a section with a lot in it has tabs of its own. Each section and tab starts with a line on what it is for, and each setting has a line under it (Display → On screen → Show explanations hides them).",
       "Display: graphics, what is shown on screen, sound. Controls: moving and the camera. World: time, weather, places. People: how they act around you, their relationships, their memory. Animals: how many, which kinds, how they behave. AI: what the AI writes, scenes, pictures, connections. Token use: everything that affects what the AI costs, in one place.",
       "A setting set in a little under another only matters while that one is on, and is faint while it is off.",
-      "Journal → Edit people opens someone's own window, in tabs: About, Day, You, Others and Memory. Journal → World is in tabs too (This world, Setting, Animals, Lore), and New world is four steps: you and your people, the land, the AI (its connections and main switches, so they're set before a world is made), lore and setup.",
-      "The main menu's Before you start gives the short version of all this; it can be hidden and opened again.",
+      "Journal → Edit people opens someone's own window, in tabs: About, Day, You, Others and Memory. Journal → World is in tabs too (This world, Setting, Animals, Lore), and New world is a walkthrough in four steps, with Next and Back: you and your people, the land, the AI (its connections and main switches, so they're set before a world is made), lore and setup. Each step says what to know before you start.",
     ],
   },
   {

@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.75)
+## What it does now (0.5.76)
 
 ### The world
 
@@ -110,7 +110,9 @@ the server part isn't running, the menu says so: restart the Engine. Delete a wo
 
 ### AI (the server part)
 
-Wanderworld has a server part (`server.mjs`), so the Engine needs a restart after installing or updating it.
+Wanderworld has a server part (`server.mjs`): code the Engine loads into its own server when it starts. It
+isn't a second server. Because the Engine only loads it at startup, the Engine needs a restart after
+installing or updating Wanderworld; until then the game says it "isn't fully loaded".
 With it running:
 
 - **Conversations in character:** people answer in their own words, written by your model from their card,
@@ -244,9 +246,11 @@ only walk about.
   Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Each section and tab opens with a
   line on what it is for, each setting says what On and Off do, and a setting that depends on another sits
   under it and goes faint while that one is off. Someone's window in Journal → Edit people is in tabs too
-  (About, Day, You, Others, Memory), as are Journal → World (This world, Setting, Animals, Lore) and New
-  world (four steps; one is the AI's connections and main switches, so they're set before a world is made), and the main menu opens with **Before you start**: a short account
-  of what the game is, what a moment and a scene are, and what costs tokens. It can be hidden and reopened.
+  (About, Day, You, Others, Memory), as is Journal → World (This world, Setting, Animals, Lore). **New
+  world** is a walkthrough in four steps with Next and Back: you and your people, the land, the AI (its
+  connections and main switches, so they're set before a world is made), lore and setup. Each step says
+  what to know before you start: what the game is, that the AI is optional and spends tokens, what a moment
+  and a scene are, how memory works, where worlds are saved.
 - **Token use in one place:** Settings → Token use gathers every setting that changes how many tokens are
   spent: which things call the AI (conversations, moments, arrivals, things, the noticeboard, sitting,
   joining, a call for each speaker), how long replies are, and how many memories are sent. They are the
