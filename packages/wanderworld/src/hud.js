@@ -1017,7 +1017,7 @@ export function createHud(root, handlers) {
   sumUpRow();
   at("People", "Genders");
   intro(
-    "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents.",
+    "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",
   );
   const share = (value) => String(Math.round(value));
   slider("genderMale", "Male", 1, share);
@@ -1952,10 +1952,10 @@ export function createHud(root, handlers) {
       clock.textContent = text;
     },
     /** Shows each setting's current value, and applies the display ones. */
-    setSettings(settings) {
+    setSettings(settings, custom = settings.genderName ?? "") {
       for (const [name, field] of Object.entries(fields)) field.set(settings[name]);
       for (const write of explainers) write(settings);
-      genderName = settings.genderName ?? "";
+      genderName = custom; // the world's own name for the third gender, when it has one
       for (const { nodes, under } of dependents)
         for (const node of nodes) node.style.opacity = settings[under] ? "" : "0.45";
       wanted.jump = settings.jumpButton !== false;

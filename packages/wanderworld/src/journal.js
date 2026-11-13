@@ -798,6 +798,61 @@ export function createJournal(panelCss, handlers) {
       row.append(element("span", "", "from"), ageMin, element("span", "", "to"), ageMax);
       body.append(row);
     }
+    body.append(
+      element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Genders of the people nothing says the gender of"),
+    );
+    body.append(
+      explain(
+        "This world's own. Lore comes first: a gender from a lorebook, a card or set by you is never changed. These only decide townsfolk left on Auto and people the AI invents. The sliders are weighed against each other. Townsfolk on Auto follow a change the next time the world is opened.",
+      ),
+    );
+    {
+      const now = { male: 50, female: 50, custom: 0, name: "", ...world.genders };
+      const split = explain("");
+      const write = () => {
+        const total = now.male + now.female + now.custom;
+        const of = (value) => Math.round((value / total) * 100);
+        split.textContent = total
+          ? `Now: ${of(now.male)}% male, ${of(now.female)}% female, ${of(now.custom)}% ${now.name || "custom"}.`
+          : "All three are at 0, so it's half male and half female.";
+      };
+      const keep = () => handlers.onSetSetup({ genders: { ...now } });
+      for (const [key, label] of [
+        ["male", "Male"],
+        ["female", "Female"],
+        ["custom", "Custom"],
+      ]) {
+        const range = element("input", "flex:1;min-width:0;max-width:220px;");
+        Object.assign(range, { type: "range", min: 0, max: 100, step: 1 });
+        range.value = now[key];
+        range.setAttribute("aria-label", `${label}: share of the people nothing says the gender of`);
+        const count = element("span", "flex:none;width:28px;text-align:right;", String(now[key]));
+        range.addEventListener("input", () => {
+          now[key] = Number(range.value);
+          count.textContent = range.value;
+          write();
+        });
+        range.addEventListener("change", keep);
+        const row = element("div", "display:flex;gap:8px;align-items:center;font-size:13px;");
+        row.append(element("span", "flex:none;width:56px;", label), range, count);
+        body.append(row);
+      }
+      body.append(split);
+      const name = element("input", `${FIELD}width:150px;max-width:50vw;`);
+      name.maxLength = 30;
+      name.placeholder = "Non-binary, say";
+      name.value = now.name;
+      name.setAttribute("aria-label", "Name of the custom gender in this world");
+      name.addEventListener("input", () => {
+        now.name = name.value.trim();
+        write();
+      });
+      name.addEventListener("change", keep);
+      const row = element("div", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;");
+      row.append(element("span", "", "Name of the custom gender"), name);
+      body.append(row);
+      write();
+    }
     // This world's own numbers of animals, over what Settings has for every world.
     body.append(mark("Animals"));
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Animals in this world"));

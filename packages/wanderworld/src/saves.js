@@ -26,6 +26,17 @@ const isRecord = (value) => !!value && typeof value === "object" && !Array.isArr
 const text = (value, fallback = "") => (typeof value === "string" ? value.slice(0, 2000) : fallback);
 const finite = (value, fallback) => (Number.isFinite(value) ? value : fallback);
 /** Something written at length (lore, a card made for this world): whole, under a ceiling no one writes to. */
+/** A world's gender shares: three weights from 0 to 100 and the third gender's name, or null for none of its own. */
+export function checkGenders(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const weight = (value) => (Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 0);
+  return {
+    male: weight(raw.male),
+    female: weight(raw.female),
+    custom: weight(raw.custom),
+    name: typeof raw.name === "string" ? raw.name.trim().slice(0, 30) : "",
+  };
+}
 const long = (value) => (typeof value === "string" ? value.slice(0, 200000) : "");
 
 /** Where the player stood, checked; null when it isn't usable. */
@@ -166,6 +177,9 @@ export function checkWorld(raw) {
       min: Number.isInteger(raw.ages?.min) && raw.ages.min >= 1 && raw.ages.min <= 100000 ? raw.ages.min : null,
       max: Number.isInteger(raw.ages?.max) && raw.ages.max >= 1 && raw.ages.max <= 100000 ? raw.ages.max : null,
     },
+    // This world's own shares of men, women and the third gender among people nothing says the gender of, and
+    // that gender's name; null follows Settings → People → Genders (worlds made before 0.5.83).
+    genders: checkGenders(raw.genders),
     // How the world looks in pictures ({world_look}); "" is the setting pack's own.
     look: text(raw.look).slice(0, 200),
     // The chat as it was left: the last lines, [{ who, text, heard }] (`heard`: the ids in earshot then).
