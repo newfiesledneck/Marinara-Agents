@@ -94,7 +94,14 @@ function button(label, title, onClick) {
 let genderName = "";
 const genderLabel = () => genderName || "Custom";
 
-const RESOLUTION_LABELS = { auto: "Auto (keeps it smooth)", 100: "Full", 75: "75%", 50: "50%" };
+const RESOLUTION_LABELS = {
+  auto: "Auto (keeps it smooth)",
+  100: "Full (your screen's)",
+  1440: "1440p",
+  1080: "1080p",
+  720: "720p",
+  540: "540p",
+};
 const DISTANCE_LABELS = { 60: "Tiny", 90: "Near", 140: "Medium", 200: "Far", 300: "Very far", 450: "Max" };
 const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always night" };
 
@@ -733,7 +740,10 @@ export function createHud(root, handlers) {
     genderCustom: "0 means nobody is given the custom gender unless lore, a card or you say so.",
     genderName:
       "What the custom gender is called. It is shown wherever a gender is chosen and is what the AI is told. Empty: Custom.",
-    resolution: "How sharp the picture is. Auto lowers it when things get slow.",
+    resolution:
+      "How sharp the picture is: Full is every pixel of your screen, the others a smaller picture stretched to fit (never more than your screen has). On a 4K screen, 1080p is a quarter of the work. Auto aims for about 1080p and lowers it when things get slow.",
+    ground:
+      "Simple: plainer ground, with less work for every pixel of it. Helps most on a big screen without a graphics card.",
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
     density: "How many trees, rocks and plants grow round the town. Sparse is half the usual, and the fastest.",
     treeDetail:
@@ -929,6 +939,7 @@ export function createHud(root, handlers) {
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
   choice("density", "Trees and rocks", { 0.5: "Sparse", 1: "Normal", 4: "4×", 10: "10×" });
   toggle("shadows", "Shadows under people");
+  choice("ground", "Ground", { full: "Full", simple: "Simple" });
   toggle("nature", "Detailed trees and plants");
   choice(
     "treeDetail",
@@ -1953,8 +1964,8 @@ export function createHud(root, handlers) {
     /** Opens the person editor (person.js) for `person`. */
     editPerson: (person) => personEditor.open(person),
     layer,
-    setStats({ fps, calls, triangles, scale }) {
-      stats.textContent = `${fps} fps · ${calls} draws · ${Math.round(triangles / 1000)}k tris · ${Math.round(scale * 100)}% res`;
+    setStats({ fps, calls, triangles, height }) {
+      stats.textContent = `${fps} fps · ${calls} draws · ${Math.round(triangles / 1000)}k tris · ${height}p`;
     },
     setClock(text) {
       clock.textContent = text;

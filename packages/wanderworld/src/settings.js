@@ -8,8 +8,11 @@ const KEY = "wanderworld.settings";
 
 /** Each setting: its default and what it may be. */
 export const SETTINGS = {
-  /** Render resolution: "auto" adjusts to keep the frame rate up; the rest are a share of the screen's. */
-  resolution: { value: "auto", options: ["auto", "100", "75", "50"] },
+  /** Render resolution: "auto" adjusts to keep the frame rate up; "100" is the screen's own; the rest are
+   *  picture heights in pixels (1080p…), never more than the screen has. */
+  resolution: { value: "auto", options: ["auto", "100", "1440", "1080", "720", "540"] },
+  /** The ground's textures in full, or the cheaper simple ground. */
+  ground: { value: "full", options: ["full", "simple"] },
   /** How far you can see before the haze, in metres. */
   drawDistance: { value: 140, options: [60, 90, 140, 200, 300, 450] },
   /** Trees and rocks outside town, as a multiple of the usual. */
@@ -192,6 +195,7 @@ export const DEVICE_SETTINGS = new Set([
   "resolution",
   "drawDistance",
   "density",
+  "ground",
   "treeDetail",
   "shadows",
   "nature",

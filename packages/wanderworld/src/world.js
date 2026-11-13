@@ -2812,6 +2812,8 @@ function terrainUniforms() {
  * metres and sampled twice at different sizes so its repeats don't show, under large soft light and dark
  * patches. The vertex colour adds a little brightness per facet, keeping the low-poly look.
  */
+/** Each world's ground materials, by its ground uniforms: for switching the simple ground on and off. */
+const GROUND_MATERIALS = new WeakMap();
 function terrainMaterial(uniforms, options = {}) {
   const material = new MeshLambertMaterial({ vertexColors: true, ...options });
   material.onBeforeCompile = (shader) => {
@@ -2847,29 +2849,48 @@ varying vec4 vSplatA;
 varying vec4 vSplatB;
 varying vec4 vSplatC;
 varying vec2 vGround;
-vec3 groundLayer(sampler2D map, float scale) {
+// One layer of the ground, by its weight. A layer that isn't there isn't looked up at all (most of the
+// land is one or two of the nine), which is most of what the ground costs a machine drawing on its
+// processor; the slopes are worked out outside the branch, so the texture's detail level stays right.
+vec3 groundLayer(sampler2D map, float scale, float weight, vec2 dx, vec2 dy) {
+  if (weight < 0.004) return vec3(0.0);
   vec2 uv = vGround / scale;
-  vec3 near = texture2D(map, uv).rgb;
+  vec3 near = textureGrad(map, uv, dx / scale, dy / scale).rgb;
+#ifdef GROUND_SIMPLE
+  return near * weight;
+#else
   // The same texture, larger and turned, mixed in: the eye can't find one repeat to follow.
-  vec2 far = mat2(0.8, -0.6, 0.6, 0.8) * uv * 0.31 + vec2(0.37, 0.71);
-  return mix(near, texture2D(map, far).rgb, 0.4);
+  mat2 turn = mat2(0.8, -0.6, 0.6, 0.8);
+  vec2 far = turn * uv * 0.31 + vec2(0.37, 0.71);
+  float wide = 0.31 / scale;
+  return mix(near, textureGrad(map, far, turn * dx * wide, turn * dy * wide).rgb, 0.4) * weight;
+#endif
 }`,
       )
       .replace(
         "#include <map_fragment>",
         `{
   float total = max(0.0001, dot(vSplatA, vec4(1.0)) + dot(vSplatB, vec4(1.0)) + vSplatC.x);
-  vec3 ground = (groundLayer(tgrass, sgrass) * vSplatA.x * (1.0 - uWinter) + groundLayer(tdirt, sdirt) * vSplatA.y
-    + groundLayer(trock, srock) * vSplatA.z + groundLayer(tsand, ssand) * vSplatA.w
-    + groundLayer(tsnow, ssnow) * (vSplatB.x + uWinter * (vSplatA.x + vSplatC.x)) + groundLayer(tcobbles, scobbles) * vSplatB.y
-    + groundLayer(tsetts, ssetts) * vSplatB.z + groundLayer(tplaza, splaza) * vSplatB.w
-    + groundLayer(tforest, sforest) * vSplatC.x * (1.0 - uWinter)) / total;
+  vec2 gx = dFdx(vGround);
+  vec2 gy = dFdy(vGround);
+  vec3 ground = (groundLayer(tgrass, sgrass, vSplatA.x * (1.0 - uWinter), gx, gy) + groundLayer(tdirt, sdirt, vSplatA.y, gx, gy)
+    + groundLayer(trock, srock, vSplatA.z, gx, gy) + groundLayer(tsand, ssand, vSplatA.w, gx, gy)
+    + groundLayer(tsnow, ssnow, vSplatB.x + uWinter * (vSplatA.x + vSplatC.x), gx, gy) + groundLayer(tcobbles, scobbles, vSplatB.y, gx, gy)
+    + groundLayer(tsetts, ssetts, vSplatB.z, gx, gy) + groundLayer(tplaza, splaza, vSplatB.w, gx, gy)
+    + groundLayer(tforest, sforest, vSplatC.x * (1.0 - uWinter), gx, gy)) / total;
+#ifdef GROUND_SIMPLE
+  diffuseColor.rgb *= ground * 0.93;
+#else
   float patches = texture2D(tMacro, vGround / 52.0).r;
   diffuseColor.rgb *= ground * (0.78 + patches * 0.3);
+#endif
 }`,
       );
   };
-  material.customProgramCacheKey = () => "wanderworld-terrain";
+  material.customProgramCacheKey = () =>
+    `wanderworld-terrain${material.defines?.GROUND_SIMPLE === undefined ? "" : "-simple"}`;
+  if (!GROUND_MATERIALS.has(uniforms)) GROUND_MATERIALS.set(uniforms, []);
+  GROUND_MATERIALS.get(uniforms).push(material);
   return material;
 }
 
@@ -3567,18 +3588,16 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     // Far off (past the detailed trees, out to the draw distance): the simple trees, a hundredth of the cost.
     const far = natureLayers.length > 0 && view.radius > view.treeReach;
     trunks.visible = crowns.visible = far || !natureLayers.length;
-    if (!far) {
-      if (natureLayers.length) return;
-      trunks.count = crowns.count = Math.min(trees.length, baseTrees * view.density);
-      return;
-    }
-    const near = (view.treeReach + 15) ** 2; // where the detailed ones stop
-    const out = (view.radius + 15) ** 2;
+    if (!trunks.visible) return;
+    // (With no detailed nature, the simple trees are all there are: from the player's feet outward. They too
+    // are only drawn within the draw distance and where the camera looks.)
+    const near = natureLayers.length ? (view.treeReach + 15) ** 2 : -1; // where the detailed ones stop
+    const out = Number.isFinite(view.x) ? (view.radius + 15) ** 2 : Infinity;
     let count = 0;
     const limit = baseTrees * view.density;
     for (let i = 0; i < limit && i < trees.length; i++) {
-      const distance = (trees[i].x - view.x) ** 2 + (trees[i].z - view.z) ** 2;
-      if (distance < near || distance > out) continue;
+      const distance = Number.isFinite(view.x) ? (trees[i].x - view.x) ** 2 + (trees[i].z - view.z) ** 2 : 0;
+      if (distance < near || distance > out || !inCone(trees[i])) continue;
       trunks.setMatrixAt(count, treeMatrices[i]);
       crowns.setMatrixAt(count, treeMatrices[i]);
       crowns.setColorAt(count, crownColor.setHSL(0.3 + trees[i].tint * 0.08, 0.45, 0.26 + trees[i].tint * 0.08));
@@ -3595,7 +3614,6 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     sky_.z = z;
     lamps.follow(x, z);
     terrain.follow(x, z);
-    if (!natureLayers.length) return;
     const turned = camera ? lookWith(camera) : false;
     if (!turned && (x - view.x) ** 2 + (z - view.z) ** 2 < 64) return;
     view.x = x;
@@ -3675,6 +3693,15 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       moved = true;
     }
     if (moved) for (const mesh of doorMeshes) mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** The simple ground (one look-up for each layer, no broad patches) or the full one. */
+  function setGroundSimple(simple) {
+    for (const material of GROUND_MATERIALS.get(ground) ?? []) {
+      if ((material.defines?.GROUND_SIMPLE !== undefined) === simple) continue;
+      material.defines = simple ? { ...material.defines, GROUND_SIMPLE: "" } : {};
+      material.needsUpdate = true;
+    }
   }
 
   /** How far out trees are drawn in detail (metres); past it the simple ones stand in. */
@@ -4095,6 +4122,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     update,
     setDrawDistance,
     setTreeReach,
+    setGroundSimple,
     setTime,
     /** True when (x, z) is inside a building (with `margin`), so someone walking there would be stopped. */
     blocked: (x, z, margin = 0.3) => collider.insideBox(x, z, margin),

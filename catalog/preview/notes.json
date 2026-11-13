@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.85",
+          "date": "2026-11-13",
+          "notes": "- Resolution is chosen by name: Auto, Full (your screen's), 1440p, 1080p, 720p, 540p. The stats line shows the picture's height. A saved 75% or 50% goes back to Auto.\n- The ground costs less for every pixel: layers that aren't at a spot aren't looked up there. Settings → Display → Graphics → Ground: Simple makes it cheaper again, a little plainer.\n- With detailed trees off, the simple ones are drawn only within the draw distance and where the camera looks, not across the whole world.",
+          "highlight": false
+        },
+        {
           "version": "0.5.84",
           "date": "2026-11-13",
           "notes": "- Faster, most of all without a graphics card. Detailed trees, rocks and plants are drawn only where the camera looks (about a third as many at once), and people who are off screen aren't drawn.\n- Settings → Display → Graphics: \"Detailed trees out to\" (Near, Medium, Far) sets how far trees are drawn in full; past it simple ones stand in. \"Trees and rocks\" has a Sparse choice, half the usual.\n- The notice shown when the browser draws without the graphics card names the fastest settings.",
@@ -307,12 +313,6 @@
           "version": "0.5.66",
           "date": "2026-11-11",
           "notes": "- How many memories the AI is sent is now set apart from how many are kept: Settings → Everyday memories sent to the AI (0 to 40, 12 to start) and Lasting memories sent to the AI (0 to 30, 8 to start). The number is shared between whoever the AI is speaking for, rounded up: 20 between three people is 7 each.\n- Anyone can have numbers of their own in Journal → Edit people. A new switch says whether those come out of the shared count (5, 5 and 10) or leave the others' share alone (7, 7 and 10; off to start).\n- The settings say what this costs in tokens and how to keep it down: a low shared number, and a higher one for the people who matter.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.65",
-          "date": "2026-11-11",
-          "notes": "- The written manner for each relationship (0.5.62) is taken out: it could contradict a character's card or lore. The AI is still told what each person is to you (brother, employer, good friend, bitter rival) and what people in earshot are to each other; how they speak is left to their card and lore.",
           "highlight": false
         }
       ]

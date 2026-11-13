@@ -72,3 +72,24 @@ resolution.
 - "Detailed trees out to" (30, 70 or 180 m) and a Sparse density (0.5×) lower it further.
 
 Readings with these are in the next table when they're taken.
+
+## 0.5.85, 2026-11-13: readings without a graphics card
+
+The maintainer's PC with Chrome's hardware acceleration off (drawing on the processor), a 4K screen, out
+in the hills of a Normal world on 0.5.84:
+
+| Settings                                            | Triangles | Draws | fps |
+| --------------------------------------------------- | --------- | ----- | --- |
+| Everything on, Max draw distance, trees Far (180 m) | 3.51 M    | 579   | 11  |
+| The same, detailed trees Near (30 m)                | 1.67 M    | 488   | 14  |
+| Detailed trees off                                  | 1.66 M    | 487   | 18  |
+| and detailed props off                              | 1.51 M    | 451   | 18  |
+| and detailed buildings off                          | 0.87 M    | 266   | 19  |
+| and draw distance Tiny                              | 0.58 M    | 47    | 25  |
+| and trees Sparse                                    | 0.41 M    | 47    | 27  |
+| and resolution 50% (1080p)                          | 0.41 M    | 47    | 41  |
+
+So on a big screen the pixels cost as much as the triangles: the ground was 19 texture look-ups for every
+pixel of it, whatever was there. 0.5.85 looks up only the layers that are at a spot, has a Simple ground,
+names the resolutions, and stops drawing the whole world's simple trees when detailed trees are off (170 k
+to 340 k of the triangles above).
