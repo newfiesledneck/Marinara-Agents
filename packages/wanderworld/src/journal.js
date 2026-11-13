@@ -174,12 +174,12 @@ export function createJournal(panelCss, handlers) {
     if (peopleView === "relations") return drawRelations();
     body.append(
       explain(
-        "Everyone who lives in this world, by the groups they belong to. Who lives here is chosen in Menu → Settings → World.",
+        "Everyone who lives in this world, by the groups they belong to. Who lives here is chosen in Menu → Settings → People.",
       ),
     );
     const { groups, creatures } = data.roster;
     if (!groups.length)
-      body.append(line("Nobody lives here yet. Choose characters in Menu → Settings → World.", MUTED));
+      body.append(line("Nobody lives here yet. Choose characters in Menu → Settings → People.", MUTED));
     for (const group of groups) {
       body.append(section(`${group.name} (${group.members.length})`));
       for (const member of group.members) {
@@ -384,7 +384,7 @@ export function createJournal(panelCss, handlers) {
           line(
             house.walkIn
               ? "Go inside your home to put furniture in it."
-              : "Furniture goes in from inside your home. Turn on Menu → Settings → Walk into buildings first, then go in.",
+              : "Furniture goes in from inside your home. Turn on Menu → Settings → World → Places → Walk into buildings first, then go in.",
             MUTED,
           ),
         );

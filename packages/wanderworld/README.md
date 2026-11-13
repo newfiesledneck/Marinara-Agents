@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.70)
+## What it does now (0.5.71)
 
 ### The world
 
@@ -232,12 +232,19 @@ only walk about.
   out what doesn't matter, find repeats, sum up old ones into one lasting memory, suggest what to pin).
   Each asks whose memories to send first, a tick for each person or everyone's, with a rough token count.
   Every rewording, deletion, pin or new memory is proposed for you to change, leave out, confirm, and undo.
-  **Sum up old memories** also has a button where memories are set: in Settings → Living world, in
+  **Sum up old memories** also has a button where memories are set: in Settings → People → Memory, in
   Settings → Token use, and in each person's window in Journal → Edit people (for that person alone).
+- **Settings that explain themselves:** Menu → Settings is in sections (Display, Controls, World, People,
+  Animals, AI, Token use), and a section with a lot in it has tabs of its own (People: Around you,
+  Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Each section and tab opens with a
+  line on what it is for, each setting says what On and Off do, and a setting that depends on another sits
+  under it and goes faint while that one is off. Someone's window in Journal → Edit people is in tabs too
+  (About, Day, You, Others, Memory), and the main menu opens with **Before you start**: a short account
+  of what the game is, what a moment and a scene are, and what costs tokens. It can be hidden and reopened.
 - **Token use in one place:** Settings → Token use gathers every setting that changes how many tokens are
   spent: which things call the AI (conversations, moments, arrivals, things, the noticeboard, sitting,
   joining, a call for each speaker), how long replies are, and how many memories are sent. They are the
-  same settings as in AI and Living world, so a change in one place shows in the other. It also says what
+  same settings as in AI and People → Memory, so a change in one place shows in the other. It also says what
   else adds up (a long narrator card, lore tied to the whole world) and where to see exactly what is sent.
 - **Relationships are told as they are:** the AI is given what each person is to you (brother, employer,
   good friend, bitter rival) and what people in earshot are to each other. How someone speaks is left to
@@ -249,7 +256,7 @@ only walk about.
   when and how they came by them, the chat they alone heard, lore about themselves), so nobody speaks of
   what you said to someone else elsewhere. People in sight also remember what you do, and with
   gossip switched on (off by default) those who spend time together pass it on as hearsay. For the strictest
-  separation, Settings → AI → "A call for each person who answers" (off by default) writes each reply in
+  separation, Settings → AI → Writing → "A separate call for each person who answers" (off by default) writes each reply in
   a call of its own that holds only that person's knowledge. The chat window's **Scene** button, or
   `/scene …`, starts a scene right where you stand: with whoever's near and your party, with the narrator
   as well, or with the narrator alone when nobody else is there. What you do is narrated even with
@@ -315,12 +322,12 @@ only walk about.
   never meet drift apart. Each relationship has a Lock (it never moves by itself) and an Attraction
   level with its own lock, in Journal → Edit people; one set by hand moves on from there. Journal →
   Relationships ends with Lately, the record of it, and coming back to the town or the country after
-  a few hours away says what happened there. Settings → Living world has a switch for each part.
+  a few hours away says what happened there. Settings → People → Relationships has a switch for each part.
 - **Out in the country, more to find:** a gallows, a pillory and sometimes a cage beside a watchtower,
   crystals pushing up among the standing stones, a signpost off the corner of an inn or a cottage.
 - **Market days and festivals:** once a week it's market day, once in four weeks an evening festival;
   for those hours a good share of the town gathers in the market square, and a line says so
-  (`src/events.js`; rules only, with a switch in Settings → Living world).
+  (`src/events.js`; rules only, with a switch in Settings → World → Places).
 - **Your household (Journal → Home):** move into any house that stands empty, with whichever of the
   people you live with you choose (the rest stay); ask someone to move in, or a housemate to leave;
   have someone round for a few hours. Inside your home, the same tab furnishes it: eighteen kinds of
@@ -342,7 +349,7 @@ only walk about.
   time with (`src/memory.js`; rules only). The AI is given the memories of whoever it's speaking for
   and nobody else's, so it can't know what someone across town was told. Someone you said something
   to may come over within a few days to bring it up. Their window in Journal → Edit people shows and
-  clears it; Settings → Living world switches it off.
+  clears it; Settings → People → Memory switches it off.
 - **How many animals:** Settings → Animals has a slider for each sort (stray dogs, farm animals, peaceful
   wild animals, hostile ones, monsters): that many of the world's own, 0 for none. What a lorebook asks
   for and anyone's own dog or horse are still there at 0, unless that's turned off. Each kind also has

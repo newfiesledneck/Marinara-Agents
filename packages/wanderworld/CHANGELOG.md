@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.5.71 — 2026-11-12
+
+- Settings are laid out again. Sections: Display, Controls, World, People, Animals, AI, Token use. Bigger ones have tabs (People: Around you, Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Sound, name tags, market days and Regenerate this world moved to where they belong.
+- Every section and tab starts with a line on what it is for, and every description is rewritten short: what On and Off do, an example where there are numbers. A setting that depends on another sits under it and goes faint while that one is off.
+- Some settings are renamed in plain words, such as "Count personal limits against the total".
+- Edit people is in tabs: About, Day, You, Others, Memory. A person's memory limits come before their memories.
+- The main menu opens with Before you start, which can be hidden and reopened.
+
 ## 0.5.70 — 2026-11-12
 
 - Saved worlds are the Engine's alone now. The browser fallback and the move from the browser are gone, with the older conversions (the single world from before saves, the one narrator card). If the server part doesn't answer, the menu says to restart the Engine, and nothing is written.

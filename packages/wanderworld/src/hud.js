@@ -595,7 +595,7 @@ export function createHud(root, handlers) {
   // Who's in town is listed first: sorted each time the panel opens (not while ticking, so rows stay put).
   let peopleOrder = null; // character ids in the order shown
   let lastPeople = null; // the last setCharacters arguments, to redraw sorted
-  const peopleButton = button("People", "Choose characters to live in town", () => {
+  const peopleButton = button("Who lives here…", "Choose characters to live in town", () => {
     peopleOrder = null;
     if (lastPeople) hud.setCharacters(...lastPeople);
     togglePanel(peoplePanel);
@@ -625,26 +625,64 @@ export function createHud(root, handlers) {
   closeSettings.setAttribute("aria-label", "Close settings");
   closeSettings.style.cssText = `${INK_SMALL}margin-left:auto;padding:0 9px;font-size:16px;`;
   closeSettings.addEventListener("click", () => (settingsPanel.style.display = "none"));
+  // Everything in the panel belongs to a section, and within it to a sub-tab or to all of them: said by
+  // where it was added (`at`), so what's built later can still go where it belongs.
   let shownSection = "";
-  const showSection = (name) => {
+  const sections = new Map(); // section → { subs: [names], shown: name }
+  let spot = { section: "", sub: "" };
+  const subTabs = document.createElement("div");
+  subTabs.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:2px;";
+  settingsPanel.append(subTabs);
+  const add = (...nodes) => {
+    for (const node of nodes) {
+      node.dataset.section = spot.section;
+      if (spot.sub) node.dataset.sub = spot.sub;
+    }
+    settingsPanel.append(...nodes);
+  };
+  const showSection = (name, sub = null) => {
+    if (!sections.has(name)) name = shownSection || [...sections.keys()][0];
     shownSection = name;
-    let current = "";
+    const section = sections.get(name);
+    if (sub && section.subs.includes(sub)) section.shown = sub;
     for (const child of settingsPanel.children) {
-      if (child === sectionTabs || child === sectionStyle) continue;
-      if (child.dataset.settingsHeading) current = child.dataset.settingsHeading;
-      // Rows added later (connection lists, the regenerate card) belong to the heading above them. Hidden
-      // by an attribute, so each row's own display (and whatever shows or hides it) is left alone.
-      child.toggleAttribute("data-wanderworld-settings-hidden", !!child.dataset.settingsHeading || current !== name);
+      if (!child.dataset.section) continue; // the tabs themselves
+      // Hidden by an attribute, so each row's own display (and whatever shows or hides it) is left alone.
+      child.toggleAttribute(
+        "data-wanderworld-settings-hidden",
+        child.dataset.section !== name || (!!child.dataset.sub && child.dataset.sub !== section.shown),
+      );
     }
     for (const tab of sectionTabs.children)
       if (tab !== closeSettings) tab.style.opacity = tab.textContent === name ? "1" : "0.6";
+    subTabs.replaceChildren(
+      ...section.subs.map((text) => {
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.textContent = text;
+        tab.style.cssText = `${INK_SMALL}opacity:${text === section.shown ? "1" : "0.6"};${text === section.shown ? "font-weight:700;" : ""}`;
+        tab.setAttribute("aria-pressed", String(text === section.shown));
+        tab.addEventListener("click", () => showSection(name, text));
+        return tab;
+      }),
+    );
+    subTabs.style.display = section.subs.length ? "flex" : "none";
   };
-  const heading = (text) => {
+  /** What a section or a sub-tab is for, in a line or two at its top. */
+  const intro = (text) => {
     const element = document.createElement("div");
+    element.setAttribute("data-wanderworld-explain", "");
+    element.style.cssText = `font-size:12px;line-height:1.4;color:${INK_SOFT};margin-bottom:2px;`;
     element.textContent = text;
-    element.dataset.settingsHeading = text;
-    element.style.cssText = "font-weight:700;margin-top:6px;opacity:0.85;";
-    settingsPanel.append(element);
+    add(element);
+  };
+  /** What's added next goes in `section` (and its sub-tab `sub`; none: shown whichever is open). */
+  const at = (section, sub = "") => {
+    spot = { section, sub };
+  };
+  /** A section: its tab, its sub-tabs if it has any, and what it's for. */
+  const heading = (text, about = "", subs = []) => {
+    sections.set(text, { subs, shown: subs[0] ?? "" });
     const tab = document.createElement("button");
     tab.type = "button";
     tab.textContent = text;
@@ -652,120 +690,130 @@ export function createHud(root, handlers) {
     tab.addEventListener("click", () => showSection(text));
     sectionTabs.append(tab, closeSettings); // the close button stays last
     if (!shownSection) shownSection = text;
+    at(text);
+    if (about) intro(about);
   };
-  // What each setting does, in a line under it (hidden with Show explanations off).
+  /** A small heading inside a sub-tab. */
+  const part = (text) => {
+    const element = document.createElement("div");
+    element.style.cssText = "font-weight:600;margin-top:6px;";
+    element.textContent = text;
+    add(element);
+  };
+  // What each setting does, in a line or two under it (hidden with Show explanations off): what it does,
+  // an example where there are numbers, what it costs or needs. One that's a function states what
+  // other settings are set to, and is written again when they change.
+  const sentNow = (count) =>
+    count > 100
+      ? "Now: all of them, for everyone. That can cost a lot."
+      : `Now ${count}: one person gets ${count}, two get ${Math.ceil(count / 2)} each, three get ${Math.ceil(count / 3)} each.`;
   const EXPLAIN = {
-    resolution: "How sharp the picture is. Auto lowers it when frames drop, to keep things smooth.",
-    drawDistance:
-      "How far buildings, people, trees and things are drawn; fog hides what's past it. Further looks grand but costs speed.",
+    resolution: "How sharp the picture is. Auto lowers it when things get slow.",
+    drawDistance: "How far away things are drawn. Further looks grander but is slower.",
     density: "How many trees, rocks and plants grow round the town.",
     shadows: "Soft shadows under people.",
-    nature: "Detailed trees and plants from the nature kit, instead of simple shapes.",
-    props: "Detailed barrels, crates, benches and stalls, instead of simple shapes.",
-    buildings: "Buildings assembled from the village kit, instead of simple boxes.",
-    people: "How characters without their own 3D model look: dressed townsfolk, or simple figures.",
-    animation: "Recorded motion from the animation library, or the hand-made walk.",
+    nature: "On: detailed trees and plants. Off: simple shapes, which is faster.",
+    props: "On: detailed barrels, crates, benches and stalls. Off: simple shapes.",
+    buildings: "On: detailed buildings. Off: simple boxes.",
+    people: "How characters with no 3D model of their own look.",
+    animation: "Recorded: motion from the animation library. Built-in: a simple hand-made walk.",
     walkSpeed: "How fast you walk.",
     runSpeed: "How fast you run (hold Shift).",
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
-    invertLook: "Dragging up looks down, like a flight stick.",
-    restKey:
-      "The C key sits you down on the ground, and pressed again lies you down. The chat window's buttons do the same.",
-    jumpButton: "On a touch screen, a Jump button above Use.",
-    restButton: "On a touch screen, a Sit button above Use; it becomes Lie down once you're sitting on the ground.",
-    chatMoves: "Jump and Sit buttons in the chat window. Sit becomes Lie down, then Get up.",
-    time: "Let the day pass, or keep it at one time of day.",
-    aiMoments:
-      "The model narrates what you do and people nearby may answer: one call each time. Off, the world answers with its own written lines. What you type in the chat is always a moment while this is on.",
-    aiArrive:
-      "A call each time you come somewhere new (not streets, not places told lately). Off by default: it adds up.",
-    aiThings: "A call when you choose something on a card: a stall, the fountain, a door, a campfire.",
-    aiBoard: "A call when you stop at the noticeboard.",
-    aiSeats: "A call when you sit down with someone near.",
-    aiJoin: "A call when you join someone in what they're doing.",
-    aiSeparate:
-      "The strictest way to keep people from knowing what they shouldn't. One call tells the moment and picks who answers, without anyone's private knowledge; then each person who answers gets a call of their own with only what they themselves know. Up to four calls a moment instead of one, so it's slower and costs more. Off, one call writes for everyone: their knowledge is kept apart in it, which a strong model respects.",
-    narratorCard:
-      "One of your character cards as the voice that tells the world as you walk it: what you see, what comes of what you do. A short card works best (a voice and a few rules); its first 1500 characters are used. None: a plain narrator.",
-    sceneNarratorCard:
-      "One of your character cards as the narrator of scenes. A roleplay narrator's card suits this. With it, a scene can start with nobody else there: alone in the woods, with only the narrator.",
+    invertLook: "On: dragging up looks down, like a flight stick.",
+    restKey: "On: C sits you down, and again lies you down.",
+    jumpButton: "On a touch screen: a Jump button above Use.",
+    restButton: "On a touch screen: a Sit button above Use. It becomes Lie down once you're sitting.",
+    chatMoves: "Jump and Sit buttons in the chat window.",
+    time: "Let the day pass, or keep it always day or always night.",
+    timeSpeed: "How long a full day takes.",
+    weather: "Changing picks rain, snow, mist or clear every few minutes. Off keeps the sky clear.",
     narration:
-      "A line on coming somewhere new (its lore, when it has some) and now and then about who's near. Written lines, unless Settings → AI lets arrivals call the model.",
-    weather: "Rain, snow or mist, changing every few minutes or always one. Off keeps the sky clear.",
-    timeSpeed: "How fast the day passes while it's moving.",
-    interiors: "Walk into furnished rooms (unfinished). Off, a door shows who's inside and offers a scene.",
-    approach: "How often townsfolk come up to greet you, or confront you. 0 means never.",
-    relationsMove:
-      "People who spend time together grow a little closer, slowly: a step for an evening, a tier in a few weeks. Two short-tempered people sometimes have words instead, and friends who never meet drift apart. A relationship you lock (in Journal → Edit people) never moves; one you set by hand moves on from there.",
-    worldLog:
-      "A short record of who spent time with whom and what changed between them, in Journal → Relationships under Lately. Off, nothing is written down (relationships can still change).",
-    memories: (s) =>
-      `Each person keeps their own memory: a short everyday one (what you said in their hearing, who they spent time with; ${s.memoryEach > 100 ? "all of them" : `the newest ${s.memoryEach}`}) and a lasting one for what mattered (a scene together, a night at your campfire, travelling with you, moving house, an errand, falling out or growing closer; ${s.memoryKept > 100 ? "all of them" : `${s.memoryKept}, which only other lasting ones push out`}). Pin any memory as lasting, or write one, in Journal → Edit people. The AI is given only the memories of the people it's speaking for, so nobody knows what someone else was told. Someone you said something to may come over later to bring it up. Off, nothing is remembered or sent. See or clear someone's in Journal → Edit people. The numbers here are what the sliders below are set to.`,
-    memorySights:
-      "Anyone within sight remembers what you do, not only what you say in their hearing: getting up on a horse, going into a house, lighting a fire. Only they know it. Needs memories on. Off, people remember only what was said near them.",
-    gossip:
-      'Gossip. People who spend time together now and then tell each other something they saw or heard of you in the last few days. Whoever is told knows it as hearsay ("was told by Corvin"), keeps only a few such things, and doesn\'t pass it further. What you whisper is never passed on. Needs memories on. Off, people know only what they were there for.',
-    memoryEach:
-      "How many everyday memories each person keeps: what was said near them, what they saw, who they were with. The newest stay and the oldest go. The last step is All: nothing is pushed out unless you delete it, and the saved world grows with it (there's no limit). Keeping more costs no tokens by itself: what's sent to the AI is set below. Anyone can have a number of their own in Journal → Edit people.",
-    memoryKept:
-      "How many lasting memories each person keeps: what mattered (a scene, a campfire, travelling together). Only other lasting ones push them out. The last step is All: none is pushed out unless you delete it. Memories you pin are locked and don't count against this. Anyone can have a number of their own in Journal → Edit people.",
-    memoryTold: (s) =>
-      `How many everyday memories are sent to the AI each time it speaks, shared between everyone it speaks for: 20 with two people is 10 each, with three it's 7 each (rounded up). Someone with fewer than their share leaves the rest of it to the others. The last step is All: every everyday memory each of them keeps, however many. This costs tokens: every memory sent is roughly 30 to 60 tokens on every reply, for every person, so All with a lot kept can be tens of thousands a reply, and more than a small model can read. The cheap way is to keep this low and give the few people who matter a number of their own in Journal → Edit people: that number is theirs alone and isn't shared out. Sum up old memories, below, makes what's kept shorter. ${s.memoryTold > 100 ? "As it's set now: all of them, for everyone." : `As it's set now (${s.memoryTold}): ${s.memoryTold} for one person alone, ${Math.ceil(s.memoryTold / 2)} each for two, ${Math.ceil(s.memoryTold / 3)} each for three.`}`,
-    memoryKeptTold: (s) =>
-      `How many lasting memories are sent to the AI each time it speaks, shared between everyone it speaks for in the same way (16 with three people is 6 each; a share someone can't fill goes to the others). Pinned memories are sent besides, the newest six, and never twice. The last step is All: every lasting and pinned memory, however many. The same goes for tokens: keep this low, and raise it for the people who matter in Journal → Edit people. ${s.memoryKeptTold > 100 ? "As it's set now: all of them, for everyone." : `As it's set now (${s.memoryKeptTold}): ${s.memoryKeptTold} for one person alone, ${Math.ceil(s.memoryKeptTold / 2)} each for two, ${Math.ceil(s.memoryKeptTold / 3)} each for three.`}`,
-    memoryToldCounted:
-      "What a person's own number (Journal → Edit people) does to everyone else's share. Off, the split is not affected by overrides: with 20 shared between three and one of them set to 10, the others still get 7 each (7, 7 and 10; 24 sent). On, the split is affected by overrides: the 10 comes out of the 20 first and the others split what's left (5, 5 and 10; 20 sent), so the shared number is the most that's sent unless the overrides alone come to more.",
+      'A short written line when you arrive somewhere new, and now and then about who is near. No AI is used. To have the AI write it, turn on AI → Writing → "…when you arrive somewhere".',
+    interiors: "On: you can walk into furnished rooms (unfinished). Off: a door shows who's inside.",
     worldEvents:
-      "Once a week it's market day, and once in four weeks there's an evening festival: for those hours a good share of the town gathers in the market square, and a line says so. People in your party, people you've asked round, and anyone whose day you set by hand for those hours keep to that instead. Off, every day is like every other.",
-    awayRecap:
-      "When you come back to the town or out into the country after a few hours away, a line about what happened there meanwhile. Needs the record above.",
-    animalsStrays: "Dogs with no owner about the settlement. 0: none of the world's own.",
-    animalsFarm:
-      "Cattle, donkeys and horses at the farms, and the horses by taverns and inns. A world with no farm has only those.",
+      "On: once a week is market day and every fourth week an evening festival, when much of the town gathers in the square. Off: every day is the same.",
+    approach: "How often townsfolk walk up to greet you, or to confront you. 0 is never.",
+    approachMax: "The most people who come up to you at the same time.",
+    combat:
+      "Where unfriendly people and hostile animals may square up to you. Safe places are towns, inns and cottages. Nothing is hurt yet.",
+    names:
+      "Name tags over people's heads, tinted by how they see you. With \"Only people I know\", someone you haven't met is a Stranger until you learn their name.",
+    relationsMove:
+      "On: people who spend time together slowly grow closer, short-tempered ones sometimes fall out, and friends who never meet drift apart. A relationship you lock in Journal → Edit people never changes. Off: only you change them.",
+    worldLog:
+      "On: who spent time with whom, and what changed between them, is noted in Journal → Relationships → Lately. Off: nothing is noted.",
+    awayRecap: "On: when you come back after a few hours away, one line says what happened meanwhile.",
+    memories: (s) =>
+      `On: each person remembers what was said near them and who they spent time with (${s.memoryEach > 100 ? "every one" : `the newest ${s.memoryEach}`}), and separately what mattered, like a scene together or a night at your campfire (${s.memoryKept > 100 ? "every one" : `up to ${s.memoryKept}`}). Off: nothing is remembered, and nothing is sent to the AI.`,
+    memorySights:
+      "On: anyone who can see you also remembers what you do, like getting on a horse or lighting a fire. Off: only what was said near them.",
+    gossip:
+      "On: people who spend time together sometimes tell each other something they saw or heard of you. The listener knows it as hearsay and doesn't pass it on. Whispers are never passed on. Off: people only know what they were there for.",
+    memoryEach:
+      "Small things: what was said, what they saw. When full, the oldest is forgotten. All keeps everything until you delete it. Keeping more costs no tokens.",
+    memoryKept:
+      "Things that mattered. Only another lasting memory pushes one out. All keeps everything. Memories you pin are locked and don't count.",
+    memoryTold: (s) =>
+      `One total, split evenly between the people the AI is speaking for. ${sentNow(s.memoryTold)} Someone with fewer than their share leaves the rest to the others. Each memory sent costs roughly 30 to 60 tokens per reply.`,
+    memoryKeptTold: (s) =>
+      `Split the same way. ${sentNow(s.memoryKeptTold)} Pinned memories are always sent as well (the newest six).`,
+    memoryToldCounted:
+      'Only matters if someone has their own "sent to the AI" number in Journal → Edit people → Memory. Off: everyone else still gets their normal share (total 20, three people, one set to 10: they get 7, 7 and 10). On: that person\'s number comes out of the total first (same case: 5, 5 and 10).',
+    animalsStrays: "Dogs with no owner about the settlement.",
+    animalsFarm: "Cattle, donkeys and horses at the farms, and horses by taverns and inns.",
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters:
-      "Slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, giant frogs, imps, puglins, and hostile people (bandits, witches, wizards), out in the country, and now and then a dragon high overhead, alone or in twos and threes. Skeletons and bats are about only at night. They act as Hostile animals below says.",
-    animalsTown:
-      "The most stray dogs and horses inside the settlement itself, shared between them. Any more are put just outside it.",
+      "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, bandits, witches and wizards out in the country, and rarely a dragon overhead. Skeletons and bats only at night.",
+    animalsTown: "The most stray dogs and horses inside the settlement itself. Any more are put just outside it.",
+    loreAnimals:
+      "On: animals a lorebook places, and anyone's own dog or horse, appear even when their sort is at 0. Off: 0 means none at all.",
     hostileAnimals:
       "Keep their distance: they run if you come close. Square up: they come to about six paces and hold you off. Come for you: they run in and snap, sending you back a step. Nothing is hurt yet.",
-    loreAnimals: "Off: a sort set to 0 has none at all, lore's and owned ones included.",
-    approachMax: "The most people coming up to you at the same time.",
-    combat: "Where people may confront (and later fight) you: safe places are towns, inns and cottages.",
     sound: "Footsteps, doors and the world's sounds.",
     volume: "How loud those sounds are.",
-    names:
-      'Names over people\'s heads, tinted by how they see you. With "Only people I know", someone you haven\'t met is a Stranger, here and in what\'s written, until you learn their name (it comes up, or you tick it in the "i" of a conversation).',
     hint: "The line of controls at the bottom of the screen.",
     stats: "Frames per second and other numbers at the top.",
     explanations: "These lines under settings, and the ones in the Journal and on New world.",
     aiTalk:
-      "People answer in their own words, written by your model from their card, your persona and the world. Off, they use set lines.",
-    textConnection: "The model that writes conversations. Engine default uses your Engine's agent or main connection.",
-    sceneConnection:
-      "The model that plans and plays scenes you start in the world. Same as conversations unless chosen.",
-    imageConnection: "The image generation connection for pictures of places and moments.",
-    imageStyle:
-      "The look of pictures, from the Engine's style profiles. Engine default uses the one you set in the Engine.",
+      "On: when you talk to someone, your model writes their replies from their character card, your persona and the world. Off: they use short set lines.",
+    aiMoments:
+      "On: when something happens, the AI narrates it and people nearby may answer. Typing in the chat always counts; the switches below add more. One AI call each time. Off: the game uses its own written lines.",
+    aiArrive: "One call each time you reach a new place. Off to start with, because it adds up.",
+    aiThings: "One call when you use something: a stall, the fountain, a door, a campfire.",
+    aiBoard: "One call when you read the noticeboard.",
+    aiSeats: "One call when you sit down near someone.",
+    aiJoin: "One call when you join someone in what they're doing.",
+    aiSeparate:
+      "For strict secrets between characters. Off: one call writes everyone's lines, with each person's knowledge kept apart inside it; strong models respect that. On: the narrator gets one call, and each person who answers gets their own with only what they know. Up to four calls per moment, so slower and dearer.",
+    narratorCard:
+      "One of your character cards as the narrator's voice in moments. A short card works best: only its first 1500 characters are used. None: a plain narrator.",
     talkStyle:
-      "How people talk to you, on top of who they are. Someone with a voice of their own (Journal, or a lorebook's ww:voice:gruff) keeps it.",
-    replyLength: "How long people's replies are.",
-    aiTemperature: "Higher is more surprising, lower more predictable.",
-    scenePov:
-      "How scenes you start in the world are written. Each world's own scene instructions are in Journal → World.",
+      "A general tone on top of each person's own character. Someone given a voice of their own in Journal → Edit people keeps it.",
+    replyLength: "How long people's replies are. Longer replies cost more tokens.",
+    aiTemperature: "Higher: more surprising. Lower: more predictable.",
+    sceneNarratorCard:
+      "One of your character cards as the narrator in scenes. With one chosen, a scene can start with nobody else there.",
+    scenePov: "Who the scene is told as. Each world's own scene instructions are in Journal → World.",
     sceneTense: "The tense scenes are written in.",
-    scenePreset:
-      "The Engine prompt preset a scene starts with, picked for you each time. None: the scene's own instructions alone.",
+    scenePreset: "The Engine prompt preset a scene starts with. None: the scene's own instructions alone.",
+    textConnection:
+      "The model that writes conversations and moments. Engine default: your Engine's agent or main connection.",
+    sceneConnection: "The model that plans and plays scenes. Leave it to use the same as conversations.",
+    imageConnection: "The image generation connection for pictures of places and moments.",
+    imageStyle: "The look of pictures, from the Engine's style profiles.",
   };
   const explainers = []; // descriptions that state what other settings are set to
-  const row = (label, control, name = null) => {
+  const dependents = []; // rows that only matter while another setting is on: [{ nodes, under }]
+  const row = (label, control, name = null, under = "") => {
     const element = document.createElement("label");
     element.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
     const text = document.createElement("span");
     text.textContent = label;
     element.append(text, control);
-    settingsPanel.append(element);
+    add(element);
+    const nodes = [element];
     if (name && EXPLAIN[name]) {
       const explain = document.createElement("div");
       explain.setAttribute("data-wanderworld-explain", "");
@@ -775,7 +823,13 @@ export function createHud(root, handlers) {
       const write = (settings) => (explain.textContent = typeof about === "function" ? about(settings) : about);
       write(Object.fromEntries(Object.entries(SETTINGS).map(([key, setting]) => [key, setting.value])));
       if (typeof about === "function") explainers.push(write);
-      settingsPanel.append(explain);
+      add(explain);
+      nodes.push(explain);
+    }
+    // Under the setting it hangs on: set in, and faint while that one is off.
+    if (under) {
+      for (const node of nodes) node.style.marginLeft = "16px";
+      dependents.push({ nodes, under });
     }
   };
   const addField = (name, field) => {
@@ -789,7 +843,7 @@ export function createHud(root, handlers) {
         }
       : field;
   };
-  const choice = (name, label, labels) => {
+  const choice = (name, label, labels, under = "") => {
     const select = document.createElement("select");
     select.style.cssText = "font:13px system-ui,sans-serif;border-radius:6px;border:0;padding:2px 4px;";
     for (const option of SETTINGS[name].options) {
@@ -803,16 +857,16 @@ export function createHud(root, handlers) {
       handlers.onSetting(name, typeof SETTINGS[name].value === "number" ? Number(raw) : raw);
     });
     addField(name, { set: (value) => (select.value = String(value)) });
-    row(label, select, name);
+    row(label, select, name, under);
   };
-  const toggle = (name, label) => {
+  const toggle = (name, label, under = "") => {
     const box = document.createElement("input");
     box.type = "checkbox";
     box.addEventListener("change", () => handlers.onSetting(name, box.checked));
     addField(name, { set: (value) => (box.checked = value) });
-    row(label, box, name);
+    row(label, box, name, under);
   };
-  const slider = (name, label, step, format) => {
+  const slider = (name, label, step, format, under = "") => {
     const wrap = document.createElement("span");
     wrap.style.cssText = "display:flex;align-items:center;gap:6px;";
     const range = document.createElement("input");
@@ -834,10 +888,16 @@ export function createHud(root, handlers) {
         value.textContent = format(next);
       },
     });
-    row(label, wrap, name);
+    row(label, wrap, name, under);
   };
   const times = (value) => `${value.toFixed(1)}×`;
-  heading("Graphics");
+  const orAll = (value) => (value > 100 ? "All" : String(value));
+  heading(
+    "Display",
+    "How Wanderworld looks and sounds on this device. These are kept for each device, so a phone and a desktop can differ.",
+    ["Graphics", "On screen", "Sound"],
+  );
+  at("Display", "Graphics");
   choice("resolution", "Resolution", RESOLUTION_LABELS);
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
   choice("density", "Trees and rocks", { 1: "Normal", 4: "4×", 10: "10×" });
@@ -846,8 +906,16 @@ export function createHud(root, handlers) {
   toggle("props", "Detailed furniture and props");
   toggle("buildings", "Detailed buildings");
   choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
-  heading("Moving");
   choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });
+  at("Display", "On screen");
+  toggle("hint", "Controls hint");
+  toggle("stats", "Frame rate");
+  toggle("explanations", "Show explanations");
+  at("Display", "Sound");
+  toggle("sound", "Sound");
+  slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`, "sound");
+
+  heading("Controls", "How you move and look around. The buttons and camera are kept for each device.");
   slider("walkSpeed", "Walk speed", 0.1, times);
   slider("runSpeed", "Run speed", 0.1, times);
   slider("lookSpeed", "Camera turn speed", 0.1, times);
@@ -855,18 +923,11 @@ export function createHud(root, handlers) {
   toggle("restKey", "C sits and lies down");
   toggle("jumpButton", "Jump button (touch screens)");
   toggle("restButton", "Sit and lie down button (touch screens)");
-  toggle("chatMoves", "Jump and Sit/lie down buttons in the chat window");
-  heading("World");
-  settingsPanel.append(peopleButton); // who lives in this world
+  toggle("chatMoves", "Jump and Sit buttons in the chat window");
+
+  heading("World", "The world itself: its time, its weather and its places.", ["Time and weather", "Places"]);
+  at("World", "Time and weather");
   choice("time", "Time", TIME_LABELS);
-  choice("narration", "The world's voice", { off: "Off", lines: "On" });
-  choice("weather", "Weather", {
-    off: "Off (always clear)",
-    changing: "Changing",
-    rain: "Rain",
-    snow: "Snow",
-    mist: "Mist",
-  });
   choice("timeSpeed", "Time speed", {
     0.25: "¼× (a day in 80 min)",
     0.5: "½× (a day in 40 min)",
@@ -875,40 +936,67 @@ export function createHud(root, handlers) {
     4: "4× (a day in 5 min)",
     8: "8× (a day in 2½ min)",
   });
+  choice("weather", "Weather", {
+    off: "Off (always clear)",
+    changing: "Changing",
+    rain: "Rain",
+    snow: "Snow",
+    mist: "Mist",
+  });
+  at("World", "Places");
+  choice("narration", "Lines about where you are", { off: "Off", lines: "On" });
   toggle("interiors", "Walk into buildings (unfinished)");
-  slider("approach", "People coming up to you", 0.1, (value) => (value === 0 ? "never" : times(value)));
+  toggle("worldEvents", "Market days and festivals");
+
+  // People: how they act round the player, how they get on, what they remember. Rules alone.
+  heading(
+    "People",
+    "How the people of the world act around you, how they get on with each other, and what they remember. All of it runs on the game's own rules: none of it calls the AI. Nothing happens while Wanderworld is closed.",
+    ["Around you", "Relationships", "Memory"],
+  );
+  at("People", "Around you");
+  add(peopleButton); // who lives in this world
+  slider("approach", "How often people come up to you", 0.1, (value) => (value === 0 ? "never" : times(value)));
   choice("approachMax", "At most at once", { 1: "1", 2: "2", 3: "3", 5: "5" });
-  choice("combat", "Confrontations and combat", {
+  choice("combat", "Where people may confront you", {
     anywhere: "Anywhere",
     outsideTowns: "Outside towns",
     outsideSafe: "Outside safe places",
-    off: "Off",
+    off: "Nowhere",
   });
-  // The living world: what goes on by itself, by rules alone.
-  heading("Living world");
-  {
-    const about = document.createElement("div");
-    about.style.cssText = "font-size:12px;opacity:0.8;line-height:1.35;";
-    about.textContent =
-      "What the world does by itself while you play. All of it runs on rules: none of these calls the AI or costs anything. Nothing happens while Wanderworld is closed.";
-    settingsPanel.append(about);
-  }
+  choice("names", "Names over people", {
+    all: "Show all names",
+    known: "Only people I know",
+    none: "Hide all names",
+  });
+  at("People", "Relationships");
+  intro("How people feel about you and each other can change as they spend time together.");
   toggle("relationsMove", "Relationships change over time");
-  toggle("worldLog", "Keep a record of what happens");
-  toggle("awayRecap", "Tell me what I missed");
-  toggle("memories", "People remember what they saw and heard");
-  toggle("memorySights", "People notice what you do");
-  toggle("gossip", "People pass on what they know");
-  const orAll = (value) => (value > 100 ? "All" : String(value));
-  slider("memoryEach", "Everyday memories each", 1, orAll);
-  slider("memoryKept", "Lasting memories each", 1, orAll);
-  slider("memoryTold", "Everyday memories sent to the AI", 1, orAll);
-  slider("memoryKeptTold", "Lasting memories sent to the AI", 1, orAll);
-  toggle("memoryToldCounted", "Own numbers come out of the shared count");
+  toggle("worldLog", "Keep a diary of what happens");
+  toggle("awayRecap", "Tell me what I missed", "worldLog");
+  at("People", "Memory");
+  intro(
+    "Each person remembers what they saw, heard or were told. The game keeps these itself, so remembering costs no tokens. Sending memories to the AI when it speaks for someone does, so you choose how many are kept and how many are sent. Anyone can have limits of their own in Journal → Edit people → Memory.",
+  );
+  toggle("memories", "People remember things");
+  toggle("memorySights", "Remember what you do, not only what you say", "memories");
+  toggle("gossip", "People tell each other about you", "memories");
+  part("How many are kept");
+  slider("memoryEach", "Everyday memories kept, per person", 1, orAll, "memories");
+  slider("memoryKept", "Lasting memories kept, per person", 1, orAll, "memories");
+  part("How many are sent to the AI");
+  slider("memoryTold", "Everyday memories sent to the AI", 1, orAll, "memories");
+  slider("memoryKeptTold", "Lasting memories sent to the AI", 1, orAll, "memories");
+  toggle("memoryToldCounted", "Count personal limits against the total", "memories");
+  part("Keeping memories short");
   sumUpRow();
-  toggle("worldEvents", "Market days and festivals");
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
-  heading("Animals");
+  heading("Animals", "Which animals and monsters live in your worlds, how many, and how they act.", [
+    "How many",
+    "Kinds",
+    "Behaviour",
+  ]);
+  at("Animals", "How many");
   // In groups, each with a line on what it's for and what wins over what, so it isn't a wall of switches.
   const group = (title, note) => {
     const head = document.createElement("div");
@@ -918,7 +1006,7 @@ export function createHud(root, handlers) {
     about.setAttribute("data-wanderworld-explain", "");
     about.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;margin:-2px 0 2px;";
     about.textContent = note;
-    settingsPanel.append(head, about);
+    add(head, about);
   };
   /** A row of small switches side by side (one for each kind), kept like any other setting. */
   const switches = (list) => {
@@ -936,7 +1024,7 @@ export function createHud(root, handlers) {
       item.append(box, text);
       grid.append(item);
     }
-    settingsPanel.append(grid);
+    add(grid);
   };
   const whole = (value) => String(Math.round(value));
   group(
@@ -954,15 +1042,17 @@ export function createHud(root, handlers) {
     "Animals a lorebook places (ww:monster:wolf:pack5), and anyone's own dog or horse, are extra to the numbers above.",
   );
   toggle("loreAnimals", "They appear even when their sort is at 0");
+  at("Animals", "Behaviour");
   group(
     "How hostile ones behave",
-    "Wolves and monsters. Only where Confrontations and combat (Settings → World) allows it: off there, they always keep their distance. A lorebook's ww:tame or ww:hostile on a creature's entry decides which kinds are hostile at all.",
+    "Wolves and monsters. Only where \"Where people may confront you\" (Settings → People → Around you) allows it: off there, they always keep their distance. A lorebook's ww:tame or ww:hostile on a creature's entry decides which kinds are hostile at all.",
   );
   choice("hostileAnimals", "When you're near", {
     avoid: "Keep their distance",
     threaten: "Square up to you",
     attack: "Come for you",
   });
+  at("Animals", "Kinds");
   group(
     "Which kinds there are",
     "Off, there are none of that kind anywhere. This beats everything else: the numbers above, a lorebook, and ownership.",
@@ -972,7 +1062,7 @@ export function createHud(root, handlers) {
     head.style.cssText =
       "font-size:11px;font-weight:700;opacity:0.65;text-transform:uppercase;letter-spacing:0.04em;margin-top:2px;";
     head.textContent = text;
-    settingsPanel.append(head);
+    add(head);
   };
   kindHead("Farm and town");
   switches([
@@ -1009,7 +1099,13 @@ export function createHud(root, handlers) {
   ]);
   // AI: the server part's connections and styles. The connection lists come from the Engine when the
   // panel opens (they're the user's own, so they can change while playing).
-  heading("AI");
+  heading(
+    "AI",
+    "The AI is optional: the world works without it. With it, people answer in their own words and a narrator tells what happens. It uses the connections you set up in the Engine, and every call spends tokens (Settings → Token use).",
+    ["Writing", "Scenes", "Pictures", "Connections"],
+  );
+  at("AI", "Connections");
+  intro("Which of your Engine connections does what, and whether Wanderworld's server part is running.");
   const aiStatus = document.createElement("div");
   aiStatus.style.cssText = "font-size:12px;line-height:1.35;opacity:0.85;";
   aiStatus.textContent = "Checking for Wanderworld's server part…";
@@ -1017,7 +1113,7 @@ export function createHud(root, handlers) {
   aiDebug.style.cssText = "font-size:12px;line-height:1.35;opacity:0.85;";
   aiDebug.textContent =
     "To see what is sent: turn on the Engine's Debug Mode (Settings → Advanced). Every request Wanderworld makes to a model, with its answer, and every picture request (connection, model, size, prompt) is then written to the Engine's console.";
-  settingsPanel.append(aiStatus, aiDebug);
+  add(aiStatus, aiDebug);
   const connectionLists = [];
   const connectionChoice = (name, label, kind, empty) => {
     const select = document.createElement("select");
@@ -1054,16 +1150,23 @@ export function createHud(root, handlers) {
     connectionLists.push({ kind, fill });
     row(label, select, name);
   };
+  connectionChoice("textConnection", "Conversations and moments use", "text", "Engine default");
+  connectionChoice("sceneConnection", "Scenes use", "text", "Same as conversations");
+  connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
+  at("AI", "Writing");
+  intro(
+    "A moment is one thing that happens and is told: you say or do something, sit down with someone, arrive somewhere. The narrator describes it and people nearby may answer.",
+  );
   toggle("aiTalk", "AI conversations");
   toggle("aiMoments", "AI moments");
-  toggle("aiArrive", "…when you arrive somewhere");
-  toggle("aiThings", "…when you use things");
-  toggle("aiBoard", "…when you read the noticeboard");
-  toggle("aiSeats", "…when you sit down");
-  toggle("aiJoin", "…when you join someone");
-  toggle("aiSeparate", "A call for each person who answers");
-  connectionChoice("textConnection", "Conversations use", "text", "Engine default");
-  connectionChoice("sceneConnection", "Scenes use", "text", "Same as conversations");
+  toggle("aiArrive", "…when you arrive somewhere", "aiMoments");
+  toggle("aiThings", "…when you use things", "aiMoments");
+  toggle("aiBoard", "…when you read the noticeboard", "aiMoments");
+  toggle("aiSeats", "…when you sit down", "aiMoments");
+  toggle("aiJoin", "…when you join someone", "aiMoments");
+  toggle("aiSeparate", "A separate call for each person who answers", "aiMoments");
+  connectionChoice("narratorCard", "Narrator for moments", "characters", "None");
+  part("How it's written");
   choice("talkStyle", "How people talk", {
     natural: "Naturally",
     cosy: "Cosy",
@@ -1076,17 +1179,21 @@ export function createHud(root, handlers) {
     sly: "Sly",
   });
   choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
-  choice("scenePov", "Scene point of view", {
+  slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
+  at("AI", "Scenes");
+  intro(
+    "A scene is a full roleplay chat in the Engine, started from where you stand with whoever is there (the chat window's Scene button). These choose how it's written.",
+  );
+  connectionChoice("sceneNarratorCard", "Narrator for scenes", "characters", "None");
+  choice("scenePov", "Point of view", {
     second_person: "Second person (you)",
     third_person: "Third person",
     first_person: "First person",
   });
-  choice("sceneTense", "Scene tense", { present: "Present", past: "Past" });
-  connectionChoice("scenePreset", "Scene prompt preset", "presets", "None");
-  connectionChoice("narratorCard", "Narrator in the world", "characters", "None");
-  connectionChoice("sceneNarratorCard", "Narrator in scenes", "characters", "None");
-  slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
-  connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
+  choice("sceneTense", "Tense", { present: "Present", past: "Past" });
+  connectionChoice("scenePreset", "Prompt preset", "presets", "None");
+  at("AI", "Pictures");
+  intro("Pictures of places and moments (the Illustrate button) are made by the Engine's image generation.");
   choice("imageStyle", "Picture style", {
     "": "Engine default",
     off: "No style",
@@ -1199,46 +1306,42 @@ export function createHud(root, handlers) {
     redraw();
   };
   drawRegenerate(false);
-  settingsPanel.append(regenerate);
-  toggle("sound", "Sound");
-  slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`);
+  at("World", "Places");
+  add(regenerate);
   // Token use: every setting that changes how much is sent to a model, in one place. Each is the same
   // setting as in its own section (addField): changed in either, it's changed in both.
-  heading("Token use");
-  {
-    const words = (text, bold = false) => {
-      const element = document.createElement("div");
-      element.style.cssText = bold
-        ? "font-weight:600;margin-top:6px;"
-        : `font-size:12px;line-height:1.4;color:${INK_SOFT};`;
-      element.textContent = text;
-      settingsPanel.append(element);
-    };
-    words(
-      "Everything that changes how many tokens Wanderworld spends, in one place. These are the same settings as in AI and Living world: change one here or there and it's changed in both. Every AI call sends the cards of whoever speaks, your persona, the lore active where you stand, the recent chat and their memories, so fewer calls and less in each are the two ways to spend less.",
-    );
-    words("How often the AI is called", true);
-    toggle("aiTalk", "AI conversations");
-    toggle("aiMoments", "AI moments");
-    toggle("aiArrive", "…when you arrive somewhere");
-    toggle("aiThings", "…when you use things");
-    toggle("aiBoard", "…when you read the noticeboard");
-    toggle("aiSeats", "…when you sit down");
-    toggle("aiJoin", "…when you join someone");
-    toggle("aiSeparate", "A call for each person who answers");
-    words("How much each call carries", true);
-    choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
-    toggle("memories", "People remember what they saw and heard");
-    slider("memoryTold", "Everyday memories sent to the AI", 1, orAll);
-    slider("memoryKeptTold", "Lasting memories sent to the AI", 1, orAll);
-    toggle("memoryToldCounted", "Own numbers come out of the shared count");
-    words("Keeping memories short", true);
-    sumUpRow();
-    words("What else adds up", true);
-    words(
-      "A narrator card (AI → Narrator in the world) is sent with every moment, its first 1500 characters: a short one costs less. Lore tied to the whole world, or to you, is active everywhere and goes with every call; lore tied to a place or a person goes only there (Journal → Places, Journal → Lore). Someone's own numbers for memories sent are in Journal → Edit people. The AI assistant says what it sends under each answer, and its memory requests show a rough count before you ask. Scenes and pictures are the Engine's own calls. To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced).",
-    );
-  }
+  heading(
+    "Token use",
+    "Every setting that changes how many tokens Wanderworld spends, in one place. They are the same settings as in AI and People → Memory: change one here or there and it changes in both. Each AI call sends the speaker's card, your persona, the lore active where you stand, the recent chat and their memories, so fewer calls and less in each are the two ways to spend less.",
+    ["How often", "How much", "Tips"],
+  );
+  at("Token use", "How often");
+  intro("Each of these is one AI call when it happens. Off, the game uses its own written lines.");
+  toggle("aiTalk", "AI conversations");
+  toggle("aiMoments", "AI moments");
+  toggle("aiArrive", "…when you arrive somewhere", "aiMoments");
+  toggle("aiThings", "…when you use things", "aiMoments");
+  toggle("aiBoard", "…when you read the noticeboard", "aiMoments");
+  toggle("aiSeats", "…when you sit down", "aiMoments");
+  toggle("aiJoin", "…when you join someone", "aiMoments");
+  toggle("aiSeparate", "A separate call for each person who answers", "aiMoments");
+  at("Token use", "How much");
+  intro("What each call carries. Memories are usually the part that grows.");
+  choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
+  toggle("memories", "People remember things");
+  slider("memoryTold", "Everyday memories sent to the AI", 1, orAll, "memories");
+  slider("memoryKeptTold", "Lasting memories sent to the AI", 1, orAll, "memories");
+  toggle("memoryToldCounted", "Count personal limits against the total", "memories");
+  sumUpRow();
+  at("Token use", "Tips");
+  for (const tip of [
+    "Keep the shared memory totals low, and give the few people who matter numbers of their own in Journal → Edit people → Memory.",
+    "A narrator card is sent with every moment (its first 1500 characters). A short one costs less.",
+    "Lore tied to the whole world, or to you, goes with every call. Lore tied to a place or a person goes only there (Journal → Places, Journal → Lore).",
+    "The AI assistant lists what it sent under each answer, and its memory requests show a rough count before you ask.",
+    "To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced).",
+  ])
+    intro(`• ${tip}`);
   // The AI assistant: a chat about this world, which can change its lore and people (assistant.js).
   let assistant = null;
   /** Opens the assistant on a ready-made request; with `people` ([{ id, name }]) it's asked about theirs at once. */
@@ -1259,8 +1362,8 @@ export function createHud(root, handlers) {
     explain.setAttribute("data-wanderworld-explain", "");
     explain.style.cssText = "font-size:11px;opacity:0.7;margin:-4px 0 2px;line-height:1.3;";
     explain.textContent =
-      "Opens the AI assistant and asks whose memories to send. It proposes one lasting memory in place of several old everyday ones, so less is kept and less is sent. You see every change first; nothing happens until you confirm, and it can be undone. One AI call.";
-    settingsPanel.append(node, explain);
+      "The AI assistant reads the memories of whoever you choose and proposes one lasting memory in place of several old ones, so less is kept and less is sent. You approve every change, and can undo it. One AI call.";
+    add(node, explain);
   }
   heading("AI assistant");
   {
@@ -1268,7 +1371,7 @@ export function createHud(root, handlers) {
     about.style.cssText = `font-size:12px;line-height:1.4;color:${INK_SOFT};`;
     about.textContent =
       "Ask about the world you're in, or ask for a change to it. You see every change first, can rewrite it or leave it out, and nothing happens until you press Confirm; Undo takes it back. It never touches your cards, personas or lorebooks in the Engine. Not sure what to ask? The buttons under the chat are ready-made requests, and Help lists everything it can do.";
-    settingsPanel.append(
+    add(
       about,
       (assistant = createAssistant({
         onAsk: (history, options) => handlers.onAssistant(history, options),
@@ -1327,7 +1430,7 @@ export function createHud(root, handlers) {
       copy.style.cssText = `${INK_SMALL}margin-top:4px;`;
       fold.append(box, copy);
     }
-    settingsPanel.append(fold);
+    add(fold);
   }
   // Credits and thanks.
   heading("Credits");
@@ -1335,23 +1438,14 @@ export function createHud(root, handlers) {
     const title = document.createElement("div");
     title.style.cssText = `font:700 14px ${SERIF};margin-top:8px;`;
     title.textContent = part.title;
-    settingsPanel.append(title);
+    add(title);
     for (const words of part.lines) {
       const line = document.createElement("div");
       line.style.cssText = "font-size:12px;line-height:1.45;margin-top:4px;";
       line.textContent = words;
-      settingsPanel.append(line);
+      add(line);
     }
   }
-  heading("Display");
-  choice("names", "Names over people", {
-    all: "Show all names",
-    known: "Only people I know",
-    none: "Hide all names",
-  });
-  toggle("hint", "Controls hint");
-  toggle("stats", "Frame rate");
-  toggle("explanations", "Show explanations");
 
   // The Journal: where everyone is, places and their lore.
   const journal = createJournal(PANEL, {
@@ -1783,7 +1877,7 @@ export function createHud(root, handlers) {
       const hintLine = document.createElement("div");
       hintLine.style.cssText = `font-size:12px;color:${INK_SOFT};`;
       hintLine.textContent =
-        '"Stop aggressive approaches" turns them off in Menu → Settings → World; you can turn them back on there.';
+        '"Stop aggressive approaches" turns them off in Menu → Settings → People; you can turn them back on there.';
       confront.replaceChildren(title, words, row, foot, hintLine);
     },
     /** Opens the chat window with the cursor in its box. */
@@ -1818,6 +1912,8 @@ export function createHud(root, handlers) {
     setSettings(settings) {
       for (const [name, field] of Object.entries(fields)) field.set(settings[name]);
       for (const write of explainers) write(settings);
+      for (const { nodes, under } of dependents)
+        for (const node of nodes) node.style.opacity = settings[under] ? "" : "0.45";
       wanted.jump = settings.jumpButton !== false;
       wanted.rest = settings.restButton !== false;
       wanted.chat = settings.chatMoves !== false;
@@ -1856,7 +1952,7 @@ export function createHud(root, handlers) {
       lastPeople = [characters, chosen, chosenBodies];
       bodies = chosenBodies;
       peopleButton.style.display = characters.length ? "" : "none";
-      peopleButton.textContent = chosen.size ? `People (${chosen.size})` : "People";
+      peopleButton.textContent = chosen.size ? `Who lives here (${chosen.size})…` : "Who lives here…";
       // Living in town first, then everyone else, each in the Engine's order; kept while the panel is open.
       const ids = characters.map((character) => character.id);
       if (!peopleOrder || peopleOrder.length !== ids.length || ids.some((id) => !peopleOrder.includes(id))) {

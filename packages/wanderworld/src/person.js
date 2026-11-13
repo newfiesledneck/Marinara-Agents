@@ -139,9 +139,62 @@ export function createPersonEditor(layer, handlers) {
     "div",
     "display:flex;gap:8px;justify-content:flex-end;padding:6px 12px;border-top:1px solid rgba(107,74,43,0.4);",
   );
-  frame.append(body, foot);
+  // A tab for each part of them, so it isn't one long page.
+  const tabBar = element(
+    "div",
+    "display:flex;gap:4px;flex-wrap:wrap;padding:6px 12px 0;border-bottom:1px solid rgba(107,74,43,0.25);padding-bottom:6px;",
+  );
+  frame.append(tabBar, body, foot);
+  let shownTab = "About";
 
-  const head = (text) => element("div", `font:700 13px ${SERIF};margin-top:6px;`, text);
+  const head = (text) => {
+    const node = element("div", `font:700 13px ${SERIF};margin-top:6px;`, text);
+    node.dataset.head = text;
+    return node;
+  };
+  /** Which tab each heading's part is under. */
+  const TABS = {
+    "Who they are": "About",
+    "In this world": "About",
+    "Their day": "Day",
+    "How they see you": "You",
+    "How they see other people": "Others",
+    "What they remember": "Memory",
+  };
+  /** Puts what's in `body` into tabs: a part runs from its heading to the next. `only`: the tab to open on. */
+  const intoTabs = (only = null) => {
+    const panes = new Map();
+    let pane = null;
+    for (const node of [...body.children]) {
+      const tab = TABS[node.dataset.head];
+      if (tab) {
+        pane = panes.get(tab) ?? element("div", "display:none;flex-direction:column;gap:6px;");
+        panes.set(tab, pane);
+      }
+      pane?.append(node);
+    }
+    body.append(...panes.values());
+    const show = (name) => {
+      shownTab = panes.has(name) ? name : "About";
+      for (const [tab, node] of panes) node.style.display = tab === shownTab ? "flex" : "none";
+      for (const tab of tabBar.children) {
+        tab.style.opacity = tab.textContent === shownTab ? "1" : "0.6";
+        tab.style.fontWeight = tab.textContent === shownTab ? "700" : "";
+        tab.setAttribute("aria-pressed", String(tab.textContent === shownTab));
+      }
+      body.scrollTop = 0;
+    };
+    tabBar.replaceChildren(
+      ...[...panes.keys()].map((name) => {
+        const tab = element("button", INK_SMALL, name);
+        tab.type = "button";
+        tab.addEventListener("click", () => show(name));
+        return tab;
+      }),
+    );
+    show(only ?? shownTab);
+  };
+  const part = (text) => element("div", "font-weight:600;margin-top:6px;", text);
   const note = (text) => element("div", `font-size:12px;color:${INK_SOFT};line-height:1.35;`, text);
   const field = (label, control) => {
     const row = element("label", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;");
@@ -340,7 +393,7 @@ export function createPersonEditor(layer, handlers) {
       if (dayChanged) changes.schedule = day && day.length ? day : null;
     });
 
-    body.append(head("You and them"));
+    body.append(head("How they see you"));
     const toPlayer = relationFields(person.kinds, person.toPlayer, `How ${person.name} sees you`, person.id, "player");
     const fromPlayer = relationFields(
       person.kinds,
@@ -383,9 +436,48 @@ export function createPersonEditor(layer, handlers) {
       body.append(head("What they remember"));
       body.append(
         note(
-          "Only what they themselves saw, heard or were told. The AI is given these when it speaks for them, and nobody else's.",
+          "What this person saw, heard or was told. When the AI speaks for them it is given these, and nobody else's.",
         ),
       );
+      // How many they keep, and how many the AI is sent: their own numbers, All, or blank for the setting's.
+      const count = (key, label, blank) => {
+        const input = element("input", `${INK_INPUT}padding:3px 6px;width:84px;`);
+        input.type = "number";
+        input.min = "0";
+        input.max = "100";
+        input.step = "1";
+        input.inputMode = "numeric";
+        input.placeholder = blank;
+        const all = element("input", "flex:none;width:18px;height:18px;margin:0;");
+        all.type = "checkbox";
+        all.setAttribute("aria-label", `${label}: all of them`);
+        const own = person.memoryLimits?.[key];
+        if (own > 100) all.checked = true;
+        else if (Number.isFinite(own)) input.value = String(own);
+        const sync = () => (input.disabled = all.checked);
+        all.addEventListener("change", sync);
+        sync();
+        const wrap = element("span", "display:flex;gap:6px;align-items:center;");
+        wrap.append(input, all, element("span", "font-size:12px;", "All"));
+        body.append(field(label, wrap));
+        return () => (all.checked ? 101 : input.value.trim() === "" ? null : Math.min(100, Number(input.value)));
+      };
+      const usual = (key) => {
+        const value = person.memoryDefaults?.[key];
+        return value > 100 ? "All" : String(value ?? "");
+      };
+      body.append(part("Limits for this person"));
+      const each = count("each", "Everyday memories kept", usual("each"));
+      const lasting = count("kept", "Lasting memories kept", usual("kept"));
+      body.append(note("Blank: the number in Settings → People → Memory. All: keep everything until you delete it."));
+      const told = count("told", "Everyday memories sent to the AI", "share");
+      const keptTold = count("keptTold", "Lasting memories sent to the AI", "share");
+      body.append(
+        note(
+          "Blank: a share of the total in Settings. A number here is theirs alone. All: send everything they keep, which can cost a lot of tokens.",
+        ),
+      );
+      body.append(part("Their memories"));
       // Pinned first, then what lasted, then the everyday (each newest first). Any of them can be set
       // right, deleted, or pinned: a pinned one is locked, and nothing pushes it out.
       const rank = (memory) => (memory.pinned ? 2 : memory.kept ? 1 : 0);
@@ -443,7 +535,7 @@ export function createPersonEditor(layer, handlers) {
       if (kept.length)
         body.append(
           note(
-            "Tick to pin: a pinned memory is locked and is never pushed out, only its age moves on (thirty at most). Change the words to set one right; ✕ deletes it when you save.",
+            "Tick: pin it, so it is never forgotten (thirty at most). Edit the words to correct it. ✕: delete it when you save.",
           ),
         );
       if (kept.length && handlers.onSumUp) {
@@ -454,57 +546,16 @@ export function createPersonEditor(layer, handlers) {
         body.append(
           sum,
           note(
-            `Opens the AI assistant with ${person.name}'s memories: it proposes one lasting memory in place of several old everyday ones, for you to confirm (one AI call). This window closes without saving, so save what you changed here first.`,
+            `The AI assistant proposes one lasting memory in place of several old ones, for you to approve (one AI call). This window closes without saving, so save your changes first.`,
           ),
         );
       }
       const own = element("input", `${INK_INPUT}padding:4px 6px;width:100%;box-sizing:border-box;margin-top:2px;`);
       own.type = "text";
       own.maxLength = 200;
-      own.placeholder = "Something they'll always remember (your words; pinned)";
+      own.placeholder = "Write a memory for them (pinned from the start)";
       own.setAttribute("aria-label", `Something ${person.name} will always remember`);
       body.append(own);
-      // How many they keep, and how many the AI is sent: their own numbers, All, or blank for the setting's.
-      const count = (key, label, blank) => {
-        const input = element("input", `${INK_INPUT}padding:3px 6px;width:84px;`);
-        input.type = "number";
-        input.min = "0";
-        input.max = "100";
-        input.step = "1";
-        input.inputMode = "numeric";
-        input.placeholder = blank;
-        const all = element("input", "flex:none;width:18px;height:18px;margin:0;");
-        all.type = "checkbox";
-        all.setAttribute("aria-label", `${label}: all of them`);
-        const own = person.memoryLimits?.[key];
-        if (own > 100) all.checked = true;
-        else if (Number.isFinite(own)) input.value = String(own);
-        const sync = () => (input.disabled = all.checked);
-        all.addEventListener("change", sync);
-        sync();
-        const wrap = element("span", "display:flex;gap:6px;align-items:center;");
-        wrap.append(input, all, element("span", "font-size:12px;", "All"));
-        body.append(field(label, wrap));
-        return () => (all.checked ? 101 : input.value.trim() === "" ? null : Math.min(100, Number(input.value)));
-      };
-      const usual = (key) => {
-        const value = person.memoryDefaults?.[key];
-        return value > 100 ? "All" : String(value ?? "");
-      };
-      const each = count("each", "Everyday memories kept", usual("each"));
-      const lasting = count("kept", "Lasting memories kept", usual("kept"));
-      body.append(
-        note(
-          "Blank uses the number in Settings. More for someone who should remember further back; All keeps everything until you delete it.",
-        ),
-      );
-      const told = count("told", "Everyday memories sent to the AI", "share");
-      const keptTold = count("keptTold", "Lasting memories sent to the AI", "share");
-      body.append(
-        note(
-          "Blank gives them a share of the number in Settings, split between whoever the AI is speaking for. A number here is theirs alone; All sends everything they keep. More sent costs more tokens on every reply, so raise it only for people who matter.",
-        ),
-      );
       reads.push((changes) => {
         changes.memoryEdits = rows
           .filter(
@@ -538,7 +589,7 @@ export function createPersonEditor(layer, handlers) {
       { from: "player", to: person.id, fields: fromPlayer },
     ];
     if (person.others.length) {
-      body.append(head("Them and the others"));
+      body.append(head("How they see other people"));
       body.append(note("Each way round is its own: how they see someone, and how that someone sees them."));
       for (const other of person.others) {
         const out = relationFields(
@@ -576,6 +627,7 @@ export function createPersonEditor(layer, handlers) {
     cancel.type = "button";
     cancel.addEventListener("click", () => float.setOpen(false));
     foot.replaceChildren(cancel, save);
+    intoTabs();
     float.setOpen(true);
     body.scrollTop = 0;
   }

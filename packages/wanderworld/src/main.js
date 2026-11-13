@@ -1543,7 +1543,7 @@ function sleepIn(camp, length) {
       };
       narrate(
         null,
-        fixed ? "(You rest. Time is standing still: Settings → Time.)" : pickLine(PACK.sleep, `${core.clock}`, words),
+        fixed ? "(You rest. Time is standing still: Settings → World.)" : pickLine(PACK.sleep, `${core.clock}`, words),
       );
       later(0.6, () => core.hud?.setFade(false));
     });
@@ -4003,7 +4003,7 @@ function showKnowing() {
   const explicit = core.save?.known.includes(talking.id) || core.save?.knowsMe.includes(talking.id);
   const fixed =
     core.settings.names === "all"
-      ? "All names are shown (Menu → Settings → Display), so there are no strangers."
+      ? "All names are shown (Menu → Settings → People), so there are no strangers."
       : !explicit && knows(talking.id) && theyKnow(talking.id)
         ? "You have a history, or travel together: you know each other."
         : "";
@@ -4049,7 +4049,7 @@ function confronted(id, name) {
       onScene: () => void sceneHere(`${name} comes at me, spoiling for a fight`),
       onStop: () => {
         changeSetting("combat", "off");
-        core.hud?.setNotice("Aggressive approaches are off. Menu → Settings → World turns them back on.");
+        core.hud?.setNotice("Aggressive approaches are off. Menu → Settings → People turns them back on.");
       },
     },
   );
@@ -6092,7 +6092,7 @@ async function playAsScene(thing, request, along, withNarrator = false) {
   const telling = narrator && (withNarrator || !characterIds.length) && !characterIds.includes(narrator.id);
   if (telling) characterIds.push(narrator.id);
   if (!characterIds.length)
-    return "A scene needs one of your characters there, or a narrator card (Menu → Settings → AI) to tell it alone.";
+    return "A scene needs one of your characters there, or a narrator card (Menu → Settings → AI → Scenes) to tell it alone.";
   const names = { ...nameIds(), player: personaName() };
   const feelings = characterIds
     .map((id) => (core.relations.get(id, "player") ? core.relations.describe(id, "player", names) : ""))
