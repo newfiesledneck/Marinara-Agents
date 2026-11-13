@@ -82,6 +82,37 @@ export function assistantNeeds(texts, pick = null, more = []) {
   return needs;
 }
 
+/**
+ * The ready-made request that `text` is, when it was typed and not picked: its label, how its request
+ * begins, or the start it puts in the box. Null when it's none of them. (Ones that ask something first,
+ * a lorebook or whose memories, are found by their label alone.)
+ */
+export function pickFor(text) {
+  const plain = (words) =>
+    String(words ?? "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  const typed = plain(text);
+  if (typed.length < 6) return null;
+  return (
+    // (The longest start first: "Write lore for the faction " before "Write lore for ".)
+    [...PICKS]
+      .sort((one, other) => (other.fill ?? "").length - (one.fill ?? "").length)
+      .find((pick) => {
+        const label = plain(pick.label);
+        const asks = plain(pick.ask ?? pick.request ?? "").slice(0, 48);
+        const fill = plain(pick.fill ?? "");
+        return (
+          typed === label ||
+          (label.length > 9 && typed.startsWith(label)) ||
+          (asks.length > 20 && typed.startsWith(asks)) ||
+          (fill && typed.startsWith(fill))
+        );
+      }) ?? null
+  );
+}
+
 /** Which of `names` (whole, or a first name alone) the texts speak of, lower case in and out. */
 export function mentioned(names, texts) {
   const words = texts.map((entry) => String(entry ?? "").toLowerCase()).join("\n");

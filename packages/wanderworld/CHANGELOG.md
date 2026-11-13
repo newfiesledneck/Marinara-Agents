@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.72 — 2026-11-12
+
+- The AI assistant now sees where people really live and work. Before, it was shown only homes and work set by hand, so it could say someone had no home (and refuse them an errand) while the place list named their house.
+- It is sent the lore from your own lorebooks that is tied to the world, its places and its people, marked read-only. Before, only lore written for this world went.
+- A ready-made request typed in your own words sends what its button would.
+- If it answers that it can't see something that was only left out, it is asked once more with everything.
+
 ## 0.5.71 — 2026-11-12
 
 - Settings are laid out again. Sections: Display, Controls, World, People, Animals, AI, Token use. Bigger ones have tabs (People: Around you, Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Sound, name tags, market days and Regenerate this world moved to where they belong.
