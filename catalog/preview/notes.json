@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.70",
+          "date": "2026-11-12",
+          "notes": "- Saved worlds are the Engine's alone now. The browser fallback and the move from the browser are gone, with the older conversions (the single world from before saves, the one narrator card). If the server part doesn't answer, the menu says to restart the Engine, and nothing is written.\n- All keeps every memory, with no ceiling anywhere.\n- A setting's description that states a number now follows its slider: \"People remember what they saw and heard\" says how many everyday and lasting memories are kept as you have them set, and the two \"sent to the AI\" sliders say what one, two and three people get at the current setting.",
+          "highlight": false
+        },
+        {
           "version": "0.5.69",
           "date": "2026-11-11",
           "notes": "- The game's and the AI's settings are kept by the Engine now, the same in every browser: the living world, animals, memories, connections, narrators, what calls the AI. Graphics, controls, sound and what's shown on screen stay each device's own. The first browser to open this version gives the Engine its settings.\n- Moving worlds from a browser to the Engine is checked: each is read back from the Engine before the browser lets go of it, a copy stays in the browser for now, and a notice says how many moved.",
@@ -307,12 +313,6 @@
           "version": "0.5.51",
           "date": "2026-11-11",
           "notes": "- Costumes: the Look card has \"Dressed as\", which swaps the built-in person's clothes for a whole ready-made character: king, farmer, adventurer (man or woman), witch or hooded rogue.\n- A costume keeps the person's own skin, hair colour and height, and moves with the same animations. \"Their own clothes\" puts them back.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.50",
-          "date": "2026-11-11",
-          "notes": "- Hostile people out in the country: bandits, hooded with a sword; witches and wizards, in a pointed hat with a staff. They act as the Hostile animals setting says, and are told as people, not beasts.\n- They're counted with the monsters, each kind has a switch in Settings → Animals, and lore can place them (`ww:monster:bandit:pack3`; brigand, robber, hag, mage and the like are read too).\n- They're nobody's character: no AI is used for them.",
           "highlight": false
         }
       ]

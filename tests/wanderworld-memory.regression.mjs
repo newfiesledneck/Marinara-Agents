@@ -298,25 +298,18 @@ const server = await import("../packages/wanderworld/server.mjs");
   assert.equal(new Set(some).size, some.length, "a pinned memory isn't among the lasting ones as well");
 }
 
-// ── All, by where the world is kept: a ceiling in the browser, none with the Engine ──
+// ── All has no ceiling, kept or told ─────────────────────────────────────────
 {
-  const fill = (memories) => {
-    for (let i = 0; i < MEMORY.MOST + 50; i++) memories.remember(["mira"], `Small ${i}.`, i);
-    return memories;
-  };
   const all = { each: MEMORY.ALL, kept: MEMORY.ALL };
-  assert.equal(fill(createMemories({}, () => all)).list("mira").length, MEMORY.MOST);
-  const engine = fill(createMemories({}, () => ({ ...all, most: Infinity })));
-  assert.equal(engine.list("mira").length, MEMORY.MOST + 50);
-  assert.equal(
-    createMemories({ mira: Array.from({ length: 2500 }, (_, i) => ({ day: i, text: `Small ${i}.` })) }, () => ({
-      ...all,
-      most: Infinity,
-    })).list("mira").length,
-    2500,
-    "nor is any cut when the world is opened",
+  const memories = createMemories({}, () => all);
+  for (let i = 0; i < 1500; i++) memories.remember(["mira"], `Small ${i}.`, i);
+  assert.equal(memories.list("mira").length, 1500);
+  const opened = createMemories(
+    { mira: Array.from({ length: 2500 }, (_, i) => ({ day: i, text: `Small ${i}.` })) },
+    () => all,
   );
-  assert.equal(engine.known("mira", Infinity, 2000, Infinity).length, MEMORY.MOST + 50, "and all is all that's told");
+  assert.equal(opened.list("mira").length, 2500, "nor is any cut when the world is opened");
+  assert.equal(memories.known("mira", Infinity, 2000, Infinity).length, 1500, "and all is all that's told");
 }
 
 // ── How many each person keeps: the setting's numbers, or their own ──────────

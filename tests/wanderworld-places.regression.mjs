@@ -76,7 +76,6 @@ const storage = {
   removeItem: (key) => memory.delete(key),
 };
 const saves = createSaves(storage);
-assert.equal(saves.migrate(), null, "nothing to bring over without an old world");
 const first = saves.create({ name: "Hollow", seed: "seed-a" });
 assert.equal(first.seed, "seed-a");
 const second = saves.create({ name: "Brook" });
@@ -105,27 +104,6 @@ assert.equal(checked.hour, 6, "the hour wraps into the day");
 assert.equal(checked.place, null, "an incomplete place is dropped");
 assert.deepEqual(checked.cast, ["a"], "only character ids stay in the cast");
 assert.deepEqual(checked.lore, {}, "lore without its ids is dropped");
-
-// The one world from before saves becomes the first saved world, once.
-const old = new Map([
-  [
-    "wanderworld.place",
-    JSON.stringify({ seed: "legacy", x: 3, z: 4, angle: 0, yaw: 0, pitch: 0.3, zoom: 8, hour: 14 }),
-  ],
-  ["wanderworld.cast", JSON.stringify(["c1"])],
-  ["wanderworld.persona", "p1"],
-]);
-const oldStorage = {
-  getItem: (key) => (old.has(key) ? old.get(key) : null),
-  setItem: (key, value) => old.set(key, String(value)),
-  removeItem: (key) => old.delete(key),
-};
-const legacy = createSaves(oldStorage).migrate();
-assert.equal(legacy.seed, "legacy");
-assert.deepEqual([legacy.cast, legacy.persona, legacy.hour], [["c1"], "p1", 14]);
-assert.equal(createSaves(oldStorage).last().id, legacy.id, "it's the one to continue");
-assert.equal(old.has("wanderworld.place"), false, "the old keys are cleared");
-assert.equal(createSaves(oldStorage).migrate(), null, "and it only happens once");
 
 // Place groups: by default the wilds round the town and its homes; lore on a group reaches every place in
 // it; groups from a save (or the AI) are checked.
