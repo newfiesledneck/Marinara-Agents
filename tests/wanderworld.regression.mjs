@@ -2,7 +2,7 @@
 // sight check, the seeded town, and the built-in person and how bodies move.
 // Run: node tests/wanderworld.regression.mjs
 import assert from "node:assert/strict";
-import { Box3, Matrix4, Vector3 } from "three";
+import { Box3, Matrix4, PerspectiveCamera, Vector3 } from "three";
 import { buildBuilding, KINDS, makeSpec } from "../packages/wanderworld/src/buildings.js";
 import { setAnimationStyle } from "../packages/wanderworld/src/character.js";
 import { createFigure } from "../packages/wanderworld/src/figure.js";
@@ -93,6 +93,7 @@ world.setTime(12);
     NATURE_MODELS.map((name) => [name, [{ geometry: new BoxGeometry(1, 1, 1), material: new MeshLambertMaterial() }]]),
   );
   nature.addNature(stand);
+  nature.setDensity(1);
   nature.setDrawDistance(140); // within the detailed trees' reach: no simple trees stand in
   nature.follow(SPAWN.x, SPAWN.z);
   const kit = [];
@@ -130,11 +131,45 @@ world.setTime(12);
     }
   }
   assert.ok(townTrees < 40, `only gardens and meadows have trees in town, not the forest (${townTrees})`);
-  nature.setDensity(DENSITIES[1]);
+  nature.setDensity(4);
   assert.ok(drawn() > near * 2, `more density means more detailed trees (${near} → ${drawn()})`);
   nature.setDrawDistance(90);
-  nature.setDensity(DENSITIES[0]);
+  nature.setDensity(1);
   assert.ok(drawn() < near, `a shorter draw distance draws fewer of them (${drawn()})`);
+  // Sparse: fewer again. And detailed trees only out to where the setting says, simple ones past it.
+  nature.setDrawDistance(140);
+  nature.setDensity(0.5);
+  const sparse = drawn();
+  assert.ok(sparse < near, `Sparse draws fewer trees than Normal (${near} → ${sparse})`);
+  nature.setDensity(1);
+  nature.setTreeReach(30);
+  assert.ok(drawn() < near / 3, `detailed trees only nearby when set so (${near} → ${drawn()})`);
+  assert.ok(trunks.visible && trunks.count > 0, "and simple trees stand in past them");
+  nature.setTreeReach(180);
+  assert.equal(drawn(), near, "back to all of them");
+  // Only where the camera looks: with a camera, what's behind it isn't drawn; what's near it always is.
+  const camera = new PerspectiveCamera(55, 16 / 9, 0.1, 200);
+  camera.position.set(SPAWN.x, 6, SPAWN.z);
+  camera.lookAt(SPAWN.x + 50, 2, SPAWN.z);
+  camera.updateMatrixWorld(true);
+  nature.follow(SPAWN.x, SPAWN.z, camera);
+  const ahead = drawn();
+  assert.ok(ahead > 20 && ahead < near * 0.7, `fewer trees are drawn than all round (${near} → ${ahead})`);
+  for (const mesh of trees) {
+    for (let i = 0; i < mesh.count; i++) {
+      const at = new Vector3().setFromMatrixPosition(new Matrix4().fromArray(mesh.instanceMatrix.array, i * 16));
+      const [x, z] = [at.x - SPAWN.x, at.z - SPAWN.z];
+      assert.ok(x > 0 || Math.hypot(x, z) < 31 || Math.abs(z) > -x * 0.4, "nothing far behind the camera is drawn");
+    }
+  }
+  camera.lookAt(SPAWN.x + 50, 2, SPAWN.z + 3); // a small turn: nothing is drawn again
+  camera.updateMatrixWorld(true);
+  nature.follow(SPAWN.x, SPAWN.z, camera);
+  assert.equal(drawn(), ahead, "a small turn of the camera keeps what's drawn");
+  camera.lookAt(SPAWN.x, -50, SPAWN.z + 0.01); // straight down: all round again
+  camera.updateMatrixWorld(true);
+  nature.follow(SPAWN.x, SPAWN.z, camera);
+  assert.equal(drawn(), near, "looking straight down draws all round");
   const plants = kit.filter((mesh) => /bush|flower/u.test(mesh.userData.model));
   const inTown = plants.some((mesh) => {
     for (let i = 0; i < mesh.count; i++) {

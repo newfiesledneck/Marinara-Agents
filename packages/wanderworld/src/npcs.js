@@ -1343,6 +1343,8 @@ export function createCrowd() {
     person.animate += dt;
     person.frame++;
     const visible = together && view.isVisible(position);
+    // Someone no part of whom can be on screen isn't drawn at all (they live on all the same).
+    if (view.inSight) person.character.object.visible = !together || view.inSight(position);
     const every = !visible ? 6 : playerDistance > NEAR ? 3 : 1;
     if (person.frame % every !== 0 && !wave) return;
     const pose = person.character.update(person.animate, speed, {

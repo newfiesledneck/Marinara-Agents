@@ -23,6 +23,7 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
+  Sphere,
 } from "three";
 import { blobShadow, listCharacterFolders, listCharacters, listPersonas, setAnimationStyle } from "./character.js";
 import { LIE_SECONDS } from "./clips.js";
@@ -313,6 +314,7 @@ const cameraTarget = new Vector3();
 const lookTarget = new Vector3();
 const projected = new Vector3();
 const frustum = new Frustum();
+const sightSphere = new Sphere();
 const viewProjection = new Matrix4();
 const raycaster = new Raycaster();
 const groundPlane = new Plane(new Vector3(0, 1, 0), 0);
@@ -439,6 +441,7 @@ function applySettings() {
   setGenderShares(gendersNow());
   core.world?.setDensity(settings.density);
   core.world?.setDrawDistance(settings.drawDistance);
+  core.world?.setTreeReach?.(settings.treeDetail);
   if (core.camera) {
     core.camera.far = settings.drawDistance + 20;
     core.camera.updateProjectionMatrix();
@@ -7513,7 +7516,7 @@ function step(dt) {
   }
   core.world.update(dt);
   for (const sign of core.signs) sign.update?.(dt);
-  if (!core.interior) core.world.follow(core.player.position.x, core.player.position.z);
+  if (!core.interior) core.world.follow(core.player.position.x, core.player.position.z, core.camera);
   // Walking away from a door closes its card.
   const card = core.sceneDoor;
   if (card && Math.hypot(card.x - core.player.position.x, card.z - core.player.position.z) > 4) {
@@ -7573,6 +7576,9 @@ function step(dt) {
     hour: core.hour,
     time: core.clock,
     isVisible: (position) => frustum.containsPoint(projected.set(position.x, position.y + 1, position.z)),
+    // Whether any of someone standing there could be on screen (a rider, a raised arm): else they aren't drawn.
+    inSight: (position) =>
+      frustum.intersectsSphere(sightSphere.set(projected.set(position.x, position.y + 1, position.z), 3)),
     onFootstep: (position, running, distance) => core.sound.footstep(distance, running),
     onSay: (group, text, id, name) => {
       // Only from someone near and in plain sight, and only a few at once: not a town's worth through the walls.
@@ -7842,7 +7848,7 @@ function attach(element) {
   if (core.software && !core.softwareTold) {
     core.softwareTold = true; // once per page
     core.hud.setNotice(
-      'Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called "graphics acceleration") in your browser\'s settings, then restart the browser.',
+      "Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called \"graphics acceleration\") in your browser's settings, then restart the browser. If you can't: Menu → Settings → Display → Graphics, with Detailed trees out to on Near, Trees and rocks on Sparse and Draw distance on Tiny, is the fastest it goes.",
     );
   }
   core.menu = createMenu(
