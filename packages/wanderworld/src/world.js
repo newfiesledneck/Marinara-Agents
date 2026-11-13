@@ -389,8 +389,9 @@ function planOpenGround(seed) {
   // How often an open block gets houses, a meadow, a garden, trees (the rest stays bare), and two houses.
   const [houses_, meadow_, garden_, trees_, pair_] = {
     scattered: [0.85, 0.9, 0.95, 1, 0.75],
-    // (A wide one's green has something on every plot: a meadow, a garden, trees, now and then a house.)
-    pond: look.wide ? [0.12, 0.35, 0.7, 1, 0.3] : [0.1, 0.45, 0.65, 0.9, 0.3],
+    // (A wide one's green has something on every plot: a meadow, trees, now and then a house.)
+    // No fenced gardens out on it: they'd look out of place in an open field.
+    pond: look.wide ? [0.12, 0.45, 0.45, 1, 0.3] : [0.1, 0.45, 0.65, 0.9, 0.3],
   }[style] ?? [0.3, 0.5, 0.62, 0.8, 0.45];
   for (let a = 0; a < blocksPerSide; a++) {
     for (let b = 0; b < blocksPerSide; b++) {
@@ -1764,6 +1765,25 @@ function placeStall(random, town, x, z, facing) {
 function placeMarket(random, town) {
   const px = plaza.x;
   const pz = plaza.z;
+  if (look.layout === "pond" && look.wide) {
+    // By the pond: stalls set down here and there over the whole plot, each turned in toward the middle
+    // and none quite in line, with the noticeboard and two benches. (The middle stays clear: a market
+    // with a fountain has it there.)
+    placeNoticeboard(town, px, pz);
+    for (const [x, z] of [
+      [-6.3, -5.9],
+      [6.1, -6.3],
+      [-6.7, 1.1],
+      [6.6, 0.4],
+      [2.9, 5.6],
+    ]) {
+      const [sx, sz] = [x + (random() - 0.5) * 0.9, z + (random() - 0.5) * 0.9];
+      placeStall(random, town, px + sx, pz + sz, facingFor(-sx, -sz));
+    }
+    placeBench(town, px - 3.6, pz - 1.2, 1);
+    placeBench(town, px + 3.6, pz - 1.2, 3);
+    return;
+  }
   if (look.market === "square") {
     // The fountain itself is built in createWorld (fixtures.js); here, only room for it.
     town.circles.push({ x: px, z: pz, r: FOUNTAIN_RADIUS + 0.7 }); // the stone rim and the plants round it
