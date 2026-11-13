@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.80 — 2026-11-13
+
+- One more cut removed: when the assistant rewrites the card of someone made for a world, the description, personality and appearance are kept whole (1,200 and 600 characters before).
+
 ## 0.5.79 — 2026-11-13
 
 - Nothing is cut short any more: character cards, personas, narrator cards and lore entries are sent to the AI whole. Before, a listener's card stopped at 500 characters, a persona at 900, a narrator card and a lore entry at 1,500.

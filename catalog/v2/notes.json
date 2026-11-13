@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.80",
+          "date": "2026-11-13",
+          "notes": "- One more cut removed: when the assistant rewrites the card of someone made for a world, the description, personality and appearance are kept whole (1,200 and 600 characters before).",
+          "highlight": false
+        },
+        {
           "version": "0.5.79",
           "date": "2026-11-13",
           "notes": "- Nothing is cut short any more: character cards, personas, narrator cards and lore entries are sent to the AI whole. Before, a listener's card stopped at 500 characters, a persona at 900, a narrator card and a lore entry at 1,500.\n- Up to 60 lore entries go with a call, where 6 or 12 did.\n- Lore the assistant rewrites, lore written for a world and the cards of people made for it are kept whole too (1,500 and 1,200 characters before).\n- Longer cards and more lore cost more tokens on every call they go with: Settings, Token use, Tips says so.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.61",
           "date": "2026-11-11",
           "notes": "- A call for each person who answers, off by default (Settings → AI): one call tells the moment and picks who answers, with nobody's private knowledge in it; then each person who answers gets a call of their own holding only what they know.\n- Later speakers hear what earlier ones said in the same moment.\n- Up to four calls a moment instead of one, so it's slower and costs more. Off, nothing changes: one call, with each person's knowledge kept apart inside it.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.60",
-          "date": "2026-11-11",
-          "notes": "- Gossip, off by default (Settings → People pass on what they know): people who spend time together now and then tell each other something they saw or heard of you in the last few days.\n- It arrives as hearsay (\"was told by Corvin\"), only a few such things are kept, and it isn't passed further.\n- What you whisper is never passed on.\n- By rules alone: no AI call.",
           "highlight": false
         }
       ]
