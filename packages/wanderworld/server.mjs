@@ -522,9 +522,9 @@ function readAssistantEdit(item, name) {
     const person = name(item.person);
     const parts = Object.fromEntries(
       [
-        ["description", 1200],
-        ["personality", 600],
-        ["appearance", 600],
+        ["description", MAX.card],
+        ["personality", MAX.card],
+        ["appearance", MAX.card],
       ]
         .map(([part, max]) => [part, block(item[part], max)])
         .filter(([, words]) => words),
