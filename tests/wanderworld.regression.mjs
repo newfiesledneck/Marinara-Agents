@@ -762,6 +762,16 @@ console.log("wanderworld regression: OK");
   assert.ok(needs("Why does Mira remember that?").includes("memories"));
   assert.ok(!needs("Make Jake a sorcerer").includes("memories"), "memories stay out of a plain request");
   assert.ok(PICKS.filter((pick) => pick.picker === "memories").length >= 4);
+  // A ready-made request typed out is found, and gets what the button would send.
+  const { pickFor } = await import("../packages/wanderworld/src/assistant-context.js");
+  assert.equal(pickFor("fill in the gaps")?.id, "gaps");
+  assert.equal(pickFor("Fill in the gaps please")?.id, "gaps");
+  assert.equal(pickFor(gaps.ask)?.id, "gaps");
+  assert.equal(pickFor("Fill in the gaps in this world: find the people who have no lore, and be quick")?.id, "gaps");
+  assert.equal(pickFor("Write lore for the faction The Thieves' Guild")?.id, "faction-lore");
+  assert.equal(pickFor("Tell me about Mira")?.id, "about");
+  assert.equal(pickFor("Make Jake a sorcerer"), null);
+  assert.equal(pickFor("hi"), null);
 
   // The proposal's choices: places from the world, a number kept in range, a fixed list held to.
   const { editableFields, reviseEdits } = await import("../packages/wanderworld/src/assistant-edits.js");

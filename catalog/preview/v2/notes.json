@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.72",
+          "date": "2026-11-12",
+          "notes": "- The AI assistant now sees where people really live and work. Before, it was shown only homes and work set by hand, so it could say someone had no home (and refuse them an errand) while the place list named their house.\n- It is sent the lore from your own lorebooks that is tied to the world, its places and its people, marked read-only. Before, only lore written for this world went.\n- A ready-made request typed in your own words sends what its button would.\n- If it answers that it can't see something that was only left out, it is asked once more with everything.",
+          "highlight": false
+        },
+        {
           "version": "0.5.71",
           "date": "2026-11-12",
           "notes": "- Settings are laid out again. Sections: Display, Controls, World, People, Animals, AI, Token use. Bigger ones have tabs (People: Around you, Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Sound, name tags, market days and Regenerate this world moved to where they belong.\n- Every section and tab starts with a line on what it is for, and every description is rewritten short: what On and Off do, an example where there are numbers. A setting that depends on another sits under it and goes faint while that one is off.\n- Some settings are renamed in plain words, such as \"Count personal limits against the total\".\n- Edit people is in tabs: About, Day, You, Others, Memory. A person's memory limits come before their memories.\n- The main menu opens with Before you start, which can be hidden and reopened.",
@@ -307,12 +313,6 @@
           "version": "0.5.53",
           "date": "2026-11-11",
           "notes": "- Furnish your home: inside it, Journal → Home puts a piece down a step in front of you, and takes away any piece you added.\n- Eighteen kinds of piece: chairs and stools (which can be sat on), tables, a bench, a bookcase, a cabinet, a chest, barrels and more.\n- A piece is kept inside the walls and clear of the way in. Up to 40 a home, kept with the world.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.52",
-          "date": "2026-11-11",
-          "notes": "- Journal → Home: where you live and who with.\n- Move into any house that stands empty, and choose which housemates come along; the rest stay where they are.\n- Ask someone to move in, or a housemate to leave.\n- Have someone round: they head for your home and stay about three hours.\n- People who know you and don't dislike you say yes. Rules only, with no AI call.",
           "highlight": false
         }
       ]

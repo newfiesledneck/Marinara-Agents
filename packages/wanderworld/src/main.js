@@ -78,7 +78,7 @@ import { createSaves } from "./saves.js";
 import { createStore, SHARED_SETTINGS } from "./store.js";
 import { undoOnly, withoutLeftovers } from "./undo.js";
 import { editableFields, reviseEdits } from "./assistant-edits.js";
-import { assistantNeeds, mentioned, PARTS, PICKS } from "./assistant-context.js";
+import { assistantNeeds, mentioned, PARTS, pickFor, PICKS } from "./assistant-context.js";
 import { createHangingSign, createNoticeboard, createSign } from "./signs.js";
 import {
   buildZones,
@@ -2210,6 +2210,30 @@ function housingData(names) {
   };
 }
 
+/**
+ * Where everyone lives and works now, by id: { home, work (zone ids, or null), owner }. What was set by
+ * hand (`save.housing`), and for anyone it wasn't, where the world put them (the crowd's own choice).
+ */
+function livedHousing() {
+  const byDoor = new Map(
+    (core.zones?.zones ?? [])
+      .filter((zone) => zone.kind === "building" && zone.door !== null && zone.door !== undefined)
+      .map((zone) => [zone.door, zone.id]),
+  );
+  const set = core.save?.housing ?? {};
+  const out = {};
+  for (const person of core.crowd?.snapshot() ?? []) {
+    out[person.id] = {
+      home: set[person.id]?.home ?? byDoor.get(person.home) ?? null,
+      work: set[person.id]?.work ?? byDoor.get(person.work) ?? null,
+      owner: set[person.id]?.owner === true,
+    };
+  }
+  for (const [id, entry] of Object.entries(set))
+    out[id] ??= { home: entry.home ?? null, work: entry.work ?? null, owner: entry.owner === true };
+  return out;
+}
+
 /** Sets where character `id` lives and works, by hand (Journal → People); null fields are left to chance. */
 function setHousingByHand(id, { home, work, owner }) {
   if (!core.save) return;
@@ -4306,6 +4330,18 @@ async function askAssistant(history, options = {}) {
   if (!(await core.ai.status())?.assistant)
     throw new Error("Wanderworld's server part isn't running (or is an older one): restart the Engine.");
   const pick = PICKS.find((entry) => entry.id === options.pick) ?? null;
+  // Where people really live and work, and the text of the player's lorebooks (for the lore tied here).
+  const lived = livedHousing();
+  const lorebooks = new Map(((await readLorebooks().catch(() => [])) ?? []).map((book) => [book.id, book]));
+  const tiedLore = (target) =>
+    (save.lore[target] ?? [])
+      .filter((tie) => tie.lorebookId !== "world")
+      .map((tie) => {
+        const book = lorebooks.get(tie.lorebookId);
+        const found = book?.entries.find((entry) => entry.id === tie.entryId);
+        return found?.content ? { title: found.title, book: book.name, content: found.content } : null;
+      })
+      .filter(Boolean);
   const names = namedZones(residentsOf(core.crowd.snapshot()));
   const slots = slotsOf(core.zones);
   const slotOf = new Map([...slots].map(([slot, id]) => [id, slot]));
@@ -4441,7 +4477,7 @@ async function askAssistant(history, options = {}) {
   const build = (needs, final) => {
     const person = (entry) => {
       const local = save.locals.find((other) => other.id === entry.id);
-      const house = save.housing?.[entry.id] ?? {};
+      const house = lived[entry.id] ?? {};
       const day = save.schedules?.[entry.id]?.entries ?? [];
       const traits = save.traits?.[entry.id];
       // In full for whoever the message names; shorter for everyone when it's about everyone; else a line.
@@ -4450,7 +4486,14 @@ async function askAssistant(history, options = {}) {
       const about = local
         ? [local.description, local.personality, local.appearance].filter(Boolean).join(" ")
         : String(entry.description ?? "");
-      const lore = worldNote(save, `character:${entry.id}`)?.content ?? "";
+      // Their lore: what this world has written of them, and what the player's own lorebooks say of them.
+      const lore = [
+        worldNote(save, `character:${entry.id}`)?.content ?? "",
+        ...tiedLore(`character:${entry.id}`).map((tied) => `${tied.title}: ${tied.content}`),
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 1500);
       return {
         name: entry.name,
         invented: !!local,
@@ -4485,7 +4528,23 @@ async function askAssistant(history, options = {}) {
       .filter(([, name]) => namedPlaces.has(name))
       .map(([id]) => worldNote(save, id))
       .filter(Boolean);
-    const entries = needs.has("lore") ? save.book.entries : placeNotes;
+    // (With the lore: what the player's own lorebooks say of the world, its places, groups and factions,
+    // each marked as theirs, since only this world's own lore can be rewritten.)
+    const entries = needs.has("lore")
+      ? [
+          ...save.book.entries,
+          ...Object.keys(save.lore)
+            .filter((key) => !key.startsWith("character:"))
+            .flatMap((key) =>
+              tiedLore(key).map((tied) => ({
+                title: `${tied.title} (from the player's lorebook "${tied.book}", tied to ${tieLabel(key) || "a place"}; read-only)`,
+                content: tied.content.slice(0, 1500),
+              })),
+            ),
+        ]
+          .filter((entry, at, all) => all.findIndex((other) => other.title === entry.title) === at)
+          .slice(0, 60)
+      : placeNotes;
     const withPlaces = needs.has("places") || needs.has("days") || namedPlaces.size > 0;
     return {
       ...base,
@@ -4548,10 +4607,22 @@ async function askAssistant(history, options = {}) {
   };
 
   let needs = assistantNeeds(said, pick);
+  // Typed, and it's one of the ready-made requests in other words: it gets what that one would.
+  if (!pick) for (const part of pickFor(said.at(-1))?.needs ?? []) needs.add(part);
   let answer = await core.ai.assistant(build(needs, false));
   // It asked for a part that was left out: once more, with it, and that's the last asking.
   if (answer?.need?.length) {
     needs = new Set([...needs, ...answer.need]);
+    answer = await core.ai.assistant(build(needs, true));
+  } else if (
+    // It said it can't see something that was only left out (and didn't ask for it): once more, with everything.
+    !answer?.edits?.length &&
+    Object.keys(PARTS).some((part) => !needs.has(part)) &&
+    /\b(can(?:'|no)t (?:see|find|access)|do(?:n't| not) (?:have|see)|no (?:lore|information|details|people|memories)|(?:was|were|is|are)(?:n't| not) (?:sent|included|provided|given|listed|available)|not (?:sent|included|provided|given|available)|left out)\b/iu.test(
+      answer?.reply ?? "",
+    )
+  ) {
+    needs = new Set(Object.keys(PARTS));
     answer = await core.ai.assistant(build(needs, true));
   }
   if (core.save?.id !== save.id) throw new Error("Another world was opened meanwhile, so nothing was changed.");
@@ -4724,6 +4795,7 @@ function applyAssistantEdits(edits, dry, context = {}) {
   // the home an edit before gave Sarah), in a proposal as much as for real.
   const ids = { ...nameIds() };
   const housing = { ...core.save.housing };
+  const lived = livedHousing(); // where the world put whoever has no home or work set by hand
   let book = core.save.book.entries;
   let lore = core.save.lore;
   let locals = core.save.locals;
@@ -4789,7 +4861,7 @@ function applyAssistantEdits(edits, dry, context = {}) {
     let found = null;
     if (beside) {
       const other = findPerson(beside);
-      found = other ? (housing[other.id]?.home ?? null) : null;
+      found = other ? (housing[other.id]?.home ?? lived[other.id]?.home ?? null) : null;
       if (!found) {
         skipped.push(
           other
@@ -5352,7 +5424,13 @@ function applyAssistantEdits(edits, dry, context = {}) {
       if (!dry) core.save = { ...core.save, errand: null, waypoint: null };
     } else if (item.do === "errand") {
       const person = findPerson(item.person);
-      const place = person ? (housing[person.id]?.home ?? housing[person.id]?.work ?? null) : null;
+      const place = person
+        ? (housing[person.id]?.home ??
+          housing[person.id]?.work ??
+          lived[person.id]?.home ??
+          lived[person.id]?.work ??
+          null)
+        : null;
       if (!person || !place || hasErrand) {
         skipped.push(
           !person

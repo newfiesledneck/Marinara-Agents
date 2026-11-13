@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.71)
+## What it does now (0.5.72)
 
 ### The world
 
