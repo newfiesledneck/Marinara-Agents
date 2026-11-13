@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.74 — 2026-11-12
+
+- New world is three steps with a tab each: you and your people, the land, lore and the AI. Each says what it is for, and the long explanations are cut down.
+- Journal → World is in tabs: This world, Setting, Animals, Lore.
+- Shorter explanations in the Journal (Edit people, picture look, ages, animals, lore linking, keywords).
+- In Settings, a tab that says what it is for no longer shows the section's line above it as well.
+
 ## 0.5.73 — 2026-11-12
 
 - The AI assistant can look things up before it answers, so a request in your own words no longer depends on the right keywords: a lore entry by title or by words (this world's own lore and the lorebooks chosen for it), everything about a person, what someone remembers, or a part of the world that was left out. Up to three look-ups an answer, each one more AI call.
