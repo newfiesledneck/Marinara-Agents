@@ -70,7 +70,7 @@ let worldSize = WORLD_SIZE;
 const BASE_TREES = 900;
 const BASE_ROCKS = 260;
 /** Prop multipliers the fps label cycles through, to stress-test a phone. */
-export const DENSITIES = [0.5, 1, 4, 10];
+export const DENSITIES = [0.25, 0.5, 1, 4, 10];
 const MAX_DENSITY = DENSITIES[DENSITIES.length - 1];
 const GRID_CELL = 4; // collision grid cell, metres
 
@@ -3833,7 +3833,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       dummy.rotation.set(0, growth() * Math.PI * 2, 0);
       dummy.scale.setScalar(size * (0.8 + growth() * 0.5));
       dummy.updateMatrix();
-      if (!builtOver(x, z, 0.5)) place(name, x, z, placed % 2 ? 1 : 0); // half of it at Sparse
+      if (!builtOver(x, z, 0.5)) place(name, x, z, [0, 1, 0.5, 1][placed % 4]); // a quarter of it at Sparse, half at Normal
       placed++;
     }
     // The town's own plants: gardens, doorsteps, round the fountain.

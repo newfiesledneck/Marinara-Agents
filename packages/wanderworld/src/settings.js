@@ -11,14 +11,16 @@ export const SETTINGS = {
   /** Render resolution: "auto" adjusts to keep the frame rate up; "100" is the screen's own; the rest are
    *  picture heights in pixels (1080p…), never more than the screen has. */
   resolution: { value: "auto", options: ["auto", "100", "1440", "1080", "720", "540"] },
+  /** Antialiasing. "auto": on where the picture is drawn no finer than the page and a graphics card draws it. */
+  smooth: { value: "auto", options: ["auto", "on", "off"] },
   /** The ground's textures in full, or the cheaper simple ground. */
   ground: { value: "full", options: ["full", "simple"] },
   /** How far you can see before the haze, in metres. */
   drawDistance: { value: 140, options: [60, 90, 140, 200, 300, 450] },
-  /** Trees and rocks outside town, as a multiple of the usual. */
-  density: { value: 1, options: [0.5, 1, 4, 10] },
+  /** Trees and rocks outside town, as a multiple of the forest the world was laid out with (0.5 is "Normal"). */
+  density: { value: 0.5, options: [0.25, 0.5, 1, 4, 10] },
   /** How far out trees are drawn in detail, in metres; past it simple ones stand in. */
-  treeDetail: { value: 180, options: [30, 70, 180] },
+  treeDetail: { value: 180, options: [30, 70, 180, 300, 450] },
   shadows: { value: true },
   /** Detailed trees, rocks and plants (the kit); off keeps the simple low-poly ones. */
   nature: { value: true },
@@ -193,6 +195,7 @@ export const SETTINGS = {
 /** The settings that are this device's own: how it draws, how it's controlled, what it shows and plays. */
 export const DEVICE_SETTINGS = new Set([
   "resolution",
+  "smooth",
   "drawDistance",
   "density",
   "ground",

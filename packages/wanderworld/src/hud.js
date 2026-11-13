@@ -745,9 +745,11 @@ export function createHud(root, handlers) {
     ground:
       "Simple: plainer ground, with less work for every pixel of it. Helps most on a big screen without a graphics card.",
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
-    density: "How many trees, rocks and plants grow round the town. Sparse is half the usual, and the fastest.",
+    smooth:
+      "Softens jagged edges, which show most at a low resolution. Auto: on when the picture is no sharper than the page and a graphics card draws it. Without a graphics card it costs speed. A change shows after the page is reloaded.",
+    density: "How many trees, rocks and plants grow round the town. Sparse is half of Normal, and the fastest.",
     treeDetail:
-      "Trees further off than this are drawn as simple shapes. Detailed trees are the costliest thing on screen, so Near is much faster; you'll see trees change as you walk up to them.",
+      "Trees further off than this are drawn as simple shapes. Detailed trees are the costliest thing on screen, so Near is much faster; you'll see trees change as you walk up to them. Never further than the draw distance.",
     shadows: "Soft shadows under people.",
     nature: "On: detailed trees and plants. Off: simple shapes, which is faster.",
     props: "On: detailed barrels, crates, benches and stalls. Off: simple shapes.",
@@ -936,15 +938,16 @@ export function createHud(root, handlers) {
   );
   at("Display", "Graphics");
   choice("resolution", "Resolution", RESOLUTION_LABELS);
+  choice("smooth", "Smooth edges", { auto: "Auto", on: "On", off: "Off" });
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
-  choice("density", "Trees and rocks", { 0.5: "Sparse", 1: "Normal", 4: "4×", 10: "10×" });
+  choice("density", "Trees and rocks", { 0.25: "Sparse", 0.5: "Normal", 1: "2×", 4: "8×", 10: "20×" });
   toggle("shadows", "Shadows under people");
   choice("ground", "Ground", { full: "Full", simple: "Simple" });
   toggle("nature", "Detailed trees and plants");
   choice(
     "treeDetail",
     "Detailed trees out to",
-    { 30: "Near (30 m)", 70: "Medium (70 m)", 180: "Far (180 m)" },
+    { 30: "Near (30 m)", 70: "Medium (70 m)", 180: "Far (180 m)", 300: "Very far (300 m)", 450: "Max (450 m)" },
     "nature",
   );
   toggle("props", "Detailed furniture and props");
