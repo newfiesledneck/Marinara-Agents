@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.75 — 2026-11-12
+
+- New world has a step for the AI, before the one that sets a world up with it: whether the server part is running, which connection writes conversations and moments, which plays scenes, which makes pictures, and the AI conversations and AI moments switches. They are your settings for every world, the same ones as in Settings → AI.
+
 ## 0.5.74 — 2026-11-12
 
 - New world is three steps with a tab each: you and your people, the land, lore and the AI. Each says what it is for, and the long explanations are cut down.

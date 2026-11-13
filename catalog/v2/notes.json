@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.75",
+          "date": "2026-11-12",
+          "notes": "- New world has a step for the AI, before the one that sets a world up with it: whether the server part is running, which connection writes conversations and moments, which plays scenes, which makes pictures, and the AI conversations and AI moments switches. They are your settings for every world, the same ones as in Settings → AI.",
+          "highlight": false
+        },
+        {
           "version": "0.5.74",
           "date": "2026-11-12",
           "notes": "- New world is three steps with a tab each: you and your people, the land, lore and the AI. Each says what it is for, and the long explanations are cut down.\n- Journal → World is in tabs: This world, Setting, Animals, Lore.\n- Shorter explanations in the Journal (Edit people, picture look, ages, animals, lore linking, keywords).\n- In Settings, a tab that says what it is for no longer shows the section's line above it as well.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.56",
           "date": "2026-11-11",
           "notes": "- Journal → Home says that furnishing needs Settings → Walk into buildings switched on, when it's off.\n- The README's known limits and how-it-works are brought up to date with 0.5.45 to 0.5.55.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.55",
-          "date": "2026-11-11",
-          "notes": "Fixes from reading back through the last ten versions.\n\n- A tool no longer stays in hand after the work is over (someone who'd been watering could lie down still holding the can).\n- Furniture isn't put down on top of what's already standing there.\n- Journal → Home lists the empty houses nearest you also when you're indoors, and shows furnishing as soon as you step inside.\n- A witch's or wizard's hat is made once and shared, so none is left behind when they go.",
           "highlight": false
         }
       ]
