@@ -645,8 +645,16 @@ export function createHud(root, handlers) {
     shownSection = name;
     const section = sections.get(name);
     if (sub && section.subs.includes(sub)) section.shown = sub;
+    // A sub-tab that says what it's for is enough: the section's own line isn't shown above it as well.
+    const own = [...settingsPanel.children].some(
+      (child) => child.dataset.intro && child.dataset.section === name && child.dataset.sub === section.shown,
+    );
     for (const child of settingsPanel.children) {
       if (!child.dataset.section) continue; // the tabs themselves
+      if (child.dataset.intro && child.dataset.section === name && !child.dataset.sub && own && section.shown) {
+        child.toggleAttribute("data-wanderworld-settings-hidden", true);
+        continue;
+      }
       // Hidden by an attribute, so each row's own display (and whatever shows or hides it) is left alone.
       child.toggleAttribute(
         "data-wanderworld-settings-hidden",
@@ -674,6 +682,7 @@ export function createHud(root, handlers) {
     element.setAttribute("data-wanderworld-explain", "");
     element.style.cssText = `font-size:12px;line-height:1.4;color:${INK_SOFT};margin-bottom:2px;`;
     element.textContent = text;
+    element.dataset.intro = "1";
     add(element);
   };
   /** What's added next goes in `section` (and its sub-tab `sub`; none: shown whichever is open). */

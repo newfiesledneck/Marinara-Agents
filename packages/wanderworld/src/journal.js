@@ -76,6 +76,7 @@ export function createJournal(panelCss, handlers) {
   let worldClock = null; // the World tab's time, updated in place
   const openNodes = new Set(["world", "places", "town", "groups"]); // which rows of the Places tree are open // the id of the group whose places are being chosen
   let peopleView = "roster"; // which part of the People tab is showing
+  let worldView = "This world"; // and of the World tab
   let picker = null; // { zone, lorebooks, chosen, onToggle } while choosing lore for a place
 
   const section = (label) => element("div", "font-weight:700;margin-top:4px;opacity:0.9;", label);
@@ -85,6 +86,36 @@ export function createJournal(panelCss, handlers) {
     const node = line(text, `${MUTED}font-size:12px;`);
     node.setAttribute("data-wanderworld-explain", "");
     return node;
+  };
+
+  /** Where a part of a long tab starts: what follows, up to the next mark, is shown under `view`. */
+  const mark = (view, about = "") => {
+    const node = element("div", "display:none;");
+    node.dataset.view = view;
+    if (about) node.dataset.about = about;
+    return node;
+  };
+  /** Puts what's in the tab's body under its marks into views, with a row of buttons to switch between them. */
+  const intoViews = (order, shown, onShow) => {
+    const panes = new Map(order.map((view) => [view, element("div", "display:none;flex-direction:column;gap:6px;")]));
+    let pane = null;
+    for (const node of [...body.children]) {
+      if (node.dataset.view) {
+        pane = panes.get(node.dataset.view) ?? null;
+        if (pane && node.dataset.about && !pane.childElementCount) pane.append(explain(node.dataset.about));
+        node.remove();
+      } else pane?.append(node);
+    }
+    const bar = element("div", "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;");
+    const show = (view) => {
+      for (const [name, node] of panes) node.style.display = name === view ? "flex" : "none";
+      for (const node of bar.children) node.style.opacity = node.textContent === view ? "1" : "0.6";
+      onShow(view);
+    };
+    for (const view of order) bar.append(button(view, SMALL, () => show(view)));
+    body.prepend(bar);
+    body.append(...panes.values());
+    show(panes.has(shown) ? shown : order[0]);
   };
 
   function drawTabs() {
@@ -241,7 +272,7 @@ export function createJournal(panelCss, handlers) {
   function drawDetails() {
     body.append(
       explain(
-        "Everything about each person is changed here, in their own window: body, voice, temperament, home and work, their day, and how they and everyone else see each other. For someone with a character card, who they are and their looks stay the card's; someone made for this world can have those changed too.",
+        "Edit opens that person's own window: who they are, their home, work and day, how they see you and others, and what they remember.",
       ),
     );
     if (!data.everyone.length) body.append(line("Nobody lives here yet.", MUTED));
@@ -716,12 +747,8 @@ export function createJournal(panelCss, handlers) {
   function drawWorld() {
     const world = data.world;
     // The world's setup: its setting words, its lorebooks, and how their entries are linked to places.
-    body.append(
-      explain(
-        "Your world's setup: what it's like, the lorebooks it uses, and how their entries link to places and characters.",
-      ),
-    );
-    body.append(section("Setup"));
+    body.append(mark("Setting", "What this world is like. The AI is told these whenever it writes for this world."));
+    body.append(section("The setting, in a few words"));
     const setting = element("textarea", `${FIELD}resize:vertical;min-height:44px;width:100%;box-sizing:border-box;`);
     setting.value = world.setting;
     setting.placeholder = 'Setting, e.g. "a cosy fishing village"';
@@ -731,7 +758,7 @@ export function createJournal(panelCss, handlers) {
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "How this world looks in pictures"));
     body.append(
       explain(
-        `A few words that go in every picture's prompt, wherever you are ({world_look} in Illustrate's template): the era and the style, not one place. Left empty, it's "${world.usualLook}".`,
+        `A few words for every picture of this world: the era and the style, not one place. Empty: "${world.usualLook}".`,
       ),
     );
     const look = element("textarea", `${FIELD}resize:vertical;min-height:36px;width:100%;box-sizing:border-box;`);
@@ -744,7 +771,7 @@ export function createJournal(panelCss, handlers) {
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Ages of the people the AI makes"));
     body.append(
       explain(
-        "The usual ages of people the AI invents or fills in for this world from now on (linking lore by AI, the AI assistant), when nothing says how old they are. It never overrides your lore, setting or cards, and nobody already here is changed. Any age from 1; an empty box is no limit that way.",
+        "The usual ages of people the AI invents for this world from now on, when nothing says how old they are. Your lore, setting and cards always win. Empty: no limit that way.",
       ),
     );
     {
@@ -772,10 +799,11 @@ export function createJournal(panelCss, handlers) {
       body.append(row);
     }
     // This world's own numbers of animals, over what Settings has for every world.
+    body.append(mark("Animals"));
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Animals in this world"));
     body.append(
       explain(
-        "How many of each sort this world has of its own. Left off, it goes by Menu → Settings → Animals, like every other world. On, these numbers are this world's alone. 0 is none of that sort; what its lore asks for and anyone's own are as Settings has them.",
+        "Off: this world uses Menu → Settings → Animals, like every other. On: the numbers below are this world's alone. 0 is none of that sort.",
       ),
     );
     {
@@ -824,6 +852,7 @@ export function createJournal(panelCss, handlers) {
       own.addEventListener("change", save);
       for (const [, box] of boxes) box.addEventListener("change", save);
     }
+    body.append(mark("Setting"));
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Scene instructions for this world"));
     body.append(
       explain(
@@ -841,6 +870,9 @@ export function createJournal(panelCss, handlers) {
       handlers.onSetSetup({ sceneInstructions: instructions.value.trim() }),
     );
     body.append(instructions);
+    body.append(
+      mark("Lore", "The lorebooks this world uses, and how their entries are tied to its places and people."),
+    );
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Lorebooks for this world"));
     if (!world.allLorebooks) {
       body.append(line("Reading your lorebooks…", MUTED));
@@ -898,9 +930,10 @@ export function createJournal(panelCss, handlers) {
     }
     body.append(
       explain(
-        "With places linked, the world is built with at least every numbered place its lorebooks name (smithy3 makes three smithies; a cave brings mountains). The AI reads the characters' cards, your persona and any lorebook and works those out itself (one model call for the cast, one for every 40 lorebook entries, on the conversations connection); the other way needs ww: keywords on the entries (ww:smithy3). It only fills in what isn't set yet. After changing lorebooks or reading them again, Menu → Settings → Regenerate this world builds what's new.",
+        "How lorebook entries find their places and people. By AI: it reads the cards, your persona and the lorebooks and works it out (one call for the cast, one for every 40 entries). By keywords: entries need ww: keys (ww:smithy3). Only what isn't set yet is filled in. After changing lorebooks, Menu → Settings → World → Places → Regenerate this world builds what's new.",
       ),
     );
+    body.append(mark("Setting"));
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Season"));
     const season = element("select", FIELD);
     for (const [value, label] of [
@@ -917,11 +950,10 @@ export function createJournal(panelCss, handlers) {
     season.value = world.season;
     season.addEventListener("change", () => handlers.onSetSetup({ season: season.value }));
     body.append(season);
+    body.append(mark("Lore"));
     body.append(section("Keywords"));
     body.append(
-      explain(
-        "Wanderworld acts only on lorebook keys written ww:<what>:<value> (Menu → Settings → Help lists them all). This lists any it didn't understand, and why: one written a way it doesn't read, a place this world doesn't have, a name nobody here has.",
-      ),
+      explain("Keys Wanderworld didn't understand, and why (Menu → Settings → Help lists the ones it reads)."),
     );
     body.append(
       button("Check ww: keywords", SMALL, (event) => {
@@ -965,6 +997,7 @@ export function createJournal(panelCss, handlers) {
         ),
       );
     }
+    body.append(mark("This world"));
     body.append(section("This world"));
     for (const [label, value] of [
       ["World", world.name],
@@ -979,6 +1012,7 @@ export function createJournal(panelCss, handlers) {
       row.append(element("span", "opacity:0.7;", label), shown);
       body.append(row);
     }
+    intoViews(["This world", "Setting", "Animals", "Lore"], worldView, (view) => (worldView = view));
   }
 
   let map = null; // the Map tab's canvas, redrawn in place as you walk

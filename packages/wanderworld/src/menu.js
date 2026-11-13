@@ -603,47 +603,80 @@ export function createMenu(layer, handlers, art = null) {
       if (byAi(params)) void review(params, [...card.childNodes]);
       else handlers.onCreate(params);
     });
+    // Three steps, a tab each, so it isn't one long form: who, the land, the lore and the AI.
+    const small = (text) => element("div", "font:12px system-ui;opacity:0.75;", text);
+    const steps = [
+      [
+        "1. You and your people",
+        "Who you play as, and which of your Engine characters live in this world. You can change both later.",
+        [small("You play as"), personaRow, personaNote, castHeading, castList],
+      ],
+      [
+        "2. The land",
+        "What the world is like and how it's laid out. The map is a first idea of what these choices make.",
+        [
+          small("Setting"),
+          setting,
+          explainLine(
+            "A few words on what kind of world this is. The AI is told it whenever it writes for this world.",
+          ),
+          pickers,
+          preview,
+          reroll,
+          small("Seed"),
+          seed,
+          explainLine("Optional. The same seed always builds the same town."),
+        ],
+      ],
+      [
+        "3. Lore and the AI",
+        "Optional. Lorebooks give the world its lore, and the AI can set the world up from them and your characters' cards.",
+        [
+          small("Lorebooks for this world"),
+          explainLine(
+            "Wanderworld only acts on lorebook keys written ww:<what>:<value> (ww:tavern1, ww:world, ww:Mira), so ordinary trigger words never set anything by accident. Help lists them all.",
+          ),
+          bookList,
+          small("Setting the world up"),
+          explainLine(
+            "By AI: it works out who is who, how people know each other, where they live and work, and which lore belongs where (one call for the cast, one for every 40 lorebook entries). You see the result and can reroll before the world is built. By keywords: only ww: keys are used, and no AI.",
+          ),
+          characterLinking,
+          linking,
+          writeLore,
+          newPeopleRow,
+          agesRow,
+          explainLine(
+            "Ages: the usual ages of people the AI invents, when nothing says how old they are. Your lore, setting and cards always win. With nothing chosen above, the AI can still write a whole world: its places, then people who belong there. People it invents live in this world only.",
+          ),
+        ],
+      ],
+    ];
+    const stepBar = element("div", "display:flex;gap:4px;flex-wrap:wrap;");
+    const panes = steps.map(([label, about, nodes]) => {
+      const pane = element("div", "display:none;flex-direction:column;gap:8px;");
+      pane.append(explainLine(about), ...nodes);
+      const tab = button(label, SMALL, () => showStep(label));
+      stepBar.append(tab);
+      return { label, pane, tab };
+    });
+    const showStep = (label) => {
+      for (const step of panes) {
+        step.pane.style.display = step.label === label ? "flex" : "none";
+        step.tab.style.opacity = step.label === label ? "1" : "0.6";
+        step.tab.setAttribute("aria-pressed", String(step.label === label));
+      }
+    };
     card.append(
       element("div", "font:700 17px system-ui;", "New world"),
-      element("div", "font:12px system-ui;opacity:0.75;", "Name"),
+      small("Name"),
       name,
-      seed,
-      element("div", "font:12px system-ui;opacity:0.75;", "You play as"),
-      personaRow,
-      personaNote,
-      castHeading,
-      castList,
-      explainLine("The same seed always builds the same town. The setting tells the AI what kind of world to write."),
-      setting,
-      pickers,
-      preview,
-      explainLine(
-        "A map these choices could make: a first idea, not a promise. Lorebooks, and the AI setting the world up, add the places the lore needs, so the map you get can differ. With the AI, you see the real one (and can reroll it) before the world is built.",
-      ),
-      reroll,
-      element("div", "font:12px system-ui;opacity:0.75;", "Lorebooks for this world"),
-      explainLine(
-        "Wanderworld only acts on lorebook keys written ww:<what>:<value>, so a lorebook's ordinary trigger words never set anything by accident. ww:tavern1 ties an entry to the first tavern, ww:world to the whole world, ww:Mira to a character; on a character's entry ww:body:woman, ww:lives in:home3, ww:owner of:tavern1, ww:work:10:15-18:45, ww:friend of:you or ww:sister of:Tam set them up, and ww:character:Mira Saxton says an entry is that person. Once you're in a world, Menu → Settings → Help lists them all, with a prompt for your assistant.",
-      ),
-      bookList,
-      element("div", "font:12px system-ui;opacity:0.75;", "Setting the world up"),
-      explainLine(
-        "The AI can make the world ready to play: who's a man or a woman, how people know each other and you, where everyone lives and works, and which lore belongs to which place, with the places that takes built in. It reads your characters' cards and persona (one model call) and the lorebooks chosen above (one call for every 40 entries), on the conversations connection. No lorebook is needed for the characters.",
-      ),
-      characterLinking,
-      linking,
-      writeLore,
-      newPeopleRow,
-      agesRow,
-      explainLine(
-        "The usual ages of people the AI invents or fills in, when nothing says how old they are. It never overrides your lore, setting or cards: an elf your lore makes a thousand years old stays a thousand. Any age from 1; empty either box for no limit that way. You can change it later in Journal → World.",
-      ),
-      explainLine(
-        "With nothing chosen above, the AI can still make a whole world: it writes the world and its places first, then people who belong there, then fits your own characters in among them. Each is one more model call. The people it invents aren't Engine characters: they live, talk and keep their days in this world only, and can't be cast in scenes.",
-      ),
+      stepBar,
+      ...panes.map((step) => step.pane),
       create,
       button("Back", SMALL, home),
     );
+    showStep(steps[0][0]);
     name.focus();
     name.select();
     redraw();
