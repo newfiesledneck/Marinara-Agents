@@ -975,9 +975,9 @@ assert.equal(
     recaps: "At the mill: they argued.",
     omitted: ["places", "help", "made-up"],
   })[0].content;
-  assert.match(asked, /# Left out[\s\S]*places \(the list of places\); help \(how Wanderworld works\)\./u);
+  assert.match(asked, /Not sent: places \(the list of places\); help \(how Wanderworld works\)\./u);
   assert.doesNotMatch(asked, /made-up/u);
-  assert.match(asked, /\{"need": \["places"\]\}/u, "how to ask for a part");
+  assert.match(asked, /# Looking things up[\s\S]*\{"need": \["places"\], "lore": \[/u, "how to look something up");
   assert.match(asked, /## The recent chat[^\n]*\nZoey: Morning\./u);
   assert.match(asked, /## Recaps of scenes[^\n]*\nAt the mill: they argued\./u);
   const last = server.assistantMessages({
@@ -994,6 +994,38 @@ assert.equal(
   assert.doesNotMatch(last, /"need"/u, "the second asking is the last");
   assert.deepEqual(server.readAssistant(fenced('{"need": ["places", "weather", "places"]}')).need, ["places"]);
   assert.equal(server.readAssistant(fenced('{"need": ["weather"]}')).need, undefined, "a part there isn't");
+  // Looking up lore, a person, their memories: read as what to look for, and nothing is changed by it.
+  const looking = server.readAssistant(
+    fenced(
+      '{"lore": ["The Ashen War", "  thieves   guild ", "The Ashen War", 7], "people": ["Aldric"], "memories": []}',
+    ),
+  );
+  assert.deepEqual(looking.look, { lore: ["The Ashen War", "thieves guild"], people: ["Aldric"], memories: [] });
+  assert.deepEqual([looking.edits, looking.need], [[], undefined]);
+  assert.equal(server.readAssistant(fenced('{"lore": [], "people": []}')).look, undefined, "nothing asked for");
+  assert.equal(
+    server.readAssistant(fenced('{"edits": [], "lore": ["x"]}')).look,
+    undefined,
+    "an answer with changes isn't a lookup",
+  );
+  // What was looked up goes back in the next asking, with the titles of what else there is.
+  const again = server.assistantMessages({
+    history: [{ role: "user", text: "Who fought in the war?" }],
+    people: [],
+    places: [],
+    groups: [],
+    factions: [],
+    ties: [],
+    entries: [],
+    omitted: [],
+    loreIndex: ["The Ashen War", "The Thieves' Guild"],
+    found: [{ title: 'The Ashen War (from the player\'s lorebook "Realm"; read-only)', content: "Two houses burned." }],
+  })[0].content;
+  assert.match(again, /## Lore titles \(look one up to read it\)\nThe Ashen War; The Thieves' Guild/u);
+  assert.match(
+    again,
+    /## Looked up for you\nThe Ashen War \(from the player's lorebook "Realm"; read-only\):\nTwo houses burned\./u,
+  );
 
   // The new edits: notes taken down, the errand dropped, a scene.
   const more = server.readAssistant(
