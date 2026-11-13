@@ -2586,7 +2586,8 @@ function setSchedule(id, entries, by = "you") {
 
 /** The AI plans `id`'s day (server.mjs /plan), with what the player asked for. Returns words for the editor. */
 async function planSchedule(id, request = "") {
-  if (!core.ai.known()?.plans) return "Wanderworld's server part isn't running.";
+  if (!core.ai.known()?.plans)
+    return "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld).";
   const places = schedulePlaces();
   const names = Object.fromEntries(places.map((place) => [place.id, place.name]));
   const house = core.save?.housing?.[id] ?? {};
@@ -4328,7 +4329,9 @@ async function askAssistant(history, options = {}) {
   const save = core.save;
   if (!save || !core.zones) throw new Error("Open a world first: the assistant works on the world you're in.");
   if (!(await core.ai.status())?.assistant)
-    throw new Error("Wanderworld's server part isn't running (or is an older one): restart the Engine.");
+    throw new Error(
+      "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld).",
+    );
   const pick = PICKS.find((entry) => entry.id === options.pick) ?? null;
   // Where people really live and work, and the text of the player's lorebooks (for the lore tied here).
   const lived = livedHousing();
@@ -5988,7 +5991,10 @@ async function illustrateMoment({
   prompt = "",
 }) {
   if (!core.save || !core.zones) throw new Error("Open a world first.");
-  if (!core.ai.known()?.illustrate) throw new Error("Wanderworld's server part isn't running: restart the Engine.");
+  if (!core.ai.known()?.illustrate)
+    throw new Error(
+      "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld).",
+    );
   const at = core.interior ? core.interior.door : core.player.position;
   const zone = zoneAt(core.zones, at.x, at.z);
   const party = new Set(core.crowd.party().map((member) => member.id));
@@ -7886,7 +7892,7 @@ function attach(element) {
       .catch((error) => {
         console.warn("[wanderworld] saved worlds couldn't be read: the server part didn't answer", error);
         core.hud?.setNotice(
-          "Wanderworld's server part didn't answer, so your saved worlds can't be read and nothing would be saved. Restart the Engine (a package's server part starts with it), then open this tab again.",
+          "Wanderworld isn't fully loaded, so your saved worlds can't be read and nothing would be saved. Restart the Engine (needed once after installing or updating Wanderworld), then open this tab again.",
         );
       })
       .then(begin);
