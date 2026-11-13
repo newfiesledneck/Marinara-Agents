@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.79",
+          "date": "2026-11-13",
+          "notes": "- Nothing is cut short any more: character cards, personas, narrator cards and lore entries are sent to the AI whole. Before, a listener's card stopped at 500 characters, a persona at 900, a narrator card and a lore entry at 1,500.\n- Up to 60 lore entries go with a call, where 6 or 12 did.\n- Lore the assistant rewrites, lore written for a world and the cards of people made for it are kept whole too (1,500 and 1,200 characters before).\n- Longer cards and more lore cost more tokens on every call they go with: Settings, Token use, Tips says so.",
+          "highlight": false
+        },
+        {
           "version": "0.5.78",
           "date": "2026-11-13",
           "notes": "- A new town round a pond: its market's stalls are set down here and there over the whole plot, turned in toward the middle, with the noticeboard and benches among them. Its green has meadows and trees, and no fenced gardens.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.60",
           "date": "2026-11-11",
           "notes": "- Gossip, off by default (Settings → People pass on what they know): people who spend time together now and then tell each other something they saw or heard of you in the last few days.\n- It arrives as hearsay (\"was told by Corvin\"), only a few such things are kept, and it isn't passed further.\n- What you whisper is never passed on.\n- By rules alone: no AI call.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.59",
-          "date": "2026-11-11",
-          "notes": "- What each person knows is their own. The AI is given every listener a block of their own: their memories with when and how they came by them (saw, heard), the chat they alone heard, and lore about themselves. What everyone present heard stays one conversation in order.\n- Lore about a person goes only to that person; lore about you, only to those who know you.\n- People in sight remember what you do (getting on a horse, going into a house), not only what you say: Settings → People notice what you do.\n- Memories are kept with or without the AI.",
           "highlight": false
         }
       ]

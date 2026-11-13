@@ -2935,7 +2935,7 @@ async function readLorebooks() {
           title: String(
             entry.name || entry.comment || (Array.isArray(entry.keys) ? entry.keys.join(", ") : "") || "Entry",
           ),
-          content: typeof entry.content === "string" ? entry.content.slice(0, 4000) : "",
+          content: typeof entry.content === "string" ? entry.content : "",
           ...readKeys(entry.keys),
         }));
       } catch (error) {
@@ -4545,12 +4545,11 @@ async function askAssistant(history, options = {}) {
         ...tiedLore(`character:${entry.id}`).map((tied) => `${tied.title}: ${tied.content}`),
       ]
         .filter(Boolean)
-        .join("\n")
-        .slice(0, 1500);
+        .join("\n");
       return {
         name: entry.name,
         invented: !!local,
-        about: full ? about.slice(0, 3000) : some ? about.slice(0, 320) : "",
+        about: full ? about : some ? about.slice(0, 320) : "",
         home: placeWords(house.home),
         work: placeWords(house.work),
         owner: !!house.owner,
@@ -4591,7 +4590,7 @@ async function askAssistant(history, options = {}) {
             .flatMap((key) =>
               tiedLore(key).map((tied) => ({
                 title: `${tied.title} (from the player's lorebook "${tied.book}", tied to ${tieLabel(key) || "a place"}; read-only)`,
-                content: tied.content.slice(0, 1500),
+                content: tied.content,
               })),
             ),
         ]
@@ -4699,7 +4698,7 @@ async function askAssistant(history, options = {}) {
         if (found.has(entry.key) || found.size >= 24) continue;
         found.set(entry.key, {
           title: entry.own ? entry.title : `${entry.title} (from the player's lorebook "${entry.book}"; read-only)`,
-          content: entry.content.slice(0, 2400),
+          content: entry.content,
         });
         looked.push(`lore "${entry.title}"`);
         fresh = true;
@@ -5236,7 +5235,7 @@ function applyAssistantEdits(edits, dry, context = {}) {
         continue;
       }
       const old = faction.entryId ? (book.find((entry) => entry.id === faction.entryId) ?? null) : null;
-      const content = item.text.replace(/\s+/gu, " ").trim().slice(0, 1500);
+      const content = item.text.replace(/\s+/gu, " ").trim();
       if (!old && book.length >= 60) {
         skipped.push(`This world's own lore is full (60 entries), so nothing can be written about ${faction.name}.`);
         continue;
@@ -5276,7 +5275,7 @@ function applyAssistantEdits(edits, dry, context = {}) {
           .map((tie) => tie.entryId),
       );
       const old = book.find((entry) => tied.has(entry.id)) ?? null;
-      const content = item.text.replace(/\s+/gu, " ").trim().slice(0, 1500);
+      const content = item.text.replace(/\s+/gu, " ").trim();
       if (!old && book.length >= 60) {
         skipped.push(`This world's own lore is full (60 entries), so nothing can be written about ${title}.`);
         continue;
@@ -5861,7 +5860,7 @@ async function runMoment({
     const lore = entries
       .filter((entry) => !personal(entry))
       .map(words)
-      .slice(0, 6);
+      .slice(0, 60);
     const places = schedulePlaces();
     // What was just said or done goes as what's happening now, not as "just before"; something done
     // (told by whoever asked for this) was seen by those here.
@@ -5883,8 +5882,8 @@ async function runMoment({
               entry.source === `character:${person.id}` ||
               (entry.source === PLAYER_ID && (person.inParty || !!core.relations.get(person.id, "player"))),
           )
-          .map((entry) => `(lore) ${words(entry)}`.slice(0, 600))
-          .slice(0, 2),
+          .map((entry) => `(lore) ${words(entry)}`)
+          .slice(0, 8),
         ...person.knows.filter((memory) => !said.some((text) => text.length > 2 && memory.includes(`"${text}"`))),
         ...(chat.own[person.id] ?? []).map((entry) => `(just now, heard) ${entry.who}: ${entry.text}`),
       ],
@@ -6115,13 +6114,13 @@ function talkPayload(talking, line) {
     setting: core.save?.setting ?? "",
     lore: zone
       ? loreAt(zone)
-          .slice(0, 12)
+          .slice(0, 60)
           .map(({ lorebookId, entryId }) => ({ lorebookId, entryId }))
       : [],
     loreTexts: zone
       ? activeLore(zone, {})
           .entries.filter((entry) => entry.own && entry.content)
-          .slice(0, 6)
+          .slice(0, 60)
           .map((entry) => `${entry.title}: ${entry.content}`)
       : [],
     history: talking.history.slice(-24),

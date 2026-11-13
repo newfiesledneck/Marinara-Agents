@@ -25,6 +25,8 @@ const MAX_THUMBNAIL = 40_000; // characters of a data URL
 const isRecord = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 const text = (value, fallback = "") => (typeof value === "string" ? value.slice(0, 2000) : fallback);
 const finite = (value, fallback) => (Number.isFinite(value) ? value : fallback);
+/** Something written at length (lore, a card made for this world): whole, under a ceiling no one writes to. */
+const long = (value) => (typeof value === "string" ? value.slice(0, 200000) : "");
 
 /** Where the player stood, checked; null when it isn't usable. */
 function checkPlace(place) {
@@ -209,9 +211,9 @@ export function checkWorld(raw) {
       .map((person) => ({
         id: person.id.slice(0, 120),
         name: text(person.name).slice(0, 60),
-        description: text(person.description).slice(0, 1200),
-        personality: text(person.personality).slice(0, 500),
-        appearance: text(person.appearance).slice(0, 500),
+        description: long(person.description),
+        personality: long(person.personality),
+        appearance: long(person.appearance),
         // The region they live in, when it isn't the home one ("x,z"): they're seen there.
         ...(typeof person.region === "string" && REGION_KEY.test(person.region) && person.region !== "0,0"
           ? { region: person.region }
@@ -349,7 +351,7 @@ export function checkWorld(raw) {
         .map((entry) => ({
           id: entry.id.slice(0, 60),
           title: text(entry.title).slice(0, 120),
-          content: text(entry.content).slice(0, 1500),
+          content: long(entry.content),
         })),
     },
     // True until the keyword links have been made (the first time the world is built).

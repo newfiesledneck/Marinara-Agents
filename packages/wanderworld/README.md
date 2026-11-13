@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.78)
+## What it does now (0.5.79)
 
 ### The world
 
@@ -256,6 +256,10 @@ only walk about.
   Whatever the other choices leave out is added on top, with hills for the cave and a river for the mill,
   and two places of one kind are kept well apart. A new town laid out round a pond has a bigger pond, its
   market inside by the water and a fuller green.
+- **Nothing is cut:** character cards, personas, narrator cards and lore entries are sent to the AI whole,
+  however long, and as many lore entries as are active where you stand (up to 60). Lore the assistant
+  rewrites, and lore or people written for a world, are kept whole too. Long cards cost more tokens on
+  every call they go with.
 - **Token use in one place:** Settings → Token use gathers every setting that changes how many tokens are
   spent: which things call the AI (conversations, moments, arrivals, things, the noticeboard, sitting,
   joining, a call for each speaker), how long replies are, and how many memories are sent. They are the
@@ -551,7 +555,7 @@ still count, and come first.
   makes, with the answer, to the Engine's console. It is read from the Engine's saved settings in the
   browser, since a Home tab isn't told it.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
-- A world's own lore entries hold 1,500 characters each, 60 entries a world.
+- A world holds 60 lore entries of its own, each as long as you like.
 
 ## How it works
 
