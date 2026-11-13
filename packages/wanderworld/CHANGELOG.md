@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.82 — 2026-11-13
+
+- New world, step 1: the three gender sliders and the custom gender's name are there too, under your characters, so they are set before a world's first people are made. They are the same settings as Settings → People → Genders.
+
 ## 0.5.81 — 2026-11-13
 
 - Settings → People → Genders: a slider each for male, female and a custom gender you name. They are weights for people the game or the AI makes up (townsfolk left on Auto, people the AI invents or fills in). Lore comes first: a gender from a lorebook, a card or your own choice is never changed.

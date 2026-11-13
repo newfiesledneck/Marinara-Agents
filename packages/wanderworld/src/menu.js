@@ -664,13 +664,71 @@ export function createMenu(layer, handlers, art = null) {
         }
       })();
     }
+    // Genders of everyone nothing says the gender of: the same three weights and name as Settings → People →
+    // Genders (the player's settings for every world), here so they're set before the first people are made.
+    const genderStep = element("div", "display:flex;flex-direction:column;gap:8px;");
+    {
+      const now = { genderMale: 50, genderFemale: 50, genderCustom: 0, genderName: "", ...handlers.settings?.() };
+      const split = explainLine("");
+      const name = element("input", `${INK_INPUT}width:150px;max-width:50vw;font:13px system-ui;`);
+      const line = (label, control) => {
+        const row = element(
+          "label",
+          "display:flex;align-items:center;justify-content:space-between;gap:10px;font:13px system-ui;",
+        );
+        row.append(element("span", "flex:none;", label), control);
+        return row;
+      };
+      const write = () => {
+        const total = now.genderMale + now.genderFemale + now.genderCustom;
+        const of = (value) => Math.round((value / total) * 100);
+        split.textContent = total
+          ? `Now: ${of(now.genderMale)}% male, ${of(now.genderFemale)}% female, ${of(now.genderCustom)}% ${now.genderName || "custom"}.`
+          : "All three are at 0, so it's half male and half female.";
+      };
+      const slider = (key, label) => {
+        const range = element("input", "flex:1;min-width:0;max-width:220px;");
+        Object.assign(range, { type: "range", min: 0, max: 100, step: 1 });
+        range.value = now[key];
+        const count = element("span", "flex:none;width:28px;text-align:right;", String(now[key]));
+        range.addEventListener("input", () => {
+          now[key] = Number(range.value);
+          count.textContent = range.value;
+          write();
+        });
+        range.addEventListener("change", () => handlers.onSetting?.(key, Number(range.value)));
+        const both = element("span", "display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end;");
+        both.append(range, count);
+        return line(label, both);
+      };
+      name.maxLength = 30;
+      name.placeholder = "Non-binary, say";
+      name.value = now.genderName ?? "";
+      name.addEventListener("input", () => {
+        now.genderName = name.value.trim();
+        write();
+      });
+      name.addEventListener("change", () => handlers.onSetting?.("genderName", name.value.trim()));
+      write();
+      genderStep.append(
+        element("div", "font:12px system-ui;opacity:0.75;", "Genders of everyone else"),
+        explainLine(
+          "Lore comes first: a gender from a lorebook, a card or set by you is never changed. These only decide people nothing says the gender of: townsfolk the game makes, and people the AI invents. The sliders are weighed against each other. For every world; also in Menu → Settings → People → Genders.",
+        ),
+        slider("genderMale", "Male"),
+        slider("genderFemale", "Female"),
+        slider("genderCustom", "Custom"),
+        split,
+        line("Name of the custom gender", name),
+      );
+    }
     // Four steps, a tab each, so it isn't one long form: who, the land, the AI, the lore and setting up.
     const small = (text) => element("div", "font:12px system-ui;opacity:0.75;", text);
     const steps = [
       [
         "1. You and your people",
         "Welcome. Wanderworld is a small 3D world where your Engine characters live their days: they have homes, work, routines and relationships. You walk about, talk to them, and start roleplay scenes from wherever you stand. First: who you play as, and which of your characters live here. Both can be changed later.",
-        [small("You play as"), personaRow, personaNote, castHeading, castList],
+        [small("You play as"), personaRow, personaNote, castHeading, castList, genderStep],
       ],
       [
         "2. The land",
