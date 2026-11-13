@@ -387,10 +387,13 @@ function drawsInSoftware(renderer) {
 }
 
 /** The render resolution, as a pixel ratio. "Auto" aims for about 1080p worth of pixels, lowered further
- *  while frames drop; the percentages are a share of the screen's own resolution. */
+ *  while frames drop; "100" is the screen's own; the rest are the picture's height in pixels (its shorter
+ *  side, on a screen held upright), never more than the screen has. */
 function pixelRatio(width, height) {
   const native = window.devicePixelRatio || 1;
-  if (core.settings.resolution !== "auto") return (native * Number(core.settings.resolution)) / 100;
+  if (core.settings.resolution === "100") return native;
+  if (core.settings.resolution !== "auto")
+    return Math.min(native, Number(core.settings.resolution) / Math.max(1, Math.min(width, height)));
   const budget = Math.sqrt(AUTO_PIXELS / Math.max(1, width * height));
   return Math.max(0.4, Math.min(native, budget) * core.autoScale);
 }
@@ -442,6 +445,7 @@ function applySettings() {
   core.world?.setDensity(settings.density);
   core.world?.setDrawDistance(settings.drawDistance);
   core.world?.setTreeReach?.(settings.treeDetail);
+  core.world?.setGroundSimple?.(settings.ground === "simple");
   if (core.camera) {
     core.camera.far = settings.drawDistance + 20;
     core.camera.updateProjectionMatrix();
@@ -7645,7 +7649,7 @@ function frame(time) {
       fps,
       calls,
       triangles,
-      scale: core.renderer.getPixelRatio() / (window.devicePixelRatio || 1),
+      height: Math.min(core.renderer.domElement.width, core.renderer.domElement.height),
     });
     adaptResolution(fps);
     core.statsFrames = 0;
@@ -7848,7 +7852,7 @@ function attach(element) {
   if (core.software && !core.softwareTold) {
     core.softwareTold = true; // once per page
     core.hud.setNotice(
-      "Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called \"graphics acceleration\") in your browser's settings, then restart the browser. If you can't: Menu → Settings → Display → Graphics, with Detailed trees out to on Near, Trees and rocks on Sparse and Draw distance on Tiny, is the fastest it goes.",
+      "Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called \"graphics acceleration\") in your browser's settings, then restart the browser. If you can't: Menu → Settings → Display → Graphics, with Resolution on 1080p or 720p, Ground on Simple, Detailed trees out to on Near, Trees and rocks on Sparse and Draw distance on Tiny, is the fastest it goes.",
     );
   }
   core.menu = createMenu(

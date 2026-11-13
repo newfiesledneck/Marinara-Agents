@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.85 — 2026-11-13
+
+- Resolution is chosen by name: Auto, Full (your screen's), 1440p, 1080p, 720p, 540p. The stats line shows the picture's height. A saved 75% or 50% goes back to Auto.
+- The ground costs less for every pixel: layers that aren't at a spot aren't looked up there. Settings → Display → Graphics → Ground: Simple makes it cheaper again, a little plainer.
+- With detailed trees off, the simple ones are drawn only within the draw distance and where the camera looks, not across the whole world.
+
 ## 0.5.84 — 2026-11-13
 
 - Faster, most of all without a graphics card. Detailed trees, rocks and plants are drawn only where the camera looks (about a third as many at once), and people who are off screen aren't drawn.
