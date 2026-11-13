@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.81)
+## What it does now (0.5.82)
 
 ### The world
 
@@ -256,7 +256,7 @@ only walk about.
   Whatever the other choices leave out is added on top, with hills for the cave and a river for the mill,
   and two places of one kind are kept well apart. A new town laid out round a pond has a bigger pond, its
   market inside by the water and a fuller green.
-- **Genders, by your numbers:** Settings → People → Genders has a slider each for male, female and a custom
+- **Genders, by your numbers:** Settings → People → Genders (and New world's first step) has a slider each for male, female and a custom
   gender you name (Non-binary, say). They are weights for the people the game or the AI makes up:
   townsfolk whose body is left on Auto, and people the AI invents or fills in. Lore comes first: a gender
   from a lorebook, a card, or set by you in Edit people is never changed. The custom gender can be chosen
