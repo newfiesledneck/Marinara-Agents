@@ -360,8 +360,14 @@ function ensureRenderer() {
   if (core.renderer) return true;
   if (core.failed) return false;
   try {
-    // Antialiasing only where pixels are big; on a high-density screen it costs more than it shows.
-    core.renderer = new WebGLRenderer({ antialias: window.devicePixelRatio <= 1, powerPreference: "high-performance" });
+    // Antialiasing ("Smooth edges") is fixed when the renderer is made. Left to itself it is on where
+    // pixels are big (a picture no finer than the page) and a graphics card draws them; on a high-density
+    // screen at full resolution, or on the processor, it costs more than it shows.
+    const smooth = core.settings.smooth;
+    const antialias =
+      smooth === "on" ||
+      (smooth !== "off" && pixelRatio(window.innerWidth, window.innerHeight) <= 1 && !softwareOnly());
+    core.renderer = new WebGLRenderer({ antialias, powerPreference: "high-performance" });
   } catch (error) {
     console.warn("[wanderworld] WebGL unavailable", error);
     core.failed = "This device can't draw the 3D world (WebGL is unavailable).";
@@ -369,20 +375,32 @@ function ensureRenderer() {
   }
   core.renderer.domElement.style.cssText = "position:absolute;inset:0;display:block;width:100%;height:100%;";
   core.camera = new PerspectiveCamera(60, 1, 0.1, 160);
-  core.software = drawsInSoftware(core.renderer);
+  core.software = drawsInSoftware(core.renderer.getContext());
   return true;
 }
 
 /** True when the browser draws WebGL on the processor instead of the graphics card (hardware acceleration
  *  off, or no usable driver): then everything is many times slower, and no setting here can fix it. */
-function drawsInSoftware(renderer) {
+function drawsInSoftware(gl) {
   try {
-    const gl = renderer.getContext();
     const info = gl.getExtension("WEBGL_debug_renderer_info");
     const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
     return /swiftshader|llvmpipe|softpipe|software|basic render/iu.test(name);
   } catch {
     return false; // can't tell: say nothing
+  }
+}
+
+/** The same, asked before there is a renderer: of a context made for the question and let go again. */
+function softwareOnly() {
+  try {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    if (!gl) return false;
+    const software = drawsInSoftware(gl);
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return software;
+  } catch {
+    return false;
   }
 }
 

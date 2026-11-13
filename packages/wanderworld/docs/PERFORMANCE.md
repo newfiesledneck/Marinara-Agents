@@ -93,3 +93,31 @@ So on a big screen the pixels cost as much as the triangles: the ground was 19 t
 pixel of it, whatever was there. 0.5.85 looks up only the layers that are at a spot, has a Simple ground,
 names the resolutions, and stops drawing the whole world's simple trees when detailed trees are off (170 k
 to 340 k of the triangles above).
+
+## 0.5.86, 2026-11-13: readings on 0.5.85, and what followed
+
+The same PC and screen, drawing on the processor, on 0.5.85. Detailed trees Near (30 m), draw distance
+Max, everything else on, unless the row says otherwise. Full is 1838 pixels high in that window.
+
+| Settings                                  | Triangles | Draws | fps |
+| ----------------------------------------- | --------- | ----- | --- |
+| Full resolution, trees 1×                 | 1.33 M    | 210   | 21  |
+| 1440p                                     | 1.33 M    | 210   | 26  |
+| 1080p                                     | 1.33 M    | 210   | 33  |
+| 720p                                      | 1.33 M    | 210   | 41  |
+| 540p                                      | 1.33 M    | 210   | 45  |
+| Full, draw distance Tiny                  | 1.22 M    | 162   | 23  |
+| Full, trees 10×                           | 4.13 M    | 201   | 9   |
+| Full, trees 0.5×                          | 1.13 M    | 193   | 30  |
+| and Ground Simple                         | 1.13 M    | 193   | 32  |
+| Full, trees 0.5×, detailed trees Far      | 2.14 M    | 211   | 24  |
+| Full, trees 0.5×, props and buildings off | 0.39 M    | 115   | 32  |
+| Everything at its lowest, 540p            | 0.28 M    | 42    | 57  |
+
+- At full 4K the pixels set a ceiling of about 30 fps here: going from 1.13 M triangles to 0.39 M gained
+  2 fps, while 1080p gained 12.
+- Simple ground is worth about 2 fps: after 0.5.85 the ground is no longer what the pixels cost.
+- A low resolution is fast but jagged, since nothing smoothed the edges on a high-density screen. 0.5.86
+  adds "Smooth edges" for that. Its cost on the processor has not been measured.
+
+The densities were renamed in 0.5.86: 0.5× above is Normal now, 1× is 2×, 10× is 20×, and Sparse is 0.25×.

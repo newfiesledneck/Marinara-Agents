@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.86 — 2026-11-13
+
+- Settings → Display → Graphics, "Trees and rocks": a new Sparse with half as many again. What was Sparse is now Normal and the default; the old Normal, 4× and 10× are 2×, 8× and 20×. A device that had chosen one keeps the same amount under its new name.
+- "Detailed trees out to" goes further: Very far (300 m) and Max (450 m), never past the draw distance.
+- New "Smooth edges" setting, which softens the jagged edges of a low resolution. Auto turns it on when the picture is no sharper than the page and a graphics card draws it; a change shows after a reload.
+
 ## 0.5.85 — 2026-11-13
 
 - Resolution is chosen by name: Auto, Full (your screen's), 1440p, 1080p, 720p, 540p. The stats line shows the picture's height. A saved 75% or 50% goes back to Auto.

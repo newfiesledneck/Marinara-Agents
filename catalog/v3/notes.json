@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.86",
+          "date": "2026-11-13",
+          "notes": "- Settings → Display → Graphics, \"Trees and rocks\": a new Sparse with half as many again. What was Sparse is now Normal and the default; the old Normal, 4× and 10× are 2×, 8× and 20×. A device that had chosen one keeps the same amount under its new name.\n- \"Detailed trees out to\" goes further: Very far (300 m) and Max (450 m), never past the draw distance.\n- New \"Smooth edges\" setting, which softens the jagged edges of a low resolution. Auto turns it on when the picture is no sharper than the page and a graphics card draws it; a change shows after a reload.",
+          "highlight": false
+        },
+        {
           "version": "0.5.85",
           "date": "2026-11-13",
           "notes": "- Resolution is chosen by name: Auto, Full (your screen's), 1440p, 1080p, 720p, 540p. The stats line shows the picture's height. A saved 75% or 50% goes back to Auto.\n- The ground costs less for every pixel: layers that aren't at a spot aren't looked up there. Settings → Display → Graphics → Ground: Simple makes it cheaper again, a little plainer.\n- With detailed trees off, the simple ones are drawn only within the draw distance and where the camera looks, not across the whole world.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.67",
           "date": "2026-11-11",
           "notes": "- A share of the memories sent that someone can't fill goes to the others present (20 between three, one with 3: 3, 9 and 9).\n- The memory sliders now run to 100 and then All, kept and sent, in Settings and for each person in Journal → Edit people. All keeps everything until you delete it (1000 of each for one person at most) and sends everything kept (the newest 120 of each). The settings say what that costs in tokens.\n- The AI assistant has five memory requests under More things to ask: check against the lore, clear out what doesn't matter, find repeats, sum up old ones, suggest pins. Each asks whose memories to send (a tick each, or everyone's). Its rewordings, deletions, pins and new memories are proposed first and can be undone.\n- Edit people shows older memories on asking.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.66",
-          "date": "2026-11-11",
-          "notes": "- How many memories the AI is sent is now set apart from how many are kept: Settings → Everyday memories sent to the AI (0 to 40, 12 to start) and Lasting memories sent to the AI (0 to 30, 8 to start). The number is shared between whoever the AI is speaking for, rounded up: 20 between three people is 7 each.\n- Anyone can have numbers of their own in Journal → Edit people. A new switch says whether those come out of the shared count (5, 5 and 10) or leave the others' share alone (7, 7 and 10; off to start).\n- The settings say what this costs in tokens and how to keep it down: a low shared number, and a higher one for the people who matter.",
           "highlight": false
         }
       ]
