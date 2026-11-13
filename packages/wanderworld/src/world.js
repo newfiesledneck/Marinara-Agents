@@ -37,7 +37,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { DOOR_PIECE, housePieces, porchPosts, WALL_FACE } from "./houses.js";
 import { caveGeometry } from "./caves.js";
 import { createAwnings, createFountain, createLamps, createSmoke, createWindowLights } from "./fixtures.js";
-import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand, POND_RADIUS } from "./land.js";
+import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand, POND_RADIUS, WIDE_POND_RADIUS } from "./land.js";
 import { createWeather, WEATHER_LOOK } from "./weather.js";
 import {
   barrel,
@@ -304,7 +304,9 @@ function useSettlement(settlement, seed = 0) {
       : layout === "scattered"
         ? Math.max(3, kindBlocks)
         : layout === "pond"
-          ? Math.max(4, kindBlocks)
+          ? settlement.wide
+            ? Math.max(5, kindBlocks | 1) // an odd count: the pond has the middle block, with open ground all round it
+            : Math.max(4, kindBlocks)
           : layout === "quarters"
             ? Math.max(3, kindBlocks | 1) // an odd count, so the green's cross runs through the middle
             : Math.max(3, kindBlocks + (layout === "ring" ? 0 : 2));
@@ -315,7 +317,8 @@ function useSettlement(settlement, seed = 0) {
   // (Round a pond the market is out at an edge, the south one unless a side is chosen: the pond has the middle.)
   const side = layout === "pond" ? (settlement.side ?? "south") : settlement.side;
   const step = { north: [0, -1], south: [0, 1], west: [-1, 0], east: [1, 0] }[side] ?? [0, 0];
-  const reach = layout === "pond" ? blocksPerSide : 1;
+  // (A wide one has its market inside, on the block beside the pond's; the older kind, out at the edge.)
+  const reach = layout === "pond" && !settlement.wide ? blocksPerSide : 1;
   const index = (axis) => Math.max(0, Math.min(blocksPerSide - 1, base + step[axis] * reach));
   const centre = (i) => (i - (blocksPerSide - 1) / 2) * PITCH;
   plaza = { x: centre(index(0)), z: centre(index(1)), i: index(0), j: index(1) };
@@ -365,7 +368,11 @@ function planOpenGround(seed) {
     }
   }
   const style = look.layout;
-  if (style === "pond") {
+  if (style === "pond" && look.wide) {
+    // The middle block is the pond's, a bigger one, with the market on the block beside it.
+    const m = (blocksPerSide - 1) / 2;
+    if (open(m, m)) plan.pond = { x: 0, z: 0, radius: WIDE_POND_RADIUS };
+  } else if (style === "pond") {
     // In the very middle: where four blocks meet (an even count), or on the middle block with open
     // ground on its four sides.
     const m = (blocksPerSide - 1) / 2;
@@ -382,7 +389,8 @@ function planOpenGround(seed) {
   // How often an open block gets houses, a meadow, a garden, trees (the rest stays bare), and two houses.
   const [houses_, meadow_, garden_, trees_, pair_] = {
     scattered: [0.85, 0.9, 0.95, 1, 0.75],
-    pond: [0.1, 0.45, 0.65, 0.9, 0.3],
+    // (A wide one's green has something on every plot: a meadow, a garden, trees, now and then a house.)
+    pond: look.wide ? [0.12, 0.35, 0.7, 1, 0.3] : [0.1, 0.45, 0.65, 0.9, 0.3],
   }[style] ?? [0.3, 0.5, 0.62, 0.8, 0.45];
   for (let a = 0; a < blocksPerSide; a++) {
     for (let b = 0; b < blocksPerSide; b++) {
@@ -1245,7 +1253,7 @@ function dressPlace(town, outpost, size = null) {
 const LANDMARKS = {
   /** A pond in a hollow: reeds and ferns round the shore, a few mossy stones, a bench looking over it. */
   pond(random, town, outpost) {
-    const shore = POND_RADIUS + 0.6;
+    const shore = (outpost.radius ?? POND_RADIUS) + 0.6;
     for (let i = 0; i < 26; i++) {
       const angle = random() * Math.PI * 2;
       const distance = shore + random() * 2.2;

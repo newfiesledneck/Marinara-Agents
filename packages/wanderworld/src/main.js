@@ -1222,10 +1222,13 @@ async function regenerateWorld(reshuffle = false, size = null, newSeed = null) {
   // What its lorebooks need now (they may have grown since), on top of its land.
   const needs = await worldNeeds(core.save);
   if (core.save?.id !== save.id) return; // another world was opened meanwhile
-  const land = core.save.choices || reshuffle ? landscapeWith(hashString(seed), choices) : core.save.landscape;
-  const landscape = landscapeNeeds(checkLandscape(land, hashString(seed)), needs, hashString(seed));
   const worldSize = size && Object.hasOwn(WORLD_SIZES, size) ? size : core.save.worldSize;
-  const next = { ...core.save, seed, landscape, choices, needs, worldSize, place: null };
+  // (A world made with its size among its choices is built for the size it's given now: one of everything
+  // needs a Massive one.)
+  const sized = choices.size || choices.everything ? { ...choices, size: worldSize } : choices;
+  const land = core.save.choices || reshuffle ? landscapeWith(hashString(seed), sized) : core.save.landscape;
+  const landscape = landscapeNeeds(checkLandscape(land, hashString(seed)), needs, hashString(seed));
+  const next = { ...core.save, seed, landscape, choices: sized, needs, worldSize, place: null };
   if (reshuffle && core.zones) {
     // The setup stays: every place's name, lore and groups go to the same kind of place in the new layout.
     const built = createWorld(hashString(seed), landscape, needs, worldSize);

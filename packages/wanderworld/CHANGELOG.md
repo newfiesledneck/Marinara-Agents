@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.77 — 2026-11-13
+
+- New world, on the land step: a Massive world can have at least one of every kind of place (an inn, a cottage, a cave, a hamlet, a farm, ruins, a watchtower, standing stones, a graveyard, a mill and a pond). What the other choices leave out is added on top, with hills for the cave and a river for the mill, and two places of one kind are kept well apart.
+- A new town laid out round a pond has a bigger pond, its market inside by the water (with the noticeboard) and a green with something on every plot. Worlds already made keep the town they have; Regenerate this world gives them the new one.
+
 ## 0.5.76 — 2026-11-12
 
 - New world is a walkthrough: Next and Back take you through its four steps and the last one makes the world. What to know before you start is said in the step it belongs to, so the main menu's Before you start box is gone.

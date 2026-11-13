@@ -16,6 +16,8 @@ export const OUTPOST_KINDS = ["inn", "cottage", "cave"];
 export const LANDMARK_KINDS = ["ruins", "watchtower", "stones", "graveyard", "mill", "pond"];
 /** A pond: water this wide (metres from its middle to the shore) and this deep in the middle. */
 export const POND_RADIUS = 8;
+/** The pond in the middle of a town laid out round one (a settlement made `wide`). */
+export const WIDE_POND_RADIUS = 11;
 const POND_BED = -2.2;
 export const PLACE_KINDS = [...OUTPOST_KINDS, "hamlet", "farm", ...LANDMARK_KINDS];
 const HAMLET_FLAT = 24; // metres round a hamlet's middle that are level
@@ -55,6 +57,8 @@ export function checkSettlement(raw) {
     layout: SETTLEMENT_LAYOUTS.includes(raw?.layout) ? raw.layout : "grid",
     // A stone wall round it with gates where its roads leave (new cities have them; older worlds don't).
     walls: raw?.walls === true,
+    // Round a pond: the bigger pond, with the market inside by the water (new worlds; older ones keep theirs).
+    ...(raw?.wide === true ? { wide: true } : {}),
   };
 }
 const HILL_SCALE = { flat: 0.15, gentle: 0.6, rolling: 1.2, rugged: 2.1 };
@@ -73,6 +77,7 @@ const flatOf = (kind) =>
 const MOUNTAIN_REACH = 62; // how far in from the edge a range rises
 const BRIDGE_HALF_WIDTH = 1.6;
 const MAX_OUTPOSTS = 14; // places out in the country (a few per side)
+const MOST_OUTPOSTS = 24; // and with one of every kind asked for on top (a Massive world has the room)
 const BRIDGE_END = 2.4; // metres of each bridge's end that rest on banked-up earth
 const BRIDGE_RAMP = 3.5; // metres beyond each end over which that earth eases back into the land
 /** A cave: a tunnel this deep into its hill and this wide (world.js builds the rock round it). */
@@ -106,8 +111,9 @@ export function landscapeFor(seed) {
 
 /**
  * The seed's landscape with the player's choices from New world on top. `choices`: { hills (a HILLS name),
- * mountains ("none" | "one" | "two" | "three"), river ("yes" | "no"), places ("none" | "few" | "several") };
- * anything else (or "surprise") keeps the seed's.
+ * mountains ("none" | "one" | "two" | "three"), river ("yes" | "no"), places ("none" | "few" | "several"),
+ * everything ("yes", in a Massive world: at least one of every kind of place) }; anything else (or
+ * "surprise") keeps the seed's.
  */
 export function landscapeWith(seed, choices = {}) {
   const landscape = landscapeFor(seed);
@@ -149,6 +155,7 @@ export function landscapeWith(seed, choices = {}) {
     layout: SETTLEMENT_LAYOUTS.includes(choices.layout) ? choices.layout : usual[Math.floor(pick() * usual.length)],
     walls: choices.walls === "yes" || (choices.walls !== "no" && kind === "city"),
   });
+  if (landscape.settlement.layout === "pond") landscape.settlement.wide = true;
   // A bigger world left to the seed gets more out in it, so there's something to walk to.
   const roomy = { large: 1, huge: 2, massive: 3 }[choices.size] ?? 0;
   // More settlements out in the country: as chosen, or now and then a hamlet.
@@ -170,6 +177,23 @@ export function landscapeWith(seed, choices = {}) {
     const kind = kinds[(start + i) % kinds.length];
     const side = kind === "mill" ? landscape.river.side : SIDES[Math.floor(pick() * SIDES.length)];
     landscape.outposts.push({ kind, side });
+  }
+  // One of everything (a Massive world only: there's the room): whatever kind the roll above left out is
+  // added on top of it, each on the side with the fewest places so far. A cave needs hills to sit in and
+  // a mill a river to turn it, so those come too. Two of a kind are then kept well apart (`apart`).
+  if (choices.everything === "yes" && choices.size === "massive") {
+    if (!landscape.mountains.length)
+      landscape.mountains = [sides.find((side) => side !== landscape.river?.side) ?? sides[0]];
+    landscape.river ??= { side: sides.find((side) => !landscape.mountains.includes(side)) ?? sides[0] };
+    for (const kind of PLACE_KINDS) {
+      if (landscape.outposts.some((entry) => entry.kind === kind) || landscape.outposts.length >= MOST_OUTPOSTS)
+        continue;
+      const among = kind === "cave" ? landscape.mountains : kind === "mill" ? [landscape.river.side] : SIDES;
+      const count = (side) => landscape.outposts.filter((entry) => entry.side === side).length;
+      const side = [...among].sort((a, b) => count(a) - count(b) || pick() - 0.5)[0];
+      landscape.outposts.push({ kind, side });
+    }
+    landscape.apart = true;
   }
   return landscape;
 }
@@ -234,7 +258,7 @@ export function checkLandscape(raw, seed) {
   const outposts = Array.isArray(raw.outposts)
     ? raw.outposts
         .filter((entry) => entry && PLACE_KINDS.includes(entry.kind) && SIDES.includes(entry.side))
-        .slice(0, MAX_OUTPOSTS)
+        .slice(0, MOST_OUTPOSTS)
         .map((entry) => ({
           kind: entry.kind,
           side: entry.side,
@@ -247,6 +271,8 @@ export function checkLandscape(raw, seed) {
     river,
     outposts,
     settlement: checkSettlement(raw.settlement),
+    // Two places of one kind are kept well apart (worlds made with one of everything).
+    ...(raw.apart === true ? { apart: true } : {}),
   };
 }
 
@@ -343,6 +369,10 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
   const perSide = {};
   const placed = []; // the places so far, to keep each one's level ground clear of the others'
   const roomOf = (kind) => (kind === "cave" ? 14 : flatOf(kind));
+  // How far apart two places must be: clear of each other's ground, and well apart when they're of one
+  // kind and the land asks for that (no two farms side by side).
+  const sameKindGap = landscape.apart ? Math.min(150, worldHalf * 0.3) : 0;
+  const gapFor = (one, other) => Math.max(roomOf(one) + roomOf(other) + 4, one === other ? sameKindGap : 0);
   const outposts = landscape.outposts.map((original, index) => {
     // A graveyard close by the town goes on a side the river doesn't cut it off on, and so does a hamlet
     // or farm when there's no room for its ground between the river and the world's edge.
@@ -407,9 +437,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     let away = 0;
     for (let tries = 0; tries < 30; tries++) {
       const at = spot(out);
-      const clash = placed.find(
-        (other) => Math.hypot(other.x - at.x, other.z - at.z) < roomOf(other.kind) + roomOf(entry.kind) + 4,
-      );
+      const clash = placed.find((other) => Math.hypot(other.x - at.x, other.z - at.z) < gapFor(other.kind, entry.kind));
       if (!clash && clearOfRiver(at)) break;
       if (!away) away = clash ? Math.sign(dx !== 0 ? at.z - clash.z : at.x - clash.x) || 1 : 1;
       if (Math.abs(lateral + away * 9) > edge - sideways) away = -away;
@@ -420,9 +448,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     let side = entry.side;
     const free = (at) =>
       clearOfRiver(at) &&
-      placed.every(
-        (other) => Math.hypot(other.x - at.x, other.z - at.z) >= roomOf(other.kind) + roomOf(entry.kind) + 4,
-      );
+      placed.every((other) => Math.hypot(other.x - at.x, other.z - at.z) >= gapFor(other.kind, entry.kind));
     if (!free({ x, z })) {
       // Its side is full: the free spot nearest where it wanted to be, anywhere out in the country (and
       // the side that spot is on).
@@ -458,6 +484,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
       facing,
       angle: (facing * Math.PI) / 2,
       inTown: true,
+      ...(townPond.radius ? { radius: townPond.radius } : {}),
     });
   }
 
@@ -662,7 +689,10 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
   const ponds = outposts.filter((outpost) => outpost.kind === "pond");
   /** How far (x, z) is from the nearest pond's shore: 0 or less in the water, Infinity with no pond. */
   const toPondShore = (x, z) =>
-    ponds.reduce((best, pond) => Math.min(best, Math.hypot(x - pond.x, z - pond.z) - POND_RADIUS), Infinity);
+    ponds.reduce(
+      (best, pond) => Math.min(best, Math.hypot(x - pond.x, z - pond.z) - (pond.radius ?? POND_RADIUS)),
+      Infinity,
+    );
   function depthAt(x, z) {
     if (ponds.length && toPondShore(x, z) < 1) return Math.max(0, WATER_LEVEL - groundAt(x, z));
     if (!river || !inBounds(river.bounds, x, z) || onBridge(x, z) !== null) return 0;
@@ -706,8 +736,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
         height = outpost.ground + (height - outpost.ground) * smooth((distance - flat) / OUTPOST_BLEND);
       }
       // A pond's bowl: deep enough to swim in the middle, shelving up to meet the water at its shore.
-      if (outpost.kind === "pond" && distance < POND_RADIUS + 3) {
-        height = Math.min(height, POND_BED - POND_BED * smooth((distance - 2) / (POND_RADIUS + 1)));
+      const pondRadius = outpost.radius ?? POND_RADIUS;
+      if (outpost.kind === "pond" && distance < pondRadius + 3) {
+        height = Math.min(height, POND_BED - POND_BED * smooth((distance - 2) / (pondRadius + 1)));
       }
     }
     if (river && inBounds(river.bounds, x, z)) {
@@ -760,7 +791,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
    * Circles that keep walkers out of the water (every 2.5 m along the river), leaving the bridges open.
    */
   function waterCircles() {
-    const pondCircles = ponds.map((pond) => ({ x: pond.x, z: pond.z, r: POND_RADIUS - 1 }));
+    const pondCircles = ponds.map((pond) => ({ x: pond.x, z: pond.z, r: (pond.radius ?? POND_RADIUS) - 1 }));
     if (!river) return pondCircles;
     const circles = [];
     const radius = river.width / 2 - 0.3;
@@ -795,7 +826,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
         river && inBounds(river.bounds, x, z) ? toLine(river.points, x, z).distance - river.width / 2 : Infinity,
         toPondShore(x, z),
       ),
-    ponds: () => ponds.map((pond) => ({ x: pond.x, z: pond.z, r: POND_RADIUS })),
+    ponds: () => ponds.map((pond) => ({ x: pond.x, z: pond.z, r: pond.radius ?? POND_RADIUS })),
     /** Whether (x, z) is on (or within `margin` of) a bridge's deck. */
     onBridge: (x, z, margin = 0) =>
       bridges.some((bridge) => {
