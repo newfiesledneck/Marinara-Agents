@@ -535,6 +535,7 @@ export function createMenu(layer, handlers, art = null) {
       writeLore: writeLore.value === "yes",
       newPeople: Math.max(0, Math.min(12, Math.round(Number(newPeople.value)) || 0)),
       ages: { min: ageOf(ageMin), max: ageOf(ageMax) },
+      genders: genderStep.chosen(),
       onSize: (value) => {
         choices.size = value;
         if (sizePicker) sizePicker.value = value;
@@ -664,8 +665,8 @@ export function createMenu(layer, handlers, art = null) {
         }
       })();
     }
-    // Genders of everyone nothing says the gender of: the same three weights and name as Settings → People →
-    // Genders (the player's settings for every world), here so they're set before the first people are made.
+    // Genders of everyone nothing says the gender of, for this world: three weights and the third gender's
+    // name, starting from Settings → People → Genders and kept with the world.
     const genderStep = element("div", "display:flex;flex-direction:column;gap:8px;");
     {
       const now = { genderMale: 50, genderFemale: 50, genderCustom: 0, genderName: "", ...handlers.settings?.() };
@@ -696,7 +697,6 @@ export function createMenu(layer, handlers, art = null) {
           count.textContent = range.value;
           write();
         });
-        range.addEventListener("change", () => handlers.onSetting?.(key, Number(range.value)));
         const both = element("span", "display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end;");
         both.append(range, count);
         return line(label, both);
@@ -708,12 +708,17 @@ export function createMenu(layer, handlers, art = null) {
         now.genderName = name.value.trim();
         write();
       });
-      name.addEventListener("change", () => handlers.onSetting?.("genderName", name.value.trim()));
       write();
+      genderStep.chosen = () => ({
+        male: now.genderMale,
+        female: now.genderFemale,
+        custom: now.genderCustom,
+        name: now.genderName || "",
+      });
       genderStep.append(
         element("div", "font:12px system-ui;opacity:0.75;", "Genders of everyone else"),
         explainLine(
-          "Lore comes first: a gender from a lorebook, a card or set by you is never changed. These only decide people nothing says the gender of: townsfolk the game makes, and people the AI invents. The sliders are weighed against each other. For every world; also in Menu → Settings → People → Genders.",
+          "Lore comes first: a gender from a lorebook, a card or set by you is never changed. These only decide people nothing says the gender of: townsfolk the game makes, and people the AI invents. The sliders are weighed against each other. For this world only: change them later in Journal → World. They start from Menu → Settings → People → Genders.",
         ),
         slider("genderMale", "Male"),
         slider("genderFemale", "Female"),
@@ -850,6 +855,7 @@ export function createMenu(layer, handlers, art = null) {
       params.writeLore,
       params.newPeople,
       params.ages,
+      params.genders,
     ]);
     let result = !again && reviewed?.asked === asked ? reviewed.result : null;
     if (!result) {
@@ -887,7 +893,7 @@ export function createMenu(layer, handlers, art = null) {
           : person.body === "female"
             ? "a woman"
             : person.body === "custom"
-              ? handlers.settings?.().genderName || "custom"
+              ? params.genders?.name || "custom"
               : "",
         person.home && `lives in ${setup.loreNames[person.home] ?? person.home}`,
         person.work && `${person.owner ? "owns" : "works at"} ${setup.loreNames[person.work] ?? person.work}`,

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.83",
+          "date": "2026-11-13",
+          "notes": "- Gender shares are per world. The sliders and the custom gender's name on New world are kept with that world, and Journal → World changes them later. Settings → People → Genders is what a new world starts from, and what a world made before this follows until it's given its own in Journal → World.",
+          "highlight": false
+        },
+        {
           "version": "0.5.82",
           "date": "2026-11-13",
           "notes": "- New world, step 1: the three gender sliders and the custom gender's name are there too, under your characters, so they are set before a world's first people are made. They are the same settings as Settings → People → Genders.",
@@ -307,12 +313,6 @@
           "version": "0.5.64",
           "date": "2026-11-11",
           "notes": "- How much people remember is yours to set: Settings → Everyday memories each (4 to 40) and Lasting memories each (0 to 30), and numbers of their own for anyone in Journal → Edit people.\n- A memory can be reworded when it came out wrong, or deleted with ✕ (Journal → Edit people).\n- Pinning locks a memory: nothing ever pushes it out, and only its age moves on. Thirty a person; one you write yourself is pinned from the start. Pinned ones don't count against the lasting number.\n- Memories show how long ago they were.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.63",
-          "date": "2026-11-11",
-          "notes": "- Lasting memories. Each person keeps up to eight beside their everyday ones, and small talk never pushes them out: a scene you played together (its recap), a night at your campfire, joining or leaving your party, moving house, an errand done, meeting you, falling out or growing closer.\n- The AI is told the newest four with how long ago they were.\n- Journal → Edit people: tick any memory to keep it for good, or write one yourself.\n- Conversations are told memories with their age too.",
           "highlight": false
         }
       ]

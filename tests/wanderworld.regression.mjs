@@ -659,6 +659,13 @@ console.log("wanderworld regression: OK");
   saves.write({ ...saves.read(first.id), name: "Renamed", playedAt: 5 });
   saves.write({ ...saves.read(first.id), name: "Renamed twice", playedAt: 6 });
   assert.equal(saves.read(first.id).name, "Renamed twice", "read back before it's sent");
+  assert.equal(saves.read(first.id).genders, null, "a world with no gender shares of its own follows Settings");
+  saves.write({ ...saves.read(first.id), genders: { male: 10, female: 250, custom: "x", name: "  Non-binary " } });
+  assert.deepEqual(
+    saves.read(first.id).genders,
+    { male: 10, female: 100, custom: 0, name: "Non-binary" },
+    "a world keeps its own gender shares, checked",
+  );
   await store.flush();
   assert.deepEqual(
     [...remote.keys.keys()].sort(),

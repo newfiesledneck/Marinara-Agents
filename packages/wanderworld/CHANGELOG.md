@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.83 — 2026-11-13
+
+- Gender shares are per world. The sliders and the custom gender's name on New world are kept with that world, and Journal → World changes them later. Settings → People → Genders is what a new world starts from, and what a world made before this follows until it's given its own in Journal → World.
+
 ## 0.5.82 — 2026-11-13
 
 - New world, step 1: the three gender sliders and the custom gender's name are there too, under your characters, so they are set before a world's first people are made. They are the same settings as Settings → People → Genders.
