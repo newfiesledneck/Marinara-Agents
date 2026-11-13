@@ -9,6 +9,38 @@ const FONT = "system-ui,sans-serif";
 const PANEL =
   `${PARCHMENT_EDGED}padding:26px 28px;display:flex;flex-direction:column;gap:10px;` +
   "width:min(420px,calc(100% - 32px));max-height:calc(100% - 32px);overflow-y:auto;box-sizing:border-box;pointer-events:auto;";
+/** What a new player should know first: a few lines each (the main menu's "Before you start"). */
+const INTRO = [
+  [
+    "What it is.",
+    "A small 3D world where your Engine characters live their days: they have homes, work, routines and relationships. Walk about, talk to them, and start roleplay scenes from wherever you stand.",
+  ],
+  [
+    "The AI is optional.",
+    "Everything works without it, on the game's own rules and written lines. With it, people answer in their own words and a narrator tells what happens. It uses your Engine connections, so it spends tokens: Settings → Token use has every setting that affects that.",
+  ],
+  [
+    "Moments.",
+    "A moment is one thing that happens and is told: you say or do something in the chat, sit down with someone, arrive somewhere. The narrator describes it and people nearby may answer.",
+  ],
+  [
+    "Scenes.",
+    "A scene is a full roleplay chat in the Engine, started from the world with whoever is there. When it ends, its recap comes back and people remember it.",
+  ],
+  [
+    "Memory.",
+    "Each person remembers what they saw and heard, and nobody knows what they weren't there for. The game keeps memories itself, at no cost; you choose how many are sent to the AI (Settings → People → Memory).",
+  ],
+  [
+    "Your worlds",
+    "are saved by the Engine, so they are the same from any device. Graphics, controls and sound are kept for each device.",
+  ],
+  [
+    "Stuck?",
+    "Help on this menu explains everything, and Settings → AI assistant can answer questions about your world.",
+  ],
+];
+
 const BIG =
   `font:600 17px ${SERIF};border:1px solid #4e341d;border-radius:9px;padding:11px 16px;cursor:pointer;text-align:left;` +
   `${WOOD}box-shadow:0 2px 4px rgba(0,0,0,0.25);`;
@@ -99,8 +131,46 @@ export function createMenu(layer, handlers, art = null) {
   screen.append(column);
   layer.prepend(screen); // under the HUD's panels, so Settings opens over it
 
+  // Before you start: what to know, open the first time and a button after that.
+  const INTRO_SEEN = "wanderworld.introSeen";
+  const introSeen = () => {
+    try {
+      return globalThis.localStorage?.getItem(INTRO_SEEN) === "1";
+    } catch {
+      return false; // blocked storage: it's shown each time
+    }
+  };
+  function intro(open) {
+    if (!open) {
+      const show = button("Before you start: things to know", BIG, () => show.replaceWith(intro(true)));
+      show.style.cssText += "font-size:14px;padding:8px 14px;";
+      return show;
+    }
+    const box = element(
+      "div",
+      "display:flex;flex-direction:column;gap:6px;border:1px solid rgba(107,74,43,0.5);border-radius:9px;padding:10px 12px;font:13px/1.45 system-ui,sans-serif;",
+    );
+    box.append(element("div", `font:700 16px ${SERIF};`, "Before you start"));
+    for (const [title, words] of INTRO) {
+      const line = element("div", "", "");
+      line.append(element("b", "", `${title} `), document.createTextNode(words));
+      box.append(line);
+    }
+    const hide = button("Hide this message", `${INK_SMALL}align-self:flex-start;margin-top:2px;`, () => {
+      try {
+        globalThis.localStorage?.setItem(INTRO_SEEN, "1");
+      } catch {
+        // blocked storage: it's shown again next time
+      }
+      box.replaceWith(intro(false));
+    });
+    box.append(hide);
+    return box;
+  }
+
   function home() {
     card.replaceChildren();
+    card.append(intro(!introSeen()));
     const last = handlers.last();
     if (last) {
       const resume = button("", BIG, () => handlers.onPlay(last.id));
