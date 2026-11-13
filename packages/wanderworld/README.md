@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.72)
+## What it does now (0.5.73)
 
 ### The world
 
@@ -228,6 +228,11 @@ only walk about.
   Edit people, and a switch says whether that comes out of the shared count (5, 5 and 10) or not (7, 7 and
   10). More sent costs more tokens on every reply, so the cheap way is a low shared number and a higher
   one for the few people who matter.
+- **The AI assistant looks things up:** it is sent only what a request seems to need, with the titles of
+  your lore, and asks for more when it needs it: a lore entry by title or by words (this world's own lore
+  and the lorebooks chosen for it), everything about a person, what someone remembers, or a part of the
+  world that was left out. Up to three look-ups before it answers, each one more AI call, and the line
+  under the answer says what was sent and what it looked up.
 - **The AI assistant looks after memories:** five ready-made requests (check them against the lore, clear
   out what doesn't matter, find repeats, sum up old ones into one lasting memory, suggest what to pin).
   Each asks whose memories to send first, a tick for each person or everyone's, with a rough token count.

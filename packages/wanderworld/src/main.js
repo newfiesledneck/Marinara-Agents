@@ -4443,34 +4443,81 @@ async function askAssistant(history, options = {}) {
   // oldest, that an edit names it by.
   const forMemories = pick?.picker === "memories";
   if (forMemories) core.assistantMemoryOf = Array.isArray(options.memoryOf) ? options.memoryOf : null;
-  const chosenMemories = forMemories
-    ? core.assistantMemoryOf
-    : named.size
-      ? cast.filter((person) => named.has(person.name)).map((person) => person.id)
-      : (core.assistantMemoryOf ?? null);
+  const lookedMemories = new Set(); // people whose memories it asked to see
   const today = core.social?.day ?? 0;
-  const memoryIds = {};
-  const remembering = cast
-    .filter((person) => !chosenMemories || chosenMemories.includes(person.id))
-    .map((person) => ({ person, all: (core.memories?.list(person.id) ?? []).reverse() }))
-    .filter(({ all }) => all.length);
-  // (Whoever was ticked: all of theirs. Otherwise the newest of each, 600 in all.)
-  const memoryMost = forMemories
-    ? Infinity
-    : Math.max(15, Math.min(150, Math.floor(600 / Math.max(1, remembering.length))));
-  const memoryLines = remembering.map(({ person, all }) => {
-    memoryIds[person.id] = all.map(({ day, text }) => ({ day, text }));
-    return {
-      name: person.name,
-      lines: all
-        .map(
-          (memory, at) =>
-            `m${at + 1} (${ago(memory.day, today)}${memory.pinned ? ", pinned" : memory.kept ? ", lasting" : ""}) ${memory.text}`,
-        )
-        .slice(-memoryMost),
-    };
-  });
-  if (forMemories && !memoryLines.length) throw new Error("Nobody chosen remembers anything yet.");
+  let memoryIds = {};
+  const memoriesNow = () => {
+    const chosen = forMemories
+      ? core.assistantMemoryOf
+      : named.size || lookedMemories.size
+        ? cast.filter((person) => named.has(person.name) || lookedMemories.has(person.id)).map((person) => person.id)
+        : (core.assistantMemoryOf ?? null);
+    const remembering = cast
+      .filter((person) => !chosen || chosen.includes(person.id))
+      .map((person) => ({ person, all: (core.memories?.list(person.id) ?? []).reverse() }))
+      .filter(({ all }) => all.length);
+    // (Whoever was ticked: all of theirs. Otherwise the newest of each, 600 in all.)
+    const most = forMemories
+      ? Infinity
+      : Math.max(15, Math.min(150, Math.floor(600 / Math.max(1, remembering.length))));
+    memoryIds = {};
+    return remembering.map(({ person, all }) => {
+      memoryIds[person.id] = all.map(({ day, text }) => ({ day, text }));
+      return {
+        name: person.name,
+        lines: all
+          .map(
+            (memory, at) =>
+              `m${at + 1} (${ago(memory.day, today)}${memory.pinned ? ", pinned" : memory.kept ? ", lasting" : ""}) ${memory.text}`,
+          )
+          .slice(-most),
+      };
+    });
+  };
+  if (forMemories && !memoriesNow().length) throw new Error("Nobody chosen remembers anything yet.");
+  // Lore it can look up: this world's own and the lorebooks chosen for it. Titles go with every request;
+  // an entry's text goes when it asks for it, by title or by words.
+  const loreBooks = await chosenBooks(save).catch(() => []);
+  const loreAll = loreBooks.flatMap((book) =>
+    book.entries
+      .filter((entry) => entry.content)
+      .map((entry) => ({ key: `${book.id}/${entry.id}`, own: book.id === "world", book: book.name, ...entry })),
+  );
+  const loreIndex = [...new Set(loreAll.map((entry) => entry.title))].slice(0, 250);
+  const plainWords = (words) =>
+    String(words ?? "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  /** The entries that best match `query`: its title exactly, or most of its words (title first, then keys, then text). */
+  const searchLore = (query) => {
+    const asked = plainWords(query);
+    const words = asked.split(" ").filter((word) => word.length > 2);
+    if (!asked) return [];
+    return loreAll
+      .map((entry) => {
+        const [title, keys, body] = [
+          plainWords(entry.title),
+          plainWords((entry.keys ?? []).join(" ")),
+          plainWords(entry.content),
+        ];
+        if (title === asked) return { entry, score: 1000 };
+        const hit = words.filter((word) => title.includes(word) || keys.includes(word) || body.includes(word));
+        if (!words.length || hit.length < Math.ceil(words.length / 2)) return { entry, score: 0 };
+        const score = hit.reduce(
+          (sum, word) =>
+            sum + (title.includes(word) ? 5 : 0) + (keys.includes(word) ? 3 : 0) + (body.includes(word) ? 1 : 0),
+          0,
+        );
+        return { entry, score };
+      })
+      .filter(({ score }) => score > 0)
+      .sort((one, other) => other.score - one.score)
+      .slice(0, 3)
+      .map(({ entry }) => entry);
+  };
+  const found = new Map(); // what it looked up, by entry
+  const looked = []; // and what it asked for, to say under the answer
   const scenes = (save.events ?? []).filter((event) => event.kind === "scene" && event.summary);
 
   /** The request with these parts of the world (a Set of assistant-context.js PARTS) and no others. */
@@ -4578,7 +4625,9 @@ async function askAssistant(history, options = {}) {
           ].join("\n")
         : "",
       entries: entries.map((entry) => ({ title: entry.title, content: entry.content })),
-      memories: needs.has("memories") ? memoryLines : [],
+      memories: needs.has("memories") ? memoriesNow() : [],
+      loreIndex,
+      found: [...found.values()],
       chat: needs.has("chat")
         ? core.momentLog
             .slice(-20)
@@ -4609,21 +4658,49 @@ async function askAssistant(history, options = {}) {
   let needs = assistantNeeds(said, pick);
   // Typed, and it's one of the ready-made requests in other words: it gets what that one would.
   if (!pick) for (const part of pickFor(said.at(-1))?.needs ?? []) needs.add(part);
-  let answer = await core.ai.assistant(build(needs, false));
-  // It asked for a part that was left out: once more, with it, and that's the last asking.
-  if (answer?.need?.length) {
-    needs = new Set([...needs, ...answer.need]);
-    answer = await core.ai.assistant(build(needs, true));
-  } else if (
-    // It said it can't see something that was only left out (and didn't ask for it): once more, with everything.
-    !answer?.edits?.length &&
-    Object.keys(PARTS).some((part) => !needs.has(part)) &&
-    /\b(can(?:'|no)t (?:see|find|access)|do(?:n't| not) (?:have|see)|no (?:lore|information|details|people|memories)|(?:was|were|is|are)(?:n't| not) (?:sent|included|provided|given|listed|available)|not (?:sent|included|provided|given|available)|left out)\b/iu.test(
-      answer?.reply ?? "",
-    )
-  ) {
-    needs = new Set(Object.keys(PARTS));
-    answer = await core.ai.assistant(build(needs, true));
+  // It may look things up before it answers: up to three times, and then it's told that's all there is.
+  let answer;
+  for (let round = 0; ; round += 1) {
+    const last = round >= 3;
+    answer = await core.ai.assistant(build(needs, last));
+    const look = answer?.look ?? {};
+    const asked = [...(answer?.need ?? []), ...(look.lore ?? []), ...(look.people ?? []), ...(look.memories ?? [])];
+    if (last || !asked.length) break;
+    let fresh = false;
+    for (const part of answer?.need ?? []) {
+      if (needs.has(part)) continue;
+      needs.add(part);
+      looked.push(PARTS[part]);
+      fresh = true;
+    }
+    const personFor = (name) => cast.find((person) => mentioned([person.name], [name]).length) ?? null;
+    for (const name of look.people ?? []) {
+      const person = personFor(name);
+      if (!person || named.has(person.name)) continue;
+      named.add(person.name);
+      fresh = true;
+    }
+    for (const name of look.memories ?? []) {
+      const person = personFor(name);
+      if (!person || (lookedMemories.has(person.id) && needs.has("memories"))) continue;
+      lookedMemories.add(person.id);
+      needs.add("memories");
+      looked.push(`what ${person.name} remembers`);
+      fresh = true;
+    }
+    for (const query of look.lore ?? []) {
+      for (const entry of searchLore(query)) {
+        if (found.has(entry.key) || found.size >= 24) continue;
+        found.set(entry.key, {
+          title: entry.own ? entry.title : `${entry.title} (from the player's lorebook "${entry.book}"; read-only)`,
+          content: entry.content.slice(0, 2400),
+        });
+        looked.push(`lore "${entry.title}"`);
+        fresh = true;
+      }
+    }
+    // Nothing new came of it: one more asking, told that this is all there is.
+    if (!fresh) round = 2;
   }
   if (core.save?.id !== save.id) throw new Error("Another world was opened meanwhile, so nothing was changed.");
   const edits = answer?.edits ?? [];
@@ -4638,6 +4715,7 @@ async function askAssistant(history, options = {}) {
     sent: [
       "everyone's name, home and work",
       inFull.length ? `${inFull.join(", ")} in full` : "",
+      looked.length ? `looked up: ${[...new Set(looked)].join(", ")}` : "",
       ...Object.keys(PARTS)
         .filter((part) => needs.has(part))
         .map((part) => PARTS[part]),

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.73 — 2026-11-12
+
+- The AI assistant can look things up before it answers, so a request in your own words no longer depends on the right keywords: a lore entry by title or by words (this world's own lore and the lorebooks chosen for it), everything about a person, what someone remembers, or a part of the world that was left out. Up to three look-ups an answer, each one more AI call.
+- It is sent the titles of your lore with every request, so it knows what there is to look up.
+- This takes the place of asking again with everything when it said it couldn't see something. The line under each answer now says what it looked up.
+
 ## 0.5.72 — 2026-11-12
 
 - The AI assistant now sees where people really live and work. Before, it was shown only homes and work set by hand, so it could say someone had no home (and refuse them an errand) while the place list named their house.

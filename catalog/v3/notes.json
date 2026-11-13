@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.73",
+          "date": "2026-11-12",
+          "notes": "- The AI assistant can look things up before it answers, so a request in your own words no longer depends on the right keywords: a lore entry by title or by words (this world's own lore and the lorebooks chosen for it), everything about a person, what someone remembers, or a part of the world that was left out. Up to three look-ups an answer, each one more AI call.\n- It is sent the titles of your lore with every request, so it knows what there is to look up.\n- This takes the place of asking again with everything when it said it couldn't see something. The line under each answer now says what it looked up.",
+          "highlight": false
+        },
+        {
           "version": "0.5.72",
           "date": "2026-11-12",
           "notes": "- The AI assistant now sees where people really live and work. Before, it was shown only homes and work set by hand, so it could say someone had no home (and refuse them an errand) while the place list named their house.\n- It is sent the lore from your own lorebooks that is tied to the world, its places and its people, marked read-only. Before, only lore written for this world went.\n- A ready-made request typed in your own words sends what its button would.\n- If it answers that it can't see something that was only left out, it is asked once more with everything.",
@@ -1525,12 +1531,6 @@
           "version": "0.5.54",
           "date": "2026-11-11",
           "notes": "- Market day once a week, and an evening festival once in four: for those hours a good share of the town gathers in the market square, and a line tells you.\n- People in your party, anyone you've asked round, and anyone whose day you set by hand for those hours keep to that instead.\n- Settings → Living world has the switch. Rules only, with no AI call.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.53",
-          "date": "2026-11-11",
-          "notes": "- Furnish your home: inside it, Journal → Home puts a piece down a step in front of you, and takes away any piece you added.\n- Eighteen kinds of piece: chairs and stools (which can be sat on), tables, a bench, a bookcase, a cabinet, a chest, barrels and more.\n- A piece is kept inside the walls and clear of the way in. Up to 40 a home, kept with the world.",
           "highlight": false
         }
       ]

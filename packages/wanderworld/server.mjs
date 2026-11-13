@@ -463,10 +463,14 @@ export function readAssistant(raw) {
   } catch {
     return nothing("The assistant's changes couldn't be read (they weren't valid JSON)");
   }
-  // Asking for a part of the world that was left out: nothing else is read from such an answer.
-  if (isRecord(parsed) && Array.isArray(parsed.need) && !Array.isArray(parsed.edits)) {
-    const need = [...new Set(parsed.need.filter((part) => ASSISTANT_PARTS.includes(part)))];
-    if (need.length) return { reply, edits: [], problem: "", need };
+  // Looking something up (a part that was left out, lore, a person, their memories): nothing else is
+  // read from such an answer.
+  if (isRecord(parsed) && !Array.isArray(parsed.edits)) {
+    const asked = (value) => [...new Set((Array.isArray(value) ? value : []).map((words) => text(words, 80)).filter(Boolean))].slice(0, 6);
+    const need = asked(parsed.need).filter((part) => ASSISTANT_PARTS.includes(part));
+    const look = { lore: asked(parsed.lore), people: asked(parsed.people), memories: asked(parsed.memories) };
+    const looking = look.lore.length + look.people.length + look.memories.length > 0;
+    if (need.length || looking) return { reply, edits: [], problem: "", ...(need.length ? { need } : {}), ...(looking ? { look } : {}) };
   }
   const list = Array.isArray(parsed) ? parsed : isRecord(parsed) ? parsed.edits : null;
   if (!Array.isArray(list)) return nothing("The assistant's changes weren't in the format Wanderworld reads");
@@ -705,6 +709,8 @@ export function assistantMessages(input) {
     section("The noticeboard", input.board),
     section("This world's own lore", input.entries.map((entry) => `${entry.title}: ${entry.content}`).join("\n\n")),
     section("What people remember", (input.memories ?? []).map((person) => `${person.name}:\n${person.lines.map((entry) => `  ${entry}`).join("\n")}`).join("\n\n")),
+    section("Lore titles (look one up to read it)", (input.loreIndex ?? []).join("; ")),
+    section("Looked up for you", (input.found ?? []).map((entry) => `${entry.title}:\n${entry.content}`).join("\n\n")),
     section("The recent chat in the world (oldest first)", input.chat ?? ""),
     section("Recaps of scenes played from this world (oldest first)", input.recaps ?? ""),
     ageRule(input.ages) && section("Ages", `${ageRule(input.ages)} ${AGES_YIELD}`),
@@ -712,13 +718,13 @@ export function assistantMessages(input) {
   ]
     .filter(Boolean)
     .join("\n\n");
-  const left = omitted.length
-    ? `\n\n# Left out\n\nTo keep this short, these parts of the world were not sent this time: ${omitted.map((part) => `${part} (${ASSISTANT_PART_WORDS[part]})`).join("; ")}. Never guess at what is in them. ${
-        input.final
-          ? "If one is needed, say which and why, and what you can do without it."
-          : `If you cannot answer well or make the change properly without one, answer with nothing but this block, naming what you need, and you will be asked again with it:\n\`\`\`wanderworld\n{"need": ["${omitted[0]}"]}\n\`\`\``
-      }`
-    : "";
+  // What it can look up before it answers (the client does the looking, and asks again with what it found):
+  // a part of the world that was left out, lore by its title or by words, everything about someone, what
+  // someone remembers. On the last asking there's no more looking.
+  const leftOut = omitted.map((part) => `${part} (${ASSISTANT_PART_WORDS[part]})`).join("; ");
+  const left = input.final
+    ? `\n\n# What you have\n\nThis is everything you will be given for this answer${leftOut ? ` (not sent: ${leftOut})` : ""}. Never guess at what you weren't shown: if something is still missing, say which and why, and what you can do without it.`
+    : `\n\n# Looking things up\n\nTo keep this short, only what the request seemed to need was sent${leftOut ? `. Not sent: ${leftOut}` : ""}. Lore is listed by title only, under "Lore titles". Never guess at what you weren't shown, and never tell the player you can't see something you could look up. To look something up, answer with nothing but this block (only the keys you need), and you will be asked again with what was found, up to three times:\n\`\`\`wanderworld\n{"need": ["${omitted[0] ?? "relations"}"], "lore": ["a title, or a few words to search for"], "people": ["a name: everything about them"], "memories": ["a name: what they remember"]}\n\`\`\`\n"need" takes the parts named as not sent. "lore" searches this world's lore and the player's lorebooks and brings back the entries that match, in full.`;
   return [
     { role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}${left}` },
     ...input.history.map((turn) => ({ role: turn.role, content: turn.text })),
@@ -1796,6 +1802,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           memories: list(body.memories, 40)
             .map((person) => ({ name: text(person.name, 80), lines: (Array.isArray(person.lines) ? person.lines : []).map((entry) => text(entry, 260)).filter(Boolean).slice(-5000) }))
             .filter((person) => person.name && person.lines.length),
+          loreIndex: (Array.isArray(body.loreIndex) ? body.loreIndex : []).map((title) => text(title, 100)).filter(Boolean).slice(0, 250),
+          found: list(body.found, 24)
+            .map((entry) => ({ title: text(entry.title, 200), content: block(entry.content, 2400) }))
+            .filter((entry) => entry.title && entry.content),
           help: block(body.help, 9000),
           ages: isRecord(body.ages) ? body.ages : null,
         });
