@@ -284,6 +284,11 @@ const GENDER_WORDS = {
   female: "female",
   woman: "female",
   girl: "female",
+  custom: "custom",
+  nonbinary: "custom",
+  "non-binary": "custom",
+  enby: "custom",
+  other: "custom",
 };
 /** Keywords that say how someone sees the player, besides each kind's name, label and tiers. */
 const RELATION_WORDS = {

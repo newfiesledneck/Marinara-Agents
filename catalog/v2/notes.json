@@ -1414,6 +1414,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.81",
+          "date": "2026-11-13",
+          "notes": "- Settings → People → Genders: a slider each for male, female and a custom gender you name. They are weights for people the game or the AI makes up (townsfolk left on Auto, people the AI invents or fills in). Lore comes first: a gender from a lorebook, a card or your own choice is never changed.\n- The custom gender can be chosen for anyone wherever a body is chosen (Edit people, the Look card, the assistant's proposals), under the name you gave it, which is also what the AI is told. A lorebook can set it with ww:body:custom or ww:body:nonbinary.\n- People written for a world are kept whole, like other cards.",
+          "highlight": false
+        },
+        {
           "version": "0.5.80",
           "date": "2026-11-13",
           "notes": "- One more cut removed: when the assistant rewrites the card of someone made for a world, the description, personality and appearance are kept whole (1,200 and 600 characters before).",
@@ -1525,12 +1531,6 @@
           "version": "0.5.62",
           "date": "2026-11-11",
           "notes": "- Relationships set the tone. Beside each person's name the AI is told what they are to you and what that means for how they speak: a manner written for every kind and strength (a rival needles but stays civil; a bitter rival is cold and cutting, without violence) and for a role (brother, employer, apprentice).\n- People in earshot are told what they are to each other, so two brothers speak as brothers.\n- A manner you set by hand (rude, afraid…) comes first; the role still sets the register.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.61",
-          "date": "2026-11-11",
-          "notes": "- A call for each person who answers, off by default (Settings → AI): one call tells the moment and picks who answers, with nobody's private knowledge in it; then each person who answers gets a call of their own holding only what they know.\n- Later speakers hear what earlier ones said in the same moment.\n- Up to four calls a moment instead of one, so it's slower and costs more. Off, nothing changes: one call, with each person's knowledge kept apart inside it.",
           "highlight": false
         }
       ]

@@ -175,12 +175,24 @@ function geometryOf(mesh) {
  * cloth's texture }, tint, hair, beard, skin, hairColour, height, seed }), `choices` (every field of a
  * look, filled in, as the Look card shows it) and `worn` (the outfits with a piece on show).
  */
+/** How many of those left to chance are men, women or the third gender: weights (Settings → People → Genders). */
+let shares = { male: 50, female: 50, custom: 0 };
+export function setGenderShares(next) {
+  const weight = (value) => (Number.isFinite(value) && value > 0 ? value : 0);
+  const [male, female, custom] = [weight(next?.male), weight(next?.female), weight(next?.custom)];
+  shares = male + female + custom > 0 ? { male, female, custom } : { male: 50, female: 50, custom: 0 };
+}
+
 export function lookFor(name, index, body = "auto", chosen = {}) {
   const random = rng(hashString(`${name || "wanderer"}:kit`));
   const pick = (list) => list[Math.floor(random() * list.length)];
   // The body chosen in the People menu (later: from the character card), or else one from the name.
-  const fromName = random() < 0.5 ? "male" : "female";
-  const sex = body === "male" || body === "female" ? body : fromName;
+  // (Left to chance: by the shares set, from the name's own roll, so the same person is always the same.)
+  const roll = random() * (shares.male + shares.female + shares.custom);
+  const fromName = roll < shares.male ? "male" : roll < shares.male + shares.female ? "female" : "custom";
+  const gender = body === "male" || body === "female" || body === "custom" ? body : fromName;
+  // The figure is one of the kit's two; someone of the third gender has either.
+  const sex = gender === "custom" ? (random() < 0.5 ? "male" : "female") : gender;
   const outfits = index.sexes[sex].outfits;
   const has = (kind) => outfits.some((entry) => entry.name === `${sex}-${kind}`);
   const coloursOf = (kind) => outfits.find((entry) => entry.name === `${sex}-${kind}`)?.colourways ?? [];

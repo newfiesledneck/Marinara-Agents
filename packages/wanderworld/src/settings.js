@@ -170,6 +170,15 @@ export const SETTINGS = {
   memoryTold: { value: 12, min: 0, max: 101 },
   memoryKeptTold: { value: 8, min: 0, max: 101 },
   memoryToldCounted: { value: false },
+  /**
+   * How many of the people the game or the AI makes up are men, women, or a third gender the player names
+   * (`genderName`; "Custom" until they do): weights, each against the others. Only for people whose
+   * gender nothing says: lore, a card and the player's own choice always win.
+   */
+  genderMale: { value: 50, min: 0, max: 100 },
+  genderFemale: { value: 50, min: 0, max: 100 },
+  genderCustom: { value: 0, min: 0, max: 100 },
+  genderName: { value: "", text: true },
   /** People who spend time together pass on what they saw or heard (memory.js pass): hearsay, by rule. */
   gossip: { value: false },
   sound: { value: true },

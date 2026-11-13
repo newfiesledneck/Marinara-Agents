@@ -418,7 +418,7 @@ People and how they stand:
 - {"do": "relate", "from": "Jake", "to": "Sarah", "kind": "partner", "role": "husband", "backRole": "wife", "level": 80, "both": true}: how "from" sees "to". "kind" is one of ${ASSISTANT_KINDS.join(", ")} ("none" ends it). "role" is what "from" is to "to" (optional: husband, sister, mentor…), "backRole" what "to" is to "from". "level" is 0 to 100 (how strong; optional). "both": true sets it both ways. The player is "player".
 - {"do": "home", "person": "Jake", "place": "home3"} or {"do": "home", "person": "Jake", "with": "Sarah"}: where they live ("with": in the same home as someone). "place": "none" for no home.
 - {"do": "work", "person": "Jake", "place": "smithy1", "owner": false}: where they work. "place": "none" for no work.
-- {"do": "set", "person": "Mira", "body": "female", "voice": "gruff", "aggression": 20, "sociability": 80, "stance": "rude", "knowsYou": true, "known": true}: give only what changes. "body" is male, female or auto. "voice" is one of ${Object.keys(TALK_STYLES).join(", ")}, or none. "aggression" (passive 0 to aggressive 100) and "sociability" (shy 0 to outgoing 100). "stance" is how they act toward the player whatever they feel: ${ASSISTANT_STANCES.join(", ")}. "knowsYou": they know the player's name; "known": the player knows theirs.
+- {"do": "set", "person": "Mira", "body": "female", "voice": "gruff", "aggression": 20, "sociability": 80, "stance": "rude", "knowsYou": true, "known": true}: give only what changes. "body" is male, female, custom (a third gender the player names: see "Genders", when it is there) or auto. "voice" is one of ${Object.keys(TALK_STYLES).join(", ")}, or none. "aggression" (passive 0 to aggressive 100) and "sociability" (shy 0 to outgoing 100). "stance" is how they act toward the player whatever they feel: ${ASSISTANT_STANCES.join(", ")}. "knowsYou": they know the player's name; "known": the player knows theirs.
 - {"do": "day", "person": "Mira", "entries": [{"from": 8, "to": 12, "activity": "work", "place": ""}, {"from": 18, "to": 22, "activity": "visit", "place": "tavern1"}]}: their day, replacing the one they have. Hours 0 to 24 (halves allowed; "to" below "from" runs past midnight). "activity" is one of ${ACTIVITIES.join(", ")}; "place" is empty for their own home or work and for a walk. Hours left out are theirs to spend as usual. {"do": "day", "person": "Mira", "usual": true} gives them back a usual day.
 - {"do": "add_person", "name": "Wren Tolley", "body": "female", "description": "...", "personality": "...", "appearance": "...", "home": "home4", "work": "smithy1", "owner": false}: someone new, who lives in this world only. "description" 60 to 120 words (who they are, their age and trade, their history here, what they want), "personality" 20 to 40 words with how they talk, "appearance" 20 to 40 words. "with": "Oswin" in place of "home" to live with someone. Follow it with relate edits for who they are to others.
 - {"do": "remove_person", "person": "Wren Tolley"}: for people marked "invented" only. They and everything about them go.
@@ -537,7 +537,7 @@ function readAssistantEdit(item, name) {
   if (item.do === "set") {
     const person = name(item.person);
     const fields = {
-      ...(["male", "female", "auto"].includes(item.body) ? { body: item.body } : {}),
+      ...(["male", "female", "custom", "auto"].includes(item.body) ? { body: item.body } : {}),
       ...(item.voice === "none" || Object.hasOwn(TALK_STYLES, item.voice) ? { voice: item.voice === "none" ? "" : item.voice } : {}),
       ...(score(item.aggression) !== null ? { aggression: score(item.aggression) } : {}),
       ...(score(item.sociability) !== null ? { sociability: score(item.sociability) } : {}),
@@ -562,7 +562,7 @@ function readAssistantEdit(item, name) {
     const made = {
       do: "add_person",
       name: text(item.name, 60),
-      body: ["male", "female"].includes(item.body) ? item.body : "",
+      body: ["male", "female", "custom"].includes(item.body) ? item.body : "",
       description: block(item.description, MAX.card),
       personality: block(item.personality, MAX.card),
       appearance: block(item.appearance, MAX.card),
@@ -716,6 +716,7 @@ export function assistantMessages(input) {
     section("The recent chat in the world (oldest first)", input.chat ?? ""),
     section("Recaps of scenes played from this world (oldest first)", input.recaps ?? ""),
     ageRule(input.ages) && section("Ages", `${ageRule(input.ages)} ${AGES_YIELD}`),
+    genderRule(input.genders) && section("Genders", `${genderRule(input.genders)} ${GENDERS_YIELD}`),
     input.help && section("How Wanderworld works", input.help),
   ]
     .filter(Boolean)
@@ -739,6 +740,31 @@ const ageOf = (value) => (Number.isInteger(value) && value >= 1 && value <= 1000
 /** Said with the ages wherever they go: they're the usual, and never override what's written. */
 const AGES_YIELD =
   "That is the usual range, for anyone whose age nothing gives: an age the world's lore, its setting or a card states or implies for someone stands, whatever it is (an elf may be a thousand years old).";
+
+/** Said with the genders wherever they go: they're for people nothing says the gender of. */
+const GENDERS_YIELD =
+  "That is only for people whose gender nothing says: what the world's lore, its setting, a card or the player says of someone always stands.";
+
+/**
+ * How many of the people the model makes are men, women or a third gender the player names, as a sentence
+ * ("" when nothing is set). `genders`: { male, female, custom (weights), name (the third one's) }.
+ */
+export function genderRule(genders) {
+  if (!isRecord(genders)) return "";
+  const weight = (value) => (Number.isFinite(value) && value > 0 ? value : 0);
+  const [male, female, custom] = [weight(genders.male), weight(genders.female), weight(genders.custom)];
+  const total = male + female + custom;
+  if (!total) return "";
+  const label = text(genders.name, 40) || "of a third gender";
+  const parts = [
+    [male, "male"],
+    [female, "female"],
+    [custom, label],
+  ]
+    .filter(([share]) => share > 0)
+    .map(([share, word]) => `${Math.round((share / total) * 100)}% ${word}`);
+  return `Genders: of the people you invent or fill in, about ${parts.join(", ")}.${custom > 0 ? ` For someone who is ${label}, give "body": "custom", and write them as ${label} in their description.` : ' Give nobody "body": "custom".'}`;
+}
 
 /** How old the people the model makes usually are, as a sentence ("" when the world sets no limit). */
 export function ageRule(ages) {
@@ -766,14 +792,16 @@ export function worldWriteMessages(input) {
     input.placed.map((item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (${item.title})` : ""}`).join("\n"),
   );
   const ages = ageRule(input.ages);
+  const genders = genderRule(input.genders);
   if (input.step === "detail") {
     return [
       {
         role: "system",
         content: [
           "You fill in the people of a small 3D world from what its lore says of them, for a roleplay sandbox. Answer with one JSON object and nothing else.",
-          `For each numbered person give "n" (their number) and, staying true to what's written and inventing only what's missing: "body" ("male" or "female"), "description" (60 to 120 words: who they are, their age and trade, their history here, what they want), "personality" (20 to 40 words, with how they talk) and "appearance" (20 to 40 words).`,
+          `For each numbered person give "n" (their number) and, staying true to what's written and inventing only what's missing: "body" ("male", "female" or "custom"), "description" (60 to 120 words: who they are, their age and trade, their history here, what they want), "personality" (20 to 40 words, with how they talk) and "appearance" (20 to 40 words).`,
           ages && `${ages} ${AGES_YIELD} Say each one's age in their description.`,
+          genders && `${genders} ${GENDERS_YIELD}`,
           `{"people": [{"n": 1, "body": "female", "description": "", "personality": "", "appearance": ""}]}`,
         ]
           .filter(Boolean)
@@ -802,12 +830,13 @@ export function worldWriteMessages(input) {
           `First, the people the cards already speak of. Read "What the cards say", if it's there: anyone it names or mentions as family of the player or of a listed character, or as close to them (a father, a brother, a wife, a child, a mentor, an old friend), who isn't one of the listed characters, is made before anyone is invented: under the name the card gives them (or one that fits, when it gives none), true to what the card says of them, with who they are to that person in "keys". The player's own family comes before anyone else's. Someone the card says is dead, gone or far away is left out. Only the places left over go to people you invent.`,
           `Build them around the places and the people already there: every workplace should have someone, families share homes, and some of them should know, love, envy or owe the listed characters. Don't reuse a listed name. Give each:
 - "name": a name that fits the world.
-- "body": "male" or "female".
+- "body": "male", "female" or "custom".
 - "description": 60 to 120 words: who they are, their age and trade, their history here, what they want.
 - "personality": 20 to 40 words, with how they talk.
 - "appearance": 20 to 40 words.
 - "keys": where they belong, as keywords: "lives in <home>" ("lives in home4"; people who share a house share its number, and homes under "Already placed" are taken unless they'd live there), "works at <place>" or "owner of <place>", what they are to the player as one bare word (one of friend, romance, partner, family, colleague, mentor, rival, enemy, fear, or for the player's family brother, sister, father, mother, son, daughter, husband, wife; nothing for a stranger), and how they stand toward others as "<word> of <Name>" with one of those words or brother, sister, father, mother, son, daughter, husband, wife ("sister of Mira").`,
           ages && `${ages} ${AGES_YIELD} Say each one's age in their description.`,
+          genders && `${genders} ${GENDERS_YIELD}`,
           `{"people": [{"name": "", "body": "female", "description": "", "personality": "", "appearance": "", "keys": ["lives in home4", "works at smithy1", "rival of Mira"]}]}`,
         ]
           .filter(Boolean)
@@ -858,10 +887,10 @@ export function checkWorldWrite(value, step, { count = 0, taken = [] } = {}) {
       const at = Number(raw?.n) - 1;
       if (!Number.isInteger(at) || at < 0 || at >= count) continue;
       people[at] = {
-        body: raw.body === "male" || raw.body === "female" ? raw.body : "",
-        description: block(raw.description, 1200),
-        personality: block(raw.personality, 500),
-        appearance: block(raw.appearance, 500),
+        body: ["male", "female", "custom"].includes(raw.body) ? raw.body : "",
+        description: block(raw.description, MAX.card),
+        personality: block(raw.personality, MAX.card),
+        appearance: block(raw.appearance, MAX.card),
       };
     }
     return { people };
@@ -875,10 +904,10 @@ export function checkWorldWrite(value, step, { count = 0, taken = [] } = {}) {
       names.add(name.toLowerCase());
       people.push({
         name,
-        body: raw.body === "male" || raw.body === "female" ? raw.body : "",
-        description: block(raw.description, 1200),
-        personality: block(raw.personality, 500),
-        appearance: block(raw.appearance, 500),
+        body: ["male", "female", "custom"].includes(raw.body) ? raw.body : "",
+        description: block(raw.description, MAX.card),
+        personality: block(raw.personality, MAX.card),
+        appearance: block(raw.appearance, MAX.card),
         keys: checkKeys(raw.keys),
       });
     }
@@ -1720,6 +1749,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           persona: text(body.persona, MAX.name),
           cards: step === "people" ? await writersCards(resources, body) : [],
           ages: isRecord(body.ages) ? body.ages : null,
+          genders: isRecord(body.genders) ? body.genders : null,
           premise: block(body.premise, 1500),
           places: (Array.isArray(body.places) ? body.places : [])
             .filter(isRecord)
@@ -1810,6 +1840,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .filter((entry) => entry.title && entry.content),
           help: block(body.help, 9000),
           ages: isRecord(body.ages) ? body.ages : null,
+          genders: isRecord(body.genders) ? body.genders : null,
         });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });

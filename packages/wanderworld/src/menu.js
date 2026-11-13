@@ -824,7 +824,13 @@ export function createMenu(layer, handlers, art = null) {
     const list = element("div", "display:flex;flex-direction:column;gap:3px;max-height:38vh;overflow-y:auto;");
     for (const person of summary.people) {
       const facts = [
-        person.body === "male" ? "a man" : person.body === "female" ? "a woman" : "",
+        person.body === "male"
+          ? "a man"
+          : person.body === "female"
+            ? "a woman"
+            : person.body === "custom"
+              ? handlers.settings?.().genderName || "custom"
+              : "",
         person.home && `lives in ${setup.loreNames[person.home] ?? person.home}`,
         person.work && `${person.owner ? "owns" : "works at"} ${setup.loreNames[person.work] ?? person.work}`,
         person.toPlayer && `sees you as: ${person.toPlayer}`,

@@ -359,7 +359,7 @@ export function checkWorld(raw) {
     // Each character's (and the persona's) body in this world: { [id]: "male" | "female" } (missing: auto).
     // Null for a world saved before bodies were kept per world.
     bodies: isRecord(raw.bodies)
-      ? Object.fromEntries(Object.entries(raw.bodies).filter(([, body]) => body === "male" || body === "female"))
+      ? Object.fromEntries(Object.entries(raw.bodies).filter(([, body]) => ["male", "female", "custom"].includes(body)))
       : null,
     // What was chosen by hand for each one's look, without a 3D model: { [id]: look } (looks.js checkLook).
     looks: isRecord(raw.looks)

@@ -17,6 +17,7 @@ const BODY_OPTIONS = [
   { value: "auto", label: "Either (chosen for them)" },
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
+  { value: "custom", label: "Custom (the gender you named in Settings)" },
 ];
 const STANCE_OPTIONS = [
   { value: "", label: "As they feel (nothing set)" },
