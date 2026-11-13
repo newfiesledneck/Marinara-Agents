@@ -284,9 +284,19 @@ export function buildZones(layout, seed) {
           z: outpost.z,
           r:
             // (A pond's holds its shore, the reeds and the bench looking over it.)
-            { cave: 7, hamlet: 24, farm: 26, ruins: 12, watchtower: 8, stones: 10, graveyard: 10, mill: 9, pond: 15 }[
-              outpost.kind
-            ] ?? 15,
+            outpost.radius
+              ? outpost.radius + 7
+              : ({
+                  cave: 7,
+                  hamlet: 24,
+                  farm: 26,
+                  ruins: 12,
+                  watchtower: 8,
+                  stones: 10,
+                  graveyard: 10,
+                  mill: 9,
+                  pond: 15,
+                }[outpost.kind] ?? 15),
         },
       },
       parent: outpost.inTown ? "town" : "forest",

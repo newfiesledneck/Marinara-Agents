@@ -290,6 +290,7 @@ export function createMenu(layer, handlers, art = null) {
       });
       if (key === "size") sizePicker = select;
       pickers.append(element("span", "opacity:0.8;", label), select);
+      if (key === "size") select.addEventListener("change", () => syncEverything());
     }
     // The world's setting in words, its lorebooks, and how their entries are linked to places.
     /** An explanation line (hidden with Menu → Settings → Show explanations off). */
@@ -298,6 +299,30 @@ export function createMenu(layer, handlers, art = null) {
       node.setAttribute("data-wanderworld-explain", "");
       return node;
     };
+    // One of everything: only a Massive world has the room, so only there is it offered.
+    const everything = element("label", "display:none;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;");
+    const everythingBox = element("input", "flex:none;width:18px;height:18px;margin:1px 0 0;");
+    everythingBox.type = "checkbox";
+    everythingBox.addEventListener("change", () => {
+      choices.everything = everythingBox.checked ? "yes" : "no";
+      redraw();
+    });
+    const everythingWords = element("span", "", "");
+    everythingWords.append(
+      element("b", "", "At least one of every kind of place. "),
+      document.createTextNode(
+        "An inn, a cottage, a cave, a hamlet, a farm, ruins, a watchtower, standing stones, a graveyard, a mill and a pond: whatever the choices above leave out is added, and two of a kind are kept well apart. Massive worlds only.",
+      ),
+    );
+    everything.append(everythingBox, everythingWords);
+    function syncEverything() {
+      const massive = choices.size === "massive";
+      everything.style.display = massive ? "flex" : "none";
+      if (!massive && choices.everything === "yes") {
+        choices.everything = "no";
+        everythingBox.checked = false;
+      }
+    }
     const setting = element("textarea", `${INPUT}resize:vertical;min-height:44px;font:13px system-ui;`);
     setting.placeholder = 'Setting (optional), e.g. "a cosy fishing village where the old gods still listen"';
     setting.maxLength = 600;
@@ -513,6 +538,7 @@ export function createMenu(layer, handlers, art = null) {
       onSize: (value) => {
         choices.size = value;
         if (sizePicker) sizePicker.value = value;
+        syncEverything();
         redraw();
       },
       // The review rerolled the map: the settings a step back show the same one.
@@ -656,6 +682,7 @@ export function createMenu(layer, handlers, art = null) {
             "A few words on what kind of world this is. The AI is told it whenever it writes for this world.",
           ),
           pickers,
+          everything,
           preview,
           reroll,
           small("Seed"),

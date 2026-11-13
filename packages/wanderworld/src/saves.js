@@ -149,6 +149,8 @@ export function checkWorld(raw) {
             "farms",
             "landmarks",
             "walls",
+            "size",
+            "everything",
           ]
             .filter((key) => typeof raw.choices[key] === "string")
             .map((key) => [key, raw.choices[key].slice(0, 20)]),

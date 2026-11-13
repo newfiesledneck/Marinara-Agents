@@ -634,3 +634,42 @@ for (const seed of [3, 31, 77]) {
 }
 
 console.log("wanderworld land regression: OK");
+
+// ── One of everything: a Massive world with at least one of every kind of place, two of a kind apart ──
+{
+  const { PLACE_KINDS, createLand } = await import("../packages/wanderworld/src/land.js");
+  for (const seed of [3, 31, 77, 1234, 98765]) {
+    const usual = landscapeWith(seed, { size: "massive" });
+    const full = landscapeWith(seed, { size: "massive", everything: "yes" });
+    for (const kind of PLACE_KINDS)
+      assert.ok(
+        full.outposts.some((entry) => entry.kind === kind),
+        `seed ${seed}: a ${kind}`,
+      );
+    assert.deepEqual(
+      full.outposts.slice(0, usual.outposts.length),
+      usual.outposts,
+      "what the roll gave stays, the rest is added",
+    );
+    assert.ok(full.mountains.length && full.river, "hills for the cave, a river for the mill");
+    assert.equal(full.apart, true);
+    assert.deepEqual(checkLandscape(full, seed).outposts.length, full.outposts.length, "all of them are kept");
+    assert.equal(checkLandscape(full, seed).apart, true);
+    // On the land: no two of one kind near each other (a mill sits where the river is, whatever else is near).
+    const land = createLand(checkLandscape(full, seed), seed, {
+      townHalf: 66,
+      worldHalf: 480,
+      streetLines: [-66, -44, -22, 0, 22, 44, 66],
+    });
+    for (const one of land.outposts)
+      for (const other of land.outposts) {
+        if (one === other || one.kind !== other.kind || one.kind === "mill") continue;
+        assert.ok(Math.hypot(one.x - other.x, one.z - other.z) >= 140, `seed ${seed}: two ${one.kind}s apart`);
+      }
+  }
+  // Only a Massive world, and only when asked.
+  assert.equal(landscapeWith(31, { size: "huge", everything: "yes" }).apart, undefined);
+  assert.equal(landscapeWith(31, { size: "massive" }).apart, undefined);
+  assert.equal(checkLandscape(landscapeWith(31, {}), 31).apart, undefined);
+}
+console.log("ok: one of every kind of place");
