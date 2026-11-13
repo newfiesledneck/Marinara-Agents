@@ -50,7 +50,7 @@ import {
   VOICES,
   worldFromLore,
 } from "./keywords.js";
-import { createPerson, lookChoices } from "./people.js";
+import { createPerson, lookChoices, setGenderShares } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { createHerd } from "./herd.js";
@@ -424,8 +424,15 @@ function adaptResolution(fps) {
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
+/** The shares of men, women and the third gender among people nothing says the gender of, and its name. */
+function gendersNow() {
+  const { genderMale: male, genderFemale: female, genderCustom: custom, genderName } = core.settings;
+  return { male, female, custom, name: genderName || "" };
+}
+
 function applySettings() {
   const { settings } = core;
+  setGenderShares(gendersNow());
   core.world?.setDensity(settings.density);
   core.world?.setDrawDistance(settings.drawDistance);
   if (core.camera) {
@@ -978,6 +985,7 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
           step: "people",
           count,
           ages: save.ages ?? null,
+          genders: gendersNow(),
           // Their cards, read on the server: the family they speak of is made first.
           personaId: save.persona || null,
           characterIds: cast.map((entry) => entry.id),
@@ -1919,6 +1927,7 @@ async function detailLocals() {
     const result = await core.ai.worldWrite({
       step: "detail",
       ages: save.ages ?? null,
+      genders: gendersNow(),
       connectionId: core.settings.textConnection || null,
       worldName: save.name,
       setting: save.setting,
@@ -3045,7 +3054,7 @@ function updateCast() {
 
 /** Sets which default body `id` (a character or persona) gets: "male", "female" or "auto". */
 function setBody(id, body) {
-  if (body === "male" || body === "female") core.bodies[id] = body;
+  if (body === "male" || body === "female" || body === "custom") core.bodies[id] = body;
   else delete core.bodies[id];
   // Saved with this world only: another world keeps its own choice.
   if (core.save) {
@@ -4221,6 +4230,7 @@ function personData(id) {
     memories: core.memories?.list(id) ?? [],
     today: core.social?.day ?? 0,
     memoryLimits: core.save.memoryLimits?.[id] ?? {},
+    genderName: core.settings.genderName || "",
     memoryDefaults: { each: core.settings.memoryEach, kept: core.settings.memoryKept },
     others: (core.characters ?? [])
       .filter((other) => core.cast?.has(other.id) && other.id !== id)
@@ -4562,7 +4572,11 @@ async function askAssistant(history, options = {}) {
         lore: full ? lore : some ? lore.slice(0, 320) : "",
         more: [
           !isHere(entry) && "not in this region now",
-          some && core.bodies[entry.id] && `body ${core.bodies[entry.id]}`,
+          some &&
+            core.bodies[entry.id] &&
+            (core.bodies[entry.id] === "custom"
+              ? `gender ${core.settings.genderName || "custom"}`
+              : `body ${core.bodies[entry.id]}`),
           some && save.voices?.[entry.id] && `voice ${save.voices[entry.id]}`,
           some && traits && `aggression ${traits.aggression}, sociability ${traits.sociability}`,
           some && save.stances?.[entry.id] && `stance ${save.stances[entry.id]}`,
@@ -4601,6 +4615,7 @@ async function askAssistant(history, options = {}) {
     return {
       ...base,
       ages: needs.has("ages") ? (save.ages ?? null) : null,
+      genders: needs.has("ages") ? gendersNow() : null,
       history,
       people: cast.map(person),
       places: withPlaces ? placeList : [],

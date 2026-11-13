@@ -41,6 +41,7 @@ function bodyPicker(onChange) {
     ["auto", "Auto"],
     ["male", "Male"],
     ["female", "Female"],
+    ["custom", genderLabel()],
   ]) {
     const option = document.createElement("option");
     option.value = value;
@@ -88,6 +89,10 @@ function button(label, title, onClick) {
   element.addEventListener("click", onClick);
   return element;
 }
+
+// The third gender's name, as the player gave it (Settings → People → Genders): "Custom" until they do.
+let genderName = "";
+const genderLabel = () => genderName || "Custom";
 
 const RESOLUTION_LABELS = { auto: "Auto (keeps it smooth)", 100: "Full", 75: "75%", 50: "50%" };
 const DISTANCE_LABELS = { 60: "Tiny", 90: "Near", 140: "Medium", 200: "Far", 300: "Very far", 450: "Max" };
@@ -717,6 +722,17 @@ export function createHud(root, handlers) {
       ? "Now: all of them, for everyone. That can cost a lot."
       : `Now ${count}: one person gets ${count}, two get ${Math.ceil(count / 2)} each, three get ${Math.ceil(count / 3)} each.`;
   const EXPLAIN = {
+    genderMale: (s) => {
+      const total = s.genderMale + s.genderFemale + s.genderCustom;
+      const of = (value) => (total ? Math.round((value / total) * 100) : 0);
+      const third = s.genderName || "custom";
+      return total
+        ? `The three sliders are weighed against each other. Now: ${of(s.genderMale)}% male, ${of(s.genderFemale)}% female, ${of(s.genderCustom)}% ${third}.`
+        : "All three are at 0, so it's half male and half female.";
+    },
+    genderCustom: "0 means nobody is given the custom gender unless lore, a card or you say so.",
+    genderName:
+      "What the custom gender is called. It is shown wherever a gender is chosen and is what the AI is told. Empty: Custom.",
     resolution: "How sharp the picture is. Auto lowers it when things get slow.",
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
     density: "How many trees, rocks and plants grow round the town.",
@@ -961,7 +977,7 @@ export function createHud(root, handlers) {
   heading(
     "People",
     "How the people of the world act around you, how they get on with each other, and what they remember. All of it runs on the game's own rules: none of it calls the AI. Nothing happens while Wanderworld is closed.",
-    ["Around you", "Relationships", "Memory"],
+    ["Around you", "Relationships", "Memory", "Genders"],
   );
   at("People", "Around you");
   add(peopleButton); // who lives in this world
@@ -999,6 +1015,24 @@ export function createHud(root, handlers) {
   toggle("memoryToldCounted", "Count personal limits against the total", "memories");
   part("Keeping memories short");
   sumUpRow();
+  at("People", "Genders");
+  intro(
+    "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents.",
+  );
+  const share = (value) => String(Math.round(value));
+  slider("genderMale", "Male", 1, share);
+  slider("genderFemale", "Female", 1, share);
+  slider("genderCustom", "Custom", 1, share);
+  {
+    const name = document.createElement("input");
+    name.type = "text";
+    name.maxLength = 40;
+    name.placeholder = "e.g. Non-binary";
+    name.style.cssText = `${INK_INPUT}width:150px;padding:3px 6px;`;
+    name.addEventListener("change", () => handlers.onSetting("genderName", name.value.trim()));
+    addField("genderName", { set: (value) => (name.value = value ?? "") });
+    row("Name of the custom gender", name, "genderName");
+  }
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
   heading("Animals", "Which animals and monsters live in your worlds, how many, and how they act.", [
     "How many",
@@ -1921,6 +1955,7 @@ export function createHud(root, handlers) {
     setSettings(settings) {
       for (const [name, field] of Object.entries(fields)) field.set(settings[name]);
       for (const write of explainers) write(settings);
+      genderName = settings.genderName ?? "";
       for (const { nodes, under } of dependents)
         for (const node of nodes) node.style.opacity = settings[under] ? "" : "0.45";
       wanted.jump = settings.jumpButton !== false;

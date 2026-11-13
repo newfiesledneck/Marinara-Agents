@@ -803,3 +803,43 @@ console.log("wanderworld regression: OK");
   assert.equal(reviseEdits(edits, [{ edit: 0, keep: true, values: { level: "" } }]).edits[0].level, null);
   console.log("ok: the assistant's context and choices");
 }
+
+// ── Someone left to chance: a man, a woman or the third gender, by the shares set ────────────
+{
+  const { lookFor, setGenderShares } = await import("../packages/wanderworld/src/people.js");
+  const index = JSON.parse(
+    (await import("node:fs")).readFileSync(
+      new URL("../packages/wanderworld/kit/generic/people/index.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const names = Array.from({ length: 400 }, (_, i) => `Person ${i}`);
+  const count = () => names.filter((name) => lookFor(name, index).sex === "male").length;
+  const before = names.map((name) => lookFor(name, index).sex);
+  setGenderShares({ male: 50, female: 50, custom: 0 });
+  assert.deepEqual(
+    names.map((name) => lookFor(name, index).sex),
+    before,
+    "half and half is as it always was",
+  );
+  setGenderShares({ male: 100, female: 0, custom: 0 });
+  assert.equal(count(), 400);
+  setGenderShares({ male: 0, female: 100, custom: 0 });
+  assert.equal(count(), 0);
+  setGenderShares({ male: 80, female: 20, custom: 0 });
+  assert.ok(count() > 280 && count() < 360, `about four in five: ${count()}`);
+  // The third gender has one of the two figures, and what's chosen for someone is theirs whatever the shares.
+  setGenderShares({ male: 0, female: 0, custom: 100 });
+  assert.ok(count() > 150 && count() < 250, `either figure: ${count()}`);
+  assert.equal(lookFor("Person 1", index, "female").sex, "female");
+  assert.equal(lookFor("Person 1", index, "male").sex, "male");
+  assert.ok(["male", "female"].includes(lookFor("Person 1", index, "custom").sex));
+  setGenderShares({ male: 0, female: 0, custom: 0 });
+  assert.deepEqual(
+    names.map((name) => lookFor(name, index).sex),
+    before,
+    "nothing set: half and half",
+  );
+  setGenderShares({ male: 50, female: 50, custom: 0 });
+  console.log("ok: genders by the shares set");
+}

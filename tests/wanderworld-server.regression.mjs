@@ -910,6 +910,17 @@ assert.equal(
     assert.deepEqual(Object.keys((await call("get", "/saves")).body.keys), ["wanderworld.lastWorld"]);
     await call("delete", "/save/:key", { params: { key: "wanderworld.lastWorld" } });
   }
+  // Genders: the shares as a sentence for the model, and the third gender by the name the player gave it.
+  assert.equal(server.genderRule(null), "");
+  assert.equal(server.genderRule({ male: 0, female: 0, custom: 0 }), "");
+  assert.match(
+    server.genderRule({ male: 50, female: 50, custom: 0 }),
+    /about 50% male, 50% female\. Give nobody "body": "custom"\./u,
+  );
+  const mixed = server.genderRule({ male: 20, female: 20, custom: 10, name: "Non-binary" });
+  assert.match(mixed, /about 40% male, 40% female, 20% Non-binary\./u);
+  assert.match(mixed, /For someone who is Non-binary, give "body": "custom"/u);
+  assert.match(server.genderRule({ male: 0, female: 1, custom: "x" }), /about 100% female\./u);
   // Memory edits: one memory to an edit, by its number.
   const memoryEdits = server.readAssistant(
     'Here.\n```wanderworld\n{"edits": [{"do": "memory", "person": "Mira", "memory": "m3", "text": "  Zoey   paid her back. "}, {"do": "memory", "person": "Mira", "memory": "M12", "remove": true}, {"do": "memory", "person": "Mira", "memory": "m2", "pin": true}, {"do": "memory", "person": "Mira", "memory": "m2", "pin": false}, {"do": "memory", "person": "Mira", "add": "A long week on the road with Zoey.", "as": "m4"}, {"do": "memory", "person": "Mira", "memory": "three", "remove": true}, {"do": "memory", "person": "Mira", "memory": "m5"}, {"do": "memory", "memory": "m1", "remove": true}]}\n```',

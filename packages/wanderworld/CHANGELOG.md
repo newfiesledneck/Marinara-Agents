@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.81 — 2026-11-13
+
+- Settings → People → Genders: a slider each for male, female and a custom gender you name. They are weights for people the game or the AI makes up (townsfolk left on Auto, people the AI invents or fills in). Lore comes first: a gender from a lorebook, a card or your own choice is never changed.
+- The custom gender can be chosen for anyone wherever a body is chosen (Edit people, the Look card, the assistant's proposals), under the name you gave it, which is also what the AI is told. A lorebook can set it with ww:body:custom or ww:body:nonbinary.
+- People written for a world are kept whole, like other cards.
+
 ## 0.5.80 — 2026-11-13
 
 - One more cut removed: when the assistant rewrites the card of someone made for a world, the description, personality and appearance are kept whole (1,200 and 600 characters before).

@@ -241,6 +241,7 @@ export function createPersonEditor(layer, handlers) {
         ["auto", "Auto"],
         ["male", "Man"],
         ["female", "Woman"],
+        ["custom", person.genderName || "Custom"],
       ],
       person.body ?? "auto",
       "Body",
