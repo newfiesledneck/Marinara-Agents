@@ -52,6 +52,8 @@ export const SETTINGS = {
   /** On touch screens, the Jump button and the Sit (then Lie down) button by the thumb, each on its own. */
   jumpButton: { value: true },
   restButton: { value: true },
+  /** And the Run button beside them: tapped, you run until it's tapped again. */
+  runButton: { value: true },
   /** The Jump and Sit (then Lie down, then Get up) buttons in the chat window. */
   chatMoves: { value: true },
   // Whose name is over their head: everyone's, only people the player knows (a stranger is "Stranger"), or nobody's.
@@ -59,7 +61,12 @@ export const SETTINGS = {
   /** Short explanations under settings, in the Journal and on New world. */
   explanations: { value: true },
   hint: { value: true },
-  stats: { value: true },
+  stats: { value: false },
+  /** The clock and the line saying where you are, at the top. */
+  clock: { value: true },
+  place: { value: true },
+  /** The size of the words in Wanderworld's windows and menus, as a multiple. */
+  textSize: { value: 1, options: [0.85, 1, 1.15, 1.3, 1.5] },
   /** "cycle" runs a day in 20 minutes; "day" and "night" hold it there. */
   time: { value: "cycle", options: ["cycle", "day", "night"] },
   /** How fast the day goes: 1 is a day in 20 minutes; ½ takes 40, 4 takes 5. */
@@ -211,10 +218,14 @@ export const DEVICE_SETTINGS = new Set([
   "restKey",
   "jumpButton",
   "restButton",
+  "runButton",
   "chatMoves",
   "explanations",
   "hint",
   "stats",
+  "clock",
+  "place",
+  "textSize",
   "sound",
   "volume",
 ]);

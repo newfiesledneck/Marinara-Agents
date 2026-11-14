@@ -28,7 +28,7 @@ const CHIP = "background:rgba(10,14,20,0.62);color:#f3f5f7;border-radius:8px;pad
 const BUTTON = `${CHIP}font:600 13px system-ui,sans-serif;border:0;cursor:pointer;pointer-events:auto;`;
 const PANEL =
   `${PARCHMENT}position:absolute;top:48px;right:8px;display:none;flex-direction:column;gap:4px;max-height:calc(100% - 64px);` +
-  "overflow-y:auto;min-width:220px;max-width:min(340px,calc(100% - 16px));padding:10px 12px;pointer-events:auto;font-size:13px;";
+  "overflow-y:auto;box-sizing:border-box;min-width:244px;max-width:min(364px,calc(100% - 16px));padding:10px 12px;pointer-events:auto;font-size:13px;";
 const NARROW = "(max-width: 640px)";
 
 /** Auto / Male / Female: the default body for someone without a 3D model. */
@@ -115,13 +115,14 @@ export function createHud(root, handlers) {
   const layer = document.createElement("div");
   layer.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif;";
   const touch = window.matchMedia?.("(pointer: coarse)").matches;
+  // The bar, the panels and the cards live in `pages`, which Text size scales as one (CSS zoom: its own size stays
+  // the view's, and what's inside is laid out in bigger pixels). What is placed in real pixels stays in `layer`.
+  const pages = document.createElement("div");
+  pages.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;";
 
   const top = document.createElement("div");
   top.style.cssText =
     "position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;";
-  const title = document.createElement("div");
-  title.textContent = "Wanderworld";
-  title.style.cssText = `${CHIP}font-size:14px;font-weight:700;`;
   const clock = document.createElement("div");
   clock.style.cssText = `${CHIP}font:12px ui-monospace,monospace;`;
   clock.title = "Time of day in town";
@@ -169,7 +170,7 @@ export function createHud(root, handlers) {
     card.setAttribute("data-wanderworld-ui", "");
     card.style.cssText = `${PANEL}display:flex;top:56px;right:auto;left:8px;gap:6px;width:min(300px,calc(100% - 16px));z-index:5;`;
     lookCard = card;
-    layer.append(card);
+    pages.append(card);
     let chosen = { ...info.chosen };
     let now = info.now;
     let pets = info.pets;
@@ -761,9 +762,12 @@ export function createHud(root, handlers) {
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "On: dragging up looks down, like a flight stick.",
     restKey: "On: C sits you down, and again lies you down.",
-    jumpButton: "On a touch screen: a Jump button above Use.",
-    restButton: "On a touch screen: a Sit button above Use. It becomes Lie down once you're sitting.",
-    chatMoves: "Jump and Sit buttons in the chat window.",
+    jumpButton: "On a touch screen: a Jump button along the bottom.",
+    restButton: "On a touch screen: a Sit button along the bottom. It becomes Lie down once you're sitting.",
+    runButton:
+      "On a touch screen: a Run button along the bottom. Tap it and you run, by the stick or to where you tap, until you tap it again.",
+    chatMoves:
+      "Jump and Sit buttons in the chat window, for a mouse. A touch screen has them along the bottom instead.",
     time: "Let the day pass, or keep it always day or always night.",
     timeSpeed: "How long a full day takes.",
     weather: "Changing picks rain, snow, mist or clear every few minutes. Off keeps the sky clear.",
@@ -812,7 +816,10 @@ export function createHud(root, handlers) {
       "Keep their distance: they run if you come close. Square up: they come to about six paces and hold you off. Come for you: they run in and snap, sending you back a step. Nothing is hurt yet.",
     sound: "Footsteps, doors and the world's sounds.",
     volume: "How loud those sounds are.",
-    hint: "The line of controls at the bottom of the screen.",
+    hint: "The line that lists the controls. Its × turns this off.",
+    textSize: "How big the words are in Wanderworld's windows and menus on this device.",
+    clock: "The time of day, at the top.",
+    place: "The place you are in and the lore active there, at the top.",
     stats: "Frames per second and other numbers at the top.",
     explanations: "These lines under settings, and the ones in the Journal and on New world.",
     aiTalk:
@@ -955,6 +962,9 @@ export function createHud(root, handlers) {
   choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
   choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });
   at("Display", "On screen");
+  choice("textSize", "Text size", { 0.85: "Small", 1: "Normal", 1.15: "Large", 1.3: "Larger", 1.5: "Largest" });
+  toggle("clock", "Time");
+  toggle("place", "Where you are");
   toggle("hint", "Controls hint");
   toggle("stats", "Frame rate");
   toggle("explanations", "Show explanations");
@@ -970,6 +980,7 @@ export function createHud(root, handlers) {
   toggle("restKey", "C sits and lies down");
   toggle("jumpButton", "Jump button (touch screens)");
   toggle("restButton", "Sit and lie down button (touch screens)");
+  toggle("runButton", "Run button (touch screens)");
   toggle("chatMoves", "Jump and Sit buttons in the chat window");
 
   heading("World", "The world itself: its time, its weather and its places.", ["Time and weather", "Places"]);
@@ -1591,14 +1602,19 @@ export function createHud(root, handlers) {
       return;
     }
     menuButton.style.display = "";
+    menuButton.textContent = open ? "×" : "☰";
+    // Under its own button, which stays in reach to close it again.
     controls.style.cssText =
-      `${CHIP}position:absolute;top:40px;right:0;display:${open ? "flex" : "none"};flex-direction:column;` +
+      `${CHIP}position:absolute;top:100%;margin-top:6px;right:0;z-index:6;display:${open ? "flex" : "none"};flex-direction:column;` +
       "align-items:stretch;gap:6px;padding:8px;pointer-events:auto;";
   }
   const onNarrow = () => setMenu(false);
   narrow.addEventListener?.("change", onNarrow);
   setMenu(false);
-  top.append(title, clock, place, stats, spacer, menuButton, controls);
+  const menuWrap = document.createElement("div");
+  menuWrap.style.cssText = "position:relative;display:flex;align-items:center;";
+  menuWrap.append(menuButton, controls);
+  top.append(clock, place, stats, spacer, menuWrap);
 
   // The "use" prompt over whatever you could use, and on touch screens a Use button by the stick.
   const prompt = document.createElement("button");
@@ -1607,25 +1623,45 @@ export function createHud(root, handlers) {
   prompt.style.cssText = `${CHIP}position:absolute;left:0;top:0;transform:translate(-50%,-100%);font:600 13px system-ui,sans-serif;display:none;white-space:nowrap;border:0;cursor:pointer;pointer-events:auto;min-height:32px;`;
   prompt.addEventListener("click", () => handlers.onUse());
   const use = button("Use", "Use what's in front of you", () => handlers.onUse());
-  // Bottom right, under the thumb that isn't on the stick.
-  use.style.cssText += "position:absolute;bottom:32px;right:20px;padding:16px 20px;font-size:15px;display:none;";
-  // On touch screens, above it: Jump, and Sit (which becomes Lie down once you're sitting on the ground).
+  // On touch screens, a row along the bottom (the stick sits above its left end): Run, Sit (which becomes
+  // Lie down once you're sitting on the ground), Jump, and Use at the right, under the other thumb.
   let sleepCard = null; // the tent's card, while it's open (openSleep)
-  const wanted = { jump: true, rest: true, chat: true }; // Settings → Moving: the thumb's two buttons, the chat window's
+  const wanted = { jump: true, rest: true, run: true, chat: true, place: true }; // Settings: the thumb's buttons, the chat window's, the place line
   const jump = button("Jump", "Jump", () => handlers.onJump());
   const rest = button("Sit", "Sit down on the ground; again to lie down", () => handlers.onRest());
-  const THUMB = `position:absolute;right:20px;padding:12px 16px;font-size:14px;display:${touch ? "" : "none"};`;
-  jump.style.cssText += `${THUMB}bottom:96px;`;
-  rest.style.cssText += `${THUMB}bottom:148px;`;
+  let runOn = false;
+  const run = button("Run", "Run until this is tapped again", () => {
+    runOn = !runOn;
+    run.style.background = runOn ? "#2e8c96" : "rgba(10,14,20,0.62)";
+    run.setAttribute("aria-pressed", String(runOn));
+    handlers.onRun?.(runOn);
+  });
+  run.setAttribute("aria-pressed", "false");
+  const THUMB = "padding:10px 12px;font-size:13px;white-space:nowrap;flex:0 0 auto;";
+  for (const control of [run, rest, jump]) control.style.cssText += `${THUMB}display:${touch ? "" : "none"};`;
+  use.style.cssText += `${THUMB}flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:none;`;
+  const thumbs = document.createElement("div");
+  thumbs.style.cssText =
+    "position:absolute;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom, 0px));display:flex;gap:6px;justify-content:flex-end;align-items:center;";
+  thumbs.append(run, rest, jump, use);
 
   const hint = document.createElement("div");
-  hint.textContent = touch
-    ? "Stick to walk · drag to look · pinch to zoom · tap someone or something to use it"
+  const hintText = document.createElement("div");
+  hintText.style.flex = "1";
+  hintText.textContent = touch
+    ? "Stick to walk: push it all the way, or tap Run, to run · or tap the ground to walk there · drag to look · pinch to zoom · tap someone or something to use it"
     : "WASD walk · Shift run · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · Esc to leave";
-  // On touch screens the hint sits under the bar, clear of the stick and the Use button.
+  // Read once, it can go: its × turns off Settings → Display → On screen → Controls hint.
+  const hintClose = button("×", "Hide this (Settings → Display → On screen brings it back)", () =>
+    handlers.onSetting("hint", false),
+  );
+  hintClose.setAttribute("aria-label", "Hide the controls hint");
+  hintClose.style.cssText += "padding:0 7px;font-size:15px;background:rgba(255,255,255,0.16);";
+  hint.append(hintText, hintClose);
+  // On touch screens the hint is a line of its own under the bar, clear of the stick and the buttons.
   hint.style.cssText = touch
-    ? `${CHIP}position:absolute;top:84px;left:8px;font-size:12px;opacity:0.8;max-width:min(80%,420px);`
-    : `${CHIP}position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.8;max-width:min(60%,560px);`;
+    ? `${CHIP}display:flex;gap:8px;align-items:flex-start;font-size:12px;opacity:0.85;flex:0 1 100%;box-sizing:border-box;`
+    : `${CHIP}display:flex;gap:8px;align-items:flex-start;position:absolute;bottom:8px;right:8px;font-size:12px;opacity:0.85;max-width:min(60%,560px);`;
 
   const status = document.createElement("div");
   status.style.cssText = `${CHIP}position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;display:none;max-width:80%;text-align:center;`;
@@ -1689,14 +1725,16 @@ export function createHud(root, handlers) {
   // something, and the commands under it. It floats: drag it by its title, resize it from its corner.
   const chat = floatingFrame("Around you", () => chatFloat.setOpen(false));
   layer.append(chat.frame);
-  const chatFloat = makeFloating(layer, chat.frame, chat.bar, "wanderworld.chat", {
-    w: 380,
-    h: 260,
-    right: undefined,
-    bottom: 70,
-    x: 12,
-    open: true,
-  });
+  const chatFloat = makeFloating(
+    layer,
+    chat.frame,
+    chat.bar,
+    "wanderworld.chat",
+    // On a touch screen it starts under the bar, clear of the stick and the buttons along the bottom.
+    touch
+      ? { w: 340, h: 200, x: 8, y: 150, open: true }
+      : { w: 380, h: 260, right: undefined, bottom: 70, x: 12, open: true },
+  );
   const narration = document.createElement("div");
   narration.style.cssText = "flex:1;overflow-y:auto;padding:6px 10px;font:13px/1.4 system-ui,sans-serif;";
   const speakBar = document.createElement("form");
@@ -1875,27 +1913,34 @@ export function createHud(root, handlers) {
   const explainRule = document.createElement("style");
   explainRule.textContent = ".wanderworld-no-explain [data-wanderworld-explain]{display:none!important}";
   layer.append(explainRule);
-  layer.append(
-    board,
-    top,
-    peoplePanel,
-    journal.panel,
-    lorePanel,
-    settingsPanel,
-    menuPanel,
-    notice,
-    scene,
-    prompt,
-    use,
-    jump,
-    rest,
-    hint,
-    zoneTitle,
-    status,
-    fade,
-    loading,
-  );
+  pages.append(board, top, peoplePanel, journal.panel, lorePanel, settingsPanel, menuPanel, notice, scene);
+  // The world's own controls (the prompt over a thing, the row under your thumbs, and the stick, which
+  // main.js puts with them) go underneath every window, panel and card: an open one is what gets the tap.
+  layer.prepend(prompt, thumbs);
+  layer.append(pages, hint, zoneTitle, status, fade, loading);
   root.append(layer);
+  if (touch) top.append(hint);
+
+  // Every panel can be closed where it is: an × on its top right corner (Settings has its own, in its tabs).
+  const panelClose = button("×", "Close", () => {
+    for (const panel of panels) panel.style.display = "none";
+  });
+  panelClose.setAttribute("aria-label", "Close");
+  panelClose.style.cssText +=
+    "position:absolute;display:none;z-index:4;width:30px;height:30px;padding:0;border-radius:50%;font-size:17px;line-height:1;background:#6b4a2b;color:#f6ecd6;box-shadow:0 1px 4px rgba(0,0,0,0.4);";
+  layer.append(panelClose);
+  const placeClose = () => {
+    const open = panels.find((panel) => panel !== settingsPanel && panel.style.display !== "none");
+    panelClose.style.display = open ? "" : "none";
+    if (!open) return;
+    const [box, within] = [open.getBoundingClientRect(), layer.getBoundingClientRect()];
+    panelClose.style.left = `${Math.min(within.width - 32, box.right - within.left - 20)}px`;
+    panelClose.style.top = `${Math.max(2, box.top - within.top - 10)}px`;
+  };
+  if (globalThis.MutationObserver) {
+    const watch = new MutationObserver(placeClose);
+    for (const panel of panels) watch.observe(panel, { attributes: true, attributeFilter: ["style"] });
+  }
 
   // Someone comes at the player: there's no combat yet, so the card says so and offers what there is.
   const confront = document.createElement("div");
@@ -1982,9 +2027,21 @@ export function createHud(root, handlers) {
         for (const node of nodes) node.style.opacity = settings[under] ? "" : "0.45";
       wanted.jump = settings.jumpButton !== false;
       wanted.rest = settings.restButton !== false;
+      wanted.run = settings.runButton !== false;
       wanted.chat = settings.chatMoves !== false;
-      hint.style.display = settings.hint ? "" : "none";
+      wanted.place = settings.place !== false;
+      hint.style.display = settings.hint ? "flex" : "none";
       stats.style.display = settings.stats ? "" : "none";
+      clock.style.display = settings.clock !== false ? "" : "none";
+      place.style.display = wanted.place && place.textContent ? "" : "none";
+      // Text size: the windows and menus, not the buttons under your thumbs. A floating window is sized
+      // and placed in real pixels, so it's what is inside it that grows.
+      const textZoom =
+        Number(settings.textSize) > 0 && Number(settings.textSize) !== 1 ? String(settings.textSize) : "";
+      pages.style.zoom = textZoom;
+      for (const frame of layer.querySelectorAll("[data-wanderworld-floating]"))
+        for (const child of frame.children) if (child.title !== "Drag to resize") child.style.zoom = textZoom;
+      placeClose();
       // Explanations anywhere in Wanderworld's screens (settings, Journal, New world) show or hide together.
       layer.classList.toggle("wanderworld-no-explain", !settings.explanations);
     },
@@ -2088,12 +2145,13 @@ export function createHud(root, handlers) {
       const show = (want) => (shown && touch && want ? "" : "none");
       const riding = resting === "ride";
       jump.style.display = resting && !riding ? "none" : show(wanted.jump);
+      run.style.display = resting && !riding ? "none" : show(wanted.run);
       rest.style.display = resting === "lie" || resting === "seat" || riding ? "none" : show(wanted.rest);
       rest.textContent = resting === "ground" ? "Lie down" : "Sit";
       // The chat window's: Sit, Lie down, Get up (also up from a bench or a bed).
       const label = resting === "ground" ? "Lie down" : riding ? "Get down" : resting ? "Get up" : "Sit";
       if (chatRest.textContent !== label) chatRest.textContent = label;
-      moves.style.display = shown && wanted.chat ? "flex" : "none";
+      moves.style.display = shown && wanted.chat && !touch ? "flex" : "none"; // (a touch screen has them along the bottom)
       chatJump.disabled = !!resting && !riding;
     },
     /** Which of your animals are with you (and so can be sent home from the chat window): { dog, horse }. */
@@ -2150,7 +2208,7 @@ export function createHud(root, handlers) {
       for (const control of [go, no]) control.style.cssText += "flex:1;padding:10px 12px;";
       row.append(go, no);
       card.append(title, note, length, row);
-      layer.append(card);
+      pages.append(card);
       sleepCard = card;
     },
     closeSleep() {
@@ -2159,7 +2217,7 @@ export function createHud(root, handlers) {
     },
     /** The place line: `text` ("Briarwood · Mill Lane") and the titles of the lore active there. */
     setPlace(text, lore = []) {
-      place.style.display = text ? "" : "none";
+      place.style.display = text && wanted.place ? "" : "none";
       place.textContent = lore.length ? `${text} · 📜 ${lore.join(", ")}` : text;
     },
     /** Whether the Lore panel is open. */

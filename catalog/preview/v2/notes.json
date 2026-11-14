@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.87",
+          "date": "2026-11-13",
+          "notes": "- Phones: Run, Sit, Jump and Use are one row along the bottom with the stick above it. Run is new: tap it and you run, by the stick or to where you tap, until you tap it again.\n- Windows can be resized by finger from their corner and no longer come back shrunk. Journal, Lore and Menu have an × to close; the ☰ list opens under its button, which closes it.\n- An open window or panel is on top of the stick, the buttons and the Use prompt. The Wanderworld chip is gone and the frame rate is off unless you turn it on. The controls hint has an × and says more.\n- Settings → Display → On screen: Text size, and toggles for the time and for where you are. Settings → Controls: a toggle for the Run button.",
+          "highlight": false
+        },
+        {
           "version": "0.5.86",
           "date": "2026-11-13",
           "notes": "- Settings → Display → Graphics, \"Trees and rocks\": a new Sparse with half as many again. What was Sparse is now Normal and the default; the old Normal, 4× and 10× are 2×, 8× and 20×. A device that had chosen one keeps the same amount under its new name.\n- \"Detailed trees out to\" goes further: Very far (300 m) and Max (450 m), never past the draw distance.\n- New \"Smooth edges\" setting, which softens the jagged edges of a low resolution. Auto turns it on when the picture is no sharper than the page and a graphics card draws it; a change shows after a reload.",
@@ -307,12 +313,6 @@
           "version": "0.5.68",
           "date": "2026-11-11",
           "notes": "- Worlds are saved by the Engine now, not in the browser: the same from any browser or device, and as big as they grow. Worlds saved in a browser move over the first time this version opens there. With no server part, they stay in the browser as before.\n- All now keeps and sends every memory, with no ceiling (a thousand of each while a world is still in a browser).\n- Settings → Token use: every setting that changes how many tokens are spent, in one place. Each is the same setting as in AI and Living world; a change in one shows in the other.\n- Sum up old memories has a button in Settings → Living world, in Token use, and in each person's window in Edit people.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.67",
-          "date": "2026-11-11",
-          "notes": "- A share of the memories sent that someone can't fill goes to the others present (20 between three, one with 3: 3, 9 and 9).\n- The memory sliders now run to 100 and then All, kept and sent, in Settings and for each person in Journal → Edit people. All keeps everything until you delete it (1000 of each for one person at most) and sends everything kept (the newest 120 of each). The settings say what that costs in tokens.\n- The AI assistant has five memory requests under More things to ask: check against the lore, clear out what doesn't matter, find repeats, sum up old ones, suggest pins. Each asks whose memories to send (a tick each, or everyone's). Its rewordings, deletions, pins and new memories are proposed first and can be undone.\n- Edit people shows older memories on asking.",
           "highlight": false
         }
       ]

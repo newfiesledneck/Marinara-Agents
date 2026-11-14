@@ -66,7 +66,7 @@ function saveShownBooks(ids) {
 export function createJournal(panelCss, handlers) {
   const panel = element("div", panelCss);
   panel.setAttribute("data-wanderworld-ui", "");
-  panel.style.minWidth = "min(320px, calc(100% - 16px))";
+  panel.style.minWidth = "min(344px, calc(100% - 16px))";
   const tabs = element("div", "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;");
   const body = element("div", "display:flex;flex-direction:column;gap:6px;");
   panel.append(tabs, body);

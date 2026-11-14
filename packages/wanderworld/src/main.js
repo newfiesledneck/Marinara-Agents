@@ -7294,12 +7294,12 @@ function movePlayer(dt, input) {
       } else {
         moveX = dx / distance;
         moveZ = dz / distance;
-        speedFactor = WALK_SPEED;
+        speedFactor = input.run ? RUN_SPEED : WALK_SPEED;
       }
     }
     if (moveX || moveZ) {
-      // Walking and running each have their own speed setting (a tap's walk is a walk).
-      const running = input.run && !walkTo;
+      // Walking and running each have their own speed setting (a tap's walk is a walk unless Run is on).
+      const running = input.run;
       const speed = speedFactor * (running ? core.settings.runSpeed : core.settings.walkSpeed);
       position.x += moveX * speed * dt;
       position.z += moveZ * speed * dt;
@@ -7849,6 +7849,7 @@ function attach(element) {
     },
     onJump: jump,
     onRest: rest,
+    onRun: (on) => core.input?.setRun(on),
     maxPeople: MAX_PEOPLE,
     loadingArt: `${ART}loading-bg.webp`,
   });
@@ -7859,7 +7860,7 @@ function attach(element) {
     onKnowing: setKnowing,
   });
   core.input = createInput();
-  core.hud.layer.append(core.input.stickElement);
+  core.hud.layer.prepend(core.input.stickElement); // under the windows and panels
   core.element.addEventListener("keydown", () => core.sound.unlock());
 
   if (!ensureRenderer()) {

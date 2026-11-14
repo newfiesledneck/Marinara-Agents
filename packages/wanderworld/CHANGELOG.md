@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.87 — 2026-11-13
+
+- Phones: Run, Sit, Jump and Use are one row along the bottom with the stick above it. Run is new: tap it and you run, by the stick or to where you tap, until you tap it again.
+- Windows can be resized by finger from their corner and no longer come back shrunk. Journal, Lore and Menu have an × to close; the ☰ list opens under its button, which closes it.
+- An open window or panel is on top of the stick, the buttons and the Use prompt. The Wanderworld chip is gone and the frame rate is off unless you turn it on. The controls hint has an × and says more.
+- Settings → Display → On screen: Text size, and toggles for the time and for where you are. Settings → Controls: a toggle for the Run button.
+
 ## 0.5.86 — 2026-11-13
 
 - Settings → Display → Graphics, "Trees and rocks": a new Sparse with half as many again. What was Sparse is now Normal and the default; the old Normal, 4× and 10× are 2×, 8× and 20×. A device that had chosen one keeps the same amount under its new name.
