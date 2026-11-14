@@ -54,7 +54,7 @@ import {
 import { createPerson, lookChoices, setGenderShares } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
-import { createHerd } from "./herd.js";
+import { afloatAt, createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
 import { ago, createMemories, heardBy, heardLines, MEMORY, toldShares } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
@@ -3567,6 +3567,74 @@ function petOut(role, out) {
   narrate(null, out ? `(You call ${named} along.)` : `(You send ${named} home.)`);
 }
 
+/** Calls your dog or horse (`role`) to you, wherever it has got to (from home, too). */
+function petCall(role) {
+  const pet = petsFor(PLAYER_ID)[role];
+  if (!core.save || !pet) return void core.hud?.setNotice(`You have no ${role} of your own.`);
+  if (core.interior) return void core.hud?.setNotice(`Your ${role} can't come in here.`);
+  if (core.mount?.id === `pet:${PLAYER_ID}:${role}`) return;
+  if (pet.out === false) petOut(role, true);
+  else narrate(null, `(You call ${pet.name || `your ${role}`} to you.)`);
+  const { x, z } = core.player.position;
+  core.herd.call(`pet:${PLAYER_ID}:${role}`, { x, z });
+}
+
+/** This world's details, for the Menu's This world: [{ label, value, copy }]. */
+function worldDetails() {
+  const save = core.save;
+  if (!save) return [];
+  const sheet = sheetFor(save.id, core.personaId);
+  const cast = peopleOf(save).filter((person) => save.cast.includes(person.id));
+  const books = (save.lorebooks ?? []).map((id) => core.lorebooks?.find((book) => book.id === id)?.name ?? id);
+  const pets = partyAnimals()
+    .filter((pet) => pet.mine)
+    .map((pet) => `${pet.label} (${pet.out ? "with you" : "at home"})`);
+  const day = (time) => (Number.isFinite(time) ? new Date(time).toLocaleDateString() : "");
+  return [
+    { label: "Name", value: save.name },
+    { label: "World ID", value: save.id, copy: true },
+    sheet && core.inventory.ready() && { label: "Quartermaster sheet (scope)", value: sheet.scope, copy: true },
+    sheet && core.inventory.ready() && { label: "Quartermaster sheet (owner)", value: sheet.owner, copy: true },
+    { label: "You play", value: personaName() },
+    { label: "Map seed", value: save.seed, copy: true },
+    {
+      label: "Map",
+      value: Object.entries(save.choices ?? {})
+        .filter(([, choice]) => typeof choice === "string" || typeof choice === "number")
+        .map(([what, choice]) => `${what}: ${choice}`)
+        .join(", "),
+    },
+    {
+      label: "Land",
+      value: [
+        save.landscape?.river?.side && `a river to the ${save.landscape.river.side}`,
+        save.landscape?.mountains?.length && `mountains to the ${save.landscape.mountains.join(" and ")}`,
+        ...Object.entries(
+          (save.landscape?.outposts ?? []).reduce(
+            (counts, outpost) => ({ ...counts, [outpost.kind]: (counts[outpost.kind] ?? 0) + 1 }),
+            {},
+          ),
+        ).map(([kind, count]) => `${kind} × ${count}`),
+      ]
+        .filter(Boolean)
+        .join(", "),
+    },
+    { label: "Region you're in", value: regionNameAt(save.region) },
+    { label: `Characters (${cast.length})`, value: cast.map((person) => person.name).join(", ") },
+    {
+      label: "Travelling with you",
+      value: core.crowd
+        .party()
+        .map((member) => member.name)
+        .join(", "),
+    },
+    { label: "Your animals", value: pets.join("; ") },
+    { label: `Lorebooks (${books.length})`, value: books.join(", ") },
+    { label: "Setting", value: save.setting ?? "" },
+    { label: "Created", value: day(save.createdAt) },
+  ].filter((row) => row && row.value);
+}
+
 /** The Party tab's animals: yours, and the dog of anyone travelling with you. */
 function partyAnimals() {
   const out = [];
@@ -3776,6 +3844,7 @@ function dismount() {
   const mount = core.mount;
   if (!mount || core.air || core.mounting) return; // not in the middle of a jump, or of getting on
   const { x, z } = core.player.position;
+  if (waterAt(x, z).depth > mount.back * 0.8) return void core.hud?.setNotice("It's too deep to get down here.");
   const facing = core.player.rotation.y;
   // To its left, its right, or behind: the first that isn't in something or in the river.
   const spot = [Math.PI / 2, -Math.PI / 2, Math.PI]
@@ -5714,8 +5783,13 @@ function talkWords(name, id = null) {
 /** The one you're talking to answers (`what`: "greet", "bye", "answer" or a topic, dialogue.js). */
 function answer(talking, what, line = "") {
   if (core.talking !== talking) return;
+  // (Someone travelling with you isn't met: they've been beside you.)
   const setLine = () =>
-    lineFor(what, moodOf(core.relations.feeling(talking.id, "player")), talkWords(talking.name, talking.id));
+    lineFor(
+      what === "greet" && core.crowd.inParty(talking.id) ? "together" : what,
+      moodOf(core.relations.feeling(talking.id, "player")),
+      talkWords(talking.name, talking.id),
+    );
   // (A goodbye stays a set line: the conversation closes before a model could answer.)
   const known = core.characters?.some((entry) => entry.id === talking.id);
   if (what !== "bye" && core.settings.aiTalk && core.ai.known()?.talk && known) {
@@ -5844,7 +5918,15 @@ function trackInventory(parts, kind = "moment") {
   if (when === "off" || (kind === "talk" && when !== "all")) return;
   core.inventory
     .track(parts.filter(Boolean).join("\n"), core.settings.textConnection || null)
-    .then((changed) => changed && core.hud?.narrate(null, "(Your inventory changed.)", false))
+    .then(
+      (changed) =>
+        changed &&
+        core.hud?.narrate(
+          null,
+          changed.length ? `(Your inventory changed: ${changed.join(", ")}.)` : "(Your inventory changed.)",
+          false,
+        ),
+    )
     .catch((error) => {
       if (core.inventoryTold) return;
       core.inventoryTold = true; // once a session
@@ -6016,7 +6098,14 @@ async function runMoment({
  * people round about answer).
  */
 function speak(typed) {
-  const command = /^\/(scene|camp)\b\s*(.*)$/isu.exec(typed.trim());
+  const command = /^\/(scene|camp|call)\b\s*(.*)$/isu.exec(typed.trim());
+  // "/call", "/call horse", "/call dog": your own animals come to you.
+  if (command?.[1].toLowerCase() === "call") {
+    const which = ["dog", "horse"].filter((role) => !command[2].trim() || command[2].toLowerCase().includes(role));
+    return void (which.length ? which : ["dog", "horse"])
+      .filter((role) => petsFor(PLAYER_ID)[role] || which.length === 1)
+      .forEach(petCall);
+  }
   if (command?.[1].toLowerCase() === "scene") return void sceneHere(command[2].trim());
   if (command?.[1].toLowerCase() === "camp") return makeCamp();
   const speech = parseSpeech(typed);
@@ -6176,6 +6265,16 @@ function talkPayload(talking, line) {
     time: clockText(),
     weather: weatherWord(),
     nearby,
+    // Travelling with you: they know it, and who else is along.
+    inParty: core.crowd.inParty(talking.id),
+    companions: core.crowd.inParty(talking.id)
+      ? core.crowd
+          .party()
+          .filter((member) => member.id !== talking.id)
+          .map((member) => member.name)
+          .slice(0, 6)
+          .join(", ")
+      : "",
     relationship: towardPlayer(talking.id, talking.name, names),
     setting: core.save?.setting ?? "",
     lore: zone
@@ -7337,7 +7436,7 @@ function movePlayer(dt, input) {
     }
   } else if (core.mode === "ride" && core.mount) {
     // Riding: the same stick and keys, moving the animal under them. It walks, gallops with Shift (or
-    // the stick right out), turns less sharply than a person, and won't go where it would have to swim.
+    // the stick right out), turns less sharply than a person, and swims where the water is deep.
     const { x, y } = input;
     const mount = core.mount;
     // Mid-jump it carries on the way it's facing, at a canter at least, whatever the stick says (which
@@ -7350,10 +7449,13 @@ function movePlayer(dt, input) {
       const wantZ = -cos * y - sin * x;
       const moveX = leaping ? Math.sin(player.rotation.y) : wantX;
       const moveZ = leaping ? Math.cos(player.rotation.y) : wantZ;
-      const wading = waterAt(position.x, position.z).depth > WADE_DEPTH;
+      const deep = waterAt(position.x, position.z).depth;
       const steered = x || y ? (input.run ? mount.gallop : mount.walk * RIDE_WALK * Math.max(0.4, input.amount)) : 0;
-      const pace = (leaping ? Math.max(steered, LEAP_PACE) : steered) * (wading ? 0.5 : 1);
-      const before = { x: position.x, z: position.z };
+      // (Wading is slow, and swimming slower still, however hard it's ridden.)
+      const pace =
+        deep > mount.back * 0.8
+          ? Math.min(steered, mount.walk * RIDE_WALK)
+          : (leaping ? Math.max(steered, LEAP_PACE) : steered) * (deep > WADE_DEPTH ? 0.5 : 1);
       position.x += moveX * pace * dt;
       position.z += moveZ * pace * dt;
       space.resolveCollisions(position, RIDE_RADIUS, true, leaping && core.air.height > LEAP_CLEAR);
@@ -7361,10 +7463,6 @@ function movePlayer(dt, input) {
       const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
       position.x = Math.max(-edge, Math.min(edge, position.x));
       position.z = Math.max(-edge, Math.min(edge, position.z));
-      if (waterAt(position.x, position.z).depth > SWIM_DEPTH * 0.75) {
-        position.x = before.x;
-        position.z = before.z;
-      }
       if (x || y)
         player.rotation.y = approachAngle(player.rotation.y, Math.atan2(wantX, wantZ), (input.run ? 4 : 6) * dt);
     }
@@ -7381,7 +7479,14 @@ function movePlayer(dt, input) {
   core.swimming = !!water && water.depth > SWIM_DEPTH && core.mode === "walk";
   // In the water the height eases between wading (feet on the bed) and floating, in step with the swim
   // pose fading in, so walking in and climbing out flow instead of jumping.
-  const target = core.interior ? 0 : core.swimming ? water.level : heightAt(position.x, position.z);
+  // (A mount stands on the ground, or floats where it's deep: herd.js afloatAt.)
+  const target = core.interior
+    ? 0
+    : core.swimming
+      ? water.level
+      : core.mode === "ride" && core.mount
+        ? afloatAt(position.x, position.z, core.mount.back)
+        : heightAt(position.x, position.z);
   const wet = !core.interior && water && (water.depth > 0.3 || core.swimming);
   position.y = wet ? position.y + (target - position.y) * Math.min(1, dt * 6) : target;
   // Up on a bed (a seat with a `lift`), easing up onto it and back down.
@@ -7398,9 +7503,10 @@ function movePlayer(dt, input) {
     if (core.air.height <= 0 || core.swimming || core.mode !== "walk") core.air = null;
     else position.y = target + core.air.height;
   }
-  // Up on a mount: seated at its back's height (it has a shadow of its own).
+  // Up on a mount: seated at its back's height, going up and down as its back does in its stride and
+  // its leap (it has a shadow of its own).
   const riding = core.mode === "ride" && core.mount;
-  const seatAt = riding ? target + core.mount.back - RIDE_SEAT + (core.air?.height ?? 0) : 0;
+  const seatAt = riding ? target + core.mount.back - RIDE_SEAT + core.herd.bob(core.mount.id) : 0;
   if (riding && core.mounting) {
     const t = core.mounting.phase === "vault" ? (core.glide?.t ?? 1) : 0;
     const up = Math.min(1, Math.max(0, (t - 0.1) / 0.5)); // a beat leaning in, then up
@@ -7759,6 +7865,8 @@ function attach(element) {
       partyChanged();
     },
     onPetOut: petOut,
+    onPetCall: petCall,
+    onWorldDetails: worldDetails,
     onMoveHome: moveHome,
     onMoveIn: moveIn,
     onMoveOut: moveOut,

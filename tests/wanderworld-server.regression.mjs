@@ -685,7 +685,15 @@ assert.equal(
     },
   });
   assert.ok(heard[2][0].content.endsWith(server.IMPROVE_CHAT_NOTE), "the rewrite is told about the chat");
-  assert.equal(heard[2][1].content, "Zoey at the pond\n\n## The chat\nZoey: I kneel by the pond and meditate.");
+  assert.equal(
+    heard[2][1].content,
+    "<facts>\nZoey at the pond\n</facts>\n\n<chat>\nZoey: I kneel by the pond and meditate.\n</chat>",
+  );
+  assert.equal(
+    server.pictureWords('<think>x</think>"A woman kneels by a pond.\n\nThe chat: Zoey: I kneel."'),
+    "A woman kneels by a pond.",
+    "the chat handed back at the end is cut off",
+  );
   runtime.languageModels.resolveForRequest = async () => ({
     async chatComplete() {
       throw new Error("down");
@@ -1218,6 +1226,18 @@ assert.equal(
     line: "Hello",
   });
   assert.match(told[0].content, /Tall\.\n\nWearing now: a red scarf, grey cloak/u);
+  // Someone in the party is told so, and isn't walked up to.
+  const along = server.talkMessages({
+    character: server.characterCard({ data: { name: "Hollis" } }),
+    persona: card,
+    history: [],
+    lore: [],
+    line: "",
+    inParty: true,
+    companions: "Mira",
+  });
+  assert.match(along[0].content, /Hollis is travelling with Zoey, as one of their party \(with Mira\)/u);
+  assert.match(along[1].content, /turns to Hollis/u);
   const asked = server.inventoryMessages({
     template: "PROMPT",
     context: "Items:\n(none)",
@@ -1248,7 +1268,24 @@ assert.equal(
           : url.endsWith("/tracker/context")
             ? { context: "Items:", promptTemplate: "PROMPT" }
             : url.endsWith("/tracker/apply")
-              ? { applied: JSON.parse(options.body).data.addItem.length > 0 }
+              ? {
+                  applied: JSON.parse(options.body).data.addItem.length > 0,
+                  items: [{ id: "i1", name: "Hat", location: "equipped:head" }],
+                  lastTrackerChange: {
+                    reasoning: "She bought a hat.",
+                    addedItems: [{ id: "i1", name: "Hat" }],
+                    updatedItems: [
+                      { id: "i2", name: "Scarf", before: { location: "equipped:neck" }, after: { location: "bag" } },
+                      {
+                        id: "i3",
+                        name: "Coin",
+                        before: { location: "bag", quantity: 5 },
+                        after: { location: "bag", quantity: 2 },
+                      },
+                    ],
+                    removedItems: [{ id: "i4", name: "Old Cap" }],
+                  },
+                }
               : {};
     return { ok: true, status: 200, json: async () => answer };
   };
@@ -1284,7 +1321,11 @@ assert.equal(
       `GET ${sheet}/appearance?mode=equippedNamesDescriptions`,
     ]);
     calls.length = 0;
-    assert.equal(await inventory.track("She buys a hat.", null), true);
+    assert.deepEqual(
+      await inventory.track("She buys a hat.", null),
+      ["added and put on Hat", "took off Scarf", "Coin ×2", "removed Old Cap"],
+      "what changed, without the tracker's reasoning",
+    );
     assert.deepEqual(tracked[0], {
       promptTemplate: "PROMPT",
       context: "Items:",

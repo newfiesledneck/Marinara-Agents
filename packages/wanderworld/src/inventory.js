@@ -53,6 +53,33 @@ export function sheetFor(worldId, personaId) {
   };
 }
 
+/**
+ * What a tracker pass changed, a few words each ("added Blue Hat", "put on Grey Cloak"), from what
+ * Quartermaster's tracker/apply answers (its Recent Item Updates, without its reasoning).
+ */
+export function changesTold(answer) {
+  const change = answer?.lastTrackerChange;
+  if (!change) return [];
+  const worn = (location) => typeof location === "string" && location.startsWith("equipped:");
+  const where = new Map((answer.items ?? []).map((item) => [item.id, item.location]));
+  const out = [];
+  if (change.equippedOutfitName) out.push(`wearing ${change.equippedOutfitName}`);
+  for (const item of change.addedItems ?? [])
+    out.push(`${worn(where.get(item.id)) ? "added and put on" : "added"} ${item.name}`);
+  for (const item of change.updatedItems ?? []) {
+    const before = item.before ?? {};
+    const after = item.after ?? {};
+    if (worn(after.location) && !worn(before.location)) out.push(`put on ${item.name}`);
+    else if (worn(before.location) && !worn(after.location)) out.push(`took off ${item.name}`);
+    else if (before.location !== after.location)
+      out.push(`${String(after.location).startsWith("stored:") ? "stored" : "moved"} ${item.name}`);
+    else if (before.quantity !== after.quantity) out.push(`${item.name} ×${after.quantity}`);
+    else out.push(`${item.name} changed`);
+  }
+  for (const item of change.removedItems ?? []) out.push(`removed ${item.name}`);
+  return out.filter((words) => words.length < 120).slice(0, 12);
+}
+
 const keyOf = (sheet) => `${sheet.scope}|${sheet.owner}`;
 const pathOf = (sheet, rest = "") =>
   `/inventory/${encodeURIComponent(sheet.scope)}/${encodeURIComponent(sheet.owner)}${rest}`;
@@ -170,7 +197,8 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
     /**
      * Quartermaster's tracker reads `told` (what was just said and narrated) with Wanderworld's own model
      * call, and the sheet takes what changed by Quartermaster's own rules. One at a time, in order.
-     * Resolves true when the sheet changed; rejects when a step failed.
+     * Resolves to what changed (changesTold: a list, empty when Quartermaster doesn't say) when the
+     * sheet changed, else false; rejects when a step failed.
      */
     track(told, connectionId) {
       const current = sheet();
@@ -189,7 +217,7 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
         if (answer?.applied !== true) return false;
         await refresh();
         globalThis.Quartermaster?.reload?.(current.scope, current.owner);
-        return true;
+        return changesTold(answer);
       };
       const result = queue.then(run);
       queue = result.catch(() => {});

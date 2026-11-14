@@ -20,6 +20,7 @@ import {
   Quaternion,
   Skeleton,
   SkinnedMesh,
+  Vector3,
 } from "three";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/creatures/";
@@ -431,6 +432,8 @@ export async function createAnimal(name, wanted = null) {
       seat: 0,
       update: (dt, speed = 0) => void body.update(dt, speed, options),
       rise: () => 0,
+      bob: () => 0,
+      carryOn: (object) => void body.object.add(object),
       dispose() {
         body.object.removeFromParent();
         body.dispose?.();
@@ -540,12 +543,32 @@ export async function createAnimal(name, wanted = null) {
       pose(clips.jump, leapAt, leaping);
     }
   }
+  // Where its body's bone is as it stands (the idle's first frame), in its own space: what its back's
+  // movement is measured from, and the pose anything set on its back is fitted to.
+  const bodyAt = new Vector3();
+  function stand() {
+    for (let i = 0; i < count; i++) bones[i].position.fromArray(data.rest, i * 10);
+    pose(clips.idle, 0, 1);
+    root.updateMatrixWorld(true);
+  }
+  const bodyHeight = () => (body < 0 ? 0 : root.worldToLocal(bones[body].getWorldPosition(bodyAt)).y);
+  stand();
+  const standing = bodyHeight();
   update(0);
 
   return {
     object: root,
     kind,
     coat,
+    /** Sets `object` (placed in this animal's own space, as it stands) on its body, to move with it. */
+    carryOn(object) {
+      root.add(object);
+      stand();
+      if (body >= 0) bones[body].attach(object);
+      update(0);
+    },
+    /** How far its body is above (or below) where it is standing still, as it's posed now (metres). */
+    bob: () => (bodyHeight() - standing) * root.scale.y,
     /** Metres from the ground to its back where a rider sits (0: nobody rides this one), and how far along. */
     back: facts.back,
     seat: facts.seat,

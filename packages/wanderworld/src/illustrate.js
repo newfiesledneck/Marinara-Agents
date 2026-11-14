@@ -15,10 +15,13 @@ const OLDER_TEMPLATE = DEFAULT_TEMPLATE.replace("{world_look}. ", "");
 
 /** For image models that want tags, not sentences. */
 export const TAG_INSTRUCTION =
-  "Rewrite what follows as a prompt for an image generator that wants comma-separated tags, not sentences. Keep every fact in it: how many people and who, what each looks like and wears, what they're doing, where and when it is, the weather, the setting. Start with the number of people and the subject, then looks and clothes, then the pose, then the place, the light and the style. Short tags, most important first, at most 60 of them. No names of real artists, no text in the picture. Answer with the tags only.";
+  "Rewrite what follows as a prompt for an image generator that wants comma-separated tags, not sentences. Keep every fact in it: how many people and who, what each looks like and wears, what they're doing, where and when it is, the weather, the setting. Start with the number of people and the subject, then looks and clothes, then the pose, then the place, the light and the style. Short tags, most important first, at most 60 of them. Give each character's name as a tag before their looks. No names of real artists, no text in the picture. Answer with the tags only.";
 
 /** What the model is told when it rewrites the prompt (server.mjs has the same, for when this is empty). */
 export const DEFAULT_INSTRUCTION =
+  "You write the prompt for an image generation model that reads natural-language prose. Turn the facts that follow into one vividly detailed image prompt for the current moment: the single most interesting instant of it.\n\nRules:\n1. The image model draws only what the prompt states. Write only what is meant to be seen, and describe every visible character from the facts given, in enough detail that an artist could paint them recognisably: face, hair, eyes, race or kind, skin, fur or scale tone, build and height, and everything they wear. Never generalise a look the facts spell out.\n2. Flowing prose, never a list of tags: one substantial paragraph of about 200 to 300 words that covers the whole picture. One or two short sentences is a failure.\n3. Ground the place so it could be painted: surfaces, props, the time of day, the light, the weather when outdoors, the background. Describe what it looks like, not what it is called, and nothing that is out of sight.\n4. For each character give their action, expression, pose and where they are in the frame.\n5. Set the composition: one camera angle, the shot distance, a lens (focal length and aperture, like 35mm f/2.8), the lighting and the mood. Choose the angle that shows the action best, and prefer a lively one to a flat one.\n6. Give each character's name once, right before their description (an image model that knows the name can use it), and after that refer to them by how they look. A name never stands in for the description.\n7. Describe only what the chosen angle shows. Of someone facing away or partly out of frame, describe the back of the head, the hair and the posture, not the hidden face.\n8. Never an over-the-shoulder view.\n9. Keep it focused: one moment, one angle, one main character unless the moment needs more (a wide view, a conversation). Don't crowd it.\n10. Finish with the art style the facts ask for, if they name one. No names of real artists, and no words, captions or speech bubbles in the picture.\n\nAnswer with the prompt only: no title, no notes, no quotation marks.";
+/** The instruction before 0.5.92: one still saved unchanged becomes the new one. */
+const OLDER_INSTRUCTION =
   "Rewrite what follows as a prompt for an image generator. Keep every fact in it: who is there, what they look like, where and when it is, the weather, what they're doing. Lead with the subject, then the setting, the light, the mood and the style. One paragraph, concrete and visual, under 120 words. No names of real artists, no words or captions in the picture. Answer with the prompt only.";
 
 /** Picture sizes on offer: [width, height, what it's called]. Any other size can be typed in. */
@@ -117,6 +120,7 @@ export function createIllustrateWindow(layer, handlers) {
   });
   const { state } = floating;
   if (state.template === OLDER_TEMPLATE) state.template = DEFAULT_TEMPLATE;
+  if (state.instruction === OLDER_INSTRUCTION) state.instruction = DEFAULT_INSTRUCTION;
 
   // The picture fills the window (the stage is as tall as the window shows); everything else is folded
   // away under it, a scroll down.
