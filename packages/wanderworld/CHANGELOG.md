@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.89 — 2026-11-14
+
+- Resolution no longer has Auto, which changed the picture's size as frames came and went and flickered on phones. The default is 1080p (never more than the screen has); a device that was on Auto is on 1080p now.
+- On a phone, tapping a text box no longer zooms the page in and leaves it there.
+- The narration that fades in over the world is at the top of the screen, not over the middle of it.
+
 ## 0.5.88 — 2026-11-14
 
 - The Look card (yours from Menu, anyone's from People) has a Gender choice: Auto, Male, Female or the custom gender. It is the same choice as the small picker beside their name.

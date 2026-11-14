@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.88)
+## What it does now (0.5.89)
 
 ### The world
 
@@ -629,9 +629,9 @@ still count, and come first.
 - three.js 0.186.1, `@pixiv/three-vrm` 3.5.5 and `mmd-parser` 1.1.4 (the versions the Engine uses) are
   bundled into `client.js`, because the Engine does not hand its copies to packages.
 
-Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The pixel ratio is capped at
-1.5, Auto resolution steps down when frames drop, nature and real lights follow the player, and fog hides
-the far edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The picture is drawn at
+1080p unless Settings says otherwise, nature and real lights follow the player, and fog hides the far
+edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Building and testing
 

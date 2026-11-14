@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.89",
+          "date": "2026-11-14",
+          "notes": "- Resolution no longer has Auto, which changed the picture's size as frames came and went and flickered on phones. The default is 1080p (never more than the screen has); a device that was on Auto is on 1080p now.\n- On a phone, tapping a text box no longer zooms the page in and leaves it there.\n- The narration that fades in over the world is at the top of the screen, not over the middle of it.",
+          "highlight": false
+        },
+        {
           "version": "0.5.88",
           "date": "2026-11-14",
           "notes": "- The Look card (yours from Menu, anyone's from People) has a Gender choice: Auto, Male, Female or the custom gender. It is the same choice as the small picker beside their name.\n- Someone of the custom gender gets a Figure choice there too: the male or the female figure, or either by their name as before.\n- Auto resolution no longer shows an empty frame each time it changes the picture's size, which could look like a flicker on a phone.",
@@ -307,12 +313,6 @@
           "version": "0.5.70",
           "date": "2026-11-12",
           "notes": "- Saved worlds are the Engine's alone now. The browser fallback and the move from the browser are gone, with the older conversions (the single world from before saves, the one narrator card). If the server part doesn't answer, the menu says to restart the Engine, and nothing is written.\n- All keeps every memory, with no ceiling anywhere.\n- A setting's description that states a number now follows its slider: \"People remember what they saw and heard\" says how many everyday and lasting memories are kept as you have them set, and the two \"sent to the AI\" sliders say what one, two and three people get at the current setting.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.69",
-          "date": "2026-11-11",
-          "notes": "- The game's and the AI's settings are kept by the Engine now, the same in every browser: the living world, animals, memories, connections, narrators, what calls the AI. Graphics, controls, sound and what's shown on screen stay each device's own. The first browser to open this version gives the Engine its settings.\n- Moving worlds from a browser to the Engine is checked: each is read back from the Engine before the browser lets go of it, a copy stays in the browser for now, and a notice says how many moved.",
           "highlight": false
         }
       ]

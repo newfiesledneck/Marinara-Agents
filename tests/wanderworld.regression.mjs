@@ -517,14 +517,14 @@ assert.ok(Number.isFinite(createMotion()(NaN, Infinity).hips[1]), "bad input nev
 // Saved settings come back from storage: anything odd falls back to the default instead of breaking.
 assert.equal(checkSetting("walkSpeed", 9), SETTINGS.walkSpeed.max, "speeds are kept within their range");
 assert.equal(checkSetting("walkSpeed", "fast"), SETTINGS.walkSpeed.value, "a non-number speed is the default");
-assert.equal(checkSetting("resolution", "8k"), "auto", "an unknown resolution is Auto");
-assert.equal(checkSetting("resolution", "50"), "auto", "and so is a share of the screen, from before they had names");
+assert.equal(checkSetting("resolution", "8k"), "1080", "an unknown resolution is the usual one");
+assert.equal(checkSetting("resolution", "auto"), "1080", "and so is Auto, which is gone (it flickered)");
 assert.equal(checkSetting("resolution", "720"), "720", "720p is one of them");
 assert.equal(checkSetting("drawDistance", 140), 140, "a listed choice is kept");
 assert.equal(checkSetting("shadows", "yes"), true, "a non-boolean switch is the default");
 assert.equal(checkSetting("nonsense", 1), undefined, "unknown settings are ignored");
 globalThis.localStorage = { getItem: () => "{not json" };
-assert.deepEqual(loadSettings().resolution, "auto", "a damaged saved copy loads the defaults");
+assert.deepEqual(loadSettings().resolution, "1080", "a damaged saved copy loads the defaults");
 delete globalThis.localStorage;
 
 console.log("wanderworld regression: OK");
