@@ -1256,6 +1256,7 @@ assert.equal(
   assert.equal(sheetFor("", "p"), null);
   const calls = [];
   let features = ["scopes", "owners", "appearance", "tracker-routes"];
+  let nothingChanged = false;
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
     calls.push(`${options.method} ${url}`);
@@ -1267,26 +1268,28 @@ assert.equal(
           ? { text: "Red Scarf (a fresh red scarf)" }
           : url.endsWith("/tracker/context")
             ? { context: "Items:", promptTemplate: "PROMPT" }
-            : url.endsWith("/tracker/apply")
-              ? {
-                  applied: JSON.parse(options.body).data.addItem.length > 0,
-                  items: [{ id: "i1", name: "Hat", location: "equipped:head" }],
-                  lastTrackerChange: {
-                    reasoning: "She bought a hat.",
-                    addedItems: [{ id: "i1", name: "Hat" }],
-                    updatedItems: [
-                      { id: "i2", name: "Scarf", before: { location: "equipped:neck" }, after: { location: "bag" } },
-                      {
-                        id: "i3",
-                        name: "Coin",
-                        before: { location: "bag", quantity: 5 },
-                        after: { location: "bag", quantity: 2 },
-                      },
-                    ],
-                    removedItems: [{ id: "i4", name: "Old Cap" }],
-                  },
-                }
-              : {};
+            : url.endsWith("/tracker/apply") && nothingChanged
+              ? { applied: true, items: [], lastTrackerChange: { reasoning: "Nothing happened.", addedItems: [] } }
+              : url.endsWith("/tracker/apply")
+                ? {
+                    applied: JSON.parse(options.body).data.addItem.length > 0,
+                    items: [{ id: "i1", name: "Hat", location: "equipped:head" }],
+                    lastTrackerChange: {
+                      reasoning: "She bought a hat.",
+                      addedItems: [{ id: "i1", name: "Hat" }],
+                      updatedItems: [
+                        { id: "i2", name: "Scarf", before: { location: "equipped:neck" }, after: { location: "bag" } },
+                        {
+                          id: "i3",
+                          name: "Coin",
+                          before: { location: "bag", quantity: 5 },
+                          after: { location: "bag", quantity: 2 },
+                        },
+                      ],
+                      removedItems: [{ id: "i4", name: "Old Cap" }],
+                    },
+                  }
+                : {};
     return { ok: true, status: 200, json: async () => answer };
   };
   try {
@@ -1350,6 +1353,9 @@ assert.equal(
     calls.length = 0;
     await linking.link("chat-1");
     assert.deepEqual(calls, [`PATCH ${sheet}/owner`, "POST /api/quartermaster/links/chat-1"]);
+    nothingChanged = true;
+    assert.equal(await inventory.track("She looks at her hat.", null), false, "reasoning alone is no change");
+    nothingChanged = false;
     settings.inventoryWorn = false;
     assert.equal(inventory.worn(), "", "the worn text has its own switch");
     settings.inventory = false;

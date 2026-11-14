@@ -198,7 +198,7 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
      * Quartermaster's tracker reads `told` (what was just said and narrated) with Wanderworld's own model
      * call, and the sheet takes what changed by Quartermaster's own rules. One at a time, in order.
      * Resolves to what changed (changesTold: a list, empty when Quartermaster doesn't say) when the
-     * sheet changed, else false; rejects when a step failed.
+     * sheet changed, else false (also when the tracker only gave its reasoning); rejects when a step failed.
      */
     track(told, connectionId) {
       const current = sheet();
@@ -217,7 +217,9 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
         if (answer?.applied !== true) return false;
         await refresh();
         globalThis.Quartermaster?.reload?.(current.scope, current.owner);
-        return changesTold(answer);
+        // (A pass that gave its reasoning and changed no item isn't a change.)
+        const changes = changesTold(answer);
+        return answer.lastTrackerChange && !changes.length ? false : changes;
       };
       const result = queue.then(run);
       queue = result.catch(() => {});
