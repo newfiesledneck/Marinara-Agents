@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.94",
+          "date": "2026-11-14",
+          "notes": "- Loading another world can't save the world you're leaving over it: nothing is saved from the moment the other world is picked until it is built. The world you leave is saved, under its own name, before that.",
+          "highlight": false
+        },
+        {
           "version": "0.5.93",
           "date": "2026-11-14",
           "notes": "- Menu → Save world saves now and sends it to the Engine now, and says if the Engine didn't take it.\n- Menu → Load world lists your worlds as the Engine has them now and opens the one you pick. The world you're in is saved first.\n- Switching between a phone and a computer: a browser left open reads the Engine's saves again when you come back to it, and a world played somewhere else since is loaded from there instead of being carried on with (and saved over) from the old copy. Leaving the tab or locking the phone saves and sends at once.",
@@ -307,12 +313,6 @@
           "version": "0.5.75",
           "date": "2026-11-12",
           "notes": "- New world has a step for the AI, before the one that sets a world up with it: whether the server part is running, which connection writes conversations and moments, which plays scenes, which makes pictures, and the AI conversations and AI moments switches. They are your settings for every world, the same ones as in Settings → AI.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.74",
-          "date": "2026-11-12",
-          "notes": "- New world is three steps with a tab each: you and your people, the land, lore and the AI. Each says what it is for, and the long explanations are cut down.\n- Journal → World is in tabs: This world, Setting, Animals, Lore.\n- Shorter explanations in the Journal (Edit people, picture look, ages, animals, lore linking, keywords).\n- In Settings, a tab that says what it is for no longer shows the section's line above it as well.",
           "highlight": false
         }
       ]
