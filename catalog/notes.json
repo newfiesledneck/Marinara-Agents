@@ -812,6 +812,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.39",
+          "date": "2026-11-14",
+          "notes": "- New **Image style** picker in Settings → Image Generation: choose one of your Engine's image\n  style presets and it is applied to item and outfit pictures. Needs Engine 2.5.2 or later.\n- New **Rewrite with AI** buttons when you review a picture prompt: Prose for image models that\n  read sentences, Tags for tag-trained ones. You can edit or undo the result.",
+          "highlight": false
+        },
+        {
           "version": "0.1.38",
           "date": "2026-11-14",
           "notes": "- Build Wardrobe no longer loses its result if you close the dock while it is working. The review\n  opens by itself when it is ready, or the next time you open the dock.\n- Only one outfit shows as equipped when several share the same items.\n- Item and outfit names sit on their own row under the buttons, so long names are readable. Hover,\n  click or tap a name to see all of it.",
@@ -923,12 +929,6 @@
           "version": "0.1.20",
           "date": "2026-09-26",
           "notes": "- Rebuilding the dock now closes its dialogs and clears their pending sessions.\n- A late wardrobe confirmation cannot replace a newly opened dialog or another chat's view.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.19",
-          "date": "2026-09-26",
-          "notes": "- Available from the official staging Download Agents catalog with Professor Mari's armored\n  Quartermaster cover and installation guidance.\n- Closing the dock also closes its dialogs; an old image-prompt preview cannot replace a later\n  dialog or another chat's preview. Failed inventory exports now report their error.\n- A failed outfit save cannot overwrite an existing outfit's portrait.",
           "highlight": false
         }
       ]

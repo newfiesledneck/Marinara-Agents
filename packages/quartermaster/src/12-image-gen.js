@@ -27,6 +27,9 @@ Object.assign(QM.dock, {
   _imageGenHasConnections: null, // null = still checking, true/false once resolved
   _imageGenConnectionsError: false, // the check itself failed (distinct from "checked, found none")
   _imageGenPrompt: "",
+  _imageGenPromptBeforeRewrite: null, // what "Undo rewrite" puts back
+  _imageGenRewriting: null, // "prose" | "tags" while a rewrite is in flight
+  _imageGenRewriteError: null,
   _imageGenLoadingLabel: "",
   _imageGenError: null,
   _imageGenContentContainer: null,
@@ -46,6 +49,9 @@ Object.assign(QM.dock, {
     this._imageGenHasConnections = null;
     this._imageGenConnectionsError = false;
     this._imageGenPrompt = "";
+    this._imageGenPromptBeforeRewrite = null;
+    this._imageGenRewriting = null;
+    this._imageGenRewriteError = null;
     this._imageGenError = null;
 
     const backdrop = document.createElement("div");
@@ -255,8 +261,85 @@ Object.assign(QM.dock, {
       generateButton.disabled = !promptInput.value.trim();
     });
 
-    fragment.append(hint, promptInput, buttonRow);
+    // Rewrite with AI: the same prompt reworded for the image model in use,
+    // as prose (models that read sentences) or tags (tag-trained models).
+    const rewriteRow = document.createElement("div");
+    Object.assign(rewriteRow.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      flexWrap: "wrap",
+      fontSize: "11px",
+    });
+    const busy = Boolean(this._imageGenRewriting);
+    const rewriteLabel = document.createElement("span");
+    rewriteLabel.textContent = busy ? "Rewriting…" : "Rewrite with AI:";
+    rewriteLabel.style.color = "var(--muted-foreground, inherit)";
+    rewriteRow.appendChild(rewriteLabel);
+    for (const [variant, label, help] of [
+      ["prose", "Prose", "One descriptive paragraph, for image models that read sentences."],
+      ["tags", "Tags", "Short comma-separated tags, for tag-trained image models."],
+    ]) {
+      const button = QM.button(label, { border: true });
+      button.title = help;
+      button.disabled = busy || !this._imageGenPrompt.trim();
+      button.addEventListener("click", () => this._submitImageGenRewrite(variant));
+      rewriteRow.appendChild(button);
+    }
+    if (this._imageGenPromptBeforeRewrite !== null && !busy) {
+      const undoButton = QM.button("Undo rewrite", { border: true });
+      undoButton.addEventListener("click", () => {
+        this._imageGenPrompt = this._imageGenPromptBeforeRewrite;
+        this._imageGenPromptBeforeRewrite = null;
+        this._imageGenRewriteError = null;
+        this._renderImageGenContent();
+      });
+      rewriteRow.appendChild(undoButton);
+    }
+    promptInput.disabled = busy;
+    if (busy) generateButton.disabled = true;
+
+    fragment.append(hint, promptInput, rewriteRow);
+    if (this._imageGenRewriteError) {
+      const rewriteError = document.createElement("div");
+      rewriteError.textContent = this._imageGenRewriteError;
+      Object.assign(rewriteError.style, { fontSize: "11px", color: QM_COLOR_DANGER });
+      fragment.appendChild(rewriteError);
+    }
+    fragment.appendChild(buttonRow);
     return fragment;
+  },
+
+  // One language-model call (the connection Build Wardrobe uses); the prompt
+  // box shows the result, still editable, and Undo puts the old text back.
+  async _submitImageGenRewrite(variant) {
+    const token = this._imageGenSessionToken;
+    const chatId = QM.state.chatId;
+    const original = this._imageGenPrompt;
+    this._imageGenRewriting = variant;
+    this._imageGenRewriteError = null;
+    this._renderImageGenContent();
+    let result = null;
+    let failure = null;
+    try {
+      result = await QM.rewriteImagePrompt(chatId, QM_OWNER_ID, original, variant);
+    } catch (error) {
+      failure = error;
+    }
+    // Closed, reopened for something else, or another chat: not this dialog's any more.
+    if (token !== this._imageGenSessionToken || chatId !== QM.state.chatId) return;
+    this._imageGenRewriting = null;
+    if (result && typeof result.prompt === "string" && result.prompt.trim()) {
+      this._imageGenPromptBeforeRewrite = original;
+      this._imageGenPrompt = result.prompt;
+    } else {
+      const code = failure && failure.message;
+      this._imageGenRewriteError =
+        code === "no-connection"
+          ? "No language model connection is available for the rewrite."
+          : "The prompt could not be rewritten. Your prompt is unchanged.";
+    }
+    this._renderImageGenContent();
   },
 
   _renderImageGenLoading() {

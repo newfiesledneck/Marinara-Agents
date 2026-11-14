@@ -728,6 +728,7 @@ QM.dock = {
     this.errorNode = null;
     this.feedSelect = null;
     this.imageConnectionSelect = null;
+    this.imageStyleSelect = null;
     this.itemPromptTextarea = null;
     this.outfitPromptTextarea = null;
     this.settingsSection = null;
@@ -1308,6 +1309,9 @@ QM.dock = {
     if (this.imageConnectionSelect && !this.imageConnectionSelect.disabled) {
       this.imageConnectionSelect.value = QM.state.imageConnectionId || "";
     }
+    if (this.imageStyleSelect && !this.imageStyleSelect.disabled) {
+      this.imageStyleSelect.value = QM.state.imageStyleId || "";
+    }
     // Guarded against the active element: _paint() fires on every state
     // change, including ones unrelated to these fields (e.g. an equip action
     // elsewhere in the dock) -- an unconditional value= assignment here would
@@ -1491,6 +1495,53 @@ QM.dock = {
     };
     populateConnections();
 
+    // Image style: one of the Engine's own style presets (Settings → Image
+    // generation there), put in front of every picture prompt this sheet builds.
+    const styleRow = document.createElement("div");
+    Object.assign(styleRow.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const styleLabel = document.createElement("span");
+    styleLabel.textContent = "Image style:";
+    styleLabel.style.color = "var(--muted-foreground, currentcolor)";
+    const styleSelect = QM.smallInput("select");
+    styleSelect.style.flex = "1";
+    styleSelect.disabled = true;
+    styleSelect.addEventListener("change", () => QM.state.updateImageStyleId(styleSelect.value));
+    this.imageStyleSelect = styleSelect;
+    styleRow.append(styleLabel, styleSelect);
+    const styleNote = document.createElement("p");
+    Object.assign(styleNote.style, { margin: "0", fontSize: "11px", color: "var(--muted-foreground, currentcolor)" });
+    const styleOption = (value, text) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      return option;
+    };
+    styleSelect.replaceChildren(styleOption("", "Checking…"));
+    QM.listImageStyles().then(
+      (styles) => {
+        const saved = QM.state.imageStyleId || "";
+        const options = [
+          styleOption("", "None (prompt as written)"),
+          ...styles.map((style) => styleOption(style.id, style.name)),
+        ];
+        // A saved style the Engine no longer lists stays selectable, so opening Settings never changes it.
+        if (saved && !styles.some((style) => style.id === saved)) {
+          options.push(styleOption(saved, `${saved} (not found)`));
+        }
+        styleSelect.replaceChildren(...options);
+        styleSelect.value = saved;
+        styleSelect.disabled = false;
+        styleNote.textContent =
+          styles.length === 0
+            ? "No style presets were found in the Engine (they need Engine 2.5.2 or later, under its Image generation settings)."
+            : "Adds the Engine style preset's words to item and outfit picture prompts. You still see and can edit the prompt before generating.";
+      },
+      () => {
+        styleSelect.replaceChildren(styleOption(QM.state.imageStyleId || "", "Could not load styles"));
+        styleNote.textContent = "Could not read the Engine's style presets. The saved choice is kept.";
+      },
+    );
+
     const itemPromptLabel = document.createElement("p");
     itemPromptLabel.textContent = "Item image prompt template:";
     Object.assign(itemPromptLabel.style, { margin: "0", color: "var(--muted-foreground, currentcolor)" });
@@ -1540,6 +1591,8 @@ QM.dock = {
     wrapper.append(
       connectionRow,
       connectionNote,
+      styleRow,
+      styleNote,
       itemPromptLabel,
       itemPromptTextarea,
       itemPromptNote,

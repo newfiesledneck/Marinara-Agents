@@ -1,5 +1,11 @@
 # Quartermaster changelog
 
+## 0.1.39 — 2026-11-14
+- New **Image style** picker in Settings → Image Generation: choose one of your Engine's image
+  style presets and it is applied to item and outfit pictures. Needs Engine 2.5.2 or later.
+- New **Rewrite with AI** buttons when you review a picture prompt: Prose for image models that
+  read sentences, Tags for tag-trained ones. You can edit or undo the result.
+
 ## 0.1.38 — 2026-11-14
 - Build Wardrobe no longer loses its result if you close the dock while it is working. The review
   opens by itself when it is ready, or the next time you open the dock.

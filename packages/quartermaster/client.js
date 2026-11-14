@@ -1,8 +1,8 @@
-// Quartermaster 0.1.38 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.39 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (12 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
-const QM_VERSION = "0.1.38";
+const QM_VERSION = "0.1.39";
 // ===== 00-api.js =====
 // Quartermaster — client-side fetch helpers for the package's own privileged
 // routes (server.mjs). QM is the shared namespace concatenated files use to
@@ -255,6 +255,16 @@ QM.generateOutfitPortrait = (chatId, ownerId, outfitId, prompt) =>
 // what server.mjs itself can call, not what browser JS can fetch same-origin,
 // so this needs no package permission. Filtered client-side the same way
 // server.mjs's own resolveImageConnection filters server-side.
+// The Engine's image style presets ([{ id, name, promptMode }]), for the Image style picker.
+QM.listImageStyles = async () => (await qmRequest("/image-styles")).styles ?? [];
+
+// "Rewrite with AI" on a picture prompt; variant is "prose" or "tags". Answers { prompt }.
+QM.rewriteImagePrompt = (chatId, ownerId, prompt, variant) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/image-prompt/rewrite`, {
+    method: "POST",
+    body: JSON.stringify({ prompt, variant }),
+  });
+
 QM.listImageConnections = async () => {
   const response = await fetch("/api/connections", {
     headers: { ...qmAuthHeaders("GET"), Accept: "application/json" },
@@ -1063,6 +1073,7 @@ QM.state = {
   // field comments for why this never affects any other feature. Empty
   // template string means "use the built-in default", not the literal text.
   imageConnectionId: null,
+  imageStyleId: "",
   itemImagePromptTemplate: "",
   outfitPortraitPromptTemplate: "",
   // Hidden items (per chat; see server.mjs's loadInventoryState for each).
@@ -1108,6 +1119,7 @@ QM.state = {
     this.previousSnapshot = null;
     this.lastTrackerChange = null;
     this.imageConnectionId = null;
+    this.imageStyleId = "";
     this.itemImagePromptTemplate = "";
     this.outfitPortraitPromptTemplate = "";
     this.askBeforeHiddenChanges = true;
@@ -1172,6 +1184,7 @@ QM.state = {
         previousSnapshot: result.previousSnapshot ?? null,
         lastTrackerChange: result.lastTrackerChange ?? null,
         imageConnectionId: result.imageConnectionId ?? null,
+        imageStyleId: result.imageStyleId || "",
         itemImagePromptTemplate: result.itemImagePromptTemplate || "",
         outfitPortraitPromptTemplate: result.outfitPortraitPromptTemplate || "",
         askBeforeHiddenChanges: result.askBeforeHiddenChanges !== false,
@@ -1200,6 +1213,7 @@ QM.state = {
         previousSnapshot: this.previousSnapshot,
         lastTrackerChange: this.lastTrackerChange,
         imageConnectionId: this.imageConnectionId,
+        imageStyleId: this.imageStyleId,
         itemImagePromptTemplate: this.itemImagePromptTemplate,
         outfitPortraitPromptTemplate: this.outfitPortraitPromptTemplate,
         askBeforeHiddenChanges: this.askBeforeHiddenChanges,
@@ -1259,6 +1273,7 @@ QM.state = {
       if (result.previousSnapshot !== undefined) this.previousSnapshot = result.previousSnapshot;
       if (result.lastTrackerChange !== undefined) this.lastTrackerChange = result.lastTrackerChange;
       if (result.imageConnectionId !== undefined) this.imageConnectionId = result.imageConnectionId;
+      if (result.imageStyleId !== undefined) this.imageStyleId = result.imageStyleId || "";
       if (result.itemImagePromptTemplate !== undefined) this.itemImagePromptTemplate = result.itemImagePromptTemplate;
       if (result.outfitPortraitPromptTemplate !== undefined)
         this.outfitPortraitPromptTemplate = result.outfitPortraitPromptTemplate;
@@ -1428,6 +1443,9 @@ QM.state = {
   },
   updateImageConnectionId(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { imageConnectionId: value || null }));
+  },
+  updateImageStyleId(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { imageStyleId: value || "" }));
   },
   updateItemImagePromptTemplate(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { itemImagePromptTemplate: value }));
@@ -2466,6 +2484,7 @@ QM.dock = {
     this.errorNode = null;
     this.feedSelect = null;
     this.imageConnectionSelect = null;
+    this.imageStyleSelect = null;
     this.itemPromptTextarea = null;
     this.outfitPromptTextarea = null;
     this.settingsSection = null;
@@ -3046,6 +3065,9 @@ QM.dock = {
     if (this.imageConnectionSelect && !this.imageConnectionSelect.disabled) {
       this.imageConnectionSelect.value = QM.state.imageConnectionId || "";
     }
+    if (this.imageStyleSelect && !this.imageStyleSelect.disabled) {
+      this.imageStyleSelect.value = QM.state.imageStyleId || "";
+    }
     // Guarded against the active element: _paint() fires on every state
     // change, including ones unrelated to these fields (e.g. an equip action
     // elsewhere in the dock) -- an unconditional value= assignment here would
@@ -3229,6 +3251,53 @@ QM.dock = {
     };
     populateConnections();
 
+    // Image style: one of the Engine's own style presets (Settings → Image
+    // generation there), put in front of every picture prompt this sheet builds.
+    const styleRow = document.createElement("div");
+    Object.assign(styleRow.style, { display: "flex", alignItems: "center", gap: "6px" });
+    const styleLabel = document.createElement("span");
+    styleLabel.textContent = "Image style:";
+    styleLabel.style.color = "var(--muted-foreground, currentcolor)";
+    const styleSelect = QM.smallInput("select");
+    styleSelect.style.flex = "1";
+    styleSelect.disabled = true;
+    styleSelect.addEventListener("change", () => QM.state.updateImageStyleId(styleSelect.value));
+    this.imageStyleSelect = styleSelect;
+    styleRow.append(styleLabel, styleSelect);
+    const styleNote = document.createElement("p");
+    Object.assign(styleNote.style, { margin: "0", fontSize: "11px", color: "var(--muted-foreground, currentcolor)" });
+    const styleOption = (value, text) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      return option;
+    };
+    styleSelect.replaceChildren(styleOption("", "Checking…"));
+    QM.listImageStyles().then(
+      (styles) => {
+        const saved = QM.state.imageStyleId || "";
+        const options = [
+          styleOption("", "None (prompt as written)"),
+          ...styles.map((style) => styleOption(style.id, style.name)),
+        ];
+        // A saved style the Engine no longer lists stays selectable, so opening Settings never changes it.
+        if (saved && !styles.some((style) => style.id === saved)) {
+          options.push(styleOption(saved, `${saved} (not found)`));
+        }
+        styleSelect.replaceChildren(...options);
+        styleSelect.value = saved;
+        styleSelect.disabled = false;
+        styleNote.textContent =
+          styles.length === 0
+            ? "No style presets were found in the Engine (they need Engine 2.5.2 or later, under its Image generation settings)."
+            : "Adds the Engine style preset's words to item and outfit picture prompts. You still see and can edit the prompt before generating.";
+      },
+      () => {
+        styleSelect.replaceChildren(styleOption(QM.state.imageStyleId || "", "Could not load styles"));
+        styleNote.textContent = "Could not read the Engine's style presets. The saved choice is kept.";
+      },
+    );
+
     const itemPromptLabel = document.createElement("p");
     itemPromptLabel.textContent = "Item image prompt template:";
     Object.assign(itemPromptLabel.style, { margin: "0", color: "var(--muted-foreground, currentcolor)" });
@@ -3278,6 +3347,8 @@ QM.dock = {
     wrapper.append(
       connectionRow,
       connectionNote,
+      styleRow,
+      styleNote,
       itemPromptLabel,
       itemPromptTextarea,
       itemPromptNote,
@@ -7251,6 +7322,9 @@ Object.assign(QM.dock, {
   _imageGenHasConnections: null, // null = still checking, true/false once resolved
   _imageGenConnectionsError: false, // the check itself failed (distinct from "checked, found none")
   _imageGenPrompt: "",
+  _imageGenPromptBeforeRewrite: null, // what "Undo rewrite" puts back
+  _imageGenRewriting: null, // "prose" | "tags" while a rewrite is in flight
+  _imageGenRewriteError: null,
   _imageGenLoadingLabel: "",
   _imageGenError: null,
   _imageGenContentContainer: null,
@@ -7270,6 +7344,9 @@ Object.assign(QM.dock, {
     this._imageGenHasConnections = null;
     this._imageGenConnectionsError = false;
     this._imageGenPrompt = "";
+    this._imageGenPromptBeforeRewrite = null;
+    this._imageGenRewriting = null;
+    this._imageGenRewriteError = null;
     this._imageGenError = null;
 
     const backdrop = document.createElement("div");
@@ -7479,8 +7556,85 @@ Object.assign(QM.dock, {
       generateButton.disabled = !promptInput.value.trim();
     });
 
-    fragment.append(hint, promptInput, buttonRow);
+    // Rewrite with AI: the same prompt reworded for the image model in use,
+    // as prose (models that read sentences) or tags (tag-trained models).
+    const rewriteRow = document.createElement("div");
+    Object.assign(rewriteRow.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      flexWrap: "wrap",
+      fontSize: "11px",
+    });
+    const busy = Boolean(this._imageGenRewriting);
+    const rewriteLabel = document.createElement("span");
+    rewriteLabel.textContent = busy ? "Rewriting…" : "Rewrite with AI:";
+    rewriteLabel.style.color = "var(--muted-foreground, inherit)";
+    rewriteRow.appendChild(rewriteLabel);
+    for (const [variant, label, help] of [
+      ["prose", "Prose", "One descriptive paragraph, for image models that read sentences."],
+      ["tags", "Tags", "Short comma-separated tags, for tag-trained image models."],
+    ]) {
+      const button = QM.button(label, { border: true });
+      button.title = help;
+      button.disabled = busy || !this._imageGenPrompt.trim();
+      button.addEventListener("click", () => this._submitImageGenRewrite(variant));
+      rewriteRow.appendChild(button);
+    }
+    if (this._imageGenPromptBeforeRewrite !== null && !busy) {
+      const undoButton = QM.button("Undo rewrite", { border: true });
+      undoButton.addEventListener("click", () => {
+        this._imageGenPrompt = this._imageGenPromptBeforeRewrite;
+        this._imageGenPromptBeforeRewrite = null;
+        this._imageGenRewriteError = null;
+        this._renderImageGenContent();
+      });
+      rewriteRow.appendChild(undoButton);
+    }
+    promptInput.disabled = busy;
+    if (busy) generateButton.disabled = true;
+
+    fragment.append(hint, promptInput, rewriteRow);
+    if (this._imageGenRewriteError) {
+      const rewriteError = document.createElement("div");
+      rewriteError.textContent = this._imageGenRewriteError;
+      Object.assign(rewriteError.style, { fontSize: "11px", color: QM_COLOR_DANGER });
+      fragment.appendChild(rewriteError);
+    }
+    fragment.appendChild(buttonRow);
     return fragment;
+  },
+
+  // One language-model call (the connection Build Wardrobe uses); the prompt
+  // box shows the result, still editable, and Undo puts the old text back.
+  async _submitImageGenRewrite(variant) {
+    const token = this._imageGenSessionToken;
+    const chatId = QM.state.chatId;
+    const original = this._imageGenPrompt;
+    this._imageGenRewriting = variant;
+    this._imageGenRewriteError = null;
+    this._renderImageGenContent();
+    let result = null;
+    let failure = null;
+    try {
+      result = await QM.rewriteImagePrompt(chatId, QM_OWNER_ID, original, variant);
+    } catch (error) {
+      failure = error;
+    }
+    // Closed, reopened for something else, or another chat: not this dialog's any more.
+    if (token !== this._imageGenSessionToken || chatId !== QM.state.chatId) return;
+    this._imageGenRewriting = null;
+    if (result && typeof result.prompt === "string" && result.prompt.trim()) {
+      this._imageGenPromptBeforeRewrite = original;
+      this._imageGenPrompt = result.prompt;
+    } else {
+      const code = failure && failure.message;
+      this._imageGenRewriteError =
+        code === "no-connection"
+          ? "No language model connection is available for the rewrite."
+          : "The prompt could not be rewritten. Your prompt is unchanged.";
+    }
+    this._renderImageGenContent();
   },
 
   _renderImageGenLoading() {
