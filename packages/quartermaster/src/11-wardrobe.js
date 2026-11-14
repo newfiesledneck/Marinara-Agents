@@ -35,20 +35,62 @@ Object.assign(QM.dock, {
   _wardrobeSummary: null,
   _wardrobeContentContainer: null,
   // Bumped every time the modal closes (including the close-then-reopen
-  // _openWardrobeBuilder already does) -- lets _submitWardrobeGeneration tell
-  // a still-in-flight generation from a previous session apart from the
-  // current one, so a stale response can't overwrite what the user's looking
-  // at now.
+  // _openWardrobeBuilder already does) -- lets _submitWardrobeConfirm tell a
+  // still-in-flight confirm from a previous session apart from the current
+  // one, so a stale response can't overwrite what the user's looking at now.
   _wardrobeSessionToken: 0,
+  // A generation outlives the modal and the dock: closing either while the
+  // model is working must not lose the reply (it is slow and costs a call).
+  // The reply is kept with the sheet it was asked for and the review opens
+  // by itself, at once if the dock is open on that sheet, else the next time
+  // it is. Bumped by each new generation and each discard, so only the newest
+  // request's reply is kept.
+  _wardrobeRunToken: 0,
+  _wardrobeSheet: null,
+  _wardrobeConfirming: false,
 
-  _openWardrobeBuilder() {
-    this._closeWardrobeBuilder();
+  _wardrobeCurrentSheet() {
+    return `${QM.state.chatId}|${QM_OWNER_ID}`;
+  },
+
+  // A request in flight, or a reply not yet answered, for the sheet now showing.
+  _wardrobeWaiting() {
+    if (this._wardrobeSheet !== this._wardrobeCurrentSheet() || this._wardrobeConfirming) return false;
+    const view = this._wardrobeViewState;
+    return (
+      view === "loading" || view === "hidden" || view === "error" || (view === "preview" && !this._wardrobeSummary)
+    );
+  },
+
+  _resetWardrobe() {
+    this._wardrobeRunToken++;
+    this._wardrobeSheet = null;
+    this._wardrobeConfirming = false;
     this._wardrobeViewState = "form";
     this._wardrobeProposal = null;
     this._wardrobeHiddenMatches = [];
     this._wardrobeHiddenChoices = {};
     this._wardrobeError = null;
     this._wardrobeSummary = null;
+  },
+
+  // Cancel, and Close after adding: the proposal is done with.
+  _discardWardrobe() {
+    this._resetWardrobe();
+    this._closeWardrobeBuilder();
+  },
+
+  // Called when the dock opens: shows a reply that came back while it was shut.
+  _resumeWardrobe() {
+    if (!this.wardrobeBuilderBackdrop && this._wardrobeViewState !== "loading" && this._wardrobeWaiting()) {
+      this._openWardrobeBuilder();
+    }
+  },
+
+  _openWardrobeBuilder() {
+    this._closeWardrobeBuilder();
+    // Picks up where it was when there is something waiting for this sheet.
+    if (!this._wardrobeWaiting()) this._resetWardrobe();
 
     const backdrop = document.createElement("div");
     Object.assign(backdrop.style, {
@@ -173,7 +215,7 @@ Object.assign(QM.dock, {
 
   _renderWardrobeBuilderLoading() {
     const node = document.createElement("div");
-    node.textContent = "Generating wardrobe…";
+    node.textContent = "Generating wardrobe… You can close this; the result will open here when it is ready.";
     Object.assign(node.style, {
       fontSize: "12px",
       textAlign: "center",
@@ -184,12 +226,14 @@ Object.assign(QM.dock, {
   },
 
   async _submitWardrobeGeneration() {
-    const token = this._wardrobeSessionToken;
+    const token = ++this._wardrobeRunToken;
+    this._wardrobeSheet = this._wardrobeCurrentSheet();
+    this._wardrobeConfirming = false;
     this._wardrobeViewState = "loading";
     this._renderWardrobeBuilderContent();
     try {
       const result = await QM.state.generateWardrobe(this._wardrobeDirection, this._wardrobeIncludePersonaContext);
-      if (token !== this._wardrobeSessionToken) return; // modal closed/reopened while this was in flight
+      if (token !== this._wardrobeRunToken) return; // discarded, or a newer request replaced this one
       this._wardrobeProposal = result.proposal;
       this._wardrobeHiddenMatches = result.hiddenMatches ?? [];
       // Skip by default; Show starts from the chat's access setting.
@@ -202,13 +246,16 @@ Object.assign(QM.dock, {
       this._wardrobeSummary = null;
       this._wardrobeViewState = "preview";
     } catch (error) {
-      if (token !== this._wardrobeSessionToken) return;
+      if (token !== this._wardrobeRunToken) return;
       const code = error && error.message;
       this._wardrobeError =
         (code && QM_WARDROBE_ERROR_MESSAGES[code]) || code || "The wardrobe could not be generated.";
       this._wardrobeViewState = "error";
     }
-    this._renderWardrobeBuilderContent();
+    // Still open: show it. Closed with the dock open on this sheet: open the
+    // review. Otherwise it waits for _resumeWardrobe.
+    if (this.wardrobeBuilderBackdrop) this._renderWardrobeBuilderContent();
+    else if (this.isOpenFlag) this._resumeWardrobe();
   },
 
   // Sectioned, not one run-on sentence — a wardrobe touching a dozen
@@ -266,7 +313,7 @@ Object.assign(QM.dock, {
       fragment.append(this._buildWardrobeSummaryNode(this._wardrobeSummary));
       const closeButton = QM.button("Close", { border: true });
       closeButton.style.width = "100%";
-      closeButton.addEventListener("click", () => this._closeWardrobeBuilder());
+      closeButton.addEventListener("click", () => this._discardWardrobe());
       fragment.append(closeButton);
       return fragment;
     }
@@ -323,7 +370,7 @@ Object.assign(QM.dock, {
     const retryButton = QM.button("Retry", { border: true });
     retryButton.addEventListener("click", () => this._submitWardrobeGeneration());
     const cancelButton = QM.button("Cancel", { border: true });
-    cancelButton.addEventListener("click", () => this._closeWardrobeBuilder());
+    cancelButton.addEventListener("click", () => this._discardWardrobe());
     buttonRow.append(confirmButton, retryButton, cancelButton);
 
     fragment.append(list, buttonRow);
@@ -465,6 +512,8 @@ Object.assign(QM.dock, {
     const token = this._wardrobeSessionToken;
     const chatId = QM.state.chatId;
     confirmButton.disabled = true;
+    // Being added: no longer something to show again if the window is closed now.
+    this._wardrobeConfirming = true;
     try {
       const result = await QM.state.confirmWardrobe(this._wardrobeProposal, this._wardrobeHiddenChoices);
       if (token !== this._wardrobeSessionToken || chatId !== QM.state.chatId) return;
@@ -474,6 +523,7 @@ Object.assign(QM.dock, {
     } catch (error) {
       if (token !== this._wardrobeSessionToken || chatId !== QM.state.chatId) return;
       confirmButton.disabled = false;
+      this._wardrobeConfirming = false;
       this._wardrobeError = (error && error.message) || "The wardrobe could not be added.";
       this._wardrobeViewState = "error";
       this._renderWardrobeBuilderContent();
@@ -494,7 +544,7 @@ Object.assign(QM.dock, {
       this._renderWardrobeBuilderContent();
     });
     const cancelButton = QM.button("Cancel", { border: true });
-    cancelButton.addEventListener("click", () => this._closeWardrobeBuilder());
+    cancelButton.addEventListener("click", () => this._discardWardrobe());
     buttonRow.append(tryAgainButton, cancelButton);
     fragment.append(message, buttonRow);
     return fragment;

@@ -2493,3 +2493,93 @@ await test("a host sets picture prompts per call, adds items in one save, and ca
   assert.deepEqual(inWorld.items.map((item) => item.name).sort(), ["Lantern", "Map", "Rope"]);
   assert.ok(inWorld.outfits[0].portraitFile);
 });
+
+await test("only one outfit counts as worn when several match what is equipped", async () => {
+  const server = await startServer();
+  const chat = "chat-active";
+  const wear = (name, slot) => server.addItem(chat, { name, location: `equipped:${slot}`, defaultSlot: slot });
+  const worn = async () => {
+    const result = await server.call("GET", "/inventory/:chatId/:ownerId/appearance", {
+      params: { chatId: chat, ownerId: "persona" },
+    });
+    return result.body.outfit?.name ?? null;
+  };
+  const outfitId = async (name) => (await server.get(chat)).outfits.find((outfit) => outfit.name === name).id;
+
+  await wear("Boots", "feet");
+  await wear("Shirt", "head");
+  await server.saveOutfit(chat, { name: "Light" });
+  const coat = (await wear("Coat", "back")).body.items.find((item) => item.name === "Coat");
+  await server.saveOutfit(chat, { name: "Full" });
+  await server.saveOutfit(chat, { name: "Twin" });
+
+  // All three match; Light covers fewer slots, and Twin was the last one saved.
+  assert.equal(await worn(), "Twin");
+  await server.equipOutfit(chat, await outfitId("Full"));
+  assert.equal(await worn(), "Full", "of two outfits made of the same items, the one equipped by name");
+  await server.equipOutfit(chat, await outfitId("Light"));
+  assert.equal(await worn(), "Light");
+  // The coat goes back on: the outfits that include it describe what is worn better.
+  await server.patchItem(chat, coat.id, { location: "equipped:back" });
+  assert.equal(await worn(), "Full");
+
+  // The dock marks the same single outfit.
+  const sheet = await server.get(chat);
+  const before = { items: QM.state.items, outfits: QM.state.outfits };
+  Object.assign(QM.state, { items: sheet.items, outfits: sheet.outfits });
+  try {
+    const marked = sheet.outfits.filter((outfit) => QM.state.activeOutfit() === outfit);
+    assert.deepEqual(
+      marked.map((outfit) => outfit.name),
+      ["Full"],
+    );
+  } finally {
+    Object.assign(QM.state, before);
+  }
+});
+
+await test("a wardrobe asked for before the dock closed is still there to review", async () => {
+  QM.state.chatId = "chat-a";
+  dock.isOpenFlag = true;
+  dock.wardrobeBuilderBackdrop = null;
+  dock._renderWardrobeBuilderContent = () => {};
+  let opened = 0;
+  const realOpen = dock._openWardrobeBuilder;
+  dock._openWardrobeBuilder = () => opened++;
+  let settle;
+  QM.state.hiddenItemAccess = "userHidden";
+  QM.state.generateWardrobe = () => new Promise((resolve) => (settle = resolve));
+  try {
+    dock._resetWardrobe();
+    const pending = dock._submitWardrobeGeneration();
+    dock.close(); // the user shuts the dock while the model is still working
+    settle({ proposal: { items: [], outfits: [{ name: "Road" }] } });
+    await pending;
+    assert.equal(dock._wardrobeProposal.outfits[0].name, "Road", "the reply is kept");
+    assert.equal(opened, 0, "nothing opens over a closed dock");
+
+    QM.state.chatId = "chat-b";
+    dock._resumeWardrobe();
+    assert.equal(opened, 0, "another chat does not get this chat's wardrobe");
+    QM.state.chatId = "chat-a";
+    dock._resumeWardrobe();
+    assert.equal(opened, 1, "the review opens when the dock next opens on that sheet");
+
+    // With the dock open and only the window closed, the review opens by itself.
+    dock._resetWardrobe();
+    dock.isOpenFlag = true;
+    const second = dock._submitWardrobeGeneration();
+    dock._closeWardrobeBuilder();
+    settle({ proposal: { items: [], outfits: [] } });
+    await second;
+    assert.equal(opened, 2);
+
+    // Cancel is the end of it.
+    dock._discardWardrobe();
+    dock._resumeWardrobe();
+    assert.equal(opened, 2);
+  } finally {
+    dock._openWardrobeBuilder = realOpen;
+    dock.isOpenFlag = false;
+  }
+});

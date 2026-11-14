@@ -745,6 +745,32 @@ function outfitMatchesCurrent(outfit, items) {
   );
 }
 
+// The one outfit that counts as worn. Several can match at once (one saved
+// with a coat and one without, or two saved from the same items), and only
+// one of them is "equipped": the match that covers the most slots, then the
+// one last equipped or saved by name (`chosen`, see chooseOutfit), then the
+// first. `candidates` narrows which outfits may be picked.
+function activeOutfit(state, candidates = state.outfits) {
+  let best = null;
+  let bestSize = 0;
+  for (const outfit of candidates) {
+    if (!outfitMatchesCurrent(outfit, state.items)) continue;
+    const size = Object.keys(outfit.slots ?? {}).length;
+    if (!best || size > bestSize || (size === bestSize && outfit.chosen === true && best.chosen !== true)) {
+      best = outfit;
+      bestSize = size;
+    }
+  }
+  return best;
+}
+
+// Remembers which outfit the user or the agent last asked for, for
+// activeOutfit's tie-break between outfits made of the same items.
+function chooseOutfit(state, outfit) {
+  for (const candidate of state.outfits) delete candidate.chosen;
+  outfit.chosen = true;
+}
+
 // Names of currently equipped items in a slot the given (already-matching)
 // outfit doesn't itself reference — gear worn alongside the outfit rather
 // than part of it. Stable EQUIP_SLOTS order, matching equippedItemNamesText.
@@ -770,6 +796,7 @@ function extraEquippedNames(outfit, items) {
 // which is also why item deletion no longer prunes outfit slot data (see the
 // two call sites this replaced). Mutates `state` in place; no return value.
 function applyOutfitEquip(state, outfit) {
+  chooseOutfit(state, outfit);
   for (const item of state.items) {
     if (item.location.startsWith("equipped:")) item.location = "bag";
   }
@@ -1200,8 +1227,9 @@ function computeAppearanceText(state) {
   const style = FEED_ITEM_STYLE[mode];
   if (!style) return "";
   if (mode.startsWith("outfit")) {
-    const matching = state.outfits.find(
-      (outfit) => outfit.hidden !== true && outfitMatchesCurrent(outfit, state.items),
+    const matching = activeOutfit(
+      state,
+      state.outfits.filter((outfit) => outfit.hidden !== true),
     );
     const text = matching ? outfitFeedText(matching, mode) : "";
     if (text) {
@@ -2062,7 +2090,7 @@ async function resolvePersonaAvatarUrl(persistence, resources, chatId, hostOwner
 }
 
 // The opt-in real-avatar-replace sync. `outfit` is the outfit now considered
-// "active" (currently equipped, per outfitMatchesCurrent) — pass null when
+// "active" (currently equipped, per activeOutfit) — pass null when
 // nothing matches any saved outfit at all (unequip-all). Whether that outfit
 // actually has a portrait decides swap vs. revert; a portrait-less active
 // outfit is treated the same as "nothing active" (revert), so the avatar
@@ -2371,8 +2399,9 @@ export async function activate(context) {
         const state = await loadInventoryState(documents, chatId, ownerId);
         const asked = request.query?.mode;
         const mode = APPEARANCE_FEED_MODES.has(asked) ? asked : state.appearanceFeedMode;
-        const outfit = state.outfits.find(
-          (candidate) => candidate.hidden !== true && outfitMatchesCurrent(candidate, state.items),
+        const outfit = activeOutfit(
+          state,
+          state.outfits.filter((candidate) => candidate.hidden !== true),
         );
         return {
           mode,
@@ -2658,7 +2687,7 @@ export async function activate(context) {
         state.outfits = state.previousSnapshot.outfits;
         state.previousSnapshot = null;
 
-        const active = state.outfits.find((candidate) => outfitMatchesCurrent(candidate, state.items));
+        const active = activeOutfit(state);
         await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, active ?? null);
 
         await persistState(chatId, ownerId, state);
@@ -2742,7 +2771,7 @@ export async function activate(context) {
         }
 
         state.lastTrackerChange = change;
-        const active = state.outfits.find((candidate) => outfitMatchesCurrent(candidate, state.items));
+        const active = activeOutfit(state);
         await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, active ?? null);
 
         await persistState(chatId, ownerId, state);
@@ -2830,7 +2859,7 @@ export async function activate(context) {
         if (item && body.show === true && state.items.includes(item)) item.hidden = false;
         state.pendingHiddenChanges = state.pendingHiddenChanges.filter((candidate) => candidate.id !== pendingId);
 
-        const active = state.outfits.find((candidate) => outfitMatchesCurrent(candidate, state.items));
+        const active = activeOutfit(state);
         await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, active ?? null);
         await persistState(chatId, ownerId, state);
         return {
@@ -3044,6 +3073,7 @@ export async function activate(context) {
           portraitFile: null,
         };
         state.outfits.push(outfit);
+        chooseOutfit(state, outfit); // saved from what is worn, so it is the one worn
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
       });
@@ -3065,7 +3095,10 @@ export async function activate(context) {
         }
         // "Update" in the extension's sense — resave the currently-equipped
         // items into this outfit without changing its name/description.
-        if (body.resnapshot === true) outfit.slots = currentEquippedSlots(state.items);
+        if (body.resnapshot === true) {
+          outfit.slots = currentEquippedSlots(state.items);
+          chooseOutfit(state, outfit);
+        }
         // A hidden outfit is never offered to the agent (agentVisibleOutfits)
         // or used by the outfit appearance feeds; the user can still equip it.
         if (body.hidden !== undefined) {
@@ -3195,7 +3228,7 @@ export async function activate(context) {
         const state = await loadInventoryState(documents, chatId, ownerId);
         const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
         if (!outfit) return reply.status(404).send({ error: "Outfit not found" });
-        const wasActive = outfitMatchesCurrent(outfit, state.items);
+        const wasActive = activeOutfit(state) === outfit;
         state.outfits = state.outfits.filter((candidate) => candidate.id !== outfitId);
 
         if (outfit.portraitFile) {
@@ -3233,7 +3266,7 @@ export async function activate(context) {
         outfit.portraitFile = filename;
         if (previousFile) await removePortraitFileIfExists(join(dir, previousFile));
 
-        if (outfitMatchesCurrent(outfit, state.items)) {
+        if (activeOutfit(state) === outfit) {
           await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, outfit);
         }
 
@@ -3340,7 +3373,7 @@ export async function activate(context) {
           outfit.portraitFile = null;
         }
 
-        if (outfitMatchesCurrent(outfit, state.items)) {
+        if (activeOutfit(state) === outfit) {
           await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, outfit);
         }
 
@@ -3609,7 +3642,7 @@ export async function activate(context) {
           if (!wasOn && nowOn) {
             // Reflect the currently-equipped outfit's portrait immediately,
             // rather than waiting for the next explicit equip action.
-            const active = state.outfits.find((candidate) => outfitMatchesCurrent(candidate, state.items));
+            const active = activeOutfit(state);
             await syncRealAvatarForOutfit(persistence, resources, context.dataDir, chatId, state, active ?? null);
           }
         }

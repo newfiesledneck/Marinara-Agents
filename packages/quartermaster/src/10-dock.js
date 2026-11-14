@@ -339,6 +339,22 @@ function qmBuildCardBadge(text, color) {
   return badge;
 }
 
+// A card's name on a row of its own, under the buttons: up to two lines, the
+// full name on hover, and a click or tap shows all of it (and again folds it).
+function qmBuildCardName(text) {
+  const name = document.createElement("div");
+  name.textContent = text;
+  name.title = text;
+  const folded = { display: "-webkit-box", webkitLineClamp: "2", webkitBoxOrient: "vertical", overflow: "hidden" };
+  Object.assign(name.style, { fontWeight: "600", wordBreak: "break-word", cursor: "pointer", ...folded });
+  let open = false;
+  name.addEventListener("click", () => {
+    open = !open;
+    Object.assign(name.style, open ? { display: "block", overflow: "visible" } : folded);
+  });
+  return name;
+}
+
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
   dot.setAttribute("aria-hidden", "true");
@@ -774,6 +790,7 @@ QM.dock = {
     }
     QM.state.ensureLoaded();
     this._paint();
+    this._resumeWardrobe();
   },
 
   close() {
@@ -3655,12 +3672,12 @@ QM.dock = {
   // Edit and Equip instead, since it acts on live equip state rather than
   // editing a stored field. Delete stays directly on the card like it does
   // on an item card. The currently-equipped outfit
-  // (QM.state.outfitMatchesCurrent) gets a success-colored border/glow
+  // (QM.state.activeOutfit) gets a success-colored border/glow
   // instead of the theme accent, echoing the Add Item form's own "borrow a
   // semantic color instead of a new shape" approach to standing out from
   // its neighbors.
   _buildOutfitRow(outfit) {
-    const equipped = QM.state.outfitMatchesCurrent(outfit);
+    const equipped = QM.state.activeOutfit() === outfit;
     const hidden = outfit.hidden === true;
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
     const row = document.createElement("li");
@@ -3696,27 +3713,19 @@ QM.dock = {
 
     const nameLine = document.createElement("div");
     Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-    const nameLabel = document.createElement("span");
-    nameLabel.textContent = outfit.name;
-    Object.assign(nameLabel.style, {
-      flex: "1",
-      minWidth: "0",
-      fontWeight: "600",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    });
-    nameLine.appendChild(nameLabel);
+    const nameLabel = qmBuildCardName(outfit.name);
+    const nameSpacer = document.createElement("span");
+    nameSpacer.style.flex = "1";
+    nameLine.appendChild(nameSpacer);
     if (hidden) {
       nameLabel.style.color = "var(--muted-foreground, currentcolor)";
       nameLine.appendChild(qmBuildCardBadge("Hidden", "var(--muted-foreground, currentcolor)"));
     }
     if (equipped) nameLine.appendChild(qmBuildCardBadge("Equipped", QM_COLOR_SUCCESS));
 
-    // [Name] [Hidden?] [Equipped?] [⋯] [Equip] -- Hide/Edit/Update/Delete
-    // collapsed into the overflow menu, Equip promoted up here so the
-    // description below (no more actionColumn beside it) gets the full card
-    // width.
+    // [Hidden?] [Equipped?] [⋯] [Equip], then the name on its own row so a
+    // long one isn't cut short by the buttons. Hide/Edit/Update/Delete are in
+    // the overflow menu.
     const deleteOutfit = () => this._confirmDelete(outfit.name, () => QM.state.deleteOutfit(outfit.id));
     const overflowMenu = this._buildCardOverflowMenu([
       {
@@ -3756,7 +3765,7 @@ QM.dock = {
     });
     descriptionRow.appendChild(descriptionPreview);
 
-    detailsColumn.append(nameLine, descriptionRow);
+    detailsColumn.append(nameLine, nameLabel, descriptionRow);
     row.append(portraitControl, detailsColumn);
     return row;
   },
@@ -4192,7 +4201,7 @@ QM.dock = {
   // moved). Only quantity stays directly on the card, per the request: it's
   // the one field someone adjusts constantly during play (used a charge,
   // picked up another), while the rest are set-once-and-rarely-touched.
-  // Layout: [name ... qty] [⋯] [Equip] / slot+stored (only when either
+  // Layout: [★ ... qty] [⋯] [Equip] / name / slot+stored (only when either
   // carries real info, see below) / description, full width.
   _buildItemRow(item) {
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
@@ -4224,16 +4233,9 @@ QM.dock = {
 
     const nameLine = document.createElement("div");
     Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-    const nameLabel = document.createElement("span");
-    nameLabel.textContent = item.name;
-    Object.assign(nameLabel.style, {
-      flex: "1",
-      minWidth: "0",
-      fontWeight: "600",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    });
+    const nameLabel = qmBuildCardName(item.name);
+    const nameSpacer = document.createElement("span");
+    nameSpacer.style.flex = "1";
 
     // Same up/down adjustment as before (a plain number input's native
     // spinner) — the one field that stays directly editable on the card.
@@ -4260,7 +4262,7 @@ QM.dock = {
     favoriteButton.title = item.favorite ? "Remove from favorites" : "Add to favorites";
     favoriteButton.addEventListener("click", () => QM.state.updateItem(item.id, { favorite: !item.favorite }));
 
-    nameLine.append(favoriteButton, nameLabel);
+    nameLine.append(favoriteButton, nameSpacer);
     if (hidden) {
       nameLabel.style.color = "var(--muted-foreground, currentcolor)";
       nameLine.appendChild(qmBuildCardBadge("Hidden", "var(--muted-foreground, currentcolor)"));
@@ -4297,7 +4299,7 @@ QM.dock = {
     // noise, so that row is entirely omitted for them; detailsColumn's
     // justify-content:space-between then hands the reclaimed height to the
     // description below instead.
-    const detailRows = [nameLine];
+    const detailRows = [nameLine, nameLabel];
     const storedText = item.location.startsWith("stored:") ? item.location.slice("stored:".length) : null;
     if (item.defaultSlot || storedText) {
       const slotLine = document.createElement("div");

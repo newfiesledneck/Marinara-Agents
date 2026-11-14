@@ -399,6 +399,17 @@ overwrite an already-released version's artifact file if you forget to bump `VER
 
 ## Changelog
 
+### 0.1.38
+- **Build Wardrobe keeps its result when you close the dock.** Closing the window or the dock while
+  the model was still working threw the reply away. It is now kept, and the review opens by itself:
+  at once if the dock is open, otherwise the next time you open it in that chat.
+- **Only one outfit shows as equipped.** Outfits that share items (one saved with a coat and one
+  without, or two saved from the same items) could all show as equipped at once. The one that
+  covers the most of what is worn is marked, and between outfits made of the same items, the one
+  you or the agent equipped by name.
+- **Item and outfit names get their own row** under the card's buttons, up to two lines. Hover to
+  see the full name, or click or tap it to unfold it.
+
 ### 0.1.37
 - **For other packages:** picture and Build Wardrobe prompts take the package's own wording per
   call, several items can be added in one save, and the dock can be opened with the package's own
