@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.95 — 2026-11-14
+
+- The AI is told how you stand to a place, not only its name: on the bank beside the pond (not in the water), wading or swimming when you are, inside or outside a building, at the mouth of a cave, on a street, among the ruins.
+- What you sit on is told as what it is: a log by the campfire, a bench, a chair, a stool. The same for people sitting near you.
+- Illustrate's {place_kind} has words for more places (a pond's bank, a cave mouth, a country road) and says when you're indoors.
+
 ## 0.5.94 — 2026-11-14
 
 - Loading another world can't save the world you're leaving over it: nothing is saved from the moment the other world is picked until it is built. The world you leave is saved, under its own name, before that.

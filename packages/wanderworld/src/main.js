@@ -3960,7 +3960,7 @@ function sit(seat) {
     ? "lies down in the tent to sleep"
     : seat.pose === "lie"
       ? "lies down on the bed"
-      : "sits down on a bench";
+      : `sits down on ${seat.what ?? "a seat"}`;
   later(0.6, () => void runMoment({ action, needListeners: true, source: "seat" }));
 }
 
@@ -5913,7 +5913,7 @@ const VOICE_RANGE = { whisper: 2.5, talk: 9, shout: 28 };
 
 /** What someone is doing, in a few words, for a moment's listeners and the Illustrate prompt. */
 function doingWords(person) {
-  if (person.seated) return person.with ? `sitting with ${person.with}` : "sitting on a bench";
+  if (person.seated) return `sitting on ${person.seatWhat ?? "a seat"}${person.with ? ` with ${person.with}` : ""}`;
   if (person.doing && actWords(person.doing)) return actWords(person.doing);
   if (person.state === "chat" || person.with) return person.with ? `chatting with ${person.with}` : "chatting";
   if (person.state === "walk") return "walking along";
@@ -6104,7 +6104,7 @@ async function runMoment({
       line,
       voice,
       listeners: telling,
-      place: placeWords(),
+      place: placeTold(),
       time: clockText(),
       weather: weatherWord(),
       setting: core.save.setting ?? "",
@@ -6193,7 +6193,7 @@ function playerDoing() {
     return core.seat.ground === "lie" ? "lying on the ground" : "sitting on the ground";
   if (core.mode === "ride") return `riding ${mountName(core.mount).replace(/^the /u, "a ")}`;
   if (core.mode === "sit" && core.seat?.pose === "lie") return "lying on a bed";
-  if (core.mode === "sit") return "sitting on a bench";
+  if (core.mode === "sit") return `sitting on ${core.seat?.what ?? "a seat"}`;
   if (core.talking) return `talking with ${core.talking.name}`;
   if (core.swimming) return "swimming";
   if (core.interior) return "standing inside";
@@ -6260,7 +6260,20 @@ async function illustrateMoment({
       people,
       place: placeWords(),
       placeKind:
-        { plaza: "a market square", street: "a town street", forest: "the woods", river: "a riverbank" }[kind] ?? kind,
+        (core.interior ? "indoors, " : "") +
+        ({
+          plaza: "a market square",
+          street: "a town street",
+          road: "a country road",
+          forest: "the woods",
+          river: "a riverbank",
+          pond: "the bank of a pond",
+          cave: "the mouth of a cave",
+          fountain: "a fountain in a market square",
+          stones: "a ring of standing stones",
+          outskirts: "the edge of town",
+          mountains: "the mountains",
+        }[kind] ?? kind),
       time: clockText(),
       timeOfDay,
       weather: weatherWord(),
@@ -6302,6 +6315,58 @@ function placeWords() {
     .join(", in ");
 }
 
+/**
+ * Where the player is as the AI is told it: the place, and how they stand to it, so nobody is written
+ * into a pond they're walking beside. "on the bank beside the pond (on dry ground, not in the water), in
+ * Whisperwood"; "inside the Gilded Stag, in Larkspur"; "on Mill Lane, in Larkspur".
+ */
+function placeTold() {
+  if (!core.zones) return "";
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const at = core.interior ? core.interior.door : core.player.position;
+  const [zone, ...around] = chainOf(core.zones, zoneAt(core.zones, at.x, at.z)).filter((entry) => names[entry.id]);
+  if (!zone) return "";
+  const name = `${names[zone.id]}${closedWords(zone.id)}`;
+  const kind = zone.kind === "building" ? "building" : (zone.outpostKind ?? zone.kind);
+  const water = kind === "pond" || kind === "river";
+  const depth = core.interior ? 0 : waterAt(core.player.position.x, core.player.position.z).depth;
+  // In the water, when they are: swimming, wading, or only their feet.
+  const wet = core.swimming
+    ? "swimming in the water"
+    : core.mode === "ride" && depth > WADE_DEPTH
+      ? "on horseback in the water"
+      : depth > WADE_DEPTH
+        ? "wading in the water"
+        : depth > 0.05
+          ? "standing in the shallows at the edge"
+          : "";
+  const dry = {
+    pond: `on the bank beside ${name} (on dry ground, not in the water)`,
+    river: `on the bank of ${name} (on dry ground, not in the water)`,
+    fountain: `beside ${name}`,
+    street: `on ${name}`,
+    road: `on ${name}`,
+    cave: `at the mouth of ${name}`,
+    building: `outside ${name}, by its door`,
+    inn: `outside ${name}`,
+    cottage: `outside ${name}`,
+    mill: `outside ${name}`,
+    farm: `at ${name}`,
+    ruins: `among ${name}`,
+    stones: `among ${name}`,
+    watchtower: `at the foot of ${name}`,
+    outskirts: `at ${name}`,
+  };
+  const here = core.interior
+    ? `inside ${name}`
+    : wet
+      ? water
+        ? `${wet} of ${name}`
+        : `${wet}, ${dry[kind] ?? `in ${name}`}`
+      : (dry[kind] ?? `in ${name}`);
+  return [here, ...around.map((entry) => names[entry.id])].join(", in ");
+}
+
 /** The weather now, in a word, when there is any to speak of. */
 function weatherWord() {
   const weather = core.world?.weatherNow?.();
@@ -6332,7 +6397,7 @@ function talkPayload(talking, line) {
     personaId: core.personaId,
     personaName: personaName(),
     worn: core.inventory.worn(),
-    place: placeWords(),
+    place: placeTold(),
     time: clockText(),
     weather: weatherWord(),
     nearby,

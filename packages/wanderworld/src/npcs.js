@@ -1394,6 +1394,7 @@ export function createCrowd() {
         home: person.home?.index ?? null,
         work: person.work?.index ?? null,
         seated: !!person.seat && person.state === "sit",
+        seatWhat: person.seat?.what ?? null, // what they're sitting on ("a bench", "a log by the campfire")
         doing: person.state === "busy" ? person.act : null, // what they're at, at a spot made for it (clips.js ACTS)
         // Who they're out with (friends at the tavern, round a campfire, at a house): ids, without their own.
         company: (person.company ?? [])
