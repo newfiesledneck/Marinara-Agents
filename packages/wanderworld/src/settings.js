@@ -123,6 +123,8 @@ export const SETTINGS = {
     options: ["natural", "cosy", "dramatic", "witty", "terse", "gruff", "formal", "cheerful", "sly"],
   },
   replyLength: { value: "medium", options: ["short", "medium", "long"] },
+  /** Prompts ordered for a provider's prompt cache: in a conversation, what changes each line goes last. */
+  promptCache: { value: true },
   aiTemperature: { value: 0.9, min: 0, max: 1.5 },
   /** How Wanderworld's scenes are written (it plans them itself; the instructions are per world). */
   scenePov: { value: "second_person", options: ["second_person", "third_person", "first_person"] },

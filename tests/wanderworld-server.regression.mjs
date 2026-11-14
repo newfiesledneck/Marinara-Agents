@@ -185,7 +185,29 @@ assert.match(system, /You are Mira/u);
 assert.match(system, /Mira bakes bread for Zoey\./u, "card placeholders are filled in");
 assert.match(system, /flour on her apron/u, "appearance from the card's extensions");
 assert.match(system, /The bakery: Open at dawn\./u, "lore entries by id");
-assert.match(system, /a good friend/u);
+// What changes with every line goes last, after the history, so what's before it can be cached.
+assert.doesNotMatch(system, /a good friend|early morning/u);
+assert.match(
+  messages.at(-1).content,
+  /^<context>\n## Right now\nWhere: the bakery, in Briarwood\.\nWhen: early morning\./u,
+);
+assert.match(messages.at(-1).content, /a good friend\n<\/context>\n\nWhat's fresh\?$/u);
+{
+  // The system message is the same whatever the hour or the feeling; switched off, they're in it as before.
+  const input = {
+    character: server.characterCard({ data: { name: "Mira", description: "A baker." } }),
+    persona: server.personaCard({ data: { name: "Zoey" } }, ""),
+    lore: ["The bakery: Open at dawn."],
+    history: [{ from: "player", text: "Hello!" }],
+    line: "What's fresh?",
+  };
+  const at = (time, relationship, cache) => server.talkMessages({ ...input, time, relationship, cache });
+  assert.equal(at("dawn", "a friend")[0].content, at("noon", "a rival")[0].content, "a steady system message");
+  assert.deepEqual(at("dawn", "a friend")[1], { role: "user", content: "Hello!" }, "and a steady history");
+  const plain = at("dawn", "a friend", false);
+  assert.match(plain[0].content, /The bakery: Open at dawn\.[\s\S]*When: dawn\.[\s\S]*a friend/u);
+  assert.equal(plain.at(-1).content, "What's fresh?");
+}
 assert.deepEqual(
   messages.slice(1).map((message) => message.role),
   ["user", "assistant", "user"],
@@ -366,7 +388,7 @@ assert.equal(
     assert.doesNotMatch(narrator, /mill|smithy|Knows besides/u, "the narrator's call holds nobody's own knowledge");
     assert.match(narrator, /"speakers"/u);
     assert.doesNotMatch(narrator, /"replies"/u);
-    assert.match(oswin, /^You write for Oswin/u);
+    assert.match(oswin, /## Your part\nYou write for Oswin/u);
     assert.match(oswin, /Knows besides \(Oswin alone\):\n {2}· \(yesterday, saw\) Zoey went into the smithy\./u);
     assert.doesNotMatch(oswin, /mill/u, "Oswin's call has nothing of what Mira knows");
     assert.match(mira, /Zoey sold the mill/u);
@@ -1225,7 +1247,8 @@ assert.equal(
     history: [],
     line: "Hello",
   });
-  assert.match(told[0].content, /Tall\.\n\nWearing now: a red scarf, grey cloak/u);
+  assert.match(told[0].content, /Tall\.$/u, "what's worn isn't in the part that's cached");
+  assert.match(told[1].content, /Zoey, as they are now\. Wearing now: a red scarf, grey cloak/u);
   // Someone in the party is told so, and isn't walked up to.
   const along = server.talkMessages({
     character: server.characterCard({ data: { name: "Hollis" } }),
@@ -1236,7 +1259,7 @@ assert.equal(
     inParty: true,
     companions: "Mira",
   });
-  assert.match(along[0].content, /Hollis is travelling with Zoey, as one of their party \(with Mira\)/u);
+  assert.match(along[1].content, /Hollis is travelling with Zoey, as one of their party \(with Mira\)/u);
   assert.match(along[1].content, /turns to Hollis/u);
   const asked = server.inventoryMessages({
     template: "PROMPT",
@@ -1371,6 +1394,59 @@ assert.equal(
   } finally {
     globalThis.fetch = realFetch;
   }
+}
+
+// A moment's prompt runs from what never changes to what changes each time, so a provider's prompt
+// cache can reuse the start of it: the world, the narrator, the world's lore, the party, the place's
+// lore, whoever else is near; then the hour, what each is doing, and the part to play.
+{
+  const moment = (more) =>
+    server.momentMessages({
+      persona: { name: "Zoey", card: "A traveller.", worn: "Wearing now: a red scarf" },
+      narrator: { name: "The Teller", card: "Dry and fond." },
+      setting: "A quiet valley.",
+      worldLore: ["The valley: Green all year."],
+      lore: ["The bakery: Open at dawn."],
+      listeners: [
+        { id: "c-tam", name: "Tam", distance: 2, doing: "walking along", card: "A carter." },
+        { id: "c-mira", name: "Mira", distance: 4, doing: "sitting on a bench", inParty: true, card: "A baker." },
+      ],
+      recent: [],
+      places: [],
+      action: "waves",
+      line: "",
+      time: "09:10",
+      place: "on Mill Lane",
+      ...more,
+    })[0].content;
+  const first = moment({});
+  const order = [
+    "A quiet valley.",
+    "Dry and fond.",
+    "The valley: Green all year.",
+    "Mira. A baker.",
+    "The bakery: Open at dawn.",
+    "Tam. A carter.",
+    "## Right now",
+    "Wearing now: a red scarf",
+    "Tam, 2 m away, walking along",
+    "## Your part",
+  ].map((words) => first.indexOf(words));
+  assert.ok(
+    order.every((at, index) => at >= 0 && (index === 0 || at > order[index - 1])),
+    `in order: ${order}`,
+  );
+  // Another hour, people doing other things, standing the other way round: the same up to "Right now".
+  const later = moment({
+    time: "09:40",
+    listeners: [
+      { id: "c-mira", name: "Mira", distance: 1, doing: "standing about", inParty: true, card: "A baker." },
+      { id: "c-tam", name: "Tam", distance: 6, doing: "chatting", card: "A carter." },
+    ],
+  });
+  const steady = (system) => system.slice(0, system.indexOf("## Right now"));
+  assert.ok(steady(first).length > 200);
+  assert.equal(steady(later), steady(first), "what's cached doesn't change with the hour or who stands where");
 }
 
 console.log("wanderworld server regression: OK");

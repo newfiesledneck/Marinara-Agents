@@ -222,16 +222,27 @@ export function talkMessages(input) {
   const [fewest, most] = LENGTHS[input.length] ?? LENGTHS.medium;
   const style = TALK_STYLES[input.style] ?? TALK_STYLES.natural;
   const card = (value) => replaceNames(value, character.name, persona.name);
-  const system = [
+  // In order of how seldom it changes, so a provider's prompt cache can reuse all that comes before the
+  // first thing that did: who they are and the world (the same all conversation, and the next), the
+  // lore of the place, then what was said. What changes with every line (the hour, who's near, what
+  // they remember, what the player has on) goes last: with `cache`, in a <context> block on the newest
+  // message, after the history; without, at the end of the system message as it always was.
+  const cached = input.cache !== false;
+  const steady = [
     `You are ${character.name}, a person living in the world of Wanderworld, talking face to face with ${persona.name}.`,
     `Reply as ${character.name} only: what they say out loud, ${fewest} to ${most} sentences, with at most one short action in *asterisks*. Never write ${persona.name}'s words, thoughts or actions, never narrate, and never mention being an AI or a game.`,
     style,
+    cached &&
+      `The newest message begins with a <context> block: where and when this is, who is near, how ${character.name} feels about ${persona.name} and their memories. Nobody says it aloud: it is what is true right now. Use it, and never mention or quote it.`,
     section(`${character.name}`, [card(character.description), card(character.personality)].filter(Boolean).join("\n\n")),
     section("Their situation", card(character.scenario)),
     section(`How ${character.name} looks`, card(cutWords(character.appearance, MAX.card))),
     section(`How ${character.name} talks (examples)`, card(character.examples)),
-    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card), persona.worn].filter(Boolean).join("\n\n")),
+    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card)].filter(Boolean).join("\n\n")),
     section("The world", input.setting),
+    section("What they know (lore)", input.lore.join("\n\n")),
+  ];
+  const now = [
     section(
       "Right now",
       [
@@ -239,19 +250,13 @@ export function talkMessages(input) {
         input.time && `When: ${input.time}.`,
         input.weather && `Weather: ${input.weather}.`,
         input.nearby && `Also nearby: ${input.nearby}.`,
+        persona.worn && `${persona.name}, as they are now. ${persona.worn}`,
         // Travelling together: they came here side by side, so it's no meeting.
         input.inParty &&
           `${character.name} is travelling with ${persona.name}, as one of their party${input.companions ? ` (with ${input.companions})` : ""}. They came here together and have been side by side the whole way, so this is no meeting and no surprise: ${character.name} doesn't greet ${persona.name} as if they'd just turned up, or ask what brings them here.`,
       ]
         .filter(Boolean)
         .join("\n"),
-    ),
-    section(`How ${character.name} feels about ${persona.name}`, input.relationship),
-    section(
-      `What ${character.name} remembers`,
-      (input.memories ?? []).length
-        ? `Only what ${character.name} saw, heard or was told themselves. They know nothing of what happened elsewhere or was said to others.\n${input.memories.map((line) => `- ${line}`).join("\n")}`
-        : "",
     ),
     // Strangers: they are still who they are, but neither acts as if they'd met.
     section(
@@ -265,20 +270,25 @@ export function talkMessages(input) {
         .filter(Boolean)
         .join("\n"),
     ),
-    section("What they know (lore)", input.lore.join("\n\n")),
+    section(`How ${character.name} feels about ${persona.name}`, input.relationship),
+    section(
+      `What ${character.name} remembers`,
+      (input.memories ?? []).length
+        ? `Only what ${character.name} saw, heard or was told themselves. They know nothing of what happened elsewhere or was said to others.\n${input.memories.map((line) => `- ${line}`).join("\n")}`
+        : "",
+    ),
   ]
     .filter(Boolean)
     .join("\n\n");
+  const system = [...steady, !cached && now].filter(Boolean).join("\n\n");
   const messages = [{ role: "system", content: system }];
   for (const entry of input.history) {
     messages.push({ role: entry.from === "character" ? "assistant" : "user", content: entry.text });
   }
-  messages.push({
-    role: "user",
-    content:
-      input.line ||
-      (input.inParty ? `*${persona.name} turns to ${character.name}, beside them.*` : `*${persona.name} walks up to ${character.name}.*`),
-  });
+  const line =
+    input.line ||
+    (input.inParty ? `*${persona.name} turns to ${character.name}, beside them.*` : `*${persona.name} walks up to ${character.name}.*`);
+  messages.push({ role: "user", content: cached && now ? `<context>\n${now}\n</context>\n\n${line}` : line });
   return messages;
 }
 
@@ -1032,6 +1042,18 @@ export function checkEntry(raw, places = null) {
 
 /** The messages for a moment: what the player does or says, and how the people in earshot answer. */
 export function momentMessages(input) {
+  // Who's here, in two parts (for a provider's prompt cache: what doesn't change comes first, so all of
+  // it before the first change can be reused). Who each of them is, from their cards, is the same every
+  // time: the party first, then by id, so the same people make the same text whoever stands nearest.
+  // What they're doing just now is told after, with everything else that changes from moment to moment.
+  const steadyOrder = [...input.listeners].sort(
+    (a, b) => Number(!!b.inParty) - Number(!!a.inParty) || String(a.id).localeCompare(String(b.id)),
+  );
+  const cardsOf = (inParty) =>
+    steadyOrder
+      .filter((person) => person.card && !!person.inParty === inParty)
+      .map((person) => `- id "${person.id}": ${person.name}. ${person.card}`)
+      .join("\n");
   const people = input.listeners
     .map(
       (person) =>
@@ -1039,7 +1061,6 @@ export function momentMessages(input) {
         `${person.inParty ? ", travelling with " + input.persona.name : ""}` +
         `${person.feeling ? `. Toward ${input.persona.name}: ${person.feeling}` : ""}` +
         `${person.others ? ` With the others here: ${person.others}` : ""}` +
-        `${person.card ? `. ${person.card}` : ""}` +
         `${person.knows?.length ? `\n  Knows besides (${person.name} alone):\n${person.knows.map((known) => `  · ${known}`).join("\n")}` : ""}`,
     )
     .join("\n");
@@ -1054,21 +1075,33 @@ export function momentMessages(input) {
   // speaker's call writes for that one person (`speaker`: their id), who alone has their knowledge in it.
   const speaker = input.telling === "speaker" ? input.listeners.find((person) => person.id === input.speaker) : null;
   const system = [
-    speaker
-      ? `You write for ${speaker.name}, one of the people in Wanderworld, a small living world the player walks around in. Write only what ${speaker.name} says in this one moment, as JSON.`
-      : "You are the narrator of Wanderworld, a small living world the player walks around in. Write only what happens in this one moment, as JSON.",
+    // (The same for the narrator and for every speaker, moment after moment.)
+    "This is Wanderworld, a small living world the player walks around in. What follows is the world and who is in it, then what is happening right now. Your part in it, and exactly what to write, come last, under \"Your part\".",
     `The player is ${input.persona.name}.${input.persona.card ? " " + input.persona.card : ""} Never write ${input.persona.name}'s words, thoughts or choices.`,
     TALK_STYLES[input.style] ?? TALK_STYLES.natural,
+    section("The world", input.setting),
+    // (The narrator's card and the world's lore never change; the party seldom; the place's lore with the place; who's near, often.)
     input.narrator &&
       !speaker &&
       section(
         "Your voice",
         `You narrate as ${input.narrator.name}. Keep to that voice in the narration; other people still speak as themselves. Who that is:\n${input.narrator.card}`,
       ),
-    section("The world", input.setting),
+    section("What everyone in this world knows (lore)", (input.worldLore ?? []).join("\n\n")),
+    section(`Who is travelling with ${input.persona.name}`, cardsOf(true)),
+    section("What everyone here knows (lore of this place)", input.lore.join("\n\n")),
+    section("Who else is here", cardsOf(false)),
+    // From here on it changes from one moment to the next.
     section(
       "Right now",
-      [input.place && `Where: ${input.place}.`, input.time && `When: ${input.time}.`, input.weather && `Weather: ${input.weather}.`].filter(Boolean).join("\n"),
+      [
+        input.place && `Where: ${input.place}.`,
+        input.time && `When: ${input.time}.`,
+        input.weather && `Weather: ${input.weather}.`,
+        input.persona.worn && `${input.persona.name}, as they are now. ${input.persona.worn}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
     ),
     section(
       "Who can hear",
@@ -1082,7 +1115,6 @@ export function momentMessages(input) {
         }\n${people}`) ||
         "Nobody is close enough to hear. Still narrate: one or two sentences on what comes of it and what the player notices. No replies.",
     ),
-    section("What everyone here knows (lore)", input.lore.join("\n\n")),
     // Only what those here saw and heard (the client keeps who heard each line): what was said elsewhere
     // isn't theirs to know. With nobody here it's the narrator's own last lines, so it doesn't repeat itself.
     input.recent.length > 0 &&
@@ -1098,6 +1130,11 @@ export function momentMessages(input) {
     // A plan (someone agreeing to be somewhere at a time) can only come of something said to someone:
     // the list of places, and the plans in the answer, go only then.
     planning && section("Places in the world (for plans)", input.places.map((place) => place.name).join(", ")),
+    `## Your part\n${
+      speaker
+        ? `You write for ${speaker.name}, one of the people here. Write only what ${speaker.name} says in this one moment, as JSON.`
+        : "You are the narrator. Write only what happens in this one moment, as JSON."
+    }`,
     input.telling === "narrator" && people
       ? `Answer with one JSON object and nothing else:
 {"narration": "at most two short sentences: what ${input.persona.name} sees, hears or finds; empty if nothing worth saying",
@@ -1442,6 +1479,9 @@ export async function activate(context) {
               })
               .catch(() => [])
           : [];
+        // (In the order asked for: from the whole world down to this spot, the same from one line to the next.)
+        const asked = new Map(loreIds.map((entry, index) => [entry.entryId, index]));
+        if (Array.isArray(loreEntries)) loreEntries.sort((a, b) => (asked.get(a?.id) ?? 1e9) - (asked.get(b?.id) ?? 1e9));
         const input = {
           character: characterCard(record, body.characterName),
           persona: personaCard(personaRecord, text(body.personaName, MAX.name), body.worn),
@@ -1454,6 +1494,7 @@ export async function activate(context) {
           nearby: text(body.nearby, 300),
           inParty: body.inParty === true,
           companions: text(body.companions, 300),
+          cache: body.cache !== false,
           relationship: text(body.relationship, 600),
           memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 5000),
           setting: block(body.setting, 600),
@@ -1577,7 +1618,8 @@ export async function activate(context) {
           narrator: narratorCard
             ? { name: narratorCard.name, card: cardWords([narratorCard.personality, narratorCard.description], MAX.card, narratorCard.name, persona.name, "\n") }
             : null,
-          persona: { name: persona.name, card: [cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name), persona.worn].filter(Boolean).join(" ") },
+          // (What they have on is told with what's happening now: it changes, and their card doesn't.)
+          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name), worn: persona.worn },
           listeners: heard,
           action: text(body.action, 300),
           line: text(body.line, MAX.line),
@@ -1588,6 +1630,7 @@ export async function activate(context) {
           setting: block(body.setting, 600),
           style: text(body.style, 20),
           lore: (Array.isArray(body.lore) ? body.lore : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean).slice(0, MAX.lore),
+          worldLore: (Array.isArray(body.worldLore) ? body.worldLore : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean).slice(0, MAX.lore),
           recent: (Array.isArray(body.recent) ? body.recent : [])
             .filter(isRecord)
             .slice(-12)
