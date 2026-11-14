@@ -199,8 +199,6 @@ const BUILD_WAIT = 10; // seconds the loading screen waits at most for the detai
 const PLAYER_RADIUS = 0.35;
 const STATS_INTERVAL_MS = 500;
 const NO_INPUT = { x: 0, y: 0, amount: 0, run: false, yaw: 0, pitch: 0, zoom: 0 };
-/** "Auto" resolution aims for about this many pixels (1080p), then lowers it if frames drop. */
-const AUTO_PIXELS = 1920 * 1080;
 const DAY_SECONDS = 20 * 60; // a whole day in town takes 20 minutes
 const START_HOUR = 9;
 const USE_RANGE = { seat: 1.6, door: 1.9, person: 2.6, exit: 1.6, board: 1.9, thing: 1.9, travel: 1 };
@@ -291,8 +289,6 @@ const core = {
   clock: 0, // game seconds since the page opened
   hour: START_HOUR,
   dark: 0,
-  autoScale: 1, // "auto" resolution's own extra factor, lowered when frames drop
-  steadyChecks: 0,
   cameraYaw: 0,
   cameraPitch: START_PITCH,
   zoom: CAMERA_DISTANCE,
@@ -404,16 +400,12 @@ function softwareOnly() {
   }
 }
 
-/** The render resolution, as a pixel ratio. "Auto" aims for about 1080p worth of pixels, lowered further
- *  while frames drop; "100" is the screen's own; the rest are the picture's height in pixels (its shorter
- *  side, on a screen held upright), never more than the screen has. */
+/** The render resolution, as a pixel ratio: "100" is the screen's own; the rest are the picture's height in
+ *  pixels (its shorter side, on a screen held upright), never more than the screen has. */
 function pixelRatio(width, height) {
   const native = window.devicePixelRatio || 1;
   if (core.settings.resolution === "100") return native;
-  if (core.settings.resolution !== "auto")
-    return Math.min(native, Number(core.settings.resolution) / Math.max(1, Math.min(width, height)));
-  const budget = Math.sqrt(AUTO_PIXELS / Math.max(1, width * height));
-  return Math.max(0.4, Math.min(native, budget) * core.autoScale);
+  return Math.min(native, Number(core.settings.resolution) / Math.max(1, Math.min(width, height)));
 }
 
 function resize() {
@@ -425,31 +417,6 @@ function resize() {
   core.renderer.setSize(width, height, false);
   core.camera.aspect = width / height;
   core.camera.updateProjectionMatrix();
-}
-
-/** Resizing empties the canvas: drawn again at once, the frame it would have shown blank isn't seen. */
-function redraw() {
-  if (core.renderer && core.space?.scene && core.camera) core.renderer.render(core.space.scene, core.camera);
-}
-
-/** "Auto" resolution steps down quickly when frames drop under 48 a second, and back up slowly. */
-function adaptResolution(fps) {
-  if (core.settings.resolution !== "auto") return;
-  if (fps < 48 && core.autoScale > 0.5) {
-    core.autoScale = Math.max(0.5, core.autoScale - 0.1);
-    core.steadyChecks = 0;
-    resize();
-    redraw();
-  } else if (fps > 57 && core.autoScale < 1) {
-    if (++core.steadyChecks >= 6) {
-      core.autoScale = Math.min(1, core.autoScale + 0.05);
-      core.steadyChecks = 0;
-      resize();
-      redraw();
-    }
-  } else {
-    core.steadyChecks = 0;
-  }
 }
 
 // ── Settings ─────────────────────────────────────────────────────────────────
@@ -491,7 +458,6 @@ function changeSetting(name, value) {
   const checked = checkSetting(name, value);
   if (checked === undefined) return;
   core.settings = { ...core.settings, [name]: checked };
-  if (name === "resolution") core.autoScale = 1;
   if (name === "people") void choosePersona(core.personaId); // redress the player too
   if (["nature", "props", "buildings"].includes(name) && core.world) buildWorld(core.seed, currentPlace()); // redrawn
   // How many animals, or which kinds: the world's are counted out again, once the slider has stopped.
@@ -7677,7 +7643,6 @@ function frame(time) {
       triangles,
       height: Math.min(core.renderer.domElement.width, core.renderer.domElement.height),
     });
-    adaptResolution(fps);
     core.statsFrames = 0;
     core.statsSince = time;
   }

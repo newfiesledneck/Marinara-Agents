@@ -8,9 +8,9 @@ const KEY = "wanderworld.settings";
 
 /** Each setting: its default and what it may be. */
 export const SETTINGS = {
-  /** Render resolution: "auto" adjusts to keep the frame rate up; "100" is the screen's own; the rest are
-   *  picture heights in pixels (1080p…), never more than the screen has. */
-  resolution: { value: "auto", options: ["auto", "100", "1440", "1080", "720", "540"] },
+  /** Render resolution: "100" is the screen's own; the rest are picture heights in pixels (1080p…), never
+   *  more than the screen has. (There was an "auto" that changed it as frames came and went: it flickered.) */
+  resolution: { value: "1080", options: ["100", "1440", "1080", "720", "540"] },
   /** Antialiasing. "auto": on where the picture is drawn no finer than the page and a graphics card draws it. */
   smooth: { value: "auto", options: ["auto", "on", "off"] },
   /** The ground's textures in full, or the cheaper simple ground. */

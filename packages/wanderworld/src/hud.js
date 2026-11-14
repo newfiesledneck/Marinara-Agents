@@ -95,7 +95,6 @@ let genderName = "";
 const genderLabel = () => genderName || "Custom";
 
 const RESOLUTION_LABELS = {
-  auto: "Auto (keeps it smooth)",
   100: "Full (your screen's)",
   1440: "1440p",
   1080: "1080p",
@@ -115,6 +114,15 @@ export function createHud(root, handlers) {
   const layer = document.createElement("div");
   layer.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif;";
   const touch = window.matchMedia?.("(pointer: coarse)").matches;
+  if (touch) {
+    // A phone's browser zooms the whole page in on a text box whose words are under 16px, and stays
+    // zoomed afterwards (half the stick off the screen). So on a touch screen none is.
+    layer.classList.add("wanderworld-touch");
+    const noZoom = document.createElement("style");
+    noZoom.textContent =
+      ".wanderworld-touch input, .wanderworld-touch textarea, .wanderworld-touch select{font-size:16px!important}";
+    layer.append(noZoom);
+  }
   // The bar, the panels and the cards live in `pages`, which Text size scales as one (CSS zoom: its own size stays
   // the view's, and what's inside is laid out in bigger pixels). What is placed in real pixels stays in `layer`.
   const pages = document.createElement("div");
@@ -770,7 +778,7 @@ export function createHud(root, handlers) {
     genderName:
       "What the custom gender is called. It is shown wherever a gender is chosen and is what the AI is told. Empty: Custom.",
     resolution:
-      "How sharp the picture is: Full is every pixel of your screen, the others a smaller picture stretched to fit (never more than your screen has). On a 4K screen, 1080p is a quarter of the work. Auto aims for about 1080p and lowers it when things get slow.",
+      "How sharp the picture is: Full is every pixel of your screen, the others a smaller picture stretched to fit (never more than your screen has). On a 4K screen, 1080p is a quarter of the work.",
     ground:
       "Simple: plainer ground, with less work for every pixel of it. Helps most on a big screen without a graphics card.",
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
@@ -1885,7 +1893,7 @@ export function createHud(root, handlers) {
   const caption = document.createElement("div");
   caption.setAttribute("data-wanderworld-ui", "");
   caption.style.cssText =
-    `${CHIP}position:absolute;left:50%;bottom:92px;transform:translateX(-50%);max-width:min(560px,calc(100% - 32px));` +
+    `${CHIP}position:absolute;left:50%;top:84px;transform:translateX(-50%);width:max-content;max-width:min(560px,calc(100% - 32px));box-sizing:border-box;` +
     "padding:8px 14px;font:italic 14px/1.4 Georgia,serif;text-align:center;pointer-events:none;opacity:0;transition:opacity 400ms;";
   layer.append(caption);
   let captionTimer = null;
