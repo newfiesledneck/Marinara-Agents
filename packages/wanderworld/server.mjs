@@ -1124,8 +1124,12 @@ export function momentMessages(input) {
           !people
             ? "(What you told last: don't say it again.)"
             : "(What every one of them saw and heard, in order.)",
-          ...input.recent.map((line) => `${line.who}: ${line.text}`),
-        ].join("\n"),
+          input.recent.some((line) => line.stamp) &&
+            "(In brackets: when and where each happened. It may have been a while ago, or somewhere else; now and here are under Right now.)",
+          ...input.recent.map((line) => `${line.stamp ? `[${line.stamp}] ` : ""}${line.who}: ${line.text}`),
+        ]
+          .filter(Boolean)
+          .join("\n"),
       ),
     // A plan (someone agreeing to be somewhere at a time) can only come of something said to someone:
     // the list of places, and the plans in the answer, go only then.
@@ -1634,7 +1638,7 @@ export async function activate(context) {
           recent: (Array.isArray(body.recent) ? body.recent : [])
             .filter(isRecord)
             .slice(-12)
-            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400) }))
+            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400), stamp: text(line.stamp, 120) }))
             .filter((line) => line.text),
           places,
         };

@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.98 — 2026-11-14
+
+- In a moment, each of the recent lines the AI is given says when and where it happened ("09:10, the market square", "yesterday 21:40, the pond"), so the narrator can tell a minute ago here from this morning across town. Lines from before this update have no stamp.
+
 ## 0.5.97 — 2026-11-14
 
 - Prompts are ordered for prompt caching, for providers that charge less for a prompt they've seen before. What doesn't change is sent first (who people are, the world, the lore of the place), and what changes with every line last (the time, who's near, memories, what you have on).

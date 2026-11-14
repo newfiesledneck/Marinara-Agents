@@ -6005,8 +6005,18 @@ function trackInventory(parts, kind = "moment") {
     });
 }
 
+/** When and where a line of the chat happened, as told now: "09:10, the market square", "yesterday 21:40, the pond". */
+function stampOf(line) {
+  if (!line.at) return "";
+  const days = (core.social?.day ?? 0) - (line.day ?? 0);
+  const when = days <= 0 ? line.at : days === 1 ? `yesterday ${line.at}` : `${days} days ago ${line.at}`;
+  return [when, line.where].filter(Boolean).join(", ");
+}
+
 function narrate(who, text, heard = []) {
-  core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard }].slice(-30);
+  // (With when and where it happened, for whoever is told of it later: stampOf.)
+  const stamp = { at: clockText(), day: core.social?.day ?? 0, where: placeWords().split(", in ")[0] ?? "" };
+  core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard, ...stamp }].slice(-30);
   if (core.save) {
     core.save.log = core.momentLog;
     core.saves.write(core.save);
@@ -6115,7 +6125,7 @@ async function runMoment({
       style: core.settings.talkStyle,
       lore,
       worldLore,
-      recent: chat.shared,
+      recent: chat.shared.map((line) => ({ who: line.who, text: line.text, stamp: stampOf(line) })),
       places: places.map(({ id, name }) => ({ id, name })),
       connectionId: core.settings.textConnection || null,
       temperature: core.settings.aiTemperature,

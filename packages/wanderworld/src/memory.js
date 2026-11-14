@@ -114,7 +114,8 @@ export const ago = (day, today) => {
  * `shared` is the narrator's own last three lines, kept so the telling doesn't repeat itself.
  */
 export function heardLines(log, listeners, max = 12) {
-  const plain = ({ who, text }) => ({ who, text });
+  // (And when and where it happened, when the line has them.)
+  const plain = ({ who, text, at, day, where }) => ({ who, text, ...(at ? { at, day, where } : {}) });
   if (!listeners.length)
     return {
       shared: log
