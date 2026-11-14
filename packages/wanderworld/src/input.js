@@ -39,6 +39,7 @@ export function createInput() {
   const held = new Set();
   const pressed = new Set();
   const stick = { x: 0, y: 0, pointerId: null };
+  let running = false; // the touch screen's Run button: on until it's tapped again
 
   const onKeyDown = (event) => {
     const key = String(event.key).toLowerCase();
@@ -68,7 +69,7 @@ export function createInput() {
   const base = document.createElement("div");
   base.setAttribute("aria-hidden", "true");
   base.style.cssText =
-    `position:absolute;left:24px;bottom:24px;width:${STICK_SIZE}px;height:${STICK_SIZE}px;border-radius:50%;` +
+    `position:absolute;left:24px;bottom:calc(64px + env(safe-area-inset-bottom, 0px));width:${STICK_SIZE}px;height:${STICK_SIZE}px;border-radius:50%;` +
     "background:rgba(0,0,0,0.22);border:2px solid rgba(255,255,255,0.35);pointer-events:auto;touch-action:none;";
   const knob = document.createElement("div");
   knob.style.cssText =
@@ -131,7 +132,7 @@ export function createInput() {
     // The stick is analogue: a little push strolls, most of the way walks, all the way out runs.
     const pushed = Math.hypot(stick.x, stick.y);
     const amount = keyboard ? 1 : Math.min(1, pushed / STICK_WALK);
-    const run = held.has("run") || (!keyboard && pushed > STICK_RUN);
+    const run = held.has("run") || running || (!keyboard && pushed > STICK_RUN);
     // Positive yaw turns the view left; positive pitch raises the camera to look down.
     const yaw = (held.has("lookLeft") ? 1 : 0) - (held.has("lookRight") ? 1 : 0);
     const pitch = (held.has("lookDown") ? 1 : 0) - (held.has("lookUp") ? 1 : 0);
@@ -160,5 +161,5 @@ export function createInput() {
     held.clear();
   }
 
-  return { stickElement: base, read, take, release, dispose };
+  return { stickElement: base, read, take, release, dispose, setRun: (on) => (running = !!on) };
 }

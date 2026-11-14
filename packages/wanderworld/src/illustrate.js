@@ -77,6 +77,7 @@ export function floatingFrame(titleText, onClose) {
       `color:${INK};box-shadow:0 6px 24px rgba(0,0,0,0.35);`,
   );
   frame.setAttribute("data-wanderworld-ui", "");
+  frame.setAttribute("data-wanderworld-floating", ""); // (the HUD sizes the text of what's inside these)
   frame.addEventListener("keydown", (event) => event.stopPropagation()); // typing here doesn't walk
   const bar = element(
     "div",
