@@ -632,6 +632,9 @@ function savePlace(now = false, thumbnail = null) {
   if (!core.world || !core.save || (!now && core.clock - core.savedAt < 2)) return;
   // Not while the Engine's saves are being read again, nor over a world another browser has played since.
   if (core.syncing || core.staleWorld === core.save.id) return;
+  // Nor while another world is being opened: `core.save` is already that world's, and the player, the
+  // party and the place are still the one being left (playWorld).
+  if (core.opening) return;
   core.savedAt = core.clock;
   // Indoors, remember the street in front of the door: that's where the player comes back.
   const door = core.interior?.door;
@@ -773,6 +776,9 @@ function playWorld(id) {
   }
   core.looks = { ...(save.looks ?? {}) };
   core.pets = { ...(save.pets ?? {}) };
+  // From here till this world is built nothing is saved (savePlace): what's on screen is the last one.
+  core.opening = true;
+  core.paused = true;
   core.save = save;
   void core.inventory.refresh(); // what the persona wears in this world, for the AI
   setGenderShares(gendersNow()); // this world's own, before its people are made
@@ -804,6 +810,7 @@ function playWorld(id) {
     const detail = buildWorld(regionSeed(save), checkedPlace(save.place));
     updateCast();
     core.crowd.restoreParty(save.party, core.player.position);
+    core.opening = false; // (the world, the player and the party are this world's now)
     const shown = () => {
       if (load !== core.worldLoad) return;
       core.hud?.setLoading(null);

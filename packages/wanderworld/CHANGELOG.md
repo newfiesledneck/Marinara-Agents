@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.94 — 2026-11-14
+
+- Loading another world can't save the world you're leaving over it: nothing is saved from the moment the other world is picked until it is built. The world you leave is saved, under its own name, before that.
+
 ## 0.5.93 — 2026-11-14
 
 - Menu → Save world saves now and sends it to the Engine now, and says if the Engine didn't take it.
