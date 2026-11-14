@@ -30,7 +30,7 @@ QM.releaseHostSheet = () => {
 const Quartermaster = {
   version: typeof QM_VERSION === "string" ? QM_VERSION : null,
   // Grows as the client API does; never shrinks. The server's own list is GET /status.
-  features: ["open", "reload", "changed-event", "icon"],
+  features: ["open", "reload", "changed-event", "icon", "links"],
   icon: QM_ICON_SVG,
 
   // Opens the dock on a host's sheet and reads it afresh, since the host may
@@ -72,6 +72,17 @@ const Quartermaster = {
   // unless that sheet is the one showing.
   reload(scope, owner = "persona") {
     if (QM.state.chatId === scope && QM_OWNER_ID === owner) QM.state._reload();
+  },
+
+  // Makes a chat (a scene started from your world, say) use your sheet until
+  // unlinkChat: its dock, tracker and narrator all work on that one sheet, so
+  // nothing has to be carried in or out. The chat's own sheet is kept aside.
+  linkChat(chatId, { scope, owner = "persona" } = {}) {
+    return QM.linkChat(chatId, scope, owner);
+  },
+
+  unlinkChat(chatId) {
+    return QM.unlinkChat(chatId);
   },
 
   // Calls fn({ scope, owner }) after the dock or panel changes a sheet (a chat's

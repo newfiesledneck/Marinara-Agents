@@ -812,6 +812,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.36",
+          "date": "2026-11-14",
+          "notes": "- No changes you'll notice in a chat. A package can now link a chat it starts (a scene from a\n  game's world) to that world's sheet, so the scene uses the same inventory.",
+          "highlight": false
+        },
+        {
           "version": "0.1.35",
           "date": "2026-11-14",
           "notes": "- No changes you'll notice in a chat. Other packages can now open Quartermaster on a sheet of\n  their own, read what is worn, and run the tracker themselves.",
@@ -923,12 +929,6 @@
           "version": "0.1.17",
           "date": "2026-09-18",
           "notes": "- Raised the minimum required Engine version to 2.4.6, matching what this has actually been\n  tested against recently.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.16",
-          "date": "2026-09-16",
-          "notes": "- Brief toast notifications now appear when the tracker agent adds, updates, equips, or removes\n  an item -- visible even with the dock closed.\n- Items can now be favorited with a star, which sorts them to the top of the Bag.",
           "highlight": false
         }
       ]

@@ -482,9 +482,32 @@ function normalizeHostOwner(value) {
   return Object.values(owner).some((entry) => entry !== null) ? owner : null;
 }
 
+// ── Linked chats ────────────────────────────────────────────────────────────
+// A chat can be linked to a scope's sheet (a scene started from a host's world):
+// while it is, everything the chat does with its inventory, the dock, the
+// tracker Agent and the narrator feed included, happens on that one sheet.
+// Nothing is copied, so there is nothing to hand back when the scene ends. The
+// chat's own sheet is left as it was and comes back when the link is removed.
+const LINK_KIND = "sheet-link";
+const linkDocId = (chatId) => `link|${chatId}`;
+
+async function loadSheetLink(documents, chatId) {
+  if (typeof chatId !== "string" || isScopeKey(chatId)) return null;
+  const data = (await documents.getById(PACKAGE_ID, linkDocId(chatId)))?.data;
+  if (!data || !QM_SCOPE_RE.test(data.scope) || !QM_OWNER_RE.test(data.ownerId)) return null;
+  return { chatId, scope: data.scope, ownerId: data.ownerId };
+}
+
+// The sheet a chat's inventory really is: the linked scope's, else its own.
+async function resolveSheet(documents, chatId, ownerId) {
+  const link = await loadSheetLink(documents, chatId);
+  return link ? { chatId: link.scope, ownerId: link.ownerId, link } : { chatId, ownerId, link: null };
+}
+
 // Wraps the Engine's route registrar so every route with a ":chatId", ":ownerId"
-// or ":scope" checks it once, here, before its handler runs.
-function guardSheetRoutes(routes) {
+// or ":scope" checks it once, here, before its handler runs. An inventory route
+// for a linked chat is pointed at the scope's sheet (resolveLink).
+function guardSheetRoutes(routes, resolveLink) {
   const guarded = {};
   for (const method of ["get", "post", "patch", "put", "delete"]) {
     if (typeof routes[method] !== "function") continue;
@@ -500,6 +523,13 @@ function guardSheetRoutes(routes) {
         if (path.includes(":scope") && !(typeof params.scope === "string" && QM_SCOPE_RE.test(params.scope))) {
           return reply.status(400).send({ error: "Invalid scope id" });
         }
+        if (path.startsWith("/inventory/:chatId/")) {
+          const link = await resolveLink(params.chatId);
+          if (link) {
+            params.chatId = link.scope;
+            params.ownerId = link.ownerId;
+          }
+        }
         return handler(request, reply);
       });
   }
@@ -508,7 +538,7 @@ function guardSheetRoutes(routes) {
 
 // What GET /status reports, so a host shows its button only when this install
 // can do what it needs. Grows as features are added; never shrinks.
-const QM_FEATURES = ["scopes", "owners", "appearance", "summary", "settings", "tracker-routes"];
+const QM_FEATURES = ["scopes", "owners", "appearance", "summary", "settings", "tracker-routes", "links"];
 // The settings a host can read (GET …/settings) and that PATCH …/settings takes.
 const QM_SETTING_KEYS = [
   "appearanceFeedMode",
@@ -2139,10 +2169,26 @@ export async function activate(context) {
   // Every route below calls this instead of saveInventoryState directly, so
   // the appearance macro can never fall out of sync with an equip/outfit/
   // settings change — there's exactly one path to disk, and it's this one.
+  // Every chat linked to a scope. documents.list is newer than the rest of the
+  // store, so an Engine without it simply has no links.
+  async function scopeLinks(scope) {
+    if (typeof documents.list !== "function") return [];
+    return (await documents.list(PACKAGE_ID, LINK_KIND))
+      .map((doc) => doc.data)
+      .filter((data) => data?.scope === scope && typeof data.chatId === "string");
+  }
+
   async function persistState(chatId, ownerId, state) {
     await saveInventoryState(documents, chatId, ownerId, state);
-    // The macro lives in a chat's metadata; a scope has no chat to hold it.
-    if (!isScopeKey(chatId)) await syncAppearanceMacro(persistence, chatId, ownerId, state);
+    // The macro lives in a chat's metadata; a scope has no chat to hold it,
+    // but the chats linked to it do, under the name a chat's own sheet uses.
+    if (!isScopeKey(chatId)) {
+      await syncAppearanceMacro(persistence, chatId, ownerId, state);
+      return;
+    }
+    for (const link of await scopeLinks(chatId)) {
+      if (link.ownerId === ownerId) await syncAppearanceMacro(persistence, link.chatId, QM_TRACKER_OWNER_ID, state);
+    }
   }
 
   // Wires the "quartermaster" agent's post_processing pipeline run to this
@@ -2158,7 +2204,8 @@ export async function activate(context) {
   const releaseAgentRuntime = api.registerService(`agent-runtime:${PACKAGE_ID}`, {
     async prepareContext({ context }) {
       if (context.chatMode !== "roleplay") return null;
-      const state = await loadInventoryState(documents, context.chatId, QM_TRACKER_OWNER_ID);
+      const sheet = await resolveSheet(documents, context.chatId, QM_TRACKER_OWNER_ID);
+      const state = await loadInventoryState(documents, sheet.chatId, sheet.ownerId);
       return formatAgentRuntimeContext(
         agentVisibleItems(state),
         agentVisibleOutfits(state).map((outfit) => outfit.name),
@@ -2167,7 +2214,8 @@ export async function activate(context) {
     async finalizeResult({ context, result }) {
       if (context.chatMode === "roleplay" && result?.success && result.data && typeof result.data === "object") {
         try {
-          await reconcileTrackerOutput(documents, persistState, context.chatId, QM_TRACKER_OWNER_ID, result.data, logger);
+          const sheet = await resolveSheet(documents, context.chatId, QM_TRACKER_OWNER_ID);
+          await reconcileTrackerOutput(documents, persistState, sheet.chatId, sheet.ownerId, result.data, logger);
         } catch (error) {
           // A bad or malformed turn must never break generation — the next
           // turn's full-snapshot output self-corrects, same as every other
@@ -2197,14 +2245,20 @@ export async function activate(context) {
   // provides.inventory:true hands us the built-in [inventory:] block/command
   // instead of running both side by side.
   const releasePromptContext = api.registerPromptContext(async ({ chatId, mode, chatMeta }) => {
-    if (mode !== "roleplay" || !chatId || !isQuartermasterAgentActive(chatMeta)) return null;
+    if (mode !== "roleplay" || !chatId) return null;
     try {
-      const state = await loadInventoryState(documents, chatId, QM_TRACKER_OWNER_ID);
+      // A linked chat is fed its sheet even before the Agent is enabled there:
+      // the host linked it so the story would know what is carried.
+      const sheet = await resolveSheet(documents, chatId, QM_TRACKER_OWNER_ID);
+      if (!sheet.link && !isQuartermasterAgentActive(chatMeta)) return null;
+      const state = await loadInventoryState(documents, sheet.chatId, sheet.ownerId);
       const items = state.items.filter(visibleToModel);
       // Skip the persona lookup entirely when there's nothing to report yet —
       // this runs on every generation, not just once.
       if (items.length === 0) return null;
-      const personaName = await resolvePersonaName(persistence, resources, chatId);
+      const personaName = sheet.link
+        ? await resolvePersonaName(persistence, resources, sheet.chatId, state.hostOwner)
+        : await resolvePersonaName(persistence, resources, chatId);
       const text = inventorySummaryText(personaName, items);
       if (!text) return null;
       return { text, provides: { inventory: true } };
@@ -2215,7 +2269,66 @@ export async function activate(context) {
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
     async (engineRoutes) => {
-      const routes = guardSheetRoutes(engineRoutes);
+      const routes = guardSheetRoutes(engineRoutes, (chatId) => loadSheetLink(documents, chatId));
+
+      // Linking a chat to a scope's sheet, and back. Body: { scope, ownerId }.
+      routes.get("/links/:chatId", async (request) => ({ link: await loadSheetLink(documents, request.params.chatId) }));
+
+      routes.post("/links/:chatId", async (request, reply) => {
+        const { chatId } = request.params;
+        const scope = request.body?.scope;
+        const ownerId = request.body?.ownerId ?? QM_TRACKER_OWNER_ID;
+        if (isScopeKey(chatId)) return reply.status(400).send({ error: "Only a chat can be linked" });
+        if (typeof scope !== "string" || !QM_SCOPE_RE.test(scope)) {
+          return reply.status(400).send({ error: "Invalid scope id" });
+        }
+        if (typeof ownerId !== "string" || !QM_OWNER_RE.test(ownerId)) {
+          return reply.status(400).send({ error: "Invalid owner id" });
+        }
+        const id = linkDocId(chatId);
+        const now = new Date().toISOString();
+        const data = { chatId, scope, ownerId };
+        const existing = await documents.getById(PACKAGE_ID, id);
+        if (existing) {
+          await documents.update({
+            id,
+            packageId: PACKAGE_ID,
+            expectedRevision: existing.revision,
+            name: existing.name,
+            description: existing.description,
+            data,
+            updatedAt: now,
+          });
+        } else {
+          await documents.create({
+            id,
+            packageId: PACKAGE_ID,
+            kind: LINK_KIND,
+            name: `Link ${chatId}`,
+            description: "Quartermaster: this chat uses another package's sheet.",
+            data,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        // The chat's appearance macro now says what the linked sheet wears.
+        const state = await loadInventoryState(documents, scope, ownerId);
+        await syncAppearanceMacro(persistence, chatId, QM_TRACKER_OWNER_ID, state);
+        return { link: data };
+      });
+
+      routes.delete("/links/:chatId", async (request) => {
+        const { chatId } = request.params;
+        const existing = await documents.getById(PACKAGE_ID, linkDocId(chatId));
+        if (!existing) return { unlinked: false };
+        await documents.remove(PACKAGE_ID, existing.id, existing.revision);
+        // Back to the chat's own sheet, macro included.
+        const state = await loadInventoryState(documents, chatId, QM_TRACKER_OWNER_ID);
+        await syncAppearanceMacro(persistence, chatId, QM_TRACKER_OWNER_ID, state);
+        return { unlinked: true };
+      });
+
+      routes.get("/scopes/:scope/links", async (request) => ({ links: await scopeLinks(request.params.scope) }));
 
       // ── For other packages (README, "For other packages") ────────────────
       routes.get("/status", async () => ({
@@ -2342,6 +2455,11 @@ export async function activate(context) {
         const { scope } = request.params;
         const docs = await scopeDocs(scope);
         for (const doc of docs) await documents.remove(PACKAGE_ID, doc.id, doc.revision);
+        // A chat linked to a sheet that is gone goes back to its own.
+        for (const link of await scopeLinks(scope)) {
+          const linkDoc = await documents.getById(PACKAGE_ID, linkDocId(link.chatId));
+          if (linkDoc) await documents.remove(PACKAGE_ID, linkDoc.id, linkDoc.revision);
+        }
         await rm(galleryPortraitDir(context.dataDir, scope), { recursive: true, force: true });
         return { deleted: docs.length };
       });

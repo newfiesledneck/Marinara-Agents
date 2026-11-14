@@ -67,6 +67,11 @@ QM.setSheetOwner = (scope, ownerId, owner) =>
     body: JSON.stringify(owner),
   });
 
+// A chat using another package's sheet (server.mjs, "Linked chats").
+QM.linkChat = (chatId, scope, ownerId) =>
+  qmRequest(`/links/${encodeURIComponent(chatId)}`, { method: "POST", body: JSON.stringify({ scope, ownerId }) });
+QM.unlinkChat = (chatId) => qmRequest(`/links/${encodeURIComponent(chatId)}`, { method: "DELETE" });
+
 QM.addItem = (chatId, ownerId, item) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items`, {
     method: "POST",

@@ -1181,6 +1181,7 @@ async function startServer({ proposal = { items: [], outfits: [] } } = {}) {
         })
       )?.text ?? "",
     appearance: (chatId) => chatFor(chatId).metadata.macroVariables?.quartermaster_appearance_persona ?? "",
+    narrator: (request) => narrator(request),
   };
   server.item = async (chatId, name) => (await server.get(chatId)).items.find((item) => item.name === name);
   server.seed = async (chatId, items) => {
@@ -2335,4 +2336,56 @@ await test("another package opens the dock on its own sheet, and closing gives t
   assert.equal(api.state.chatId, "chat-a");
   assert.equal(reads.at(-1), "chat-a/persona");
   assert.equal("qmHost" in api.dock.root.dataset, false);
+});
+
+await test("a linked chat works on the host's sheet, and gets its own back when unlinked", async () => {
+  const server = await startServer();
+  const scope = "wanderworld:world-3";
+  const names = async (chatId) => (await server.get(chatId)).items.map((item) => item.name).sort();
+  await server.call("PATCH", "/inventory/:chatId/:ownerId/owner", {
+    params: { chatId: scope, ownerId: "persona" },
+    body: { name: "Mira" },
+  });
+  await server.settings(scope, { appearanceFeedMode: "equippedNames" });
+  await server.addItem(scope, { name: "Lantern", location: "equipped:head", defaultSlot: "head" });
+  await server.addItem("scene-1", { name: "Old Coin" });
+
+  const link = (chatId, body) => server.call("POST", "/links/:chatId", { params: { chatId }, body });
+  assert.equal((await link(scope, { scope })).statusCode, 400, "only a chat can be linked");
+  assert.equal((await link("scene-1", { scope: "scene-2" })).statusCode, 400);
+  assert.equal((await link("scene-1", { scope, ownerId: "a/b" })).statusCode, 400);
+  assert.deepEqual((await link("scene-1", { scope })).body.link, { chatId: "scene-1", scope, ownerId: "persona" });
+
+  // The chat's routes, macro, narrator and tracker all see the world's sheet.
+  assert.deepEqual(await names("scene-1"), ["Lantern"]);
+  assert.match(server.appearance("scene-1"), /Lantern/);
+  const fed = await server.narrator({ chatId: "scene-1", mode: "roleplay", chatMeta: {} });
+  assert.match(fed.text, /^Mira's inventory/, "fed without the Agent enabled, by the link alone");
+  assert.equal(await server.narrator({ chatId: "scene-9", mode: "roleplay", chatMeta: {} }), null);
+  assert.match(await server.agentContext("scene-1"), /\[1\] Lantern/);
+  await server.agentTurn("scene-1", { addItem: [{ name: "Rope", location: "bag" }] });
+  await server.addItem("scene-1", { name: "Map" });
+  assert.deepEqual(await names(scope), ["Lantern", "Map", "Rope"]);
+  assert.deepEqual(
+    server.docs.get("scene-1:persona").data.items.map((item) => item.name),
+    ["Old Coin"],
+    "the chat's own sheet is kept aside, untouched",
+  );
+
+  // A change made from the host's side reaches the linked chat's macro.
+  await server.unequipAll(scope);
+  assert.equal(server.appearance("scene-1"), "");
+  const links = (await server.call("GET", "/scopes/:scope/links", { params: { scope } })).body.links;
+  assert.deepEqual(links, [{ chatId: "scene-1", scope, ownerId: "persona" }]);
+
+  // Unlinked, the chat has its own sheet again and the world keeps what happened.
+  assert.equal((await server.call("DELETE", "/links/:chatId", { params: { chatId: "scene-1" } })).body.unlinked, true);
+  assert.deepEqual(await names("scene-1"), ["Old Coin"]);
+  assert.deepEqual(await names(scope), ["Lantern", "Map", "Rope"]);
+
+  // Deleting the world lets go of the chats linked to it.
+  await link("scene-1", { scope });
+  await server.call("DELETE", "/scopes/:scope", { params: { scope } });
+  assert.equal((await server.call("GET", "/links/:chatId", { params: { chatId: "scene-1" } })).body.link, null);
+  assert.deepEqual(await names("scene-1"), ["Old Coin"]);
 });

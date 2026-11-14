@@ -3481,7 +3481,7 @@
         },
         "id": "quartermaster",
         "name": "Quartermaster",
-        "version": "0.1.35",
+        "version": "0.1.36",
         "description": "An RPG character sheet and inventory for Roleplay: equip gear around your persona's portrait, save outfits, get AI art for items, and let it keep everything in step with the story. Add the Agent in Chat Settings → Agents → Tracker Agents for Roleplay mode.",
         "engine": {
           "min": "2.4.6",
@@ -3509,13 +3509,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "f5fc08108ab5a6e3606d3c36d0ddd1eb368c0319234a635c0e5cd482d70a7af2",
-            "bytes": 361853
+            "sha256": "e3bc19c7730e0941f83f463b67b844d877cb42b1e42745b9170ad0ed06c9c217",
+            "bytes": 362597
           },
           {
             "path": "server.mjs",
-            "sha256": "77b24aa5302512a6934293144c7d8b62a830992760aedcf194496d7601f55253",
-            "bytes": 177245
+            "sha256": "d72786fe68b0eaaf88c2c7568d20ebca245cc239856a9087c9d17ac7b44847a7",
+            "bytes": 183163
           },
           {
             "path": "icons/armor_legs.webp",
@@ -3639,9 +3639,9 @@
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/quartermaster.png",
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/quartermaster/README.md",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/quartermaster-0.1.35.zip",
-        "sha256": "708a82ab6c3a8b3058bec78877da508268f70e439ef18c4a28191163659d285c",
-        "bytes": 583578
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/quartermaster-0.1.36.zip",
+        "sha256": "ca65957273f7462f6e7a92aa4d522dbba0477016fb9dbb11b62682fcedb5c937",
+        "bytes": 590240
       }
     },
     {

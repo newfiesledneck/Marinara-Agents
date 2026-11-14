@@ -256,7 +256,7 @@ can do.
 
 - **Check first.** `GET /api/quartermaster/status` answers `{ packageId, version, features,
   equipSlots, appearanceFeedModes, limits }`. `features` only grows: `scopes`, `owners`,
-  `appearance`, `summary`, `settings` and `tracker-routes` today. `limits` has the longest
+  `appearance`, `summary`, `settings`, `tracker-routes` and `links` today. `limits` has the longest
   item and outfit names and descriptions, the portrait size, and how many changes one tracker answer
   may hold.
 - **A scope instead of a chat id.** Wherever a route takes `:chatId`, pass `<your package id>:<key>`,
@@ -294,6 +294,23 @@ can do.
 - **Calling the routes.** They sit behind the Engine's privileged gate like every package route:
   send `x-marinara-csrf: 1` on anything but a GET, and `X-Admin-Secret` when the device has one saved.
 
+### Linking a chat to your sheet
+
+When your package starts a real chat (a scene from a world, say), link it and the chat uses your
+sheet for as long as the link lasts: its dock, the appearance macro, the narrator's summary and the
+tracker Agent all read and write that one sheet. Nothing is copied in, so there is nothing to carry
+back when the scene ends.
+
+- `POST /links/:chatId` with `{ scope, ownerId }` (`ownerId` defaults to `persona`) links it.
+  It works before Quartermaster is enabled in that chat; the link is used the first time the chat
+  looks at its inventory.
+- `DELETE /links/:chatId` removes it. The chat's own sheet was kept aside and comes back.
+- `GET /links/:chatId` answers `{ link }`, and `GET /scopes/:scope/links` every chat linked to a
+  scope. Deleting a scope removes its links.
+- The narrator's summary is given to a linked chat even before the Quartermaster Agent is enabled
+  there. The tracker itself still only runs once the user enables the Agent in that chat.
+- From the client: `window.Quartermaster.linkChat(chatId, { scope, owner })` and `unlinkChat(chatId)`.
+
 ### Opening the dock from your package
 
 The Engine only loads Quartermaster's client once a Roleplay chat shows it, so load it yourself
@@ -311,7 +328,7 @@ await window.Quartermaster.open({ scope: "wanderworld:world-12", persona: { pers
 - `onChange(fn)` calls `fn({ scope, owner })` after the dock changes a sheet, and returns a function
   that stops it. The window event `quartermaster:changed` carries the same.
 - `icon` is the backpack button's SVG, `version` the installed version, and `features` what this
-  client API can do (`open`, `reload`, `changed-event`, `icon`).
+  client API can do (`open`, `reload`, `changed-event`, `icon`, `links`).
 - While your sheet is open the dock's root has `data-qm-host="<your package id>"`, for your own
   styles. Closing the dock gives the views back to the chat that was showing.
 
@@ -356,6 +373,11 @@ and every bundled icon, and writes `artifacts/quartermaster-<version>.zip` — r
 overwrite an already-released version's artifact file if you forget to bump `VERSION` first.
 
 ## Changelog
+
+### 0.1.36
+- **A chat can be linked to another package's sheet.** A scene started from a game's world can use
+  that world's inventory directly, and gets its own sheet back when unlinked. See "Linking a chat
+  to your sheet". A chat nobody links works exactly as before.
 
 ### 0.1.35
 - **Other packages can open the dock** on a sheet of their own (`window.Quartermaster`), and are

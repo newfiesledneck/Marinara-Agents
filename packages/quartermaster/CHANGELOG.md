@@ -1,5 +1,9 @@
 # Quartermaster changelog
 
+## 0.1.36 — 2026-11-14
+- No changes you'll notice in a chat. A package can now link a chat it starts (a scene from a
+  game's world) to that world's sheet, so the scene uses the same inventory.
+
 ## 0.1.35 — 2026-11-14
 - No changes you'll notice in a chat. Other packages can now open Quartermaster on a sheet of
   their own, read what is worn, and run the tracker themselves.
