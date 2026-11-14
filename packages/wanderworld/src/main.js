@@ -427,6 +427,11 @@ function resize() {
   core.camera.updateProjectionMatrix();
 }
 
+/** Resizing empties the canvas: drawn again at once, the frame it would have shown blank isn't seen. */
+function redraw() {
+  if (core.renderer && core.space?.scene && core.camera) core.renderer.render(core.space.scene, core.camera);
+}
+
 /** "Auto" resolution steps down quickly when frames drop under 48 a second, and back up slowly. */
 function adaptResolution(fps) {
   if (core.settings.resolution !== "auto") return;
@@ -434,11 +439,13 @@ function adaptResolution(fps) {
     core.autoScale = Math.max(0.5, core.autoScale - 0.1);
     core.steadyChecks = 0;
     resize();
+    redraw();
   } else if (fps > 57 && core.autoScale < 1) {
     if (++core.steadyChecks >= 6) {
       core.autoScale = Math.min(1, core.autoScale + 0.05);
       core.steadyChecks = 0;
       resize();
+      redraw();
     }
   } else {
     core.steadyChecks = 0;
@@ -3661,6 +3668,7 @@ async function lookOf(id) {
       models,
       chosen,
       pets: core.save ? petsOf(id) : null,
+      body: core.bodies[id] ?? "auto",
       now: await lookChoices(name, core.bodies[id] ?? "auto", chosen),
     };
   } catch {

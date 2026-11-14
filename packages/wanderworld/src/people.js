@@ -191,8 +191,10 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
   const roll = random() * (shares.male + shares.female + shares.custom);
   const fromName = roll < shares.male ? "male" : roll < shares.male + shares.female ? "female" : "custom";
   const gender = body === "male" || body === "female" || body === "custom" ? body : fromName;
-  // The figure is one of the kit's two; someone of the third gender has either.
-  const sex = gender === "custom" ? (random() < 0.5 ? "male" : "female") : gender;
+  // The figure is one of the kit's two; someone of the third gender has either, or the one chosen for them.
+  const either = random() < 0.5 ? "male" : "female";
+  const figure = chosen.figure === "male" || chosen.figure === "female" ? chosen.figure : either;
+  const sex = gender === "custom" ? figure : gender;
   const outfits = index.sexes[sex].outfits;
   const has = (kind) => outfits.some((entry) => entry.name === `${sex}-${kind}`);
   const coloursOf = (kind) => outfits.find((entry) => entry.name === `${sex}-${kind}`)?.colourways ?? [];
@@ -243,6 +245,7 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
   for (const [extra, , kind] of EXTRAS) if (choices[extra]) worn.add(kind);
   return {
     sex,
+    gender,
     parts,
     colourways,
     tints: choices.tints,
@@ -266,6 +269,7 @@ export async function lookChoices(name, body = "auto", chosen = {}) {
   return {
     ...look.choices,
     sex: look.sex,
+    gender: look.gender,
     worn: look.choices.costume ? [] : look.worn,
     outfits: Object.keys(OUTFITS),
   };

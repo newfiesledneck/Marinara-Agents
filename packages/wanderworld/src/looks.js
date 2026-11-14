@@ -171,6 +171,8 @@ export function checkLook(raw) {
   if (within(skin, SKIN_TONES.length)) Object.assign(look, { skin, skinSet: 2 });
   if (isColour(raw.skinTint)) look.skinTint = raw.skinTint;
   if (typeof raw.beard === "boolean") look.beard = raw.beard;
+  // Which of the kit's two figures someone of the custom gender has (missing: either, by their name).
+  if (raw.figure === "male" || raw.figure === "female") look.figure = raw.figure;
   if (Number.isFinite(raw.height)) look.height = Math.max(HEIGHTS[0], Math.min(HEIGHTS[1], Number(raw.height)));
   // Which avatar shows: one of their card's 3D models, or the built-in person (missing: the card's own choice).
   if (AVATARS.includes(raw.avatar)) look.avatar = raw.avatar;
