@@ -515,6 +515,7 @@ QM.state = {
   // field comments for why this never affects any other feature. Empty
   // template string means "use the built-in default", not the literal text.
   imageConnectionId: null,
+  imageStyleId: "",
   itemImagePromptTemplate: "",
   outfitPortraitPromptTemplate: "",
   // Hidden items (per chat; see server.mjs's loadInventoryState for each).
@@ -560,6 +561,7 @@ QM.state = {
     this.previousSnapshot = null;
     this.lastTrackerChange = null;
     this.imageConnectionId = null;
+    this.imageStyleId = "";
     this.itemImagePromptTemplate = "";
     this.outfitPortraitPromptTemplate = "";
     this.askBeforeHiddenChanges = true;
@@ -624,6 +626,7 @@ QM.state = {
         previousSnapshot: result.previousSnapshot ?? null,
         lastTrackerChange: result.lastTrackerChange ?? null,
         imageConnectionId: result.imageConnectionId ?? null,
+        imageStyleId: result.imageStyleId || "",
         itemImagePromptTemplate: result.itemImagePromptTemplate || "",
         outfitPortraitPromptTemplate: result.outfitPortraitPromptTemplate || "",
         askBeforeHiddenChanges: result.askBeforeHiddenChanges !== false,
@@ -652,6 +655,7 @@ QM.state = {
         previousSnapshot: this.previousSnapshot,
         lastTrackerChange: this.lastTrackerChange,
         imageConnectionId: this.imageConnectionId,
+        imageStyleId: this.imageStyleId,
         itemImagePromptTemplate: this.itemImagePromptTemplate,
         outfitPortraitPromptTemplate: this.outfitPortraitPromptTemplate,
         askBeforeHiddenChanges: this.askBeforeHiddenChanges,
@@ -711,6 +715,7 @@ QM.state = {
       if (result.previousSnapshot !== undefined) this.previousSnapshot = result.previousSnapshot;
       if (result.lastTrackerChange !== undefined) this.lastTrackerChange = result.lastTrackerChange;
       if (result.imageConnectionId !== undefined) this.imageConnectionId = result.imageConnectionId;
+      if (result.imageStyleId !== undefined) this.imageStyleId = result.imageStyleId || "";
       if (result.itemImagePromptTemplate !== undefined) this.itemImagePromptTemplate = result.itemImagePromptTemplate;
       if (result.outfitPortraitPromptTemplate !== undefined)
         this.outfitPortraitPromptTemplate = result.outfitPortraitPromptTemplate;
@@ -880,6 +885,9 @@ QM.state = {
   },
   updateImageConnectionId(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { imageConnectionId: value || null }));
+  },
+  updateImageStyleId(value) {
+    return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { imageStyleId: value || "" }));
   },
   updateItemImagePromptTemplate(value) {
     return this._mutate(QM.updateSettings(this.chatId, QM_OWNER_ID, { itemImagePromptTemplate: value }));

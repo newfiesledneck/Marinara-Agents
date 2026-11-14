@@ -548,6 +548,8 @@ const QM_FEATURES = [
   "links",
   "prompt-overrides",
   "batch-items",
+  "image-styles",
+  "prompt-rewrite",
 ];
 const MAX_BATCH_ITEMS = 50;
 // A per-call override from a host: its own text when it sent a string, else ours.
@@ -561,6 +563,7 @@ const QM_SETTING_KEYS = [
   "showWeapons",
   "replaceRealAvatarOnEquip",
   "imageConnectionId",
+  "imageStyleId",
   "itemImagePromptTemplate",
   "outfitPortraitPromptTemplate",
   "askBeforeHiddenChanges",
@@ -1092,6 +1095,89 @@ async function resolveImageConnection(preferredConnectionId) {
   );
 }
 
+// The Engine's image style presets (Settings → Image generation, Engine 2.5.2
+// and later), read from where its own image routes read them: the "ui"
+// settings blob. Purely a read. An older Engine, or one whose presets were
+// never saved, simply has none to offer.
+const cleanStyleText = (value, max) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+async function loadImageStyles(logger) {
+  try {
+    const stored = await engineApiFetch("/api/app-settings/ui", { method: "GET" });
+    const parsed = typeof stored?.value === "string" ? JSON.parse(stored.value) : null;
+    const profiles = Array.isArray(parsed?.imageStyleProfiles?.profiles) ? parsed.imageStyleProfiles.profiles : [];
+    return profiles
+      .filter((profile) => profile && typeof profile.id === "string" && profile.id && profile.id !== "off")
+      .slice(0, 100)
+      .map((profile) => ({
+        id: profile.id.slice(0, 100),
+        name: cleanStyleText(profile.name, 80) || profile.id.slice(0, 80),
+        promptMode: cleanStyleText(profile.promptMode, 20) || "hybrid",
+        // "Auto" holds an instruction for the Engine's own prompt writer, not words for an image model.
+        styleText: profile.baseStyle === "auto" ? "" : cleanStyleText(profile.styleText, 1000),
+        positiveTags: cleanStyleText(profile.positiveTags, 1000),
+        negativeTags: cleanStyleText(profile.negativeTags, 1000),
+      }));
+  } catch (error) {
+    logger?.warn(
+      "[quartermaster] could not read the Engine's image styles: %s",
+      error instanceof Error ? error.message : String(error),
+    );
+    return [];
+  }
+}
+
+async function findImageStyle(styleId, logger) {
+  if (!styleId) return null;
+  return (await loadImageStyles(logger)).find((style) => style.id === styleId) ?? null;
+}
+
+// A prompt with a style's own words put in front, in the order the Engine's
+// prompt compiler uses (tags, then the style sentence unless the preset is
+// tag-only). The style's negative tags travel separately (generateImageViaEngine).
+// ponytail: no per-subject tags and no de-duplication against the prompt, both
+// of which the Engine's compiler does; add them if styled prompts repeat themselves.
+function applyImageStyle(prompt, style) {
+  if (!style) return prompt;
+  const tagOnly = style.promptMode === "tagged" || style.promptMode === "danbooru";
+  const sentence = tagOnly ? "" : style.styleText.replace(/[.\s]+$/, "");
+  return [style.positiveTags, sentence, prompt].filter(Boolean).join(", ");
+}
+
+// "Rewrite with AI": the review-step prompt reworded for the image model in
+// use, as flowing prose or as comma-separated tags.
+const IMAGE_PROMPT_REWRITE_VARIANTS = {
+  prose:
+    "Rewrite it as one flowing paragraph of plain descriptive English, the way a caption describes a picture: " +
+    "subject first, then materials, colors, details, framing, background and lighting. No lists, no tags.",
+  tags:
+    "Rewrite it as short comma-separated tags in the style used for tag-trained image models: lowercase, " +
+    "one idea per tag, most important first (subject, then details, colors, framing, background, quality). " +
+    "No sentences.",
+};
+const IMAGE_PROMPT_REWRITE_MAX_TOKENS = 700;
+function buildImagePromptRewriteMessages(prompt, variant) {
+  return [
+    {
+      role: "system",
+      content:
+        "You rewrite prompts for an image generator. Keep every visual detail, and every style and quality term, " +
+        "from the prompt you are given; add nothing that is not implied by it and drop nothing. " +
+        IMAGE_PROMPT_REWRITE_VARIANTS[variant] +
+        " Reply with the rewritten prompt only: no preface, no quotes, no markdown.",
+    },
+    { role: "user", content: prompt },
+  ];
+}
+// The reply as a bare prompt: a model that wraps it in a code fence or quotes anyway is unwrapped.
+function cleanRewrittenPrompt(text) {
+  return String(text ?? "")
+    .replace(/^\s*```[a-z]*\s*|\s*```\s*$/gi, "")
+    .trim()
+    .replace(/^["'“]([\s\S]*)["'”]$/, "$1")
+    .trim()
+    .slice(0, MAX_REVIEW_PROMPT_LENGTH);
+}
+
 // Mirrors the legacy RPG Inventory extension's own imgKey/normName exactly
 // (extension.js: normName = lowercase+trim, imgKey = replace non-alphanumeric
 // runs with "-", trim leading/trailing "-", fall back to "item" if empty).
@@ -1125,7 +1211,7 @@ function qmImageSlug(text) {
 // request shape exactly (connectionId/name/appearance/width/height/
 // promptOverrides, nothing else) rather than gacha-forge's differently-
 // shaped, never-independently-verified one.
-async function generateImageViaEngine({ connectionId, name, prompt, width, height, logger }) {
+async function generateImageViaEngine({ connectionId, name, prompt, negativePrompt, width, height, logger }) {
   const slug = qmImageSlug(name);
   const result = await engineApiFetch("/api/characters/avatar-generation", {
     method: "POST",
@@ -1136,7 +1222,8 @@ async function generateImageViaEngine({ connectionId, name, prompt, width, heigh
       appearance: prompt,
       width,
       height,
-      promptOverrides: [{ id: `avatar:${slug}`, prompt }],
+      // negativePrompt: an image style's own "avoid" tags, when one is chosen.
+      promptOverrides: [{ id: `avatar:${slug}`, prompt, ...(negativePrompt ? { negativePrompt } : {}) }],
     }),
   });
   if (typeof result?.image !== "string" || !result.image.startsWith("data:")) {
@@ -2042,6 +2129,8 @@ async function loadInventoryState(documents, chatId, ownerId) {
     // the built-in default", not the literal default text -- same
     // fallback-at-use-time pattern as every other optional text field here.
     imageConnectionId: typeof doc?.data?.imageConnectionId === "string" ? doc.data.imageConnectionId : null,
+    // One of the Engine's image style presets (loadImageStyles), "" for none.
+    imageStyleId: typeof doc?.data?.imageStyleId === "string" ? doc.data.imageStyleId : "",
     itemImagePromptTemplate:
       typeof doc?.data?.itemImagePromptTemplate === "string" ? doc.data.itemImagePromptTemplate : "",
     outfitPortraitPromptTemplate:
@@ -2976,9 +3065,12 @@ export async function activate(context) {
         if (!item) return reply.status(404).send({ error: "Item not found" });
         // `template` in the body is a host's own, for this call only.
         const template = hostText(request.body?.template, state.itemImagePromptTemplate);
+        // The chosen image style's words go in front (`styleId` in the body: a host's own choice, "" for none).
+        const style = await findImageStyle(hostText(request.body?.styleId, state.imageStyleId, 100), logger);
         return {
-          prompt: buildItemImagePrompt(template, item),
+          prompt: applyImageStyle(buildItemImagePrompt(template, item), style),
           pieces: {
+            style: style ? { id: style.id, name: style.name } : null,
             template: template.trim() ? template : DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE,
             item: item.name,
             itemDescription: item.description ?? "",
@@ -3019,6 +3111,7 @@ export async function activate(context) {
             connectionId: connection.id,
             name: item.name,
             prompt,
+            negativePrompt: (await findImageStyle(hostText(body.styleId, state.imageStyleId, 100), logger))?.negativeTags,
             width: ITEM_IMAGE_GEN_WIDTH,
             height: ITEM_IMAGE_GEN_HEIGHT,
             logger,
@@ -3301,18 +3394,23 @@ export async function activate(context) {
         // for this call only. The pieces used come back beside the result.
         const body = request.body ?? {};
         const template = hostText(body.template, state.outfitPortraitPromptTemplate);
+        const style = await findImageStyle(hostText(body.styleId, state.imageStyleId, 100), logger);
         const pieces = {
+          style: style ? { id: style.id, name: style.name } : null,
           template: template.trim() ? template : DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE,
           name: hostText(body.name, personaName),
           personaAppearance: hostText(body.personaAppearance, personaAppearance),
           equippedItems: hostText(body.equippedItems, outfitPortraitItemsText(outfit, state.appearanceFeedMode)),
         };
         return {
-          prompt: buildOutfitPortraitPrompt(template, {
-            personaName: pieces.name,
-            personaAppearance: pieces.personaAppearance,
-            equippedItemsText: pieces.equippedItems,
-          }),
+          prompt: applyImageStyle(
+            buildOutfitPortraitPrompt(template, {
+              personaName: pieces.name,
+              personaAppearance: pieces.personaAppearance,
+              equippedItemsText: pieces.equippedItems,
+            }),
+            style,
+          ),
           pieces,
         };
       });
@@ -3348,6 +3446,7 @@ export async function activate(context) {
             connectionId: connection.id,
             name: outfit.name,
             prompt,
+            negativePrompt: (await findImageStyle(hostText(body.styleId, state.imageStyleId, 100), logger))?.negativeTags,
             width: OUTFIT_PORTRAIT_GEN_WIDTH,
             height: OUTFIT_PORTRAIT_GEN_HEIGHT,
             logger,
@@ -3653,6 +3752,12 @@ export async function activate(context) {
           }
           state.imageConnectionId = body.imageConnectionId || null;
         }
+        if (body.imageStyleId !== undefined) {
+          if (body.imageStyleId !== null && typeof body.imageStyleId !== "string") {
+            return reply.status(400).send({ error: "Invalid imageStyleId" });
+          }
+          state.imageStyleId = (body.imageStyleId || "").slice(0, 100);
+        }
         for (const key of ["itemImagePromptTemplate", "outfitPortraitPromptTemplate"]) {
           if (body[key] === undefined) continue;
           if (typeof body[key] !== "string") return reply.status(400).send({ error: `Invalid ${key}` });
@@ -3667,6 +3772,7 @@ export async function activate(context) {
           showWeapons: state.showWeapons,
           replaceRealAvatarOnEquip: state.replaceRealAvatarOnEquip,
           imageConnectionId: state.imageConnectionId,
+          imageStyleId: state.imageStyleId,
           itemImagePromptTemplate: state.itemImagePromptTemplate,
           outfitPortraitPromptTemplate: state.outfitPortraitPromptTemplate,
           askBeforeHiddenChanges: state.askBeforeHiddenChanges,
@@ -3674,6 +3780,58 @@ export async function activate(context) {
           wardrobeUsesHidden: state.wardrobeUsesHidden,
           hiddenOnlyInHiddenTab: state.hiddenOnlyInHiddenTab,
         };
+      });
+
+      // The Engine's image style presets, for the Image style picker.
+      routes.get("/image-styles", async () => ({
+        styles: (await loadImageStyles(logger)).map(({ id, name, promptMode }) => ({ id, name, promptMode })),
+      }));
+
+      // "Rewrite with AI" on a picture prompt. Body: { prompt, variant: "prose" |
+      // "tags", connectionId? }. One language-model call, nothing saved; answers
+      // { prompt }. Uses the connection Build Wardrobe uses.
+      routes.post("/inventory/:chatId/:ownerId/image-prompt/rewrite", async (request, reply) => {
+        const { chatId } = request.params;
+        const body = request.body ?? {};
+        const prompt = normalizeText(body.prompt, MAX_REVIEW_PROMPT_LENGTH);
+        if (!prompt) return reply.status(400).send({ error: "A prompt is required" });
+        if (!Object.hasOwn(IMAGE_PROMPT_REWRITE_VARIANTS, body.variant)) {
+          return reply.status(400).send({ error: 'variant must be "prose" or "tags"' });
+        }
+        const debugMode = body.debugMode === true || (api.runtime.isDebugAgentsEnabled?.() ?? false);
+        const chat = await persistence.getChat(chatId);
+        const agentConfig = await api.runtime.getAgentConfig();
+        let resolved;
+        try {
+          resolved = await api.runtime.languageModels.resolveForRequest({
+            connectionId: hostText(body.connectionId, agentConfig?.connectionId ?? null, 200),
+            chatConnectionId: chat?.connectionId ?? null,
+          });
+        } catch (error) {
+          logger?.warn(
+            "[quartermaster] prompt rewrite could not resolve a language model: %s",
+            error instanceof Error ? error.message : String(error),
+          );
+          return reply.status(502).send({ error: "no-connection" });
+        }
+        try {
+          const messages = buildImagePromptRewriteMessages(prompt, body.variant);
+          const result = await resolved.chatComplete(messages, {
+            temperature: 0.4,
+            maxTokens: IMAGE_PROMPT_REWRITE_MAX_TOKENS,
+            debugMode,
+          });
+          const rewritten = cleanRewrittenPrompt(typeof result.content === "string" ? result.content : "");
+          logger?.debugOverride?.(debugMode, "[quartermaster] prompt rewrite (%s): %s", body.variant, rewritten);
+          if (!rewritten) return reply.status(502).send({ error: "generation-failed" });
+          return { prompt: rewritten };
+        } catch (error) {
+          logger?.warn(
+            "[quartermaster] prompt rewrite call failed: %s",
+            error instanceof Error ? error.message : String(error),
+          );
+          return reply.status(502).send({ error: "generation-failed" });
+        }
       });
     },
     { prefix: `/api/${PACKAGE_ID}` },

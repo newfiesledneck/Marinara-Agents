@@ -249,6 +249,16 @@ QM.generateOutfitPortrait = (chatId, ownerId, outfitId, prompt) =>
 // what server.mjs itself can call, not what browser JS can fetch same-origin,
 // so this needs no package permission. Filtered client-side the same way
 // server.mjs's own resolveImageConnection filters server-side.
+// The Engine's image style presets ([{ id, name, promptMode }]), for the Image style picker.
+QM.listImageStyles = async () => (await qmRequest("/image-styles")).styles ?? [];
+
+// "Rewrite with AI" on a picture prompt; variant is "prose" or "tags". Answers { prompt }.
+QM.rewriteImagePrompt = (chatId, ownerId, prompt, variant) =>
+  qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/image-prompt/rewrite`, {
+    method: "POST",
+    body: JSON.stringify({ prompt, variant }),
+  });
+
 QM.listImageConnections = async () => {
   const response = await fetch("/api/connections", {
     headers: { ...qmAuthHeaders("GET"), Accept: "application/json" },

@@ -2583,3 +2583,123 @@ await test("a wardrobe asked for before the dock closed is still there to review
     dock.isOpenFlag = false;
   }
 });
+
+await test("a chosen Engine image style goes on picture prompts, and a prompt can be rewritten", async () => {
+  const server = await startServer({ proposal: "brass lantern, warm glow" });
+  const chat = "chat-style";
+  const at = { chatId: chat, ownerId: "persona" };
+  const sent = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    const path = new URL(url).pathname;
+    const json = (body) => ({ ok: true, status: 200, json: async () => body });
+    if (path === "/api/app-settings/ui") {
+      const profiles = [
+        { id: "off", name: "Off" },
+        { id: "auto", name: "Auto", baseStyle: "auto", promptMode: "hybrid", styleText: "Infer a style." },
+        {
+          id: "anime",
+          name: "Anime",
+          baseStyle: "anime",
+          promptMode: "tagged",
+          styleText: "Anime illustration.",
+          positiveTags: "anime style, clean lineart",
+          negativeTags: "photorealistic",
+        },
+        {
+          id: "paint",
+          name: "Painterly",
+          baseStyle: "painterly",
+          promptMode: "natural",
+          styleText: "Loose oil painting.",
+        },
+      ];
+      return json({ value: JSON.stringify({ imageStyleProfiles: { defaultProfileId: "auto", profiles } }) });
+    }
+    if (path === "/api/connections") return json([{ id: "img-1", provider: "image_generation", isDefault: true }]);
+    if (path === "/api/characters/avatar-generation") {
+      sent.push(JSON.parse(options.body));
+      return json({ image: "data:image/png;base64,AAAA", prompt: sent.at(-1).appearance });
+    }
+    throw new Error(`unexpected Engine call ${path}`);
+  };
+  try {
+    const styles = (await server.call("GET", "/image-styles")).body.styles;
+    assert.deepEqual(
+      styles.map((style) => style.name),
+      ["Auto", "Anime", "Painterly"],
+    );
+
+    const item = (await server.addItem(chat, { name: "Lantern", description: "brass" })).body.items[0];
+    const params = { ...at, itemId: item.id };
+    const preview = async (body) =>
+      (await server.call("POST", "/inventory/:chatId/:ownerId/items/:itemId/image/prompt-preview", { params, body }))
+        .body;
+    const plain = await preview({});
+    assert.equal(plain.pieces.style, null);
+
+    assert.equal((await server.settings(chat, { imageStyleId: 5 })).statusCode, 400);
+    assert.equal((await server.settings(chat, { imageStyleId: "anime" })).body.imageStyleId, "anime");
+    const styled = await preview({});
+    assert.equal(styled.prompt, `anime style, clean lineart, ${plain.prompt}`, "a tag-only style adds its tags alone");
+    assert.deepEqual(JSON.parse(JSON.stringify(styled.pieces.style)), { id: "anime", name: "Anime" });
+    assert.equal((await preview({ styleId: "paint" })).prompt, `Loose oil painting, ${plain.prompt}`);
+    assert.equal((await preview({ styleId: "auto" })).prompt, plain.prompt, "Auto's instruction is not prompt text");
+    assert.equal((await preview({ styleId: "" })).prompt, plain.prompt, "a host can turn the style off for a call");
+
+    const generate = (body) =>
+      server.call("POST", "/inventory/:chatId/:ownerId/items/:itemId/image/generate", { params, body });
+    await generate({ prompt: "a lantern" });
+    assert.equal(sent[0].promptOverrides[0].negativePrompt, "photorealistic", "the style's avoid tags go with it");
+    await server.settings(chat, { imageStyleId: "" });
+    await generate({ prompt: "a lantern" });
+    assert.equal("negativePrompt" in sent[1].promptOverrides[0], false);
+
+    const rewrite = (body) =>
+      server.call("POST", "/inventory/:chatId/:ownerId/image-prompt/rewrite", { params: at, body });
+    assert.equal((await rewrite({ prompt: "a lantern", variant: "poem" })).statusCode, 400);
+    assert.equal((await rewrite({ prompt: "", variant: "tags" })).statusCode, 400);
+    const rewritten = await rewrite({ prompt: "A brass lantern that glows warmly.", variant: "tags" });
+    assert.equal(rewritten.body.prompt, "brass lantern, warm glow", "quotes around the reply are removed");
+    const asked = server.llmCalls.at(-1);
+    assert.match(asked[0].content, /comma-separated tags/);
+    assert.equal(asked[1].content, "A brass lantern that glows warmly.");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+await test("a rewritten picture prompt can be undone, and a late reply never lands on another dialog", async () => {
+  QM.state.chatId = "chat-a";
+  dock._renderImageGenContent = () => {};
+  let settle;
+  let fail;
+  QM.rewriteImagePrompt = () =>
+    new Promise((resolve, reject) => {
+      settle = resolve;
+      fail = reject;
+    });
+
+  dock._imageGenPrompt = "old";
+  dock._imageGenPromptBeforeRewrite = null;
+  let pending = dock._submitImageGenRewrite("tags");
+  assert.equal(dock._imageGenRewriting, "tags");
+  settle({ prompt: "new" });
+  await pending;
+  assert.equal(dock._imageGenPrompt, "new");
+  assert.equal(dock._imageGenPromptBeforeRewrite, "old", "Undo has the old text");
+  assert.equal(dock._imageGenRewriting, null);
+
+  pending = dock._submitImageGenRewrite("prose");
+  fail(new Error("generation-failed"));
+  await pending;
+  assert.equal(dock._imageGenPrompt, "new", "a failed rewrite leaves the prompt alone");
+  assert.match(dock._imageGenRewriteError, /could not be rewritten/);
+
+  pending = dock._submitImageGenRewrite("prose");
+  dock._closeImageGenModal();
+  dock._imageGenPrompt = "another item";
+  settle({ prompt: "late" });
+  await pending;
+  assert.equal(dock._imageGenPrompt, "another item");
+});

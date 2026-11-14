@@ -152,6 +152,13 @@ Give any item — or any saved outfit — its own picture, three ways:
    then go. Uses whichever image connection you've picked in Settings → Image Generation, and both
    prompt templates (item images, outfit portraits) are fully editable there too — pre-filled with
    sensible defaults so you're editing, not writing from scratch.
+   - **Image style** (Settings → Image Generation): pick one of your Engine's own image style
+     presets and its words are added to every item and outfit prompt. Needs Engine 2.5.2 or later.
+     "None" leaves prompts as they are.
+   - **Rewrite with AI**, on the prompt review step: **Prose** rewords the prompt as one
+     descriptive paragraph, for image models that read sentences. **Tags** turns it into short
+     comma-separated tags, for tag-trained models. You can edit the result, or undo it. It uses one
+     call to the same language model Build Wardrobe uses.
 
 An image you upload or generate is **saved to the item**: it keeps that picture even if you rename
 it. Everything else is matched by name, as before: image-pack files, images uploaded before
@@ -255,8 +262,8 @@ do.
 
 - **Check first.** `GET /api/quartermaster/status` answers `{ packageId, version, features,
   equipSlots, appearanceFeedModes, limits }`. `features` only grows: `scopes`, `owners`,
-  `appearance`, `summary`, `settings`, `tracker-routes`, `links`, `prompt-overrides` and
-  `batch-items` today. `limits` has the longest
+  `appearance`, `summary`, `settings`, `tracker-routes`, `links`, `prompt-overrides`,
+  `batch-items`, `image-styles` and `prompt-rewrite` today. `limits` has the longest
   item and outfit names and descriptions, the portrait size, and how many changes one tracker answer
   may hold.
 - **A scope instead of a chat id.** Wherever a route takes `:chatId`, pass `<your package id>:<key>`,
@@ -302,6 +309,13 @@ do.
   `generate` routes take the finished `{ prompt }` as it is, and an optional `connectionId`, and
   answer `{ imageDataUrl }` without saving it; save it with `POST …/items/:itemId/image` or
   `POST …/outfits/:outfitId/portrait`.
+- **Image styles and rewrites.** `GET /image-styles` answers `{ styles: [{ id, name, promptMode }] }`,
+  the Engine's own style presets. The sheet's choice is the `imageStyleId` setting; send `styleId`
+  in a preview or generate body to use another for that call (`""` for none). A preview puts the
+  style's words in front of the prompt and names it in `pieces.style`; generate sends the style's
+  avoid-tags with the picture request. `POST /inventory/:scope/:ownerId/image-prompt/rewrite` with
+  `{ prompt, variant, connectionId? }` (`variant` is `prose` or `tags`) answers `{ prompt }`
+  reworded by a language model, and saves nothing.
 - **Showing pictures.** `GET …/items/:itemId/image` and `GET …/outfits/:outfitId/portrait` serve
   the files. They need the same headers as every route, so fetch them and show the result (an
   `<img>` pointed straight at them only works where no Admin Secret is needed).
@@ -398,6 +412,16 @@ and every bundled icon, and writes `artifacts/quartermaster-<version>.zip` — r
 overwrite an already-released version's artifact file if you forget to bump `VERSION` first.
 
 ## Changelog
+
+### 0.1.39
+- **Image style.** Settings → Image Generation has a new **Image style** picker listing your
+  Engine's image style presets (Engine 2.5.2 or later). The chosen style's words are added to item
+  and outfit prompts, and its avoid-tags are sent with the picture request. It starts on "None", so
+  prompts are unchanged until you pick one.
+- **Rewrite with AI.** The prompt review step has **Prose** and **Tags** buttons that reword the
+  prompt for the kind of image model you use, and **Undo rewrite** to go back.
+- For other packages: `GET /image-styles`, `styleId` on the picture routes, and
+  `POST …/image-prompt/rewrite`. See "For other packages".
 
 ### 0.1.38
 - **Build Wardrobe keeps its result when you close the dock.** Closing the window or the dock while
