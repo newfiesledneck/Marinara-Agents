@@ -169,6 +169,7 @@ export const SPEECH_HELP = [
   ],
   ["/scene text", "start a full scene right where you stand, with what you write as how it opens"],
   ["/camp", "light a campfire here, for you and your party to sit by"],
+  ["/call, /call horse, /call dog", "call your own horse or dog to you, wherever it has got to"],
 ];
 
 /** How many people hear a moment at most (the model writes for each, so it's kept small). */

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.99 — 2026-11-14
+
+- The in-game Help and the README were checked against the game and brought up to date. Help has two new sections, "The bar, the Menu and your worlds" and "Inventory (with the Quartermaster package)", and says what the AI is told about where you are, the new Illustrate rewrite and prompt caching.
+- Corrected: the arrow keys look around (they don't walk), dogs come in six coats, and the inventory works in the world, not only in scenes.
+- The chat window's list of commands has `/call`.
+
 ## 0.5.98 — 2026-11-14
 
 - In a moment, each of the recent lines the AI is given says when and where it happened ("09:10, the market square", "yesterday 21:40, the pond"), so the narrator can tell a minute ago here from this morning across town. Lines from before this update have no stamp.
