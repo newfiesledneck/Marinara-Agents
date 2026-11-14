@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.93 — 2026-11-14
+
+- Menu → Save world saves now and sends it to the Engine now, and says if the Engine didn't take it.
+- Menu → Load world lists your worlds as the Engine has them now and opens the one you pick. The world you're in is saved first.
+- Switching between a phone and a computer: a browser left open reads the Engine's saves again when you come back to it, and a world played somewhere else since is loaded from there instead of being carried on with (and saved over) from the old copy. Leaving the tab or locking the phone saves and sends at once.
+
 ## 0.5.92 — 2026-11-14
 
 - Someone travelling with you knows it: no greeting as if you'd just met.

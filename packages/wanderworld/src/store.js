@@ -1,6 +1,7 @@
 // Where saved worlds are kept: with the Engine, each save a document of the package's own (server.mjs
 // `/saves`). A world is as big as it needs to be, is in the Engine's backups, and is the same from any
-// browser that opens it.
+// browser that opens it. A browser left open reads them again when it's shown again (`pull`), since
+// another one may have played meanwhile.
 //
 // saves.js reads and writes through `getItem`/`setItem`/`removeItem` and never waits, so what the Engine
 // keeps is read once (`connect`) and held here; a write is held at once and sent a few seconds later,
@@ -72,6 +73,23 @@ export function createStore(remote, { delay = 4000, onProblem = () => {} } = {})
       memory.clear();
       for (const [key, text] of held) memory.set(key, text);
       ready = true;
+    },
+    /** How many writes haven't reached the Engine yet (waiting, or failed). */
+    get pending() {
+      return new Set([...waiting.keys(), ...unsent]).size;
+    },
+    /**
+     * Reads what the Engine keeps again: another browser may have played since. A write of this
+     * browser's that hasn't been sent yet is kept; everything else becomes what the Engine has.
+     */
+    async pull() {
+      if (!ready) return this.connect();
+      await Promise.all(sending.values());
+      const held = (await remote.all()) ?? {};
+      const mine = new Set([...waiting.keys(), ...unsent]);
+      for (const key of [...memory.keys()]) if (!mine.has(key) && typeof held[key] !== "string") memory.delete(key);
+      for (const [key, text] of Object.entries(held))
+        if (typeof text === "string" && !mine.has(key)) memory.set(key, text);
     },
     /** Sends every write still waiting, and any that failed, now (the tab is closing, or the world is). */
     flush() {

@@ -1686,8 +1686,53 @@ export function createHud(root, handlers) {
       worldPanel.append(line);
     }
   });
-  for (const item of [settingsButton, worldButton, fullscreen, fresh]) item.style.width = "100%";
-  menuPanel.append(personaLabel, settingsButton, worldButton, fullscreen, fresh);
+  // Save world: now, and sent to the Engine now. Load world: another of your worlds, as the Engine has them.
+  const saveButton = button("Save world", "Save this world now, and send it to the Engine now", () => {
+    togglePanel(menuPanel);
+    handlers.onSaveWorld?.();
+  });
+  const worldsPanel = document.createElement("div");
+  worldsPanel.setAttribute("data-wanderworld-ui", "");
+  worldsPanel.style.cssText = PANEL;
+  panels.push(worldsPanel);
+  const loadButton = button("Load world", "Leave this world (saved) for another of your worlds", () => {
+    togglePanel(worldsPanel);
+    if (worldsPanel.style.display === "none") return;
+    const title = document.createElement("div");
+    title.style.cssText = "font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;";
+    title.textContent = "Load world";
+    const close = button("×", "Close", () => togglePanel(worldsPanel));
+    close.style.cssText = `${INK_SMALL}margin-left:auto;padding:0 9px;font-size:16px;`;
+    title.append(close);
+    const note = document.createElement("div");
+    note.style.cssText = `font-size:12px;color:${INK_SOFT};line-height:1.35;`;
+    note.textContent = "Reading your worlds from the Engine…";
+    worldsPanel.replaceChildren(title, note);
+    void Promise.resolve(handlers.onWorlds?.() ?? []).then((worlds) => {
+      if (worldsPanel.style.display === "none") return;
+      note.textContent = worlds.length
+        ? "This world is saved first, then the one you pick opens where you left it."
+        : "No saved worlds.";
+      for (const world of worlds) {
+        const pick = button("", world.current ? "The world you're in" : `Load ${world.name}`, () => {
+          togglePanel(worldsPanel);
+          handlers.onLoadWorld?.(world.id);
+        });
+        pick.style.cssText += "width:100%;text-align:left;white-space:normal;";
+        const name = document.createElement("div");
+        name.style.cssText = "font-weight:600;overflow-wrap:anywhere;";
+        name.textContent = world.current ? `${world.name} (you're here)` : world.name;
+        const played = document.createElement("div");
+        played.style.cssText = "font-size:11px;opacity:0.8;";
+        played.textContent = world.played ? `Last played ${world.played}` : "";
+        pick.append(name, played);
+        worldsPanel.append(pick);
+      }
+    });
+  });
+  for (const item of [settingsButton, worldButton, saveButton, loadButton, fullscreen, fresh])
+    item.style.width = "100%";
+  menuPanel.append(personaLabel, settingsButton, worldButton, saveButton, loadButton, fullscreen, fresh);
   panels.push(menuPanel);
   const gameMenuButton = button(
     "Menu",
@@ -2025,7 +2070,19 @@ export function createHud(root, handlers) {
   const explainRule = document.createElement("style");
   explainRule.textContent = ".wanderworld-no-explain [data-wanderworld-explain]{display:none!important}";
   layer.append(explainRule);
-  pages.append(board, top, peoplePanel, journal.panel, lorePanel, settingsPanel, menuPanel, worldPanel, notice, scene);
+  pages.append(
+    board,
+    top,
+    peoplePanel,
+    journal.panel,
+    lorePanel,
+    settingsPanel,
+    menuPanel,
+    worldPanel,
+    worldsPanel,
+    notice,
+    scene,
+  );
   // The world's own controls (the prompt over a thing, the row under your thumbs, and the stick, which
   // main.js puts with them) go underneath every window, panel and card: an open one is what gets the tap.
   layer.prepend(prompt, thumbs);

@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.93",
+          "date": "2026-11-14",
+          "notes": "- Menu → Save world saves now and sends it to the Engine now, and says if the Engine didn't take it.\n- Menu → Load world lists your worlds as the Engine has them now and opens the one you pick. The world you're in is saved first.\n- Switching between a phone and a computer: a browser left open reads the Engine's saves again when you come back to it, and a world played somewhere else since is loaded from there instead of being carried on with (and saved over) from the old copy. Leaving the tab or locking the phone saves and sends at once.",
+          "highlight": false
+        },
+        {
           "version": "0.5.92",
           "date": "2026-11-14",
           "notes": "- Someone travelling with you knows it: no greeting as if you'd just met.\n- Horses wade and swim, so a river with no bridge can be crossed. Your own animals swim after you.\n- A horse's saddle and its rider move with its back as it walks, gallops and jumps.\n- Call dog and Call horse in the chat window (or `/call`): yours turns up beside you. One kept from you by something for a few seconds comes by itself.\n- Menu → This world: its name, id, Quartermaster sheet, map, characters and lorebooks, with Copy buttons.\n- The chat says what changed in your inventory (added, put on, took off, removed).\n- Plants on a cave's rock sit on it instead of floating over it.\n- Illustrate's AI rewrite has a new instruction: a full prose prompt with each character's name and looks, the place, pose and camera, and no chat pasted at the end.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.74",
           "date": "2026-11-12",
           "notes": "- New world is three steps with a tab each: you and your people, the land, lore and the AI. Each says what it is for, and the long explanations are cut down.\n- Journal → World is in tabs: This world, Setting, Animals, Lore.\n- Shorter explanations in the Journal (Edit people, picture look, ages, animals, lore linking, keywords).\n- In Settings, a tab that says what it is for no longer shows the section's line above it as well.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.73",
-          "date": "2026-11-12",
-          "notes": "- The AI assistant can look things up before it answers, so a request in your own words no longer depends on the right keywords: a lore entry by title or by words (this world's own lore and the lorebooks chosen for it), everything about a person, what someone remembers, or a part of the world that was left out. Up to three look-ups an answer, each one more AI call.\n- It is sent the titles of your lore with every request, so it knows what there is to look up.\n- This takes the place of asking again with everything when it said it couldn't see something. The line under each answer now says what it looked up.",
           "highlight": false
         }
       ]
