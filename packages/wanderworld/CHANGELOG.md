@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.96 — 2026-11-14
+
+- "Your inventory changed" shows only when an item was added, changed or removed, not when Quartermaster's tracker only gave its reasoning.
+
 ## 0.5.95 — 2026-11-14
 
 - The AI is told how you stand to a place, not only its name: on the bank beside the pond (not in the water), wading or swimming when you are, inside or outside a building, at the mouth of a cave, on a street, among the ruins.
