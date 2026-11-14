@@ -134,6 +134,14 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
       assert.ok(index.sexes[sex].pieces[extra].includes(outfit), `${sex} ${extra}`);
   }
   const usual = lookFor("Mira", index, "female");
+  // Someone of the custom gender has the figure chosen for them; a figure doesn't change anyone else's.
+  for (const figure of ["male", "female"]) {
+    assert.equal(lookFor("Mira", index, "custom", { figure }).sex, figure);
+    assert.equal(lookFor("Mira", index, "custom", { figure }).gender, "custom");
+    assert.equal(lookFor("Mira", index, "female", { figure }).sex, "female");
+  }
+  assert.deepEqual(checkLook({ figure: "male" }), { figure: "male" });
+  assert.deepEqual(checkLook({ figure: "tall" }), {});
   // One thing chosen changes only that.
   const hooded = lookFor("Mira", index, "female", { outfit: "ranger" });
   assert.deepEqual(hooded.parts, [

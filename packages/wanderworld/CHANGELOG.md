@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.88 — 2026-11-14
+
+- The Look card (yours from Menu, anyone's from People) has a Gender choice: Auto, Male, Female or the custom gender. It is the same choice as the small picker beside their name.
+- Someone of the custom gender gets a Figure choice there too: the male or the female figure, or either by their name as before.
+- Auto resolution no longer shows an empty frame each time it changes the picture's size, which could look like a flicker on a phone.
+
 ## 0.5.87 — 2026-11-13
 
 - Phones: Run, Sit, Jump and Use are one row along the bottom with the stick above it. Run is new: tap it and you run, by the stick or to where you tap, until you tap it again.

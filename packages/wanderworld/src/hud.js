@@ -244,6 +244,34 @@ export function createHud(root, handlers) {
           (value) => value || undefined,
         );
       }
+      // Their gender (what the People menu's picker sets; Auto leaves it to their name and the world's
+      // shares), and for the custom gender which of the two figures they have.
+      const gender = bodyPicker((value) => {
+        info.body = value;
+        handlers.onSetBody(id, value);
+        void handlers.lookOf(id).then((next) => {
+          if (!next || lookCard !== card) return;
+          now = next.now;
+          card.replaceChildren(...draw());
+        });
+      });
+      gender.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+      gender.setAttribute("aria-label", "Gender");
+      gender.title = "Their gender, and so the body of the built-in person";
+      gender.value = info.body ?? "auto";
+      row("Gender", gender);
+      if (now.gender === "custom")
+        pick(
+          "Figure",
+          "figure",
+          [
+            ["", "Either (by their name)"],
+            ["male", "Male figure"],
+            ["female", "Female figure"],
+          ],
+          chosen.figure ?? "",
+          (value) => value || undefined,
+        );
       const hex = (value) => `#${value.toString(16).padStart(6, "0")}`;
       const outfitNames = now.outfits.map((name) => [name, OUTFITS[name].label]);
       // A colour of your own, for a piece, the hair or the skin: a small square beside its row opens the
