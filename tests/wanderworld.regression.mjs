@@ -722,6 +722,21 @@ console.log("wanderworld regression: OK");
   assert.equal(otherSaves.last().name, "Renamed twice");
   const second = otherSaves.create({ name: "Second", seed: "two" });
   await there.flush();
+  // The first browser, left open, reads again: it has the other's new world, and keeps a write of its
+  // own that hasn't been sent.
+  assert.equal(saves.list().length, 1, "not known here yet");
+  remote.down = true;
+  saves.rename(first.id, "Mine, unsent");
+  await store.flush();
+  remote.down = false;
+  assert.equal(store.pending, 2, "the world and the list of worlds");
+  await store.pull();
+  assert.equal(saves.read(second.id).name, "Second", "the other browser's world is here now");
+  assert.equal(saves.read(first.id).name, "Mine, unsent", "an unsent write isn't lost to what the Engine has");
+  saves.write({ ...saves.read(first.id), name: "Renamed twice" });
+  saves.write(saves.read(second.id));
+  await store.flush();
+  assert.equal(store.pending, 0);
   // The Engine doesn't answer: nothing is read, and nothing is sent that could write over what it keeps.
   remote.down = true;
   const problems = [];

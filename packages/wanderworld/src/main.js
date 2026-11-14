@@ -630,6 +630,8 @@ function currentPlace() {
  */
 function savePlace(now = false, thumbnail = null) {
   if (!core.world || !core.save || (!now && core.clock - core.savedAt < 2)) return;
+  // Not while the Engine's saves are being read again, nor over a world another browser has played since.
+  if (core.syncing || core.staleWorld === core.save.id) return;
   core.savedAt = core.clock;
   // Indoors, remember the street in front of the door: that's where the player comes back.
   const door = core.interior?.door;
@@ -691,16 +693,78 @@ function captureThumbnail() {
 
 // ── Worlds and the main menu ─────────────────────────────────────────────────
 
+/**
+ * Reads the Engine's saves again (store.js `pull`): this browser may have been left open while another
+ * one played. A world in memory that was played elsewhere since is loaded again from what was kept
+ * there (at once when it's being played; from the main menu, when it's next played).
+ * ponytail: the newer save wins whole; nothing is merged. Two browsers playing one world at the same
+ * moment still write over each other; that needs a revision on each save, checked by the server part.
+ */
+async function syncSaves() {
+  if (!core.store?.ready || core.syncing) return;
+  core.syncing = true;
+  try {
+    await core.store.pull();
+    const kept = core.save ? core.saves.read(core.save.id) : null;
+    if (core.world && kept && kept.playedAt > core.save.playedAt + 1000) {
+      core.staleWorld = kept.id;
+      if (!core.paused) {
+        playWorld(kept.id);
+        core.hud?.setNotice("This world was played in another browser since, so it was loaded from there.");
+      }
+    }
+  } catch (error) {
+    console.warn("[wanderworld] the Engine's saves couldn't be read again", error);
+  } finally {
+    core.syncing = false;
+  }
+}
+
+/** The Menu's Save world: saved now, and sent to the Engine now. */
+async function saveWorldNow() {
+  if (!core.save || !core.world) return;
+  savePlace(true, captureThumbnail());
+  await core.store.flush();
+  core.hud?.setNotice(
+    core.store.pending
+      ? "Saved in this browser, but the Engine didn't take it. It's tried again with the next save: check the Engine is running."
+      : `Saved: ${core.save.name}.`,
+  );
+}
+
+/** The Menu's Load world: the saved worlds as the Engine has them now, last played first. */
+async function worldsNow() {
+  await syncSaves();
+  return core.saves.list().map((world) => ({
+    id: world.id,
+    name: world.name,
+    played: world.playedAt ? new Date(world.playedAt).toLocaleString() : "",
+    current: world.id === core.save?.id,
+  }));
+}
+
+/** Leaves this world (saved) for saved world `id`. */
+function switchWorld(id) {
+  if (!core.saves.read(id)) return void core.hud?.setNotice("That world isn't saved any more.");
+  if (id === core.save?.id && core.staleWorld !== id) return void core.hud?.setNotice("You're in that world now.");
+  if (core.mode === "talk") endTalk();
+  if (core.save && core.world) savePlace(true, captureThumbnail());
+  playWorld(id);
+}
+
 /** Plays saved world `id`: back where the player left it, with its persona and cast. */
 function playWorld(id) {
   const save = core.saves.read(id);
   if (!save) return;
   core.saves.setLast(id);
-  if (core.save?.id === id && core.world) {
+  // (One another browser has played since isn't carried on with, nor saved over: it's loaded again.)
+  const stale = core.staleWorld === id;
+  if (core.save?.id === id && core.world && !stale) {
     resume(); // the world in memory is this one: just carry on
     return;
   }
   savePlace(true);
+  core.staleWorld = null;
   // This world's bodies (an older world starts from the ones chosen before worlds kept their own).
   core.bodies = { ...(save.bodies ?? core.legacyBodies ?? {}) };
   if (!save.bodies) {
@@ -7807,6 +7871,15 @@ function attach(element) {
     });
     core.saves = createSaves(core.store);
     globalThis.addEventListener?.("pagehide", () => void core.store.flush());
+    // Hidden (another tab, the phone locked): saved and sent now. Shown again: another browser may
+    // have played meanwhile, so the Engine's saves are read again before anything is saved over them.
+    globalThis.document?.addEventListener("visibilitychange", () => {
+      if (!core.element) return;
+      if (document.visibilityState === "hidden") {
+        if (!core.paused) savePlace(true);
+        void core.store.flush();
+      } else void syncSaves();
+    });
   }
   // Is the server part running? (Remembered; Menu → Settings → AI asks again.) Then any scene recaps waiting.
   void core.ai.status().then(() => pullRecaps());
@@ -7866,6 +7939,9 @@ function attach(element) {
     },
     onPetOut: petOut,
     onPetCall: petCall,
+    onSaveWorld: () => void saveWorldNow(),
+    onWorlds: worldsNow,
+    onLoadWorld: switchWorld,
     onWorldDetails: worldDetails,
     onMoveHome: moveHome,
     onMoveIn: moveIn,
@@ -8065,8 +8141,10 @@ function attach(element) {
     core.statsFrames = 0;
     if (!core.raf) core.raf = requestAnimationFrame(frame);
   };
-  if (core.store.ready) begin();
-  else
+  if (core.store.ready) {
+    begin();
+    void syncSaves(); // (the tab was left and come back to: another browser may have played since)
+  } else
     void core.store
       .connect()
       .then(() => {
