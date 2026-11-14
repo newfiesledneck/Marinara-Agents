@@ -108,6 +108,7 @@ export function caveGeometry(seed, { size = [11, 11, 8.5], mouth = [2.5, 3], dep
     if (inside > 0) colour.lerp(DEEP, smooth(0.25 + inside * 2.2) * 0.98);
     colour.toArray(colours, i * 3);
   }
+  const points = Float32Array.from(position.array); // (the geometry itself is turned and moved by world.js)
   sphere.setAttribute("color", new Float32BufferAttribute(colours, 3));
   sphere.deleteAttribute("uv");
   sphere.computeVertexNormals(); // per face: the rock reads as chiselled facets
@@ -151,12 +152,19 @@ export function caveGeometry(seed, { size = [11, 11, 8.5], mouth = [2.5, 3], dep
       if (inEllipse && !inTunnel) colliders.push({ x, z, r: 1.6 });
     }
   }
-  // `top`: about how high the shelf over the mouth is, for plants along its edge.
+  // `topAt(x, z)`: how high the rock's top is there (the cave's own space), or null off the rock.
   return {
+    topAt(x, z, reach = 0.9) {
+      let top = null;
+      for (let i = 0; i < points.length; i += 3) {
+        if (Math.hypot(points[i] - x, points[i + 2] - z) < reach && (top === null || points[i + 1] > top))
+          top = points[i + 1];
+      }
+      return top;
+    },
     rock: sphere,
     floor,
     colliders,
     use: { x: 0, z: -Math.min(back - 1.2, depth * 0.55) },
-    top: centreY + ry * 0.9,
   };
 }

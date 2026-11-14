@@ -1648,11 +1648,51 @@ export function createHud(root, handlers) {
   menuPanel.setAttribute("data-wanderworld-ui", "");
   menuPanel.style.cssText = PANEL;
   personaLabel.style.cssText = "font-size:13px;display:none;align-items:center;gap:6px;flex-wrap:wrap;";
-  for (const item of [settingsButton, fullscreen, fresh]) item.style.width = "100%";
-  menuPanel.append(personaLabel, settingsButton, fullscreen, fresh);
+  // This world: what it's called, its id, its map, who and what is in it (for looking things up).
+  const worldPanel = document.createElement("div");
+  worldPanel.setAttribute("data-wanderworld-ui", "");
+  worldPanel.style.cssText = PANEL;
+  panels.push(worldPanel);
+  const worldButton = button("This world", "This world's name, id, map, characters and lorebooks", () => {
+    togglePanel(worldPanel);
+    if (worldPanel.style.display === "none") return;
+    const title = document.createElement("div");
+    title.style.cssText = "font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;";
+    title.textContent = "This world";
+    const close = button("×", "Close", () => togglePanel(worldPanel));
+    close.style.cssText = `${INK_SMALL}margin-left:auto;padding:0 9px;font-size:16px;`;
+    title.append(close);
+    worldPanel.replaceChildren(title);
+    for (const row of handlers.onWorldDetails?.() ?? []) {
+      const line = document.createElement("div");
+      line.style.cssText = "border-top:1px solid rgba(107,74,43,0.3);padding:4px 0;";
+      const label = document.createElement("div");
+      label.style.cssText = `font-size:11px;color:${INK_SOFT};display:flex;align-items:center;gap:8px;`;
+      label.textContent = row.label;
+      const value = document.createElement("div");
+      value.style.cssText = "user-select:text;-webkit-user-select:text;overflow-wrap:anywhere;line-height:1.35;";
+      value.textContent = row.value;
+      if (row.copy) {
+        const copy = button("Copy", `Copy ${row.label.toLowerCase()}`, () => {
+          const done = () => (copy.textContent = "Copied");
+          // (The clipboard needs a secure page; without one, the text is selected to copy by hand.)
+          if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(row.value).then(done, () => {});
+          else window.getSelection?.()?.selectAllChildren(value);
+        });
+        copy.style.cssText = `${INK_SMALL}margin-left:auto;`;
+        label.append(copy);
+      }
+      line.append(label, value);
+      worldPanel.append(line);
+    }
+  });
+  for (const item of [settingsButton, worldButton, fullscreen, fresh]) item.style.width = "100%";
+  menuPanel.append(personaLabel, settingsButton, worldButton, fullscreen, fresh);
   panels.push(menuPanel);
-  const gameMenuButton = button("Menu", "Who you play, Settings, full screen and the main menu", () =>
-    togglePanel(menuPanel),
+  const gameMenuButton = button(
+    "Menu",
+    "Who you play, Settings, this world's details, full screen and the main menu",
+    () => togglePanel(menuPanel),
   );
   controls.append(journalButton, loreButton, illustrateButton, inventoryButton, chatButton, gameMenuButton);
 
@@ -1904,11 +1944,18 @@ export function createHud(root, handlers) {
       control.textContent = plain;
     };
     control.style.cssText += "padding:4px 10px;font-size:12px;display:none;";
-    petMoves.append(control);
+    // Call: it turns up beside you, wherever it had got to.
+    const call = button(`Call ${role}`, `Call your ${role} to you, wherever it has got to`, () =>
+      handlers.onPetCall?.(role),
+    );
+    call.style.cssText = control.style.cssText;
+    control.call = call;
+    petMoves.append(call, control);
     /** Called by its name once it has one ("Send Shadowmere home"). */
     control.rename = (name) => {
       const next = `Send ${name || role} home`;
       if (next === plain) return;
+      call.textContent = `Call ${name || role}`;
       plain = next;
       reset();
     };
@@ -1978,7 +2025,7 @@ export function createHud(root, handlers) {
   const explainRule = document.createElement("style");
   explainRule.textContent = ".wanderworld-no-explain [data-wanderworld-explain]{display:none!important}";
   layer.append(explainRule);
-  pages.append(board, top, peoplePanel, journal.panel, lorePanel, settingsPanel, menuPanel, notice, scene);
+  pages.append(board, top, peoplePanel, journal.panel, lorePanel, settingsPanel, menuPanel, worldPanel, notice, scene);
   // The world's own controls (the prompt over a thing, the row under your thumbs, and the stick, which
   // main.js puts with them) go underneath every window, panel and card: an open one is what gets the tap.
   layer.prepend(prompt, thumbs);
@@ -2229,7 +2276,7 @@ export function createHud(root, handlers) {
       for (const [role, control] of Object.entries(petButtons)) {
         control.rename(withYou.names?.[role] ?? "");
         const show = withYou[role] ? "" : "none";
-        if (control.style.display !== show) control.style.display = show;
+        if (control.style.display !== show) control.style.display = control.call.style.display = show;
         any ||= !!withYou[role];
       }
       const show = any ? "flex" : "none";

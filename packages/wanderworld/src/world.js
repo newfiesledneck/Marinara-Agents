@@ -2405,16 +2405,22 @@ function buildCountry(random, town, land, ground) {
         });
       }
       for (let i = 0; i < 6; i++) {
-        const across = (random() * 2 - 1) * 6;
-        const at = toWorld({ x: across, z: -0.8 - random() * 1.5 });
-        const y = cave.top - heightAt(at.x, at.z) - 0.4;
+        const own = { x: (random() * 2 - 1) * 6, z: -0.8 - random() * 1.5 };
+        const at = toWorld(own);
+        // On the rock where it stands (it is lumpy, and lower to the sides), not at one height for all.
+        const top = cave.topAt(own.x, own.z);
+        const model = random() < 0.5 ? "fern-1" : "grass-wispy-tall";
+        const turn = random() * 6.3;
+        const size = 0.6 + random() * 0.3;
+        if (top === null || top < 1.5) continue;
+        const y = outpost.ground + top - heightAt(at.x, at.z) - 0.3;
         placeKitPlant(town, null, {
-          model: random() < 0.5 ? "fern-1" : "grass-wispy-tall",
+          model,
           x: at.x,
           z: at.z,
           y,
-          angle: random() * 6.3,
-          scale: 0.6 + random() * 0.3,
+          angle: turn,
+          scale: size,
         });
       }
       const inside = toWorld(cave.use);

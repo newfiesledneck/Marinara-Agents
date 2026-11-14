@@ -261,6 +261,9 @@ const GREETINGS = {
   cold: ["What do you want?", "Oh. It's you."],
 };
 
+/** Turned to by the one they're travelling with: no greeting, they've been side by side. */
+const TOGETHER = ["Yes, {you}?", "I'm right here. What is it?", "Mm? Where to next?", "What is it, {you}?"];
+
 const FAREWELLS = {
   stranger: ["Good day to you.", "Safe travels."],
   neutral: ["Take care, now.", "See you around."],
@@ -306,6 +309,7 @@ const one = (lines, random) => lines[Math.floor(random() * lines.length)];
 /** What someone says to the player: `what` is "greet", "bye", "answer" (to typed words) or a topic id. */
 export function lineFor(what, mood, words, random = Math.random) {
   const pools = { greet: GREETINGS, bye: FAREWELLS, answer: ANSWERS };
+  if (what === "together") return fill(one(TOGETHER, random), words);
   const pool = pools[what]?.[mood] ?? TOPICS[what]?.reply[mood] ?? TOPICS[what]?.reply.neutral ?? ANSWERS.neutral;
   return fill(one(pool, random), words);
 }

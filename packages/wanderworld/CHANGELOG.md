@@ -1,5 +1,16 @@
 # Wanderworld release notes
 
+## 0.5.92 — 2026-11-14
+
+- Someone travelling with you knows it: no greeting as if you'd just met.
+- Horses wade and swim, so a river with no bridge can be crossed. Your own animals swim after you.
+- A horse's saddle and its rider move with its back as it walks, gallops and jumps.
+- Call dog and Call horse in the chat window (or `/call`): yours turns up beside you. One kept from you by something for a few seconds comes by itself.
+- Menu → This world: its name, id, Quartermaster sheet, map, characters and lorebooks, with Copy buttons.
+- The chat says what changed in your inventory (added, put on, took off, removed).
+- Plants on a cave's rock sit on it instead of floating over it.
+- Illustrate's AI rewrite has a new instruction: a full prose prompt with each character's name and looks, the place, pose and camera, and no chat pasted at the end.
+
 ## 0.5.91 — 2026-11-14
 
 - A scene started from a world uses that world's inventory (Quartermaster 0.1.37 or later): the scene's chat shows and changes the same sheet, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat.

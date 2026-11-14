@@ -26,6 +26,7 @@ const THREAT_EVERY = 45; // seconds between the game being told of one squaring 
  * goes on a horse, and how far up its own height its underside is (the stirrups hang below that).
  */
 const SADDLE = { scale: 0.3, under: 2.95, forward: 0.05 };
+const AFLOAT = 0.8; // how much of the way up to its back an animal sits in deep water
 const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives up walking and turns up beside them
 
 /**
@@ -36,6 +37,13 @@ const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives u
  * `off`: kinds there are none of at all; `quiet`: where none of the world's own are ({ all, wild (none
  * out in the country), areas: [{ x, z, r }] }). Plain numbers in, plain data out.
  */
+/** How high an animal whose back is `back` metres up stands at (x, z): on the ground, or afloat in deep water. */
+export function afloatAt(x, z, back) {
+  const ground = heightAt(x, z);
+  const water = waterAt(x, z);
+  return water.depth > 0 ? Math.max(ground, water.level - back * AFLOAT) : ground;
+}
+
 export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {} } = {}) {
   if (quiet.all) return [];
   const random = rng((seed ^ 0x6a09e667) >>> 0);
@@ -296,10 +304,8 @@ export function createHerd() {
         const seat = new Group();
         for (const { geometry, material } of parts) seat.add(new Mesh(geometry, material));
         seat.scale.setScalar(SADDLE.scale);
-        beast.saddleY = ANIMALS[beast.kind].back - SADDLE.under * SADDLE.scale;
-        seat.position.set(0, beast.saddleY, SADDLE.forward);
-        beast.saddle = seat;
-        beast.animal.object.add(seat);
+        seat.position.set(0, ANIMALS[beast.kind].back - SADDLE.under * SADDLE.scale, SADDLE.forward);
+        beast.animal.carryOn(seat); // on its body's bone: it moves as the back does
       })
       .catch(() => {}); // no props kit: no saddle
   }
@@ -439,28 +445,21 @@ export function createHerd() {
     const dz = at.z - beast.z;
     const distance = Math.hypot(dx, dz);
     const keep = facts.back > 0 ? 3.4 : 1.9;
-    if (distance > FOLLOW_LOST) {
-      // Left far behind (a river crossed, a journey made): it turns up again beside them.
-      for (let tries = 0; tries < 8; tries++) {
-        const angle = beast.random() * Math.PI * 2;
-        const spot = { x: at.x + Math.sin(angle) * (keep + 1), z: at.z + Math.cos(angle) * (keep + 1) };
-        if (waterAt(spot.x, spot.z).depth > WADE || world.blocked(spot.x, spot.z, 0.6)) continue;
-        beast.x = spot.x;
-        beast.z = spot.z;
-        break;
-      }
+    // Left far behind (a journey made), or kept from them by something for a while: it turns up beside them.
+    if (distance > FOLLOW_LOST || (beast.stuck ?? 0) > 4) return turnUp(beast, at, keep + 1);
+    if (distance <= keep) {
+      beast.stuck = 0;
       return;
     }
-    if (distance <= keep) return;
     const pace = Math.min(
       facts.gallop,
       distance > 9 ? facts.gallop : distance > 4.5 ? facts.walk * 2.4 : facts.walk * 1.4,
     );
     const move = Math.min(distance - keep, pace * dt);
     const next = { x: beast.x + (dx / distance) * move, y: 0, z: beast.z + (dz / distance) * move };
-    world.resolveCollisions(next, 0.45, false);
-    if (waterAt(next.x, next.z).depth > WADE * 2) return; // not into the river: it waits on the bank
+    world.resolveCollisions(next, 0.45, true); // (into the river too: it swims after them)
     const moved = Math.hypot(next.x - beast.x, next.z - beast.z);
+    beast.stuck = moved < move * 0.25 && distance > keep + 4 ? (beast.stuck ?? 0) + dt : 0;
     beast.x = next.x;
     beast.z = next.z;
     beast.speed = moved / Math.max(dt, 1e-4);
@@ -471,11 +470,30 @@ export function createHerd() {
   /** Whether `beast` can be ridden: a horse or a donkey, or a dog grown big enough. */
   const rideable = (beast) => ANIMALS[beast.kind].back > 0 && (beast.scale ?? 1) >= (ANIMALS[beast.kind].rideFrom ?? 0);
 
+  /** Puts `beast` a few steps from `at` (its owner), on dry open ground when there is some. */
+  function turnUp(beast, at, far) {
+    beast.stuck = 0;
+    for (let tries = 0; tries < 12; tries++) {
+      const angle = beast.random() * Math.PI * 2;
+      const spot = { x: at.x + Math.sin(angle) * far, z: at.z + Math.cos(angle) * far };
+      if (waterAt(spot.x, spot.z).depth > WADE || world.blocked(spot.x, spot.z, 0.6)) continue;
+      beast.x = spot.x;
+      beast.z = spot.z;
+      beast.angle = Math.atan2(at.x - spot.x, at.z - spot.z);
+      return;
+    }
+  }
+
   function place(beast) {
     if (!beast.group) return;
-    // (A flyer keeps off the ground, more so the bigger it is.)
-    const up = (ANIMALS[beast.kind].fly ?? 0) * (beast.scale ?? 1);
-    beast.group.position.set(beast.x, heightAt(beast.x, beast.z) + up, beast.z);
+    // (A flyer keeps off the ground, more so the bigger it is; in deep water the others float.)
+    const size = beast.scale ?? 1;
+    const up = (ANIMALS[beast.kind].fly ?? 0) * size;
+    beast.group.position.set(
+      beast.x,
+      afloatAt(beast.x, beast.z, (ANIMALS[beast.kind].back || 0.6) * size) + up,
+      beast.z,
+    );
     beast.group.rotation.y = beast.angle;
   }
 
@@ -598,7 +616,9 @@ export function createHerd() {
     const move = Math.min(distance, pace * dt);
     const at = { x: beast.x + (dx / distance) * move, y: 0, z: beast.z + (dz / distance) * move };
     world.resolveCollisions(at, 0.5, false);
-    if (waterAt(at.x, at.z).depth > WADE) return stop(); // not into the river
+    // Not into the river (one left in it, got down from, may still walk out).
+    const deep = waterAt(at.x, at.z).depth;
+    if (deep > WADE && deep >= waterAt(beast.x, beast.z).depth) return stop();
     beast.x = at.x;
     beast.z = at.z;
     const moved = Math.hypot(beast.x - before.x, beast.z - before.z);
@@ -628,10 +648,6 @@ export function createHerd() {
         place(beast);
       }
       beast.animal.update(dt, beast.speed, { graze: beast.graze, jump: beast.ridden ? (beast.leap ?? null) : null });
-      // (Its saddle goes up and down with its back in a jump.)
-      if (beast.saddle)
-        beast.saddle.position.y =
-          beast.saddleY + (beast.ridden && beast.leap != null ? beast.animal.rise(beast.leap) : 0);
     }
   }
 
@@ -719,6 +735,19 @@ export function createHerd() {
       beast.leap = leap;
       place(beast);
       return leap === null ? 0 : (beast.animal?.rise(leap) ?? 0) * (beast.scale ?? 1); // (a bigger one rises further)
+    },
+    /** How far the back of the one being ridden has moved from where it stands still (metres): its stride, its leap. */
+    bob(id) {
+      const beast = beasts.find((entry) => entry.id === id);
+      return beast?.animal ? beast.animal.bob() : 0;
+    },
+    /** Its owner calls `id` (someone's own, with them): it turns up a few steps from `at`. Returns whether it has one to call. */
+    call(id, at) {
+      const beast = beasts.find((entry) => entry.id === id && entry.owned);
+      if (!beast || beast.ridden || !world) return false;
+      turnUp(beast, at, 5);
+      place(beast);
+      return true;
     },
     /** The rider gets down: it stays about where it was left. */
     release(id) {

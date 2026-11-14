@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.91)
+## What it does now (0.5.92)
 
 ### The world
 
@@ -399,8 +399,9 @@ only walk about.
 - **A saddle** on any horse that's someone's own (yours, or a character's). Farm and tavern horses
   go bare.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
-  Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences and benches), it turns less sharply than you do and won't go where it
-  would have to swim, and E, Esc or Get down gets you off beside it. It stays where you leave it, and
+  Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences and benches), it turns less sharply than you do, wades and then swims where the
+  water is deep, and E, Esc or Get down gets you off beside it (not in deep water). Its saddle and its rider go up and down with its back.
+  Your own dog or horse can be called to you from the chat window (Call horse, or `/call`). It stays where you leave it, and
   your party runs to keep up.
 - **Campsites:** a campsite or two outside each settlement: a fire that flickers, lights the ground as
   it gets dark and smokes, two logs to sit on, and a tent. Use the tent to sleep: choose how long (an

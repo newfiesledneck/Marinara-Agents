@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.92",
+          "date": "2026-11-14",
+          "notes": "- Someone travelling with you knows it: no greeting as if you'd just met.\n- Horses wade and swim, so a river with no bridge can be crossed. Your own animals swim after you.\n- A horse's saddle and its rider move with its back as it walks, gallops and jumps.\n- Call dog and Call horse in the chat window (or `/call`): yours turns up beside you. One kept from you by something for a few seconds comes by itself.\n- Menu → This world: its name, id, Quartermaster sheet, map, characters and lorebooks, with Copy buttons.\n- The chat says what changed in your inventory (added, put on, took off, removed).\n- Plants on a cave's rock sit on it instead of floating over it.\n- Illustrate's AI rewrite has a new instruction: a full prose prompt with each character's name and looks, the place, pose and camera, and no chat pasted at the end.",
+          "highlight": false
+        },
+        {
           "version": "0.5.91",
           "date": "2026-11-14",
           "notes": "- A scene started from a world uses that world's inventory (Quartermaster 0.1.37 or later): the scene's chat shows and changes the same sheet, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat.\n- Quartermaster's window opens with your persona's name in its title and in Wanderworld's parchment colours. The editors it opens keep the Engine's look.\n- Two new switches for these in Settings → People → Inventory.",
@@ -307,12 +313,6 @@
           "version": "0.5.73",
           "date": "2026-11-12",
           "notes": "- The AI assistant can look things up before it answers, so a request in your own words no longer depends on the right keywords: a lore entry by title or by words (this world's own lore and the lorebooks chosen for it), everything about a person, what someone remembers, or a part of the world that was left out. Up to three look-ups an answer, each one more AI call.\n- It is sent the titles of your lore with every request, so it knows what there is to look up.\n- This takes the place of asking again with everything when it said it couldn't see something. The line under each answer now says what it looked up.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.72",
-          "date": "2026-11-12",
-          "notes": "- The AI assistant now sees where people really live and work. Before, it was shown only homes and work set by hand, so it could say someone had no home (and refuse them an errand) while the place list named their house.\n- It is sent the lore from your own lorebooks that is tied to the world, its places and its people, marked read-only. Before, only lore written for this world went.\n- A ready-made request typed in your own words sends what its button would.\n- If it answers that it can't see something that was only left out, it is asked once more with everything.",
           "highlight": false
         }
       ]

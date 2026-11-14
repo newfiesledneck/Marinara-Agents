@@ -85,10 +85,10 @@ const LENGTHS = { short: [1, 2, 160], medium: [1, 3, 320], long: [2, 5, 600] }; 
 const PICTURE_KIND = "picture";
 /** What the model is told when it rewrites a picture's prompt, unless the player has written their own. */
 export const IMPROVE_INSTRUCTION =
-  "Rewrite what follows as a prompt for an image generator. Keep every fact in it: who is there, what they look like, where and when it is, the weather, what they're doing. Lead with the subject, then the setting, the light, the mood and the style. One paragraph, concrete and visual, under 120 words. No names of real artists, no words or captions in the picture. Answer with the prompt only.";
+  "You write the prompt for an image generation model that reads natural-language prose. Turn the facts that follow into one vividly detailed image prompt for the current moment: the single most interesting instant of it.\n\nRules:\n1. The image model draws only what the prompt states. Write only what is meant to be seen, and describe every visible character from the facts given, in enough detail that an artist could paint them recognisably: face, hair, eyes, race or kind, skin, fur or scale tone, build and height, and everything they wear. Never generalise a look the facts spell out.\n2. Flowing prose, never a list of tags: one substantial paragraph of about 200 to 300 words that covers the whole picture. One or two short sentences is a failure.\n3. Ground the place so it could be painted: surfaces, props, the time of day, the light, the weather when outdoors, the background. Describe what it looks like, not what it is called, and nothing that is out of sight.\n4. For each character give their action, expression, pose and where they are in the frame.\n5. Set the composition: one camera angle, the shot distance, a lens (focal length and aperture, like 35mm f/2.8), the lighting and the mood. Choose the angle that shows the action best, and prefer a lively one to a flat one.\n6. Give each character's name once, right before their description (an image model that knows the name can use it), and after that refer to them by how they look. A name never stands in for the description.\n7. Describe only what the chosen angle shows. Of someone facing away or partly out of frame, describe the back of the head, the hair and the posture, not the hidden face.\n8. Never an over-the-shoulder view.\n9. Keep it focused: one moment, one angle, one main character unless the moment needs more (a wide view, a conversation). Don't crowd it.\n10. Finish with the art style the facts ask for, if they name one. No names of real artists, and no words, captions or speech bubbles in the picture.\n\nAnswer with the prompt only: no title, no notes, no quotation marks.";
 /** Added to whatever the rewrite is told, when the last of the chat goes with the prompt. */
 export const IMPROVE_CHAT_NOTE =
-  'After the prompt, under "The chat", come the last things said and done here, oldest first. Paint the moment they end on. Where they say more than the facts do, or something else (the facts say standing, the chat says kneeling by the pond, meditating), the chat is right about what each person is doing, their pose, what they hold and their mood. Take only what could be seen, and none of the words spoken.';
+  "The facts come inside <facts>. After them, inside <chat>, come the last things said and done here, oldest first. Paint the moment they end on. Where they say more than the facts do, or something else (the facts say standing, the chat says kneeling by the pond, meditating), the chat is right about what each person is doing, their pose, what they hold and their mood. Take only what could be seen, and none of the words spoken. The chat is for you alone: never copy it, quote it or add a section about it to the prompt.";
 const MAX_PICTURES = 60; // per world, oldest let go first
 /** What people can do on a schedule (the client acts each out; npcs.js). */
 export const ACTIVITIES = ["home", "work", "eat", "visit", "sit", "walk"];
@@ -206,6 +206,17 @@ export const cardWords = (parts, max, character, persona, between = " ") =>
  * place, time, relationship, world setting, lore texts, history ([{ from: "player" | "character", text }])
  * and the player's new line (empty when they've just walked up).
  */
+/** A model's rewritten picture prompt, without its thinking, its quotes, or the chat handed back at the end. */
+export const pictureWords = (content) =>
+  block(
+    String(content ?? "")
+      .replace(/<think>[\s\S]*?<\/think>/giu, "")
+      .replace(/<chat>[\s\S]*?(?:<\/chat>|$)/giu, "")
+      .replace(/<\/?facts>/giu, "")
+      .replace(/\n\s*(?:#+\s*|\*\*)?the chat\b[\s\S]*$/iu, ""),
+    3000,
+  ).replace(/^["'\s]+|["'\s]+$/gu, "");
+
 export function talkMessages(input) {
   const { character, persona } = input;
   const [fewest, most] = LENGTHS[input.length] ?? LENGTHS.medium;
@@ -223,7 +234,15 @@ export function talkMessages(input) {
     section("The world", input.setting),
     section(
       "Right now",
-      [input.place && `Where: ${input.place}.`, input.time && `When: ${input.time}.`, input.weather && `Weather: ${input.weather}.`, input.nearby && `Also nearby: ${input.nearby}.`]
+      [
+        input.place && `Where: ${input.place}.`,
+        input.time && `When: ${input.time}.`,
+        input.weather && `Weather: ${input.weather}.`,
+        input.nearby && `Also nearby: ${input.nearby}.`,
+        // Travelling together: they came here side by side, so it's no meeting.
+        input.inParty &&
+          `${character.name} is travelling with ${persona.name}, as one of their party${input.companions ? ` (with ${input.companions})` : ""}. They came here together and have been side by side the whole way, so this is no meeting and no surprise: ${character.name} doesn't greet ${persona.name} as if they'd just turned up, or ask what brings them here.`,
+      ]
         .filter(Boolean)
         .join("\n"),
     ),
@@ -256,7 +275,9 @@ export function talkMessages(input) {
   }
   messages.push({
     role: "user",
-    content: input.line || `*${persona.name} walks up to ${character.name}.*`,
+    content:
+      input.line ||
+      (input.inParty ? `*${persona.name} turns to ${character.name}, beside them.*` : `*${persona.name} walks up to ${character.name}.*`),
   });
   return messages;
 }
@@ -1431,6 +1452,8 @@ export async function activate(context) {
           time: text(body.time, 80),
           weather: text(body.weather, 40),
           nearby: text(body.nearby, 300),
+          inParty: body.inParty === true,
+          companions: text(body.companions, 300),
           relationship: text(body.relationship, 600),
           memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 5000),
           setting: block(body.setting, 600),
@@ -1930,13 +1953,13 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
               [
                 {
                   role: "system",
-                  content: `${block(body.instruction, 1500) || IMPROVE_INSTRUCTION}${chat ? `\n\n${IMPROVE_CHAT_NOTE}` : ""}`,
+                  content: `${block(body.instruction, 4000) || IMPROVE_INSTRUCTION}${chat ? `\n\n${IMPROVE_CHAT_NOTE}` : ""}`,
                 },
-                { role: "user", content: chat ? `${prompt}\n\n## The chat\n${chat}` : prompt },
+                { role: "user", content: chat ? `<facts>\n${prompt}\n</facts>\n\n<chat>\n${chat}\n</chat>` : prompt },
               ],
-              { temperature: 0.7, maxTokens: 600 },
+              { temperature: 0.7, maxTokens: 1500 },
             );
-            const rewritten = block(String(result?.content ?? "").replace(/<think>[\s\S]*?<\/think>/giu, ""), 2000).replace(/^["'\s]+|["'\s]+$/gu, "");
+            const rewritten = pictureWords(result?.content);
             if (rewritten) {
               prompt = rewritten;
               improved = true;
