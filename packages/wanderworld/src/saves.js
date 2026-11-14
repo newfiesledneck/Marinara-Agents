@@ -189,6 +189,10 @@ export function checkWorld(raw) {
       .map((line) => ({
         who: text(line.who).slice(0, MAX_NAME) || "Narrator",
         text: line.text.slice(0, 1200),
+        // When and where it happened (lines from before these were kept have none).
+        ...(/^\d\d:\d\d$/u.test(line.at ?? "")
+          ? { at: line.at, day: Number.isInteger(line.day) ? line.day : 0, where: text(line.where).slice(0, 80) }
+          : {}),
         heard: (Array.isArray(line.heard) ? line.heard : [])
           .filter((id) => typeof id === "string")
           .slice(0, 12)

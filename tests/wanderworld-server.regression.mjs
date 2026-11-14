@@ -1411,7 +1411,10 @@ assert.equal(
         { id: "c-tam", name: "Tam", distance: 2, doing: "walking along", card: "A carter." },
         { id: "c-mira", name: "Mira", distance: 4, doing: "sitting on a bench", inParty: true, card: "A baker." },
       ],
-      recent: [],
+      recent: [
+        { who: "Mira", text: "Morning!", stamp: "yesterday 21:40, the pond" },
+        { who: "Tam", text: "Mind the cart." },
+      ],
       places: [],
       action: "waves",
       line: "",
@@ -1420,6 +1423,11 @@ assert.equal(
       ...more,
     })[0].content;
   const first = moment({});
+  assert.match(
+    first,
+    /\[yesterday 21:40, the pond\] Mira: Morning!\nTam: Mind the cart\./u,
+    "when and where, when known",
+  );
   const order = [
     "A quiet valley.",
     "Dry and fond.",

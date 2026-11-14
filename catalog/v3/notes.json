@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.98",
+          "date": "2026-11-14",
+          "notes": "- In a moment, each of the recent lines the AI is given says when and where it happened (\"09:10, the market square\", \"yesterday 21:40, the pond\"), so the narrator can tell a minute ago here from this morning across town. Lines from before this update have no stamp.",
+          "highlight": false
+        },
+        {
           "version": "0.5.97",
           "date": "2026-11-14",
           "notes": "- Prompts are ordered for prompt caching, for providers that charge less for a prompt they've seen before. What doesn't change is sent first (who people are, the world, the lore of the place), and what changes with every line last (the time, who's near, memories, what you have on).\n- In a conversation the changing part now comes after what was said, so the cards and the conversation so far can be reused. The lines sent back start from the same place for several turns. Settings → AI → Order prompts for caching turns this off.\n- In a moment the order is: the world, your narrator's card, the whole world's lore, your party's cards, the lore of the place, whoever else is near; then the time, what each is doing and what was just said.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.79",
           "date": "2026-11-13",
           "notes": "- Nothing is cut short any more: character cards, personas, narrator cards and lore entries are sent to the AI whole. Before, a listener's card stopped at 500 characters, a persona at 900, a narrator card and a lore entry at 1,500.\n- Up to 60 lore entries go with a call, where 6 or 12 did.\n- Lore the assistant rewrites, lore written for a world and the cards of people made for it are kept whole too (1,500 and 1,200 characters before).\n- Longer cards and more lore cost more tokens on every call they go with: Settings, Token use, Tips says so.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.78",
-          "date": "2026-11-13",
-          "notes": "- A new town round a pond: its market's stalls are set down here and there over the whole plot, turned in toward the middle, with the noticeboard and benches among them. Its green has meadows and trees, and no fenced gardens.",
           "highlight": false
         }
       ]
