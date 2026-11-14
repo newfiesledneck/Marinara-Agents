@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.90)
+## What it does now (0.5.91)
 
 ### The world
 
@@ -132,7 +132,9 @@ With it running:
   world. What the sheet says is worn is added after the persona's appearance wherever the AI is told who
   you are (conversations, moments, scene plans and scene notes, Illustrate), with no macro to place. After a
   moment, one more model call runs Quartermaster's tracker on what was told and the sheet takes the changes
-  by Quartermaster's own rules. Deleting a world deletes its sheets. Settings → People → Inventory turns the
+  by Quartermaster's own rules. A scene started from the world is linked to the same sheet (Quartermaster
+  0.1.37), so its chat shows and changes the one inventory. The window opens in parchment colours.
+  Deleting a world deletes its sheets. Settings → People → Inventory turns the
   button, the worn text and the tracking off, each on its own. Without Quartermaster nothing changes.
 - **Illustrate:** a window that paints the current moment (where, when, the weather, who's with you and
   what they're doing, their looks from their cards) from a prompt template you can edit, with the world's

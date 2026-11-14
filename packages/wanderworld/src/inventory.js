@@ -4,6 +4,7 @@
 // changed. Wanderworld never needs it: without Quartermaster (or with Settings → People → Inventory off)
 // there is no button and nothing here does anything.
 import { request } from "./ai.js";
+import { INK, INK_SOFT, SERIF } from "./ui.js";
 
 const BASE = "/api/quartermaster";
 // What Wanderworld uses of it (`features` in its GET /status); an older Quartermaster shows no button.
@@ -11,6 +12,32 @@ const NEEDS = ["scopes", "owners", "appearance", "tracker-routes"];
 // A sheet's Feed setting says how worn things are written; a new sheet's is Off (it is a chat's macro
 // that Off turns off), and then this stands in.
 const FEED = "equippedNamesDescriptions";
+
+// Wanderworld's parchment for Quartermaster's dock: the Engine theme's colours it reads, as ink on paper.
+// ponytail: colours and a font only; the paper texture needs Quartermaster to take a background image.
+const THEME = {
+  font: SERIF,
+  vars: {
+    "--background": "#efe3c6",
+    "--foreground": INK,
+    "--popover": "#efe3c6",
+    "--popover-foreground": INK,
+    "--card": "#e6d6b2",
+    "--card-foreground": INK,
+    "--muted": "#dcc9a0",
+    "--muted-foreground": INK_SOFT,
+    "--secondary": "#dcc9a0",
+    "--secondary-foreground": INK,
+    "--accent": "#d9c392",
+    "--accent-foreground": INK,
+    "--primary": "#6b4a2b",
+    "--primary-foreground": "#f8eed8",
+    "--border": "rgba(110,80,40,0.55)",
+    "--input": "#b89a6a",
+    "--ring": "#6b4a2b",
+    "--destructive": "#9b2c1f",
+  },
+};
 
 const clean = (value) =>
   String(value ?? "")
@@ -113,8 +140,28 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
       await globalThis.Quartermaster.toggle({
         ...current,
         persona: who.personaId ? { personaId: who.personaId } : { name: who.name },
+        title: `${who.name}: inventory`,
+        ...(settings().inventoryTheme === true ? { theme: THEME } : {}),
       });
       introduced.add(keyOf(current));
+    },
+    /**
+     * A scene's chat uses this world's sheet while it lasts (Quartermaster's links): its dock, macro,
+     * narrator summary and tracker all work on the one sheet, so nothing is carried in or out.
+     */
+    async link(chatId) {
+      const current = sheet();
+      if (!ready() || !current || !chatId || settings().inventoryScenes !== true) return;
+      if (!status.features.includes("links")) return;
+      try {
+        await introduce(current);
+        await call(`/links/${encodeURIComponent(chatId)}`, {
+          method: "POST",
+          body: { scope: current.scope, ownerId: current.owner },
+        });
+      } catch {
+        // the scene plays with a sheet of its own
+      }
     },
     /** Closes the dock (the world is left). */
     close() {

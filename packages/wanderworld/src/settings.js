@@ -96,6 +96,9 @@ export const SETTINGS = {
   inventory: { value: true },
   inventoryWorn: { value: true },
   inventoryTrack: { value: "moments", options: ["off", "moments", "all"] },
+  // A scene's chat uses the world's sheet; and Quartermaster's window in Wanderworld's parchment colours.
+  inventoryScenes: { value: true },
+  inventoryTheme: { value: true },
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },

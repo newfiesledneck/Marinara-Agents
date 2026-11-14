@@ -1297,6 +1297,18 @@ assert.equal(
       `GET ${sheet}/tracker/context`,
       `POST ${sheet}/tracker/apply`,
     ]);
+    calls.length = 0;
+    await inventory.link("chat-1");
+    assert.deepEqual(calls, [], "no link while the setting is off, or from a Quartermaster without links");
+    settings.inventoryScenes = true;
+    await inventory.link("chat-1");
+    assert.deepEqual(calls, [], "no link from a Quartermaster without links");
+    features.push("links");
+    const linking = make();
+    await linking.refresh();
+    calls.length = 0;
+    await linking.link("chat-1");
+    assert.deepEqual(calls, [`PATCH ${sheet}/owner`, "POST /api/quartermaster/links/chat-1"]);
     settings.inventoryWorn = false;
     assert.equal(inventory.worn(), "", "the worn text has its own switch");
     settings.inventory = false;

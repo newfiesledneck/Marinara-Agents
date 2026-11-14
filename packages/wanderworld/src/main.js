@@ -6400,6 +6400,7 @@ async function playAsScene(thing, request, along, withNarrator = false) {
           tense: core.settings.sceneTense,
           data: { worldId: core.save.id, place: thing.title },
         });
+        await core.inventory.link(made.chatId);
         core.props?.openChat?.(made.chatId);
         return "The scene is open in the Engine. When it ends, its recap comes back here (Journal → Here).";
       } catch (error) {
@@ -6414,6 +6415,7 @@ async function playAsScene(thing, request, along, withNarrator = false) {
       initiatorName: initiator?.name ?? null,
       data: { worldId: core.save.id, place: thing.title },
     });
+    if (typeof started?.chatId === "string") await core.inventory.link(started.chatId);
     if (started && planNote) return `The scene is open in the Engine.${planNote}`;
     if (!started) return "The scene wasn't started.";
     return "The scene is open in the Engine. When it ends, its recap comes back here (Journal → Here).";
