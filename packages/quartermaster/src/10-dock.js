@@ -1057,6 +1057,7 @@ QM.dock = {
       flexShrink: "0",
     });
     const title = document.createElement("span");
+    title.id = "qm-dock-title";
     title.textContent = "Quartermaster";
     const closeButton = QM.button("×", { bg: QM_COLOR_DANGER, fg: QM_COLOR_DANGER_FG });
     closeButton.setAttribute("aria-label", "Close Quartermaster");

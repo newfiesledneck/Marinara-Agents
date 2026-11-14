@@ -482,9 +482,32 @@ function normalizeHostOwner(value) {
   return Object.values(owner).some((entry) => entry !== null) ? owner : null;
 }
 
+// ── Linked chats ────────────────────────────────────────────────────────────
+// A chat can be linked to a scope's sheet (a scene started from a host's world):
+// while it is, everything the chat does with its inventory, the dock, the
+// tracker Agent and the narrator feed included, happens on that one sheet.
+// Nothing is copied, so there is nothing to hand back when the scene ends. The
+// chat's own sheet is left as it was and comes back when the link is removed.
+const LINK_KIND = "sheet-link";
+const linkDocId = (chatId) => `link|${chatId}`;
+
+async function loadSheetLink(documents, chatId) {
+  if (typeof chatId !== "string" || isScopeKey(chatId)) return null;
+  const data = (await documents.getById(PACKAGE_ID, linkDocId(chatId)))?.data;
+  if (!data || !QM_SCOPE_RE.test(data.scope) || !QM_OWNER_RE.test(data.ownerId)) return null;
+  return { chatId, scope: data.scope, ownerId: data.ownerId };
+}
+
+// The sheet a chat's inventory really is: the linked scope's, else its own.
+async function resolveSheet(documents, chatId, ownerId) {
+  const link = await loadSheetLink(documents, chatId);
+  return link ? { chatId: link.scope, ownerId: link.ownerId, link } : { chatId, ownerId, link: null };
+}
+
 // Wraps the Engine's route registrar so every route with a ":chatId", ":ownerId"
-// or ":scope" checks it once, here, before its handler runs.
-function guardSheetRoutes(routes) {
+// or ":scope" checks it once, here, before its handler runs. An inventory route
+// for a linked chat is pointed at the scope's sheet (resolveLink).
+function guardSheetRoutes(routes, resolveLink) {
   const guarded = {};
   for (const method of ["get", "post", "patch", "put", "delete"]) {
     if (typeof routes[method] !== "function") continue;
@@ -500,6 +523,13 @@ function guardSheetRoutes(routes) {
         if (path.includes(":scope") && !(typeof params.scope === "string" && QM_SCOPE_RE.test(params.scope))) {
           return reply.status(400).send({ error: "Invalid scope id" });
         }
+        if (path.startsWith("/inventory/:chatId/")) {
+          const link = await resolveLink(params.chatId);
+          if (link) {
+            params.chatId = link.scope;
+            params.ownerId = link.ownerId;
+          }
+        }
         return handler(request, reply);
       });
   }
@@ -508,7 +538,21 @@ function guardSheetRoutes(routes) {
 
 // What GET /status reports, so a host shows its button only when this install
 // can do what it needs. Grows as features are added; never shrinks.
-const QM_FEATURES = ["scopes", "owners", "appearance", "summary", "settings", "tracker-routes"];
+const QM_FEATURES = [
+  "scopes",
+  "owners",
+  "appearance",
+  "summary",
+  "settings",
+  "tracker-routes",
+  "links",
+  "prompt-overrides",
+  "batch-items",
+];
+const MAX_BATCH_ITEMS = 50;
+// A per-call override from a host: its own text when it sent a string, else ours.
+const hostText = (value, fallback, max = MAX_PROMPT_TEMPLATE_LENGTH) =>
+  typeof value === "string" ? value.slice(0, max) : fallback;
 // The settings a host can read (GET …/settings) and that PATCH …/settings takes.
 const QM_SETTING_KEYS = [
   "appearanceFeedMode",
@@ -2139,10 +2183,26 @@ export async function activate(context) {
   // Every route below calls this instead of saveInventoryState directly, so
   // the appearance macro can never fall out of sync with an equip/outfit/
   // settings change — there's exactly one path to disk, and it's this one.
+  // Every chat linked to a scope. documents.list is newer than the rest of the
+  // store, so an Engine without it simply has no links.
+  async function scopeLinks(scope) {
+    if (typeof documents.list !== "function") return [];
+    return (await documents.list(PACKAGE_ID, LINK_KIND))
+      .map((doc) => doc.data)
+      .filter((data) => data?.scope === scope && typeof data.chatId === "string");
+  }
+
   async function persistState(chatId, ownerId, state) {
     await saveInventoryState(documents, chatId, ownerId, state);
-    // The macro lives in a chat's metadata; a scope has no chat to hold it.
-    if (!isScopeKey(chatId)) await syncAppearanceMacro(persistence, chatId, ownerId, state);
+    // The macro lives in a chat's metadata; a scope has no chat to hold it,
+    // but the chats linked to it do, under the name a chat's own sheet uses.
+    if (!isScopeKey(chatId)) {
+      await syncAppearanceMacro(persistence, chatId, ownerId, state);
+      return;
+    }
+    for (const link of await scopeLinks(chatId)) {
+      if (link.ownerId === ownerId) await syncAppearanceMacro(persistence, link.chatId, QM_TRACKER_OWNER_ID, state);
+    }
   }
 
   // Wires the "quartermaster" agent's post_processing pipeline run to this
@@ -2158,7 +2218,8 @@ export async function activate(context) {
   const releaseAgentRuntime = api.registerService(`agent-runtime:${PACKAGE_ID}`, {
     async prepareContext({ context }) {
       if (context.chatMode !== "roleplay") return null;
-      const state = await loadInventoryState(documents, context.chatId, QM_TRACKER_OWNER_ID);
+      const sheet = await resolveSheet(documents, context.chatId, QM_TRACKER_OWNER_ID);
+      const state = await loadInventoryState(documents, sheet.chatId, sheet.ownerId);
       return formatAgentRuntimeContext(
         agentVisibleItems(state),
         agentVisibleOutfits(state).map((outfit) => outfit.name),
@@ -2167,7 +2228,8 @@ export async function activate(context) {
     async finalizeResult({ context, result }) {
       if (context.chatMode === "roleplay" && result?.success && result.data && typeof result.data === "object") {
         try {
-          await reconcileTrackerOutput(documents, persistState, context.chatId, QM_TRACKER_OWNER_ID, result.data, logger);
+          const sheet = await resolveSheet(documents, context.chatId, QM_TRACKER_OWNER_ID);
+          await reconcileTrackerOutput(documents, persistState, sheet.chatId, sheet.ownerId, result.data, logger);
         } catch (error) {
           // A bad or malformed turn must never break generation — the next
           // turn's full-snapshot output self-corrects, same as every other
@@ -2197,14 +2259,20 @@ export async function activate(context) {
   // provides.inventory:true hands us the built-in [inventory:] block/command
   // instead of running both side by side.
   const releasePromptContext = api.registerPromptContext(async ({ chatId, mode, chatMeta }) => {
-    if (mode !== "roleplay" || !chatId || !isQuartermasterAgentActive(chatMeta)) return null;
+    if (mode !== "roleplay" || !chatId) return null;
     try {
-      const state = await loadInventoryState(documents, chatId, QM_TRACKER_OWNER_ID);
+      // A linked chat is fed its sheet even before the Agent is enabled there:
+      // the host linked it so the story would know what is carried.
+      const sheet = await resolveSheet(documents, chatId, QM_TRACKER_OWNER_ID);
+      if (!sheet.link && !isQuartermasterAgentActive(chatMeta)) return null;
+      const state = await loadInventoryState(documents, sheet.chatId, sheet.ownerId);
       const items = state.items.filter(visibleToModel);
       // Skip the persona lookup entirely when there's nothing to report yet —
       // this runs on every generation, not just once.
       if (items.length === 0) return null;
-      const personaName = await resolvePersonaName(persistence, resources, chatId);
+      const personaName = sheet.link
+        ? await resolvePersonaName(persistence, resources, sheet.chatId, state.hostOwner)
+        : await resolvePersonaName(persistence, resources, chatId);
       const text = inventorySummaryText(personaName, items);
       if (!text) return null;
       return { text, provides: { inventory: true } };
@@ -2215,7 +2283,66 @@ export async function activate(context) {
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
     async (engineRoutes) => {
-      const routes = guardSheetRoutes(engineRoutes);
+      const routes = guardSheetRoutes(engineRoutes, (chatId) => loadSheetLink(documents, chatId));
+
+      // Linking a chat to a scope's sheet, and back. Body: { scope, ownerId }.
+      routes.get("/links/:chatId", async (request) => ({ link: await loadSheetLink(documents, request.params.chatId) }));
+
+      routes.post("/links/:chatId", async (request, reply) => {
+        const { chatId } = request.params;
+        const scope = request.body?.scope;
+        const ownerId = request.body?.ownerId ?? QM_TRACKER_OWNER_ID;
+        if (isScopeKey(chatId)) return reply.status(400).send({ error: "Only a chat can be linked" });
+        if (typeof scope !== "string" || !QM_SCOPE_RE.test(scope)) {
+          return reply.status(400).send({ error: "Invalid scope id" });
+        }
+        if (typeof ownerId !== "string" || !QM_OWNER_RE.test(ownerId)) {
+          return reply.status(400).send({ error: "Invalid owner id" });
+        }
+        const id = linkDocId(chatId);
+        const now = new Date().toISOString();
+        const data = { chatId, scope, ownerId };
+        const existing = await documents.getById(PACKAGE_ID, id);
+        if (existing) {
+          await documents.update({
+            id,
+            packageId: PACKAGE_ID,
+            expectedRevision: existing.revision,
+            name: existing.name,
+            description: existing.description,
+            data,
+            updatedAt: now,
+          });
+        } else {
+          await documents.create({
+            id,
+            packageId: PACKAGE_ID,
+            kind: LINK_KIND,
+            name: `Link ${chatId}`,
+            description: "Quartermaster: this chat uses another package's sheet.",
+            data,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        // The chat's appearance macro now says what the linked sheet wears.
+        const state = await loadInventoryState(documents, scope, ownerId);
+        await syncAppearanceMacro(persistence, chatId, QM_TRACKER_OWNER_ID, state);
+        return { link: data };
+      });
+
+      routes.delete("/links/:chatId", async (request) => {
+        const { chatId } = request.params;
+        const existing = await documents.getById(PACKAGE_ID, linkDocId(chatId));
+        if (!existing) return { unlinked: false };
+        await documents.remove(PACKAGE_ID, existing.id, existing.revision);
+        // Back to the chat's own sheet, macro included.
+        const state = await loadInventoryState(documents, chatId, QM_TRACKER_OWNER_ID);
+        await syncAppearanceMacro(persistence, chatId, QM_TRACKER_OWNER_ID, state);
+        return { unlinked: true };
+      });
+
+      routes.get("/scopes/:scope/links", async (request) => ({ links: await scopeLinks(request.params.scope) }));
 
       // ── For other packages (README, "For other packages") ────────────────
       routes.get("/status", async () => ({
@@ -2342,6 +2469,11 @@ export async function activate(context) {
         const { scope } = request.params;
         const docs = await scopeDocs(scope);
         for (const doc of docs) await documents.remove(PACKAGE_ID, doc.id, doc.revision);
+        // A chat linked to a sheet that is gone goes back to its own.
+        for (const link of await scopeLinks(scope)) {
+          const linkDoc = await documents.getById(PACKAGE_ID, linkDocId(link.chatId));
+          if (linkDoc) await documents.remove(PACKAGE_ID, linkDoc.id, linkDoc.revision);
+        }
         await rm(galleryPortraitDir(context.dataDir, scope), { recursive: true, force: true });
         return { deleted: docs.length };
       });
@@ -2380,19 +2512,14 @@ export async function activate(context) {
         return { ...state, equipSlots: EQUIP_SLOTS, personaAvatarUrl };
       });
 
-      routes.post("/inventory/:chatId/:ownerId/items", async (request, reply) => {
-        const { chatId, ownerId } = request.params;
-        const body = request.body ?? {};
-        const name = normalizeText(body.name, MAX_ITEM_NAME_LENGTH);
-        if (!name) return reply.status(400).send({ error: "Item name is required" });
-
+      // Adds one new item to `state` from a request body, or says why not.
+      const addNewItem = (state, body) => {
+        const name = normalizeText(body?.name, MAX_ITEM_NAME_LENGTH);
+        if (!name) return "Item name is required";
         const defaultSlot = body.defaultSlot === undefined ? null : normalizeDefaultSlot(body.defaultSlot);
-        if (defaultSlot === undefined) return reply.status(400).send({ error: "Invalid defaultSlot" });
-
-        const state = await loadInventoryState(documents, chatId, ownerId);
+        if (defaultSlot === undefined) return "Invalid defaultSlot";
         const location = body.location === undefined ? "bag" : normalizeLocation(body.location, state);
-        if (location === null) return reply.status(400).send({ error: "Invalid location" });
-
+        if (location === null) return "Invalid location";
         const item = {
           id: randomUUID(),
           name,
@@ -2404,6 +2531,32 @@ export async function activate(context) {
         };
         applyLocation(state.items, item, location);
         state.items.push(item);
+        return null;
+      };
+
+      routes.post("/inventory/:chatId/:ownerId/items", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const error = addNewItem(state, request.body ?? {});
+        if (error) return reply.status(400).send({ error });
+        await persistState(chatId, ownerId, state);
+        return { items: state.items, outfits: state.outfits };
+      });
+
+      // Several new items in one save (loot, a shop, a starting kit). Body:
+      // { items: [...] }, each shaped like the single route's body. All or
+      // nothing: one bad entry and none are added.
+      routes.post("/inventory/:chatId/:ownerId/items/batch", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const entries = request.body?.items;
+        if (!Array.isArray(entries) || entries.length === 0 || entries.length > MAX_BATCH_ITEMS) {
+          return reply.status(400).send({ error: `Send 1 to ${MAX_BATCH_ITEMS} items as { items: [...] }` });
+        }
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        for (const [index, entry] of entries.entries()) {
+          const error = addNewItem(state, entry);
+          if (error) return reply.status(400).send({ error: `Item ${index + 1}: ${error}` });
+        }
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
       });
@@ -2792,7 +2945,16 @@ export async function activate(context) {
         const state = await loadInventoryState(documents, chatId, ownerId);
         const item = state.items.find((candidate) => candidate.id === itemId);
         if (!item) return reply.status(404).send({ error: "Item not found" });
-        return { prompt: buildItemImagePrompt(state.itemImagePromptTemplate, item) };
+        // `template` in the body is a host's own, for this call only.
+        const template = hostText(request.body?.template, state.itemImagePromptTemplate);
+        return {
+          prompt: buildItemImagePrompt(template, item),
+          pieces: {
+            template: template.trim() ? template : DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE,
+            item: item.name,
+            itemDescription: item.description ?? "",
+          },
+        };
       });
 
       // The paid call. Body: { prompt } -- the review-step text (possibly
@@ -2813,7 +2975,7 @@ export async function activate(context) {
 
         let connection;
         try {
-          connection = await resolveImageConnection(state.imageConnectionId);
+          connection = await resolveImageConnection(hostText(body.connectionId, state.imageConnectionId, 200));
         } catch (error) {
           logger?.warn(
             "[quartermaster] could not reach the Engine's own connections list: %s",
@@ -2939,9 +3101,21 @@ export async function activate(context) {
         const debugMode = body.debugMode === true || (api.runtime.isDebugAgentsEnabled?.() ?? false);
 
         const state = await loadInventoryState(documents, chatId, ownerId);
-        const personaContext = includePersonaContext
-          ? await resolvePersonaWardrobeContext(persistence, resources, chatId, state.hostOwner)
-          : null;
+        // A host can send who it is dressing itself ({ personaContext: {
+        // description, personality, scenario, appearance, backstory } }).
+        const hostContext =
+          body.personaContext && typeof body.personaContext === "object" && !Array.isArray(body.personaContext)
+            ? Object.fromEntries(
+                ["description", "personality", "scenario", "appearance", "backstory"]
+                  .map((key) => [key, normalizeText(body.personaContext[key], MAX_WARDROBE_CONTEXT_FIELD_LENGTH)])
+                  .filter(([, value]) => value),
+              )
+            : null;
+        const personaContext = !includePersonaContext
+          ? null
+          : hostContext && Object.keys(hostContext).length > 0
+            ? hostContext
+            : await resolvePersonaWardrobeContext(persistence, resources, chatId, state.hostOwner);
         const chat = await persistence.getChat(chatId);
         // The tracker agent's own configured connection (editable in the
         // Agents menu) takes priority, so switching it there also moves
@@ -2953,7 +3127,8 @@ export async function activate(context) {
           runtime: api.runtime,
           logger,
           debugMode,
-          agentConnectionId: agentConfig?.connectionId ?? null,
+          // A connection named in the call wins (a scope has no chat to fall back on).
+          agentConnectionId: hostText(body.connectionId, agentConfig?.connectionId ?? null, 200),
           chatConnectionId: chat?.connectionId ?? null,
           direction,
           personaContext,
@@ -3088,12 +3263,24 @@ export async function activate(context) {
               : "";
         const personaAppearance = stripAppearanceMacroToken(rawPersonaAppearance, ownerId);
 
+        // A host can send its own template and its own value for each
+        // placeholder ({ template, name, personaAppearance, equippedItems }),
+        // for this call only. The pieces used come back beside the result.
+        const body = request.body ?? {};
+        const template = hostText(body.template, state.outfitPortraitPromptTemplate);
+        const pieces = {
+          template: template.trim() ? template : DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE,
+          name: hostText(body.name, personaName),
+          personaAppearance: hostText(body.personaAppearance, personaAppearance),
+          equippedItems: hostText(body.equippedItems, outfitPortraitItemsText(outfit, state.appearanceFeedMode)),
+        };
         return {
-          prompt: buildOutfitPortraitPrompt(state.outfitPortraitPromptTemplate, {
-            personaName,
-            personaAppearance,
-            equippedItemsText: outfitPortraitItemsText(outfit, state.appearanceFeedMode),
+          prompt: buildOutfitPortraitPrompt(template, {
+            personaName: pieces.name,
+            personaAppearance: pieces.personaAppearance,
+            equippedItemsText: pieces.equippedItems,
           }),
+          pieces,
         };
       });
 
@@ -3113,7 +3300,7 @@ export async function activate(context) {
 
         let connection;
         try {
-          connection = await resolveImageConnection(state.imageConnectionId);
+          connection = await resolveImageConnection(hostText(body.connectionId, state.imageConnectionId, 200));
         } catch (error) {
           logger?.warn(
             "[quartermaster] could not reach the Engine's own connections list: %s",

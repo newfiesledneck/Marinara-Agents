@@ -1181,6 +1181,7 @@ async function startServer({ proposal = { items: [], outfits: [] } } = {}) {
         })
       )?.text ?? "",
     appearance: (chatId) => chatFor(chatId).metadata.macroVariables?.quartermaster_appearance_persona ?? "",
+    narrator: (request) => narrator(request),
   };
   server.item = async (chatId, name) => (await server.get(chatId)).items.find((item) => item.name === name);
   server.seed = async (chatId, items) => {
@@ -2283,8 +2284,17 @@ await test("another package opens the dock on its own sheet, and closing gives t
   const owners = [];
   api.setSheetOwner = async (...args) => owners.push(args);
   let open = false;
+  const look = new Map();
+  const titleNode = { textContent: "Quartermaster" };
   api.dock = {
-    root: { dataset: {} },
+    root: {
+      dataset: {},
+      style: {
+        setProperty: (name, value) => look.set(name, value),
+        removeProperty: (name) => look.delete(name),
+      },
+      querySelector: (selector) => (selector === "#qm-dock-title" ? titleNode : null),
+    },
     isOpen: () => open,
     openPanel() {
       open = true;
@@ -2329,10 +2339,157 @@ await test("another package opens the dock on its own sheet, and closing gives t
   assert.equal(JSON.stringify(changes), JSON.stringify([{ scope: "wanderworld:w1", owner: "persona:p1" }]));
   await api.state._mutate(Promise.reject(new Error("nope")));
 
+  // A host can dress the dock: its title, and the variables and font the dock reads. Only on the
+  // dock, only safe values, and gone when it closes.
+  await host.open({
+    scope: "wanderworld:w1",
+    owner: "persona:p1",
+    title: "Mira’s pack",
+    theme: { vars: { "--popover": "#2b2118", color: "red", "--x": "a;b" }, font: "Georgia, serif" },
+  });
+  assert.equal(titleNode.textContent, "Mira’s pack");
+  assert.deepEqual(
+    [...look],
+    [
+      ["--popover", "#2b2118"],
+      ["font-family", "Georgia, serif"],
+    ],
+  );
+
   // Closing hands the views back to the chat that was showing, as its persona.
   host.close();
+  assert.equal(titleNode.textContent, "Quartermaster");
+  assert.deepEqual([...look], [["font-family", "system-ui, sans-serif"]]);
   assert.equal(api.hostSheet, null);
   assert.equal(api.state.chatId, "chat-a");
   assert.equal(reads.at(-1), "chat-a/persona");
   assert.equal("qmHost" in api.dock.root.dataset, false);
+});
+
+await test("a linked chat works on the host's sheet, and gets its own back when unlinked", async () => {
+  const server = await startServer();
+  const scope = "wanderworld:world-3";
+  const names = async (chatId) => (await server.get(chatId)).items.map((item) => item.name).sort();
+  await server.call("PATCH", "/inventory/:chatId/:ownerId/owner", {
+    params: { chatId: scope, ownerId: "persona" },
+    body: { name: "Mira" },
+  });
+  await server.settings(scope, { appearanceFeedMode: "equippedNames" });
+  await server.addItem(scope, { name: "Lantern", location: "equipped:head", defaultSlot: "head" });
+  await server.addItem("scene-1", { name: "Old Coin" });
+
+  const link = (chatId, body) => server.call("POST", "/links/:chatId", { params: { chatId }, body });
+  assert.equal((await link(scope, { scope })).statusCode, 400, "only a chat can be linked");
+  assert.equal((await link("scene-1", { scope: "scene-2" })).statusCode, 400);
+  assert.equal((await link("scene-1", { scope, ownerId: "a/b" })).statusCode, 400);
+  assert.deepEqual((await link("scene-1", { scope })).body.link, { chatId: "scene-1", scope, ownerId: "persona" });
+
+  // The chat's routes, macro, narrator and tracker all see the world's sheet.
+  assert.deepEqual(await names("scene-1"), ["Lantern"]);
+  assert.match(server.appearance("scene-1"), /Lantern/);
+  const fed = await server.narrator({ chatId: "scene-1", mode: "roleplay", chatMeta: {} });
+  assert.match(fed.text, /^Mira's inventory/, "fed without the Agent enabled, by the link alone");
+  assert.equal(await server.narrator({ chatId: "scene-9", mode: "roleplay", chatMeta: {} }), null);
+  assert.match(await server.agentContext("scene-1"), /\[1\] Lantern/);
+  await server.agentTurn("scene-1", { addItem: [{ name: "Rope", location: "bag" }] });
+  await server.addItem("scene-1", { name: "Map" });
+  assert.deepEqual(await names(scope), ["Lantern", "Map", "Rope"]);
+  assert.deepEqual(
+    server.docs.get("scene-1:persona").data.items.map((item) => item.name),
+    ["Old Coin"],
+    "the chat's own sheet is kept aside, untouched",
+  );
+
+  // A change made from the host's side reaches the linked chat's macro.
+  await server.unequipAll(scope);
+  assert.equal(server.appearance("scene-1"), "");
+  const links = (await server.call("GET", "/scopes/:scope/links", { params: { scope } })).body.links;
+  assert.deepEqual(links, [{ chatId: "scene-1", scope, ownerId: "persona" }]);
+
+  // Unlinked, the chat has its own sheet again and the world keeps what happened.
+  assert.equal((await server.call("DELETE", "/links/:chatId", { params: { chatId: "scene-1" } })).body.unlinked, true);
+  assert.deepEqual(await names("scene-1"), ["Old Coin"]);
+  assert.deepEqual(await names(scope), ["Lantern", "Map", "Rope"]);
+
+  // Deleting the world lets go of the chats linked to it.
+  await link("scene-1", { scope });
+  await server.call("DELETE", "/scopes/:scope", { params: { scope } });
+  assert.equal((await server.call("GET", "/links/:chatId", { params: { chatId: "scene-1" } })).body.link, null);
+  assert.deepEqual(await names("scene-1"), ["Old Coin"]);
+});
+
+await test("a host sets picture prompts per call, adds items in one save, and carries a sheet by export", async () => {
+  const server = await startServer({
+    proposal: {
+      items: [{ name: "Travel Cloak", description: "a grey cloak", quantity: 1, defaultSlot: "back" }],
+      outfits: [{ name: "Road", description: "travel wear", itemNames: ["Travel Cloak"] }],
+    },
+  });
+  const scope = "wanderworld:world-4";
+  const at = { chatId: scope, ownerId: "persona" };
+  const sheet = "/inventory/:chatId/:ownerId";
+
+  // Several items in one save, or none at all.
+  const batch = (items) => server.call("POST", `${sheet}/items/batch`, { params: at, body: { items } });
+  assert.equal((await batch([])).statusCode, 400);
+  const refused = await batch([{ name: "Rope" }, { name: "" }]);
+  assert.equal(refused.statusCode, 400);
+  assert.match(refused.body.error, /^Item 2:/);
+  assert.equal((await server.get(scope)).items.length, 0);
+  await batch([
+    { name: "Lantern", description: "brass", location: "equipped:head", defaultSlot: "head" },
+    { name: "Rope" },
+  ]);
+  const lantern = await server.item(scope, "Lantern");
+  assert.equal(lantern.location, "equipped:head");
+
+  // Picture prompts: the sheet's own by default, any piece the host's for one call.
+  const itemPrompt = (body) =>
+    server.call("POST", `${sheet}/items/:itemId/image/prompt-preview`, { params: { ...at, itemId: lantern.id }, body });
+  assert.equal((await itemPrompt({ template: "a photo of {item}" })).body.prompt, "a photo of Lantern");
+  assert.match((await itemPrompt()).body.pieces.template, /\{item\}/);
+  await server.saveOutfit(scope, { name: "Night Watch", description: "dark wool" });
+  const [outfit] = (await server.get(scope)).outfits;
+  const portraitPrompt = (body) =>
+    server.call("POST", `${sheet}/outfits/:outfitId/portrait/prompt-preview`, {
+      params: { ...at, outfitId: outfit.id },
+      body,
+    });
+  const own = await portraitPrompt({
+    template: "{name} | {persona_appearance} | {equipped_items}",
+    name: "Zed",
+    personaAppearance: "scarred",
+    equippedItems: "a red cloak",
+  });
+  assert.equal(own.body.prompt, "Zed | scarred | a red cloak");
+  const defaults = (await portraitPrompt()).body;
+  assert.match(defaults.prompt, /dark wool/);
+  assert.equal(defaults.pieces.equippedItems, "dark wool");
+  assert.equal((await server.portraitPrompt("chat-1", "missing")).statusCode, 404);
+
+  // Build Wardrobe dresses whoever the host describes.
+  const built = await server.call("POST", `${sheet}/wardrobe/generate`, {
+    params: at,
+    body: { direction: "travel wear", personaContext: { appearance: "a tall ranger with a grey braid" } },
+  });
+  assert.equal(built.statusCode, 200);
+  assert.match(JSON.stringify(server.llmCalls.at(-1)), /a tall ranger with a grey braid/);
+
+  // The same export file goes from a host's sheet into a chat and back, portrait included.
+  const png = `data:image/png;base64,${Buffer.from("portrait").toString("base64")}`;
+  await server.call("POST", `${sheet}/outfits/:outfitId/portrait`, {
+    params: { ...at, outfitId: outfit.id },
+    body: { imageDataUrl: png },
+  });
+  const file = JSON.parse(JSON.stringify(await server.exportSheet(scope)));
+  assert.equal((await server.importSheet("scene-5", file)).statusCode, 200);
+  const inChat = await server.get("scene-5");
+  assert.deepEqual(inChat.items.map((item) => item.name).sort(), ["Lantern", "Rope"]);
+  assert.ok(inChat.outfits[0].portraitFile, "the portrait came along");
+  await server.addItem("scene-5", { name: "Map" });
+  const back = JSON.parse(JSON.stringify(await server.exportSheet("scene-5")));
+  assert.equal((await server.importSheet("wanderworld:world-5", back)).statusCode, 200);
+  const inWorld = await server.get("wanderworld:world-5");
+  assert.deepEqual(inWorld.items.map((item) => item.name).sort(), ["Lantern", "Map", "Rope"]);
+  assert.ok(inWorld.outfits[0].portraitFile);
 });
