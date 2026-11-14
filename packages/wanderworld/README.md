@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.99)
+## What it does now (0.5.100)
 
 ### The world
 
@@ -160,7 +160,9 @@ With it running:
   picture shows what you're doing now (kneeling by the pond), not only where you stand. A sentence of the
   template whose placeholders all come out empty is left out. `{world_look}` says what the world looks like
   wherever you are (yours to set in Journal → World), so pictures match it; `{setting}` is only what you
-  wrote in the world's Setting box. `{place_kind}` says what sort of place it is (a market square, the bank of
+  wrote in the world's Setting box. `{style}` is the picture style you chose, in its own words (a
+  template that leaves it out has it added at the end), and what that style keeps out is sent with the
+  prompt. `{place_kind}` says what sort of place it is (a market square, the bank of
   a pond, the mouth of a cave) and whether you're indoors. Appearances are used whole, however long.
 - **The AI assistant** (Menu → Settings → AI assistant): a chat about the world you're in, which can also
   change it. Ask about its people, places and lore, or why a lore entry is or isn't active where you stand.
@@ -560,6 +562,9 @@ still count, and come first.
 - A scene needs at least one of your character cards: someone there, or the narrator card. The Engine
   casts its own characters only, so people a world invented can't be in scenes.
 - Only the Engine's built-in picture style profiles are listed; your own default profile is "Engine default".
+  The built-in styles' words are a copy of the Engine's, and a profile of your own is read from this
+  browser's saved Engine settings, so on a device that has never opened the Engine's settings a custom
+  default adds nothing.
 - Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
   they count toward the world's thirty people. Engine characters all live in the home region.
 - Walk-in rooms are unfinished and off by default (Settings → Walk into buildings). Furnishing your home

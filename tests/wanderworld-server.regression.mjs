@@ -219,13 +219,17 @@ assert.equal((await call("post", "/talk", { body: {} })).code, 400);
 
 // Pictures: through the Engine's image route, with the style profile, and a known one only.
 const picture = await call("post", "/image", {
-  body: { prompt: "a market at dawn", name: "Briarwood market", styleProfileId: "painterly" },
+  body: { prompt: "a market at dawn", name: "Briarwood market", styleProfileId: "painterly", negative: "text, logo" },
 });
 assert.equal(picture.body.image, "data:image/png;base64,AAAA");
 const sent = JSON.parse(fetched.at(-1).options.body);
 assert.equal(sent.connectionId, "i-1", "the only image connection");
 assert.equal(sent.styleProfileId, "painterly");
-assert.deepEqual(sent.promptOverrides, [{ id: "avatar:briarwood-market", prompt: "a market at dawn" }]);
+assert.deepEqual(
+  sent.promptOverrides,
+  [{ id: "avatar:briarwood-market", prompt: "a market at dawn", negativePrompt: "text, logo" }],
+  "a finished prompt, with what the style keeps out",
+);
 await call("post", "/image", { body: { prompt: "x", styleProfileId: "../../etc" } });
 assert.equal(JSON.parse(fetched.at(-1).options.body).styleProfileId, undefined, "an unknown style is left out");
 
@@ -679,6 +683,13 @@ assert.equal(
     facts: { place: "the bakery" },
     personaId: "p-zoey",
   };
+  // The chosen style's words are in the prompt: where the template puts them, or at the end.
+  const styled = (template) =>
+    call("post", "/illustrate", {
+      body: { ...scene, template, previewOnly: true, style: "Painterly. soft brushwork" },
+    }).then((answer) => answer.body.prompt);
+  assert.equal(await styled("{style}. {persona} at {place}"), "Painterly. soft brushwork. Zoey at the bakery");
+  assert.equal(await styled("{persona} at {place}"), "Zoey at the bakery Painterly. soft brushwork.");
   const draft = await call("post", "/illustrate", { body: { ...scene, improve: true, previewOnly: true } });
   assert.deepEqual(draft.body, { prompt: "A warm bakery at dawn, flour in the light.", improved: true });
   assert.equal(heard[0][0].content, server.IMPROVE_INSTRUCTION);

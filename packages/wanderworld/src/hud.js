@@ -896,7 +896,8 @@ export function createHud(root, handlers) {
       "The model that writes conversations and moments. Engine default: your Engine's agent or main connection.",
     sceneConnection: "The model that plans and plays scenes. Leave it to use the same as conversations.",
     imageConnection: "The image generation connection for pictures of places and moments.",
-    imageStyle: "The look of pictures, from the Engine's style profiles.",
+    imageStyle:
+      "The look of pictures, from the Engine's style profiles. The style's own words are put in the prompt ({style} in Illustrate's template, or at the end if the template leaves it out) and what it keeps out is sent with it. Engine default is your default profile in the Engine. Auto and No style add no words.",
   };
   const explainers = []; // descriptions that state what other settings are set to
   const dependents = []; // rows that only matter while another setting is on: [{ nodes, under }]

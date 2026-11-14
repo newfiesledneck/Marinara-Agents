@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.100",
+          "date": "2026-11-14",
+          "notes": "- The picture style you choose (Settings → AI → Pictures) now shapes the picture. Its own words go into the prompt, as `{style}` in Illustrate's template or at the end when the template leaves it out, and what the style keeps out is sent with it. Before, the Engine added no style to Wanderworld's prompts, so the choice did nothing.\n- The default Illustrate template says \"a detailed picture\" instead of \"a detailed illustration\", which pushed other styles toward anime. A template still saved as the old default becomes the new one; one you edited is left alone.\n- \"Picture this place\" in the Journal uses the style too.",
+          "highlight": false
+        },
+        {
           "version": "0.5.99",
           "date": "2026-11-14",
           "notes": "- The in-game Help and the README were checked against the game and brought up to date. Help has two new sections, \"The bar, the Menu and your worlds\" and \"Inventory (with the Quartermaster package)\", and says what the AI is told about where you are, the new Illustrate rewrite and prompt caching.\n- Corrected: the arrow keys look around (they don't walk), dogs come in six coats, and the inventory works in the world, not only in scenes.\n- The chat window's list of commands has `/call`.",
@@ -307,12 +313,6 @@
           "version": "0.5.81",
           "date": "2026-11-13",
           "notes": "- Settings → People → Genders: a slider each for male, female and a custom gender you name. They are weights for people the game or the AI makes up (townsfolk left on Auto, people the AI invents or fills in). Lore comes first: a gender from a lorebook, a card or your own choice is never changed.\n- The custom gender can be chosen for anyone wherever a body is chosen (Edit people, the Look card, the assistant's proposals), under the name you gave it, which is also what the AI is told. A lorebook can set it with ww:body:custom or ww:body:nonbinary.\n- People written for a world are kept whole, like other cards.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.80",
-          "date": "2026-11-13",
-          "notes": "- One more cut removed: when the assistant rewrites the card of someone made for a world, the description, personality and appearance are kept whole (1,200 and 600 characters before).",
           "highlight": false
         }
       ]
