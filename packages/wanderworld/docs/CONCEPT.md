@@ -4,18 +4,19 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.5.98, 2026-11-13: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.5.99, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
-set up or written by the AI from cards and lorebooks, and an AI assistant that changes a world on request.**
+set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
+Quartermaster package's sheet as the inventory when it's installed.**
 Package id `wanderworld`, branch `feat/wanderworld`. No issue or PR yet: both are drafted and wait on one
 last check, a world made on a real Engine with a real model. In `STAGING_ONLY_PACKAGE_IDS`, so only the
 staging catalog's preview lane lists it; tested through a dev catalog.
 
 As built: a hamlet, village, town or city in one of seven layouts, with hills, mountains, a river, and
 farms, hamlets, inns and landmarks out in the country; the player and the townsfolk walk in their own 3D
-Avatars model (VRM, GLB, FBX or MMD) or a dressed townsperson from Quaternius's CC0 packs. 1.8 MB
-`client.js` (three.js, loaders, three-vrm, mmd-parser), a 12 MB artifact with 191 kit files, and a
+Avatars model (VRM, GLB, FBX or MMD) or a dressed townsperson from Quaternius's CC0 packs. 2.4 MB
+`client.js` (three.js, loaders, three-vrm, mmd-parser), a 23 MB artifact with 106 kit files, and a
 hand-written `server.mjs`. Readings by draw distance are in [PERFORMANCE.md](PERFORMANCE.md). Not yet
 measured on a real phone. The store banner is the author's own art.
 
@@ -493,10 +494,19 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.5.98: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.5.99: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
+
+_0.5.87 to 0.5.99: a tidier phone screen; Quartermaster as the inventory (`src/inventory.js`,
+`POST /inventory-track`: a sheet for each persona in each world, what's worn told to the AI, its tracker
+run on what a moment told, scenes linked to the same sheet); horses that swim, and a saddle and rider
+that move with the horse's back; Call for your own animals; Menu → This world, Save world and Load world;
+the Engine's saves read again when a browser is come back to (`store.js pull`, `main.js syncSaves`); the
+AI told how the player stands to a place (`placeTold`) and what they sit on; prompts ordered for prompt
+caching (`talkMessages`, `momentMessages`); recent lines stamped with when and where; and a new
+instruction for Illustrate's rewrite._
 
 **The AI assistant (S6, built 0.5.3 to 0.5.10).** Settings → AI assistant is a chat with the model about
 the open world. Each turn sends the last twelve turns and only the parts of the world the message needs
@@ -680,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.5.98, 2026-11-13)
+## Outstanding (as of 0.5.99, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -949,7 +959,9 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
 **Half-built: stored or shown, with little or no effect yet**
 
 - Creatures (`ww: monster`, `ww: creature`, `ww: hostile`, with found in, night or day, pack, danger,
-  drops) are kept with the world and listed in the Journal. Nothing wanders, attacks or drops anything.
+  drops): the kinds the game has a body for are in the world where the lore puts them, by night or day,
+  in their packs, and a hostile one keeps away, squares up or lunges by the Hostile animals setting. The
+  rest are kept and listed. Danger and drops do nothing, and there is no fighting, health or harm.
 - Closing hours (`ww: closed 22-6`) label the door card and are told to the AI. People still go in, and
   nobody's day changes for them.
 - Seasons: winter lays snow. Spring, summer and fall are stored and look like the plain green land.
@@ -981,8 +993,7 @@ world would choose its pack when it's made; one pack is built in today.
   greet you).
 - Things to use inside buildings (the anvil, the tavern's tables and bar): they wait on walk-in rooms.
 
-- Creatures in the wilds: they keep to where the lore puts them, by night or day, in their packs; a
-  hostile one starts a moment or a scene.
+- Creatures: a hostile one starting a moment or a scene, and danger and drops meaning something.
 - A waypoint marker in the world (a beam, or an arrow on the bar).
 - Closing hours that matter: people leave at closing, the door says no.
 - A look for spring and fall (tree and grass tints).
@@ -996,9 +1007,10 @@ world would choose its pack when it's made; one pack is built in today.
 
 **Later (decided 2026-11-09: not now)**
 
-- Quartermaster as the character sheet and inventory in the world. Today it works inside scenes
-  started from Wanderworld (they are roleplay chats), not while walking about. Using it here, instead
-  of building a sheet and inventory of our own, is its own piece of work and waits.
+- _Done in 0.5.90 and 0.5.91:_ Quartermaster as the character sheet and inventory in the world, through
+  what it offers other packages (scopes, owners, the tracker in two steps, links, a title and a theme).
+  Still to come: sheets for the party and the townsfolk, items picked up from things in the world, 3D
+  outfits from what is equipped, and the paper texture (Quartermaster's theme takes no background image).
 
 **Known limits (in the README too)**
 
@@ -1007,9 +1019,10 @@ world would choose its pack when it's made; one pack is built in today.
 - Another region has only the people the assistant was asked for there; walk-in rooms are unfinished and
   off by default.
 - The camera doesn't avoid trees, so foliage can fill the view.
-- Quartermaster works in scenes started from Wanderworld, not in the world (see Later).
+- The inventory needs the Quartermaster package, and only the persona played has a sheet (see Later).
+- Two browsers playing one world at the same moment write over each other (the newer save wins whole).
 - The AI assistant's Undo lasts the session and takes back only what the assistant changed (something it
-  added goes even if edited since; a scene it started isn't undone). A world's own lore entries hold 1,500 characters, 60 a world.
+  added goes even if edited since; a scene it started isn't undone). A world holds 60 lore entries of its own, each as long as it needs.
 - An existing world on a crossroads, one-street or ring layout gains the pond, houses and gardens on its
   open ground when it's next opened (its other buildings keep their numbers), and loses the names of
   "streets" that ran across open ground, with any lore tied to them.

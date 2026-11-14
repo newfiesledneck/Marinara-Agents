@@ -21,16 +21,23 @@ persona and lorebooks that you explore, talk in, and start scenes from. It is an
 
 What it asks for on install, and why: `routes` and `storage` (its own `/api/wanderworld` routes, your
 saved worlds, scene contexts and recaps, and the picture gallery), `scenes` (starting Engine scenes from the world and getting
-their recaps back) and `network` (calls to your own Engine on this machine for the connection list, image
+their recaps back), `ui` (its tab on Home) and `network` (calls to your own Engine on this machine for the connection list, image
 generation and scene creation; nothing else leaves the machine except through your Engine connections).
 
 Worlds are saved by the Engine, one save per world, in the package's own storage there: they're the same
 from any browser or device that opens your Engine, and a world can be as big as it grows. The game's and
 the AI's settings (the living world, animals, memories, connections, narrators, what calls the AI) are
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
-the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
+the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**
+on the main menu.
 
-## What it does now (0.5.98)
+While you play, **Menu → Save world** saves at once and sends it to the Engine at once (the game also
+saves by itself), and **Menu → Load world** opens another of your worlds; the one you're in is saved first.
+A browser left open reads the Engine's saves again when you come back to it, and a world that was played
+somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
+whole: don't play one world in two browsers at the same moment.
+
+## What it does now (0.5.99)
 
 ### The world
 
@@ -83,7 +90,8 @@ the server part isn't running, the menu says so: restart the Engine. Delete a wo
   or by swimming. Friends meet up and hold little conversations, taking turns; name tags are tinted by how each
   person sees you (red enemies, green friends, pink romance…).
 - **Talking:** walk up and press E. They greet you by how they feel about you; pick from a few things to
-  say, or type your own. With AI on they answer in character; without it, from set lines.
+  say, or type your own. With AI on they answer in character; without it, from set lines. Someone travelling
+  with you knows it, and doesn't greet you as if you'd just met.
 - **Relationships** (Journal → Relationships): how each person sees the others and you (friend, family,
   partner, rival, enemy and more, each with levels), and each one's temperament (passive to aggressive)
   and manner (shy to outgoing). Friends come over to say hello, someone who dislikes you keeps away, a
@@ -128,14 +136,17 @@ With it running:
   their home and work until you change it in Journal → People → Schedules, or the AI plans one. What
   people agree to in moments ("meet me at noon by the fountain") goes into their day.
 - **Inventory (with Quartermaster):** when the Quartermaster package (0.1.35 or later) is installed, an
-  Inventory button opens its character sheet for the persona you play, one sheet for each persona in each
-  world. What the sheet says is worn is added after the persona's appearance wherever the AI is told who
-  you are (conversations, moments, scene plans and scene notes, Illustrate), with no macro to place. After a
-  moment, one more model call runs Quartermaster's tracker on what was told and the sheet takes the changes
-  by Quartermaster's own rules. A scene started from the world is linked to the same sheet (Quartermaster
-  0.1.37), so its chat shows and changes the one inventory. The window opens in parchment colours.
-  Deleting a world deletes its sheets. Settings → People → Inventory turns the
-  button, the worn text and the tracking off, each on its own. Without Quartermaster nothing changes.
+  Inventory button on the top bar opens its character sheet for the persona you play, one sheet for each
+  persona in each world, titled with the persona's name and in Wanderworld's parchment colours. What the
+  sheet says is worn is told to the AI with what's happening now (conversations, moments, scene plans and
+  scene notes, Illustrate), with no macro to place. After a moment (or, if you choose, after each reply
+  in a conversation too) one more model call runs Quartermaster's tracker on what was told, the sheet
+  takes the changes by Quartermaster's own rules, and the chat says what changed ("added and put on Hat,
+  took off Scarf"); nothing is said when no item changed. A scene started from the world is linked to the
+  same sheet (Quartermaster 0.1.37 or later), so its chat shows and changes the one inventory. Deleting
+  a world deletes its sheets. Settings → People → Inventory has a switch for each: the button, the worn
+  text, when the tracker runs (never, after moments, after moments and replies), scenes sharing the
+  sheet, and the parchment colours. Without Quartermaster nothing changes.
 - **Illustrate:** a window that paints the current moment (where, when, the weather, who's with you and
   what they're doing, their looks from their cards) from a prompt template you can edit, with the world's
   gallery. It moves, resizes and stays open while you play. The picture fills the window; the gallery, the
@@ -143,11 +154,14 @@ With it running:
   picture's size (a few usual ones, or your own width and height). "Improve the prompt with AI" has a model
   rewrite the filled-in template first, on a connection of its own if you like (apart from the one
   conversations use), to an instruction you can edit (sentences or tags), and can show you the result to
-  change or approve before it's painted. The rewrite is also given the last lines of the chat, so the
+  change or approve before it's painted. The usual instruction asks for one full paragraph of prose (about 200
+  to 300 words): each character's name once and then their looks and what they wear, what they're doing,
+  the place, the light and a camera angle, with nothing of the chat copied in. The rewrite is also given the last lines of the chat, so the
   picture shows what you're doing now (kneeling by the pond), not only where you stand. A sentence of the
   template whose placeholders all come out empty is left out. `{world_look}` says what the world looks like
   wherever you are (yours to set in Journal → World), so pictures match it; `{setting}` is only what you
-  wrote in the world's Setting box. Appearances are used whole, however long.
+  wrote in the world's Setting box. `{place_kind}` says what sort of place it is (a market square, the bank of
+  a pond, the mouth of a cave) and whether you're indoors. Appearances are used whole, however long.
 - **The AI assistant** (Menu → Settings → AI assistant): a chat about the world you're in, which can also
   change it. Ask about its people, places and lore, or why a lore entry is or isn't active where you stand.
   Ask for a change ("make Jake and Sarah a married couple who live together", "rewrite Jason's lore to make
@@ -170,6 +184,21 @@ With it running:
   make groups of places and factions and write a faction's lore; change the setting, picture look and
   ages; pin notes, take them down, give you an errand or drop it; and start a scene it suggested. It changes only that world: never your cards, personas or lorebooks in the Engine, the
   settings, the map or the buildings. An answer whose changes can't be read changes nothing and says so.
+- **Told where you really are:** the AI is given how you stand to a place, not only its name: on the bank
+  beside the pond (not in the water), wading or swimming when you are, inside or outside a building, at
+  the mouth of a cave, on a street, among the ruins. What you and the people near you sit on is named for
+  what it is: a log by the campfire, a bench, a chair, a stool.
+- **Recent lines, with when and where:** in a moment, each of the last lines the AI is given says when and
+  where it happened ("09:10, the market square", "yesterday 21:40, the pond"), so a minute ago here isn't
+  mistaken for this morning across town.
+- **Ordered for prompt caching:** some providers charge less for the start of a prompt they've just seen.
+  Wanderworld sends what never changes first and what changes last. In a moment: the world, your
+  narrator's card, the whole world's lore, your party's cards, the lore of the place, whoever else is
+  near; then the time, what you have on, what each is doing and what was just said. In a conversation
+  the changing part (the time, who's near, memories, what you have on) goes on the newest message, after
+  what was said, and the lines sent back start from the same place for several turns; Settings → AI →
+  Order prompts for caching turns that off. Whether anything is cached is up to the provider and the
+  Engine's connection.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in
   the Engine with everyone there (one of your characters at least), your persona and the world's lorebooks.
   Wanderworld plans it itself (point of view, tense and prompt preset from Menu → Settings → AI, and the world's
@@ -179,7 +208,7 @@ With it running:
 - **Menu → Settings → AI:** AI conversations on or off, which connection writes conversations, which plays scenes,
   which paints pictures (each can be the Engine's default), how people talk, reply length, creativity, the
   scene point of view, tense and prompt preset, and the picture style (the Engine's built-in style
-  profiles, or your default one).
+  profiles, or your default one), and Order prompts for caching.
 
 Every AI call uses a connection of yours, so it costs what that connection costs. Menu → Settings → AI
 has a switch for each thing that can make one (arriving somewhere, using things, the noticeboard,
@@ -197,6 +226,10 @@ only walk about.
   with a map of the world it makes and Reroll), Load world (thumbnails, Rename, Delete) and Settings. Each
   world keeps everything in its own save, kept by the Engine: where you were, the time, the
   cast, bodies, relationships, lore, groups, homes, schedules, notes, scenes and the last of the chat.
+- **The Menu while you play:** who you play (and their Look), Settings, **This world** (its name, its id,
+  its Quartermaster sheet, the map seed, the land, the region you're in, who lives there, who's travelling
+  with you, your animals, its lorebooks and setting, with Copy buttons for the ids), **Save world**,
+  **Load world** (your worlds as the Engine has them now), full screen and the main menu.
 - **A world set up for you:** in New world, "let the AI set them up" reads your characters' cards and
   persona, and any lorebooks you choose, and makes the world ready to play: who's a man or a woman, how
   people know each other and you, where everyone lives and works, which lore belongs to which place,
@@ -251,8 +284,10 @@ only walk about.
   **Sum up old memories** also has a button where memories are set: in Settings → People → Memory, in
   Settings → Token use, and in each person's window in Journal → Edit people (for that person alone).
 - **Settings that explain themselves:** Menu → Settings is in sections (Display, Controls, World, People,
-  Animals, AI, Token use), and a section with a lot in it has tabs of its own (People: Around you,
-  Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Each section and tab opens with a
+  Animals, AI, Token use, then AI assistant, Help and Credits), and a section with a lot in it has tabs of
+  its own (Display: Graphics, On screen, Sound; World: Time and weather, Places; People: Around you,
+  Relationships, Memory, Genders, Inventory; Animals: How many, Kinds, Behaviour; AI: Writing, Scenes,
+  Pictures, Connections). Each section and tab opens with a
   line on what it is for, each setting says what On and Off do, and a setting that depends on another sits
   under it and goes faint while that one is off. Someone's window in Journal → Edit people is in tabs too
   (About, Day, You, Others, Memory), as is Journal → World (This world, Setting, Animals, Lore). **New
@@ -339,17 +374,18 @@ only walk about.
 - **Animals:** cattle (now and then a bull or an alpaca), a donkey and a horse at each farm; a dog or
   two about the market; a horse by each tavern and inn; and out in the country deer in twos and threes
   with a stag, foxes, and a pack of three to five wolves well away from the houses. They wander, graze and look about, keep out
-  of the river, and the wild ones bolt when you come close. Horses come in seven coats and dogs in four,
+  of the river (a horse you ride swims it, and your own animals swim after you), and the wild ones bolt when you come close. Horses come in seven coats and dogs in six,
   so a world's horses are a mix. A world's animals, and their coats, come from its seed.
 - **Avatar:** when a persona's or a character's card has a 3D model, their Look card has Avatar at the
   top: the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), or the
   built-in person, dressed by the rest of the card. Kept with the world.
 - **Animals of your own:** the Look card (Menu, Look beside your persona) has Dog and Horse: the kind,
-  the coat, the size, a name of its own, and whether each is with you or at home. With you, it follows and turns up beside you if left
-  far behind; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
+  the coat, the size, a name of its own, and whether each is with you or at home. With you, it follows, swims after you, and turns up beside you if left
+  far behind or kept from you by something for a few seconds; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
   down from walks back there. Someone in town whose lore mentions their dog or their horse has it at their heel (the horse is theirs,
-  not yours to ride); their Look card can change it or take it away. Kept with the world. The chat window has Send dog home and
-  Send horse home while they're with you (each asks once more first), and the Journal's Party tab lists
+  not yours to ride); their Look card can change it or take it away. Kept with the world. The chat window has Call dog and Call horse
+  while they're with you (it turns up beside you, wherever it had got to; `/call` does the same, and brings
+  one from home), and Send dog home and Send horse home (each asks once more first), and the Journal's Party tab lists
   your animals, and the dog of anyone travelling with you, with Send home and Call along.
 - **A world that goes on without you** (by rules alone: no AI call, and only while Wanderworld is open).
   People who spend time together grow a little closer, slowly: a step for an evening, two a day at
@@ -399,10 +435,10 @@ only walk about.
 - **A saddle** on any horse that's someone's own (yours, or a character's). Farm and tavern horses
   go bare.
 - **Riding:** walk up to a horse or a donkey and use it. The same keys or stick move it (a brisk walk,
-  Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences and benches), it turns less sharply than you do, wades and then swims where the
-  water is deep, and E, Esc or Get down gets you off beside it (not in deep water). Its saddle and its rider go up and down with its back.
-  Your own dog or horse can be called to you from the chat window (Call horse, or `/call`). It stays where you leave it, and
-  your party runs to keep up.
+  Shift or the stick right out to gallop, Space or the Jump button to jump, which carries it over fences
+  and benches). It turns less sharply than you do, wades, and swims where the water is deep, so a river
+  with no bridge can be crossed. E, Esc or Get down gets you off beside it (not in deep water). Its saddle
+  and its rider go up and down with its back. It stays where you leave it, and your party runs to keep up.
 - **Campsites:** a campsite or two outside each settlement: a fire that flickers, lights the ground as
   it gets dark and smokes, two logs to sit on, and a tent. Use the tent to sleep: choose how long (an
   hour to eight, or until morning or evening), the screen dims and the clock jumps on. The party and
@@ -536,7 +572,7 @@ still count, and come first.
   dancing of the event's own yet. Days are counted only while Wanderworld is open.
 - Nobody but you rides, and the AI isn't told about animals or monsters (it is told you're riding). A
   rider sits astride with hands forward; a horse that's someone's own has a saddle but no reins, and the
-  pose is the same at a walk and a gallop. Where a farm or wild animal was isn't remembered after you
+  pose is the same at a walk and a gallop (the rider rises and falls with its back). Where a farm or wild animal was isn't remembered after you
   leave the world: it's back where the seed has it. A hostile one threatens or lunges (by the Hostile
   animals setting) and that's told in a line: there's no fighting, health or harm.
 - Bandits, witches and wizards are monsters in all but looks: they can't be talked to, no two loads
@@ -561,7 +597,10 @@ still count, and come first.
 - A smithy's door stands at one end of its front. In a world made before 0.5.11 it has moved a few
   metres; the building, its number and who works there are the same.
 - The AI's world setup reads the first 200 entries of the chosen lorebooks, 600 characters of each.
-- Quartermaster works inside scenes started from Wanderworld (they are roleplay chats), not in the world.
+- The inventory is Quartermaster's: without that package there is none. Only the persona you play has a
+  sheet (not your party or the townsfolk), items change only by what's narrated or by your own hand in the
+  sheet, and the item and outfit editors Quartermaster opens keep the Engine's look. In a scene's chat the
+  sheet is updated only if the Quartermaster agent is on in that chat.
 - The AI assistant's Undo buttons last until you leave the world or press Start over (the chat's words
   are kept; its proposals aren't). Undo takes back only what the assistant changed; if you've since
   changed the very same thing yourself, yours stays. Something the assistant added (a person, a lore
@@ -572,6 +611,12 @@ still count, and come first.
   makes, with the answer, to the Engine's console. It is read from the Engine's saved settings in the
   browser, since a Home tab isn't told it.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
+- Two browsers playing the same world at the same moment still write over each other: the newer save
+  wins whole, and nothing is merged.
+- Prompt caching is the provider's to do; Wanderworld only orders its prompts so that it can. The AI
+  assistant, scene plans and Illustrate aren't reordered.
+- A bridge is built only where a road crosses the river; a place with no road to it (a cave) has none.
+  Swim, or ride across.
 - A world holds 60 lore entries of its own, each as long as you like.
 
 ## How it works
@@ -624,17 +669,21 @@ still count, and come first.
   plans, world setup from cards and lorebooks, pictures and the gallery, the AI assistant, scene plans, scene creation, and scene contexts and recaps, plus a
   scene origin for the Engine. Every request body is checked there, and so is what a model answers: the
   assistant's changes are read field by field (`readAssistant`) before the client ever sees them.
-  `src/assistant.js` is the assistant's chat; `main.js` (`applyAssistantEdits`) checks each change against
+  `src/assistant.js` is the assistant's chat (`src/assistant-context.js` chooses what goes with a message,
+  `src/assistant-edits.js` what you may change in a proposal, `src/undo.js` takes a set of changes back); `main.js` (`applyAssistantEdits`) checks each change against
   the world, shows it, and makes it through the same setters the Journal uses. `src/ai.js` is the client's side of
   it, `src/map.js` draws the maps, `src/weather.js` the weather, `src/pack.js` the setting pack (the things to use, what's said about them
   and places when no AI answers, and the errands: every word of the setting, so another setting is
   another pack), `src/setup.js` sums the AI's setup up for the review, and `src/illustrate.js` and
   `src/floating.js` the Illustrate window and the floating windows. `src/inventory.js` is everything
   Wanderworld asks of Quartermaster.
-- `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
+- `src/saves.js` keeps the saved worlds (every field checked on the way in) and `src/store.js` holds
+  them as the Engine has them (read once, written through, read again when the tab is shown); `src/menu.js` is the main
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
   and speech bubbles, `src/signs.js` signs and the noticeboard, `src/ui.js` the parchment look,
-  `src/sound.js` Web Audio sounds, `src/settings.js` the settings, `src/kit.js` the kit's models.
+  `src/sound.js` Web Audio sounds, `src/settings.js` the settings, `src/kit.js` the kit's models,
+  `src/input.js` the keyboard and the touch stick, `src/person.js` the Edit people window, `src/keywords.js`
+  the `ww:` keywords and their list, and `src/help.js` the in-game Help and Credits.
 - `src/interiors.js` builds the (unfinished) room behind a door, off by default, with whatever the
   player has put in it (`household.js` FURNITURE).
 - three.js 0.186.1, `@pixiv/three-vrm` 3.5.5 and `mmd-parser` 1.1.4 (the versions the Engine uses) are
