@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.96",
+        "version": "0.5.97",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -514,13 +514,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "45973913829b119ba1d9d7d19ea1e394934a7c2d74c6602e0c1baf4ccfe1f468",
-            "bytes": 2396679
+            "sha256": "17c7417b02cc29b0d0719419d67e125658297987d9be637e71985e34de8e2959",
+            "bytes": 2397889
           },
           {
             "path": "server.mjs",
-            "sha256": "6ad8bbb638bed8ebc5fc3fa27be8cb14afadb55e792170028fc38f39670f3eb4",
-            "bytes": 133432
+            "sha256": "4051faa780cdd203bf966e9c503f91755e654997779afbbb719796248a24beb1",
+            "bytes": 136600
           },
           {
             "path": "wanderworld-icon.webp",
@@ -1070,9 +1070,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.96.zip",
-        "sha256": "f1e02ac97f3b8bd5f0690f651e0142fa0426394395b59ad067ee37c665f5c25b",
-        "bytes": 23346537
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.97.zip",
+        "sha256": "35fa33a94c62e5f837d7e0015d2573b2554b1f59ab5f95c0e6840b600a9058fc",
+        "bytes": 23350915
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

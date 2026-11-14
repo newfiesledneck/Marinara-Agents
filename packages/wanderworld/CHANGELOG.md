@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.97 — 2026-11-14
+
+- Prompts are ordered for prompt caching, for providers that charge less for a prompt they've seen before. What doesn't change is sent first (who people are, the world, the lore of the place), and what changes with every line last (the time, who's near, memories, what you have on).
+- In a conversation the changing part now comes after what was said, so the cards and the conversation so far can be reused. The lines sent back start from the same place for several turns. Settings → AI → Order prompts for caching turns this off.
+- In a moment the order is: the world, your narrator's card, the whole world's lore, your party's cards, the lore of the place, whoever else is near; then the time, what each is doing and what was just said.
+
 ## 0.5.96 — 2026-11-14
 
 - "Your inventory changed" shows only when an item was added, changed or removed, not when Quartermaster's tracker only gave its reasoning.

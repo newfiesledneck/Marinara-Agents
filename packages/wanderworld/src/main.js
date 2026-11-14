@@ -6065,10 +6065,14 @@ async function runMoment({
     const entries = activeLore(zone, names, heardIds).entries.filter((entry) => entry.content);
     const words = (entry) => `${entry.title}: ${entry.content}`;
     const personal = (entry) => entry.source.startsWith("character:") || entry.source === PLAYER_ID;
-    const lore = entries
-      .filter((entry) => !personal(entry))
+    // (The nearest sixty, told from the whole world down to this spot: what changes least comes first.)
+    const shared = entries.filter((entry) => !personal(entry)).slice(0, 60);
+    const lore = shared
+      .filter((entry) => entry.source !== WORLD_ID)
       .map(words)
-      .slice(0, 60);
+      .reverse();
+    // (The whole world's lore is the same wherever they are: told apart, before anything that changes.)
+    const worldLore = shared.filter((entry) => entry.source === WORLD_ID).map(words);
     const places = schedulePlaces();
     // What was just said or done goes as what's happening now, not as "just before"; something done
     // (told by whoever asked for this) was seen by those here.
@@ -6110,6 +6114,7 @@ async function runMoment({
       setting: core.save.setting ?? "",
       style: core.settings.talkStyle,
       lore,
+      worldLore,
       recent: chat.shared,
       places: places.map(({ id, name }) => ({ id, name })),
       connectionId: core.settings.textConnection || null,
@@ -6416,15 +6421,21 @@ function talkPayload(talking, line) {
     lore: zone
       ? loreAt(zone)
           .slice(0, 60)
+          .reverse() // (from the whole world down to this spot: what changes least comes first)
           .map(({ lorebookId, entryId }) => ({ lorebookId, entryId }))
       : [],
     loreTexts: zone
       ? activeLore(zone, {})
           .entries.filter((entry) => entry.own && entry.content)
           .slice(0, 60)
+          .reverse()
           .map((entry) => `${entry.title}: ${entry.content}`)
       : [],
-    history: talking.history.slice(-24),
+    // (For caching, it starts on a multiple of 8, so the first line sent only moves every eighth line: 16 to 24 lines.)
+    history: core.settings.promptCache
+      ? talking.history.slice(Math.max(0, Math.floor((talking.history.length - 16) / 8) * 8))
+      : talking.history.slice(-24),
+    cache: core.settings.promptCache,
     line,
     connectionId: core.settings.textConnection || null,
     style: core.save?.voices?.[talking.id] || core.settings.talkStyle, // their own voice, or the setting's
