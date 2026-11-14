@@ -22,6 +22,77 @@ function adminSecret() {
  * Engine client's own saved settings, as Quartermaster does, since a Home tab isn't handed it; if the
  * Engine renames that key this is simply off. Read at each request: it can be switched while playing.
  */
+/**
+ * The Engine's built-in picture styles (its shared/src/constants/image-style-profiles.ts): what each
+ * looks like in words, its tags, and what it keeps out. Auto and Off add no words of their own.
+ * ponytail: a copy, since the Engine has no route that returns them; a style the Engine adds later is
+ * read from the player's own saved profiles (below) or adds nothing.
+ */
+const STYLES = {
+  off: ["", "", ""],
+  auto: ["", "", "text, watermark, logo, signature, low quality, blurry"],
+  anime: [
+    "Anime illustration with clean character design, expressive faces, crisp linework, and polished lighting",
+    "anime style, illustration, best quality, detailed eyes, clean lineart",
+    "photorealistic, 3d render, lowres, bad anatomy, bad hands, text, watermark, logo, signature",
+  ],
+  danbooru: [
+    "",
+    "masterpiece, best quality, absurdres, anime screencap, detailed eyes",
+    "worst quality, low quality, lowres, bad anatomy, bad hands, extra digits, fewer digits, text, watermark, logo, signature",
+  ],
+  realistic: [
+    "Realistic image with natural lighting, believable materials, lens-aware composition, and sharp detail",
+    "high quality, realistic, detailed, natural lighting",
+    "anime, cartoon, illustration, low quality, blurry, plastic skin, text, watermark, logo, signature",
+  ],
+  photorealistic: [
+    "Photorealistic image with believable skin, optics, materials, camera framing, and natural scene lighting",
+    "photorealistic, high quality, sharp focus, natural lighting, detailed textures",
+    "anime, cartoon, illustration, painting, plastic skin, uncanny face, low quality, blurry, text, watermark, logo, signature",
+  ],
+  cinematic: [
+    "Cinematic key art with controlled lighting, strong composition, atmospheric depth, and emotionally clear staging",
+    "cinematic lighting, dramatic composition, atmospheric, high detail",
+    "flat lighting, cluttered composition, text, watermark, logo, signature, low quality",
+  ],
+  "digital-painting": [
+    "Digital painting with refined brushwork, designed lighting, strong silhouettes, and polished detail",
+    "digital painting, concept art, refined brushwork, high detail, designed lighting",
+    "photograph, raw photo, muddy details, flat lighting, text, watermark, logo, signature, low quality",
+  ],
+  painterly: [
+    "Painterly fantasy illustration with soft brushwork, rich atmosphere, and storybook color harmony",
+    "painterly, fantasy illustration, soft brushwork, rich atmosphere, high detail",
+    "photorealistic, flat colors, muddy details, text, watermark, logo, signature, low quality",
+  ],
+  "z-image-turbo": ["", "", "text, watermark, logo, signature, low quality, blurry, malformed hands, distorted face"],
+};
+
+/**
+ * The words of picture style `id` (Settings → AI → Pictures; "" is the player's default profile in the
+ * Engine): { words (for the prompt), negative (what to keep out) }. Wanderworld sends the Engine a
+ * finished prompt, and the Engine adds no style to one, so the style has to be in the words. A profile
+ * the player made or changed is read from the Engine client's saved settings, as Debug Mode is.
+ */
+export function styleWords(id) {
+  let kept;
+  try {
+    kept = JSON.parse(globalThis.localStorage?.getItem("marinara-engine-ui") ?? "null")?.state?.imageStyleProfiles;
+  } catch {
+    // unreadable: the built-in ones still work
+  }
+  const wanted = id || (typeof kept?.defaultProfileId === "string" ? kept.defaultProfileId : "") || "auto";
+  const own = (Array.isArray(kept?.profiles) ? kept.profiles : []).find((profile) => profile?.id === wanted);
+  const clip = (value, most) => (typeof value === "string" ? value.trim().slice(0, most) : "");
+  // (Auto's own text is an instruction to the Engine's prompt builder, not a look: it adds nothing.)
+  const [look, tags, negative] =
+    own && wanted !== "auto" && wanted !== "off"
+      ? [clip(own.styleText, 500), clip(own.positiveTags, 300), clip(own.negativeTags, 500)]
+      : (STYLES[wanted] ?? ["", "", ""]);
+  return { words: [look.replace(/[.\s]+$/u, ""), tags].filter(Boolean).join(". "), negative };
+}
+
 export function debugMode() {
   try {
     return JSON.parse(globalThis.localStorage?.getItem("marinara-engine-ui") ?? "null")?.state?.debugMode === true;

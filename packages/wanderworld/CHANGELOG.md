@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.100 — 2026-11-14
+
+- The picture style you choose (Settings → AI → Pictures) now shapes the picture. Its own words go into the prompt, as `{style}` in Illustrate's template or at the end when the template leaves it out, and what the style keeps out is sent with it. Before, the Engine added no style to Wanderworld's prompts, so the choice did nothing.
+- The default Illustrate template says "a detailed picture" instead of "a detailed illustration", which pushed other styles toward anime. A template still saved as the old default becomes the new one; one you edited is left alone.
+- "Picture this place" in the Journal uses the style too.
+
 ## 0.5.99 — 2026-11-14
 
 - The in-game Help and the README were checked against the game and brought up to date. Help has two new sections, "The bar, the Menu and your worlds" and "Inventory (with the Quartermaster package)", and says what the AI is told about where you are, the new Illustrate rewrite and prompt caching.

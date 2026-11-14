@@ -9,9 +9,10 @@ import { INK, INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, PARCHMENT, SERIF } fro
 export const DEFAULT_TEMPLATE =
   "{persona} {activity} at {place}, {time_of_day}, {weather}. With them: {people}. " +
   "{persona_appearance}. {people_appearance}. {world_look}. {setting}. " +
-  "A detailed illustration of this moment, {place_kind}, no text.";
-/** The template before {world_look}: one still saved unchanged becomes the new one. */
-const OLDER_TEMPLATE = DEFAULT_TEMPLATE.replace("{world_look}. ", "");
+  "{style}. A detailed picture of this moment, {place_kind}, no text.";
+/** The templates before this one (before {style}, and before {world_look}): one still saved unchanged becomes the new one. */
+const BEFORE_STYLE = DEFAULT_TEMPLATE.replace("{style}. A detailed picture", "A detailed illustration");
+const OLDER_TEMPLATES = [BEFORE_STYLE, BEFORE_STYLE.replace("{world_look}. ", "")];
 
 /** For image models that want tags, not sentences. */
 export const TAG_INSTRUCTION =
@@ -50,6 +51,8 @@ export const PLACEHOLDERS = {
   weather: "Rain, snow or mist. Empty in clear weather.",
   world_look:
     "What this world looks like wherever you are, so pictures match it. Yours to set in Journal → World (How this world looks in pictures). Until you do: medieval fantasy",
+  style:
+    "The picture style chosen in Menu → Settings → AI → Pictures, in its own words (Engine default is your default style profile in the Engine). Empty for Auto and No style. If your template leaves this out, the style is added at the end anyway. Like: Painterly fantasy illustration with soft brushwork. painterly, soft brushwork, high detail",
   setting:
     "Whatever you wrote in this world's Setting box (New world, or Journal → World), word for word. Empty if you left the box empty: it is your own text, nothing is added to it.",
   recent: "The narrator's last line in the chat, if there is one.",
@@ -119,7 +122,7 @@ export function createIllustrateWindow(layer, handlers) {
     instruction: DEFAULT_INSTRUCTION,
   });
   const { state } = floating;
-  if (state.template === OLDER_TEMPLATE) state.template = DEFAULT_TEMPLATE;
+  if (OLDER_TEMPLATES.includes(state.template)) state.template = DEFAULT_TEMPLATE;
   if (state.instruction === OLDER_INSTRUCTION) state.instruction = DEFAULT_INSTRUCTION;
 
   // The picture fills the window (the stage is as tall as the window shows); everything else is folded

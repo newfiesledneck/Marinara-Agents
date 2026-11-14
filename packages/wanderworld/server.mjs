@@ -1401,7 +1401,7 @@ export async function activate(context) {
    * A picture from the Engine. The avatar route takes a prompt override for its own id, which keeps it
    * from writing a portrait. What's sent (connection, model, size, style, prompt) is logged for debugging.
    */
-  const paint = async (body, connection, { name, prompt, width, height, styleProfileId }) => {
+  const paint = async (body, connection, { name, prompt, width, height, styleProfileId, negative = "" }) => {
     const debug = debugOf(body);
     logger.debugOverride?.(
       debug,
@@ -1425,7 +1425,9 @@ export async function activate(context) {
         width,
         height,
         ...(styleProfileId ? { styleProfileId } : {}),
-        promptOverrides: [{ id: `avatar:${name}`, prompt }],
+        // (A finished prompt: the Engine paints it as it is, with no style of its own added, so the
+        // style's words are already in it and what the style keeps out goes here.)
+        promptOverrides: [{ id: `avatar:${name}`, prompt, ...(negative ? { negativePrompt: negative } : {}) }],
       }),
     });
     logger.debugOverride?.(
@@ -1540,7 +1542,7 @@ export async function activate(context) {
           const connection = await imageConnection(idOf(body.connectionId));
           if (!connection) return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
           const name = slug(body.name);
-          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId });
+          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId, negative: text(body.negative, 600) });
           if (typeof result?.image !== "string" || !result.image.startsWith("data:image/")) {
             return reply.status(502).send({ error: "The Engine sent back no picture." });
           }
@@ -1985,6 +1987,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           activity: text(facts.activity, 160),
           setting: text(facts.setting, 400),
           world_look: text(facts.look, 200),
+          style: text(body.style, 900),
           recent: text(facts.recent, 400),
           recent_chat: chat.replace(/\n/gu, " "),
         };
@@ -1992,6 +1995,8 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         // asked, rewritten by the model to the player's instruction. A rewrite that fails leaves it as it was.
         let prompt = block(body.prompt, MAX.picture) || fillTemplate(template, values);
         if (!prompt) return reply.status(400).send({ error: "The template came out empty." });
+        // The chosen style is always in it: a template with no {style} has it added at the end.
+        if (!block(body.prompt, MAX.picture) && values.style && !/\{style\}/u.test(template)) prompt = `${prompt} ${values.style}.`;
         let improved = false;
         if (body.improve === true && !block(body.prompt, MAX.picture)) {
           try {
@@ -2024,7 +2029,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           const connection = await imageConnection(idOf(body.connectionId));
           if (!connection) return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
           const name = slug(values.place || "moment");
-          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId });
+          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId, negative: text(body.negative, 600) });
           if (typeof result?.image !== "string" || !result.image.startsWith("data:image/")) {
             return reply.status(502).send({ error: "The Engine sent back no picture." });
           }

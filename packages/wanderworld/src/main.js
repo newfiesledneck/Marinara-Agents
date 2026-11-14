@@ -121,7 +121,7 @@ import {
   sceneRequest,
 } from "./interactions.js";
 import { drawMap } from "./map.js";
-import { createAi, savesRemote } from "./ai.js";
+import { createAi, savesRemote, styleWords } from "./ai.js";
 import { createInventory, sheetFor } from "./inventory.js";
 import {
   ACTIVITY_WORDS,
@@ -6302,6 +6302,9 @@ async function illustrateMoment({
     caption: `${placeWords()}, ${clockText()}`,
     connectionId: core.settings.imageConnection || null,
     styleProfileId: core.settings.imageStyle,
+    // (The style in words, and what it keeps out: the Engine adds neither to a finished prompt.)
+    style: styleWords(core.settings.imageStyle).words,
+    negative: styleWords(core.settings.imageStyle).negative,
     width,
     height,
     improve,
@@ -6734,7 +6737,10 @@ async function pictureHere() {
       ? `The world: ${core.save.setting}.`
       : "A cosy low-fantasy world of half-timbered houses, cobbled streets and green countryside.",
     "Scenery, environment, no text.",
-  ].join(" ");
+    styleWords(core.settings.imageStyle).words && `${styleWords(core.settings.imageStyle).words}.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
   core.picture = { zoneId: zone.id, place, url: null, pending: true, error: null };
   core.journalAt = 0;
   try {
@@ -6745,6 +6751,7 @@ async function pictureHere() {
       height: 512,
       connectionId: core.settings.imageConnection || null,
       styleProfileId: core.settings.imageStyle,
+      negative: styleWords(core.settings.imageStyle).negative,
     });
     core.picture = { ...core.picture, url: image, pending: false };
   } catch (error) {
