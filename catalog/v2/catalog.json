@@ -45,7 +45,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/2d-avatars.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/2d-avatars-0.1.2.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/2d-avatars-0.1.2.zip",
         "sha256": "d643d1f6f2a86a6815192580fdb3dce746bd8d7e98d2b260f6477ad167ab0e46",
         "bytes": 2166
       },
@@ -94,11 +94,211 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatars.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatars-0.1.2.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatars-0.1.2.zip",
         "sha256": "e6a628cf9722768737db5a992b17bca6476fb576d6dff5e73d7a53a57ef3c72c",
         "bytes": 1146
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/agents/built-in-agents.md#3d-avatars"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 813
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.1",
+          "engineCommit": "05ad846e7615f72709949043d8d519f1f2e37505"
+        },
+        "id": "ruleset-5e-2014",
+        "name": "5e (SRD 5.1)",
+        "version": "1.0.3",
+        "description": "Play Game Mode by the 5e rules (SRD 5.1): ability checks, saving throws, a full character sheet with spells and class features, and 5e combat against 323 monsters, on a battle board or without positions. Its Equipment catalog puts the SRD's armor, weapons, gear and tools in your bag, and what you wear sets your Armor Class. Its Magic items catalog holds every SRD magic item and a spell scroll of every spell, and they work as printed: a potion of healing heals, a scroll casts its spell, and a +1 sword hits harder. Every item has a price, and a beaten creature can drop coins and, now and then, a potion, a scroll or a magic item. The Game Master buys and sells for you at the market, from a hamlet's general store to a city's magic dealer. Honest sellers warn before selling a wild chance item, and a town's fence may pass off a fake as the real thing. Its Races catalog has the SRD's nine races and their subraces, with your speed from the race you pick. A guided builder makes a character in steps: race, class, ability scores, background, proficiencies, features, spells and gear. Includes material from the System Reference Document 5.1 and 5.2.1 by Wizards of the Coast LLC (https://www.dndbeyond.com/srd), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). Not affiliated with or endorsed by Wizards of the Coast. After installing, choose it under Rules in the Game Mode setup wizard when you create a new game.",
+        "engine": {
+          "min": "2.5.1",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "ruleset"
+        ],
+        "entrypoints": {},
+        "contributions": {
+          "assets": {
+            "paths": [
+              "ruleset.json",
+              "catalogs/spells.json",
+              "catalogs/features.json",
+              "catalogs/races.json",
+              "catalogs/creatures.json",
+              "catalogs/equipment.json",
+              "catalogs/magic_items.json",
+              "catalogs/classes.json",
+              "catalogs/backgrounds.json",
+              "catalogs/languages.json",
+              "catalogs/tools.json",
+              "catalogs/fighting_styles.json",
+              "catalogs/weapons.json"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "ruleset.json",
+            "sha256": "4b9a7960f244c08778194557ab770b189144622cfe6722d802bf55c77d152d59",
+            "bytes": 406542
+          },
+          {
+            "path": "catalogs/spells.json",
+            "sha256": "f06cf1c2a3c7752551be8ec76da27ae94463e0bc0a2139266c45781351029cfb",
+            "bytes": 858784
+          },
+          {
+            "path": "catalogs/features.json",
+            "sha256": "d70b406c4eb22129ade4ef524bde839b4fd96785b34cf6fabd42b5e031ecd54a",
+            "bytes": 722138
+          },
+          {
+            "path": "catalogs/races.json",
+            "sha256": "727848a2493c33268086d5659d4bb193f23822e5a7e1ed0a25ce9f00e37a6e4f",
+            "bytes": 42859
+          },
+          {
+            "path": "catalogs/creatures.json",
+            "sha256": "e74e193d232e1d70e36c57bcc382d776ec9b8232df21c9a455c348faf96b328a",
+            "bytes": 1519653
+          },
+          {
+            "path": "catalogs/equipment.json",
+            "sha256": "f01684b10516c45446972140757987036fa8c8bfb94a0f4c00ffcdfe9fe6cbaa",
+            "bytes": 140900
+          },
+          {
+            "path": "catalogs/magic_items.json",
+            "sha256": "4e2fa042d6ffef360d8c3e7a6d801aa87906fa51a1e293f821874ed1ac9a53d7",
+            "bytes": 1449140
+          },
+          {
+            "path": "catalogs/classes.json",
+            "sha256": "3a28073a38e04c033a29a7ba9b6a4a6d16314c1e88f21e2a7ea8a71d04380b12",
+            "bytes": 37015
+          },
+          {
+            "path": "catalogs/backgrounds.json",
+            "sha256": "fc3dfb43f46446642cdb95157b66fc07e8c47c59a884d6f83533ba81879533d2",
+            "bytes": 2114
+          },
+          {
+            "path": "catalogs/languages.json",
+            "sha256": "a46214463c32f7c18c6146e169f6ccf68bf79d623abdd4a346ebd94fccb2136f",
+            "bytes": 2751
+          },
+          {
+            "path": "catalogs/tools.json",
+            "sha256": "26e1cf9a7958bba0a58edb8689c1adf967b4f6a55d4557c46d821491a9c3ddf8",
+            "bytes": 7445
+          },
+          {
+            "path": "catalogs/fighting_styles.json",
+            "sha256": "1471228a203518e39a10edcd9601358874bc83c2bda18a55cbda8caf073ba208",
+            "bytes": 4752
+          },
+          {
+            "path": "catalogs/weapons.json",
+            "sha256": "9ecd2fb6026ed674f4d732e08ab8a2e5239666b10120a9940d1a385a79ca71a0",
+            "bytes": 31058
+          }
+        ],
+        "permissions": [],
+        "restartRequired": false
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/ruleset-5e-2014.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/ruleset-5e-2014-1.0.3.ruleset.json",
+        "sha256": "af2c999d9021aa8dc84404cfde23981656a5f3a2e484f8c96653794996220dc3",
+        "bytes": 6971823
+      },
+      "locales": {
+        "ar": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.ar.json",
+          "sha256": "db9b581435fb86e8d1671328972f23dcff6da3ffb5a79441b64c8272ee49abfb",
+          "bytes": 1950316,
+          "name": "5e (SRD 5.1)",
+          "description": "العب في وضع اللعب وفق قواعد 5e (SRD 5.1): اختبارات القدرات، ورميات الإنقاذ، وورقة شخصية كاملة تتضمن التعاويذ وميزات الفئات، وقتال بقواعد 5e ضد 323 وحشًا، على لوحة معركة أو دون تحديد المواقع. يضع كتالوج المعدات الدروع والأسلحة والعتاد والأدوات الواردة في SRD في حقيبتك، ويحدد ما ترتديه فئة درعك. يضم كتالوج العناصر السحرية جميع العناصر السحرية الواردة في SRD ولفافة تعويذة لكل تعويذة، وتعمل كما تنص أوصافها: جرعة الشفاء تشفي، واللفافة تلقي تعويذتها، وسيف +1 يضرب بقوة أكبر. لكل عنصر ثمن، وقد تترك المخلوقات المهزومة عملات، وأحيانًا جرعة أو لفافة أو عنصرًا سحريًا. يتولى سيد اللعبة الشراء والبيع نيابةً عنك في السوق، من متجر قرية صغيرة إلى تاجر سحر في مدينة. يحذرك الباعة الأمناء قبل بيع عنصر ذي تأثيرات عشوائية غير متوقعة، وقد يبيعك تاجر مسروقات في بلدة قطعة مزيفة على أنها أصلية. يضم كتالوج الأعراق الأعراق التسعة الواردة في SRD وأعراقها الفرعية، ويحدد العرق الذي تختاره سرعتك. يساعدك معالج إرشادي على إنشاء شخصية خطوة بخطوة: العرق، والفئة، وقيم القدرات، والخلفية، والإتقان، والميزات، والتعاويذ، والعتاد. يتضمن مواد من الوثيقة المرجعية للنظام 5.1 و5.2.1 الصادرة عن Wizards of the Coast LLC (https://www.dndbeyond.com/srd)، والمرخصة بموجب CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). لا تربطه صلة بشركة Wizards of the Coast ولا يحظى بتأييدها. بعد التثبيت، اختر هذه القواعد ضمن «القواعد» في معالج إعداد وضع اللعب عند إنشاء لعبة جديدة."
+        },
+        "de": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.de.json",
+          "sha256": "e2b291978f81a1c61a9e56ff6d0ecc6c982cf7a3325d362ca1a9e014ba49e8b7",
+          "bytes": 1703209,
+          "name": "5e (SRD 5.1)",
+          "description": "Spiele im Spielmodus nach den Regeln von 5e (SRD 5.1): Attributswürfe, Rettungswürfe, ein vollständiger Charakterbogen mit Zaubern und Klassenmerkmalen sowie Kämpfe nach 5e gegen 323 Monster, auf einem Schlachtfeld oder ohne Positionen. Der Ausrüstungskatalog legt dir Rüstungen, Waffen, Abenteurerausrüstung und Werkzeuge aus dem SRD in die Tasche, und deine getragene Ausrüstung bestimmt deine Rüstungsklasse. Der Katalog magischer Gegenstände enthält jeden magischen Gegenstand des SRD und für jeden Zauber eine Zauberschriftrolle. Sie funktionieren wie beschrieben: Ein Heiltrank heilt, eine Schriftrolle wirkt ihren Zauber und ein Schwert +1 schlägt kräftiger zu. Jeder Gegenstand hat einen Preis, und besiegte Kreaturen können Münzen und gelegentlich einen Trank, eine Schriftrolle oder einen magischen Gegenstand hinterlassen. Der Spielleiter kauft und verkauft für dich auf dem Markt, vom Gemischtwarenladen eines Weilers bis zum Magiehändler einer Stadt. Ehrliche Händler warnen dich vor dem Kauf eines Gegenstands mit unberechenbaren Zufallseffekten, während ein Hehler in der Stadt dir eine Fälschung als echt andrehen kann. Der Völkerkatalog enthält die neun Völker des SRD und ihre Unterarten. Deine Bewegungsrate ergibt sich aus dem gewählten Volk. Ein Assistent führt dich schrittweise durch die Charaktererschaffung: Volk, Klasse, Attributswerte, Hintergrund, Übung, Merkmale, Zauber und Ausrüstung. Enthält Material aus dem Systemreferenzdokument 5.1 und 5.2.1 von Wizards of the Coast LLC (https://www.dndbeyond.com/srd), lizenziert unter CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). Es besteht keine Verbindung zu Wizards of the Coast und keine Unterstützung durch das Unternehmen. Wähle dieses Regelwerk nach der Installation unter „Regeln“ im Einrichtungsassistenten des Spielmodus aus, wenn du ein neues Spiel erstellst."
+        },
+        "es": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.es.json",
+          "sha256": "7ddaeba0aad2cd405062710a851ca3578bf388a85e731bd8871f63bb3fec93a0",
+          "bytes": 1676212,
+          "name": "5e (SRD 5.1)",
+          "description": "Juega en el modo de juego con las reglas de 5e (SRD 5.1): pruebas de característica, tiradas de salvación, una ficha de personaje completa con conjuros y rasgos de clase, y combates de 5e contra 323 monstruos, en un tablero de batalla o sin posiciones. Su catálogo de equipo pone en tu bolsa las armaduras, armas, equipo de aventuras y herramientas del SRD, y lo que llevas puesto determina tu Clase de Armadura. Su catálogo de objetos mágicos contiene todos los objetos mágicos del SRD y un pergamino de conjuro de cada conjuro, y funcionan tal como indican sus descripciones: una poción de curación cura, un pergamino lanza su conjuro y una espada +1 golpea más fuerte. Cada objeto tiene un precio, y una criatura derrotada puede dejar monedas y, de vez en cuando, una poción, un pergamino o un objeto mágico. El director de juego compra y vende por ti en el mercado, desde la tienda de una aldea hasta el mercader de objetos mágicos de una ciudad. Los vendedores honrados te avisan antes de venderte un objeto con efectos aleatorios impredecibles, y un perista de la localidad puede hacer pasar una falsificación por un objeto auténtico. Su catálogo de razas contiene las nueve razas del SRD y sus subrazas, y tu velocidad depende de la raza que elijas. Un asistente te guía paso a paso para crear un personaje: raza, clase, puntuaciones de característica, trasfondo, competencias, rasgos, conjuros y equipo. Incluye material del Documento de Referencia del Sistema 5.1 y 5.2.1 de Wizards of the Coast LLC (https://www.dndbeyond.com/srd), bajo la licencia CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). No está afiliado a Wizards of the Coast ni cuenta con su respaldo. Tras instalarlo, selecciónalo en «Reglas» en el asistente de configuración del modo de juego al crear una partida nueva."
+        },
+        "fr": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.fr.json",
+          "sha256": "81414020eb41a038248082dcdaa47a3a154aa7a0e15883213a39478ed0c412ad",
+          "bytes": 1713049,
+          "name": "5e (SRD 5.1)",
+          "description": "Jouez en mode Jeu selon les règles de 5e (SRD 5.1) : tests de caractéristique, jets de sauvegarde, fiche de personnage complète avec sorts et capacités de classe, et combats de 5e contre 323 monstres, sur un plateau de combat ou sans positions. Son catalogue d’équipement place dans votre sac les armures, armes, matériel d’aventurier et outils du SRD, et ce que vous portez détermine votre classe d’armure. Son catalogue d’objets magiques contient tous les objets magiques du SRD ainsi qu’un parchemin de sort pour chaque sort, et ils fonctionnent conformément à leur description : une potion de soins soigne, un parchemin lance son sort et une épée +1 frappe plus fort. Chaque objet a un prix, et une créature vaincue peut laisser des pièces et, de temps à autre, une potion, un parchemin ou un objet magique. Le maître du jeu achète et vend pour vous au marché, de l’échoppe d’un hameau au marchand d’objets magiques d’une ville. Les vendeurs honnêtes vous avertissent avant de vous vendre un objet aux effets aléatoires imprévisibles, tandis qu’un receleur local peut faire passer une contrefaçon pour un objet authentique. Son catalogue de races contient les neuf races du SRD et leurs sous-races, et votre vitesse dépend de la race choisie. Un assistant vous guide dans la création d’un personnage, étape par étape : race, classe, valeurs de caractéristique, historique, maîtrises, capacités, sorts et équipement. Comprend du contenu du Document de référence du système 5.1 et 5.2.1 de Wizards of the Coast LLC (https://www.dndbeyond.com/srd), sous licence CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). Ce produit n’est ni affilié à Wizards of the Coast ni approuvé par cette société. Après l’installation, sélectionnez ce système dans « Règles » dans l’assistant de configuration du mode Jeu lorsque vous créez une nouvelle partie."
+        },
+        "hi": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.hi.json",
+          "sha256": "e2cc9db671451acd4436d130e77d1ffca78ed79f8b0d2bdccb4761fafb6788a9",
+          "bytes": 2630581,
+          "name": "5e (SRD 5.1)",
+          "description": "खेल मोड में 5e के नियमों (SRD 5.1) के अनुसार खेलें: क्षमता जाँच, बचाव फेंक, मंत्रों और वर्ग विशेषताओं सहित पूरा चरित्र पत्रक, और 323 राक्षसों के विरुद्ध 5e की युद्ध प्रणाली—युद्ध-पटल पर या बिना स्थान निर्धारित किए। इसकी उपकरण सूची से SRD के कवच, हथियार, साज-सामान और औज़ार आपके थैले में आते हैं, और आप जो पहनते हैं, उससे आपका कवच वर्ग तय होता है। इसकी जादुई वस्तुओं की सूची में SRD की हर जादुई वस्तु और प्रत्येक मंत्र का एक मंत्रपत्र है, और वे अपने विवरण के अनुसार काम करते हैं: उपचार का औषधि-पेय घाव भरता है, मंत्रपत्र अपना मंत्र चलाता है और +1 तलवार अधिक ज़ोर से वार करती है। हर वस्तु की एक कीमत है, और पराजित प्राणी से सिक्के तथा कभी-कभी कोई औषधि-पेय, मंत्रपत्र या जादुई वस्तु मिल सकती है। खेल संचालक बाज़ार में आपके लिए खरीद-बिक्री करता है, चाहे वह छोटे गाँव की परचून की दुकान हो या किसी शहर का जादुई वस्तुओं का व्यापारी। ईमानदार विक्रेता अनिश्चित और अप्रत्याशित प्रभावों वाली वस्तु बेचने से पहले चेतावनी देते हैं, और कस्बे का कोई चोरी का माल बेचने वाला व्यापारी नकली वस्तु को असली बताकर बेच सकता है। इसकी जातियों की सूची में SRD की नौ जातियाँ और उनकी उपजातियाँ हैं, और आपकी गति चुनी गई जाति से तय होती है। एक मार्गदर्शक आपको चरण-दर-चरण चरित्र बनाने में मदद करता है: जाति, वर्ग, क्षमता अंक, पृष्ठभूमि, प्रवीणताएँ, विशेषताएँ, मंत्र और साज-सामान। इसमें Wizards of the Coast LLC के सिस्टम रेफ़रेंस डॉक्यूमेंट 5.1 और 5.2.1 (https://www.dndbeyond.com/srd) की सामग्री शामिल है, जो CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode) के तहत लाइसेंस प्राप्त है। यह Wizards of the Coast से संबद्ध नहीं है और न ही उसके द्वारा अनुमोदित है। इंस्टॉल करने के बाद, नया खेल बनाते समय खेल मोड के सेटअप विज़ार्ड में «नियम» के अंतर्गत इसे चुनें।"
+        },
+        "ja": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.ja.json",
+          "sha256": "ebab19a0e91bdd803fe2ffa9f2b4614e9f9acdbf06f7e835a786104d7f79bab9",
+          "bytes": 1811119,
+          "name": "5e (SRD 5.1)",
+          "description": "ゲームモードを5eのルール（SRD 5.1）でプレイできます。能力値判定、セーヴィング・スロー、呪文やクラス特徴を備えた完全なキャラクター・シートに対応し、323体のモンスターを相手に、戦闘ボード上でも位置を使わずにも5eの戦闘を楽しめます。「装備品」カタログからSRDの鎧、武器、冒険用具、道具類をバッグに入れることができ、身に着けた装備によってアーマー・クラスが決まります。「魔法のアイテム」カタログにはSRDのすべての魔法のアイテムと、すべての呪文に対応する呪文の巻物が収録されており、それぞれ記載どおりに機能します。ポーション・オヴ・ヒーリングは回復を行い、巻物はその呪文を発動し、+1の剣はより強い打撃を与えます。どのアイテムにも価格があり、倒したクリーチャーは硬貨を落とすほか、ときにはポーション、巻物、魔法のアイテムを落とすこともあります。小さな村の雑貨屋から都市の魔法の品を扱う商人まで、ゲーム・マスターが市場での売買を代行します。正直な商人は、効果が予測できず運任せとなる品を売る前に警告してくれますが、町の盗品商は偽物を本物と偽って売ることがあります。「種族」カタログにはSRDの九種族とその亜種族が収録され、選んだ種族によって移動速度が決まります。作成ガイドに従い、種族、クラス、能力値、背景、習熟、特徴、呪文、装備の順にキャラクターを作成できます。Wizards of the Coast LLCによるシステム・リファレンス・ドキュメント5.1および5.2.1（https://www.dndbeyond.com/srd）の内容を含み、CC BY 4.0（https://creativecommons.org/licenses/by/4.0/legalcode）に基づいて使用しています。Wizards of the Coastとの提携関係はなく、同社の承認を受けたものではありません。インストール後、新しいゲームを作成する際に、ゲームモードのセットアップ・ウィザードの「ルール」でこのルールセットを選択してください。"
+        },
+        "ko": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.ko.json",
+          "sha256": "a0ada2ec8b413a960404d196ac0aa129126d91d021ab9ddbbcc636601eaa4e38",
+          "bytes": 1674405,
+          "name": "5e (SRD 5.1)",
+          "description": "게임 모드에서 5e 규칙(SRD 5.1)으로 플레이하세요. 능력치 판정, 내성 굴림, 주문과 클래스 특성이 포함된 완전한 캐릭터 시트를 제공하며, 전투 보드를 사용하거나 위치 없이 323종의 몬스터와 5e 전투를 벌일 수 있습니다. 장비 목록에서 SRD의 갑옷, 무기, 모험 장비와 도구를 가방에 넣을 수 있으며, 착용한 장비에 따라 방어도가 정해집니다. 마법 아이템 목록에는 SRD의 모든 마법 아이템과 각 주문에 해당하는 주문 두루마리가 들어 있으며, 모두 설명대로 작동합니다. 치유의 물약은 치유하고, 두루마리는 해당 주문을 시전하며, +1 검은 더 강하게 공격합니다. 모든 아이템에는 가격이 있으며, 쓰러뜨린 크리처에게서 동전과 함께 때때로 물약, 두루마리 또는 마법 아이템을 얻을 수 있습니다. 작은 마을의 잡화점부터 도시의 마법 상인까지, 게임 마스터가 시장에서 여러분 대신 물건을 사고팝니다. 정직한 상인은 효과가 종잡을 수 없이 무작위로 나타나는 아이템을 팔기 전에 경고하지만, 마을의 장물아비는 가짜를 진품으로 속여 팔기도 합니다. 종족 목록에는 SRD의 아홉 종족과 그 하위 종족이 포함되어 있으며, 선택한 종족에 따라 이동속도가 정해집니다. 생성 도우미를 따라 종족, 클래스, 능력치, 배경, 숙련, 특성, 주문, 장비를 차례로 선택하여 캐릭터를 만들 수 있습니다. Wizards of the Coast LLC의 시스템 참조 문서 5.1 및 5.2.1(https://www.dndbeyond.com/srd)의 자료를 포함하며, CC BY 4.0(https://creativecommons.org/licenses/by/4.0/legalcode) 라이선스에 따라 사용합니다. Wizards of the Coast와 제휴 관계가 없으며 해당 회사의 보증을 받지 않았습니다. 설치 후 새 게임을 만들 때 게임 모드 설정 마법사의 «규칙»에서 이 규칙 세트를 선택하세요."
+        },
+        "pl": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.pl.json",
+          "sha256": "b0ab65a7064b935164ab5d0059cc16d92dd7035742ba47c942a7b172a9eecf6d",
+          "bytes": 1642618,
+          "name": "5e (SRD 5.1)",
+          "description": "Graj w trybie gry według zasad 5e (SRD 5.1): testy cech, rzuty obronne, pełna karta postaci z zaklęciami i zdolnościami klasowymi oraz walka według zasad 5e z 323 potworami, na planszy bitewnej lub bez określania pozycji. Katalog wyposażenia pozwala dodawać do torby pancerze, broń, ekwipunek i narzędzia z SRD, a noszone wyposażenie określa twoją Klasę Pancerza. Katalog magicznych przedmiotów zawiera wszystkie magiczne przedmioty z SRD oraz zwój każdego zaklęcia. Działają zgodnie z opisem: mikstura leczenia leczy, zwój rzuca zapisane na nim zaklęcie, a miecz +1 uderza mocniej. Każdy przedmiot ma cenę, a pokonana istota może pozostawić monety, a od czasu do czasu także miksturę, zwój lub magiczny przedmiot. Mistrz Gry kupuje i sprzedaje za ciebie na targu, od wiejskiego sklepu wielobranżowego po miejskiego handlarza magicznymi przedmiotami. Uczciwi sprzedawcy ostrzegają przed zakupem przedmiotów o nieprzewidywalnych, losowych efektach, a miejscowy paser może sprzedać podróbkę jako oryginał. Katalog ras zawiera dziewięć ras z SRD i ich podrasy, a twoja szybkość zależy od wybranej rasy. Kreator prowadzi cię przez kolejne etapy tworzenia postaci: rasę, klasę, wartości cech, pochodzenie, biegłości, zdolności, zaklęcia i wyposażenie. Zawiera materiały z Dokumentu Referencyjnego Systemu 5.1 i 5.2.1 firmy Wizards of the Coast LLC (https://www.dndbeyond.com/srd), udostępnione na licencji CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). Nie jest powiązany z Wizards of the Coast ani nie uzyskał aprobaty tej firmy. Po instalacji wybierz ten zestaw w sekcji „Zasady” kreatora konfiguracji trybu gry podczas tworzenia nowej rozgrywki."
+        },
+        "pt-BR": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.pt-BR.json",
+          "sha256": "00111038bdeb8575e570e26db20a0077b4a481ef87ea5790b8a487a02f24104f",
+          "bytes": 1664547,
+          "name": "5e (SRD 5.1)",
+          "description": "Jogue no Modo de Jogo com as regras de 5e (SRD 5.1): testes de atributo, salvaguardas, uma ficha de personagem completa com magias e características de classe, e combates de 5e contra 323 monstros, em um tabuleiro de batalha ou sem posições. O catálogo de Equipamento coloca na sua bolsa as armaduras, armas, equipamentos de aventura e ferramentas do SRD, e o que você veste determina sua Classe de Armadura. O catálogo de Itens Mágicos contém todos os itens mágicos do SRD e um pergaminho de magia para cada magia, e eles funcionam conforme suas descrições: uma poção de cura cura, um pergaminho conjura sua magia e uma espada +1 golpeia com mais força. Todo item tem um preço, e uma criatura derrotada pode deixar moedas e, de vez em quando, uma poção, um pergaminho ou um item mágico. O Mestre compra e vende para você no mercado, do armazém de um povoado ao comerciante de itens mágicos de uma cidade. Vendedores honestos avisam antes de vender um item com efeitos aleatórios imprevisíveis, e um receptador local pode vender uma falsificação como se fosse autêntica. O catálogo de Raças contém as nove raças do SRD e suas sub-raças, e seu deslocamento depende da raça escolhida. Um assistente orienta a criação do personagem em etapas: raça, classe, valores de atributo, antecedente, proficiências, características, magias e equipamento. Inclui material do Documento de Referência do Sistema 5.1 e 5.2.1 da Wizards of the Coast LLC (https://www.dndbeyond.com/srd), licenciado sob CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). Não é afiliado à Wizards of the Coast nem endossado por ela. Após instalar, selecione este conjunto em «Regras» no assistente de configuração do Modo de Jogo ao criar uma nova partida."
+        },
+        "ru": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.ru.json",
+          "sha256": "3647a21da5685c0d33ef4fece60600e916ba2e84050c6c5e6229088e3be93789",
+          "bytes": 2265113,
+          "name": "5e (SRD 5.1)",
+          "description": "Играйте в игровом режиме по правилам 5e (SRD 5.1): проверки характеристик, спасброски, полноценный лист персонажа с заклинаниями и классовыми умениями, а также бои по правилам 5e против 323 чудовищ — на поле боя или без учёта позиций. Каталог снаряжения позволяет положить в сумку доспехи, оружие, снаряжение и инструменты из SRD, а надетые предметы определяют ваш Класс Доспеха. Каталог магических предметов содержит все магические предметы из SRD и свиток с каждым заклинанием. Всё работает по описанию: зелье лечения лечит, свиток накладывает своё заклинание, а меч +1 бьёт сильнее. У каждого предмета есть цена, а побеждённое существо может оставить монеты и иногда зелье, свиток или магический предмет. Мастер покупает и продаёт за вас на рынке — от лавки в деревушке до торговца магическими предметами в городе. Честные продавцы предупреждают перед продажей предметов с непредсказуемыми случайными эффектами, а местный скупщик краденого может выдать подделку за подлинник. Каталог рас содержит девять рас из SRD и их подрасы, а ваша скорость зависит от выбранной расы. Пошаговый помощник проведёт вас через создание персонажа: раса, класс, значения характеристик, предыстория, владения, умения, заклинания и снаряжение. Включает материалы Системного справочного документа 5.1 и 5.2.1 компании Wizards of the Coast LLC (https://www.dndbeyond.com/srd), распространяемые по лицензии CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode). Не связан с Wizards of the Coast и не одобрен этой компанией. После установки выберите этот набор в разделе «Правила» мастера настройки игрового режима при создании новой игры."
+        },
+        "zh-Hans": {
+          "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/ruleset-5e-2014-1.0.3.zh-Hans.json",
+          "sha256": "d121dd2bb6ae609be0e36ad2f67d0877f620a071eb9dada86954537303969701",
+          "bytes": 1506277,
+          "name": "5e (SRD 5.1)",
+          "description": "在游戏模式中按5e规则（SRD 5.1）游玩：进行属性检定和豁免检定，使用包含法术与职业特性的完整角色卡，并按5e规则与323种怪物战斗，既可使用战斗棋盘，也可不使用站位。装备目录可将SRD中的护甲、武器、冒险用品和工具放入你的背包，你的穿戴则决定你的护甲等级。魔法物品目录收录了SRD中的全部魔法物品，以及每个法术对应的法术卷轴，效果均与规则描述一致：治疗药水恢复生命，卷轴施展其记载的法术，+1剑的攻击更强。每件物品都有价格，击败生物后可能获得钱币，偶尔还能获得药水、卷轴或魔法物品。游戏主持人会替你在市场上买卖物品，无论是小村落的杂货店，还是城市里的魔法物品商店。诚实的商人在出售效果随机且难以预测的物品前会提醒你，而镇上的销赃者可能把赝品当真货卖给你。种族目录包含SRD中的九个种族及其亚种，你的速度取决于所选种族。创建向导会引导你逐步创建角色：种族、职业、属性值、背景、熟练项、特性、法术和装备。包含Wizards of the Coast LLC《系统参考文档》5.1和5.2.1（https://www.dndbeyond.com/srd）中的内容，依照CC BY 4.0许可协议（https://creativecommons.org/licenses/by/4.0/legalcode）使用。本规则集与Wizards of the Coast无关联，也未获其认可。安装后，创建新游戏时，请在游戏模式设置向导的“规则”中选择此规则集。"
+        }
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/game/getting-started.md#choosing-rules"
     },
     {
       "manifest": {
@@ -173,7 +373,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/eightball.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/eightball-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/eightball-1.0.6.zip",
         "sha256": "46c45d0866cae768594f708dd36e36ec584cd60e4fc8d5d4a466bba0b445d82e",
         "bytes": 70309
       },
@@ -215,7 +415,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/background.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/background-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/background-1.0.3.zip",
         "sha256": "c81a75a054570afb6fa6abf3da0b1c9570737afafbecb1172e4f0cb2b23f9fe4",
         "bytes": 1433
       },
@@ -269,11 +469,88 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/beholder.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/beholder-1.3.14.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/beholder-1.3.14.zip",
         "sha256": "9a8dc2a8c73e008f9582bd16a857963df5e23c7caa450a0b8b6712c9cf516b41",
         "bytes": 463638
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Engine/blob/staging/docs/agents/built-in-agents.md#beholder"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 341
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.0",
+          "engineCommit": "25f8df7b0a388fe36f657d69c6fcaa9f27e066ed"
+        },
+        "id": "blackjack",
+        "name": "Blackjack",
+        "version": "1.0.0",
+        "description": "Play Blackjack against the house with Conversation characters. Install to use /blackjack manually in any Conversation chat, or type a message like \"let's play blackjack\" to open the table setup. Characters cannot start a game on their own yet.",
+        "engine": {
+          "min": "2.3.0",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent",
+          "turn-game"
+        ],
+        "entrypoints": {
+          "agents": "agents.json",
+          "server": "server.mjs",
+          "client": "client.js"
+        },
+        "contributions": {
+          "slots": [
+            "conversation-surface"
+          ],
+          "conversationGame": {
+            "command": "/blackjack",
+            "aliases": [
+              "blackjack",
+              "black jack",
+              "twenty-one"
+            ],
+            "playerLabel": "Table game"
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "0bab18126b37a8782f05a3b3d6983587dea55f0b12ebe6d0f9b84aa0a20b1216",
+            "bytes": 633
+          },
+          {
+            "path": "server.mjs",
+            "sha256": "a1837084f1898fd55fa1b42f1ad273972fbfa3de930cf1ecbc6cd2d5495e9b2d",
+            "bytes": 17479
+          },
+          {
+            "path": "client.js",
+            "sha256": "86f49d7296e634c7cb9954fe59b1bf262c29ead4da948620ecb109b982ee12b5",
+            "bytes": 162378
+          }
+        ],
+        "permissions": [
+          "agent-runtime",
+          "chat-read",
+          "chat-write",
+          "storage",
+          "ui"
+        ],
+        "restartRequired": true
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/blackjack.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/blackjack-1.0.0.zip",
+        "sha256": "43f9607bf5327ccf3444d058a837229b5dcdaf1dc4d51c0ac15d6ab8a4b94dda",
+        "bytes": 182507
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#blackjack"
     },
     {
       "manifest": {
@@ -342,7 +619,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/conversation-calls.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/conversation-calls-1.1.10.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/conversation-calls-1.1.10.zip",
         "sha256": "9bc4e5a67aba2c57895d4f5413c75275d5b1d5b9e080c7434f4c8b7f6be1a94d",
         "bytes": 563809
       },
@@ -384,7 +661,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/card-evolution-auditor.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/card-evolution-auditor-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/card-evolution-auditor-1.0.4.zip",
         "sha256": "7f87bbd621c179596302ee77bacc078fdcd5edac10aa80f427e32146b7503e33",
         "bytes": 1532
       },
@@ -426,7 +703,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/character-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/character-tracker-1.1.1.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/character-tracker-1.1.1.zip",
         "sha256": "828442219565f73063c1addc1af2731d3228270737bd782e7c49b24185775268",
         "bytes": 2193
       },
@@ -501,7 +778,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/chess.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/chess-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/chess-1.0.6.zip",
         "sha256": "bc7ba9d919ba73a88cf49f5d2507b5d688c15b60fd7ffa7e012e87798617d518",
         "bytes": 79677
       },
@@ -543,7 +820,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/combat.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/combat-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/combat-1.0.3.zip",
         "sha256": "9da6690edaa65f3f54e3a16489ef9780085c630008482e33592c7b6c748f2e82",
         "bytes": 1603
       },
@@ -585,7 +862,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/continuity.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/continuity-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/continuity-1.0.3.zip",
         "sha256": "6497e660349e9a9a5b18f1d1c0666d0284f71bdfe8ae2e8a34582b7241b6cdae",
         "bytes": 1555
       },
@@ -627,7 +904,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/custom-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/custom-tracker-1.1.1.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/custom-tracker-1.1.1.zip",
         "sha256": "9da6be906c6c7fc331e1d307f7203388ab6227c4b05138b71a56a747050740e9",
         "bytes": 1728
       },
@@ -669,7 +946,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/cyoa.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/cyoa-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/cyoa-1.0.4.zip",
         "sha256": "36b11d7ecfff9cb9c2266352381e24a909c6b0163cb5ec3aeffa3784a39a2c86",
         "bytes": 1446
       },
@@ -711,7 +988,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/echo-chamber.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/echo-chamber-1.0.2.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/echo-chamber-1.0.2.zip",
         "sha256": "e78f4d13e6da36deae79dd6d0f6f4396e1bad8c75935b4cb41ffee4189a93520",
         "bytes": 2429
       },
@@ -753,7 +1030,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/expression.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/expression-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/expression-1.0.6.zip",
         "sha256": "eef50911eedf43a9c45afa2f92e2f4f435edaa5a6ee139576b990a33035a08fe",
         "bytes": 1820
       },
@@ -2389,7 +2666,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/gacha-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/gacha-forge-1.27.5.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/gacha-forge-1.27.5.zip",
         "sha256": "a3a1581cb1d80e95ec491b57a64c7b8067120232c55051be68dab15d07849a0d",
         "bytes": 9187385
       },
@@ -2431,7 +2708,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/haptic.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/haptic-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/haptic-1.0.4.zip",
         "sha256": "8f00a3bb33d478850bbfb7be64ae485b344030cc9520c2772e2c8d18b66cf126",
         "bytes": 1946
       },
@@ -2473,7 +2750,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/illustrator.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/illustrator-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/illustrator-1.0.4.zip",
         "sha256": "d9d11c5edc32fb31206b2b43514aaa2c888697f205f1a4a33d19a2facbf3d529",
         "bytes": 3173
       },
@@ -2515,7 +2792,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/html.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/html-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/html-1.0.3.zip",
         "sha256": "3d4ba384cb25e051525d31f352c32f4bd4fa37d299f2b18c3091b78e5f29fbce",
         "bytes": 1569
       },
@@ -2557,7 +2834,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/inventory-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/inventory-tracker-1.2.2.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/inventory-tracker-1.2.2.zip",
         "sha256": "b9682cb9adb9a383d0caaa63e2ace4919e66382df4780c5831370e405dff48b9",
         "bytes": 2109
       },
@@ -2599,7 +2876,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/knowledge-retrieval.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/knowledge-retrieval-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/knowledge-retrieval-1.0.4.zip",
         "sha256": "e0121d6ed27128ca999504cb0ed31e4e2b7557e2dcff7b9446eaeb73735d9e50",
         "bytes": 1368
       },
@@ -2641,7 +2918,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/knowledge-router.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/knowledge-router-1.0.4.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/knowledge-router-1.0.4.zip",
         "sha256": "49b41722c402c91dbfe776f3e87ec8022de0a4553ea2b421d7191dde72a08921",
         "bytes": 1446
       },
@@ -2889,7 +3166,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/long-term-memory.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/long-term-memory-1.6.1.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/long-term-memory-1.6.1.zip",
         "sha256": "33bf7ed4bc6d0ab65975d4f63a3dc9127a9c14071da2a7b8ed49db13fd1a69dc",
         "bytes": 3516809
       },
@@ -2931,7 +3208,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/lorebook-keeper.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/lorebook-keeper-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/lorebook-keeper-1.0.6.zip",
         "sha256": "22133154155984d5639014709db53609fe4e0240cfe42e3794fd6e262617fe36",
         "bytes": 2202
       },
@@ -3001,11 +3278,89 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/memory-nag.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/memory-nag-1.2.1.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/memory-nag-1.2.1.zip",
         "sha256": "1b26fe893e2d6d8caadd4f3f7c31c73b6e526f2b0cf8f0d42e0102dd4f245c8e",
         "bytes": 171368
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#memory-nag"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 9
+        },
+        "builtAgainst": {
+          "engineVersion": "2.4.6",
+          "engineCommit": "3ec25a04e39f5eda3eea138c1c1941a169bb88be"
+        },
+        "id": "modern-life-sim",
+        "name": "Modern Life Sim",
+        "version": "0.3.2",
+        "description": "A modern life sim in its own Home tab: a town on a clock, a job, rent and needs, and a cast drawn from your character cards whose relationships grow scene by scene, with a visual-novel narrator for the scenes that matter. Install it, restart Marinara Engine when prompted, then open Home → Life Sim.",
+        "engine": {
+          "min": "2.4.4",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json",
+          "client": "client.js",
+          "server": "server.mjs"
+        },
+        "contributions": {
+          "slots": [
+            "home-browser-tab"
+          ],
+          "homeBrowserTab": {
+            "label": "Life Sim",
+            "ariaLabel": "Open Modern Life Sim",
+            "iconPaths": [
+              "life-sim-icon.png"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "ddcda224d65454296d5e3a69d376f26c33c39de4e0f935f014d5a0d8595483bd",
+            "bytes": 678
+          },
+          {
+            "path": "client.js",
+            "sha256": "185ca87725f6d3e588c63ff6c756b4b00d6b791155b9f18a4c7aba56283fbac4",
+            "bytes": 960211
+          },
+          {
+            "path": "server.mjs",
+            "sha256": "d5672272a8267f205537f524a3ab2d52cc0531f4567ea624c06de1e67f95c890",
+            "bytes": 1285097
+          },
+          {
+            "path": "life-sim-icon.png",
+            "sha256": "6b5aa92f7be297f56ce4690cf4baa752f13681200570252fbf2e7a91e851d2ea",
+            "bytes": 7106
+          }
+        ],
+        "permissions": [
+          "network",
+          "routes",
+          "storage",
+          "ui"
+        ],
+        "restartRequired": true
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/modern-life-sim.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/modern-life-sim-0.3.2.zip",
+        "sha256": "3d273253836209e5ecde45e4d4ec1c1e07744faaecf7d5685890338483aa51fb",
+        "bytes": 2255359
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/staging/packages/modern-life-sim/README.md"
     },
     {
       "manifest": {
@@ -3043,7 +3398,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/spotify.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/spotify-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/spotify-1.0.3.zip",
         "sha256": "be8dec8daeaabc8f533be670632ddd6c677d3ff7447aaf94f42ddf7e697efaaa",
         "bytes": 2611
       },
@@ -3085,7 +3440,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/director.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/director-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/director-1.0.3.zip",
         "sha256": "3e364ccdad2360f5663bc659c21647372b39463eeae99b81203c82174ccab838",
         "bytes": 1415
       },
@@ -3214,7 +3569,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/noodle.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/noodle-1.5.16.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/noodle-1.5.16.zip",
         "sha256": "2475a4b5b2e2b2efc45117a2c0bc15c56e8b62f1f48d6de44ceb3473b7afa344",
         "bytes": 1300164
       },
@@ -3301,7 +3656,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/otome-forge.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/otome-forge-0.30.0.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/otome-forge-0.30.0.zip",
         "sha256": "48f715703a93c96eb553a91c0c8f4bd3e2de5c0098714f969ede9f753f525d89",
         "bytes": 2244775
       },
@@ -3343,7 +3698,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/persona-stats.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/persona-stats-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/persona-stats-1.0.3.zip",
         "sha256": "cfa8cdc7e69103c1c027daf9938a980cec6dc60e66c5fa1a9dcb55f1472fa07d",
         "bytes": 1603
       },
@@ -3420,7 +3775,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/poker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/poker-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/poker-1.0.6.zip",
         "sha256": "386efe30c0f40f05da52e62431860d459847386f0f9afa678b2892c7cd77e6c4",
         "bytes": 60405
       },
@@ -3462,7 +3817,7 @@
       "category": "writer",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/prose-guardian.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/prose-guardian-1.0.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/prose-guardian-1.0.3.zip",
         "sha256": "3cc07250d28a1d902c1f09a00f7007e987f5e5c2bdcbaad3ead0f6ab55d867d9",
         "bytes": 1517
       },
@@ -3639,7 +3994,7 @@
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/quartermaster.png",
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/quartermaster/README.md",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/quartermaster-0.1.34.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quartermaster-0.1.34.zip",
         "sha256": "f1ab0744bae031a9b3a2496b1e1aa68ed557a3e479d8d00aaa58ed63ac83e4e7",
         "bytes": 572014
       }
@@ -3680,7 +4035,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/quest.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/quest-1.0.5.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/quest-1.0.5.zip",
         "sha256": "d14d89a105a0f235c7b813366acccbd7049eb3b1ffd5b6815b691ec97225fa8e",
         "bytes": 3000
       },
@@ -3799,7 +4154,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/relationship-tracker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/relationship-tracker-0.7.3.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/relationship-tracker-0.7.3.zip",
         "sha256": "0bebbceccb3ff3068d99e9a8bc62f9e8302223d2c23b43f73e265a89b0e08dd2",
         "bytes": 255954
       },
@@ -3876,7 +4231,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/rock-paper-scissors.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/rock-paper-scissors-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/rock-paper-scissors-1.0.6.zip",
         "sha256": "4a5f7b746fb234023028d4925676a4b0f833add94ba09494935acfef1c49697a",
         "bytes": 37676
       },
@@ -4269,7 +4624,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/saucelings.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/saucelings-0.23.2.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/saucelings-0.23.2.zip",
         "sha256": "1f886bac6b54d5b97c5edef854b246f2f8a071ca50121a9234fb15a555bd24a8",
         "bytes": 824313
       },
@@ -4417,7 +4772,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/slurp2.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/slurp2-0.4.22.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/slurp2-0.4.22.zip",
         "sha256": "bce0c1553d690124c2b55cb9e8d621307ba10526ee9f1a13df8e883dbfa22ad6",
         "bytes": 6152890
       },
@@ -4522,7 +4877,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/story-writer.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/story-writer-0.2.0.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/story-writer-0.2.0.zip",
         "sha256": "af14d99ff9780d9d344fc83c7d73b304c355e9125df4fa7e3f73b4c68ed821ba",
         "bytes": 624271
       },
@@ -4564,7 +4919,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/storyboard.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/storyboard-1.1.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/storyboard-1.1.6.zip",
         "sha256": "126c32600cb3d98101f01e2d74a358f47250bb11b1403f5be79cadc07247f6f6",
         "bytes": 17718
       },
@@ -4642,7 +4997,7 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/tic-tac-toe.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/tic-tac-toe-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/tic-tac-toe-1.0.6.zip",
         "sha256": "46b214655d7c0aa764773e6e51c79fcc6b15d9dbabb4acc24c7451d543c94a69",
         "bytes": 33455
       },
@@ -4717,11 +5072,730 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/uno.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/uno-1.0.6.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/uno-1.0.6.zip",
         "sha256": "1bfa4fbfb6627af7ef2ff26b179883d61d1be2b1398bf701682e567ce75b0728",
         "bytes": 59861
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents#uno"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 66
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.2",
+          "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+        },
+        "id": "wanderworld",
+        "name": "Wanderworld",
+        "version": "0.5.89",
+        "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
+        "engine": {
+          "min": "2.4.6",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json",
+          "client": "client.js",
+          "server": "server.mjs"
+        },
+        "contributions": {
+          "slots": [
+            "home-browser-tab"
+          ],
+          "homeBrowserTab": {
+            "label": "Wanderworld",
+            "ariaLabel": "Open Wanderworld",
+            "iconPaths": [
+              "wanderworld-icon.webp"
+            ]
+          },
+          "assets": {
+            "paths": [
+              "kit/creatures/farm.json",
+              "kit/creatures/index.json",
+              "kit/creatures/monsters.json",
+              "kit/creatures/wild.json",
+              "kit/fantasy/costumes/costume-adventurer.json",
+              "kit/fantasy/costumes/costume-farmer.json",
+              "kit/fantasy/costumes/costume-king.json",
+              "kit/fantasy/costumes/costume-rogue.json",
+              "kit/fantasy/costumes/costume-wanderer.json",
+              "kit/fantasy/costumes/costume-witch.json",
+              "kit/fantasy/folk/folk-imp.webp",
+              "kit/fantasy/folk/folk-puglin.webp",
+              "kit/fantasy/folk/folk.json",
+              "kit/fantasy/outfits/clothes-a.webp",
+              "kit/fantasy/outfits/clothes-b.webp",
+              "kit/fantasy/outfits/clothes-blue.webp",
+              "kit/fantasy/outfits/clothes-grey.webp",
+              "kit/fantasy/outfits/clothes-plum.webp",
+              "kit/fantasy/outfits/clothes-red.webp",
+              "kit/fantasy/outfits/clothes-teal.webp",
+              "kit/fantasy/outfits/female-peasant.json",
+              "kit/fantasy/outfits/female-ranger.json",
+              "kit/fantasy/outfits/male-peasant.json",
+              "kit/fantasy/outfits/male-ranger.json",
+              "kit/fantasy/outfits/plain-peasant.webp",
+              "kit/fantasy/outfits/plain-ranger.webp",
+              "kit/fantasy/outfits/ranger-a.webp",
+              "kit/fantasy/outfits/ranger-b.webp",
+              "kit/fantasy/outfits/ranger-dusk.webp",
+              "kit/fantasy/outfits/ranger-grey.webp",
+              "kit/fantasy/outfits/ranger-moss.webp",
+              "kit/fantasy/outfits/ranger-rust.webp",
+              "kit/fantasy/outfits/ranger-wine.webp",
+              "kit/fantasy/props/crystal-3saqxqooti-glb-0.webp",
+              "kit/fantasy/props/crystal-5dxobg8vsp-glb-0.webp",
+              "kit/fantasy/props/crystal-7do2pm4f8o-glb-0.webp",
+              "kit/fantasy/props/index.json",
+              "kit/fantasy/props/models.json",
+              "kit/fantasy/props/saddle-by-poly-by-google-dsmm-v4sknr-glb-0.webp",
+              "kit/fantasy/props/t-trim-cloth-basecolor.webp",
+              "kit/fantasy/props/t-trim-furniture-basecolor.webp",
+              "kit/fantasy/props/t-trim-metal-basecolor.webp",
+              "kit/fantasy/props/t-trim-props-basecolor.webp",
+              "kit/fantasy/props/t-woodtrim-basecolor.webp",
+              "kit/fantasy/village/index.json",
+              "kit/fantasy/village/models.json",
+              "kit/fantasy/village/t-brick-basecolor.webp",
+              "kit/fantasy/village/t-metalornaments-basecolor.webp",
+              "kit/fantasy/village/t-plaster-basecolor.webp",
+              "kit/fantasy/village/t-rocktrim-basecolor.webp",
+              "kit/fantasy/village/t-roundtiles-basecolor.webp",
+              "kit/fantasy/village/t-unevenbrick-basecolor.webp",
+              "kit/fantasy/village/t-vineleaf-png.webp",
+              "kit/fantasy/village/t-woodtrim-basecolor.webp",
+              "kit/generic/art/bridge-planks.webp",
+              "kit/generic/art/cliff-rock.webp",
+              "kit/generic/art/ground-dirt.webp",
+              "kit/generic/art/ground-forest.webp",
+              "kit/generic/art/ground-grass.webp",
+              "kit/generic/art/ground-riverbed.webp",
+              "kit/generic/art/ground-rock.webp",
+              "kit/generic/art/ground-snow.webp",
+              "kit/generic/art/loading-bg.webp",
+              "kit/generic/art/logo.webp",
+              "kit/generic/art/menu-bg-portrait.webp",
+              "kit/generic/art/menu-bg.webp",
+              "kit/generic/art/note.webp",
+              "kit/generic/art/parchment-edged.webp",
+              "kit/generic/art/parchment.webp",
+              "kit/generic/art/plaza-stone.webp",
+              "kit/generic/art/sidewalk-setts.webp",
+              "kit/generic/art/sign-wood.webp",
+              "kit/generic/art/sign-wood1.webp",
+              "kit/generic/art/sign-wood2.webp",
+              "kit/generic/art/sign-wood3.webp",
+              "kit/generic/art/sign-wood4.webp",
+              "kit/generic/art/street-cobbles.webp",
+              "kit/generic/art/water.webp",
+              "kit/generic/art/wood-beam.webp",
+              "kit/generic/nature/bark-deadtree.webp",
+              "kit/generic/nature/bark-normaltree.webp",
+              "kit/generic/nature/bark-twistedtree.webp",
+              "kit/generic/nature/flowers.webp",
+              "kit/generic/nature/grass.webp",
+              "kit/generic/nature/index.json",
+              "kit/generic/nature/leaf-pine-c.webp",
+              "kit/generic/nature/leaves-normaltree-c.webp",
+              "kit/generic/nature/leaves-twistedtree-c.webp",
+              "kit/generic/nature/leaves.webp",
+              "kit/generic/nature/models.json",
+              "kit/generic/nature/mushrooms.webp",
+              "kit/generic/nature/pathrocks-diffuse.webp",
+              "kit/generic/nature/rocks-diffuse.webp",
+              "kit/generic/people/bodies.json",
+              "kit/generic/people/eyes.webp",
+              "kit/generic/people/hair-1.webp",
+              "kit/generic/people/hair-2.webp",
+              "kit/generic/people/head-female.webp",
+              "kit/generic/people/head-male.webp",
+              "kit/generic/people/index.json",
+              "kit/generic/people/plain-head-female.webp",
+              "kit/generic/people/plain-head-male.webp",
+              "kit/generic/people/plain-skin-female.webp",
+              "kit/generic/people/plain-skin-male.webp",
+              "kit/generic/people/skin-female.webp",
+              "kit/generic/people/skin-male.webp"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "42c9e36f1bf744ace2de97ea475f5068762738120a685847729c611082069f17",
+            "bytes": 787
+          },
+          {
+            "path": "client.js",
+            "sha256": "d47bf9441ba22c99a4776449eb81f6f02eb20509a3d3e1b374f3784c66365f6b",
+            "bytes": 2375845
+          },
+          {
+            "path": "server.mjs",
+            "sha256": "1c1f3705bdcb8fdd4b4fa30a7b40be93234734f5b24366fc4727fdfa9fb12c15",
+            "bytes": 128117
+          },
+          {
+            "path": "wanderworld-icon.webp",
+            "sha256": "b59c942c2197990da3548dd6b2e29dfec10128688f5069fb44700602a3371e06",
+            "bytes": 5236
+          },
+          {
+            "path": "kit/creatures/farm.json",
+            "sha256": "4f5dc9c50c9ce5403c2a617e0d2a733368a03ed66ac48565853601ad484ef59a",
+            "bytes": 1471016
+          },
+          {
+            "path": "kit/creatures/index.json",
+            "sha256": "50072cb6f704c3a0d9a1bfdc4ed1f004788007574bff83f90b1a60c46edf0409",
+            "bytes": 2815
+          },
+          {
+            "path": "kit/creatures/monsters.json",
+            "sha256": "e6ab4c18dc11080673a959c6f6f07ad4013b2b5623d8623cf8f550d33c3a2933",
+            "bytes": 2022569
+          },
+          {
+            "path": "kit/creatures/wild.json",
+            "sha256": "0c3b7c24b701260b96c9b08c95fb9214d0f6b3a174923749839ff82b6b748622",
+            "bytes": 756743
+          },
+          {
+            "path": "kit/fantasy/costumes/costume-adventurer.json",
+            "sha256": "d15b8415476e18fb0ddd65ea94bb6e1db7b225c3005c5c8f9058d29bec82f5ab",
+            "bytes": 559316
+          },
+          {
+            "path": "kit/fantasy/costumes/costume-farmer.json",
+            "sha256": "ac3efc984cd62327304030439f97a7a0b6bc9f5b8fd7477888fe457a2ecef0aa",
+            "bytes": 304100
+          },
+          {
+            "path": "kit/fantasy/costumes/costume-king.json",
+            "sha256": "d264fc91274c25e628cbd9018b74070cbfe11b9ff48b8d964c9cd418244f5e36",
+            "bytes": 591805
+          },
+          {
+            "path": "kit/fantasy/costumes/costume-rogue.json",
+            "sha256": "34c921c352e1b37ee9396cb18851e8f419ca15af9841768c106417a19a0c0220",
+            "bytes": 354866
+          },
+          {
+            "path": "kit/fantasy/costumes/costume-wanderer.json",
+            "sha256": "91e2afddce98f16e474283f797d8b47a88111cb576629295f44691f3864b0be6",
+            "bytes": 376861
+          },
+          {
+            "path": "kit/fantasy/costumes/costume-witch.json",
+            "sha256": "c9660297115fb7ddf5a8a725a6c9cb9f3c87597315028c54f5d3f995b7655640",
+            "bytes": 380400
+          },
+          {
+            "path": "kit/fantasy/folk/folk-imp.webp",
+            "sha256": "1dcba670c6e0c548a3df5638571913b883999ad7f277d7d16bba67478a7dbb78",
+            "bytes": 16020
+          },
+          {
+            "path": "kit/fantasy/folk/folk-puglin.webp",
+            "sha256": "3d45fd986985ff86e2aeb30556c1d3739114db7a10f5f20af0bc14e81665182d",
+            "bytes": 9758
+          },
+          {
+            "path": "kit/fantasy/folk/folk.json",
+            "sha256": "70d8b8a3ca9a5b75f15601678e467a3b7507aa1b665beac67ee68d830ea491fc",
+            "bytes": 638660
+          },
+          {
+            "path": "kit/fantasy/outfits/clothes-a.webp",
+            "sha256": "376a38ce3abb9d1053164b2db1afc8183380dcb5856ffee58b2d5d3bae873836",
+            "bytes": 17620
+          },
+          {
+            "path": "kit/fantasy/outfits/clothes-b.webp",
+            "sha256": "8c8998ccffb6a9523d9c268fd3cf42ff106bd1f41d01cb2f73a0075b9b753f0c",
+            "bytes": 15566
+          },
+          {
+            "path": "kit/fantasy/outfits/clothes-blue.webp",
+            "sha256": "3256fb501703b14ca46608a4f6a62a9d06395953682acdf555926a66dbdde4e5",
+            "bytes": 21090
+          },
+          {
+            "path": "kit/fantasy/outfits/clothes-grey.webp",
+            "sha256": "d7456a3d74334ab993f5a33a58f3c017d01ec2cf57dc2e71b401f948cce1deb2",
+            "bytes": 18672
+          },
+          {
+            "path": "kit/fantasy/outfits/clothes-plum.webp",
+            "sha256": "2796e62b7ebd31920b8bc3c54f264af1ede82efebdadf38536ab7869d85a638f",
+            "bytes": 18414
+          },
+          {
+            "path": "kit/fantasy/outfits/clothes-red.webp",
+            "sha256": "a10353886b39fe75c17c85b818e9a38c7b77a20f457c20bf618a0221a01f5a00",
+            "bytes": 19076
+          },
+          {
+            "path": "kit/fantasy/outfits/clothes-teal.webp",
+            "sha256": "947dc1c5faa4b6cbebb118b623c2f753cc16971b81cf02ac549bd59fff28bd28",
+            "bytes": 23148
+          },
+          {
+            "path": "kit/fantasy/outfits/female-peasant.json",
+            "sha256": "8ee8e4e981a4bed83c8ab52e0b64bb9bf2d2f3a9370433db005777202db1cdfa",
+            "bytes": 422305
+          },
+          {
+            "path": "kit/fantasy/outfits/female-ranger.json",
+            "sha256": "dbf2371d0a3f6316303bbca258fc5f82ba829e3a1c40ab5c2925d4927179672c",
+            "bytes": 954029
+          },
+          {
+            "path": "kit/fantasy/outfits/male-peasant.json",
+            "sha256": "ece8c26a7a2e63471559a31a0c25bf1b0ddc3afd56e0b5af7c901af35f8586b7",
+            "bytes": 379334
+          },
+          {
+            "path": "kit/fantasy/outfits/male-ranger.json",
+            "sha256": "e3936960201ccde65e15a735467c48a20b646f1fb9dd5b9b5d85a9c7f738e668",
+            "bytes": 813862
+          },
+          {
+            "path": "kit/fantasy/outfits/plain-peasant.webp",
+            "sha256": "33010df3d98aa2617d3ef648cb782fe9129229e0578b032d109ae73c06d97c15",
+            "bytes": 14902
+          },
+          {
+            "path": "kit/fantasy/outfits/plain-ranger.webp",
+            "sha256": "93adebfc25df1566139feef3edb98fe38b2fb67d8cd03be11a557669b75d8e27",
+            "bytes": 18422
+          },
+          {
+            "path": "kit/fantasy/outfits/ranger-a.webp",
+            "sha256": "a7b07f0060db21d4f9b3771bdd583c66cc6cdee5e80ebb2adfa9a759e17edd66",
+            "bytes": 22720
+          },
+          {
+            "path": "kit/fantasy/outfits/ranger-b.webp",
+            "sha256": "001aa6997385d2fb7a17aadbae8d9a20c1dc8ceb882d6fa72314f00dfef4e98f",
+            "bytes": 18856
+          },
+          {
+            "path": "kit/fantasy/outfits/ranger-dusk.webp",
+            "sha256": "0c8752d419145b7915ce7f7f0d5a03b978ee02c832cfe3e13562233a03b9a432",
+            "bytes": 18562
+          },
+          {
+            "path": "kit/fantasy/outfits/ranger-grey.webp",
+            "sha256": "ddd0dd6f9e4d08e72220ffe03f783f743eab6880a50cbf768fc180266d0cb52c",
+            "bytes": 17744
+          },
+          {
+            "path": "kit/fantasy/outfits/ranger-moss.webp",
+            "sha256": "6753d0f1352f3f58c73275dbfee6224701a11174f64a47f89f160c4029e5f714",
+            "bytes": 22538
+          },
+          {
+            "path": "kit/fantasy/outfits/ranger-rust.webp",
+            "sha256": "9079d5774247e4f64cc6bf2aef93315a0c20392624b5613e7a148093a6dfe14b",
+            "bytes": 19318
+          },
+          {
+            "path": "kit/fantasy/outfits/ranger-wine.webp",
+            "sha256": "cd19c2e65fed12e79f819192ae79b44815f9b4406fbe9a811c1afcbc45a3721b",
+            "bytes": 21826
+          },
+          {
+            "path": "kit/fantasy/props/crystal-3saqxqooti-glb-0.webp",
+            "sha256": "15ff3a232bc3f3b05f35391837302f57bf147947cca12b0ed1e94a3c4613dc79",
+            "bytes": 1790
+          },
+          {
+            "path": "kit/fantasy/props/crystal-5dxobg8vsp-glb-0.webp",
+            "sha256": "15ff3a232bc3f3b05f35391837302f57bf147947cca12b0ed1e94a3c4613dc79",
+            "bytes": 1790
+          },
+          {
+            "path": "kit/fantasy/props/crystal-7do2pm4f8o-glb-0.webp",
+            "sha256": "15ff3a232bc3f3b05f35391837302f57bf147947cca12b0ed1e94a3c4613dc79",
+            "bytes": 1790
+          },
+          {
+            "path": "kit/fantasy/props/index.json",
+            "sha256": "dbe52f1188770656afa46360e64572d6de0df7502ba9334dc373cea5da5a9fb0",
+            "bytes": 7116
+          },
+          {
+            "path": "kit/fantasy/props/models.json",
+            "sha256": "2fde01cfffae4092f773a27e0858684532519dc5d247cfd24b14495f280445cf",
+            "bytes": 2516685
+          },
+          {
+            "path": "kit/fantasy/props/saddle-by-poly-by-google-dsmm-v4sknr-glb-0.webp",
+            "sha256": "e99a447ff8ddf71f379791a423098f9117ea360f6c1bbaa2bfb1687d08b341a9",
+            "bytes": 8868
+          },
+          {
+            "path": "kit/fantasy/props/t-trim-cloth-basecolor.webp",
+            "sha256": "1384d589bb0e3781bf928abcb907c57b6b31137ba454893c096f7e5d1e463639",
+            "bytes": 16888
+          },
+          {
+            "path": "kit/fantasy/props/t-trim-furniture-basecolor.webp",
+            "sha256": "51a1958f03924302902445549a02300a566c6d22d897112d596eb947e10ff83d",
+            "bytes": 21116
+          },
+          {
+            "path": "kit/fantasy/props/t-trim-metal-basecolor.webp",
+            "sha256": "e1991361b92c3f8b9c2359fff2a154b44370997c3240e30c39027a3e8e9a12db",
+            "bytes": 16558
+          },
+          {
+            "path": "kit/fantasy/props/t-trim-props-basecolor.webp",
+            "sha256": "7e40395ccb932616c250b0b7467e4713db1b258d02482bdadb9c0438476b1eb4",
+            "bytes": 27378
+          },
+          {
+            "path": "kit/fantasy/props/t-woodtrim-basecolor.webp",
+            "sha256": "224477f956a9fdb494721b043421156364b6d3d881fef832ba056cca5f8265fa",
+            "bytes": 19352
+          },
+          {
+            "path": "kit/fantasy/village/index.json",
+            "sha256": "d8bae5b65106263fc4b955c7c01732f278cb2c0ee75bf9c5f863b207ac5ae02b",
+            "bytes": 6491
+          },
+          {
+            "path": "kit/fantasy/village/models.json",
+            "sha256": "516b2eb32bf1742262bfd2c22c8186ab2ea489e4e7338deb184e9a7c36592a81",
+            "bytes": 1867870
+          },
+          {
+            "path": "kit/fantasy/village/t-brick-basecolor.webp",
+            "sha256": "5ca25458f35c0785040b527ff5b66ffa5004a89d332f1c5358d1f3b5eabd98c8",
+            "bytes": 15914
+          },
+          {
+            "path": "kit/fantasy/village/t-metalornaments-basecolor.webp",
+            "sha256": "1047496860116ea168c0b0b4b84278187c4fe70263a9ed2bbe70ea92f6393f72",
+            "bytes": 25258
+          },
+          {
+            "path": "kit/fantasy/village/t-plaster-basecolor.webp",
+            "sha256": "4c86b3f1b8f49423c0a855c5e3a308a19b283d1d29b15b0ad1827462c1215dee",
+            "bytes": 5120
+          },
+          {
+            "path": "kit/fantasy/village/t-rocktrim-basecolor.webp",
+            "sha256": "e49346f13f6791ce88ef218addd8e94100e233fe13308e0de15d01d301357524",
+            "bytes": 15066
+          },
+          {
+            "path": "kit/fantasy/village/t-roundtiles-basecolor.webp",
+            "sha256": "8089a63ef76c5ba74a6cf918b08a4c95cbc7a42f3c044458009d04f6793e480c",
+            "bytes": 12230
+          },
+          {
+            "path": "kit/fantasy/village/t-unevenbrick-basecolor.webp",
+            "sha256": "a925d7363acaf6ce63923cc1fc61651fc51f5b8f4a2febc832367f3aab535dbe",
+            "bytes": 16226
+          },
+          {
+            "path": "kit/fantasy/village/t-vineleaf-png.webp",
+            "sha256": "7d9ea3e6d287a269a92a447607b11a716710297b0da6777478fa6dc4c3e81323",
+            "bytes": 12806
+          },
+          {
+            "path": "kit/fantasy/village/t-woodtrim-basecolor.webp",
+            "sha256": "224477f956a9fdb494721b043421156364b6d3d881fef832ba056cca5f8265fa",
+            "bytes": 19352
+          },
+          {
+            "path": "kit/generic/art/bridge-planks.webp",
+            "sha256": "55ad05cc340dd40bd606aa672c4d55fc2c4882eecd188b3291bab08a474927b0",
+            "bytes": 36976
+          },
+          {
+            "path": "kit/generic/art/cliff-rock.webp",
+            "sha256": "8e290a582f3d52ba3131123e1ddc91becfdd26e91f40ce38d088ac116325e6bd",
+            "bytes": 203032
+          },
+          {
+            "path": "kit/generic/art/ground-dirt.webp",
+            "sha256": "cb60c5d7fed1c6c5ee2638a1057bb9150b318ee6299f0e5d1b5c3a2082ea91eb",
+            "bytes": 146640
+          },
+          {
+            "path": "kit/generic/art/ground-forest.webp",
+            "sha256": "04c9771a0816f0d35caf46169ccf245935fe09c19e685738365a82ac716a3588",
+            "bytes": 281656
+          },
+          {
+            "path": "kit/generic/art/ground-grass.webp",
+            "sha256": "58ab5b0a305c9c726be604ad830c8d404aff312ea97b869df11dbea8e4ff6820",
+            "bytes": 262932
+          },
+          {
+            "path": "kit/generic/art/ground-riverbed.webp",
+            "sha256": "c1e45af42ac93206c6bda47b7ec4609ccb254702cc0ff770ede48003ddfc2e5a",
+            "bytes": 34434
+          },
+          {
+            "path": "kit/generic/art/ground-rock.webp",
+            "sha256": "9a4a5e9aa6f4de587d2dc3655a84f56c75c0965c18dbd62ac318c4e9f2de4d21",
+            "bytes": 173314
+          },
+          {
+            "path": "kit/generic/art/ground-snow.webp",
+            "sha256": "7b4d75a8eb7b7c5ba6071ff13e97e61d77ed27e794887d4606e2a503a50e0a96",
+            "bytes": 14868
+          },
+          {
+            "path": "kit/generic/art/loading-bg.webp",
+            "sha256": "d3cb745a47bf4e642442b28cf8aa15f1dfcb8aedc415d3c27db6bf0f5416d053",
+            "bytes": 67492
+          },
+          {
+            "path": "kit/generic/art/logo.webp",
+            "sha256": "3ba07c49379b6b6edd60b9f434ae37ff8a8af07bcb842c6e5d616dc8c2f638fe",
+            "bytes": 93512
+          },
+          {
+            "path": "kit/generic/art/menu-bg-portrait.webp",
+            "sha256": "b0c3695649b2db03af21caa4e894e77eecc60d90971a1b5083397e57ec960202",
+            "bytes": 45546
+          },
+          {
+            "path": "kit/generic/art/menu-bg.webp",
+            "sha256": "e10509ac353dcab21eac6a699528c11bed619889d70ec9a8db3ebafbcf4ad6fa",
+            "bytes": 40422
+          },
+          {
+            "path": "kit/generic/art/note.webp",
+            "sha256": "1a9a8ef59409e732e489573b7525a1cbda54dac79dcdc2e5fe19713eb455d42d",
+            "bytes": 8606
+          },
+          {
+            "path": "kit/generic/art/parchment-edged.webp",
+            "sha256": "6ffbb3b069e7e4c35bb7b616a350870798dc731bd12f5db9b01b584206a39eca",
+            "bytes": 39090
+          },
+          {
+            "path": "kit/generic/art/parchment.webp",
+            "sha256": "404bc01233c1accac511632cebb4878e0eab1affb02b8f0346af1c65090bcfd6",
+            "bytes": 4976
+          },
+          {
+            "path": "kit/generic/art/plaza-stone.webp",
+            "sha256": "9ed9abad7f0b2aa45569a994a92fada5438c8f10631f3483fda5ebb643c0bb2c",
+            "bytes": 143720
+          },
+          {
+            "path": "kit/generic/art/sidewalk-setts.webp",
+            "sha256": "d63c424d75fba577b162ad1611be2e9c6f068f685bf0cbb5d9c8a1f8f49a6d0f",
+            "bytes": 120304
+          },
+          {
+            "path": "kit/generic/art/sign-wood.webp",
+            "sha256": "a4af15b6d70e353ccdaa5e990d52330f63ba29938210899e6a4086261be6d6ad",
+            "bytes": 43670
+          },
+          {
+            "path": "kit/generic/art/sign-wood1.webp",
+            "sha256": "654683b2b6364be3261a13e43002dd522a91e6d1d8221235716a0ba2b9ea8c3d",
+            "bytes": 46910
+          },
+          {
+            "path": "kit/generic/art/sign-wood2.webp",
+            "sha256": "8c6066c96592cbfc656d24bd2148e62ddeb1bd3ec31ecaca7a1ba8cce3126949",
+            "bytes": 40648
+          },
+          {
+            "path": "kit/generic/art/sign-wood3.webp",
+            "sha256": "d7a1f68156310233fdd973badee3f4979f07da30363d112f53363a825ced2e7f",
+            "bytes": 33384
+          },
+          {
+            "path": "kit/generic/art/sign-wood4.webp",
+            "sha256": "4c29fae287944af52caf705911c218a2148e1109ad10adad60db61bbb256564a",
+            "bytes": 43796
+          },
+          {
+            "path": "kit/generic/art/street-cobbles.webp",
+            "sha256": "b2d3532aff36511adcfb3b0e5934678665fbab47b2928eab2e9fc096bcdfdea2",
+            "bytes": 268572
+          },
+          {
+            "path": "kit/generic/art/water.webp",
+            "sha256": "a3f79e06c6c46eda19210617fcda8930e83cee61708360cf161fa63ce600e85d",
+            "bytes": 26338
+          },
+          {
+            "path": "kit/generic/art/wood-beam.webp",
+            "sha256": "ab1947c7151e09969d2a2cc7b7e9b45f19c26901a81a7761716ab4143b298895",
+            "bytes": 38302
+          },
+          {
+            "path": "kit/generic/nature/bark-deadtree.webp",
+            "sha256": "b2b8ac1369583e0b440284fe674692eac3196f4a8488307c3b462624922a62da",
+            "bytes": 2984
+          },
+          {
+            "path": "kit/generic/nature/bark-normaltree.webp",
+            "sha256": "85fb5a9084102eeb7c17e9016b64f91e595be26bef1a6e3d2fbcbb56c347b15d",
+            "bytes": 3248
+          },
+          {
+            "path": "kit/generic/nature/bark-twistedtree.webp",
+            "sha256": "366e13799c95c499b831bf8f91dd4681b8dc61a584aeae244668d48648fa6879",
+            "bytes": 3660
+          },
+          {
+            "path": "kit/generic/nature/flowers.webp",
+            "sha256": "95d09d4c5405be26a157b707d7de6b2ef837dcd8b6572c8afbf6a7a863b684b5",
+            "bytes": 11866
+          },
+          {
+            "path": "kit/generic/nature/grass.webp",
+            "sha256": "5d369c2dafb46945d2ac826367f744510f18cee651aa43c70071ff80d2bb1ede",
+            "bytes": 378
+          },
+          {
+            "path": "kit/generic/nature/index.json",
+            "sha256": "cdfa5adb2cb3fcf384ee1f4add5a460fb3b7b11caef1aedac3e7c0a823185b7c",
+            "bytes": 3399
+          },
+          {
+            "path": "kit/generic/nature/leaf-pine-c.webp",
+            "sha256": "95726161a2b62479e7c7849ed09ffef5d44b531f45879fa127bae5800c221914",
+            "bytes": 2570
+          },
+          {
+            "path": "kit/generic/nature/leaves-normaltree-c.webp",
+            "sha256": "b4929508a572aed6ab702a368da14b8219cc901e78dd21545c36ec07c659dda7",
+            "bytes": 7704
+          },
+          {
+            "path": "kit/generic/nature/leaves-twistedtree-c.webp",
+            "sha256": "a38e9d9904c741dd55c003b3d389a31cd854169dc2d3289247aca2b67ec4aae3",
+            "bytes": 6056
+          },
+          {
+            "path": "kit/generic/nature/leaves.webp",
+            "sha256": "16b9e9e02fef3a475cf143cf122bc95f9280f470ec483875e8c094d7c3ed0ab3",
+            "bytes": 17832
+          },
+          {
+            "path": "kit/generic/nature/models.json",
+            "sha256": "2d9c24786c0307d8671211fd9429c4e8ba7b53f11b381173e845c841e78e7bdb",
+            "bytes": 2083120
+          },
+          {
+            "path": "kit/generic/nature/mushrooms.webp",
+            "sha256": "ea8237681943500a9a85603baf09a69d89a9eddca2843c331fb65f26b0cb17b8",
+            "bytes": 9268
+          },
+          {
+            "path": "kit/generic/nature/pathrocks-diffuse.webp",
+            "sha256": "efed38183836aab9797670d20ddbf69619f9730aee4ccef804731fb2cfefffaf",
+            "bytes": 7686
+          },
+          {
+            "path": "kit/generic/nature/rocks-diffuse.webp",
+            "sha256": "e43a436d4443054a919bf73b1eed4328fb104c832b365b95bed2672bfecafe07",
+            "bytes": 8440
+          },
+          {
+            "path": "kit/generic/people/bodies.json",
+            "sha256": "e78efd4487c11e36622d6daa6e837f5591dbbc610807817574dc1d152dad930a",
+            "bytes": 1245939
+          },
+          {
+            "path": "kit/generic/people/eyes.webp",
+            "sha256": "0fa0e28adf2b612fe263bda2f8950831d73d73d5ce871468a0b89d61be5c6ea6",
+            "bytes": 772
+          },
+          {
+            "path": "kit/generic/people/hair-1.webp",
+            "sha256": "ca7fef22ea2e9c610a480cdf93efbb52762dbc7d5e657e7c9add84a3d65cbc48",
+            "bytes": 13798
+          },
+          {
+            "path": "kit/generic/people/hair-2.webp",
+            "sha256": "721c64d98e3bd0e0db59bb9d13f8a53a7b6da9974a48c39884327c798155ad0c",
+            "bytes": 17150
+          },
+          {
+            "path": "kit/generic/people/head-female.webp",
+            "sha256": "8282ff0a9475a402292bee7c67d5a01dea858ec98969156d7a111fdc8ad53f82",
+            "bytes": 9270
+          },
+          {
+            "path": "kit/generic/people/head-male.webp",
+            "sha256": "5588f046f38ce25eeec0836738ca46543ed4b881d77c2cc02f7f0e47761e2540",
+            "bytes": 9170
+          },
+          {
+            "path": "kit/generic/people/index.json",
+            "sha256": "ae8ab80bc8cd35899c03ff69599853e26efba1b0e2a9edaa4ba9c3a4dd04bd2d",
+            "bytes": 3196
+          },
+          {
+            "path": "kit/generic/people/plain-head-female.webp",
+            "sha256": "c8f6e1d8888500e5bf2f485ad5b4979330a779589231220945e018b8038c9a03",
+            "bytes": 6256
+          },
+          {
+            "path": "kit/generic/people/plain-head-male.webp",
+            "sha256": "1e392911e43a3df8ea968c38457867f3b4d656838befa54fa2df2479856e7120",
+            "bytes": 6600
+          },
+          {
+            "path": "kit/generic/people/plain-skin-female.webp",
+            "sha256": "a5158594334b91301dd4e398df57c25008c3c9903b89b7cfda35dfcf1268621b",
+            "bytes": 6476
+          },
+          {
+            "path": "kit/generic/people/plain-skin-male.webp",
+            "sha256": "17ed6b47c5cb7cb54628864925f845cd33f919d02dde127afe6646377720a742",
+            "bytes": 6168
+          },
+          {
+            "path": "kit/generic/people/skin-female.webp",
+            "sha256": "c3e61273b105d885f6d92c42a23c755914f6cf926cb142c9b2d5f7c58198c8bf",
+            "bytes": 9588
+          },
+          {
+            "path": "kit/generic/people/skin-male.webp",
+            "sha256": "4bd6587e066fac73c9ae043ec4504c21fcf3fbb2f7653de67fc4aa07f510d52e",
+            "bytes": 8790
+          }
+        ],
+        "permissions": [
+          "network",
+          "routes",
+          "scenes",
+          "storage",
+          "ui"
+        ],
+        "restartRequired": true
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.5.89.zip",
+        "sha256": "9a555dfeabb99b1bfa59d6989c059bcd91021ce51ffeac5f58f63aaa93929c69",
+        "bytes": 23320388
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
     {
       "manifest": {
@@ -4796,7 +5870,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/hierarchical-maps.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/hierarchical-maps-1.8.0.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/hierarchical-maps-1.8.0.zip",
         "sha256": "20a4f7304221ef895ce98997200b3f0e411b085d3fd3ebdf3704da305a797a78",
         "bytes": 584427
       },
@@ -4838,7 +5912,7 @@
       "category": "tracker",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/world-state.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/world-state-1.1.0.zip",
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/world-state-1.1.0.zip",
         "sha256": "bedf93879675900da43eedf85320898788fd54920342070ba8dba6b24e339f49",
         "bytes": 2004
       },
