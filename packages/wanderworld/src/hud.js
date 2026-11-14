@@ -833,6 +833,10 @@ export function createHud(root, handlers) {
       "On: what the sheet says you're wearing is added after your persona's appearance when the AI speaks, narrates, plans a scene or paints a picture. It is written the way the sheet's own Feed setting says (Quartermaster → Settings); while that is Off, as names with descriptions. Off: the AI only knows your persona's card.",
     inventoryTrack:
       "After moments: when something is narrated, one more AI call reads it and updates the sheet (picked up, put on, given away), by Quartermaster's own rules for hidden items. After moments and replies: the same after each reply in a conversation, so about twice the calls there. Never: you keep the sheet yourself.",
+    inventoryScenes:
+      "On: a scene started from here is linked to this world's sheet, so the scene's chat shows and changes the same inventory, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat. Off: a scene's chat has a sheet of its own. Needs Quartermaster 0.1.37 or later.",
+    inventoryTheme:
+      "On: Quartermaster's window opens in Wanderworld's parchment colours and lettering. Off: it looks as it does in the Engine. The item and outfit editors it opens keep the Engine's look either way.",
     gossip:
       "On: people who spend time together sometimes tell each other something they saw or heard of you. The listener knows it as hearsay and doesn't pass it on. Whispers are never passed on. Off: people only know what they were there for.",
     memoryEach:
@@ -1102,6 +1106,8 @@ export function createHud(root, handlers) {
     { off: "Never", moments: "After moments", all: "After moments and replies" },
     "inventory",
   );
+  toggle("inventoryScenes", "Scenes use this world's inventory", "inventory");
+  toggle("inventoryTheme", "Parchment colours for the inventory window", "inventory");
   at("People", "Genders");
   intro(
     "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",

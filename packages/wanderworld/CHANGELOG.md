@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.91 — 2026-11-14
+
+- A scene started from a world uses that world's inventory (Quartermaster 0.1.37 or later): the scene's chat shows and changes the same sheet, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat.
+- Quartermaster's window opens with your persona's name in its title and in Wanderworld's parchment colours. The editors it opens keep the Engine's look.
+- Two new switches for these in Settings → People → Inventory.
+
 ## 0.5.90 — 2026-11-14
 
 - With the Quartermaster package (0.1.35 or later) installed, the top bar has an Inventory button: Quartermaster's sheet of what your persona wears and carries, one for each persona in each world.

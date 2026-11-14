@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.91",
+          "date": "2026-11-14",
+          "notes": "- A scene started from a world uses that world's inventory (Quartermaster 0.1.37 or later): the scene's chat shows and changes the same sheet, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat.\n- Quartermaster's window opens with your persona's name in its title and in Wanderworld's parchment colours. The editors it opens keep the Engine's look.\n- Two new switches for these in Settings → People → Inventory.",
+          "highlight": false
+        },
+        {
           "version": "0.5.90",
           "date": "2026-11-14",
           "notes": "- With the Quartermaster package (0.1.35 or later) installed, the top bar has an Inventory button: Quartermaster's sheet of what your persona wears and carries, one for each persona in each world.\n- What the sheet says you're wearing is told to the AI after your persona's appearance: in conversations, moments, scene plans and Illustrate. There is no macro to place.\n- After a moment, one more AI call updates the sheet from what was told (picked up, put on, given away), by Quartermaster's own rules. It can also run after each reply in a conversation, or never.\n- Settings → People → Inventory turns each of the three off. Without Quartermaster nothing changes. Deleting a world deletes its sheets.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.72",
           "date": "2026-11-12",
           "notes": "- The AI assistant now sees where people really live and work. Before, it was shown only homes and work set by hand, so it could say someone had no home (and refuse them an errand) while the place list named their house.\n- It is sent the lore from your own lorebooks that is tied to the world, its places and its people, marked read-only. Before, only lore written for this world went.\n- A ready-made request typed in your own words sends what its button would.\n- If it answers that it can't see something that was only left out, it is asked once more with everything.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.71",
-          "date": "2026-11-12",
-          "notes": "- Settings are laid out again. Sections: Display, Controls, World, People, Animals, AI, Token use. Bigger ones have tabs (People: Around you, Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Sound, name tags, market days and Regenerate this world moved to where they belong.\n- Every section and tab starts with a line on what it is for, and every description is rewritten short: what On and Off do, an example where there are numbers. A setting that depends on another sits under it and goes faint while that one is off.\n- Some settings are renamed in plain words, such as \"Count personal limits against the total\".\n- Edit people is in tabs: About, Day, You, Others, Memory. A person's memory limits come before their memories.\n- The main menu opens with Before you start, which can be hidden and reopened.",
           "highlight": false
         }
       ]
