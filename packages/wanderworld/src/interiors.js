@@ -67,7 +67,15 @@ export function createInterior(door, seed, own = []) {
       furniture.push(
         box(0.45 * Math.abs(fz) + 0.06, 0.5, 0.45 * Math.abs(fx) + 0.06, x - fx * 0.21, 0.72, z - fz * 0.21, WOOD),
       );
-    seats.push({ x, z, angle, approach: { x: x + fx * 0.65, z: z + fz * 0.65 }, height: SEAT_HEIGHT, taken: null });
+    seats.push({
+      x,
+      z,
+      angle,
+      approach: { x: x + fx * 0.65, z: z + fz * 0.65 },
+      height: SEAT_HEIGHT,
+      what: back ? "a chair" : "a stool",
+      taken: null,
+    });
   };
   const table = (x, z, w, d, model = "table-large") => {
     furniture.push(box(w, 0.07, d, x, 0.76, z, WOOD));
@@ -246,7 +254,15 @@ export function createInterior(door, seed, own = []) {
         );
         furniture.push(box(Math.min(3.2, hx * 2 - 2.8) / 2, 0.5, 0.06, x, 0.72, z - 0.22, WOOD));
         boxes.push({ minX: x - 0.7, maxX: x + 0.7, minZ: z - 0.25, maxZ: z + 0.2 });
-        seats.push({ x, z, angle: Math.PI, approach: { x, z: z + 0.6 }, height: SEAT_HEIGHT, taken: null });
+        seats.push({
+          x,
+          z,
+          angle: Math.PI,
+          approach: { x, z: z + 0.6 },
+          height: SEAT_HEIGHT,
+          what: "a bench",
+          taken: null,
+        });
       }
     }
     rug(0, 0.5, DOOR_WIDTH + 0.2, depth - 2);

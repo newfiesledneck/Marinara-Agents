@@ -861,6 +861,7 @@ function placeCamp(town, x, z, angle, camp) {
         angle: facingFire(seat),
         approach: local(lx * 0.72, lz * 0.72),
         height: 0.4,
+        what: "a log by the campfire",
         taken: null,
       });
     }
@@ -1017,6 +1018,7 @@ function placeBench(town, x, z, facing) {
       angle: (facing * Math.PI) / 2, // a sitter faces the bench's front
       approach: toWorld(x, z, facing, side, 0.75), // where to stand before sitting down
       height: SEAT_HEIGHT,
+      what: "a bench",
       taken: null,
     });
   }

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.95",
+          "date": "2026-11-14",
+          "notes": "- The AI is told how you stand to a place, not only its name: on the bank beside the pond (not in the water), wading or swimming when you are, inside or outside a building, at the mouth of a cave, on a street, among the ruins.\n- What you sit on is told as what it is: a log by the campfire, a bench, a chair, a stool. The same for people sitting near you.\n- Illustrate's {place_kind} has words for more places (a pond's bank, a cave mouth, a country road) and says when you're indoors.",
+          "highlight": false
+        },
+        {
           "version": "0.5.94",
           "date": "2026-11-14",
           "notes": "- Loading another world can't save the world you're leaving over it: nothing is saved from the moment the other world is picked until it is built. The world you leave is saved, under its own name, before that.",
@@ -307,12 +313,6 @@
           "version": "0.5.76",
           "date": "2026-11-12",
           "notes": "- New world is a walkthrough: Next and Back take you through its four steps and the last one makes the world. What to know before you start is said in the step it belongs to, so the main menu's Before you start box is gone.\n- Messages no longer speak of Wanderworld's \"server part\". When Wanderworld isn't fully loaded they say so, and that the Engine needs a restart (once, after installing or updating it).",
-          "highlight": false
-        },
-        {
-          "version": "0.5.75",
-          "date": "2026-11-12",
-          "notes": "- New world has a step for the AI, before the one that sets a world up with it: whether the server part is running, which connection writes conversations and moments, which plays scenes, which makes pictures, and the AI conversations and AI moments switches. They are your settings for every world, the same ones as in Settings → AI.",
           "highlight": false
         }
       ]
