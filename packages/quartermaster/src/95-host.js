@@ -19,9 +19,42 @@ const QM_HOST_OWNER_RE = /^[A-Za-z0-9_-]{1,100}(:[A-Za-z0-9_-]{1,100})?$/;
 QM.hostSheet = null;
 QM.hostReturnChatId = null;
 
+// A host's look for the dock while its sheet is open: the title, and values
+// for the CSS variables the dock already reads (--popover, --primary, …) set
+// on the dock's own root, so nothing reaches the rest of the Engine.
+// ponytail: the dock window only. The editors and menus it opens are separate
+// elements and keep the Engine's theme; a host reaches them with its own
+// stylesheet through [data-qm-host] until they take the theme too.
+let qmHostThemeProperties = [];
+function qmApplyHostLook(root, { title, theme } = {}) {
+  qmClearHostLook(root);
+  const titleNode = root.querySelector ? root.querySelector("#qm-dock-title") : null;
+  if (titleNode && typeof title === "string" && title.trim()) titleNode.textContent = title.trim().slice(0, 80);
+  const vars = theme && typeof theme.vars === "object" && theme.vars ? theme.vars : {};
+  for (const [name, value] of Object.entries(vars)) {
+    if (!/^--[A-Za-z0-9_-]{1,60}$/.test(name) || typeof value !== "string" || /[;{}]/.test(value)) continue;
+    root.style.setProperty(name, value.slice(0, 500));
+    qmHostThemeProperties.push(name);
+  }
+  if (theme && typeof theme.font === "string" && !/[;{}]/.test(theme.font)) {
+    root.style.setProperty("font-family", theme.font.slice(0, 200));
+    qmHostThemeProperties.push("font-family");
+  }
+}
+function qmClearHostLook(root) {
+  for (const name of qmHostThemeProperties) root.style.removeProperty(name);
+  if (qmHostThemeProperties.includes("font-family")) root.style.setProperty("font-family", "system-ui, sans-serif");
+  qmHostThemeProperties = [];
+  const titleNode = root.querySelector ? root.querySelector("#qm-dock-title") : null;
+  if (titleNode) titleNode.textContent = "Quartermaster";
+}
+
 QM.releaseHostSheet = () => {
   QM.hostSheet = null;
-  if (QM.dock.root) delete QM.dock.root.dataset.qmHost;
+  if (QM.dock.root) {
+    delete QM.dock.root.dataset.qmHost;
+    qmClearHostLook(QM.dock.root);
+  }
   const chatId = QM.hostReturnChatId;
   QM.hostReturnChatId = null;
   QM.state.setChat(chatId);
@@ -30,14 +63,16 @@ QM.releaseHostSheet = () => {
 const Quartermaster = {
   version: typeof QM_VERSION === "string" ? QM_VERSION : null,
   // Grows as the client API does; never shrinks. The server's own list is GET /status.
-  features: ["open", "reload", "changed-event", "icon", "links"],
+  features: ["open", "reload", "changed-event", "icon", "links", "title", "theme"],
   icon: QM_ICON_SVG,
 
   // Opens the dock on a host's sheet and reads it afresh, since the host may
   // have changed it through the routes while the dock was closed. `persona`,
   // when given, says who the sheet is about first ({ personaId, name,
-  // appearance, avatarUrl }, any of them). Rejects on a bad scope or owner.
-  async open({ scope, owner = "persona", persona } = {}) {
+  // appearance, avatarUrl }, any of them). `title` replaces the dock's title
+  // and `theme` ({ vars: { "--popover": "…" }, font }) its colors and font,
+  // both until the dock closes. Rejects on a bad scope or owner.
+  async open({ scope, owner = "persona", persona, title, theme } = {}) {
     if (typeof scope !== "string" || !QM_HOST_SCOPE_RE.test(scope)) {
       throw new TypeError('Quartermaster.open needs a scope like "my-package:world-1"');
     }
@@ -50,7 +85,10 @@ const Quartermaster = {
     const alreadyShowing = QM.state.chatId === scope && QM_OWNER_ID === owner;
     QM.state.setSheet(scope, owner);
     QM.dock.openPanel();
-    if (QM.dock.root) QM.dock.root.dataset.qmHost = scope.split(":")[0];
+    if (QM.dock.root) {
+      QM.dock.root.dataset.qmHost = scope.split(":")[0];
+      qmApplyHostLook(QM.dock.root, { title, theme });
+    }
     // A new sheet is loaded by setSheet; one already showing is read again.
     if (alreadyShowing) QM.state._reload();
   },

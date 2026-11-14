@@ -1,5 +1,9 @@
 # Quartermaster changelog
 
+## 0.1.37 — 2026-11-14
+- No changes you'll notice in a chat. A package that uses Quartermaster can now set its own
+  picture prompts, add several items at once, and give the dock its own title and colors.
+
 ## 0.1.36 — 2026-11-14
 - No changes you'll notice in a chat. A package can now link a chat it starts (a scene from a
   game's world) to that world's sheet, so the scene uses the same inventory.

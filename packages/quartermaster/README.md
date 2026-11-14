@@ -250,13 +250,13 @@ persona's *real* avatar elsewhere in Marinara.
 
 Another package can keep Quartermaster sheets of its own, for something that isn't a chat (a world
 in a Home-tab game, say), open the dock on it, read what is worn, and run the tracker with its own
-model call. Nothing here changes how a Roleplay chat works. More is planned (picture prompts a host
-can set, export and import between a chat and a scope, themes); `GET /status` says what an install
-can do.
+model call. Nothing here changes how a Roleplay chat works. `GET /status` says what an install can
+do.
 
 - **Check first.** `GET /api/quartermaster/status` answers `{ packageId, version, features,
   equipSlots, appearanceFeedModes, limits }`. `features` only grows: `scopes`, `owners`,
-  `appearance`, `summary`, `settings`, `tracker-routes` and `links` today. `limits` has the longest
+  `appearance`, `summary`, `settings`, `tracker-routes`, `links`, `prompt-overrides` and
+  `batch-items` today. `limits` has the longest
   item and outfit names and descriptions, the portrait size, and how many changes one tracker answer
   may hold.
 - **A scope instead of a chat id.** Wherever a route takes `:chatId`, pass `<your package id>:<key>`,
@@ -291,6 +291,27 @@ can do.
   answer with. Send that JSON to `POST …/tracker/apply` as `{ data }`. It is applied exactly as a
   chat turn would be, with the same rules for hidden items and locked descriptions, and answers
   `{ applied, items, outfits, lastTrackerChange, pendingHiddenChanges }`.
+- **Adding items from play.** `POST /inventory/:scope/:ownerId/items` adds one
+  (`{ name, description, quantity, location, defaultSlot }`); `POST …/items/batch` with
+  `{ items: [...] }` adds up to 50 in one save, or none if any entry is refused.
+  `location` is `bag`, `equipped:<slot>` or `stored:<place>`.
+- **Picture prompts.** `POST …/items/:itemId/image/prompt-preview` and
+  `POST …/outfits/:outfitId/portrait/prompt-preview` answer `{ prompt, pieces }`. Send your own
+  `template` in the body to use it for that call; the portrait one also takes your own `name`,
+  `personaAppearance` and `equippedItems` in place of what Quartermaster would fill in. The
+  `generate` routes take the finished `{ prompt }` as it is, and an optional `connectionId`, and
+  answer `{ imageDataUrl }` without saving it; save it with `POST …/items/:itemId/image` or
+  `POST …/outfits/:outfitId/portrait`.
+- **Showing pictures.** `GET …/items/:itemId/image` and `GET …/outfits/:outfitId/portrait` serve
+  the files. They need the same headers as every route, so fetch them and show the result (an
+  `<img>` pointed straight at them only works where no Admin Secret is needed).
+- **Build Wardrobe.** `POST …/wardrobe/generate` takes your own `personaContext`
+  (`{ description, personality, scenario, appearance, backstory }`) and `connectionId` beside
+  its `direction`.
+- **Export and import.** `GET …/export` and `POST …/import` use one file format for a chat's sheet
+  and a scope's, so a sheet can be carried either way; outfit portraits travel inside the file.
+  Importing replaces the items and outfits the sheet had. Item pictures are files shared by every
+  sheet on the same Engine, so they come along there, but are not inside the file.
 - **Calling the routes.** They sit behind the Engine's privileged gate like every package route:
   send `x-marinara-csrf: 1` on anything but a GET, and `X-Admin-Secret` when the device has one saved.
 
@@ -321,14 +342,18 @@ await import(`/api/capability-packages/quartermaster/client?v=${version}`);
 await window.Quartermaster.open({ scope: "wanderworld:world-12", persona: { personaId } });
 ```
 
-- `open({ scope, owner, persona })` opens the dock on that sheet and reads it afresh. `owner`
-  defaults to `persona`. `persona` is optional and is the same as a `PATCH …/owner` first.
+- `open({ scope, owner, persona, title, theme })` opens the dock on that sheet and reads it afresh.
+  `owner` defaults to `persona`. `persona` is optional and is the same as a `PATCH …/owner`
+  first. `title` replaces the dock's title. `theme` is `{ vars, font }`: `vars` sets CSS
+  variables on the dock only (it reads `--popover`, `--popover-foreground`, `--primary`,
+  `--border`, `--radius`, `--muted-foreground`, `--accent` and `--destructive`), `font` its
+  font. Both last until the dock closes. The editors the dock opens keep the Engine's look for now.
 - `close()`, `toggle(options)` and `isOpen()`.
 - `reload(scope, owner)` after you change a sheet through the routes while the dock is open.
 - `onChange(fn)` calls `fn({ scope, owner })` after the dock changes a sheet, and returns a function
   that stops it. The window event `quartermaster:changed` carries the same.
 - `icon` is the backpack button's SVG, `version` the installed version, and `features` what this
-  client API can do (`open`, `reload`, `changed-event`, `icon`, `links`).
+  client API can do (`open`, `reload`, `changed-event`, `icon`, `links`, `title`, `theme`).
 - While your sheet is open the dock's root has `data-qm-host="<your package id>"`, for your own
   styles. Closing the dock gives the views back to the chat that was showing.
 
@@ -373,6 +398,12 @@ and every bundled icon, and writes `artifacts/quartermaster-<version>.zip` — r
 overwrite an already-released version's artifact file if you forget to bump `VERSION` first.
 
 ## Changelog
+
+### 0.1.37
+- **For other packages:** picture and Build Wardrobe prompts take the package's own wording per
+  call, several items can be added in one save, and the dock can be opened with the package's own
+  title, colors and font. See "For other packages".
+- Roleplay chats work exactly as before.
 
 ### 0.1.36
 - **A chat can be linked to another package's sheet.** A scene started from a game's world can use

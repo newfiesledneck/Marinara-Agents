@@ -538,7 +538,21 @@ function guardSheetRoutes(routes, resolveLink) {
 
 // What GET /status reports, so a host shows its button only when this install
 // can do what it needs. Grows as features are added; never shrinks.
-const QM_FEATURES = ["scopes", "owners", "appearance", "summary", "settings", "tracker-routes", "links"];
+const QM_FEATURES = [
+  "scopes",
+  "owners",
+  "appearance",
+  "summary",
+  "settings",
+  "tracker-routes",
+  "links",
+  "prompt-overrides",
+  "batch-items",
+];
+const MAX_BATCH_ITEMS = 50;
+// A per-call override from a host: its own text when it sent a string, else ours.
+const hostText = (value, fallback, max = MAX_PROMPT_TEMPLATE_LENGTH) =>
+  typeof value === "string" ? value.slice(0, max) : fallback;
 // The settings a host can read (GET …/settings) and that PATCH …/settings takes.
 const QM_SETTING_KEYS = [
   "appearanceFeedMode",
@@ -2498,19 +2512,14 @@ export async function activate(context) {
         return { ...state, equipSlots: EQUIP_SLOTS, personaAvatarUrl };
       });
 
-      routes.post("/inventory/:chatId/:ownerId/items", async (request, reply) => {
-        const { chatId, ownerId } = request.params;
-        const body = request.body ?? {};
-        const name = normalizeText(body.name, MAX_ITEM_NAME_LENGTH);
-        if (!name) return reply.status(400).send({ error: "Item name is required" });
-
+      // Adds one new item to `state` from a request body, or says why not.
+      const addNewItem = (state, body) => {
+        const name = normalizeText(body?.name, MAX_ITEM_NAME_LENGTH);
+        if (!name) return "Item name is required";
         const defaultSlot = body.defaultSlot === undefined ? null : normalizeDefaultSlot(body.defaultSlot);
-        if (defaultSlot === undefined) return reply.status(400).send({ error: "Invalid defaultSlot" });
-
-        const state = await loadInventoryState(documents, chatId, ownerId);
+        if (defaultSlot === undefined) return "Invalid defaultSlot";
         const location = body.location === undefined ? "bag" : normalizeLocation(body.location, state);
-        if (location === null) return reply.status(400).send({ error: "Invalid location" });
-
+        if (location === null) return "Invalid location";
         const item = {
           id: randomUUID(),
           name,
@@ -2522,6 +2531,32 @@ export async function activate(context) {
         };
         applyLocation(state.items, item, location);
         state.items.push(item);
+        return null;
+      };
+
+      routes.post("/inventory/:chatId/:ownerId/items", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const error = addNewItem(state, request.body ?? {});
+        if (error) return reply.status(400).send({ error });
+        await persistState(chatId, ownerId, state);
+        return { items: state.items, outfits: state.outfits };
+      });
+
+      // Several new items in one save (loot, a shop, a starting kit). Body:
+      // { items: [...] }, each shaped like the single route's body. All or
+      // nothing: one bad entry and none are added.
+      routes.post("/inventory/:chatId/:ownerId/items/batch", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const entries = request.body?.items;
+        if (!Array.isArray(entries) || entries.length === 0 || entries.length > MAX_BATCH_ITEMS) {
+          return reply.status(400).send({ error: `Send 1 to ${MAX_BATCH_ITEMS} items as { items: [...] }` });
+        }
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        for (const [index, entry] of entries.entries()) {
+          const error = addNewItem(state, entry);
+          if (error) return reply.status(400).send({ error: `Item ${index + 1}: ${error}` });
+        }
         await persistState(chatId, ownerId, state);
         return { items: state.items, outfits: state.outfits };
       });
@@ -2910,7 +2945,16 @@ export async function activate(context) {
         const state = await loadInventoryState(documents, chatId, ownerId);
         const item = state.items.find((candidate) => candidate.id === itemId);
         if (!item) return reply.status(404).send({ error: "Item not found" });
-        return { prompt: buildItemImagePrompt(state.itemImagePromptTemplate, item) };
+        // `template` in the body is a host's own, for this call only.
+        const template = hostText(request.body?.template, state.itemImagePromptTemplate);
+        return {
+          prompt: buildItemImagePrompt(template, item),
+          pieces: {
+            template: template.trim() ? template : DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE,
+            item: item.name,
+            itemDescription: item.description ?? "",
+          },
+        };
       });
 
       // The paid call. Body: { prompt } -- the review-step text (possibly
@@ -2931,7 +2975,7 @@ export async function activate(context) {
 
         let connection;
         try {
-          connection = await resolveImageConnection(state.imageConnectionId);
+          connection = await resolveImageConnection(hostText(body.connectionId, state.imageConnectionId, 200));
         } catch (error) {
           logger?.warn(
             "[quartermaster] could not reach the Engine's own connections list: %s",
@@ -3057,9 +3101,21 @@ export async function activate(context) {
         const debugMode = body.debugMode === true || (api.runtime.isDebugAgentsEnabled?.() ?? false);
 
         const state = await loadInventoryState(documents, chatId, ownerId);
-        const personaContext = includePersonaContext
-          ? await resolvePersonaWardrobeContext(persistence, resources, chatId, state.hostOwner)
-          : null;
+        // A host can send who it is dressing itself ({ personaContext: {
+        // description, personality, scenario, appearance, backstory } }).
+        const hostContext =
+          body.personaContext && typeof body.personaContext === "object" && !Array.isArray(body.personaContext)
+            ? Object.fromEntries(
+                ["description", "personality", "scenario", "appearance", "backstory"]
+                  .map((key) => [key, normalizeText(body.personaContext[key], MAX_WARDROBE_CONTEXT_FIELD_LENGTH)])
+                  .filter(([, value]) => value),
+              )
+            : null;
+        const personaContext = !includePersonaContext
+          ? null
+          : hostContext && Object.keys(hostContext).length > 0
+            ? hostContext
+            : await resolvePersonaWardrobeContext(persistence, resources, chatId, state.hostOwner);
         const chat = await persistence.getChat(chatId);
         // The tracker agent's own configured connection (editable in the
         // Agents menu) takes priority, so switching it there also moves
@@ -3071,7 +3127,8 @@ export async function activate(context) {
           runtime: api.runtime,
           logger,
           debugMode,
-          agentConnectionId: agentConfig?.connectionId ?? null,
+          // A connection named in the call wins (a scope has no chat to fall back on).
+          agentConnectionId: hostText(body.connectionId, agentConfig?.connectionId ?? null, 200),
           chatConnectionId: chat?.connectionId ?? null,
           direction,
           personaContext,
@@ -3206,12 +3263,24 @@ export async function activate(context) {
               : "";
         const personaAppearance = stripAppearanceMacroToken(rawPersonaAppearance, ownerId);
 
+        // A host can send its own template and its own value for each
+        // placeholder ({ template, name, personaAppearance, equippedItems }),
+        // for this call only. The pieces used come back beside the result.
+        const body = request.body ?? {};
+        const template = hostText(body.template, state.outfitPortraitPromptTemplate);
+        const pieces = {
+          template: template.trim() ? template : DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE,
+          name: hostText(body.name, personaName),
+          personaAppearance: hostText(body.personaAppearance, personaAppearance),
+          equippedItems: hostText(body.equippedItems, outfitPortraitItemsText(outfit, state.appearanceFeedMode)),
+        };
         return {
-          prompt: buildOutfitPortraitPrompt(state.outfitPortraitPromptTemplate, {
-            personaName,
-            personaAppearance,
-            equippedItemsText: outfitPortraitItemsText(outfit, state.appearanceFeedMode),
+          prompt: buildOutfitPortraitPrompt(template, {
+            personaName: pieces.name,
+            personaAppearance: pieces.personaAppearance,
+            equippedItemsText: pieces.equippedItems,
           }),
+          pieces,
         };
       });
 
@@ -3231,7 +3300,7 @@ export async function activate(context) {
 
         let connection;
         try {
-          connection = await resolveImageConnection(state.imageConnectionId);
+          connection = await resolveImageConnection(hostText(body.connectionId, state.imageConnectionId, 200));
         } catch (error) {
           logger?.warn(
             "[quartermaster] could not reach the Engine's own connections list: %s",
