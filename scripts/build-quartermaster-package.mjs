@@ -40,7 +40,7 @@ const PACKAGE_ID = "quartermaster";
 // release (0.1.0-dev.2 < 0.1.0), so once a plain 0.1.0 is installed, no
 // prerelease build can ever look newer to Download Agents. Never reset the
 // version back down afterward, even across a long dev-iteration stretch.
-const VERSION = "0.1.34";
+const VERSION = "0.1.35";
 // Declared against the exact staging Engine this scaffold was built and tested
 // against. Do not lower this to reach stable users — see CONTRIBUTING.md.
 const ENGINE_MIN = "2.4.6";
@@ -86,7 +86,8 @@ const body = [];
 for (const part of parts) {
   body.push(`// ===== ${part} =====\n${await readTextNormalized(join(srcDir, part))}`);
 }
-const readableClientSource = `${banner}(() => {\n"use strict";\n${body.join("\n")}\n})();\n`;
+// QM_VERSION is what window.Quartermaster.version reports (src/95-host.js).
+const readableClientSource = `${banner}(() => {\n"use strict";\nconst QM_VERSION = ${JSON.stringify(VERSION)};\n${body.join("\n")}\n})();\n`;
 
 const syntaxCheckDir = await mkdtemp(join(tmpdir(), "quartermaster-syntax-"));
 try {

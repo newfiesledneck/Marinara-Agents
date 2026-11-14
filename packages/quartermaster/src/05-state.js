@@ -5,7 +5,18 @@
 // other if both happen to be visible at once — each view just subscribes
 // and repaints on change rather than keeping its own copy.
 
-const QM_OWNER_ID = "persona";
+// Whose sheet the views show. Always "persona" in a chat; another package's
+// sheet can name a different owner (QM.state.setSheet, 95-host.js).
+// ponytail: one module-wide owner, like the one chatId beside it. It becomes a
+// field of QM.state if two sheets ever need to be on screen at once.
+let QM_OWNER_ID = "persona";
+
+// Tells other packages a sheet changed (window.Quartermaster.onChange).
+function qmAnnounceChange(chatId) {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  if (typeof CustomEvent !== "function") return;
+  window.dispatchEvent(new CustomEvent("quartermaster:changed", { detail: { scope: chatId, owner: QM_OWNER_ID } }));
+}
 
 // Mirrors server.mjs's EQUIP_SLOTS exactly (same order too) — client and
 // server are separate bundles, so this is duplicated rather than shared.
@@ -528,7 +539,13 @@ QM.state = {
   },
 
   setChat(chatId) {
-    if (this.chatId === chatId) return;
+    this.setSheet(chatId, "persona");
+  },
+
+  // chatId is a chat's id or another package's scope ("<package>:<key>").
+  setSheet(chatId, ownerId = "persona") {
+    if (this.chatId === chatId && QM_OWNER_ID === ownerId) return;
+    QM_OWNER_ID = ownerId;
     this._chatToken++;
     this._reloadToken++;
     this.chatId = chatId;
@@ -708,6 +725,7 @@ QM.state = {
       }
       this.error = null;
       outcome = { ok: true, result };
+      qmAnnounceChange(chatId);
     } catch (error) {
       if (this.chatId !== chatId || chatToken !== this._chatToken) return;
       this.error = error && error.message ? error.message : String(error);

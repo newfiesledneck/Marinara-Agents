@@ -65,7 +65,10 @@ class QuartermasterElement extends HTMLElement {
 
   _render() {
     if (!this.isConnected) return;
-    QM.state.setChat(this._chatId);
+    // While another package has the dock open on its own sheet, the chat
+    // waits: closing that dock brings this chat back (95-host.js).
+    if (QM.hostSheet) QM.hostReturnChatId = this._chatId;
+    else QM.state.setChat(this._chatId);
 
     const view = this.getAttribute("view");
     if (view === "tracker") {

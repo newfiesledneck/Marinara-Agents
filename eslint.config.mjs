@@ -139,6 +139,7 @@ export default tseslint.config(
       globals: {
         QM: "readonly",
         QM_OWNER_ID: "readonly",
+        QM_VERSION: "readonly", // written into the bundle by the build script
         QM_EQUIP_SLOTS: "readonly",
         QM_DEFAULT_ITEM_IMAGE_PROMPT_TEMPLATE: "readonly",
         QM_DEFAULT_OUTFIT_PORTRAIT_PROMPT_TEMPLATE: "readonly",

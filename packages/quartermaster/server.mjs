@@ -508,7 +508,37 @@ function guardSheetRoutes(routes) {
 
 // What GET /status reports, so a host shows its button only when this install
 // can do what it needs. Grows as features are added; never shrinks.
-const QM_FEATURES = ["scopes", "owners"];
+const QM_FEATURES = ["scopes", "owners", "appearance", "summary", "settings", "tracker-routes"];
+// The settings a host can read (GET …/settings) and that PATCH …/settings takes.
+const QM_SETTING_KEYS = [
+  "appearanceFeedMode",
+  "showUnderwear",
+  "showArmor",
+  "showWeapons",
+  "replaceRealAvatarOnEquip",
+  "imageConnectionId",
+  "itemImagePromptTemplate",
+  "outfitPortraitPromptTemplate",
+  "askBeforeHiddenChanges",
+  "hiddenItemAccess",
+  "wardrobeUsesHidden",
+  "hiddenOnlyInHiddenTab",
+];
+const pickSettings = (state) => Object.fromEntries(QM_SETTING_KEYS.map((key) => [key, state[key]]));
+// The tracker Agent's own prompt and settings, for a host that calls the model itself.
+let qmTrackerAgent;
+async function readTrackerAgent() {
+  if (qmTrackerAgent === undefined) {
+    try {
+      const agentsPath = join(dirname(fileURLToPath(import.meta.url)), "agents.json");
+      const [agent] = JSON.parse(await readFile(agentsPath, "utf8"));
+      qmTrackerAgent = agent ?? null;
+    } catch {
+      qmTrackerAgent = null;
+    }
+  }
+  return qmTrackerAgent;
+}
 let qmPackageVersion;
 async function readPackageVersion() {
   if (qmPackageVersion === undefined) {
@@ -2192,7 +2222,99 @@ export async function activate(context) {
         packageId: PACKAGE_ID,
         version: await readPackageVersion(),
         features: QM_FEATURES,
+        equipSlots: EQUIP_SLOTS,
+        appearanceFeedModes: [...APPEARANCE_FEED_MODES],
+        limits: {
+          itemNameLength: MAX_ITEM_NAME_LENGTH,
+          itemDescriptionLength: MAX_ITEM_DESCRIPTION_LENGTH,
+          outfitNameLength: MAX_OUTFIT_NAME_LENGTH,
+          outfitDescriptionLength: MAX_OUTFIT_DESCRIPTION_LENGTH,
+          promptTemplateLength: MAX_PROMPT_TEMPLATE_LENGTH,
+          portraitBytes: MAX_PORTRAIT_BYTES,
+          trackerOperationsPerCall: MAX_TRACKER_OPERATIONS_PER_TURN,
+        },
       }));
+
+      // ── Outputs, for a chat's sheet or a scope's ──────────────────────────
+      // What is worn, as the appearance macro would hold it. "?mode=" picks a
+      // Feed mode for this call; without it the sheet's own setting is used
+      // (and "off" gives an empty text). `equipped` is always the full list.
+      routes.get("/inventory/:chatId/:ownerId/appearance", async (request) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const asked = request.query?.mode;
+        const mode = APPEARANCE_FEED_MODES.has(asked) ? asked : state.appearanceFeedMode;
+        const outfit = state.outfits.find(
+          (candidate) => candidate.hidden !== true && outfitMatchesCurrent(candidate, state.items),
+        );
+        return {
+          mode,
+          text: computeAppearanceText({ ...state, appearanceFeedMode: mode }),
+          outfit: outfit ? { id: outfit.id, name: outfit.name, description: outfit.description ?? "" } : null,
+          equipped: equippedItemsInOrder(state.items).map((item) => ({
+            slot: item.location.slice("equipped:".length),
+            itemId: item.id,
+            name: item.name,
+            description: item.description ?? "",
+          })),
+        };
+      });
+
+      // The block the narrator gets in a chat: worn, carried, stored. Hidden
+      // items are left out by the same rule (visibleToModel).
+      routes.get("/inventory/:chatId/:ownerId/summary", async (request) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const name = await resolvePersonaName(persistence, resources, chatId, state.hostOwner);
+        return { ownerName: name, text: inventorySummaryText(name, state.items.filter(visibleToModel)) ?? "" };
+      });
+
+      routes.get("/inventory/:chatId/:ownerId/settings", async (request) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        // A sheet nobody saved yet reads as every default.
+        const defaults = await loadInventoryState({ getById: async () => null }, chatId, ownerId);
+        return { settings: pickSettings(state), defaults: pickSettings(defaults) };
+      });
+
+      // ── The tracker without the chat pipeline ─────────────────────────────
+      // A host calls the model itself: /tracker/context is what the Agent is
+      // shown and asked, /tracker/apply takes the model's JSON and applies it
+      // exactly as a chat turn would (hidden items, ask-first, pending).
+      routes.get("/inventory/:chatId/:ownerId/tracker/context", async (request) => {
+        const { chatId, ownerId } = request.params;
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        const agent = await readTrackerAgent();
+        return {
+          context: formatAgentRuntimeContext(
+            agentVisibleItems(state),
+            agentVisibleOutfits(state).map((outfit) => outfit.name),
+          ),
+          promptTemplate: agent?.defaultPromptTemplate ?? "",
+          settings: agent?.defaultSettings ?? null,
+          resultShape: { addItem: [], updateItem: [], removeItem: [], equipOutfit: null },
+        };
+      });
+
+      routes.post("/inventory/:chatId/:ownerId/tracker/apply", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        const data = request.body?.data;
+        if (!data || typeof data !== "object" || Array.isArray(data)) {
+          return reply.status(400).send({ error: "Send the model's JSON as { data: { ... } }" });
+        }
+        const before = (await loadInventoryDoc(documents, chatId, ownerId))?.revision ?? 0;
+        await reconcileTrackerOutput(documents, persistState, chatId, ownerId, data, logger);
+        const doc = await loadInventoryDoc(documents, chatId, ownerId);
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        return {
+          // False when the turn was skipped whole (too many operations, or nothing to do).
+          applied: (doc?.revision ?? 0) !== before,
+          items: state.items,
+          outfits: state.outfits,
+          lastTrackerChange: state.lastTrackerChange,
+          pendingHiddenChanges: state.pendingHiddenChanges,
+        };
+      });
 
       // Says who a scope's sheet is about. Body: { personaId, name, appearance,
       // avatarUrl }, any of them; an empty body clears it. Scopes only: a
@@ -2251,6 +2373,10 @@ export async function activate(context) {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
         const personaAvatarUrl = await resolvePersonaAvatarUrl(persistence, resources, chatId, state.hostOwner);
+        if (isScopeKey(chatId)) {
+          const revision = (await loadInventoryDoc(documents, chatId, ownerId))?.revision ?? 0;
+          return { ...state, equipSlots: EQUIP_SLOTS, personaAvatarUrl, revision };
+        }
         return { ...state, equipSlots: EQUIP_SLOTS, personaAvatarUrl };
       });
 
