@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.90",
+          "date": "2026-11-14",
+          "notes": "- With the Quartermaster package (0.1.35 or later) installed, the top bar has an Inventory button: Quartermaster's sheet of what your persona wears and carries, one for each persona in each world.\n- What the sheet says you're wearing is told to the AI after your persona's appearance: in conversations, moments, scene plans and Illustrate. There is no macro to place.\n- After a moment, one more AI call updates the sheet from what was told (picked up, put on, given away), by Quartermaster's own rules. It can also run after each reply in a conversation, or never.\n- Settings → People → Inventory turns each of the three off. Without Quartermaster nothing changes. Deleting a world deletes its sheets.",
+          "highlight": false
+        },
+        {
           "version": "0.5.89",
           "date": "2026-11-14",
           "notes": "- Resolution no longer has Auto, which changed the picture's size as frames came and went and flickered on phones. The default is 1080p (never more than the screen has); a device that was on Auto is on 1080p now.\n- On a phone, tapping a text box no longer zooms the page in and leaves it there.\n- The narration that fades in over the world is at the top of the screen, not over the middle of it.",
@@ -307,12 +313,6 @@
           "version": "0.5.71",
           "date": "2026-11-12",
           "notes": "- Settings are laid out again. Sections: Display, Controls, World, People, Animals, AI, Token use. Bigger ones have tabs (People: Around you, Relationships, Memory; AI: Writing, Scenes, Pictures, Connections). Sound, name tags, market days and Regenerate this world moved to where they belong.\n- Every section and tab starts with a line on what it is for, and every description is rewritten short: what On and Off do, an example where there are numbers. A setting that depends on another sits under it and goes faint while that one is off.\n- Some settings are renamed in plain words, such as \"Count personal limits against the total\".\n- Edit people is in tabs: About, Day, You, Others, Memory. A person's memory limits come before their memories.\n- The main menu opens with Before you start, which can be hidden and reopened.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.70",
-          "date": "2026-11-12",
-          "notes": "- Saved worlds are the Engine's alone now. The browser fallback and the move from the browser are gone, with the older conversions (the single world from before saves, the one narrator card). If the server part doesn't answer, the menu says to restart the Engine, and nothing is written.\n- All keeps every memory, with no ceiling anywhere.\n- A setting's description that states a number now follows its slider: \"People remember what they saw and heard\" says how many everyday and lasting memories are kept as you have them set, and the two \"sent to the AI\" sliders say what one, two and three people get at the current setting.",
           "highlight": false
         }
       ]

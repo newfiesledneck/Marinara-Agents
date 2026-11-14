@@ -1204,4 +1204,114 @@ assert.equal(
   assert.match(strangers, /Samantha \(a stranger to Zoey\)/u);
 }
 
+// The inventory (Quartermaster's sheet): what's worn rides after the persona's appearance, and the client
+// module asks Quartermaster's routes and nothing else.
+{
+  const card = server.personaCard({ data: { name: "Zoey", appearance: "Tall." } }, "", "  a red scarf,\n grey cloak ");
+  assert.equal(card.worn, "Wearing now: a red scarf, grey cloak");
+  assert.equal(server.personaCard({ data: { name: "Zoey" } }, "").worn, "");
+  const told = server.talkMessages({
+    character: server.characterCard({ data: { name: "Mira" } }),
+    persona: card,
+    lore: [],
+    history: [],
+    line: "Hello",
+  });
+  assert.match(told[0].content, /Tall\.\n\nWearing now: a red scarf, grey cloak/u);
+  const asked = server.inventoryMessages({
+    template: "PROMPT",
+    context: "Items:\n(none)",
+    name: "Zoey",
+    told: "She buys a hat.",
+  });
+  assert.equal(asked[0].content, "PROMPT");
+  assert.match(
+    asked[1].content,
+    /<agent_runtime_context>\nItems:\n\(none\)\n<\/agent_runtime_context>[\s\S]*Zoey[\s\S]*She buys a hat\./u,
+  );
+
+  const { createInventory, sheetFor } = await import("../packages/wanderworld/src/inventory.js");
+  assert.deepEqual(sheetFor("world 1/a", "p:1"), { scope: "wanderworld:world_1_a", owner: "persona:p_1" });
+  assert.deepEqual(sheetFor("w", null), { scope: "wanderworld:w", owner: "persona" });
+  assert.equal(sheetFor("", "p"), null);
+  const calls = [];
+  let features = ["scopes", "owners", "appearance", "tracker-routes"];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    calls.push(`${options.method} ${url}`);
+    const answer = url.endsWith("/status")
+      ? { version: "0.1.35", features }
+      : url.endsWith("/appearance")
+        ? { mode: "off", text: "", equipped: [{ slot: "neck", name: "Red Scarf" }] }
+        : url.endsWith("mode=equippedNamesDescriptions")
+          ? { text: "Red Scarf (a fresh red scarf)" }
+          : url.endsWith("/tracker/context")
+            ? { context: "Items:", promptTemplate: "PROMPT" }
+            : url.endsWith("/tracker/apply")
+              ? { applied: JSON.parse(options.body).data.addItem.length > 0 }
+              : {};
+    return { ok: true, status: 200, json: async () => answer };
+  };
+  try {
+    const settings = { inventory: true, inventoryWorn: true };
+    const tracked = [];
+    const make = () =>
+      createInventory({
+        ai: () => ({
+          inventoryTrack: async (payload) => {
+            tracked.push(payload);
+            return { data: { addItem: [{ name: "Hat" }] } };
+          },
+        }),
+        sheet: () => sheetFor("w1", "p1"),
+        persona: () => ({ personaId: "p1", name: "Zoey" }),
+        settings: () => settings,
+      });
+    const inventory = make();
+    assert.equal(inventory.ready(), false, "nothing before Quartermaster has answered");
+    assert.equal(inventory.worn(), "");
+    await inventory.refresh();
+    assert.equal(inventory.ready(), true);
+    assert.equal(
+      inventory.worn(),
+      "Red Scarf (a fresh red scarf)",
+      "a sheet's Feed that is Off still tells what is worn",
+    );
+    const sheet = "/api/quartermaster/inventory/wanderworld%3Aw1/persona%3Ap1";
+    assert.deepEqual(calls, [
+      "GET /api/quartermaster/status",
+      `GET ${sheet}/appearance`,
+      `GET ${sheet}/appearance?mode=equippedNamesDescriptions`,
+    ]);
+    calls.length = 0;
+    assert.equal(await inventory.track("She buys a hat.", null), true);
+    assert.deepEqual(tracked[0], {
+      promptTemplate: "PROMPT",
+      context: "Items:",
+      personaName: "Zoey",
+      text: "She buys a hat.",
+      connectionId: null,
+    });
+    assert.deepEqual(calls.slice(0, 3), [
+      `PATCH ${sheet}/owner`,
+      `GET ${sheet}/tracker/context`,
+      `POST ${sheet}/tracker/apply`,
+    ]);
+    settings.inventoryWorn = false;
+    assert.equal(inventory.worn(), "", "the worn text has its own switch");
+    settings.inventory = false;
+    calls.length = 0;
+    assert.equal(inventory.ready(), false);
+    assert.equal(await inventory.track("She buys a hat.", null), false);
+    assert.deepEqual(calls, [], "switched off, Quartermaster is asked nothing");
+    settings.inventory = true;
+    features = ["scopes"];
+    const old = make();
+    await old.refresh();
+    assert.equal(old.ready(), false, "an older Quartermaster shows no button");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
 console.log("wanderworld server regression: OK");

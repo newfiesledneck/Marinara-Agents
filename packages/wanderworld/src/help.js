@@ -63,6 +63,7 @@ export const HELP = [
       "People have places to work and rest out of doors: the smith at the open forge, sellers and buyers at the market stalls, a farm's people in its fields, and others at a garden's beds, by a pond or in a meadow's grass.",
       "E, a click or a tap uses whatever the prompt names: a door, a bench, a person, a market stall.",
       "The bar along the top has the Journal, the Lore active where you stand, Illustrate, the Chat window and the Menu (who you play, Settings, full screen, the main menu).",
+      "With the Quartermaster package installed there's an Inventory button too: a sheet of what your persona wears and carries, one for each persona in each world. What's worn is told to the AI, and after a moment the AI updates the sheet. Settings → People → Inventory turns each of these off.",
     ],
   },
   {

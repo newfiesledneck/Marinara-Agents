@@ -30,7 +30,7 @@ the AI's settings (the living world, animals, memories, connections, narrators, 
 kept by the Engine too; graphics, controls, sound and what's shown on screen stay each device's own. If
 the server part isn't running, the menu says so: restart the Engine. Delete a world from **Load world**.
 
-## What it does now (0.5.89)
+## What it does now (0.5.90)
 
 ### The world
 
@@ -127,6 +127,13 @@ With it running:
 - **Schedules:** everyone follows a day (home, work, meals, visits, a seat somewhere), a usual one from
   their home and work until you change it in Journal → People → Schedules, or the AI plans one. What
   people agree to in moments ("meet me at noon by the fountain") goes into their day.
+- **Inventory (with Quartermaster):** when the Quartermaster package (0.1.35 or later) is installed, an
+  Inventory button opens its character sheet for the persona you play, one sheet for each persona in each
+  world. What the sheet says is worn is added after the persona's appearance wherever the AI is told who
+  you are (conversations, moments, scene plans and scene notes, Illustrate), with no macro to place. After a
+  moment, one more model call runs Quartermaster's tracker on what was told and the sheet takes the changes
+  by Quartermaster's own rules. Deleting a world deletes its sheets. Settings → People → Inventory turns the
+  button, the worn text and the tracking off, each on its own. Without Quartermaster nothing changes.
 - **Illustrate:** a window that paints the current moment (where, when, the weather, who's with you and
   what they're doing, their looks from their cards) from a prompt template you can edit, with the world's
   gallery. It moves, resizes and stays open while you play. The picture fills the window; the gallery, the
@@ -619,7 +626,8 @@ still count, and come first.
   it, `src/map.js` draws the maps, `src/weather.js` the weather, `src/pack.js` the setting pack (the things to use, what's said about them
   and places when no AI answers, and the errands: every word of the setting, so another setting is
   another pack), `src/setup.js` sums the AI's setup up for the review, and `src/illustrate.js` and
-  `src/floating.js` the Illustrate window and the floating windows.
+  `src/floating.js` the Illustrate window and the floating windows. `src/inventory.js` is everything
+  Wanderworld asks of Quartermaster.
 - `src/saves.js` keeps the saved worlds (every field checked on the way in); `src/menu.js` is the main
   menu, `src/journal.js` the Journal, `src/hud.js` the bar, panels and cards, `src/talk.js` conversations
   and speech bubbles, `src/signs.js` signs and the noticeboard, `src/ui.js` the parchment look,

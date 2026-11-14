@@ -827,6 +827,12 @@ export function createHud(root, handlers) {
       `On: each person remembers what was said near them and who they spent time with (${s.memoryEach > 100 ? "every one" : `the newest ${s.memoryEach}`}), and separately what mattered, like a scene together or a night at your campfire (${s.memoryKept > 100 ? "every one" : `up to ${s.memoryKept}`}). Off: nothing is remembered, and nothing is sent to the AI.`,
     memorySights:
       "On: anyone who can see you also remembers what you do, like getting on a horse or lighting a fire. Off: only what was said near them.",
+    inventory:
+      "On: an Inventory button in the top bar opens Quartermaster's sheet for the persona you play in this world. Each world and each persona has its own. Off: no button, and Wanderworld asks nothing of Quartermaster.",
+    inventoryWorn:
+      "On: what the sheet says you're wearing is added after your persona's appearance when the AI speaks, narrates, plans a scene or paints a picture. It is written the way the sheet's own Feed setting says (Quartermaster → Settings); while that is Off, as names with descriptions. Off: the AI only knows your persona's card.",
+    inventoryTrack:
+      "After moments: when something is narrated, one more AI call reads it and updates the sheet (picked up, put on, given away), by Quartermaster's own rules for hidden items. After moments and replies: the same after each reply in a conversation, so about twice the calls there. Never: you keep the sheet yourself.",
     gossip:
       "On: people who spend time together sometimes tell each other something they saw or heard of you. The listener knows it as hearsay and doesn't pass it on. Whispers are never passed on. Off: people only know what they were there for.",
     memoryEach:
@@ -1084,6 +1090,18 @@ export function createHud(root, handlers) {
   toggle("memoryToldCounted", "Count personal limits against the total", "memories");
   part("Keeping memories short");
   sumUpRow();
+  at("People", "Inventory");
+  intro(
+    "What you wear and carry is kept by the Quartermaster package, if you have it installed: a sheet for each persona in each world, opened with the Inventory button. Without Quartermaster these do nothing.",
+  );
+  toggle("inventory", "Use Quartermaster for the inventory");
+  toggle("inventoryWorn", "Tell the AI what you're wearing", "inventory");
+  choice(
+    "inventoryTrack",
+    "The AI keeps the inventory up to date",
+    { off: "Never", moments: "After moments", all: "After moments and replies" },
+    "inventory",
+  );
   at("People", "Genders");
   intro(
     "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",
@@ -1606,6 +1624,11 @@ export function createHud(root, handlers) {
   const illustrateButton = button("Illustrate", "Paint the current moment, and see the world's pictures", () =>
     illustrate.toggle(),
   );
+  // What you wear and carry: the Quartermaster package's sheet for this world, when it's installed.
+  const inventoryButton = button("Inventory", "What you wear and carry (the Quartermaster package)", () =>
+    handlers.onInventory?.(),
+  );
+  inventoryButton.style.display = "none";
   const chatButton = button("Chat", "What's happening around you, and saying something out loud", () => {
     chatFloat.setOpen(!chatFloat.isOpen());
     chatButton.textContent = "Chat"; // read
@@ -1625,7 +1648,7 @@ export function createHud(root, handlers) {
   const gameMenuButton = button("Menu", "Who you play, Settings, full screen and the main menu", () =>
     togglePanel(menuPanel),
   );
-  controls.append(journalButton, loreButton, illustrateButton, chatButton, gameMenuButton);
+  controls.append(journalButton, loreButton, illustrateButton, inventoryButton, chatButton, gameMenuButton);
 
   const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
   menuButton.setAttribute("aria-label", "Menu");
@@ -2089,6 +2112,10 @@ export function createHud(root, handlers) {
       fullscreen.textContent = control.active
         ? (control.exitLabel ?? "Exit fullscreen")
         : (control.enterLabel ?? "Fullscreen");
+    },
+    /** The Inventory button, there when Quartermaster is installed and Settings → People → Inventory is on. */
+    setInventory(on) {
+      inventoryButton.style.display = on ? "" : "none";
     },
     /** Fills the "Play as" menu; an empty list hides it. */
     setPersonas(personas, selectedId, chosenBodies = {}) {

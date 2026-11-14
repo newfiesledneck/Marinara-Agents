@@ -3,6 +3,7 @@
 // the recaps that come back). Every call can fail (an Engine without the server part yet, no connection,
 // a model error); callers fall back to what the client does on its own.
 
+const OWN = "/api/wanderworld";
 const UNSAFE = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 // ponytail: package routes sit behind the Engine's privileged gate, so a session on another device needs
@@ -40,7 +41,8 @@ function failure(response, body) {
   return message || `Request failed (${response.status})`;
 }
 
-async function request(path, { method = "GET", body, timeout = 120000 } = {}) {
+/** One request to the server part, or with `base` to another package's routes (inventory.js: Quartermaster's). */
+export async function request(path, { method = "GET", body, timeout = 120000, base = OWN } = {}) {
   const headers = {};
   if (UNSAFE.has(method)) headers["x-marinara-csrf"] = "1";
   const secret = adminSecret();
@@ -49,12 +51,12 @@ async function request(path, { method = "GET", body, timeout = 120000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(`/api/wanderworld${path}`, {
+    const response = await fetch(`${base}${path}`, {
       method,
       headers,
       credentials: "same-origin",
       // Every request says whether Debug Mode is on, so the server part can show what it sends a model.
-      body: body === undefined ? undefined : JSON.stringify({ ...body, debugMode: debugMode() }),
+      body: body === undefined ? undefined : JSON.stringify(base === OWN ? { ...body, debugMode: debugMode() } : body),
       signal: controller.signal,
     });
     const data = await response.json().catch(() => null);
@@ -126,6 +128,8 @@ export function createAi(locals = () => []) {
     /** One picture: { id, image, caption, prompt, at }. */
     picture: (id) => request(`/picture/${encodeURIComponent(id)}`),
     forgetPicture: (id) => request(`/picture/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    /** Quartermaster's tracker, asked what changed in what was just told: { data } (its JSON, for its own route). */
+    inventoryTrack: (payload) => request("/inventory-track", { method: "POST", body: payload }),
     /** Forgets a recap the client has kept. */
     forgetResult: (id) => request(`/scene-results/${encodeURIComponent(id)}`, { method: "DELETE" }),
   };
