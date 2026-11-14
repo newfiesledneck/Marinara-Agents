@@ -1,5 +1,12 @@
 # Quartermaster changelog
 
+## 0.1.38 — 2026-11-14
+- Build Wardrobe no longer loses its result if you close the dock while it is working. The review
+  opens by itself when it is ready, or the next time you open the dock.
+- Only one outfit shows as equipped when several share the same items.
+- Item and outfit names sit on their own row under the buttons, so long names are readable. Hover,
+  click or tap a name to see all of it.
+
 ## 0.1.37 — 2026-11-14
 - No changes you'll notice in a chat. A package that uses Quartermaster can now set its own
   picture prompts, add several items at once, and give the dock its own title and colors.

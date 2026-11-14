@@ -1006,14 +1006,28 @@ QM.state = {
     });
   },
 
-  // The outfit (if any) whose slots exactly match what's currently equipped
-  // AND has a portrait set — used by the portrait ring to decide whether to
-  // show that portrait instead of the persona's own avatar. Ambiguous when
-  // two saved outfits happen to have identical slots (picks the first, same
-  // tie-break outfitMatchesCurrent's server-side counterpart already accepts
-  // for the appearance-macro's "outfitDescription" mode).
+  // The one outfit shown as equipped. Several can match at once (one saved
+  // with a coat and one without, or two saved from the same items); the pick
+  // is the match covering the most slots, then the one last equipped by name
+  // (`chosen`), then the first. Mirrors server.mjs's activeOutfit.
+  activeOutfit() {
+    let best = null;
+    let bestSize = 0;
+    for (const outfit of this.outfits ?? []) {
+      if (!this.outfitMatchesCurrent(outfit)) continue;
+      const size = Object.keys(outfit.slots ?? {}).length;
+      if (!best || size > bestSize || (size === bestSize && outfit.chosen === true && best.chosen !== true)) {
+        best = outfit;
+        bestSize = size;
+      }
+    }
+    return best;
+  },
+
+  // The equipped outfit's portrait, if it has one — the portrait ring shows it
+  // in place of the persona's own avatar.
   activeOutfitPortraitUrl() {
-    const active = (this.outfits ?? []).find((outfit) => outfit.portraitFile && this.outfitMatchesCurrent(outfit));
-    return active ? QM.outfitPortraitUrl(this.chatId, QM_OWNER_ID, active.id) : null;
+    const active = this.activeOutfit();
+    return active?.portraitFile ? QM.outfitPortraitUrl(this.chatId, QM_OWNER_ID, active.id) : null;
   },
 };

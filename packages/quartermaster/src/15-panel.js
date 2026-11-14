@@ -314,7 +314,7 @@ QM.panel = {
       name.style.flex = "1";
       name.className = "font-semibold " + QM_TRACKER_TEXT_ROW;
 
-      const equipped = QM.state.outfitMatchesCurrent(outfit);
+      const equipped = QM.state.activeOutfit() === outfit;
       const toggleButton = equipped
         ? QM.button("Unequip", {
             bg: "var(--secondary, transparent)",

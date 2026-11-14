@@ -1,8 +1,8 @@
-// Quartermaster 0.1.37 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.38 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (12 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
-const QM_VERSION = "0.1.37";
+const QM_VERSION = "0.1.38";
 // ===== 00-api.js =====
 // Quartermaster — client-side fetch helpers for the package's own privileged
 // routes (server.mjs). QM is the shared namespace concatenated files use to
@@ -1554,15 +1554,29 @@ QM.state = {
     });
   },
 
-  // The outfit (if any) whose slots exactly match what's currently equipped
-  // AND has a portrait set — used by the portrait ring to decide whether to
-  // show that portrait instead of the persona's own avatar. Ambiguous when
-  // two saved outfits happen to have identical slots (picks the first, same
-  // tie-break outfitMatchesCurrent's server-side counterpart already accepts
-  // for the appearance-macro's "outfitDescription" mode).
+  // The one outfit shown as equipped. Several can match at once (one saved
+  // with a coat and one without, or two saved from the same items); the pick
+  // is the match covering the most slots, then the one last equipped by name
+  // (`chosen`), then the first. Mirrors server.mjs's activeOutfit.
+  activeOutfit() {
+    let best = null;
+    let bestSize = 0;
+    for (const outfit of this.outfits ?? []) {
+      if (!this.outfitMatchesCurrent(outfit)) continue;
+      const size = Object.keys(outfit.slots ?? {}).length;
+      if (!best || size > bestSize || (size === bestSize && outfit.chosen === true && best.chosen !== true)) {
+        best = outfit;
+        bestSize = size;
+      }
+    }
+    return best;
+  },
+
+  // The equipped outfit's portrait, if it has one — the portrait ring shows it
+  // in place of the persona's own avatar.
   activeOutfitPortraitUrl() {
-    const active = (this.outfits ?? []).find((outfit) => outfit.portraitFile && this.outfitMatchesCurrent(outfit));
-    return active ? QM.outfitPortraitUrl(this.chatId, QM_OWNER_ID, active.id) : null;
+    const active = this.activeOutfit();
+    return active?.portraitFile ? QM.outfitPortraitUrl(this.chatId, QM_OWNER_ID, active.id) : null;
   },
 };
 
@@ -2063,6 +2077,22 @@ function qmBuildCardBadge(text, color) {
   return badge;
 }
 
+// A card's name on a row of its own, under the buttons: up to two lines, the
+// full name on hover, and a click or tap shows all of it (and again folds it).
+function qmBuildCardName(text) {
+  const name = document.createElement("div");
+  name.textContent = text;
+  name.title = text;
+  const folded = { display: "-webkit-box", webkitLineClamp: "2", webkitBoxOrient: "vertical", overflow: "hidden" };
+  Object.assign(name.style, { fontWeight: "600", wordBreak: "break-word", cursor: "pointer", ...folded });
+  let open = false;
+  name.addEventListener("click", () => {
+    open = !open;
+    Object.assign(name.style, open ? { display: "block", overflow: "visible" } : folded);
+  });
+  return name;
+}
+
 function qmBuildCardCornerDot(corner) {
   const dot = document.createElement("span");
   dot.setAttribute("aria-hidden", "true");
@@ -2498,6 +2528,7 @@ QM.dock = {
     }
     QM.state.ensureLoaded();
     this._paint();
+    this._resumeWardrobe();
   },
 
   close() {
@@ -5379,12 +5410,12 @@ QM.dock = {
   // Edit and Equip instead, since it acts on live equip state rather than
   // editing a stored field. Delete stays directly on the card like it does
   // on an item card. The currently-equipped outfit
-  // (QM.state.outfitMatchesCurrent) gets a success-colored border/glow
+  // (QM.state.activeOutfit) gets a success-colored border/glow
   // instead of the theme accent, echoing the Add Item form's own "borrow a
   // semantic color instead of a new shape" approach to standing out from
   // its neighbors.
   _buildOutfitRow(outfit) {
-    const equipped = QM.state.outfitMatchesCurrent(outfit);
+    const equipped = QM.state.activeOutfit() === outfit;
     const hidden = outfit.hidden === true;
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
     const row = document.createElement("li");
@@ -5420,27 +5451,19 @@ QM.dock = {
 
     const nameLine = document.createElement("div");
     Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-    const nameLabel = document.createElement("span");
-    nameLabel.textContent = outfit.name;
-    Object.assign(nameLabel.style, {
-      flex: "1",
-      minWidth: "0",
-      fontWeight: "600",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    });
-    nameLine.appendChild(nameLabel);
+    const nameLabel = qmBuildCardName(outfit.name);
+    const nameSpacer = document.createElement("span");
+    nameSpacer.style.flex = "1";
+    nameLine.appendChild(nameSpacer);
     if (hidden) {
       nameLabel.style.color = "var(--muted-foreground, currentcolor)";
       nameLine.appendChild(qmBuildCardBadge("Hidden", "var(--muted-foreground, currentcolor)"));
     }
     if (equipped) nameLine.appendChild(qmBuildCardBadge("Equipped", QM_COLOR_SUCCESS));
 
-    // [Name] [Hidden?] [Equipped?] [⋯] [Equip] -- Hide/Edit/Update/Delete
-    // collapsed into the overflow menu, Equip promoted up here so the
-    // description below (no more actionColumn beside it) gets the full card
-    // width.
+    // [Hidden?] [Equipped?] [⋯] [Equip], then the name on its own row so a
+    // long one isn't cut short by the buttons. Hide/Edit/Update/Delete are in
+    // the overflow menu.
     const deleteOutfit = () => this._confirmDelete(outfit.name, () => QM.state.deleteOutfit(outfit.id));
     const overflowMenu = this._buildCardOverflowMenu([
       {
@@ -5480,7 +5503,7 @@ QM.dock = {
     });
     descriptionRow.appendChild(descriptionPreview);
 
-    detailsColumn.append(nameLine, descriptionRow);
+    detailsColumn.append(nameLine, nameLabel, descriptionRow);
     row.append(portraitControl, detailsColumn);
     return row;
   },
@@ -5916,7 +5939,7 @@ QM.dock = {
   // moved). Only quantity stays directly on the card, per the request: it's
   // the one field someone adjusts constantly during play (used a charge,
   // picked up another), while the rest are set-once-and-rarely-touched.
-  // Layout: [name ... qty] [⋯] [Equip] / slot+stored (only when either
+  // Layout: [★ ... qty] [⋯] [Equip] / name / slot+stored (only when either
   // carries real info, see below) / description, full width.
   _buildItemRow(item) {
     const thumbnailPx = QM_THUMBNAIL_SIZES[this.thumbnailSize];
@@ -5948,16 +5971,9 @@ QM.dock = {
 
     const nameLine = document.createElement("div");
     Object.assign(nameLine.style, { display: "flex", alignItems: "center", gap: "6px" });
-    const nameLabel = document.createElement("span");
-    nameLabel.textContent = item.name;
-    Object.assign(nameLabel.style, {
-      flex: "1",
-      minWidth: "0",
-      fontWeight: "600",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    });
+    const nameLabel = qmBuildCardName(item.name);
+    const nameSpacer = document.createElement("span");
+    nameSpacer.style.flex = "1";
 
     // Same up/down adjustment as before (a plain number input's native
     // spinner) — the one field that stays directly editable on the card.
@@ -5984,7 +6000,7 @@ QM.dock = {
     favoriteButton.title = item.favorite ? "Remove from favorites" : "Add to favorites";
     favoriteButton.addEventListener("click", () => QM.state.updateItem(item.id, { favorite: !item.favorite }));
 
-    nameLine.append(favoriteButton, nameLabel);
+    nameLine.append(favoriteButton, nameSpacer);
     if (hidden) {
       nameLabel.style.color = "var(--muted-foreground, currentcolor)";
       nameLine.appendChild(qmBuildCardBadge("Hidden", "var(--muted-foreground, currentcolor)"));
@@ -6021,7 +6037,7 @@ QM.dock = {
     // noise, so that row is entirely omitted for them; detailsColumn's
     // justify-content:space-between then hands the reclaimed height to the
     // description below instead.
-    const detailRows = [nameLine];
+    const detailRows = [nameLine, nameLabel];
     const storedText = item.location.startsWith("stored:") ? item.location.slice("stored:".length) : null;
     if (item.defaultSlot || storedText) {
       const slotLine = document.createElement("div");
@@ -6689,20 +6705,62 @@ Object.assign(QM.dock, {
   _wardrobeSummary: null,
   _wardrobeContentContainer: null,
   // Bumped every time the modal closes (including the close-then-reopen
-  // _openWardrobeBuilder already does) -- lets _submitWardrobeGeneration tell
-  // a still-in-flight generation from a previous session apart from the
-  // current one, so a stale response can't overwrite what the user's looking
-  // at now.
+  // _openWardrobeBuilder already does) -- lets _submitWardrobeConfirm tell a
+  // still-in-flight confirm from a previous session apart from the current
+  // one, so a stale response can't overwrite what the user's looking at now.
   _wardrobeSessionToken: 0,
+  // A generation outlives the modal and the dock: closing either while the
+  // model is working must not lose the reply (it is slow and costs a call).
+  // The reply is kept with the sheet it was asked for and the review opens
+  // by itself, at once if the dock is open on that sheet, else the next time
+  // it is. Bumped by each new generation and each discard, so only the newest
+  // request's reply is kept.
+  _wardrobeRunToken: 0,
+  _wardrobeSheet: null,
+  _wardrobeConfirming: false,
 
-  _openWardrobeBuilder() {
-    this._closeWardrobeBuilder();
+  _wardrobeCurrentSheet() {
+    return `${QM.state.chatId}|${QM_OWNER_ID}`;
+  },
+
+  // A request in flight, or a reply not yet answered, for the sheet now showing.
+  _wardrobeWaiting() {
+    if (this._wardrobeSheet !== this._wardrobeCurrentSheet() || this._wardrobeConfirming) return false;
+    const view = this._wardrobeViewState;
+    return (
+      view === "loading" || view === "hidden" || view === "error" || (view === "preview" && !this._wardrobeSummary)
+    );
+  },
+
+  _resetWardrobe() {
+    this._wardrobeRunToken++;
+    this._wardrobeSheet = null;
+    this._wardrobeConfirming = false;
     this._wardrobeViewState = "form";
     this._wardrobeProposal = null;
     this._wardrobeHiddenMatches = [];
     this._wardrobeHiddenChoices = {};
     this._wardrobeError = null;
     this._wardrobeSummary = null;
+  },
+
+  // Cancel, and Close after adding: the proposal is done with.
+  _discardWardrobe() {
+    this._resetWardrobe();
+    this._closeWardrobeBuilder();
+  },
+
+  // Called when the dock opens: shows a reply that came back while it was shut.
+  _resumeWardrobe() {
+    if (!this.wardrobeBuilderBackdrop && this._wardrobeViewState !== "loading" && this._wardrobeWaiting()) {
+      this._openWardrobeBuilder();
+    }
+  },
+
+  _openWardrobeBuilder() {
+    this._closeWardrobeBuilder();
+    // Picks up where it was when there is something waiting for this sheet.
+    if (!this._wardrobeWaiting()) this._resetWardrobe();
 
     const backdrop = document.createElement("div");
     Object.assign(backdrop.style, {
@@ -6827,7 +6885,7 @@ Object.assign(QM.dock, {
 
   _renderWardrobeBuilderLoading() {
     const node = document.createElement("div");
-    node.textContent = "Generating wardrobe…";
+    node.textContent = "Generating wardrobe… You can close this; the result will open here when it is ready.";
     Object.assign(node.style, {
       fontSize: "12px",
       textAlign: "center",
@@ -6838,12 +6896,14 @@ Object.assign(QM.dock, {
   },
 
   async _submitWardrobeGeneration() {
-    const token = this._wardrobeSessionToken;
+    const token = ++this._wardrobeRunToken;
+    this._wardrobeSheet = this._wardrobeCurrentSheet();
+    this._wardrobeConfirming = false;
     this._wardrobeViewState = "loading";
     this._renderWardrobeBuilderContent();
     try {
       const result = await QM.state.generateWardrobe(this._wardrobeDirection, this._wardrobeIncludePersonaContext);
-      if (token !== this._wardrobeSessionToken) return; // modal closed/reopened while this was in flight
+      if (token !== this._wardrobeRunToken) return; // discarded, or a newer request replaced this one
       this._wardrobeProposal = result.proposal;
       this._wardrobeHiddenMatches = result.hiddenMatches ?? [];
       // Skip by default; Show starts from the chat's access setting.
@@ -6856,13 +6916,16 @@ Object.assign(QM.dock, {
       this._wardrobeSummary = null;
       this._wardrobeViewState = "preview";
     } catch (error) {
-      if (token !== this._wardrobeSessionToken) return;
+      if (token !== this._wardrobeRunToken) return;
       const code = error && error.message;
       this._wardrobeError =
         (code && QM_WARDROBE_ERROR_MESSAGES[code]) || code || "The wardrobe could not be generated.";
       this._wardrobeViewState = "error";
     }
-    this._renderWardrobeBuilderContent();
+    // Still open: show it. Closed with the dock open on this sheet: open the
+    // review. Otherwise it waits for _resumeWardrobe.
+    if (this.wardrobeBuilderBackdrop) this._renderWardrobeBuilderContent();
+    else if (this.isOpenFlag) this._resumeWardrobe();
   },
 
   // Sectioned, not one run-on sentence — a wardrobe touching a dozen
@@ -6920,7 +6983,7 @@ Object.assign(QM.dock, {
       fragment.append(this._buildWardrobeSummaryNode(this._wardrobeSummary));
       const closeButton = QM.button("Close", { border: true });
       closeButton.style.width = "100%";
-      closeButton.addEventListener("click", () => this._closeWardrobeBuilder());
+      closeButton.addEventListener("click", () => this._discardWardrobe());
       fragment.append(closeButton);
       return fragment;
     }
@@ -6977,7 +7040,7 @@ Object.assign(QM.dock, {
     const retryButton = QM.button("Retry", { border: true });
     retryButton.addEventListener("click", () => this._submitWardrobeGeneration());
     const cancelButton = QM.button("Cancel", { border: true });
-    cancelButton.addEventListener("click", () => this._closeWardrobeBuilder());
+    cancelButton.addEventListener("click", () => this._discardWardrobe());
     buttonRow.append(confirmButton, retryButton, cancelButton);
 
     fragment.append(list, buttonRow);
@@ -7119,6 +7182,8 @@ Object.assign(QM.dock, {
     const token = this._wardrobeSessionToken;
     const chatId = QM.state.chatId;
     confirmButton.disabled = true;
+    // Being added: no longer something to show again if the window is closed now.
+    this._wardrobeConfirming = true;
     try {
       const result = await QM.state.confirmWardrobe(this._wardrobeProposal, this._wardrobeHiddenChoices);
       if (token !== this._wardrobeSessionToken || chatId !== QM.state.chatId) return;
@@ -7128,6 +7193,7 @@ Object.assign(QM.dock, {
     } catch (error) {
       if (token !== this._wardrobeSessionToken || chatId !== QM.state.chatId) return;
       confirmButton.disabled = false;
+      this._wardrobeConfirming = false;
       this._wardrobeError = (error && error.message) || "The wardrobe could not be added.";
       this._wardrobeViewState = "error";
       this._renderWardrobeBuilderContent();
@@ -7148,7 +7214,7 @@ Object.assign(QM.dock, {
       this._renderWardrobeBuilderContent();
     });
     const cancelButton = QM.button("Cancel", { border: true });
-    cancelButton.addEventListener("click", () => this._closeWardrobeBuilder());
+    cancelButton.addEventListener("click", () => this._discardWardrobe());
     buttonRow.append(tryAgainButton, cancelButton);
     fragment.append(message, buttonRow);
     return fragment;
@@ -8117,7 +8183,7 @@ QM.panel = {
       name.style.flex = "1";
       name.className = "font-semibold " + QM_TRACKER_TEXT_ROW;
 
-      const equipped = QM.state.outfitMatchesCurrent(outfit);
+      const equipped = QM.state.activeOutfit() === outfit;
       const toggleButton = equipped
         ? QM.button("Unequip", {
             bg: "var(--secondary, transparent)",
