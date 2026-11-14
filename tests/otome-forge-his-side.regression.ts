@@ -652,7 +652,9 @@ test("his side is part of the chapter it follows: the next chapter's prompts get
   for (const options of [{ continues: KAI }, {}]) {
     const { text } = await recall({ ...narration, ...options });
     const previous = text.indexOf("# Previous chapter in full:");
-    const other = text.indexOf(`# The previous chapter's other side, in full: Kai's side of "The North Light"`);
+    const other = text.indexOf(
+      `# The previous chapter's other side, in full: [Before chapter 1 ended] Kai's side of "The North Light"`,
+    );
     assert.ok(previous >= 0 && other > previous, JSON.stringify(options));
     assert.ok(text.indexOf(SIDE_LINE) > other, "his side in full, right after the chapter");
     assert.ok(!text.includes("ROUTE-SUMMARY") && !text.includes("SIDE-SUMMARY"), "neither entry beside them");
@@ -721,7 +723,7 @@ test("a Closer's Opened up notes his side at its climax; Routes offers it once t
   } as const;
   for (const [what, options] of Object.entries(hers)) {
     const text = both(await recall(options));
-    assert.ok(text.includes("# Previous chapter in full: The Dark Quay"), what);
+    assert.ok(text.includes("# Previous chapter in full: [Chapter 1] The Dark Quay"), what);
     assert.ok(!text.includes(SIDE_LINE) && !text.includes("other side"), what);
   }
   for (const options of [
@@ -729,13 +731,15 @@ test("a Closer's Opened up notes his side at its climax; Routes offers it once t
     { job: "narration", reader: KAI, cached: { li: KAI } },
   ] as const) {
     const text = (await recall(options)).text;
-    assert.ok(text.includes(`# The previous chapter's other side, in full: Kai's side of "The Dark Quay"`));
+    assert.ok(
+      text.includes(`# The previous chapter's other side, in full: [After chapter 1] Kai's side of "The Dark Quay"`),
+    );
     assert.ok(text.includes(SIDE_LINE), options.job);
   }
   const date = await recall({ job: "narration", cast: [MIR, KAI], cached: { li: MIR } });
   assert.ok(!date.text.includes(SIDE_LINE) && !date.text.includes("other side"), "never in the cached part");
   assert.ok(
-    date.recalls?.text.includes(`# Canon in full: Kai's side of "The Dark Quay"`),
+    date.recalls?.text.includes(`# Canon in full: [After chapter 1] Kai's side of "The Dark Quay"`),
     "his own canon, in his scene",
   );
 
@@ -745,9 +749,11 @@ test("a Closer's Opened up notes his side at its climax; Routes offers it once t
   assert.equal((await t.call("POST", "/runs/:run/chapters/next", { lead: MIR })).status, 200);
   const plan = plans()[planned]!.messages;
   const all = plan.map((message) => message.content).join("\n");
-  assert.ok(all.includes("# Previous chapter in full: The Dark Quay"));
-  assert.ok(all.includes(`# The previous chapter's other side, in full: Kai's side of "The Dark Quay"`));
-  assert.ok(all.indexOf(SIDE_LINE) > all.indexOf("# Previous chapter in full: The Dark Quay"));
+  assert.ok(all.includes("# Previous chapter in full: [Chapter 1] The Dark Quay"));
+  assert.ok(
+    all.includes(`# The previous chapter's other side, in full: [After chapter 1] Kai's side of "The Dark Quay"`),
+  );
+  assert.ok(all.indexOf(SIDE_LINE) > all.indexOf("# Previous chapter in full: [Chapter 1] The Dark Quay"));
   // Its scenes too: in the story context every call of the chapter shares (the cached part), whoever is in the node.
   assert.equal((await t.call("POST", beatPath, {}, { key: "main-2", i: "0" })).status, 200);
   const scene = t.calls.filter((call) => /Narrate node 1 of/u.test(user(call.messages))).at(-1)!.messages;
@@ -821,10 +827,13 @@ test("every other chapter's P6 is byte for byte the builder's from before his si
   });
   assert.ok(/PLAYER CHOICES/u.test(mainMessages[1]!.content), "the fixture reaches the choice rules");
   // Retaken 2026-11-10: betweenYou's slow burn and affection level lines changed on purpose.
-  assert.equal(sha(mainMessages), "0e6052b18cba97b7d3551b6727733c71b010b5699530adde22470bfae777f1a4", "a main chapter");
+  // Retaken 2026-11-11: the last scene's open-decision rule and the no-assumed-choice rule.
+  // Retaken 0.23.0: the affection line reads "of 20" (the bond ranks).
+  // Retaken 0.26.0: the writing rules ask for plain prose and dialogue in each speaker's own register.
+  assert.equal(sha(mainMessages), "8cbfe081907b36282e9a9d698bb65d377aa6791e11a8d7760664975b73d748eb", "a main chapter");
   assert.equal(
     sha(beatMessages({ ...common, chapter: story, node: story.nodes[0]!, storySoFar: [], hisSide: "A SCENE" })),
-    "136a39a3ea08819b220e8331c561857ddd2d5ca8f6844abd3eb4d9b37a8c396e",
+    "64ca6eb26eb8f9308bbc6f8762949e2dce6df51d1b1336af9edb2ee9b24385ab",
     "a Character Story, even with a scene handed to it",
   );
 });

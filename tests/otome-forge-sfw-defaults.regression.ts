@@ -254,33 +254,36 @@ test("chapter and scene prompts keep emotional payoffs occasional and permit cha
 });
 
 const EXPECTED_ANGST: Record<string, string> = {
-  bannerHis: "5947904ed3d99148",
-  bannerMemories: "de4eb263f10caae0",
-  bannerMine: "cf8f54efbd1364ef",
-  beat: "808bd572768d055f",
-  beatWithCg: "5b3da6eaaa372b37",
-  chapterPlan: "0d5ddd3f9f813b42",
-  closer: "663c9500db89c7ce",
-  confrontation: "658aefba2567ec54",
-  repairPlan: "fa4071e8c2321d76",
-  routePlan: "ad0105614b0bccc9",
+  bannerHis: "49861081dcc45db3",
+  bannerMemories: "3383bf6abce8a4fa",
+  bannerMine: "6e3372632cf89823",
+  beat: "8b7a95e162545c7d",
+  beatWithCg: "bc15cfbe2ef5124e",
+  chapterPlan: "42dd694241ff4c94",
+  closer: "17b400f2bfe59d2a",
+  confrontation: "71f550c082604838",
+  repairPlan: "26cbc866d537100d",
+  routePlan: "ec4ee9d0b1b7bdf4",
 };
 // 0.18.1: the canon writing rule names an existing world's characters, so both sets of digests moved.
 // 0.20.2: P10 and P11 open with the story context their chapter's scenes cache, so both sets' routePlan and
 // repairPlan digests moved.
 // 0.19.1: the chapter plan's climax is optional, so both chapterPlan digests moved.
 // 2026-11-10: betweenYou's slow burn holds back love, not attraction, and carries the affection level, so these moved.
+// 2026-11-11: a chapter's last scene hands an open decision to the player, and no scene assumes a choice never made.
+// 0.23.0: the affection line reads "of 20" (the bond ranks), so both sets moved again.
+// 0.26.0: the writing rules ask for plain prose and dialogue in each speaker's own register, so both sets moved.
 const EXPECTED_GENTLE: Record<string, string> = {
-  bannerHis: "598ed4c244d58365",
-  bannerMemories: "661517d0ecfa33a4",
-  bannerMine: "e80d96d733b1735e",
-  beat: "07f760b11397eac2",
-  beatWithCg: "413bf77e2a5fb7c0",
-  chapterPlan: "40174bcc96f32008",
-  closer: "08dcc1e9fc2ce342",
-  confrontation: "3e3fbf0b86a48841",
-  repairPlan: "7f493b0866f1b176",
-  routePlan: "db011cf9947d8088",
+  bannerHis: "5b62b08ce07157ab",
+  bannerMemories: "afba92bf75a051b7",
+  bannerMine: "6aef7d64a723b757",
+  beat: "db7ff607a8c2ac4e",
+  beatWithCg: "0431170b2b0a35a2",
+  chapterPlan: "fb82db1eb1efc02d",
+  closer: "4cf99bcf195fa1f7",
+  confrontation: "85b02b1adbd6ca1b",
+  repairPlan: "c80364a605c38327",
+  routePlan: "bb732dae8211a70a",
 };
 
 test("the SFW defaults pin scene pacing and earned character change in story and banner prompts", () => {
@@ -430,7 +433,7 @@ test("SFW images keep their safety prompts and negatives, and tagged faces retai
         negativePrompt: `${CG_NEGATIVE}, ${SAFE}`,
       },
       cgOne: {
-        prompt: `anime screencap At the lamp. Kai: tall man, grey eyes; keeper's coat. ${cgTail}, adult man, masterpiece`,
+        prompt: `anime screencap, At the lamp. Kai: tall man, grey eyes; keeper's coat. ${cgTail}, adult man, masterpiece`,
         negativePrompt: `${CG_NEGATIVE}, extra people, ${SAFE}, lowres`,
       },
       pair: {

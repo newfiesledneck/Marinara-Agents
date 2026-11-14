@@ -285,7 +285,7 @@ export interface Player {
    */
   about?: string;
   /** English, visual-only tags. */
-  look: { identityLine: string; outfitLine: string };
+  look: { identityLine: string; outfitLine: string; presentation: Presentation };
   portrait?: string;
   portraitRef?: string;
   art?: Paint;
@@ -372,6 +372,17 @@ export interface Bible {
   play: { style: string; cheat: ClawCheat };
   /** Optional (#1936): written for adult NSFW stories only, and added to an older bible only on request. */
   intimacy?: BibleIntimacy;
+  /**
+   * Optional (0.23.0): one entry per bond rank (11-20), written in one call the first time his finale is read. Past the
+   * finale the scene card sends these, up to the rank he stands at, instead of his stage secrets.
+   */
+  bond?: BibleBond[];
+}
+
+/** One bond rank's reveal: what the protagonist learns about him at that rank. */
+export interface BibleBond {
+  level: number;
+  truth: string;
 }
 
 /** `${R}:unit:${li}`: the fields the forge kit expects of a character, plus the bible. */
@@ -1021,6 +1032,18 @@ export interface ChapterLedger {
   offscreen: Array<{ li: LiId; line: string }>;
 }
 
+/**
+ * 0.24.2: a chapter's story context as its plan or first scene read it (Chapter.context): the parts the kit's memory
+ * context is rendered from (@forge-kit/story-memory-fit.mjs forgeMemoryContext), so every scene rebuilds the same one.
+ */
+export interface ChapterContext {
+  overview: string;
+  details: Array<{ kind: string; title: string; content: string }>;
+  prefix: string;
+  fate: string;
+  optional: string[];
+}
+
 /** `${R}:chapter:${key}`: a chapter's plan. */
 export interface Chapter {
   key: string;
@@ -1057,6 +1080,11 @@ export interface Chapter {
    */
   prestige?: { kind: PrestigeKind; premise: string };
   /**
+   * A bond story (0.23.0, kind "story", key `story-bond-<li>-<level>`): the rank it opens, and the reveal it is written
+   * around (hidden from the client, which reads the reveal from the bible once it is due).
+   */
+  bond?: { rank: number; reveal: string };
+  /**
    * #2127: a main chapter's copy of the Your thoughts… its plan read, so each of its scenes carries them too (hidden
    * from the client).
    */
@@ -1076,6 +1104,14 @@ export interface Chapter {
    * it was planned so every scene's story context is the same (S/story/canon.ts recallText; hidden from the client).
    */
   recalled?: string[];
+  /**
+   * 0.24.2: the chapter's story context (S/prompts.ts storyContext's `memory`), saved by its plan or its first scene and
+   * sent by every scene of the chapter (hidden from the client). Background memory upkeep can finish mid-chapter, and
+   * this is what keeps a scene's context the one the chapter opened with, in the prompt and the cache alike. It keeps
+   * what the context is rendered from, not its text, so a scene that must shed part of it sheds part of this one
+   * (S/story/canon.ts frozenContext).
+   */
+  context?: ChapterContext;
   /**
    * 0.20.4: the chapter's small memories, by id, in the order they go, chosen by its first scene for everyone in it so
    * every scene sends the same ones; [] when it has none (S/story/beats.ts; hidden from the client).
@@ -1296,6 +1332,7 @@ export type ChapterView = Omit<
   | "hisSide"
   | "recalled"
   | "memories"
+  | "context"
 > & {
   music?: Pick<ChapterMusic, "track">;
   nodes: Array<Pick<ChapterNode, "i" | "kind" | "moment" | "cg" | "gate">>;
@@ -1444,8 +1481,21 @@ export interface StoryView {
    * /runs/:run/prestige/:li writes it). Optional while an older view is cached.
    */
   prestige?: PrestigeEntry[];
+  /**
+   * 0.23.0: each love interest's bond rank waiting to be opened (`story-bond-<li>-<level>`, POST /runs/:run/bond/:li).
+   * Optional while an older view is cached.
+   */
+  bond?: BondEntry[];
   /** #2155: each love interest's side waiting in Routes, or being read. Optional while an older view is cached. */
   hisSides?: HisSideEntry[];
+}
+
+/** A bond rank whose story is waiting to be opened (0.23.0). */
+export interface BondEntry {
+  li: LiId;
+  key: string;
+  rank: number;
+  name: string;
 }
 
 /** An unlocked extra story waiting to be written (#2025). */
@@ -1576,10 +1626,16 @@ export interface RunLiView {
   cut?: string[];
   /** His bible has its intimacy block (#1936): only that it exists, never its text. */
   intimacy?: true;
+  /** 1–20 (0.23.0): affection alone to 10, then the bond ranks after his finale. */
   level: number;
   /** Current-level progress only; optional while a pre-update run view remains cached. */
   affectionProgress?: { current: number; required: number };
-  /** At level 10 only (#2025): prestige points, progress toward the next, and the extra stories unlocked. */
+  /**
+   * 0.23.0: the bond rank he stands at, from 11 on (Named … Always); `played` bond stories of the ten, and the level the
+   * next one opens, null at the last rank. Absent below 11.
+   */
+  bond?: { level: number; name: string; played: number; next: number | null };
+  /** At the last bond rank (20), his finale read (#2025): prestige points and the extra stories unlocked. */
   prestige?: Prestige;
   stage: number;
   /** M2b: his painted faces for the current look, once the whole set is ready and expressions are on. */

@@ -246,6 +246,33 @@ take a moment to visually catch up — a Marinara caching quirk outside Quarterm
 dock's own portrait display always updates instantly either way; this setting only affects the
 persona's *real* avatar elsewhere in Marinara.
 
+## For other packages
+
+Another package can keep Quartermaster sheets of its own, for something that isn't a chat (a world
+in a Home-tab game, say). Nothing here changes how a Roleplay chat works. This is the first part;
+opening the dock from another package and reading the worn text come in later versions, and
+`GET /status` says what an install can do.
+
+- **Check first.** `GET /api/quartermaster/status` answers `{ packageId, version, features }`.
+  `features` only grows; `"scopes"` and `"owners"` mean everything in this section works.
+- **A scope instead of a chat id.** Wherever a route takes `:chatId`, pass `<your package id>:<key>`,
+  for example `wanderworld:world-12` (URL-encoded). The package id is lowercase letters, digits and
+  `-`; the key is letters, digits, `-` and `_`, at most 100 characters. Every
+  `/inventory/:chatId/:ownerId/...` route works with a scope.
+- **Owners.** `:ownerId` is `persona`, or a kind and an id such as `persona:<id>`, `character:<id>`
+  or your own `local:<id>`. One sheet per scope and owner.
+- **Who the owner is.** A scope has no chat to take a persona from, so say it:
+  `PATCH /inventory/:scope/:ownerId/owner` with any of `{ personaId, name, appearance, avatarUrl }`.
+  A `personaId` is looked up; `name`, `appearance` and `avatarUrl` win over the persona's own.
+  `avatarUrl` must be a path on the Engine (starting with `/`). An empty body clears it.
+- **What a scope skips.** The appearance macro and "replace persona's real avatar on equip" need a
+  chat, so they do nothing for a scope. The tracker Agent only runs in Roleplay chats.
+- **Housekeeping.** `GET /scopes/:scope/owners` lists the owners with a sheet.
+  `DELETE /scopes/:scope` removes every sheet in the scope and their outfit portraits. Item images
+  are shared by every sheet and are kept.
+- **Calling the routes.** They sit behind the Engine's privileged gate like every package route:
+  send `x-marinara-csrf: 1` on anything but a GET, and `X-Admin-Secret` when the device has one saved.
+
 ## Planned
 
 - **Party / multi-character support** — persona-only today; the storage layer's already built to
@@ -287,6 +314,14 @@ and every bundled icon, and writes `artifacts/quartermaster-<version>.zip` — r
 overwrite an already-released version's artifact file if you forget to bump `VERSION` first.
 
 ## Changelog
+
+### 0.1.34
+- **Other packages can keep their own sheets.** A package can use a scope (`<package id>:<key>`) in
+  place of a chat id on every inventory route, name the sheet's owner itself, list a scope's owners
+  and delete a scope. See "For other packages". Roleplay chats work exactly as before.
+- **`GET /api/quartermaster/status`** reports the installed version and what it can do.
+- **Chat, scope and owner ids are checked** before any route uses them. An id with characters a
+  real id never has (like `/` or `..`) is refused, so it can no longer reach a folder path.
 
 ### 0.1.33
 - **Delete file always deletes the file it names.** If the item's image changed while the item

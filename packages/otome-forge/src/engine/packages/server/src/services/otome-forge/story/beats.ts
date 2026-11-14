@@ -23,7 +23,8 @@
 //   (Starlight, ledgers, a gate, a repair, memory upkeep) is as for any pick. Every other choice takes only its
 //   options.
 // - Reading a beat to its end for the first time grants its Starlight; reading the chapter's last node completes it
-//   (Starlight, Lead and Foil affection, ledgers, lastLead), then starts memory upkeep in the background.
+//   (Starlight, Lead and Foil affection, ledgers, lastLead), then starts memory upkeep in the background. The Lead
+//   earns by how the chapter's climax ended (climaxEnding, read as its last node finishes).
 // - Ease off: no model call. The beat's canon is cut at the segment on screen and closed with EASE_OFF_MARKER, the
 //   beat counts as read, and the lookahead written from the uncut scene is removed (again on a retry, and by the
 //   lookahead itself when it was saved just after the cut). A Confrontation eased off after its ending keeps its canon
@@ -89,6 +90,7 @@ import {
   OWN_OPTION,
   hisSideKey,
   stageRow,
+  type ClimaxEnding,
   type ClimaxMove,
   HIS_SIDE_MIN_STAGE,
 } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
@@ -120,6 +122,8 @@ import { noteSideSpeakers, type SideCastDeps } from "./side-cast.js";
 import {
   OWN_ANSWER_LABEL,
   type StoryContext,
+  chapterContextOf,
+  frozenContext,
   chapterScenes,
   chapterSoFar,
   readBeat,
@@ -776,6 +780,30 @@ async function generateBeat(
     const kept = saved?.memories;
     if (kept && kept.join("\n") !== chosen.join("\n")) memory = await recall(kept);
   }
+  // 0.24.2, the maintainer's rule: what the chapter was planned with is what each of its scenes gets. recallText reads
+  // the story as it is NOW, so background upkeep finishing mid-chapter (a summary saved, the timeline folded, his side
+  // read) would hand the later scenes a different context from the earlier ones' — the same chapter, told two ways,
+  // and a cache that misses every time the text moves. The context is saved on the chapter by its plan (a main one)
+  // or its first scene, and every scene sends it, as `recalled` and the pool ids already are: rebuilt from its parts,
+  // so a scene that must shed some of it sheds the chapter's, never the story as it is now (frozenContext).
+  if (!told) {
+    const live = memory;
+    const saved =
+      chapter.context ??
+      (live.text
+        ? // Another scene wrote first: the first save wins, so every scene sends that one.
+          (
+            await deps.store.updateDoc(runDocTarget("chapter", chapterId(runId, key)), normalizeChapter, (current) =>
+              !current || current.context ? current : { ...current, context: chapterContextOf(live) },
+            )
+          )?.context
+        : undefined);
+    // ponytail: the chapter keeps its context even when a later, longer scene cannot fit what of it cannot give way
+    // (the summaries that always stay, the previous chapter's first and last scenes); that scene answers `capacity`
+    // until the connection is larger, where before upkeep folding the backlog could have rescued it. Ceiling: a
+    // chapter opened on a connection already at its limit. Upgrade path: on `capacity`, retry once with `live`.
+    if (saved) memory = frozenContext(saved, live);
+  }
   const last = i === chapter.nodes.length - 1;
   const mustChoose =
     chapter.kind === "route" && !!node.gate && !!chapter.stage && stageRow(chapter.stage).gate === "confrontation";
@@ -1427,6 +1455,24 @@ export const canonPicks = (
 const readUnit = (deps: BeatDeps, runId: string, li: LiId) => deps.store.readDoc(unitId(runId, li), normalizeUnit);
 
 /**
+ * How the chapter's climax (its one Confrontation or Closer node: a main chapter's is the last or second-to-last, a
+ * route chapter's comes before its gate, a repair has none) ended, for its Lead's pay, when `beat` is the chapter's
+ * last node; undefined otherwise, or when it has none or it reached no ending.
+ */
+async function climaxEnding(
+  deps: BeatDeps,
+  runId: string,
+  chapter: Chapter,
+  beat: Beat,
+): Promise<ClimaxEnding | undefined> {
+  if (beat.i !== chapter.nodes.length - 1) return undefined;
+  const node = chapter.nodes.find((entry) => entry.kind === "confrontation" || entry.kind === "closer");
+  if (!node) return undefined;
+  const game = node.i === beat.i ? beat : await readBeat(deps.store, runId, chapter.key, node.i);
+  return game?.confrontation?.ending;
+}
+
+/**
  * Counts `beat` as read to its end, once and in order (S/state/rewards.ts readBeatToEnd: its Starlight, and on the
  * chapter's last node the chapter's Starlight, Lead and Foil affection, ledgers and lastLead), with what a route
  * chapter's gate or a repair's resolving node does (S/state/stages.ts), all in one write. Starts memory upkeep in the
@@ -1460,6 +1506,7 @@ async function finishBeat(
   const candidate = momentCandidate(chapter, beat);
   const arc = candidate ? hisSideArc(chapter, await listArcs(deps.store, runId)) : 0;
   const spent = !candidate || !!(await readChapter(deps.store, runId, hisSideKey(candidate, arc)));
+  const climax = await climaxEnding(deps, runId, chapter, beat);
   const state = await deps.store.updateDoc(runDocTarget("state", stateId(runId)), normalizeState, (current) => {
     // A pick saved on the beat whose effects never reached the state (its request stopped between the two writes, and
     // a reload shows it as made) lands in this same write, so no beat counts as read with a canon pick unapplied.
@@ -1472,7 +1519,7 @@ async function finishBeat(
     // A rupture shuts his gate: it is not counted (no stage, no chapter grants) until a repair, whichever way it was
     // reached (a lookahead written before the rupture, an Ease off), unless the rupture opened in this very scene.
     if (gateShut(caughtUp, chapter, beat.i)) throw locked(ROUTE_LOCKED);
-    const { state: read, ...rest } = readBeatToEnd(caughtUp, chapter, beat.i);
+    const { state: read, ...rest } = readBeatToEnd(caughtUp, chapter, beat.i, { climax });
     outcome = rest;
     let next = read;
     stageUp = undefined;

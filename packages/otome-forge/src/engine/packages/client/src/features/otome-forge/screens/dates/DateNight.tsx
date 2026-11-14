@@ -26,6 +26,7 @@ import {
   Paintbrush,
   RotateCcw,
   Sparkle,
+  Users,
   X,
 } from "lucide-react";
 import { useOtomeApi } from "../../api";
@@ -40,10 +41,11 @@ import { patchRun, runQueryKey } from "../../hooks/use-run";
 import { accentOf } from "../../lib/accent";
 import { placeEntry, readyUrl, worldPlaces } from "../../lib/reader-state";
 import { useOtomeProps } from "../../props";
-import type { Paint, RunLiView, RunView } from "../../shared/api-types";
+import type { LiId, Paint, RunLiView, RunView } from "../../shared/api-types";
 import {
   BASE_LOOK,
   DATE_PLACE_MOODS,
+  DOUBLE_DATE_LEVEL,
   PARTNER_CHOICE,
   STORY_PLACE,
   type DateEntry,
@@ -157,6 +159,14 @@ export function DateNight({ runKey, view, li: picked, onExit, onHome = onExit, o
     return count > 0 ? [{ id, count }] : [];
   });
   const given = gifts.some((entry) => entry.id === gift) ? gift : null;
+  // #2283: a double date may invite a love interest at affection level 10 (DOUBLE_DATE_LEVEL) with no grievance.
+  const [second, setSecond] = useState<LiId | null>(null);
+  const invitees = view.lis.filter((li) => {
+    const state = dates.data?.lis.find((entry) => entry.li === li.id);
+    // No one with a grievance, and no one already waiting on an evening of their own (409 `conflict` if invited).
+    return li.id !== partner.id && li.level >= DOUBLE_DATE_LEVEL && !state?.rupture && !state?.open;
+  });
+  const invited = invitees.some((li) => li.id === second) ? second : null;
   const rupture = !!dates.data?.lis.find((entry) => entry.li === partner.id)?.rupture;
   // #2156: she accepted his invitation to clear the air: this evening is it, at the place he chooses.
   const asked = !!dates.data?.lis.find((entry) => entry.li === partner.id)?.asked;
@@ -230,6 +240,7 @@ export function DateNight({ runKey, view, li: picked, onExit, onHome = onExit, o
           ...(place.storyPlace ? { storyPlace: place.storyPlace.key } : {}),
           ...looks,
           ...(given ? { gift: given } : {}),
+          ...(invited ? { second: invited } : {}),
         },
         { signal: controller.signal },
       );
@@ -242,7 +253,7 @@ export function DateNight({ runKey, view, li: picked, onExit, onHome = onExit, o
       // A gift given elsewhere meanwhile is refused: the picker reads her gifts again.
       if (given) void queryClient.invalidateQueries({ queryKey: wardrobeQueryKey(runKey) });
     }
-  }, [given, go, looks, otome, partner.id, place, queryClient, refresh, runKey]);
+  }, [given, go, invited, looks, otome, partner.id, place, queryClient, refresh, runKey]);
 
   const cancelPlan = () => {
     abortRef.current?.abort();
@@ -326,6 +337,15 @@ export function DateNight({ runKey, view, li: picked, onExit, onHome = onExit, o
             <p id="of-date-place-needed" className="of-hint of-dates-pick-hint">
               {t("ui.otomeForge.dateNight.placeNeeded")}
             </p>
+          ) : null}
+          {invitees.length ? (
+            <SecondPicker
+              partnerName={partner.name}
+              invitees={invitees}
+              player={view.player}
+              value={invited}
+              onChange={setSecond}
+            />
           ) : null}
           <DateHistory view={view} partner={partner} dates={dates.data} />
         </>
@@ -466,6 +486,61 @@ interface GiftPickerProps {
   /** #2153: the heading and hint where it is not a date's (a birthday's); a date's by default. */
   title?: string;
   hint?: string;
+}
+
+interface SecondPickerProps {
+  partnerName: string;
+  invitees: RunLiView[];
+  player: RunView["player"];
+  value: LiId | null;
+  onChange: (li: LiId | null) => void;
+}
+
+/**
+ * #2283: invite a second love interest along. Shown only once someone other than the date's love interest has reached
+ * affection level 10; the evening is then written for the three of them, and its affection is split between the two.
+ */
+export function SecondPicker({ partnerName, invitees, player, value, onChange }: SecondPickerProps) {
+  const { t } = useTranslation();
+  const id = useId();
+  const options: Array<RunLiView | null> = [null, ...invitees];
+  return (
+    <section className="of-section of-glass of-date-gifts" aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`} className="of-section-title">
+        <Users size={18} strokeWidth={1.9} aria-hidden="true" />
+        {t("ui.otomeForge.dateNight.doubleTitle")}
+      </h2>
+      <p className="of-hint">{t("ui.otomeForge.dateNight.doubleHint", { name: partnerName })}</p>
+      <div className="of-date-gift-options" role="radiogroup" aria-labelledby={`${id}-title`}>
+        {options.map((option) => {
+          const checked = value === (option?.id ?? null);
+          return (
+            <label key={option?.id ?? "alone"} className="of-date-gift" data-checked={checked}>
+              <input
+                type="radio"
+                className="of-visually-hidden"
+                name={`${id}-second`}
+                value={option?.id ?? ""}
+                checked={checked}
+                onChange={() => onChange(option?.id ?? null)}
+              />
+              <span className="of-date-gift-frame" aria-hidden="true">
+                {option ? (
+                  <Avatar name={option.name} url={option.portrait} accent={accentOf(option)} size={44} />
+                ) : (
+                  <Heart size={22} strokeWidth={1.8} fill="currentColor" aria-hidden="true" />
+                )}
+              </span>
+              <span className="of-date-gift-name">
+                {option ? option.name : t("ui.otomeForge.dateNight.doubleJustUs", { name: player.name || "you" })}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      {value ? <p className="of-hint">{t("ui.otomeForge.dateNight.doubleSplit", { name: partnerName })}</p> : null}
+    </section>
+  );
 }
 
 /** #2128: Bring a gift: No gift, or one of hers, as a radio group of small cards. */

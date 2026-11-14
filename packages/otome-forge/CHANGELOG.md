@@ -1,5 +1,89 @@
 # Otome Hearth release notes
 
+## 0.30.0 — 2026-11-14
+
+- **The story knows what happened when.** Every chapter's summary now reaches the model with its place in the story: "[Chapter 3]" for a main chapter, "[Character Story 2, after chapter 3]" for a Character Story, and "[After chapter 3]" for route, repair, date and his-side chapters. The condensed part of the timeline says which chapters it covers ("[Chapters 1–4]"), and a chapter recalled by meaning goes as "Chapter 3 in detail".
+- **Stories in progress get it too.** The tags are added when each prompt is built, so a saved story has them on its next scene or message, with nothing summarized again. A chapter you are partway through keeps the story it was planned with, so its tags start with the next chapter.
+
+## 0.29.0 — 2026-11-14
+
+- **Messages read like people texting.** Love interests write in plain, everyday words, the way a real person types, with no ornate metaphors or lines that belong in a novel. This holds in private threads and in the group chat.
+- **No more echoing.** A love interest no longer repeats your words back, quotes them or restates what you said; they answer in their own words.
+
+## 0.28.0 — 2026-11-13
+
+- **Scenes keep their shape.** The reply format a scene is written in is now stated again at the end of the request, so a model no longer drifts into prose, a code fence or stray commentary when the instructions sit far back in a long prompt. Nothing about the story changes; a malformed reply was already retried once, and this is what makes that retry unnecessary.
+
+## 0.27.0 — 2026-11-13
+
+- **The protagonist is drawn as herself.** Image prompts now use the protagonist's presentation — man, woman, or person — derived from the pronouns chosen at run creation. Stories started with she/her pronouns painted the protagonist as a generic person before this fix.
+
+## 0.26.0 — 2026-11-13
+
+- **Double dates.** Once a love interest has reached affection level 10, a date with him can invite a second love interest who has also reached level 10. The evening is written for the three of them: both are in every scene, and what passes between the two of them is part of it. Under Explicit Heat it can turn intimate between the three of them; below that it stays a warm evening for three.
+- **Shared affection.** A double date's affection is split evenly between the two love interests, the gift included, and each share counts against that love interest's own daily cap.
+- **Who can be invited.** Someone at level 10 with no grievance between you. A love interest whose own evening with you is still waiting cannot join until it is finished.
+- **Plainer prose, truer voices.** Everyday words, not ornate metaphors and stacked adjectives; dialogue in the register a character's own life taught them, so a common man sounds like one; and choices written plainly.
+
+## 0.25.0 — 2026-11-13
+
+- **Sex scenes go further.** Under Explicit Heat, the act is written like explicit erotic fanfiction: moment by moment, in graphic detail, on what each body does and feels, with the pleasure building before anyone climaxes. It no longer jumps from the first touch to the finish in a few lines.
+- **Affection by how it went.** The lead earns 150 for the truth or Opened up, 100 for a standoff, Almost or no climax, and 50 for a walkout or Shut out. Route chapters follow the same rule. The second love interest earns 50 (was 60).
+- **Dubious consent and non-consent actually happen.** When either is set to Allow, the story treats them as something that may happen, not just a warning label. Within the Lines and Veils, a love interest or villain may press on past a refusal. A notice in Settings → Content explains this while either limit is open. Raising Heat no longer silently resets a consent limit you set to Allow.
+
+## 0.24.6 — 2026-11-12
+
+- **The bible shows the bond ranks.** Past a love interest's finale, their bible now has a Bond ranks section: each rank from 11 ("named") to 20 ("always") with the truth it reveals about them. The truths are written when their first bond story, rank 11, opens; until then the section says so.
+
+## 0.24.5 — 2026-11-12
+
+- **A route past its finale shows the bond ranks ahead.** Once a love interest's finale was read, their card in Routes said their route was complete, though affection keeps going to level 20 through the bond ranks. The card now names the next rank (rank 11, "named", first) and the affection it needs, says when a rank's story is waiting for you, and only calls the route complete at the last rank.
+
+## 0.24.4 — 2026-11-12
+
+- **The Image style is set off with a comma everywhere.** A Memories banner's art (Wish → paint the banner), key images, outfit scenes, keepsakes, Photo Shoot photos and tarot cards with people ran your Image style straight into the first sentence of the picture's prompt ("soft watercolor The lamp room at night…"). They now follow it with a comma, as a cast repaint and every other picture already did.
+
+## 0.24.3 — 2026-11-12
+
+- **A chapter keeps its story on smaller connections too.** 0.24.2 kept the story a chapter opened with, but a scene that had to leave out some older chapters to fit a smaller connection rebuilt the story from scratch to do it, and so went back to the newer version after all. A chapter now keeps every part of its story, so a scene that has to leave something out leaves it out of the chapter's own.
+
+## 0.24.2 — 2026-11-12
+
+- **A chapter keeps the story it was opened with.** The story so far a chapter's first scene is written from is now saved with the chapter and sent to every one of its scenes, instead of being re-read each time. Before this, story memory being tidied up in the background while you read could hand a later scene a slightly different version of events than the earlier ones — the same chapter told two ways — and made every prompt after it cost full price again.
+
+## 0.24.1 — 2026-11-12
+
+- **Cheaper prompts.** Every prompt Otome Hearth sends to Claude now asks for the five-minute prompt cache instead of the hour-long one. A cached prompt is usually read again within a minute or two (the next scene, the next beat of a chapter), where the five-minute cache costs a quarter of the input to write and the hour-long one twice it — so the hour mostly doubled the price of a prompt that was read seconds later. Group replies, which had been paying the hour-long price, now use the five-minute one too.
+
+## 0.24.0 — 2026-11-11
+
+- **You can paint a picture again.** Any picture Otome Hearth has already painted can now be painted a second time when you want a different take: a scene's key image, the place it happens in, a Wish banner, a look in the Wardrobe, or a tarot card. The new picture costs one image, and the old one stays on screen while it paints, so nothing goes blank if the paint fails. Once the new one arrives it replaces the old one everywhere it showed, including your Album, and the old image leaves your gallery.
+
+## 0.23.1 — 2026-11-11
+
+- **Each bond rank's truth stays with you.** Past the finale, the story keeps every bond reveal you have reached, rather than the three newest, so a truth learned at rank 11 still holds at rank 15; the card's own size limit still governs what it sends.
+- **The story speaks of the rank by name.** A settled couple's card and every prompt that writes their words now read the rank's word beside its number ("bond rank 15 of 20 — tested"), the same rank the Story screen shows.
+- **An afternoon stays an afternoon.** A scene told from their side counts only the bond ranks reached by the moment it retells, so it never carries what was learned weeks later.
+
+## 0.23.0 — 2026-11-11
+
+- **The relationship keeps growing after the confession.** Once affection reaches 10 and their story's finale is played, ten more ranks open, each a small heart filling inside the ten on Story: Named, Kept, Told, Hungry, Tested, Afraid, Chosen, Ahead, Home and Always. Each has its own canon story of settling into being together, from a secret they never told and what they want in bed (in an NSFW story) to your first real fight, the fear of leaving you, why they stay, and the future they want.
+- **One rank at a time.** A rank's story is played before the next opens, so banked affection skips none; each level from 11 to 20 costs 650, then 50 more.
+- **New reveals replace the old ones.** Past the finale the story carries what each new rank reveals, not the secrets their route already told.
+- **Extra stories now wait for the last rank:** prestige opens at bond rank 20 instead of level 10.
+
+## 0.22.7 — 2026-11-11
+
+- **A new love interest gets his own colour.** A love interest who joins the story after it has started, such as one an arc adds, now has his name tag and glow picked from his own portrait like everyone else's, instead of keeping a colour that could match another love interest's. Names that don't share a portrait yet spread across the colour wheel, so two of them rarely look alike. A story already in progress picks its colours again when it is opened.
+
+## 0.22.6 — 2026-11-11
+
+- **The Wardrobe loads faster.** A look whose five expressions are painted now shows a small check next to "Expressions" instead of the five faces, so opening the Wardrobe no longer downloads every face of every look.
+
+## 0.22.5 — 2026-11-11
+
+- **A chapter no longer ends on a choice you never get to make.** When a chapter's last scene leaves a decision to you, it now ends on that choice for you to pick, instead of saying you'll decide later. The next chapter also never acts as if you chose something you weren't offered.
+
 ## 0.22.4 — 2026-11-10
 
 - **Firsts are remembered for good.** A love interest's first kiss, first time and first confession with you are now kept permanently. When a chapter's summary is written, it notes any of the three that happened there for the first time, in one sentence saying how and in which chapter, and that sentence goes with them into every later scene, so the story never treats it as a first again. Each one also joins the Love Timeline, and the calendar marks it every year, as "First kiss with Kai". Stories you've already started begin with none noted.

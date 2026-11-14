@@ -53,7 +53,6 @@ import {
   type WearResult,
 } from "../../shared/wardrobe";
 import type { ItemView } from "../../shared/wish";
-import { FACE_LABEL_KEYS } from "../reader/FacePlate";
 import { FigurinePaint } from "../wish/ShopPanel";
 import { OpenCost, PaintReviewDialog, RarityStars } from "../wish/TenPullGrid";
 
@@ -436,6 +435,8 @@ function LookCard({
   // Wearing one of theirs paints its faces in the background when they are not painted yet (S/routes/wardrobe.ts).
   const wearPaintsFaces = look.owner !== "me" && images && view.world.images.expressions && faces.length < FACES.length;
   const held = paintWaits(look.art);
+  // 0.24.0: a painted look can be painted again, as the base look's Repaint does; its picture stays until a new one lands.
+  const repaint = !held && look.art?.state === "ready" && images;
   const shownAll = look.owner === "me" && view.lis.length > 0 && view.lis.every((li) => look.shownTo?.includes(li.id));
   const single = view.lis.length === 1 ? view.lis[0]! : null;
   const showLabel = single
@@ -443,7 +444,7 @@ function LookCard({
     : t("ui.otomeForge.wardrobe.showSomeone");
   // Open, Paint or Wear leaves once it is done: focus goes to "Worn at home", the card's next action, or its name.
   const onFocus = useRefocus(
-    `${look.unopened}|${held}|${look.worn}`,
+    `${look.unopened}|${held}|${repaint}|${look.worn}`,
     () =>
       (look.worn ? wornRef.current : null) ??
       actionsRef.current?.querySelector<HTMLElement>("button") ??
@@ -494,24 +495,12 @@ function LookCard({
             {t("ui.otomeForge.wish.painting")}
           </p>
         ) : null}
-        {faces.length ? (
-          <p className="of-ward-faces">
-            <span className="of-visually-hidden">
-              {t("ui.otomeForge.wardrobe.faces", {
-                faces: faces.map((face) => t(FACE_LABEL_KEYS[face])).join(", "),
-              })}
-            </span>
-            {faces.map((face) => (
-              <LookImage
-                key={face}
-                src={look.faces?.[face]}
-                cut={!!look.cut?.includes(look.faces?.[face] ?? "")}
-                alt=""
-                title={t(FACE_LABEL_KEYS[face])}
-                loading="lazy"
-                decoding="async"
-              />
-            ))}
+        {/* A check once all five faces are painted (the server's facesPainted: his Engine sprites are not), not the
+            faces themselves: the Wardrobe never downloads them. */}
+        {look.facesPainted ? (
+          <p className="of-ward-expressions">
+            {t("ui.otomeForge.wardrobe.expressions")}
+            <Check size={13} strokeWidth={2.6} role="img" aria-label={t("ui.otomeForge.wardrobe.expressionsPainted")} />
           </p>
         ) : null}
         <div ref={actionsRef} className="of-ward-actions">
@@ -531,7 +520,7 @@ function LookCard({
               <OpenCost item={item} images={images} ask={view.world.images.ask} />
             </>
           ) : null}
-          {item && !look.unopened && held ? (
+          {item && !look.unopened && (held || repaint) ? (
             <>
               <button
                 type="button"
@@ -541,14 +530,16 @@ function LookCard({
                   if (!busy) void actions.paintItem(item);
                 }}
               >
-                {look.art?.state === "waiting-consent" ? (
-                  <Paintbrush size={14} strokeWidth={2} aria-hidden="true" />
-                ) : (
+                {held && look.art?.state !== "waiting-consent" ? (
                   <RotateCcw size={14} strokeWidth={2} aria-hidden="true" />
+                ) : (
+                  <Paintbrush size={14} strokeWidth={2} aria-hidden="true" />
                 )}
-                {look.art?.state === "waiting-consent"
-                  ? t("ui.otomeForge.wish.paint")
-                  : t("ui.otomeForge.wish.paintRetry")}
+                {!held
+                  ? t("ui.otomeForge.wardrobe.repaintLook", { look: name })
+                  : look.art?.state === "waiting-consent"
+                    ? t("ui.otomeForge.wish.paint")
+                    : t("ui.otomeForge.wish.paintRetry")}
               </button>
               <CostHint images={1} />
             </>
@@ -600,7 +591,7 @@ function LookCard({
             </button>
           ) : null}
         </div>
-        {!look.wearable && !look.unopened && !held && look.art?.state !== "pending" ? (
+        {!look.wearable && !look.unopened && !held && !repaint && look.art?.state !== "pending" ? (
           <p className="of-hint">
             {images ? t("ui.otomeForge.wardrobe.notWearable") : t("ui.otomeForge.wardrobe.notWearableNoImages")}
           </p>

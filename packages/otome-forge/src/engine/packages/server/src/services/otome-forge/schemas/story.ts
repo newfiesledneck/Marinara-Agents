@@ -203,8 +203,8 @@ export const ConfrontationSchema: ZodType<Confrontation> = z.union([
 ]);
 
 /**
- * A date's plan (M5, SH/dates.ts); a damaged one reads as none, so the chapter is not a playable date. #2128's `gift`
- * and #2156's `clearAir` are optional, as every date planned before them has none.
+ * A date's plan (M5, SH/dates.ts); a damaged one reads as none, so the chapter is not a playable date. #2128's `gift`,
+ * #2156's `clearAir` and #2283's `second` are optional, as every date planned before them has none.
  */
 const DatePlanSchema: ZodType<DatePlan> = z.object({
   li: z.string(),
@@ -217,6 +217,9 @@ const DatePlanSchema: ZodType<DatePlan> = z.object({
   keepsake: z.object({ brief: short(1200), art: PaintSchema.optional() }),
   gift: z.enum(GIFT_IDS).optional(),
   clearAir: z.literal(true).optional(),
+  // A double date's invited love interest (#2283), as planned; inviting the date's own love interest is refused when
+  // the date starts (S/minigames/date-night.ts checkDoubleDate), not read back here.
+  second: short(80).optional(),
 });
 
 const SCORE_VALUES: ReadonlySet<unknown> = new Set([-1, 0, 1]);
@@ -268,10 +271,22 @@ export function normalizeChapter(data: unknown): Chapter | null {
         return parsed.success ? parsed.data : undefined;
       },
       prestige: z.object({ kind: z.enum(PRESTIGE_KINDS), premise: short(600) }).optional(),
+      bond: z.object({ rank: z.number().int().min(11).max(20), reveal: short(600) }).optional(),
       thoughts: z.string().min(1).max(THOUGHTS_MAX).optional(),
       gift: z.enum(GIFT_IDS).optional(),
       hisSide: HisSideNoteSchema.optional(),
       recalled: z.array(z.string().refine(isChapterKey)).min(1).max(RECALL_MAX).optional(),
+      // 0.24.2: the story context its plan or first scene read, sent by every scene (S/story/beats.ts). Bounded by no
+      // length: recallText caps nothing, and a dropped-too-long context would read as never saved (Dottore, #2262).
+      context: z
+        .object({
+          overview: z.string(),
+          details: z.array(z.object({ kind: z.string(), title: z.string(), content: z.string() })),
+          prefix: z.string(),
+          fate: z.string(),
+          optional: z.array(z.string()),
+        })
+        .optional(),
       // 0.20.4: its small memories' ids, [] when it has none (S/story/beats.ts).
       memories: z.array(z.string().min(1).max(300)).max(200).optional(),
     },
@@ -369,11 +384,13 @@ export function toChapterView(chapter: Chapter): ChapterView {
     grievance: _grievance,
     date: _date,
     prestige: _prestige,
+    bond: _bond,
     thoughts: _thoughts,
     gift: _gift,
     hisSide: _hisSide,
     recalled: _recalled,
     memories: _memories,
+    context: _context,
     music,
     ...rest
   } = chapter;

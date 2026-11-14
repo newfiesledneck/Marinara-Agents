@@ -1,7 +1,7 @@
 import { SLURP2_LEGACY_RELEASES } from "./slp-release-archive";
 
 // The splash screen needs the shipped version and its public notes inside the client bundle.
-export const SLURP2_VERSION = "0.4.19";
+export const SLURP2_VERSION = "0.4.22";
 
 export interface Slurp2ReleaseEntry {
   version: string;
@@ -14,6 +14,28 @@ export interface Slurp2ReleaseEntry {
  * in-universe bullets per release (technical detail lives in CHANGELOG.md).
  */
 export const SLURP2_RELEASES: Slurp2ReleaseEntry[] = [
+  {
+    version: "0.4.22",
+    date: "2026-11-13",
+    notes: [
+      'Pictures of a collab or couple post now show every partner. Nude pictures no longer put on clothes from the Creator\'s card or a saved look, and "completely naked" counts as no clothes.',
+      "Collab partners are drawn in only at a clothed level. Your image connection's own style instructions now come first.",
+    ],
+  },
+  {
+    version: "0.4.21",
+    date: "2026-11-12",
+    notes: [
+      "Slurp has its own date now. In Backstage > World clock you can move it forward by whole days. The days you skip stay empty, and a checkpoint is saved first. To go back, restore a checkpoint.",
+    ],
+  },
+  {
+    version: "0.4.20",
+    date: "2026-11-11",
+    notes: [
+      "Slurp now reads your characters through Marinara Engine, so they keep their names, profiles and pictures when a later Engine update changes how characters are stored.",
+    ],
+  },
   {
     version: "0.4.19",
     date: "2026-11-10",

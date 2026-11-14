@@ -56,6 +56,7 @@ import { generateJson, resolveConnectionId } from "../generation.js";
 import { OtomeForgeError } from "../http.js";
 import { PROLOGUE_KEY, mainChapterKey, runDocTarget, worldId } from "../ids.js";
 import { groupChatMessages, nameList, renderThread, chatMemoryMessages, sharedState } from "../prompts.js";
+import { bondStoriesPlayed } from "../../../../../client/src/features/otome-forge/shared/bond.js";
 import { defaultLiState, readRun, type RunDocuments } from "../schemas/state.js";
 import { normalizeWorld } from "../schemas/world.js";
 import { listArcs } from "../story/arc.js";
@@ -230,6 +231,7 @@ async function writeGroup(
         unit,
         // Everyone in the group reads all of it, so as the whole cast may know it (see the header).
         liState: sharedState(run.state.lis[unit.id] ?? defaultLiState()),
+        bondPlayed: bondStoriesPlayed(run.state.chapters, unit.id),
         stickers: stickers.own.get(unit.id) ?? [],
       })),
       yours: stickers.yours,
@@ -240,6 +242,9 @@ async function writeGroup(
       ...(squabble ? { squabble: squabble.map(name) } : {}),
     }),
     memory: story,
+    // Everyone's answer comes minutes after the last, as a thread's replies do, so the cheaper five-minute write
+    // carries it (0.24.1: the default moved with it, and this is said where the reply is asked for).
+    cacheTtl: "5m",
     schema: GroupReplySchema,
     normalize: (raw) =>
       normalizeGroupReply(

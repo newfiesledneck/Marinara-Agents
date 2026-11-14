@@ -102,6 +102,12 @@
     "conversation-calls": {
       "versions": [
         {
+          "version": "1.1.10",
+          "date": "2026-11-11",
+          "notes": "- Changed: Calls reads characters through Marinara Engine instead of a bundled copy of its storage, so a later change to how the Engine stores characters can't leave them blank. The `[memory]` command saves only the character's memories, so a card edit made at the same time is kept. Needs a Marinara Engine with capability API 1.819 or newer. (#2242)",
+          "highlight": false
+        },
+        {
           "version": "1.1.9",
           "date": "2026-11-10",
           "notes": "- Important: please install this update before your next Marinara Engine update. That Engine update stores personas in a new format, and older Calls versions read every persona there as blank: no name, description, appearance or About Me in calls, call prompts and persona videos. Calls now reads personas through Marinara Engine, which reads both formats. Your personas and chats stay as they are. (#2230)",
@@ -404,6 +410,18 @@
     "long-term-memory": {
       "versions": [
         {
+          "version": "1.6.1",
+          "date": "2026-11-14",
+          "notes": "- \"Checked N of M\" in the three AI checks counts only memories the model actually reviewed, and a check that stops at its limit has a \"Check the next batch\" button, so every memory can be reviewed.",
+          "highlight": false
+        },
+        {
+          "version": "1.6.0",
+          "date": "2026-11-14",
+          "notes": "- The Memory Vault has a Graph view of your memories and their links.\n- Each reply has a Long-Term Memory card in the chat's Agent activity panel and drawer, and Activity has its own page.\n- Branched chats remember what their other branches saved and keep their latest messages visible.\n- Recall is set by one token budget, uses whole memories only and matches the meaning of the latest messages.\n- Extraction saves fewer, story-level memories, and \"Newest messages to leave for later\" keeps it off a scene that is still going. Background import now reads messages only; import chat summaries by hand from Sources.\n- Sharing is set per Agent, with \"Can read\" and \"Can add\" switches.\n- New: setup and a tour with Mari, a one-time \"What's new\", and three AI checks for older memories (\"Tidy with AI\", \"Link older relationships\", \"Find duplicate people\") that change only what you tick.\n- Memory Settings, Sources, Review and the Vault are simpler to read.\n- Needs an Engine with Capability API 1.820.",
+          "highlight": true
+        },
+        {
           "version": "1.5.29",
           "date": "2026-11-01",
           "notes": "- Long-Term Memory no longer imports Advanced Memory scene recaps. Chats that use Advanced Memory are extracted from their own summaries and messages, so their memories get keywords, links and threads, and \"Hide remembered messages\" works for them. Memories already imported from recaps stay.",
@@ -510,18 +528,6 @@
           "date": "2026-10-30",
           "notes": "- Sources → Chat Summaries keeps the range visible when a chat has a long name: the name is cut, and the message range, day, week or game session stays whole beside it.",
           "highlight": false
-        },
-        {
-          "version": "1.5.11",
-          "date": "2026-10-30",
-          "notes": "- A memory whose score (salience or confidence) the model writes in quotes (\"0.5\") is kept instead of dropped, and a chat piece whose every memory is malformed fails with Retry instead of reporting success with nothing kept.",
-          "highlight": false
-        },
-        {
-          "version": "1.5.10",
-          "date": "2026-10-29",
-          "notes": "- Long-Term Memory no longer offers the older way other Agents read memories. Slurp 0.4.8 and earlier stop adding memories to Creator posts; update Slurp to keep them.",
-          "highlight": false
         }
       ]
     },
@@ -625,6 +631,18 @@
     },
     "noodle": {
       "versions": [
+        {
+          "version": "1.5.16",
+          "date": "2026-11-13",
+          "notes": "- Fixed: A profile now loads and pages all of that account's posts, not only the ones already loaded in the main timeline. Activity links to older posts now open the post, or show an error when it is gone. The Likes tab loads every post the account liked and has a \"Load more\" button. Activity also covers older posts that got recent likes, replies and reposts, and older posts that mention you. (#2273)",
+          "highlight": false
+        },
+        {
+          "version": "1.5.15",
+          "date": "2026-11-11",
+          "notes": "- Changed: Noodle reads characters and character groups through Marinara Engine instead of a bundled copy of its storage, so a later change to how the Engine stores characters can't leave them blank. Needs a Marinara Engine with capability API 1.819 or newer. (#2242)",
+          "highlight": false
+        },
         {
           "version": "1.5.14",
           "date": "2026-11-10",
@@ -732,23 +750,119 @@
           "date": "2026-09-30",
           "notes": "- When Noodle cannot load, it now says so instead of showing an empty timeline. If Marinara Engine blocked it because this device has no Admin Secret, it explains how to set one.",
           "highlight": true
-        },
-        {
-          "version": "1.2.25",
-          "date": "2026-09-24",
-          "notes": "- Widgets on Homescreen now available.",
-          "highlight": false
-        },
-        {
-          "version": "1.2.24",
-          "date": "2026-09-15",
-          "notes": "- Search icons and post menus keep Noodle's selected accent when Engine Chroma animates.",
-          "highlight": false
         }
       ]
     },
     "otome-forge": {
       "versions": [
+        {
+          "version": "0.30.0",
+          "date": "2026-11-14",
+          "notes": "- **The story knows what happened when.** Every chapter's summary now reaches the model with its place in the story: \"[Chapter 3]\" for a main chapter, \"[Character Story 2, after chapter 3]\" for a Character Story, and \"[After chapter 3]\" for route, repair, date and his-side chapters. The condensed part of the timeline says which chapters it covers (\"[Chapters 1–4]\"), and a chapter recalled by meaning goes as \"Chapter 3 in detail\".\n- **Stories in progress get it too.** The tags are added when each prompt is built, so a saved story has them on its next scene or message, with nothing summarized again. A chapter you are partway through keeps the story it was planned with, so its tags start with the next chapter.",
+          "highlight": true
+        },
+        {
+          "version": "0.29.0",
+          "date": "2026-11-14",
+          "notes": "- **Messages read like people texting.** Love interests write in plain, everyday words, the way a real person types, with no ornate metaphors or lines that belong in a novel. This holds in private threads and in the group chat.\n- **No more echoing.** A love interest no longer repeats your words back, quotes them or restates what you said; they answer in their own words.",
+          "highlight": true
+        },
+        {
+          "version": "0.28.0",
+          "date": "2026-11-13",
+          "notes": "- **Scenes keep their shape.** The reply format a scene is written in is now stated again at the end of the request, so a model no longer drifts into prose, a code fence or stray commentary when the instructions sit far back in a long prompt. Nothing about the story changes; a malformed reply was already retried once, and this is what makes that retry unnecessary.",
+          "highlight": true
+        },
+        {
+          "version": "0.27.0",
+          "date": "2026-11-13",
+          "notes": "- **The protagonist is drawn as herself.** Image prompts now use the protagonist's presentation — man, woman, or person — derived from the pronouns chosen at run creation. Stories started with she/her pronouns painted the protagonist as a generic person before this fix.",
+          "highlight": true
+        },
+        {
+          "version": "0.26.0",
+          "date": "2026-11-13",
+          "notes": "- **Double dates.** Once a love interest has reached affection level 10, a date with him can invite a second love interest who has also reached level 10. The evening is written for the three of them: both are in every scene, and what passes between the two of them is part of it. Under Explicit Heat it can turn intimate between the three of them; below that it stays a warm evening for three.\n- **Shared affection.** A double date's affection is split evenly between the two love interests, the gift included, and each share counts against that love interest's own daily cap.\n- **Who can be invited.** Someone at level 10 with no grievance between you. A love interest whose own evening with you is still waiting cannot join until it is finished.\n- **Plainer prose, truer voices.** Everyday words, not ornate metaphors and stacked adjectives; dialogue in the register a character's own life taught them, so a common man sounds like one; and choices written plainly.",
+          "highlight": true
+        },
+        {
+          "version": "0.25.0",
+          "date": "2026-11-13",
+          "notes": "- **Sex scenes go further.** Under Explicit Heat, the act is written like explicit erotic fanfiction: moment by moment, in graphic detail, on what each body does and feels, with the pleasure building before anyone climaxes. It no longer jumps from the first touch to the finish in a few lines.\n- **Affection by how it went.** The lead earns 150 for the truth or Opened up, 100 for a standoff, Almost or no climax, and 50 for a walkout or Shut out. Route chapters follow the same rule. The second love interest earns 50 (was 60).\n- **Dubious consent and non-consent actually happen.** When either is set to Allow, the story treats them as something that may happen, not just a warning label. Within the Lines and Veils, a love interest or villain may press on past a refusal. A notice in Settings → Content explains this while either limit is open. Raising Heat no longer silently resets a consent limit you set to Allow.",
+          "highlight": true
+        },
+        {
+          "version": "0.24.6",
+          "date": "2026-11-12",
+          "notes": "- **The bible shows the bond ranks.** Past a love interest's finale, their bible now has a Bond ranks section: each rank from 11 (\"named\") to 20 (\"always\") with the truth it reveals about them. The truths are written when their first bond story, rank 11, opens; until then the section says so.",
+          "highlight": false
+        },
+        {
+          "version": "0.24.5",
+          "date": "2026-11-12",
+          "notes": "- **A route past its finale shows the bond ranks ahead.** Once a love interest's finale was read, their card in Routes said their route was complete, though affection keeps going to level 20 through the bond ranks. The card now names the next rank (rank 11, \"named\", first) and the affection it needs, says when a rank's story is waiting for you, and only calls the route complete at the last rank.",
+          "highlight": false
+        },
+        {
+          "version": "0.24.4",
+          "date": "2026-11-12",
+          "notes": "- **The Image style is set off with a comma everywhere.** A Memories banner's art (Wish → paint the banner), key images, outfit scenes, keepsakes, Photo Shoot photos and tarot cards with people ran your Image style straight into the first sentence of the picture's prompt (\"soft watercolor The lamp room at night…\"). They now follow it with a comma, as a cast repaint and every other picture already did.",
+          "highlight": false
+        },
+        {
+          "version": "0.24.3",
+          "date": "2026-11-12",
+          "notes": "- **A chapter keeps its story on smaller connections too.** 0.24.2 kept the story a chapter opened with, but a scene that had to leave out some older chapters to fit a smaller connection rebuilt the story from scratch to do it, and so went back to the newer version after all. A chapter now keeps every part of its story, so a scene that has to leave something out leaves it out of the chapter's own.",
+          "highlight": false
+        },
+        {
+          "version": "0.24.2",
+          "date": "2026-11-12",
+          "notes": "- **A chapter keeps the story it was opened with.** The story so far a chapter's first scene is written from is now saved with the chapter and sent to every one of its scenes, instead of being re-read each time. Before this, story memory being tidied up in the background while you read could hand a later scene a slightly different version of events than the earlier ones — the same chapter told two ways — and made every prompt after it cost full price again.",
+          "highlight": false
+        },
+        {
+          "version": "0.24.1",
+          "date": "2026-11-12",
+          "notes": "- **Cheaper prompts.** Every prompt Otome Hearth sends to Claude now asks for the five-minute prompt cache instead of the hour-long one. A cached prompt is usually read again within a minute or two (the next scene, the next beat of a chapter), where the five-minute cache costs a quarter of the input to write and the hour-long one twice it — so the hour mostly doubled the price of a prompt that was read seconds later. Group replies, which had been paying the hour-long price, now use the five-minute one too.",
+          "highlight": false
+        },
+        {
+          "version": "0.24.0",
+          "date": "2026-11-11",
+          "notes": "- **You can paint a picture again.** Any picture Otome Hearth has already painted can now be painted a second time when you want a different take: a scene's key image, the place it happens in, a Wish banner, a look in the Wardrobe, or a tarot card. The new picture costs one image, and the old one stays on screen while it paints, so nothing goes blank if the paint fails. Once the new one arrives it replaces the old one everywhere it showed, including your Album, and the old image leaves your gallery.",
+          "highlight": true
+        },
+        {
+          "version": "0.23.1",
+          "date": "2026-11-11",
+          "notes": "- **Each bond rank's truth stays with you.** Past the finale, the story keeps every bond reveal you have reached, rather than the three newest, so a truth learned at rank 11 still holds at rank 15; the card's own size limit still governs what it sends.\n- **The story speaks of the rank by name.** A settled couple's card and every prompt that writes their words now read the rank's word beside its number (\"bond rank 15 of 20 — tested\"), the same rank the Story screen shows.\n- **An afternoon stays an afternoon.** A scene told from their side counts only the bond ranks reached by the moment it retells, so it never carries what was learned weeks later.",
+          "highlight": false
+        },
+        {
+          "version": "0.23.0",
+          "date": "2026-11-11",
+          "notes": "- **The relationship keeps growing after the confession.** Once affection reaches 10 and their story's finale is played, ten more ranks open, each a small heart filling inside the ten on Story: Named, Kept, Told, Hungry, Tested, Afraid, Chosen, Ahead, Home and Always. Each has its own canon story of settling into being together, from a secret they never told and what they want in bed (in an NSFW story) to your first real fight, the fear of leaving you, why they stay, and the future they want.\n- **One rank at a time.** A rank's story is played before the next opens, so banked affection skips none; each level from 11 to 20 costs 650, then 50 more.\n- **New reveals replace the old ones.** Past the finale the story carries what each new rank reveals, not the secrets their route already told.\n- **Extra stories now wait for the last rank:** prestige opens at bond rank 20 instead of level 10.",
+          "highlight": true
+        },
+        {
+          "version": "0.22.7",
+          "date": "2026-11-11",
+          "notes": "- **A new love interest gets his own colour.** A love interest who joins the story after it has started, such as one an arc adds, now has his name tag and glow picked from his own portrait like everyone else's, instead of keeping a colour that could match another love interest's. Names that don't share a portrait yet spread across the colour wheel, so two of them rarely look alike. A story already in progress picks its colours again when it is opened.",
+          "highlight": false
+        },
+        {
+          "version": "0.22.6",
+          "date": "2026-11-11",
+          "notes": "- **The Wardrobe loads faster.** A look whose five expressions are painted now shows a small check next to \"Expressions\" instead of the five faces, so opening the Wardrobe no longer downloads every face of every look.",
+          "highlight": false
+        },
+        {
+          "version": "0.22.5",
+          "date": "2026-11-11",
+          "notes": "- **A chapter no longer ends on a choice you never get to make.** When a chapter's last scene leaves a decision to you, it now ends on that choice for you to pick, instead of saying you'll decide later. The next chapter also never acts as if you chose something you weren't offered.",
+          "highlight": false
+        },
         {
           "version": "0.22.4",
           "date": "2026-11-10",
@@ -760,119 +874,17 @@
           "date": "2026-11-10",
           "notes": "- **Love interests can show they want you.** The slow burn now holds back love, not attraction. Through their first four stages, a love interest may flirt, tease and say outright that they find you attractive, as far as their mask lets them, but still won't confess or become your partner. A kiss given out of feeling waits for their fifth stage, where a confession can come too.\n- **Your affection level shows in the story.** Each love interest's affection level now reaches the scenes, so the higher it is, the more drawn to you they act, within what their stage allows.\n- The README now gives the right affection level costs: level 2 takes 200 points, and each level after it 50 more.",
           "highlight": false
-        },
-        {
-          "version": "0.22.2",
-          "date": "2026-11-10",
-          "notes": "- **Wardrobe and Wish art shows faster.** Looks, faces and wardrobe banner art now use the cut-outs Otome Hearth already saves on the server. Before, your browser downloaded each full painting, sent it to Marinara Engine to remove its backdrop and waited for the result, for every look and face on screen. Art that isn't cut out yet still shows the old way, and is cut out in the background for your next visit.",
-          "highlight": false
-        },
-        {
-          "version": "0.22.1",
-          "date": "2026-11-10",
-          "notes": "- **A stray thought no longer costs the whole scene.** While a love interest is still behind their mask, the story can't show their thoughts. When the model writes one anyway, Otome Hearth now drops just that line and keeps the rest of the scene, instead of asking the model to write it again. This works the same in Confrontations and Closers.",
-          "highlight": false
-        },
-        {
-          "version": "0.22.0",
-          "date": "2026-11-10",
-          "notes": "- **Portraits and expressions paint by themselves.** With an image connection, a new story paints every love interest's portrait and yours once their bibles are written. With **Expressions** on, their faces follow in the background. Card characters are painted too, instead of using their Engine sprites or avatar. **Ask before painting** and prompt review still hold the portraits for **Paint the cast**. Without an image connection, your Engine sprites and avatars are used as before.\n- **Someone new gets a portrait in Your cast.** A love interest who arrives at the end of an arc now appears in **Your cast** with their portrait: it paints by itself with an image connection, or waits for **Paint the cast** with **Ask before painting** or prompt review on. Someone who arrived before this update gets theirs the next time you open the story.\n- Stories you've already started keep their **Paint the cast** button: portraits waiting there don't start painting by themselves.",
-          "highlight": true
-        },
-        {
-          "version": "0.21.6",
-          "date": "2026-11-10",
-          "notes": "- **Figurine and birthday scenes no longer count as your last Character Story.** One you read after a Character Story no longer takes its place: the next main chapter picks up from that Character Story, and main, route and repair chapters keep it as the last one you played. Their love interest still remembers the scene.",
-          "highlight": false
-        },
-        {
-          "version": "0.21.5",
-          "date": "2026-11-10",
-          "notes": "- **Choosing a card for someone new works again.** When you bring someone new into the story from your cards at the end of an arc, your cards show as a grid of tiles, and the one you tap gets a check, as in setup.",
-          "highlight": false
-        },
-        {
-          "version": "0.21.4",
-          "date": "2026-11-10",
-          "notes": "- **Your Messages model designs the small art.** Side characters' looks, love interests' stickers and their Claw Machine plushies are now written by your Messages connection instead of Planning. There's nothing new to set: left on **Same as Story**, Messages uses your Story connection.",
-          "highlight": false
-        },
-        {
-          "version": "0.21.3",
-          "date": "2026-11-10",
-          "notes": "- **Love interests stop repeating their habits.** The signs written in a love interest's bible (how they act when stressed, their tics, what gives them away) are now only some of the ways they can react. They show one now and then among other, fresh reactions, and never repeat the same gesture or sentence within a chapter.",
-          "highlight": false
-        },
-        {
-          "version": "0.21.2",
-          "date": "2026-11-09",
-          "notes": "- **The next main chapter carries on from a Character Story.** When a Character Story is the last thing you played, the next main chapter picks up from how it ended, including any choice you made at its end. Love interests who weren't in it still don't know what happened there.",
-          "highlight": false
-        },
-        {
-          "version": "0.21.1",
-          "date": "2026-11-09",
-          "notes": "- **A scene's key image gives way when the scene moves on.** Once the story goes to another place, that place's background takes over instead of the image staying until the end of the scene. Naming the same room again keeps it.",
-          "highlight": false
-        },
-        {
-          "version": "0.21.0",
-          "date": "2026-11-08",
-          "notes": "- **The top left button is a house.** It takes you Home, as before, and its circle is in the colour of whoever is with you there, beside their name.\n- **New items have a dot.** Anything you win from Wish shows a small dot in the Wardrobe or the Album: on the dock, on the tab that holds it, and by the item itself. The dot goes once you click the item (or one of its buttons).",
-          "highlight": true
-        },
-        {
-          "version": "0.20.4",
-          "date": "2026-11-08",
-          "notes": "- **Every scene of a chapter remembers the same small moments.** A chapter now picks its small memories (message exchanges, Snapshots, Read Him, Claw Machine and Tarot rounds, Read Me notes and dates) once, for everyone in it, and each of its scenes is written with the same ones, marked with who knows them. On an Anthropic connection, after the first scene they're sent at the cached price instead of in full every time. Something that happens during a chapter is remembered from the next one.",
-          "highlight": false
-        },
-        {
-          "version": "0.20.3",
-          "date": "2026-11-08",
-          "notes": "- **Route and repair chapters cost less to start.** Their plan now opens with the same story the chapter's scenes are written from, and on an Anthropic connection caches it, so the first scene reads it at the cached price instead of writing it all again. The plan sees the same things as before, in a different order. This works when your Planning and Narration connections are the same, as for main chapters.",
-          "highlight": false
-        },
-        {
-          "version": "0.20.2",
-          "date": "2026-11-08",
-          "notes": "- **Messages cost less.** When you text a love interest on an Anthropic connection, everything that stays the same through the conversation (their card, what they know of the story, your earlier conversations) is cached for five minutes, so each reply after the first sends it at the cached price instead of in full. A daily message they send first is cached the same way for your answer.",
-          "highlight": false
-        },
-        {
-          "version": "0.20.0",
-          "date": "2026-11-08",
-          "notes": "- **Side characters who keep coming back get a sprite.** Turn on **Side character sprites** in **Settings → Images**. Once a side character has spoken in two different chapters, their one full-body sprite stands where a love interest's figure does while they speak. It's one neutral picture, with no expressions. Stories you already started count the scenes you've read.\n- **Your own characters look like themselves.** Someone whose name matches one of your Engine character cards gets their sprite as soon as they speak, painted with that card's avatar and full-body sprite as references. Two cards with the same name are never guessed between.\n- **What it costs.** Each one takes 1 call on your Planning connection to write their look (none for a character card), then 1 image. With **Ask before painting** on, tap **Paint** beside the place while they speak.",
-          "highlight": true
-        },
-        {
-          "version": "0.19.1",
-          "date": "2026-11-08",
-          "notes": "- **Not every chapter ends in a Confrontation or a Closer.** A main chapter has one only when it builds to it, and otherwise ends on an ordinary scene or a moment. A story arc's last chapter still has one for its big event. Confrontations and Closers still alternate, counting only chapters that have one.",
-          "highlight": false
-        },
-        {
-          "version": "0.19.0",
-          "date": "2026-11-08",
-          "notes": "- **Long stories remember their beginnings in detail.** As a story grows, its early chapters are condensed again and again. Now each main chapter brings back up to three earlier chapters that matter to it, by their original summaries, in its plan and every scene. Only chapters everyone in it may know come back, and nothing changes when none is close enough.\n- **Stories you already have too.** Chapter summaries are indexed in the background when you open a story and after each new summary, with no model call. The built-in model runs on this computer and its index is stored with the story.\n- **Memory recall embeddings.** In **Settings → Connections**, choose **Built-in (local)** or an Engine connection with its own embedding model, for example one better at your story's language. An older Engine offers only Built-in. Beside it you see how many summaries are indexed, or why indexing failed, with **Retry indexing**.",
-          "highlight": true
-        },
-        {
-          "version": "0.18.2",
-          "date": "2026-11-08",
-          "notes": "- **Their side shows what you never saw.** A love interest's side of a big moment is now a scene you weren't there for, just before it or right after you left, instead of the same scene told again. It opens once they reach **Wound**; earlier moments don't count.",
-          "highlight": false
-        },
-        {
-          "version": "0.18.1",
-          "date": "2026-11-08",
-          "notes": "- **Stories meet the world's important people.** Chapters now bring in major side characters with real parts, not only passing locals, so they can grow into love interests or antagonists later. In a story set in an existing world, that means its own canon characters tied to your love interests.\n- **Premise suggestions may use existing worlds.** Surprise me no longer avoids names, places and characters from existing books, films and games.",
-          "highlight": false
         }
       ]
     },
     "quartermaster": {
       "versions": [
+        {
+          "version": "0.1.34",
+          "date": "2026-11-14",
+          "notes": "- No changes you'll notice in a chat. Other packages can now keep their own Quartermaster sheets\n  (for example one per world in a game), separate from your chats' sheets.\n- Safer handling of the ids in Quartermaster's addresses.",
+          "highlight": false
+        },
         {
           "version": "0.1.33",
           "date": "2026-11-01",
@@ -985,12 +997,6 @@
           "version": "0.1.15",
           "date": "2026-09-15",
           "notes": "- Fixed the Recent Agent Update box leak for real this time — 0.1.13 and 0.1.14 were both\n  attempted fixes that didn't fully resolve it.\n- Widened the info tooltip box so long macro tokens read on one line.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.14",
-          "date": "2026-09-15",
-          "notes": "- Attempted fix for the Recent Agent Update collapsed-box leak (0.1.13's attempt didn't fully\n  resolve it either).\n- Fixed tooltip text overflowing outside its own box.",
           "highlight": false
         }
       ]
@@ -1268,6 +1274,24 @@
     "slurp2": {
       "versions": [
         {
+          "version": "0.4.22",
+          "date": "2026-11-13",
+          "notes": "- Fixed: A collab or couple post now shows every partner in its picture. A nude picture no longer gets clothes from the Creator's card, the Stage appearance or a saved look. \"Completely naked\" counts as no clothes. (#2274)\n- Changed: A joint post draws its partners in only at a clothed level; a nude or explicit picture still needs the spice consent check. A viewpoint the written scene names now wins over the weighted camera pick. A rewritten prompt that kept a viewpoint phrase is not given a second one. The image connection's own instructions now win on style and format; Slurp keeps who is in the picture, nude or clothed, and the outfit.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.21",
+          "date": "2026-11-12",
+          "notes": "- Added: Backstage > World clock. Slurp now has its own date. You can skip it forward by whole days, and you can go back only by restoring a checkpoint. A skip changes the date and nothing else: no posts, messages, events, stipends, income or cleanups are made for the days you skipped, and queued replies keep the wait they had left. Slurp saves a checkpoint before every skip and keeps the newest five by default. Manual checkpoints are never deleted. A restore saves a safety checkpoint first, brings back the data, settings, pictures and world date, keeps Slurp paused if it was paused, and puts the old state back if anything fails.",
+          "highlight": false
+        },
+        {
+          "version": "0.4.20",
+          "date": "2026-11-11",
+          "notes": "- Changed: Slurp reads characters and character groups through Marinara Engine instead of a bundled copy of its storage, so a later change to how the Engine stores characters can't leave them blank. Refreshing a Creator's conversation schedule saves only the schedule keys, so a card edit made at the same time is kept. Needs a Marinara Engine with capability API 1.819 or newer. (#2242)",
+          "highlight": false
+        },
+        {
           "version": "0.4.19",
           "date": "2026-11-10",
           "notes": "- Important: please install this update before your next Marinara Engine update. That Engine update stores personas in a new format, and older Slurp versions read every persona there as blank: no name, description, appearance or About Me in feeds, profiles, messages and pictures. Slurp now reads personas through Marinara Engine, which reads both formats. Your personas and chats stay as they are. (#2230)",
@@ -1368,24 +1392,6 @@
           "date": "2026-10-26",
           "notes": "- Slurp starts again on Engine builds with zod 4. The feed post and Creator generation routes no longer stop at load with \"Right-hand side of 'instanceof' is not an object\" (zod 4 has no `ZodEffects`); they extend the plain object schemas instead.",
           "highlight": false
-        },
-        {
-          "version": "0.4.2",
-          "date": "2026-10-26",
-          "notes": "- Slurp starts again on Engine builds with zod 4. Settings sections with nested defaults are filled in again, so the server no longer stops at load with \"Cannot read properties of undefined (reading 'curve')\".\n- On zod 4 Engines, saving part of the Slurp settings, a Garnish ad or a creator account no longer resets the fields you did not send to their defaults. Creator access and auto-posting defaults are filled in again too.",
-          "highlight": true
-        },
-        {
-          "version": "0.4.1",
-          "date": "2026-10-24",
-          "notes": "- Fixed Story viewer clicks passing through to the feed or Engine behind it. Close, Creator profile, menu, navigation and picture controls respond again.",
-          "highlight": true
-        },
-        {
-          "version": "0.4.0",
-          "date": "2026-10-23",
-          "notes": "One release for everything built since 0.3.53 (unreleased 0.3.54 to 0.3.65 folded in):\n\n- Storylines: arcs, dramas and situations run on one storyline engine; Story Packs import v2 files, one JSON `fit`, one Packs list with a gate and Remove, topic switches `<pack>:<topic>`.\n- Packs (off by default): Family pack and five kink packs (Lingerie, Cosplay, Feet, Dom/sub, Exhibition).\n- Intimacy ladder: rapport tiers open doors in DMs (`slurpRapportDoors`), the highest tier is kept.\n- Paid sexting sessions (`SlpSextingBar`); Stir as a slide-up sheet (`SlpStirDeck`); Stories in Slurp's own layer.\n- Fixes: DM prompts know the player's latest public posts, @tagged Creators join the picture cast, tag-list looks go over whole, picture prompt rewrite floor 8192, wardrobe tag commas, neutral wording; Images > Advanced \"Keep original picture files\".",
-          "highlight": true
         }
       ]
     },

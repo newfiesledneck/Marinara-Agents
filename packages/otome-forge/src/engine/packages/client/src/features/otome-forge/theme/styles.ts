@@ -1306,9 +1306,8 @@ ${R} .of-ward-worn {
 ${R} .of-ward-look-body { display: flex; flex-direction: column; gap: 4px; padding-inline: 4px; min-width: 0; flex: 1; }
 ${R} .of-ward-look-name { font-family: var(--of-font-display); font-weight: 600; font-size: 1.1rem; line-height: 1.1; overflow-wrap: anywhere; }
 ${R} .of-ward-look-state { font-size: 0.74rem; font-weight: 800; color: var(--of-champagne-text); }
-${R} .of-ward-faces { display: flex; gap: 4px; }
-${R} .of-ward-faces img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; object-position: 50% 12%;
-  box-shadow: 0 0 0 1.5px var(--of-li-accent, var(--of-rose)); }
+${R} .of-ward-expressions { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 0.74rem; font-weight: 700; }
+${R} .of-ward-expressions svg { color: var(--of-li-accent, var(--of-rose)); flex: none; }
 ${R} .of-ward-actions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-top: auto; padding-top: 4px; }
 ${R} .of-ward-actions .of-button { width: 100%; padding: 4px 10px; line-height: 1.15; text-align: center; }
 ${R} .of-ward-actions .of-cost { justify-content: center; font-size: 0.72rem; }
@@ -1583,7 +1582,18 @@ ${R} .of-affection-progress {
   font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--of-text-soft);
 }
 ${R} .of-hearts { grid-area: hearts; display: flex; flex-wrap: wrap; gap: 3px; color: var(--of-li-accent, var(--of-rose)); }
-${R} .of-hearts svg[data-on="false"] { color: var(--of-border-strong); }
+/* 0.23.0: ten outer hearts (levels 1-10) with a bond rank's inner heart inside each; the wrapper owns the "off" colour
+   so it reaches both hearts, and the inner one sits a little high, in the outer heart's hollow. */
+${R} .of-heart { position: relative; display: inline-flex; color: var(--of-border-strong); }
+${R} .of-heart[data-on="true"] { color: var(--of-li-accent, var(--of-rose)); }
+/* Both inner states sit on the accent fill of a reached outer heart (a bond rank opens only at level 11, so all ten
+   outer hearts are filled), so they take --of-on-accent, the ink for text and marks on an accent, rather than
+   --of-surface: the surface is translucent over that fill (2.5:1 on Midnight) and on Pearl lighter than the accent
+   (1.4:1), and --of-border-strong (1.2:1) was a smudge. Every accent is a light pastel, so only a dark ink clears
+   3:1 on all of them; at 7px the fill/no-fill difference is a couple of pixels, so an unopened rank is also drawn at
+   0.85 against a reached one's solid ink. Lowest across 368 accents: 4.3:1 Midnight, 3.4:1 Pearl filtered. */
+${R} .of-heart-inner { position: absolute; inset-inline-start: 50%; top: 50%; translate: -50% -54%; color: var(--of-on-accent); opacity: 0.85; }
+${R} .of-heart-inner[data-inner-on="true"] { opacity: 1; }
 ${R}[data-look="pearl"] .of-hearts { filter: brightness(0.8) saturate(1.35); }
 /* Prestige past level 10 (#2025): three pips, and the extra story they unlock. */
 ${R} .of-affection:has(.of-prestige) {
