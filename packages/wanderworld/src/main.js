@@ -122,6 +122,7 @@ import {
 } from "./interactions.js";
 import { drawMap } from "./map.js";
 import { createAi, savesRemote } from "./ai.js";
+import { createInventory, sheetFor } from "./inventory.js";
 import {
   ACTIVITY_WORDS,
   checkEntry,
@@ -232,6 +233,14 @@ const core = {
   momentBusy: false,
   /** The server part (ai.js): conversations, pictures, scenes. */
   ai: createAi(() => core.save?.locals ?? []),
+  /** What the persona wears and carries, kept by Quartermaster when it's installed (inventory.js). */
+  inventory: createInventory({
+    ai: () => core.ai,
+    sheet: () => sheetFor(core.save?.id, core.personaId),
+    persona: () => ({ personaId: core.personaId, name: personaName() }),
+    settings: () => core.settings,
+    onReady: () => core.hud?.setInventory(core.inventory.ready()),
+  }),
   /** The last picture of a place: { zoneId, place, url, pending, error }. */
   picture: null,
   stage: null,
@@ -443,6 +452,7 @@ function applySettings() {
     core.camera.updateProjectionMatrix();
   }
   setAnimationStyle(settings.animation);
+  core.hud?.setInventory(core.inventory.ready());
   core.shadow.visible = settings.shadows;
   core.crowd.setShadows(settings.shadows);
   if (core.relations) refreshNames();
@@ -700,6 +710,7 @@ function playWorld(id) {
   core.looks = { ...(save.looks ?? {}) };
   core.pets = { ...(save.pets ?? {}) };
   core.save = save;
+  void core.inventory.refresh(); // what the persona wears in this world, for the AI
   setGenderShares(gendersNow()); // this world's own, before its people are made
   core.hour = save.hour;
   useRelations(createRelationships(save.relationships));
@@ -1349,6 +1360,7 @@ function suggestName() {
 
 function deleteWorld(id) {
   core.saves.remove(id);
+  core.inventory.forget(id);
   if (core.save?.id === id) {
     core.save = null; // the world on screen is gone: it can't be continued or saved again
     core.world?.dispose();
@@ -5738,6 +5750,7 @@ async function aiAnswer(talking, line, setLine) {
   try {
     const { reply } = await core.ai.talk(talkPayload(talking, line));
     if (core.talking === talking) showReply(talking, line, reply);
+    trackInventory([`${personaName()}: ${line}`, `${talking.name}: ${reply}`], "talk");
   } catch (error) {
     if (core.talking !== talking) return;
     showReply(talking, line, setLine());
@@ -5822,6 +5835,23 @@ function momentListeners(voice, audience, extra = [], text = "") {
  * A line in the narration box and the moment log (`who` null for the narrator). `heard`: the ids of who
  * was in earshot, so that later only they are told of it (memory.js heardLines).
  */
+/**
+ * Quartermaster's tracker reads what was just told (`parts`, in order) and updates the persona's sheet:
+ * after moments, and after a conversation's replies (`kind` "talk") only when the setting says so.
+ */
+function trackInventory(parts, kind = "moment") {
+  const when = core.settings.inventoryTrack;
+  if (when === "off" || (kind === "talk" && when !== "all")) return;
+  core.inventory
+    .track(parts.filter(Boolean).join("\n"), core.settings.textConnection || null)
+    .then((changed) => changed && core.hud?.narrate(null, "(Your inventory changed.)", false))
+    .catch((error) => {
+      if (core.inventoryTold) return;
+      core.inventoryTold = true; // once a session
+      core.hud?.setNotice(`The inventory wasn't updated: ${error?.message ?? error}`);
+    });
+}
+
 function narrate(who, text, heard = []) {
   core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard }].slice(-30);
   if (core.save) {
@@ -5916,6 +5946,7 @@ async function runMoment({
     const result = await core.ai.moment({
       personaId: core.personaId ?? null,
       personaName: personaName(),
+      worn: core.inventory.worn(),
       action,
       line,
       voice,
@@ -5934,6 +5965,14 @@ async function runMoment({
       separate: core.settings.aiSeparate === true,
     });
     if (result.narration) narrate(null, result.narration, heardIds);
+    trackInventory([
+      action && `What ${personaName()} does: ${action}`,
+      line && `${personaName()}: ${line}`,
+      result.narration,
+      ...result.replies.map(
+        (reply) => `${listeners.find((person) => person.id === reply.id)?.name ?? "Someone"}: ${reply.text}`,
+      ),
+    ]);
     result.replies.forEach((reply, i) => {
       const listener = listeners.find((person) => person.id === reply.id);
       later(0.3 + i * 1.8, () => {
@@ -6055,6 +6094,7 @@ async function illustrateMoment({
     worldId: core.save.id,
     template,
     personaId: core.personaId ?? null,
+    worn: core.inventory.worn(),
     facts: {
       persona: personaName(),
       people,
@@ -6131,6 +6171,7 @@ function talkPayload(talking, line) {
     knowsYou: theyKnow(talking.id),
     personaId: core.personaId,
     personaName: personaName(),
+    worn: core.inventory.worn(),
     place: placeWords(),
     time: clockText(),
     weather: weatherWord(),
@@ -6292,6 +6333,7 @@ async function playAsScene(thing, request, along, withNarrator = false) {
     `Where: ${[thing.title, ...request.thing.chain].filter(Boolean).join(", in ")}. When: ${clockText()}${weather ? `, ${weather}` : ""}.`,
     core.save.setting ? `The world: ${core.save.setting}` : "",
     feelings.length ? `How they feel about ${personaName()}:\n${feelings.join("\n")}` : "",
+    core.inventory.worn() ? `What ${personaName()} is wearing: ${core.inventory.worn()}` : "",
     "This scene is played out from Wanderworld, a small walkable world; keep to the place and the people there.",
     telling
       ? `${narrator.name} is the narrator of this scene: they tell what happens and give the world its voice, and are not a person standing there.`
@@ -6332,6 +6374,7 @@ async function playAsScene(thing, request, along, withNarrator = false) {
       const planned = await core.ai.scenePlan({
         context,
         personaName: personaName(),
+        worn: core.inventory.worn(),
         initiatorId: first?.id ?? null,
         prompt: describeScene(request),
         title: thing.title,
@@ -7697,6 +7740,10 @@ function attach(element) {
     onGallery: () => (core.save ? core.ai.pictures(core.save.id) : Promise.resolve([])),
     onPictureOf: (id) => core.ai.picture(id),
     onDeletePicture: (id) => core.ai.forgetPicture(id),
+    onInventory: () =>
+      core.inventory
+        .toggle()
+        .catch((error) => core.hud?.setNotice(`The inventory didn't open: ${error?.message ?? error}`)),
     onPlanSchedule: planSchedule,
     onConnections: async () => ({
       ...(await core.ai.connections()),
@@ -7930,6 +7977,7 @@ function attach(element) {
 
 function detach(element) {
   if (element !== core.element) return;
+  core.inventory.close(); // Quartermaster's dock is on the page, not in the game
   if (core.raf) cancelAnimationFrame(core.raf);
   core.raf = 0;
   if (!core.paused) savePlace(true);

@@ -50,6 +50,7 @@ const MAX = {
   loreText: 200000,
   prompt: 1500,
   appearance: 200000, // a card's whole Appearance, as pictures use it
+  worn: 4000, // what the persona is wearing, from Quartermaster's sheet
   picture: 600000, // an Illustrate prompt: whole appearances for the player and up to eight others
   people: 20,
   transcript: 30,
@@ -164,15 +165,30 @@ export function characterCard(record, fallbackName = "") {
   };
 }
 
-/** A persona's fields. */
-function personaCard(record, fallbackName) {
+/** A persona's fields; `worn` is what Quartermaster's sheet says they have on (the client's inventory.js). */
+export function personaCard(record, fallbackName, worn) {
   const data = recordOf(record?.data) ?? (isRecord(record) ? record : {});
   return {
     name: text(data.name, MAX.name) || fallbackName || "The traveller",
     description: block(data.description, MAX.card),
     personality: block(data.personality, MAX.card),
     appearance: block(data.appearance, MAX.appearance),
+    worn: text(worn, MAX.worn) ? `Wearing now: ${text(worn, MAX.worn)}` : "",
   };
+}
+
+/**
+ * The messages for Quartermaster's tracker, with Wanderworld's own model call: its prompt (`template`), the
+ * sheet as it shows it (`context`, which the prompt calls <agent_runtime_context>), and what was just told.
+ */
+export function inventoryMessages({ template, context, name, told }) {
+  return [
+    { role: "system", content: template },
+    {
+      role: "user",
+      content: `<agent_runtime_context>\n${context}\n</agent_runtime_context>\n\nThe persona is ${name}. The latest message:\n${told}`,
+    },
+  ];
 }
 
 const section = (title, body) => (body ? `## ${title}\n${body}` : "");
@@ -203,7 +219,7 @@ export function talkMessages(input) {
     section("Their situation", card(character.scenario)),
     section(`How ${character.name} looks`, card(cutWords(character.appearance, MAX.card))),
     section(`How ${character.name} talks (examples)`, card(character.examples)),
-    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card)].filter(Boolean).join("\n\n")),
+    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card), persona.worn].filter(Boolean).join("\n\n")),
     section("The world", input.setting),
     section(
       "Right now",
@@ -1407,7 +1423,7 @@ export async function activate(context) {
           : [];
         const input = {
           character: characterCard(record, body.characterName),
-          persona: personaCard(personaRecord, text(body.personaName, MAX.name)),
+          persona: personaCard(personaRecord, text(body.personaName, MAX.name), body.worn),
           // Whether each knows the other by name (missing: they do, as before this was told).
           knowsThem: body.knowsThem !== false,
           knowsYou: body.knowsYou !== false,
@@ -1518,7 +1534,7 @@ export async function activate(context) {
         const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
         const personaId = idOf(body.personaId);
         const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
-        const persona = personaCard(personaRecord, text(body.personaName, MAX.name));
+        const persona = personaCard(personaRecord, text(body.personaName, MAX.name), body.worn);
         const heard = listeners
           .filter((person) => cards.has(person.id))
           .map((person) => {
@@ -1538,7 +1554,7 @@ export async function activate(context) {
           narrator: narratorCard
             ? { name: narratorCard.name, card: cardWords([narratorCard.personality, narratorCard.description], MAX.card, narratorCard.name, persona.name, "\n") }
             : null,
-          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name) },
+          persona: { name: persona.name, card: [cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name), persona.worn].filter(Boolean).join(" ") },
           listeners: heard,
           action: text(body.action, 300),
           line: text(body.line, MAX.line),
@@ -1866,7 +1882,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
         const personaId = idOf(body.personaId);
         const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
-        const persona = personaCard(personaRecord, text(facts.persona, MAX.name));
+        const persona = personaCard(personaRecord, text(facts.persona, MAX.name), body.worn);
         const looks = people
           .map((person) => {
             const card = cards.get(idOf(person.id));
@@ -1885,7 +1901,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const values = {
           persona: persona.name,
           // "Zoey: tall, red-haired…", or nothing when the card has no appearance (so no dangling name).
-          persona_appearance: persona.appearance ? `${persona.name}: ${cutWords(persona.appearance, MAX.appearance)}` : "",
+          persona_appearance:
+            persona.appearance || persona.worn
+              ? `${persona.name}: ${[cutWords(persona.appearance, MAX.appearance), persona.worn].filter(Boolean).join(" ")}`
+              : "",
           people: people.map((person) => `${cards.get(idOf(person.id))?.name ?? text(person.name, MAX.name)}${text(person.doing, 80) ? ` (${text(person.doing, 80)})` : ""}`).join(", "),
           people_appearance: looks.join("; "),
           place: text(facts.place, 200),
@@ -2006,6 +2025,29 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
       // A scene's plan, written here so a Wanderworld scene starts without the Engine's dialog (whose
       // remembered choices come from other chats): the people there, the persona, the moment, the
       // world's notes, and the player's point of view, tense and instructions for this world.
+      // Quartermaster's tracker with Wanderworld's model call: the client reads its prompt and the sheet
+      // from Quartermaster, this asks the model, and the client hands the answer back to Quartermaster.
+      routes.post("/inventory-track", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const input = {
+          template: block(body.promptTemplate, 40000),
+          context: block(body.context, 200000),
+          name: text(body.personaName, MAX.name) || "the player",
+          told: block(body.text, 8000),
+        };
+        if (!input.template || !input.told) return reply.status(400).send({ error: "Nothing to read (promptTemplate, text)" });
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await askModel("inventory", body, model, inventoryMessages(input), { temperature: 0, maxTokens: 2048 });
+          const data = readJson(result?.content, api.runtime.json?.parseJsonish);
+          if (!data) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          return { data };
+        } catch (error) {
+          logger.warn("[wanderworld] inventory tracking failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
       routes.post("/scene-plan", async (request, reply) => {
         const body = isRecord(request.body) ? request.body : {};
         const sceneContext = checkSceneContext(body.context);
@@ -2014,7 +2056,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const cast = records.map((record) => ({ id: record.id, ...characterCard(record) }));
         if (!cast.length) return reply.status(404).send({ error: "Those characters aren't in the Engine any more." });
         const [personaRecord] = sceneContext.personaId ? await resources.listPersonas([sceneContext.personaId]) : [];
-        const persona = personaCard(personaRecord, text(body.personaName, MAX.name));
+        const persona = personaCard(personaRecord, text(body.personaName, MAX.name), body.worn);
         const initiator = cast.find((person) => person.id === idOf(body.initiatorId)) ?? cast[0];
         const pov = POVS[body.pov] ? body.pov : "second_person";
         const tense = TENSES[body.tense] ? body.tense : "present";
@@ -2027,7 +2069,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
               .map((person) => `${person.name}: ${cardWords([person.description, person.personality, person.appearance], MAX.card, person.name, persona.name)}`)
               .join("\n\n"),
           ),
-          section(`The player, ${persona.name}`, cardWords([persona.description, persona.personality, persona.appearance], MAX.card, persona.name, persona.name)),
+          section(`The player, ${persona.name}`, [cardWords([persona.description, persona.personality, persona.appearance], MAX.card, persona.name, persona.name), persona.worn].filter(Boolean).join("\n")),
           section("Where, when and what's between them", sceneContext.notes ?? ""),
           section("Just before", sceneContext.transcript.map((line) => `${line.speaker}: ${line.content}`).join("\n")),
           section("How to write it", `${POVS[pov]}, ${TENSES[tense]}.${extra ? ` ${extra}` : ""}`),

@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.90 — 2026-11-14
+
+- With the Quartermaster package (0.1.35 or later) installed, the top bar has an Inventory button: Quartermaster's sheet of what your persona wears and carries, one for each persona in each world.
+- What the sheet says you're wearing is told to the AI after your persona's appearance: in conversations, moments, scene plans and Illustrate. There is no macro to place.
+- After a moment, one more AI call updates the sheet from what was told (picked up, put on, given away), by Quartermaster's own rules. It can also run after each reply in a conversation, or never.
+- Settings → People → Inventory turns each of the three off. Without Quartermaster nothing changes. Deleting a world deletes its sheets.
+
 ## 0.5.89 — 2026-11-14
 
 - Resolution no longer has Auto, which changed the picture's size as frames came and went and flickered on phones. The default is 1080p (never more than the screen has); a device that was on Auto is on 1080p now.

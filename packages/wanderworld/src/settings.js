@@ -91,6 +91,11 @@ export const SETTINGS = {
   // A moment told in separate calls: one for the narration and who answers, then one for each person who
   // does, given their own knowledge alone. Off: one call for everything.
   aiSeparate: { value: false },
+  // The Quartermaster package as the inventory (inventory.js), when it's installed: its button and sheets;
+  // what is worn told to the AI; and its tracker asked what changed after a moment, or after every reply too.
+  inventory: { value: true },
+  inventoryWorn: { value: true },
+  inventoryTrack: { value: "moments", options: ["off", "moments", "all"] },
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },
