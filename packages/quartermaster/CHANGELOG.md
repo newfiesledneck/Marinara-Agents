@@ -1,5 +1,10 @@
 # Quartermaster changelog
 
+## 0.1.34 — 2026-11-14
+- No changes you'll notice in a chat. Other packages can now keep their own Quartermaster sheets
+  (for example one per world in a game), separate from your chats' sheets.
+- Safer handling of the ids in Quartermaster's addresses.
+
 ## 0.1.33 — 2026-11-01
 - The item editor's Delete file / Unlink choice closes if the item's image changes while it's
   open, so Delete never removes a different file than the one it names.

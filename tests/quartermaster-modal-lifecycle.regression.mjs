@@ -1026,6 +1026,12 @@ async function startServer({ proposal = { items: [], outfits: [] } } = {}) {
         const current = docs.get(doc.id);
         docs.set(doc.id, { ...current, ...structuredClone(doc), revision: current.revision + 1 });
       },
+      async list(_packageId, kind) {
+        return [...docs.values()].filter((doc) => doc.kind === kind).map((doc) => structuredClone(doc));
+      },
+      async remove(_packageId, id, expectedRevision) {
+        return docs.get(id)?.revision === expectedRevision && docs.delete(id);
+      },
     },
     async getChat(id) {
       return chatFor(id);
@@ -1102,6 +1108,9 @@ async function startServer({ proposal = { items: [], outfits: [] } } = {}) {
   const inv = (chatId) => ({ chatId, ownerId: "persona" });
   const image = (chatId, itemId) => ({ ...inv(chatId), itemId });
   const server = {
+    call,
+    docs,
+    chats,
     llmCalls,
     itemsDir: join(dataDir, "gallery", "quartermaster", "items"),
     dataDir,
@@ -2105,4 +2114,79 @@ await test("the pending popup opens for new changes, stays shut once deferred, a
   api.state.pendingHiddenChanges = [];
   api.state._notify();
   assert.equal(popup.backdrop, null);
+});
+
+await test("another package keeps a sheet in its own scope, and a chat's sheet is untouched", async () => {
+  const server = await startServer();
+  const scope = "wanderworld:world-1";
+  const sheet = "/inventory/:chatId/:ownerId";
+  const at = (chatId, ownerId = "persona") => ({ chatId, ownerId });
+
+  // Ids are checked before anything reads or writes: they become folder names.
+  for (const chatId of ["..", "../x", "a/b", "a\b", "", "a:..", "Wander:x", "a:b:c", "a|b"]) {
+    assert.equal((await server.call("GET", sheet, { params: at(chatId) })).statusCode, 400, `chat id "${chatId}"`);
+  }
+  for (const ownerId of ["..", "a/b", "a:b:c", ""]) {
+    assert.equal((await server.call("GET", sheet, { params: at("chat-1", ownerId) })).statusCode, 400);
+  }
+  assert.equal((await server.call("GET", "/scopes/:scope/owners", { params: { scope: "chat-1" } })).statusCode, 400);
+  assert.equal(server.docs.size, 0, "a refused id writes nothing");
+
+  // A chat's sheet: same document id as always, and no host fields in its answer.
+  await server.addItem("chat-1", { name: "Sword" });
+  assert.ok(server.docs.has("chat-1:persona"));
+  assert.equal("hostOwner" in (await server.get("chat-1")), false);
+  assert.equal((await server.call("PATCH", `${sheet}/owner`, { params: at("chat-1"), body: {} })).statusCode, 400);
+
+  // A scope's sheet, one per owner, never mixed up with a chat that shares its text.
+  await server.addItem(scope, { name: "Lantern", location: "equipped:head", defaultSlot: "head" });
+  await server.call("POST", `${sheet}/items`, { params: at(scope, "character:c1"), body: { name: "Lute" } });
+  await server.call("POST", `${sheet}/items`, { params: at("wanderworld", "world-1:persona"), body: { name: "Rope" } });
+  assert.deepEqual(
+    (await server.get(scope)).items.map((item) => item.name),
+    ["Lantern"],
+  );
+  assert.ok(server.docs.has("wanderworld:world-1|persona") && server.docs.has("wanderworld:world-1|character:c1"));
+
+  // The owner is whoever the host says; an outside portrait address is dropped.
+  const owner = await server.call("PATCH", `${sheet}/owner`, {
+    params: at(scope),
+    body: { personaId: "persona-1", name: "Mira", appearance: "tall", avatarUrl: "https://example.com/a.png" },
+  });
+  assert.deepEqual(owner.body.hostOwner, { personaId: "persona-1", name: "Mira", appearance: "tall", avatarUrl: null });
+  await server.call("PATCH", `${sheet}/owner`, { params: at(scope), body: { name: "Mira", avatarUrl: "/api/a.png" } });
+  assert.equal((await server.get(scope)).personaAvatarUrl, "/api/a.png");
+  assert.equal((await server.get(scope)).items.length, 1, "naming the owner keeps the sheet");
+
+  // Chat-only effects never run for a scope: no chat is looked up or written.
+  await server.settings(scope, { replaceRealAvatarOnEquip: true, appearanceFeedMode: "equipped" });
+  await server.saveOutfit(scope, { name: "Night Watch", description: "x" });
+  const [outfit] = (await server.get(scope)).outfits;
+  await server.equipOutfit(scope, outfit.id);
+  await server.unequipAll(scope);
+  assert.equal(server.chats.has(scope), false);
+  assert.match((await server.portraitPrompt(scope, outfit.id)).body.prompt, /Mira/);
+
+  // Its portraits get their own folder, and the whole scope can be removed.
+  const png = `data:image/png;base64,${Buffer.from("portrait").toString("base64")}`;
+  const uploaded = await server.call("POST", `${sheet}/outfits/:outfitId/portrait`, {
+    params: { ...at(scope), outfitId: outfit.id },
+    body: { imageDataUrl: png },
+  });
+  assert.equal(uploaded.statusCode, 200);
+  const scopeDir = join(server.dataDir, "gallery", "quartermaster", "portraits", "@scopes", "wanderworld", "world-1");
+  assert.equal((await readdir(scopeDir)).length, 1);
+
+  const owners = (await server.call("GET", "/scopes/:scope/owners", { params: { scope } })).body.owners;
+  assert.deepEqual(owners.sort(), ["character:c1", "persona"]);
+  assert.equal((await server.call("DELETE", "/scopes/:scope", { params: { scope } })).body.deleted, 2);
+  assert.deepEqual([...server.docs.keys()].sort(), ["chat-1:persona", "wanderworld:world-1:persona"]);
+  await assert.rejects(readdir(scopeDir));
+
+  const status = (await server.call("GET", "/status")).body;
+  const manifest = JSON.parse(
+    await readFile(new URL("../packages/quartermaster/manifest.json", import.meta.url), "utf8"),
+  );
+  assert.equal(status.version, manifest.version);
+  assert.ok(status.features.includes("scopes"));
 });

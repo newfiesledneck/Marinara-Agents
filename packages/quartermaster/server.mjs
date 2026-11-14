@@ -43,7 +43,7 @@
 // Inner/Mid/Outer. extra_wearable_1-3 hold worn items no other slot fits.
 import { randomUUID } from "node:crypto";
 import { join, dirname, relative, sep } from "node:path";
-import { mkdir, writeFile, readFile, readdir, unlink, stat } from "node:fs/promises";
+import { mkdir, writeFile, readFile, readdir, unlink, stat, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 // The order equippedItemNamesText (appearance macro, image prompts) lists
@@ -165,8 +165,13 @@ const PORTRAIT_MIME_TO_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/w
 const PORTRAIT_EXT_TO_CONTENT_TYPE = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
 const MAX_PORTRAIT_BYTES = 3 * 1024 * 1024; // post-decode; client resizes/compresses before upload
 
+// A scope's portraits sit under "@scopes" ("@" can't appear in a chat id, and
+// ":" can't appear in a Windows folder name), one folder per package.
 function galleryPortraitDir(dataDir, chatId) {
-  return join(dataDir, "gallery", "quartermaster", "portraits", chatId);
+  const base = join(dataDir, "gallery", "quartermaster", "portraits");
+  if (!isScopeKey(chatId)) return join(base, chatId);
+  const [packageId, key] = chatId.split(":");
+  return join(base, "@scopes", packageId, key);
 }
 
 function avatarsNpcDir(dataDir, chatId) {
@@ -436,8 +441,92 @@ async function loadSlotIconBuffer(slot) {
   }
 }
 
+// ── Sheet keys ──────────────────────────────────────────────────────────────
+// A sheet belongs to a chat (":chatId" is a real chat id) or to a scope another
+// package makes up, "<packageId>:<key>" (say "wanderworld:world-12"), for a
+// sheet with no chat behind it. The ":" is what tells them apart: a chat id
+// never has one. Every id is checked before use, because the chat id becomes a
+// folder name (galleryPortraitDir, avatarsNpcDir) and must never carry "..".
+const QM_ID_PART = "[A-Za-z0-9_-]{1,100}";
+const QM_CHAT_ID_RE = new RegExp(`^${QM_ID_PART}$`);
+const QM_SCOPE_RE = new RegExp(`^[a-z0-9][a-z0-9-]{0,63}:${QM_ID_PART}$`);
+// "persona" today; "persona:<id>", "character:<id>" or a host's own "local:<id>".
+const QM_OWNER_RE = new RegExp(`^${QM_ID_PART}(:${QM_ID_PART})?$`);
+
+function isScopeKey(chatId) {
+  return typeof chatId === "string" && chatId.includes(":");
+}
+
+function isValidSheetKey(chatId) {
+  return typeof chatId === "string" && (QM_CHAT_ID_RE.test(chatId) || QM_SCOPE_RE.test(chatId));
+}
+
+// Who a scope's sheet is about, given by the host since there's no chat to ask:
+// a persona to look up, and/or a name, appearance and portrait given outright
+// (for someone who only exists in the host). Null clears it.
+const MAX_HOST_OWNER_TEXT_LENGTH = 4000;
+function normalizeHostOwner(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const text = (raw, max) => (typeof raw === "string" && raw.trim() ? raw.trim().slice(0, max) : null);
+  const personaId = typeof value.personaId === "string" && QM_CHAT_ID_RE.test(value.personaId) ? value.personaId : null;
+  // ponytail: same-origin paths only, so a sheet can't make the dock load an
+  // outside address. Allow data: URLs here if a host needs generated portraits.
+  const rawAvatar = text(value.avatarUrl, 500);
+  const avatarUrl = rawAvatar && rawAvatar.startsWith("/") && !rawAvatar.startsWith("//") ? rawAvatar : null;
+  const owner = {
+    personaId,
+    name: text(value.name, 200),
+    appearance: text(value.appearance, MAX_HOST_OWNER_TEXT_LENGTH),
+    avatarUrl,
+  };
+  return Object.values(owner).some((entry) => entry !== null) ? owner : null;
+}
+
+// Wraps the Engine's route registrar so every route with a ":chatId", ":ownerId"
+// or ":scope" checks it once, here, before its handler runs.
+function guardSheetRoutes(routes) {
+  const guarded = {};
+  for (const method of ["get", "post", "patch", "put", "delete"]) {
+    if (typeof routes[method] !== "function") continue;
+    guarded[method] = (path, handler) =>
+      routes[method](path, async (request, reply) => {
+        const params = request.params ?? {};
+        if (path.includes(":chatId") && !isValidSheetKey(params.chatId)) {
+          return reply.status(400).send({ error: "Invalid chat or scope id" });
+        }
+        if (path.includes(":ownerId") && !(typeof params.ownerId === "string" && QM_OWNER_RE.test(params.ownerId))) {
+          return reply.status(400).send({ error: "Invalid owner id" });
+        }
+        if (path.includes(":scope") && !(typeof params.scope === "string" && QM_SCOPE_RE.test(params.scope))) {
+          return reply.status(400).send({ error: "Invalid scope id" });
+        }
+        return handler(request, reply);
+      });
+  }
+  return guarded;
+}
+
+// What GET /status reports, so a host shows its button only when this install
+// can do what it needs. Grows as features are added; never shrinks.
+const QM_FEATURES = ["scopes", "owners"];
+let qmPackageVersion;
+async function readPackageVersion() {
+  if (qmPackageVersion === undefined) {
+    try {
+      const manifestPath = join(dirname(fileURLToPath(import.meta.url)), "manifest.json");
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      qmPackageVersion = typeof manifest.version === "string" ? manifest.version : null;
+    } catch {
+      qmPackageVersion = null;
+    }
+  }
+  return qmPackageVersion;
+}
+
+// "|" keeps a scope's sheet apart from a chat's: "a:b" + "c" and "a" + "b:c"
+// would both be "a:b:c" otherwise. Chat sheets keep the id they always had.
 function inventoryDocId(chatId, ownerId) {
-  return `${chatId}:${ownerId}`;
+  return isScopeKey(chatId) ? `${chatId}|${ownerId}` : `${chatId}:${ownerId}`;
 }
 
 // 0 is a valid quantity — "used up but still tracked" — so this only rejects
@@ -1855,6 +1944,8 @@ async function loadInventoryState(documents, chatId, ownerId) {
       typeof doc?.data?.itemImagePromptTemplate === "string" ? doc.data.itemImagePromptTemplate : "",
     outfitPortraitPromptTemplate:
       typeof doc?.data?.outfitPortraitPromptTemplate === "string" ? doc.data.outfitPortraitPromptTemplate : "",
+    // Only a scope's sheet carries one (PATCH …/owner); a chat's never does.
+    ...(isScopeKey(chatId) ? { hostOwner: normalizeHostOwner(doc?.data?.hostOwner) } : {}),
   };
 }
 
@@ -1867,15 +1958,31 @@ async function loadInventoryState(documents, chatId, ownerId) {
 // Engine's own client reads (persona.avatarPath, persona.name) for the
 // identical purpose. One lookup shared by both resolvers below, rather than
 // two copies of the same chat→persona round trip.
-async function resolveChatPersonaData(persistence, resources, chatId) {
+async function resolveChatPersonaData(persistence, resources, chatId, hostOwner = null) {
+  // A scope has no chat: its owner is whoever the host said (state.hostOwner),
+  // shaped like a persona record so every reader below works unchanged.
+  if (isScopeKey(chatId)) {
+    if (!hostOwner) return null;
+    let data = {};
+    if (hostOwner.personaId) {
+      const [persona] = await resources.listPersonas([hostOwner.personaId]);
+      if (persona?.data && typeof persona.data === "object") data = persona.data;
+    }
+    return {
+      ...data,
+      ...(hostOwner.name ? { name: hostOwner.name } : {}),
+      ...(hostOwner.appearance ? { appearance: hostOwner.appearance } : {}),
+      ...(hostOwner.avatarUrl ? { avatarPath: hostOwner.avatarUrl } : {}),
+    };
+  }
   const chat = await persistence.getChat(chatId);
   if (!chat || !chat.personaId) return null;
   const [persona] = await resources.listPersonas([chat.personaId]);
   return persona?.data ?? null;
 }
 
-async function resolvePersonaAvatarUrl(persistence, resources, chatId) {
-  const data = await resolveChatPersonaData(persistence, resources, chatId);
+async function resolvePersonaAvatarUrl(persistence, resources, chatId, hostOwner) {
+  const data = await resolveChatPersonaData(persistence, resources, chatId, hostOwner);
   const avatarPath = data && typeof data.avatarPath === "string" ? data.avatarPath : null;
   return avatarPath || null;
 }
@@ -1892,7 +1999,7 @@ async function resolvePersonaAvatarUrl(persistence, resources, chatId) {
 // lastAvatarNpcFile) — caller is responsible for persisting it afterward,
 // same as every other state-mutating helper in this file.
 async function syncRealAvatarForOutfit(persistence, resources, dataDir, chatId, state, outfit) {
-  if (!state.replaceRealAvatarOnEquip) return;
+  if (!state.replaceRealAvatarOnEquip || isScopeKey(chatId)) return; // no chat, no persona avatar to swap
   const chat = await persistence.getChat(chatId);
   const personaId = chat?.personaId;
   if (!personaId) return;
@@ -1931,8 +2038,8 @@ async function syncRealAvatarForOutfit(persistence, resources, dataDir, chatId, 
 
 // Falls back to a generic label rather than failing the whole prompt-context
 // contribution when there's no active persona to name.
-async function resolvePersonaName(persistence, resources, chatId) {
-  const data = await resolveChatPersonaData(persistence, resources, chatId);
+async function resolvePersonaName(persistence, resources, chatId, hostOwner) {
+  const data = await resolveChatPersonaData(persistence, resources, chatId, hostOwner);
   const name = data && typeof data.name === "string" ? data.name.trim() : "";
   return name || "The persona";
 }
@@ -1945,8 +2052,8 @@ async function resolvePersonaName(persistence, resources, chatId) {
 // isn't otherwise size-bounded here) and omitted entirely when blank, so a persona with nothing
 // filled in still returns a valid (empty) context rather than failing.
 const MAX_WARDROBE_CONTEXT_FIELD_LENGTH = 2000;
-async function resolvePersonaWardrobeContext(persistence, resources, chatId) {
-  const data = await resolveChatPersonaData(persistence, resources, chatId);
+async function resolvePersonaWardrobeContext(persistence, resources, chatId, hostOwner) {
+  const data = await resolveChatPersonaData(persistence, resources, chatId, hostOwner);
   if (!data || typeof data !== "object") return null;
   const extensions = data.extensions && typeof data.extensions === "object" ? data.extensions : {};
   const context = {};
@@ -2004,7 +2111,8 @@ export async function activate(context) {
   // settings change — there's exactly one path to disk, and it's this one.
   async function persistState(chatId, ownerId, state) {
     await saveInventoryState(documents, chatId, ownerId, state);
-    await syncAppearanceMacro(persistence, chatId, ownerId, state);
+    // The macro lives in a chat's metadata; a scope has no chat to hold it.
+    if (!isScopeKey(chatId)) await syncAppearanceMacro(persistence, chatId, ownerId, state);
   }
 
   // Wires the "quartermaster" agent's post_processing pipeline run to this
@@ -2076,7 +2184,46 @@ export async function activate(context) {
   });
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
-    async (routes) => {
+    async (engineRoutes) => {
+      const routes = guardSheetRoutes(engineRoutes);
+
+      // ── For other packages (README, "For other packages") ────────────────
+      routes.get("/status", async () => ({
+        packageId: PACKAGE_ID,
+        version: await readPackageVersion(),
+        features: QM_FEATURES,
+      }));
+
+      // Says who a scope's sheet is about. Body: { personaId, name, appearance,
+      // avatarUrl }, any of them; an empty body clears it. Scopes only: a
+      // chat's sheet always follows the chat's own persona.
+      routes.patch("/inventory/:chatId/:ownerId/owner", async (request, reply) => {
+        const { chatId, ownerId } = request.params;
+        if (!isScopeKey(chatId)) return reply.status(400).send({ error: "A chat's sheet follows the chat's persona" });
+        const state = await loadInventoryState(documents, chatId, ownerId);
+        state.hostOwner = normalizeHostOwner(request.body);
+        await persistState(chatId, ownerId, state);
+        return { hostOwner: state.hostOwner };
+      });
+
+      // The owners that have a sheet in a scope, and removing a whole scope
+      // (the host deleted its world): every sheet in it and their portraits.
+      const scopeDocs = async (scope) =>
+        (await documents.list(PACKAGE_ID, INVENTORY_KIND)).filter((doc) => doc.data?.chatId === scope);
+
+      routes.get("/scopes/:scope/owners", async (request) => {
+        const docs = await scopeDocs(request.params.scope);
+        return { owners: docs.map((doc) => doc.data.ownerId).filter((ownerId) => typeof ownerId === "string") };
+      });
+
+      routes.delete("/scopes/:scope", async (request) => {
+        const { scope } = request.params;
+        const docs = await scopeDocs(scope);
+        for (const doc of docs) await documents.remove(PACKAGE_ID, doc.id, doc.revision);
+        await rm(galleryPortraitDir(context.dataDir, scope), { recursive: true, force: true });
+        return { deleted: docs.length };
+      });
+
       // Bundled, not per-chat — no chatId/ownerId in the path. NOT cached
       // aggressively, despite that: this route's URL is just the slot name
       // ("/inventory/slot-icon/head"), which never changes across package
@@ -2103,7 +2250,7 @@ export async function activate(context) {
       routes.get("/inventory/:chatId/:ownerId", async (request, reply) => {
         const { chatId, ownerId } = request.params;
         const state = await loadInventoryState(documents, chatId, ownerId);
-        const personaAvatarUrl = await resolvePersonaAvatarUrl(persistence, resources, chatId);
+        const personaAvatarUrl = await resolvePersonaAvatarUrl(persistence, resources, chatId, state.hostOwner);
         return { ...state, equipSlots: EQUIP_SLOTS, personaAvatarUrl };
       });
 
@@ -2667,7 +2814,7 @@ export async function activate(context) {
 
         const state = await loadInventoryState(documents, chatId, ownerId);
         const personaContext = includePersonaContext
-          ? await resolvePersonaWardrobeContext(persistence, resources, chatId)
+          ? await resolvePersonaWardrobeContext(persistence, resources, chatId, state.hostOwner)
           : null;
         const chat = await persistence.getChat(chatId);
         // The tracker agent's own configured connection (editable in the
@@ -2805,7 +2952,7 @@ export async function activate(context) {
         const outfit = state.outfits.find((candidate) => candidate.id === outfitId);
         if (!outfit) return reply.status(404).send({ error: "Outfit not found" });
 
-        const personaData = await resolveChatPersonaData(persistence, resources, chatId);
+        const personaData = await resolveChatPersonaData(persistence, resources, chatId, state.hostOwner);
         const personaName = (personaData && typeof personaData.name === "string" && personaData.name.trim()) || "the character";
         const rawPersonaAppearance =
           typeof personaData?.appearance === "string"
@@ -2929,7 +3076,7 @@ export async function activate(context) {
         // here so the client can put a real name on the downloaded file
         // instead of just a date, for a user juggling exports from several
         // personas.
-        const personaName = await resolvePersonaName(persistence, resources, chatId);
+        const personaName = await resolvePersonaName(persistence, resources, chatId, state.hostOwner);
         // portraitFile is a filename in THIS chat's own gallery folder — meaningless
         // (and a dead reference) once exported, so it's replaced with the actual image
         // bytes (base64) instead, which travel with the file and get re-saved as a real
