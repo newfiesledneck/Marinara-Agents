@@ -1,7 +1,8 @@
-// Quartermaster 0.1.34 — Marinara Engine roleplay-tracker capability (single-file client bundle)
-// Built from packages/quartermaster/src (11 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
+// Quartermaster 0.1.35 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Built from packages/quartermaster/src (12 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
+const QM_VERSION = "0.1.35";
 // ===== 00-api.js =====
 // Quartermaster — client-side fetch helpers for the package's own privileged
 // routes (server.mjs). QM is the shared namespace concatenated files use to
@@ -64,6 +65,13 @@ async function qmRequest(path, options) {
 
 QM.listItems = (chatId, ownerId) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}`, { method: "GET" });
+
+// For another package's sheet only: who it is about (see the README).
+QM.setSheetOwner = (scope, ownerId, owner) =>
+  qmRequest(`/inventory/${encodeURIComponent(scope)}/${encodeURIComponent(ownerId)}/owner`, {
+    method: "PATCH",
+    body: JSON.stringify(owner),
+  });
 
 QM.addItem = (chatId, ownerId, item) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items`, {
@@ -540,7 +548,18 @@ QM.buildSlotIconRaster = function buildSlotIconRaster(slot, sizePx) {
 // other if both happen to be visible at once — each view just subscribes
 // and repaints on change rather than keeping its own copy.
 
-const QM_OWNER_ID = "persona";
+// Whose sheet the views show. Always "persona" in a chat; another package's
+// sheet can name a different owner (QM.state.setSheet, 95-host.js).
+// ponytail: one module-wide owner, like the one chatId beside it. It becomes a
+// field of QM.state if two sheets ever need to be on screen at once.
+let QM_OWNER_ID = "persona";
+
+// Tells other packages a sheet changed (window.Quartermaster.onChange).
+function qmAnnounceChange(chatId) {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  if (typeof CustomEvent !== "function") return;
+  window.dispatchEvent(new CustomEvent("quartermaster:changed", { detail: { scope: chatId, owner: QM_OWNER_ID } }));
+}
 
 // Mirrors server.mjs's EQUIP_SLOTS exactly (same order too) — client and
 // server are separate bundles, so this is duplicated rather than shared.
@@ -1063,7 +1082,13 @@ QM.state = {
   },
 
   setChat(chatId) {
-    if (this.chatId === chatId) return;
+    this.setSheet(chatId, "persona");
+  },
+
+  // chatId is a chat's id or another package's scope ("<package>:<key>").
+  setSheet(chatId, ownerId = "persona") {
+    if (this.chatId === chatId && QM_OWNER_ID === ownerId) return;
+    QM_OWNER_ID = ownerId;
     this._chatToken++;
     this._reloadToken++;
     this.chatId = chatId;
@@ -1243,6 +1268,7 @@ QM.state = {
       }
       this.error = null;
       outcome = { ok: true, result };
+      qmAnnounceChange(chatId);
     } catch (error) {
       if (this.chatId !== chatId || chatToken !== this._chatToken) return;
       this.error = error && error.message ? error.message : String(error);
@@ -2487,6 +2513,8 @@ QM.dock = {
       QM.state.stopPolling();
     }
     this._syncToggles();
+    // Opened by another package on its own sheet: hand the views back to the chat.
+    if (QM.hostSheet) QM.releaseHostSheet();
   },
 
   _syncToggles() {
@@ -8204,7 +8232,10 @@ class QuartermasterElement extends HTMLElement {
 
   _render() {
     if (!this.isConnected) return;
-    QM.state.setChat(this._chatId);
+    // While another package has the dock open on its own sheet, the chat
+    // waits: closing that dock brings this chat back (95-host.js).
+    if (QM.hostSheet) QM.hostReturnChatId = this._chatId;
+    else QM.state.setChat(this._chatId);
 
     const view = this.getAttribute("view");
     if (view === "tracker") {
@@ -8239,5 +8270,94 @@ class QuartermasterElement extends HTMLElement {
 
 const QUARTERMASTER_TAG = "marinara-capability-quartermaster";
 if (!customElements.get(QUARTERMASTER_TAG)) customElements.define(QUARTERMASTER_TAG, QuartermasterElement);
+
+// ===== 95-host.js =====
+// Quartermaster — the public client API for other packages: window.Quartermaster.
+// A package on the Home tab (or anywhere with no chat) opens the dock on a sheet
+// of its own, a scope "<package id>:<key>" (README, "For other packages").
+//
+// The client bundle is only loaded by the Engine once a chat slot mounts it, so
+// a host loads it first:
+//   await import(`/api/capability-packages/quartermaster/client?v=${version}`)
+// with the version from GET /api/quartermaster/status. It is the same address
+// the Engine uses, so the browser keeps one copy.
+//
+// Nothing here runs for a chat unless another package calls it.
+
+// Same rules as server.mjs (QM_SCOPE_RE, QM_OWNER_RE); the server checks again.
+const QM_HOST_SCOPE_RE = /^[a-z0-9][a-z0-9-]{0,63}:[A-Za-z0-9_-]{1,100}$/;
+const QM_HOST_OWNER_RE = /^[A-Za-z0-9_-]{1,100}(:[A-Za-z0-9_-]{1,100})?$/;
+
+// The sheet a host has the dock open on, and the chat to go back to when that
+// dock closes (90-element.js records it while the host's sheet is showing).
+QM.hostSheet = null;
+QM.hostReturnChatId = null;
+
+QM.releaseHostSheet = () => {
+  QM.hostSheet = null;
+  if (QM.dock.root) delete QM.dock.root.dataset.qmHost;
+  const chatId = QM.hostReturnChatId;
+  QM.hostReturnChatId = null;
+  QM.state.setChat(chatId);
+};
+
+const Quartermaster = {
+  version: typeof QM_VERSION === "string" ? QM_VERSION : null,
+  // Grows as the client API does; never shrinks. The server's own list is GET /status.
+  features: ["open", "reload", "changed-event", "icon"],
+  icon: QM_ICON_SVG,
+
+  // Opens the dock on a host's sheet and reads it afresh, since the host may
+  // have changed it through the routes while the dock was closed. `persona`,
+  // when given, says who the sheet is about first ({ personaId, name,
+  // appearance, avatarUrl }, any of them). Rejects on a bad scope or owner.
+  async open({ scope, owner = "persona", persona } = {}) {
+    if (typeof scope !== "string" || !QM_HOST_SCOPE_RE.test(scope)) {
+      throw new TypeError('Quartermaster.open needs a scope like "my-package:world-1"');
+    }
+    if (typeof owner !== "string" || !QM_HOST_OWNER_RE.test(owner)) {
+      throw new TypeError('Quartermaster.open: owner must look like "persona" or "character:<id>"');
+    }
+    if (persona && typeof persona === "object") await QM.setSheetOwner(scope, owner, persona);
+    if (!QM.hostSheet) QM.hostReturnChatId = QM.state.chatId;
+    QM.hostSheet = { scope, owner };
+    const alreadyShowing = QM.state.chatId === scope && QM_OWNER_ID === owner;
+    QM.state.setSheet(scope, owner);
+    QM.dock.openPanel();
+    if (QM.dock.root) QM.dock.root.dataset.qmHost = scope.split(":")[0];
+    // A new sheet is loaded by setSheet; one already showing is read again.
+    if (alreadyShowing) QM.state._reload();
+  },
+
+  close() {
+    QM.dock.close();
+  },
+
+  toggle(options) {
+    if (QM.dock.isOpen()) QM.dock.close();
+    else return Quartermaster.open(options);
+  },
+
+  isOpen() {
+    return QM.dock.isOpen();
+  },
+
+  // "I changed this sheet through the routes, read it again." Does nothing
+  // unless that sheet is the one showing.
+  reload(scope, owner = "persona") {
+    if (QM.state.chatId === scope && QM_OWNER_ID === owner) QM.state._reload();
+  },
+
+  // Calls fn({ scope, owner }) after the dock or panel changes a sheet (a chat's
+  // too: scope is then the chat id). Returns a function that stops it. The same
+  // news is the window event "quartermaster:changed".
+  onChange(fn) {
+    const listener = (event) => fn(event.detail);
+    window.addEventListener("quartermaster:changed", listener);
+    return () => window.removeEventListener("quartermaster:changed", listener);
+  },
+};
+
+if (typeof window !== "undefined") window.Quartermaster = Quartermaster;
 
 })();

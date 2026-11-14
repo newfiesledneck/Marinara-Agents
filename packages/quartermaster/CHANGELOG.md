@@ -1,5 +1,9 @@
 # Quartermaster changelog
 
+## 0.1.35 — 2026-11-14
+- No changes you'll notice in a chat. Other packages can now open Quartermaster on a sheet of
+  their own, read what is worn, and run the tracker themselves.
+
 ## 0.1.34 — 2026-11-14
 - No changes you'll notice in a chat. Other packages can now keep their own Quartermaster sheets
   (for example one per world in a game), separate from your chats' sheets.

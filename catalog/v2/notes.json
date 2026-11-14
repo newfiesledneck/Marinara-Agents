@@ -812,6 +812,12 @@
     "quartermaster": {
       "versions": [
         {
+          "version": "0.1.35",
+          "date": "2026-11-14",
+          "notes": "- No changes you'll notice in a chat. Other packages can now open Quartermaster on a sheet of\n  their own, read what is worn, and run the tracker themselves.",
+          "highlight": false
+        },
+        {
           "version": "0.1.34",
           "date": "2026-11-14",
           "notes": "- No changes you'll notice in a chat. Other packages can now keep their own Quartermaster sheets\n  (for example one per world in a game), separate from your chats' sheets.\n- Safer handling of the ids in Quartermaster's addresses.",
@@ -923,12 +929,6 @@
           "version": "0.1.16",
           "date": "2026-09-16",
           "notes": "- Brief toast notifications now appear when the tracker agent adds, updates, equips, or removes\n  an item -- visible even with the dock closed.\n- Items can now be favorited with a star, which sorts them to the top of the Bag.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.15",
-          "date": "2026-09-15",
-          "notes": "- Fixed the Recent Agent Update box leak for real this time — 0.1.13 and 0.1.14 were both\n  attempted fixes that didn't fully resolve it.\n- Widened the info tooltip box so long macro tokens read on one line.",
           "highlight": false
         }
       ]

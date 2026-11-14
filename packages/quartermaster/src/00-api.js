@@ -60,6 +60,13 @@ async function qmRequest(path, options) {
 QM.listItems = (chatId, ownerId) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}`, { method: "GET" });
 
+// For another package's sheet only: who it is about (see the README).
+QM.setSheetOwner = (scope, ownerId, owner) =>
+  qmRequest(`/inventory/${encodeURIComponent(scope)}/${encodeURIComponent(ownerId)}/owner`, {
+    method: "PATCH",
+    body: JSON.stringify(owner),
+  });
+
 QM.addItem = (chatId, ownerId, item) =>
   qmRequest(`/inventory/${encodeURIComponent(chatId)}/${encodeURIComponent(ownerId)}/items`, {
     method: "POST",

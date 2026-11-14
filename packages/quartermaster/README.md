@@ -249,12 +249,16 @@ persona's *real* avatar elsewhere in Marinara.
 ## For other packages
 
 Another package can keep Quartermaster sheets of its own, for something that isn't a chat (a world
-in a Home-tab game, say). Nothing here changes how a Roleplay chat works. This is the first part;
-opening the dock from another package and reading the worn text come in later versions, and
-`GET /status` says what an install can do.
+in a Home-tab game, say), open the dock on it, read what is worn, and run the tracker with its own
+model call. Nothing here changes how a Roleplay chat works. More is planned (picture prompts a host
+can set, export and import between a chat and a scope, themes); `GET /status` says what an install
+can do.
 
-- **Check first.** `GET /api/quartermaster/status` answers `{ packageId, version, features }`.
-  `features` only grows; `"scopes"` and `"owners"` mean everything in this section works.
+- **Check first.** `GET /api/quartermaster/status` answers `{ packageId, version, features,
+  equipSlots, appearanceFeedModes, limits }`. `features` only grows: `scopes`, `owners`,
+  `appearance`, `summary`, `settings` and `tracker-routes` today. `limits` has the longest
+  item and outfit names and descriptions, the portrait size, and how many changes one tracker answer
+  may hold.
 - **A scope instead of a chat id.** Wherever a route takes `:chatId`, pass `<your package id>:<key>`,
   for example `wanderworld:world-12` (URL-encoded). The package id is lowercase letters, digits and
   `-`; the key is letters, digits, `-` and `_`, at most 100 characters. Every
@@ -270,8 +274,46 @@ opening the dock from another package and reading the worn text come in later ve
 - **Housekeeping.** `GET /scopes/:scope/owners` lists the owners with a sheet.
   `DELETE /scopes/:scope` removes every sheet in the scope and their outfit portraits. Item images
   are shared by every sheet and are kept.
+- **What is worn.** `GET /inventory/:scope/:ownerId/appearance` answers `{ mode, text, outfit,
+  equipped }`. `text` is what the appearance macro would hold, by the sheet's Feed setting (empty
+  while that is Off); add `?mode=equippedNamesDescriptions` (or any other Feed mode) to choose for
+  one call. `equipped` is always every worn item as `{ slot, itemId, name, description }`, and
+  `outfit` the saved outfit being worn, if any.
+- **The narrator's summary.** `GET /inventory/:scope/:ownerId/summary` answers `{ ownerName, text }`:
+  worn, carried and stored, with hidden items left out, as a chat's narrator gets it.
+- **Settings.** `GET /inventory/:scope/:ownerId/settings` answers `{ settings, defaults }`.
+  `PATCH` on the same address changes them.
+- **The whole sheet.** `GET /inventory/:scope/:ownerId`. For a scope it includes `revision`, which
+  goes up with every saved change, so you can tell when something else wrote to it.
+- **The tracker, with your own model call.** `GET /inventory/:scope/:ownerId/tracker/context` answers
+  `{ context, promptTemplate, settings, resultShape }`: the sheet as the Agent is shown it (put it
+  where the template says `<agent_runtime_context>`), the Agent's prompt, and the JSON it should
+  answer with. Send that JSON to `POST …/tracker/apply` as `{ data }`. It is applied exactly as a
+  chat turn would be, with the same rules for hidden items and locked descriptions, and answers
+  `{ applied, items, outfits, lastTrackerChange, pendingHiddenChanges }`.
 - **Calling the routes.** They sit behind the Engine's privileged gate like every package route:
   send `x-marinara-csrf: 1` on anything but a GET, and `X-Admin-Secret` when the device has one saved.
+
+### Opening the dock from your package
+
+The Engine only loads Quartermaster's client once a Roleplay chat shows it, so load it yourself
+first, with the version from `/status` (the same address the Engine uses, so there is one copy):
+
+```js
+await import(`/api/capability-packages/quartermaster/client?v=${version}`);
+await window.Quartermaster.open({ scope: "wanderworld:world-12", persona: { personaId } });
+```
+
+- `open({ scope, owner, persona })` opens the dock on that sheet and reads it afresh. `owner`
+  defaults to `persona`. `persona` is optional and is the same as a `PATCH …/owner` first.
+- `close()`, `toggle(options)` and `isOpen()`.
+- `reload(scope, owner)` after you change a sheet through the routes while the dock is open.
+- `onChange(fn)` calls `fn({ scope, owner })` after the dock changes a sheet, and returns a function
+  that stops it. The window event `quartermaster:changed` carries the same.
+- `icon` is the backpack button's SVG, `version` the installed version, and `features` what this
+  client API can do (`open`, `reload`, `changed-event`, `icon`).
+- While your sheet is open the dock's root has `data-qm-host="<your package id>"`, for your own
+  styles. Closing the dock gives the views back to the chat that was showing.
 
 ## Planned
 
@@ -314,6 +356,14 @@ and every bundled icon, and writes `artifacts/quartermaster-<version>.zip` — r
 overwrite an already-released version's artifact file if you forget to bump `VERSION` first.
 
 ## Changelog
+
+### 0.1.35
+- **Other packages can open the dock** on a sheet of their own (`window.Quartermaster`), and are
+  told when it changes. See "Opening the dock from your package".
+- **New routes for other packages:** what is worn, the narrator's summary, the settings with their
+  defaults, and the tracker in two steps (`tracker/context`, `tracker/apply`) for a package that
+  calls the model itself. `/status` also lists the equip slots, Feed modes and size limits.
+- Roleplay chats work exactly as before.
 
 ### 0.1.34
 - **Other packages can keep their own sheets.** A package can use a scope (`<package id>:<key>`) in

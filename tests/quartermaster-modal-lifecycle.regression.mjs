@@ -1085,7 +1085,7 @@ async function startServer({ proposal = { items: [], outfits: [] } } = {}) {
   const dataDir = await mkdtemp(join(tmpdir(), "qm-server-"));
   await activate({ api, dataDir });
 
-  const call = async (method, path, { params = {}, body } = {}) => {
+  const call = async (method, path, { params = {}, body, query } = {}) => {
     const reply = {
       statusCode: 200,
       status(code) {
@@ -1102,7 +1102,7 @@ async function startServer({ proposal = { items: [], outfits: [] } } = {}) {
         return this;
       },
     };
-    const result = await handlers.get(`${method} ${path}`)({ params, body }, reply);
+    const result = await handlers.get(`${method} ${path}`)({ params, body, query }, reply);
     return result && "statusCode" in result && "body" in result ? result : { statusCode: 200, body: result };
   };
   const inv = (chatId) => ({ chatId, ownerId: "persona" });
@@ -2189,4 +2189,150 @@ await test("another package keeps a sheet in its own scope, and a chat's sheet i
   );
   assert.equal(status.version, manifest.version);
   assert.ok(status.features.includes("scopes"));
+});
+
+await test("a host reads what is worn, the summary and the settings, and runs the tracker itself", async () => {
+  const server = await startServer();
+  const scope = "wanderworld:world-2";
+  const at = { chatId: scope, ownerId: "persona" };
+  const sheet = "/inventory/:chatId/:ownerId";
+  await server.call("PATCH", `${sheet}/owner`, { params: at, body: { name: "Mira" } });
+  const items = await server.seed(scope, [
+    { name: "Lantern", description: "brass", location: "equipped:head", defaultSlot: "head" },
+    { name: "Sword", quantity: 2 },
+    { name: "Red Amulet" },
+  ]);
+  await server.patchItem(scope, items["Red Amulet"].id, { hidden: true });
+
+  // Worn text: empty while the Feed is off, unless the call names a mode.
+  const worn = async (query) => (await server.call("GET", `${sheet}/appearance`, { params: at, query })).body;
+  assert.equal((await worn()).text, "");
+  assert.match((await worn({ mode: "equippedNamesDescriptions" })).text, /Lantern.*brass/);
+  assert.deepEqual((await worn()).equipped, [
+    { slot: "head", itemId: items.Lantern.id, name: "Lantern", description: "brass" },
+  ]);
+  await server.saveOutfit(scope, { name: "Night Watch", description: "x" });
+  assert.equal((await worn({ mode: "outfitName" })).outfit.name, "Night Watch");
+
+  const summary = (await server.call("GET", `${sheet}/summary`, { params: at })).body;
+  assert.match(summary.text, /^Mira's inventory/);
+  assert.match(summary.text, /Carrying: Sword ×2/);
+  assert.doesNotMatch(summary.text, /Red Amulet/);
+
+  await server.settings(scope, { appearanceFeedMode: "equippedNames" });
+  const settings = (await server.call("GET", `${sheet}/settings`, { params: at })).body;
+  assert.equal(settings.settings.appearanceFeedMode, "equippedNames");
+  assert.equal(settings.defaults.appearanceFeedMode, "off");
+  assert.equal((await worn()).text.includes("Lantern"), true, "the sheet's own Feed setting is used");
+
+  // The tracker's two halves: what it is shown, then its answer applied by the usual rules.
+  const context = (await server.call("GET", `${sheet}/tracker/context`, { params: at })).body;
+  assert.match(context.context, /\[1\] Lantern -- brass/);
+  assert.doesNotMatch(context.context, /Red Amulet/);
+  assert.ok(context.promptTemplate.length > 100);
+  const apply = (data) => server.call("POST", `${sheet}/tracker/apply`, { params: at, body: { data } });
+  assert.equal((await apply(undefined)).statusCode, 400);
+  const applied = (await apply({ addItem: [{ name: "Rope", location: "bag" }], removeItem: [2] })).body;
+  assert.equal(applied.applied, true);
+  assert.deepEqual(applied.items.map((item) => item.name).sort(), ["Lantern", "Red Amulet", "Rope"]);
+  assert.ok(applied.lastTrackerChange);
+  assert.equal(server.chats.has(scope), false, "applying a tracker answer needs no chat");
+
+  // A scope's sheet says its revision; a chat's answer keeps the fields it had.
+  assert.equal(typeof (await server.get(scope)).revision, "number");
+  assert.equal("revision" in (await server.get("chat-1")), false);
+  const status = (await server.call("GET", "/status")).body;
+  assert.ok(status.features.includes("tracker-routes") && status.limits.itemNameLength > 0);
+  assert.ok(status.equipSlots.includes("head"));
+});
+
+await test("another package opens the dock on its own sheet, and closing gives the chat back", async () => {
+  const api = {};
+  const listeners = new Map();
+  const window = {
+    addEventListener: (name, fn) => listeners.set(fn, name),
+    removeEventListener: (_name, fn) => listeners.delete(fn),
+    dispatchEvent: (event) => {
+      for (const [fn, name] of listeners) if (name === event.type) fn(event);
+    },
+  };
+  class CustomEvent {
+    constructor(type, init) {
+      this.type = type;
+      this.detail = init.detail;
+    }
+  }
+  const context = vm.createContext({
+    QM: api,
+    window,
+    CustomEvent,
+    TypeError,
+    QM_ICON_SVG: "<svg/>",
+    QM_VERSION: "9.9.9",
+  });
+  vm.runInContext(stateSource, context);
+  vm.runInContext(
+    await readFile(new URL("../packages/quartermaster/src/95-host.js", import.meta.url), "utf8"),
+    context,
+  );
+  const reads = [];
+  api.listItems = async (chatId, ownerId) => {
+    reads.push(`${chatId}/${ownerId}`);
+    return { items: [], outfits: [] };
+  };
+  const owners = [];
+  api.setSheetOwner = async (...args) => owners.push(args);
+  let open = false;
+  api.dock = {
+    root: { dataset: {} },
+    isOpen: () => open,
+    openPanel() {
+      open = true;
+      api.state.ensureLoaded();
+    },
+    close() {
+      open = false;
+      if (api.hostSheet) api.releaseHostSheet();
+    },
+  };
+  const host = window.Quartermaster;
+  assert.equal(host.version, "9.9.9");
+  await assert.rejects(host.open({ scope: "chat-a" }), TypeError);
+  await assert.rejects(host.open({ scope: "wanderworld:w1", owner: "a/b" }), TypeError);
+
+  api.state.setChat("chat-a");
+  await host.open({ scope: "wanderworld:w1", owner: "persona:p1", persona: { name: "Mira" } });
+  assert.deepEqual(owners, [["wanderworld:w1", "persona:p1", { name: "Mira" }]]);
+  assert.equal(api.state.chatId, "wanderworld:w1");
+  assert.equal(host.isOpen(), true);
+  assert.equal(api.dock.root.dataset.qmHost, "wanderworld");
+  assert.ok(reads.includes("wanderworld:w1/persona:p1"));
+
+  // Opening the sheet already showing reads it again; so does reload() for it, and only it.
+  const count = () => reads.filter((read) => read === "wanderworld:w1/persona:p1").length;
+  await new Promise((resolve) => setImmediate(resolve));
+  let before = count();
+  await host.open({ scope: "wanderworld:w1", owner: "persona:p1" });
+  assert.equal(count(), before + 1);
+  before = count();
+  host.reload("wanderworld:w2", "persona:p1");
+  host.reload("wanderworld:w1", "persona");
+  assert.equal(count(), before);
+  host.reload("wanderworld:w1", "persona:p1");
+  assert.equal(count(), before + 1);
+
+  const changes = [];
+  const stop = host.onChange((detail) => changes.push(detail));
+  await api.state._mutate(Promise.resolve({ items: [] }));
+  stop();
+  await api.state._mutate(Promise.resolve({ items: [] }));
+  assert.equal(JSON.stringify(changes), JSON.stringify([{ scope: "wanderworld:w1", owner: "persona:p1" }]));
+  await api.state._mutate(Promise.reject(new Error("nope")));
+
+  // Closing hands the views back to the chat that was showing, as its persona.
+  host.close();
+  assert.equal(api.hostSheet, null);
+  assert.equal(api.state.chatId, "chat-a");
+  assert.equal(reads.at(-1), "chat-a/persona");
+  assert.equal("qmHost" in api.dock.root.dataset, false);
 });

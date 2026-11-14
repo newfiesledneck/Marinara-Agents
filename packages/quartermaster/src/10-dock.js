@@ -794,6 +794,8 @@ QM.dock = {
       QM.state.stopPolling();
     }
     this._syncToggles();
+    // Opened by another package on its own sheet: hand the views back to the chat.
+    if (QM.hostSheet) QM.releaseHostSheet();
   },
 
   _syncToggles() {
