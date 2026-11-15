@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.2",
+          "date": "2026-11-15",
+          "notes": "- Rocks and boulders have a density of their own (Settings → Display → Graphics → \"Rocks and boulders\"), apart from \"Trees and plants\". With one setting for both, a forest at 20× was also a field of boulders.\n- It starts at Normal on every device, whatever the trees are set to.\n- The chat window has a \"Clear chat\" button at the bottom. It empties the window, and what's cleared is no longer sent to the AI or to Illustrate. It asks twice, since it can't be undone. What people remember isn't touched.",
+          "highlight": false
+        },
+        {
           "version": "0.6.1",
           "date": "2026-11-15",
           "notes": "- Winter's roads, paths, streets and the square lie under patchy snow, with the dirt or paving showing through where it's trodden.\n- Fall: each broadleaf tree and bush turns yellow, orange or red, the grass is dry and yellowed, and the flowers and clover are gone. Pines stay green.\n- Spring: about a third of the broadleaf trees are in blossom, and the rest, with the grass, are a fresher green.\n- The season is the world's own (Journal → World → Season). The Graphics switch is now \"Trees, plants and streets wear the season\" and covers all three.",
@@ -307,12 +313,6 @@
           "version": "0.5.95",
           "date": "2026-11-14",
           "notes": "- The AI is told how you stand to a place, not only its name: on the bank beside the pond (not in the water), wading or swimming when you are, inside or outside a building, at the mouth of a cave, on a street, among the ruins.\n- What you sit on is told as what it is: a log by the campfire, a bench, a chair, a stool. The same for people sitting near you.\n- Illustrate's {place_kind} has words for more places (a pond's bank, a cave mouth, a country road) and says when you're indoors.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.94",
-          "date": "2026-11-14",
-          "notes": "- Loading another world can't save the world you're leaving over it: nothing is saved from the moment the other world is picked until it is built. The world you leave is saved, under its own name, before that.",
           "highlight": false
         }
       ]

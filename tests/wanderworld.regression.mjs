@@ -61,6 +61,18 @@ assert.equal(collider.insideBox(15, 0, 0.4), false, "open ground is not a buildi
 // ── World ────────────────────────────────────────────────────────────────────
 const world = createWorld(12345);
 for (const density of DENSITIES) world.setDensity(density);
+// Rocks have a density of their own: the thickest forest with the fewest stones.
+{
+  const stones = () => world.scene.children.filter((object) => object.isInstancedMesh).map((mesh) => mesh.count);
+  const thick = stones();
+  world.setDensity(DENSITIES.at(-1), DENSITIES[0]);
+  const few = stones();
+  assert.ok(
+    few.some((count, i) => count < thick[i]) && few.filter((count, i) => count !== thick[i]).length === 1,
+    "only the stones are fewer",
+  );
+  world.setDensity(DENSITIES.at(-1));
+}
 // Winter: the drifts are only there in a winter world, and not with its snowy look turned off.
 {
   const drifts = () =>
