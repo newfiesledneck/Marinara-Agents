@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.107 — 2026-11-15
+
+- The AI assistant's chat is ordered for prompt caching, as conversations are. What never changes (its instructions, the world's name and setting, who you play) is sent first, then the chat, and the world as it is now goes on your newest message. The turns sent back start from the same place for several messages running. "Order prompts for caching" (Settings → AI) turns it off.
+- The saddle sits on the horse's back. It was sunk into it, with the seat hidden inside the body and the flaps inside its sides; it is now a little higher and wider, and the rider sits that much higher with it.
+
 ## 0.5.106 — 2026-11-14
 
 - Animals no longer stand or run inside one another. Two that are too close step apart, so a pack of wolves chases you side by side and stands round you, not all in one spot.

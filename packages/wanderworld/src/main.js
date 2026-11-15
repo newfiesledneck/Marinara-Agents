@@ -4512,7 +4512,12 @@ function savePerson(id, changes) {
  * `apply` (null with nothing to do) is the player's Confirm, and the `undo` it returns takes those
  * changes back (and nothing changed since by hand). `options`: { pick, book, entries }.
  */
-async function askAssistant(history, options = {}) {
+async function askAssistant(chat, options = {}) {
+  // The last twelve turns of the chat. For a provider's prompt cache, twelve to nineteen: where they start
+  // moves on only every eighth turn, so what's sent begins the same way for several messages running.
+  const history = core.settings.promptCache
+    ? chat.slice(Math.max(0, Math.floor((chat.length - 12) / 8) * 8))
+    : chat.slice(-12);
   const save = core.save;
   if (!save || !core.zones) throw new Error("Open a world first: the assistant works on the world you're in.");
   if (!(await core.ai.status())?.assistant)
@@ -4791,6 +4796,7 @@ async function askAssistant(history, options = {}) {
       ages: needs.has("ages") ? (save.ages ?? null) : null,
       genders: needs.has("ages") ? gendersNow() : null,
       history,
+      cache: core.settings.promptCache,
       people: cast.map(person),
       places: withPlaces ? placeList : [],
       groups: groupLines,

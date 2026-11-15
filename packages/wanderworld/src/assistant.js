@@ -351,7 +351,8 @@ export function createAssistant(handlers) {
     try {
       const answer =
         (await handlers.onAsk(
-          history.slice(-12).map((turn) => ({ role: turn.role, text: turn.text })),
+          // (All of it: main.js askAssistant sends the last of it.)
+          history.map((turn) => ({ role: turn.role, text: turn.text })),
           {
             pick: options.pick ?? null,
             book: options.book ?? null,

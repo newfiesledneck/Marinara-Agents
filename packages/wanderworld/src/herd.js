@@ -23,9 +23,12 @@ const HUNT_FROM = 22; // and from which, let attack, it comes for them
 const THREAT_EVERY = 45; // seconds between the game being told of one squaring up
 /**
  * The saddle (the props kit's, from a Poly by Google model, CC-BY): how much smaller than it's made it
- * goes on a horse, and how far up its own height its underside is (the stirrups hang below that).
+ * goes on a horse, and how far up its own height its underside is (the stirrups hang below that). It's
+ * made narrower than the horse's barrel and the horse's back rises above where a rider's seat is
+ * measured, so it's widened (`wide`) and set a little higher (`up`, metres on a horse of the usual size):
+ * else the seat sinks into the back and the flaps into its sides.
  */
-const SADDLE = { scale: 0.3, under: 2.95, forward: 0.05 };
+const SADDLE = { scale: 0.3, wide: 1.3, up: 0.1, under: 2.95, forward: 0.05 };
 const AFLOAT = 0.8; // how much of the way up to its back an animal sits in deep water
 const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives up walking and turns up beside them
 
@@ -303,8 +306,9 @@ export function createHerd() {
         if (mine !== token || beast.gone || !beast.animal) return;
         const seat = new Group();
         for (const { geometry, material } of parts) seat.add(new Mesh(geometry, material));
-        seat.scale.setScalar(SADDLE.scale);
-        seat.position.set(0, ANIMALS[beast.kind].back - SADDLE.under * SADDLE.scale, SADDLE.forward);
+        seat.scale.set(SADDLE.scale * SADDLE.wide, SADDLE.scale, SADDLE.scale);
+        seat.position.set(0, ANIMALS[beast.kind].back + SADDLE.up - SADDLE.under * SADDLE.scale, SADDLE.forward);
+        beast.saddled = true;
         beast.animal.carryOn(seat); // on its body's bone: it moves as the back does
       })
       .catch(() => {}); // no props kit: no saddle
@@ -763,7 +767,8 @@ export function createHerd() {
         z: beast.z,
         angle: beast.angle,
         ...facts,
-        back: facts.back * (beast.scale ?? 1), // (a big horse's back is higher)
+        // (A big horse's back is higher; and a saddled one is sat on its saddle, which is set that much up.)
+        back: (facts.back + (beast.saddled ? SADDLE.up : 0)) * (beast.scale ?? 1),
       };
     },
     /** While ridden: where the rider has taken it, facing `angle`, at `speed` metres a second; in a

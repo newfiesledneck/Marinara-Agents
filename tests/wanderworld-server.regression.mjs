@@ -995,9 +995,10 @@ assert.equal(
   });
   assert.deepEqual(turn.body.edits, [{ do: "work", person: "Mira", place: "tavern1", with: "", owner: true }]);
   assert.ok(heard[0][0].content.startsWith(server.ASSISTANT_INSTRUCTION));
-  assert.match(heard[0][0].content, /## People\s+Mira\n {2}friend of Zoey\n {2}lore: Bakes at dawn\./u);
-  assert.match(heard[0][0].content, /tavern1 = The Drowned Bell/u);
-  assert.deepEqual(heard[0].at(-1), { role: "user", content: "Give Mira the tavern." });
+  // (The world as it is now goes on the newest message, for a prompt cache.)
+  assert.match(heard[0].at(-1).content, /## People\s+Mira\n {2}friend of Zoey\n {2}lore: Bakes at dawn\./u);
+  assert.match(heard[0].at(-1).content, /tavern1 = The Drowned Bell/u);
+  assert.match(heard[0].at(-1).content, /<\/context>\n\nGive Mira the tavern\.$/u);
   assert.equal((await call("post", "/assistant", { body: { history: [] } })).code, 400, "nothing asked");
   // The chat always starts with something the player said.
   await call("post", "/assistant", {
@@ -1008,41 +1009,97 @@ assert.equal(
       ],
     },
   });
-  assert.deepEqual(heard.at(-1).slice(1), [{ role: "user", content: "Hello" }]);
+  assert.equal(heard.at(-1).length, 2, "the system message and the player's turn");
+  assert.match(heard.at(-1)[1].content, /^<context>[\s\S]*<\/context>\n\nHello$/u);
+  // The newest turns are the ones sent, up to twenty.
+  await call("post", "/assistant", {
+    body: {
+      history: Array.from({ length: 30 }, (_, at) => ({ role: at % 2 ? "user" : "assistant", text: `turn ${at}` })),
+      cache: false,
+    },
+  });
+  assert.deepEqual(
+    [heard.at(-1).length, heard.at(-1)[1].content, heard.at(-1).at(-1).content],
+    [20, "turn 11", "turn 29"],
+    "twenty turns less the assistant's one at the start",
+  );
 }
 
 // The assistant, a part of the world at a time: what was left out is said, and it may ask for a part once.
 {
   const fenced = (body) => `\`\`\`wanderworld\n${body}\n\`\`\``;
-  const asked = server.assistantMessages({
-    worldName: "Larkspur",
-    history: [{ role: "user", text: "Hello" }],
-    people: [{ name: "Mira", relations: [] }],
-    places: [],
-    groups: [],
-    factions: [],
-    ties: [],
-    entries: [],
-    chat: "Zoey: Morning.",
-    recaps: "At the mill: they argued.",
-    omitted: ["places", "help", "made-up"],
-  })[0].content;
+  // Ordered for a prompt cache: what never changes in the system message, the chat after it, and the world
+  // as it is now on the newest message. With that off, the world is all in the system message, as before.
+  {
+    const input = {
+      worldName: "Larkspur",
+      setting: "A river town.",
+      persona: "Zoey",
+      history: [
+        { role: "user", text: "Hello" },
+        { role: "assistant", text: "Hi." },
+        { role: "user", text: "Who lives here?" },
+      ],
+      people: [{ name: "Quillon", relations: [] }],
+      places: [],
+      groups: [],
+      factions: [],
+      ties: [],
+      entries: [],
+      here: "At: the tannery, 09:10.",
+      omitted: [],
+    };
+    const cached = server.assistantMessages(input);
+    assert.match(cached[0].content, /## The world\nLarkspur: A river town\.[\s\S]*## The player\nZoey/u);
+    assert.doesNotMatch(cached[0].content, /Quillon|the tannery/u, "what changes isn't in the system message");
+    assert.deepEqual(cached.slice(1, 3), [
+      { role: "user", content: "Hello" },
+      { role: "assistant", content: "Hi." },
+    ]);
+    assert.match(
+      cached[3].content,
+      /^<context>\n# The world as it is now[\s\S]*Quillon[\s\S]*the tannery[\s\S]*<\/context>\n\nWho lives here\?$/u,
+    );
+    const later = server.assistantMessages({ ...input, here: "At: the pond, 21:40.", people: [] });
+    assert.deepEqual(later.slice(0, 3), cached.slice(0, 3), "the start reads the same whatever changed in the world");
+    const plain = server.assistantMessages({ ...input, cache: false });
+    assert.match(plain[0].content, /# The world as it is now[\s\S]*Larkspur[\s\S]*Quillon[\s\S]*the tannery/u);
+    assert.deepEqual(plain.at(-1), { role: "user", content: "Who lives here?" });
+  }
+  const whole = (messages) => messages.map((message) => message.content).join("\n");
+  const asked = whole(
+    server.assistantMessages({
+      worldName: "Larkspur",
+      history: [{ role: "user", text: "Hello" }],
+      people: [{ name: "Mira", relations: [] }],
+      places: [],
+      groups: [],
+      factions: [],
+      ties: [],
+      entries: [],
+      chat: "Zoey: Morning.",
+      recaps: "At the mill: they argued.",
+      omitted: ["places", "help", "made-up"],
+    }),
+  );
   assert.match(asked, /Not sent: places \(the list of places\); help \(how Wanderworld works\)\./u);
   assert.doesNotMatch(asked, /made-up/u);
   assert.match(asked, /# Looking things up[\s\S]*\{"need": \["places"\], "lore": \[/u, "how to look something up");
   assert.match(asked, /## The recent chat[^\n]*\nZoey: Morning\./u);
   assert.match(asked, /## Recaps of scenes[^\n]*\nAt the mill: they argued\./u);
-  const last = server.assistantMessages({
-    history: [{ role: "user", text: "Hello" }],
-    people: [],
-    places: [],
-    groups: [],
-    factions: [],
-    ties: [],
-    entries: [],
-    omitted: ["places"],
-    final: true,
-  })[0].content;
+  const last = whole(
+    server.assistantMessages({
+      history: [{ role: "user", text: "Hello" }],
+      people: [],
+      places: [],
+      groups: [],
+      factions: [],
+      ties: [],
+      entries: [],
+      omitted: ["places"],
+      final: true,
+    }),
+  );
   assert.doesNotMatch(last, /"need"/u, "the second asking is the last");
   assert.deepEqual(server.readAssistant(fenced('{"need": ["places", "weather", "places"]}')).need, ["places"]);
   assert.equal(server.readAssistant(fenced('{"need": ["weather"]}')).need, undefined, "a part there isn't");
@@ -1061,18 +1118,22 @@ assert.equal(
     "an answer with changes isn't a lookup",
   );
   // What was looked up goes back in the next asking, with the titles of what else there is.
-  const again = server.assistantMessages({
-    history: [{ role: "user", text: "Who fought in the war?" }],
-    people: [],
-    places: [],
-    groups: [],
-    factions: [],
-    ties: [],
-    entries: [],
-    omitted: [],
-    loreIndex: ["The Ashen War", "The Thieves' Guild"],
-    found: [{ title: 'The Ashen War (from the player\'s lorebook "Realm"; read-only)', content: "Two houses burned." }],
-  })[0].content;
+  const again = whole(
+    server.assistantMessages({
+      history: [{ role: "user", text: "Who fought in the war?" }],
+      people: [],
+      places: [],
+      groups: [],
+      factions: [],
+      ties: [],
+      entries: [],
+      omitted: [],
+      loreIndex: ["The Ashen War", "The Thieves' Guild"],
+      found: [
+        { title: 'The Ashen War (from the player\'s lorebook "Realm"; read-only)', content: "Two houses burned." },
+      ],
+    }),
+  );
   assert.match(again, /## Lore titles \(look one up to read it\)\nThe Ashen War; The Thieves' Guild/u);
   assert.match(
     again,
