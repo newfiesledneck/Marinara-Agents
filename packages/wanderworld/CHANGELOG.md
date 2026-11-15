@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.105 — 2026-11-14
+
+- The chat window is no longer empty after you open another Engine screen (a character card, a lorebook, a preset) and come back. The chat, the assistant's chat and Illustrate come back as they were.
+- Each world keeps the last 500 lines of its chat, up from 30, to scroll back through. What the AI is sent hasn't changed: each prompt takes only its own last few lines.
+- When the chat has no line describing the place you're in, Illustrate has it told first, so the picture matches where you are. Settings → AI → Pictures has the switch. It needs "Lines about where you are" on, and doesn't apply indoors.
+
 ## 0.5.104 — 2026-11-14
 
 - Illustrate now leaves out only the lines that describe another place (the line told when you arrived there), so a forest and a town don't end up in one picture. What was said and done is given wherever it happened. 0.5.103 left out every line from another place, which lost a conversation as soon as you stepped from the square into the street. Lines told before this update aren't marked, so they are all still given.

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.105",
+          "date": "2026-11-14",
+          "notes": "- The chat window is no longer empty after you open another Engine screen (a character card, a lorebook, a preset) and come back. The chat, the assistant's chat and Illustrate come back as they were.\n- Each world keeps the last 500 lines of its chat, up from 30, to scroll back through. What the AI is sent hasn't changed: each prompt takes only its own last few lines.\n- When the chat has no line describing the place you're in, Illustrate has it told first, so the picture matches where you are. Settings → AI → Pictures has the switch. It needs \"Lines about where you are\" on, and doesn't apply indoors.",
+          "highlight": false
+        },
+        {
           "version": "0.5.104",
           "date": "2026-11-14",
           "notes": "- Illustrate now leaves out only the lines that describe another place (the line told when you arrived there), so a forest and a town don't end up in one picture. What was said and done is given wherever it happened. 0.5.103 left out every line from another place, which lost a conversation as soon as you stepped from the square into the street. Lines told before this update aren't marked, so they are all still given.",
@@ -307,12 +313,6 @@
           "version": "0.5.86",
           "date": "2026-11-13",
           "notes": "- Settings → Display → Graphics, \"Trees and rocks\": a new Sparse with half as many again. What was Sparse is now Normal and the default; the old Normal, 4× and 10× are 2×, 8× and 20×. A device that had chosen one keeps the same amount under its new name.\n- \"Detailed trees out to\" goes further: Very far (300 m) and Max (450 m), never past the draw distance.\n- New \"Smooth edges\" setting, which softens the jagged edges of a low resolution. Auto turns it on when the picture is no sharper than the page and a graphics card draws it; a change shows after a reload.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.85",
-          "date": "2026-11-13",
-          "notes": "- Resolution is chosen by name: Auto, Full (your screen's), 1440p, 1080p, 720p, 540p. The stats line shows the picture's height. A saved 75% or 50% goes back to Auto.\n- The ground costs less for every pixel: layers that aren't at a spot aren't looked up there. Settings → Display → Graphics → Ground: Simple makes it cheaper again, a little plainer.\n- With detailed trees off, the simple ones are drawn only within the draw distance and where the camera looks, not across the whole world.",
           "highlight": false
         }
       ]

@@ -75,7 +75,7 @@ import { createTalk } from "./talk.js";
 import { HOUSE_PIECES } from "./houses.js";
 import { kitModels, kitTexture, kitUrl } from "./kit.js";
 import { createMenu } from "./menu.js";
-import { checkGenders, createSaves } from "./saves.js";
+import { checkGenders, createSaves, LOG_KEPT } from "./saves.js";
 import { createStore, SHARED_SETTINGS } from "./store.js";
 import { undoOnly, withoutLeftovers } from "./undo.js";
 import { editableFields, reviseEdits } from "./assistant-edits.js";
@@ -817,15 +817,12 @@ function playWorld(id) {
       void pullRecaps();
       // The chat as it was left in this world.
       core.momentLog = save.log ?? [];
-      core.hud?.setChat(core.momentLog.map((line) => ({ ...line, mine: line.who === personaName() })));
-      core.hud?.setAssistantChat(save.assistantChat ?? []);
       core.toldPlaces = {};
       core.looks = new Map();
       core.peopleHereKey = null;
       core.arriveZone = null;
       core.hud?.illustrate.reset();
-      core.hud?.illustrate.restore();
-      core.hud?.restoreChat();
+      showChat();
     };
     // Shown once the detail is in and the lore has linked up (so they appear at their door, not jump
     // there), or after a while regardless.
@@ -1772,7 +1769,16 @@ function arrive(zone, names) {
   }
   if (zone.id in told && told[zone.id] < core.settings.arriveVisits) return;
   if (core.clock - (core.toldAt ?? -99) < core.settings.arriveGap || core.momentBusy) return false;
-  told[zone.id] = 0;
+  void tellPlace(zone, names);
+}
+
+/**
+ * Tells the place (see `arrive`), and counts it as told now. Resolves once the line is in the chat.
+ * `verb`: what the player is doing there, for the model ("comes into", or "looks round" when already there).
+ */
+async function tellPlace(zone, names, verb = "comes into") {
+  const save = core.save;
+  (core.toldPlaces ??= {})[zone.id] = 0;
   core.toldAt = core.clock;
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
   // Who's about, so an empty square isn't called busy.
@@ -1787,9 +1793,8 @@ function arrive(zone, names) {
     ? `${names[zone.id]}. ${lore.content.split(/(?<=[.!?])\s/u)[0]}`
     : arrivalLine(kind, `${save.seed}:${zone.id}`, lineWords(), about > 0);
   const company = about ? `${about} ${about === 1 ? "person is" : "people are"} about` : "nobody else is about";
-  void runMoment({ action: `comes into ${names[zone.id]}, where ${company}`, source: "arrive" }).then((done) => {
-    if (!done && line) narrate(null, line, [], true);
-  });
+  const done = await runMoment({ action: `${verb} ${names[zone.id]}, where ${company}`, source: "arrive" });
+  if (!done && line) narrate(null, line, [], true);
 }
 
 /** An errand is done on reaching its person, wherever they are: they answer, and think better of you. */
@@ -6023,11 +6028,19 @@ function stampOf(line) {
 /** The place you're in, as a line of the chat is stamped with it (without the town it's in). */
 const whereNow = () => placeWords().split(", in ")[0] ?? "";
 
+/** The chat windows as the world has them: what's been said, the assistant's chat, and open if they were left open. */
+function showChat() {
+  core.hud?.setChat(core.momentLog.map((line) => ({ ...line, mine: line.who === personaName() })));
+  core.hud?.setAssistantChat(core.save?.assistantChat ?? []);
+  core.hud?.illustrate.restore();
+  core.hud?.restoreChat();
+}
+
 function narrate(who, text, heard = [], place = false) {
   // (With when and where it happened, for whoever is told of it later: stampOf.)
   // (`place`: the line describes where you are, told on arriving. Illustrate leaves other places' out.)
   const stamp = { at: clockText(), day: core.social?.day ?? 0, where: whereNow(), ...(place ? { place: true } : {}) };
-  core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard, ...stamp }].slice(-30);
+  core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard, ...stamp }].slice(-LOG_KEPT);
   if (core.save) {
     core.save.log = core.momentLog;
     core.saves.write(core.save);
@@ -6275,8 +6288,25 @@ async function illustrateMoment({
                 ? "dusk"
                 : "evening";
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
+  // The place is told first when the chat has nothing describing it (Settings → AI → Pictures), so the
+  // picture is of where you are. (Not indoors, which has no such line, and not with those lines off.)
+  const here = whereNow();
+  const told = (line) => line.place && line.where === here;
+  if (
+    core.settings.illustrateTell &&
+    !core.interior &&
+    (core.settings.narration ?? "lines") !== "off" &&
+    !core.momentLog.some(told)
+  ) {
+    await tellPlace(zone, namedZones(residentsOf(core.crowd.snapshot())), "looks round");
+    if (zone.id === core.zoneId) core.arriveZone = zone.id;
+  }
   // The chat it's given: without what was told of other places (Settings → AI → Pictures), so the picture is of one.
-  const said = core.settings.illustrateHere ? linesHere(core.momentLog, whereNow()) : core.momentLog;
+  const said = core.settings.illustrateHere ? linesHere(core.momentLog, here) : core.momentLog;
+  // (Its last eight lines, and what was told of this place if that was longer ago.)
+  const placeLine = said.findLast(told);
+  const lastSaid = said.slice(-8);
+  if (placeLine && !lastSaid.includes(placeLine)) lastSaid.unshift(placeLine);
   const recent = [...said].reverse().find((line) => line.who === "Narrator")?.text ?? "";
   return (previewOnly ? (work) => work() : painting)(() =>
     core.ai.illustrate({
@@ -6311,7 +6341,7 @@ async function illustrateMoment({
         look: core.save.look || PACK.look,
         recent,
         // The last of the chat, for the rewrite: what's being done right now is in there, not in "standing".
-        chat: said.slice(-8).map((line) => ({ who: line.who, text: line.text })),
+        chat: lastSaid.map((line) => ({ who: line.who, text: line.text })),
       },
       caption: `${placeWords()}, ${clockText()}`,
       connectionId: core.settings.imageConnection || null,
@@ -8264,8 +8294,11 @@ function attach(element) {
       void loadPeople();
     }
     // Back to the tab with a world in play: carry on. Otherwise the main menu.
-    if (core.world && core.save) resume();
-    else openMenu();
+    // (The windows are new ones, made with this tab: the chat goes back into them.)
+    if (core.world && core.save) {
+      resume();
+      showChat();
+    } else openMenu();
     core.resizeObserver = new ResizeObserver(resize);
     core.resizeObserver.observe(core.stage);
     applySettings();

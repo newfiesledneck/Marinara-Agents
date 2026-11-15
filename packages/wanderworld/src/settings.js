@@ -112,6 +112,8 @@ export const SETTINGS = {
   imageConnection: { value: "", text: true },
   /** Illustrate isn't given the lines that describe other places than the one you're in (the rest of the chat it is). */
   illustrateHere: { value: true },
+  /** Illustrate has the place you're in told first, when the chat has no line describing it yet. */
+  illustrateTell: { value: true },
   imageStyle: {
     value: "",
     options: [
