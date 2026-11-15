@@ -341,6 +341,8 @@ export function checkWorld(raw) {
     sheets: isRecord(raw.sheets) ? raw.sheets : {},
     // Where things were gathered, and on which day: { "kind:x:z": day } (gather.js spotUsed).
     gathered: isRecord(raw.gathered) ? raw.gathered : {},
+    // Trees chopped at or felled: { "region|number": { cut, day } } (gather.js chopTree).
+    trees: isRecord(raw.trees) ? raw.trees : {},
     // What money is called in this world ("" for the setting's own word); the purse is the item of that name.
     currency: text(raw.currency).slice(0, 30),
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.

@@ -867,7 +867,8 @@ export function createHud(root, handlers) {
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: one more AI call each time something is narrated. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     gathering:
-      "On: buttons in the chat window let you gather where the land allows it. Fish by water, chop wood and forage in the woods (foraging not in winter), mine at the mountains or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
+      "On: buttons in the chat window let you gather where the land allows it. Each kind only at its resource: fish by water, chop wood standing against a tree (four strokes bring it down), forage in the woods (not in winter), mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
+    treeDays: "How many of the world's days a tree you cut down takes to stand again. 0: it never grows back.",
     regrowDays:
       "After you gather somewhere, that patch (about ten metres square) gives nothing more of that kind for this many of the world's days. 0: it always gives.",
     inventoryPinned:
@@ -1184,6 +1185,7 @@ export function createHud(root, handlers) {
   );
   toggle("gathering", "Gathering");
   number("regrowDays", "Days until a spot gives again", "gathering");
+  number("treeDays", "Days until a felled tree grows back", "gathering");
   toggle("sheet", "Character sheet");
   toggle("sheetTold", "Tell the AI your stats", "sheet");
   choice(
@@ -2179,7 +2181,7 @@ export function createHud(root, handlers) {
       if ("max" in entry)
         row.append(
           piece("", "/"),
-          numberBox(entry.max, `Most ${entry.name}`, (value) => change({ set: entry.id, field: "max", value })),
+          numberBox(entry.max, `Max ${entry.name}`, (value) => change({ set: entry.id, field: "max", value })),
         );
       if (entry.id === "xp")
         row.append(
@@ -2257,7 +2259,7 @@ export function createHud(root, handlers) {
     const name = field("Name", "110px");
     const value = field("Number", "64px");
     value.inputMode = "numeric";
-    const most = field("Most (optional)", "104px");
+    const most = field("Max (optional)", "104px");
     most.inputMode = "numeric";
     const about = field("What it is, in a few words (for the AI)", "100%");
     const add = inkSmall("Add", () => {
@@ -2281,7 +2283,7 @@ export function createHud(root, handlers) {
     form.append(kind, name, value, most, about, add);
     body.append(
       debugNote(
-        'Fill in "Most" for a line that reads like 2/40 (Collected cars 2/40). Leave it empty for a plain number (Fame 15).',
+        'Fill in "Max" for a line that reads like 2/40 (Collected cars 2/40). Leave it empty for a plain number (Fame 15).',
       ),
     );
     body.append(form);

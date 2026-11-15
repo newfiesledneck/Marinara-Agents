@@ -144,6 +144,8 @@ export const SETTINGS = {
   // days a spot takes to give again (0: it always does).
   gathering: { value: true },
   regrowDays: { value: 1, min: 0, max: 30 },
+  /** How many of the world's days a felled tree takes to stand again (0: it never does). */
+  treeDays: { value: 7, min: 0, max: 365 },
   /** The AI reads what was narrated and changes the sheet (HP lost, mana spent, experience earned): one more call. */
   sheetTrack: { value: "off", options: ["off", "moments", "all"] },
   /** Quartermaster's window stays open when you click in the game (it closes at a click anywhere else). */

@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.64 — 2026-11-15
+
+- Gathering is only offered at its resource. "Chop wood" appears when you stand against a tree, and "Mine" at a boulder or a cave. Before, they showed anywhere in the woods or near the mountains.
+- A tree gives up to four pieces of wood, one stroke at a time, and the fourth stroke brings it down. A felled tree is gone, and no longer in your way, until it grows back after a week. Settings → People → Inventory sets the days, or 0 for never.
+- Each boulder is its own spot: mine one and it is worked out until the next day, while the one beside it isn't.
+- On the sheet, "Most (optional)" is now "Max (optional)".
+
 ## 0.6.63 — 2026-11-15
 
 - Gathering. Where there's something to gather, buttons appear in the chat window: Fish beside water, Chop wood and Forage in the woods, Mine at the mountains or a cave, Harvest on a farm in summer and fall. A d20 plus one of your attributes decides what you find.

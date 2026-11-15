@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.64",
+          "date": "2026-11-15",
+          "notes": "- Gathering is only offered at its resource. \"Chop wood\" appears when you stand against a tree, and \"Mine\" at a boulder or a cave. Before, they showed anywhere in the woods or near the mountains.\n- A tree gives up to four pieces of wood, one stroke at a time, and the fourth stroke brings it down. A felled tree is gone, and no longer in your way, until it grows back after a week. Settings → People → Inventory sets the days, or 0 for never.\n- Each boulder is its own spot: mine one and it is worked out until the next day, while the one beside it isn't.\n- On the sheet, \"Most (optional)\" is now \"Max (optional)\".",
+          "highlight": false
+        },
+        {
           "version": "0.6.63",
           "date": "2026-11-15",
           "notes": "- Gathering. Where there's something to gather, buttons appear in the chat window: Fish beside water, Chop wood and Forage in the woods, Mine at the mountains or a cave, Harvest on a farm in summer and fall. A d20 plus one of your attributes decides what you find.\n- What you find goes into your Quartermaster inventory. Food says what eating it gives, and Use in Inventory → Items applies it. Foraging follows the season, and there is none in winter.\n- A patch gives nothing more of that kind until the next day. Settings → People → Inventory has the switch and the number of days.\n- Your purse: Inventory → Items shows how much money you carry and lets you name it. It is the item of that name.\n- No gathering animations or tools yet.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.104",
           "date": "2026-11-14",
           "notes": "- Illustrate now leaves out only the lines that describe another place (the line told when you arrived there), so a forest and a town don't end up in one picture. What was said and done is given wherever it happened. 0.5.103 left out every line from another place, which lost a conversation as soon as you stepped from the square into the street. Lines told before this update aren't marked, so they are all still given.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.103",
-          "date": "2026-11-14",
-          "notes": "- Settings → World → Places has two sliders. \"Wait between places told\" is 10 to 60 seconds (45 as before). \"Visits before a place is told again\" is 1 to 10, and 1 tells a place on every visit. It replaces the old rule, which skipped the last five places told; the default is 5 visits.\n- A place is told during a conversation too. 0.5.102 held it until the conversation was over, which was often when you were about to leave.\n- Illustrate is given only the chat from the place you're in, so a picture isn't of two places at once. Settings → AI → Pictures has the switch.",
           "highlight": false
         }
       ]
