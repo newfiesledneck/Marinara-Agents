@@ -7905,6 +7905,7 @@ function step(dt) {
     core.herd.update(dt, {
       player: at,
       owners: core.owners,
+      apart: core.settings.keepApart,
       // What a hostile animal may do about the player, and whether here (Settings: animals, and where
       // confrontations are allowed at all); and whether it's night, for the ones about only then.
       hostile: core.settings.hostileAnimals,
@@ -7928,6 +7929,7 @@ function step(dt) {
   core.crowd.update(dt, {
     player: core.player.position,
     space: core.space,
+    apart: core.settings.keepApart,
     playerSitting: core.mode === "sit",
     playerAngle: core.player.rotation.y,
     playerSpeed: speed,

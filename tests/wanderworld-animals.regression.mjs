@@ -598,6 +598,30 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     herd.takeEvents().some((event) => event.type === "attack" && event.kind === "wolf"),
     "let attack, it does",
   );
+  // A pack keeps out of one another: three that start in one spot, squaring up and then coming on.
+  herd.setSpawns([wolfAt("p1"), wolfAt("p2"), wolfAt("p3")]);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const nearest = () => {
+    const pack = herd.snapshot().filter((beast) => beast.kind === "wolf");
+    let least = Infinity;
+    for (const one of pack)
+      for (const other of pack)
+        if (one !== other) least = Math.min(least, Math.hypot(one.x - other.x, one.z - other.z));
+    return least;
+  };
+  run(12, { hostile: "threaten" });
+  assert.ok(nearest() > 0.8, `squared up, they stand apart (${nearest().toFixed(2)} m)`);
+  run(6, { hostile: "attack" });
+  assert.ok(nearest() > 0.6, `and coming on, side by side (${nearest().toFixed(2)} m)`);
+  assert.ok(
+    herd.takeEvents().some((event) => event.type === "attack"),
+    "they still reach who they're after",
+  );
+  herd.setSpawns([wolfAt("q1"), wolfAt("q2")]);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  run(12, { hostile: "threaten", apart: false });
+  assert.ok(nearest() < 0.3, "with that off, they're as they were (in one spot)");
+  herd.takeEvents();
   // Somewhere confrontations aren't allowed, or kept from hostility, it leaves them be (and runs if they come close).
   herd.setSpawns([wolfAt("b")]);
   await new Promise((resolve) => setTimeout(resolve, 300));
