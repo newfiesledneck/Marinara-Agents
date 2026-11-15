@@ -568,21 +568,36 @@ const GATHER = {
   ],
   forage: {
     spring: [
+      { name: "Fallen branch", description: "A sound length of fallen wood: a handle, a pole, a start." },
+      { name: "Plant fibre", description: "Tough stems that twist into cord." },
+      { name: "Flint", description: "A nodule of flint, for sparks and edges." },
       { name: "Wild garlic", description: "Broad green leaves with a sharp smell. +1 HP when eaten." },
       { name: "Morel", description: "A honeycombed spring mushroom. +2 HP when eaten." },
       { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
     ],
     summer: [
+      { name: "Fallen branch", description: "A sound length of fallen wood: a handle, a pole, a start." },
+      { name: "Plant fibre", description: "Tough stems that twist into cord." },
+      { name: "Flint", description: "A nodule of flint, for sparks and edges." },
       { name: "Wild berries", description: "A handful of ripe berries. +2 HP when eaten." },
       { name: "Field mushroom", description: "A plain white mushroom. +2 HP when eaten." },
       { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
       { name: "Bird's egg", description: "A small speckled egg. +2 HP when eaten." },
     ],
     fall: [
+      { name: "Fallen branch", description: "A sound length of fallen wood: a handle, a pole, a start." },
+      { name: "Plant fibre", description: "Tough stems that twist into cord." },
+      { name: "Flint", description: "A nodule of flint, for sparks and edges." },
       { name: "Hazelnuts", description: "A pocketful of nuts. +2 HP when eaten." },
       { name: "Crab apples", description: "Small sour apples. +2 HP when eaten." },
       { name: "Chanterelle", description: "A golden autumn mushroom. +3 HP when eaten." },
       { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
+    ],
+    // (Winter: nothing grows, but what tools are made of can still be found.)
+    winter: [
+      { name: "Fallen branch", description: "A sound length of fallen wood: a handle, a pole, a start." },
+      { name: "Flint", description: "A nodule of flint, for sparks and edges." },
+      { name: "Plant fibre", description: "Tough stems that twist into cord." },
     ],
   },
   mine: [
@@ -628,8 +643,143 @@ const GATHER = {
   },
 };
 
+/**
+ * What can be made (craft.js): `needs` by name, `makes` how many, `level` the character level it comes at
+ * (1 when not given). A tool's description says what it's for; one that can be swung says what it does
+ * as a weapon, for when there are fights. The first of each tool is made only of what foraging finds.
+ */
+const RECIPES = [
+  {
+    id: "stone-axe",
+    name: "Stone axe",
+    description: "A flint head bound to a branch. Tool: chops wood. Weapon: 1d6 damage.",
+    needs: [
+      { name: "Fallen branch", quantity: 1 },
+      { name: "Flint", quantity: 1 },
+      { name: "Plant fibre", quantity: 1 },
+    ],
+  },
+  {
+    id: "stone-pickaxe",
+    name: "Stone pickaxe",
+    description: "Two flints lashed across a branch. Tool: mines rock. Weapon: 1d6 damage.",
+    needs: [
+      { name: "Fallen branch", quantity: 1 },
+      { name: "Flint", quantity: 2 },
+      { name: "Plant fibre", quantity: 1 },
+    ],
+  },
+  {
+    id: "fishing-rod",
+    name: "Fishing rod",
+    description: "A springy branch with a twisted line. Tool: catches fish.",
+    needs: [
+      { name: "Fallen branch", quantity: 1 },
+      { name: "Plant fibre", quantity: 2 },
+    ],
+  },
+  {
+    id: "cord",
+    name: "Cord",
+    description: "A length of twisted cord.",
+    needs: [{ name: "Plant fibre", quantity: 2 }],
+  },
+  {
+    id: "kindling",
+    name: "Kindling",
+    description: "A bundle of dry sticks.",
+    makes: 2,
+    needs: [{ name: "Firewood", quantity: 1 }],
+  },
+  {
+    id: "torch",
+    name: "Torch",
+    description: "A branch wound with fibre, to burn for an hour.",
+    needs: [
+      { name: "Fallen branch", quantity: 1 },
+      { name: "Plant fibre", quantity: 1 },
+    ],
+  },
+  {
+    id: "cooked-trout",
+    name: "Cooked trout",
+    description: "A trout cooked over a fire. +8 HP when eaten.",
+    needs: [
+      { name: "River trout", quantity: 1 },
+      { name: "Firewood", quantity: 1 },
+    ],
+  },
+  {
+    id: "cooked-perch",
+    name: "Cooked perch",
+    description: "A perch cooked over a fire. +6 HP when eaten.",
+    needs: [
+      { name: "Perch", quantity: 1 },
+      { name: "Firewood", quantity: 1 },
+    ],
+  },
+  {
+    id: "cooked-pike",
+    name: "Cooked pike",
+    description: "A pike cooked over a fire, enough for two. +12 HP when eaten.",
+    makes: 2,
+    needs: [
+      { name: "Pike", quantity: 1 },
+      { name: "Firewood", quantity: 1 },
+    ],
+  },
+  {
+    id: "poultice",
+    name: "Herbal poultice",
+    description: "Crushed herbs bound in fibre. +12 HP when used.",
+    level: 2,
+    needs: [
+      { name: "Healing herb", quantity: 2 },
+      { name: "Plant fibre", quantity: 1 },
+    ],
+  },
+  {
+    id: "staff",
+    name: "Quarterstaff",
+    description: "A straight, balanced length of wood. Weapon: 1d6 damage.",
+    level: 2,
+    needs: [{ name: "Straight branch", quantity: 1 }],
+  },
+  {
+    id: "iron-ingot",
+    name: "Iron ingot",
+    description: "Iron smelted out of its ore.",
+    level: 3,
+    needs: [
+      { name: "Iron ore", quantity: 2 },
+      { name: "Firewood", quantity: 2 },
+    ],
+  },
+  {
+    id: "iron-axe",
+    name: "Iron axe",
+    description: "A forged head on a straight haft. Tool: chops wood. Weapon: 1d8 damage, +1 to attack.",
+    level: 4,
+    needs: [
+      { name: "Iron ingot", quantity: 2 },
+      { name: "Straight branch", quantity: 1 },
+    ],
+  },
+  {
+    id: "iron-pickaxe",
+    name: "Iron pickaxe",
+    description: "A forged pick on a straight haft. Tool: mines rock. Weapon: 1d8 damage, +1 to attack.",
+    level: 4,
+    needs: [
+      { name: "Iron ingot", quantity: 2 },
+      { name: "Straight branch", quantity: 1 },
+    ],
+  },
+];
+
 export const PACK = {
   id: "fantasy",
+  recipes: RECIPES,
   /** What money is called here, until the player names it (Inventory → Items). */
   currency: "Coins",
   gather: GATHER,

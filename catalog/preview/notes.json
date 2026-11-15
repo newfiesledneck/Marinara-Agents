@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.66",
+          "date": "2026-11-15",
+          "notes": "- Tools. Chopping needs an axe, mining a pickaxe and fishing a rod, carried in your inventory. Anything named for one counts. The tool shows in your hand while you use it. Settings → People → Inventory → \"Gathering needs tools\" turns the need off.\n- Crafting. Inventory → Craft lists what you can make and what each needs. The first axe, pickaxe and rod are made from a fallen branch, flint and plant fibre, which foraging now finds in every season.\n- Also: cooked fish, cord, kindling and a torch, and at higher levels a poultice, a quarterstaff, iron ingots and iron tools.\n- \"Make something new\" saves your own recipe: say what goes in, name and describe what comes of it.\n- An axe or a pickaxe says what it does as a weapon. A fishing rod doesn't.",
+          "highlight": false
+        },
+        {
           "version": "0.6.65",
           "date": "2026-11-15",
           "notes": "- Gathering is acted out. Your character swings at the tree, works at the rock, casts a line, reaches to pick, or bends to harvest, where before they stood still.\n- The fishing, mining and picking motions come from the paid tier of Universal Animation Library 2.\n- With \"Animation\" set to Built-in in Graphics, there is no gathering motion.\n- No axe, pick or rod shows in the hand yet.\n- The tall thick conifers added in 0.6.6 were blue. They are dark green now.",
@@ -307,12 +313,6 @@
           "version": "0.5.106",
           "date": "2026-11-14",
           "notes": "- Animals no longer stand or run inside one another. Two that are too close step apart, so a pack of wolves chases you side by side and stands round you, not all in one spot.\n- People walking step round each other and round anyone standing or sitting, not through them.\n- Settings → Animals → Behaviour has the switch, \"People and animals keep out of one another\", on to begin with.\n- Not covered yet: an animal can still overlap a person or you, and a ridden or tied animal doesn't move aside (others move round it).",
-          "highlight": false
-        },
-        {
-          "version": "0.5.105",
-          "date": "2026-11-14",
-          "notes": "- The chat window is no longer empty after you open another Engine screen (a character card, a lorebook, a preset) and come back. The chat, the assistant's chat and Illustrate come back as they were.\n- Each world keeps the last 500 lines of its chat, up from 30, to scroll back through. What the AI is sent hasn't changed: each prompt takes only its own last few lines.\n- When the chat has no line describing the place you're in, Illustrate has it told first, so the picture matches where you are. Settings → AI → Pictures has the switch. It needs \"Lines about where you are\" on, and doesn't apply indoors.",
           "highlight": false
         }
       ]

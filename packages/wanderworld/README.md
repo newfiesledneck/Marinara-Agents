@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.65)
+## What it does now (0.6.66)
 
 ### The world
 
@@ -499,6 +499,10 @@ only walk about.
   land allows it, by a roll with one of the sheet's attributes. What's found is added to Quartermaster's
   sheet through its own routes, so there is one inventory. A patch takes a day to give again. What each
   kind yields, and the lines said, are the setting pack's (`pack.js` `gather`).
+- Tools and crafting (`src/craft.js`): chopping, mining and fishing each need their tool carried, told
+  by an item's name. Inventory → Craft makes things from what is carried: the setting's recipes
+  (`pack.js` `recipes`, each with the level it comes at) and the player's own, saved from what they put
+  together. Making takes from and adds to Quartermaster's sheet. A tool is in the hand while it is used.
 - Money is an item: the one named for the world's currency (the pack's word until the player renames it
   in Inventory → Items) is the purse.
 - The year can turn (Settings → World → Time and weather → "Seasons change", off to begin with): each

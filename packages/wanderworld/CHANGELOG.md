@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.66 — 2026-11-15
+
+- Tools. Chopping needs an axe, mining a pickaxe and fishing a rod, carried in your inventory. Anything named for one counts. The tool shows in your hand while you use it. Settings → People → Inventory → "Gathering needs tools" turns the need off.
+- Crafting. Inventory → Craft lists what you can make and what each needs. The first axe, pickaxe and rod are made from a fallen branch, flint and plant fibre, which foraging now finds in every season.
+- Also: cooked fish, cord, kindling and a torch, and at higher levels a poultice, a quarterstaff, iron ingots and iron tools.
+- "Make something new" saves your own recipe: say what goes in, name and describe what comes of it.
+- An axe or a pickaxe says what it does as a weapon. A fishing rod doesn't.
+
 ## 0.6.65 — 2026-11-15
 
 - Gathering is acted out. Your character swings at the tree, works at the rock, casts a line, reaches to pick, or bends to harvest, where before they stood still.

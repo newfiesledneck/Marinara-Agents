@@ -28,7 +28,7 @@ export function gatherHere(where) {
   const kinds = [];
   if (where.water) kinds.push("fish");
   if (where.tree) kinds.push("chop");
-  if (WOODS.has(where.zone) && where.season !== "winter") kinds.push("forage");
+  if (WOODS.has(where.zone)) kinds.push("forage"); // (in winter too: sticks and stones, nothing that grows)
   if (where.rock || where.zone === "cave" || beside.includes("cave")) kinds.push("mine");
   if (where.outpost === "farm" && ["", "summer", "fall"].includes(where.season ?? "")) kinds.push("harvest");
   return kinds;

@@ -40,8 +40,13 @@ const LOW_ACTS = new Set(["ground", "lie", "tend", "ride"]);
 const HELD_FOR = { hammer: "hammer", drink: "mug", tend: "trowel" };
 /** In an act of several clips, what each clip is done with (the farm: cutting, sowing, watering). */
 const HELD_FOR_PART = { harvest: "sickle", plant: "basket", water: "can" };
+/** A gesture made with a tool, the tool, and how long it's in the hand for (seconds: about the clip's length). */
+const HELD_FOR_GESTURE = { chop: ["axe", 2.6], mine: ["pick", 1.2], fish: ["rod", 2.2], harvest: ["sickle", 2.4] };
 /** Which hand each is held in (the drinking clip lifts the left). */
 const HELD_HAND = {
+  axe: "right",
+  pick: "right",
+  rod: "right",
   hammer: "right",
   mug: "left",
   sickle: "right",
@@ -61,6 +66,21 @@ function heldThing(name) {
     };
     const along = (geometry) => geometry.rotateX(Math.PI / 2); // a cylinder's length along z
     heldParts = {
+      // An axe: a haft and a wedge of a head to one side of its end.
+      axe: [
+        part(along(new CylinderGeometry(0.015, 0.017, 0.62, 6)).translate(0, 0, 0.22), 0x6b4a2f),
+        part(new BoxGeometry(0.035, 0.15, 0.1).translate(0, 0.07, 0.47), 0x70767c),
+      ],
+      // A pickaxe: a haft and a long head across its end.
+      pick: [
+        part(along(new CylinderGeometry(0.015, 0.017, 0.66, 6)).translate(0, 0, 0.24), 0x6b4a2f),
+        part(new BoxGeometry(0.03, 0.36, 0.035).translate(0, 0, 0.55), 0x70767c),
+      ],
+      // A fishing rod: a long thin pole, and its line hanging from the tip.
+      rod: [
+        part(along(new CylinderGeometry(0.006, 0.013, 1.7, 5)).translate(0, 0, 0.75), 0x8a6a3f),
+        part(new CylinderGeometry(0.002, 0.002, 0.9, 3).translate(0, -0.45, 1.6), 0xd8d8d0),
+      ],
       hammer: [
         part(along(new CylinderGeometry(0.014, 0.016, 0.34, 6)).translate(0, 0, 0.1), 0x6b4a2f),
         part(new BoxGeometry(0.11, 0.05, 0.055).translate(0, 0, 0.27), 0x3a3d40),
@@ -235,6 +255,7 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
   let held = null;
   let heldName = null;
   let sipping = 0;
+  let tool = null; // a tool taken up for a gesture ([name, seconds left])
   function hold(name) {
     if (name === heldName) return;
     held?.removeFromParent();
@@ -275,6 +296,8 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
     update(dt, speed, options) {
       if (options?.gesture === "drink") sipping = 1.3;
       sipping = Math.max(0, sipping - dt);
+      if (HELD_FOR_GESTURE[options?.gesture]) tool = [...HELD_FOR_GESTURE[options.gesture]];
+      if (tool && (tool[1] -= dt) <= 0) tool = null;
       // The hand-made motion has nothing for the acts (clips.js): low ones it sits for, the rest it stands.
       const low = animationStyle !== "recorded" && LOW_ACTS.has(options?.act);
       const pose = motion(dt, speed, low ? { ...options, sit: true } : options);
@@ -283,7 +306,7 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
       if (animationStyle !== "recorded") hold(sipping > 0 ? "mug" : (HELD_FOR[options?.act] ?? carried));
       if (animationStyle === "recorded") {
         const clip = player(dt, speed, options);
-        hold(sipping > 0 ? "mug" : (HELD_FOR_PART[clip.part] ?? HELD_FOR[options?.act] ?? carried));
+        hold(sipping > 0 ? "mug" : (tool?.[0] ?? HELD_FOR_PART[clip.part] ?? HELD_FOR[options?.act] ?? carried));
         for (const [name, local] of clip.locals) {
           const node = bone(name);
           node.quaternion.copy(local);

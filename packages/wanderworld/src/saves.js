@@ -343,6 +343,8 @@ export function checkWorld(raw) {
     gathered: isRecord(raw.gathered) ? raw.gathered : {},
     // Trees chopped at or felled: { "region|number": { cut, day } } (gather.js chopTree).
     trees: isRecord(raw.trees) ? raw.trees : {},
+    // The player's own recipes (craft.js checks them when they're read).
+    recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
     // What money is called in this world ("" for the setting's own word); the purse is the item of that name.
     currency: text(raw.currency).slice(0, 30),
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.

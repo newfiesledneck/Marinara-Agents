@@ -867,8 +867,10 @@ export function createHud(root, handlers) {
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: one more AI call each time something is narrated. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     gathering:
-      "On: buttons in the chat window let you gather where the land allows it. Each kind only at its resource: fish by water, chop wood standing against a tree (four strokes bring it down), forage in the woods (not in winter), mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
+      "On: buttons in the chat window let you gather where the land allows it. Each kind only at its resource: fish by water, chop wood standing against a tree (four strokes bring it down), forage in the woods, mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
     treeDays: "How many of the world's days a tree you cut down takes to stand again. 0: it never grows back.",
+    gatherTools:
+      "On: chopping wood needs an axe, mining a pickaxe and fishing a rod, carried in your inventory (anything named for one counts). The first of each is made in Inventory → Craft from a fallen branch, flint and plant fibre, which foraging finds. Foraging and harvesting are done by hand. Off: bare hands will do for everything.",
     regrowDays:
       "After you gather somewhere, that patch (about ten metres square) gives nothing more of that kind for this many of the world's days. 0: it always gives.",
     inventoryPinned:
@@ -1184,6 +1186,7 @@ export function createHud(root, handlers) {
     "The Inventory button opens a window in tabs: Items, Sheet and Quartermaster. Your character sheet is Wanderworld's own. The things you wear and carry are kept by the Quartermaster package, if you have it installed: without it the Items tab is empty and the settings about items do nothing.",
   );
   toggle("gathering", "Gathering");
+  toggle("gatherTools", "Gathering needs tools", "gathering");
   number("regrowDays", "Days until a spot gives again", "gathering");
   number("treeDays", "Days until a felled tree grows back", "gathering");
   toggle("sheet", "Character sheet");
@@ -2010,6 +2013,7 @@ export function createHud(root, handlers) {
   let inventoryNote = "";
   let inventoryDrawn = 0;
   let sheetOffOpen = false; // whether the sheet's "Not in use" fold is open
+  let craftOwnOpen = false; // and the Craft tab's "Make something new"
   // The sheet's own copies of its two AI settings (the same settings as in Settings: changed in either, changed in both).
   const sheetSettings = { sheetTold: true, sheetTrack: "off" };
   for (const name of Object.keys(sheetSettings))
@@ -2029,6 +2033,7 @@ export function createHud(root, handlers) {
     const tabs = piece("display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;");
     for (const [id, label] of [
       ["items", "Items"],
+      ["craft", "Craft"],
       ["sheet", "Sheet"],
       ["quartermaster", "Quartermaster"],
     ]) {
@@ -2054,12 +2059,148 @@ export function createHud(root, handlers) {
     } else {
       body.append(debugNote("Reading…"));
       inventoryPanel.replaceChildren(tabs, body);
-      const answer = await Promise.resolve(handlers.onItems?.()).catch(() => null);
+      const crafting = inventoryTab === "craft";
+      const answer = await Promise.resolve(crafting ? handlers.onRecipes?.() : handlers.onItems?.()).catch(() => null);
       if (drawn !== inventoryDrawn) return; // drawn again meanwhile
       body.replaceChildren(...(inventoryNote ? [debugNote(inventoryNote)] : []));
-      drawItems(body, answer);
+      if (crafting) drawCraft(body, answer);
+      else drawItems(body, answer);
     }
     if (drawn === inventoryDrawn) inventoryPanel.replaceChildren(tabs, body);
+  }
+  /** Runs something to do with a recipe, then shows the tab again (with why it couldn't be done, if so). */
+  const withRecipe = (work) => async () => {
+    inventoryNote = "";
+    try {
+      await work();
+    } catch (error) {
+      inventoryNote = error?.message ?? "That couldn't be done.";
+    }
+    void drawInventory();
+  };
+  function drawCraft(body, answer) {
+    if (!answer?.ready) {
+      body.append(
+        debugNote(
+          "Crafting uses the things you carry, which the Quartermaster package keeps. Install it from Agents → Download Agents and turn on Settings → People → Inventory.",
+        ),
+      );
+      return;
+    }
+    body.append(
+      debugNote(
+        "Make things out of what you carry. A recipe you can make has its button lit; the numbers are what you have of what it needs. New recipes come as your level rises, and you can save your own at the bottom.",
+      ),
+    );
+    const ready = answer.recipes.filter((recipe) => recipe.can);
+    const rest = answer.recipes.filter((recipe) => !recipe.can);
+    for (const recipe of [...ready, ...rest]) {
+      const box = piece(
+        `border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;display:flex;flex-direction:column;gap:2px;${recipe.can ? "" : "opacity:0.7;"}`,
+      );
+      box.append(
+        piece(
+          "font-weight:600;",
+          `${recipe.name}${recipe.makes > 1 ? ` ×${recipe.makes}` : ""}${recipe.own ? " · yours" : ""}`,
+        ),
+      );
+      if (recipe.description) box.append(piece(`color:${INK_SOFT};font-size:11px;`, recipe.description));
+      box.append(
+        piece(
+          "font-size:11px;",
+          `Needs: ${recipe.needs.map((need) => `${need.name} ${Math.min(need.have, 999)}/${need.quantity}`).join(", ")}`,
+        ),
+      );
+      const actions = piece("display:flex;gap:4px;flex-wrap:wrap;");
+      const make = inkSmall(
+        "Make",
+        withRecipe(() => handlers.onCraft?.(recipe.id)),
+      );
+      make.disabled = !recipe.can;
+      if (!recipe.can) make.style.cssText += "opacity:0.5;cursor:default;";
+      actions.append(make);
+      if (recipe.own) {
+        const forget = inkSmall("Delete recipe", () => {
+          if (forget.dataset.sure) {
+            handlers.onForgetRecipe?.(recipe.id);
+            return void drawInventory();
+          }
+          forget.dataset.sure = "1";
+          forget.textContent = "Delete it? Tap again";
+        });
+        actions.append(forget);
+      }
+      box.append(actions);
+      body.append(box);
+    }
+    if (answer.locked)
+      body.append(
+        debugNote(`${answer.locked} more ${answer.locked === 1 ? "recipe comes" : "recipes come"} at higher levels.`),
+      );
+    // Something new: what goes in, what it's called and what it is; saved, that is its recipe from then on.
+    const fold = document.createElement("details");
+    fold.open = craftOwnOpen;
+    fold.style.cssText = "margin-top:6px;border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;";
+    fold.addEventListener("toggle", () => (craftOwnOpen = fold.open));
+    const title = document.createElement("summary");
+    title.style.cssText = "cursor:pointer;font-weight:700;";
+    title.textContent = "Make something new";
+    const form = piece("display:flex;flex-direction:column;gap:4px;margin-top:4px;");
+    form.append(
+      debugNote(
+        'Say how many of each thing goes in, name what comes of it and describe it, then save. From then on it is a recipe that needs those same things. A description can say what it does: "+10 HP when eaten", "+1 AC", "Weapon: 1d6 damage".',
+      ),
+    );
+    const puts = [];
+    if (!answer.items.length) form.append(debugNote("You carry nothing to make anything from yet."));
+    for (const item of answer.items) {
+      const row = piece("display:flex;align-items:center;gap:6px;");
+      const amount = document.createElement("input");
+      amount.type = "number";
+      amount.inputMode = "numeric";
+      amount.min = "0";
+      amount.max = String(item.quantity);
+      amount.value = "0";
+      amount.setAttribute("aria-label", `How many ${item.name} go in`);
+      amount.style.cssText = `${INK_INPUT}width:52px;text-align:right;padding:2px 4px;`;
+      row.append(amount, piece("flex:1;min-width:0;", `${item.name} (you have ${item.quantity})`));
+      form.append(row);
+      puts.push([item.name, amount]);
+    }
+    const text = (placeholder, width) => {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = placeholder;
+      input.setAttribute("aria-label", placeholder);
+      input.style.cssText = `${INK_INPUT}width:${width};padding:2px 6px;box-sizing:border-box;`;
+      return input;
+    };
+    const name = text("What it's called", "100%");
+    const about = text("What it is and does", "100%");
+    const makes = text("Makes how many (1)", "150px");
+    makes.inputMode = "numeric";
+    const made = () => ({
+      name: name.value,
+      description: about.value,
+      makes: Number(makes.value) || 1,
+      needs: puts
+        .map(([item, amount]) => ({ name: item, quantity: Math.round(Number(amount.value)) || 0 }))
+        .filter((need) => need.quantity > 0),
+    });
+    const buttons = piece("display:flex;gap:4px;flex-wrap:wrap;");
+    buttons.append(
+      inkSmall(
+        "Save recipe",
+        withRecipe(() => handlers.onSaveRecipe?.(made(), false)),
+      ),
+      inkSmall(
+        "Save and make it",
+        withRecipe(() => handlers.onSaveRecipe?.(made(), true)),
+      ),
+    );
+    form.append(name, about, makes, buttons);
+    fold.append(title, form);
+    body.append(fold);
   }
   /** Runs something done with an item, then shows the list again (with why it couldn't be done, if so). */
   const withItem = (id, action) => async () => {
