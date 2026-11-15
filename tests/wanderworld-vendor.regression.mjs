@@ -78,4 +78,38 @@ for (const kind of Object.values(kinds))
       `${item.name} can't be sold back for a gain`,
     );
 
+// Shelves written by the model are checked before they're handed back: named, priced, none twice.
+{
+  const server = await import("../packages/wanderworld/server.mjs");
+  assert.deepEqual(
+    server.checkStock({
+      stock: [
+        { name: "Stimpak", description: "+15 HP when used", price: 20.4, quantity: 3 },
+        { name: "stimpak", description: "again", price: 5 },
+        { name: "", price: 3 },
+        { name: "Free lunch", price: "nothing" },
+        { name: "Rad-X", price: 99999, quantity: 40 },
+        "junk",
+      ],
+    }),
+    [
+      { name: "Stimpak", description: "+15 HP when used", price: 20, quantity: 3 },
+      { name: "Rad-X", description: "", price: 9999, quantity: 9 },
+    ],
+  );
+  assert.deepEqual(server.checkStock(null), []);
+  const asked = server.vendorStockMessages({
+    worldName: "Ashfall",
+    setting: "A wasteland.",
+    shop: "Doc's",
+    kinds: "Apothecary",
+    currency: "caps",
+    usual: "Health potion 15",
+  });
+  assert.match(
+    asked[1].content,
+    /The world: Ashfall: A wasteland\.\nThe shop: Doc's\. Its trade: Apothecary\.\nThe money is called caps\.\nUsual prices here: Health potion 15\./u,
+  );
+}
+
 console.log("ok: vendors");

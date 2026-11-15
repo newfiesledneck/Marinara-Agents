@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.69 — 2026-11-15
+
+- Settings → World → Vendors lists every vendor in your world. Tick the trades a shop has; one shop can be several at once.
+- "Empty houses" in the same place turns a house nobody lives in into a shop of the trade you pick, for a world that came without one you want.
+- "The AI stocks shop shelves" (People → Inventory, and under AI and Token use): when a shop restocks, the AI writes its stock to fit your world's setting and the shop's trade. Off to begin with. It is one AI call per shop per restocking, made when you open the shop, and the built-in lists stand in if it fails.
+- "The AI updates your sheet" is now under AI and Token use as well.
+
 ## 0.6.68 — 2026-11-15
 
 - Shops. At a vendor's door or inside it, a Shop button appears in the chat window. The smithy sells tools, weapons and armour, a shop is a general store, and a tavern or inn sells food and drink. A town's plain shops are a mix of general stores, apothecaries and tailors, and a building named for a trade sells that.

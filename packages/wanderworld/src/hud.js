@@ -726,6 +726,7 @@ export function createHud(root, handlers) {
     );
     subTabs.style.display = section.subs.length ? "flex" : "none";
     if (name === "Debug") void refreshDebug();
+    if (name === "World" && section.shown === "Vendors") refreshVendors();
   };
   /** What a section or a sub-tab is for, in a line or two at its top. */
   const intro = (text) => {
@@ -872,6 +873,8 @@ export function createHud(root, handlers) {
     vendors:
       "On: shops buy and sell. At a vendor's door or inside (the smithy, a shop, a tavern, an inn), a Shop button appears in the chat window. You pay from your purse and sell what you carry: a shop pays half a thing's worth for what it deals in and a quarter for anything else. Needs the Quartermaster package for the items. Off: no trading.",
     restockDays: "How many of the world's days pass before a shop's shelves are filled again, with different things.",
+    vendorAi:
+      "On: when a shop restocks, the AI writes what's on its shelves to fit your world's setting and the shop's trade, so a wasteland store and a fantasy apothecary sell different things. One AI call for each shop each restocking, made when you open the shop (the trackers' connection is used). If the call fails, the setting's own lists stand in. Off: the setting's own lists always.",
     gatherTools:
       "On: chopping wood needs an axe, mining a pickaxe and fishing a rod, carried in your inventory (anything named for one counts). The first of each is made in Inventory → Craft from a fallen branch, flint and plant fibre, which foraging finds. Foraging and harvesting are done by hand. Off: bare hands will do for everything.",
     regrowDays:
@@ -1104,7 +1107,11 @@ export function createHud(root, handlers) {
   toggle("runButton", "Run button (touch screens)");
   toggle("chatMoves", "Jump and Sit buttons in the chat window");
 
-  heading("World", "The world itself: its time, its weather and its places.", ["Time and weather", "Places"]);
+  heading("World", "The world itself: its time, its weather, its places and its shops.", [
+    "Time and weather",
+    "Places",
+    "Vendors",
+  ]);
   at("World", "Time and weather");
   choice("time", "Time", TIME_LABELS);
   choice("timeSpeed", "Time speed", {
@@ -1190,6 +1197,7 @@ export function createHud(root, handlers) {
   );
   toggle("vendors", "Shops buy and sell");
   number("restockDays", "Days between a shop's restocking", "vendors");
+  toggle("vendorAi", "The AI stocks shop shelves", "vendors");
   toggle("gathering", "Gathering");
   toggle("gatherTools", "Gathering needs tools", "gathering");
   number("regrowDays", "Days until a spot gives again", "gathering");
@@ -1427,6 +1435,13 @@ export function createHud(root, handlers) {
   choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
   toggle("promptCache", "Order prompts for caching");
   slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
+  // (The AI's part in shops and the sheet: the same settings as in People → Inventory, gathered here too.)
+  toggle("vendorAi", "The AI stocks shop shelves");
+  choice("sheetTrack", "The AI updates your sheet", {
+    off: "Off",
+    moments: "After moments",
+    all: "After moments and replies",
+  });
   at("AI", "Scenes");
   intro(
     "A scene is a full roleplay chat in the Engine, started from where you stand with whoever is there (the chat window's Scene button). These choose how it's written.",
@@ -1574,6 +1589,12 @@ export function createHud(root, handlers) {
   toggle("aiSeats", "…when you sit down", "aiMoments");
   toggle("aiJoin", "…when you join someone", "aiMoments");
   toggle("aiSeparate", "A separate call for each person who answers", "aiMoments");
+  toggle("vendorAi", "The AI stocks shop shelves");
+  choice("sheetTrack", "The AI updates your sheet", {
+    off: "Off",
+    moments: "After moments",
+    all: "After moments and replies",
+  });
   at("Token use", "How much");
   intro("What each call carries. Memories are usually the part that grows.");
   choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
@@ -2006,6 +2027,83 @@ export function createHud(root, handlers) {
   const illustrateButton = button("Illustrate", "Paint the current moment, and see the world's pictures", () =>
     illustrate.toggle(),
   );
+  // Settings → World → Vendors: every vendor in this world, with its trades to tick, and the empty houses
+  // that can be made shops of. Drawn when the tab is shown (showSection).
+  at("World", "Vendors");
+  const vendorsBox = document.createElement("div");
+  vendorsBox.style.cssText = "display:flex;flex-direction:column;gap:5px;font-size:12px;line-height:1.4;";
+  add(vendorsBox);
+  function refreshVendors() {
+    const now = handlers.onVendors?.() ?? { vendors: [], vacant: [], kinds: [] };
+    const set = (id, kinds) => {
+      handlers.onVendorKinds?.(id, kinds);
+      refreshVendors();
+    };
+    const nodes = [
+      debugNote(
+        "Every building that buys and sells in this world. Tick the trades a shop has: one shop can be several at once. If a world came without a trade you want, add it to a shop here, or make a shop of an empty house below. What a shop stocks follows its trades when it next restocks.",
+      ),
+    ];
+    if (!now.kinds.length) nodes.push(debugNote("Open a world to see its vendors."));
+    for (const vendor of now.vendors) {
+      const box = piece(
+        "border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;display:flex;flex-direction:column;gap:2px;",
+      );
+      box.append(piece("font-weight:600;", `${vendor.name}${vendor.kinds.length ? "" : " · not trading"}`));
+      const ticks = piece("display:flex;flex-wrap:wrap;gap:2px 10px;");
+      for (const kind of now.kinds) {
+        const label = document.createElement("label");
+        label.style.cssText = "display:flex;align-items:center;gap:4px;cursor:pointer;";
+        const tick = document.createElement("input");
+        tick.type = "checkbox";
+        tick.checked = vendor.kinds.includes(kind.id);
+        tick.addEventListener("change", () =>
+          set(vendor.id, tick.checked ? [...vendor.kinds, kind.id] : vendor.kinds.filter((id) => id !== kind.id)),
+        );
+        label.append(tick, kind.label);
+        ticks.append(label);
+      }
+      box.append(ticks);
+      if (vendor.set) {
+        const back = inkSmall("Back to its own trade", () => set(vendor.id, null));
+        back.style.alignSelf = "flex-start";
+        box.append(back);
+      }
+      nodes.push(box);
+    }
+    if (now.vacant.length) {
+      const fold = document.createElement("details");
+      fold.open = vendorsVacantOpen;
+      fold.style.cssText = "margin-top:6px;border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;";
+      fold.addEventListener("toggle", () => (vendorsVacantOpen = fold.open));
+      const title = document.createElement("summary");
+      title.style.cssText = "cursor:pointer;font-weight:700;";
+      title.textContent = `Empty houses (${now.vacant.length})`;
+      const list = piece("display:flex;flex-direction:column;gap:4px;margin-top:4px;");
+      list.append(debugNote("Nobody lives in these. Pick a trade and the house becomes a shop of that kind."));
+      for (const house of now.vacant) {
+        const row = piece("display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+        const trade = document.createElement("select");
+        trade.style.cssText = `${INK_INPUT}padding:2px 4px;`;
+        trade.setAttribute("aria-label", `A trade for ${house.name}`);
+        for (const kind of now.kinds) {
+          const option = document.createElement("option");
+          option.value = kind.id;
+          option.textContent = kind.label;
+          trade.append(option);
+        }
+        row.append(
+          piece("flex:1;min-width:90px;", house.name),
+          trade,
+          inkSmall("Make it a shop", () => set(house.id, [trade.value])),
+        );
+        list.append(row);
+      }
+      fold.append(title, list);
+      nodes.push(fold);
+    }
+    vendorsBox.replaceChildren(...nodes);
+  }
   // A shop's window (vendor.js): what it sells and what it would buy of yours, opened from the chat window
   // when you're at a vendor's door or inside.
   const shopPanel = document.createElement("div");
@@ -2122,6 +2220,7 @@ export function createHud(root, handlers) {
   let inventoryDrawn = 0;
   let sheetOffOpen = false; // whether the sheet's "Not in use" fold is open
   let craftOwnOpen = false; // and the Craft tab's "Make something new"
+  let vendorsVacantOpen = false; // and Settings → World → Vendors' "Empty houses"
   // The sheet's own copies of its two AI settings (the same settings as in Settings: changed in either, changed in both).
   const sheetSettings = { sheetTold: true, sheetTrack: "off" };
   for (const name of Object.keys(sheetSettings))

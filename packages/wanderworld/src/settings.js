@@ -147,6 +147,8 @@ export const SETTINGS = {
   // Vendors (vendor.js): shops buy and sell; and how many of the world's days pass between restockings.
   vendors: { value: true },
   restockDays: { value: 3, min: 1, max: 60 },
+  /** The AI writes what's on a shop's shelves when it restocks, to fit the world (off: the setting's own lists). */
+  vendorAi: { value: false },
   /** Chopping, mining and fishing each need their tool carried (off: bare hands will do). */
   gatherTools: { value: true },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */
