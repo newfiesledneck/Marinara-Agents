@@ -166,7 +166,7 @@ export function characterCard(record, fallbackName = "") {
 }
 
 /** A persona's fields; `worn` is what Quartermaster's sheet says they have on (the client's inventory.js). */
-export function personaCard(record, fallbackName, worn) {
+export function personaCard(record, fallbackName, worn, sheet) {
   const data = recordOf(record?.data) ?? (isRecord(record) ? record : {});
   return {
     name: text(data.name, MAX.name) || fallbackName || "The traveller",
@@ -174,6 +174,8 @@ export function personaCard(record, fallbackName, worn) {
     personality: block(data.personality, MAX.card),
     appearance: block(data.appearance, MAX.appearance),
     worn: text(worn, MAX.worn) ? `Wearing now: ${text(worn, MAX.worn)}` : "",
+    // Their character sheet, as the client has it in words (sheet.js: only what the player switched on).
+    sheet: text(sheet, 1500) ? `Their stats now: ${text(sheet, 1500)}` : "",
   };
 }
 
@@ -250,7 +252,8 @@ export function talkMessages(input) {
         input.time && `When: ${input.time}.`,
         input.weather && `Weather: ${input.weather}.`,
         input.nearby && `Also nearby: ${input.nearby}.`,
-        persona.worn && `${persona.name}, as they are now. ${persona.worn}`,
+        (persona.worn || persona.sheet) &&
+          `${persona.name}, as they are now. ${[persona.worn, persona.sheet].filter(Boolean).join(" ")}`,
         // Travelling together: they came here side by side, so it's no meeting.
         input.inParty &&
           `${character.name} is travelling with ${persona.name}, as one of their party${input.companions ? ` (with ${input.companions})` : ""}. They came here together and have been side by side the whole way, so this is no meeting and no surprise: ${character.name} doesn't greet ${persona.name} as if they'd just turned up, or ask what brings them here.`,
@@ -1122,7 +1125,8 @@ export function momentMessages(input) {
         input.place && `Where: ${input.place}.`,
         input.time && `When: ${input.time}.`,
         input.weather && `Weather: ${input.weather}.`,
-        input.persona.worn && `${input.persona.name}, as they are now. ${input.persona.worn}`,
+        (input.persona.worn || input.persona.sheet) &&
+          `${input.persona.name}, as they are now. ${[input.persona.worn, input.persona.sheet].filter(Boolean).join(" ")}`,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -1740,7 +1744,7 @@ export async function activate(context) {
         if (Array.isArray(loreEntries)) loreEntries.sort((a, b) => (asked.get(a?.id) ?? 1e9) - (asked.get(b?.id) ?? 1e9));
         const input = {
           character: characterCard(record, body.characterName),
-          persona: personaCard(personaRecord, text(body.personaName, MAX.name), body.worn),
+          persona: personaCard(personaRecord, text(body.personaName, MAX.name), body.worn, body.sheet),
           // Whether each knows the other by name (missing: they do, as before this was told).
           knowsThem: body.knowsThem !== false,
           knowsYou: body.knowsYou !== false,
@@ -1854,7 +1858,7 @@ export async function activate(context) {
         const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
         const personaId = idOf(body.personaId);
         const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
-        const persona = personaCard(personaRecord, text(body.personaName, MAX.name), body.worn);
+        const persona = personaCard(personaRecord, text(body.personaName, MAX.name), body.worn, body.sheet);
         const heard = listeners
           .filter((person) => cards.has(person.id))
           .map((person) => {
@@ -1875,7 +1879,7 @@ export async function activate(context) {
             ? { name: narratorCard.name, card: cardWords([narratorCard.personality, narratorCard.description], MAX.card, narratorCard.name, persona.name, "\n") }
             : null,
           // (What they have on is told with what's happening now: it changes, and their card doesn't.)
-          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name), worn: persona.worn },
+          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name), worn: persona.worn, sheet: persona.sheet },
           listeners: heard,
           action: text(body.action, 300),
           line: text(body.line, MAX.line),
@@ -2384,7 +2388,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const cast = records.map((record) => ({ id: record.id, ...characterCard(record) }));
         if (!cast.length) return reply.status(404).send({ error: "Those characters aren't in the Engine any more." });
         const [personaRecord] = sceneContext.personaId ? await resources.listPersonas([sceneContext.personaId]) : [];
-        const persona = personaCard(personaRecord, text(body.personaName, MAX.name), body.worn);
+        const persona = personaCard(personaRecord, text(body.personaName, MAX.name), body.worn, body.sheet);
         const initiator = cast.find((person) => person.id === idOf(body.initiatorId)) ?? cast[0];
         const pov = POVS[body.pov] ? body.pov : "second_person";
         const tense = TENSES[body.tense] ? body.tense : "present";

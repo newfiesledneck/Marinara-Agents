@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.6)
+## What it does now (0.6.07)
 
 ### The world
 
@@ -485,6 +485,13 @@ only walk about.
   - Spring: the cherry trees are in blossom (they're green the rest of the year), and the other
     broadleaf trees and the grass are a fresher green.
   - The birches are orange in fall, their leaves' own colour, and green otherwise.
+- A character sheet for each persona in each world (`src/sheet.js`; stage 2 of the plan): level,
+  experience, HP, mana, AC, six attributes and whatever the player adds, each switchable. The ticked
+  lines go to the model in conversations and moments as "Their stats now: …". It also holds the dice
+  (`rollDice`, `attackRoll`) and reads bonuses out of item descriptions ("+2 AC", "+10 HP"). Nothing
+  outside that module touches a sheet's shape, so it can move into Quartermaster later.
+- The Inventory button opens Wanderworld's own window in tabs: Items (Quartermaster's items, changed
+  through its routes, so both stay in step), Sheet, and Quartermaster (its dock).
 - The year can turn (Settings → World → Time and weather → "Seasons change", off to begin with): each
   season lasts a number of the world's days that you type in, then the next begins and the chat says
   so. A world starts in the season its lore names. Setting the season in the Journal starts it from
