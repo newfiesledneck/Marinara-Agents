@@ -537,7 +537,14 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
 // Weather: changing weather is the same for a world each time and is mostly clear, with rain, mist and
 // snow now and then; a world eases into the weather it's given, out of one kind before into the next.
 {
-  const { mistyMorning, sightIn, WEATHER_KINDS, weatherAt } = await import("../packages/wanderworld/src/weather.js");
+  const { mistyMorning, seasonOn, sightIn, WEATHER_KINDS, weatherAt } =
+    await import("../packages/wanderworld/src/weather.js");
+  // The year: a season lasts its days, then the next begins; a world with none set counts as summer.
+  assert.deepEqual(seasonOn("spring", 10, 16, 7), { season: "spring", seasonSince: 10 });
+  assert.deepEqual(seasonOn("spring", 10, 17, 7), { season: "summer", seasonSince: 17 });
+  assert.deepEqual(seasonOn("", 0, 3, 3), { season: "fall", seasonSince: 3 });
+  assert.deepEqual(seasonOn("winter", 0, 1, 1), { season: "spring", seasonSince: 1 });
+  assert.deepEqual(seasonOn("fall", 0, 45, 10), { season: "fall", seasonSince: 40 }, "four seasons on is a year round");
   // How far you can see in a kind is its own, at any draw distance; the draw distance only cuts it shorter.
   assert.deepEqual(
     [60, 140, 450].map((distance) => sightIn("fog-heavy", 1, distance).far),

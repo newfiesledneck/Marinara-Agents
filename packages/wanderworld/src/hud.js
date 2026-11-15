@@ -815,6 +815,10 @@ export function createHud(root, handlers) {
     timeSpeed: "How long a full day takes.",
     weather:
       "Changing picks every few minutes: mostly clear, sometimes rain, fog or snow, the heavy kinds least often; a winter world gets snow where others get rain. Off keeps the sky clear. How far you can see in each kind is the same at every draw distance.",
+    seasonsTurn:
+      "On: the seasons follow one another (spring, summer, fall, winter), and the chat says when one begins. A world with no season set counts as summer. Days are the world's own, so with the time held at always day or always night no season passes. Off: the season stays as it is set in Journal → World → Season.",
+    seasonDays:
+      "How many of the world's days a season lasts: any number from 1 to 999. At the usual speed a day is 20 minutes, so 7 days is a little over two hours of play for each season.",
     morningMist: "With changing weather, about one clear morning in three starts in mist, from five until eight.",
     lightning: "On: lightning lights the sky in a thunderstorm. Off: a storm has rain and thunder but no flashes.",
     besidePlaces:
@@ -987,6 +991,25 @@ export function createHud(root, handlers) {
     addField(name, { set: (value) => (box.checked = value) });
     row(label, box, name, under);
   };
+  /** A number typed in (kept within the setting's own least and most). */
+  const number = (name, label, under = "") => {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = String(SETTINGS[name].min);
+    input.max = String(SETTINGS[name].max);
+    input.step = "1";
+    input.inputMode = "numeric";
+    input.style.cssText = `${INK_INPUT}width:76px;text-align:right;`;
+    input.addEventListener("change", () => {
+      const typed = Math.round(Number(input.value));
+      if (!Number.isFinite(typed)) return;
+      const within = Math.min(SETTINGS[name].max, Math.max(SETTINGS[name].min, typed));
+      input.value = String(within);
+      handlers.onSetting(name, within);
+    });
+    addField(name, { set: (next) => (input.value = String(next)) });
+    row(label, input, name, under);
+  };
   const slider = (name, label, step, format, under = "") => {
     const wrap = document.createElement("span");
     wrap.style.cssText = "display:flex;align-items:center;gap:6px;";
@@ -1088,6 +1111,8 @@ export function createHud(root, handlers) {
     snow: "Snow",
     "snow-heavy": "Heavy snow",
   });
+  toggle("seasonsTurn", "Seasons change");
+  number("seasonDays", "A season lasts (days)", "seasonsTurn");
   toggle("morningMist", "Misty mornings");
   toggle("lightning", "Lightning flashes");
   at("World", "Places");

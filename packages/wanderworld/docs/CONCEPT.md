@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.4, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.5, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.4: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.5: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.4, 2026-11-14)
+## Outstanding (as of 0.6.5, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -901,6 +901,71 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
       members warmer to their own and cooler to rivals (item 10's relationships); greetings and
       confrontations that follow from it; a faction's own places; standing with a faction that the
       player earns or loses.
+- _The RPG plan (agreed with the user, 2026-11-15)._ Six stages, each shipped in small versions, each
+  with its own switches, each working with the AI off (built-in lists and rules stand in). Lore decides
+  first; the AI may fill in; the player can override everything by hand.
+  1. _The year._ Seasons advance by themselves: a switch (off holds the season), and "a season lasts N
+     days" as a number the player types. A new world starts in the season its lore names
+     (`ww:season:`), else with none, which counts as summer. Journal → World → Season sets it from
+     today. Changing weather follows the season. Needs nothing else. _In (0.6.5):_ `weather.js
+seasonOn`, `main.js turnSeason`; off to begin with, so a world whose lore fixes its season stays.
+  2. _The sheet._ Level, experience, HP, mana, AC, the six attributes (Strength, Dexterity,
+     Constitution, Intelligence, Wisdom, Charisma), skills and feats, and any number of the player's
+     own: each a name, a short description for the model, a value and a kind (stat, attribute, skill,
+     feat). Only what's switched on goes into a prompt.
+     - _Kept apart, to be swapped later:_ the user plans to move stats into Quartermaster. So the
+       sheet lives behind one module (`sheet.js`: read, change, list definitions) and nothing else
+       touches its storage; the definitions are data, not code. Swapping means rewriting that module.
+     - _Changes are targeted,_ as Quartermaster's tracker does it: the model answers with a short list
+       ("HP -4: the wolf's bite"), checked against the definitions and applied; never a rewrite of the
+       sheet. With the AI off, the game's rules make the same kind of change.
+     - _One dice engine_ for combat, checks and narration: d20 + attribute + item bonus against AC,
+       then a damage roll with its modifiers. The game rolls; the model narrates what was rolled.
+     - _Item bonuses from descriptions:_ "+2 AC" on something worn counts while it's worn, "+10 HP" on
+       something used applies once, "+2 to attack" joins the roll.
+     - _5e as an option:_ the `ruleset-5e-2014` package is pure data (sheet definition, weapons,
+       equipment, creatures, loot tables; SRD 5.1, with its own licence file). When it's installed,
+       the sheet's definitions and creature numbers could come from it. Later than the first sheet.
+  3. _Items and gathering._ Quartermaster stays the one store of items; Wanderworld gets its own
+     Inventory window over it.
+     - _Checked 2026-11-15:_ Quartermaster already has the routes: read a sheet, add an item, change
+       one (quantity, description, location, which is how equipping is done), delete one, equip an
+       outfit, and a `quartermaster:changed` event. So Wanderworld can add, use up, equip and drop
+       directly, both stay in step, and nothing is needed from Quartermaster to start.
+     - The top bar's present "Inventory" button (Quartermaster's window) is renamed, and "Inventory"
+       becomes Wanderworld's: a list with Use, Equip, Drop, each said in the chat as a line
+       ("You drink 1 health potion"), so the narration and Quartermaster's tracker agree with it.
+     - _Currency is an item,_ not a stat: one Quartermaster item whose quantity is the purse, named
+       whatever the player or the lore calls it (gold, coin, caps, gems). The tracker then handles
+       "you pay 5 gold" in narration like any other item, and a linked scene sees it.
+     - Gathering: fishing, chopping, farming, foraging, mining, by season, with things growing back
+       after some days. Food heals.
+  4. _Vendors._ A shop has one or more kinds (smith, apothecary, tailor, general store, tavern, and
+     the player's own). Settings list every vendor in the world; the player can add kinds to one, or
+     turn a vacant building into one. Stock is built once and restocked every few days: by the model
+     to fit the world (a switch), else from built-in lists per kind (`pack.js`). Buy and sell. Crafting
+     follows, once there are materials.
+  5. _Combat,_ chosen in settings: off, a scene, a narrated moment, or real time.
+     - _Real time:_ a drawn weapon locks the camera behind the player and a drag turns both. Attack,
+       block, dodge, cast. Enemies aren't on a timer: each picks what to do from how the fight is
+       going (press, strike twice, back off and guard, circle, flee when hurt), with chance in it, and
+       with moments narrated the recent chat may lean it.
+     - _Defeat,_ each a setting: unconscious while the moment goes on, waking at home or at a healer,
+       with or without a cost. No permanent death unless added.
+     - _The defeated_ (people, monsters, farm and wild animals) can be searched, harvested (which
+       removes the body), or carried and put down. Bodies go after a while; a setting keeps them, and
+       a button clears them.
+  6. _Discovery._ Two switches: the map dark until explored (names hidden with it), and names hidden
+     alone. Chests and things to find, filled by the model or from built-in lists.
+     - _Things that happen to you_ (a mimic, grasping vines): told in a pop-up with "Continue as a
+       narrated moment", "Start a scene" and "Skip". No creature models needed. The same pop-up is the
+       opening for events the model starts, later.
+  - _Left out by the user for now:_ people asking for things (to come back with quests), and keepsakes.
+  - _Packs bought for it (2026-11-15, all CC0 by their licence files), in the asset folder's
+    `Paid Packs`:_ Stylized Nature MegaKit Pro (116 models), Fantasy Props MegaKit Pro (211),
+    Universal Animation Library Source (120 animations; its Pro download holds the same 120, so one
+    of the two is enough) and Universal Animation Library 2 Source (134). Outfits and Base Characters
+    wait for their maker's rework of the bodies (announced 2026-11-11).
 - _Asset packs (all by Quaternius, CC0; listed 2026-11)._ On hand: Medieval Village MegaKit, Fantasy
   Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
   Fantasy, Universal Animation Library 1 and 2 (all in use, free "Standard" tier), and Farm Buildings,

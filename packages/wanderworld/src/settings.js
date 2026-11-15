@@ -98,6 +98,9 @@ export const SETTINGS = {
   },
   /** The trees, plants and streets wear the world's season: snow, fall's colours, spring's blossom. */
   seasonLook: { value: true },
+  /** The seasons turn by themselves, each lasting `seasonDays` of the world's days (off: it stays as set). */
+  seasonsTurn: { value: false },
+  seasonDays: { value: 7, min: 1, max: 999 },
   /** With changing weather: some clear mornings start in mist. */
   morningMist: { value: true },
   /** Lightning lights the sky in a storm (off: thunder only, for anyone flashes bother). */

@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.5 — 2026-11-15
+
+- The seasons can now turn by themselves. Settings → World → Time and weather has "Seasons change" and "A season lasts (days)", where you type any number from 1 to 999. When a season has lasted its days the next begins, and the chat says so.
+- It is off to begin with, so a world whose lore fixes its season stays as it is. A world with no season set counts as summer.
+- Setting the season in Journal → World starts that season from today.
+- Days are the world's own: with the time held at always day or always night, no season passes.
+
 ## 0.6.4 — 2026-11-15
 
 - More kinds of tree. The woods now have all five shapes of each tree in the nature pack: five common trees and five pines (four of each before), five red-leaved twisted trees and five dead trees (one of each before).

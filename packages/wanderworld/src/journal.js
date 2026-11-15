@@ -995,7 +995,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Season"));
     const season = element("select", FIELD);
     for (const [value, label] of [
-      ["", "None (green land)"],
+      ["", "None (green land; counts as summer)"],
       ["spring", "Spring"],
       ["summer", "Summer"],
       ["fall", "Fall"],

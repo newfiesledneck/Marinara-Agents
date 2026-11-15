@@ -192,6 +192,22 @@ export function weatherAt(seed, period, season = "") {
   return kind === "storm" ? "snow-heavy" : kind.replace("rain", "snow");
 }
 
+/** The year's seasons, in order. A world with none set ("", the plain green land) counts as summer. */
+export const SEASON_ORDER = ["spring", "summer", "fall", "winter"];
+
+/**
+ * The season on `day`, for a world whose `season` began on day `since` and whose seasons last `length`
+ * days: { season, seasonSince } (unchanged until a whole season has passed; several at once after a
+ * long time away from the setting).
+ */
+export function seasonOn(season, since, day, length) {
+  const days = Math.max(1, Math.round(length) || 1);
+  const steps = Math.floor((day - since) / days);
+  if (!(steps >= 1)) return { season, seasonSince: since };
+  const at = Math.max(0, SEASON_ORDER.indexOf(season || "summer"));
+  return { season: SEASON_ORDER[(at + steps) % 4], seasonSince: since + steps * days };
+}
+
 /**
  * Whether a clear morning starts in mist: about one day in three, from five until eight, the same days for
  * a world each time.

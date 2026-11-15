@@ -135,7 +135,7 @@ import {
   scheduleFromWords,
   usualDay,
 } from "./schedules.js";
-import { mistyMorning, WEATHER_LOOK, weatherAt } from "./weather.js";
+import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
   checkTraits,
@@ -2757,7 +2757,9 @@ function useHousing() {
 /** Changes the world's setup from Journal → World: its setting words, lorebooks or how lore is linked. */
 function setSetup(fields) {
   if (!core.save) return;
-  core.save = { ...core.save, ...fields };
+  // (A season set by hand begins today, for seasons that turn.)
+  const since = "season" in fields ? { seasonSince: core.social?.day ?? null } : {};
+  core.save = { ...core.save, ...fields, ...since };
   core.saves.write(core.save);
   if ("population" in fields) restockHerd(); // this world's own numbers of animals
   if ("genders" in fields) applySettings(); // the shares, and the third gender's name where it's shown
@@ -7575,6 +7577,34 @@ function toggleFullscreen() {
 
 // ── Each frame ───────────────────────────────────────────────────────────────
 
+/**
+ * The year (Settings → World → Time and weather → Seasons change): once the world's season has lasted its
+ * days, the next begins, and the chat says so. Counted in the world's own days, from the day the season
+ * was set or the setting was first on, so nothing jumps when it's switched on.
+ */
+function turnSeason() {
+  const save = core.save;
+  const day = core.social?.day;
+  if (!save || !core.settings.seasonsTurn || !Number.isFinite(day)) return;
+  if (save.seasonSince === null || save.seasonSince === undefined || save.seasonSince > day) {
+    core.save = { ...save, seasonSince: day };
+    core.saves.write(core.save);
+    return;
+  }
+  const next = seasonOn(save.season, save.seasonSince, day, core.settings.seasonDays);
+  if (next.seasonSince === save.seasonSince) return;
+  core.save = { ...save, ...next };
+  core.saves.write(core.save);
+  core.journalAt = 0;
+  const lines = {
+    spring: "The season turns. The snow is gone and the first blossom is out: it is spring.",
+    summer: "The season turns. The days are long and the land is green: it is summer.",
+    fall: "The season turns. The leaves have gone yellow and red: it is fall.",
+    winter: "The season turns. Snow lies on the ground: it is winter.",
+  };
+  if ((core.settings.narration ?? "lines") !== "off") narrate(null, lines[next.season]);
+}
+
 function stepClock(dt) {
   const mode = core.settings.time;
   if (mode === "day") core.hour = 12;
@@ -7583,6 +7613,7 @@ function stepClock(dt) {
   // The weather: off (clear), one kind always, or changing every few minutes (the same for a world each time).
   core.weatherTime = (core.weatherTime ?? 0) + dt;
   const setting = core.settings.weather ?? "off";
+  turnSeason();
   core.world.setSeason(core.save?.season ?? "", core.settings.seasonLook);
   let kind = setting === "off" ? "clear" : setting;
   if (setting === "changing") {

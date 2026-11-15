@@ -335,6 +335,8 @@ export function checkWorld(raw) {
         : null,
     // The season the land wears: "winter" lies under snow. "" is the plain green land.
     season: ["spring", "summer", "fall", "winter"].includes(raw.season) ? raw.season : "",
+    // The day that season began, for seasons that turn (null until it's first counted from).
+    seasonSince: Number.isFinite(raw.seasonSince) ? raw.seasonSince : null,
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.
     voices: Object.fromEntries(
       Object.entries(isRecord(raw.voices) ? raw.voices : {})

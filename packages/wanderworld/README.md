@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.4)
+## What it does now (0.6.5)
 
 ### The world
 
@@ -483,6 +483,10 @@ only walk about.
   - Fall: each broadleaf tree and bush turns yellow, orange or red, the grass is dry, and the flowers
     and clover are gone. Pines stay green.
   - Spring: about a third of the broadleaf trees are in blossom, the rest a fresher green, as is the grass.
+- The year can turn (Settings → World → Time and weather → "Seasons change", off to begin with): each
+  season lasts a number of the world's days that you type in, then the next begins and the chat says
+  so. A world starts in the season its lore names. Setting the season in the Journal starts it from
+  today. This is stage 1 of the plan in `docs/CONCEPT.md` ("The RPG plan").
 - A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night. Weather (Settings,
   off by default): mist, fog, rain and snow, the last three light, medium or heavy, and thunderstorms
   with lightning and thunder. It changes every few minutes or stays one kind. Each kind has its own
