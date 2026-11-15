@@ -1432,6 +1432,33 @@ assert.equal(
     told: "She buys a hat.",
   });
   assert.equal(asked[0].content, "PROMPT");
+  // One call for both trackers: the sheet's lines and rules are added to Quartermaster's instruction, and
+  // its part of the answer is taken out before Quartermaster sees the rest.
+  const joint = server.inventoryMessages({
+    template: "PROMPT",
+    context: "Items:\n(none)",
+    name: "Zoey",
+    told: "The wolf bites her arm.",
+    sheet: "- HP: 20 of 20.",
+  });
+  assert.ok(
+    joint[0].content.startsWith("PROMPT\n\n## One more thing"),
+    "Quartermaster's instruction comes first, whole",
+  );
+  assert.match(joint[0].content, /Their sheet now:\n- HP: 20 of 20\.[\s\S]*"wanderworldSheet": \{"changes"/u);
+  assert.deepEqual(
+    server.splitSheet({
+      reasoning: "bitten",
+      items: [],
+      wanderworldSheet: { changes: [{ stat: "HP", by: -4, reason: "bitten" }], xp: 0 },
+    }),
+    { data: { reasoning: "bitten", items: [] }, sheet: { changes: [{ stat: "HP", by: -4, reason: "bitten" }], xp: 0 } },
+  );
+  assert.deepEqual(
+    server.splitSheet({ items: [] }),
+    { data: { items: [] }, sheet: { changes: [], xp: 0 } },
+    "a model that left the sheet out changes nothing on it",
+  );
   assert.match(
     asked[1].content,
     /<agent_runtime_context>\nItems:\n\(none\)\n<\/agent_runtime_context>[\s\S]*Zoey[\s\S]*She buys a hat\./u,
@@ -1528,6 +1555,11 @@ assert.equal(
       `GET ${sheet}/tracker/context`,
       `POST ${sheet}/tracker/apply`,
     ]);
+    // The character sheet's tracker sharing the call: its lines go with the request, and it's handed its part.
+    let taken = "nothing";
+    await inventory.track("She buys a hat.", null, { sheet: "- HP: 20 of 20.", take: (answer) => (taken = answer) });
+    assert.equal(tracked.at(-1).sheet, "- HP: 20 of 20.");
+    assert.notEqual(taken, "nothing", "the sheet's part is handed over");
     calls.length = 0;
     await inventory.link("chat-1");
     assert.deepEqual(calls, [], "no link while the setting is off, or from a Quartermaster without links");
@@ -1550,6 +1582,11 @@ assert.equal(
     assert.equal(inventory.ready(), false);
     assert.equal(await inventory.track("She buys a hat.", null), false);
     assert.deepEqual(calls, [], "switched off, Quartermaster is asked nothing");
+    assert.equal(
+      await inventory.track("She buys a hat.", null, { sheet: "- HP: 20 of 20." }),
+      null,
+      "and the sheet's tracker is told it has to ask for itself",
+    );
     settings.inventory = true;
     features = ["scopes"];
     const old = make();

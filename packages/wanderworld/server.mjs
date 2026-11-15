@@ -230,15 +230,31 @@ export function checkStock(data) {
 }
 
 /** What the model that keeps a character sheet is told to do (the client's sheet.js applies what it answers). */
+const SHEET_RULES = `Change a stat only when the text clearly says or shows it: damage taken, healing, mana or another resource spent, a lasting gain or loss. Do not change anything for what is only talked about, intended, feared or possible. Never use a stat that isn't listed, and never go past a resource's most.
+
+Experience ("xp") is for something accomplished: a fight won, a task finished, something found or learned. 5 to 50 points by how much it mattered. Most messages earn none.`;
+const SHEET_SHAPE = `{"changes":[{"stat":"<its name exactly as listed>","by":<a whole number, negative to lower it>,"reason":"<a few words>"}],"xp":<a whole number, 0 for none>}`;
 export const SHEET_INSTRUCTION = `You keep a character's stat sheet for a roleplay game. Read what just happened and decide whether any of the listed stats changed because of it.
 
-Change a stat only when the text clearly says or shows it: damage taken, healing, mana or another resource spent, a lasting gain or loss. Do not change anything for what is only talked about, intended, feared or possible. Never use a stat that isn't listed, and never go past a resource's most.
-
-Experience ("xp") is for something accomplished: a fight won, a task finished, something found or learned. 5 to 50 points by how much it mattered. Most messages earn none.
+${SHEET_RULES}
 
 Answer with JSON only, nothing before or after it:
-{"changes":[{"stat":"<its name exactly as listed>","by":<a whole number, negative to lower it>,"reason":"<a few words>"}],"xp":<a whole number, 0 for none>}
+${SHEET_SHAPE}
 Use "to" in place of "by" to set a value outright. An empty list with 0 xp is the usual answer.`;
+/** The key the sheet's part of a joint answer comes under (taken out before Quartermaster sees the rest). */
+export const SHEET_KEY = "wanderworldSheet";
+/** The sheet's reading, added to the inventory tracker's instruction so one call does both. */
+const sheetAlso = (sheet) => `
+
+## One more thing in the same answer: the character's stat sheet
+From the same message, also decide whether any of the character's stats changed. Their sheet now:
+${sheet}
+
+${SHEET_RULES}
+
+Put this in the same JSON object you answer with, as one more top-level key, "${SHEET_KEY}", beside the others and changing nothing else about your answer:
+"${SHEET_KEY}": ${SHEET_SHAPE}
+Use "to" in place of "by" to set a value outright. An empty list with 0 xp is the usual value.`;
 
 /** The messages for one reading of what was told against a sheet. */
 export function sheetTrackMessages({ name, sheet, told }) {
@@ -267,9 +283,16 @@ export function checkSheetChanges(data) {
   return { changes, xp: Math.max(0, number(data?.xp, 10000) ?? 0) };
 }
 
-export function inventoryMessages({ template, context, name, told }) {
+/** A joint answer taken apart: Quartermaster's `data` without the sheet's key, and the sheet's part checked. */
+export function splitSheet(data) {
+  if (!isRecord(data)) return { data, sheet: checkSheetChanges(null) };
+  const { [SHEET_KEY]: sheet, ...rest } = data;
+  return { data: rest, sheet: checkSheetChanges(sheet) };
+}
+
+export function inventoryMessages({ template, context, name, told, sheet = "" }) {
   return [
-    { role: "system", content: template },
+    { role: "system", content: sheet ? template + sheetAlso(sheet) : template },
     {
       role: "user",
       content: `<agent_runtime_context>\n${context}\n</agent_runtime_context>\n\nThe persona is ${name}. The latest message:\n${told}`,
@@ -2450,14 +2473,16 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           context: block(body.context, 200000),
           name: text(body.personaName, MAX.name) || "the player",
           told: block(body.text, 8000),
+          sheet: block(body.sheet, 6000), // (the character sheet's lines, when its tracker shares this call)
         };
         if (!input.template || !input.told) return reply.status(400).send({ error: "Nothing to read (promptTemplate, text)" });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("inventory", body, model, inventoryMessages(input), { temperature: 0, maxTokens: 2048 });
+          const result = await askModel("inventory", body, model, inventoryMessages(input), { temperature: 0, maxTokens: input.sheet ? 2648 : 2048 });
           const data = readJson(result?.content, api.runtime.json?.parseJsonish);
           if (!data) return reply.status(502).send({ error: "The model's answer wasn't readable." });
-          return { data };
+          if (!input.sheet) return { data };
+          return splitSheet(data);
         } catch (error) {
           logger.warn("[wanderworld] inventory tracking failed: %s", error?.message ?? error);
           return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });

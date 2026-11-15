@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.6.75 — 2026-11-15
+
+- The two trackers share one AI call. With the inventory tracker and "The AI updates your sheet" both on, one call after a moment reads for both. Before, each made its own. With only one of them on, that one still makes its own call.
+- With a shop's window open the inventory tracker still waits, and the sheet's tracker reads on its own.
+
 ## 0.6.74 — 2026-11-15
 
 - Gathering has a prompt at the thing itself: stand at a tree, a boulder or the water's edge and it names what you can do (Chop wood, Mine, Fish). Press E, or tap it on a touch screen. Foraging and harvesting prompt when you stand still. The chat window's buttons are still there.

@@ -245,20 +245,25 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
      * call, and the sheet takes what changed by Quartermaster's own rules. One at a time, in order.
      * Resolves to what changed (changesTold: a list, empty when Quartermaster doesn't say) when the
      * sheet changed, else false (also when the tracker only gave its reasoning); rejects when a step failed.
+     * `also`: the character sheet's tracker sharing the call, { sheet (its lines), take(answer) }; `take`
+     * gets the sheet's part of the answer as soon as the model has given it. Resolves to null when nothing
+     * was asked at all (Quartermaster isn't there), so the sheet's tracker knows to ask for itself.
      */
-    track(told, connectionId) {
+    track(told, connectionId, also = null) {
       const current = sheet();
-      if (!ready() || !current || !told) return Promise.resolve(false);
+      if (!ready() || !current || !told) return Promise.resolve(also ? null : false);
       const run = async () => {
         await introduce(current);
         const asked = await call(pathOf(current, "/tracker/context"));
-        const { data } = await ai().inventoryTrack({
+        const { data, sheet: sheetAnswer } = await ai().inventoryTrack({
           promptTemplate: asked.promptTemplate,
           context: asked.context,
           personaName: persona().name,
           text: told,
           connectionId,
+          ...(also?.sheet ? { sheet: also.sheet } : {}),
         });
+        if (also?.sheet) also.take?.(sheetAnswer);
         const answer = await call(pathOf(current, "/tracker/apply"), { method: "POST", body: { data } });
         if (answer?.applied !== true) return false;
         await refresh();
