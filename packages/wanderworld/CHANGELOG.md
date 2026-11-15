@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.6.77 — 2026-11-15
+
+- The six costumes are gone: the Look card no longer has "Dressed as" (king, farmer, the two adventurers, witch, hooded rogue). They were blockier than everything else in the world. Anyone you had dressed in one is back in their own clothes, with their outfit, pieces and hairstyle as they were before.
+- The package is about 2.5 MB smaller.
+
 ## 0.6.76 — 2026-11-15
 
 - The wait between gathering tries is the length of the swing or cast. A press is taken as soon as the last one has played out. Before, it was a fixed 1.5 seconds, which dropped presses made after a short swing had ended and allowed one in the middle of a long one.

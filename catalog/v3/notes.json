@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.77",
+          "date": "2026-11-15",
+          "notes": "- The six costumes are gone: the Look card no longer has \"Dressed as\" (king, farmer, the two adventurers, witch, hooded rogue). They were blockier than everything else in the world. Anyone you had dressed in one is back in their own clothes, with their outfit, pieces and hairstyle as they were before.\n- The package is about 2.5 MB smaller.",
+          "highlight": false
+        },
+        {
           "version": "0.6.76",
           "date": "2026-11-15",
           "notes": "- The wait between gathering tries is the length of the swing or cast. A press is taken as soon as the last one has played out. Before, it was a fixed 1.5 seconds, which dropped presses made after a short swing had ended and allowed one in the middle of a long one.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.5",
           "date": "2026-11-15",
           "notes": "- The seasons can now turn by themselves. Settings → World → Time and weather has \"Seasons change\" and \"A season lasts (days)\", where you type any number from 1 to 999. When a season has lasted its days the next begins, and the chat says so.\n- It is off to begin with, so a world whose lore fixes its season stays as it is. A world with no season set counts as summer.\n- Setting the season in Journal → World starts that season from today.\n- Days are the world's own: with the time held at always day or always night, no season passes.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.4",
-          "date": "2026-11-15",
-          "notes": "- More kinds of tree. The woods now have all five shapes of each tree in the nature pack: five common trees and five pines (four of each before), five red-leaved twisted trees and five dead trees (one of each before).\n- The undergrowth gains a second clover, a bracket mushroom and a short wispy grass.\n- In a world you already have, trees stand where they stood, but many are a different tree.",
           "highlight": false
         }
       ]
