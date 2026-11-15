@@ -102,6 +102,11 @@ const CLIPS = {
   fish: { name: "Fish_Cast", pack: 2, fps: 12 },
   mine: { name: "Mining_Loop", pack: 2, fps: 15 },
   pick: { name: "Farm_PickingTree", pack: 2, fps: 10 },
+  // Fighting (all in the first library).
+  strike: { name: "Sword_Attack_Standing", pack: 1, fps: 20 },
+  punch: { name: "Punch_Cross", pack: 1, fps: 20 },
+  hurt: { name: "Hit_Chest", pack: 1, fps: 15 },
+  fall: { name: "Death01", pack: 1, fps: 15 },
 };
 
 async function load(path) {

@@ -158,6 +158,7 @@ import {
   vendorKinds,
 } from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
+import { foeNerve, foeOf, foeStrike, foeWords, playerStrike, strikeWords, weaponOf } from "./combat.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -165,6 +166,7 @@ import {
   checkRoll,
   checkSheet,
   entryNamed,
+  entryOf,
   gainXp,
   rollDice,
   sheetList,
@@ -7366,7 +7368,23 @@ function usable() {
   }
   // What can be gathered here, each a prompt at the thing itself (a key, or a tap on a touch screen); not
   // where it's been used up for now. Foraging and harvesting, which have no one thing, only when stood still.
-  const gatherable = gatherTargets(null, true);
+  // What can be fought, in reach: an Attack prompt over it, with its HP once it's been struck.
+  const foes = fighting() && !core.interior && !core.downed ? core.herd.foes(core.player.position, 3.4) : [];
+  for (const foe of foes) {
+    const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+    list.push({
+      kind: "thing",
+      label: `Attack the ${what}${foe.max ? ` (${foe.hp}/${foe.max} HP)` : ""}`,
+      x: foe.x,
+      z: foe.z,
+      y: 1.3 * Math.min(2, foe.scale),
+      reach: 3,
+      quiet: true, // (its own swing, not a hand held out)
+      act: () => void attack(foe.id),
+    });
+  }
+  // (With something to fight in reach, that comes before anything to gather.)
+  const gatherable = foes.length ? [] : gatherTargets(null, true);
   const atThing = gatherable.some((target) => target.face); // a tree, a rock or the water comes first
   for (const target of gatherable) {
     if (!target.face && (atThing || (core.still ?? 0) < 0.6)) continue;
@@ -7866,6 +7884,109 @@ function takeSheetAnswer(saveId, answer) {
   core.hud?.narrate(null, `(Your sheet changed: ${notes.join(", ")}.)`, false);
   earnXp(xp);
   core.hud?.refreshInventory?.();
+}
+
+// ── Fighting (combat.js) ────────────────────────────────────────────────────────────────────────────────
+
+/** Whether there's fighting: Settings → Inventory → Combat is "Real time", with the character sheet on. */
+const fighting = () => core.settings.fights === "realtime" && !!core.settings.sheet && !!core.save;
+
+/**
+ * The player swings at the creature `id` (the Attack prompt): turned to it, the swing acted out, an attack
+ * roll against its AC, and what came of it told. One swing at a time, each as long as its clip. What they
+ * fight with is the weapon they carry (combat.js weaponOf), or their hands; without Quartermaster, their hands.
+ */
+async function attack(id) {
+  if (!fighting() || core.downed || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
+  core.strikeUntil = core.clock + 0.5; // (till the swing below sets its own length)
+  // (What's carried is read again now and then, not at every swing.)
+  if (!core.itemsAt || core.clock - core.itemsAt > 15) {
+    core.itemsAt = core.clock;
+    await readItems();
+  }
+  const at = core.player.position;
+  const foe = core.herd.foes(at, 3.6).find((entry) => entry.id === id);
+  if (!foe || !fighting() || core.downed) return;
+  const weapon = weaponOf(core.items ?? []);
+  core.player.rotation.y = Math.atan2(foe.x - at.x, foe.z - at.z);
+  core.gesture = weapon.name ? "strike" : "punch";
+  core.gestureHeld = weapon.held;
+  core.strikeUntil = core.clock + (gestureSeconds(core.gesture) || 1);
+  const sheet = sheetNow();
+  const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+  const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
+  const before = foe.hp ?? stats.hp;
+  const after = Math.max(0, before - result.damage);
+  const struck = core.herd.strike(id, result.damage, stats.hp, result.hit ? foeNerve(after, stats.hp) : "fight");
+  if (!struck) return;
+  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
+  narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  if (struck.down) earnXp(stats.xp);
+}
+
+/** A creature's attack on the player (herd.js's "attack"): rolled against their AC, their HP taken, and told. */
+function foeAttacks(event, what) {
+  if (core.downed || core.mode === "talk") return;
+  const sheet = sheetNow();
+  const worn = wornBonuses(sheet, core.items ?? []);
+  const stats = foeOf(event.kind, PACK.foes, event.scale);
+  const result = foeStrike({ foe: stats, sheet, worn });
+  let after = sheet;
+  if (result.hit) {
+    after = applyChanges(sheet, [{ stat: "hp", by: -result.damage }]).sheet;
+    setSheet(after);
+    core.gesture = "hurt";
+    // (A blow that lands sends them back a step, unless they're up on something or in the middle of a move.)
+    const at = core.player.position;
+    if (core.mode === "walk" && !core.glide) {
+      const away = Math.atan2(at.x - event.x, at.z - event.z);
+      at.x += Math.sin(away) * 0.8;
+      at.z += Math.cos(away) * 0.8;
+      core.space.resolveCollisions(at, PLAYER_RADIUS, true);
+    }
+    core.hud?.refreshInventory?.();
+  }
+  const hp = entryOf(after, "hp");
+  narrate(
+    null,
+    foeWords({ who: personaName(), what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }),
+  );
+  if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+}
+
+/**
+ * The player's HP has run out: they go down, what was at them draws off, and they come to (Settings →
+ * Inventory → Combat → "When your HP runs out"): where they fell with 1 HP, or at home with half.
+ */
+function defeated() {
+  if (core.downed) return;
+  core.downed = true;
+  core.gesture = "fall";
+  core.walkTo = null;
+  core.herd.calm();
+  const who = personaName();
+  narrate(null, PACK.fight.down.replace("{who}", who));
+  const saveId = core.save?.id;
+  later(2.6, () => {
+    core.downed = false;
+    if (!core.save || core.save.id !== saveId) return;
+    const sheet = sheetNow();
+    const most = entryOf(sheet, "hp")?.max ?? 1;
+    const home = core.settings.defeat === "home" && !core.interior && core.mode === "walk";
+    setSheet(applyChanges(sheet, [{ stat: "hp", to: home ? Math.max(1, Math.floor(most / 2)) : 1 }]).sheet);
+    let line = PACK.fight.here;
+    if (home) {
+      const door = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
+      const spot = door
+        ? { x: door.x + Math.sin(door.angle) * 1.2, z: door.z + Math.cos(door.angle) * 1.2 }
+        : (core.world.spawn ?? SPAWN);
+      core.player.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
+      line = door ? PACK.fight.home : PACK.fight.square;
+    }
+    narrate(null, line.replace("{who}", who));
+    core.hud?.refreshInventory?.();
+  });
 }
 
 // ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
@@ -8800,12 +8921,14 @@ function step(dt) {
     sit: core.mode === "sit" && !onGround,
     act: core.mode === "ride" ? (stepping ? null : "ride") : astride ? "ride" : onGround,
     gesture: core.gesture,
+    held: core.gestureHeld ?? null,
     air: !!core.air && !core.air.mount, // (a rider keeps their seat through the animal's jump)
     lookAt,
     talk: false,
     swim: core.swimming,
   });
   core.gesture = null;
+  core.gestureHeld = null;
   if (pose?.footstep) core.sound.footstep(0, pose.running);
   // Yours that are with you can be sent home from the chat window (not the horse you're sitting on).
   const mine = core.pets[PLAYER_ID];
@@ -8864,11 +8987,17 @@ function step(dt) {
       // What a hostile animal may do about the player, and whether here (Settings: animals, and where
       // confrontations are allowed at all); and whether it's night, for the ones about only then.
       hostile: core.settings.hostileAnimals,
+      combat: fighting(),
       safe: !aggressionAllowed(at.x, at.z),
       night: core.hour < 5.5 || core.hour >= 20.5,
     });
     for (const event of core.herd.takeEvents()) {
       const what = (PACK.animals[event.kind] ?? "the animal").replace(/^the /u, "");
+      // With fighting on, an attack is rolled against the player's AC and told as what was rolled.
+      if (event.type === "attack" && fighting()) {
+        foeAttacks(event, what);
+        continue;
+      }
       const lines = ANIMALS[event.kind]?.person ? PACK.outlaws : PACK.beasts; // (a person isn't told as a beast)
       narrate(null, pickLine(lines[event.type] ?? [], `beast:${Math.floor(core.clock)}`, { kind: what }));
       // A lunge sends them back a step (unless they're up on something, or in the middle of a move).

@@ -19,6 +19,7 @@ const FLEE_FROM = 8; // metres: a timid animal this close to the player runs
 const FLEE_TO = 26; // and this far
 const WADE = 0.3; // metres of water an animal will walk into
 const THREAT_FROM = 16; // metres from the player at which a hostile animal squares up to them
+const BODY_SECONDS = 180; // how long one that's been beaten lies where it fell
 const HUNT_FROM = 22; // and from which, let attack, it comes for them
 const THREAT_EVERY = 45; // seconds between the game being told of one squaring up
 /**
@@ -538,13 +539,18 @@ export function createHerd() {
    * when it has nothing to do with them (it goes about as any animal does).
    */
   function hunt(beast, dt, player, view) {
-    if (temperOf(beast) !== "hostile" || view.safe || (view.hostile !== "threaten" && view.hostile !== "attack"))
+    // (`angry`: it's been struck, and fights back whatever the settings say of hostile ones, and wherever.)
+    const mode = beast.angry ? "attack" : view.hostile;
+    if (!beast.angry && (temperOf(beast) !== "hostile" || view.safe || (mode !== "threaten" && mode !== "attack")))
       return false;
     const facts = ANIMALS[beast.kind];
     const dx = player.x - beast.x;
     const dz = player.z - beast.z;
     const distance = Math.hypot(dx, dz);
-    if (distance > (view.hostile === "attack" ? HUNT_FROM : THREAT_FROM)) return false;
+    if (distance > (mode === "attack" ? HUNT_FROM : THREAT_FROM)) {
+      beast.angry = false; // (they got away)
+      return false;
+    }
     beast.state = "idle";
     beast.target = null;
     beast.graze = false;
@@ -555,10 +561,18 @@ export function createHerd() {
       beast.angle += Math.atan2(Math.sin(heading - beast.angle), Math.cos(heading - beast.angle)) * Math.min(1, dt * 6);
     };
     beast.cool = Math.max(0, (beast.cool ?? 0) - dt);
-    if (view.hostile === "attack" && beast.cool <= 0) {
+    if (mode === "attack" && beast.cool <= 0) {
       if (distance < 1.5) {
-        events.push({ type: "attack", kind: beast.kind, x: beast.x, z: beast.z });
-        beast.cool = 6 + beast.random() * 4;
+        events.push({
+          type: "attack",
+          id: beast.id,
+          kind: beast.kind,
+          scale: beast.scale ?? 1,
+          x: beast.x,
+          z: beast.z,
+        });
+        // (In a fight it comes again sooner than when it's only seeing someone off.)
+        beast.cool = view.combat || beast.angry ? 2.2 + beast.random() * 2.6 : 6 + beast.random() * 4;
         face();
       } else toward(beast, player.x, player.z, facts.gallop, dt);
       return true;
@@ -582,7 +596,8 @@ export function createHerd() {
     // A timid one bolts from anyone close, straight away from them; so does a hostile one kept from hostility.
     const temper = temperOf(beast);
     const wary =
-      temper === "timid" || (temper === "hostile" && view.hostile !== "threaten" && view.hostile !== "attack");
+      !beast.angry &&
+      (temper === "timid" || (temper === "hostile" && view.hostile !== "threaten" && view.hostile !== "attack"));
     if (wary && toPlayer < FLEE_FROM && beast.state !== "flee") {
       const away = Math.atan2(beast.x - player.x, beast.z - player.z) + (beast.random() - 0.5) * 0.8;
       beast.target = { x: beast.x + Math.sin(away) * FLEE_TO, z: beast.z + Math.cos(away) * FLEE_TO };
@@ -683,6 +698,12 @@ export function createHerd() {
     const shown = [];
     for (const beast of beasts) {
       if (!beast.group) continue;
+      // One that's been beaten lies where it fell for a while, then is gone (until the world is opened again).
+      if (beast.down !== undefined) {
+        if (clock - beast.down > BODY_SECONDS) beast.gone = true;
+        beast.group.visible = !beast.gone && Math.hypot(player.x - beast.x, player.z - beast.z) <= NEAR;
+        continue;
+      }
       const far = Math.hypot(player.x - beast.x, player.z - beast.z) > NEAR;
       // One that's about only by night (or only by day) is out of sight, in its den, the rest of the time.
       const away = beast.when === "night" ? !view.night : beast.when === "day" ? !!view.night : false;
@@ -730,15 +751,72 @@ export function createHerd() {
         z: beast.z,
         state: beast.state,
         temper: temperOf(beast),
+        down: beast.down !== undefined,
         when: beast.when ?? "any",
         shown: !!beast.group?.visible,
         ridden: beast.ridden,
         loaded: !!beast.group,
       })),
+    /**
+     * Those within `reach` of `at` that can be fought: the hostile ones and any that's been struck; never
+     * someone's own, one being ridden, or one already beaten. [{ id, kind, scale, x, z, hp, max }] (`hp`
+     * and `max` once it has been struck).
+     */
+    foes(at, reach) {
+      return beasts
+        .filter((beast) => beast.group?.visible && !beast.owned && !beast.ridden && beast.down === undefined)
+        .filter((beast) => beast.angry || beast.hp !== undefined || temperOf(beast) === "hostile")
+        .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
+        .map((beast) => ({
+          id: beast.id,
+          kind: beast.kind,
+          scale: beast.scale ?? 1,
+          x: beast.x,
+          z: beast.z,
+          hp: beast.hp,
+          max: beast.max,
+        }));
+    },
+    /**
+     * `id` is struck for `damage` (0: a miss, which still rouses it); `max` is its HP whole, for one not
+     * struck before; `nerve` "flee" has it turn and run, else it fights back. { hp, max, down }, or null.
+     */
+    strike(id, damage, max, nerve = "fight") {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast?.group || beast.down !== undefined) return null;
+      beast.max ??= Math.max(1, max);
+      beast.hp = Math.max(0, (beast.hp ?? beast.max) - Math.max(0, damage));
+      if (beast.hp <= 0) {
+        beast.down = clock;
+        beast.angry = false;
+        beast.speed = 0;
+        beast.state = "idle";
+        beast.target = null;
+        // (On its side, where it stood.)
+        beast.group.rotation.z = Math.PI / 2;
+        beast.group.position.y += 0.25 * (beast.scale ?? 1);
+      } else if (nerve === "flee") {
+        beast.angry = false;
+        beast.temper = "timid"; // it has had enough: it runs from them from now on
+        beast.state = "idle";
+        beast.wait = 0;
+      } else {
+        beast.angry = true;
+        beast.cool = Math.min(beast.cool ?? 0, 1.2);
+      }
+      return { hp: beast.hp, max: beast.max, down: beast.hp <= 0 };
+    },
+    /** Every roused one lets be (the player is down): they draw off, and don't come again for a while. */
+    calm() {
+      for (const beast of beasts) {
+        beast.angry = false;
+        beast.cool = 20;
+      }
+    },
     /** The animals within `reach` of `at` that can be ridden: [{ id, kind, x, z, back }]. */
     mounts(at, reach) {
       return beasts
-        .filter((beast) => beast.group && !beast.ridden && rideable(beast))
+        .filter((beast) => beast.group && !beast.ridden && rideable(beast) && beast.down === undefined)
         .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
         .map((beast) => ({
           id: beast.id,

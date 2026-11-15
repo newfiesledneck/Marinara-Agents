@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.77, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.78, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.77: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.78: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.77, 2026-11-14)
+## Outstanding (as of 0.6.78, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -990,6 +990,16 @@ tradeKinds`, the world's `trades`), a vendor's own guidance and name, market sta
      - _The defeated_ (people, monsters, farm and wild animals) can be searched, harvested (which
        removes the body), or carried and put down. Bodies go after a while; a setting keeps them, and
        a button clears them.
+     - _In (0.6.78), the first part:_ real time only. `combat.js` (the rules: attack rolls, critical
+       hits, saving throws, a weapon read from its description, a creature's nerve), creatures' numbers
+       in `pack.js foes`, `herd.js foes / strike / calm` (HP, one struck fights back whatever the
+       settings, a beaten one lies where it fell), an Attack prompt (`main.js attack`), their attacks
+       rolled against the player's AC (`foeAttacks`), defeat and coming to (`defeated`), four clips
+       (sword, punch, hit, fall), Settings → Inventory → Combat. No AI call.
+       _Not yet:_ a scene and a narrated moment as other ways to fight; the camera locked behind a
+       drawn weapon; block, dodge and cast; spells, saving throws in use, and effects; enemies choosing
+       what to do; people and peaceful animals as targets; searching, harvesting and carrying the
+       beaten; a cost to defeat; beaten creatures staying gone over days; the 5e ruleset as a source.
   6. _Discovery._ Two switches: the map dark until explored (names hidden with it), and names hidden
      alone. Chests and things to find, filled by the model or from built-in lists.
      - _Things that happen to you_ (a mimic, grasping vines): told in a pop-up with "Continue as a

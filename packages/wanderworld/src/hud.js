@@ -847,6 +847,10 @@ export function createHud(root, handlers) {
       "On: the ticked lines of your sheet are told to the AI in conversations and moments, so it knows you're hurt or what you're good at. Off: the sheet is yours to keep, and the AI isn't told. Adds a line or two to those prompts.",
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
+    fights:
+      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: near a hostile creature a prompt says Attack (press E, or tap it). Each swing is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A creature you strike fights back, its attacks rolled the same way against your AC. No AI call is made: the game rolls and tells what was rolled. A scene and a narrated moment are to come as other ways to fight.",
+    defeat:
+      "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Nothing is lost either way, and nobody dies for good.",
     gathering:
       "On: buttons in the chat window let you gather where the land allows it. Each kind only at its resource: fish by water, chop wood standing against a tree (four strokes bring it down), forage in the woods, mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
     treeDays: "How many of the world's days a tree you cut down takes to stand again. 0: it never grows back.",
@@ -891,7 +895,7 @@ export function createHud(root, handlers) {
     keepApart:
       "On: animals keep out of one another, and so do people walking, so a pack runs side by side and nobody walks through anybody. Off: they may pass through each other, as before.",
     hostileAnimals:
-      "Keep their distance: they run if you come close. Square up: they come to about six paces and hold you off. Come for you: they run in and snap, sending you back a step. Nothing is hurt yet.",
+      "Keep their distance: they run if you come close. Square up: they come to about six paces and hold you off. Come for you: they run in and snap, sending you back a step. With combat off nothing is hurt; with it on (Settings → Inventory → Combat) each attack is rolled against your AC.",
     sound: "Footsteps, doors and the world's sounds.",
     volume: "How loud those sounds are.",
     hint: "The line that lists the controls. Its × turns this off.",
@@ -1186,7 +1190,7 @@ export function createHud(root, handlers) {
   heading(
     "Inventory",
     "What you carry, your character sheet, gathering and shops. The things themselves are kept by the Quartermaster package, if you have it installed; your sheet is Wanderworld's own and works without it.",
-    ["Items", "Sheet", "Gathering", "Shops"],
+    ["Items", "Sheet", "Gathering", "Shops", "Combat"],
   );
   at("Inventory", "Items");
   intro(
@@ -1229,6 +1233,12 @@ export function createHud(root, handlers) {
   number("restockDays", "Days between a shop's restocking", "vendors");
   toggle("vendorAi", "The AI stocks shop shelves", "vendors");
   toggle("haggling", "Haggling", "vendors");
+  at("Inventory", "Combat");
+  intro(
+    "Fighting what would attack you: wolves, monsters and outlaws. It uses your character sheet (HP, AC, Strength), so the sheet has to be on. How hostile creatures behave when you're near is in Settings → Animals → Behaviour.",
+  );
+  choice("fights", "Combat", { off: "Off", realtime: "Real time" }, "sheet");
+  choice("defeat", "When your HP runs out", { here: "Come to where you fell", home: "Wake at home" }, "sheet");
   at("People", "Genders");
   intro(
     "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",

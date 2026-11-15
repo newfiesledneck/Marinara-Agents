@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.6.78 — 2026-11-15
+
+- Combat, the first part: fighting in real time. Off to begin with: Settings → Inventory → Combat.
+- Near a hostile creature a prompt says Attack (press E, or tap it). Each swing is a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. A 20 on the die is a critical hit.
+- A weapon is any item whose description gives its damage ("Weapon: 1d8 damage, +1 to attack"). Without one you use your fists.
+- A creature you strike fights back, its attacks rolled against your AC. One badly hurt may run. Beating one earns experience.
+- At 0 HP you go down, then come to where you fell with 1 HP or wake at home with half (a setting).
+- No AI call is made in a fight. The chat tells every roll.
+
 ## 0.6.77 — 2026-11-15
 
 - The six costumes are gone: the Look card no longer has "Dressed as" (king, farmer, the two adventurers, witch, hooded rogue). They were blockier than everything else in the world. Anyone you had dressed in one is back in their own clothes, with their outfit, pieces and hairstyle as they were before.

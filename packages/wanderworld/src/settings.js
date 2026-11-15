@@ -155,6 +155,9 @@ export const SETTINGS = {
   haggling: { value: true },
   /** Chopping, mining and fishing each need their tool carried (off: bare hands will do). */
   gatherTools: { value: true },
+  // Fighting (combat.js): off, or in real time; and where the player comes to when their HP runs out.
+  fights: { value: "off", options: ["off", "realtime"] },
+  defeat: { value: "home", options: ["here", "home"] },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */
   treeDays: { value: 7, min: 0, max: 365 },
   /** The AI reads what was narrated and changes the sheet (HP lost, mana spent, experience earned): one more call. */
