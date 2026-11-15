@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.109)
+## What it does now (0.5.110)
 
 ### The world
 
@@ -470,7 +470,10 @@ only walk about.
   them and the visits before a place is told again), sound, confrontations, people coming up to you,
   what the HUD shows, explanations under every option, and Regenerate this world.
 - A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night. Weather (Settings,
-  off by default): rain, snow or mist, changing every few minutes or always one.
+  off by default): mist, fog, rain and snow, the last three light, medium or heavy, and thunderstorms
+  with lightning and thunder. It changes every few minutes or stays one kind. Each kind has its own
+  visibility in metres, the same at every draw distance; the draw distance only cuts it shorter.
+  With changing weather some clear mornings start in mist, and a winter world gets snow for rain.
 
 It reads your personas, characters, character folders, lorebooks, connections, prompt presets and 3D
 Avatars models from the Engine, and changes none of them. The server part keeps your saved worlds, scene

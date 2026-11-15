@@ -38,7 +38,7 @@ import { DOOR_PIECE, housePieces, porchPosts, WALL_FACE } from "./houses.js";
 import { caveGeometry } from "./caves.js";
 import { createAwnings, createFountain, createLamps, createSmoke, createWindowLights } from "./fixtures.js";
 import { CAVE_DEPTH, CAVE_RADIUS, checkLandscape, createLand, POND_RADIUS, WIDE_POND_RADIUS } from "./land.js";
-import { createWeather, WEATHER_LOOK } from "./weather.js";
+import { createWeather, sightIn, WEATHER_LOOK } from "./weather.js";
 import {
   barrel,
   bench,
@@ -3382,7 +3382,20 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   // Rain, snow or mist round the player (weather.js), easing in and out.
   const weather = createWeather();
   scene.add(weather.group);
-  const sky_ = { kind: "clear", target: "clear", amount: 0, x: spawn.x, z: spawn.z, distance: 170 };
+  // (`strike`: seconds to the next lightning in a storm; `flash`: seconds of the one showing now;
+  // `thunder`: how long after it the thunder comes, until main.js takes it for the sound.)
+  const sky_ = {
+    kind: "clear",
+    target: "clear",
+    amount: 0,
+    x: spawn.x,
+    z: spawn.z,
+    distance: 170,
+    strike: 6,
+    flash: 0,
+    thunder: null,
+    lightning: true,
+  };
   // Each campsite's fire: a flame that flickers, a light that comes up as the day goes, and its smoke.
   const fires = town.camps.map((camp) => {
     const flame = new Mesh(
@@ -3677,6 +3690,16 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       if (sky_.amount === 0) sky_.kind = sky_.target;
     } else if (sky_.kind !== "clear") sky_.amount = Math.min(1, sky_.amount + dt / 8);
     weather.update(dt, { x: sky_.x, y: heightAt(sky_.x, sky_.z), z: sky_.z }, sky_.kind, sky_.amount);
+    // A storm: lightning every so often once it has set in, and its thunder a moment or a few seconds after.
+    sky_.flash = Math.max(0, sky_.flash - dt);
+    if (WEATHER_LOOK[sky_.kind]?.storm && sky_.amount > 0.7) {
+      sky_.strike -= dt;
+      if (sky_.strike <= 0) {
+        sky_.strike = 5 + Math.random() * 16;
+        sky_.flash = 0.36;
+        sky_.thunder = 0.3 + Math.random() * 3.5;
+      }
+    }
     fountain.update(dt);
     smoke?.update(dt);
     fireSmoke?.update(dt);
@@ -3761,8 +3784,15 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       sun.intensity *= 1 - look.dim * weight;
       sky.intensity *= 1 - look.dim * weight * 0.5;
     }
-    scene.fog.far = sky_.distance * (1 - look.fog * weight);
-    scene.fog.near = scene.fog.far * 0.4 * (1 - look.fog * weight * 0.7);
+    // Lightning: the sky and everything under it lit white for an instant, twice (Settings can turn the flash off).
+    if (sky_.flash > 0 && sky_.lightning && (sky_.flash > 0.26 || (sky_.flash > 0.08 && sky_.flash < 0.17))) {
+      skyColor.lerp(weatherGrey.setHex(0xe8ecff), 0.7);
+      sky.intensity += 2.4;
+    }
+    // How far you can see is the weather's own, in metres: the draw distance only cuts it shorter.
+    const sight = sightIn(sky_.kind, weight, sky_.distance);
+    scene.fog.far = sight.far;
+    scene.fog.near = sight.near;
     scene.background.copy(skyColor);
     scene.fog.color.copy(skyColor);
     const dark = 1 - daylight;
@@ -4062,6 +4092,16 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     },
     /** The weather now and how far it has set in (0–1). */
     weatherNow: () => ({ kind: sky_.kind, amount: sky_.amount }),
+    /** Whether lightning lights the sky (off: a storm has its thunder only). */
+    setLightning(on) {
+      sky_.lightning = on !== false;
+    },
+    /** The thunder of a lightning strike not yet heard: seconds until it comes, once; else null. */
+    takeThunder() {
+      const after = sky_.thunder;
+      sky_.thunder = null;
+      return after;
+    },
     buildingCount: town.buildings.length,
     /** The town's plan for naming places (zones.js): buildings (door i is building i), gardens, meadows,
      *  streets and the square. */

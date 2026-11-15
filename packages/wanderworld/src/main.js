@@ -133,7 +133,7 @@ import {
   scheduleFromWords,
   usualDay,
 } from "./schedules.js";
-import { weatherAt } from "./weather.js";
+import { mistyMorning, WEATHER_LOOK, weatherAt } from "./weather.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
   checkTraits,
@@ -6439,7 +6439,7 @@ function placeTold() {
 /** The weather now, in a word, when there is any to speak of. */
 function weatherWord() {
   const weather = core.world?.weatherNow?.();
-  return weather && weather.kind !== "clear" && weather.amount > 0.5 ? weather.kind : "";
+  return weather && weather.kind !== "clear" && weather.amount > 0.5 ? (WEATHER_LOOK[weather.kind]?.word ?? "") : "";
 }
 
 /** What the server part needs for one reply from `talking` to the player's `line`. */
@@ -7557,16 +7557,16 @@ function stepClock(dt) {
   core.weatherTime = (core.weatherTime ?? 0) + dt;
   const setting = core.settings.weather ?? "off";
   core.world.setSeason(core.save?.season ?? "");
-  core.world.setWeather(
-    setting === "off"
-      ? "clear"
-      : setting === "changing"
-        ? weatherAt(
-            hashString(regionSeed(core.save ?? { region: HOME_REGION, seed: "" })),
-            Math.floor(core.weatherTime / WEATHER_PERIOD),
-          )
-        : setting,
-  );
+  let kind = setting === "off" ? "clear" : setting;
+  if (setting === "changing") {
+    const seed = hashString(regionSeed(core.save ?? { region: HOME_REGION, seed: "" }));
+    kind = weatherAt(seed, Math.floor(core.weatherTime / WEATHER_PERIOD), core.save?.season ?? "");
+    // A clear morning may start in mist (Settings → World).
+    if (kind === "clear" && core.settings.morningMist && mistyMorning(seed, core.social?.day ?? 0, core.hour))
+      kind = "mist";
+  }
+  core.world.setWeather(kind);
+  core.world.setLightning(core.settings.lightning);
   core.dark = core.world.setTime(core.hour);
   core.hud?.setClock(clockText());
 }
@@ -7971,7 +7971,14 @@ function step(dt) {
   });
   core.talk?.update(dt);
   const weather = core.world.weatherNow();
-  core.sound.tick(dt, { dark: core.dark, inside, rain: weather.kind === "rain" ? weather.amount : 0 });
+  const falling = WEATHER_LOOK[weather.kind];
+  core.sound.tick(dt, {
+    dark: core.dark,
+    inside,
+    rain: falling?.falls === "rain" ? weather.amount * falling.share : 0,
+  });
+  const thunder = core.world.takeThunder();
+  if (thunder !== null) core.sound.thunder(thunder, inside);
 
   placeCamera(dt);
   core.interior?.room.update(dt, core.camera);
