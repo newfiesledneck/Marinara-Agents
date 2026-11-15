@@ -2,7 +2,22 @@
 // things are worth and what a shop pays. And that the setting's shops hang together with what's gathered.
 import assert from "node:assert/strict";
 import { PACK } from "../packages/wanderworld/src/pack.js";
-import { offerFor, stockFor, stockNow, vendorKinds, worth } from "../packages/wanderworld/src/vendor.js";
+import {
+  checkTrades,
+  haggled,
+  haggleOutcome,
+  offerAfter,
+  offerFor,
+  parseGoods,
+  priceAfter,
+  stockFor,
+  stockNow,
+  tradeId,
+  tradeKinds,
+  tradeSign,
+  vendorKinds,
+  worth,
+} from "../packages/wanderworld/src/vendor.js";
 
 const kinds = PACK.vendors.kinds;
 const building = (buildingKind) => ({ kind: "building", buildingKind });
@@ -77,6 +92,63 @@ for (const kind of Object.values(kinds))
       offerFor(item.name, Object.keys(kinds), PACK.vendors) <= Math.max(1, Math.floor(item.price / 2)),
       `${item.name} can't be sold back for a gain`,
     );
+
+// Market stalls are a mix of trades too, each stall always the same.
+{
+  const stallKinds = Array.from(
+    { length: 40 },
+    (_, i) => vendorKinds({ kind: "stall", id: `stall:${i}` }, "", null, kinds)[0],
+  );
+  assert.ok(new Set(stallKinds).size >= 3 && stallKinds.includes("produce"));
+  assert.deepEqual(vendorKinds({ kind: "stall", id: "stall:2" }, "", { kinds: ["smith"] }, kinds), ["smith"]);
+}
+
+// Trades: a setting's guidance rewritten, and trades of the player's own with their goods typed in.
+{
+  assert.deepEqual(parseGoods("Stimpak, 20, +15 HP when used\nRad-X,12\n\nnonsense\nFree, 0\nstimpak, 3"), [
+    { name: "Stimpak", price: 20, description: "+15 HP when used" },
+    { name: "Rad-X", price: 12, description: "" },
+  ]);
+  const id = tradeId("Chem Dealer!", Object.keys(kinds));
+  assert.equal(id, "own:chem-dealer");
+  assert.equal(tradeId("Chem dealer", [id]), "own:chem-dealer-2");
+  const saved = checkTrades(
+    {
+      smith: { guidance: "Only farm tools.", label: "Hacked" },
+      [id]: { label: "Chem dealer", guidance: "Wasteland medicine.", goods: "Stimpak, 20", custom: true },
+      "bad id": { label: "X" },
+      "own:nameless": { guidance: "no name" },
+    },
+    kinds,
+  );
+  assert.deepEqual(Object.keys(saved), ["smith", id]);
+  const all = tradeKinds(kinds, saved);
+  assert.deepEqual(
+    [all.smith.guidance, all.smith.label, all.smith.changed],
+    ["Only farm tools.", kinds.smith.label, true],
+  );
+  assert.equal(all.general.guidance, kinds.general.guidance, "untouched trades keep the setting's");
+  assert.deepEqual(
+    [all[id].label, all[id].custom, all[id].stock],
+    ["Chem dealer", true, [{ name: "Stimpak", price: 20, description: "" }]],
+  );
+  assert.deepEqual(vendorKinds(building("home"), "a house", { kinds: [id, "smith"] }, all), [id, "smith"]);
+  assert.equal(tradeSign([id, "smith", "tailor"], all), "Chem dealer & Smith", "a sign has room for two");
+  assert.equal(stockFor([id], all, "s", 0)[0].name, "Stimpak");
+  for (const kind of Object.values(kinds)) assert.ok(kind.guidance, `${kind.label} has guidance for the model`);
+}
+
+// Haggling: what a Charisma check comes to, kept for the day, and what it does to prices and offers.
+assert.deepEqual(
+  [haggleOutcome(22).factor, haggleOutcome(15).factor, haggleOutcome(10).factor, haggleOutcome(3).factor],
+  [0.8, 0.9, 1, 1.1],
+);
+assert.deepEqual(
+  [haggled({ haggle: { day: 4, factor: 0.9 } }, 4), haggled({ haggle: { day: 4, factor: 0.9 } }, 5), haggled(null, 1)],
+  [0.9, 1, 1],
+);
+assert.deepEqual([priceAfter(20, 0.9), priceAfter(1, 0.8), priceAfter(20, 1.1)], [18, 1, 22]);
+assert.deepEqual([offerAfter(10, 0.9), offerAfter(10, 1.1), offerAfter(0, 0.8), offerAfter(1, 1.1)], [11, 9, 0, 1]);
 
 // Shelves written by the model are checked before they're handed back: named, priced, none twice.
 {

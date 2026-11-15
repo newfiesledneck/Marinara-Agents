@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.70 — 2026-11-15
+
+- Market stalls buy and sell by day. A greengrocer joins the trades.
+- Haggle, in a shop's window: a Charisma check once a day at each vendor. It can take a tenth or a fifth off for the day, change nothing, or put prices up.
+- Signs follow the trade. A plain shop's sign says what it sells, and a vendor you name says its name.
+- Settings → World → Vendors: name a vendor, and write what it in particular should stock. "Trades" there lets you rewrite what the AI is told each trade stocks, and make trades of your own with a name, guidance and a list of goods.
+- While a shop's window is open, Quartermaster's tracker is held back, so talk of buying doesn't add things you haven't paid for.
+
 ## 0.6.69 — 2026-11-15
 
 - Settings → World → Vendors lists every vendor in your world. Tick the trades a shop has; one shop can be several at once.

@@ -196,7 +196,7 @@ Answer with JSON only, nothing before or after it:
 {"stock":[{"name":"...","description":"...","price":0,"quantity":1}]}`;
 
 /** The messages for stocking one shop. */
-export function vendorStockMessages({ worldName, setting, shop, kinds, currency, usual }) {
+export function vendorStockMessages({ worldName, setting, shop, kinds, currency, usual, guidance }) {
   return [
     { role: "system", content: STOCK_INSTRUCTION },
     {
@@ -204,6 +204,7 @@ export function vendorStockMessages({ worldName, setting, shop, kinds, currency,
       content: [
         `The world: ${([worldName, setting].filter(Boolean).join(": ") || "a small town and the country round it").replace(/[.\s]+$/u, "")}.`,
         `The shop: ${shop}. Its trade: ${kinds}.`,
+        guidance && `What it should stock: ${guidance}`,
         `The money is called ${currency}.`,
         usual && `Usual prices here: ${usual}.`,
       ]
@@ -2473,6 +2474,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           kinds: text(body.kinds, 200) || "general store",
           currency: text(body.currency, 30) || "coins",
           usual: text(body.usual, 600),
+          guidance: text(body.guidance, 1500),
         };
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });

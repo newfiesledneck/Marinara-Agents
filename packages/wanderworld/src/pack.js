@@ -787,6 +787,7 @@ const VENDORS = {
   kinds: {
     general: {
       label: "General store",
+      guidance: "Everyday gear for travel and a household: rope, light, containers, bedding, simple tools.",
       named: /general|store|sundr|chandl|provision/iu,
       stock: [
         { name: "Rope", description: "Fifty feet of hempen rope.", price: 4 },
@@ -804,6 +805,7 @@ const VENDORS = {
     },
     smith: {
       label: "Smith",
+      guidance: "Forged goods: tools, blades, shields and plain armour, with ingots and what keeps an edge.",
       named: /smith|forge|armou?r|weapon|ironmonger/iu,
       stock: [
         {
@@ -831,6 +833,7 @@ const VENDORS = {
     },
     apothecary: {
       label: "Apothecary",
+      guidance: "Remedies and draughts: healing and mana potions, bandages, herbs, cures for common ills.",
       named: /apothecar|herbal|potion|alchem|healer|physic/iu,
       stock: [
         { name: "Health potion", description: "A red draught. +15 HP when drunk.", price: 15 },
@@ -845,6 +848,7 @@ const VENDORS = {
     },
     tailor: {
       label: "Tailor",
+      guidance: "Clothing and leatherwork: cloaks, shirts, boots, hoods, gloves, light hide armour, pouches.",
       named: /tailor|cloth|draper|weaver|seamstress|outfitter/iu,
       stock: [
         { name: "Wool cloak", description: "A heavy cloak against the weather.", price: 12 },
@@ -859,6 +863,7 @@ const VENDORS = {
     },
     tavern: {
       label: "Tavern",
+      guidance: "Food and drink to have now or carry: ale, wine, bread, cheese, stew, roast meat.",
       named: /tavern|\binn\b|alehouse|\bpub\b|taproom/iu,
       stock: [
         { name: "Mug of ale", description: "A mug of the house ale. +1 HP when drunk.", price: 1 },
@@ -870,6 +875,21 @@ const VENDORS = {
       ],
       wants:
         /trout|perch|pike|fish|berries|apple|turnip|cabbage|egg|nuts|wheat|mushroom|morel|chanterelle|garlic|firewood|kindling/iu,
+    },
+    produce: {
+      label: "Greengrocer",
+      guidance: "Fresh food from farms and gardens nearby: vegetables, fruit, eggs, bread, cheese, honey.",
+      named: /grocer|produce|fruiter|market garden/iu,
+      stock: [
+        { name: "Apples", description: "Sound eating apples. +3 HP when eaten.", price: 2 },
+        { name: "Turnips", description: "A few turnips. +2 HP when eaten.", price: 1 },
+        { name: "Cabbage", description: "A firm head of cabbage. +2 HP when eaten.", price: 1 },
+        { name: "Basket of eggs", description: "Half a dozen eggs. +4 HP when eaten.", price: 3 },
+        { name: "Loaf of bread", description: "A round brown loaf. +3 HP when eaten.", price: 1 },
+        { name: "Pot of honey", description: "A sealed pot of honey. +4 HP when eaten.", price: 5 },
+        { name: "Wedge of cheese", description: "Hard yellow cheese. +3 HP when eaten.", price: 2 },
+      ],
+      wants: /apple|turnip|cabbage|egg|berries|nuts|wheat|mushroom|morel|chanterelle|garlic|trout|perch|pike/iu,
     },
   },
   values: {
