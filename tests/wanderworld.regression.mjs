@@ -70,6 +70,9 @@ for (const density of DENSITIES) world.setDensity(density);
   assert.ok(drifts().visible && drifts().count > 0, "drifts under the trees in winter");
   world.setSeason("winter", false);
   assert.equal(drifts().visible, false, "not with the snowy look off");
+  // Fall and spring wear no drifts, and each season sets its own share of the look.
+  world.setSeason("fall");
+  assert.equal(drifts().visible, false);
   world.setSeason("");
 }
 const meshes = [];
