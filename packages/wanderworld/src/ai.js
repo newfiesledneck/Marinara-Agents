@@ -204,6 +204,7 @@ export function createAi(locals = () => []) {
     picture: (id) => request(`/picture/${encodeURIComponent(id)}`),
     forgetPicture: (id) => request(`/picture/${encodeURIComponent(id)}`, { method: "DELETE" }),
     /** Quartermaster's tracker, asked what changed in what was just told: { data } (its JSON, for its own route). */
+    // (With `sheet`, the character sheet's lines, the same call reads for the sheet too: { data, sheet }.)
     inventoryTrack: (payload) => request("/inventory-track", { method: "POST", body: payload }),
     /** What just told changed on the character sheet: { changes: [{ stat, by | to, reason }], xp } (server.mjs `/sheet-track`). */
     sheetTrack: (payload) => request("/sheet-track", { method: "POST", body: payload }),

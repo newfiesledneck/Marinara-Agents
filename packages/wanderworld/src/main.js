@@ -6156,22 +6156,29 @@ function momentListeners(voice, audience, extra = [], text = "") {
 const trackerConnection = () => core.settings.trackerConnection || core.settings.textConnection || null;
 
 function trackInventory(parts, kind = "moment") {
-  trackSheet(parts, kind); // (the character sheet is read for at the same moments, by its own setting)
-  // With a shop's window open, talk of buying isn't yet a purchase: the tracker would add things not paid for.
-  if (core.hud?.shopOpen?.()) return;
+  // The character sheet is read for at the same moments, by its own setting. Where both trackers read,
+  // the sheet shares the inventory's call (one call, not two); else each asks for itself.
+  const sheet = sheetToTrack(kind);
   const when = core.settings.inventoryTrack;
-  if (when === "off" || (kind === "talk" && when !== "all")) return;
+  // With a shop's window open, talk of buying isn't yet a purchase: the tracker would add things not paid for.
+  if (core.hud?.shopOpen?.() || when === "off" || (kind === "talk" && when !== "all"))
+    return void trackSheet(parts, kind);
+  const saveId = core.save?.id;
   core.inventory
-    .track(parts.filter(Boolean).join("\n"), trackerConnection())
-    .then(
-      (changed) =>
-        changed &&
-        core.hud?.narrate(
-          null,
-          changed.length ? `(Your inventory changed: ${changed.join(", ")}.)` : "(Your inventory changed.)",
-          false,
-        ),
+    .track(
+      parts.filter(Boolean).join("\n"),
+      trackerConnection(),
+      sheet ? { sheet, take: (answer) => takeSheetAnswer(saveId, answer) } : null,
     )
+    .then((changed) => {
+      if (changed === null) return void trackSheet(parts, kind); // (Quartermaster wasn't asked: the sheet asks alone)
+      if (!changed) return;
+      core.hud?.narrate(
+        null,
+        changed.length ? `(Your inventory changed: ${changed.join(", ")}.)` : "(Your inventory changed.)",
+        false,
+      );
+    })
     .catch((error) => {
       if (core.inventoryTold) return;
       core.inventoryTold = true; // once a session
@@ -7818,9 +7825,7 @@ async function readItems() {
  * checked against the sheet and applied (sheet.js applyChanges). Never a rewrite of the sheet.
  */
 function trackSheet(parts, kind = "moment") {
-  const when = core.settings.sheetTrack ?? "off";
-  if (!core.save || !core.settings.sheet || when === "off" || (kind === "talk" && when !== "all")) return;
-  const list = sheetList(sheetNow());
+  const list = sheetToTrack(kind);
   const told = parts.filter(Boolean).join("\n");
   if (!list || !told) return;
   const saveId = core.save.id;
@@ -7831,30 +7836,36 @@ function trackSheet(parts, kind = "moment") {
       text: told,
       connectionId: trackerConnection(),
     })
-    .then((answer) => {
-      if (core.save?.id !== saveId) return; // another world since
-      const before = sheetNow();
-      const changed = applyChanges(before, answer?.changes);
-      const xp = Math.max(0, Math.round(answer?.xp ?? 0));
-      const reasons = new Map(
-        (answer?.changes ?? []).map((change) => [String(change.stat).toLowerCase(), change.reason]),
-      );
-      const notes = changed.applied.map((change) => {
-        const why = reasons.get(change.name.toLowerCase()) ?? reasons.get(change.id);
-        return `${change.name} ${change.from} to ${change.to}${why ? ` (${why})` : ""}`;
-      });
-      if (xp > 0) notes.push(`+${xp} XP`);
-      if (!notes.length) return;
-      setSheet(changed.sheet);
-      core.hud?.narrate(null, `(Your sheet changed: ${notes.join(", ")}.)`, false);
-      earnXp(xp);
-      core.hud?.refreshInventory?.();
-    })
+    .then((answer) => takeSheetAnswer(saveId, answer))
     .catch((error) => {
       if (core.sheetTold) return;
       core.sheetTold = true; // once a session
       core.hud?.setNotice(`The AI couldn't update your sheet: ${error?.message ?? error}`);
     });
+}
+/** The sheet's lines for its tracker to read after this kind of telling, or "" when it isn't to read now. */
+function sheetToTrack(kind = "moment") {
+  const when = core.settings.sheetTrack ?? "off";
+  if (!core.save || !core.settings.sheet || when === "off" || (kind === "talk" && when !== "all")) return "";
+  return sheetList(sheetNow());
+}
+/** What the sheet's tracker answered ({ changes, xp }), applied to the sheet of the world it was asked for. */
+function takeSheetAnswer(saveId, answer) {
+  if (!core.save || core.save.id !== saveId) return; // another world since
+  const before = sheetNow();
+  const changed = applyChanges(before, answer?.changes);
+  const xp = Math.max(0, Math.round(answer?.xp ?? 0));
+  const reasons = new Map((answer?.changes ?? []).map((change) => [String(change.stat).toLowerCase(), change.reason]));
+  const notes = changed.applied.map((change) => {
+    const why = reasons.get(change.name.toLowerCase()) ?? reasons.get(change.id);
+    return `${change.name} ${change.from} to ${change.to}${why ? ` (${why})` : ""}`;
+  });
+  if (xp > 0) notes.push(`+${xp} XP`);
+  if (!notes.length) return;
+  setSheet(changed.sheet);
+  core.hud?.narrate(null, `(Your sheet changed: ${notes.join(", ")}.)`, false);
+  earnXp(xp);
+  core.hud?.refreshInventory?.();
 }
 
 // ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
