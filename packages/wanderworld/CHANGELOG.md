@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.6.72 — 2026-11-15
+
+- A hanging sign on a building with an overhang no longer pokes through its roof. It hangs from one of the overhang's posts, just under the eave, a little smaller. This goes for the painted signs and the boards with a name.
+
 ## 0.6.71 — 2026-11-15
 
 - Market stalls are dressed for their trade, with models from the Fantasy Props MegaKit's Pro tier: a smith's stall with tools and weapons, a potion seller's, and a greengrocer's with a cart of vegetables. Other trades keep the plain stall.

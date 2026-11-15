@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.72",
+          "date": "2026-11-15",
+          "notes": "- A hanging sign on a building with an overhang no longer pokes through its roof. It hangs from one of the overhang's posts, just under the eave, a little smaller. This goes for the painted signs and the boards with a name.",
+          "highlight": false
+        },
+        {
           "version": "0.6.71",
           "date": "2026-11-15",
           "notes": "- Market stalls are dressed for their trade, with models from the Fantasy Props MegaKit's Pro tier: a smith's stall with tools and weapons, a potion seller's, and a greengrocer's with a cart of vegetables. Other trades keep the plain stall.\n- Shops hang a painted sign by the door for their trade: an anvil for a smith, a potion for an apothecary, a tankard for a tavern, a loaf for a greengrocer. Trades without one keep the board with their name.\n- A stall takes its look when the world loads. If you change a stall's trade, it shows after you open the world again.",
@@ -308,12 +314,6 @@
           "date": "2026-11-15",
           "notes": "- Winter looks like winter. In a winter world (Journal → World → Season) the trees' leaves and the bushes are white with snow, bark and stones carry it on top, and the far-off trees are pale. Grass, ferns, flowers, clover and mushrooms are gone, and drifts of snow lie under the trees. Settings → Display → Graphics has the switch.\n- The inventory window stays open while you play. It closed at every click in the game; now it closes with its own close button or the Inventory button. Settings → People → Inventory has the switch.\n- Versions now roll over at 99: this one follows 0.5.111 as 0.6.0.",
           "highlight": true
-        },
-        {
-          "version": "0.5.111",
-          "date": "2026-11-15",
-          "notes": "- A place you're beside now counts with the one you're in. Standing on a river's bank in the woods, the river's lore is active with the forest's, and the AI and Illustrate are told \"in Whisperwood, near the bank of the Silverrun\". Before, the bank a few steps from the water was only forest.\n- It applies to rivers (12 m past the edge), ponds (10 m), the mountains (20 m), a cave's mouth (8 m), roads (4 m) and places out in the country such as ruins, standing stones, a mill or an inn (8 m). The two nearest count.\n- The Lore window marks their entries \"beside you\". Settings → World → Places has the switch, on to begin with.",
-          "highlight": false
         }
       ]
     }
