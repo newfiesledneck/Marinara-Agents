@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.102 — 2026-11-14
+
+- A place you reach less than 45 seconds after the last place was told is no longer skipped for good. If you are still there when the 45 seconds are over, it is told then. Places you only run through stay untold, and a place is still told once, not again each time the wait ends.
+- A place is not told while you are in a conversation; it waits until the conversation is over.
+
 ## 0.5.101 — 2026-11-14
 
 - Settings → Display → Graphics has a frame rate limit: 30, 60, 100 or no limit (as before, the default). A lower limit leaves more of the graphics card for other programs.
