@@ -1611,6 +1611,20 @@ export function createHud(root, handlers) {
     body.textContent = text || "(nothing)";
     return [head, body];
   };
+  const money = (amount, currency = "USD") => {
+    const digits = Math.abs(amount) < 0.01 ? 6 : Math.abs(amount) < 1 ? 4 : 2;
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency,
+        currencyDisplay: "narrowSymbol",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: digits,
+      }).format(amount);
+    } catch {
+      return `${amount.toFixed(digits)} ${currency}`; // not a currency the browser knows
+    }
+  };
   /** A call's token counts, one to a row; or that there are none. */
   const usageRows = (usage) =>
     usage
@@ -1621,7 +1635,7 @@ export function createHud(root, handlers) {
           debugRow("Tokens received (completion)", count(usage.completion)),
           debugRow("of them reasoning", usage.reasoning === null ? "not reported" : count(usage.reasoning), true),
           debugRow("Tokens in total", count(usage.total)),
-          ...(usage.cost === null ? [] : [debugRow("Cost", `$${usage.cost.toFixed(6)}`)]),
+          ...(usage.cost === null ? [] : [debugRow("Cost (reported)", money(usage.cost))]),
         ]
       : [debugNote("This connection reported no token counts for this call.")];
   /** One call of the list: its line, and when opened everything about it (read then). */
@@ -1635,9 +1649,14 @@ export function createHud(root, handlers) {
       : call.kind === "image"
         ? call.note
         : "no token counts";
-    line.textContent = [timeOf(call.at), call.what, call.model, call.error ? "FAILED" : tokens, seconds(call.ms)].join(
-      " · ",
-    );
+    line.textContent = [
+      timeOf(call.at),
+      call.what,
+      call.model,
+      call.error ? "FAILED" : tokens,
+      ...(call.estimate ? [`about ${money(call.estimate.amount, call.estimate.currency)}`] : []),
+      seconds(call.ms),
+    ].join(" · ");
     if (call.error) line.style.color = "#8a1f11";
     fold.append(line);
     fold.addEventListener("toggle", async () => {
@@ -1662,6 +1681,25 @@ export function createHud(root, handlers) {
             ]),
         debugRow("Took", seconds(call.ms)),
         ...(call.kind === "image" ? [] : usageRows(call.usage)),
+        ...(call.estimate
+          ? [
+              debugRow("Cost (estimated)", `about ${money(call.estimate.amount, call.estimate.currency)}`),
+              debugRow(
+                "by the model's prices",
+                Object.entries({
+                  prompt: "in",
+                  completion: "out",
+                  cacheRead: "cache read",
+                  cacheWrite: "cache write",
+                  perCall: "a call",
+                })
+                  .filter(([key]) => call.estimate.rates?.[key] !== null && call.estimate.rates?.[key] !== undefined)
+                  .map(([key, label]) => `${label} ${money(call.estimate.rates[key], call.estimate.currency)}`)
+                  .join(", ") + (call.estimate.rates?.perCall === null ? " per 1M tokens" : ""),
+                true,
+              ),
+            ]
+          : []),
         ...(call.error ? debugWords("Error", call.error) : []),
       ];
       body.append(...rows);
@@ -1703,7 +1741,14 @@ export function createHud(root, handlers) {
       debugRow("written to the cache", sum.cacheKnown ? count(sum.cacheWrite) : "not reported", true),
       debugRow("Tokens received (completion)", count(sum.completion)),
       debugRow("of them reasoning", count(sum.reasoning), true),
-      debugRow("Cost", sum.cost === null ? "not reported" : `$${sum.cost.toFixed(4)}`),
+      debugRow(
+        sum.cost === null ? "Cost (estimated)" : "Cost (reported)",
+        sum.cost !== null
+          ? money(sum.cost)
+          : sum.priced
+            ? `about ${money(sum.estimate, sum.currency)}`
+            : "no prices known",
+      ),
       debugRow("Time spent waiting", seconds(sum.ms)),
       debugRow(
         "Pictures asked for",
@@ -1738,7 +1783,9 @@ export function createHud(root, handlers) {
       ...(sum.cost === null
         ? [
             debugNote(
-              "Cost isn't available: the Engine doesn't pass what a provider charged on to Agents. With the Engine's Debug Mode on, its console shows the cost for connections that report one.",
+              sum.priced
+                ? `The cost is an estimate: each call's token counts times the prices in its connection's model list, the ones the Engine's model picker shows. It isn't the provider's bill, which the Engine doesn't pass on to Agents. ${count(sum.priced)} of ${count(sum.counted)} counted calls had prices.`
+                : "No cost estimate yet. It needs a call with token counts, on a connection whose model list has prices (the ones the Engine's model picker shows). What a provider actually charged isn't passed on to Agents by the Engine.",
             ),
           ]
         : []),

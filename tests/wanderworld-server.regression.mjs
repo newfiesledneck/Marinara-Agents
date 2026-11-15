@@ -1085,6 +1085,26 @@ assert.equal(
     null,
     "all zeros is none reported",
   );
+  // A cost estimate from a model's prices (per million tokens): cached tokens at the cache price.
+  const prices = { prompt: 0.02, completion: 0.11, cacheRead: 0.007 };
+  const about = (value) => Math.round(value * 1e9) / 1e9;
+  assert.equal(
+    about(server.costOf(server.usageOf(usage), prices).amount),
+    about((549 * 0.02 + 1200 * 0.007 + 86 * 0.11) / 1e6),
+  );
+  assert.equal(server.costOf(server.usageOf(usage), {}), null, "no prices, no estimate");
+  assert.equal(server.costOf(null, prices), null);
+  assert.equal(server.costOf(server.usageOf(usage), { perCall: 0.3, currency: "CNY" }).amount, 0.3);
+  const priced = server.createCallLog();
+  const id = priced.add({ what: "talk", model: "m", messages: [], reply: "Hi.", usage });
+  priced.price(id, prices);
+  priced.price(priced.add({ what: "talk", model: "m", messages: [], reply: "Hi." }), prices);
+  const sums = priced.read();
+  assert.deepEqual(
+    [sums.totals.priced, sums.totals.currency, sums.calls[1].estimate.rates.cacheRead, sums.calls[0].estimate],
+    [1, "USD", 0.007, null],
+  );
+  assert.equal(about(sums.totals.estimate), about(sums.calls[1].estimate.amount));
   log.clear();
   assert.equal(log.read().totals.requests, 0);
   // The routes: what the assistant was just asked is there, whole when asked for by its id.

@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.109 — 2026-11-15
+
+- Settings → Debug estimates what each AI call cost, and adds the estimates up. It multiplies the call's token counts by the prices in the connection's model list, the same prices the Engine's model picker shows, with cached tokens at the cache price. It isn't the provider's bill, and a connection without prices is said so.
+- The mill's wheel is turned to stand along the stream, so the water pushes its paddles round, and an axle runs from its middle into the mill's wall. It stood across the stream before, joined to nothing.
+
 ## 0.5.108 — 2026-11-15
 
 - Settings has a Debug section. Overview adds up every AI call since the Engine started: requests, answers, failures, answers cut off, tokens sent and received, tokens read from and written to a cache, reasoning tokens, time spent waiting, pictures, and a line for each kind of call.

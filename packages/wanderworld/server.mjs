@@ -1418,6 +1418,39 @@ export function usageOf(raw) {
 }
 
 /**
+ * What a call would cost by its model's price list (`pricing`: per million tokens, as the Engine's model
+ * picker shows it), or null without prices or token counts. An estimate, not the provider's bill.
+ * ponytail: some connections count cached tokens within the tokens sent and some beside them, and the
+ * Engine doesn't say which. They're taken as within unless there are more of them than were sent; a
+ * connection that counts them beside is priced a little low when its cache numbers are small.
+ */
+export function costOf(usage, pricing) {
+  if (!usage || !isRecord(pricing)) return null;
+  const price = (value) => (Number.isFinite(value) && value >= 0 ? value : null);
+  const currency = typeof pricing.currency === "string" && pricing.currency ? pricing.currency.slice(0, 8) : "USD";
+  const rates = {
+    prompt: price(pricing.prompt),
+    completion: price(pricing.completion),
+    cacheRead: price(pricing.cacheRead),
+    cacheWrite: price(pricing.cacheWrite),
+    perCall: price(pricing.perCall),
+  };
+  if (rates.perCall !== null) return { amount: rates.perCall, currency, rates };
+  if (rates.prompt === null && rates.completion === null) return null;
+  const cached = usage.cached ?? 0;
+  const written = usage.cacheWrite ?? 0;
+  const fresh = cached + written > usage.prompt ? usage.prompt : usage.prompt - cached - written;
+  const input = rates.prompt ?? 0;
+  const amount =
+    (fresh * input +
+      cached * (rates.cacheRead ?? input) +
+      written * (rates.cacheWrite ?? input) +
+      usage.completion * (rates.completion ?? 0)) /
+    1e6;
+  return { amount, currency, rates };
+}
+
+/**
  * The model and picture calls made since the Engine started, for the player to read: the newest `kept`
  * with what was sent and what came back, and totals over all of them. In memory only.
  * ponytail: gone when the Engine restarts and capped at `kept` calls; write them to a document if a
@@ -1439,6 +1472,9 @@ export function createCallLog(kept = 50) {
     cacheWrite: 0,
     reasoning: 0,
     cost: null,
+    estimate: 0,
+    priced: 0,
+    currency: null,
     ms: 0,
     pictures: 0,
     picturesFailed: 0,
@@ -1468,6 +1504,7 @@ export function createCallLog(kept = 50) {
         note: words(entry.note).slice(0, 200),
         error: entry.error ? words(entry.error).slice(0, 500) : "",
         usage,
+        estimate: null,
         messages,
         reply,
       };
@@ -1500,6 +1537,17 @@ export function createCallLog(kept = 50) {
       calls: calls.map(({ messages: _sent, reply: _got, ...rest }) => rest).reverse(),
     }),
     one: (id) => calls.find((call) => call.id === Number(id)) ?? null,
+    /** A call's cost worked out from its model's prices, which are read after the answer has come. */
+    price(id, pricing) {
+      const call = calls.find((one) => one.id === id);
+      const cost = costOf(call?.usage, pricing);
+      if (!cost) return;
+      call.estimate = cost;
+      // (One currency is added up: the first seen.)
+      if ((totals.currency ??= cost.currency) !== cost.currency) return;
+      totals.estimate += cost.amount;
+      totals.priced++;
+    },
     clear() {
       totals = fresh();
       calls = [];
@@ -1515,6 +1563,19 @@ export async function activate(context) {
   const { documents } = persistence;
   const scenesOn = typeof api.registerSceneOrigin === "function";
   const callLog = createCallLog();
+  // A model's prices, from its connection's model list as the Engine serves it to its own model picker.
+  // Read at most once an hour for each model, and never waited for by a reply.
+  const prices = new Map();
+  const priceOf = (connectionId, modelId) => {
+    const key = `${connectionId}|${modelId}`;
+    const held = prices.get(key);
+    if (held && Date.now() - held.at < 3600000) return held.price;
+    const price = engineFetch(`/api/connections/${encodeURIComponent(connectionId)}/models`, { method: "GET" })
+      .then((body) => (Array.isArray(body?.models) ? body.models : []).find((row) => row?.id === modelId)?.pricing ?? null)
+      .catch(() => null);
+    prices.set(key, { at: Date.now(), price });
+    return price;
+  };
 
   // The Engine's Debug Mode (Settings → Advanced), which the client sends with each request as it's a
   // browser setting, or the server's own override. With it on, every model and image request and its
@@ -1546,7 +1607,9 @@ export async function activate(context) {
       throw error;
     }
     const content = typeof result?.content === "string" ? result.content : "";
-    callLog.add({ ...noted, ms: Date.now() - started, reply: content, finish: result?.finishReason, usage: result?.usage });
+    const logged = callLog.add({ ...noted, ms: Date.now() - started, reply: content, finish: result?.finishReason, usage: result?.usage });
+    if (usageOf(result?.usage) && model?.connectionId && model?.model)
+      void priceOf(model.connectionId, model.model).then((pricing) => callLog.price(logged, pricing));
     logger.debugOverride?.(
       debug,
       "[debug/wanderworld/%s] response (%d characters, %d ms):\n%s",
