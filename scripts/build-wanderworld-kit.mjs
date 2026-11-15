@@ -105,6 +105,27 @@ const SETS = {
     ],
     textureSize: (name) => (/grass/iu.test(name) ? 128 : 256),
   },
+  // Tools and weapons, for the hand (character.js) and, later, a shop's shelves: from the Pro tier's glTF folder.
+  //   node scripts/build-wanderworld-kit.mjs tools "<…>/Fantasy Props MegaKit[Pro]/Exports/glTF"
+  tools: {
+    dir: "fantasy/tools",
+    source: "Fantasy Props MegaKit (Pro) by Quaternius, CC0 1.0",
+    models: [
+      "Axe_Bronze",
+      "Axe_Steel",
+      "Pickaxe_Bronze",
+      "Pickaxe_Steel",
+      "Sword_Bronze",
+      "Sword_Steel",
+      "Dagger_Bronze",
+      "Hammer_Small_Bronze",
+      "Shovel_Bronze",
+      "Hoe_Bronze",
+      "Shield_Wooden",
+      "Shield_Metal",
+    ],
+    textureSize: () => 256,
+  },
   village: {
     dir: "fantasy/village",
     source: "Medieval Village MegaKit (Standard) by Quaternius, CC0 1.0",

@@ -25,7 +25,14 @@ import {
   WebGLRenderer,
   Sphere,
 } from "three";
-import { blobShadow, listCharacterFolders, listCharacters, listPersonas, setAnimationStyle } from "./character.js";
+import {
+  blobShadow,
+  listCharacterFolders,
+  listCharacters,
+  listPersonas,
+  setAnimationStyle,
+  setHeldModels,
+} from "./character.js";
 import { LIE_SECONDS } from "./clips.js";
 import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
@@ -589,6 +596,13 @@ function buildWorld(seed, place = null) {
         .catch((error) => console.warn("[wanderworld] detailed nature failed to load", error)),
     );
   }
+  // The tools people hold are the props pack's own (an axe, a pickaxe), with detailed props on.
+  if (core.settings.props)
+    loads.push(
+      kitModels("tools", ["axe-bronze", "pickaxe-bronze"])
+        .then((models) => setHeldModels({ axe: models.get("axe-bronze"), pick: models.get("pickaxe-bronze") }))
+        .catch((error) => console.warn("[wanderworld] the tools' models failed to load", error)),
+    );
   if (core.settings.buildings) {
     const world = core.world;
     loads.push(

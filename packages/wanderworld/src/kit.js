@@ -24,6 +24,7 @@ export const KIT_DIRS = {
   art: "generic/art",
   village: "fantasy/village",
   props: "fantasy/props",
+  tools: "fantasy/tools",
 };
 /** The address of a set's folder, for what's fetched by name (the menu's art, a sign's board). */
 export const kitUrl = (set) => `${BASE}${KIT_DIRS[set]}/`;

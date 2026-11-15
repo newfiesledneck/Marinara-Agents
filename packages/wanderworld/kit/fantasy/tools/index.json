@@ -1,0 +1,101 @@
+{
+  "source": "Fantasy Props MegaKit (Pro) by Quaternius, CC0 1.0",
+  "models": {
+    "axe-bronze": {
+      "size": [
+        0.29,
+        0.83,
+        0.05
+      ],
+      "triangles": 826
+    },
+    "axe-steel": {
+      "size": [
+        0.29,
+        0.83,
+        0.05
+      ],
+      "triangles": 826
+    },
+    "pickaxe-bronze": {
+      "size": [
+        0.81,
+        1.2,
+        0.14
+      ],
+      "triangles": 776
+    },
+    "pickaxe-steel": {
+      "size": [
+        0.81,
+        1.2,
+        0.14
+      ],
+      "triangles": 776
+    },
+    "sword-bronze": {
+      "size": [
+        0.27,
+        1.13,
+        0.07
+      ],
+      "triangles": 1540
+    },
+    "sword-steel": {
+      "size": [
+        0.27,
+        1.13,
+        0.07
+      ],
+      "triangles": 1540
+    },
+    "dagger-bronze": {
+      "size": [
+        0.21,
+        0.76,
+        0.05
+      ],
+      "triangles": 1450
+    },
+    "hammer-small-bronze": {
+      "size": [
+        0.15,
+        0.35,
+        0.06
+      ],
+      "triangles": 762
+    },
+    "shovel-bronze": {
+      "size": [
+        0.29,
+        1.49,
+        0.11
+      ],
+      "triangles": 696
+    },
+    "hoe-bronze": {
+      "size": [
+        0.26,
+        1.02,
+        0.12
+      ],
+      "triangles": 522
+    },
+    "shield-wooden": {
+      "size": [
+        0.61,
+        0.62,
+        0.18
+      ],
+      "triangles": 1404
+    },
+    "shield-metal": {
+      "size": [
+        0.61,
+        0.62,
+        0.18
+      ],
+      "triangles": 1352
+    }
+  }
+}

@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.67",
+          "date": "2026-11-15",
+          "notes": "- The axe and pickaxe in your hand are now the models from the Fantasy Props MegaKit's Pro tier, in place of the plain shapes. The fishing rod stays a plain shape: the pack has none.\n- That pack's tools and weapons are converted and in the kit (two axes, two pickaxes, two swords, a dagger, a hammer, a shovel, a hoe and two shields). Only the axe and pickaxe are used so far; the rest are for shops and fights.",
+          "highlight": false
+        },
+        {
           "version": "0.6.66",
           "date": "2026-11-15",
           "notes": "- Tools. Chopping needs an axe, mining a pickaxe and fishing a rod, carried in your inventory. Anything named for one counts. The tool shows in your hand while you use it. Settings → People → Inventory → \"Gathering needs tools\" turns the need off.\n- Crafting. Inventory → Craft lists what you can make and what each needs. The first axe, pickaxe and rod are made from a fallen branch, flint and plant fibre, which foraging now finds in every season.\n- Also: cooked fish, cord, kindling and a torch, and at higher levels a poultice, a quarterstaff, iron ingots and iron tools.\n- \"Make something new\" saves your own recipe: say what goes in, name and describe what comes of it.\n- An axe or a pickaxe says what it does as a weapon. A fishing rod doesn't.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.107",
           "date": "2026-11-15",
           "notes": "- The AI assistant's chat is ordered for prompt caching, as conversations are. What never changes (its instructions, the world's name and setting, who you play) is sent first, then the chat, and the world as it is now goes on your newest message. The turns sent back start from the same place for several messages running. \"Order prompts for caching\" (Settings → AI) turns it off.\n- The saddle sits on the horse's back. It was sunk into it, with the seat hidden inside the body and the flaps inside its sides; it is now a little higher and wider, and the rider sits that much higher with it.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.106",
-          "date": "2026-11-14",
-          "notes": "- Animals no longer stand or run inside one another. Two that are too close step apart, so a pack of wolves chases you side by side and stands round you, not all in one spot.\n- People walking step round each other and round anyone standing or sitting, not through them.\n- Settings → Animals → Behaviour has the switch, \"People and animals keep out of one another\", on to begin with.\n- Not covered yet: an animal can still overlap a person or you, and a ridden or tied animal doesn't move aside (others move round it).",
           "highlight": false
         }
       ]
