@@ -339,6 +339,10 @@ export function checkWorld(raw) {
     seasonSince: Number.isFinite(raw.seasonSince) ? raw.seasonSince : null,
     // Each persona's character sheet in this world: { [persona id]: a sheet } (sheet.js checks one when it's read).
     sheets: isRecord(raw.sheets) ? raw.sheets : {},
+    // Where things were gathered, and on which day: { "kind:x:z": day } (gather.js spotUsed).
+    gathered: isRecord(raw.gathered) ? raw.gathered : {},
+    // What money is called in this world ("" for the setting's own word); the purse is the item of that name.
+    currency: text(raw.currency).slice(0, 30),
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.
     voices: Object.fromEntries(
       Object.entries(isRecord(raw.voices) ? raw.voices : {})

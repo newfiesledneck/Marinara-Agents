@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.63",
+          "date": "2026-11-15",
+          "notes": "- Gathering. Where there's something to gather, buttons appear in the chat window: Fish beside water, Chop wood and Forage in the woods, Mine at the mountains or a cave, Harvest on a farm in summer and fall. A d20 plus one of your attributes decides what you find.\n- What you find goes into your Quartermaster inventory. Food says what eating it gives, and Use in Inventory → Items applies it. Foraging follows the season, and there is none in winter.\n- A patch gives nothing more of that kind until the next day. Settings → People → Inventory has the switch and the number of days.\n- Your purse: Inventory → Items shows how much money you carry and lets you name it. It is the item of that name.\n- No gathering animations or tools yet.",
+          "highlight": false
+        },
+        {
           "version": "0.6.62",
           "date": "2026-11-15",
           "notes": "- \"Add your own\" on the sheet has a \"Most\" box. Fill it in for a line that reads like 2/40 (\"Collected cars 2/40\"); leave it empty for a plain number (\"Fame 15\").\n- The sheet itself now has the two AI switches at the top: \"Tell the AI your stats\" and \"The AI updates your sheet\". They are the same settings as in Settings → People → Inventory.\n- Settings → AI → Connections has \"Trackers use\": a separate model for the inventory and sheet trackers, if you want one. It starts as \"Same as conversations\". It is in People → Inventory too.\n- The chat's Commands list scrolls, so the whole list can be read as it grows.",
@@ -307,12 +313,6 @@
           "version": "0.5.103",
           "date": "2026-11-14",
           "notes": "- Settings → World → Places has two sliders. \"Wait between places told\" is 10 to 60 seconds (45 as before). \"Visits before a place is told again\" is 1 to 10, and 1 tells a place on every visit. It replaces the old rule, which skipped the last five places told; the default is 5 visits.\n- A place is told during a conversation too. 0.5.102 held it until the conversation was over, which was often when you were about to leave.\n- Illustrate is given only the chat from the place you're in, so a picture isn't of two places at once. Settings → AI → Pictures has the switch.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.102",
-          "date": "2026-11-14",
-          "notes": "- A place you reach less than 45 seconds after the last place was told is no longer skipped for good. If you are still there when the 45 seconds are over, it is told then. Places you only run through stay untold, and a place is still told once, not again each time the wait ends.\n- A place is not told while you are in a conversation; it waits until the conversation is over.",
           "highlight": false
         }
       ]

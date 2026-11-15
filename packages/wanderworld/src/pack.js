@@ -549,8 +549,89 @@ const ANIMALS = {
   puglin: "the puglin",
 };
 
+/**
+ * What gathering finds (gather.js): for each kind a list, the commoner things first; foraging by season.
+ * A description that says "+N HP" is what eating it gives (sheet.js reads it when the thing is used).
+ * `lines`: what's said when something is found ({who}, {what}), when nothing is, and when the spot is spent.
+ */
+const GATHER = {
+  fish: [
+    { name: "River trout", description: "A fresh fish. +4 HP when eaten." },
+    { name: "Perch", description: "A small striped fish. +3 HP when eaten." },
+    { name: "Pike", description: "A long, toothy fish, enough for two. +6 HP when eaten." },
+    { name: "Old boot", description: "Somebody's boot, a long time in the water." },
+  ],
+  chop: [
+    { name: "Firewood", description: "A split log, good for a fire." },
+    { name: "Kindling", description: "A bundle of dry sticks." },
+    { name: "Straight branch", description: "A straight length of wood, fit for a handle or a staff." },
+  ],
+  forage: {
+    spring: [
+      { name: "Wild garlic", description: "Broad green leaves with a sharp smell. +1 HP when eaten." },
+      { name: "Morel", description: "A honeycombed spring mushroom. +2 HP when eaten." },
+      { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
+    ],
+    summer: [
+      { name: "Wild berries", description: "A handful of ripe berries. +2 HP when eaten." },
+      { name: "Field mushroom", description: "A plain white mushroom. +2 HP when eaten." },
+      { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
+      { name: "Bird's egg", description: "A small speckled egg. +2 HP when eaten." },
+    ],
+    fall: [
+      { name: "Hazelnuts", description: "A pocketful of nuts. +2 HP when eaten." },
+      { name: "Crab apples", description: "Small sour apples. +2 HP when eaten." },
+      { name: "Chanterelle", description: "A golden autumn mushroom. +3 HP when eaten." },
+      { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
+    ],
+  },
+  mine: [
+    { name: "Stone", description: "A good squared lump of stone." },
+    { name: "Flint", description: "A nodule of flint, for sparks and edges." },
+    { name: "Iron ore", description: "Rusty, heavy rock a smith can use." },
+    { name: "Copper ore", description: "Green-streaked rock." },
+    { name: "Rough gem", description: "An uncut stone with colour in it." },
+  ],
+  harvest: [
+    { name: "Turnips", description: "A few turnips. +2 HP when eaten." },
+    { name: "Wheat sheaf", description: "A bound sheaf of wheat, for a miller." },
+    { name: "Apples", description: "Sound eating apples. +3 HP when eaten." },
+    { name: "Cabbage", description: "A firm head of cabbage. +2 HP when eaten." },
+  ],
+  lines: {
+    fish: {
+      found: "{who} casts a line and lands {what}.",
+      none: "{who} casts a line. Nothing bites.",
+      spent: "The fish here have been put off for today. Try further along, or tomorrow.",
+    },
+    chop: {
+      found: "{who} sets to with an axe and comes away with {what}.",
+      none: "{who} hacks at a fallen limb and gets nothing worth carrying.",
+      spent: "The good wood here is taken. Try a little further on, or another day.",
+    },
+    forage: {
+      found: "{who} searches the undergrowth and finds {what}.",
+      none: "{who} searches the undergrowth and finds nothing fit to keep.",
+      spent: "This patch has been picked over. Try a little further on, or another day.",
+    },
+    mine: {
+      found: "{who} works at the rock and prises out {what}.",
+      none: "{who} works at the rock and gets only dust.",
+      spent: "This face is worked out for now. Try a little further along, or another day.",
+    },
+    harvest: {
+      found: "{who} works along the rows and gathers {what}.",
+      none: "{who} works along the rows. Nothing here is ready.",
+      spent: "These rows are picked. Try further along, or another day.",
+    },
+  },
+};
+
 export const PACK = {
   id: "fantasy",
+  /** What money is called here, until the player names it (Inventory → Items). */
+  currency: "Coins",
+  gather: GATHER,
   /** What this setting looks like wherever you are, in a picture's prompt ({world_look}), unless the world has its own. */
   look: "medieval fantasy",
   things: THINGS,

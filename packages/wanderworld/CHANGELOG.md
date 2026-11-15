@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.63 — 2026-11-15
+
+- Gathering. Where there's something to gather, buttons appear in the chat window: Fish beside water, Chop wood and Forage in the woods, Mine at the mountains or a cave, Harvest on a farm in summer and fall. A d20 plus one of your attributes decides what you find.
+- What you find goes into your Quartermaster inventory. Food says what eating it gives, and Use in Inventory → Items applies it. Foraging follows the season, and there is none in winter.
+- A patch gives nothing more of that kind until the next day. Settings → People → Inventory has the switch and the number of days.
+- Your purse: Inventory → Items shows how much money you carry and lets you name it. It is the item of that name.
+- No gathering animations or tools yet.
+
 ## 0.6.62 — 2026-11-15
 
 - "Add your own" on the sheet has a "Most" box. Fill it in for a line that reads like 2/40 ("Collected cars 2/40"); leave it empty for a plain number ("Fame 15").

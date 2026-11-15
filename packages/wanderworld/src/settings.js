@@ -140,6 +140,10 @@ export const SETTINGS = {
   // The character sheet (sheet.js): kept and shown; and what's switched on in it told to the AI.
   sheet: { value: true },
   sheetTold: { value: true },
+  // Gathering (gather.js): fishing, chopping, foraging, mining, harvesting; and how many of the world's
+  // days a spot takes to give again (0: it always does).
+  gathering: { value: true },
+  regrowDays: { value: 1, min: 0, max: 30 },
   /** The AI reads what was narrated and changes the sheet (HP lost, mana spent, experience earned): one more call. */
   sheetTrack: { value: "off", options: ["off", "moments", "all"] },
   /** Quartermaster's window stays open when you click in the game (it closes at a click anywhere else). */
