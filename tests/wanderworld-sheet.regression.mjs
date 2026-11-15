@@ -79,6 +79,26 @@ assert.equal(valueOf(changed.sheet, "mana"), 10);
 assert.equal(xpNeeded(3), 300);
 const grown = gainXp(sheet, 350);
 assert.deepEqual([grown.levels, valueOf(grown.sheet, "level"), valueOf(grown.sheet, "xp")], [2, 3, 50]);
+// A level gained raises what HP and mana can be, and restores HP (Strength is 14 here, Constitution 10).
+assert.deepEqual(
+  [entryOf(grown.sheet, "hp").max, valueOf(grown.sheet, "hp"), entryOf(grown.sheet, "mana").max],
+  [28, 28, 14],
+  "two levels: 4 HP and 2 mana each",
+);
+{
+  const hardy = changeSheet(applyChanges(sheet, [{ stat: "hp", to: 3 }]).sheet, {
+    set: "constitution",
+    field: "value",
+    value: 16,
+  });
+  const up = gainXp(hardy, 100);
+  assert.deepEqual(
+    [up.levels, entryOf(up.sheet, "hp").max, valueOf(up.sheet, "hp")],
+    [1, 27, 27],
+    "4 and a +3 modifier, and healed",
+  );
+  assert.deepEqual(gainXp(hardy, 10).sheet.entries.find((entry) => entry.id === "hp").value, 3, "no level, no healing");
+}
 
 // Bonuses in descriptions; what's worn adds up; using something applies what it does to a resource, once.
 assert.deepEqual(bonusesIn("A stout shield. +2 AC, -1 Dexterity. +2 to attack rolls and +1 damage.", sheet), [

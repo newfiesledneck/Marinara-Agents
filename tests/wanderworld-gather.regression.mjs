@@ -88,6 +88,10 @@ assert.ok(Object.keys(used).length === 300 && !("fish:1:-1" in used), "the oldes
 
 // A tree: four strokes and it's down; one piece of wood a stroke; it stands again after its days.
 assert.equal(gatherRoll("chop", 30, { chop: [{ name: "Firewood" }] }, "", () => 0.999).found.quantity, 1);
+// A better tool adds to the roll: something is found more often, and two of it (from a tree as well).
+assert.equal(gatherRoll("fish", 10, lists, "", () => 0.3).found, null, "7 on the die, nothing");
+assert.equal(gatherRoll("fish", 10, lists, "", () => 0.3, 2).found.name, "Trout", "7 and a +2 tool: found");
+assert.equal(gatherRoll("chop", 30, { chop: [{ name: "Firewood" }] }, "", () => 0.999, 2).found.quantity, 2);
 let trees = {};
 for (let i = 0; i < TREE_WOOD; i++) {
   const stroke = chopTree(trees, "0,0|17", 3);

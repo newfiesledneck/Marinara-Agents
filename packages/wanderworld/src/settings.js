@@ -98,6 +98,8 @@ export const SETTINGS = {
   },
   /** The trees, plants and streets wear the world's season: snow, fall's colours, spring's blossom. */
   seasonLook: { value: true },
+  /** The season shown and played: "world" is the world's own (Journal → World); else this one, whatever the world says. */
+  season: { value: "world", options: ["world", "none", "spring", "summer", "fall", "winter"] },
   /** The seasons turn by themselves, each lasting `seasonDays` of the world's days (off: it stays as set). */
   seasonsTurn: { value: false },
   seasonDays: { value: 7, min: 1, max: 999 },

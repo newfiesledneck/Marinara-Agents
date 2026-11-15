@@ -154,7 +154,16 @@ export function applyChanges(sheet, changes) {
   return { sheet: next, applied };
 }
 
-/** Experience earned: the level rises while there's enough for it. Gives { sheet, levels } (how many were gained). */
+/**
+ * What a level gained gives: more HP at most (4 and the Constitution modifier, 1 at least), 2 more mana at
+ * most, and HP back to full.
+ */
+export const LEVEL_GAIN = { hp: 4, mana: 2 };
+
+/**
+ * Experience earned: the level rises while there's enough for it, and each level gained raises what HP and
+ * mana can be and restores HP (LEVEL_GAIN). Gives { sheet, levels } (how many were gained).
+ */
 export function gainXp(sheet, amount) {
   let level = valueOf(sheet, "level");
   let xp = valueOf(sheet, "xp") + Math.max(0, Math.round(amount) || 0);
@@ -164,10 +173,18 @@ export function gainXp(sheet, amount) {
     level += 1;
     levels += 1;
   }
-  const next = applyChanges(sheet, [
-    { stat: "level", to: level },
-    { stat: "xp", to: xp },
-  ]).sheet;
+  let next = sheet;
+  if (levels) {
+    const hp = entryOf(sheet, "hp");
+    const mana = entryOf(sheet, "mana");
+    const more = levels * Math.max(1, LEVEL_GAIN.hp + modifier(valueOf(sheet, "constitution")));
+    if (hp) next = changeSheet(next, { set: "hp", field: "max", value: hp.max + more });
+    if (hp) next = changeSheet(next, { set: "hp", field: "value", value: hp.max + more });
+    if (mana) next = changeSheet(next, { set: "mana", field: "max", value: mana.max + levels * LEVEL_GAIN.mana });
+  }
+  // (Set whether or not they're ticked: a level is kept even while it isn't shown.)
+  next = changeSheet(next, { set: "level", field: "value", value: level });
+  next = changeSheet(next, { set: "xp", field: "value", value: xp });
   return { sheet: next, levels };
 }
 

@@ -758,7 +758,7 @@ const RECIPES = [
   {
     id: "iron-axe",
     name: "Iron axe",
-    description: "A forged head on a straight haft. Tool: chops wood. Weapon: 1d8 damage, +1 to attack.",
+    description: "A forged head on a straight haft. Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
     level: 4,
     needs: [
       { name: "Iron ingot", quantity: 2 },
@@ -768,7 +768,7 @@ const RECIPES = [
   {
     id: "iron-pickaxe",
     name: "Iron pickaxe",
-    description: "A forged pick on a straight haft. Tool: mines rock. Weapon: 1d8 damage, +1 to attack.",
+    description: "A forged pick on a straight haft. Tool: mines rock, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
     level: 4,
     needs: [
       { name: "Iron ingot", quantity: 2 },
@@ -807,6 +807,11 @@ const VENDORS = {
         { name: "Lantern", description: "A horn-paned lantern.", price: 12 },
         { name: "Candle", description: "A tallow candle.", price: 1 },
         { name: "Fishing rod", description: "A springy rod with a twisted line. Tool: catches fish.", price: 6 },
+        {
+          name: "Jointed fishing rod",
+          description: "A well-made rod in two pieces. Tool: catches fish, +2 gathering.",
+          price: 18,
+        },
         { name: "Cord", description: "A length of twisted cord.", price: 1 },
       ],
       wants: /branch|fibre|cord|firewood|kindling|flint|stone|torch|rope|sack/iu,
@@ -818,12 +823,14 @@ const VENDORS = {
       stock: [
         {
           name: "Iron axe",
-          description: "A forged head on a straight haft. Tool: chops wood. Weapon: 1d8 damage, +1 to attack.",
+          description:
+            "A forged head on a straight haft. Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
           price: 30,
         },
         {
           name: "Iron pickaxe",
-          description: "A forged pick on a straight haft. Tool: mines rock. Weapon: 1d8 damage, +1 to attack.",
+          description:
+            "A forged pick on a straight haft. Tool: mines rock, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
           price: 30,
         },
         {
