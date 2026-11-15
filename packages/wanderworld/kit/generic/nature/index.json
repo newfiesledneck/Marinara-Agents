@@ -1,5 +1,5 @@
 {
-  "source": "Stylized Nature MegaKit (Standard) by Quaternius, CC0 1.0",
+  "source": "Stylized Nature MegaKit (Pro) by Quaternius, CC0 1.0",
   "models": {
     "commontree-1": {
       "size": [
@@ -160,6 +160,230 @@
         8.41
       ],
       "triangles": 5648
+    },
+    "cherryblossom-1": {
+      "size": [
+        12.1,
+        13.38,
+        14.68
+      ],
+      "triangles": 12876
+    },
+    "cherryblossom-4": {
+      "size": [
+        13.34,
+        13.37,
+        12.54
+      ],
+      "triangles": 12391
+    },
+    "cherryblossom-5": {
+      "size": [
+        12.49,
+        13.38,
+        13.01
+      ],
+      "triangles": 12590
+    },
+    "birch-3": {
+      "size": [
+        7.97,
+        13.36,
+        6.72
+      ],
+      "triangles": 5821
+    },
+    "birch-4": {
+      "size": [
+        6.24,
+        11.62,
+        6.64
+      ],
+      "triangles": 5784
+    },
+    "birch-5": {
+      "size": [
+        6.71,
+        13.72,
+        6.32
+      ],
+      "triangles": 5106
+    },
+    "giantpine-3": {
+      "size": [
+        12.55,
+        13.11,
+        12.29
+      ],
+      "triangles": 7296
+    },
+    "giantpine-4": {
+      "size": [
+        13.46,
+        16.68,
+        12.31
+      ],
+      "triangles": 6794
+    },
+    "giantpine-5": {
+      "size": [
+        15.89,
+        15.94,
+        15.67
+      ],
+      "triangles": 6988
+    },
+    "tallthick-2": {
+      "size": [
+        7.86,
+        15.18,
+        7.07
+      ],
+      "triangles": 7129
+    },
+    "tallthick-4": {
+      "size": [
+        10.12,
+        15.27,
+        8.65
+      ],
+      "triangles": 7304
+    },
+    "tallthick-5": {
+      "size": [
+        8.75,
+        18.85,
+        8.7
+      ],
+      "triangles": 7202
+    },
+    "bush-large": {
+      "size": [
+        3.6,
+        3.25,
+        3.67
+      ],
+      "triangles": 864
+    },
+    "bush-large-flowers": {
+      "size": [
+        3.8,
+        3.26,
+        3.67
+      ],
+      "triangles": 1209
+    },
+    "bush-long-1": {
+      "size": [
+        1.68,
+        2.37,
+        1.64
+      ],
+      "triangles": 522
+    },
+    "fern-2": {
+      "size": [
+        1.68,
+        0.78,
+        1.79
+      ],
+      "triangles": 180
+    },
+    "plant-2": {
+      "size": [
+        1.37,
+        1.56,
+        1.38
+      ],
+      "triangles": 446
+    },
+    "plant-3": {
+      "size": [
+        1.84,
+        0.71,
+        1.74
+      ],
+      "triangles": 560
+    },
+    "plant-5": {
+      "size": [
+        1.41,
+        1.39,
+        1.52
+      ],
+      "triangles": 550
+    },
+    "flower-1-group": {
+      "size": [
+        1.83,
+        1.5,
+        1.72
+      ],
+      "triangles": 1571
+    },
+    "flower-2-group": {
+      "size": [
+        1.52,
+        1.57,
+        1.14
+      ],
+      "triangles": 942
+    },
+    "flower-7-group": {
+      "size": [
+        1.84,
+        1.71,
+        1.84
+      ],
+      "triangles": 1078
+    },
+    "mushroom-redcap": {
+      "size": [
+        1.68,
+        0.92,
+        1.71
+      ],
+      "triangles": 704
+    },
+    "grass-wide-tall": {
+      "size": [
+        1.15,
+        1.61,
+        1.11
+      ],
+      "triangles": 506
+    },
+    "grass-wide-short": {
+      "size": [
+        1.04,
+        1.3,
+        1.07
+      ],
+      "triangles": 370
+    },
+    "rock-big-1": {
+      "size": [
+        5.2,
+        4.58,
+        4.45
+      ],
+      "triangles": 1736
+    },
+    "rock-big-2": {
+      "size": [
+        5.77,
+        3.81,
+        5.82
+      ],
+      "triangles": 1944
+    },
+    "rock-medium-4": {
+      "size": [
+        3.78,
+        2.48,
+        3.61
+      ],
+      "triangles": 400
     },
     "bush-common": {
       "size": [

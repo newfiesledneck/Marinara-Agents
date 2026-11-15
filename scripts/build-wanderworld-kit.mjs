@@ -5,7 +5,7 @@
 // and texture coordinates quantized within their boxes.
 //
 // Usage (unzip the pack first; ffmpeg must be on PATH, or set FFMPEG):
-//   node scripts/build-wanderworld-kit.mjs nature "<…>/Stylized Nature MegaKit[Standard]/glTF"
+//   node scripts/build-wanderworld-kit.mjs nature "<…>/Stylized Nature MegaKit[Pro]/glTF"
 //   (props also takes the Farm Buildings pack's FBX folder, for the barn and the windmill)
 //   node scripts/build-wanderworld-kit.mjs props "<…>/Fantasy Props MegaKit[Standard]/Exports/glTF" "<…>/Medieval Village MegaKit[Standard]/glTF"
 import { execFileSync } from "node:child_process";
@@ -30,7 +30,7 @@ const GLB_IMAGES = join(tmpdir(), "wanderworld-kit-glb");
 const SETS = {
   nature: {
     dir: "generic/nature",
-    source: "Stylized Nature MegaKit (Standard) by Quaternius, CC0 1.0",
+    source: "Stylized Nature MegaKit (Pro) by Quaternius, CC0 1.0",
     models: [
       "CommonTree_1",
       "CommonTree_2",
@@ -52,6 +52,35 @@ const SETS = {
       "DeadTree_3",
       "DeadTree_4",
       "DeadTree_5",
+      // (From here on, models of the Pro tier. Three shapes of each tree: they're the heaviest models.)
+      "CherryBlossom_1",
+      "CherryBlossom_4",
+      "CherryBlossom_5",
+      "Birch_3",
+      "Birch_4",
+      "Birch_5",
+      "GiantPine_3",
+      "GiantPine_4",
+      "GiantPine_5",
+      "TallThick_2",
+      "TallThick_4",
+      "TallThick_5",
+      "Bush_Large",
+      "Bush_Large_Flowers",
+      "Bush_Long_1",
+      "Fern_2",
+      "Plant_2",
+      "Plant_3",
+      "Plant_5",
+      "Flower_1_Group",
+      "Flower_2_Group",
+      "Flower_7_Group",
+      "Mushroom_RedCap",
+      "Grass_Wide_Tall",
+      "Grass_Wide_Short",
+      "Rock_Big_1",
+      "Rock_Big_2",
+      "Rock_Medium_4",
       "Bush_Common",
       "Bush_Common_Flowers",
       "Fern_1",

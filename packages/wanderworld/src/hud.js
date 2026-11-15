@@ -862,7 +862,7 @@ export function createHud(root, handlers) {
     inventoryPinned:
       "On: the inventory window stays open while you play. Close it with its own close button or the Inventory button. A click elsewhere in the Engine, outside the game, still closes it. Off: it closes at any click outside it, as it does in a chat.",
     seasonLook:
-      "On: the land wears the world's season (Journal → World → Season). Winter: snow on the trees, bushes, stones, roads and streets, the grass and flowers gone, drifts under the trees. Fall: leaves turned yellow, orange and red, dry grass, no flowers; pines stay green. Spring: some trees in blossom, the rest a fresh green. Off: only winter's snowy ground shows.",
+      "On: the land wears the world's season (Journal → World → Season). Winter: snow on the trees, bushes, stones, roads and streets, the grass and flowers gone, drifts under the trees. Fall: leaves turned yellow, orange and red, the birches orange, dry grass, no flowers; pines stay green. Spring: the cherry trees in blossom, the rest a fresh green. Off: only winter's snowy ground shows.",
     inventoryTheme:
       "On: Quartermaster's window opens in Wanderworld's parchment colours and lettering. Off: it looks as it does in the Engine. The item and outfit editors it opens keep the Engine's look either way.",
     gossip:

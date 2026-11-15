@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.5)
+## What it does now (0.6.6)
 
 ### The world
 
@@ -482,7 +482,9 @@ only walk about.
     and drifts lie under the trees.
   - Fall: each broadleaf tree and bush turns yellow, orange or red, the grass is dry, and the flowers
     and clover are gone. Pines stay green.
-  - Spring: about a third of the broadleaf trees are in blossom, the rest a fresher green, as is the grass.
+  - Spring: the cherry trees are in blossom (they're green the rest of the year), and the other
+    broadleaf trees and the grass are a fresher green.
+  - The birches are orange in fall, their leaves' own colour, and green otherwise.
 - The year can turn (Settings → World → Time and weather → "Seasons change", off to begin with): each
   season lasts a number of the world's days that you type in, then the next begins and the chat says
   so. A world starts in the season its lore names. Setting the season in the Journal starts it from

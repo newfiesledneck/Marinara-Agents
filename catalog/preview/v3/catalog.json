@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.6.5",
+        "version": "0.6.6",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -476,14 +476,20 @@
               "kit/generic/art/street-cobbles.webp",
               "kit/generic/art/water.webp",
               "kit/generic/art/wood-beam.webp",
+              "kit/generic/nature/bark-birchtree.webp",
               "kit/generic/nature/bark-deadtree.webp",
               "kit/generic/nature/bark-normaltree.webp",
+              "kit/generic/nature/bark-pinetree.webp",
               "kit/generic/nature/bark-twistedtree.webp",
               "kit/generic/nature/flowers.webp",
               "kit/generic/nature/grass.webp",
               "kit/generic/nature/index.json",
               "kit/generic/nature/leaf-pine-c.webp",
+              "kit/generic/nature/leaves-birch-c.webp",
+              "kit/generic/nature/leaves-cherryblossom-c.webp",
+              "kit/generic/nature/leaves-giantpine-c.webp",
               "kit/generic/nature/leaves-normaltree-c.webp",
+              "kit/generic/nature/leaves-tallthick-c.webp",
               "kit/generic/nature/leaves-twistedtree-c.webp",
               "kit/generic/nature/leaves.webp",
               "kit/generic/nature/models.json",
@@ -514,8 +520,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "dfffe9b68c19f08cdd6e3e4e433ba29f728f700bec1377a058ff318cb6e9cc9a",
-            "bytes": 2433449
+            "sha256": "5225ea408a49d63d4c9eee7f8867bc5257127b3170d8e781d3a2cdef40a59fa0",
+            "bytes": 2434824
           },
           {
             "path": "server.mjs",
@@ -923,6 +929,11 @@
             "bytes": 38302
           },
           {
+            "path": "kit/generic/nature/bark-birchtree.webp",
+            "sha256": "7048041ea3329881b81075d9b1f78ccbf1a1fd7fa75a6cb06205b922da180e61",
+            "bytes": 7830
+          },
+          {
             "path": "kit/generic/nature/bark-deadtree.webp",
             "sha256": "b2b8ac1369583e0b440284fe674692eac3196f4a8488307c3b462624922a62da",
             "bytes": 2984
@@ -931,6 +942,11 @@
             "path": "kit/generic/nature/bark-normaltree.webp",
             "sha256": "85fb5a9084102eeb7c17e9016b64f91e595be26bef1a6e3d2fbcbb56c347b15d",
             "bytes": 3248
+          },
+          {
+            "path": "kit/generic/nature/bark-pinetree.webp",
+            "sha256": "e7c643577a31dee9d65b99683d95f2d8622408b4933b8fd6fb311a7adf58b818",
+            "bytes": 2064
           },
           {
             "path": "kit/generic/nature/bark-twistedtree.webp",
@@ -949,8 +965,8 @@
           },
           {
             "path": "kit/generic/nature/index.json",
-            "sha256": "ac820aac2133e771b7aa21243806863272c5b8fde846c215593b0f7fa507ce0d",
-            "bytes": 4955
+            "sha256": "b3c5496932ea2d60ef9d51bce454dd9073c2de127d0cbf132929265334639367",
+            "bytes": 8275
           },
           {
             "path": "kit/generic/nature/leaf-pine-c.webp",
@@ -958,9 +974,29 @@
             "bytes": 2570
           },
           {
+            "path": "kit/generic/nature/leaves-birch-c.webp",
+            "sha256": "e96f18f44140c5a7188c545591ec7139e6dd6d6b3218ab8f5758ad4379f6221f",
+            "bytes": 7602
+          },
+          {
+            "path": "kit/generic/nature/leaves-cherryblossom-c.webp",
+            "sha256": "da8c4f76815f5a4000117c8b6f21af272055e6f9ac3e4016d6a237a26fe6c5f7",
+            "bytes": 4972
+          },
+          {
+            "path": "kit/generic/nature/leaves-giantpine-c.webp",
+            "sha256": "7088aeee2968c85d02bd3ec22ed1747ba044c5a909b6d65c406b35e88c4de8f1",
+            "bytes": 4876
+          },
+          {
             "path": "kit/generic/nature/leaves-normaltree-c.webp",
             "sha256": "b4929508a572aed6ab702a368da14b8219cc901e78dd21545c36ec07c659dda7",
             "bytes": 7704
+          },
+          {
+            "path": "kit/generic/nature/leaves-tallthick-c.webp",
+            "sha256": "6b426e1f98667a4c33cb24cab00edde7b867e05b733cf8f8d2d0c58d10531d24",
+            "bytes": 6066
           },
           {
             "path": "kit/generic/nature/leaves-twistedtree-c.webp",
@@ -974,8 +1010,8 @@
           },
           {
             "path": "kit/generic/nature/models.json",
-            "sha256": "ee930621044207ce41d015350fdee6ca08caa5c11611becf19235d7310c77e49",
-            "bytes": 4398379
+            "sha256": "590379c974808b3a4aad9b8be9094c75ab885f12dffafb57f17e89df66b9e494",
+            "bytes": 8126966
           },
           {
             "path": "kit/generic/nature/mushrooms.webp",
@@ -1070,9 +1106,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.6.5.zip",
-        "sha256": "e552bf5abcc1688a1048ccd722455be776e4b2bb1f77580ba02931ae25a0a65d",
-        "bytes": 25715208
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.6.6.zip",
+        "sha256": "e4d5490d70acfdedc7ca102bac3285a9bb75c0648ee7dd45f994d3822d0a753d",
+        "bytes": 29484210
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

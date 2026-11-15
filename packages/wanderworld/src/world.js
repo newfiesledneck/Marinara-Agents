@@ -160,8 +160,21 @@ const KIT_TREES = [
   ["deadtree-3", 0.12, 0.7],
   ["deadtree-4", 0.12, 0.7],
   ["deadtree-5", 0.12, 0.7],
+  // Cherry trees (in blossom in spring), birches (orange in fall), and two more conifers.
+  ["cherryblossom-1", 0.5, 0.8],
+  ["cherryblossom-4", 0.5, 0.8],
+  ["cherryblossom-5", 0.5, 0.8],
+  ["birch-3", 1, 0.8],
+  ["birch-4", 1, 0.8],
+  ["birch-5", 1, 0.8],
+  ["giantpine-3", 0.8, 0.9],
+  ["giantpine-4", 0.8, 0.9],
+  ["giantpine-5", 0.8, 0.9],
+  ["tallthick-2", 0.6, 0.8],
+  ["tallthick-4", 0.6, 0.8],
+  ["tallthick-5", 0.6, 0.8],
 ];
-const KIT_ROCKS = ["rock-medium-1", "rock-medium-2", "rock-medium-3"];
+const KIT_ROCKS = ["rock-medium-1", "rock-medium-2", "rock-medium-3", "rock-medium-4", "rock-big-1", "rock-big-2"];
 /** Undergrowth: model, weight, size. */
 const KIT_PLANTS = [
   ["bush-common", 3, 0.8],
@@ -181,6 +194,19 @@ const KIT_PLANTS = [
   ["grass-wispy-short", 2, 0.45],
   ["pebble-round-1", 1, 1.4],
   ["pebble-round-3", 1, 1.4],
+  ["bush-large", 1, 0.7],
+  ["bush-large-flowers", 0.8, 0.7],
+  ["bush-long-1", 1, 0.8],
+  ["fern-2", 2, 0.7],
+  ["plant-2", 1, 0.8],
+  ["plant-3", 1, 0.8],
+  ["plant-5", 1, 0.8],
+  ["flower-1-group", 1.5, 0.45],
+  ["flower-2-group", 1.5, 0.45],
+  ["flower-7-group", 1, 0.45],
+  ["mushroom-redcap", 0.3, 0.5],
+  ["grass-wide-tall", 3, 0.45],
+  ["grass-wide-short", 2, 0.45],
 ];
 /**
  * What isn't there in a season. Winter: grass, ferns, flowers, clover and mushrooms have died back (bushes,
@@ -2995,8 +3021,10 @@ function waterMaterial(uniforms) {
 /**
  * Has a material wear the season, by the ground's uniforms (`uSnow`, `uFall`, `uSpring`: 0 is none). `kind`:
  * - "leaf": a broadleaf's leaves or a bush. Snow nearly all over in winter (they're flat cards facing every
- *   way, and would stay green or red); turned yellow, orange or red in fall, each tree its own; a third of
- *   them in blossom in spring and the rest a fresher green.
+ *   way, and would stay green or red); turned yellow, orange or red in fall, each tree its own; a fresher
+ *   green in spring.
+ * - "blossom": a cherry tree's. Its own pink only in spring; green in summer, turned in fall, snow in winter.
+ * - "birch": a birch's. Its own orange only in fall; green the rest of the year, snow in winter.
  * - "needle": a pine's. Snow as leaves have it, and green the year round.
  * - "top": bark, stone and the rest. Snow where they face the sky.
  * - "trodden": a street or a square. Snow over about half of it, in patches, the paving showing through.
@@ -3007,6 +3035,8 @@ function seasonOn(material, uniforms, kind) {
   const key = material.customProgramCacheKey?.() ?? "";
   const cover = {
     leaf: "0.9 + 0.1 * abs(vSeason.x)",
+    blossom: "0.9 + 0.1 * abs(vSeason.x)",
+    birch: "0.9 + 0.1 * abs(vSeason.x)",
     needle: "0.9 + 0.1 * abs(vSeason.x)",
     top: "smoothstep(0.2, 0.7, vSeason.x)",
     // (Two wandering waves, so the patches don't line up into squares.)
@@ -3046,14 +3076,23 @@ vSeason = vec4(normalize(mat3(modelMatrix) * objectNormal).y, 0.5, seasonAt.xz);
         `#include <color_fragment>
 {
 ${
-  kind === "leaf"
-    ? `  float light = dot(diffuseColor.rgb, vec3(0.35, 0.5, 0.15));
+  {
+    leaf: `  float light = dot(diffuseColor.rgb, vec3(0.35, 0.5, 0.15));
   vec3 turned = vSeason.y < 0.35 ? vec3(0.95, 0.7, 0.14) : vSeason.y < 0.72 ? vec3(0.9, 0.42, 0.1) : vec3(0.68, 0.17, 0.1);
   diffuseColor.rgb = mix(diffuseColor.rgb, turned * min(1.05, 0.5 + light * 1.3), uFall * 0.88);
-  vec3 fresh = vSeason.y > 0.67 ? vec3(1.0, 0.8, 0.88) * (0.62 + light) : diffuseColor.rgb * vec3(0.96, 1.14, 0.8);
-  diffuseColor.rgb = mix(diffuseColor.rgb, fresh, uSpring * 0.85);
-`
-    : ""
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.96, 1.14, 0.8), uSpring * 0.85);
+`,
+    // (Their leaves' own colour is one season's: the rest of the year they're made green from its light and dark.)
+    blossom: `  float light = dot(diffuseColor.rgb, vec3(0.35, 0.5, 0.15));
+  vec3 turned = vSeason.y < 0.5 ? vec3(0.9, 0.42, 0.1) : vec3(0.68, 0.17, 0.1);
+  vec3 green = mix(vec3(0.34, 0.6, 0.2) * (0.45 + light * 0.75), turned * min(1.05, 0.4 + light * 0.9), uFall * 0.88);
+  diffuseColor.rgb = mix(green, mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.9), 0.5), uSpring); // (a paler pink than the texture's)
+`,
+    birch: `  float light = dot(diffuseColor.rgb, vec3(0.35, 0.5, 0.15));
+  vec3 green = vec3(0.4, 0.64, 0.2) * (0.5 + light * 0.9) * mix(vec3(1.0), vec3(0.96, 1.14, 0.8), uSpring * 0.85);
+  diffuseColor.rgb = mix(green, diffuseColor.rgb, uFall);
+`,
+  }[kind] ?? ""
 }  float cover = ${cover};
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.95, 1.0), clamp(uSnow * 1.15 * cover, 0.0, 1.0));
 }`,
@@ -4054,7 +4093,15 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
           : seasonOn(
               material.clone(),
               ground,
-              /^leaf-pine/u.test(texture) ? "needle" : /^(?:leaves|leaf|flowers)/u.test(texture) ? "leaf" : "top",
+              /^(?:leaf-pine|leaves-giantpine|leaves-tallthick)/u.test(texture)
+                ? "needle"
+                : /^leaves-cherryblossom/u.test(texture)
+                  ? "blossom"
+                  : /^leaves-birch/u.test(texture)
+                    ? "birch"
+                    : /^(?:leaves|leaf|flowers)/u.test(texture)
+                      ? "leaf"
+                      : "top",
             );
         const instanced = new InstancedMesh(geometry, look, items.length);
         instanced.frustumCulled = false; // round the player anyway, and its instances change as they move
