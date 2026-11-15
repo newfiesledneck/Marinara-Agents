@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.6.67 — 2026-11-15
+
+- The axe and pickaxe in your hand are now the models from the Fantasy Props MegaKit's Pro tier, in place of the plain shapes. The fishing rod stays a plain shape: the pack has none.
+- That pack's tools and weapons are converted and in the kit (two axes, two pickaxes, two swords, a dagger, a hammer, a shovel, a hoe and two shields). Only the axe and pickaxe are used so far; the rest are for shops and fights.
+
 ## 0.6.66 — 2026-11-15
 
 - Tools. Chopping needs an axe, mining a pickaxe and fishing a rod, carried in your inventory. Anything named for one counts. The tool shows in your hand while you use it. Settings → People → Inventory → "Gathering needs tools" turns the need off.

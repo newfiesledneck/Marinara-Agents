@@ -57,7 +57,28 @@ const HELD_HAND = {
   sword: "right",
 };
 let heldParts = null;
+/**
+ * The kit's own models for things held, once they've loaded ({ axe: parts, pick: parts }, from the
+ * props pack's tools: main.js). Until then, and for everything else, the plain shapes below.
+ */
+const heldModels = new Map();
+export function setHeldModels(models) {
+  for (const [name, parts] of Object.entries(models)) if (parts?.length) heldModels.set(name, parts);
+}
+
 function heldThing(name) {
+  const model = heldModels.get(name);
+  if (model) {
+    // (The kit's tools stand upright, their grip at the origin: laid along the hand as the plain shapes are.)
+    const group = new Group();
+    for (const part of model) {
+      const mesh = new Mesh(part.geometry, part.material);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.userData.sharedShadow = true;
+      group.add(mesh);
+    }
+    return group;
+  }
   if (!heldParts) {
     const part = (geometry, hex) => {
       const mesh = new Mesh(geometry, new MeshLambertMaterial({ color: hex, flatShading: true }));

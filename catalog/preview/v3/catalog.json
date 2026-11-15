@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.6.66",
+        "version": "0.6.67",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -441,6 +441,11 @@
               "kit/fantasy/props/t-trim-metal-basecolor.webp",
               "kit/fantasy/props/t-trim-props-basecolor.webp",
               "kit/fantasy/props/t-woodtrim-basecolor.webp",
+              "kit/fantasy/tools/index.json",
+              "kit/fantasy/tools/models.json",
+              "kit/fantasy/tools/t-trim-furniture-basecolor.webp",
+              "kit/fantasy/tools/t-trim-metal-basecolor.webp",
+              "kit/fantasy/tools/t-trim-props-basecolor.webp",
               "kit/fantasy/village/index.json",
               "kit/fantasy/village/models.json",
               "kit/fantasy/village/t-brick-basecolor.webp",
@@ -520,8 +525,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "fecb86a4a1c8e9d0b4c078a043c404fe6f40aedb85e45156b55e8944fbf585a5",
-            "bytes": 2540295
+            "sha256": "c163e72281922a1be8873573fe9c50bf7d7baaf02e6cc9aedbe8eaafbaa76efb",
+            "bytes": 2540767
           },
           {
             "path": "server.mjs",
@@ -752,6 +757,31 @@
             "path": "kit/fantasy/props/t-woodtrim-basecolor.webp",
             "sha256": "224477f956a9fdb494721b043421156364b6d3d881fef832ba056cca5f8265fa",
             "bytes": 19352
+          },
+          {
+            "path": "kit/fantasy/tools/index.json",
+            "sha256": "5a8078958be502721fe7cf62d35190a7bf69563d4ca2893fc916aa7755ab0d89",
+            "bytes": 1510
+          },
+          {
+            "path": "kit/fantasy/tools/models.json",
+            "sha256": "996e949a35b6c197eb3d813f10336b0db69cd8db04834d675c0ddc12dd7b89ac",
+            "bytes": 333028
+          },
+          {
+            "path": "kit/fantasy/tools/t-trim-furniture-basecolor.webp",
+            "sha256": "dd913886ddc9260929c651c91bc587102220d3a61bae2ec768fe8c142d718f6a",
+            "bytes": 7178
+          },
+          {
+            "path": "kit/fantasy/tools/t-trim-metal-basecolor.webp",
+            "sha256": "63e482d59355f49fa91e0e0b183757ebe27bcd4b595144e44fd44f750d5b6ab2",
+            "bytes": 6564
+          },
+          {
+            "path": "kit/fantasy/tools/t-trim-props-basecolor.webp",
+            "sha256": "10351eb4be65985ed363c52a9161ba27f862982240b3e0a892e2e05daf71eb73",
+            "bytes": 9484
           },
           {
             "path": "kit/fantasy/village/index.json",
@@ -1106,9 +1136,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.6.66.zip",
-        "sha256": "ec5427f9f84bbe7cea9210b1f59fcd49a450b4ed7b7bb5fc1f076f1c4d19ec06",
-        "bytes": 29593638
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.6.67.zip",
+        "sha256": "beba7646ccff423c38f5b4ee3d142a44fe62a2cc7c7174ba8f33afd489220c57",
+        "bytes": 29953775
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }
