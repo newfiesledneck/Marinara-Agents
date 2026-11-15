@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -154,8 +154,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "837ecbc3629270b51967f61877a3a8df15e8572a66b60f44053b302a06473e40",
-      "bytes": 2430872
+      "sha256": "ed298bb4c4458006c7bb893fd2f30a44594e3fa77ab8e9dfc158f666fc3eba1f",
+      "bytes": 2431172
     },
     {
       "path": "server.mjs",
@@ -589,8 +589,8 @@
     },
     {
       "path": "kit/generic/nature/index.json",
-      "sha256": "cdfa5adb2cb3fcf384ee1f4add5a460fb3b7b11caef1aedac3e7c0a823185b7c",
-      "bytes": 3399
+      "sha256": "ac820aac2133e771b7aa21243806863272c5b8fde846c215593b0f7fa507ce0d",
+      "bytes": 4955
     },
     {
       "path": "kit/generic/nature/leaf-pine-c.webp",
@@ -614,8 +614,8 @@
     },
     {
       "path": "kit/generic/nature/models.json",
-      "sha256": "2d9c24786c0307d8671211fd9429c4e8ba7b53f11b381173e845c841e78e7bdb",
-      "bytes": 2083120
+      "sha256": "ee930621044207ce41d015350fdee6ca08caa5c11611becf19235d7310c77e49",
+      "bytes": 4398379
     },
     {
       "path": "kit/generic/nature/mushrooms.webp",
