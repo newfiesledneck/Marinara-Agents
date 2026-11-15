@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.61 — 2026-11-15
+
+- The AI can keep your sheet. With Settings → People → Inventory → "The AI updates your sheet" on, it reads what was narrated and changes HP, mana and your other stats to match, and awards experience. A note in the chat says what changed. Off to begin with: it costs one more AI call each time.
+- Dice in the chat: /roll or /roll 2d6+1, and /check strength for a d20 plus a line of your sheet. With words after it ("/check strength to lift the gate"), what you try is narrated with the result.
+- Lines of the sheet you untick move to "Not in use" at the bottom. Tick one to bring it back; one you added yourself can be deleted there.
+- This version is numbered 0.6.61 so that it sorts after 0.6.6.
+
 ## 0.6.07 — 2026-11-15
 
 - A character sheet. Inventory → Sheet has your level, experience, HP, mana, AC and six attributes, each with a box to change it and a tick for whether the AI is told. Add your own stats, skills, feats and spells, each with a few words saying what it is.

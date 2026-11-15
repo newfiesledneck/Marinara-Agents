@@ -85,7 +85,10 @@ export const modifier = (score) => Math.floor((score - 10) / 2);
 /** Experience needed to leave `level`. */
 export const xpNeeded = (level) => 100 * Math.max(1, level);
 
-/** By name or id, whichever was given (the model names things; the game uses ids). */
+/** An entry by its name or its id, whichever was given (the model and the player name things; the game uses ids). */
+export function entryNamed(sheet, name) {
+  return find(sheet, name);
+}
 function find(sheet, name) {
   const wanted = words(String(name ?? ""), 60).toLowerCase();
   if (!wanted) return null;
@@ -248,6 +251,31 @@ export function sheetWords(sheet, worn = {}) {
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+/**
+ * The numbered entries that are switched on, one to a line with what each is, for the model that keeps the
+ * sheet (server.mjs `/sheet-track`): "- HP: 14 of 20. Health. At 0 they are defeated."
+ */
+export function sheetList(sheet) {
+  return sheet.entries
+    .filter((entry) => entry.on && !NUMBERLESS.has(entry.kind))
+    .map((entry) => {
+      const amount = entry.kind === "resource" ? `${entry.value} of ${entry.max}` : String(entry.value);
+      return `- ${entry.name}: ${amount}.${entry.about ? ` ${entry.about}` : ""}`;
+    })
+    .join("\n");
+}
+
+/**
+ * A check: a d20 plus what `entry` gives (an attribute's modifier, counting `bonus` from what's worn;
+ * any other number as it stands). { roll, add, total }.
+ */
+export function checkRoll(entry, bonus = 0, random = Math.random) {
+  const roll = 1 + Math.floor(random() * 20);
+  const amount = (entry?.value ?? 0) + bonus;
+  const add = entry?.kind === "attribute" ? modifier(amount) : amount;
+  return { roll, add, total: roll + add };
 }
 
 // ── Dice ─────────────────────────────────────────────────────────────────────

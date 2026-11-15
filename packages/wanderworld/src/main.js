@@ -136,7 +136,20 @@ import {
   usualDay,
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
-import { changeSheet, checkSheet, sheetWords, useItem, wornBonuses } from "./sheet.js";
+import {
+  applyChanges,
+  changeSheet,
+  checkRoll,
+  checkSheet,
+  entryNamed,
+  gainXp,
+  rollDice,
+  sheetList,
+  sheetWords,
+  useItem,
+  valueOf,
+  wornBonuses,
+} from "./sheet.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
   checkTraits,
@@ -6032,6 +6045,7 @@ function momentListeners(voice, audience, extra = [], text = "") {
  * after moments, and after a conversation's replies (`kind` "talk") only when the setting says so.
  */
 function trackInventory(parts, kind = "moment") {
+  trackSheet(parts, kind); // (the character sheet is read for at the same moments, by its own setting)
   const when = core.settings.inventoryTrack;
   if (when === "off" || (kind === "talk" && when !== "all")) return;
   core.inventory
@@ -6244,7 +6258,9 @@ async function runMoment({
  * people round about answer).
  */
 function speak(typed) {
-  const command = /^\/(scene|camp|call)\b\s*(.*)$/isu.exec(typed.trim());
+  const command = /^\/(scene|camp|call|roll|check)\b\s*(.*)$/isu.exec(typed.trim());
+  if (["roll", "check"].includes(command?.[1].toLowerCase()))
+    return rollCommand(command[1].toLowerCase(), command[2].trim());
   // "/call", "/call horse", "/call dog": your own animals come to you.
   if (command?.[1].toLowerCase() === "call") {
     const which = ["dog", "horse"].filter((role) => !command[2].trim() || command[2].toLowerCase().includes(role));
@@ -7634,6 +7650,97 @@ async function readItems() {
   core.items = await core.inventory.items().catch(() => []);
   return core.items;
 }
+/**
+ * The AI keeps the sheet (Settings → People → Inventory → "The AI updates your sheet"): it reads what was
+ * just told and answers with the stats that changed and any experience earned, a short list that is
+ * checked against the sheet and applied (sheet.js applyChanges). Never a rewrite of the sheet.
+ */
+function trackSheet(parts, kind = "moment") {
+  const when = core.settings.sheetTrack ?? "off";
+  if (!core.save || !core.settings.sheet || when === "off" || (kind === "talk" && when !== "all")) return;
+  const list = sheetList(sheetNow());
+  const told = parts.filter(Boolean).join("\n");
+  if (!list || !told) return;
+  const saveId = core.save.id;
+  core.ai
+    .sheetTrack({
+      personaName: personaName(),
+      sheet: list,
+      text: told,
+      connectionId: core.settings.textConnection || null,
+    })
+    .then((answer) => {
+      if (core.save?.id !== saveId) return; // another world since
+      const before = sheetNow();
+      const changed = applyChanges(before, answer?.changes);
+      const grown = gainXp(changed.sheet, answer?.xp ?? 0);
+      const reasons = new Map(
+        (answer?.changes ?? []).map((change) => [String(change.stat).toLowerCase(), change.reason]),
+      );
+      const notes = changed.applied.map((change) => {
+        const why = reasons.get(change.name.toLowerCase()) ?? reasons.get(change.id);
+        return `${change.name} ${change.from} to ${change.to}${why ? ` (${why})` : ""}`;
+      });
+      if (answer?.xp > 0) notes.push(`+${answer.xp} XP`);
+      if (grown.levels) notes.push(`level ${valueOf(grown.sheet, "level")} reached`);
+      if (!notes.length) return;
+      setSheet(grown.sheet);
+      core.hud?.narrate(null, `(Your sheet changed: ${notes.join(", ")}.)`, false);
+      core.hud?.refreshInventory?.();
+    })
+    .catch((error) => {
+      if (core.sheetTold) return;
+      core.sheetTold = true; // once a session
+      core.hud?.setNotice(`The AI couldn't update your sheet: ${error?.message ?? error}`);
+    });
+}
+
+/**
+ * "/roll 2d6+1" (a d20 with nothing after it) and "/check strength" (a d20 plus that line of the sheet):
+ * rolled by the game and shown in the chat. A check with words after the stat ("/check strength to lift
+ * the gate") is then narrated as a moment, with what was rolled.
+ */
+function rollCommand(which, rest) {
+  const who = personaName();
+  if (which === "roll") {
+    const dice = rest || "d20";
+    if (!/^\s*\d{0,2}d\d{1,3}\s*([+-]\s*\d{1,4})?\s*$/iu.test(dice))
+      return void core.hud?.setNotice('Dice are written like d20, 2d6 or 1d8+2: "/roll 2d6+1".');
+    const rolled = rollDice(dice);
+    const each = rolled.rolls.length > 1 ? ` (${rolled.rolls.join(", ")})` : "";
+    return void narrate(null, `${who} rolls ${dice.replace(/\s+/gu, "")}: ${rolled.total}${each}.`);
+  }
+  if (!core.settings.sheet)
+    return void core.hud?.setNotice("Checks use your character sheet, which is switched off in Settings.");
+  const sheet = sheetNow();
+  // The longest run of words that names a line of the sheet; whatever follows is what's being tried.
+  const typed = rest.split(/\s+/u).filter(Boolean);
+  let entry = null;
+  let used = 0;
+  for (let take = Math.min(typed.length, 4); take >= 1 && !entry; take--) {
+    entry = entryNamed(sheet, typed.slice(0, take).join(" "));
+    used = take;
+  }
+  if (!entry || !("value" in entry))
+    return void core.hud?.setNotice(
+      'Name one of your sheet\'s numbered lines: "/check strength", "/check fishing to land the pike".',
+    );
+  const check = checkRoll(entry, wornBonuses(sheet, core.items ?? [])[entry.id] ?? 0);
+  const sum = `${check.total} (rolled ${check.roll}${check.add ? `, ${check.add > 0 ? "+" : ""}${check.add}` : ""})`;
+  narrate(null, `${who} makes a ${entry.name} check: ${sum}.`);
+  const trying = typed
+    .slice(used)
+    .join(" ")
+    .replace(/^to\s+/iu, "");
+  if (trying)
+    void runMoment({
+      action: `tries to ${trying}. Their ${entry.name} check came to ${check.total} (a d20 plus ${check.add})`,
+      voice: "talk",
+      audience: "nearby",
+      line: "",
+    });
+}
+
 /**
  * Something done with an item from the Inventory window: it's done on Quartermaster's sheet, so both
  * show the same, and said in the chat. Using something up applies what its description gives ("+10 HP").

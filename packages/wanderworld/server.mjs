@@ -183,6 +183,44 @@ export function personaCard(record, fallbackName, worn, sheet) {
  * The messages for Quartermaster's tracker, with Wanderworld's own model call: its prompt (`template`), the
  * sheet as it shows it (`context`, which the prompt calls <agent_runtime_context>), and what was just told.
  */
+/** What the model that keeps a character sheet is told to do (the client's sheet.js applies what it answers). */
+export const SHEET_INSTRUCTION = `You keep a character's stat sheet for a roleplay game. Read what just happened and decide whether any of the listed stats changed because of it.
+
+Change a stat only when the text clearly says or shows it: damage taken, healing, mana or another resource spent, a lasting gain or loss. Do not change anything for what is only talked about, intended, feared or possible. Never use a stat that isn't listed, and never go past a resource's most.
+
+Experience ("xp") is for something accomplished: a fight won, a task finished, something found or learned. 5 to 50 points by how much it mattered. Most messages earn none.
+
+Answer with JSON only, nothing before or after it:
+{"changes":[{"stat":"<its name exactly as listed>","by":<a whole number, negative to lower it>,"reason":"<a few words>"}],"xp":<a whole number, 0 for none>}
+Use "to" in place of "by" to set a value outright. An empty list with 0 xp is the usual answer.`;
+
+/** The messages for one reading of what was told against a sheet. */
+export function sheetTrackMessages({ name, sheet, told }) {
+  return [
+    { role: "system", content: SHEET_INSTRUCTION },
+    { role: "user", content: `The character is ${name}. Their sheet now:\n${sheet}\n\nWhat just happened:\n${told}` },
+  ];
+}
+
+/** The model's answer about a sheet, checked: { changes: [{ stat, by | to, reason }], xp }. */
+export function checkSheetChanges(data) {
+  const number = (value, most) => (Number.isFinite(value) ? Math.max(-most, Math.min(most, Math.round(value))) : null);
+  const changes = (Array.isArray(data?.changes) ? data.changes : [])
+    .filter(isRecord)
+    .slice(0, 12)
+    .map((change) => {
+      const by = number(change.by, 9999);
+      const to = number(change.to, 999999);
+      return {
+        stat: text(change.stat, 60),
+        ...(to !== null ? { to } : by !== null ? { by } : {}),
+        reason: text(change.reason, 120),
+      };
+    })
+    .filter((change) => change.stat && ("to" in change || ("by" in change && change.by !== 0)));
+  return { changes, xp: Math.max(0, number(data?.xp, 10000) ?? 0) };
+}
+
 export function inventoryMessages({ template, context, name, told }) {
   return [
     { role: "system", content: template },
@@ -2376,6 +2414,28 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return { data };
         } catch (error) {
           logger.warn("[wanderworld] inventory tracking failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // The character sheet kept by the model: what was just told, read against the sheet's lines; the
+      // changes come back checked, for the client to apply to the sheet it holds.
+      routes.post("/sheet-track", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const input = {
+          name: text(body.personaName, MAX.name) || "the player",
+          sheet: block(body.sheet, 6000),
+          told: block(body.text, 8000),
+        };
+        if (!input.sheet || !input.told) return reply.status(400).send({ error: "Nothing to read (sheet, text)" });
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await askModel("sheet", body, model, sheetTrackMessages(input), { temperature: 0, maxTokens: 600 });
+          const data = readJson(result?.content, api.runtime.json?.parseJsonish);
+          if (!data) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          return checkSheetChanges(data);
+        } catch (error) {
+          logger.warn("[wanderworld] sheet tracking failed: %s", error?.message ?? error);
           return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
         }
       });
