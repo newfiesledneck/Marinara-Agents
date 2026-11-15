@@ -7766,6 +7766,7 @@ async function gather(kind) {
   if (kind === "chop" && tree < 0) return;
   if (kind !== "chop" && !spotReady(save.gathered, key, day, core.settings.regrowDays))
     return void core.hud?.setNotice(lines.spent);
+  core.gesture = GATHER_KINDS[kind].gesture; // acted out: an axe swung, a line cast
   const sheet = sheetNow();
   const attribute = GATHER_KINDS[kind].attribute;
   const score = valueOf(sheet, attribute) + (wornBonuses(sheet, core.items ?? [])[attribute] ?? 0);

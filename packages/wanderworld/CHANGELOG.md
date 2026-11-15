@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.65 — 2026-11-15
+
+- Gathering is acted out. Your character swings at the tree, works at the rock, casts a line, reaches to pick, or bends to harvest, where before they stood still.
+- The fishing, mining and picking motions come from the paid tier of Universal Animation Library 2.
+- With "Animation" set to Built-in in Graphics, there is no gathering motion.
+- No axe, pick or rod shows in the hand yet.
+- The tall thick conifers added in 0.6.6 were blue. They are dark green now.
+
 ## 0.6.64 — 2026-11-15
 
 - Gathering is only offered at its resource. "Chop wood" appears when you stand against a tree, and "Mine" at a boulder or a cave. Before, they showed anywhere in the woods or near the mountains.

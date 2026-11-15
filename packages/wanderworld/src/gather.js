@@ -4,13 +4,13 @@
 // the roll that decides what's found, and how long a spot takes to give again.
 import { modifier } from "./sheet.js";
 
-/** Each kind: its button, and the attribute its roll adds. */
+/** Each kind: its button, the attribute its roll adds, and how the body shows it (a clip played once: clips.js). */
 export const GATHER_KINDS = {
-  fish: { label: "Fish", attribute: "dexterity" },
-  chop: { label: "Chop wood", attribute: "strength" },
-  forage: { label: "Forage", attribute: "wisdom" },
-  mine: { label: "Mine", attribute: "strength" },
-  harvest: { label: "Harvest", attribute: "constitution" },
+  fish: { label: "Fish", attribute: "dexterity", gesture: "fish" },
+  chop: { label: "Chop wood", attribute: "strength", gesture: "chop" },
+  forage: { label: "Forage", attribute: "wisdom", gesture: "pick" },
+  mine: { label: "Mine", attribute: "strength", gesture: "mine" },
+  harvest: { label: "Harvest", attribute: "constitution", gesture: "harvest" },
 };
 
 const WOODS = new Set(["forest", "outskirts", "meadow"]);

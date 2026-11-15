@@ -5091,7 +5091,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.6.64",
+        "version": "0.6.65",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5241,8 +5241,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "d3d97c270ea9a2d9ccf8f16a5b72b134c74e8c61384a46fd04630e8da913e64c",
-            "bytes": 2467500
+            "sha256": "d9cdee18e7ec725f6a6d93cacbe283f0cb06c2f5efdf79abbfa1fb6aa694c39b",
+            "bytes": 2527704
           },
           {
             "path": "server.mjs",
@@ -5827,9 +5827,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.6.64.zip",
-        "sha256": "f9fc45a67cf83a367c35cd7870f3e5443eb703cf573e4afcdad9effc7ba80bb7",
-        "bytes": 29520843
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.6.65.zip",
+        "sha256": "d891db975fc5981bf7ec814dd67f5f0cdb765a1ed1e09236f675448abb1630c5",
+        "bytes": 29581047
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
