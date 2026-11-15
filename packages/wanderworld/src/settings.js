@@ -80,6 +80,10 @@ export const SETTINGS = {
   // The world's own voice: a line on first coming somewhere and now and then about who's near. "lines"
   // are the setting pack's (no AI); "ai" has the model write the arrival (one call each new place).
   narration: { value: "lines", options: ["off", "lines", "ai"] },
+  /** Seconds between one place being told and the next. */
+  arriveGap: { value: 45, min: 10, max: 60 },
+  /** How many visits to a place that's been told before it's told again (1: every visit). */
+  arriveVisits: { value: 5, min: 1, max: 10 },
   /** AI (the server part): conversations written by the model, on the connections chosen here ("" is
    *  the Engine's default), in a style and length; pictures through an image connection and style. */
   aiTalk: { value: true },
@@ -106,6 +110,8 @@ export const SETTINGS = {
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },
+  /** Illustrate is given only the chat from the place you're in, not from where you were before. */
+  illustrateHere: { value: true },
   imageStyle: {
     value: "",
     options: [
