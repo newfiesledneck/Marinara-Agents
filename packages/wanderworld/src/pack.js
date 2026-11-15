@@ -605,9 +605,10 @@ const GATHER = {
       spent: "The fish here have been put off for today. Try further along, or tomorrow.",
     },
     chop: {
-      found: "{who} sets to with an axe and comes away with {what}.",
-      none: "{who} hacks at a fallen limb and gets nothing worth carrying.",
+      found: "{who} sets to the tree with an axe and comes away with {what}.",
+      none: "{who} swings at the tree and gets nothing worth carrying.",
       spent: "The good wood here is taken. Try a little further on, or another day.",
+      down: "The tree comes down.",
     },
     forage: {
       found: "{who} searches the undergrowth and finds {what}.",
@@ -617,7 +618,7 @@ const GATHER = {
     mine: {
       found: "{who} works at the rock and prises out {what}.",
       none: "{who} works at the rock and gets only dust.",
-      spent: "This face is worked out for now. Try a little further along, or another day.",
+      spent: "This rock is worked out for now. Try another, or come back another day.",
     },
     harvest: {
       found: "{who} works along the rows and gathers {what}.",

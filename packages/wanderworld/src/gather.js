@@ -14,20 +14,22 @@ export const GATHER_KINDS = {
 };
 
 const WOODS = new Set(["forest", "outskirts", "meadow"]);
-const ROCK = new Set(["mountains", "cave"]);
+/** How many times a tree can be chopped at before it's down. */
+export const TREE_WOOD = 4;
 
 /**
- * What can be gathered where the player stands. `where`: { zone (its kind), outpost (its kind, or ""),
- * beside (the kinds of the places they're beside), water (there's water within reach), season, indoors }.
+ * What can be gathered where the player stands: each kind only at its resource. `where`: { zone (its
+ * kind), outpost (its kind, or ""), beside (the kinds of the places they're beside), water (there's water
+ * within reach), tree (they stand against one), rock (against a boulder), season, indoors }.
  */
 export function gatherHere(where) {
   if (!where || where.indoors) return [];
   const beside = where.beside ?? [];
   const kinds = [];
   if (where.water) kinds.push("fish");
-  if (WOODS.has(where.zone) && where.zone !== "meadow") kinds.push("chop");
+  if (where.tree) kinds.push("chop");
   if (WOODS.has(where.zone) && where.season !== "winter") kinds.push("forage");
-  if (ROCK.has(where.zone) || beside.some((kind) => ROCK.has(kind))) kinds.push("mine");
+  if (where.rock || where.zone === "cave" || beside.includes("cave")) kinds.push("mine");
   if (where.outpost === "farm" && ["", "summer", "fall"].includes(where.season ?? "")) kinds.push("harvest");
   return kinds;
 }
@@ -52,6 +54,31 @@ export function spotUsed(used, key, day) {
 }
 
 /**
+ * A tree chopped at once more on `day`: `trees` is the world's record ({ "region:number": { cut, day } }).
+ * Gives the record as it then is and whether that brought the tree down.
+ */
+export function chopTree(trees, key, day) {
+  const cut = (trees?.[key]?.cut ?? 0) + 1;
+  return { trees: { ...trees, [key]: { cut, day } }, down: cut >= TREE_WOOD };
+}
+
+/**
+ * The trees of `region` that are down on `day`, as their numbers, and the record without what has grown
+ * back (a felled tree stands again after `grow` days; 0: never; one only chopped at is whole again then too).
+ */
+export function treesDown(trees, region, day, grow) {
+  const kept = {};
+  const down = [];
+  for (const [key, tree] of Object.entries(trees ?? {})) {
+    if (grow > 0 && Number.isFinite(tree?.day) && (day - tree.day >= grow || day < tree.day)) continue;
+    kept[key] = tree;
+    const [where, number] = key.split("|");
+    if (where === region && tree.cut >= TREE_WOOD) down.push(Number(number));
+  }
+  return { trees: kept, down };
+}
+
+/**
  * One try at gathering: a d20 plus the modifier of `score` (the attribute for the kind). Under 8 nothing
  * is found; from 18 up, two. What's found comes from `lists[kind]` (for foraging, the season's list), the
  * things earlier in a list turning up more often. { roll, total, found: { name, description, quantity } | null }.
@@ -63,9 +90,10 @@ export function gatherRoll(kind, score, lists, season = "", random = Math.random
   const list = Array.isArray(all) ? all : (all?.[season || "summer"] ?? all?.summer ?? []);
   if (total < 8 || !list.length) return { roll, total, found: null };
   const pick = list[Math.min(list.length - 1, Math.floor(random() ** 1.7 * list.length))];
+  // (A tree gives one piece at a stroke: four strokes, four at most.)
   return {
     roll,
     total,
-    found: { name: pick.name, description: pick.description ?? "", quantity: total >= 18 ? 2 : 1 },
+    found: { name: pick.name, description: pick.description ?? "", quantity: total >= 18 && kind !== "chop" ? 2 : 1 },
   };
 }

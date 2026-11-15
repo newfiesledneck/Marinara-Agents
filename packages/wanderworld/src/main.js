@@ -136,7 +136,7 @@ import {
   usualDay,
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
-import { gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed } from "./gather.js";
+import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
   changeSheet,
@@ -2921,6 +2921,7 @@ function stepPlaces(dt) {
   core.hud?.setPlace(zone.id === "town" ? town : `${town} · ${names[zone.id]}`, lore);
   if (core.hud?.loreOpen()) core.hud.setLore(activeLore(zone, names));
   if (core.journalAt <= 0) {
+    showFelled();
     core.hud?.setGather(gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })));
     core.journalAt = 0.5;
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
@@ -7717,8 +7718,27 @@ function gatherOptions(zone = null) {
     outpost: here.outpostKind ?? "",
     beside: bordersAt(core.zones, at.x, at.z, here).map((entry) => entry.outpostKind ?? entry.kind),
     water,
+    tree: core.world.treeNear(at.x, at.z) >= 0,
+    rock: core.world.rockNear(at.x, at.z) >= 0,
     season: core.save.season ?? "",
   });
+}
+
+const treeKey = (number) => `${core.save?.region ?? HOME_REGION}|${number}`;
+/** Has the world stand its felled trees down (and up again, once they've had their days). Cheap to call often. */
+function showFelled() {
+  if (!core.save || !core.world?.setFelled) return;
+  const now = treesDown(
+    core.save.trees,
+    core.save.region ?? HOME_REGION,
+    core.social?.day ?? 0,
+    core.settings.treeDays,
+  );
+  if (Object.keys(now.trees).length !== Object.keys(core.save.trees ?? {}).length) {
+    core.save = { ...core.save, trees: now.trees };
+    core.saves.write(core.save);
+  }
+  core.world.setFelled(now.down);
 }
 
 /**
@@ -7737,16 +7757,25 @@ async function gather(kind) {
   const who = personaName();
   const lines = PACK.gather.lines[kind];
   const at = core.player.position;
-  const key = spotKey(kind, at.x, at.z);
   const day = core.social?.day ?? 0;
-  if (!spotReady(save.gathered, key, day, core.settings.regrowDays)) return void core.hud?.setNotice(lines.spent);
+  // A tree is chopped at until it's down (no waiting between strokes); a boulder is one spot of its own;
+  // everything else uses up the patch of ground it's on.
+  const tree = kind === "chop" ? core.world.treeNear(at.x, at.z) : -1;
+  const rock = kind === "mine" ? core.world.rockNear(at.x, at.z) : -1;
+  const key = rock >= 0 ? `mine:rock:${save.region ?? HOME_REGION}:${rock}` : spotKey(kind, at.x, at.z);
+  if (kind === "chop" && tree < 0) return;
+  if (kind !== "chop" && !spotReady(save.gathered, key, day, core.settings.regrowDays))
+    return void core.hud?.setNotice(lines.spent);
   const sheet = sheetNow();
   const attribute = GATHER_KINDS[kind].attribute;
   const score = valueOf(sheet, attribute) + (wornBonuses(sheet, core.items ?? [])[attribute] ?? 0);
   const got = gatherRoll(kind, score, PACK.gather, save.season ?? "");
-  core.save = { ...save, gathered: spotUsed(save.gathered, key, day) };
+  const chopped = kind === "chop" ? chopTree(save.trees, treeKey(tree), day) : null;
+  core.save = chopped ? { ...save, trees: chopped.trees } : { ...save, gathered: spotUsed(save.gathered, key, day) };
   core.saves.write(core.save);
-  if (!got.found) return void narrate(null, lines.none.replace("{who}", who));
+  const felled = chopped?.down ? ` ${lines.down}` : "";
+  if (chopped?.down) showFelled();
+  if (!got.found) return void narrate(null, `${lines.none.replace("{who}", who)}${felled}`);
   try {
     await core.inventory.add(got.found);
   } catch (error) {
@@ -7755,7 +7784,7 @@ async function gather(kind) {
   await readItems();
   if (core.settings.sheet) setSheet(gainXp(sheetNow(), 3).sheet);
   const what = `${got.found.quantity > 1 ? `${got.found.quantity} × ` : ""}${got.found.name}`;
-  narrate(null, lines.found.replace("{who}", who).replace("{what}", what));
+  narrate(null, `${lines.found.replace("{who}", who).replace("{what}", what)}${felled}`);
   core.hud?.refreshInventory?.();
 }
 

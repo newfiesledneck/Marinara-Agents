@@ -87,6 +87,22 @@ for (const density of DENSITIES) world.setDensity(density);
   assert.equal(drifts().visible, false);
   world.setSeason("");
 }
+// A tree can be found by standing against it, and cut down: then it isn't there to find or to walk into.
+{
+  let tree = -1;
+  let at = null;
+  for (let x = -200; x <= 200 && tree < 0; x += 4)
+    for (let z = -200; z <= 200 && tree < 0; z += 4) {
+      tree = world.treeNear(x, z, 2);
+      at = { x, z };
+    }
+  assert.ok(tree >= 0, "there's a tree somewhere to stand against");
+  world.setFelled([tree]);
+  assert.notEqual(world.treeNear(at.x, at.z, 2), tree, "a felled tree isn't found");
+  world.setFelled([]);
+  assert.equal(world.treeNear(at.x, at.z, 2), tree, "and stands again when it has grown back");
+  assert.equal(typeof world.rockNear(at.x, at.z), "number");
+}
 const meshes = [];
 world.scene.traverse((object) => object.isInstancedMesh && meshes.push(object));
 assert.equal(

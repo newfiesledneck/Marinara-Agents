@@ -3784,6 +3784,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       let count = 0;
       for (const item of items) {
         if (gone) break;
+        if (item.tree !== undefined && felled.has(item.tree)) continue; // cut down
         if (item.need > (kind === "rock" ? view.rocks : view.density)) continue;
         if ((item.x - view.x) ** 2 + (item.z - view.z) ** 2 > reach) continue;
         if (!inCone(item)) continue;
@@ -3806,6 +3807,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     let count = 0;
     const limit = baseTrees * view.density;
     for (let i = 0; i < limit && i < trees.length; i++) {
+      if (felled.has(i)) continue; // cut down
       const distance = Number.isFinite(view.x) ? (trees[i].x - view.x) ** 2 + (trees[i].z - view.z) ** 2 : 0;
       if (distance < near || distance > out || !inCone(trees[i])) continue;
       trunks.setMatrixAt(count, treeMatrices[i]);
@@ -3832,6 +3834,29 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   }
 
   let collider = createCollider([], []);
+  // The trees that have been cut down (their numbers in `trees`): not drawn, and nothing to walk into.
+  let felled = new Set();
+  const treesDrawn = () => Math.min(trees.length, baseTrees * view.density);
+  const rebuildCollider = () => {
+    const standing = treeCircles.slice(0, treesDrawn()).filter((_, i) => !felled.has(i));
+    collider = createCollider([...fixedCircles, ...standing], fixedBoxes);
+  };
+  /** The nearest of `things` within `reach` metres of (x, z), among the first `count`: its number, or -1. */
+  const nearest = (things, count, x, z, reach, skip = null) => {
+    let best = -1;
+    let least = reach;
+    for (let i = 0; i < count; i++) {
+      if (skip?.has(i)) continue;
+      const dx = things[i].x - x;
+      if (dx > reach || dx < -reach) continue;
+      const distance = Math.hypot(dx, things[i].z - z);
+      if (distance < least) {
+        least = distance;
+        best = i;
+      }
+    }
+    return best;
+  };
   /** How much grows (`density`: trees and plants) and how many rocks lie about (`rockDensity`: its own setting). */
   function setDensity(density, rockDensity = density) {
     const treeCount = Math.min(trees.length, baseTrees * density); // (a few were taken out of clearings)
@@ -3839,8 +3864,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     crowns.count = treeCount;
     stones.count = Math.min(rocks.length, baseRocks * rockDensity);
     view.rocks = rockDensity;
-    collider = createCollider([...fixedCircles, ...treeCircles.slice(0, treeCount)], fixedBoxes);
     view.density = density;
+    rebuildCollider();
     refreshNature();
   }
   setDensity(DENSITIES[0]);
@@ -4008,9 +4033,10 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       ground,
       "top",
     );
-    const place = (name, x, z, need) => {
+    // (`tree`: which of the world's trees this is, so a felled one isn't drawn.)
+    const place = (name, x, z, need, tree = undefined) => {
       if (!placements.has(name)) placements.set(name, []);
-      placements.get(name).push({ x, z, need, matrix: dummy.matrix.clone() });
+      placements.get(name).push({ x, z, need, matrix: dummy.matrix.clone(), tree });
     };
     const pickWeighted = (list, value) => {
       const total = list.reduce((sum, entry) => sum + entry[1], 0);
@@ -4031,7 +4057,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       dummy.rotation.set(0, tree.turn, 0);
       dummy.scale.setScalar(size * (0.75 + tree.scale * 0.15));
       dummy.updateMatrix();
-      place(name, tree.x, tree.z, need);
+      place(name, tree.x, tree.z, need, i);
       if (growth() < TREE_UNDERGROWTH) {
         const [plant, , plantSize] = pickWeighted(KIT_PLANTS.slice(0, 5), growth());
         const angle = growth() * Math.PI * 2;
@@ -4293,6 +4319,18 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     clearSight,
     dispose,
     /** The weather to ease into: "clear", "rain", "snow" or "mist" (weather.js). */
+    /** The nearest standing tree within reach of (x, z), of those drawn at this density: its number, or -1. */
+    treeNear: (x, z, reach = 2.6) => nearest(trees, treesDrawn(), x, z, reach, felled),
+    /** The nearest boulder within reach of (x, z), of those lying about at this density: its number, or -1. */
+    rockNear: (x, z, reach = 3) => nearest(rocks, Math.min(rocks.length, baseRocks * view.rocks), x, z, reach),
+    /** Which trees are cut down (their numbers): they aren't drawn and don't stand in the way. */
+    setFelled(numbers) {
+      const next = new Set(numbers);
+      if (next.size === felled.size && [...next].every((number) => felled.has(number))) return;
+      felled = next;
+      rebuildCollider();
+      refreshNature();
+    },
     /** The season the land wears: winter lies under snow; the others are the green land. */
     setSeason(season, worn = true) {
       ground.uWinter.value = season === "winter" ? 0.85 : 0;
