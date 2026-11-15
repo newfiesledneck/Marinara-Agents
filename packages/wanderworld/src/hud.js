@@ -819,6 +819,8 @@ export function createHud(root, handlers) {
       "A place that's been told isn't told again until you've come back this many times. 1 tells it on every visit.",
     illustrateHere:
       "On: the lines that describe other places (told when you arrived there) are left out of what Illustrate is given, so the picture is of one place. What was said and done is always given. Off: the last eight lines whatever they are.",
+    illustrateTell:
+      "On: when the chat has no line describing the place you're in yet, Illustrate has it told first, so the picture matches where you are. The AI writes it if arrivals use the AI, else it's a written line. Needs \"Lines about where you are\" on; not indoors.",
     interiors: "On: you can walk into furnished rooms (unfinished). Off: a door shows who's inside.",
     worldEvents:
       "On: once a week is market day and every fourth week an evening festival, when much of the town gathers in the square. Off: every day is the same.",
@@ -1362,6 +1364,7 @@ export function createHud(root, handlers) {
     "z-image-turbo": "Z-Image Turbo",
   });
   toggle("illustrateHere", "Illustrate: leave out other places' descriptions");
+  toggle("illustrateTell", "Illustrate: describe the place first if it hasn't been");
   /** Reads the server part's status and the user's connections into the AI section. */
   const loadAi = async () => {
     const status = await handlers.onAiStatus?.();

@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.5.104",
+  "version": "0.5.105",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -154,8 +154,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "d24ad70e4c9bc16a3ae3138ebe4b09d3f38e2826331de7074d167c3dff173b3c",
-      "bytes": 2407581
+      "sha256": "5be929b27c27aaf6ea341d851b0d47e28f1c6f9cb8ce04c92312f7b0cb7cc33b",
+      "bytes": 2408668
     },
     {
       "path": "server.mjs",

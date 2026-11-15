@@ -185,7 +185,7 @@ export function checkWorld(raw) {
     // The chat as it was left: the last lines, [{ who, text, heard }] (`heard`: the ids in earshot then).
     log: (Array.isArray(raw.log) ? raw.log : [])
       .filter((line) => isRecord(line) && typeof line.text === "string")
-      .slice(-30)
+      .slice(-LOG_KEPT)
       .map((line) => ({
         who: text(line.who).slice(0, MAX_NAME) || "Narrator",
         text: line.text.slice(0, 1200),
@@ -537,6 +537,14 @@ export function checkWorld(raw) {
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 /** The saved worlds in `storage` (store.js, or anything with getItem/setItem/removeItem). */
+/**
+ * How many lines of the chat a world keeps, to scroll back through (what's sent to the AI is far less:
+ * each prompt takes its own last few).
+ * ponytail: the whole chat is in the world's save and written with it, so it's capped at 500 lines. If
+ * that's too few, keep the chat in a document of its own and read older lines as they're scrolled to.
+ */
+export const LOG_KEPT = 500;
+
 export function createSaves(storage = globalThis.localStorage) {
   const read = (key) => {
     try {
