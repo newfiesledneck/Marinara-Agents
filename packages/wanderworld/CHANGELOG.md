@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.5.110 — 2026-11-15
+
+- Weather looks the same at every draw distance. Each kind now has its own visibility in metres. Before, it was a share of the draw distance, so mist was a wall at Tiny and barely there at Max.
+- New kinds: fog, rain and snow each come light, medium or heavy, and there are thunderstorms with lightning and thunder. Mist stays as the thinnest. Heavy fog lets you see about 20 metres.
+- With changing weather, about one clear morning in three starts in mist, and a winter world gets snow where others get rain.
+- Settings → World → Time and weather has all of them, with switches for misty mornings and lightning flashes.
+- Prompts and pictures are told the weather by name ("heavy fog", "a thunderstorm").
+
 ## 0.5.109 — 2026-11-15
 
 - Settings → Debug estimates what each AI call cost, and adds the estimates up. It multiplies the call's token counts by the prices in the connection's model list, the same prices the Engine's model picker shows, with cached tokens at the cache price. It isn't the provider's bill, and a connection without prices is said so.

@@ -518,12 +518,32 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
 // Weather: changing weather is the same for a world each time and is mostly clear, with rain, mist and
 // snow now and then; a world eases into the weather it's given, out of one kind before into the next.
 {
-  const { weatherAt } = await import("../packages/wanderworld/src/weather.js");
+  const { mistyMorning, sightIn, WEATHER_KINDS, weatherAt } = await import("../packages/wanderworld/src/weather.js");
+  // How far you can see in a kind is its own, at any draw distance; the draw distance only cuts it shorter.
+  assert.deepEqual(
+    [60, 140, 450].map((distance) => sightIn("fog-heavy", 1, distance).far),
+    [20, 20, 20],
+  );
+  assert.deepEqual(
+    [60, 140, 450].map((distance) => sightIn("rain", 1, distance).far),
+    [60, 140, 170],
+  );
+  assert.deepEqual(sightIn("clear", 1, 140), { far: 140, near: 56 });
+  assert.ok(sightIn("fog", 0.5, 140).far > sightIn("fog", 1, 140).far, "it closes in as the fog sets in");
+  // Winter: what would be rain falls as snow. Misty mornings: only from five until eight, some days.
+  for (let period = 0; period < 200; period++) {
+    const kind = weatherAt(77, period, "winter");
+    assert.ok(WEATHER_KINDS.includes(kind) && !/rain|storm/u.test(kind), `no rain in winter (${kind})`);
+  }
+  const misty = Array.from({ length: 60 }, (_, day) => mistyMorning(77, day, 6)).filter(Boolean).length;
+  assert.ok(misty > 8 && misty < 32, `some mornings are misty (${misty} of 60)`);
+  assert.equal(Array.from({ length: 60 }, (_, day) => mistyMorning(77, day, 12)).some(Boolean), false);
   assert.equal(weatherAt(5, 3), weatherAt(5, 3), "the same weather for the same world and time");
   const kinds = Array.from({ length: 400 }, (_, period) => weatherAt(77, period));
   const share = (kind) => kinds.filter((entry) => entry === kind).length / kinds.length;
   assert.ok(share("clear") > 0.4 && share("clear") < 0.7, `mostly clear (${share("clear")})`);
-  for (const kind of ["rain", "mist", "snow"]) assert.ok(share(kind) > 0.03, `${kind} now and then`);
+  for (const kind of ["rain", "mist", "snow", "storm", "fog"]) assert.ok(share(kind) > 0.01, `${kind} now and then`);
+  assert.ok(kinds.every((kind) => WEATHER_KINDS.includes(kind)));
   const world = createWorld(7);
   world.setWeather("rain");
   for (let i = 0; i < 100; i++) world.update(0.1);

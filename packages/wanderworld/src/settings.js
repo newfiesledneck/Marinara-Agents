@@ -75,8 +75,29 @@ export const SETTINGS = {
   time: { value: "cycle", options: ["cycle", "day", "night"] },
   /** How fast the day goes: 1 is a day in 20 minutes; ½ takes 40, 4 takes 5. */
   timeSpeed: { value: 1, options: [0.25, 0.5, 1, 2, 4, 8] },
-  /** "off" keeps it clear; "changing" turns now and then (rain, mist, snow); or one kind always. */
-  weather: { value: "off", options: ["off", "changing", "rain", "snow", "mist"] },
+  /** "off" keeps it clear; "changing" turns now and then; or one kind always (weather.js WEATHER_LOOK). */
+  weather: {
+    value: "off",
+    options: [
+      "off",
+      "changing",
+      "mist",
+      "fog-light",
+      "fog",
+      "fog-heavy",
+      "rain-light",
+      "rain",
+      "rain-heavy",
+      "storm",
+      "snow-light",
+      "snow",
+      "snow-heavy",
+    ],
+  },
+  /** With changing weather: some clear mornings start in mist. */
+  morningMist: { value: true },
+  /** Lightning lights the sky in a storm (off: thunder only, for anyone flashes bother). */
+  lightning: { value: true },
   // The world's own voice: a line on first coming somewhere and now and then about who's near. "lines"
   // are the setting pack's (no AI); "ai" has the model write the arrival (one call each new place).
   narration: { value: "lines", options: ["off", "lines", "ai"] },

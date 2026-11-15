@@ -811,7 +811,10 @@ export function createHud(root, handlers) {
       "Jump and Sit buttons in the chat window, for a mouse. A touch screen has them along the bottom instead.",
     time: "Let the day pass, or keep it always day or always night.",
     timeSpeed: "How long a full day takes.",
-    weather: "Changing picks rain, snow, mist or clear every few minutes. Off keeps the sky clear.",
+    weather:
+      "Changing picks every few minutes: mostly clear, sometimes rain, fog or snow, the heavy kinds least often; a winter world gets snow where others get rain. Off keeps the sky clear. How far you can see in each kind is the same at every draw distance.",
+    morningMist: "With changing weather, about one clear morning in three starts in mist, from five until eight.",
+    lightning: "On: lightning lights the sky in a thunderstorm. Off: a storm has rain and thunder but no flashes.",
     narration:
       'A short written line when you arrive somewhere new, and now and then about who is near. No AI is used. To have the AI write it, turn on AI → Writing → "…when you arrive somewhere".',
     arriveGap:
@@ -1063,10 +1066,20 @@ export function createHud(root, handlers) {
   choice("weather", "Weather", {
     off: "Off (always clear)",
     changing: "Changing",
-    rain: "Rain",
-    snow: "Snow",
     mist: "Mist",
+    "fog-light": "Light fog",
+    fog: "Fog",
+    "fog-heavy": "Heavy fog",
+    "rain-light": "Light rain",
+    rain: "Rain",
+    "rain-heavy": "Heavy rain",
+    storm: "Thunderstorm",
+    "snow-light": "Light snow",
+    snow: "Snow",
+    "snow-heavy": "Heavy snow",
   });
+  toggle("morningMist", "Misty mornings");
+  toggle("lightning", "Lightning flashes");
   at("World", "Places");
   choice("narration", "Lines about where you are", { off: "Off", lines: "On" });
   slider("arriveGap", "Wait between places told", 5, (value) => `${value} s`);

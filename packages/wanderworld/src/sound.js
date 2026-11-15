@@ -90,6 +90,8 @@ export function createSound() {
     envelope.gain.linearRampToValueAtTime(gain, start + 0.008);
     envelope.gain.exponentialRampToValueAtTime(0.001, start + length);
     source.connect(filter).connect(envelope).connect(master);
+    // (The noise is two seconds long: a longer burst loops it.)
+    source.loop = length > 0.4;
     source.start(start, Math.random() * 1.5, length + 0.05);
   }
 
@@ -129,6 +131,13 @@ export function createSound() {
         length: running ? 0.09 : 0.07,
         gain: (running ? 0.45 : 0.3) * loudness,
       });
+    },
+    /** Thunder, `after` seconds from now: a crack, then a long low roll (nearer when it comes sooner). */
+    thunder(after = 0, inside = false) {
+      const near = Math.max(0.35, 1 - after / 5) * (inside ? 0.4 : 1);
+      if (after < 1.2) burst({ frequency: 900, q: 0.5, length: 0.25, gain: 0.5 * near, type: "lowpass", at: after });
+      burst({ frequency: 160, q: 0.6, length: 2.6, gain: 0.9 * near, type: "lowpass", at: after + 0.05 });
+      burst({ frequency: 90, q: 0.7, length: 4.2, gain: 0.7 * near, type: "lowpass", at: after + 0.5 });
     },
     /** A door: a creak, then a soft thud. */
     door() {
