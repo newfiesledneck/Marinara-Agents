@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.6.76 — 2026-11-15
+
+- The wait between gathering tries is the length of the swing or cast. A press is taken as soon as the last one has played out. Before, it was a fixed 1.5 seconds, which dropped presses made after a short swing had ended and allowed one in the middle of a long one.
+
 ## 0.6.75 — 2026-11-15
 
 - The two trackers share one AI call. With the inventory tracker and "The AI updates your sheet" both on, one call after a moment reads for both. Before, each made its own. With only one of them on, that one still makes its own call.

@@ -213,6 +213,9 @@ function blend(from, to, amount) {
  * of ACT_NAMES (or nothing); `gesture` a gesture to make once, given on the frame it starts; `air`
  * true while the body is off the ground.
  */
+/** How long a gesture takes to play, in seconds (0 for what isn't one). */
+export const gestureSeconds = (name) => (GESTURES.has(name) ? (CLIPS[name]?.duration ?? 0) : 0);
+
 export function createClipPlayer({ present, offset, legLength }) {
   const parentOf = {};
   for (const bone of BONES) {
