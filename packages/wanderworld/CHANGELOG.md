@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.6.3 — 2026-11-15
+
+- The Map has a button of its own on the top bar and opens in its own window. It was a tab inside the Journal.
+- The top bar is in a new order: Map, Inventory, Journal, Lore, Chat, Illustrate, Menu.
+
 ## 0.6.2 — 2026-11-15
 
 - Rocks and boulders have a density of their own (Settings → Display → Graphics → "Rocks and boulders"), apart from "Trees and plants". With one setting for both, a forest at 20× was also a field of boulders.
