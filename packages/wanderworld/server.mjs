@@ -726,12 +726,20 @@ export function keywordMessages(input) {
  * The messages for one turn with the assistant: what it's told, the world as it stands, and the chat.
  * The client sends only the parts of the world the message needs (assistant-context.js); `omitted` names
  * the ones left out, which the model may ask for unless this is already the second asking (`final`).
+ *
+ * For a provider's prompt cache (`cache`, unless false): the parts sent change with every message, so
+ * only what never does (what it's told, the world's name and setting, who the player is) is in the
+ * system message. The chat follows, and the world as it is now goes last, in a <context> block on the
+ * newest message: everything before that block reads the same as it did a turn ago.
  */
 export function assistantMessages(input) {
   const omitted = (input.omitted ?? []).filter((part) => ASSISTANT_PARTS.includes(part));
-  const world = [
+  const steady = [
     section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
     input.persona && section("The player", input.persona),
+  ];
+  const world = [
+    ...(input.cache === false ? steady : []),
     section(
       "People",
       input.people
@@ -775,9 +783,25 @@ export function assistantMessages(input) {
   const left = input.final
     ? `\n\n# What you have\n\nThis is everything you will be given for this answer${leftOut ? ` (not sent: ${leftOut})` : ""}. Never guess at what you weren't shown: if something is still missing, say which and why, and what you can do without it.`
     : `\n\n# Looking things up\n\nTo keep this short, only what the request seemed to need was sent${leftOut ? `. Not sent: ${leftOut}` : ""}. Lore is listed by title only, under "Lore titles". Never guess at what you weren't shown, and never tell the player you can't see something you could look up. To look something up, answer with nothing but this block (only the keys you need), and you will be asked again with what was found, up to three times:\n\`\`\`wanderworld\n{"need": ["${omitted[0] ?? "relations"}"], "lore": ["a title, or a few words to search for"], "people": ["a name: everything about them"], "memories": ["a name: what they remember"]}\n\`\`\`\n"need" takes the parts named as not sent. "lore" searches this world's lore and the player's lorebooks and brings back the entries that match, in full.`;
+  const turns = input.history.map((turn) => ({ role: turn.role, content: turn.text }));
+  if (input.cache === false)
+    return [{ role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}${left}` }, ...turns];
+  const now = `<context>\n# The world as it is now\n\n${world}${left}\n</context>`;
+  const last = turns.at(-1);
+  if (last?.role === "user") turns[turns.length - 1] = { role: "user", content: `${now}\n\n${last.content}` };
+  else turns.push({ role: "user", content: now });
   return [
-    { role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}${left}` },
-    ...input.history.map((turn) => ({ role: turn.role, content: turn.text })),
+    {
+      role: "system",
+      content: [
+        ASSISTANT_INSTRUCTION,
+        steady.filter(Boolean).join("\n\n"),
+        "The player's newest message begins with a <context> block. The game put it there, the player didn't type it: it is the world as it is now (the parts this request seemed to need) and what you can look up. Earlier messages had theirs taken out, so the world may have changed since an earlier answer. Never mention the block.",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    },
+    ...turns,
   ];
 }
 
@@ -1872,7 +1896,9 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
       routes.post("/assistant", async (request, reply) => {
         const body = isRecord(request.body) ? request.body : {};
         const list = (value, max) => (Array.isArray(value) ? value : []).filter(isRecord).slice(0, max);
-        const history = list(body.history, 12)
+        const history = (Array.isArray(body.history) ? body.history : [])
+          .filter(isRecord)
+          .slice(-20)
           .map((turn) => ({ role: turn.role === "assistant" ? "assistant" : "user", text: block(turn.text, 3000) }))
           .filter((turn) => turn.text);
         // The chat starts with something the player said (the oldest turns kept may begin mid-way).
@@ -1891,6 +1917,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           recaps: block(body.recaps, 8000),
           omitted: (Array.isArray(body.omitted) ? body.omitted : []).filter((part) => typeof part === "string").slice(0, 20),
           final: body.final === true,
+          cache: body.cache !== false,
           worldName: text(body.worldName, MAX.name),
           setting: text(body.setting, 600),
           persona: text(body.persona, MAX.name),

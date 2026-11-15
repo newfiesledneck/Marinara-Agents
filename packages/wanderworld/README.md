@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.106)
+## What it does now (0.5.107)
 
 ### The world
 
@@ -199,7 +199,8 @@ With it running:
   narrator's card, the whole world's lore, your party's cards, the lore of the place, whoever else is
   near; then the time, what you have on, what each is doing and what was just said. In a conversation
   the changing part (the time, who's near, memories, what you have on) goes on the newest message, after
-  what was said, and the lines sent back start from the same place for several turns; Settings → AI →
+  what was said, and the lines sent back start from the same place for several turns. The AI assistant's
+  chat is ordered the same way, with the world as it is now on your newest message. Settings → AI →
   Order prompts for caching turns that off. Whether anything is cached is up to the provider and the
   Engine's connection.
 - **Scenes:** "Play it as a scene" on a door's or a thing's card opens the moment as a roleplay scene in

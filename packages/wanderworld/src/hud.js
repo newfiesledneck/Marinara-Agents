@@ -899,7 +899,7 @@ export function createHud(root, handlers) {
       "A general tone on top of each person's own character. Someone given a voice of their own in Journal → Edit people keeps it.",
     replyLength: "How long people's replies are. Longer replies cost more tokens.",
     promptCache:
-      "For AI providers that charge less for a prompt they've seen before (prompt caching). On: in a conversation, what changes with every line (the time, who's near, what they remember, what you have on) is sent last, after what was said, so everything before it can be reused; and the lines sent back start from the same place for several turns. Off: it is all sent at the top, as before. Replies should be the same either way; turn it off if a model starts talking about its \"context\". Moments are always sent in the cache-friendly order.",
+      "For AI providers that charge less for a prompt they've seen before (prompt caching). On: in a conversation, what changes with every line (the time, who's near, what they remember, what you have on) is sent last, after what was said, so everything before it can be reused; and the lines sent back start from the same place for several turns. Off: it is all sent at the top, as before. Replies should be the same either way; turn it off if a model starts talking about its \"context\". Moments are always sent in the cache-friendly order. The AI assistant's chat is ordered the same way: the world as it is now goes on your newest message.",
     aiTemperature: "Higher: more surprising. Lower: more predictable.",
     sceneNarratorCard:
       "One of your character cards as the narrator in scenes. With one chosen, a scene can start with nobody else there.",
