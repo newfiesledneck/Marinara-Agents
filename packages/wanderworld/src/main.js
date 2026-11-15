@@ -79,7 +79,8 @@ import { ANIMALS, animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SOR
 import { checkSetting, DEVICE_SETTINGS, frameLimitOf, loadSettings, saveSettings, sharedSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
-import { HOUSE_PIECES } from "./houses.js";
+import { HOUSE_PIECES, porchPosts } from "./houses.js";
+import { PORCH_HEIGHT, PORCH_OUT } from "./buildings.js";
 import { kitModels, kitTexture, kitUrl } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { checkGenders, createSaves, LOG_KEPT } from "./saves.js";
@@ -1551,9 +1552,11 @@ function paintedSign(zone, spot, angle) {
   const mesh = new Group();
   for (const part of parts) mesh.add(new Mesh(part.geometry, part.material));
   // (The model hangs along its own +x from a bracket at its origin: turned to stand out from the wall.)
-  mesh.position.set(spot.x, spot.y - 0.25, spot.z);
+  // (On an overhang's post it's smaller, and hung so its top is under the eave.)
+  const size = spot.low ? 0.6 : 0.75;
+  mesh.position.set(spot.x, spot.y - (spot.low ? 0.61 * size : 0.25), spot.z);
   mesh.rotation.y = angle - Math.PI / 2;
-  mesh.scale.setScalar(0.75);
+  mesh.scale.setScalar(size);
   return { mesh, setWords() {}, dispose: () => mesh.removeFromParent() };
 }
 
@@ -1587,7 +1590,25 @@ function placeSigns() {
       x: door.step.x - Math.sin(door.angle) * back + Math.cos(door.angle) * along,
       y: heightAt(door.step.x, door.step.z) + 3.3,
       z: door.step.z - Math.cos(door.angle) * back - Math.sin(door.angle) * along,
+      low: false,
     };
+    // Under an overhang the wall above the door is behind its roof: the sign hangs from one of the
+    // overhang's posts instead, the nearest on that side that isn't beside the door, just under the eave.
+    const porch = door.spec?.style?.porch;
+    if (porch === "front" || porch === "door") {
+      const [ax, az] = [Math.cos(door.angle), -Math.sin(door.angle)]; // along the front
+      const doorX = (door.step.x - door.centre.x) * ax + (door.step.z - door.centre.z) * az;
+      const wanted = doorX + side * 2;
+      const posts = porchPosts(porch, door.spec.width, doorX).filter((x) => Math.abs(x - doorX) >= 0.9);
+      if (posts.length) {
+        const post = posts.reduce((best, x) => (Math.abs(x - wanted) < Math.abs(best - wanted) ? x : best));
+        const out = PORCH_OUT - 0.35 + 0.08; // from the doorstep to the outer face of the posts
+        spot.x = door.step.x + Math.sin(door.angle) * out + ax * (post - doorX);
+        spot.z = door.step.z + Math.cos(door.angle) * out + az * (post - doorX);
+        spot.y = heightAt(door.step.x, door.step.z) + PORCH_HEIGHT - 0.12;
+        spot.low = true;
+      }
+    }
     // A vendor whose trade has a painted sign in the kit hangs that out; the rest, a board with their name.
     const painted = paintedSign(zone, spot, door.angle);
     const hanging =
