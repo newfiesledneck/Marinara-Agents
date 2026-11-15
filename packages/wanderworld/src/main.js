@@ -1755,7 +1755,9 @@ function lineWords(who = "") {
  * the setting pack's line for that kind of place, quiet or busy by who's about; with Settings → AI
  * letting arrivals call the model, the model writes it. Only once the player has settled there, not for
  * streets, not for one of the last five places told, and not hard on the last telling: walking round
- * town says little, coming out of the forest into it says something.
+ * town says little, coming out of the forest into it says something. Returns false when the place is
+ * still to be told (it's too soon after the last telling, or you're in a conversation): the caller asks
+ * again while you stay, so where you end up is told once the gap is over, and places run through aren't.
  */
 function arrive(zone, names) {
   const save = core.save;
@@ -1763,7 +1765,8 @@ function arrive(zone, names) {
   if (zone.kind === "street" || zone.kind === "road") return; // getting about isn't arriving
   // Not the same few places over again (going round town), and not one place hard on another.
   const told = core.toldPlaces ?? [];
-  if (told.includes(zone.id) || core.clock - (core.toldAt ?? -ARRIVE_GAP) < ARRIVE_GAP) return;
+  if (told.includes(zone.id)) return;
+  if (core.clock - (core.toldAt ?? -ARRIVE_GAP) < ARRIVE_GAP || core.mode === "talk") return false;
   core.toldPlaces = [...told, zone.id].slice(-5);
   core.toldAt = core.clock;
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
@@ -2848,8 +2851,7 @@ function stepPlaces(dt) {
   }
   // A place is told once the player has settled there (not for passing through, or stepping in by mistake).
   if (core.arriveZone !== zone.id && core.clock - core.zoneSince >= ARRIVE_SETTLE) {
-    core.arriveZone = zone.id;
-    arrive(zone, names);
+    if (arrive(zone, names) !== false) core.arriveZone = zone.id;
   }
   finishErrand();
   if (core.clock - (core.peopleAt ?? -9) > 2) {

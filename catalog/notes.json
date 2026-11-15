@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.102",
+          "date": "2026-11-14",
+          "notes": "- A place you reach less than 45 seconds after the last place was told is no longer skipped for good. If you are still there when the 45 seconds are over, it is told then. Places you only run through stay untold, and a place is still told once, not again each time the wait ends.\n- A place is not told while you are in a conversation; it waits until the conversation is over.",
+          "highlight": false
+        },
+        {
           "version": "0.5.101",
           "date": "2026-11-14",
           "notes": "- Settings → Display → Graphics has a frame rate limit: 30, 60, 100 or no limit (as before, the default). A lower limit leaves more of the graphics card for other programs.\n- \"Draw slower while a picture is painted\" (on to begin with) holds the game to 30 frames a second from when Illustrate or \"Picture this place\" asks for a picture until it arrives or fails. It is for pictures painted on the same computer, where the game and the image model share one graphics card.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.83",
           "date": "2026-11-13",
           "notes": "- Gender shares are per world. The sliders and the custom gender's name on New world are kept with that world, and Journal → World changes them later. Settings → People → Genders is what a new world starts from, and what a world made before this follows until it's given its own in Journal → World.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.82",
-          "date": "2026-11-13",
-          "notes": "- New world, step 1: the three gender sliders and the custom gender's name are there too, under your characters, so they are set before a world's first people are made. They are the same settings as Settings → People → Genders.",
           "highlight": false
         }
       ]
