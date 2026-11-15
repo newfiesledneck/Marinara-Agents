@@ -6044,12 +6044,15 @@ function momentListeners(voice, audience, extra = [], text = "") {
  * Quartermaster's tracker reads what was just told (`parts`, in order) and updates the persona's sheet:
  * after moments, and after a conversation's replies (`kind` "talk") only when the setting says so.
  */
+/** The connection the trackers read with: their own if one is chosen (Settings → AI → Connections), else conversations'. */
+const trackerConnection = () => core.settings.trackerConnection || core.settings.textConnection || null;
+
 function trackInventory(parts, kind = "moment") {
   trackSheet(parts, kind); // (the character sheet is read for at the same moments, by its own setting)
   const when = core.settings.inventoryTrack;
   if (when === "off" || (kind === "talk" && when !== "all")) return;
   core.inventory
-    .track(parts.filter(Boolean).join("\n"), core.settings.textConnection || null)
+    .track(parts.filter(Boolean).join("\n"), trackerConnection())
     .then(
       (changed) =>
         changed &&
@@ -7667,7 +7670,7 @@ function trackSheet(parts, kind = "moment") {
       personaName: personaName(),
       sheet: list,
       text: told,
-      connectionId: core.settings.textConnection || null,
+      connectionId: trackerConnection(),
     })
     .then((answer) => {
       if (core.save?.id !== saveId) return; // another world since

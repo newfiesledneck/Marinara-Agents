@@ -146,6 +146,8 @@ export const SETTINGS = {
   inventoryPinned: { value: true },
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
+  /** The connection the trackers use (the inventory's and the sheet's); "" is the same as conversations. */
+  trackerConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },
   /** Illustrate isn't given the lines that describe other places than the one you're in (the rest of the chat it is). */
   illustrateHere: { value: true },

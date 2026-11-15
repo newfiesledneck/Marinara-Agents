@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.62 — 2026-11-15
+
+- "Add your own" on the sheet has a "Most" box. Fill it in for a line that reads like 2/40 ("Collected cars 2/40"); leave it empty for a plain number ("Fame 15").
+- The sheet itself now has the two AI switches at the top: "Tell the AI your stats" and "The AI updates your sheet". They are the same settings as in Settings → People → Inventory.
+- Settings → AI → Connections has "Trackers use": a separate model for the inventory and sheet trackers, if you want one. It starts as "Same as conversations". It is in People → Inventory too.
+- The chat's Commands list scrolls, so the whole list can be read as it grows.
+
 ## 0.6.61 — 2026-11-15
 
 - The AI can keep your sheet. With Settings → People → Inventory → "The AI updates your sheet" on, it reads what was narrated and changes HP, mana and your other stats to match, and awards experience. A note in the chat says what changed. Off to begin with: it costs one more AI call each time.

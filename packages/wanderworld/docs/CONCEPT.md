@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.61, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.62, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.61: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.62: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.61, 2026-11-14)
+## Outstanding (as of 0.6.62, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -956,6 +956,13 @@ seasonOn`, `main.js turnSeason`; off to begin with, so a world whose lore fixes 
        block, dodge, cast. Enemies aren't on a timer: each picks what to do from how the fight is
        going (press, strike twice, back off and guard, circle, flee when hurt), with chance in it, and
        with moments narrated the recent chat may lean it.
+     - _The rules of a hit (the user's, 2026-11-15):_ an attack roll decides it, against the target's
+       AC: under the AC it misses, at or over it hits, and a 20 on the die is a critical hit. Some
+       spells ask the target for a saving throw (a Wisdom save, say); on a save some deal half damage
+       and some none. A spell may also leave an effect on its target. The rules themselves can come from
+       the `ruleset-5e-2014` package: only what that package provides, since it was chosen so it can be
+       used without copyright trouble (SRD 5.1), never 5e material from anywhere else. Players can add
+       their own spells, effects and rules beside it.
      - _Defeat,_ each a setting: unconscious while the moment goes on, waking at home or at a healer,
        with or without a cost. No permanent death unless added.
      - _The defeated_ (people, monsters, farm and wild animals) can be searched, harvested (which

@@ -33,6 +33,19 @@ sheet = changeSheet(sheet, { add: { kind: "skill", name: "Fishing", about: "catc
 sheet = changeSheet(sheet, { add: { kind: "feat", name: "Night Eyes", about: "sees in the dark" } });
 sheet = changeSheet(sheet, { add: { kind: "resource", name: "Stamina", value: 5, max: 8 } });
 assert.equal(changeSheet(sheet, { add: { kind: "skill", name: "fishing" } }), sheet, "no second Fishing");
+// One of your own may have a most (2/40) or be a plain number (15): whichever was asked for.
+{
+  let own = changeSheet(sheet, { add: { kind: "stat", name: "Fame", value: 15 } });
+  own = changeSheet(own, { add: { kind: "stat", name: "Collected cars", value: 2, max: 40 } });
+  assert.deepEqual(["max" in entryOf(own, "own:fame"), entryOf(own, "own:collected-cars").max], [false, 40]);
+  assert.match(sheetWords(own), /Fame 15, Collected cars 2\/40\./u);
+  assert.equal(
+    checkSheet(own).entries.find((entry) => entry.id === "own:collected-cars").max,
+    40,
+    "kept when read again",
+  );
+  assert.equal(valueOf(applyChanges(own, [{ stat: "Collected cars", by: 99 }]).sheet, "own:collected-cars"), 40);
+}
 assert.deepEqual(
   [entryOf(sheet, "own:fishing").value, "value" in entryOf(sheet, "own:night-eyes"), entryOf(sheet, "own:stamina").max],
   [3, false, 8],
