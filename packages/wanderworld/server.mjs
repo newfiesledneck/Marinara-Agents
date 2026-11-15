@@ -183,6 +183,51 @@ export function personaCard(record, fallbackName, worn, sheet) {
  * The messages for Quartermaster's tracker, with Wanderworld's own model call: its prompt (`template`), the
  * sheet as it shows it (`context`, which the prompt calls <agent_runtime_context>), and what was just told.
  */
+/** What the model that stocks a shop is told to do (the client keeps what it answers as that shop's shelves). */
+export const STOCK_INSTRUCTION = `You stock the shelves of a shop in a roleplay world. Write what it has for sale now: 6 to 10 things that fit this world's setting and the kind of shop it is. A potion shop in a fantasy town sells potions; a general store in a wasteland sells what a wasteland store would. Use the world's own words for things.
+
+Each thing has a name, one short sentence of description, a price as a whole number of the world's money, and how many are on the shelf (1 to 5). Keep prices in line with the usual prices given.
+
+A description may say what the thing does, and then only in these exact forms, so the game can read them:
+"+N HP when eaten", "+N HP when drunk", "+N HP when used", "+N Mana when drunk", "+N AC", "Weapon: XdY damage", "Tool: chops wood", "Tool: mines rock", "Tool: catches fish".
+Most things need none of them.
+
+Answer with JSON only, nothing before or after it:
+{"stock":[{"name":"...","description":"...","price":0,"quantity":1}]}`;
+
+/** The messages for stocking one shop. */
+export function vendorStockMessages({ worldName, setting, shop, kinds, currency, usual }) {
+  return [
+    { role: "system", content: STOCK_INSTRUCTION },
+    {
+      role: "user",
+      content: [
+        `The world: ${([worldName, setting].filter(Boolean).join(": ") || "a small town and the country round it").replace(/[.\s]+$/u, "")}.`,
+        `The shop: ${shop}. Its trade: ${kinds}.`,
+        `The money is called ${currency}.`,
+        usual && `Usual prices here: ${usual}.`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+}
+
+/** The model's shelves, checked: [{ name, description, price, quantity }], twelve things at most, none twice. */
+export function checkStock(data) {
+  const seen = new Set();
+  return (Array.isArray(data?.stock) ? data.stock : [])
+    .filter(isRecord)
+    .map((item) => ({
+      name: text(item.name, 60),
+      description: text(item.description, 200),
+      price: Number.isFinite(item.price) ? Math.max(1, Math.min(9999, Math.round(item.price))) : 0,
+      quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.min(9, Math.round(item.quantity))) : 1,
+    }))
+    .filter((item) => item.name && item.price > 0 && !seen.has(item.name.toLowerCase()) && seen.add(item.name.toLowerCase()))
+    .slice(0, 12);
+}
+
 /** What the model that keeps a character sheet is told to do (the client's sheet.js applies what it answers). */
 export const SHEET_INSTRUCTION = `You keep a character's stat sheet for a roleplay game. Read what just happened and decide whether any of the listed stats changed because of it.
 
@@ -2414,6 +2459,29 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return { data };
         } catch (error) {
           logger.warn("[wanderworld] inventory tracking failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // A shop's shelves written by the model, to fit the world. The client keeps them until it restocks.
+      routes.post("/vendor-stock", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const input = {
+          worldName: text(body.worldName, MAX.name),
+          setting: text(body.setting, 600),
+          shop: text(body.shop, MAX.name) || "a shop",
+          kinds: text(body.kinds, 200) || "general store",
+          currency: text(body.currency, 30) || "coins",
+          usual: text(body.usual, 600),
+        };
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await askModel("vendor-stock", body, model, vendorStockMessages(input), { temperature: 0.8, maxTokens: 1200 });
+          const stock = checkStock(readJson(result?.content, api.runtime.json?.parseJsonish));
+          if (stock.length < 3) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          return { stock };
+        } catch (error) {
+          logger.warn("[wanderworld] stocking a shop failed: %s", error?.message ?? error);
           return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
         }
       });

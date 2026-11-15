@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.69",
+          "date": "2026-11-15",
+          "notes": "- Settings → World → Vendors lists every vendor in your world. Tick the trades a shop has; one shop can be several at once.\n- \"Empty houses\" in the same place turns a house nobody lives in into a shop of the trade you pick, for a world that came without one you want.\n- \"The AI stocks shop shelves\" (People → Inventory, and under AI and Token use): when a shop restocks, the AI writes its stock to fit your world's setting and the shop's trade. Off to begin with. It is one AI call per shop per restocking, made when you open the shop, and the built-in lists stand in if it fails.\n- \"The AI updates your sheet\" is now under AI and Token use as well.",
+          "highlight": false
+        },
+        {
           "version": "0.6.68",
           "date": "2026-11-15",
           "notes": "- Shops. At a vendor's door or inside it, a Shop button appears in the chat window. The smithy sells tools, weapons and armour, a shop is a general store, and a tavern or inn sells food and drink. A town's plain shops are a mix of general stores, apothecaries and tailors, and a building named for a trade sells that.\n- Buy with what's in your purse. Sell what you carry: a shop pays half a thing's worth for what it deals in, and a quarter for anything else.\n- Shelves hold a few things of each kind and are restocked every three days with different ones. Settings → People → Inventory has the switch and the days.\n- A shop that is shut for the night doesn't trade.\n- Not yet: managing vendors in Settings, stock written by the AI, and market stalls.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.109",
           "date": "2026-11-15",
           "notes": "- Settings → Debug estimates what each AI call cost, and adds the estimates up. It multiplies the call's token counts by the prices in the connection's model list, the same prices the Engine's model picker shows, with cached tokens at the cache price. It isn't the provider's bill, and a connection without prices is said so.\n- The mill's wheel is turned to stand along the stream, so the water pushes its paddles round, and an axle runs from its middle into the mill's wall. It stood across the stream before, joined to nothing.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.108",
-          "date": "2026-11-15",
-          "notes": "- Settings has a Debug section. Overview adds up every AI call since the Engine started: requests, answers, failures, answers cut off, tokens sent and received, tokens read from and written to a cache, reasoning tokens, time spent waiting, pictures, and a line for each kind of call.\n- Calls lists the newest 50. Each opens to its model, settings, token counts, what was sent and what came back. It works with the Engine's Debug Mode on or off.\n- It says when a connection reports no token counts. Cost isn't shown: the Engine doesn't pass it on to Agents.\n- Reset empties it. The log is kept in memory only and holds no key. Anything shaped like one in a provider's error is hidden.",
           "highlight": false
         }
       ]

@@ -7863,6 +7863,86 @@ function keepVendor(vendor, fields) {
   core.saves.write(core.save);
 }
 
+/**
+ * With "The AI stocks shop shelves" on, a vendor due a restocking has its shelves written by the model
+ * to fit the world, and kept. Anything that goes wrong leaves it to the setting's own lists (`shelves`).
+ */
+async function aiShelves(vendor) {
+  if (!core.settings.vendorAi) return;
+  const save = core.save;
+  const period = Math.floor((core.social?.day ?? 0) / Math.max(1, core.settings.restockDays));
+  if (!stockNow(save.vendors?.[vendor.zone.id], vendor.kinds, PACK.vendors.kinds, "", period).fresh) return;
+  const kinds = vendor.kinds.map((kind) => PACK.vendors.kinds[kind]);
+  try {
+    const answer = await core.ai.vendorStock({
+      worldName: save.name,
+      setting: save.setting ?? "",
+      shop: vendor.name,
+      kinds: kinds.map((kind) => kind.label).join(", "),
+      currency: purse().name,
+      usual: kinds
+        .flatMap((kind) => kind.stock.slice(0, 4))
+        .map((item) => `${item.name} ${item.price}`)
+        .join(", "),
+      connectionId: trackerConnection(),
+    });
+    if (core.save?.id === save.id && answer?.stock?.length)
+      keepVendor(vendor, { stock: answer.stock, period, stocked: vendor.kinds.join(",") });
+  } catch (error) {
+    console.warn("[wanderworld] the AI couldn't stock a shop; its own shelves stand in", error);
+  }
+}
+
+/** What things are worth here: the setting's prices, and whatever any shop in this world has had on its shelves. */
+function vendorPack() {
+  const values = { ...PACK.vendors.values };
+  for (const vendor of Object.values(core.save?.vendors ?? {}))
+    for (const item of vendor.stock ?? [])
+      if (item?.name && Number.isFinite(item.price)) values[item.name] ??= item.price;
+  return { ...PACK.vendors, values };
+}
+
+/**
+ * Every vendor in the world, for Settings → World → Vendors: its trades (and whether they were set by
+ * hand), every trade there is, and the empty houses that could be made shops of.
+ */
+function vendorsNow() {
+  if (!core.zones || !core.save) return { vendors: [], vacant: [], kinds: [] };
+  const snapshot = core.crowd.snapshot();
+  const names = namedZones(residentsOf(snapshot));
+  const mine = playerHomeDoor();
+  // (With the street it's on: a town has several places called "the shop".)
+  const placed = (zone) => [names[zone.id] ?? zone.name, names[zone.parent]].filter(Boolean).join(", ");
+  const vendors = [];
+  for (const zone of core.zones.zones) {
+    if (zone.kind !== "building") continue;
+    const saved = core.save.vendors?.[zone.id];
+    const kinds = vendorKinds(zone, names[zone.id] ?? zone.name, saved, PACK.vendors.kinds);
+    const set = Array.isArray(saved?.kinds);
+    if (kinds.length || set) vendors.push({ id: zone.id, name: placed(zone), kinds, set });
+  }
+  const trading = new Set(vendors.map((vendor) => vendor.id));
+  return {
+    vendors,
+    vacant: vacantHomes(core.zones.zones, snapshot)
+      .filter((zone) => zone.door !== mine && !trading.has(zone.id))
+      .slice(0, 30)
+      .map((zone) => ({ id: zone.id, name: placed(zone) })),
+    kinds: Object.entries(PACK.vendors.kinds).map(([id, kind]) => ({ id, label: kind.label })),
+  };
+}
+
+/** Sets a building's trades by hand (`kinds`: a list, empty for "doesn't trade"), or back to its own with null. */
+function setVendorKinds(zoneId, kinds) {
+  if (!core.save) return;
+  const { kinds: _was, ...rest } = core.save.vendors?.[zoneId] ?? {};
+  const next =
+    kinds === null ? rest : { ...rest, kinds: kinds.filter((kind) => Object.hasOwn(PACK.vendors.kinds, kind)) };
+  core.save = { ...core.save, vendors: { ...core.save.vendors, [zoneId]: next } };
+  core.saves.write(core.save);
+  core.journalAt = 0;
+}
+
 /** The shop window's contents: what's for sale, and what of the player's it would buy and for how much. */
 async function shopNow() {
   const vendor = vendorHere();
@@ -7870,6 +7950,8 @@ async function shopNow() {
   const ready = core.inventory.ready();
   const items = ready ? await readItems() : [];
   const money = purse();
+  await aiShelves(vendor);
+  const prices = vendorPack();
   return {
     open: true,
     ready,
@@ -7884,7 +7966,7 @@ async function shopNow() {
         name: item.name,
         quantity: item.quantity ?? 1,
         worn: String(item.location).startsWith("equipped:"),
-        price: offerFor(item.name, vendor.kinds, PACK.vendors),
+        price: offerFor(item.name, vendor.kinds, prices),
       }))
       .sort((a, b) => b.price - a.price || a.name.localeCompare(b.name)),
   };
@@ -7916,7 +7998,7 @@ async function sell(id) {
   if (!vendor) throw new Error("There's no shop here now.");
   const item = (await readItems()).find((entry) => entry.id === id);
   if (!item) return;
-  const price = offerFor(item.name, vendor.kinds, PACK.vendors);
+  const price = offerFor(item.name, vendor.kinds, vendorPack());
   if (price <= 0) throw new Error(`${vendor.name} has no use for that.`);
   const money = purse();
   await core.inventory.change(id, (item.quantity ?? 1) > 1 ? { quantity: item.quantity - 1 } : null);
@@ -8607,6 +8689,8 @@ function attach(element) {
       }),
     onGather: (kind) => void gather(kind),
     onShop: shopNow,
+    onVendors: vendorsNow,
+    onVendorKinds: setVendorKinds,
     onBuy: buy,
     onSell: sell,
     onRecipes: recipesNow,

@@ -207,6 +207,8 @@ export function createAi(locals = () => []) {
     inventoryTrack: (payload) => request("/inventory-track", { method: "POST", body: payload }),
     /** What just told changed on the character sheet: { changes: [{ stat, by | to, reason }], xp } (server.mjs `/sheet-track`). */
     sheetTrack: (payload) => request("/sheet-track", { method: "POST", body: payload }),
+    /** A shop's shelves written to fit the world: { stock: [{ name, description, price, quantity }] } (server.mjs `/vendor-stock`). */
+    vendorStock: (payload) => request("/vendor-stock", { method: "POST", body: payload }),
     /** Forgets a recap the client has kept. */
     forgetResult: (id) => request(`/scene-results/${encodeURIComponent(id)}`, { method: "DELETE" }),
   };
