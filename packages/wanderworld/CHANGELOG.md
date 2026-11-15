@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.68 — 2026-11-15
+
+- Shops. At a vendor's door or inside it, a Shop button appears in the chat window. The smithy sells tools, weapons and armour, a shop is a general store, and a tavern or inn sells food and drink. A town's plain shops are a mix of general stores, apothecaries and tailors, and a building named for a trade sells that.
+- Buy with what's in your purse. Sell what you carry: a shop pays half a thing's worth for what it deals in, and a quarter for anything else.
+- Shelves hold a few things of each kind and are restocked every three days with different ones. Settings → People → Inventory has the switch and the days.
+- A shop that is shut for the night doesn't trade.
+- Not yet: managing vendors in Settings, stock written by the AI, and market stalls.
+
 ## 0.6.67 — 2026-11-15
 
 - The axe and pickaxe in your hand are now the models from the Fantasy Props MegaKit's Pro tier, in place of the plain shapes. The fishing rod stays a plain shape: the pack has none.

@@ -345,6 +345,8 @@ export function checkWorld(raw) {
     trees: isRecord(raw.trees) ? raw.trees : {},
     // The player's own recipes (craft.js checks them when they're read).
     recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
+    // Each vendor: { [zone id]: { kinds (once set by hand), stock, period, stocked } } (vendor.js).
+    vendors: isRecord(raw.vendors) ? raw.vendors : {},
     // What money is called in this world ("" for the setting's own word); the purse is the item of that name.
     currency: text(raw.currency).slice(0, 30),
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.

@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.68",
+          "date": "2026-11-15",
+          "notes": "- Shops. At a vendor's door or inside it, a Shop button appears in the chat window. The smithy sells tools, weapons and armour, a shop is a general store, and a tavern or inn sells food and drink. A town's plain shops are a mix of general stores, apothecaries and tailors, and a building named for a trade sells that.\n- Buy with what's in your purse. Sell what you carry: a shop pays half a thing's worth for what it deals in, and a quarter for anything else.\n- Shelves hold a few things of each kind and are restocked every three days with different ones. Settings → People → Inventory has the switch and the days.\n- A shop that is shut for the night doesn't trade.\n- Not yet: managing vendors in Settings, stock written by the AI, and market stalls.",
+          "highlight": false
+        },
+        {
           "version": "0.6.67",
           "date": "2026-11-15",
           "notes": "- The axe and pickaxe in your hand are now the models from the Fantasy Props MegaKit's Pro tier, in place of the plain shapes. The fishing rod stays a plain shape: the pack has none.\n- That pack's tools and weapons are converted and in the kit (two axes, two pickaxes, two swords, a dagger, a hammer, a shovel, a hoe and two shields). Only the axe and pickaxe are used so far; the rest are for shops and fights.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.108",
           "date": "2026-11-15",
           "notes": "- Settings has a Debug section. Overview adds up every AI call since the Engine started: requests, answers, failures, answers cut off, tokens sent and received, tokens read from and written to a cache, reasoning tokens, time spent waiting, pictures, and a line for each kind of call.\n- Calls lists the newest 50. Each opens to its model, settings, token counts, what was sent and what came back. It works with the Engine's Debug Mode on or off.\n- It says when a connection reports no token counts. Cost isn't shown: the Engine doesn't pass it on to Agents.\n- Reset empties it. The log is kept in memory only and holds no key. Anything shaped like one in a provider's error is hidden.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.107",
-          "date": "2026-11-15",
-          "notes": "- The AI assistant's chat is ordered for prompt caching, as conversations are. What never changes (its instructions, the world's name and setting, who you play) is sent first, then the chat, and the world as it is now goes on your newest message. The turns sent back start from the same place for several messages running. \"Order prompts for caching\" (Settings → AI) turns it off.\n- The saddle sits on the horse's back. It was sunk into it, with the seat hidden inside the body and the flaps inside its sides; it is now a little higher and wider, and the rider sits that much higher with it.",
           "highlight": false
         }
       ]

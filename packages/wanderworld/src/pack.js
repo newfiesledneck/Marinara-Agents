@@ -777,9 +777,140 @@ const RECIPES = [
   },
 ];
 
+/**
+ * The kinds of shop (vendor.js): what each is called, the names that mark a building as one (`named`),
+ * what it stocks with its usual price, and what it pays well for (`wants`). `values`: what things that
+ * no shop stocks are worth (what gathering finds, what's made). A description says what a thing does,
+ * as everywhere: "+15 HP when drunk", "+1 AC", "Weapon: 1d6 damage".
+ */
+const VENDORS = {
+  kinds: {
+    general: {
+      label: "General store",
+      named: /general|store|sundr|chandl|provision/iu,
+      stock: [
+        { name: "Rope", description: "Fifty feet of hempen rope.", price: 4 },
+        { name: "Torch", description: "A branch wound with fibre, to burn for an hour.", price: 2 },
+        { name: "Tinderbox", description: "Flint, steel and dry tinder in a tin.", price: 3 },
+        { name: "Waterskin", description: "A stitched skin that holds a day's water.", price: 5 },
+        { name: "Bedroll", description: "A wool blanket rolled in oilcloth.", price: 8 },
+        { name: "Sack", description: "A stout cloth sack.", price: 2 },
+        { name: "Lantern", description: "A horn-paned lantern.", price: 12 },
+        { name: "Candle", description: "A tallow candle.", price: 1 },
+        { name: "Fishing rod", description: "A springy rod with a twisted line. Tool: catches fish.", price: 6 },
+        { name: "Cord", description: "A length of twisted cord.", price: 1 },
+      ],
+      wants: /branch|fibre|cord|firewood|kindling|flint|stone|torch|rope|sack/iu,
+    },
+    smith: {
+      label: "Smith",
+      named: /smith|forge|armou?r|weapon|ironmonger/iu,
+      stock: [
+        {
+          name: "Iron axe",
+          description: "A forged head on a straight haft. Tool: chops wood. Weapon: 1d8 damage, +1 to attack.",
+          price: 30,
+        },
+        {
+          name: "Iron pickaxe",
+          description: "A forged pick on a straight haft. Tool: mines rock. Weapon: 1d8 damage, +1 to attack.",
+          price: 30,
+        },
+        {
+          name: "Short sword",
+          description: "A plain, well-balanced blade. Weapon: 1d6 damage, +1 to attack.",
+          price: 40,
+        },
+        { name: "Dagger", description: "A hand's length of sharp iron. Weapon: 1d4 damage.", price: 15 },
+        { name: "Wooden shield", description: "Limewood boards rimmed with iron. +2 AC.", price: 20 },
+        { name: "Iron helm", description: "A riveted iron cap. +1 AC.", price: 25 },
+        { name: "Iron ingot", description: "Iron smelted out of its ore.", price: 12 },
+        { name: "Whetstone", description: "A stone for keeping an edge.", price: 2 },
+      ],
+      wants: /ore|ingot|axe|pick|sword|dagger|shield|helm|iron|copper|flint|stone|gem/iu,
+    },
+    apothecary: {
+      label: "Apothecary",
+      named: /apothecar|herbal|potion|alchem|healer|physic/iu,
+      stock: [
+        { name: "Health potion", description: "A red draught. +15 HP when drunk.", price: 15 },
+        { name: "Mana potion", description: "A blue draught. +10 Mana when drunk.", price: 15 },
+        { name: "Bandages", description: "Clean linen strips. +6 HP when used.", price: 5 },
+        { name: "Herbal poultice", description: "Crushed herbs bound in fibre. +12 HP when used.", price: 9 },
+        { name: "Antidote", description: "A bitter grey tincture against poisons.", price: 12 },
+        { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used.", price: 4 },
+        { name: "Smelling salts", description: "A stoppered vial that would wake the dead.", price: 6 },
+      ],
+      wants: /herb|mushroom|morel|chanterelle|garlic|potion|poultice|berries/iu,
+    },
+    tailor: {
+      label: "Tailor",
+      named: /tailor|cloth|draper|weaver|seamstress|outfitter/iu,
+      stock: [
+        { name: "Wool cloak", description: "A heavy cloak against the weather.", price: 12 },
+        { name: "Linen shirt", description: "A plain linen shirt.", price: 5 },
+        { name: "Leather boots", description: "Stout boots, already broken in.", price: 9 },
+        { name: "Travelling hood", description: "A deep hood with a short cape.", price: 6 },
+        { name: "Leather gloves", description: "Supple gloves.", price: 6 },
+        { name: "Leather jerkin", description: "A thick hide jerkin. +1 AC.", price: 22 },
+        { name: "Belt pouch", description: "A small pouch for the belt.", price: 4 },
+      ],
+      wants: /fibre|cord|cloak|shirt|boots|hood|gloves|jerkin|cloth|wool|leather|pouch/iu,
+    },
+    tavern: {
+      label: "Tavern",
+      named: /tavern|\binn\b|alehouse|\bpub\b|taproom/iu,
+      stock: [
+        { name: "Mug of ale", description: "A mug of the house ale. +1 HP when drunk.", price: 1 },
+        { name: "Bowl of stew", description: "Whatever went in the pot. +6 HP when eaten.", price: 2 },
+        { name: "Loaf of bread", description: "A round brown loaf. +3 HP when eaten.", price: 1 },
+        { name: "Wedge of cheese", description: "Hard yellow cheese. +3 HP when eaten.", price: 2 },
+        { name: "Roast fowl", description: "A whole roast bird. +10 HP when eaten.", price: 4 },
+        { name: "Skin of wine", description: "A skin of red wine. +2 HP when drunk.", price: 3 },
+      ],
+      wants:
+        /trout|perch|pike|fish|berries|apple|turnip|cabbage|egg|nuts|wheat|mushroom|morel|chanterelle|garlic|firewood|kindling/iu,
+    },
+  },
+  values: {
+    "River trout": 3,
+    Perch: 2,
+    Pike: 6,
+    Firewood: 1,
+    Kindling: 1,
+    "Straight branch": 2,
+    "Fallen branch": 1,
+    "Plant fibre": 1,
+    Flint: 1,
+    Stone: 1,
+    "Iron ore": 5,
+    "Copper ore": 4,
+    "Rough gem": 24,
+    "Wild garlic": 1,
+    Morel: 3,
+    "Wild berries": 1,
+    "Field mushroom": 1,
+    "Bird's egg": 2,
+    Hazelnuts: 1,
+    "Crab apples": 1,
+    Chanterelle: 3,
+    Turnips: 1,
+    "Wheat sheaf": 2,
+    Apples: 2,
+    Cabbage: 1,
+    "Stone axe": 4,
+    "Stone pickaxe": 5,
+    "Cooked trout": 5,
+    "Cooked perch": 4,
+    "Cooked pike": 5,
+    Quarterstaff: 4,
+  },
+};
+
 export const PACK = {
   id: "fantasy",
   recipes: RECIPES,
+  vendors: VENDORS,
   /** What money is called here, until the player names it (Inventory → Items). */
   currency: "Coins",
   gather: GATHER,

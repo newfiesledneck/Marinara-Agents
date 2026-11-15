@@ -869,6 +869,9 @@ export function createHud(root, handlers) {
     gathering:
       "On: buttons in the chat window let you gather where the land allows it. Each kind only at its resource: fish by water, chop wood standing against a tree (four strokes bring it down), forage in the woods, mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
     treeDays: "How many of the world's days a tree you cut down takes to stand again. 0: it never grows back.",
+    vendors:
+      "On: shops buy and sell. At a vendor's door or inside (the smithy, a shop, a tavern, an inn), a Shop button appears in the chat window. You pay from your purse and sell what you carry: a shop pays half a thing's worth for what it deals in and a quarter for anything else. Needs the Quartermaster package for the items. Off: no trading.",
+    restockDays: "How many of the world's days pass before a shop's shelves are filled again, with different things.",
     gatherTools:
       "On: chopping wood needs an axe, mining a pickaxe and fishing a rod, carried in your inventory (anything named for one counts). The first of each is made in Inventory → Craft from a fallen branch, flint and plant fibre, which foraging finds. Foraging and harvesting are done by hand. Off: bare hands will do for everything.",
     regrowDays:
@@ -1185,6 +1188,8 @@ export function createHud(root, handlers) {
   intro(
     "The Inventory button opens a window in tabs: Items, Sheet and Quartermaster. Your character sheet is Wanderworld's own. The things you wear and carry are kept by the Quartermaster package, if you have it installed: without it the Items tab is empty and the settings about items do nothing.",
   );
+  toggle("vendors", "Shops buy and sell");
+  number("restockDays", "Days between a shop's restocking", "vendors");
   toggle("gathering", "Gathering");
   toggle("gatherTools", "Gathering needs tools", "gathering");
   number("regrowDays", "Days until a spot gives again", "gathering");
@@ -2001,6 +2006,109 @@ export function createHud(root, handlers) {
   const illustrateButton = button("Illustrate", "Paint the current moment, and see the world's pictures", () =>
     illustrate.toggle(),
   );
+  // A shop's window (vendor.js): what it sells and what it would buy of yours, opened from the chat window
+  // when you're at a vendor's door or inside.
+  const shopPanel = document.createElement("div");
+  shopPanel.setAttribute("data-wanderworld-ui", "");
+  shopPanel.style.cssText = PANEL;
+  shopPanel.style.display = "none";
+  shopPanel.style.minWidth = "min(344px, calc(100% - 16px))";
+  panels.push(shopPanel);
+  let shopTab = "buy";
+  let shopNote = "";
+  let shopDrawn = 0;
+  async function drawShop() {
+    const drawn = ++shopDrawn;
+    const answer = await Promise.resolve(handlers.onShop?.()).catch(() => null);
+    if (drawn !== shopDrawn) return;
+    const body = piece("display:flex;flex-direction:column;gap:5px;font-size:12px;line-height:1.4;");
+    if (!answer?.open) {
+      body.append(debugNote("There's no shop here now. Go to a vendor's door, or inside, while it's open."));
+      return void shopPanel.replaceChildren(body);
+    }
+    body.append(
+      piece(`font:700 15px ${SERIF};`, answer.name),
+      piece(`color:${INK_SOFT};font-size:11px;`, answer.kinds.join(", ")),
+      piece("font-weight:700;", `Your purse: ${answer.purse.amount} ${answer.purse.name}`),
+    );
+    if (!answer.ready) {
+      body.append(
+        debugNote(
+          "Buying and selling uses your inventory, which the Quartermaster package keeps. Install it from Agents → Download Agents and turn on Settings → People → Inventory.",
+        ),
+      );
+      return void shopPanel.replaceChildren(body);
+    }
+    const tabs = piece("display:flex;gap:4px;");
+    for (const [id, label] of [
+      ["buy", "Buy"],
+      ["sell", "Sell"],
+    ]) {
+      const tab = inkSmall(label, () => {
+        shopTab = id;
+        shopNote = "";
+        void drawShop();
+      });
+      tab.style.cssText += `font-size:12px;padding:3px 10px;opacity:${id === shopTab ? "1" : "0.6"};${id === shopTab ? "font-weight:700;" : ""}`;
+      tab.setAttribute("aria-pressed", String(id === shopTab));
+      tabs.append(tab);
+    }
+    body.append(tabs);
+    if (shopNote) body.append(debugNote(shopNote));
+    const trade = (work) => async () => {
+      shopNote = "";
+      try {
+        await work();
+      } catch (error) {
+        shopNote = error?.message ?? "That couldn't be done.";
+      }
+      void drawShop();
+    };
+    const row = (title, about, price, label, onClick, can) => {
+      const box = piece(
+        "border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;display:flex;gap:6px;align-items:flex-start;",
+      );
+      const words = piece("flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;");
+      words.append(piece("font-weight:600;", title));
+      if (about) words.append(piece(`color:${INK_SOFT};font-size:11px;`, about));
+      const act = inkSmall(`${label} · ${price}`, onClick);
+      act.disabled = !can;
+      if (!can) act.style.cssText += "opacity:0.5;cursor:default;";
+      box.append(words, act);
+      return box;
+    };
+    if (shopTab === "buy") {
+      if (!answer.stock.length) body.append(debugNote("The shelves are bare until it restocks."));
+      for (const item of answer.stock)
+        body.append(
+          row(
+            `${item.name}${item.quantity > 1 ? ` (${item.quantity} left)` : ""}`,
+            item.description,
+            item.price,
+            "Buy",
+            trade(() => handlers.onBuy?.(item.name)),
+            answer.purse.amount >= item.price,
+          ),
+        );
+    } else {
+      if (!answer.sell.length) body.append(debugNote("You carry nothing to sell."));
+      for (const item of answer.sell)
+        body.append(
+          row(
+            `${item.name}${item.quantity > 1 ? ` ×${item.quantity}` : ""}${item.worn ? " · worn" : ""}`,
+            item.price > 0 ? "" : "No use for it here.",
+            item.price,
+            "Sell one",
+            trade(() => handlers.onSell?.(item.id)),
+            item.price > 0,
+          ),
+        );
+      body.append(
+        debugNote("A shop pays half what a thing is worth for what it deals in, and a quarter for anything else."),
+      );
+    }
+    shopPanel.replaceChildren(body);
+  }
   // The Inventory window, in tabs: what you carry (Quartermaster's items, with something to do with each),
   // your character sheet, and Quartermaster's own window.
   const inventoryPanel = document.createElement("div");
@@ -2857,7 +2965,17 @@ export function createHud(root, handlers) {
   const gatherRow = document.createElement("div");
   gatherRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
   let gatherShown = "";
-  chat.frame.append(narration, speakBar, moves, gatherRow, petMoves, commands, peopleHere, clearChat);
+  // The vendor you're at: a button to its shop window, there only at a vendor's door or inside.
+  const shopRow = document.createElement("div");
+  shopRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
+  const shopButton = button("Shop", "Buy and sell here", () => {
+    togglePanel(shopPanel);
+    if (shopPanel.style.display !== "none") void drawShop();
+  });
+  shopButton.style.cssText += "padding:4px 10px;font-size:12px;";
+  shopRow.append(shopButton);
+  let shopAt = "";
+  chat.frame.append(narration, speakBar, moves, shopRow, gatherRow, petMoves, commands, peopleHere, clearChat);
   let narrationTimer = null;
   // Narration with the chat window closed: a caption over the world for a few seconds, then gone (it's
   // in the window when it's opened).
@@ -2927,6 +3045,7 @@ export function createHud(root, handlers) {
     journal.panel,
     mapView.panel,
     inventoryPanel,
+    shopPanel,
     lorePanel,
     settingsPanel,
     menuPanel,
@@ -3183,6 +3302,17 @@ export function createHud(root, handlers) {
       if (chatRest.textContent !== label) chatRest.textContent = label;
       moves.style.display = shown && wanted.chat && !touch ? "flex" : "none"; // (a touch screen has them along the bottom)
       chatJump.disabled = !!resting && !riding;
+    },
+    /** The vendor the player is at, by name ("" for none: the button goes, and the shop window with it). */
+    setShop(name) {
+      if (name === shopAt) return;
+      shopAt = name;
+      shopButton.textContent = name ? `Shop: ${name.replace(/^the /u, "")}` : "Shop";
+      shopRow.style.display = name ? "flex" : "none";
+      if (shopPanel.style.display !== "none") {
+        if (name) void drawShop();
+        else shopPanel.style.display = "none";
+      }
     },
     /** What can be gathered here: [{ kind, label }] (none hides the row). */
     setGather(options) {

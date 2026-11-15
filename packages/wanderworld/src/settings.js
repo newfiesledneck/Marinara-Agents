@@ -144,6 +144,9 @@ export const SETTINGS = {
   // days a spot takes to give again (0: it always does).
   gathering: { value: true },
   regrowDays: { value: 1, min: 0, max: 30 },
+  // Vendors (vendor.js): shops buy and sell; and how many of the world's days pass between restockings.
+  vendors: { value: true },
+  restockDays: { value: 3, min: 1, max: 60 },
   /** Chopping, mining and fishing each need their tool carried (off: bare hands will do). */
   gatherTools: { value: true },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */
