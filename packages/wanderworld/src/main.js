@@ -136,6 +136,7 @@ import {
   usualDay,
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
+import { changeSheet, checkSheet, sheetWords, useItem, wornBonuses } from "./sheet.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
   checkTraits,
@@ -240,7 +241,10 @@ const core = {
     sheet: () => sheetFor(core.save?.id, core.personaId),
     persona: () => ({ personaId: core.personaId, name: personaName() }),
     settings: () => core.settings,
-    onReady: () => core.hud?.setInventory(core.inventory.ready()),
+    onReady: () => {
+      core.hud?.setInventory(core.inventory.ready() || core.settings.sheet);
+      void readItems();
+    },
   }),
   /** The last picture of a place: { zoneId, place, url, pending, error }. */
   picture: null,
@@ -458,7 +462,7 @@ function applySettings() {
     core.camera.updateProjectionMatrix();
   }
   setAnimationStyle(settings.animation);
-  core.hud?.setInventory(core.inventory.ready());
+  core.hud?.setInventory(core.inventory.ready() || settings.sheet);
   core.shadow.visible = settings.shadows;
   core.crowd.setShadows(settings.shadows);
   if (core.relations) refreshNames();
@@ -6169,6 +6173,7 @@ async function runMoment({
       personaId: core.personaId ?? null,
       personaName: personaName(),
       worn: core.inventory.worn(),
+      sheet: sheetTold(),
       action,
       line,
       voice,
@@ -6495,6 +6500,7 @@ function talkPayload(talking, line) {
     personaId: core.personaId,
     personaName: personaName(),
     worn: core.inventory.worn(),
+    sheet: sheetTold(),
     place: placeTold(),
     time: clockText(),
     weather: weatherWord(),
@@ -7605,6 +7611,60 @@ function turnSeason() {
   if ((core.settings.narration ?? "lines") !== "off") narrate(null, lines[next.season]);
 }
 
+// ── The character sheet and the things carried (sheet.js; Quartermaster keeps the items) ────────────────
+
+const sheetKey = () => core.personaId || "persona";
+/** The sheet of whoever is being played, in this world. */
+function sheetNow() {
+  return checkSheet(core.save?.sheets?.[sheetKey()]);
+}
+function setSheet(sheet) {
+  if (!core.save) return;
+  core.save = { ...core.save, sheets: { ...core.save.sheets, [sheetKey()]: sheet } };
+  core.saves.write(core.save);
+}
+/** The sheet in words for a prompt (what's switched on in it, with what's worn counted); "" when it isn't told. */
+function sheetTold() {
+  if (!core.save || !core.settings.sheet || !core.settings.sheetTold) return "";
+  const sheet = sheetNow();
+  return sheetWords(sheet, wornBonuses(sheet, core.items ?? []));
+}
+/** Quartermaster's items for the sheet being played, read again (kept in `core.items` for the bonuses). */
+async function readItems() {
+  core.items = await core.inventory.items().catch(() => []);
+  return core.items;
+}
+/**
+ * Something done with an item from the Inventory window: it's done on Quartermaster's sheet, so both
+ * show the same, and said in the chat. Using something up applies what its description gives ("+10 HP").
+ */
+async function itemAction(id, action) {
+  const item = (core.items ?? []).find((entry) => entry.id === id);
+  if (!item) return;
+  const who = personaName();
+  if (action === "equip") {
+    if (!item.defaultSlot)
+      throw new Error(
+        `${item.name} has no slot yet: give it one in the Quartermaster tab, then it can be equipped here.`,
+      );
+    await core.inventory.change(id, { location: `equipped:${item.defaultSlot}` });
+    narrate(null, `${who} equips ${item.name}.`);
+  } else if (action === "unequip") {
+    await core.inventory.change(id, { location: "bag" });
+    narrate(null, `${who} puts ${item.name} away.`);
+  } else if (action === "use") {
+    const used = useItem(sheetNow(), item.description);
+    if (used.applied.length) setSheet(used.sheet);
+    await core.inventory.change(id, item.quantity > 1 ? { quantity: item.quantity - 1 } : null);
+    const effect = used.applied.map((change) => `${change.name} ${change.from} to ${change.to}`).join(", ");
+    narrate(null, `${who} uses 1 ${item.name}${effect ? ` (${effect})` : ""}.`);
+  } else if (action === "drop") {
+    await core.inventory.change(id, null);
+    narrate(null, `${who} drops ${item.name}.`);
+  }
+  await readItems();
+}
+
 function stepClock(dt) {
   const mode = core.settings.time;
   if (mode === "day") core.hour = 12;
@@ -8133,6 +8193,14 @@ function attach(element) {
     onSpeak: speak,
     onIllustrate: illustrateMoment,
     onAssistant: askAssistant,
+    // The Inventory window: the sheet, and Quartermaster's items with something to do with each.
+    onSheet: () => {
+      const sheet = sheetNow();
+      return { sheet, worn: wornBonuses(sheet, core.items ?? []) };
+    },
+    onSheetChange: (change) => setSheet(changeSheet(sheetNow(), change)),
+    onItems: async () => ({ ready: core.inventory.ready(), items: core.inventory.ready() ? await readItems() : [] }),
+    onItemAction: itemAction,
     // The chat window emptied: nothing of it is sent as context after this (every prompt takes its lines
     // of what was said and told from this log). What people remember is theirs and stays.
     onClearChat: () => {

@@ -154,6 +154,26 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
       }
       return worn.text;
     },
+    /** Every item on the sheet being played, as Quartermaster keeps them; [] without it. */
+    async items() {
+      await check();
+      const current = sheet();
+      if (!ready() || !current) return [];
+      await introduce(current);
+      const state = await call(pathOf(current));
+      return Array.isArray(state?.items) ? state.items : [];
+    },
+    /**
+     * Changes one item on Quartermaster's sheet (`fields`: quantity, location and so on; a location of
+     * "equipped:<slot>" puts it on, "bag" takes it off), or removes it with `fields` null.
+     */
+    async change(itemId, fields) {
+      const current = sheet();
+      if (!ready() || !current) throw new Error("Quartermaster isn't installed, or it is an older version.");
+      const path = pathOf(current, `/items/${encodeURIComponent(itemId)}`);
+      await (fields === null ? call(path, { method: "DELETE" }) : call(path, { method: "PATCH", body: fields }));
+      void refresh(); // what's worn, for the next prompt
+    },
     /** Opens Quartermaster's dock on the sheet being played, or closes it. */
     async toggle() {
       const current = sheet();

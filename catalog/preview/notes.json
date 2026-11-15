@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.07",
+          "date": "2026-11-15",
+          "notes": "- A character sheet. Inventory → Sheet has your level, experience, HP, mana, AC and six attributes, each with a box to change it and a tick for whether the AI is told. Add your own stats, skills, feats and spells, each with a few words saying what it is.\n- The Inventory button now opens Wanderworld's own window in tabs: Items, Sheet and Quartermaster. Items lists what Quartermaster holds, with Equip or Take off, Use and Drop. What you do there is done in Quartermaster too, and said in the chat.\n- Using an item applies what its description gives: \"+10 HP\" heals 10. Worn items that say \"+2 AC\" are counted on the sheet.\n- Not yet: the AI changing your stats, and dice rolled in play.\n- Versions are now written with two digits at the end (0.6.07).",
+          "highlight": false
+        },
+        {
           "version": "0.6.6",
           "date": "2026-11-15",
           "notes": "- New trees from the Stylized Nature MegaKit's Pro tier: cherry trees, birches, giant drooping pines and tall thick conifers, three shapes of each.\n- Cherry trees are in blossom in spring and green the rest of the year. Birches turn orange in fall. Spring no longer tints a third of the ordinary trees pink.\n- Also new: three bushes, three more rocks (two of them big), a fern, three plants, three kinds of flower, a red-capped mushroom and two wide grasses.\n- In a world you already have, trees and rocks stand where they stood, but many are now a different kind.\n- The package is larger for it.",
@@ -307,12 +313,6 @@
           "version": "0.5.100",
           "date": "2026-11-14",
           "notes": "- The picture style you choose (Settings → AI → Pictures) now shapes the picture. Its own words go into the prompt, as `{style}` in Illustrate's template or at the end when the template leaves it out, and what the style keeps out is sent with it. Before, the Engine added no style to Wanderworld's prompts, so the choice did nothing.\n- The default Illustrate template says \"a detailed picture\" instead of \"a detailed illustration\", which pushed other styles toward anime. A template still saved as the old default becomes the new one; one you edited is left alone.\n- \"Picture this place\" in the Journal uses the style too.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.99",
-          "date": "2026-11-14",
-          "notes": "- The in-game Help and the README were checked against the game and brought up to date. Help has two new sections, \"The bar, the Menu and your worlds\" and \"Inventory (with the Quartermaster package)\", and says what the AI is told about where you are, the new Illustrate rewrite and prompt caching.\n- Corrected: the arrow keys look around (they don't walk), dogs come in six coats, and the inventory works in the world, not only in scenes.\n- The chat window's list of commands has `/call`.",
           "highlight": false
         }
       ]

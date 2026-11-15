@@ -22,6 +22,7 @@ import {
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
+import { kindWords, SHEET_KINDS, xpNeeded } from "./sheet.js";
 import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, NOTE_PAPER, PARCHMENT, PARCHMENT_EDGED, SERIF } from "./ui.js";
 
 const CHIP = "background:rgba(10,14,20,0.62);color:#f3f5f7;border-radius:8px;padding:4px 10px;";
@@ -859,6 +860,10 @@ export function createHud(root, handlers) {
       "After moments: when something is narrated, one more AI call reads it and updates the sheet (picked up, put on, given away), by Quartermaster's own rules for hidden items. After moments and replies: the same after each reply in a conversation, so about twice the calls there. Never: you keep the sheet yourself.",
     inventoryScenes:
       "On: a scene started from here is linked to this world's sheet, so the scene's chat shows and changes the same inventory, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat. Off: a scene's chat has a sheet of its own. Needs Quartermaster 0.1.37 or later.",
+    sheet:
+      "On: you have a character sheet in each world (Inventory → Sheet): level, experience, HP, mana, AC, six attributes, and any stats, skills, feats or spells you add. Using an item applies what its description gives (a potion that says +10 HP heals 10), and worn items that say things like +2 AC count. Off: no sheet, and the Inventory window is Quartermaster's items alone.",
+    sheetTold:
+      "On: the ticked lines of your sheet are told to the AI in conversations and moments, so it knows you're hurt or what you're good at. Off: the sheet is yours to keep, and the AI isn't told. Adds a line or two to those prompts.",
     inventoryPinned:
       "On: the inventory window stays open while you play. Close it with its own close button or the Inventory button. A click elsewhere in the Engine, outside the game, still closes it. Off: it closes at any click outside it, as it does in a chat.",
     seasonLook:
@@ -1167,8 +1172,10 @@ export function createHud(root, handlers) {
   sumUpRow();
   at("People", "Inventory");
   intro(
-    "What you wear and carry is kept by the Quartermaster package, if you have it installed: a sheet for each persona in each world, opened with the Inventory button. Without Quartermaster these do nothing.",
+    "The Inventory button opens a window in tabs: Items, Sheet and Quartermaster. Your character sheet is Wanderworld's own. The things you wear and carry are kept by the Quartermaster package, if you have it installed: without it the Items tab is empty and the settings about items do nothing.",
   );
+  toggle("sheet", "Character sheet");
+  toggle("sheetTold", "Tell the AI your stats", "sheet");
   toggle("inventory", "Use Quartermaster for the inventory");
   toggle("inventoryWorn", "Tell the AI what you're wearing", "inventory");
   choice(
@@ -1969,9 +1976,226 @@ export function createHud(root, handlers) {
   const illustrateButton = button("Illustrate", "Paint the current moment, and see the world's pictures", () =>
     illustrate.toggle(),
   );
-  // What you wear and carry: the Quartermaster package's sheet for this world, when it's installed.
-  const inventoryButton = button("Inventory", "What you wear and carry (the Quartermaster package)", () =>
-    handlers.onInventory?.(),
+  // The Inventory window, in tabs: what you carry (Quartermaster's items, with something to do with each),
+  // your character sheet, and Quartermaster's own window.
+  const inventoryPanel = document.createElement("div");
+  inventoryPanel.setAttribute("data-wanderworld-ui", "");
+  inventoryPanel.style.cssText = PANEL;
+  inventoryPanel.style.display = "none";
+  inventoryPanel.style.minWidth = "min(344px, calc(100% - 16px))";
+  panels.push(inventoryPanel);
+  let inventoryTab = "items";
+  let inventoryNote = "";
+  let inventoryDrawn = 0;
+  const piece = (css, text = "") => {
+    const node = document.createElement("div");
+    node.style.cssText = css;
+    node.textContent = text;
+    return node;
+  };
+  async function drawInventory() {
+    const drawn = ++inventoryDrawn;
+    const tabs = piece("display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;");
+    for (const [id, label] of [
+      ["items", "Items"],
+      ["sheet", "Sheet"],
+      ["quartermaster", "Quartermaster"],
+    ]) {
+      const tab = inkSmall(label, () => {
+        inventoryTab = id;
+        inventoryNote = "";
+        void drawInventory();
+      });
+      tab.style.cssText += `font-size:12px;padding:3px 10px;opacity:${id === inventoryTab ? "1" : "0.6"};${id === inventoryTab ? "font-weight:700;" : ""}`;
+      tab.setAttribute("aria-pressed", String(id === inventoryTab));
+      tabs.append(tab);
+    }
+    const body = piece("display:flex;flex-direction:column;gap:5px;font-size:12px;line-height:1.4;");
+    if (inventoryNote) body.append(debugNote(inventoryNote));
+    if (inventoryTab === "sheet") drawSheet(body);
+    else if (inventoryTab === "quartermaster") {
+      body.append(
+        debugNote(
+          "Quartermaster's own window: slots, outfits, item pictures, hidden items and everything else it does. It is the same sheet as the Items tab, so a change in either shows in both.",
+        ),
+        inkSmall("Open Quartermaster's window", () => handlers.onInventory?.()),
+      );
+    } else {
+      body.append(debugNote("Reading…"));
+      inventoryPanel.replaceChildren(tabs, body);
+      const answer = await Promise.resolve(handlers.onItems?.()).catch(() => null);
+      if (drawn !== inventoryDrawn) return; // drawn again meanwhile
+      body.replaceChildren(...(inventoryNote ? [debugNote(inventoryNote)] : []));
+      drawItems(body, answer);
+    }
+    if (drawn === inventoryDrawn) inventoryPanel.replaceChildren(tabs, body);
+  }
+  /** Runs something done with an item, then shows the list again (with why it couldn't be done, if so). */
+  const withItem = (id, action) => async () => {
+    inventoryNote = "";
+    try {
+      await handlers.onItemAction?.(id, action);
+    } catch (error) {
+      inventoryNote = error?.message ?? "That couldn't be done.";
+    }
+    void drawInventory();
+  };
+  function drawItems(body, answer) {
+    if (!answer?.ready) {
+      body.append(
+        debugNote(
+          "Items are kept by the Quartermaster package. Install it from Agents → Download Agents and turn on Settings → People → Inventory, and what you carry shows here. The Sheet tab works without it.",
+        ),
+      );
+      return;
+    }
+    const worn = (item) => typeof item.location === "string" && item.location.startsWith("equipped:");
+    const items = [...answer.items].sort((a, b) => Number(worn(b)) - Number(worn(a)) || a.name.localeCompare(b.name));
+    if (!items.length)
+      body.append(
+        debugNote("Nothing carried yet. Add things in the Quartermaster tab, or let the story hand you some."),
+      );
+    for (const item of items) {
+      const box = piece(
+        "border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;display:flex;flex-direction:column;gap:2px;",
+      );
+      const where = worn(item)
+        ? ` · worn (${item.location.slice("equipped:".length)})`
+        : String(item.location).startsWith("stored:")
+          ? ` · stored (${item.location.slice("stored:".length)})`
+          : "";
+      box.append(piece("font-weight:600;", `${item.name}${item.quantity > 1 ? ` ×${item.quantity}` : ""}${where}`));
+      if (item.description) box.append(piece(`color:${INK_SOFT};font-size:11px;`, item.description));
+      const actions = piece("display:flex;gap:4px;flex-wrap:wrap;");
+      const drop = inkSmall("Drop", () => {
+        if (drop.dataset.sure) return void withItem(item.id, "drop")();
+        drop.dataset.sure = "1";
+        drop.textContent = "Drop it? Tap again";
+      });
+      actions.append(
+        worn(item) ? inkSmall("Take off", withItem(item.id, "unequip")) : inkSmall("Equip", withItem(item.id, "equip")),
+        inkSmall("Use", withItem(item.id, "use")),
+        drop,
+      );
+      box.append(actions);
+      body.append(box);
+    }
+  }
+  function drawSheet(body) {
+    const { sheet, worn } = handlers.onSheet?.() ?? { sheet: { entries: [] }, worn: {} };
+    const change = (next) => {
+      handlers.onSheetChange?.(next);
+      void drawInventory();
+    };
+    const numberBox = (value, label, onChange) => {
+      const input = document.createElement("input");
+      input.type = "number";
+      input.inputMode = "numeric";
+      input.value = String(value);
+      input.setAttribute("aria-label", label);
+      input.style.cssText = `${INK_INPUT}width:58px;text-align:right;padding:2px 4px;`;
+      input.addEventListener(
+        "change",
+        () => Number.isFinite(Number(input.value)) && onChange(Math.round(Number(input.value))),
+      );
+      return input;
+    };
+    body.append(
+      debugNote(
+        "Your character in this world. Untick what you don't use: only ticked lines are told to the AI. Add your own stats, skills, feats and spells at the bottom, each with a few words saying what it is.",
+      ),
+    );
+    for (const kind of SHEET_KINDS) {
+      const entries = sheet.entries.filter((entry) => entry.kind === kind);
+      if (!entries.length) continue;
+      body.append(piece("font-weight:700;margin-top:4px;", kindWords(kind)));
+      for (const entry of entries) {
+        const row = piece("display:flex;align-items:center;gap:6px;");
+        row.title = entry.about;
+        const on = document.createElement("input");
+        on.type = "checkbox";
+        on.checked = entry.on;
+        on.setAttribute("aria-label", `Use ${entry.name}`);
+        on.addEventListener("change", () => change({ set: entry.id, field: "on", value: on.checked }));
+        const bonus = worn[entry.id] ? ` (${worn[entry.id] > 0 ? "+" : ""}${worn[entry.id]} worn)` : "";
+        const name = piece(`flex:1;min-width:0;${entry.on ? "" : "opacity:0.55;"}`, `${entry.name}${bonus}`);
+        row.append(on, name);
+        if ("value" in entry)
+          row.append(numberBox(entry.value, entry.name, (value) => change({ set: entry.id, field: "value", value })));
+        if (entry.kind === "resource")
+          row.append(
+            piece("", "/"),
+            numberBox(entry.max, `Most ${entry.name}`, (value) => change({ set: entry.id, field: "max", value })),
+          );
+        if (entry.id === "xp")
+          row.append(
+            piece(`color:${INK_SOFT};`, `/ ${xpNeeded(sheet.entries.find((one) => one.id === "level")?.value ?? 1)}`),
+          );
+        if (entry.own) {
+          const remove = inkSmall("×", () => change({ remove: entry.id }));
+          remove.title = `Remove ${entry.name}`;
+          remove.setAttribute("aria-label", `Remove ${entry.name}`);
+          row.append(remove);
+        }
+        body.append(row);
+        if (entry.own && entry.about)
+          body.append(piece(`color:${INK_SOFT};font-size:11px;margin:-3px 0 0 24px;`, entry.about));
+      }
+    }
+    // Add your own.
+    body.append(piece("font-weight:700;margin-top:6px;", "Add your own"));
+    const form = piece("display:flex;flex-wrap:wrap;gap:4px;align-items:center;");
+    const kind = document.createElement("select");
+    kind.style.cssText = `${INK_INPUT}padding:2px 4px;`;
+    kind.setAttribute("aria-label", "What it is");
+    for (const [value, label] of [
+      ["stat", "Stat"],
+      ["resource", "Resource (has a most)"],
+      ["attribute", "Attribute"],
+      ["skill", "Skill"],
+      ["feat", "Feat"],
+      ["spell", "Spell"],
+    ]) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      kind.append(option);
+    }
+    const field = (placeholder, width) => {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = placeholder;
+      input.setAttribute("aria-label", placeholder);
+      input.style.cssText = `${INK_INPUT}width:${width};padding:2px 6px;`;
+      return input;
+    };
+    const name = field("Name", "110px");
+    const value = field("Number", "64px");
+    value.inputMode = "numeric";
+    const about = field("What it is, in a few words (for the AI)", "100%");
+    const add = inkSmall("Add", () => {
+      if (!name.value.trim()) return;
+      change({
+        add: {
+          kind: kind.value,
+          name: name.value,
+          about: about.value,
+          value: Number(value.value) || 0,
+          max: Number(value.value) || 1,
+        },
+      });
+    });
+    form.append(kind, name, value, about, add);
+    body.append(form);
+  }
+  // What you wear and carry, and your sheet: the Inventory window.
+  const inventoryButton = button(
+    "Inventory",
+    "What you carry, your character sheet, and Quartermaster's window",
+    () => {
+      togglePanel(inventoryPanel);
+      if (inventoryPanel.style.display !== "none") void drawInventory();
+    },
   );
   inventoryButton.style.display = "none";
   const chatButton = button("Chat", "What's happening around you, and saying something out loud", () => {
@@ -2437,6 +2661,7 @@ export function createHud(root, handlers) {
     peoplePanel,
     journal.panel,
     mapView.panel,
+    inventoryPanel,
     lorePanel,
     settingsPanel,
     menuPanel,
@@ -2585,7 +2810,7 @@ export function createHud(root, handlers) {
         ? (control.exitLabel ?? "Exit fullscreen")
         : (control.enterLabel ?? "Fullscreen");
     },
-    /** The Inventory button, there when Quartermaster is installed and Settings → People → Inventory is on. */
+    /** The Inventory button: there with the character sheet on, or with Quartermaster installed and in use. */
     setInventory(on) {
       inventoryButton.style.display = on ? "" : "none";
     },

@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.07 — 2026-11-15
+
+- A character sheet. Inventory → Sheet has your level, experience, HP, mana, AC and six attributes, each with a box to change it and a tick for whether the AI is told. Add your own stats, skills, feats and spells, each with a few words saying what it is.
+- The Inventory button now opens Wanderworld's own window in tabs: Items, Sheet and Quartermaster. Items lists what Quartermaster holds, with Equip or Take off, Use and Drop. What you do there is done in Quartermaster too, and said in the chat.
+- Using an item applies what its description gives: "+10 HP" heals 10. Worn items that say "+2 AC" are counted on the sheet.
+- Not yet: the AI changing your stats, and dice rolled in play.
+- Versions are now written with two digits at the end (0.6.07).
+
 ## 0.6.6 — 2026-11-15
 
 - New trees from the Stylized Nature MegaKit's Pro tier: cherry trees, birches, giant drooping pines and tall thick conifers, three shapes of each.

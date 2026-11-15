@@ -337,6 +337,8 @@ export function checkWorld(raw) {
     season: ["spring", "summer", "fall", "winter"].includes(raw.season) ? raw.season : "",
     // The day that season began, for seasons that turn (null until it's first counted from).
     seasonSince: Number.isFinite(raw.seasonSince) ? raw.seasonSince : null,
+    // Each persona's character sheet in this world: { [persona id]: a sheet } (sheet.js checks one when it's read).
+    sheets: isRecord(raw.sheets) ? raw.sheets : {},
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.
     voices: Object.fromEntries(
       Object.entries(isRecord(raw.voices) ? raw.voices : {})

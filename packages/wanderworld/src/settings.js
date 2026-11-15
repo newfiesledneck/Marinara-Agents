@@ -137,6 +137,9 @@ export const SETTINGS = {
   // A scene's chat uses the world's sheet; and Quartermaster's window in Wanderworld's parchment colours.
   inventoryScenes: { value: true },
   inventoryTheme: { value: true },
+  // The character sheet (sheet.js): kept and shown; and what's switched on in it told to the AI.
+  sheet: { value: true },
+  sheetTold: { value: true },
   /** Quartermaster's window stays open when you click in the game (it closes at a click anywhere else). */
   inventoryPinned: { value: true },
   textConnection: { value: "", text: true },
