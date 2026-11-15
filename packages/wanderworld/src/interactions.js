@@ -169,6 +169,11 @@ export const SPEECH_HELP = [
   ],
   ["/scene text", "start a full scene right where you stand, with what you write as how it opens"],
   ["/camp", "light a campfire here, for you and your party to sit by"],
+  ["/roll, /roll 2d6+1", "roll dice (a d20 when you don't say which), shown in the chat"],
+  [
+    "/check strength, /check fishing to land the pike",
+    "a d20 plus one of your sheet's lines; with words after it, what you try is narrated with the result",
+  ],
   ["/call, /call horse, /call dog", "call your own horse or dog to you, wherever it has got to"],
 ];
 

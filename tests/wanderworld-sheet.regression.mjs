@@ -116,4 +116,55 @@ assert.deepEqual(attackRoll({ bonus: 50, ac: 5 }, low), { roll: 1, total: 51, hi
 const middling = attackRoll({ bonus: 2, ac: 12, damage: "1d4" }, () => 0.5);
 assert.deepEqual([middling.roll, middling.hit, middling.damage], [11, true, 3]);
 
+// For the model that keeps the sheet: the numbered lines in use, one each, with what they are.
+{
+  const { checkRoll, entryNamed, sheetList } = await import("../packages/wanderworld/src/sheet.js");
+  const listed = sheetList(off);
+  assert.match(listed, /^- Level: 1\. How experienced they are overall\.$/mu);
+  assert.match(listed, /^- HP: 20 of 20\. Health\. At 0 they are defeated\.$/mu);
+  assert.match(listed, /^- Fishing: 3\. catching fish$/mu);
+  assert.doesNotMatch(listed, /Mana|Night Eyes/u, "not what's off, nor what has no number");
+  // A check: an attribute adds its modifier (with what's worn), anything else its number.
+  assert.deepEqual(
+    checkRoll(entryNamed(sheet, "Strength"), 2, () => 0.5),
+    { roll: 11, add: 3, total: 14 },
+  );
+  assert.deepEqual(
+    checkRoll(entryNamed(sheet, "fishing"), 0, () => 0),
+    { roll: 1, add: 3, total: 4 },
+  );
+  assert.equal(entryNamed(sheet, "nothing like it"), null);
+}
+
+// The server's side of it: what the model answers is checked before it's handed back.
+{
+  const server = await import("../packages/wanderworld/server.mjs");
+  assert.deepEqual(
+    server.checkSheetChanges({
+      changes: [
+        { stat: "HP", by: -4, reason: "the wolf's bite" },
+        { stat: "Mana", to: 3 },
+        { stat: "", by: 2 },
+        { stat: "AC", by: 0 },
+        { stat: "Luck", by: "lots" },
+        "junk",
+      ],
+      xp: 25.4,
+    }),
+    {
+      changes: [
+        { stat: "HP", by: -4, reason: "the wolf's bite" },
+        { stat: "Mana", to: 3, reason: "" },
+      ],
+      xp: 25,
+    },
+  );
+  assert.deepEqual(server.checkSheetChanges({ xp: -5 }), { changes: [], xp: 0 });
+  const asked = server.sheetTrackMessages({ name: "Zoey", sheet: "- HP: 20 of 20.", told: "The wolf bites her arm." });
+  assert.match(
+    asked[1].content,
+    /The character is Zoey\. Their sheet now:\n- HP: 20 of 20\.\n\nWhat just happened:\nThe wolf bites her arm\./u,
+  );
+}
+
 console.log("ok: the character sheet");

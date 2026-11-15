@@ -864,6 +864,8 @@ export function createHud(root, handlers) {
       "On: you have a character sheet in each world (Inventory → Sheet): level, experience, HP, mana, AC, six attributes, and any stats, skills, feats or spells you add. Using an item applies what its description gives (a potion that says +10 HP heals 10), and worn items that say things like +2 AC count. Off: no sheet, and the Inventory window is Quartermaster's items alone.",
     sheetTold:
       "On: the ticked lines of your sheet are told to the AI in conversations and moments, so it knows you're hurt or what you're good at. Off: the sheet is yours to keep, and the AI isn't told. Adds a line or two to those prompts.",
+    sheetTrack:
+      "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: one more AI call each time something is narrated. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     inventoryPinned:
       "On: the inventory window stays open while you play. Close it with its own close button or the Inventory button. A click elsewhere in the Engine, outside the game, still closes it. Off: it closes at any click outside it, as it does in a chat.",
     seasonLook:
@@ -1176,6 +1178,12 @@ export function createHud(root, handlers) {
   );
   toggle("sheet", "Character sheet");
   toggle("sheetTold", "Tell the AI your stats", "sheet");
+  choice(
+    "sheetTrack",
+    "The AI updates your sheet",
+    { off: "Off", moments: "After moments", all: "After moments and replies" },
+    "sheet",
+  );
   toggle("inventory", "Use Quartermaster for the inventory");
   toggle("inventoryWorn", "Tell the AI what you're wearing", "inventory");
   choice(
@@ -1987,6 +1995,7 @@ export function createHud(root, handlers) {
   let inventoryTab = "items";
   let inventoryNote = "";
   let inventoryDrawn = 0;
+  let sheetOffOpen = false; // whether the sheet's "Not in use" fold is open
   const piece = (css, text = "") => {
     const node = document.createElement("div");
     node.style.cssText = css;
@@ -2105,42 +2114,50 @@ export function createHud(root, handlers) {
         "Your character in this world. Untick what you don't use: only ticked lines are told to the AI. Add your own stats, skills, feats and spells at the bottom, each with a few words saying what it is.",
       ),
     );
-    for (const kind of SHEET_KINDS) {
-      const entries = sheet.entries.filter((entry) => entry.kind === kind);
-      if (!entries.length) continue;
-      body.append(piece("font-weight:700;margin-top:4px;", kindWords(kind)));
-      for (const entry of entries) {
-        const row = piece("display:flex;align-items:center;gap:6px;");
-        row.title = entry.about;
-        const on = document.createElement("input");
-        on.type = "checkbox";
-        on.checked = entry.on;
-        on.setAttribute("aria-label", `Use ${entry.name}`);
-        on.addEventListener("change", () => change({ set: entry.id, field: "on", value: on.checked }));
-        const bonus = worn[entry.id] ? ` (${worn[entry.id] > 0 ? "+" : ""}${worn[entry.id]} worn)` : "";
-        const name = piece(`flex:1;min-width:0;${entry.on ? "" : "opacity:0.55;"}`, `${entry.name}${bonus}`);
-        row.append(on, name);
-        if ("value" in entry)
-          row.append(numberBox(entry.value, entry.name, (value) => change({ set: entry.id, field: "value", value })));
-        if (entry.kind === "resource")
-          row.append(
-            piece("", "/"),
-            numberBox(entry.max, `Most ${entry.name}`, (value) => change({ set: entry.id, field: "max", value })),
-          );
-        if (entry.id === "xp")
-          row.append(
-            piece(`color:${INK_SOFT};`, `/ ${xpNeeded(sheet.entries.find((one) => one.id === "level")?.value ?? 1)}`),
-          );
+    /** One line of the sheet: its tick, its name, and (in use) its boxes; switched off, a Delete for one of your own. */
+    const sheetRow = (entry) => {
+      const row = piece("display:flex;align-items:center;gap:6px;");
+      row.title = entry.about;
+      const on = document.createElement("input");
+      on.type = "checkbox";
+      on.checked = entry.on;
+      on.setAttribute("aria-label", `Use ${entry.name}`);
+      on.addEventListener("change", () => change({ set: entry.id, field: "on", value: on.checked }));
+      const bonus = worn[entry.id] ? ` (${worn[entry.id] > 0 ? "+" : ""}${worn[entry.id]} worn)` : "";
+      row.append(on, piece("flex:1;min-width:0;", `${entry.name}${bonus}`));
+      if (!entry.on) {
+        row.append(piece(`color:${INK_SOFT};font-size:11px;`, kindWords(entry.kind)));
         if (entry.own) {
-          const remove = inkSmall("×", () => change({ remove: entry.id }));
-          remove.title = `Remove ${entry.name}`;
-          remove.setAttribute("aria-label", `Remove ${entry.name}`);
+          const remove = inkSmall("Delete", () => {
+            if (remove.dataset.sure) return change({ remove: entry.id });
+            remove.dataset.sure = "1";
+            remove.textContent = "Delete it? Tap again";
+          });
+          remove.title = `Delete ${entry.name} for good`;
           row.append(remove);
         }
-        body.append(row);
-        if (entry.own && entry.about)
-          body.append(piece(`color:${INK_SOFT};font-size:11px;margin:-3px 0 0 24px;`, entry.about));
+        return [row];
       }
+      if ("value" in entry)
+        row.append(numberBox(entry.value, entry.name, (value) => change({ set: entry.id, field: "value", value })));
+      if (entry.kind === "resource")
+        row.append(
+          piece("", "/"),
+          numberBox(entry.max, `Most ${entry.name}`, (value) => change({ set: entry.id, field: "max", value })),
+        );
+      if (entry.id === "xp")
+        row.append(
+          piece(`color:${INK_SOFT};`, `/ ${xpNeeded(sheet.entries.find((one) => one.id === "level")?.value ?? 1)}`),
+        );
+      return entry.own && entry.about
+        ? [row, piece(`color:${INK_SOFT};font-size:11px;margin:-3px 0 0 24px;`, entry.about)]
+        : [row];
+    };
+    for (const kind of SHEET_KINDS) {
+      const entries = sheet.entries.filter((entry) => entry.kind === kind && entry.on);
+      if (!entries.length) continue;
+      body.append(piece("font-weight:700;margin-top:4px;", kindWords(kind)));
+      for (const entry of entries) body.append(...sheetRow(entry));
     }
     // Add your own.
     body.append(piece("font-weight:700;margin-top:6px;", "Add your own"));
@@ -2187,6 +2204,26 @@ export function createHud(root, handlers) {
     });
     form.append(kind, name, value, about, add);
     body.append(form);
+    // What's switched off, folded away at the bottom: tick one to bring it back.
+    const unused = sheet.entries.filter((entry) => !entry.on);
+    if (unused.length) {
+      const fold = document.createElement("details");
+      fold.open = sheetOffOpen;
+      fold.style.cssText = "margin-top:6px;border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;";
+      fold.addEventListener("toggle", () => (sheetOffOpen = fold.open));
+      const title = document.createElement("summary");
+      title.style.cssText = "cursor:pointer;font-weight:700;";
+      title.textContent = `Not in use (${unused.length})`;
+      const list = piece("display:flex;flex-direction:column;gap:5px;margin-top:4px;");
+      list.append(
+        debugNote(
+          "Switched off: not on your sheet and not told to the AI. Tick one to bring it back. One you added yourself can be deleted here.",
+        ),
+        ...unused.flatMap(sheetRow),
+      );
+      fold.append(title, list);
+      body.append(fold);
+    }
   }
   // What you wear and carry, and your sheet: the Inventory window.
   const inventoryButton = button(
@@ -2809,6 +2846,11 @@ export function createHud(root, handlers) {
       fullscreen.textContent = control.active
         ? (control.exitLabel ?? "Exit fullscreen")
         : (control.enterLabel ?? "Fullscreen");
+    },
+    /** Draws the Inventory window again if it's open (the sheet changed from outside it). */
+    refreshInventory() {
+      if (inventoryPanel.style.display !== "none" && !inventoryPanel.contains(document.activeElement))
+        void drawInventory();
     },
     /** The Inventory button: there with the character sheet on, or with Quartermaster installed and in use. */
     setInventory(on) {

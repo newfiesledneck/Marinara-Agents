@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.07)
+## What it does now (0.6.61)
 
 ### The world
 
@@ -490,6 +490,9 @@ only walk about.
   lines go to the model in conversations and moments as "Their stats now: …". It also holds the dice
   (`rollDice`, `attackRoll`) and reads bonuses out of item descriptions ("+2 AC", "+10 HP"). Nothing
   outside that module touches a sheet's shape, so it can move into Quartermaster later.
+  With "The AI updates your sheet" on, `/sheet-track` has the model answer with targeted changes
+  (`{ changes: [{ stat, by | to, reason }], xp }`), checked on the server and again against the sheet
+  before they're applied. `/roll` and `/check` in the chat roll the dice.
 - The Inventory button opens Wanderworld's own window in tabs: Items (Quartermaster's items, changed
   through its routes, so both stay in step), Sheet, and Quartermaster (its dock).
 - The year can turn (Settings → World → Time and weather → "Seasons change", off to begin with): each
