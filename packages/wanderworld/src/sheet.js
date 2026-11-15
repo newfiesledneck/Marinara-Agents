@@ -9,7 +9,11 @@
 // reach into a sheet's shape: read with `entryOf`/`valueOf`/`sheetWords`, change with `changeSheet`/
 // `applyChanges`.
 
-/** What an entry can be. A resource has a most ("HP 14/20"); a feat or a spell has no number. */
+/**
+ * What an entry can be. A resource always has a most ("HP 14/20"); one of the player's own of any other
+ * numbered kind may have one too ("Collected cars 2/40") or be a plain number ("Fame 15"); a feat or a
+ * spell has no number. Whether an entry has a most is `"max" in entry`.
+ */
 export const SHEET_KINDS = ["resource", "stat", "attribute", "skill", "feat", "spell"];
 const NUMBERLESS = new Set(["feat", "spell"]);
 const KIND_WORDS = {
@@ -56,7 +60,8 @@ function checkEntry(raw, base) {
   };
   if (!base) entry.own = true;
   if (!NUMBERLESS.has(kind)) entry.value = whole(raw?.value, base?.value ?? 0);
-  if (kind === "resource") {
+  const given = raw?.max !== null && raw?.max !== undefined && raw?.max !== "" && Number(raw.max) > 0;
+  if (kind === "resource" || (!base && !NUMBERLESS.has(kind) && given)) {
     entry.max = Math.max(1, whole(raw?.max, base?.max ?? Math.max(1, entry.value)));
     entry.value = Math.max(0, Math.min(entry.max, entry.value));
   }
@@ -208,7 +213,7 @@ export function wornBonuses(sheet, items) {
 /** Using something up: its bonuses to resources (HP, mana, the player's own) are applied once. */
 export function useItem(sheet, description) {
   const changes = bonusesIn(description, sheet)
-    .filter((bonus) => entryOf(sheet, bonus.stat)?.kind === "resource")
+    .filter((bonus) => "max" in (entryOf(sheet, bonus.stat) ?? {}))
     .map((bonus) => ({ stat: bonus.stat, by: bonus.amount }));
   return applyChanges(sheet, changes);
 }
@@ -226,7 +231,7 @@ export function sheetWords(sheet, worn = {}) {
     const bonus = worn[entry.id] ?? 0;
     const about = entry.own && entry.about ? ` (${entry.about})` : "";
     if (NUMBERLESS.has(entry.kind)) return `${entry.name}${about}`;
-    if (entry.kind === "resource") return `${entry.name} ${entry.value}/${entry.max}${about}`;
+    if ("max" in entry) return `${entry.name} ${entry.value}/${entry.max}${about}`;
     if (entry.id === "xp") return `XP ${entry.value}/${xpNeeded(valueOf(sheet, "level"))}`;
     const total = entry.value + bonus;
     const from = bonus ? ` (${entry.value}, ${bonus > 0 ? "+" : ""}${bonus} from what they wear)` : "";
@@ -261,7 +266,7 @@ export function sheetList(sheet) {
   return sheet.entries
     .filter((entry) => entry.on && !NUMBERLESS.has(entry.kind))
     .map((entry) => {
-      const amount = entry.kind === "resource" ? `${entry.value} of ${entry.max}` : String(entry.value);
+      const amount = "max" in entry ? `${entry.value} of ${entry.max}` : String(entry.value);
       return `- ${entry.name}: ${amount}.${entry.about ? ` ${entry.about}` : ""}`;
     })
     .join("\n");

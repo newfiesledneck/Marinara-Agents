@@ -932,6 +932,8 @@ export function createHud(root, handlers) {
     textConnection:
       "The model that writes conversations and moments. Engine default: your Engine's agent or main connection.",
     sceneConnection: "The model that plans and plays scenes. Leave it to use the same as conversations.",
+    trackerConnection:
+      "The model that reads what was narrated for the trackers: Quartermaster's inventory and your character sheet. They answer with short lists, so a small, cheap model does well here. Leave it to use the same as conversations.",
     imageConnection: "The image generation connection for pictures of places and moments.",
     imageStyle:
       "The look of pictures, from the Engine's style profiles. The style's own words are put in the prompt ({style} in Illustrate's template, or at the end if the template leaves it out) and what it keeps out is sent with it. Engine default is your default profile in the Engine. Auto and No style add no words.",
@@ -1376,7 +1378,11 @@ export function createHud(root, handlers) {
   };
   connectionChoice("textConnection", "Conversations and moments use", "text", "Engine default");
   connectionChoice("sceneConnection", "Scenes use", "text", "Same as conversations");
+  connectionChoice("trackerConnection", "Trackers use", "text", "Same as conversations");
   connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
+  // (The trackers' connection again, with the inventory's own settings. Here, since the picker is made above.)
+  at("People", "Inventory");
+  connectionChoice("trackerConnection", "Trackers use", "text", "Same as conversations");
   at("AI", "Writing");
   intro(
     "A moment is one thing that happens and is told: you say or do something, sit down with someone, arrive somewhere. The narrator describes it and people nearby may answer.",
@@ -1996,6 +2002,14 @@ export function createHud(root, handlers) {
   let inventoryNote = "";
   let inventoryDrawn = 0;
   let sheetOffOpen = false; // whether the sheet's "Not in use" fold is open
+  // The sheet's own copies of its two AI settings (the same settings as in Settings: changed in either, changed in both).
+  const sheetSettings = { sheetTold: true, sheetTrack: "off" };
+  for (const name of Object.keys(sheetSettings))
+    addField(name, {
+      set: (value) => {
+        sheetSettings[name] = value;
+      },
+    });
   const piece = (css, text = "") => {
     const node = document.createElement("div");
     node.style.cssText = css;
@@ -2140,7 +2154,7 @@ export function createHud(root, handlers) {
       }
       if ("value" in entry)
         row.append(numberBox(entry.value, entry.name, (value) => change({ set: entry.id, field: "value", value })));
-      if (entry.kind === "resource")
+      if ("max" in entry)
         row.append(
           piece("", "/"),
           numberBox(entry.max, `Most ${entry.name}`, (value) => change({ set: entry.id, field: "max", value })),
@@ -2153,6 +2167,38 @@ export function createHud(root, handlers) {
         ? [row, piece(`color:${INK_SOFT};font-size:11px;margin:-3px 0 0 24px;`, entry.about)]
         : [row];
     };
+    // The AI and the sheet: the same two settings as Settings → People → Inventory, here where they're used.
+    {
+      const told = piece("display:flex;align-items:center;gap:6px;");
+      const tick = document.createElement("input");
+      tick.type = "checkbox";
+      tick.checked = sheetSettings.sheetTold !== false;
+      tick.setAttribute("aria-label", "Tell the AI your stats");
+      tick.addEventListener("change", () => handlers.onSetting("sheetTold", tick.checked));
+      told.append(tick, piece("flex:1;", "Tell the AI your stats"));
+      const keeps = piece("display:flex;align-items:center;gap:6px;");
+      const when = document.createElement("select");
+      when.style.cssText = `${INK_INPUT}padding:2px 4px;`;
+      when.setAttribute("aria-label", "The AI updates your sheet");
+      for (const [value, label] of [
+        ["off", "Off"],
+        ["moments", "After moments"],
+        ["all", "After moments and replies"],
+      ]) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        when.append(option);
+      }
+      when.value = sheetSettings.sheetTrack ?? "off";
+      when.addEventListener("change", () => handlers.onSetting("sheetTrack", when.value));
+      keeps.append(piece("flex:1;", "The AI updates your sheet"), when);
+      const about = debugNote(
+        "With updating on, the AI reads what was narrated and changes these numbers to match (one more AI call each time). Which model does it: Settings → AI → Connections → Trackers use.",
+      );
+      about.setAttribute("data-wanderworld-explain", "");
+      body.append(told, keeps, about);
+    }
     for (const kind of SHEET_KINDS) {
       const entries = sheet.entries.filter((entry) => entry.kind === kind && entry.on);
       if (!entries.length) continue;
@@ -2167,7 +2213,7 @@ export function createHud(root, handlers) {
     kind.setAttribute("aria-label", "What it is");
     for (const [value, label] of [
       ["stat", "Stat"],
-      ["resource", "Resource (has a most)"],
+      ["resource", "Resource"],
       ["attribute", "Attribute"],
       ["skill", "Skill"],
       ["feat", "Feat"],
@@ -2189,6 +2235,8 @@ export function createHud(root, handlers) {
     const name = field("Name", "110px");
     const value = field("Number", "64px");
     value.inputMode = "numeric";
+    const most = field("Most (optional)", "104px");
+    most.inputMode = "numeric";
     const about = field("What it is, in a few words (for the AI)", "100%");
     const add = inkSmall("Add", () => {
       if (!name.value.trim()) return;
@@ -2198,11 +2246,22 @@ export function createHud(root, handlers) {
           name: name.value,
           about: about.value,
           value: Number(value.value) || 0,
-          max: Number(value.value) || 1,
+          // With a most it reads "2/40"; without, a plain number ("Fame 15"). A resource always has one.
+          max:
+            Number(most.value) > 0
+              ? Number(most.value)
+              : kind.value === "resource"
+                ? Number(value.value) || 1
+                : undefined,
         },
       });
     });
-    form.append(kind, name, value, about, add);
+    form.append(kind, name, value, most, about, add);
+    body.append(
+      debugNote(
+        'Fill in "Most" for a line that reads like 2/40 (Collected cars 2/40). Leave it empty for a plain number (Fame 15).',
+      ),
+    );
     body.append(form);
     // What's switched off, folded away at the bottom: tick one to bring it back.
     const unused = sheet.entries.filter((entry) => !entry.on);
@@ -2540,7 +2599,7 @@ export function createHud(root, handlers) {
   commandsTitle.textContent = "Commands";
   const commandList = document.createElement("div");
   commandList.style.cssText =
-    "display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin-top:3px;line-height:1.35;";
+    "display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin-top:3px;line-height:1.35;max-height:150px;overflow-y:auto;";
   for (const [typed, does] of SPEECH_HELP) {
     const code = document.createElement("span");
     code.style.cssText = "font-family:ui-monospace,monospace;white-space:nowrap;";
@@ -2558,7 +2617,7 @@ export function createHud(root, handlers) {
   peopleTitle.textContent = "People here";
   const peopleLooks = document.createElement("div");
   peopleLooks.style.cssText =
-    "display:flex;flex-direction:column;gap:4px;padding-top:3px;max-height:120px;overflow-y:auto;";
+    "display:flex;flex-direction:column;gap:4px;padding-top:3px;max-height:150px;overflow-y:auto;";
   peopleHere.append(peopleTitle, peopleLooks);
   // Jump, and Sit (then Lie down, then Get up): what Space and C do, for a click or a tap.
   const moves = document.createElement("div");
