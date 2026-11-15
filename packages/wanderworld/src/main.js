@@ -449,7 +449,7 @@ function applySettings() {
   // changes the window just closes again; the fix then is a "pinned" option asked of Quartermaster.
   core.stage?.classList.toggle("qm-launch", settings.inventory === true && settings.inventoryPinned === true);
   setGenderShares(gendersNow());
-  core.world?.setDensity(settings.density);
+  core.world?.setDensity(settings.density, settings.rockDensity);
   core.world?.setDrawDistance(settings.drawDistance);
   core.world?.setTreeReach?.(settings.treeDetail);
   core.world?.setGroundSimple?.(settings.ground === "simple");
@@ -8102,6 +8102,16 @@ function attach(element) {
     onSpeak: speak,
     onIllustrate: illustrateMoment,
     onAssistant: askAssistant,
+    // The chat window emptied: nothing of it is sent as context after this (every prompt takes its lines
+    // of what was said and told from this log). What people remember is theirs and stays.
+    onClearChat: () => {
+      core.momentLog = [];
+      if (core.save) {
+        core.save.log = [];
+        core.saves.write(core.save);
+      }
+      showChat();
+    },
     onDebugLog: () => core.ai.debugLog(),
     onDebugCall: (id) => core.ai.debugCall(id),
     onDebugClear: () => core.ai.debugClear(),

@@ -3668,6 +3668,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     z: Infinity,
     radius: 200,
     density: DENSITIES[0],
+    rocks: DENSITIES[0],
     season: "", // the season worn: "" (summer's green), or with the look on "spring", "fall" or "winter"
     treeReach: NATURE_REACH.tree,
     cone: null,
@@ -3730,7 +3731,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       let count = 0;
       for (const item of items) {
         if (gone) break;
-        if (item.need > view.density) continue;
+        if (item.need > (kind === "rock" ? view.rocks : view.density)) continue;
         if ((item.x - view.x) ** 2 + (item.z - view.z) ** 2 > reach) continue;
         if (!inCone(item)) continue;
         for (const mesh of meshes) mesh.setMatrixAt(count, item.matrix);
@@ -3778,11 +3779,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   }
 
   let collider = createCollider([], []);
-  function setDensity(density) {
+  /** How much grows (`density`: trees and plants) and how many rocks lie about (`rockDensity`: its own setting). */
+  function setDensity(density, rockDensity = density) {
     const treeCount = Math.min(trees.length, baseTrees * density); // (a few were taken out of clearings)
     trunks.count = treeCount;
     crowns.count = treeCount;
-    stones.count = Math.min(rocks.length, baseRocks * density);
+    stones.count = Math.min(rocks.length, baseRocks * rockDensity);
+    view.rocks = rockDensity;
     collider = createCollider([...fixedCircles, ...treeCircles.slice(0, treeCount)], fixedBoxes);
     view.density = density;
     refreshNature();

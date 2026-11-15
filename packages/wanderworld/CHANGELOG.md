@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.2 — 2026-11-15
+
+- Rocks and boulders have a density of their own (Settings → Display → Graphics → "Rocks and boulders"), apart from "Trees and plants". With one setting for both, a forest at 20× was also a field of boulders.
+- It starts at Normal on every device, whatever the trees are set to.
+- The chat window has a "Clear chat" button at the bottom. It empties the window, and what's cleared is no longer sent to the AI or to Illustrate. It asks twice, since it can't be undone. What people remember isn't touched.
+
 ## 0.6.1 — 2026-11-15
 
 - Winter's roads, paths, streets and the square lie under patchy snow, with the dirt or paving showing through where it's trodden.

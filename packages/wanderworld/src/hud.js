@@ -785,7 +785,9 @@ export function createHud(root, handlers) {
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
     smooth:
       "Softens jagged edges, which show most at a low resolution. Auto: on when the picture is no sharper than the page and a graphics card draws it. Without a graphics card it costs speed. A change shows after the page is reloaded.",
-    density: "How many trees, rocks and plants grow round the town. Sparse is half of Normal, and the fastest.",
+    density: "How many trees and plants grow round the town. Sparse is half of Normal, and the fastest.",
+    rockDensity:
+      "How many rocks and boulders lie about, set apart from the trees: a thick forest needn't be a field of boulders.",
     treeDetail:
       "Trees further off than this are drawn as simple shapes. Detailed trees are the costliest thing on screen, so Near is much faster; you'll see trees change as you walk up to them. Never further than the draw distance.",
     shadows: "Soft shadows under people.",
@@ -1020,7 +1022,8 @@ export function createHud(root, handlers) {
   choice("resolution", "Resolution", RESOLUTION_LABELS);
   choice("smooth", "Smooth edges", { auto: "Auto", on: "On", off: "Off" });
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
-  choice("density", "Trees and rocks", { 0.25: "Sparse", 0.5: "Normal", 1: "2×", 4: "8×", 10: "20×" });
+  choice("density", "Trees and plants", { 0.25: "Sparse", 0.5: "Normal", 1: "2×", 4: "8×", 10: "20×" });
+  choice("rockDensity", "Rocks and boulders", { 0.25: "Sparse", 0.5: "Normal", 1: "2×", 4: "8×", 10: "20×" });
   toggle("shadows", "Shadows under people");
   choice("frameLimit", "Frame rate limit", { 0: "No limit", 30: "30", 60: "60", 100: "100" });
   toggle("paintSlow", "Draw slower while a picture is painted");
@@ -2312,7 +2315,29 @@ export function createHud(root, handlers) {
     return control;
   };
   const petButtons = { dog: sendHome("dog"), horse: sendHome("horse") };
-  chat.frame.append(narration, speakBar, moves, petMoves, commands, peopleHere);
+  // Clear chat: empties the window, and with it what any prompt is given of what was said and told here.
+  // Asked twice, as it can't be taken back.
+  const clearChat = document.createElement("button");
+  clearChat.type = "button";
+  clearChat.textContent = "Clear chat";
+  clearChat.title = "Empties this window. What's cleared is no longer sent to the AI or to Illustrate.";
+  clearChat.style.cssText = `${INK_SMALL}align-self:flex-start;margin:0 10px 8px;`;
+  let clearAsked = 0;
+  clearChat.addEventListener("click", () => {
+    if (!clearAsked) {
+      clearChat.textContent = "Clear it all? Tap again";
+      clearAsked = setTimeout(() => {
+        clearAsked = 0;
+        clearChat.textContent = "Clear chat";
+      }, 4000);
+      return;
+    }
+    clearTimeout(clearAsked);
+    clearAsked = 0;
+    clearChat.textContent = "Clear chat";
+    handlers.onClearChat?.();
+  });
+  chat.frame.append(narration, speakBar, moves, petMoves, commands, peopleHere, clearChat);
   let narrationTimer = null;
   // Narration with the chat window closed: a caption over the world for a few seconds, then gone (it's
   // in the window when it's opened).

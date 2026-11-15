@@ -19,6 +19,8 @@ export const SETTINGS = {
   drawDistance: { value: 140, options: [60, 90, 140, 200, 300, 450] },
   /** Trees and rocks outside town, as a multiple of the forest the world was laid out with (0.5 is "Normal"). */
   density: { value: 0.5, options: [0.25, 0.5, 1, 4, 10] },
+  /** How many rocks and boulders lie about, apart from the trees and plants (`density`). */
+  rockDensity: { value: 0.5, options: [0.25, 0.5, 1, 4, 10] },
   /** How far out trees are drawn in detail, in metres; past it simple ones stand in. */
   treeDetail: { value: 180, options: [30, 70, 180, 300, 450] },
   shadows: { value: true },
@@ -257,6 +259,7 @@ export const DEVICE_SETTINGS = new Set([
   "drawDistance",
   "seasonLook",
   "density",
+  "rockDensity",
   "ground",
   "treeDetail",
   "shadows",
