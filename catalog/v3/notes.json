@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.106",
+          "date": "2026-11-14",
+          "notes": "- Animals no longer stand or run inside one another. Two that are too close step apart, so a pack of wolves chases you side by side and stands round you, not all in one spot.\n- People walking step round each other and round anyone standing or sitting, not through them.\n- Settings → Animals → Behaviour has the switch, \"People and animals keep out of one another\", on to begin with.\n- Not covered yet: an animal can still overlap a person or you, and a ridden or tied animal doesn't move aside (others move round it).",
+          "highlight": false
+        },
+        {
           "version": "0.5.105",
           "date": "2026-11-14",
           "notes": "- The chat window is no longer empty after you open another Engine screen (a character card, a lorebook, a preset) and come back. The chat, the assistant's chat and Illustrate come back as they were.\n- Each world keeps the last 500 lines of its chat, up from 30, to scroll back through. What the AI is sent hasn't changed: each prompt takes only its own last few lines.\n- When the chat has no line describing the place you're in, Illustrate has it told first, so the picture matches where you are. Settings → AI → Pictures has the switch. It needs \"Lines about where you are\" on, and doesn't apply indoors.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.87",
           "date": "2026-11-13",
           "notes": "- Phones: Run, Sit, Jump and Use are one row along the bottom with the stick above it. Run is new: tap it and you run, by the stick or to where you tap, until you tap it again.\n- Windows can be resized by finger from their corner and no longer come back shrunk. Journal, Lore and Menu have an × to close; the ☰ list opens under its button, which closes it.\n- An open window or panel is on top of the stick, the buttons and the Use prompt. The Wanderworld chip is gone and the frame rate is off unless you turn it on. The controls hint has an × and says more.\n- Settings → Display → On screen: Text size, and toggles for the time and for where you are. Settings → Controls: a toggle for the Run button.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.86",
-          "date": "2026-11-13",
-          "notes": "- Settings → Display → Graphics, \"Trees and rocks\": a new Sparse with half as many again. What was Sparse is now Normal and the default; the old Normal, 4× and 10× are 2×, 8× and 20×. A device that had chosen one keeps the same amount under its new name.\n- \"Detailed trees out to\" goes further: Very far (300 m) and Max (450 m), never past the draw distance.\n- New \"Smooth edges\" setting, which softens the jagged edges of a low resolution. Auto turns it on when the picture is no sharper than the page and a graphics card draws it; a change shows after a reload.",
           "highlight": false
         }
       ]

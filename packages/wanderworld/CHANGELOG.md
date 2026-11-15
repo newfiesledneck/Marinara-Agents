@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.106 — 2026-11-14
+
+- Animals no longer stand or run inside one another. Two that are too close step apart, so a pack of wolves chases you side by side and stands round you, not all in one spot.
+- People walking step round each other and round anyone standing or sitting, not through them.
+- Settings → Animals → Behaviour has the switch, "People and animals keep out of one another", on to begin with.
+- Not covered yet: an animal can still overlap a person or you, and a ridden or tied animal doesn't move aside (others move round it).
+
 ## 0.5.105 — 2026-11-14
 
 - The chat window is no longer empty after you open another Engine screen (a character card, a lorebook, a preset) and come back. The chat, the assistant's chat and Illustrate come back as they were.

@@ -870,6 +870,8 @@ export function createHud(root, handlers) {
     animalsTown: "The most stray dogs and horses inside the settlement itself. Any more are put just outside it.",
     loreAnimals:
       "On: animals a lorebook places, and anyone's own dog or horse, appear even when their sort is at 0. Off: 0 means none at all.",
+    keepApart:
+      "On: animals keep out of one another, and so do people walking, so a pack runs side by side and nobody walks through anybody. Off: they may pass through each other, as before.",
     hostileAnimals:
       "Keep their distance: they run if you come close. Square up: they come to about six paces and hold you off. Come for you: they run in and snap, sending you back a step. Nothing is hurt yet.",
     sound: "Footsteps, doors and the world's sounds.",
@@ -1198,6 +1200,7 @@ export function createHud(root, handlers) {
   );
   toggle("loreAnimals", "They appear even when their sort is at 0");
   at("Animals", "Behaviour");
+  toggle("keepApart", "People and animals keep out of one another");
   group(
     "How hostile ones behave",
     "Wolves and monsters. Only where \"Where people may confront you\" (Settings → People → Around you) allows it: off there, they always keep their distance. A lorebook's ww:tame or ww:hostile on a creature's entry decides which kinds are hostile at all.",

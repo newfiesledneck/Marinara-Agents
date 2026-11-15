@@ -882,6 +882,7 @@ export function createCrowd() {
     const step = person.plan.shift();
     if (!step) return;
     if (step.walk) {
+      person.goal = null; // (a planned walk goes to person.target)
       person.state = "walk";
       person.target = step.walk;
       person.straight = !!step.straight;
@@ -1091,6 +1092,7 @@ export function createCrowd() {
   function stepToward(person, target, speed, dt) {
     const position = person.group.position;
     person.state = "walk";
+    person.goal = target; // (for stepAside)
     person.rethink = (person.rethink ?? 0) - dt;
     // Reached a point on the way (a street corner, a bridge's end): choose the next one at once.
     const reached =
@@ -1119,6 +1121,50 @@ export function createCrowd() {
     person.group.rotation.y = approachAngle(person.group.rotation.y, Math.atan2(dx, dz), 10 * dt);
     const moved = Math.hypot(position.x - beforeX, position.z - beforeZ);
     person.stuck = moved < stride * 0.2 ? (person.stuck ?? 0) + dt : Math.max(0, (person.stuck ?? 0) - dt);
+  }
+
+  /**
+   * Nobody walks through anybody: someone walking who's come closer to another than two bodies allow
+   * steps aside, by no more than 0.6 of a stroll, so they still get where they're going (a seat beside
+   * someone, a place at a counter). Whoever is standing or sitting stays put. (Before this frame's steps,
+   * which then set each one's height and whether they're stuck.)
+   */
+  function stepAside(dt) {
+    const about = [...people.values()].filter((person) => person.state !== "inside" && person.space);
+    const least = BODY_RADIUS * 2;
+    const most = WALK_SPEED * 0.6 * dt;
+    for (const person of about) {
+      if (person.state !== "walk" || person.swimming) continue;
+      const position = person.group.position;
+      // Left be for the last metre to where they're going (a door, a seat), which they must reach exactly.
+      const goal = person.goal ?? person.target;
+      if (goal && Math.hypot(goal.x - position.x, goal.z - position.z) < 1) continue;
+      for (const other of about) {
+        if (other === person || other.space !== person.space) continue;
+        const at = other.group.position;
+        const dx = position.x - at.x;
+        const dz = position.z - at.z;
+        if (Math.abs(dx) >= least || Math.abs(dz) >= least) continue;
+        const distance = Math.hypot(dx, dz);
+        if (distance >= least) continue;
+        // (In the very same spot: each their own way, by who they are.)
+        const way =
+          distance < 1e-3
+            ? [Math.sin(person.id.length + position.x), Math.cos(person.id.length + position.x)]
+            : [dx / distance, dz / distance];
+        const move = Math.min((least - distance) / (other.state === "walk" ? 2 : 1), most);
+        const next = { x: position.x + way[0] * move, y: position.y, z: position.z + way[1] * move };
+        person.space.resolveCollisions(next, BODY_RADIUS, true);
+        // Not off a bank or a bridge into the water.
+        if (
+          person.space === world &&
+          waterAt(next.x, next.z).depth > Math.max(0.3, waterAt(position.x, position.z).depth)
+        )
+          continue;
+        position.x = next.x;
+        position.z = next.z;
+      }
+    }
   }
 
   function stepPerson(person, dt, view) {
@@ -1595,6 +1641,7 @@ export function createCrowd() {
       // How the player crosses the river (the party does the same).
       if (view.playerSwimming) lastCrossing = "swim";
       else if (view.player && onBridgeAt(view.player.x, view.player.z)) lastCrossing = "bridge";
+      if (view.apart !== false) stepAside(dt);
       for (const person of people.values()) {
         stepPerson(person, dt, view);
         // The name tag's colour: how they see the player (checked now and then; redrawn when it changes).

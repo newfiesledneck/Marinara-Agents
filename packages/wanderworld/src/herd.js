@@ -631,10 +631,52 @@ export function createHerd() {
     if (beast.state === "flee" && distance < 1.5) beast.home = { x: beast.x, z: beast.z };
   }
 
+  /**
+   * Keeps the animals in `shown` out of one another: two closer than their bodies allow each step aside,
+   * so a pack runs side by side and stands round what it's after instead of all in one spot. One on the
+   * move gives way by no more than 0.6 of its own speed, so it still gets where it's going; one standing
+   * steps aside freely. Never one that's ridden or tied, and never into a wall or deeper water.
+   */
+  function spread(dt, shown) {
+    const room = (beast) => (ANIMALS[beast.kind].back > 0 ? 0.75 : 0.45) * (beast.scale ?? 1);
+    const shift = (beast, x, z, by) => {
+      if (beast.ridden || beast.tied) return;
+      const move = Math.min(by, (beast.speed > 0.1 ? beast.speed * 0.6 : 1.5) * dt);
+      const next = { x: beast.x + x * move, y: 0, z: beast.z + z * move };
+      world.resolveCollisions(next, 0.5, true);
+      const deep = waterAt(next.x, next.z).depth;
+      if (deep > WADE && deep > waterAt(beast.x, beast.z).depth) return;
+      beast.x = next.x;
+      beast.z = next.z;
+      place(beast);
+    };
+    for (let a = 0; a < shown.length; a++)
+      for (let b = a + 1; b < shown.length; b++) {
+        const one = shown[a];
+        const other = shown[b];
+        let dx = other.x - one.x;
+        let dz = other.z - one.z;
+        const least = room(one) + room(other);
+        if (Math.abs(dx) >= least || Math.abs(dz) >= least) continue;
+        const distance = Math.hypot(dx, dz);
+        if (distance >= least) continue;
+        if (distance < 1e-3) {
+          // (In the very same spot: any way apart will do, a different one for each pair.)
+          dx = Math.sin(a * 2.4 + b);
+          dz = Math.cos(a * 2.4 + b);
+        }
+        const by = (least - distance) / 2;
+        const length = Math.hypot(dx, dz);
+        shift(one, -dx / length, -dz / length, by);
+        shift(other, dx / length, dz / length, by);
+      }
+  }
+
   function update(dt, view) {
     if (!world) return;
     const player = view.player;
     clock += dt;
+    const shown = [];
     for (const beast of beasts) {
       if (!beast.group) continue;
       const far = Math.hypot(player.x - beast.x, player.z - beast.z) > NEAR;
@@ -642,6 +684,7 @@ export function createHerd() {
       const away = beast.when === "night" ? !view.night : beast.when === "day" ? !!view.night : false;
       beast.group.visible = !far && !away;
       if (far || away) continue;
+      shown.push(beast);
       if (!beast.ridden) {
         if (beast.owned && beast.out) follow(beast, dt, view.owners?.get(beast.owner));
         else if (!hunt(beast, dt, player, view)) step(beast, dt, player, view);
@@ -649,6 +692,7 @@ export function createHerd() {
       }
       beast.animal.update(dt, beast.speed, { graze: beast.graze, jump: beast.ridden ? (beast.leap ?? null) : null });
     }
+    if (view.apart !== false) spread(dt, shown);
   }
 
   return {

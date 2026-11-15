@@ -159,6 +159,8 @@ export const SETTINGS = {
   /** The most of them inside the settlement itself (dogs and horses share it); the rest are outside it. */
   animalsTown: { value: 5, min: 0, max: 20 },
   loreAnimals: { value: true },
+  /** People and animals keep out of one another (off: they may walk through each other, as they used to). */
+  keepApart: { value: true },
   /** What a hostile animal does about you, where confrontations are allowed at all (`combat`). */
   hostileAnimals: { value: "threaten", options: ["avoid", "threaten", "attack"] },
   animalDog: { value: true },
