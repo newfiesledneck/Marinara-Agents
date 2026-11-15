@@ -143,7 +143,19 @@ import {
   usualDay,
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
-import { offerFor, stockNow, vendorKinds } from "./vendor.js";
+import {
+  checkTrades,
+  haggled,
+  haggleOutcome,
+  offerAfter,
+  offerFor,
+  priceAfter,
+  stockNow,
+  tradeId,
+  tradeKinds,
+  tradeSign,
+  vendorKinds,
+} from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolFor, TOOLS } from "./craft.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
@@ -1498,11 +1510,29 @@ function zoneName(zone, residents = null, renamed = true) {
 const HANGING_SIGNS = new Set(["tavern", "shop", "smithy"]);
 
 /** A sign over the door of every shop, the tavern, the temple, the hall and the smithy. */
+/**
+ * What a building's sign says: its own name once it has one; else, for a plain shop or anything whose
+ * trades were set by hand, its trade ("Apothecary", "Smith & Tailor"); else the sign it was built with.
+ * "" for a building with no sign.
+ */
+function signWords(zone) {
+  const names = placeNames();
+  if (typeof names[zone.id] === "string" && names[zone.id].trim())
+    return signOf({ ...zone, sign: zone.sign ?? zone.name }, names) ?? "";
+  const saved = core.save?.vendors?.[zone.id];
+  if (core.settings.vendors && (zone.buildingKind === "shop" || Array.isArray(saved?.kinds))) {
+    const all = trades();
+    const trade = tradeSign(vendorKinds(zone, zone.name, saved, all), all);
+    if (trade) return trade;
+  }
+  return zone.sign ?? "";
+}
+
 function placeSigns() {
   for (const sign of core.signs) sign.dispose();
   core.signs = [];
   for (const zone of core.zones.zones) {
-    if (zone.kind !== "building" || !zone.sign) continue;
+    if (zone.kind !== "building" || !signWords(zone)) continue;
     const door = core.world.doors[zone.door];
     if (!door) continue;
     // Above the doorframe, flat on the wall: the step is 0.35 m out from it.
@@ -1512,7 +1542,7 @@ function placeSigns() {
       y: heightAt(door.step.x, door.step.z) + 2.84,
       z: door.step.z - Math.cos(door.angle) * back,
       angle: door.angle,
-      words: signOf(zone, placeNames()),
+      words: signWords(zone),
       boardUrl: `${ART}sign-wood.webp`,
     });
     if (!sign) return; // no canvas here
@@ -1521,7 +1551,7 @@ function placeSigns() {
     core.signs.push(sign);
     // The tavern, shops and smithy also hang a sign out over the sidewalk beside the door, on one of
     // the painted boards.
-    if (!HANGING_SIGNS.has(zone.buildingKind)) continue;
+    if (!HANGING_SIGNS.has(zone.buildingKind) && !Array.isArray(core.save?.vendors?.[zone.id]?.kinds)) continue;
     const side = hashString(zone.id) % 2 ? 1 : -1;
     const along = 1.05 * side; // at the edge of the door's segment, clear of its windows and awnings
     const hanging = createHangingSign({
@@ -1529,7 +1559,7 @@ function placeSigns() {
       y: heightAt(door.step.x, door.step.z) + 3.3,
       z: door.step.z - Math.cos(door.angle) * back - Math.sin(door.angle) * along,
       angle: door.angle,
-      words: signOf(zone, placeNames()),
+      words: signWords(zone),
       boardUrl: `${ART}sign-wood${1 + (hashString(`${zone.id}:board`) % 4)}.webp`,
     });
     if (!hanging) continue;
@@ -2156,7 +2186,7 @@ function nameFromLore(books = []) {
     if (id && !names[id]) names[id] = name;
   }
   core.save = { ...core.save, names };
-  for (const sign of core.signs ?? []) sign.setWords(signOf(sign.zone, names));
+  for (const sign of core.signs ?? []) sign.setWords(signWords(sign.zone));
 }
 
 /**
@@ -3084,7 +3114,7 @@ function renameZone(id, name) {
   else delete names[id];
   core.save = { ...core.save, names };
   core.saves.write(core.save);
-  for (const sign of core.signs) if (sign.zone.id === id) sign.setWords(signOf(sign.zone, names));
+  for (const sign of core.signs) if (sign.zone.id === id) sign.setWords(signWords(sign.zone));
   core.zoneShown = core.zoneId; // no big title for a rename
   core.journalAt = 0;
   core.zoneCheck = 0;
@@ -5105,7 +5135,7 @@ function undoAssistant(before, after = null) {
   if (core.talking && !core.cast.has(core.talking.id)) endTalk();
   useHousing();
   const names = placeNames();
-  for (const sign of core.signs ?? []) sign.setWords(signOf(sign.zone, names));
+  for (const sign of core.signs ?? []) sign.setWords(signWords(sign.zone));
   core.placesChanged = true;
   core.relationsChanged = true;
   core.journalAt = 0;
@@ -6069,6 +6099,8 @@ const trackerConnection = () => core.settings.trackerConnection || core.settings
 
 function trackInventory(parts, kind = "moment") {
   trackSheet(parts, kind); // (the character sheet is read for at the same moments, by its own setting)
+  // With a shop's window open, talk of buying isn't yet a purchase: the tracker would add things not paid for.
+  if (core.hud?.shopOpen?.()) return;
   const when = core.settings.inventoryTrack;
   if (when === "off" || (kind === "talk" && when !== "all")) return;
   core.inventory
@@ -7815,64 +7847,90 @@ async function gather(kind) {
 
 // ── Vendors (vendor.js) ─────────────────────────────────────────────────────────────────────────────────
 
+/** Every trade in this world: the setting's (as the player has left their guidance) and the player's own. */
+const trades = () => tradeKinds(PACK.vendors.kinds, core.save?.trades);
+/** When the market's stalls are open (a building keeps its own hours). */
+const MARKET_HOURS = { from: 7, to: 19 };
+/** The market's stalls, each where its seller stands: [{ id, x, z }] (world.js stallSpots). */
+function stalls() {
+  return (core.world?.spots ?? [])
+    .filter((spot) => spot.act === "vend")
+    .map((spot, index) => ({ id: `stall:${index}`, x: spot.x, z: spot.z }));
+}
+
 /**
- * The vendor the player is at: inside its building, or within a few steps of its door. { zone, name,
- * kinds } or null (none near, none trading, vendors off, or it's shut for the night).
+ * The vendor the player is at: inside its building, within a few steps of its door, or at a market stall.
+ * { id, zone, name, title (what the Shop button says), kinds } or null (none near, none trading, vendors
+ * off, or shut).
  */
 function vendorHere() {
   if (!core.zones || !core.save || !core.settings.vendors) return null;
+  const kinds = trades();
   const names = namedZones(residentsOf(core.crowd.snapshot()));
-  const kindsOf = (zone) =>
-    vendorKinds(zone, names[zone.id] ?? zone.name, core.save.vendors?.[zone.id], PACK.vendors.kinds);
-  let zone = null;
-  if (core.interior) zone = core.zones.byId.get(`building:${core.interior.door.index}`) ?? null;
-  else {
+  const kindsOf = (zone, name) => vendorKinds(zone, name, core.save.vendors?.[zone.id], kinds);
+  let found = null;
+  if (core.interior) {
+    const zone = core.zones.byId.get(`building:${core.interior.door.index}`);
+    if (zone) found = { zone, name: names[zone.id] ?? zone.name };
+  } else {
     const at = core.player.position;
     let least = 4;
-    for (const entry of core.zones.zones) {
-      if (entry.kind !== "building") continue;
-      const door = core.world.doors?.[entry.door];
+    for (const zone of core.zones.zones) {
+      if (zone.kind !== "building") continue;
+      const door = core.world.doors?.[zone.door];
       if (!door) continue;
       const distance = Math.hypot(door.x - at.x, door.z - at.z);
-      if (distance < least && kindsOf(entry).length) {
+      if (distance < least && kindsOf(zone, names[zone.id] ?? zone.name).length) {
         least = distance;
-        zone = entry;
+        found = { zone, name: names[zone.id] ?? zone.name };
       }
     }
+    if (core.hour >= MARKET_HOURS.from && core.hour < MARKET_HOURS.to)
+      for (const stall of stalls()) {
+        const distance = Math.hypot(stall.x - at.x, stall.z - at.z);
+        if (distance < Math.min(least, 3.4)) {
+          least = distance;
+          found = { zone: { kind: "stall", id: stall.id }, name: core.save.names?.[stall.id] ?? "" };
+        }
+      }
   }
-  if (!zone || closedWords(zone.id)) return null;
-  const kinds = kindsOf(zone);
-  if (!kinds.length) return null;
-  const name = names[zone.id] ?? zone.name;
-  // (What the button says: its own name once it has one, else its trade: "Apothecary", not "the shop".)
-  const title = name !== zone.name ? name : kinds.map((kind) => PACK.vendors.kinds[kind].label).join(", ");
-  return { zone, name, title, kinds };
+  if (!found || (found.zone.kind === "building" && closedWords(found.zone.id))) return null;
+  const own = kindsOf(found.zone, found.name);
+  if (!own.length) return null;
+  const trade = tradeSign(own, kinds);
+  // Its own name once it has one; else its trade ("Apothecary"), and for a stall "the greengrocer's stall".
+  const named = found.zone.kind === "stall" ? !!found.name : found.name !== found.zone.name;
+  const name = found.zone.kind === "stall" && !named ? `the ${trade.toLowerCase()}'s stall` : found.name;
+  return { id: found.zone.id, zone: found.zone, name, title: named ? found.name : trade, kinds: own };
 }
 
-/** A vendor's shelves now: restocked (and kept with the world) when its days are up or its kinds have changed. */
+const restockPeriod = () => Math.floor((core.social?.day ?? 0) / Math.max(1, core.settings.restockDays));
+/** A vendor's shelves now: restocked (and kept with the world) when its days are up or its trades have changed. */
 function shelves(vendor) {
-  const period = Math.floor((core.social?.day ?? 0) / Math.max(1, core.settings.restockDays));
-  const saved = core.save.vendors?.[vendor.zone.id];
-  const now = stockNow(saved, vendor.kinds, PACK.vendors.kinds, `${core.save.id}:${vendor.zone.id}`, period);
-  if (now.fresh) keepVendor(vendor, { stock: now.stock, period, stocked: vendor.kinds.join(",") });
+  const period = restockPeriod();
+  const now = stockNow(core.save.vendors?.[vendor.id], vendor.kinds, trades(), `${core.save.id}:${vendor.id}`, period);
+  if (now.fresh) keepVendor(vendor.id, { stock: now.stock, period, stocked: vendor.kinds.join(",") });
   return now.stock;
 }
-function keepVendor(vendor, fields) {
-  const vendors = { ...core.save.vendors, [vendor.zone.id]: { ...core.save.vendors?.[vendor.zone.id], ...fields } };
+function keepVendor(id, fields) {
+  const vendors = { ...core.save.vendors, [id]: { ...core.save.vendors?.[id], ...fields } };
   core.save = { ...core.save, vendors };
   core.saves.write(core.save);
 }
 
 /**
  * With "The AI stocks shop shelves" on, a vendor due a restocking has its shelves written by the model
- * to fit the world, and kept. Anything that goes wrong leaves it to the setting's own lists (`shelves`).
+ * to fit the world, by its trades' guidance and its own, and kept. Anything that goes wrong leaves it to
+ * the trades' own lists (`shelves`).
  */
 async function aiShelves(vendor) {
   if (!core.settings.vendorAi) return;
   const save = core.save;
-  const period = Math.floor((core.social?.day ?? 0) / Math.max(1, core.settings.restockDays));
-  if (!stockNow(save.vendors?.[vendor.zone.id], vendor.kinds, PACK.vendors.kinds, "", period).fresh) return;
-  const kinds = vendor.kinds.map((kind) => PACK.vendors.kinds[kind]);
+  const period = restockPeriod();
+  const all = trades();
+  const saved = save.vendors?.[vendor.id];
+  if (!stockNow(saved, vendor.kinds, all, "", period).fresh) return;
+  const kinds = vendor.kinds.map((kind) => all[kind]);
   try {
     const answer = await core.ai.vendorStock({
       worldName: save.name,
@@ -7880,47 +7938,63 @@ async function aiShelves(vendor) {
       shop: vendor.name,
       kinds: kinds.map((kind) => kind.label).join(", "),
       currency: purse().name,
-      usual: kinds
+      usual: (kinds.some((kind) => kind.stock.length) ? kinds : Object.values(PACK.vendors.kinds).slice(0, 2))
         .flatMap((kind) => kind.stock.slice(0, 4))
         .map((item) => `${item.name} ${item.price}`)
         .join(", "),
+      guidance: [...kinds.map((kind) => kind.guidance), saved?.guidance].filter(Boolean).join(" "),
       connectionId: trackerConnection(),
     });
     if (core.save?.id === save.id && answer?.stock?.length)
-      keepVendor(vendor, { stock: answer.stock, period, stocked: vendor.kinds.join(",") });
+      keepVendor(vendor.id, { stock: answer.stock, period, stocked: vendor.kinds.join(",") });
   } catch (error) {
     console.warn("[wanderworld] the AI couldn't stock a shop; its own shelves stand in", error);
   }
 }
 
-/** What things are worth here: the setting's prices, and whatever any shop in this world has had on its shelves. */
+/** What things are worth here: the trades' prices, and whatever any shop in this world has had on its shelves. */
 function vendorPack() {
   const values = { ...PACK.vendors.values };
   for (const vendor of Object.values(core.save?.vendors ?? {}))
     for (const item of vendor.stock ?? [])
       if (item?.name && Number.isFinite(item.price)) values[item.name] ??= item.price;
-  return { ...PACK.vendors, values };
+  return { kinds: trades(), values };
 }
 
 /**
- * Every vendor in the world, for Settings → World → Vendors: its trades (and whether they were set by
- * hand), every trade there is, and the empty houses that could be made shops of.
+ * Everything Settings → World → Vendors shows: every vendor (buildings and stalls) with its trades, name
+ * and guidance, every trade with its guidance (and goods, for the player's own), and the empty houses
+ * that could be made shops of.
  */
 function vendorsNow() {
-  if (!core.zones || !core.save) return { vendors: [], vacant: [], kinds: [] };
+  if (!core.zones || !core.save) return { vendors: [], vacant: [], kinds: [], trades: [] };
+  const all = trades();
   const snapshot = core.crowd.snapshot();
   const names = namedZones(residentsOf(snapshot));
   const mine = playerHomeDoor();
   // (With the street it's on: a town has several places called "the shop".)
   const placed = (zone) => [names[zone.id] ?? zone.name, names[zone.parent]].filter(Boolean).join(", ");
   const vendors = [];
-  for (const zone of core.zones.zones) {
-    if (zone.kind !== "building") continue;
+  const row = (zone, name, extra) => {
     const saved = core.save.vendors?.[zone.id];
-    const kinds = vendorKinds(zone, names[zone.id] ?? zone.name, saved, PACK.vendors.kinds);
+    const kinds = vendorKinds(zone, name, saved, all);
     const set = Array.isArray(saved?.kinds);
-    if (kinds.length || set) vendors.push({ id: zone.id, name: placed(zone), kinds, set });
-  }
+    if (kinds.length || set) vendors.push({ id: zone.id, kinds, set, guidance: saved?.guidance ?? "", ...extra });
+  };
+  for (const zone of core.zones.zones)
+    if (zone.kind === "building")
+      row(zone, names[zone.id] ?? zone.name, {
+        name: placed(zone),
+        own: core.save.names?.[zone.id] ?? "",
+        canName: true,
+      });
+  stalls().forEach((stall, index) =>
+    row({ kind: "stall", id: stall.id }, "", {
+      name: `Market stall ${index + 1}`,
+      own: core.save.names?.[stall.id] ?? "",
+      canName: true,
+    }),
+  );
   const trading = new Set(vendors.map((vendor) => vendor.id));
   return {
     vendors,
@@ -7928,20 +8002,67 @@ function vendorsNow() {
       .filter((zone) => zone.door !== mine && !trading.has(zone.id))
       .slice(0, 30)
       .map((zone) => ({ id: zone.id, name: placed(zone) })),
-    kinds: Object.entries(PACK.vendors.kinds).map(([id, kind]) => ({ id, label: kind.label })),
+    kinds: Object.entries(all).map(([id, kind]) => ({ id, label: kind.label })),
+    trades: Object.entries(all).map(([id, kind]) => ({
+      id,
+      label: kind.label,
+      guidance: kind.guidance ?? "",
+      goods: kind.goods ?? "",
+      custom: !!kind.custom,
+      changed: !!kind.changed,
+    })),
   };
 }
 
-/** Sets a building's trades by hand (`kinds`: a list, empty for "doesn't trade"), or back to its own with null. */
-function setVendorKinds(zoneId, kinds) {
+/** Sets a vendor's trades by hand (`kinds`: a list, empty for "doesn't trade"), or back to its own with null. */
+function setVendorKinds(id, kinds) {
   if (!core.save) return;
-  const { kinds: _was, ...rest } = core.save.vendors?.[zoneId] ?? {};
-  const next =
-    kinds === null ? rest : { ...rest, kinds: kinds.filter((kind) => Object.hasOwn(PACK.vendors.kinds, kind)) };
-  core.save = { ...core.save, vendors: { ...core.save.vendors, [zoneId]: next } };
+  const { kinds: _was, ...rest } = core.save.vendors?.[id] ?? {};
+  const all = trades();
+  const next = kinds === null ? rest : { ...rest, kinds: kinds.filter((kind) => Object.hasOwn(all, kind)) };
+  core.save = { ...core.save, vendors: { ...core.save.vendors, [id]: next } };
   core.saves.write(core.save);
   core.journalAt = 0;
+  placeSigns();
 }
+
+/** A vendor's own guidance for what the AI stocks it with ("" for none). Its shelves are written again next time. */
+function setVendorGuidance(id, guidance) {
+  if (!core.save) return;
+  keepVendor(id, {
+    guidance: String(guidance ?? "")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .slice(0, 600),
+    period: null,
+  });
+}
+
+/**
+ * A trade changed in Settings: `fields` { label, guidance, goods } for one of the player's own (a new one
+ * with `id` null), { guidance } for one of the setting's; null takes one of the player's own away, or puts
+ * one of the setting's back to its usual guidance.
+ */
+function setTrade(id, fields) {
+  if (!core.save) return;
+  const mine = { ...checkTrades(core.save.trades, PACK.vendors.kinds) };
+  if (fields === null) delete mine[id];
+  else if (id === null)
+    mine[tradeId(fields.label, [...Object.keys(PACK.vendors.kinds), ...Object.keys(mine)])] = {
+      ...fields,
+      custom: true,
+    };
+  else
+    mine[id] = Object.hasOwn(PACK.vendors.kinds, id)
+      ? { guidance: fields.guidance }
+      : { ...mine[id], ...fields, custom: true };
+  core.save = { ...core.save, trades: checkTrades(mine, PACK.vendors.kinds) };
+  core.saves.write(core.save);
+  placeSigns();
+}
+
+/** What haggling has done to the prices of the vendor here today: a factor on them (vendor.js haggled). */
+const haggleFactor = (vendor) => haggled(core.save.vendors?.[vendor.id], core.social?.day ?? 0);
 
 /** The shop window's contents: what's for sale, and what of the player's it would buy and for how much. */
 async function shopNow() {
@@ -7952,13 +8073,21 @@ async function shopNow() {
   const money = purse();
   await aiShelves(vendor);
   const prices = vendorPack();
+  const factor = haggleFactor(vendor);
   return {
     open: true,
     ready,
     name: vendor.name,
-    kinds: vendor.kinds.map((kind) => PACK.vendors.kinds[kind].label),
+    kinds: vendor.kinds.map((kind) => prices.kinds[kind].label),
     purse: money,
-    stock: shelves(vendor).filter((item) => item.quantity > 0),
+    haggle: {
+      on: core.settings.haggling === true,
+      done: core.save.vendors?.[vendor.id]?.haggle?.day === (core.social?.day ?? 0),
+      factor,
+    },
+    stock: shelves(vendor)
+      .filter((item) => item.quantity > 0)
+      .map((item) => ({ ...item, price: priceAfter(item.price, factor) })),
     sell: items
       .filter((item) => item.name.trim().toLowerCase() !== money.name.toLowerCase())
       .map((item) => ({
@@ -7966,7 +8095,7 @@ async function shopNow() {
         name: item.name,
         quantity: item.quantity ?? 1,
         worn: String(item.location).startsWith("equipped:"),
-        price: offerFor(item.name, vendor.kinds, prices),
+        price: offerAfter(offerFor(item.name, vendor.kinds, prices), factor),
       }))
       .sort((a, b) => b.price - a.price || a.name.localeCompare(b.name)),
   };
@@ -7979,17 +8108,18 @@ async function buy(name) {
   const stock = shelves(vendor);
   const item = stock.find((entry) => entry.name === name && entry.quantity > 0);
   if (!item) throw new Error("That's sold out.");
+  const price = priceAfter(item.price, haggleFactor(vendor));
   const items = await readItems();
   const money = purse();
-  if (money.amount < item.price) throw new Error(`That costs ${item.price} ${money.name}. You have ${money.amount}.`);
+  if (money.amount < price) throw new Error(`That costs ${price} ${money.name}. You have ${money.amount}.`);
   const coins = items.find((entry) => entry.name.trim().toLowerCase() === money.name.toLowerCase());
-  await core.inventory.change(coins.id, money.amount - item.price > 0 ? { quantity: money.amount - item.price } : null);
+  await core.inventory.change(coins.id, money.amount - price > 0 ? { quantity: money.amount - price } : null);
   await core.inventory.add({ name: item.name, description: item.description, quantity: 1 });
-  keepVendor(vendor, {
+  keepVendor(vendor.id, {
     stock: stock.map((entry) => (entry === item ? { ...entry, quantity: entry.quantity - 1 } : entry)),
   });
   await readItems();
-  narrate(null, `${personaName()} buys ${item.name} at ${vendor.name} for ${item.price} ${money.name}.`);
+  narrate(null, `${personaName()} buys ${item.name} at ${vendor.name} for ${price} ${money.name}.`);
 }
 
 /** Sells one of the item `id` to the vendor here: it leaves the inventory, its price joins the purse. */
@@ -7998,13 +8128,36 @@ async function sell(id) {
   if (!vendor) throw new Error("There's no shop here now.");
   const item = (await readItems()).find((entry) => entry.id === id);
   if (!item) return;
-  const price = offerFor(item.name, vendor.kinds, vendorPack());
+  const price = offerAfter(offerFor(item.name, vendor.kinds, vendorPack()), haggleFactor(vendor));
   if (price <= 0) throw new Error(`${vendor.name} has no use for that.`);
   const money = purse();
   await core.inventory.change(id, (item.quantity ?? 1) > 1 ? { quantity: item.quantity - 1 } : null);
   await core.inventory.add({ name: money.name, description: "", quantity: price });
   await readItems();
   narrate(null, `${personaName()} sells ${item.name} at ${vendor.name} for ${price} ${money.name}.`);
+}
+
+/**
+ * Haggles with the vendor here, once a day: a Charisma check that may take a tenth or a fifth off its
+ * prices for the rest of the day (and add as much to what it pays), leave them, or put them up. With AI
+ * moments on, the haggling is narrated too.
+ */
+async function haggle() {
+  const vendor = vendorHere();
+  if (!vendor || !core.settings.haggling) throw new Error("There's nobody here to haggle with.");
+  const day = core.social?.day ?? 0;
+  if (core.save.vendors?.[vendor.id]?.haggle?.day === day) throw new Error("You've haggled here today already.");
+  const sheet = sheetNow();
+  const check = checkRoll(entryNamed(sheet, "charisma"), wornBonuses(sheet, core.items ?? []).charisma ?? 0);
+  const outcome = haggleOutcome(check.total);
+  keepVendor(vendor.id, { haggle: { day, factor: outcome.factor } });
+  const who = personaName();
+  narrate(null, `${who} haggles at ${vendor.name}: a Charisma check of ${check.total}. The seller ${outcome.words}.`);
+  if (core.settings.aiMoments)
+    void runMoment({
+      action: `haggles over the prices at ${vendor.name}. The seller ${outcome.words}`,
+      source: "thing",
+    });
 }
 
 // ── Crafting (craft.js) ─────────────────────────────────────────────────────────────────────────────────
@@ -8691,6 +8844,9 @@ function attach(element) {
     onShop: shopNow,
     onVendors: vendorsNow,
     onVendorKinds: setVendorKinds,
+    onVendorGuidance: setVendorGuidance,
+    onTrade: setTrade,
+    onHaggle: haggle,
     onBuy: buy,
     onSell: sell,
     onRecipes: recipesNow,

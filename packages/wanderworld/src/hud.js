@@ -873,6 +873,8 @@ export function createHud(root, handlers) {
     vendors:
       "On: shops buy and sell. At a vendor's door or inside (the smithy, a shop, a tavern, an inn), a Shop button appears in the chat window. You pay from your purse and sell what you carry: a shop pays half a thing's worth for what it deals in and a quarter for anything else. Needs the Quartermaster package for the items. Off: no trading.",
     restockDays: "How many of the world's days pass before a shop's shelves are filled again, with different things.",
+    haggling:
+      "On: a shop's window has a Haggle button. Once a day at each vendor it rolls a Charisma check: 15 or more takes a tenth off the prices for the rest of the day (and it pays a tenth more for what you sell), 20 or more a fifth, 5 or less puts them up a tenth. With AI moments on, the haggling is narrated too. Off: prices are as marked.",
     vendorAi:
       "On: when a shop restocks, the AI writes what's on its shelves to fit your world's setting and the shop's trade, so a wasteland store and a fantasy apothecary sell different things. One AI call for each shop each restocking, made when you open the shop (the trackers' connection is used). If the call fails, the setting's own lists stand in. Off: the setting's own lists always.",
     gatherTools:
@@ -1198,6 +1200,7 @@ export function createHud(root, handlers) {
   toggle("vendors", "Shops buy and sell");
   number("restockDays", "Days between a shop's restocking", "vendors");
   toggle("vendorAi", "The AI stocks shop shelves", "vendors");
+  toggle("haggling", "Haggling", "vendors");
   toggle("gathering", "Gathering");
   toggle("gatherTools", "Gathering needs tools", "gathering");
   number("regrowDays", "Days until a spot gives again", "gathering");
@@ -2034,20 +2037,54 @@ export function createHud(root, handlers) {
   vendorsBox.style.cssText = "display:flex;flex-direction:column;gap:5px;font-size:12px;line-height:1.4;";
   add(vendorsBox);
   function refreshVendors() {
-    const now = handlers.onVendors?.() ?? { vendors: [], vacant: [], kinds: [] };
-    const set = (id, kinds) => {
-      handlers.onVendorKinds?.(id, kinds);
+    const now = handlers.onVendors?.() ?? { vendors: [], vacant: [], kinds: [], trades: [] };
+    const again = (work) => () => {
+      work();
       refreshVendors();
+    };
+    const set = (id, kinds) => again(() => handlers.onVendorKinds?.(id, kinds))();
+    const line = (placeholder, value, onChange) => {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = placeholder;
+      input.value = value;
+      input.setAttribute("aria-label", placeholder);
+      input.style.cssText = `${INK_INPUT}width:100%;padding:2px 6px;box-sizing:border-box;`;
+      input.addEventListener("change", () => onChange(input.value.trim()));
+      return input;
+    };
+    const area = (placeholder, value, onChange, rows = 2) => {
+      const input = document.createElement("textarea");
+      input.rows = rows;
+      input.placeholder = placeholder;
+      input.value = value;
+      input.setAttribute("aria-label", placeholder);
+      input.style.cssText = `${INK_INPUT}width:100%;padding:3px 6px;box-sizing:border-box;resize:vertical;font:12px system-ui,sans-serif;`;
+      input.addEventListener("change", () => onChange(input.value.trim()));
+      return input;
+    };
+    const fold = (title, open, onToggle, ...children) => {
+      const node = document.createElement("details");
+      node.open = open;
+      node.style.cssText = "margin-top:6px;border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;";
+      node.addEventListener("toggle", () => onToggle(node.open));
+      const head = document.createElement("summary");
+      head.style.cssText = "cursor:pointer;font-weight:700;";
+      head.textContent = title;
+      const list = piece("display:flex;flex-direction:column;gap:5px;margin-top:4px;");
+      list.append(...children);
+      node.append(head, list);
+      return node;
     };
     const nodes = [
       debugNote(
-        "Every building that buys and sells in this world. Tick the trades a shop has: one shop can be several at once. If a world came without a trade you want, add it to a shop here, or make a shop of an empty house below. What a shop stocks follows its trades when it next restocks.",
+        "Every building and market stall that buys and sells in this world. Tick the trades a vendor has: one can be several at once. Give one a name and its sign says it; without a name its sign says its trade. If a world came without a trade you want, add it here, or make a shop of an empty house below. What a vendor stocks follows its trades when it next restocks.",
       ),
     ];
     if (!now.kinds.length) nodes.push(debugNote("Open a world to see its vendors."));
     for (const vendor of now.vendors) {
       const box = piece(
-        "border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;display:flex;flex-direction:column;gap:2px;",
+        "border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;display:flex;flex-direction:column;gap:3px;",
       );
       box.append(piece("font-weight:600;", `${vendor.name}${vendor.kinds.length ? "" : " · not trading"}`));
       const ticks = piece("display:flex;flex-wrap:wrap;gap:2px 10px;");
@@ -2064,6 +2101,17 @@ export function createHud(root, handlers) {
         ticks.append(label);
       }
       box.append(ticks);
+      if (vendor.canName)
+        box.append(
+          line("Its own name (its sign says this)", vendor.own, (name) =>
+            again(() => handlers.onRenameZone?.(vendor.id, name))(),
+          ),
+        );
+      box.append(
+        area("For the AI: what this vendor in particular should stock", vendor.guidance, (text) =>
+          again(() => handlers.onVendorGuidance?.(vendor.id, text))(),
+        ),
+      );
       if (vendor.set) {
         const back = inkSmall("Back to its own trade", () => set(vendor.id, null));
         back.style.alignSelf = "flex-start";
@@ -2072,16 +2120,7 @@ export function createHud(root, handlers) {
       nodes.push(box);
     }
     if (now.vacant.length) {
-      const fold = document.createElement("details");
-      fold.open = vendorsVacantOpen;
-      fold.style.cssText = "margin-top:6px;border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;";
-      fold.addEventListener("toggle", () => (vendorsVacantOpen = fold.open));
-      const title = document.createElement("summary");
-      title.style.cssText = "cursor:pointer;font-weight:700;";
-      title.textContent = `Empty houses (${now.vacant.length})`;
-      const list = piece("display:flex;flex-direction:column;gap:4px;margin-top:4px;");
-      list.append(debugNote("Nobody lives in these. Pick a trade and the house becomes a shop of that kind."));
-      for (const house of now.vacant) {
+      const houses = now.vacant.map((house) => {
         const row = piece("display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
         const trade = document.createElement("select");
         trade.style.cssText = `${INK_INPUT}padding:2px 4px;`;
@@ -2097,10 +2136,81 @@ export function createHud(root, handlers) {
           trade,
           inkSmall("Make it a shop", () => set(house.id, [trade.value])),
         );
-        list.append(row);
-      }
-      fold.append(title, list);
-      nodes.push(fold);
+        return row;
+      });
+      nodes.push(
+        fold(
+          `Empty houses (${now.vacant.length})`,
+          vendorsVacantOpen,
+          (open) => (vendorsVacantOpen = open),
+          debugNote("Nobody lives in these. Pick a trade and the house becomes a shop of that kind."),
+          ...houses,
+        ),
+      );
+    }
+    // The trades themselves: what each is told to stock, and trades of your own.
+    if (now.kinds.length) {
+      const boxes = now.trades.map((trade) => {
+        const box = piece(
+          "border-top:1px solid rgba(107,74,43,0.25);padding-top:4px;display:flex;flex-direction:column;gap:3px;",
+        );
+        box.append(piece("font-weight:600;", `${trade.label}${trade.custom ? " · yours" : ""}`));
+        if (trade.custom)
+          box.append(
+            line("Its name", trade.label, (label) => label && again(() => handlers.onTrade?.(trade.id, { label }))()),
+          );
+        box.append(
+          area("For the AI: what this trade stocks", trade.guidance, (guidance) =>
+            again(() => handlers.onTrade?.(trade.id, { guidance }))(),
+          ),
+        );
+        if (trade.custom)
+          box.append(
+            area(
+              "Its goods without the AI, one to a line: Name, price, what it is",
+              trade.goods,
+              (goods) => again(() => handlers.onTrade?.(trade.id, { goods }))(),
+              3,
+            ),
+          );
+        if (trade.custom || trade.changed) {
+          const remove = inkSmall(trade.custom ? "Delete trade" : "Back to the usual guidance", () => {
+            if (trade.custom && !remove.dataset.sure) {
+              remove.dataset.sure = "1";
+              remove.textContent = "Delete it? Tap again";
+              return;
+            }
+            again(() => handlers.onTrade?.(trade.id, null))();
+          });
+          remove.style.alignSelf = "flex-start";
+          box.append(remove);
+        }
+        return box;
+      });
+      const name = line("A new trade's name", "", () => {});
+      const guidance = area("For the AI: what it stocks", "", () => {});
+      const goods = area("Its goods without the AI, one to a line: Name, price, what it is", "", () => {}, 3);
+      const add = inkSmall("Add this trade", () => {
+        if (!name.value.trim()) return;
+        again(() => handlers.onTrade?.(null, { label: name.value, guidance: guidance.value, goods: goods.value }))();
+      });
+      add.style.alignSelf = "flex-start";
+      nodes.push(
+        fold(
+          `Trades (${now.trades.length})`,
+          vendorsTradesOpen,
+          (open) => (vendorsTradesOpen = open),
+          debugNote(
+            'What each trade stocks. The guidance is what the AI is told when "The AI stocks shop shelves" is on: rewrite it to change what it comes up with. A trade of your own needs a name; give it guidance for the AI, goods for when the AI is off, or both. Then tick it on a vendor above.',
+          ),
+          ...boxes,
+          piece("font-weight:700;margin-top:6px;", "A trade of your own"),
+          name,
+          guidance,
+          goods,
+          add,
+        ),
+      );
     }
     vendorsBox.replaceChildren(...nodes);
   }
@@ -2136,6 +2246,37 @@ export function createHud(root, handlers) {
         ),
       );
       return void shopPanel.replaceChildren(body);
+    }
+    // Haggling: once a day here. What it came to is said for the rest of the day.
+    if (answer.haggle?.on) {
+      const row = piece("display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+      const go = inkSmall("Haggle", async () => {
+        shopNote = "";
+        try {
+          await handlers.onHaggle?.();
+        } catch (error) {
+          shopNote = error?.message ?? "That couldn't be done.";
+        }
+        void drawShop();
+      });
+      go.title = "A Charisma check, once a day here: it may lower the prices, or raise them";
+      go.disabled = answer.haggle.done;
+      if (answer.haggle.done) go.style.cssText += "opacity:0.5;cursor:default;";
+      const off = Math.round((1 - answer.haggle.factor) * 100);
+      row.append(
+        go,
+        piece(
+          `color:${INK_SOFT};font-size:11px;flex:1;`,
+          !answer.haggle.done
+            ? "Once a day: a Charisma check."
+            : off > 0
+              ? `Haggled today: prices are ${off}% lower, and it pays ${off}% more.`
+              : off < 0
+                ? `Haggled today, badly: prices are ${-off}% higher, and it pays ${-off}% less.`
+                : "Haggled today: the prices stand.",
+        ),
+      );
+      body.append(row);
     }
     const tabs = piece("display:flex;gap:4px;");
     for (const [id, label] of [
@@ -2221,6 +2362,7 @@ export function createHud(root, handlers) {
   let sheetOffOpen = false; // whether the sheet's "Not in use" fold is open
   let craftOwnOpen = false; // and the Craft tab's "Make something new"
   let vendorsVacantOpen = false; // and Settings → World → Vendors' "Empty houses"
+  let vendorsTradesOpen = false; // and its "Trades"
   // The sheet's own copies of its two AI settings (the same settings as in Settings: changed in either, changed in both).
   const sheetSettings = { sheetTold: true, sheetTrack: "off" };
   for (const name of Object.keys(sheetSettings))
@@ -3402,6 +3544,8 @@ export function createHud(root, handlers) {
       moves.style.display = shown && wanted.chat && !touch ? "flex" : "none"; // (a touch screen has them along the bottom)
       chatJump.disabled = !!resting && !riding;
     },
+    /** Whether a shop's window is open (main.js holds the inventory tracker back while it is). */
+    shopOpen: () => shopPanel.style.display !== "none",
     /** The vendor the player is at, by name ("" for none: the button goes, and the shop window with it). */
     setShop(name) {
       if (name === shopAt) return;

@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.69)
+## What it does now (0.6.70)
 
 ### The world
 
@@ -509,6 +509,11 @@ only walk about.
   selling move things and the purse on Quartermaster's sheet. Settings → World → Vendors sets a
   building's trades by hand and makes shops of empty houses. With "The AI stocks shop shelves" on,
   `/vendor-stock` has the model write a shop's shelves when it restocks, checked on the server.
+  A trade carries a line of guidance for that prompt, which the player can rewrite, and they can make
+  trades of their own (name, guidance, goods typed one to a line), kept with the world as `trades`.
+  A vendor can have guidance and a name of its own. Market stalls are vendors by day. A sign says the
+  vendor's name, else its trade. Haggling is a Charisma check once a day at each vendor. While a shop's
+  window is open the inventory tracker is held back, so nothing is added before it is bought.
 - Money is an item: the one named for the world's currency (the pack's word until the player renames it
   in Inventory → Items) is the purse.
 - The year can turn (Settings → World → Time and weather → "Seasons change", off to begin with): each

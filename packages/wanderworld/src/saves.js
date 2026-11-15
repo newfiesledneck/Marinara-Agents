@@ -347,6 +347,9 @@ export function checkWorld(raw) {
     recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
     // Each vendor: { [zone id]: { kinds (once set by hand), stock, period, stocked } } (vendor.js).
     vendors: isRecord(raw.vendors) ? raw.vendors : {},
+    // Trades as this world has them: a setting's trade with its guidance rewritten, and the player's own
+    // (vendor.js checkTrades reads them).
+    trades: isRecord(raw.trades) ? raw.trades : {},
     // What money is called in this world ("" for the setting's own word); the purse is the item of that name.
     currency: text(raw.currency).slice(0, 30),
     // How each person talks, when it isn't the setting's way: { [id]: a voice (keywords.js VOICES) }.
