@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.111",
+          "date": "2026-11-15",
+          "notes": "- A place you're beside now counts with the one you're in. Standing on a river's bank in the woods, the river's lore is active with the forest's, and the AI and Illustrate are told \"in Whisperwood, near the bank of the Silverrun\". Before, the bank a few steps from the water was only forest.\n- It applies to rivers (12 m past the edge), ponds (10 m), the mountains (20 m), a cave's mouth (8 m), roads (4 m) and places out in the country such as ruins, standing stones, a mill or an inn (8 m). The two nearest count.\n- The Lore window marks their entries \"beside you\". Settings → World → Places has the switch, on to begin with.",
+          "highlight": false
+        },
+        {
           "version": "0.5.110",
           "date": "2026-11-15",
           "notes": "- Weather looks the same at every draw distance. Each kind now has its own visibility in metres. Before, it was a share of the draw distance, so mist was a wall at Tiny and barely there at Max.\n- New kinds: fog, rain and snow each come light, medium or heavy, and there are thunderstorms with lightning and thunder. Mist stays as the thinnest. Heavy fog lets you see about 20 metres.\n- With changing weather, about one clear morning in three starts in mist, and a winter world gets snow where others get rain.\n- Settings → World → Time and weather has all of them, with switches for misty mornings and lightning flashes.\n- Prompts and pictures are told the weather by name (\"heavy fog\", \"a thunderstorm\").",
@@ -307,12 +313,6 @@
           "version": "0.5.92",
           "date": "2026-11-14",
           "notes": "- Someone travelling with you knows it: no greeting as if you'd just met.\n- Horses wade and swim, so a river with no bridge can be crossed. Your own animals swim after you.\n- A horse's saddle and its rider move with its back as it walks, gallops and jumps.\n- Call dog and Call horse in the chat window (or `/call`): yours turns up beside you. One kept from you by something for a few seconds comes by itself.\n- Menu → This world: its name, id, Quartermaster sheet, map, characters and lorebooks, with Copy buttons.\n- The chat says what changed in your inventory (added, put on, took off, removed).\n- Plants on a cave's rock sit on it instead of floating over it.\n- Illustrate's AI rewrite has a new instruction: a full prose prompt with each character's name and looks, the place, pose and camera, and no chat pasted at the end.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.91",
-          "date": "2026-11-14",
-          "notes": "- A scene started from a world uses that world's inventory (Quartermaster 0.1.37 or later): the scene's chat shows and changes the same sheet, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat.\n- Quartermaster's window opens with your persona's name in its title and in Wanderworld's parchment colours. The editors it opens keep the Engine's look.\n- Two new switches for these in Settings → People → Inventory.",
           "highlight": false
         }
       ]

@@ -67,6 +67,7 @@ export const HELP = [
   {
     title: "The bar, the Menu and your worlds",
     lines: [
+      "Lore is active for the place you're in, the places that hold it, and a place you're beside: on a river's bank, by a pond's shore, at the foot of the mountains, at a cave's mouth, beside a road or near a place out in the country, a few metres past its edge. The Lore window marks those \"beside you\", and the AI and pictures are told (\"in Whisperwood, near the bank of the Silverrun\"). Menu → Settings → World → Places has the switch.",
       "The bar along the top has the Journal, the Lore active where you stand, Illustrate, the Inventory (with the Quartermaster package), the Chat window and the Menu.",
       "The Menu has who you play (with their Look), Settings, This world, Save world, Load world, full screen and the main menu.",
       "This world lists the world's name, its id, its Quartermaster sheet, the map seed, the land, the region you're in, who lives there, who's travelling with you, your animals, its lorebooks and its setting. The ids have a Copy button.",

@@ -105,6 +105,8 @@ export const SETTINGS = {
   arriveGap: { value: 45, min: 10, max: 60 },
   /** How many visits to a place that's been told before it's told again (1: every visit). */
   arriveVisits: { value: 5, min: 1, max: 10 },
+  /** A place you're beside (a river's bank, a pond's shore) counts too: its lore is active, the AI is told. */
+  besidePlaces: { value: true },
   /** AI (the server part): conversations written by the model, on the connections chosen here ("" is
    *  the Engine's default), in a style and length; pictures through an image connection and style. */
   aiTalk: { value: true },

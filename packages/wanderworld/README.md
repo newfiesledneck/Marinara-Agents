@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.110)
+## What it does now (0.5.111)
 
 ### The world
 
@@ -469,6 +469,11 @@ only walk about.
   camera speed and direction, time of day and time speed, how often places are told (the wait between
   them and the visits before a place is told again), sound, confrontations, people coming up to you,
   what the HUD shows, explanations under every option, and Regenerate this world.
+- A place you're beside counts with the one you're in (Settings → World → Places): on a river's bank,
+  by a pond's shore, at the foot of the mountains, at a cave's mouth, beside a road or near a place out
+  in the country, its lore is active too and prompts say so ("in Whisperwood, near the bank of the
+  Silverrun"). These are no zones of their own: `bordersAt` in `src/zones.js` finds them from where you
+  stand, 4 to 20 metres past a place's edge by kind.
 - A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night. Weather (Settings,
   off by default): mist, fog, rain and snow, the last three light, medium or heavy, and thunderstorms
   with lightning and thunder. It changes every few minutes or stays one kind. Each kind has its own

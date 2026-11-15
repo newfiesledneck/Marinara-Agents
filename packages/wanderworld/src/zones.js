@@ -441,6 +441,57 @@ export function zoneAt(zones, x, z) {
   return best;
 }
 
+/**
+ * How far past its edge (metres) a place still counts as beside you, for the kinds that have a "beside":
+ * water, the mountains, a cave's mouth, a road, and the places out in the country. A town, its streets
+ * and its buildings have none: you're in them or you aren't.
+ */
+const BESIDE = { river: 12, pond: 10, mountains: 20, cave: 8, road: 4, outpost: 8 };
+
+/** How far (x, z) is outside a shape: 0 or less inside it. */
+function distanceTo(shape, x, z) {
+  if (shape.box) {
+    const { minX, maxX, minZ, maxZ } = shape.box;
+    return Math.hypot(Math.max(minX - x, 0, x - maxX), Math.max(minZ - z, 0, z - maxZ));
+  }
+  if (shape.circle) return Math.hypot(x - shape.circle.x, z - shape.circle.z) - shape.circle.r;
+  if (shape.line) return distanceToLine(shape.line.points, x, z) - shape.line.width / 2;
+  return Infinity;
+}
+
+/**
+ * The places (x, z) is beside without being in them: standing in the woods on a river's bank, by a
+ * pond's shore, at the foot of the mountains. Not `zone` (where the point is) or anything that holds it.
+ * Nearest first, two at most. They're no zones of their own: where two places meet, both count.
+ */
+export function bordersAt(zones, x, z, zone = zoneAt(zones, x, z)) {
+  const held = new Set(chainOf(zones, zone).map((entry) => entry.id));
+  return zones.zones
+    .filter((entry) => entry.shape && !held.has(entry.id))
+    .map((entry) => ({
+      zone: entry,
+      reach: BESIDE[entry.outpostKind] ?? BESIDE[entry.kind],
+      distance: distanceTo(entry.shape, x, z),
+    }))
+    .filter((entry) => entry.reach !== undefined && entry.distance <= entry.reach)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 2)
+    .map((entry) => entry.zone);
+}
+
+/** A place you're beside, as words: "near the bank of the Silverrun", "at the foot of the Greyhorns". */
+export function besideWords(zone, name) {
+  return (
+    {
+      river: `near the bank of ${name}`,
+      pond: `near the shore of ${name}`,
+      mountains: `at the foot of ${name}`,
+      cave: `near the mouth of ${name}`,
+      road: `beside ${name}`,
+    }[zone.outpostKind ?? zone.kind] ?? `near ${name}`
+  );
+}
+
 /** A zone's name in this world: the save's rename (`names`), or the default. */
 export function nameOf(zone, names = {}) {
   const renamed = names[zone.id];

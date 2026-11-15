@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.111 — 2026-11-15
+
+- A place you're beside now counts with the one you're in. Standing on a river's bank in the woods, the river's lore is active with the forest's, and the AI and Illustrate are told "in Whisperwood, near the bank of the Silverrun". Before, the bank a few steps from the water was only forest.
+- It applies to rivers (12 m past the edge), ponds (10 m), the mountains (20 m), a cave's mouth (8 m), roads (4 m) and places out in the country such as ruins, standing stones, a mill or an inn (8 m). The two nearest count.
+- The Lore window marks their entries "beside you". Settings → World → Places has the switch, on to begin with.
+
 ## 0.5.110 — 2026-11-15
 
 - Weather looks the same at every draw distance. Each kind now has its own visibility in metres. Before, it was a share of the draw distance, so mist was a wall at Tiny and barely there at Max.

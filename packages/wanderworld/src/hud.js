@@ -815,6 +815,8 @@ export function createHud(root, handlers) {
       "Changing picks every few minutes: mostly clear, sometimes rain, fog or snow, the heavy kinds least often; a winter world gets snow where others get rain. Off keeps the sky clear. How far you can see in each kind is the same at every draw distance.",
     morningMist: "With changing weather, about one clear morning in three starts in mist, from five until eight.",
     lightning: "On: lightning lights the sky in a thunderstorm. Off: a storm has rain and thunder but no flashes.",
+    besidePlaces:
+      "On: a place you're beside counts as well as the one you're in. On a river's bank in the woods, the river's lore is active with the forest's, and the AI and pictures are told you're near the river. It reaches a few metres past water, the mountains, a cave's mouth, a road and places out in the country. Off: only the place you're in.",
     narration:
       'A short written line when you arrive somewhere new, and now and then about who is near. No AI is used. To have the AI write it, turn on AI → Writing → "…when you arrive somewhere".',
     arriveGap:
@@ -1084,6 +1086,7 @@ export function createHud(root, handlers) {
   choice("narration", "Lines about where you are", { off: "Off", lines: "On" });
   slider("arriveGap", "Wait between places told", 5, (value) => `${value} s`);
   slider("arriveVisits", "Visits before a place is told again", 1, String);
+  toggle("besidePlaces", "Places you're beside count too");
   toggle("interiors", "Walk into buildings (unfinished)");
   toggle("worldEvents", "Market days and festivals");
 
