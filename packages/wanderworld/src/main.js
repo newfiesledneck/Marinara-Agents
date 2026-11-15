@@ -69,7 +69,7 @@ import {
   visitOver,
 } from "./household.js";
 import { ANIMALS, animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
-import { checkSetting, DEVICE_SETTINGS, loadSettings, saveSettings, sharedSettings } from "./settings.js";
+import { checkSetting, DEVICE_SETTINGS, frameLimitOf, loadSettings, saveSettings, sharedSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { HOUSE_PIECES } from "./houses.js";
@@ -6265,54 +6265,56 @@ async function illustrateMoment({
                 : "evening";
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
   const recent = [...core.momentLog].reverse().find((line) => line.who === "Narrator")?.text ?? "";
-  return core.ai.illustrate({
-    worldId: core.save.id,
-    template,
-    personaId: core.personaId ?? null,
-    worn: core.inventory.worn(),
-    facts: {
-      persona: personaName(),
-      people,
-      place: placeWords(),
-      placeKind:
-        (core.interior ? "indoors, " : "") +
-        ({
-          plaza: "a market square",
-          street: "a town street",
-          road: "a country road",
-          forest: "the woods",
-          river: "a riverbank",
-          pond: "the bank of a pond",
-          cave: "the mouth of a cave",
-          fountain: "a fountain in a market square",
-          stones: "a ring of standing stones",
-          outskirts: "the edge of town",
-          mountains: "the mountains",
-        }[kind] ?? kind),
-      time: clockText(),
-      timeOfDay,
-      weather: weatherWord(),
-      activity: playerDoing(),
-      setting: core.save.setting ?? "",
-      look: core.save.look || PACK.look,
-      recent,
-      // The last of the chat, for the rewrite: what's being done right now is in there, not in "standing".
-      chat: core.momentLog.slice(-8).map((line) => ({ who: line.who, text: line.text })),
-    },
-    caption: `${placeWords()}, ${clockText()}`,
-    connectionId: core.settings.imageConnection || null,
-    styleProfileId: core.settings.imageStyle,
-    // (The style in words, and what it keeps out: the Engine adds neither to a finished prompt.)
-    style: styleWords(core.settings.imageStyle).words,
-    negative: styleWords(core.settings.imageStyle).negative,
-    width,
-    height,
-    improve,
-    instruction,
-    previewOnly,
-    prompt,
-    textConnectionId: rewriteConnection || core.settings.textConnection || null,
-  });
+  return (previewOnly ? (work) => work() : painting)(() =>
+    core.ai.illustrate({
+      worldId: core.save.id,
+      template,
+      personaId: core.personaId ?? null,
+      worn: core.inventory.worn(),
+      facts: {
+        persona: personaName(),
+        people,
+        place: placeWords(),
+        placeKind:
+          (core.interior ? "indoors, " : "") +
+          ({
+            plaza: "a market square",
+            street: "a town street",
+            road: "a country road",
+            forest: "the woods",
+            river: "a riverbank",
+            pond: "the bank of a pond",
+            cave: "the mouth of a cave",
+            fountain: "a fountain in a market square",
+            stones: "a ring of standing stones",
+            outskirts: "the edge of town",
+            mountains: "the mountains",
+          }[kind] ?? kind),
+        time: clockText(),
+        timeOfDay,
+        weather: weatherWord(),
+        activity: playerDoing(),
+        setting: core.save.setting ?? "",
+        look: core.save.look || PACK.look,
+        recent,
+        // The last of the chat, for the rewrite: what's being done right now is in there, not in "standing".
+        chat: core.momentLog.slice(-8).map((line) => ({ who: line.who, text: line.text })),
+      },
+      caption: `${placeWords()}, ${clockText()}`,
+      connectionId: core.settings.imageConnection || null,
+      styleProfileId: core.settings.imageStyle,
+      // (The style in words, and what it keeps out: the Engine adds neither to a finished prompt.)
+      style: styleWords(core.settings.imageStyle).words,
+      negative: styleWords(core.settings.imageStyle).negative,
+      width,
+      height,
+      improve,
+      instruction,
+      previewOnly,
+      prompt,
+      textConnectionId: rewriteConnection || core.settings.textConnection || null,
+    }),
+  );
 }
 
 /** Where the player is, in words: the place and the places it's in. */
@@ -6744,15 +6746,17 @@ async function pictureHere() {
   core.picture = { zoneId: zone.id, place, url: null, pending: true, error: null };
   core.journalAt = 0;
   try {
-    const { image } = await core.ai.image({
-      prompt,
-      name: place || "wanderworld",
-      width: 768,
-      height: 512,
-      connectionId: core.settings.imageConnection || null,
-      styleProfileId: core.settings.imageStyle,
-      negative: styleWords(core.settings.imageStyle).negative,
-    });
+    const { image } = await painting(() =>
+      core.ai.image({
+        prompt,
+        name: place || "wanderworld",
+        width: 768,
+        height: 512,
+        connectionId: core.settings.imageConnection || null,
+        styleProfileId: core.settings.imageStyle,
+        negative: styleWords(core.settings.imageStyle).negative,
+      }),
+    );
     core.picture = { ...core.picture, url: image, pending: false };
   } catch (error) {
     core.picture = { ...core.picture, pending: false, error: error?.message ?? String(error) };
@@ -7935,6 +7939,16 @@ function step(dt) {
   savePlace();
 }
 
+/** `work()`, counted as a picture being painted until it's done or fails (frameLimitOf). */
+async function painting(work) {
+  core.painting = (core.painting ?? 0) + 1;
+  try {
+    return await work();
+  } finally {
+    core.painting--;
+  }
+}
+
 function frame(time) {
   if (!core.element || !core.renderer) {
     core.raf = 0;
@@ -7942,6 +7956,12 @@ function frame(time) {
   }
   core.raf = requestAnimationFrame(frame);
   if (!core.world || core.paused) return;
+  // The frame rate limit (and 30 a second while a picture is painted, when that's on): a frame that's early is skipped.
+  const limit = frameLimitOf(core.settings, core.painting > 0);
+  if (limit) {
+    if (time < (core.frameDue ?? 0) - 1) return;
+    core.frameDue = Math.max((core.frameDue ?? 0) + 1000 / limit, time);
+  }
   const dt = core.lastTime ? Math.min(0.1, (time - core.lastTime) / 1000) : 0;
   core.lastTime = time;
   step(dt);

@@ -788,6 +788,10 @@ export function createHud(root, handlers) {
     treeDetail:
       "Trees further off than this are drawn as simple shapes. Detailed trees are the costliest thing on screen, so Near is much faster; you'll see trees change as you walk up to them. Never further than the draw distance.",
     shadows: "Soft shadows under people.",
+    frameLimit:
+      "The most frames drawn a second. A lower limit leaves more of the graphics card for other things (a picture being painted on this computer) and keeps a laptop or phone cooler. Never more than your screen shows.",
+    paintSlow:
+      "While a picture is being painted, Wanderworld draws no more than 30 frames a second, and goes back when the picture arrives. For when the pictures are painted on this computer's graphics card.",
     nature: "On: detailed trees and plants. Off: simple shapes, which is faster.",
     props: "On: detailed barrels, crates, benches and stalls. Off: simple shapes.",
     buildings: "On: detailed buildings. Off: simple boxes.",
@@ -998,6 +1002,8 @@ export function createHud(root, handlers) {
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
   choice("density", "Trees and rocks", { 0.25: "Sparse", 0.5: "Normal", 1: "2×", 4: "8×", 10: "20×" });
   toggle("shadows", "Shadows under people");
+  choice("frameLimit", "Frame rate limit", { 0: "No limit", 30: "30", 60: "60", 100: "100" });
+  toggle("paintSlow", "Draw slower while a picture is painted");
   choice("ground", "Ground", { full: "Full", simple: "Simple" });
   toggle("nature", "Detailed trees and plants");
   choice(
