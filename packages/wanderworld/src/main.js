@@ -443,6 +443,11 @@ function gendersNow(save = core.save) {
 
 function applySettings() {
   const { settings } = core;
+  // Quartermaster's window closes at a press anywhere outside it, except on one of its own launch
+  // buttons. Marked as one, the whole game is left alone, so walking and talking don't close the window.
+  // ponytail: this leans on Quartermaster's "qm-launch" class (its dock's outside-press check). If that
+  // changes the window just closes again; the fix then is a "pinned" option asked of Quartermaster.
+  core.stage?.classList.toggle("qm-launch", settings.inventory === true && settings.inventoryPinned === true);
   setGenderShares(gendersNow());
   core.world?.setDensity(settings.density);
   core.world?.setDrawDistance(settings.drawDistance);
@@ -7578,7 +7583,7 @@ function stepClock(dt) {
   // The weather: off (clear), one kind always, or changing every few minutes (the same for a world each time).
   core.weatherTime = (core.weatherTime ?? 0) + dt;
   const setting = core.settings.weather ?? "off";
-  core.world.setSeason(core.save?.season ?? "");
+  core.world.setSeason(core.save?.season ?? "", core.settings.winterLook);
   let kind = setting === "off" ? "clear" : setting;
   if (setting === "changing") {
     const seed = hashString(regionSeed(core.save ?? { region: HOME_REGION, seed: "" }));

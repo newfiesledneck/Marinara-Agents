@@ -94,6 +94,8 @@ export const SETTINGS = {
       "snow-heavy",
     ],
   },
+  /** A winter world's trees, bushes and stones under snow, its grass and flowers gone, drifts under the trees. */
+  winterLook: { value: true },
   /** With changing weather: some clear mornings start in mist. */
   morningMist: { value: true },
   /** Lightning lights the sky in a storm (off: thunder only, for anyone flashes bother). */
@@ -130,6 +132,8 @@ export const SETTINGS = {
   // A scene's chat uses the world's sheet; and Quartermaster's window in Wanderworld's parchment colours.
   inventoryScenes: { value: true },
   inventoryTheme: { value: true },
+  /** Quartermaster's window stays open when you click in the game (it closes at a click anywhere else). */
+  inventoryPinned: { value: true },
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },
@@ -251,6 +255,7 @@ export const DEVICE_SETTINGS = new Set([
   "resolution",
   "smooth",
   "drawDistance",
+  "winterLook",
   "density",
   "ground",
   "treeDetail",

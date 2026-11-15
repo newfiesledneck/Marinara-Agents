@@ -8,28 +8,29 @@ import {
   BoxGeometry,
   BufferGeometry,
   Color,
-  DataTexture,
-  DoubleSide,
   ConeGeometry,
   CylinderGeometry,
+  DataTexture,
   DirectionalLight,
   DodecahedronGeometry,
+  DoubleSide,
   Float32BufferAttribute,
   Fog,
   HemisphereLight,
   IcosahedronGeometry,
   InstancedMesh,
+  LinearFilter,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
   MeshPhongMaterial,
   Object3D,
-  LinearFilter,
   PlaneGeometry,
   PointLight,
   RepeatWrapping,
   Scene,
+  SphereGeometry,
   SRGBColorSpace,
   Vector3,
 } from "three";
@@ -167,6 +168,8 @@ const KIT_PLANTS = [
   ["pebble-round-1", 1, 1.4],
   ["pebble-round-3", 1, 1.4],
 ];
+/** What dies back in winter: grass, ferns, flowers, clover and mushrooms. Bushes, trees and stones stay, under snow. */
+const WINTER_GONE = /^(?:fern|plant|clover|mushroom|grass|flower)/u;
 /** Every kit model the nature uses, for loading. */
 /** How far each kind of detailed nature is drawn (metres, and never past the draw distance). */
 const NATURE_REACH = { plant: 70, rock: 160, tree: 180 };
@@ -2812,6 +2815,7 @@ function terrainUniforms() {
     uniforms[`s${name}`] = { value: layer.scale };
   }
   uniforms.uWinter = { value: 0 }; // how far the grass and forest floor lie under snow (a season)
+  uniforms.uSnow = { value: 0 }; // and how far the trees, bushes and stones do (snowOn)
   return uniforms;
 }
 
@@ -2950,6 +2954,43 @@ function waterMaterial(uniforms) {
  * direction (triplanar), so a vertical face shows it as well as a ledge does, with no stretching; the
  * vertex colours still put moss on top and darkness deep inside.
  */
+/**
+ * Lays snow on a material as far as `snow.value` says (0: none): white on whatever faces the sky, and
+ * with `leafy` nearly all over (a tree's leaves are flat cards facing every way, and would stay green or
+ * red). Keeps what the material already does to its shader.
+ */
+function snowOn(material, snow, leafy) {
+  const before = material.onBeforeCompile;
+  const key = material.customProgramCacheKey?.() ?? "";
+  material.onBeforeCompile = (shader, renderer) => {
+    before?.call(material, shader, renderer);
+    shader.uniforms.uSnow = snow;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vSnowUp;")
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+#ifdef USE_INSTANCING
+vSnowUp = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal).y;
+#else
+vSnowUp = normalize(mat3(modelMatrix) * objectNormal).y;
+#endif`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform float uSnow;\nvarying float vSnowUp;")
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+{
+  float cover = ${leafy ? "0.9 + 0.1 * abs(vSnowUp)" : "smoothstep(0.2, 0.7, vSnowUp)"};
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.95, 1.0), clamp(uSnow * 1.15 * cover, 0.0, 1.0));
+}`,
+      );
+  };
+  material.customProgramCacheKey = () => `${key}-snow-${leafy}`;
+  return material;
+}
+
 function cliffMaterial(uniforms, { texture = "tCliff", vertexColors = true, scale = 5.5, boost = 1.85 } = {}) {
   const material = new MeshLambertMaterial({ vertexColors });
   material.onBeforeCompile = (shader) => {
@@ -3533,11 +3574,39 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   // instances rewritten to just those within sight of the player and allowed by the density whenever the
   // player has moved a little way.
   const natureLayers = []; // { meshes: InstancedMesh[], items: [{ x, z, need, matrix }] }
+  // Winter's drifts: low mounds of snow at the foot of trees, only there in a winter world.
+  const driftSpots = trees.slice(0, 2000).flatMap((tree, i) => {
+    const angle = tree.tint * 40 + i;
+    const x = tree.x + Math.cos(angle) * (1 + (i % 5) * 0.2);
+    const z = tree.z + Math.sin(angle) * (1 + (i % 5) * 0.2);
+    // (Not on a slope, where a mound would stick out of the hillside.)
+    const steep = Math.abs(heightAt(x + 1, z) - heightAt(x - 1, z)) + Math.abs(heightAt(x, z + 1) - heightAt(x, z - 1));
+    return builtOver(x, z, 1) || waterAt(x, z).depth > 0 || steep > 0.7
+      ? []
+      : [{ x, z, angle, size: 0.7 + (i % 7) * 0.13 }];
+  });
+  const drifts = new InstancedMesh(
+    new SphereGeometry(1, 7, 4),
+    new MeshLambertMaterial({ color: 0xeef2fa }),
+    Math.max(1, driftSpots.length),
+  );
+  drifts.count = driftSpots.length;
+  drifts.frustumCulled = false;
+  drifts.visible = false;
+  driftSpots.forEach((spot, i) => {
+    dummy.position.set(spot.x, heightAt(spot.x, spot.z) - 0.05, spot.z);
+    dummy.rotation.set(0, spot.angle, 0);
+    dummy.scale.set(spot.size * 1.3, spot.size * 0.3, spot.size);
+    dummy.updateMatrix();
+    drifts.setMatrixAt(i, dummy.matrix);
+  });
+  scene.add(drifts);
   const view = {
     x: Infinity,
     z: Infinity,
     radius: 200,
     density: DENSITIES[0],
+    winter: false,
     treeReach: NATURE_REACH.tree,
     cone: null,
   };
@@ -3591,12 +3660,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     return distance < CONE_NEAR ** 2 || ox * cone.dx + oz * cone.dz > cone.cos * Math.sqrt(distance);
   };
   function refreshNature() {
-    for (const { meshes, items, kind } of natureLayers) {
+    for (const { meshes, items, kind, gone } of natureLayers) {
       // Small plants only nearby, rocks a little further, detailed trees out to a point; past that the
       // simple trees stand in (below), all under the fog.
       const reach = (Math.min(view.radius, kind === "tree" ? view.treeReach : NATURE_REACH[kind]) + 15) ** 2;
       let count = 0;
       for (const item of items) {
+        if (gone && view.winter) break; // died back for the winter
         if (item.need > view.density) continue;
         if ((item.x - view.x) ** 2 + (item.z - view.z) ** 2 > reach) continue;
         if (!inCone(item)) continue;
@@ -3623,7 +3693,12 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       if (distance < near || distance > out || !inCone(trees[i])) continue;
       trunks.setMatrixAt(count, treeMatrices[i]);
       crowns.setMatrixAt(count, treeMatrices[i]);
-      crowns.setColorAt(count, crownColor.setHSL(0.3 + trees[i].tint * 0.08, 0.45, 0.26 + trees[i].tint * 0.08));
+      crowns.setColorAt(
+        count,
+        view.winter
+          ? crownColor.setHSL(0.58, 0.12, 0.74 + trees[i].tint * 0.1) // under snow
+          : crownColor.setHSL(0.3 + trees[i].tint * 0.08, 0.45, 0.26 + trees[i].tint * 0.08),
+      );
       count++;
     }
     trunks.count = crowns.count = count;
@@ -3814,7 +3889,11 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   function addNature(models) {
     const placements = new Map(); // model name → [{ x, z, need, matrix }]
     // Rocks and boulders in the painted rock (the same as the mountains'), lit a touch brighter.
-    const boulderLook = cliffMaterial(ground, { texture: "trock", vertexColors: false, scale: 2.2, boost: 1.05 });
+    const boulderLook = snowOn(
+      cliffMaterial(ground, { texture: "trock", vertexColors: false, scale: 2.2, boost: 1.05 }),
+      ground.uSnow,
+      false,
+    );
     const place = (name, x, z, need) => {
       if (!placements.has(name)) placements.set(name, []);
       placements.get(name).push({ x, z, need, matrix: dummy.matrix.clone() });
@@ -3892,15 +3971,21 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     for (const [name, items] of placements) {
       const boulder = KIT_ROCKS.includes(name);
       const kind = boulder ? "rock" : KIT_TREES.some(([tree]) => tree === name) ? "tree" : "plant";
-      const meshes = models.get(name).map(({ geometry, material }) => {
-        const instanced = new InstancedMesh(geometry, boulder ? boulderLook : material, items.length);
+      // Each part in a copy of its material that takes snow in winter (the kit's own is every world's):
+      // leaves nearly all over; bark, stone and the rest where they face the sky.
+      // (Told apart by their texture's name: bark is a cut-out too.)
+      const meshes = models.get(name).map(({ geometry, material, texture }) => {
+        const look = boulder
+          ? boulderLook
+          : snowOn(material.clone(), ground.uSnow, /^(?:leaves|leaf|flowers)/u.test(texture));
+        const instanced = new InstancedMesh(geometry, look, items.length);
         instanced.frustumCulled = false; // round the player anyway, and its instances change as they move
         instanced.userData.kit = true;
         instanced.userData.model = name;
         scene.add(instanced);
         return instanced;
       });
-      natureLayers.push({ meshes, items, kind });
+      natureLayers.push({ meshes, items, kind, gone: WINTER_GONE.test(name) });
     }
     view.x = Infinity; // drawn from wherever the player is on the next follow()
     refreshNature();
@@ -4084,8 +4169,27 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     dispose,
     /** The weather to ease into: "clear", "rain", "snow" or "mist" (weather.js). */
     /** The season the land wears: winter lies under snow; the others are the green land. */
-    setSeason(season) {
-      ground.uWinter.value = season === "winter" ? 0.85 : 0;
+    setSeason(season, snowy = true) {
+      const winter = season === "winter";
+      ground.uWinter.value = winter ? 0.85 : 0;
+      // Snow on the trees, bushes and stones, the grass and flowers gone, drifts under the trees
+      // (`snowy`: Settings → Display → Graphics; off, winter is the snowy ground alone).
+      const look = winter && snowy;
+      if (look === view.winter) return;
+      view.winter = look;
+      ground.uSnow.value = look ? 0.85 : 0;
+      drifts.visible = look;
+      // The woods past the world's edge, pale with it.
+      beyond.forEach((tree, i) =>
+        farCrowns.setColorAt(
+          i,
+          look
+            ? crownColor.setHSL(0.58, 0.12, 0.74 + tree.tint * 0.1)
+            : crownColor.setHSL(0.3 + tree.tint * 0.08, 0.45, 0.26 + tree.tint * 0.08),
+        ),
+      );
+      if (farCrowns.instanceColor) farCrowns.instanceColor.needsUpdate = true;
+      refreshNature();
     },
     setWeather(kind) {
       sky_.target = WEATHER_LOOK[kind] ? kind : "clear";

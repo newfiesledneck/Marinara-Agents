@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.0 — 2026-11-15
+
+- Winter looks like winter. In a winter world (Journal → World → Season) the trees' leaves and the bushes are white with snow, bark and stones carry it on top, and the far-off trees are pale. Grass, ferns, flowers, clover and mushrooms are gone, and drifts of snow lie under the trees. Settings → Display → Graphics has the switch.
+- The inventory window stays open while you play. It closed at every click in the game; now it closes with its own close button or the Inventory button. Settings → People → Inventory has the switch.
+- Versions now roll over at 99: this one follows 0.5.111 as 0.6.0.
+
 ## 0.5.111 — 2026-11-15
 
 - A place you're beside now counts with the one you're in. Standing on a river's bank in the woods, the river's lore is active with the forest's, and the AI and Illustrate are told "in Whisperwood, near the bank of the Silverrun". Before, the bank a few steps from the water was only forest.
