@@ -136,6 +136,7 @@ import {
   usualDay,
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
+import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolFor, TOOLS } from "./craft.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -7754,6 +7755,13 @@ async function gather(kind) {
     return void core.hud?.setNotice(
       "What you gather goes into your inventory, which the Quartermaster package keeps: install it, and turn on Settings → People → Inventory.",
     );
+  // Its tool, when it takes one (Settings → People → Inventory → "Gathering needs tools").
+  if (core.settings.gatherTools && TOOLS[kind] && !toolFor(kind, await readItems())) {
+    const first = PACK.recipes.find((recipe) => toolFor(kind, [recipe]));
+    return void core.hud?.setNotice(
+      `You need ${TOOLS[kind].need} for that.${first ? ` Inventory → Craft makes a ${first.name.toLowerCase()} from ${first.needs.map((need) => `${need.quantity > 1 ? `${need.quantity} × ` : ""}${need.name.toLowerCase()}`).join(", ")}, all found by foraging.` : ""}`,
+    );
+  }
   const who = personaName();
   const lines = PACK.gather.lines[kind];
   const at = core.player.position;
@@ -7787,6 +7795,57 @@ async function gather(kind) {
   const what = `${got.found.quantity > 1 ? `${got.found.quantity} × ` : ""}${got.found.name}`;
   narrate(null, `${lines.found.replace("{who}", who).replace("{what}", what)}${felled}`);
   core.hud?.refreshInventory?.();
+}
+
+// ── Crafting (craft.js) ─────────────────────────────────────────────────────────────────────────────────
+
+/** The recipes known now (the setting's by level, and the player's own), each against what's carried. */
+async function recipesNow() {
+  const ready = core.inventory.ready();
+  const items = ready ? await readItems() : [];
+  const level = core.settings.sheet ? valueOf(sheetNow(), "level") : null;
+  const known = knownRecipes(PACK.recipes, checkRecipes(core.save?.recipes), level);
+  const carried = new Map();
+  for (const item of items) carried.set(item.name, (carried.get(item.name) ?? 0) + (Number(item.quantity) || 1));
+  return {
+    ready,
+    locked: known.locked,
+    recipes: known.recipes.map((recipe) => ({ ...recipe, ...canCraft(recipe, items) })),
+    items: [...carried].map(([name, quantity]) => ({ name, quantity })).sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+/** Makes `recipe` once: what it needs is taken from Quartermaster's sheet and what it makes is added, and the chat says so. */
+async function craftRecipe(recipe) {
+  const takes = craftTakes(recipe, await readItems());
+  if (!takes) throw new Error(`You don't have everything ${recipe.name} needs.`);
+  for (const take of takes)
+    await core.inventory.change(take.id, take.quantity > 0 ? { quantity: take.quantity } : null);
+  await core.inventory.add({ name: recipe.name, description: recipe.description, quantity: recipe.makes });
+  await readItems();
+  if (core.settings.sheet) setSheet(gainXp(sheetNow(), 5).sheet);
+  core.gesture = "interact";
+  narrate(null, `${personaName()} makes ${recipe.makes > 1 ? `${recipe.makes} × ` : ""}${recipe.name}.`);
+}
+
+async function craft(id) {
+  const level = core.settings.sheet ? valueOf(sheetNow(), "level") : null;
+  const recipe = knownRecipes(PACK.recipes, checkRecipes(core.save?.recipes), level).recipes.find(
+    (entry) => entry.id === id,
+  );
+  if (!recipe) throw new Error("That recipe isn't known.");
+  await craftRecipe(recipe);
+}
+
+/** Saves what was put together as a recipe of the player's own (and makes it now, with `make`). */
+async function keepRecipe(made, make) {
+  if (!core.save) return;
+  const before = checkRecipes(core.save.recipes);
+  const recipes = saveRecipe(before, made);
+  if (recipes === before) throw new Error("A recipe needs a name, and at least one thing put in.");
+  core.save = { ...core.save, recipes };
+  core.saves.write(core.save);
+  if (make) await craftRecipe(recipes.at(-1));
 }
 
 /** What money is called in this world, and how much of it is carried (the quantity of the item of that name). */
@@ -8419,6 +8478,14 @@ function attach(element) {
           .slice(0, 30),
       }),
     onGather: (kind) => void gather(kind),
+    onRecipes: recipesNow,
+    onCraft: craft,
+    onSaveRecipe: keepRecipe,
+    onForgetRecipe: (id) => {
+      if (!core.save) return;
+      core.save = { ...core.save, recipes: checkRecipes(core.save.recipes).filter((recipe) => recipe.id !== id) };
+      core.saves.write(core.save);
+    },
     onItemAction: itemAction,
     // The chat window emptied: nothing of it is sent as context after this (every prompt takes its lines
     // of what was said and told from this log). What people remember is theirs and stays.

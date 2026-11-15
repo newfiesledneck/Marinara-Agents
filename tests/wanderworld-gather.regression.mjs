@@ -23,7 +23,7 @@ assert.deepEqual(
   ["chop"],
   "a tree is a tree wherever it stands",
 );
-assert.deepEqual(gatherHere({ zone: "forest", season: "winter", water: true, tree: true }), ["fish", "chop"]);
+assert.deepEqual(gatherHere({ zone: "forest", season: "winter", water: true, tree: true }), ["fish", "chop", "forage"]);
 assert.deepEqual(gatherHere({ zone: "meadow", season: "" }), ["forage"]);
 assert.deepEqual(
   gatherHere({ zone: "forest", beside: ["mountains"], season: "fall" }),
@@ -31,7 +31,11 @@ assert.deepEqual(
   "not at the mountains at large",
 );
 assert.deepEqual(gatherHere({ zone: "mountains", rock: true, season: "fall" }), ["mine"], "at a boulder");
-assert.deepEqual(gatherHere({ zone: "forest", beside: ["cave"], season: "winter" }), ["mine"], "at a cave's mouth");
+assert.deepEqual(
+  gatherHere({ zone: "forest", beside: ["cave"], season: "winter" }),
+  ["forage", "mine"],
+  "at a cave's mouth",
+);
 assert.deepEqual(gatherHere({ zone: "cave", season: "" }), ["mine"]);
 assert.deepEqual(gatherHere({ zone: "outpost", outpost: "farm", season: "fall" }), ["harvest"]);
 assert.deepEqual(gatherHere({ zone: "outpost", outpost: "farm", season: "spring" }), []);
