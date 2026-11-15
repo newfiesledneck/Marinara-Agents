@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.1",
+          "date": "2026-11-15",
+          "notes": "- Winter's roads, paths, streets and the square lie under patchy snow, with the dirt or paving showing through where it's trodden.\n- Fall: each broadleaf tree and bush turns yellow, orange or red, the grass is dry and yellowed, and the flowers and clover are gone. Pines stay green.\n- Spring: about a third of the broadleaf trees are in blossom, and the rest, with the grass, are a fresher green.\n- The season is the world's own (Journal → World → Season). The Graphics switch is now \"Trees, plants and streets wear the season\" and covers all three.",
+          "highlight": false
+        },
+        {
           "version": "0.6.0",
           "date": "2026-11-15",
           "notes": "- Winter looks like winter. In a winter world (Journal → World → Season) the trees' leaves and the bushes are white with snow, bark and stones carry it on top, and the far-off trees are pale. Grass, ferns, flowers, clover and mushrooms are gone, and drifts of snow lie under the trees. Settings → Display → Graphics has the switch.\n- The inventory window stays open while you play. It closed at every click in the game; now it closes with its own close button or the Inventory button. Settings → People → Inventory has the switch.\n- Versions now roll over at 99: this one follows 0.5.111 as 0.6.0.",
@@ -307,12 +313,6 @@
           "version": "0.5.94",
           "date": "2026-11-14",
           "notes": "- Loading another world can't save the world you're leaving over it: nothing is saved from the moment the other world is picked until it is built. The world you leave is saved, under its own name, before that.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.93",
-          "date": "2026-11-14",
-          "notes": "- Menu → Save world saves now and sends it to the Engine now, and says if the Engine didn't take it.\n- Menu → Load world lists your worlds as the Engine has them now and opens the one you pick. The world you're in is saved first.\n- Switching between a phone and a computer: a browser left open reads the Engine's saves again when you come back to it, and a world played somewhere else since is loaded from there instead of being carried on with (and saved over) from the old copy. Leaving the tab or locking the phone saves and sends at once.",
           "highlight": false
         }
       ]

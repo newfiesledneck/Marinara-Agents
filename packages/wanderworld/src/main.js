@@ -7583,7 +7583,7 @@ function stepClock(dt) {
   // The weather: off (clear), one kind always, or changing every few minutes (the same for a world each time).
   core.weatherTime = (core.weatherTime ?? 0) + dt;
   const setting = core.settings.weather ?? "off";
-  core.world.setSeason(core.save?.season ?? "", core.settings.winterLook);
+  core.world.setSeason(core.save?.season ?? "", core.settings.seasonLook);
   let kind = setting === "off" ? "clear" : setting;
   if (setting === "changing") {
     const seed = hashString(regionSeed(core.save ?? { region: HOME_REGION, seed: "" }));

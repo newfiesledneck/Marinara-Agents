@@ -168,8 +168,18 @@ const KIT_PLANTS = [
   ["pebble-round-1", 1, 1.4],
   ["pebble-round-3", 1, 1.4],
 ];
-/** What dies back in winter: grass, ferns, flowers, clover and mushrooms. Bushes, trees and stones stay, under snow. */
-const WINTER_GONE = /^(?:fern|plant|clover|mushroom|grass|flower)/u;
+/**
+ * What isn't there in a season. Winter: grass, ferns, flowers, clover and mushrooms have died back (bushes,
+ * trees and stones stay, under snow). Fall: the flowers and clover are over.
+ */
+const SEASON_GONE = { winter: /^(?:fern|plant|clover|mushroom|grass|flower)/u, fall: /^(?:flower|clover)/u };
+/** A far-off simple tree's colour in a season (`tint`: 0–1, its own). Half of fall's keep their green: pines. */
+function crownTint(color, season, tint) {
+  if (season === "winter") return color.setHSL(0.58, 0.12, 0.74 + tint * 0.1); // under snow
+  if (season === "fall" && tint > 0.5) return color.setHSL(0.03 + tint * 0.1, 0.7, 0.36);
+  if (season === "spring") return color.setHSL(0.27 + tint * 0.08, 0.52, 0.33 + tint * 0.08);
+  return color.setHSL(0.3 + tint * 0.08, 0.45, 0.26 + tint * 0.08);
+}
 /** Every kit model the nature uses, for loading. */
 /** How far each kind of detailed nature is drawn (metres, and never past the draw distance). */
 const NATURE_REACH = { plant: 70, rock: 160, tree: 180 };
@@ -2815,7 +2825,10 @@ function terrainUniforms() {
     uniforms[`s${name}`] = { value: layer.scale };
   }
   uniforms.uWinter = { value: 0 }; // how far the grass and forest floor lie under snow (a season)
-  uniforms.uSnow = { value: 0 }; // and how far the trees, bushes and stones do (snowOn)
+  // What the trees, bushes, stones and streets wear (seasonOn): snow, fall's colours, spring's.
+  uniforms.uSnow = { value: 0 };
+  uniforms.uFall = { value: 0 };
+  uniforms.uSpring = { value: 0 };
   return uniforms;
 }
 
@@ -2859,6 +2872,9 @@ vGround = (modelMatrix * vec4(transformed, 1.0)).xz;`,
 uniform sampler2D tMacro, tgrass, tdirt, trock, tsand, tsnow, tcobbles, tsetts, tplaza, tforest;
 uniform float sgrass, sdirt, srock, ssand, ssnow, scobbles, ssetts, splaza, sforest;
 uniform float uWinter;
+uniform float uSnow;
+uniform float uFall;
+uniform float uSpring;
 varying vec4 vSplatA;
 varying vec4 vSplatB;
 varying vec4 vSplatC;
@@ -2887,11 +2903,19 @@ vec3 groundLayer(sampler2D map, float scale, float weight, vec2 dx, vec2 dy) {
   float total = max(0.0001, dot(vSplatA, vec4(1.0)) + dot(vSplatB, vec4(1.0)) + vSplatC.x);
   vec2 gx = dFdx(vGround);
   vec2 gy = dFdy(vGround);
-  vec3 ground = (groundLayer(tgrass, sgrass, vSplatA.x * (1.0 - uWinter), gx, gy) + groundLayer(tdirt, sdirt, vSplatA.y, gx, gy)
+  // Winter's roads, paths and paving: snow over part of them, in patches, the way showing through where
+  // it's trodden (the dirt, cobbles, setts and slabs each give up that share to the snow).
+  float trod = uSnow * (0.3 + 0.45 * texture2D(tMacro, vGround / 7.0).r);
+  float paved = vSplatA.y + vSplatB.y + vSplatB.z + vSplatB.w;
+  vec3 ground = (groundLayer(tgrass, sgrass, vSplatA.x * (1.0 - uWinter), gx, gy) + groundLayer(tdirt, sdirt, vSplatA.y * (1.0 - trod), gx, gy)
     + groundLayer(trock, srock, vSplatA.z, gx, gy) + groundLayer(tsand, ssand, vSplatA.w, gx, gy)
-    + groundLayer(tsnow, ssnow, vSplatB.x + uWinter * (vSplatA.x + vSplatC.x), gx, gy) + groundLayer(tcobbles, scobbles, vSplatB.y, gx, gy)
-    + groundLayer(tsetts, ssetts, vSplatB.z, gx, gy) + groundLayer(tplaza, splaza, vSplatB.w, gx, gy)
+    + groundLayer(tsnow, ssnow, vSplatB.x + uWinter * (vSplatA.x + vSplatC.x) + trod * paved, gx, gy) + groundLayer(tcobbles, scobbles, vSplatB.y * (1.0 - trod), gx, gy)
+    + groundLayer(tsetts, ssetts, vSplatB.z * (1.0 - trod), gx, gy) + groundLayer(tplaza, splaza, vSplatB.w * (1.0 - trod), gx, gy)
     + groundLayer(tforest, sforest, vSplatC.x * (1.0 - uWinter), gx, gy)) / total;
+  // Fall's grass is dry and yellowed, spring's a fresher green (by how much of the ground here is grass).
+  float grassy = (vSplatA.x + vSplatC.x) / total;
+  ground *= mix(vec3(1.0), vec3(1.14, 0.97, 0.66), uFall * grassy);
+  ground *= mix(vec3(1.0), vec3(0.93, 1.1, 0.82), uSpring * grassy);
 #ifdef GROUND_SIMPLE
   diffuseColor.rgb *= ground * 0.93;
 #else
@@ -2955,39 +2979,73 @@ function waterMaterial(uniforms) {
  * vertex colours still put moss on top and darkness deep inside.
  */
 /**
- * Lays snow on a material as far as `snow.value` says (0: none): white on whatever faces the sky, and
- * with `leafy` nearly all over (a tree's leaves are flat cards facing every way, and would stay green or
- * red). Keeps what the material already does to its shader.
+ * Has a material wear the season, by the ground's uniforms (`uSnow`, `uFall`, `uSpring`: 0 is none). `kind`:
+ * - "leaf": a broadleaf's leaves or a bush. Snow nearly all over in winter (they're flat cards facing every
+ *   way, and would stay green or red); turned yellow, orange or red in fall, each tree its own; a third of
+ *   them in blossom in spring and the rest a fresher green.
+ * - "needle": a pine's. Snow as leaves have it, and green the year round.
+ * - "top": bark, stone and the rest. Snow where they face the sky.
+ * - "trodden": a street or a square. Snow over about half of it, in patches, the paving showing through.
+ * Keeps what the material already does to its shader.
  */
-function snowOn(material, snow, leafy) {
+function seasonOn(material, uniforms, kind) {
   const before = material.onBeforeCompile;
   const key = material.customProgramCacheKey?.() ?? "";
+  const cover = {
+    leaf: "0.9 + 0.1 * abs(vSeason.x)",
+    needle: "0.9 + 0.1 * abs(vSeason.x)",
+    top: "smoothstep(0.2, 0.7, vSeason.x)",
+    // (Two wandering waves, so the patches don't line up into squares.)
+    trodden:
+      "0.3 + 0.45 * smoothstep(0.2, 0.8, 0.5 + 0.3 * sin(vSeason.z * 0.53 + 2.0 * sin(vSeason.w * 0.21)) + 0.2 * sin(vSeason.w * 0.71 + 2.0 * sin(vSeason.z * 0.17)))",
+  }[kind];
   material.onBeforeCompile = (shader, renderer) => {
     before?.call(material, shader, renderer);
-    shader.uniforms.uSnow = snow;
+    shader.uniforms.uSnow = uniforms.uSnow;
+    shader.uniforms.uFall = uniforms.uFall;
+    shader.uniforms.uSpring = uniforms.uSpring;
+    // vSeason: how far the face looks up, a number of the tree's own (from where it stands), and where it is.
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying float vSnowUp;")
+      .replace("#include <common>", "#include <common>\nvarying vec4 vSeason;")
       .replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
 #ifdef USE_INSTANCING
-vSnowUp = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal).y;
+vec4 seasonAt = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+vSeason = vec4(
+  normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal).y,
+  fract(sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453),
+  seasonAt.xz
+);
 #else
-vSnowUp = normalize(mat3(modelMatrix) * objectNormal).y;
+vec4 seasonAt = modelMatrix * vec4(transformed, 1.0);
+vSeason = vec4(normalize(mat3(modelMatrix) * objectNormal).y, 0.5, seasonAt.xz);
 #endif`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float uSnow;\nvarying float vSnowUp;")
+      .replace(
+        "#include <common>",
+        "#include <common>\nuniform float uSnow;\nuniform float uFall;\nuniform float uSpring;\nvarying vec4 vSeason;",
+      )
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
 {
-  float cover = ${leafy ? "0.9 + 0.1 * abs(vSnowUp)" : "smoothstep(0.2, 0.7, vSnowUp)"};
+${
+  kind === "leaf"
+    ? `  float light = dot(diffuseColor.rgb, vec3(0.35, 0.5, 0.15));
+  vec3 turned = vSeason.y < 0.35 ? vec3(0.95, 0.7, 0.14) : vSeason.y < 0.72 ? vec3(0.9, 0.42, 0.1) : vec3(0.68, 0.17, 0.1);
+  diffuseColor.rgb = mix(diffuseColor.rgb, turned * min(1.05, 0.5 + light * 1.3), uFall * 0.88);
+  vec3 fresh = vSeason.y > 0.67 ? vec3(1.0, 0.8, 0.88) * (0.62 + light) : diffuseColor.rgb * vec3(0.96, 1.14, 0.8);
+  diffuseColor.rgb = mix(diffuseColor.rgb, fresh, uSpring * 0.85);
+`
+    : ""
+}  float cover = ${cover};
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.95, 1.0), clamp(uSnow * 1.15 * cover, 0.0, 1.0));
 }`,
       );
   };
-  material.customProgramCacheKey = () => `${key}-snow-${leafy}`;
+  material.customProgramCacheKey = () => `${key}-season-${kind}`;
   return material;
 }
 
@@ -3391,6 +3449,10 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     ...country.meshes,
   );
 
+  // The town's streets and square wear winter too: snow in patches, the paving showing through.
+  seasonOn(town.roads.material, ground, "trodden");
+  seasonOn(town.plaza.material, ground, "trodden");
+
   // Where nothing wild grows: in a campsite's clearing, and in or right against anything built or set
   // down (a cottage, a ruin's stones, a fence). `pad`: how much room to leave, in metres.
   const builtOver = (x, z, pad) =>
@@ -3606,7 +3668,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     z: Infinity,
     radius: 200,
     density: DENSITIES[0],
-    winter: false,
+    season: "", // the season worn: "" (summer's green), or with the look on "spring", "fall" or "winter"
     treeReach: NATURE_REACH.tree,
     cone: null,
   };
@@ -3660,13 +3722,14 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     return distance < CONE_NEAR ** 2 || ox * cone.dx + oz * cone.dz > cone.cos * Math.sqrt(distance);
   };
   function refreshNature() {
-    for (const { meshes, items, kind, gone } of natureLayers) {
+    for (const { meshes, items, kind, name } of natureLayers) {
+      const gone = SEASON_GONE[view.season]?.test(name); // not there this season
       // Small plants only nearby, rocks a little further, detailed trees out to a point; past that the
       // simple trees stand in (below), all under the fog.
       const reach = (Math.min(view.radius, kind === "tree" ? view.treeReach : NATURE_REACH[kind]) + 15) ** 2;
       let count = 0;
       for (const item of items) {
-        if (gone && view.winter) break; // died back for the winter
+        if (gone) break;
         if (item.need > view.density) continue;
         if ((item.x - view.x) ** 2 + (item.z - view.z) ** 2 > reach) continue;
         if (!inCone(item)) continue;
@@ -3693,12 +3756,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       if (distance < near || distance > out || !inCone(trees[i])) continue;
       trunks.setMatrixAt(count, treeMatrices[i]);
       crowns.setMatrixAt(count, treeMatrices[i]);
-      crowns.setColorAt(
-        count,
-        view.winter
-          ? crownColor.setHSL(0.58, 0.12, 0.74 + trees[i].tint * 0.1) // under snow
-          : crownColor.setHSL(0.3 + trees[i].tint * 0.08, 0.45, 0.26 + trees[i].tint * 0.08),
-      );
+      crowns.setColorAt(count, crownTint(crownColor, view.season, trees[i].tint));
       count++;
     }
     trunks.count = crowns.count = count;
@@ -3889,10 +3947,10 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   function addNature(models) {
     const placements = new Map(); // model name → [{ x, z, need, matrix }]
     // Rocks and boulders in the painted rock (the same as the mountains'), lit a touch brighter.
-    const boulderLook = snowOn(
+    const boulderLook = seasonOn(
       cliffMaterial(ground, { texture: "trock", vertexColors: false, scale: 2.2, boost: 1.05 }),
-      ground.uSnow,
-      false,
+      ground,
+      "top",
     );
     const place = (name, x, z, need) => {
       if (!placements.has(name)) placements.set(name, []);
@@ -3971,13 +4029,16 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     for (const [name, items] of placements) {
       const boulder = KIT_ROCKS.includes(name);
       const kind = boulder ? "rock" : KIT_TREES.some(([tree]) => tree === name) ? "tree" : "plant";
-      // Each part in a copy of its material that takes snow in winter (the kit's own is every world's):
-      // leaves nearly all over; bark, stone and the rest where they face the sky.
+      // Each part in a copy of its material that wears the season (the kit's own is every world's).
       // (Told apart by their texture's name: bark is a cut-out too.)
       const meshes = models.get(name).map(({ geometry, material, texture }) => {
         const look = boulder
           ? boulderLook
-          : snowOn(material.clone(), ground.uSnow, /^(?:leaves|leaf|flowers)/u.test(texture));
+          : seasonOn(
+              material.clone(),
+              ground,
+              /^leaf-pine/u.test(texture) ? "needle" : /^(?:leaves|leaf|flowers)/u.test(texture) ? "leaf" : "top",
+            );
         const instanced = new InstancedMesh(geometry, look, items.length);
         instanced.frustumCulled = false; // round the player anyway, and its instances change as they move
         instanced.userData.kit = true;
@@ -3985,7 +4046,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         scene.add(instanced);
         return instanced;
       });
-      natureLayers.push({ meshes, items, kind, gone: WINTER_GONE.test(name) });
+      natureLayers.push({ meshes, items, kind, name });
     }
     view.x = Infinity; // drawn from wherever the player is on the next follow()
     refreshNature();
@@ -4169,25 +4230,20 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     dispose,
     /** The weather to ease into: "clear", "rain", "snow" or "mist" (weather.js). */
     /** The season the land wears: winter lies under snow; the others are the green land. */
-    setSeason(season, snowy = true) {
-      const winter = season === "winter";
-      ground.uWinter.value = winter ? 0.85 : 0;
-      // Snow on the trees, bushes and stones, the grass and flowers gone, drifts under the trees
-      // (`snowy`: Settings → Display → Graphics; off, winter is the snowy ground alone).
-      const look = winter && snowy;
-      if (look === view.winter) return;
-      view.winter = look;
-      ground.uSnow.value = look ? 0.85 : 0;
-      drifts.visible = look;
-      // The woods past the world's edge, pale with it.
-      beyond.forEach((tree, i) =>
-        farCrowns.setColorAt(
-          i,
-          look
-            ? crownColor.setHSL(0.58, 0.12, 0.74 + tree.tint * 0.1)
-            : crownColor.setHSL(0.3 + tree.tint * 0.08, 0.45, 0.26 + tree.tint * 0.08),
-        ),
-      );
+    setSeason(season, worn = true) {
+      ground.uWinter.value = season === "winter" ? 0.85 : 0;
+      // What the trees, plants and streets wear (`worn`: Settings → Display → Graphics; off, the only
+      // season to see is winter's snowy ground). Winter: snow on them, the grass and flowers gone, drifts
+      // under the trees. Fall: turned leaves, dry grass, no flowers. Spring: blossom and fresh green.
+      const look = worn && ["spring", "fall", "winter"].includes(season) ? season : "";
+      if (look === view.season) return;
+      view.season = look;
+      ground.uSnow.value = look === "winter" ? 0.85 : 0;
+      ground.uFall.value = look === "fall" ? 1 : 0;
+      ground.uSpring.value = look === "spring" ? 1 : 0;
+      drifts.visible = look === "winter";
+      // The woods past the world's edge wear it too.
+      beyond.forEach((tree, i) => farCrowns.setColorAt(i, crownTint(crownColor, look, tree.tint)));
       if (farCrowns.instanceColor) farCrowns.instanceColor.needsUpdate = true;
       refreshNature();
     },

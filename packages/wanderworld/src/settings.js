@@ -94,8 +94,8 @@ export const SETTINGS = {
       "snow-heavy",
     ],
   },
-  /** A winter world's trees, bushes and stones under snow, its grass and flowers gone, drifts under the trees. */
-  winterLook: { value: true },
+  /** The trees, plants and streets wear the world's season: snow, fall's colours, spring's blossom. */
+  seasonLook: { value: true },
   /** With changing weather: some clear mornings start in mist. */
   morningMist: { value: true },
   /** Lightning lights the sky in a storm (off: thunder only, for anyone flashes bother). */
@@ -255,7 +255,7 @@ export const DEVICE_SETTINGS = new Set([
   "resolution",
   "smooth",
   "drawDistance",
-  "winterLook",
+  "seasonLook",
   "density",
   "ground",
   "treeDetail",

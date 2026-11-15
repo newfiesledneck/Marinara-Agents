@@ -855,8 +855,8 @@ export function createHud(root, handlers) {
       "On: a scene started from here is linked to this world's sheet, so the scene's chat shows and changes the same inventory, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat. Off: a scene's chat has a sheet of its own. Needs Quartermaster 0.1.37 or later.",
     inventoryPinned:
       "On: the inventory window stays open while you play. Close it with its own close button or the Inventory button. A click elsewhere in the Engine, outside the game, still closes it. Off: it closes at any click outside it, as it does in a chat.",
-    winterLook:
-      "On: in a winter world (Journal → World → Season) the trees, bushes and stones are under snow, the grass, ferns and flowers are gone, and drifts lie under the trees. Off: winter is the snowy ground alone.",
+    seasonLook:
+      "On: the land wears the world's season (Journal → World → Season). Winter: snow on the trees, bushes, stones, roads and streets, the grass and flowers gone, drifts under the trees. Fall: leaves turned yellow, orange and red, dry grass, no flowers; pines stay green. Spring: some trees in blossom, the rest a fresh green. Off: only winter's snowy ground shows.",
     inventoryTheme:
       "On: Quartermaster's window opens in Wanderworld's parchment colours and lettering. Off: it looks as it does in the Engine. The item and outfit editors it opens keep the Engine's look either way.",
     gossip:
@@ -1024,7 +1024,7 @@ export function createHud(root, handlers) {
   toggle("shadows", "Shadows under people");
   choice("frameLimit", "Frame rate limit", { 0: "No limit", 30: "30", 60: "60", 100: "100" });
   toggle("paintSlow", "Draw slower while a picture is painted");
-  toggle("winterLook", "Snow on trees and stones in winter");
+  toggle("seasonLook", "Trees, plants and streets wear the season");
   choice("ground", "Ground", { full: "Full", simple: "Simple" });
   toggle("nature", "Detailed trees and plants");
   choice(

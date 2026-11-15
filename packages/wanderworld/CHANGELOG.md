@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.1 — 2026-11-15
+
+- Winter's roads, paths, streets and the square lie under patchy snow, with the dirt or paving showing through where it's trodden.
+- Fall: each broadleaf tree and bush turns yellow, orange or red, the grass is dry and yellowed, and the flowers and clover are gone. Pines stay green.
+- Spring: about a third of the broadleaf trees are in blossom, and the rest, with the grass, are a fresher green.
+- The season is the world's own (Journal → World → Season). The Graphics switch is now "Trees, plants and streets wear the season" and covers all three.
+
 ## 0.6.0 — 2026-11-15
 
 - Winter looks like winter. In a winter world (Journal → World → Season) the trees' leaves and the bushes are white with snow, bark and stones carry it on top, and the far-off trees are pale. Grass, ferns, flowers, clover and mushrooms are gone, and drifts of snow lie under the trees. Settings → Display → Graphics has the switch.
