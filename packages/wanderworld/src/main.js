@@ -143,6 +143,7 @@ import {
   usualDay,
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
+import { offerFor, stockNow, vendorKinds } from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolFor, TOOLS } from "./craft.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
@@ -2937,6 +2938,7 @@ function stepPlaces(dt) {
   if (core.hud?.loreOpen()) core.hud.setLore(activeLore(zone, names));
   if (core.journalAt <= 0) {
     showFelled();
+    core.hud?.setShop(vendorHere()?.title ?? "");
     core.hud?.setGather(gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })));
     core.journalAt = 0.5;
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
@@ -7811,6 +7813,118 @@ async function gather(kind) {
   core.hud?.refreshInventory?.();
 }
 
+// ── Vendors (vendor.js) ─────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The vendor the player is at: inside its building, or within a few steps of its door. { zone, name,
+ * kinds } or null (none near, none trading, vendors off, or it's shut for the night).
+ */
+function vendorHere() {
+  if (!core.zones || !core.save || !core.settings.vendors) return null;
+  const names = namedZones(residentsOf(core.crowd.snapshot()));
+  const kindsOf = (zone) =>
+    vendorKinds(zone, names[zone.id] ?? zone.name, core.save.vendors?.[zone.id], PACK.vendors.kinds);
+  let zone = null;
+  if (core.interior) zone = core.zones.byId.get(`building:${core.interior.door.index}`) ?? null;
+  else {
+    const at = core.player.position;
+    let least = 4;
+    for (const entry of core.zones.zones) {
+      if (entry.kind !== "building") continue;
+      const door = core.world.doors?.[entry.door];
+      if (!door) continue;
+      const distance = Math.hypot(door.x - at.x, door.z - at.z);
+      if (distance < least && kindsOf(entry).length) {
+        least = distance;
+        zone = entry;
+      }
+    }
+  }
+  if (!zone || closedWords(zone.id)) return null;
+  const kinds = kindsOf(zone);
+  if (!kinds.length) return null;
+  const name = names[zone.id] ?? zone.name;
+  // (What the button says: its own name once it has one, else its trade: "Apothecary", not "the shop".)
+  const title = name !== zone.name ? name : kinds.map((kind) => PACK.vendors.kinds[kind].label).join(", ");
+  return { zone, name, title, kinds };
+}
+
+/** A vendor's shelves now: restocked (and kept with the world) when its days are up or its kinds have changed. */
+function shelves(vendor) {
+  const period = Math.floor((core.social?.day ?? 0) / Math.max(1, core.settings.restockDays));
+  const saved = core.save.vendors?.[vendor.zone.id];
+  const now = stockNow(saved, vendor.kinds, PACK.vendors.kinds, `${core.save.id}:${vendor.zone.id}`, period);
+  if (now.fresh) keepVendor(vendor, { stock: now.stock, period, stocked: vendor.kinds.join(",") });
+  return now.stock;
+}
+function keepVendor(vendor, fields) {
+  const vendors = { ...core.save.vendors, [vendor.zone.id]: { ...core.save.vendors?.[vendor.zone.id], ...fields } };
+  core.save = { ...core.save, vendors };
+  core.saves.write(core.save);
+}
+
+/** The shop window's contents: what's for sale, and what of the player's it would buy and for how much. */
+async function shopNow() {
+  const vendor = vendorHere();
+  if (!vendor) return { open: false };
+  const ready = core.inventory.ready();
+  const items = ready ? await readItems() : [];
+  const money = purse();
+  return {
+    open: true,
+    ready,
+    name: vendor.name,
+    kinds: vendor.kinds.map((kind) => PACK.vendors.kinds[kind].label),
+    purse: money,
+    stock: shelves(vendor).filter((item) => item.quantity > 0),
+    sell: items
+      .filter((item) => item.name.trim().toLowerCase() !== money.name.toLowerCase())
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity ?? 1,
+        worn: String(item.location).startsWith("equipped:"),
+        price: offerFor(item.name, vendor.kinds, PACK.vendors),
+      }))
+      .sort((a, b) => b.price - a.price || a.name.localeCompare(b.name)),
+  };
+}
+
+/** Buys one of `name` from the vendor here: the price leaves the purse, the thing joins the inventory. */
+async function buy(name) {
+  const vendor = vendorHere();
+  if (!vendor) throw new Error("There's no shop here now.");
+  const stock = shelves(vendor);
+  const item = stock.find((entry) => entry.name === name && entry.quantity > 0);
+  if (!item) throw new Error("That's sold out.");
+  const items = await readItems();
+  const money = purse();
+  if (money.amount < item.price) throw new Error(`That costs ${item.price} ${money.name}. You have ${money.amount}.`);
+  const coins = items.find((entry) => entry.name.trim().toLowerCase() === money.name.toLowerCase());
+  await core.inventory.change(coins.id, money.amount - item.price > 0 ? { quantity: money.amount - item.price } : null);
+  await core.inventory.add({ name: item.name, description: item.description, quantity: 1 });
+  keepVendor(vendor, {
+    stock: stock.map((entry) => (entry === item ? { ...entry, quantity: entry.quantity - 1 } : entry)),
+  });
+  await readItems();
+  narrate(null, `${personaName()} buys ${item.name} at ${vendor.name} for ${item.price} ${money.name}.`);
+}
+
+/** Sells one of the item `id` to the vendor here: it leaves the inventory, its price joins the purse. */
+async function sell(id) {
+  const vendor = vendorHere();
+  if (!vendor) throw new Error("There's no shop here now.");
+  const item = (await readItems()).find((entry) => entry.id === id);
+  if (!item) return;
+  const price = offerFor(item.name, vendor.kinds, PACK.vendors);
+  if (price <= 0) throw new Error(`${vendor.name} has no use for that.`);
+  const money = purse();
+  await core.inventory.change(id, (item.quantity ?? 1) > 1 ? { quantity: item.quantity - 1 } : null);
+  await core.inventory.add({ name: money.name, description: "", quantity: price });
+  await readItems();
+  narrate(null, `${personaName()} sells ${item.name} at ${vendor.name} for ${price} ${money.name}.`);
+}
+
 // ── Crafting (craft.js) ─────────────────────────────────────────────────────────────────────────────────
 
 /** The recipes known now (the setting's by level, and the player's own), each against what's carried. */
@@ -8492,6 +8606,9 @@ function attach(element) {
           .slice(0, 30),
       }),
     onGather: (kind) => void gather(kind),
+    onShop: shopNow,
+    onBuy: buy,
+    onSell: sell,
     onRecipes: recipesNow,
     onCraft: craft,
     onSaveRecipe: keepRecipe,
