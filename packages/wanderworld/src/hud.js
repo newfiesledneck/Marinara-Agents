@@ -813,6 +813,12 @@ export function createHud(root, handlers) {
     weather: "Changing picks rain, snow, mist or clear every few minutes. Off keeps the sky clear.",
     narration:
       'A short written line when you arrive somewhere new, and now and then about who is near. No AI is used. To have the AI write it, turn on AI → Writing → "…when you arrive somewhere".',
+    arriveGap:
+      "The shortest time between one place being told and the next. A place you reach sooner is told when the wait is over, if you're still there; places you only pass through aren't told.",
+    arriveVisits:
+      "A place that's been told isn't told again until you've come back this many times. 1 tells it on every visit.",
+    illustrateHere:
+      "On: Illustrate is given only the chat from the place you're in, so the picture is of one place. Off: the last eight lines, wherever they were said.",
     interiors: "On: you can walk into furnished rooms (unfinished). Off: a door shows who's inside.",
     worldEvents:
       "On: once a week is market day and every fourth week an evening festival, when much of the town gathers in the square. Off: every day is the same.",
@@ -1058,6 +1064,8 @@ export function createHud(root, handlers) {
   });
   at("World", "Places");
   choice("narration", "Lines about where you are", { off: "Off", lines: "On" });
+  slider("arriveGap", "Wait between places told", 5, (value) => `${value} s`);
+  slider("arriveVisits", "Visits before a place is told again", 1, String);
   toggle("interiors", "Walk into buildings (unfinished)");
   toggle("worldEvents", "Market days and festivals");
 
@@ -1353,6 +1361,7 @@ export function createHud(root, handlers) {
     painterly: "Painterly fantasy",
     "z-image-turbo": "Z-Image Turbo",
   });
+  toggle("illustrateHere", "Illustrate: only chat from this place");
   /** Reads the server part's status and the user's connections into the AI section. */
   const loadAi = async () => {
     const status = await handlers.onAiStatus?.();

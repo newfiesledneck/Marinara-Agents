@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.5.103 — 2026-11-14
+
+- Settings → World → Places has two sliders. "Wait between places told" is 10 to 60 seconds (45 as before). "Visits before a place is told again" is 1 to 10, and 1 tells a place on every visit. It replaces the old rule, which skipped the last five places told; the default is 5 visits.
+- A place is told during a conversation too. 0.5.102 held it until the conversation was over, which was often when you were about to leave.
+- Illustrate is given only the chat from the place you're in, so a picture isn't of two places at once. Settings → AI → Pictures has the switch.
+
 ## 0.5.102 — 2026-11-14
 
 - A place you reach less than 45 seconds after the last place was told is no longer skipped for good. If you are still there when the 45 seconds are over, it is told then. Places you only run through stay untold, and a place is still told once, not again each time the wait ends.

@@ -56,7 +56,7 @@ import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { afloatAt, createHerd } from "./herd.js";
 import { createSocial } from "./social.js";
-import { ago, createMemories, heardBy, heardLines, MEMORY, toldShares } from "./memory.js";
+import { ago, createMemories, heardBy, heardLines, linesHere, MEMORY, toldShares } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
 import {
   FURNITURE,
@@ -209,7 +209,6 @@ const OPPOSITE = { north: "south", east: "west", south: "north", west: "east" };
 const CHATTER_DISTANCE = 11; // metres within which townsfolk's own chatter shows over their heads
 const CHATTER_AT_ONCE = 3; // bubbles up at once, chatter included
 const ARRIVE_SETTLE = 3; // seconds in a place before it's told (passing through, or a misstep, isn't arriving)
-const ARRIVE_GAP = 45; // seconds between one arrival's telling and the next
 const SIGHT_EVERY = 140; // seconds between lines about who's near (the world's voice)
 const TALK_DISTANCE = 1.2; // how far apart two people stand to talk
 const TAP_RADIUS = 70; // screen pixels a tap may land from something and still pick it
@@ -820,7 +819,7 @@ function playWorld(id) {
       core.momentLog = save.log ?? [];
       core.hud?.setChat(core.momentLog.map((line) => ({ ...line, mine: line.who === personaName() })));
       core.hud?.setAssistantChat(save.assistantChat ?? []);
-      core.toldPlaces = [];
+      core.toldPlaces = {};
       core.looks = new Map();
       core.peopleHereKey = null;
       core.arriveZone = null;
@@ -1754,20 +1753,26 @@ function lineWords(who = "") {
  * The world speaks up on coming to a place (Settings → The world's voice): what its lore says, or else
  * the setting pack's line for that kind of place, quiet or busy by who's about; with Settings → AI
  * letting arrivals call the model, the model writes it. Only once the player has settled there, not for
- * streets, not for one of the last five places told, and not hard on the last telling: walking round
- * town says little, coming out of the forest into it says something. Returns false when the place is
- * still to be told (it's too soon after the last telling, or you're in a conversation): the caller asks
- * again while you stay, so where you end up is told once the gap is over, and places run through aren't.
+ * streets, not for a place told fewer than Settings → "Visits before a place is told again" visits ago,
+ * and not hard on the last telling (Settings → "Wait between places told"): walking round town says
+ * little, coming out of the forest into it says something. Returns false when the place is still to be
+ * told (it's too soon after the last telling, or a moment is being told): the caller asks again while
+ * you stay, so where you end up is told once the wait is over, and places run through aren't.
  */
 function arrive(zone, names) {
   const save = core.save;
   if (!save || core.interior || (core.settings.narration ?? "lines") === "off") return;
   if (zone.kind === "street" || zone.kind === "road") return; // getting about isn't arriving
   // Not the same few places over again (going round town), and not one place hard on another.
-  const told = core.toldPlaces ?? [];
-  if (told.includes(zone.id)) return;
-  if (core.clock - (core.toldAt ?? -ARRIVE_GAP) < ARRIVE_GAP || core.mode === "talk") return false;
-  core.toldPlaces = [...told, zone.id].slice(-5);
+  // (toldPlaces: each place told, with the visits to it since. A visit is counted once, however often this asks.)
+  const told = (core.toldPlaces ??= {});
+  if (core.visitAt !== core.zoneSince) {
+    core.visitAt = core.zoneSince;
+    if (zone.id in told) told[zone.id]++;
+  }
+  if (zone.id in told && told[zone.id] < core.settings.arriveVisits) return;
+  if (core.clock - (core.toldAt ?? -99) < core.settings.arriveGap || core.momentBusy) return false;
+  told[zone.id] = 0;
   core.toldAt = core.clock;
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
   // Who's about, so an empty square isn't called busy.
@@ -6015,9 +6020,12 @@ function stampOf(line) {
   return [when, line.where].filter(Boolean).join(", ");
 }
 
+/** The place you're in, as a line of the chat is stamped with it (without the town it's in). */
+const whereNow = () => placeWords().split(", in ")[0] ?? "";
+
 function narrate(who, text, heard = []) {
   // (With when and where it happened, for whoever is told of it later: stampOf.)
-  const stamp = { at: clockText(), day: core.social?.day ?? 0, where: placeWords().split(", in ")[0] ?? "" };
+  const stamp = { at: clockText(), day: core.social?.day ?? 0, where: whereNow() };
   core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard, ...stamp }].slice(-30);
   if (core.save) {
     core.save.log = core.momentLog;
@@ -6266,7 +6274,9 @@ async function illustrateMoment({
                 ? "dusk"
                 : "evening";
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
-  const recent = [...core.momentLog].reverse().find((line) => line.who === "Narrator")?.text ?? "";
+  // The chat it's given: from the place you're in alone (Settings → AI → Pictures), so the picture is of one place.
+  const said = core.settings.illustrateHere ? linesHere(core.momentLog, whereNow()) : core.momentLog;
+  const recent = [...said].reverse().find((line) => line.who === "Narrator")?.text ?? "";
   return (previewOnly ? (work) => work() : painting)(() =>
     core.ai.illustrate({
       worldId: core.save.id,
@@ -6300,7 +6310,7 @@ async function illustrateMoment({
         look: core.save.look || PACK.look,
         recent,
         // The last of the chat, for the rewrite: what's being done right now is in there, not in "standing".
-        chat: core.momentLog.slice(-8).map((line) => ({ who: line.who, text: line.text })),
+        chat: said.slice(-8).map((line) => ({ who: line.who, text: line.text })),
       },
       caption: `${placeWords()}, ${clockText()}`,
       connectionId: core.settings.imageConnection || null,

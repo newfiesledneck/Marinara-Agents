@@ -523,6 +523,26 @@ assert.equal(checkSetting("resolution", "720"), "720", "720p is one of them");
 assert.equal(checkSetting("drawDistance", 140), 140, "a listed choice is kept");
 assert.equal(checkSetting("shadows", "yes"), true, "a non-boolean switch is the default");
 assert.deepEqual(
+  [checkSetting("arriveGap", 5), checkSetting("arriveGap", 30), checkSetting("arriveVisits", 99)],
+  [10, 30, 10],
+  "the wait between places told and the visits before a retelling stay in their ranges",
+);
+{
+  const { linesHere } = await import("../packages/wanderworld/src/memory.js");
+  const chat = [
+    { text: "a", where: "the pond" },
+    { text: "b", where: "the market square" },
+    { text: "c" },
+    { text: "d", where: "the market square" },
+  ];
+  assert.deepEqual(
+    linesHere(chat, "the market square").map((line) => line.text),
+    ["b", "c", "d"],
+    "the chat from here: back to the first line from somewhere else",
+  );
+  assert.deepEqual(linesHere(chat, "the mill"), [], "nothing said here yet");
+}
+assert.deepEqual(
   [checkSetting("frameLimit", 60), checkSetting("frameLimit", 45), checkSetting("paintSlow", undefined)],
   [60, 0, true],
   "the frame rate limit is one of its steps, else none; slower while painting is on to begin with",

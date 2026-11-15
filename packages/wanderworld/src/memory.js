@@ -113,6 +113,16 @@ export const ago = (day, today) => {
  * of them heard is in neither, so nobody can speak of what they weren't there for. With nobody listening,
  * `shared` is the narrator's own last three lines, kept so the telling doesn't repeat itself.
  */
+/**
+ * The last of `lines` (the chat, each with `where` it happened) that happened `where`: from the end back
+ * to the first line from somewhere else. Lines with no place (from before they were kept) count as here.
+ */
+export function linesHere(lines, where) {
+  let from = lines.length;
+  while (from > 0 && (!lines[from - 1].where || lines[from - 1].where === where)) from--;
+  return lines.slice(from);
+}
+
 export function heardLines(log, listeners, max = 12) {
   // (And when and where it happened, when the line has them.)
   const plain = ({ who, text, at, day, where }) => ({ who, text, ...(at ? { at, day, where } : {}) });
