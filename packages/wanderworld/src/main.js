@@ -1788,7 +1788,7 @@ function arrive(zone, names) {
     : arrivalLine(kind, `${save.seed}:${zone.id}`, lineWords(), about > 0);
   const company = about ? `${about} ${about === 1 ? "person is" : "people are"} about` : "nobody else is about";
   void runMoment({ action: `comes into ${names[zone.id]}, where ${company}`, source: "arrive" }).then((done) => {
-    if (!done && line) narrate(null, line);
+    if (!done && line) narrate(null, line, [], true);
   });
 }
 
@@ -6023,9 +6023,10 @@ function stampOf(line) {
 /** The place you're in, as a line of the chat is stamped with it (without the town it's in). */
 const whereNow = () => placeWords().split(", in ")[0] ?? "";
 
-function narrate(who, text, heard = []) {
+function narrate(who, text, heard = [], place = false) {
   // (With when and where it happened, for whoever is told of it later: stampOf.)
-  const stamp = { at: clockText(), day: core.social?.day ?? 0, where: whereNow() };
+  // (`place`: the line describes where you are, told on arriving. Illustrate leaves other places' out.)
+  const stamp = { at: clockText(), day: core.social?.day ?? 0, where: whereNow(), ...(place ? { place: true } : {}) };
   core.momentLog = [...core.momentLog, { who: who ?? "Narrator", text, heard, ...stamp }].slice(-30);
   if (core.save) {
     core.save.log = core.momentLog;
@@ -6142,7 +6143,7 @@ async function runMoment({
       narratorId: narratorFor("moments")?.id ?? null,
       separate: core.settings.aiSeparate === true,
     });
-    if (result.narration) narrate(null, result.narration, heardIds);
+    if (result.narration) narrate(null, result.narration, heardIds, source === "arrive");
     trackInventory([
       action && `What ${personaName()} does: ${action}`,
       line && `${personaName()}: ${line}`,
@@ -6274,7 +6275,7 @@ async function illustrateMoment({
                 ? "dusk"
                 : "evening";
   const kind = zone.kind === "building" ? zone.buildingKind : (zone.outpostKind ?? zone.kind);
-  // The chat it's given: from the place you're in alone (Settings → AI → Pictures), so the picture is of one place.
+  // The chat it's given: without what was told of other places (Settings → AI → Pictures), so the picture is of one.
   const said = core.settings.illustrateHere ? linesHere(core.momentLog, whereNow()) : core.momentLog;
   const recent = [...said].reverse().find((line) => line.who === "Narrator")?.text ?? "";
   return (previewOnly ? (work) => work() : painting)(() =>

@@ -530,17 +530,16 @@ assert.deepEqual(
 {
   const { linesHere } = await import("../packages/wanderworld/src/memory.js");
   const chat = [
-    { text: "a", where: "the pond" },
-    { text: "b", where: "the market square" },
+    { text: "a", where: "the pond", place: true },
+    { text: "b", where: "the pond" },
     { text: "c" },
-    { text: "d", where: "the market square" },
+    { text: "d", where: "the market square", place: true },
   ];
   assert.deepEqual(
     linesHere(chat, "the market square").map((line) => line.text),
     ["b", "c", "d"],
-    "the chat from here: back to the first line from somewhere else",
+    "what was told of another place is left out; what was said there is kept",
   );
-  assert.deepEqual(linesHere(chat, "the mill"), [], "nothing said here yet");
 }
 assert.deepEqual(
   [checkSetting("frameLimit", 60), checkSetting("frameLimit", 45), checkSetting("paintSlow", undefined)],
