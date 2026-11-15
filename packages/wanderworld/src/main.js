@@ -136,6 +136,7 @@ import {
   usualDay,
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
+import { gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed } from "./gather.js";
 import {
   applyChanges,
   changeSheet,
@@ -2920,6 +2921,7 @@ function stepPlaces(dt) {
   core.hud?.setPlace(zone.id === "town" ? town : `${town} · ${names[zone.id]}`, lore);
   if (core.hud?.loreOpen()) core.hud.setLore(activeLore(zone, names));
   if (core.journalAt <= 0) {
+    core.hud?.setGather(gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })));
     core.journalAt = 0.5;
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
     core.partyChanged = false;
@@ -7698,6 +7700,72 @@ function trackSheet(parts, kind = "moment") {
     });
 }
 
+// ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
+
+/** What can be gathered where the player stands, by kind; none indoors, riding, swimming, or with it switched off. */
+function gatherOptions(zone = null) {
+  if (!core.zones || !core.save || !core.settings.gathering || core.interior || core.mode === "ride" || core.swimming)
+    return [];
+  const at = core.player.position;
+  const here = zone ?? zoneAt(core.zones, at.x, at.z);
+  // Water within a few steps: in it (to wading depth), or anywhere round the player.
+  let water = waterAt(at.x, at.z).depth > 0.05;
+  for (let i = 0; i < 8 && !water; i++)
+    water = waterAt(at.x + Math.cos((i * Math.PI) / 4) * 3, at.z + Math.sin((i * Math.PI) / 4) * 3).depth > 0.15;
+  return gatherHere({
+    zone: here.kind,
+    outpost: here.outpostKind ?? "",
+    beside: bordersAt(core.zones, at.x, at.z, here).map((entry) => entry.outpostKind ?? entry.kind),
+    water,
+    season: core.save.season ?? "",
+  });
+}
+
+/**
+ * Gathers `kind` here: a roll with the attribute for it, and what's found goes into Quartermaster's
+ * inventory, with a line in the chat and a little experience. The spot then takes its days to give again.
+ */
+async function gather(kind) {
+  const save = core.save;
+  if (!save || !gatherOptions().includes(kind)) return;
+  if (core.clock - (core.gatherAt ?? -99) < 1.5) return; // not at every tap
+  core.gatherAt = core.clock;
+  if (!core.inventory.ready())
+    return void core.hud?.setNotice(
+      "What you gather goes into your inventory, which the Quartermaster package keeps: install it, and turn on Settings → People → Inventory.",
+    );
+  const who = personaName();
+  const lines = PACK.gather.lines[kind];
+  const at = core.player.position;
+  const key = spotKey(kind, at.x, at.z);
+  const day = core.social?.day ?? 0;
+  if (!spotReady(save.gathered, key, day, core.settings.regrowDays)) return void core.hud?.setNotice(lines.spent);
+  const sheet = sheetNow();
+  const attribute = GATHER_KINDS[kind].attribute;
+  const score = valueOf(sheet, attribute) + (wornBonuses(sheet, core.items ?? [])[attribute] ?? 0);
+  const got = gatherRoll(kind, score, PACK.gather, save.season ?? "");
+  core.save = { ...save, gathered: spotUsed(save.gathered, key, day) };
+  core.saves.write(core.save);
+  if (!got.found) return void narrate(null, lines.none.replace("{who}", who));
+  try {
+    await core.inventory.add(got.found);
+  } catch (error) {
+    return void core.hud?.setNotice(`It couldn't be put in your inventory: ${error?.message ?? error}`);
+  }
+  await readItems();
+  if (core.settings.sheet) setSheet(gainXp(sheetNow(), 3).sheet);
+  const what = `${got.found.quantity > 1 ? `${got.found.quantity} × ` : ""}${got.found.name}`;
+  narrate(null, lines.found.replace("{who}", who).replace("{what}", what));
+  core.hud?.refreshInventory?.();
+}
+
+/** What money is called in this world, and how much of it is carried (the quantity of the item of that name). */
+function purse() {
+  const name = core.save?.currency || PACK.currency;
+  const held = (core.items ?? []).find((item) => String(item.name).trim().toLowerCase() === name.toLowerCase());
+  return { name, amount: held?.quantity ?? 0 };
+}
+
 /**
  * "/roll 2d6+1" (a d20 with nothing after it) and "/check strength" (a d20 plus that line of the sheet):
  * rolled by the game and shown in the chat. A check with words after the stat ("/check strength to lift
@@ -8309,7 +8377,18 @@ function attach(element) {
       return { sheet, worn: wornBonuses(sheet, core.items ?? []) };
     },
     onSheetChange: (change) => setSheet(changeSheet(sheetNow(), change)),
-    onItems: async () => ({ ready: core.inventory.ready(), items: core.inventory.ready() ? await readItems() : [] }),
+    onItems: async () => {
+      const ready = core.inventory.ready();
+      const items = ready ? await readItems() : [];
+      return { ready, items, purse: purse() };
+    },
+    onCurrency: (name) =>
+      setSetup({
+        currency: String(name ?? "")
+          .trim()
+          .slice(0, 30),
+      }),
+    onGather: (kind) => void gather(kind),
     onItemAction: itemAction,
     // The chat window emptied: nothing of it is sent as context after this (every prompt takes its lines
     // of what was said and told from this log). What people remember is theirs and stays.

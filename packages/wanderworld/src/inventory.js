@@ -164,6 +164,32 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
       return Array.isArray(state?.items) ? state.items : [];
     },
     /**
+     * Adds something to Quartermaster's sheet: onto the stack of that name when there is one in the bag,
+     * else as a new item. `item`: { name, description, quantity }.
+     */
+    async add(item) {
+      const current = sheet();
+      if (!ready() || !current) throw new Error("Quartermaster isn't installed, or it is an older version.");
+      await introduce(current);
+      const state = await call(pathOf(current));
+      const name = String(item.name).trim().toLowerCase();
+      const held = (state?.items ?? []).find(
+        (entry) => String(entry.name).trim().toLowerCase() === name && !String(entry.location).startsWith("equipped:"),
+      );
+      const quantity = Math.max(1, Math.round(item.quantity) || 1);
+      if (held) {
+        await call(pathOf(current, `/items/${encodeURIComponent(held.id)}`), {
+          method: "PATCH",
+          body: { quantity: (held.quantity ?? 1) + quantity },
+        });
+      } else {
+        await call(pathOf(current, "/items"), {
+          method: "POST",
+          body: { name: item.name, description: item.description ?? "", quantity },
+        });
+      }
+    },
+    /**
      * Changes one item on Quartermaster's sheet (`fields`: quantity, location and so on; a location of
      * "equipped:<slot>" puts it on, "bag" takes it off), or removes it with `fields` null.
      */

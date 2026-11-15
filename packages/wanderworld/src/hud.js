@@ -866,6 +866,10 @@ export function createHud(root, handlers) {
       "On: the ticked lines of your sheet are told to the AI in conversations and moments, so it knows you're hurt or what you're good at. Off: the sheet is yours to keep, and the AI isn't told. Adds a line or two to those prompts.",
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: one more AI call each time something is narrated. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
+    gathering:
+      "On: buttons in the chat window let you gather where the land allows it. Fish by water, chop wood and forage in the woods (foraging not in winter), mine at the mountains or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
+    regrowDays:
+      "After you gather somewhere, that patch (about ten metres square) gives nothing more of that kind for this many of the world's days. 0: it always gives.",
     inventoryPinned:
       "On: the inventory window stays open while you play. Close it with its own close button or the Inventory button. A click elsewhere in the Engine, outside the game, still closes it. Off: it closes at any click outside it, as it does in a chat.",
     seasonLook:
@@ -1178,6 +1182,8 @@ export function createHud(root, handlers) {
   intro(
     "The Inventory button opens a window in tabs: Items, Sheet and Quartermaster. Your character sheet is Wanderworld's own. The things you wear and carry are kept by the Quartermaster package, if you have it installed: without it the Items tab is empty and the settings about items do nothing.",
   );
+  toggle("gathering", "Gathering");
+  number("regrowDays", "Days until a spot gives again", "gathering");
   toggle("sheet", "Character sheet");
   toggle("sheetTold", "Tell the AI your stats", "sheet");
   choice(
@@ -2072,6 +2078,22 @@ export function createHud(root, handlers) {
       );
       return;
     }
+    // The purse: the item named for this world's money. Its name is yours to change.
+    {
+      const row = piece("display:flex;align-items:center;gap:6px;");
+      const name = document.createElement("input");
+      name.type = "text";
+      name.value = answer.purse?.name ?? "Coins";
+      name.setAttribute("aria-label", "What money is called in this world");
+      name.title = "What money is called in this world: the item of this name is your purse";
+      name.style.cssText = `${INK_INPUT}width:110px;padding:2px 6px;`;
+      name.addEventListener("change", () => {
+        handlers.onCurrency?.(name.value);
+        void drawInventory();
+      });
+      row.append(piece("font-weight:700;", "Purse:"), piece("", String(answer.purse?.amount ?? 0)), name);
+      body.append(row);
+    }
     const worn = (item) => typeof item.location === "string" && item.location.startsWith("equipped:");
     const items = [...answer.items].sort((a, b) => Number(worn(b)) - Number(worn(a)) || a.name.localeCompare(b.name));
     if (!items.length)
@@ -2688,7 +2710,11 @@ export function createHud(root, handlers) {
     clearChat.textContent = "Clear chat";
     handlers.onClearChat?.();
   });
-  chat.frame.append(narration, speakBar, moves, petMoves, commands, peopleHere, clearChat);
+  // What can be gathered where you stand (gather.js): a button for each, there only while there's something.
+  const gatherRow = document.createElement("div");
+  gatherRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
+  let gatherShown = "";
+  chat.frame.append(narration, speakBar, moves, gatherRow, petMoves, commands, peopleHere, clearChat);
   let narrationTimer = null;
   // Narration with the chat window closed: a caption over the world for a few seconds, then gone (it's
   // in the window when it's opened).
@@ -3014,6 +3040,22 @@ export function createHud(root, handlers) {
       if (chatRest.textContent !== label) chatRest.textContent = label;
       moves.style.display = shown && wanted.chat && !touch ? "flex" : "none"; // (a touch screen has them along the bottom)
       chatJump.disabled = !!resting && !riding;
+    },
+    /** What can be gathered here: [{ kind, label }] (none hides the row). */
+    setGather(options) {
+      const key = options.map((option) => option.kind).join(",");
+      if (key === gatherShown) return;
+      gatherShown = key;
+      gatherRow.replaceChildren(
+        ...options.map((option) => {
+          const control = button(option.label, `${option.label} here: what you find goes into your inventory`, () =>
+            handlers.onGather?.(option.kind),
+          );
+          control.style.cssText += "padding:4px 10px;font-size:12px;";
+          return control;
+        }),
+      );
+      gatherRow.style.display = options.length ? "flex" : "none";
     },
     /** Which of your animals are with you (and so can be sent home from the chat window): { dog, horse }. */
     setPets(withYou) {

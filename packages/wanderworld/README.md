@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.62)
+## What it does now (0.6.63)
 
 ### The world
 
@@ -495,6 +495,12 @@ only walk about.
   before they're applied. `/roll` and `/check` in the chat roll the dice.
 - The Inventory button opens Wanderworld's own window in tabs: Items (Quartermaster's items, changed
   through its routes, so both stay in step), Sheet, and Quartermaster (its dock).
+- Gathering (`src/gather.js`; stage 3 of the plan): fish, chop wood, forage, mine and harvest where the
+  land allows it, by a roll with one of the sheet's attributes. What's found is added to Quartermaster's
+  sheet through its own routes, so there is one inventory. A patch takes a day to give again. What each
+  kind yields, and the lines said, are the setting pack's (`pack.js` `gather`).
+- Money is an item: the one named for the world's currency (the pack's word until the player renames it
+  in Inventory → Items) is the purse.
 - The year can turn (Settings → World → Time and weather → "Seasons change", off to begin with): each
   season lasts a number of the world's days that you type in, then the next begins and the chat says
   so. A world starts in the season its lore names. Setting the season in the Journal starts it from
