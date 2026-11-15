@@ -99,16 +99,22 @@ for (const density of DENSITIES) world.setDensity(density);
   assert.ok(tree >= 0, "there's a tree somewhere to stand against");
   world.setFelled([tree]);
   assert.notEqual(world.treeNear(at.x, at.z, 2), tree, "a felled tree isn't found");
+  const stumps = world.scene.children.find((object) => object.userData.stump);
+  assert.equal(stumps?.count, 1, "a stump stands where it was");
+  assert.deepEqual(Object.keys(world.treeAt(tree)), ["x", "z"]);
   world.setFelled([]);
+  assert.equal(stumps.count, 0);
   assert.equal(world.treeNear(at.x, at.z, 2), tree, "and stands again when it has grown back");
+  world.setMined([0]); // (drawn smaller with the kit's rocks; here only that it's taken)
+  world.setMined([]);
   assert.equal(typeof world.rockNear(at.x, at.z), "number");
 }
 const meshes = [];
 world.scene.traverse((object) => object.isInstancedMesh && meshes.push(object));
 assert.equal(
   meshes.length,
-  9,
-  "trunks, crowns, rocks, lamp posts, lamp heads, doors, winter's drifts and the woods beyond the edge (two) are one instanced mesh each",
+  10,
+  "trunks, crowns, rocks, lamp posts, lamp heads, doors, winter's drifts, felled trees' stumps and the woods beyond the edge (two) are one instanced mesh each",
 );
 
 // Doors swing open and shut; benches have seats; the day turns to night.
@@ -143,7 +149,12 @@ world.setTime(12);
   nature.scene.traverse((object) => {
     if (object.userData.kit) kit.push(object);
     // (the woods beyond the world's edge are always the simple trees)
-    else if (object.isInstancedMesh && !object.userData.beyond && object.instanceMatrix.count > 100)
+    else if (
+      object.isInstancedMesh &&
+      !object.userData.beyond &&
+      !object.userData.stump &&
+      object.instanceMatrix.count > 100
+    )
       simple.push(object);
   });
   assert.ok(kit.length >= 15, `kit trees, rocks and plants are added (${kit.length} kinds)`);

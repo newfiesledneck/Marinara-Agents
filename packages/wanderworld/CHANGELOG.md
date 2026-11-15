@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.74 — 2026-11-15
+
+- Gathering has a prompt at the thing itself: stand at a tree, a boulder or the water's edge and it names what you can do (Chop wood, Mine, Fish). Press E, or tap it on a touch screen. Foraging and harvesting prompt when you stand still. The chat window's buttons are still there.
+- Your character turns to the tree, the rock or the water before swinging or casting.
+- A felled tree leaves a stump until it grows back.
+- A mined boulder is drawn smaller until it has had its days.
+- A market stall whose trade you change is dressed for the new one at once. Before, it showed after reopening the world.
+
 ## 0.6.73 — 2026-11-15
 
 - Settings has an Inventory section of its own, in four parts: Items, Sheet, Gathering and Shops. These settings were listed under People → Inventory, a tab that could not be opened, so until now they could only be reached where they were repeated elsewhere.

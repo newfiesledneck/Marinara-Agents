@@ -665,6 +665,7 @@ function buildWorld(seed, place = null) {
           if (stallModels.every((model) => !model || extra.has(model))) world.dressStalls(stallModels);
           world.addProps(new Map([...models, ...extra]));
           core.marketModels = extra;
+          core.propModels = models;
           if (core.zones) placeSigns(); // (the painted signs, now they're here)
         })
         .catch((error) => console.warn("[wanderworld] detailed props failed to load", error)),
@@ -6400,7 +6401,7 @@ function playerDoing() {
   if (core.talking) return `talking with ${core.talking.name}`;
   if (core.swimming) return "swimming";
   if (core.interior) return "standing inside";
-  const moving = core.input?.moving?.() ?? false;
+  const moving = core.still === 0;
   return moving ? "walking" : "standing";
 }
 
@@ -7356,6 +7357,23 @@ function usable() {
       act: () => useThing(thing),
     });
   }
+  // What can be gathered here, each a prompt at the thing itself (a key, or a tap on a touch screen); not
+  // where it's been used up for now. Foraging and harvesting, which have no one thing, only when stood still.
+  const gatherable = gatherTargets(null, true);
+  const atThing = gatherable.some((target) => target.face); // a tree, a rock or the water comes first
+  for (const target of gatherable) {
+    if (!target.face && (atThing || (core.still ?? 0) < 0.6)) continue;
+    list.push({
+      kind: "thing",
+      label: GATHER_KINDS[target.kind].label,
+      x: target.x,
+      z: target.z,
+      y: target.kind === "chop" ? 1.7 : 1.2,
+      reach: 3.8,
+      quiet: true, // (its own swing or cast, not a hand held out)
+      act: () => void gather(target.kind),
+    });
+  }
   const edge = core.interior || !core.save ? null : edgeSide();
   if (edge) {
     // At the world's edge: on to the next region (right where the player stands, so it's always in reach).
@@ -7560,7 +7578,13 @@ function use() {
   if (core.mode === "ride") return dismount();
   if (core.mode !== "walk") return;
   // A hand out to whatever it is (a door, a board, a barrel); not to a person or a seat.
-  if (core.target && core.target.kind !== "person" && core.target.kind !== "seat" && !core.target.mount)
+  if (
+    core.target &&
+    core.target.kind !== "person" &&
+    core.target.kind !== "seat" &&
+    !core.target.mount &&
+    !core.target.quiet
+  )
     core.gesture = "interact";
   core.target?.act();
 }
@@ -7835,26 +7859,63 @@ function trackSheet(parts, kind = "moment") {
 
 // ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
 
-/** What can be gathered where the player stands, by kind; none indoors, riding, swimming, or with it switched off. */
-function gatherOptions(zone = null) {
+/**
+ * What can be gathered where the player stands, each with where it is: [{ kind, x, z, face }] (`face`:
+ * there's a thing to turn to: the tree, the boulder, the water). None indoors, riding, swimming, or with
+ * gathering switched off. `fresh`: leave out what has been used up for now (for the prompt over the thing).
+ */
+function gatherTargets(zone = null, fresh = false) {
   if (!core.zones || !core.save || !core.settings.gathering || core.interior || core.mode === "ride" || core.swimming)
     return [];
   const at = core.player.position;
   const here = zone ?? zoneAt(core.zones, at.x, at.z);
-  // Water within a few steps: in it (to wading depth), or anywhere round the player.
-  let water = waterAt(at.x, at.z).depth > 0.05;
-  for (let i = 0; i < 8 && !water; i++)
-    water = waterAt(at.x + Math.cos((i * Math.PI) / 4) * 3, at.z + Math.sin((i * Math.PI) / 4) * 3).depth > 0.15;
-  return gatherHere({
+  // Water within a few steps: where the player stands (to wading depth), or the nearest of the points round them.
+  let water = waterAt(at.x, at.z).depth > 0.05 ? { x: at.x, z: at.z, face: false } : null;
+  for (let i = 0; i < 8 && !water; i++) {
+    const spot = { x: at.x + Math.cos((i * Math.PI) / 4) * 3, z: at.z + Math.sin((i * Math.PI) / 4) * 3, face: true };
+    if (waterAt(spot.x, spot.z).depth > 0.15) water = spot;
+  }
+  const tree = core.world.treeNear(at.x, at.z);
+  const rock = core.world.rockNear(at.x, at.z);
+  const kinds = gatherHere({
     zone: here.kind,
     outpost: here.outpostKind ?? "",
     beside: bordersAt(core.zones, at.x, at.z, here).map((entry) => entry.outpostKind ?? entry.kind),
-    water,
-    tree: core.world.treeNear(at.x, at.z) >= 0,
-    rock: core.world.rockNear(at.x, at.z) >= 0,
+    water: !!water,
+    tree: tree >= 0,
+    rock: rock >= 0,
     season: seasonNow(),
   });
+  const day = core.social?.day ?? 0;
+  // What isn't a thing to stand at (foraging, harvesting, a cave's rock) is a step ahead of the player.
+  const ahead = { x: at.x + Math.sin(core.player.rotation.y) * 1.6, z: at.z + Math.cos(core.player.rotation.y) * 1.6 };
+  return kinds
+    .map((kind) => {
+      const thing =
+        kind === "chop"
+          ? { ...core.world.treeAt(tree), face: true }
+          : kind === "mine" && rock >= 0
+            ? { ...core.world.rockAt(rock), face: true, rock }
+            : kind === "fish"
+              ? water
+              : { ...ahead, face: false };
+      return { kind, ...thing };
+    })
+    .filter(
+      (target) =>
+        !fresh ||
+        target.kind === "chop" ||
+        spotReady(core.save.gathered, gatherKey(target), day, core.settings.regrowDays),
+    );
 }
+/** The spot a gathering uses up: a boulder is one of its own; the rest, the patch of ground stood on. */
+function gatherKey(target) {
+  const at = core.player.position;
+  return target.rock >= 0
+    ? `mine:rock:${core.save.region ?? HOME_REGION}:${target.rock}`
+    : spotKey(target.kind, at.x, at.z);
+}
+const gatherOptions = (zone = null) => gatherTargets(zone).map((target) => target.kind);
 
 const treeKey = (number) => `${core.save?.region ?? HOME_REGION}|${number}`;
 /** Has the world stand its felled trees down (and up again, once they've had their days). Cheap to call often. */
@@ -7871,6 +7932,14 @@ function showFelled() {
     core.saves.write(core.save);
   }
   core.world.setFelled(now.down);
+  // And the boulders mined out for now, smaller until they've had their days.
+  const day = core.social?.day ?? 0;
+  const prefix = `mine:rock:${core.save.region ?? HOME_REGION}:`;
+  core.world.setMined?.(
+    Object.keys(core.save.gathered ?? {})
+      .filter((key) => key.startsWith(prefix) && !spotReady(core.save.gathered, key, day, core.settings.regrowDays))
+      .map((key) => Number(key.slice(prefix.length))),
+  );
 }
 
 /**
@@ -7879,7 +7948,8 @@ function showFelled() {
  */
 async function gather(kind) {
   const save = core.save;
-  if (!save || !gatherOptions().includes(kind)) return;
+  const target = save ? gatherTargets().find((entry) => entry.kind === kind) : null;
+  if (!target) return;
   if (core.clock - (core.gatherAt ?? -99) < 1.5) return; // not at every tap
   core.gatherAt = core.clock;
   if (!core.inventory.ready())
@@ -7900,12 +7970,13 @@ async function gather(kind) {
   // A tree is chopped at until it's down (no waiting between strokes); a boulder is one spot of its own;
   // everything else uses up the patch of ground it's on.
   const tree = kind === "chop" ? core.world.treeNear(at.x, at.z) : -1;
-  const rock = kind === "mine" ? core.world.rockNear(at.x, at.z) : -1;
-  const key = rock >= 0 ? `mine:rock:${save.region ?? HOME_REGION}:${rock}` : spotKey(kind, at.x, at.z);
+  const key = gatherKey(target);
   if (kind === "chop" && tree < 0) return;
   if (kind !== "chop" && !spotReady(save.gathered, key, day, core.settings.regrowDays))
     return void core.hud?.setNotice(lines.spent);
-  core.gesture = GATHER_KINDS[kind].gesture; // acted out: an axe swung, a line cast
+  // Turned to the tree, the rock or the water, and acted out: an axe swung, a line cast.
+  if (target.face) core.player.rotation.y = Math.atan2(target.x - at.x, target.z - at.z);
+  core.gesture = GATHER_KINDS[kind].gesture;
   const sheet = sheetNow();
   const attribute = GATHER_KINDS[kind].attribute;
   const score = valueOf(sheet, attribute) + (wornBonuses(sheet, core.items ?? [])[attribute] ?? 0);
@@ -7946,6 +8017,21 @@ function stallLooks() {
     const own = vendorKinds({ kind: "stall", id: stall.id }, "", core.save.vendors?.[stall.id], all);
     return own.map((kind) => PACK.vendors.looks[kind]?.stall).find(Boolean) ?? null;
   });
+}
+
+/** Dresses the market's stalls again, after a trade has changed: the stall takes its new look at once. */
+async function redressStalls() {
+  const world = core.world;
+  if (!core.settings.props || !world?.clearProps || !core.propModels) return;
+  const wanted = core.settings.vendors && core.save ? stallLooks() : [];
+  const missing = wanted.filter((model) => model && !core.marketModels?.has(model));
+  let extra = core.marketModels ?? new Map();
+  if (missing.length) extra = new Map([...extra, ...(await kitModels("market", missing).catch(() => new Map()))]);
+  if (core.world !== world) return;
+  core.marketModels = extra;
+  world.clearProps();
+  world.dressStalls(wanted.map((model) => (model && extra.has(model) ? model : null)));
+  world.addProps(new Map([...core.propModels, ...extra]));
 }
 
 /** When the market's stalls are open (a building keeps its own hours). */
@@ -8123,6 +8209,7 @@ function setVendorKinds(id, kinds) {
   core.saves.write(core.save);
   core.journalAt = 0;
   placeSigns();
+  void redressStalls();
 }
 
 /** A vendor's own guidance for what the AI stocks it with ("" for none). Its shelves are written again next time. */
@@ -8158,6 +8245,7 @@ function setTrade(id, fields) {
   core.save = { ...core.save, trades: checkTrades(mine, PACK.vendors.kinds) };
   core.saves.write(core.save);
   placeSigns();
+  void redressStalls();
 }
 
 /** What haggling has done to the prices of the vendor here today: a factor on them (vendor.js haggled). */
@@ -8679,6 +8767,7 @@ function step(dt) {
     savePlace(true, captureThumbnail());
   }
   const speed = movePlayer(dt, read);
+  core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {
     const other = core.talking.group.position;

@@ -3793,7 +3793,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         if (item.need > (kind === "rock" ? view.rocks : view.density)) continue;
         if ((item.x - view.x) ** 2 + (item.z - view.z) ** 2 > reach) continue;
         if (!inCone(item)) continue;
-        for (const mesh of meshes) mesh.setMatrixAt(count, item.matrix);
+        const matrix = item.small && mined.has(item.rock) ? item.small : item.matrix; // worked down for now
+        for (const mesh of meshes) mesh.setMatrixAt(count, matrix);
         count++;
       }
       for (const mesh of meshes) {
@@ -3841,6 +3842,19 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   let collider = createCollider([], []);
   // The trees that have been cut down (their numbers in `trees`): not drawn, and nothing to walk into.
   let felled = new Set();
+  // The boulders that have been mined and not yet had their days (their numbers in `rocks`): drawn smaller.
+  let mined = new Set();
+  // A stump where each felled tree stood.
+  const STUMPS = 400;
+  const stumps = new InstancedMesh(
+    new CylinderGeometry(0.26, 0.36, 0.5, 8).translate(0, 0.2, 0),
+    new MeshLambertMaterial({ color: 0x7a5a3c, flatShading: true }),
+    STUMPS,
+  );
+  stumps.count = 0;
+  stumps.frustumCulled = false;
+  stumps.userData.stump = true;
+  scene.add(stumps);
   const treesDrawn = () => Math.min(trees.length, baseTrees * view.density);
   const rebuildCollider = () => {
     const standing = treeCircles.slice(0, treesDrawn()).filter((_, i) => !felled.has(i));
@@ -4038,10 +4052,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       ground,
       "top",
     );
-    // (`tree`: which of the world's trees this is, so a felled one isn't drawn.)
-    const place = (name, x, z, need, tree = undefined) => {
+    // (`tree`: which of the world's trees this is, so a felled one isn't drawn. `rock`: which of its
+    // boulders, so one that's been mined is drawn smaller.)
+    const place = (name, x, z, need, tree = undefined, rock = undefined) => {
       if (!placements.has(name)) placements.set(name, []);
-      placements.get(name).push({ x, z, need, matrix: dummy.matrix.clone(), tree });
+      const matrix = dummy.matrix.clone();
+      const small = rock === undefined ? null : matrix.clone().scale(dummy.scale.clone().setScalar(0.55));
+      placements.get(name).push({ x, z, need, matrix, tree, rock, small });
     };
     const pickWeighted = (list, value) => {
       const total = list.reduce((sum, entry) => sum + entry[1], 0);
@@ -4085,6 +4102,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         rock.x,
         rock.z,
         needFor(i, baseRocks),
+        undefined,
+        i,
       );
     });
     // Undergrowth on the grass around town: between the town's edge and the forest.
@@ -4286,16 +4305,30 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
    * its counter go. Before addProps.
    */
   function dressStalls(wanted) {
+    // (From the bare stalls each time, so a stall whose trade has changed can be dressed again.)
+    for (const slot of town.propSlots) {
+      if (slot.model === "stall-empty") slot.stall = true;
+      if (slot.stall) slot.model = "stall-empty";
+      if (slot.was) slot.model = slot.was;
+    }
     let index = 0;
     for (const slot of town.propSlots) {
-      if (slot.model !== "stall-empty" && !slot.stall) continue;
-      slot.stall = true;
+      if (!slot.stall) continue;
       const model = wanted[index++];
       if (!model) continue;
       slot.model = model;
       for (const other of town.propSlots)
-        if (other.y === STALL_COUNTER && Math.hypot(other.x - slot.x, other.z - slot.z) < 1.2) other.model = null;
+        if (other.y === STALL_COUNTER && other.model && Math.hypot(other.x - slot.x, other.z - slot.z) < 1.2) {
+          other.was = other.model;
+          other.model = null;
+        }
     }
+  }
+
+  /** Takes the kit's props away again (the simple ones show until addProps puts them back). */
+  function clearProps() {
+    for (const mesh of scene.children.filter((object) => object.userData.prop)) scene.remove(mesh);
+    town.props.visible = true;
   }
 
   function addProps(models) {
@@ -4317,6 +4350,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         matrices.forEach((matrix, i) => instanced.setMatrixAt(i, matrix));
         instanced.computeBoundingSphere();
         instanced.userData.kit = true;
+        instanced.userData.prop = true;
         scene.add(instanced);
       }
     }
@@ -4354,9 +4388,31 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       const next = new Set(numbers);
       if (next.size === felled.size && [...next].every((number) => felled.has(number))) return;
       felled = next;
+      let count = 0;
+      for (const number of felled) {
+        const tree = trees[number];
+        if (!tree || count >= STUMPS) continue;
+        dummy.position.set(tree.x, heightAt(tree.x, tree.z), tree.z);
+        dummy.rotation.set(0, tree.turn, 0);
+        dummy.scale.setScalar(0.8 + tree.scale * 0.25);
+        dummy.updateMatrix();
+        stumps.setMatrixAt(count++, dummy.matrix);
+      }
+      stumps.count = count;
+      stumps.instanceMatrix.needsUpdate = true;
       rebuildCollider();
       refreshNature();
     },
+    /** Which boulders are mined out for now (their numbers): they're drawn smaller until they've had their days. */
+    setMined(numbers) {
+      const next = new Set(numbers);
+      if (next.size === mined.size && [...next].every((number) => mined.has(number))) return;
+      mined = next;
+      refreshNature();
+    },
+    /** Where a tree or a boulder stands, by its number: { x, z }, or null. */
+    treeAt: (number) => (trees[number] ? { x: trees[number].x, z: trees[number].z } : null),
+    rockAt: (number) => (rocks[number] ? { x: rocks[number].x, z: rocks[number].z } : null),
     /** The season the land wears: winter lies under snow; the others are the green land. */
     setSeason(season, worn = true) {
       ground.uWinter.value = season === "winter" ? 0.85 : 0;
@@ -4439,6 +4495,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     /** The kit props this world has somewhere (a smithy's anvil, a farm's crates): what to load for addProps. */
     propModels: [...new Set(town.propSlots.map((slot) => slot.model))],
     dressStalls,
+    clearProps,
     /** Cave mouths: { x, z (where to stand), angle, outpost }. */
     caves: country.caves,
     /** The world's landscape, as built (land.js), for saving with it. */
