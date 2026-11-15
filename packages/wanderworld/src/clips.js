@@ -97,7 +97,7 @@ export const ACT_NAMES = Object.keys(ACTS);
 /** Seconds it takes to lie down, and to get up again (callers keep a body still that long). */
 export const LIE_SECONDS = 1.55;
 /** Gestures made once, over whatever else the body is doing. */
-const GESTURES = new Set(["interact", "pickUp", "drink"]);
+const GESTURES = new Set(["interact", "pickUp", "drink", "chop", "mine", "fish", "pick", "harvest"]);
 /** Sitting on the ground: how far the hips come down (leg lengths), and how the legs fold (radians
  *  from hanging straight down: thighs past level, knees up; shins sloping down to the feet). */
 const GROUND_HIPS = -0.83;

@@ -3036,6 +3036,7 @@ function seasonOn(material, uniforms, kind) {
   const cover = {
     leaf: "0.9 + 0.1 * abs(vSeason.x)",
     blossom: "0.9 + 0.1 * abs(vSeason.x)",
+    bluish: "0.9 + 0.1 * abs(vSeason.x)",
     birch: "0.9 + 0.1 * abs(vSeason.x)",
     needle: "0.9 + 0.1 * abs(vSeason.x)",
     top: "smoothstep(0.2, 0.7, vSeason.x)",
@@ -3087,6 +3088,10 @@ ${
   vec3 turned = vSeason.y < 0.5 ? vec3(0.9, 0.42, 0.1) : vec3(0.68, 0.17, 0.1);
   vec3 green = mix(vec3(0.34, 0.6, 0.2) * (0.45 + light * 0.75), turned * min(1.05, 0.4 + light * 0.9), uFall * 0.88);
   diffuseColor.rgb = mix(green, mix(diffuseColor.rgb, vec3(1.0, 0.8, 0.9), 0.5), uSpring); // (a paler pink than the texture's)
+`,
+    // (An evergreen whose leaves come blue in the pack: made a dark green from their light and dark, all year.)
+    bluish: `  float light = dot(diffuseColor.rgb, vec3(0.3, 0.4, 0.3));
+  diffuseColor.rgb = vec3(0.2, 0.42, 0.17) * (0.45 + light * 1.5);
 `,
     birch: `  float light = dot(diffuseColor.rgb, vec3(0.35, 0.5, 0.15));
   vec3 green = vec3(0.4, 0.64, 0.2) * (0.5 + light * 0.9) * mix(vec3(1.0), vec3(0.96, 1.14, 0.8), uSpring * 0.85);
@@ -4119,15 +4124,17 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
           : seasonOn(
               material.clone(),
               ground,
-              /^(?:leaf-pine|leaves-giantpine|leaves-tallthick)/u.test(texture)
-                ? "needle"
-                : /^leaves-cherryblossom/u.test(texture)
-                  ? "blossom"
-                  : /^leaves-birch/u.test(texture)
-                    ? "birch"
-                    : /^(?:leaves|leaf|flowers)/u.test(texture)
-                      ? "leaf"
-                      : "top",
+              /^leaves-tallthick/u.test(texture)
+                ? "bluish"
+                : /^(?:leaf-pine|leaves-giantpine)/u.test(texture)
+                  ? "needle"
+                  : /^leaves-cherryblossom/u.test(texture)
+                    ? "blossom"
+                    : /^leaves-birch/u.test(texture)
+                      ? "birch"
+                      : /^(?:leaves|leaf|flowers)/u.test(texture)
+                        ? "leaf"
+                        : "top",
             );
         const instanced = new InstancedMesh(geometry, look, items.length);
         instanced.frustumCulled = false; // round the player anyway, and its instances change as they move

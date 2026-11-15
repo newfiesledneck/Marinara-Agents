@@ -2,9 +2,10 @@
 // Converts animations from Quaternius's Universal Animation Library and Universal Animation Library 2
 // (both CC0) into Wanderworld's compact recorded-motion file, packages/wanderworld/src/clips/ual.json.
 //
-// Usage: node scripts/build-wanderworld-clips.mjs <UAL1_Standard.glb> <UAL1_Standard_RM.glb> <UAL2_Standard.glb>
-// (the first two in the free "Universal Animation Library[Standard]" download, the third in "Universal
-// Animation Library 2[Standard]", each in its Unreal-Godot folder).
+// Usage: node scripts/build-wanderworld-clips.mjs <UAL1.glb> <UAL1_RM.glb> <UAL2.glb>
+// (the first two in the "Universal Animation Library" download, the third in "Universal Animation
+// Library 2", each in its Unreal-Godot folder). Fish_Cast, Mining_Loop and Farm_PickingTree are only in
+// the second library's Source tier; everything else is in the free Standard downloads too.
 //
 // For every frame it stores each humanoid bone's turn away from the T-pose, measured in the model's own
 // space (a "world delta"), plus the hips' movement. Those play back on any humanoid rig, whatever its
@@ -97,6 +98,10 @@ const CLIPS = {
   lean: { name: "Idle_Rail_Loop", pack: 2, fps: 8 },
   getUp: { name: "LayToIdle", pack: 2, fps: 12 },
   drink: { name: "Consume", pack: 2, fps: 12 },
+  // (These three are in the paid tier of the second library only.)
+  fish: { name: "Fish_Cast", pack: 2, fps: 12 },
+  mine: { name: "Mining_Loop", pack: 2, fps: 15 },
+  pick: { name: "Farm_PickingTree", pack: 2, fps: 10 },
 };
 
 async function load(path) {
