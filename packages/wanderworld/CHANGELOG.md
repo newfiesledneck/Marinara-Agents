@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.73 — 2026-11-15
+
+- Settings has an Inventory section of its own, in four parts: Items, Sheet, Gathering and Shops. These settings were listed under People → Inventory, a tab that could not be opened, so until now they could only be reached where they were repeated elsewhere.
+- A level gained does something: your most HP rises by 4 and your Constitution modifier, your most mana by 2, and your HP is restored. The chat says so.
+- Settings → World → Time and weather has a Season choice, like the weather's: the world's own, or one you pick to hold.
+- Better tools gather better. A tool whose description says "+2 gathering" adds 2 to the roll. The smith's iron axe and pickaxe have it, and the general store has a jointed fishing rod that does.
+- Things you add to the sheet have a description you can edit. Your ticked stats are told to scenes as well.
+
 ## 0.6.72 — 2026-11-15
 
 - A hanging sign on a building with an overhang no longer pokes through its roof. It hangs from one of the overhang's posts, just under the eave, a little smaller. This goes for the painted signs and the boards with a name.

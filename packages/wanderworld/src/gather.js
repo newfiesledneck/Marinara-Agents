@@ -79,13 +79,14 @@ export function treesDown(trees, region, day, grow) {
 }
 
 /**
- * One try at gathering: a d20 plus the modifier of `score` (the attribute for the kind). Under 8 nothing
- * is found; from 18 up, two. What's found comes from `lists[kind]` (for foraging, the season's list), the
+ * One try at gathering: a d20 plus the modifier of `score` (the attribute for the kind) plus `bonus` (what
+ * the tool adds: craft.js toolBonus). Under 8 nothing is found; from 18 up, two (from a tree only with a
+ * tool that adds something: a plain axe takes one piece at a stroke). What's found comes from `lists[kind]` (for foraging, the season's list), the
  * things earlier in a list turning up more often. { roll, total, found: { name, description, quantity } | null }.
  */
-export function gatherRoll(kind, score, lists, season = "", random = Math.random) {
+export function gatherRoll(kind, score, lists, season = "", random = Math.random, bonus = 0) {
   const roll = 1 + Math.floor(random() * 20);
-  const total = roll + modifier(score);
+  const total = roll + modifier(score) + bonus;
   const all = lists?.[kind];
   const list = Array.isArray(all) ? all : (all?.[season || "summer"] ?? all?.summer ?? []);
   if (total < 8 || !list.length) return { roll, total, found: null };
@@ -94,6 +95,10 @@ export function gatherRoll(kind, score, lists, season = "", random = Math.random
   return {
     roll,
     total,
-    found: { name: pick.name, description: pick.description ?? "", quantity: total >= 18 && kind !== "chop" ? 2 : 1 },
+    found: {
+      name: pick.name,
+      description: pick.description ?? "",
+      quantity: total >= 18 && (kind !== "chop" || bonus > 0) ? 2 : 1,
+    },
   };
 }

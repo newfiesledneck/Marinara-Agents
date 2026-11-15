@@ -1,7 +1,7 @@
 // What the player wears and carries, kept by the Quartermaster package when it's installed (its README,
 // "For other packages"): a character sheet for each persona in each world, opened from the Inventory
 // button, with what is worn told to the AI and, after something is narrated, its tracker asked what
-// changed. Wanderworld never needs it: without Quartermaster (or with Settings → People → Inventory off)
+// changed. Wanderworld never needs it: without Quartermaster (or with Settings → Inventory off)
 // there is no button and nothing here does anything.
 import { request } from "./ai.js";
 import { INK, INK_SOFT, SERIF } from "./ui.js";

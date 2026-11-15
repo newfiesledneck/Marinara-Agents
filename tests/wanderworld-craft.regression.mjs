@@ -9,6 +9,7 @@ import {
   held,
   knownRecipes,
   saveRecipe,
+  toolBonus,
   toolFor,
   TOOLS,
 } from "../packages/wanderworld/src/craft.js";
@@ -28,6 +29,18 @@ assert.equal(toolFor("mine", bag), null, "no pick");
 assert.equal(toolFor("mine", [{ name: "Dwarven Pickaxe" }]).name, "Dwarven Pickaxe");
 assert.equal(toolFor("chop", [{ name: "Relaxed attitude" }]), null, "an axe is a word of its own");
 assert.equal(toolFor("forage", bag), null, "done by hand");
+// What a tool adds is what its description says; the setting's iron tools say so, its stone ones don't.
+assert.deepEqual(
+  [
+    toolBonus({ description: "Tool: chops wood, +2 gathering." }),
+    toolBonus({ description: "A plain axe." }),
+    toolBonus({ description: "-1 to gathering" }),
+    toolBonus(null),
+  ],
+  [2, 0, -1, 0],
+);
+assert.equal(toolBonus(PACK.recipes.find((recipe) => recipe.id === "iron-axe")), 2);
+assert.equal(toolBonus(PACK.recipes.find((recipe) => recipe.id === "stone-axe")), 0);
 assert.deepEqual([TOOLS.chop.weapon, TOOLS.mine.weapon, TOOLS.fish.weapon], [true, true, false]);
 
 // What a recipe needs, against what's carried (over every stack), and what making it takes.

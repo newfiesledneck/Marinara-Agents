@@ -157,7 +157,7 @@ import {
   tradeSign,
   vendorKinds,
 } from "./vendor.js";
-import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolFor, TOOLS } from "./craft.js";
+import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -6811,6 +6811,8 @@ async function playAsScene(thing, request, along, withNarrator = false) {
     telling
       ? `${narrator.name} is the narrator of this scene: they tell what happens and give the world its voice, and are not a person standing there.`
       : "",
+    // The player's stats as a block (Inventory → Sheet, what's ticked), so the scene starts from how they stand.
+    sheetTold() ? `${personaName()}'s stats as the scene begins. ${sheetTold()}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -7712,6 +7714,30 @@ function toggleFullscreen() {
 // ── Each frame ───────────────────────────────────────────────────────────────
 
 /**
+ * The season now: the world's own, unless Settings → World → Time and weather → Season picks one (as
+ * its weather can be picked). "" is the plain green land.
+ */
+function seasonNow() {
+  const picked = core.settings.season ?? "world";
+  return picked === "world" ? (core.save?.season ?? "") : picked === "none" ? "" : picked;
+}
+
+/** Experience earned (sheet.js gainXp): kept, and a level gained is said in the chat with what it gave. */
+function earnXp(amount) {
+  if (!core.save || !core.settings.sheet || !(amount > 0)) return;
+  const before = sheetNow();
+  const grown = gainXp(before, amount);
+  setSheet(grown.sheet);
+  if (!grown.levels) return;
+  const most = (id) => grown.sheet.entries.find((entry) => entry.id === id)?.max;
+  narrate(
+    null,
+    `${personaName()} reaches level ${valueOf(grown.sheet, "level")}: HP is now ${most("hp")} at most and restored, mana ${most("mana")} at most.`,
+  );
+  core.hud?.refreshInventory?.();
+}
+
+/**
  * The year (Settings → World → Time and weather → Seasons change): once the world's season has lasted its
  * days, the next begins, and the chat says so. Counted in the world's own days, from the day the season
  * was set or the setting was first on, so nothing jumps when it's switched on.
@@ -7763,7 +7789,7 @@ async function readItems() {
   return core.items;
 }
 /**
- * The AI keeps the sheet (Settings → People → Inventory → "The AI updates your sheet"): it reads what was
+ * The AI keeps the sheet (Settings → Inventory → "The AI updates your sheet"): it reads what was
  * just told and answers with the stats that changed and any experience earned, a short list that is
  * checked against the sheet and applied (sheet.js applyChanges). Never a rewrite of the sheet.
  */
@@ -7785,7 +7811,7 @@ function trackSheet(parts, kind = "moment") {
       if (core.save?.id !== saveId) return; // another world since
       const before = sheetNow();
       const changed = applyChanges(before, answer?.changes);
-      const grown = gainXp(changed.sheet, answer?.xp ?? 0);
+      const xp = Math.max(0, Math.round(answer?.xp ?? 0));
       const reasons = new Map(
         (answer?.changes ?? []).map((change) => [String(change.stat).toLowerCase(), change.reason]),
       );
@@ -7793,11 +7819,11 @@ function trackSheet(parts, kind = "moment") {
         const why = reasons.get(change.name.toLowerCase()) ?? reasons.get(change.id);
         return `${change.name} ${change.from} to ${change.to}${why ? ` (${why})` : ""}`;
       });
-      if (answer?.xp > 0) notes.push(`+${answer.xp} XP`);
-      if (grown.levels) notes.push(`level ${valueOf(grown.sheet, "level")} reached`);
+      if (xp > 0) notes.push(`+${xp} XP`);
       if (!notes.length) return;
-      setSheet(grown.sheet);
+      setSheet(changed.sheet);
       core.hud?.narrate(null, `(Your sheet changed: ${notes.join(", ")}.)`, false);
+      earnXp(xp);
       core.hud?.refreshInventory?.();
     })
     .catch((error) => {
@@ -7826,7 +7852,7 @@ function gatherOptions(zone = null) {
     water,
     tree: core.world.treeNear(at.x, at.z) >= 0,
     rock: core.world.rockNear(at.x, at.z) >= 0,
-    season: core.save.season ?? "",
+    season: seasonNow(),
   });
 }
 
@@ -7858,9 +7884,9 @@ async function gather(kind) {
   core.gatherAt = core.clock;
   if (!core.inventory.ready())
     return void core.hud?.setNotice(
-      "What you gather goes into your inventory, which the Quartermaster package keeps: install it, and turn on Settings → People → Inventory.",
+      "What you gather goes into your inventory, which the Quartermaster package keeps: install it, and turn on Settings → Inventory.",
     );
-  // Its tool, when it takes one (Settings → People → Inventory → "Gathering needs tools").
+  // Its tool, when it takes one (Settings → Inventory → "Gathering needs tools").
   if (core.settings.gatherTools && TOOLS[kind] && !toolFor(kind, await readItems())) {
     const first = PACK.recipes.find((recipe) => toolFor(kind, [recipe]));
     return void core.hud?.setNotice(
@@ -7883,7 +7909,14 @@ async function gather(kind) {
   const sheet = sheetNow();
   const attribute = GATHER_KINDS[kind].attribute;
   const score = valueOf(sheet, attribute) + (wornBonuses(sheet, core.items ?? [])[attribute] ?? 0);
-  const got = gatherRoll(kind, score, PACK.gather, save.season ?? "");
+  const got = gatherRoll(
+    kind,
+    score,
+    PACK.gather,
+    seasonNow(),
+    Math.random,
+    toolBonus(toolFor(kind, core.items ?? [])),
+  );
   const chopped = kind === "chop" ? chopTree(save.trees, treeKey(tree), day) : null;
   core.save = chopped ? { ...save, trees: chopped.trees } : { ...save, gathered: spotUsed(save.gathered, key, day) };
   core.saves.write(core.save);
@@ -7896,7 +7929,7 @@ async function gather(kind) {
     return void core.hud?.setNotice(`It couldn't be put in your inventory: ${error?.message ?? error}`);
   }
   await readItems();
-  if (core.settings.sheet) setSheet(gainXp(sheetNow(), 3).sheet);
+  earnXp(3);
   const what = `${got.found.quantity > 1 ? `${got.found.quantity} × ` : ""}${got.found.name}`;
   narrate(null, `${lines.found.replace("{who}", who).replace("{what}", what)}${felled}`);
   core.hud?.refreshInventory?.();
@@ -8252,7 +8285,7 @@ async function craftRecipe(recipe) {
     await core.inventory.change(take.id, take.quantity > 0 ? { quantity: take.quantity } : null);
   await core.inventory.add({ name: recipe.name, description: recipe.description, quantity: recipe.makes });
   await readItems();
-  if (core.settings.sheet) setSheet(gainXp(sheetNow(), 5).sheet);
+  earnXp(5);
   core.gesture = "interact";
   narrate(null, `${personaName()} makes ${recipe.makes > 1 ? `${recipe.makes} × ` : ""}${recipe.name}.`);
 }
@@ -8370,11 +8403,11 @@ function stepClock(dt) {
   core.weatherTime = (core.weatherTime ?? 0) + dt;
   const setting = core.settings.weather ?? "off";
   turnSeason();
-  core.world.setSeason(core.save?.season ?? "", core.settings.seasonLook);
+  core.world.setSeason(seasonNow(), core.settings.seasonLook);
   let kind = setting === "off" ? "clear" : setting;
   if (setting === "changing") {
     const seed = hashString(regionSeed(core.save ?? { region: HOME_REGION, seed: "" }));
-    kind = weatherAt(seed, Math.floor(core.weatherTime / WEATHER_PERIOD), core.save?.season ?? "");
+    kind = weatherAt(seed, Math.floor(core.weatherTime / WEATHER_PERIOD), seasonNow());
     // A clear morning may start in mist (Settings → World).
     if (kind === "clear" && core.settings.morningMist && mistyMorning(seed, core.social?.day ?? 0, core.hour))
       kind = "mist";

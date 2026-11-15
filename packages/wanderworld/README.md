@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.72)
+## What it does now (0.6.73)
 
 ### The world
 
@@ -144,7 +144,7 @@ With it running:
   takes the changes by Quartermaster's own rules, and the chat says what changed ("added and put on Hat,
   took off Scarf"); nothing is said when no item changed. A scene started from the world is linked to the
   same sheet (Quartermaster 0.1.37 or later), so its chat shows and changes the one inventory. Deleting
-  a world deletes its sheets. Settings → People → Inventory has a switch for each: the button, the worn
+  a world deletes its sheets. Settings → Inventory has a switch for each: the button, the worn
   text, when the tracker runs (never, after moments, after moments and replies), scenes sharing the
   sheet, and the parchment colours. Without Quartermaster nothing changes.
 - **Illustrate:** a window that paints the current moment (where, when, the weather, who's with you and

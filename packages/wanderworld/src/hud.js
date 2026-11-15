@@ -817,6 +817,8 @@ export function createHud(root, handlers) {
     timeSpeed: "How long a full day takes.",
     weather:
       "Changing picks every few minutes: mostly clear, sometimes rain, fog or snow, the heavy kinds least often; a winter world gets snow where others get rain. Off keeps the sky clear. How far you can see in each kind is the same at every draw distance.",
+    season:
+      'Which season is shown and played. As this world has it: the world\'s own, set in Journal → World and turned by "Seasons change". Any other choice holds that season here whatever the world says, as picking a kind of weather holds that weather. It changes how the land looks, what foraging finds, and which weather comes.',
     seasonsTurn:
       "On: the seasons follow one another (spring, summer, fall, winter), and the chat says when one begins. A world with no season set counts as summer. Days are the world's own, so with the time held at always day or always night no season passes. Off: the season stays as it is set in Journal → World → Season.",
     seasonDays:
@@ -1139,6 +1141,14 @@ export function createHud(root, handlers) {
     snow: "Snow",
     "snow-heavy": "Heavy snow",
   });
+  choice("season", "Season", {
+    world: "As this world has it",
+    none: "None (green land)",
+    spring: "Spring",
+    summer: "Summer",
+    fall: "Fall",
+    winter: "Winter",
+  });
   toggle("seasonsTurn", "Seasons change");
   number("seasonDays", "A season lasts (days)", "seasonsTurn");
   toggle("morningMist", "Misty mornings");
@@ -1193,25 +1203,16 @@ export function createHud(root, handlers) {
   toggle("memoryToldCounted", "Count personal limits against the total", "memories");
   part("Keeping memories short");
   sumUpRow();
-  at("People", "Inventory");
-  intro(
-    "The Inventory button opens a window in tabs: Items, Sheet and Quartermaster. Your character sheet is Wanderworld's own. The things you wear and carry are kept by the Quartermaster package, if you have it installed: without it the Items tab is empty and the settings about items do nothing.",
+  // Inventory: everything about what you carry and what you can do with it, in four parts. (Its tab comes
+  // after People's; People's own last part, Genders, is added below.)
+  heading(
+    "Inventory",
+    "What you carry, your character sheet, gathering and shops. The things themselves are kept by the Quartermaster package, if you have it installed; your sheet is Wanderworld's own and works without it.",
+    ["Items", "Sheet", "Gathering", "Shops"],
   );
-  toggle("vendors", "Shops buy and sell");
-  number("restockDays", "Days between a shop's restocking", "vendors");
-  toggle("vendorAi", "The AI stocks shop shelves", "vendors");
-  toggle("haggling", "Haggling", "vendors");
-  toggle("gathering", "Gathering");
-  toggle("gatherTools", "Gathering needs tools", "gathering");
-  number("regrowDays", "Days until a spot gives again", "gathering");
-  number("treeDays", "Days until a felled tree grows back", "gathering");
-  toggle("sheet", "Character sheet");
-  toggle("sheetTold", "Tell the AI your stats", "sheet");
-  choice(
-    "sheetTrack",
-    "The AI updates your sheet",
-    { off: "Off", moments: "After moments", all: "After moments and replies" },
-    "sheet",
+  at("Inventory", "Items");
+  intro(
+    "The Inventory button opens a window in tabs: Items, Craft, Sheet and Quartermaster. What you wear and carry is kept by the Quartermaster package: without it the Items and Craft tabs are empty and these settings do nothing.",
   );
   toggle("inventory", "Use Quartermaster for the inventory");
   toggle("inventoryWorn", "Tell the AI what you're wearing", "inventory");
@@ -1224,6 +1225,32 @@ export function createHud(root, handlers) {
   toggle("inventoryScenes", "Scenes use this world's inventory", "inventory");
   toggle("inventoryTheme", "Parchment colours for the inventory window", "inventory");
   toggle("inventoryPinned", "Keep the inventory window open while you play", "inventory");
+  at("Inventory", "Sheet");
+  intro(
+    "Your character sheet (Inventory → Sheet): level, experience, HP, mana, AC, attributes, and whatever you add. A level gained raises what your HP and mana can be, and restores your HP.",
+  );
+  toggle("sheet", "Character sheet");
+  toggle("sheetTold", "Tell the AI your stats", "sheet");
+  choice(
+    "sheetTrack",
+    "The AI updates your sheet",
+    { off: "Off", moments: "After moments", all: "After moments and replies" },
+    "sheet",
+  );
+  at("Inventory", "Gathering");
+  intro(
+    "Fishing, chopping wood, foraging, mining and harvesting, each at its own resource. What you find goes into your inventory.",
+  );
+  toggle("gathering", "Gathering");
+  toggle("gatherTools", "Gathering needs tools", "gathering");
+  number("regrowDays", "Days until a spot gives again", "gathering");
+  number("treeDays", "Days until a felled tree grows back", "gathering");
+  at("Inventory", "Shops");
+  intro("Buying and selling. Which buildings and stalls trade, and as what, is in Settings → World → Vendors.");
+  toggle("vendors", "Shops buy and sell");
+  number("restockDays", "Days between a shop's restocking", "vendors");
+  toggle("vendorAi", "The AI stocks shop shelves", "vendors");
+  toggle("haggling", "Haggling", "vendors");
   at("People", "Genders");
   intro(
     "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",
@@ -1408,7 +1435,7 @@ export function createHud(root, handlers) {
   connectionChoice("trackerConnection", "Trackers use", "text", "Same as conversations");
   connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
   // (The trackers' connection again, with the inventory's own settings. Here, since the picker is made above.)
-  at("People", "Inventory");
+  at("Inventory", "Items");
   connectionChoice("trackerConnection", "Trackers use", "text", "Same as conversations");
   at("AI", "Writing");
   intro(
@@ -1438,7 +1465,7 @@ export function createHud(root, handlers) {
   choice("replyLength", "Reply length", { short: "Short", medium: "Medium", long: "Long" });
   toggle("promptCache", "Order prompts for caching");
   slider("aiTemperature", "Creativity", 0.1, (value) => value.toFixed(1));
-  // (The AI's part in shops and the sheet: the same settings as in People → Inventory, gathered here too.)
+  // (The AI's part in shops and the sheet: the same settings as in Inventory, gathered here too.)
   toggle("vendorAi", "The AI stocks shop shelves");
   choice("sheetTrack", "The AI updates your sheet", {
     off: "Off",
@@ -2242,7 +2269,7 @@ export function createHud(root, handlers) {
     if (!answer.ready) {
       body.append(
         debugNote(
-          "Buying and selling uses your inventory, which the Quartermaster package keeps. Install it from Agents → Download Agents and turn on Settings → People → Inventory.",
+          "Buying and selling uses your inventory, which the Quartermaster package keeps. Install it from Agents → Download Agents and turn on Settings → Inventory.",
         ),
       );
       return void shopPanel.replaceChildren(body);
@@ -2431,7 +2458,7 @@ export function createHud(root, handlers) {
     if (!answer?.ready) {
       body.append(
         debugNote(
-          "Crafting uses the things you carry, which the Quartermaster package keeps. Install it from Agents → Download Agents and turn on Settings → People → Inventory.",
+          "Crafting uses the things you carry, which the Quartermaster package keeps. Install it from Agents → Download Agents and turn on Settings → Inventory.",
         ),
       );
       return;
@@ -2565,7 +2592,7 @@ export function createHud(root, handlers) {
     if (!answer?.ready) {
       body.append(
         debugNote(
-          "Items are kept by the Quartermaster package. Install it from Agents → Download Agents and turn on Settings → People → Inventory, and what you carry shows here. The Sheet tab works without it.",
+          "Items are kept by the Quartermaster package. Install it from Agents → Download Agents and turn on Settings → Inventory, and what you carry shows here. The Sheet tab works without it.",
         ),
       );
       return;
@@ -2677,11 +2704,18 @@ export function createHud(root, handlers) {
         row.append(
           piece(`color:${INK_SOFT};`, `/ ${xpNeeded(sheet.entries.find((one) => one.id === "level")?.value ?? 1)}`),
         );
-      return entry.own && entry.about
-        ? [row, piece(`color:${INK_SOFT};font-size:11px;margin:-3px 0 0 24px;`, entry.about)]
-        : [row];
+      if (!entry.own) return [row];
+      // What it is, to edit: this is what the AI is told of it (a feat or a spell is nothing but its description).
+      const about = document.createElement("input");
+      about.type = "text";
+      about.value = entry.about;
+      about.placeholder = "What it is and does (for the AI)";
+      about.setAttribute("aria-label", `What ${entry.name} is`);
+      about.style.cssText = `${INK_INPUT}margin:-2px 0 0 24px;width:calc(100% - 24px);box-sizing:border-box;padding:2px 6px;font-size:11px;`;
+      about.addEventListener("change", () => change({ set: entry.id, field: "about", value: about.value }));
+      return [row, about];
     };
-    // The AI and the sheet: the same two settings as Settings → People → Inventory, here where they're used.
+    // The AI and the sheet: the same two settings as Settings → Inventory, here where they're used.
     {
       const told = piece("display:flex;align-items:center;gap:6px;");
       const tick = document.createElement("input");

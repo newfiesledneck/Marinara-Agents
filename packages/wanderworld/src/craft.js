@@ -25,6 +25,15 @@ export function toolFor(kind, items) {
   return (Array.isArray(items) ? items : []).find((item) => tool.named.test(String(item?.name ?? ""))) ?? null;
 }
 
+/**
+ * What a tool adds to the gathering roll: what its description says ("+2 gathering"), 0 when it says
+ * nothing. So a better tool finds something more often, and two of it more often.
+ */
+export function toolBonus(item) {
+  const match = /([+\-−])\s?(\d{1,2})\s*(?:to\s+)?gathering/iu.exec(String(item?.description ?? ""));
+  return match ? (match[1] === "+" ? 1 : -1) * Number(match[2]) : 0;
+}
+
 /** How many of something named `name` are carried, over every stack of it. */
 export const held = (items, name) =>
   (Array.isArray(items) ? items : [])

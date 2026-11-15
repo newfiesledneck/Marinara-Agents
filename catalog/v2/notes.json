@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.73",
+          "date": "2026-11-15",
+          "notes": "- Settings has an Inventory section of its own, in four parts: Items, Sheet, Gathering and Shops. These settings were listed under People → Inventory, a tab that could not be opened, so until now they could only be reached where they were repeated elsewhere.\n- A level gained does something: your most HP rises by 4 and your Constitution modifier, your most mana by 2, and your HP is restored. The chat says so.\n- Settings → World → Time and weather has a Season choice, like the weather's: the world's own, or one you pick to hold.\n- Better tools gather better. A tool whose description says \"+2 gathering\" adds 2 to the roll. The smith's iron axe and pickaxe have it, and the general store has a jointed fishing rod that does.\n- Things you add to the sheet have a description you can edit. Your ticked stats are told to scenes as well.",
+          "highlight": false
+        },
+        {
           "version": "0.6.72",
           "date": "2026-11-15",
           "notes": "- A hanging sign on a building with an overhang no longer pokes through its roof. It hangs from one of the overhang's posts, just under the eave, a little smaller. This goes for the painted signs and the boards with a name.",
@@ -1532,12 +1538,6 @@
           "date": "2026-11-15",
           "notes": "- Winter's roads, paths, streets and the square lie under patchy snow, with the dirt or paving showing through where it's trodden.\n- Fall: each broadleaf tree and bush turns yellow, orange or red, the grass is dry and yellowed, and the flowers and clover are gone. Pines stay green.\n- Spring: about a third of the broadleaf trees are in blossom, and the rest, with the grass, are a fresher green.\n- The season is the world's own (Journal → World → Season). The Graphics switch is now \"Trees, plants and streets wear the season\" and covers all three.",
           "highlight": false
-        },
-        {
-          "version": "0.6.0",
-          "date": "2026-11-15",
-          "notes": "- Winter looks like winter. In a winter world (Journal → World → Season) the trees' leaves and the bushes are white with snow, bark and stones carry it on top, and the far-off trees are pale. Grass, ferns, flowers, clover and mushrooms are gone, and drifts of snow lie under the trees. Settings → Display → Graphics has the switch.\n- The inventory window stays open while you play. It closed at every click in the game; now it closes with its own close button or the Inventory button. Settings → People → Inventory has the switch.\n- Versions now roll over at 99: this one follows 0.5.111 as 0.6.0.",
-          "highlight": true
         }
       ]
     },
