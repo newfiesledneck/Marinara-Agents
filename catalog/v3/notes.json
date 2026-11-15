@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.71",
+          "date": "2026-11-15",
+          "notes": "- Market stalls are dressed for their trade, with models from the Fantasy Props MegaKit's Pro tier: a smith's stall with tools and weapons, a potion seller's, and a greengrocer's with a cart of vegetables. Other trades keep the plain stall.\n- Shops hang a painted sign by the door for their trade: an anvil for a smith, a potion for an apothecary, a tankard for a tavern, a loaf for a greengrocer. Trades without one keep the board with their name.\n- A stall takes its look when the world loads. If you change a stall's trade, it shows after you open the world again.",
+          "highlight": false
+        },
+        {
           "version": "0.6.70",
           "date": "2026-11-15",
           "notes": "- Market stalls buy and sell by day. A greengrocer joins the trades.\n- Haggle, in a shop's window: a Charisma check once a day at each vendor. It can take a tenth or a fifth off for the day, change nothing, or put prices up.\n- Signs follow the trade. A plain shop's sign says what it sells, and a vendor you name says its name.\n- Settings → World → Vendors: name a vendor, and write what it in particular should stock. \"Trades\" there lets you rewrite what the AI is told each trade stocks, and make trades of your own with a name, guidance and a list of goods.\n- While a shop's window is open, Quartermaster's tracker is held back, so talk of buying doesn't add things you haven't paid for.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.111",
           "date": "2026-11-15",
           "notes": "- A place you're beside now counts with the one you're in. Standing on a river's bank in the woods, the river's lore is active with the forest's, and the AI and Illustrate are told \"in Whisperwood, near the bank of the Silverrun\". Before, the bank a few steps from the water was only forest.\n- It applies to rivers (12 m past the edge), ponds (10 m), the mountains (20 m), a cave's mouth (8 m), roads (4 m) and places out in the country such as ruins, standing stones, a mill or an inn (8 m). The two nearest count.\n- The Lore window marks their entries \"beside you\". Settings → World → Places has the switch, on to begin with.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.110",
-          "date": "2026-11-15",
-          "notes": "- Weather looks the same at every draw distance. Each kind now has its own visibility in metres. Before, it was a share of the draw distance, so mist was a wall at Tiny and barely there at Max.\n- New kinds: fog, rain and snow each come light, medium or heavy, and there are thunderstorms with lightning and thunder. Mist stays as the thinnest. Heavy fog lets you see about 20 metres.\n- With changing weather, about one clear morning in three starts in mist, and a winter world gets snow where others get rain.\n- Settings → World → Time and weather has all of them, with switches for misty mornings and lightning flashes.\n- Prompts and pictures are told the weather by name (\"heavy fog\", \"a thunderstorm\").",
           "highlight": false
         }
       ]

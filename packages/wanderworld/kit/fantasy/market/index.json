@@ -1,0 +1,69 @@
+{
+  "source": "Fantasy Props MegaKit (Pro) by Quaternius, CC0 1.0",
+  "models": {
+    "stall-blacksmith": {
+      "size": [
+        2.06,
+        2.66,
+        1.08
+      ],
+      "triangles": 18732
+    },
+    "stall-potions": {
+      "size": [
+        1.84,
+        2.66,
+        0.98
+      ],
+      "triangles": 12730
+    },
+    "stall-vegetables-full": {
+      "size": [
+        3.02,
+        2.66,
+        1.06
+      ],
+      "triangles": 20891
+    },
+    "sign-armory": {
+      "size": [
+        1.21,
+        1.24,
+        0.14
+      ],
+      "triangles": 1534
+    },
+    "sign-blacksmith": {
+      "size": [
+        1.21,
+        1.24,
+        0.14
+      ],
+      "triangles": 1534
+    },
+    "sign-food": {
+      "size": [
+        1.21,
+        1.24,
+        0.14
+      ],
+      "triangles": 1534
+    },
+    "sign-potions": {
+      "size": [
+        1.21,
+        1.24,
+        0.14
+      ],
+      "triangles": 1534
+    },
+    "sign-pub": {
+      "size": [
+        1.21,
+        1.24,
+        0.14
+      ],
+      "triangles": 1534
+    }
+  }
+}

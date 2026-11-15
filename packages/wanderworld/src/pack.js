@@ -784,6 +784,14 @@ const RECIPES = [
  * as everywhere: "+15 HP when drunk", "+1 AC", "Weapon: 1d6 damage".
  */
 const VENDORS = {
+  // What a trade looks like where the kit has something for it (kit/fantasy/market): a dressed market
+  // stall in place of the bare one, and a painted sign to hang by a shop's door.
+  looks: {
+    smith: { stall: "stall-blacksmith", sign: "sign-blacksmith" },
+    apothecary: { stall: "stall-potions", sign: "sign-potions" },
+    produce: { stall: "stall-vegetables-full", sign: "sign-food" },
+    tavern: { stall: "stall-vegetables-full", sign: "sign-pub" },
+  },
   kinds: {
     general: {
       label: "General store",

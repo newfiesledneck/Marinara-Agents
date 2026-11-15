@@ -652,10 +652,19 @@ function buildWorld(seed, place = null) {
   });
   if (core.settings.props) {
     const world = core.world;
+    // The market's stalls dressed by their trade, and the painted signs for shops' doors (the kit's
+    // market set): loaded with the props, so a stall is drawn once, as what it is.
+    const looks = PACK.vendors.looks;
+    const stallModels = core.settings.vendors && core.save ? stallLooks() : [];
+    const market = [...new Set([...stallModels.filter(Boolean), ...Object.values(looks).map((look) => look.sign)])];
     loads.push(
-      kitModels("props", world.propModels)
-        .then((models) => {
-          if (core.world === world) world.addProps(models);
+      Promise.all([kitModels("props", world.propModels), kitModels("market", market).catch(() => new Map())])
+        .then(([models, extra]) => {
+          if (core.world !== world) return;
+          if (stallModels.every((model) => !model || extra.has(model))) world.dressStalls(stallModels);
+          world.addProps(new Map([...models, ...extra]));
+          core.marketModels = extra;
+          if (core.zones) placeSigns(); // (the painted signs, now they're here)
         })
         .catch((error) => console.warn("[wanderworld] detailed props failed to load", error)),
     );
@@ -1528,6 +1537,26 @@ function signWords(zone) {
   return zone.sign ?? "";
 }
 
+/**
+ * The kit's painted sign for a vendor's trade (an anvil, a potion, a tankard, a loaf), hung out from the
+ * wall at `spot`; null when the building isn't a vendor, its trade has none, or the kit's aren't loaded.
+ */
+function paintedSign(zone, spot, angle) {
+  if (!core.settings.vendors || !core.marketModels) return null;
+  const all = trades();
+  const own = vendorKinds(zone, placeNames()[zone.id] ?? zone.name, core.save?.vendors?.[zone.id], all);
+  const model = own.map((kind) => PACK.vendors.looks[kind]?.sign).find(Boolean);
+  const parts = model && core.marketModels.get(model);
+  if (!parts) return null;
+  const mesh = new Group();
+  for (const part of parts) mesh.add(new Mesh(part.geometry, part.material));
+  // (The model hangs along its own +x from a bracket at its origin: turned to stand out from the wall.)
+  mesh.position.set(spot.x, spot.y - 0.25, spot.z);
+  mesh.rotation.y = angle - Math.PI / 2;
+  mesh.scale.setScalar(0.75);
+  return { mesh, setWords() {}, dispose: () => mesh.removeFromParent() };
+}
+
 function placeSigns() {
   for (const sign of core.signs) sign.dispose();
   core.signs = [];
@@ -1554,14 +1583,21 @@ function placeSigns() {
     if (!HANGING_SIGNS.has(zone.buildingKind) && !Array.isArray(core.save?.vendors?.[zone.id]?.kinds)) continue;
     const side = hashString(zone.id) % 2 ? 1 : -1;
     const along = 1.05 * side; // at the edge of the door's segment, clear of its windows and awnings
-    const hanging = createHangingSign({
+    const spot = {
       x: door.step.x - Math.sin(door.angle) * back + Math.cos(door.angle) * along,
       y: heightAt(door.step.x, door.step.z) + 3.3,
       z: door.step.z - Math.cos(door.angle) * back - Math.sin(door.angle) * along,
-      angle: door.angle,
-      words: signWords(zone),
-      boardUrl: `${ART}sign-wood${1 + (hashString(`${zone.id}:board`) % 4)}.webp`,
-    });
+    };
+    // A vendor whose trade has a painted sign in the kit hangs that out; the rest, a board with their name.
+    const painted = paintedSign(zone, spot, door.angle);
+    const hanging =
+      painted ??
+      createHangingSign({
+        ...spot,
+        angle: door.angle,
+        words: signWords(zone),
+        boardUrl: `${ART}sign-wood${1 + (hashString(`${zone.id}:board`) % 4)}.webp`,
+      });
     if (!hanging) continue;
     hanging.zone = zone;
     core.world.scene.add(hanging.mesh);
@@ -7849,6 +7885,15 @@ async function gather(kind) {
 
 /** Every trade in this world: the setting's (as the player has left their guidance) and the player's own. */
 const trades = () => tradeKinds(PACK.vendors.kinds, core.save?.trades);
+/** The kit model each market stall is dressed as, by its first trade that has one (null: the bare stall). */
+function stallLooks() {
+  const all = trades();
+  return stalls().map((stall) => {
+    const own = vendorKinds({ kind: "stall", id: stall.id }, "", core.save.vendors?.[stall.id], all);
+    return own.map((kind) => PACK.vendors.looks[kind]?.stall).find(Boolean) ?? null;
+  });
+}
+
 /** When the market's stalls are open (a building keeps its own hours). */
 const MARKET_HOURS = { from: 7, to: 19 };
 /** The market's stalls, each where its seller stands: [{ id, x, z }] (world.js stallSpots). */

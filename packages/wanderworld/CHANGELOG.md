@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.71 — 2026-11-15
+
+- Market stalls are dressed for their trade, with models from the Fantasy Props MegaKit's Pro tier: a smith's stall with tools and weapons, a potion seller's, and a greengrocer's with a cart of vegetables. Other trades keep the plain stall.
+- Shops hang a painted sign by the door for their trade: an anvil for a smith, a potion for an apothecary, a tankard for a tavern, a loaf for a greengrocer. Trades without one keep the board with their name.
+- A stall takes its look when the world loads. If you change a stall's trade, it shows after you open the world again.
+
 ## 0.6.70 — 2026-11-15
 
 - Market stalls buy and sell by day. A greengrocer joins the trades.

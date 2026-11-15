@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.6.70",
+  "version": "0.6.71",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -50,6 +50,13 @@
         "kit/fantasy/folk/folk-imp.webp",
         "kit/fantasy/folk/folk-puglin.webp",
         "kit/fantasy/folk/folk.json",
+        "kit/fantasy/market/index.json",
+        "kit/fantasy/market/models.json",
+        "kit/fantasy/market/t-page-noise.webp",
+        "kit/fantasy/market/t-trim-cloth-basecolor.webp",
+        "kit/fantasy/market/t-trim-furniture-basecolor.webp",
+        "kit/fantasy/market/t-trim-metal-basecolor.webp",
+        "kit/fantasy/market/t-trim-props-basecolor.webp",
         "kit/fantasy/outfits/clothes-a.webp",
         "kit/fantasy/outfits/clothes-b.webp",
         "kit/fantasy/outfits/clothes-blue.webp",
@@ -165,8 +172,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "be8bf840fccec50092c47ca10bee31af256beb3485734f85fbd8333aac1b40db",
-      "bytes": 2569566
+      "sha256": "4686b095b0e1c83c4171f0dc05faa1b06f1a538b88bcd9d363b9fa515cfcbca0",
+      "bytes": 2570987
     },
     {
       "path": "server.mjs",
@@ -242,6 +249,41 @@
       "path": "kit/fantasy/folk/folk.json",
       "sha256": "70d8b8a3ca9a5b75f15601678e467a3b7507aa1b665beac67ee68d830ea491fc",
       "bytes": 638660
+    },
+    {
+      "path": "kit/fantasy/market/index.json",
+      "sha256": "7cd760ec021ef01eab400fa81431097dac97e0c19fd49eacc7701f6c73484fb5",
+      "bytes": 1050
+    },
+    {
+      "path": "kit/fantasy/market/models.json",
+      "sha256": "c607456fe47d8eeed7948b3b6b56c8b7e5b4e0a94a5c082ad3ac721aa07d4bfc",
+      "bytes": 1601147
+    },
+    {
+      "path": "kit/fantasy/market/t-page-noise.webp",
+      "sha256": "75bc8aa70fc0869cfcf3ffdc24ffcb2da2132b45c61e7edc5106cb01ad73f782",
+      "bytes": 9352
+    },
+    {
+      "path": "kit/fantasy/market/t-trim-cloth-basecolor.webp",
+      "sha256": "1384d589bb0e3781bf928abcb907c57b6b31137ba454893c096f7e5d1e463639",
+      "bytes": 16888
+    },
+    {
+      "path": "kit/fantasy/market/t-trim-furniture-basecolor.webp",
+      "sha256": "51a1958f03924302902445549a02300a566c6d22d897112d596eb947e10ff83d",
+      "bytes": 21116
+    },
+    {
+      "path": "kit/fantasy/market/t-trim-metal-basecolor.webp",
+      "sha256": "e1991361b92c3f8b9c2359fff2a154b44370997c3240e30c39027a3e8e9a12db",
+      "bytes": 16558
+    },
+    {
+      "path": "kit/fantasy/market/t-trim-props-basecolor.webp",
+      "sha256": "7e40395ccb932616c250b0b7467e4713db1b258d02482bdadb9c0438476b1eb4",
+      "bytes": 27378
     },
     {
       "path": "kit/fantasy/outfits/clothes-a.webp",

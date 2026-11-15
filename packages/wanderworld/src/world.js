@@ -4280,9 +4280,28 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   }
 
   /** Swaps the town's simple barrels, crates, benches and stalls for kit props once they've loaded. */
+  /**
+   * Dresses the market's stalls: `wanted[i]` is the kit model for the i-th stall (in the order of their
+   * sellers' spots), or nothing to leave it bare. A dressed stall has its own goods, so the crates set on
+   * its counter go. Before addProps.
+   */
+  function dressStalls(wanted) {
+    let index = 0;
+    for (const slot of town.propSlots) {
+      if (slot.model !== "stall-empty" && !slot.stall) continue;
+      slot.stall = true;
+      const model = wanted[index++];
+      if (!model) continue;
+      slot.model = model;
+      for (const other of town.propSlots)
+        if (other.y === STALL_COUNTER && Math.hypot(other.x - slot.x, other.z - slot.z) < 1.2) other.model = null;
+    }
+  }
+
   function addProps(models) {
     const groups = new Map();
     for (const slot of town.propSlots) {
+      if (!slot.model) continue; // (cleared from a dressed stall's counter)
       if (!models.has(slot.model)) return; // something missing: keep the simple ones
       if (!groups.has(slot.model)) groups.set(slot.model, []);
       dummy.position.set(slot.x, heightAt(slot.x, slot.z) + slot.y, slot.z);
@@ -4419,6 +4438,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     props: town.propSlots.map((slot) => ({ model: slot.model, x: slot.x, z: slot.z })),
     /** The kit props this world has somewhere (a smithy's anvil, a farm's crates): what to load for addProps. */
     propModels: [...new Set(town.propSlots.map((slot) => slot.model))],
+    dressStalls,
     /** Cave mouths: { x, z (where to stand), angle, outpost }. */
     caves: country.caves,
     /** The world's landscape, as built (land.js), for saving with it. */
