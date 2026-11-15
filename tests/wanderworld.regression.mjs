@@ -61,12 +61,23 @@ assert.equal(collider.insideBox(15, 0, 0.4), false, "open ground is not a buildi
 // ── World ────────────────────────────────────────────────────────────────────
 const world = createWorld(12345);
 for (const density of DENSITIES) world.setDensity(density);
+// Winter: the drifts are only there in a winter world, and not with its snowy look turned off.
+{
+  const drifts = () =>
+    world.scene.children.find((object) => object.isInstancedMesh && object.geometry.type === "SphereGeometry");
+  assert.equal(drifts().visible, false);
+  world.setSeason("winter");
+  assert.ok(drifts().visible && drifts().count > 0, "drifts under the trees in winter");
+  world.setSeason("winter", false);
+  assert.equal(drifts().visible, false, "not with the snowy look off");
+  world.setSeason("");
+}
 const meshes = [];
 world.scene.traverse((object) => object.isInstancedMesh && meshes.push(object));
 assert.equal(
   meshes.length,
-  8,
-  "trunks, crowns, rocks, lamp posts, lamp heads, doors and the woods beyond the edge (two) are one instanced mesh each",
+  9,
+  "trunks, crowns, rocks, lamp posts, lamp heads, doors, winter's drifts and the woods beyond the edge (two) are one instanced mesh each",
 );
 
 // Doors swing open and shut; benches have seats; the day turns to night.

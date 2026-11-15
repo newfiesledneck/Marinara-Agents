@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.111)
+## What it does now (0.6.0)
 
 ### The world
 
@@ -474,6 +474,10 @@ only walk about.
   in the country, its lore is active too and prompts say so ("in Whisperwood, near the bank of the
   Silverrun"). These are no zones of their own: `bordersAt` in `src/zones.js` finds them from where you
   stand, 4 to 20 metres past a place's edge by kind.
+- A winter world (Journal → World → Season) is under snow: the ground, and with Settings → Display →
+  Graphics → "Snow on trees and stones in winter" the leaves, bushes and the tops of bark and stones as
+  well (`snowOn` in `src/world.js`, a tint in each material's shader). Grass, ferns, flowers, clover and
+  mushrooms aren't drawn, and drifts lie under the trees.
 - A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night. Weather (Settings,
   off by default): mist, fog, rain and snow, the last three light, medium or heavy, and thunderstorms
   with lightning and thunder. It changes every few minutes or stays one kind. Each kind has its own

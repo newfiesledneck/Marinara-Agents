@@ -853,6 +853,10 @@ export function createHud(root, handlers) {
       "After moments: when something is narrated, one more AI call reads it and updates the sheet (picked up, put on, given away), by Quartermaster's own rules for hidden items. After moments and replies: the same after each reply in a conversation, so about twice the calls there. Never: you keep the sheet yourself.",
     inventoryScenes:
       "On: a scene started from here is linked to this world's sheet, so the scene's chat shows and changes the same inventory, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat. Off: a scene's chat has a sheet of its own. Needs Quartermaster 0.1.37 or later.",
+    inventoryPinned:
+      "On: the inventory window stays open while you play. Close it with its own close button or the Inventory button. A click elsewhere in the Engine, outside the game, still closes it. Off: it closes at any click outside it, as it does in a chat.",
+    winterLook:
+      "On: in a winter world (Journal → World → Season) the trees, bushes and stones are under snow, the grass, ferns and flowers are gone, and drifts lie under the trees. Off: winter is the snowy ground alone.",
     inventoryTheme:
       "On: Quartermaster's window opens in Wanderworld's parchment colours and lettering. Off: it looks as it does in the Engine. The item and outfit editors it opens keep the Engine's look either way.",
     gossip:
@@ -1020,6 +1024,7 @@ export function createHud(root, handlers) {
   toggle("shadows", "Shadows under people");
   choice("frameLimit", "Frame rate limit", { 0: "No limit", 30: "30", 60: "60", 100: "100" });
   toggle("paintSlow", "Draw slower while a picture is painted");
+  toggle("winterLook", "Snow on trees and stones in winter");
   choice("ground", "Ground", { full: "Full", simple: "Simple" });
   toggle("nature", "Detailed trees and plants");
   choice(
@@ -1146,6 +1151,7 @@ export function createHud(root, handlers) {
   );
   toggle("inventoryScenes", "Scenes use this world's inventory", "inventory");
   toggle("inventoryTheme", "Parchment colours for the inventory window", "inventory");
+  toggle("inventoryPinned", "Keep the inventory window open while you play", "inventory");
   at("People", "Genders");
   intro(
     "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",
