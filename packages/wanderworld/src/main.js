@@ -33,7 +33,7 @@ import {
   setAnimationStyle,
   setHeldModels,
 } from "./character.js";
-import { LIE_SECONDS } from "./clips.js";
+import { gestureSeconds, LIE_SECONDS } from "./clips.js";
 import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
@@ -7961,8 +7961,9 @@ async function gather(kind) {
   const save = core.save;
   const target = save ? gatherTargets().find((entry) => entry.kind === kind) : null;
   if (!target) return;
-  if (core.clock - (core.gatherAt ?? -99) < 1.5) return; // not at every tap
-  core.gatherAt = core.clock;
+  // One try at a time: the next is taken as soon as the last one's swing or cast has played out.
+  if (core.clock < (core.gatherUntil ?? 0)) return;
+  core.gatherUntil = core.clock + 0.4; // (till the gesture below sets its own length; also when there's none)
   if (!core.inventory.ready())
     return void core.hud?.setNotice(
       "What you gather goes into your inventory, which the Quartermaster package keeps: install it, and turn on Settings → Inventory.",
@@ -7988,6 +7989,7 @@ async function gather(kind) {
   // Turned to the tree, the rock or the water, and acted out: an axe swung, a line cast.
   if (target.face) core.player.rotation.y = Math.atan2(target.x - at.x, target.z - at.z);
   core.gesture = GATHER_KINDS[kind].gesture;
+  core.gatherUntil = core.clock + (gestureSeconds(core.gesture) || 1.5);
   const sheet = sheetNow();
   const attribute = GATHER_KINDS[kind].attribute;
   const score = valueOf(sheet, attribute) + (wornBonuses(sheet, core.items ?? [])[attribute] ?? 0);
