@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.4 — 2026-11-15
+
+- More kinds of tree. The woods now have all five shapes of each tree in the nature pack: five common trees and five pines (four of each before), five red-leaved twisted trees and five dead trees (one of each before).
+- The undergrowth gains a second clover, a bracket mushroom and a short wispy grass.
+- In a world you already have, trees stand where they stood, but many are a different tree.
+
 ## 0.6.3 — 2026-11-15
 
 - The Map has a button of its own on the top bar and opens in its own window. It was a tab inside the Journal.

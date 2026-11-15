@@ -33,6 +33,14 @@
       ],
       "triangles": 4066
     },
+    "commontree-5": {
+      "size": [
+        3.67,
+        7.01,
+        4.22
+      ],
+      "triangles": 3182
+    },
     "pine-1": {
       "size": [
         4.94,
@@ -65,6 +73,14 @@
       ],
       "triangles": 3370
     },
+    "pine-5": {
+      "size": [
+        6.42,
+        8.72,
+        6.22
+      ],
+      "triangles": 1646
+    },
     "twistedtree-1": {
       "size": [
         13.52,
@@ -73,6 +89,38 @@
       ],
       "triangles": 9564
     },
+    "twistedtree-2": {
+      "size": [
+        10.56,
+        18.95,
+        9.2
+      ],
+      "triangles": 9134
+    },
+    "twistedtree-3": {
+      "size": [
+        11.36,
+        16.07,
+        11.51
+      ],
+      "triangles": 10089
+    },
+    "twistedtree-4": {
+      "size": [
+        10.38,
+        18.74,
+        11.29
+      ],
+      "triangles": 9600
+    },
+    "twistedtree-5": {
+      "size": [
+        9.49,
+        15.66,
+        9.39
+      ],
+      "triangles": 10104
+    },
     "deadtree-1": {
       "size": [
         6.15,
@@ -80,6 +128,38 @@
         5.75
       ],
       "triangles": 6169
+    },
+    "deadtree-2": {
+      "size": [
+        6.73,
+        11.49,
+        6.38
+      ],
+      "triangles": 6557
+    },
+    "deadtree-3": {
+      "size": [
+        6.39,
+        13.28,
+        6.43
+      ],
+      "triangles": 5802
+    },
+    "deadtree-4": {
+      "size": [
+        7.96,
+        12.77,
+        7.73
+      ],
+      "triangles": 5702
+    },
+    "deadtree-5": {
+      "size": [
+        8.36,
+        16.44,
+        8.41
+      ],
+      "triangles": 5648
     },
     "bush-common": {
       "size": [
@@ -129,6 +209,14 @@
       ],
       "triangles": 379
     },
+    "clover-2": {
+      "size": [
+        0.85,
+        1.26,
+        0.84
+      ],
+      "triangles": 615
+    },
     "mushroom-common": {
       "size": [
         0.56,
@@ -136,6 +224,14 @@
         0.78
       ],
       "triangles": 880
+    },
+    "mushroom-laetiporus": {
+      "size": [
+        1.37,
+        0.77,
+        1.1
+      ],
+      "triangles": 3216
     },
     "flower-3-group": {
       "size": [
@@ -176,6 +272,14 @@
         1.59
       ],
       "triangles": 622
+    },
+    "grass-wispy-short": {
+      "size": [
+        1.32,
+        1.07,
+        1.21
+      ],
+      "triangles": 494
     },
     "rock-medium-1": {
       "size": [
