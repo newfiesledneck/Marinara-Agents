@@ -1025,6 +1025,78 @@ assert.equal(
   );
 }
 
+// Settings → Debug: the calls are kept with their words, added up, and nothing key-shaped is shown.
+{
+  const log = server.createCallLog(2);
+  const usage = {
+    promptTokens: 1749,
+    completionTokens: 86,
+    totalTokens: 1835,
+    cachedPromptTokens: 1200,
+    completionReasoningTokens: 28,
+  };
+  log.add({
+    what: "talk",
+    model: "m",
+    messages: [{ role: "user", content: "Hello" }],
+    reply: "Hi.",
+    finish: "stop",
+    usage,
+    ms: 40,
+  });
+  log.add({ what: "talk", model: "m", messages: [], reply: "Cut", finish: "length", ms: 10 });
+  log.add({
+    what: "moment",
+    model: "m",
+    messages: [],
+    error: "401 from https://x.test/v1?api_key=abcdef123456 with Authorization: Bearer sk-abcdefghijklmnop1234",
+    ms: 5,
+  });
+  log.add({
+    kind: "image",
+    what: "image",
+    model: "sd",
+    messages: [{ role: "prompt", content: "a mill" }],
+    note: "512x768",
+    ms: 900,
+  });
+  const { totals, calls } = log.read();
+  assert.deepEqual(
+    [totals.requests, totals.responses, totals.failed, totals.cutOff, totals.counted, totals.pictures],
+    [3, 2, 1, 1, 1, 1],
+  );
+  assert.deepEqual(
+    [totals.prompt, totals.completion, totals.total, totals.cached, totals.reasoning, totals.cost, totals.ms],
+    [1749, 86, 1835, 1200, 28, null, 955],
+  );
+  assert.deepEqual(totals.byKind, { talk: { requests: 2, total: 1835 }, moment: { requests: 1, total: 0 } });
+  assert.equal(calls.length, 2, "the newest two are kept; the totals count all four");
+  assert.equal(calls[0].kind, "image", "newest first");
+  assert.ok(!("messages" in calls[0]) && !("reply" in calls[0]), "the list is without the words");
+  assert.equal(log.one(calls[0].id).messages[0].content, "a mill");
+  assert.doesNotMatch(calls[1].error, /abcdef123456|sk-abcdefghijklmnop1234/u);
+  assert.match(calls[1].error, /api_key=\[hidden\].*Bearer \[hidden\]/u);
+  assert.equal(
+    server.scrub("The key to the mill is under the mat; token of thanks."),
+    "The key to the mill is under the mat; token of thanks.",
+  );
+  assert.equal(
+    server.usageOf({ promptTokens: 0, completionTokens: 0, totalTokens: 0 }),
+    null,
+    "all zeros is none reported",
+  );
+  log.clear();
+  assert.equal(log.read().totals.requests, 0);
+  // The routes: what the assistant was just asked is there, whole when asked for by its id.
+  const read = (await call("get", "/debug/log")).body;
+  assert.ok(read.totals.requests > 0 && read.calls[0].what === "assistant");
+  const whole = (await call("get", "/debug/call/:id", { params: { id: String(read.calls[0].id) } })).body;
+  assert.equal(whole.messages.at(-1).content, "turn 29");
+  assert.equal((await call("get", "/debug/call/:id", { params: { id: "0" } })).code, 404);
+  await call("post", "/debug/clear", { body: {} });
+  assert.equal((await call("get", "/debug/log")).body.calls.length, 0);
+}
+
 // The assistant, a part of the world at a time: what was left out is said, and it may ask for a part once.
 {
   const fenced = (body) => `\`\`\`wanderworld\n${body}\n\`\`\``;

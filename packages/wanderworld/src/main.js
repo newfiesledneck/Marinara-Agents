@@ -8068,6 +8068,9 @@ function attach(element) {
     onSpeak: speak,
     onIllustrate: illustrateMoment,
     onAssistant: askAssistant,
+    onDebugLog: () => core.ai.debugLog(),
+    onDebugCall: (id) => core.ai.debugCall(id),
+    onDebugClear: () => core.ai.debugClear(),
     // The assistant's chat, kept with the world it's about.
     onAssistantChat: (turns) => {
       if (!core.save) return;

@@ -370,7 +370,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.5.107",
+        "version": "0.5.108",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -514,13 +514,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "5884fe3f0a0921a19f9a06c404483ff0da4a5bf4bbf5790e91ed178b340ae2d5",
-            "bytes": 2410716
+            "sha256": "fb6008f4ff1849c7b965a5f35862c0fbb531a2e6ab67607379a4d97ac0da17ba",
+            "bytes": 2417792
           },
           {
             "path": "server.mjs",
-            "sha256": "76ecf9b0136e345ce4c3a8e65165c9be895944beaaf1c6355125ecc7b25c1136",
-            "bytes": 138940
+            "sha256": "0acbca66523cda108b7444c9f3c3ee08e32479b466f32a3dd4ca29993031a6dc",
+            "bytes": 145421
           },
           {
             "path": "wanderworld-icon.webp",
@@ -1070,9 +1070,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.107.zip",
-        "sha256": "fd1744b904cdad8417001ce087bbd25356dedc561cf177da39529f1904d80e1a",
-        "bytes": 23366083
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.5.108.zip",
+        "sha256": "bae830bd3e362d706f2749a30f49e3cfbfb7468bdbaa5c0b63b2c49b3a8c4b00",
+        "bytes": 23379640
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

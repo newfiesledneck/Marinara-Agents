@@ -169,6 +169,7 @@ export const HELP = [
       "Gossip (Settings → People pass on what they know, off to begin with): people who spend time together tell each other what they saw or heard of you. It arrives as hearsay, isn't passed further, and what you whisper stays where you said it.",
       "A separate call for each person who answers (Settings → AI → Writing, off to begin with): the strictest separation. Each person's reply is written by a call that's given only what they know. Slower, and up to four calls a moment.",
       "To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced): every request to a model and its answer, and every picture request with its connection, model, size and prompt, is written to the Engine's console.",
+      "Menu → Settings → Debug shows the same in the game, with Debug Mode on or off: an overview that adds up requests, answers, failures and tokens (sent, received, cached, reasoning), and a list of the newest 50 calls, each opening to what was sent and what came back. It is kept in memory only and is gone when the Engine restarts. Cost isn't shown, because the Engine doesn't pass it on to Agents, and a connection that reports no token counts is said so.",
     ],
   },
   { title: "Lorebook keywords", keywords: true },

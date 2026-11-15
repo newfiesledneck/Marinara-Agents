@@ -724,6 +724,7 @@ export function createHud(root, handlers) {
       }),
     );
     subTabs.style.display = section.subs.length ? "flex" : "none";
+    if (name === "Debug") void refreshDebug();
   };
   /** What a section or a sub-tab is for, in a line or two at its top. */
   const intro = (text) => {
@@ -1501,7 +1502,7 @@ export function createHud(root, handlers) {
     "Cards, personas and lore are sent whole, never cut. A narrator card goes with every moment and each listener's card with every moment they hear, so long cards cost more on every call.",
     "Lore tied to the whole world, or to you, goes with every call. Lore tied to a place or a person goes only there (Journal → Places, Journal → Lore).",
     "The AI assistant lists what it sent under each answer, and its memory requests show a rough count before you ask.",
-    "To see exactly what is sent, turn on the Engine's Debug Mode (Settings → Advanced).",
+    "To see exactly what was sent and how many tokens each call used, open Menu → Settings → Debug.",
   ])
     intro(`• ${tip}`);
   // The AI assistant: a chat about this world, which can change its lore and people (assistant.js).
@@ -1541,6 +1542,215 @@ export function createHud(root, handlers) {
         onLorebooks: () => handlers.onAssistantBooks?.() ?? Promise.resolve([]),
         onMemoryPeople: () => handlers.onAssistantMemories?.() ?? [],
       })),
+    );
+  }
+  // Debug: every AI call since the Engine started, with its tokens, and their totals (server.mjs's call log).
+  heading(
+    "Debug",
+    "Every AI call Wanderworld has made since the Engine started: what was sent, what came back and the tokens it used. It's kept in memory only (the newest 50 calls, gone when the Engine restarts) and never holds a key. Scenes aren't listed: they're Engine chats.",
+    ["Overview", "Calls"],
+  );
+  const debugBar = document.createElement("div");
+  debugBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center;";
+  const debugState = document.createElement("span");
+  debugState.style.cssText = `font-size:11px;color:${INK_SOFT};`;
+  const inkSmall = (label, onClick) => {
+    const node = document.createElement("button");
+    node.type = "button";
+    node.textContent = label;
+    node.style.cssText = INK_SMALL;
+    node.addEventListener("click", onClick);
+    return node;
+  };
+  debugBar.append(
+    inkSmall("Refresh", () => void refreshDebug()),
+    inkSmall("Reset", async () => {
+      await handlers.onDebugClear?.().catch(() => null);
+      void refreshDebug();
+    }),
+    debugState,
+  );
+  add(debugBar);
+  const debugPart = (sub) => {
+    at("Debug", sub);
+    const node = document.createElement("div");
+    node.style.cssText = "display:flex;flex-direction:column;gap:3px;font-size:12px;line-height:1.4;";
+    add(node);
+    return node;
+  };
+  const debugOverview = debugPart("Overview");
+  const debugCalls = debugPart("Calls");
+  const count = (value) => Math.round(value ?? 0).toLocaleString();
+  const seconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
+  const timeOf = (at) => new Date(at).toLocaleTimeString();
+  /** A row of the log: what it is on the left, its value on the right. */
+  const debugRow = (label, value, indent = false) => {
+    const row = document.createElement("div");
+    row.style.cssText = `display:flex;justify-content:space-between;gap:12px;${indent ? "padding-left:12px;opacity:0.85;" : ""}`;
+    const left = document.createElement("span");
+    left.textContent = label;
+    const right = document.createElement("span");
+    right.style.cssText = "font-variant-numeric:tabular-nums;text-align:right;";
+    right.textContent = value;
+    row.append(left, right);
+    return row;
+  };
+  const debugNote = (text) => {
+    const node = document.createElement("div");
+    node.style.cssText = `font-size:11px;color:${INK_SOFT};margin-top:4px;`;
+    node.textContent = text;
+    return node;
+  };
+  const debugWords = (title, text) => {
+    const head = document.createElement("div");
+    head.style.cssText = "font-weight:600;margin-top:6px;";
+    head.textContent = title;
+    const body = document.createElement("pre");
+    body.style.cssText =
+      "margin:0;padding:6px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;font:11px/1.4 ui-monospace,monospace;background:rgba(107,74,43,0.1);border-radius:6px;user-select:text;";
+    body.textContent = text || "(nothing)";
+    return [head, body];
+  };
+  /** A call's token counts, one to a row; or that there are none. */
+  const usageRows = (usage) =>
+    usage
+      ? [
+          debugRow("Tokens sent (prompt)", count(usage.prompt)),
+          debugRow("read from the cache", usage.cached === null ? "not reported" : count(usage.cached), true),
+          debugRow("written to the cache", usage.cacheWrite === null ? "not reported" : count(usage.cacheWrite), true),
+          debugRow("Tokens received (completion)", count(usage.completion)),
+          debugRow("of them reasoning", usage.reasoning === null ? "not reported" : count(usage.reasoning), true),
+          debugRow("Tokens in total", count(usage.total)),
+          ...(usage.cost === null ? [] : [debugRow("Cost", `$${usage.cost.toFixed(6)}`)]),
+        ]
+      : [debugNote("This connection reported no token counts for this call.")];
+  /** One call of the list: its line, and when opened everything about it (read then). */
+  const debugCall = (call) => {
+    const fold = document.createElement("details");
+    fold.style.cssText = "border-top:1px solid rgba(107,74,43,0.25);padding:4px 0;";
+    const line = document.createElement("summary");
+    line.style.cssText = "cursor:pointer;";
+    const tokens = call.usage
+      ? `${count(call.usage.prompt)} in${call.usage.cached ? ` (${count(call.usage.cached)} cached)` : ""}, ${count(call.usage.completion)} out`
+      : call.kind === "image"
+        ? call.note
+        : "no token counts";
+    line.textContent = [timeOf(call.at), call.what, call.model, call.error ? "FAILED" : tokens, seconds(call.ms)].join(
+      " · ",
+    );
+    if (call.error) line.style.color = "#8a1f11";
+    fold.append(line);
+    fold.addEventListener("toggle", async () => {
+      if (!fold.open || fold.dataset.read) return;
+      fold.dataset.read = "1";
+      const body = document.createElement("div");
+      body.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:4px 0 6px;";
+      fold.append(body);
+      const rows = [
+        debugRow("Request", `${call.what}, ${timeOf(call.at)}`),
+        debugRow(call.kind === "image" ? "Connection's model" : "Model", call.model),
+        ...(call.kind === "image"
+          ? [debugRow("Result", call.note || "?")]
+          : [
+              debugRow("Temperature", String(call.temperature ?? "the connection's")),
+              debugRow(
+                "Most tokens allowed back",
+                call.maxTokens === null ? "the connection's" : count(call.maxTokens),
+              ),
+              debugRow("Characters sent / received", `${count(call.sent)} / ${count(call.got)}`),
+              debugRow("How it ended", call.finish === "length" ? "cut off at the token limit" : call.finish || "?"),
+            ]),
+        debugRow("Took", seconds(call.ms)),
+        ...(call.kind === "image" ? [] : usageRows(call.usage)),
+        ...(call.error ? debugWords("Error", call.error) : []),
+      ];
+      body.append(...rows);
+      try {
+        const whole = await handlers.onDebugCall?.(call.id);
+        for (const message of whole?.messages ?? [])
+          body.append(...debugWords(`Sent: ${message.role}`, message.content));
+        if (call.kind !== "image") body.append(...debugWords("Received", whole?.reply ?? ""));
+      } catch (error) {
+        body.append(debugNote(error?.message ?? "Couldn't read this call."));
+      }
+    });
+    return fold;
+  };
+  async function refreshDebug() {
+    debugState.textContent = "Reading…";
+    let log;
+    try {
+      log = await handlers.onDebugLog?.();
+    } catch (error) {
+      debugState.textContent = error?.message ?? "Couldn't read the log.";
+      return;
+    }
+    if (!log?.totals) {
+      debugState.textContent = "Not available here.";
+      return;
+    }
+    const sum = log.totals;
+    debugState.textContent = `As of ${timeOf(Date.now())}`;
+    const share = sum.prompt ? ` (${Math.round((sum.cached / sum.prompt) * 100)}% of what was sent)` : "";
+    debugOverview.replaceChildren(
+      debugRow("Requests sent", count(sum.requests)),
+      debugRow("Answers received", count(sum.responses)),
+      debugRow("Failed", count(sum.failed)),
+      debugRow("Cut off at the token limit", count(sum.cutOff)),
+      debugRow("Tokens in total", count(sum.total)),
+      debugRow("Tokens sent (prompt)", count(sum.prompt)),
+      debugRow("read from the cache", sum.cacheKnown ? `${count(sum.cached)}${share}` : "not reported", true),
+      debugRow("written to the cache", sum.cacheKnown ? count(sum.cacheWrite) : "not reported", true),
+      debugRow("Tokens received (completion)", count(sum.completion)),
+      debugRow("of them reasoning", count(sum.reasoning), true),
+      debugRow("Cost", sum.cost === null ? "not reported" : `$${sum.cost.toFixed(4)}`),
+      debugRow("Time spent waiting", seconds(sum.ms)),
+      debugRow(
+        "Pictures asked for",
+        `${count(sum.pictures)}${sum.picturesFailed ? ` (${count(sum.picturesFailed)} failed)` : ""}`,
+      ),
+      ...Object.entries(sum.byKind)
+        .sort((a, b) => b[1].total - a[1].total || b[1].requests - a[1].requests)
+        .map(([what, kind], at) =>
+          debugRow(
+            `${at ? "" : "By kind of call: "}${what}`,
+            `${count(kind.requests)} ${kind.requests === 1 ? "call" : "calls"}, ${count(kind.total)} tokens`,
+            at > 0,
+          ),
+        ),
+      debugNote(
+        `Counted since ${new Date(sum.since).toLocaleString()}. "Reset" empties the log and starts the count again.`,
+      ),
+      ...(sum.responses > sum.counted
+        ? [
+            debugNote(
+              `${count(sum.responses - sum.counted)} of ${count(sum.responses)} answers came without token counts: the connection that gave them doesn't report any, so the totals leave them out.`,
+            ),
+          ]
+        : []),
+      ...(sum.counted && !sum.cacheKnown
+        ? [
+            debugNote(
+              "No answer said how much was read from a cache: the connection doesn't report it, or doesn't cache.",
+            ),
+          ]
+        : []),
+      ...(sum.cost === null
+        ? [
+            debugNote(
+              "Cost isn't available: the Engine doesn't pass what a provider charged on to Agents. With the Engine's Debug Mode on, its console shows the cost for connections that report one.",
+            ),
+          ]
+        : []),
+      debugNote("Pictures have no token counts: an image connection is paid for by the picture, not by the token."),
+    );
+    debugCalls.replaceChildren(
+      ...(log.calls.length
+        ? log.calls.map(debugCall)
+        : [debugNote("No calls yet. Talk to someone, or let something happen near you, then press Refresh.")]),
+      ...(log.calls.length >= log.kept
+        ? [debugNote(`Only the newest ${log.kept} calls are kept. The totals count all of them.`)]
+        : []),
     );
   }
   // Help: the instructions, a fold for each part (help.js).

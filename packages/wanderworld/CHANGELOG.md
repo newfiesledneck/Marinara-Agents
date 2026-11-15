@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.5.108 — 2026-11-15
+
+- Settings has a Debug section. Overview adds up every AI call since the Engine started: requests, answers, failures, answers cut off, tokens sent and received, tokens read from and written to a cache, reasoning tokens, time spent waiting, pictures, and a line for each kind of call.
+- Calls lists the newest 50. Each opens to its model, settings, token counts, what was sent and what came back. It works with the Engine's Debug Mode on or off.
+- It says when a connection reports no token counts. Cost isn't shown: the Engine doesn't pass it on to Agents.
+- Reset empties it. The log is kept in memory only and holds no key. Anything shaped like one in a provider's error is hidden.
+
 ## 0.5.107 — 2026-11-15
 
 - The AI assistant's chat is ordered for prompt caching, as conversations are. What never changes (its instructions, the world's name and setting, who you play) is sent first, then the chat, and the world as it is now goes on your newest message. The turns sent back start from the same place for several messages running. "Order prompts for caching" (Settings → AI) turns it off.
