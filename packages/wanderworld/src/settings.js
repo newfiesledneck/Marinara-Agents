@@ -110,7 +110,7 @@ export const SETTINGS = {
   textConnection: { value: "", text: true },
   sceneConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },
-  /** Illustrate is given only the chat from the place you're in, not from where you were before. */
+  /** Illustrate isn't given the lines that describe other places than the one you're in (the rest of the chat it is). */
   illustrateHere: { value: true },
   imageStyle: {
     value: "",

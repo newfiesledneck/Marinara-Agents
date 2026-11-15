@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.5.104 — 2026-11-14
+
+- Illustrate now leaves out only the lines that describe another place (the line told when you arrived there), so a forest and a town don't end up in one picture. What was said and done is given wherever it happened. 0.5.103 left out every line from another place, which lost a conversation as soon as you stepped from the square into the street. Lines told before this update aren't marked, so they are all still given.
+
 ## 0.5.103 — 2026-11-14
 
 - Settings → World → Places has two sliders. "Wait between places told" is 10 to 60 seconds (45 as before). "Visits before a place is told again" is 1 to 10, and 1 tells a place on every visit. It replaces the old rule, which skipped the last five places told; the default is 5 visits.

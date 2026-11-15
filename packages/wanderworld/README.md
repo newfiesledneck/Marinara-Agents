@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.103)
+## What it does now (0.5.104)
 
 ### The world
 
@@ -156,8 +156,8 @@ With it running:
   conversations use), to an instruction you can edit (sentences or tags), and can show you the result to
   change or approve before it's painted. The usual instruction asks for one full paragraph of prose (about 200
   to 300 words): each character's name once and then their looks and what they wear, what they're doing,
-  the place, the light and a camera angle, with nothing of the chat copied in. The rewrite is also given the last lines of the chat (only those from the place you're in, unless you
-  switch that off), so the
+  the place, the light and a camera angle, with nothing of the chat copied in. The rewrite is also given the last lines of the chat (without the lines that
+  describe other places, unless you switch that off), so the
   picture shows what you're doing now (kneeling by the pond), not only where you stand. A sentence of the
   template whose placeholders all come out empty is left out. `{world_look}` says what the world looks like
   wherever you are (yours to set in Journal → World), so pictures match it; `{setting}` is only what you

@@ -193,6 +193,8 @@ export function checkWorld(raw) {
         ...(/^\d\d:\d\d$/u.test(line.at ?? "")
           ? { at: line.at, day: Number.isInteger(line.day) ? line.day : 0, where: text(line.where).slice(0, 80) }
           : {}),
+        // A line that describes the place it was told in (on arriving there).
+        ...(line.place === true ? { place: true } : {}),
         heard: (Array.isArray(line.heard) ? line.heard : [])
           .filter((id) => typeof id === "string")
           .slice(0, 12)
