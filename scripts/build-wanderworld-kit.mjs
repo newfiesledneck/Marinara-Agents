@@ -126,6 +126,23 @@ const SETS = {
     ],
     textureSize: () => 256,
   },
+  // The market's dressed stalls and the painted signs that hang by a shop's door, by trade (main.js).
+  //   node scripts/build-wanderworld-kit.mjs market "<…>/Fantasy Props MegaKit[Pro]/Exports/glTF"
+  market: {
+    dir: "fantasy/market",
+    source: "Fantasy Props MegaKit (Pro) by Quaternius, CC0 1.0",
+    models: [
+      "Stall_Blacksmith",
+      "Stall_Potions",
+      "Stall_Vegetables_Full",
+      "Sign_Armory",
+      "Sign_Blacksmith",
+      "Sign_Food",
+      "Sign_Potions",
+      "Sign_Pub",
+    ],
+    textureSize: () => 512,
+  },
   village: {
     dir: "fantasy/village",
     source: "Medieval Village MegaKit (Standard) by Quaternius, CC0 1.0",
