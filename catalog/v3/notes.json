@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.5",
+          "date": "2026-11-15",
+          "notes": "- The seasons can now turn by themselves. Settings → World → Time and weather has \"Seasons change\" and \"A season lasts (days)\", where you type any number from 1 to 999. When a season has lasted its days the next begins, and the chat says so.\n- It is off to begin with, so a world whose lore fixes its season stays as it is. A world with no season set counts as summer.\n- Setting the season in Journal → World starts that season from today.\n- Days are the world's own: with the time held at always day or always night, no season passes.",
+          "highlight": false
+        },
+        {
           "version": "0.6.4",
           "date": "2026-11-15",
           "notes": "- More kinds of tree. The woods now have all five shapes of each tree in the nature pack: five common trees and five pines (four of each before), five red-leaved twisted trees and five dead trees (one of each before).\n- The undergrowth gains a second clover, a bracket mushroom and a short wispy grass.\n- In a world you already have, trees stand where they stood, but many are a different tree.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.98",
           "date": "2026-11-14",
           "notes": "- In a moment, each of the recent lines the AI is given says when and where it happened (\"09:10, the market square\", \"yesterday 21:40, the pond\"), so the narrator can tell a minute ago here from this morning across town. Lines from before this update have no stamp.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.97",
-          "date": "2026-11-14",
-          "notes": "- Prompts are ordered for prompt caching, for providers that charge less for a prompt they've seen before. What doesn't change is sent first (who people are, the world, the lore of the place), and what changes with every line last (the time, who's near, memories, what you have on).\n- In a conversation the changing part now comes after what was said, so the cards and the conversation so far can be reused. The lines sent back start from the same place for several turns. Settings → AI → Order prompts for caching turns this off.\n- In a moment the order is: the world, your narrator's card, the whole world's lore, your party's cards, the lore of the place, whoever else is near; then the time, what each is doing and what was just said.",
           "highlight": false
         }
       ]
