@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.100)
+## What it does now (0.5.101)
 
 ### The world
 
@@ -463,7 +463,7 @@ only walk about.
   conversation. Touch screen: the stick walks (all the way out runs), dragging elsewhere looks around,
   pinching zooms, Use or a tap uses, and Jump and Sit are by your thumb.
 - **Settings:** resolution, draw distance (Tiny to Max; what costs the most is measured in
-  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, detail on or off, walk and run speed,
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, a frame rate limit (and slower drawing while a picture is painted), detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, sound, confrontations, people coming up to you,
   what the HUD shows, explanations under every option, and Regenerate this world.
 - A day lasts 20 minutes at normal speed, with dawn, dusk and lamps lit at night. Weather (Settings,

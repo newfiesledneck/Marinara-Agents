@@ -9,7 +9,7 @@ import { createFigure } from "../packages/wanderworld/src/figure.js";
 import { HOUSE_PIECES, housePieces, kitFits } from "../packages/wanderworld/src/houses.js";
 import { createInterior } from "../packages/wanderworld/src/interiors.js";
 import { createMotion } from "../packages/wanderworld/src/motion.js";
-import { checkSetting, loadSettings, SETTINGS } from "../packages/wanderworld/src/settings.js";
+import { checkSetting, frameLimitOf, loadSettings, SETTINGS } from "../packages/wanderworld/src/settings.js";
 import {
   createCollider,
   createWorld,
@@ -522,6 +522,21 @@ assert.equal(checkSetting("resolution", "auto"), "1080", "and so is Auto, which 
 assert.equal(checkSetting("resolution", "720"), "720", "720p is one of them");
 assert.equal(checkSetting("drawDistance", 140), 140, "a listed choice is kept");
 assert.equal(checkSetting("shadows", "yes"), true, "a non-boolean switch is the default");
+assert.deepEqual(
+  [checkSetting("frameLimit", 60), checkSetting("frameLimit", 45), checkSetting("paintSlow", undefined)],
+  [60, 0, true],
+  "the frame rate limit is one of its steps, else none; slower while painting is on to begin with",
+);
+assert.deepEqual(
+  [
+    frameLimitOf({ frameLimit: 0, paintSlow: true }, false),
+    frameLimitOf({ frameLimit: 0, paintSlow: true }, true),
+    frameLimitOf({ frameLimit: 100, paintSlow: true }, true),
+    frameLimitOf({ frameLimit: 100, paintSlow: false }, true),
+  ],
+  [0, 30, 30, 100],
+  "30 frames a second while a picture is painted, when that's on",
+);
 assert.equal(checkSetting("nonsense", 1), undefined, "unknown settings are ignored");
 globalThis.localStorage = { getItem: () => "{not json" };
 assert.deepEqual(loadSettings().resolution, "1080", "a damaged saved copy loads the defaults");

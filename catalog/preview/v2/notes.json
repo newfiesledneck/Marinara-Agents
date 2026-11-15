@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.101",
+          "date": "2026-11-14",
+          "notes": "- Settings → Display → Graphics has a frame rate limit: 30, 60, 100 or no limit (as before, the default). A lower limit leaves more of the graphics card for other programs.\n- \"Draw slower while a picture is painted\" (on to begin with) holds the game to 30 frames a second from when Illustrate or \"Picture this place\" asks for a picture until it arrives or fails. It is for pictures painted on the same computer, where the game and the image model share one graphics card.",
+          "highlight": false
+        },
+        {
           "version": "0.5.100",
           "date": "2026-11-14",
           "notes": "- The picture style you choose (Settings → AI → Pictures) now shapes the picture. Its own words go into the prompt, as `{style}` in Illustrate's template or at the end when the template leaves it out, and what the style keeps out is sent with it. Before, the Engine added no style to Wanderworld's prompts, so the choice did nothing.\n- The default Illustrate template says \"a detailed picture\" instead of \"a detailed illustration\", which pushed other styles toward anime. A template still saved as the old default becomes the new one; one you edited is left alone.\n- \"Picture this place\" in the Journal uses the style too.",
@@ -307,12 +313,6 @@
           "version": "0.5.82",
           "date": "2026-11-13",
           "notes": "- New world, step 1: the three gender sliders and the custom gender's name are there too, under your characters, so they are set before a world's first people are made. They are the same settings as Settings → People → Genders.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.81",
-          "date": "2026-11-13",
-          "notes": "- Settings → People → Genders: a slider each for male, female and a custom gender you name. They are weights for people the game or the AI makes up (townsfolk left on Auto, people the AI invents or fills in). Lore comes first: a gender from a lorebook, a card or your own choice is never changed.\n- The custom gender can be chosen for anyone wherever a body is chosen (Edit people, the Look card, the assistant's proposals), under the name you gave it, which is also what the AI is told. A lorebook can set it with ww:body:custom or ww:body:nonbinary.\n- People written for a world are kept whole, like other cards.",
           "highlight": false
         }
       ]

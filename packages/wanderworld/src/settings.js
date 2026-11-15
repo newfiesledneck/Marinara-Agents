@@ -22,6 +22,10 @@ export const SETTINGS = {
   /** How far out trees are drawn in detail, in metres; past it simple ones stand in. */
   treeDetail: { value: 180, options: [30, 70, 180, 300, 450] },
   shadows: { value: true },
+  /** The most frames drawn a second (0 is as many as the screen shows). */
+  frameLimit: { value: 0, options: [0, 30, 60, 100] },
+  /** While a picture is being painted, no more than 30 frames a second: the graphics card is the painter's too. */
+  paintSlow: { value: true },
   /** Detailed trees, rocks and plants (the kit); off keeps the simple low-poly ones. */
   nature: { value: true },
   /** Detailed furniture and props, in town and indoors (the kit); off keeps the simple ones. */
@@ -218,6 +222,8 @@ export const DEVICE_SETTINGS = new Set([
   "ground",
   "treeDetail",
   "shadows",
+  "frameLimit",
+  "paintSlow",
   "nature",
   "props",
   "buildings",
@@ -243,6 +249,10 @@ export const DEVICE_SETTINGS = new Set([
 /** The settings every browser shares (the game's and the AI's), out of `settings`. */
 export const sharedSettings = (settings) =>
   Object.fromEntries(Object.entries(settings).filter(([name]) => SETTINGS[name] && !DEVICE_SETTINGS.has(name)));
+
+/** The most frames a second for these settings (0: no limit), `painting` while a picture is being made. */
+export const frameLimitOf = (settings, painting) =>
+  painting && settings.paintSlow ? Math.min(30, settings.frameLimit || 30) : settings.frameLimit;
 
 /** `value` if it is allowed for `name`, else the default. */
 export function checkSetting(name, value) {

@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.5.101 — 2026-11-14
+
+- Settings → Display → Graphics has a frame rate limit: 30, 60, 100 or no limit (as before, the default). A lower limit leaves more of the graphics card for other programs.
+- "Draw slower while a picture is painted" (on to begin with) holds the game to 30 frames a second from when Illustrate or "Picture this place" asks for a picture until it arrives or fails. It is for pictures painted on the same computer, where the game and the image model share one graphics card.
+
 ## 0.5.100 — 2026-11-14
 
 - The picture style you choose (Settings → AI → Pictures) now shapes the picture. Its own words go into the prompt, as `{style}` in Illustrate's template or at the end when the template leaves it out, and what the style keeps out is sent with it. Before, the Engine added no style to Wanderworld's prompts, so the choice did nothing.
