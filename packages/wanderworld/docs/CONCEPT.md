@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.73, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.74, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.73: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.74: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.73, 2026-11-14)
+## Outstanding (as of 0.6.74, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -975,7 +975,8 @@ tradeKinds`, the world's `trades`), a vendor's own guidance and name, market sta
        _In (0.6.71):_ the Props Pro pack's dressed stalls (smith, potions, vegetables) and painted
        hanging signs (anvil, potion, tankard, loaf), by trade (`pack.js vendors.looks`, the kit's
        `fantasy/market` set). That finishes stage 4. A stall is dressed when the world loads, so one
-       whose trade is changed shows it after the world is opened again.
+       whose trade is changed shows it after the world is opened again (at once, since 0.6.74:
+       `world.clearProps` and `main.js redressStalls`).
   5. _Combat,_ chosen in settings: off, a scene, a narrated moment, or real time.
      - _Real time:_ a drawn weapon locks the camera behind the player and a drag turns both. Attack,
        block, dodge, cast. Enemies aren't on a timer: each picks what to do from how the fight is
