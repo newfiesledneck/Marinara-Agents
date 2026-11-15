@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.3",
+          "date": "2026-11-15",
+          "notes": "- The Map has a button of its own on the top bar and opens in its own window. It was a tab inside the Journal.\n- The top bar is in a new order: Map, Inventory, Journal, Lore, Chat, Illustrate, Menu.",
+          "highlight": false
+        },
+        {
           "version": "0.6.2",
           "date": "2026-11-15",
           "notes": "- Rocks and boulders have a density of their own (Settings → Display → Graphics → \"Rocks and boulders\"), apart from \"Trees and plants\". With one setting for both, a forest at 20× was also a field of boulders.\n- It starts at Normal on every device, whatever the trees are set to.\n- The chat window has a \"Clear chat\" button at the bottom. It empties the window, and what's cleared is no longer sent to the AI or to Illustrate. It asks twice, since it can't be undone. What people remember isn't touched.",
@@ -1531,12 +1537,6 @@
           "version": "0.5.96",
           "date": "2026-11-14",
           "notes": "- \"Your inventory changed\" shows only when an item was added, changed or removed, not when Quartermaster's tracker only gave its reasoning.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.95",
-          "date": "2026-11-14",
-          "notes": "- The AI is told how you stand to a place, not only its name: on the bank beside the pond (not in the water), wading or swimming when you are, inside or outside a building, at the mouth of a cave, on a street, among the ruins.\n- What you sit on is told as what it is: a log by the campfire, a bench, a chair, a stool. The same for people sitting near you.\n- Illustrate's {place_kind} has words for more places (a pond's bank, a cave mouth, a country road) and says when you're indoors.",
           "highlight": false
         }
       ]

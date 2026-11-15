@@ -1892,7 +1892,7 @@ export function createHud(root, handlers) {
   }
 
   // The Journal: where everyone is, places and their lore.
-  const journal = createJournal(PANEL, {
+  const journalHandlers = {
     onRename: (id, name) => handlers.onRenameZone(id, name),
     onLore: (id) => handlers.onZoneLore(id),
     onGroupCreate: (name) => handlers.onGroupCreate(name),
@@ -1920,8 +1920,14 @@ export function createHud(root, handlers) {
     onPicture: () => handlers.onPicture?.(),
     onMap: (canvas, view) => handlers.onMap?.(canvas, view),
     onWaypoint: (at) => handlers.onWaypoint?.(at),
-  });
-  panels.push(journal.panel);
+  };
+  const journal = createJournal(PANEL, journalHandlers, (id) => id !== "map");
+  // The Map: the Journal's map in a window of its own, with a button of its own.
+  const mapView = createJournal(PANEL, journalHandlers, (id) => id === "map");
+  panels.push(journal.panel, mapView.panel);
+  const mapButton = button("Map", "The map of where you are: places, you, and where each edge leads", () =>
+    togglePanel(mapView.panel),
+  );
   const journalButton = button("Journal", "Where you are, who's around, places and their lore (J)", () =>
     togglePanel(journal.panel),
   );
@@ -2047,7 +2053,7 @@ export function createHud(root, handlers) {
     "Who you play, Settings, this world's details, full screen and the main menu",
     () => togglePanel(menuPanel),
   );
-  controls.append(journalButton, loreButton, illustrateButton, inventoryButton, chatButton, gameMenuButton);
+  controls.append(mapButton, inventoryButton, journalButton, loreButton, chatButton, illustrateButton, gameMenuButton);
 
   const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
   menuButton.setAttribute("aria-label", "Menu");
@@ -2405,6 +2411,7 @@ export function createHud(root, handlers) {
     top,
     peoplePanel,
     journal.panel,
+    mapView.panel,
     lorePanel,
     settingsPanel,
     menuPanel,
@@ -2774,7 +2781,14 @@ export function createHud(root, handlers) {
       clearTimeout(zoneTimer);
       zoneTimer = setTimeout(() => (zoneTitle.style.opacity = "0"), 2600);
     },
-    journal,
+    // (The Map is given what the Journal is: it draws from the same.)
+    journal: {
+      ...journal,
+      render(next) {
+        journal.render(next);
+        mapView.render(next);
+      },
+    },
     /** Opens or closes the Journal. */
     toggleJournal() {
       togglePanel(journal.panel);
