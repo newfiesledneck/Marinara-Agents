@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.76)
+## What it does now (0.6.77)
 
 ### The world
 
@@ -408,9 +408,6 @@ only walk about.
   have someone round for a few hours. Inside your home, the same tab furnishes it: eighteen kinds of
   piece, put down in front of you and taken away again, kept with the world. Rules only
   (`src/household.js`): no AI call.
-- **Costumes:** the Look card's "Dressed as" swaps the built-in person's clothes for a whole
-  ready-made character (king, farmer, adventurer man or woman, witch, hooded rogue), keeping their own
-  skin, hair colour and height. From Ultimate Modular Men and Women, moved by the same animations.
 - **Hostile people:** bandits (hooded, sword in hand), witches and wizards (pointed hat, staff), out
   in the country with the monsters and counted with them. Built from the people's own bodies and
   outfits; nobody's character, so not talked to, and no AI is used for them.
@@ -639,9 +636,7 @@ still count, and come first.
   animals setting) and that's told in a line: there's no fighting, health or harm.
 - Bandits, witches and wizards are monsters in all but looks: they can't be talked to, no two loads
   dress them quite alike, and a dragon overhead does what any hostile flyer does.
-- A look can be chosen once someone lives in the world, and there are two outfits to mix, or six
-  costumes (whole characters: their clothes and hairstyle can't be changed, only skin, hair colour and
-  height). The hood
+- A look can be chosen once someone lives in the world, and there are two outfits to mix. The hood
   goes over whatever hair they have. A piece given a colour of its own is that colour all over (its
   leather and trim too), and sleeves take the hands' gloves with them. The bare body is the pack's
   broader build, so where a bare piece meets a clothed one the join can show a little. Someone with a 3D model shows
@@ -731,8 +726,7 @@ still count, and come first.
   `scripts/build-wanderworld-clips.mjs`): walking and running by speed, and what's done on the spot
   (`ACTS`: work, rest, sitting or lying on the ground), a jump and one-off gestures; `src/motion.js` is the hand-made motion; `src/models.js` loads
   3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
-  build the default people (`people.js` also the costumes, from `kit/fantasy/costumes/`, and the
-  monsters on two legs); `src/looks.js` is what a look can be.
+  build the default people (`people.js` also the monsters on two legs); `src/looks.js` is what a look can be.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
   plans, world setup from cards and lorebooks, pictures and the gallery, the AI assistant, scene plans, scene creation, and scene contexts and recaps, plus a
@@ -771,8 +765,7 @@ node scripts/build-wanderworld-package.mjs
 Edit `src/` or `server.mjs` and rebuild; never edit `client.js`, `manifest.json` or the artifact by hand.
 Bump `VERSION` in the build script and add a `CHANGELOG.md` entry first. The regression suites are
 `tests/wanderworld*.regression.mjs`, each run with `node`. The kit's files are made from the downloaded
-packs by `scripts/build-wanderworld-kit.mjs`, `build-wanderworld-people.mjs` (also `--folk` and
-`--costumes`) and `build-wanderworld-animals.mjs`; [kit/CREDITS.md](kit/CREDITS.md) says which pack each needs.
+packs by `scripts/build-wanderworld-kit.mjs`, `build-wanderworld-people.mjs` (also `--folk`) and `build-wanderworld-animals.mjs`; [kit/CREDITS.md](kit/CREDITS.md) says which pack each needs.
 
 ## Credits
 

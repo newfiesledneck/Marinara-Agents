@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.76, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.77, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.76: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.77: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.76, 2026-11-14)
+## Outstanding (as of 0.6.77, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -741,15 +741,11 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      packed as pieces (`scripts/build-wanderworld-people.mjs`: a skeleton file and top, arms, legs, feet,
      hood and pauldrons per outfit and body, each piece's cloth marked with its outfit);
      `people.js lookFor(name, index, body, chosen)` lays choices over what the name gives and lists the
-     pieces to load; `save.looks` keeps them; `hud.js openLook` is the card. _Costumes (0.5.51):_ six whole characters from Ultimate Modular
-     Men and Women (king, farmer, two adventurers, witch, hooded rogue) a look can be dressed as
-     (`looks.js COSTUMES`, `people.js createCostumed`): flat colours by material, their own rig mapped
-     onto the humanoid bones (its feet re-parented to the shins in the builder, its `Body` bone as the
-     hips), skin and hair in the person's own colours. The packs' other characters are modern or
-     science fiction (suit, punk, swat, spacesuit, worker): for another setting's pack. _Next:_ a look by
+     pieces to load; `save.looks` keeps them; `hud.js openLook` is the card. _Costumes (0.5.51 to 0.6.76):_ six whole characters from
+     Ultimate Modular Men and Women could be worn in place of an outfit. Taken out in 0.6.77: they were
+     blocky beside the rest, and new outfits wait for the maker's reworked bodies. _Next:_ a look by
      trade (smith, guard, sorcerer) once there are outfits for them (the paid tiers of Modular Character
-     Outfits - Fantasy drop straight into the pieces), costumes given by lore or by trade and not only by
-     hand, more accessories, and choosing a look in New world.
+     Outfits - Fantasy drop straight into the pieces), more accessories, and choosing a look in New world.
   2. _An OBJ reader for `scripts/build-wanderworld-kit.mjs`,_ so the flat-coloured packs that ship no glTF
      can be used without Blender: Farm Buildings (barn, silo, windmill, well, coop: the farm), the two
      dungeon packs (cave and cellar pieces), Medieval Weapons (a real hammer, tools in hand).
