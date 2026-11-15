@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.5.109",
+          "date": "2026-11-15",
+          "notes": "- Settings → Debug estimates what each AI call cost, and adds the estimates up. It multiplies the call's token counts by the prices in the connection's model list, the same prices the Engine's model picker shows, with cached tokens at the cache price. It isn't the provider's bill, and a connection without prices is said so.\n- The mill's wheel is turned to stand along the stream, so the water pushes its paddles round, and an axle runs from its middle into the mill's wall. It stood across the stream before, joined to nothing.",
+          "highlight": false
+        },
+        {
           "version": "0.5.108",
           "date": "2026-11-15",
           "notes": "- Settings has a Debug section. Overview adds up every AI call since the Engine started: requests, answers, failures, answers cut off, tokens sent and received, tokens read from and written to a cache, reasoning tokens, time spent waiting, pictures, and a line for each kind of call.\n- Calls lists the newest 50. Each opens to its model, settings, token counts, what was sent and what came back. It works with the Engine's Debug Mode on or off.\n- It says when a connection reports no token counts. Cost isn't shown: the Engine doesn't pass it on to Agents.\n- Reset empties it. The log is kept in memory only and holds no key. Anything shaped like one in a provider's error is hidden.",
@@ -307,12 +313,6 @@
           "version": "0.5.90",
           "date": "2026-11-14",
           "notes": "- With the Quartermaster package (0.1.35 or later) installed, the top bar has an Inventory button: Quartermaster's sheet of what your persona wears and carries, one for each persona in each world.\n- What the sheet says you're wearing is told to the AI after your persona's appearance: in conversations, moments, scene plans and Illustrate. There is no macro to place.\n- After a moment, one more AI call updates the sheet from what was told (picked up, put on, given away), by Quartermaster's own rules. It can also run after each reply in a conversation, or never.\n- Settings → People → Inventory turns each of the three off. Without Quartermaster nothing changes. Deleting a world deletes its sheets.",
-          "highlight": false
-        },
-        {
-          "version": "0.5.89",
-          "date": "2026-11-14",
-          "notes": "- Resolution no longer has Auto, which changed the picture's size as frames came and went and flickered on phones. The default is 1080p (never more than the screen has); a device that was on Auto is on 1080p now.\n- On a phone, tapping a text box no longer zooms the page in and leaves it there.\n- The narration that fades in over the world is at the top of the screen, not over the middle of it.",
           "highlight": false
         }
       ]

@@ -1422,17 +1422,19 @@ const LANDMARKS = {
   mill(random, town, outpost) {
     placeBuilding(random, town, makeSpec(random, "home", { width: 7, depth: 6 }), outpost.x, outpost.z, outpost.facing);
     const timber = 0x5e4330;
-    const wheel = [painted(new CylinderGeometry(0.18, 0.18, 1.6, 6).rotateX(Math.PI / 2), timber)];
+    // The wheel stands along the stream, which runs past the mill's back wall and pushes its paddles round.
+    // Its axle runs from the far side of the wheel into that wall (z from -0.6 to 1.9 of the wheel's middle).
+    const wheel = [
+      painted(new CylinderGeometry(0.18, 0.18, 2.5, 8).rotateX(Math.PI / 2).translate(0, 0, 0.65), timber),
+    ];
     const radius = 2.3;
     for (let i = 0; i < 12; i++) {
       const angle = (i / 12) * Math.PI * 2;
       wheel.push(box(0.12, radius, 0.12, 0, radius / 2, 0, timber).rotateZ(angle)); // spokes
       wheel.push(box(0.75, 0.1, 1.1, 0, radius, 0, 0x6f5038).rotateZ(angle)); // paddles
     }
-    // Beside the back wall (toward the water), standing on the axle.
-    const geometry = mergeGeometries(wheel)
-      .rotateY(Math.PI / 2)
-      .translate(0, 1.1, -4.4);
+    // Behind the back wall (toward the water), hung on the axle.
+    const geometry = mergeGeometries(wheel).translate(0, 1.1, -4.8);
     placeLocal(town, outpost, geometry);
   },
 };

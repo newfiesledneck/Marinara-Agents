@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.5.108)
+## What it does now (0.5.109)
 
 ### The world
 
@@ -621,7 +621,9 @@ still count, and come first.
 - Settings → Debug shows every model and picture call in the game, with Debug Mode on or off: totals
   (requests, answers, failures, tokens sent, received, cached and reasoning) and the newest 50 calls,
   each with what was sent and what came back. It is kept in the server part's memory and is gone when
-  the Engine restarts. Cost is missing because the Engine gives a package the token counts only.
+  the Engine restarts. The cost is an estimate from the connection's model list (`GET /api/connections/:id/models`, read at
+  most once an hour for each model): the Engine gives a package the token counts but not what the
+  provider charged. Only Wanderworld's own calls are in it.
   Anything shaped like a key in a provider's error message is hidden before it is shown.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
 - Two browsers playing the same world at the same moment still write over each other: the newer save
