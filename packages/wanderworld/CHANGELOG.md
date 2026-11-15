@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.6.6 — 2026-11-15
+
+- New trees from the Stylized Nature MegaKit's Pro tier: cherry trees, birches, giant drooping pines and tall thick conifers, three shapes of each.
+- Cherry trees are in blossom in spring and green the rest of the year. Birches turn orange in fall. Spring no longer tints a third of the ordinary trees pink.
+- Also new: three bushes, three more rocks (two of them big), a fern, three plants, three kinds of flower, a red-capped mushroom and two wide grasses.
+- In a world you already have, trees and rocks stand where they stood, but many are now a different kind.
+- The package is larger for it.
+
 ## 0.6.5 — 2026-11-15
 
 - The seasons can now turn by themselves. Settings → World → Time and weather has "Seasons change" and "A season lasts (days)", where you type any number from 1 to 999. When a season has lasted its days the next begins, and the chat says so.
