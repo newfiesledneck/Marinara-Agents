@@ -1380,6 +1380,133 @@ async function removeDocument(documents, id) {
 /** The world an origin id belongs to: "world:<id>/…". */
 const worldOf = (originId) => /^world:([\w-]+)\//u.exec(originId)?.[1] ?? null;
 
+// ── The call log (Settings → Debug) ──────────────────────────────────────────
+
+/**
+ * Words the player is shown, with anything shaped like a key or a token taken out. Wanderworld never has
+ * a key (the Engine keeps them), so this is for what a provider's error message might quote back.
+ */
+export const scrub = (value) =>
+  String(value ?? "")
+    .replace(/\b(Bearer|Basic)\s+[\w.~+/=-]{8,}/giu, "$1 [hidden]")
+    .replace(/\b(?:sk|xai|gsk|nvapi)[-_][\w-]{12,}/gu, "[hidden]")
+    .replace(/\bAIza[\w-]{20,}/gu, "[hidden]")
+    .replace(/([?&](?:api[-_]?key|key|token|access_token)=)[^&\s"']+/giu, "$1[hidden]")
+    .replace(
+      /((?:api[-_ ]?key|authorization|x-api-key)["']?\s*[:=]\s*["']?)(?!Bearer|Basic|\[hidden\])[^\s"',}]{6,}/giu,
+      "$1[hidden]",
+    );
+
+/** A call's token counts as the Engine reports them, or null when the connection reported none. */
+export function usageOf(raw) {
+  if (!isRecord(raw)) return null;
+  const count = (value) => (Number.isFinite(value) && value >= 0 ? value : null);
+  const prompt = count(raw.promptTokens) ?? 0;
+  const completion = count(raw.completionTokens) ?? 0;
+  const total = count(raw.totalTokens) || prompt + completion;
+  if (!total) return null;
+  return {
+    prompt,
+    completion,
+    total,
+    cached: count(raw.cachedPromptTokens),
+    cacheWrite: count(raw.cacheWritePromptTokens),
+    reasoning: count(raw.completionReasoningTokens),
+    // (The Engine doesn't pass a provider's cost on to packages today; shown if it ever does.)
+    cost: count(raw.cost),
+  };
+}
+
+/**
+ * The model and picture calls made since the Engine started, for the player to read: the newest `kept`
+ * with what was sent and what came back, and totals over all of them. In memory only.
+ * ponytail: gone when the Engine restarts and capped at `kept` calls; write them to a document if a
+ * longer history is wanted.
+ */
+export function createCallLog(kept = 50) {
+  const fresh = () => ({
+    since: Date.now(),
+    requests: 0,
+    responses: 0,
+    failed: 0,
+    cutOff: 0,
+    counted: 0,
+    cacheKnown: 0,
+    prompt: 0,
+    completion: 0,
+    total: 0,
+    cached: 0,
+    cacheWrite: 0,
+    reasoning: 0,
+    cost: null,
+    ms: 0,
+    pictures: 0,
+    picturesFailed: 0,
+    byKind: {},
+  });
+  const words = (value) => scrub(typeof value === "string" ? value : JSON.stringify(value ?? "")).slice(0, 200000);
+  let totals = fresh();
+  let calls = [];
+  let next = 1;
+  return {
+    add(entry) {
+      const usage = usageOf(entry.usage);
+      const messages = (entry.messages ?? []).map((message) => ({ role: words(message.role).slice(0, 40), content: words(message.content) }));
+      const reply = words(entry.reply);
+      const call = {
+        id: next++,
+        at: Date.now(),
+        kind: entry.kind === "image" ? "image" : "text",
+        what: words(entry.what).slice(0, 60),
+        model: words(entry.model ?? "?").slice(0, 120),
+        temperature: entry.temperature ?? null,
+        maxTokens: entry.maxTokens ?? null,
+        ms: Math.max(0, Math.round(entry.ms ?? 0)),
+        sent: messages.reduce((sum, message) => sum + message.content.length, 0),
+        got: reply.length,
+        finish: words(entry.finish).slice(0, 40),
+        note: words(entry.note).slice(0, 200),
+        error: entry.error ? words(entry.error).slice(0, 500) : "",
+        usage,
+        messages,
+        reply,
+      };
+      calls = [...calls, call].slice(-kept);
+      totals.ms += call.ms;
+      if (call.kind === "image") {
+        totals.pictures++;
+        if (call.error) totals.picturesFailed++;
+        return call.id;
+      }
+      totals.requests++;
+      if (call.error) totals.failed++;
+      else totals.responses++;
+      if (call.finish === "length") totals.cutOff++;
+      const kind = (totals.byKind[call.what] ??= { requests: 0, total: 0 });
+      kind.requests++;
+      if (usage) {
+        totals.counted++;
+        if (usage.cached !== null) totals.cacheKnown++;
+        for (const key of ["prompt", "completion", "total", "cached", "cacheWrite", "reasoning"]) totals[key] += usage[key] ?? 0;
+        if (usage.cost !== null) totals.cost = (totals.cost ?? 0) + usage.cost;
+        kind.total += usage.total;
+      }
+      return call.id;
+    },
+    /** The totals and each kept call without its words (newest first). */
+    read: () => ({
+      kept,
+      totals: { ...totals, byKind: { ...totals.byKind } },
+      calls: calls.map(({ messages: _sent, reply: _got, ...rest }) => rest).reverse(),
+    }),
+    one: (id) => calls.find((call) => call.id === Number(id)) ?? null,
+    clear() {
+      totals = fresh();
+      calls = [];
+    },
+  };
+}
+
 // ── Activation ───────────────────────────────────────────────────────────────
 
 export async function activate(context) {
@@ -1387,6 +1514,7 @@ export async function activate(context) {
   const { persistence, resources, languageModels, logger } = api.runtime;
   const { documents } = persistence;
   const scenesOn = typeof api.registerSceneOrigin === "function";
+  const callLog = createCallLog();
 
   // The Engine's Debug Mode (Settings → Advanced), which the client sends with each request as it's a
   // browser setting, or the server's own override. With it on, every model and image request and its
@@ -1408,8 +1536,17 @@ export async function activate(context) {
       debugMessages(messages),
     );
     const started = Date.now();
-    const result = await model.chatComplete(messages, { ...options, debugMode: debug });
+    // Every call is also kept for Settings → Debug, whether or not Debug Mode is on.
+    const noted = { what, model: model?.model, temperature: options?.temperature, maxTokens: options?.maxTokens, messages };
+    let result;
+    try {
+      result = await model.chatComplete(messages, { ...options, debugMode: debug });
+    } catch (error) {
+      callLog.add({ ...noted, ms: Date.now() - started, error: error?.message ?? String(error) });
+      throw error;
+    }
     const content = typeof result?.content === "string" ? result.content : "";
+    callLog.add({ ...noted, ms: Date.now() - started, reply: content, finish: result?.finishReason, usage: result?.usage });
     logger.debugOverride?.(
       debug,
       "[debug/wanderworld/%s] response (%d characters, %d ms):\n%s",
@@ -1439,6 +1576,12 @@ export async function activate(context) {
       prompt,
     );
     const started = Date.now();
+    const noted = {
+      kind: "image",
+      what: "image",
+      model: connection.model || connection.name,
+      messages: [{ role: "prompt", content: prompt }, ...(negative ? [{ role: "kept out", content: negative }] : [])],
+    };
     const result = await engineFetch("/api/characters/avatar-generation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1453,6 +1596,15 @@ export async function activate(context) {
         // style's words are already in it and what the style keeps out goes here.)
         promptOverrides: [{ id: `avatar:${name}`, prompt, ...(negative ? { negativePrompt: negative } : {}) }],
       }),
+    }).catch((error) => {
+      callLog.add({ ...noted, note: `${width}x${height}`, ms: Date.now() - started, error: error?.message ?? String(error) });
+      throw error;
+    });
+    callLog.add({
+      ...noted,
+      ms: Date.now() - started,
+      note: `${width}x${height}, ${typeof result?.image === "string" ? `a picture of about ${Math.round((result.image.length * 3) / 4 / 1024)} KB` : "no picture"}`,
+      error: typeof result?.image === "string" ? "" : "No picture came back.",
     });
     logger.debugOverride?.(
       debug,
@@ -1478,6 +1630,17 @@ export async function activate(context) {
         assistant: true,
         saves: true,
       }));
+
+      // Settings → Debug: the calls made since the Engine started. No key is in them (see `scrub`).
+      routes.get("/debug/log", async () => callLog.read());
+      routes.get("/debug/call/:id", async (request, reply) => {
+        const call = callLog.one(request.params?.id);
+        return call ?? reply.status(404).send({ error: "That call is no longer kept." });
+      });
+      routes.post("/debug/clear", async () => {
+        callLog.clear();
+        return { ok: true };
+      });
 
       routes.get("/connections", async (request, reply) => {
         try {
