@@ -82,6 +82,8 @@ import { editableFields, reviseEdits } from "./assistant-edits.js";
 import { assistantNeeds, mentioned, PARTS, pickFor, PICKS } from "./assistant-context.js";
 import { createHangingSign, createNoticeboard, createSign } from "./signs.js";
 import {
+  besideWords,
+  bordersAt,
   buildZones,
   carrySetup,
   chainOf,
@@ -1793,7 +1795,11 @@ async function tellPlace(zone, names, verb = "comes into") {
     ? `${names[zone.id]}. ${lore.content.split(/(?<=[.!?])\s/u)[0]}`
     : arrivalLine(kind, `${save.seed}:${zone.id}`, lineWords(), about > 0);
   const company = about ? `${about} ${about === 1 ? "person is" : "people are"} about` : "nobody else is about";
-  const done = await runMoment({ action: `${verb} ${names[zone.id]}, where ${company}`, source: "arrive" });
+  const beside = besideNow(zone)
+    .filter((entry) => names[entry.id])
+    .map((entry) => `, ${besideWords(entry, names[entry.id])}`)
+    .join("");
+  const done = await runMoment({ action: `${verb} ${names[zone.id]}${beside}, where ${company}`, source: "arrive" });
   if (!done && line) narrate(null, line, [], true);
 }
 
@@ -2774,6 +2780,16 @@ function loreAt(zone) {
  * with, the place and the places it sits in, the groups those are in, and the whole world.
  * Each { id, label }.
  */
+/**
+ * The places the player is beside without being in them (zones.js `bordersAt`), when `zone` is where they
+ * stand: none indoors, for anywhere else, or with Settings → World → Places → "Places you're beside" off.
+ */
+function besideNow(zone) {
+  const at = core.player?.position;
+  if (!core.zones || !at || core.interior || !core.settings.besidePlaces) return [];
+  return zoneAt(core.zones, at.x, at.z) === zone ? bordersAt(core.zones, at.x, at.z, zone) : [];
+}
+
 function loreSources(zone, names = {}) {
   const chain = core.zones ? chainOf(core.zones, zone) : [];
   const people = new Map();
@@ -2783,6 +2799,8 @@ function loreSources(zone, names = {}) {
   return [
     ...[...people].map(([id, label]) => ({ id: `character:${id}`, label })),
     ...chain.map((at) => ({ id: at.id, label: names[at.id] ?? at.name })),
+    // (And of the places they're beside: a river's lore on its bank, though the bank is the forest's.)
+    ...besideNow(zone).map((at) => ({ id: at.id, label: `${names[at.id] ?? at.name} (beside you)` })),
     ...groupsAt(placeGroups(), chain).map((group) => ({ id: group.id, label: `${group.name} (group)` })),
     { id: PLAYER_ID, label: `${personaName()} (you)` },
     { id: WORLD_ID, label: `${core.save?.name ?? "the world"} (the whole world)` },
@@ -6433,7 +6451,11 @@ function placeTold() {
         ? `${wet} of ${name}`
         : `${wet}, ${dry[kind] ?? `in ${name}`}`
       : (dry[kind] ?? `in ${name}`);
-  return [here, ...around.map((entry) => names[entry.id])].join(", in ");
+  // And what they're beside: "in Whisperwood, near the bank of the Silverrun".
+  const beside = besideNow(zoneAt(core.zones, at.x, at.z))
+    .filter((entry) => names[entry.id])
+    .map((entry) => besideWords(entry, names[entry.id]));
+  return [[here, ...beside].join(", "), ...around.map((entry) => names[entry.id])].join(", in ");
 }
 
 /** The weather now, in a word, when there is any to speak of. */

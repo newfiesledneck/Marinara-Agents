@@ -456,6 +456,25 @@ assert.deepEqual(createWorld(32).landscape, landscapeFor(32));
   const river = built.layout.river.points;
   const toRiver = Math.min(...river.map((point) => Math.hypot(point.x - mill.x, point.z - mill.z)));
   assert.ok(toRiver < 12, `the mill is on the bank (${toRiver.toFixed(1)} m from the river)`);
+  // Beside a place without being in it: on the river's bank in the woods the river counts too, not from
+  // further off, and not as "beside" for someone standing in it.
+  {
+    const { besideWords, bordersAt } = await import("../packages/wanderworld/src/zones.js");
+    const riverZone = zones.byId.get("river");
+    const [a, b] = [river[Math.floor(river.length / 2)], river[Math.floor(river.length / 2) + 1]];
+    const along = Math.hypot(b.x - a.x, b.z - a.z);
+    const off = (metres) => ({ x: a.x + (-(b.z - a.z) / along) * metres, z: a.z + ((b.x - a.x) / along) * metres });
+    // (Either side will do: the one where that spot is plain forest.)
+    const bank = [off(12), off(-12)].find((at) => zoneAt(zones, at.x, at.z).kind === "forest");
+    assert.ok(bank, "a spot on the bank, 12 m from the middle of the river, is the forest's");
+    assert.ok(bordersAt(zones, bank.x, bank.z).includes(riverZone), "and the river is beside it");
+    const far = [off(45), off(-45)].find((at) => zoneAt(zones, at.x, at.z).kind === "forest");
+    if (far) assert.ok(!bordersAt(zones, far.x, far.z).includes(riverZone), "not from 45 m off");
+    assert.ok(!bordersAt(zones, a.x, a.z).includes(riverZone), "nor for someone in it");
+    assert.ok(bordersAt(zones, bank.x, bank.z).length <= 2);
+    assert.equal(besideWords(riverZone, "the Silverrun"), "near the bank of the Silverrun");
+    assert.equal(besideWords({ kind: "outpost", outpostKind: "ruins" }, "the old abbey"), "near the old abbey");
+  }
   assert.ok(mill.door !== null, "with a door (someone can work there)");
   const graveyard = built.layout.outposts.find((outpost) => outpost.kind === "graveyard");
   const fromTown = Math.max(Math.abs(graveyard.x), Math.abs(graveyard.z));
