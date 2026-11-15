@@ -482,6 +482,37 @@ const BEASTS = {
   ],
 };
 
+/**
+ * What each creature is in a fight (combat.js): its HP, AC, what it adds to its attack roll, its damage,
+ * the experience for beating it, and how its attack is told ("The wolf snaps at you"). `default` is for
+ * any kind not listed. A bigger one of its kind has more HP and hits harder.
+ */
+const FOES = {
+  default: { hp: 6, ac: 11, attack: 2, damage: "1d4", xp: 5, verb: "strikes" },
+  wolf: { hp: 11, ac: 13, attack: 4, damage: "2d4", xp: 15, verb: "snaps" },
+  slime: { hp: 8, ac: 8, attack: 2, damage: "1d6", xp: 8, verb: "lunges" },
+  skeleton: { hp: 13, ac: 13, attack: 4, damage: "1d6+2", xp: 15, verb: "swings" },
+  spider: { hp: 7, ac: 12, attack: 4, damage: "1d6", xp: 10, verb: "bites" },
+  rat: { hp: 4, ac: 10, attack: 2, damage: "1d4", xp: 4, verb: "bites" },
+  snake: { hp: 5, ac: 12, attack: 3, damage: "1d4+1", xp: 6, verb: "strikes" },
+  bat: { hp: 4, ac: 12, attack: 2, damage: "1d4", xp: 4, verb: "swoops" },
+  wasp: { hp: 5, ac: 13, attack: 3, damage: "1d4", xp: 5, verb: "darts" },
+  frog: { hp: 6, ac: 10, attack: 2, damage: "1d4", xp: 5, verb: "lunges" },
+  dragon: { hp: 90, ac: 17, attack: 8, damage: "2d10+4", xp: 300, verb: "snaps" },
+  bandit: { hp: 11, ac: 12, attack: 3, damage: "1d6+1", xp: 15, verb: "swings" },
+  witch: { hp: 14, ac: 11, attack: 3, damage: "1d8", xp: 25, verb: "lashes out" },
+  wizard: { hp: 16, ac: 12, attack: 4, damage: "1d10", xp: 30, verb: "lashes out" },
+  imp: { hp: 8, ac: 13, attack: 4, damage: "1d4+2", xp: 12, verb: "claws" },
+  puglin: { hp: 9, ac: 12, attack: 3, damage: "1d6+1", xp: 12, verb: "swings" },
+};
+/** What's told when the player's HP runs out, and when they come to ({who}). */
+const FIGHT = {
+  down: "{who} goes down, and everything goes dark.",
+  here: "{who} comes to where they fell, sore and alone. Whatever it was has gone.",
+  home: "{who} wakes at home, sore, with no memory of the way back.",
+  square: "{who} wakes by the market, sore, with no memory of the way back.",
+};
+
 /** The same of a hostile person (a bandit, a witch, a wizard: {kind}). */
 const OUTLAWS = {
   threat: [
@@ -965,6 +996,8 @@ export const PACK = {
   sleep: SLEEP,
   beasts: BEASTS,
   outlaws: OUTLAWS,
+  foes: FOES,
+  fight: FIGHT,
 };
 
 /** What's said of someone doing `act` at a place made for it ("minding a market stall"); "" for none. */

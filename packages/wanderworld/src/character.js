@@ -318,6 +318,8 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
       if (options?.gesture === "drink") sipping = 1.3;
       sipping = Math.max(0, sipping - dt);
       if (HELD_FOR_GESTURE[options?.gesture]) tool = [...HELD_FOR_GESTURE[options.gesture]];
+      // (A weapon swung: `held` says which, since the one clip serves a sword, an axe and a hammer.)
+      if (options?.gesture && options.held) tool = [options.held, 1.6];
       if (tool && (tool[1] -= dt) <= 0) tool = null;
       // The hand-made motion has nothing for the acts (clips.js): low ones it sits for, the rest it stands.
       const low = animationStyle !== "recorded" && LOW_ACTS.has(options?.act);

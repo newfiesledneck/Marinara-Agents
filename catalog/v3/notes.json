@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.78",
+          "date": "2026-11-15",
+          "notes": "- Combat, the first part: fighting in real time. Off to begin with: Settings → Inventory → Combat.\n- Near a hostile creature a prompt says Attack (press E, or tap it). Each swing is a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. A 20 on the die is a critical hit.\n- A weapon is any item whose description gives its damage (\"Weapon: 1d8 damage, +1 to attack\"). Without one you use your fists.\n- A creature you strike fights back, its attacks rolled against your AC. One badly hurt may run. Beating one earns experience.\n- At 0 HP you go down, then come to where you fell with 1 HP or wake at home with half (a setting).\n- No AI call is made in a fight. The chat tells every roll.",
+          "highlight": false
+        },
+        {
           "version": "0.6.77",
           "date": "2026-11-15",
           "notes": "- The six costumes are gone: the Look card no longer has \"Dressed as\" (king, farmer, the two adventurers, witch, hooded rogue). They were blockier than everything else in the world. Anyone you had dressed in one is back in their own clothes, with their outfit, pieces and hairstyle as they were before.\n- The package is about 2.5 MB smaller.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.6",
           "date": "2026-11-15",
           "notes": "- New trees from the Stylized Nature MegaKit's Pro tier: cherry trees, birches, giant drooping pines and tall thick conifers, three shapes of each.\n- Cherry trees are in blossom in spring and green the rest of the year. Birches turn orange in fall. Spring no longer tints a third of the ordinary trees pink.\n- Also new: three bushes, three more rocks (two of them big), a fern, three plants, three kinds of flower, a red-capped mushroom and two wide grasses.\n- In a world you already have, trees and rocks stand where they stood, but many are now a different kind.\n- The package is larger for it.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.5",
-          "date": "2026-11-15",
-          "notes": "- The seasons can now turn by themselves. Settings → World → Time and weather has \"Seasons change\" and \"A season lasts (days)\", where you type any number from 1 to 999. When a season has lasted its days the next begins, and the chat says so.\n- It is off to begin with, so a world whose lore fixes its season stays as it is. A world with no season set counts as summer.\n- Setting the season in Journal → World starts that season from today.\n- Days are the world's own: with the time held at always day or always night, no season passes.",
           "highlight": false
         }
       ]
