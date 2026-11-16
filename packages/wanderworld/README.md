@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.93)
+## What it does now (0.6.94)
 
 ### The world
 
@@ -299,7 +299,7 @@ only walk about.
   Pictures, Connections). Each section and tab opens with a
   line on what it is for, each setting says what On and Off do, and a setting that depends on another sits
   under it and goes faint while that one is off. Someone's window in Journal → Edit people is in tabs too
-  (About, Day, You, Others, Memory), as is Journal → World (This world, Setting, Animals, Lore). **New
+  (About, Day, You, Others, Memory), as is Journal → World (This world, Setting, Creatures, Lore). **New
   world** is a walkthrough in four steps with Next and Back: you and your people, the land, the AI (its
   connections and main switches, so they're set before a world is made), lore and setup. Each step says
   what to know before you start: what the game is, that the AI is optional and spends tokens, what a moment

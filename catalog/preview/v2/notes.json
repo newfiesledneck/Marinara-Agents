@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.94",
+          "date": "2026-11-15",
+          "notes": "- Journal → World → Animals is now Creatures, to match Settings → Creatures.",
+          "highlight": false
+        },
+        {
           "version": "0.6.93",
           "date": "2026-11-15",
           "notes": "- Regenerate this world asks what New world asks about the land: hills, mountains, river, the settlement and its layout, walls, market, streets, world size, more settlements, farms, landmarks and places out in the country. Each starts as it is. Change any and the map shows the result, so a world can be made bigger or given more places.\n- Vendors in New world and Regenerate: an \"at least\" and an \"at most\" for each trade. Shops are built to reach the least; any over the most sell something else, or shut. Trades set by hand are counted and left alone.\n- Settings → Animals is now Settings → Creatures.\n- The (i) sits before each setting's name, so the names line up. New world's explanations have an (i) each too.",
@@ -307,12 +313,6 @@
           "version": "0.6.75",
           "date": "2026-11-15",
           "notes": "- The two trackers share one AI call. With the inventory tracker and \"The AI updates your sheet\" both on, one call after a moment reads for both. Before, each made its own. With only one of them on, that one still makes its own call.\n- With a shop's window open the inventory tracker still waits, and the sheet's tracker reads on its own.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.74",
-          "date": "2026-11-15",
-          "notes": "- Gathering has a prompt at the thing itself: stand at a tree, a boulder or the water's edge and it names what you can do (Chop wood, Mine, Fish). Press E, or tap it on a touch screen. Foraging and harvesting prompt when you stand still. The chat window's buttons are still there.\n- Your character turns to the tree, the rock or the water before swinging or casting.\n- A felled tree leaves a stump until it grows back.\n- A mined boulder is drawn smaller until it has had its days.\n- A market stall whose trade you change is dressed for the new one at once. Before, it showed after reopening the world.",
           "highlight": false
         }
       ]
