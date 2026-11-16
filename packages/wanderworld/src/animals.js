@@ -424,13 +424,21 @@ export async function createAnimal(name, wanted = null) {
     const outlaw = ANIMALS[kind].person ? await createOutlaw(kind) : null;
     const body = outlaw?.person ?? (await createFolk(kind, ANIMALS[kind].folk));
     const options = outlaw?.carry ? { carry: outlaw.carry } : {};
+    let doing = null; // a gesture to make once, on the next frame (act)
     return {
+      /** Makes a gesture once: "strike" (with what it carries) or "cast" (clips.js GESTURES). */
+      act(name) {
+        doing = { gesture: name, held: name === "strike" ? (outlaw?.carry ?? null) : null };
+      },
       object: body.object,
       kind,
       coat,
       back: 0,
       seat: 0,
-      update: (dt, speed = 0) => void body.update(dt, speed, options),
+      update(dt, speed = 0) {
+        body.update(dt, speed, doing ? { ...options, ...doing } : options);
+        doing = null;
+      },
       rise: () => 0,
       bob: () => 0,
       carryOn: (object) => void body.object.add(object),

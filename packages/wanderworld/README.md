@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.99)
+## What it does now (0.7.00)
 
 ### The world
 
@@ -588,6 +588,9 @@ every roll, and no AI call is made in a real-time fight.
   an area that catches everything near the target (Fireball), and healing the caster for half
   (Vampiric Touch). 53 SRD spells of level 0 to 3 can be added. With spell slots on, the sheet and
   the spell buttons show slots where mana was.
+- **Aimed for you**: a spell or a bow with nothing in front of you turns you to the nearest enemy
+  in range first. Bandits, witches and wizards swing and cast with their own animations; animals
+  and monsters lunge when they strike.
 - **Bows and crossbows**: one you carry is shot with the attack key when nothing is in reach of a
   swing, by Dexterity; the smith sells a shortbow and a light crossbow. Fighters, rangers and
   rogues among your companions shoot too, as do people fighting back. Creatures the SRD gives a

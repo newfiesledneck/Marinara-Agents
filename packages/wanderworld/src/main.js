@@ -8058,6 +8058,7 @@ function swing() {
   // A bow, a crossbow or a sling they carry is shot when nothing is in reach of a swing: at whatever is
   // ahead within its range, or (with it equipped) at nothing at all.
   const bow = bowOf(core.items ?? []);
+  if (bow && !blowTarget()) faceEnemy(bow.range); // (nothing in reach of a swing: the bow turns to the nearest enemy)
   const near = blowTarget();
   const far = bow && !near ? blowTarget(bow.range, SPELL_ARC, true) : null;
   // By turns: an Attack is a turn's action; outside a fight, a swing or a shot at something starts one.
@@ -8172,6 +8173,8 @@ function cast(id = null) {
   core.readySpell = chosen.id;
   const { spell, name } = chosen;
   const sheet = sheetNow();
+  // Facing nothing, they turn to the nearest enemy the spell reaches, so it isn't cast at the empty air.
+  if (!(spell.heal && !spell.damage)) faceEnemy(spell.range);
   // By turns: a spell is a turn's action (or its bonus action), and outside a fight one cast at something starts it.
   if (byTurns() && !core.battle && !(spell.heal && !spell.damage)) {
     const first = blowTarget(spell.range, SPELL_ARC, false);
@@ -8249,6 +8252,36 @@ function foeFx(id) {
   if (!core.foeFx.has(id)) core.foeFx.set(id, {});
   return core.foeFx.get(id);
 }
+/**
+ * With nothing ahead to aim at within `reach`, turns the player to the nearest enemy that is: a creature
+ * that's hostile, already struck or in the fight (never a peaceful animal minding its own business), or
+ * someone who's fighting back. With something ahead already, or no enemy near, they stay as they are.
+ */
+function faceEnemy(reach) {
+  if (!fighting() || blowTarget(reach, SPELL_ARC, true)) return;
+  const at = core.player.position;
+  const inFight = new Set((core.battle?.order ?? []).map((entry) => entry.id));
+  let best = null;
+  let nearest = Infinity;
+  const consider = (x, z, room) => {
+    const distance = Math.hypot(x - at.x, z - at.z);
+    if (distance - room > reach || distance >= nearest) return;
+    nearest = distance;
+    best = { x, z };
+  };
+  for (const foe of core.interior ? [] : core.herd.foes(at, reach + 2.5))
+    if (!foe.fled && (foe.hostile || foe.hp !== undefined || inFight.has(foe.id))) consider(foe.x, foe.z, foe.room);
+  if (core.angry?.size)
+    for (const person of core.crowd.present(core.space))
+      if (core.angry.has(person.id) && !core.crowd.isOut(person.id))
+        consider(person.position.x, person.position.z, 0.4);
+  if (!best) return;
+  const angle = Math.atan2(best.x - at.x, best.z - at.z);
+  core.player.rotation.y = angle;
+  // (With a weapon drawn they face where the camera looks, so that turns with them.)
+  if (weaponDrawn()) core.cameraYaw = angle + Math.PI;
+}
+
 /** Whether a creature is hindered (its attacks rolled twice, the worse counting) or marked (attacks on it, the better). */
 const hindered = (id) => (core.foeFx?.get(id)?.hinder ?? 0) > core.clock;
 const marked = (id) => (core.foeFx?.get(id)?.mark ?? 0) > core.clock;
@@ -8651,6 +8684,7 @@ function battleTick(dt, moved) {
         const foe = about.get(id);
         if (close.has(id) || battle.reacted.has(id) || !foe || foe.stunned) continue;
         battle.reacted.add(id);
+        core.herd.act(id, "strike");
         narrate(null, `The ${what(foe)} strikes as ${personaName()} moves away: an opportunity attack.`);
         foeAttacks({ id, kind: foe.kind, scale: foe.scale, x: foe.x, z: foe.z }, what(foe));
         if (core.downed) return void battleEnd("");
@@ -8726,6 +8760,7 @@ function battleTick(dt, moved) {
       }
     } else {
       const event = { id: foe.id, kind: foe.kind, scale: foe.scale, x: foe.x, z: foe.z, target: target.id };
+      if (far <= reach + 0.9 || shoots) core.herd.act(foe.id, far <= reach + 0.9 ? "strike" : "cast");
       if (far <= reach + 0.9) {
         if (target.id) allyAttacked(event, what(foe));
         else foeAttacks(event, what(foe));
