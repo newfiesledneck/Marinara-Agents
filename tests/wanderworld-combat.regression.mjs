@@ -196,9 +196,12 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.deepEqual(SRD_CLASSES.fighter, { name: "Fighter", hitDie: 10, weapon: { name: "Longsword", damage: "1d8" } });
   const srd = (name) => SRD_SPELLS.find((spell) => spell.name === name);
   assert.equal(spellRule(srd("Fire Bolt")), "Cantrip. 1d10 fire damage. Range 24.");
-  assert.equal(spellRule(srd("Burning Hands")), "Level 1. 1 mana. 3d6 fire damage. Dexterity save for half. Range 5.");
+  assert.equal(
+    spellRule(srd("Burning Hands")),
+    "Level 1. 1 mana. 3d6 fire damage. Dexterity save for half. Area 2.5. Range 5.",
+  );
   assert.equal(spellRule(srd("Magic Missile")), "Level 1. 1 mana. 1d4+1 force damage. Always hits. Range 24.");
-  assert.equal(spellRule(srd("Hold Person")), "Level 2. 2 mana. Wisdom save or paralyzed 8 seconds. Range 18.");
+  assert.equal(spellRule(srd("Hold Person")), "Level 2. 2 mana. Wisdom save or paralyzed 12 seconds. Range 18.");
   assert.equal(spellRule(srd("Cure Wounds")), "Level 1. 1 mana. +1d8 HP.");
   assert.deepEqual([spellCost(0), spellCost(1), spellCost(3)], [0, 1, 3]);
   // Every one of them reads back as what it was written from.
@@ -212,13 +215,49 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     assert.equal(read.effect?.name, spell.effect, `${spell.name}'s effect`);
     assert.equal(read.sure, !!spell.sure);
     if (!spell.heal) assert.equal(read.range, spell.range, `${spell.name}'s range`);
+    assert.equal(read.push, spell.push ?? 0, `${spell.name}'s push`);
+    assert.equal(read.area, spell.area ?? 0, `${spell.name}'s area`);
+    assert.equal(read.drain, !!spell.drain, `${spell.name}'s drain`);
+    if (spell.effect) assert.ok(read.effect.kind && read.effect.seconds === spell.seconds, `${spell.name}'s effect`);
   }
+  // What a spell leaves besides damage: a shove, an area, a condition on a hit, the caster mended.
+  assert.equal(
+    spellRule(srd("Thunderwave")),
+    "Level 1. 1 mana. 2d8 thunder damage. Constitution save for half. Pushed 3 m. Area 2.5. Range 5.",
+  );
+  assert.equal(spellRule(srd("Ray of Frost")), "Cantrip. 1d8 cold damage. Slowed 6 seconds. Range 18.");
+  assert.equal(spellRule(srd("Sleep")), "Level 1. 1 mana. Always hits. Asleep 12 seconds. Area 6. Range 24.");
+  assert.match(spellRule(srd("Vampiric Touch")), /Heals the caster for half/u);
+  const wave = spellIn({ about: spellRule(srd("Thunderwave")) });
+  const weak = { ac: 10, attack: 0 };
+  assert.equal(spellStrike({ wit: 5, spell: wave, foe: weak }, () => 0).push, 3, "a failed save is shoved back");
+  assert.equal(spellStrike({ wit: 0, spell: wave, foe: weak }, () => 0.99).push, 0, "a save isn't");
+  const kinds = Object.fromEntries(
+    SRD_SPELLS.filter((spell) => spell.effect).map((spell) => [
+      spell.effect,
+      spellIn({ about: spellRule(spell) }).effect.kind,
+    ]),
+  );
+  assert.deepEqual(
+    [kinds.prone, kinds.asleep, kinds.slowed, kinds.blinded, kinds.hindered, kinds.marked, kinds.charmed, kinds.calmed],
+    ["hold", "hold", "slow", "hinder", "hinder", "mark", "calm", "calm"],
+  );
+  const { foeStrike, rolledTwice } = await import("../packages/wanderworld/src/combat.js");
+  let n = 0;
+  const rolls = () => ({ roll: [3, 17][n++ % 2] });
+  assert.equal(rolledTwice(rolls, true).roll, 17);
+  assert.equal(rolledTwice(rolls, false).roll, 3);
+  assert.equal(
+    foeStrike({ foe: { attack: 0, damage: "1d4" }, sheet: checkSheet(null), hindered: true }).hindered,
+    true,
+    "a hindered creature's attack is rolled twice",
+  );
   const fire = spellIn({ about: spellRule(srd("Fire Bolt")) });
   assert.deepEqual([fire.cost, fire.type, fire.range], [0, "fire", 24]);
   const frost = spellIn({ about: "3 mana. 2d6 cold damage. Dexterity save for half." });
   assert.deepEqual([frost.damage, frost.save, frost.range], ["2d6", { attribute: "dexterity", onSave: "half" }, 14]);
   const hold = spellIn({ about: spellRule(srd("Hold Person")) });
-  assert.deepEqual(hold.effect, { name: "paralyzed", kind: "hold", seconds: 8 });
+  assert.deepEqual(hold.effect, { name: "paralyzed", kind: "hold", seconds: 12 });
   assert.equal(spellIn({ about: "Wisdom save or frightened." }).effect.kind, "flee");
   assert.equal(spellIn({ about: "Knits a wound. 3 mana. +8 HP." }).heal, "8");
   assert.equal(spellIn({ about: "Makes a small light." }), null, "a spell that's only words");

@@ -519,7 +519,8 @@ export function createHerd() {
     const dz = z - beast.z;
     const distance = Math.hypot(dx, dz);
     if (distance < 0.05) return (beast.speed = 0);
-    const move = Math.min(distance, pace * dt);
+    // (Slowed by a spell: half its pace until it wears off.)
+    const move = Math.min(distance, pace * ((beast.slowUntil ?? 0) > clock ? 0.5 : 1) * dt);
     const next = { x: beast.x + (dx / distance) * move, y: 0, z: beast.z + (dz / distance) * move };
     world.resolveCollisions(next, 0.5, false);
     if (waterAt(next.x, next.z).depth > WADE * 2) return (beast.speed = 0);
@@ -541,6 +542,7 @@ export function createHerd() {
   function hunt(beast, dt, player, view) {
     // (`angry`: it's been struck, and fights back whatever the settings say of hostile ones, and wherever.)
     if (view.down) return false; // (they're beaten: it has no more business with them)
+    if ((beast.calmUntil ?? 0) > clock) return false; // (charmed or calmed by a spell, until it's struck)
     // In a fight it may go for one of the player's companions instead (`view.allies`: [{ id, x, z }]). It
     // keeps to whom it chose for a few seconds, then looks again: the nearest as often as not, else any.
     const near = Math.hypot(player.x - beast.x, player.z - beast.z);
@@ -870,6 +872,7 @@ export function createHerd() {
       if (!beast?.group || beast.down !== undefined) return null;
       beast.max ??= Math.max(1, max);
       beast.hp = Math.max(0, (beast.hp ?? beast.max) - Math.max(0, damage));
+      if (damage > 0) beast.calmUntil = 0; // (hurt, it's calm no longer)
       if (beast.hp <= 0) {
         beast.down = clock;
         beast.angry = false;
@@ -932,6 +935,33 @@ export function createHerd() {
       if (!beast?.held) return;
       beast.march = { x, z };
       beast.face = { x: faceX, z: faceZ };
+    },
+    /** `id` moves at half its pace for `seconds`. */
+    slow(id, seconds) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (beast && beast.down === undefined) beast.slowUntil = clock + seconds;
+    },
+    /** `id` leaves off fighting for `seconds`, or until it's hurt. */
+    soothe(id, seconds) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast || beast.down !== undefined) return;
+      beast.angry = false;
+      beast.calmUntil = clock + seconds;
+    },
+    /** `id` is shoved `metres` straight away from (fromX, fromZ), as far as the way is clear and dry. */
+    push(id, fromX, fromZ, metres) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast?.group || beast.down !== undefined) return;
+      const far = Math.hypot(beast.x - fromX, beast.z - fromZ) || 1;
+      const way = { x: (beast.x - fromX) / far, z: (beast.z - fromZ) / far };
+      for (let gone = 0; gone < metres; gone += 0.5) {
+        const next = { x: beast.x + way.x * 0.5, y: 0, z: beast.z + way.z * 0.5 };
+        world.resolveCollisions(next, 0.5, false);
+        if (waterAt(next.x, next.z).depth > WADE * 2) break;
+        beast.x = next.x;
+        beast.z = next.z;
+      }
+      place(beast);
     },
     /** `id` can do nothing for `seconds`. */
     stun(id, seconds) {

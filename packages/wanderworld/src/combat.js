@@ -95,14 +95,22 @@ export const armourOf = (sheet, worn = {}) => valueOf(sheet, "ac") + (worn.ac ??
  * A creature's attack on the player. `guarded` (they're blocking): it's rolled twice and the worse for the
  * creature counts. { roll, total, hit, crit, damage, ac, guarded }.
  */
-export function foeStrike({ foe, sheet, worn = {}, guarded = false }, random = Math.random) {
+export function foeStrike({ foe, sheet, worn = {}, guarded = false, hindered = false }, random = Math.random) {
   const ac = armourOf(sheet, worn);
   const roll = () =>
     attackRoll({ bonus: foe.attack, ac, damage: foe.damage, damageBonus: foe.damageBonus ?? 0 }, random);
   const first = roll();
-  if (!guarded) return { ...first, ac, guarded: false };
+  // (`hindered`: blinded, say, by a spell. Rolled twice like a blocked one, the worse counting.)
+  if (!guarded && !hindered) return { ...first, ac, guarded: false };
   const second = roll();
-  return { ...(second.roll < first.roll ? second : first), ac, guarded: true };
+  return { ...(second.roll < first.roll ? second : first), ac, guarded, hindered };
+}
+
+/** The same roll made twice, `better` or the worse of the two counting (by the die). */
+export function rolledTwice(roll, better) {
+  const first = roll();
+  const second = roll();
+  return second.roll > first.roll === better ? second : first;
 }
 
 /**
@@ -149,7 +157,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
 
 /** A creature's attack, told: "The wolf bites at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
 export function foeWords({ who, what, verb, result, left, max }) {
-  const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""})`;
+  const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""}${result.hindered ? ", hindered" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
   return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }
@@ -249,8 +257,28 @@ const SPELL_DAMAGE = /(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?)\s*(?:([a-z]+)\s+)?
 const SPELL_HEAL = /\+\s?(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?|\d{1,3})\s*HP/iu;
 const SPELL_SAVE = new RegExp(`(${ATTRIBUTES.join("|")})\\s+sav(?:e|ing throw)`, "iu");
 const SPELL_RANGE = /\brange\s+(\d{1,3}(?:\.\d)?)/iu;
-/** The effects a spell can leave, and what each does here: held where it stands, or sent running. */
-const EFFECTS = { stunned: "hold", paralyzed: "hold", restrained: "hold", incapacitated: "hold", frightened: "flee" };
+/**
+ * The effects a spell can leave, and what each does here: held where it stands ("hold"), sent running
+ * ("flee"), at half its pace ("slow"), its own attacks rolled twice with the worse counting ("hinder"),
+ * attacks on it rolled twice with the better counting ("mark"), or no longer fighting until it's struck ("calm").
+ */
+const EFFECTS = {
+  stunned: "hold",
+  paralyzed: "hold",
+  restrained: "hold",
+  incapacitated: "hold",
+  asleep: "hold",
+  prone: "hold",
+  frightened: "flee",
+  slowed: "slow",
+  blinded: "hinder",
+  hindered: "hinder",
+  marked: "mark",
+  charmed: "calm",
+  calmed: "calm",
+};
+const SPELL_PUSH = /\bpush(?:ed|es)?\s+(?:back\s+)?(\d{1,2}(?:\.\d)?)\s*m\b/iu;
+const SPELL_AREA = /\barea\s+(\d{1,2}(?:\.\d)?)/iu;
 const SPELL_EFFECT = new RegExp(
   `\\b(${Object.keys(EFFECTS).join("|")})\\b(?:\\s+(?:for\\s+)?(\\d{1,3})\\s*seconds?)?`,
   "iu",
@@ -276,8 +304,15 @@ export function spellRule(spell) {
   if (spell.heal) parts.push(`+${spell.heal} HP`);
   if (spell.damage) parts.push(`${spell.damage}${spell.type ? ` ${spell.type}` : ""} damage`);
   if (spell.sure) parts.push("Always hits");
-  if (spell.save && spell.effect) parts.push(`${spell.save.attribute} save or ${spell.effect} 8 seconds`);
+  const seconds = spell.seconds ?? 8;
+  if (spell.save && spell.effect && !spell.damage)
+    parts.push(`${spell.save.attribute} save or ${spell.effect} ${seconds} seconds`);
   else if (spell.save) parts.push(`${spell.save.attribute} save for ${spell.save.onSave === "half" ? "half" : "none"}`);
+  if (spell.effect && (spell.damage || !spell.save))
+    parts.push(`${spell.effect[0].toUpperCase()}${spell.effect.slice(1)} ${seconds} seconds`);
+  if (spell.push) parts.push(`Pushed ${spell.push} m`);
+  if (spell.area) parts.push(`Area ${spell.area}`);
+  if (spell.drain) parts.push("Heals the caster for half");
   if (spell.bonus) parts.push("Bonus action");
   if (!spell.heal) parts.push(`Range ${spell.range}`);
   return `${parts.join(". ")}.`;
@@ -300,7 +335,8 @@ export function spellIn(entry) {
   const damage = SPELL_DAMAGE.exec(text);
   const heal = SPELL_HEAL.exec(text);
   const effect = SPELL_EFFECT.exec(text);
-  if (!damage && !heal && !effect) return null;
+  const push = Number(SPELL_PUSH.exec(text)?.[1] ?? 0);
+  if (!damage && !heal && !effect && !push) return null;
   const save = SPELL_SAVE.exec(text);
   const name = effect?.[1].toLowerCase();
   return {
@@ -313,6 +349,11 @@ export function spellIn(entry) {
     bonus: /\bbonus action\b/iu.test(text),
     save: save ? { attribute: save[1].toLowerCase(), onSave: /\bhalf\b/iu.test(text) ? "half" : "none" } : null,
     effect: effect ? { name, kind: EFFECTS[name], seconds: Number(effect[2] ?? 6) } : null,
+    // (What lands also shoves it back this many metres; everything within `area` metres of it is caught
+    // too; the caster is healed for half of what it deals.)
+    push,
+    area: Number(SPELL_AREA.exec(text)?.[1] ?? 0),
+    drain: /\bheals the caster\b/iu.test(text),
     range: Number(SPELL_RANGE.exec(text)?.[1] ?? SPELL_REACH),
   };
 }
@@ -325,6 +366,11 @@ export function spellIn(entry) {
  * { hit, saved, crit, sure, roll, total, against, damage, effect }.
  */
 export function spellStrike({ wit = 0, spell, foe }, random = Math.random) {
+  const result = spellRolled({ wit, spell, foe }, random);
+  // (What it shoves back, it shoves on a failed save or a hit.)
+  return { ...result, push: result.hit ? (spell.push ?? 0) : 0 };
+}
+function spellRolled({ wit, spell, foe }, random) {
   if (spell.save) {
     const dc = 10 + wit;
     const thrown = savingThrow(
@@ -399,6 +445,7 @@ export function spellWords({ who, name, what, spell, result, left, max, named = 
   else parts.push(result.crit ? "a critical hit" : result.hit ? "a hit" : "a miss");
   if (result.damage > 0) parts.push(`for ${result.damage}`);
   if (result.effect) parts.push(`${result.effect.name} for ${result.effect.seconds} seconds`);
+  if (result.push) parts.push(`pushed back ${result.push} m`);
   const told = `${start}${rolled}: ${parts.join(", ")}.`;
   if (result.damage <= 0) return told;
   if (left <= 0) return `${told} ${named ? what : `The ${what}`} goes down.`;
