@@ -158,7 +158,17 @@ import {
   vendorKinds,
 } from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
-import { foeNerve, foeOf, foeStrike, foeWords, playerStrike, strikeWords, weaponOf } from "./combat.js";
+import {
+  foeNerve,
+  foeOf,
+  foeStrike,
+  foeWords,
+  playerStrike,
+  spoilsOf,
+  spoilsWords,
+  strikeWords,
+  weaponOf,
+} from "./combat.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -7368,7 +7378,25 @@ function usable() {
   }
   // What can be gathered here, each a prompt at the thing itself (a key, or a tap on a touch screen); not
   // where it's been used up for now. Foraging and harvesting, which have no one thing, only when stood still.
-  const gatherable = gatherTargets(null, true);
+  // The beaten, lying in reach: an animal to harvest, a person to search (once).
+  for (const body of core.interior ? [] : core.herd.bodies(core.player.position, 2.6)) {
+    const person = !!ANIMALS[body.kind]?.person;
+    if (person && body.searched) continue;
+    const what = (PACK.animals[body.kind] ?? "the creature").replace(/^the /u, "");
+    list.push({
+      kind: "thing",
+      label: `${person ? "Search" : "Harvest"} the ${what}`,
+      x: body.x,
+      z: body.z,
+      y: 0.9,
+      reach: 2.4,
+      quiet: true,
+      body: true,
+      act: () => void tendBody(body, person, what),
+    });
+  }
+  // (Something beaten at your feet comes before anything to gather there.)
+  const gatherable = list.some((thing) => thing.body) ? [] : gatherTargets(null, true);
   const atThing = gatherable.some((target) => target.face); // a tree, a rock or the water comes first
   for (const target of gatherable) {
     if (!target.face && (atThing || (core.still ?? 0) < 0.6)) continue;
@@ -7939,6 +7967,39 @@ function landBlow(weapon) {
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
   if (struck.down) earnXp(stats.xp);
+}
+
+/**
+ * Something beaten is seen to: an animal harvested (what it gives goes into the inventory, and the body
+ * goes), a person searched (what they carried; the body stays, and can't be searched again).
+ */
+async function tendBody(body, person, what) {
+  if (core.tending) return;
+  if (!core.inventory.ready())
+    return void core.hud?.setNotice(
+      "What you take goes into your inventory, which the Quartermaster package keeps: install it, and turn on Settings → Inventory.",
+    );
+  core.tending = true;
+  try {
+    const at = core.player.position;
+    core.player.rotation.y = Math.atan2(body.x - at.x, body.z - at.z);
+    core.gesture = "pickUp";
+    const spoils = spoilsOf(body.kind, PACK.spoils);
+    const money = purse();
+    for (const item of spoils.items) await core.inventory.add(item);
+    if (spoils.coins > 0) await core.inventory.add({ name: money.name, description: "", quantity: spoils.coins });
+    core.herd.tend(body.id, !person);
+    await readItems();
+    narrate(
+      null,
+      `${personaName()} ${person ? "searches" : "harvests"} the ${what}: ${spoilsWords(spoils, money.name)}.`,
+    );
+    core.hud?.refreshInventory?.();
+  } catch (error) {
+    core.hud?.setNotice(`It couldn't be put in your inventory: ${error?.message ?? error}`);
+  } finally {
+    core.tending = false;
+  }
 }
 
 /** A creature's attack on the player (herd.js's "attack"): rolled against their AC, their HP taken, and told. */
@@ -9006,6 +9067,7 @@ function step(dt) {
       // confrontations are allowed at all); and whether it's night, for the ones about only then.
       hostile: core.settings.hostileAnimals,
       combat: fighting(),
+      bodySeconds: core.settings.bodyMinutes * 60,
       safe: !aggressionAllowed(at.x, at.z),
       night: core.hour < 5.5 || core.hour >= 20.5,
     });
@@ -9377,6 +9439,10 @@ function attach(element) {
     },
     onJump: jump,
     onAttack: swing,
+    onClearBodies: () => {
+      const cleared = core.herd.clearBodies();
+      core.hud?.setNotice(cleared ? `Cleared: ${cleared}.` : "There was nothing lying about.");
+    },
     onRest: rest,
     onRun: (on) => core.input?.setRun(on),
     maxPeople: MAX_PEOPLE,

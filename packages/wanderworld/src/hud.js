@@ -849,6 +849,8 @@ export function createHud(root, handlers) {
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     fights:
       "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings (on a touch screen, the Attack button by your thumb; there is one in the chat window too). You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A scene and a narrated moment are to come as other ways to fight.",
+    bodyMinutes:
+      "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (what they carried; the body stays).",
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Nothing is lost either way, and nobody dies for good.",
     gathering:
@@ -1239,6 +1241,14 @@ export function createHud(root, handlers) {
   );
   choice("fights", "Combat", { off: "Off", realtime: "Real time" }, "sheet");
   choice("defeat", "When your HP runs out", { here: "Come to where you fell", home: "Wake at home" }, "sheet");
+  number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
+  {
+    const clear = button("Clear the beaten now", "Everything beaten and still lying about goes", () =>
+      handlers.onClearBodies?.(),
+    );
+    clear.style.alignSelf = "flex-start";
+    add(clear);
+  }
   at("People", "Genders");
   intro(
     "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",

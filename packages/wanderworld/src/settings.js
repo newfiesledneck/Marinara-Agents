@@ -158,6 +158,8 @@ export const SETTINGS = {
   // Fighting (combat.js): off, or in real time; and where the player comes to when their HP runs out.
   fights: { value: "off", options: ["off", "realtime"] },
   defeat: { value: "home", options: ["here", "home"] },
+  // How many minutes something beaten lies where it fell (0: until it's harvested or cleared).
+  bodyMinutes: { value: 3, min: 0, max: 120 },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */
   treeDays: { value: 7, min: 0, max: 365 },
   /** The AI reads what was narrated and changes the sheet (HP lost, mana spent, experience earned): one more call. */

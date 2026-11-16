@@ -725,7 +725,9 @@ export function createHerd() {
       if (!beast.group) continue;
       // One that's been beaten lies where it fell for a while, then is gone (until the world is opened again).
       if (beast.down !== undefined) {
-        if (clock - beast.down > BODY_SECONDS) beast.gone = true;
+        // (`view.bodySeconds`: how long, from the player's settings; 0 leaves it until it's taken or cleared.)
+        const lies = view.bodySeconds ?? BODY_SECONDS;
+        if (lies > 0 && clock - beast.down > lies) beast.gone = true;
         beast.group.visible = !beast.gone && Math.hypot(player.x - beast.x, player.z - beast.z) <= NEAR;
         continue;
       }
@@ -831,6 +833,34 @@ export function createHerd() {
         beast.cool = Math.min(beast.cool ?? 0, 1.2);
       }
       return { hp: beast.hp, max: beast.max, down: beast.hp <= 0 };
+    },
+    /** The beaten lying within `reach` of `at`: [{ id, kind, x, z, searched }]. */
+    bodies(at, reach) {
+      return beasts
+        .filter((beast) => beast.down !== undefined && !beast.gone && beast.group)
+        .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
+        .map((beast) => ({ id: beast.id, kind: beast.kind, x: beast.x, z: beast.z, searched: !!beast.searched }));
+    },
+    /** A body is seen to: `take` true takes it away (harvested), else it's only marked as searched. */
+    tend(id, take) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast || beast.down === undefined) return;
+      beast.searched = true;
+      if (take) {
+        beast.gone = true;
+        if (beast.group) beast.group.visible = false;
+      }
+    },
+    /** Every body goes, now. Returns how many there were. */
+    clearBodies() {
+      let cleared = 0;
+      for (const beast of beasts) {
+        if (beast.down === undefined || beast.gone) continue;
+        beast.gone = true;
+        if (beast.group) beast.group.visible = false;
+        cleared++;
+      }
+      return cleared;
     },
     /** Every roused one lets be (the player is down): they draw off, and don't come again for a while. */
     calm() {
