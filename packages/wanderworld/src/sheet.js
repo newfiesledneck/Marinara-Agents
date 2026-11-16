@@ -188,6 +188,16 @@ export function gainXp(sheet, amount) {
   return { sheet: next, levels };
 }
 
+/** The sheet with every resource (HP, mana, the player's own with a most) at its most. */
+export function toppedUp(sheet) {
+  return {
+    ...sheet,
+    entries: sheet.entries.map((entry) =>
+      "max" in entry && entry.value !== entry.max ? { ...entry, value: entry.max } : entry,
+    ),
+  };
+}
+
 // ── Bonuses written in an item's description ─────────────────────────────────
 
 /**

@@ -110,6 +110,8 @@ export const GESTURES = new Set([
   "punch",
   "hurt",
   "fall",
+  "block",
+  "dodge",
 ]);
 /** Sitting on the ground: how far the hips come down (leg lengths), and how the legs fold (radians
  *  from hanging straight down: thighs past level, knees up; shins sloping down to the feet). */
@@ -216,7 +218,10 @@ function blendUpper(from, to, amount) {
   return from;
 }
 /** Gestures made on the move as well as standing (fighting), and how far through one a new one may begin. */
-const MOVING_GESTURES = new Set(["strike", "punch", "hurt"]);
+const MOVING_GESTURES = new Set(["strike", "punch", "hurt", "block"]);
+/** Gestures of the whole body that are made on the move (a roll), and gestures played faster than recorded. */
+const WHOLE_MOVING = new Set(["dodge"]);
+const GESTURE_RATE = { dodge: 1.9 };
 const FOLLOW_FROM = 0.55;
 
 function blend(from, to, amount) {
@@ -241,7 +246,8 @@ function blend(from, to, amount) {
  * true while the body is off the ground.
  */
 /** How long a gesture takes to play, in seconds (0 for what isn't one). */
-export const gestureSeconds = (name) => (GESTURES.has(name) ? (CLIPS[name]?.duration ?? 0) : 0);
+export const gestureSeconds = (name) =>
+  GESTURES.has(name) ? (CLIPS[name]?.duration ?? 0) / (GESTURE_RATE[name] ?? 1) : 0;
 
 export function createClipPlayer({ present, offset, legLength }) {
   const parentOf = {};
@@ -561,13 +567,15 @@ export function createClipPlayer({ present, offset, legLength }) {
       MOVING_GESTURES.has(made) &&
       MOVING_GESTURES.has(gesture) &&
       (made === "hurt" ? gesture !== "hurt" : gestureTime >= CLIPS[gesture].duration * FOLLOW_FROM);
-    if (made && GESTURES.has(made) && (!gesture || follows)) {
+    // (A block or a roll breaks into whatever else is being done.)
+    const breaks = gesture && (made === "block" || made === "dodge") && gesture !== made;
+    if (made && GESTURES.has(made) && (!gesture || follows || breaks)) {
       gesture = made;
       gestureTime = 0;
     }
     if (gesture) {
       const clip = CLIPS[gesture];
-      gestureTime += dt;
+      gestureTime += dt * (GESTURE_RATE[gesture] ?? 1);
       if (gestureTime >= clip.duration) gesture = null;
       else {
         const amount = Math.min(
@@ -576,7 +584,7 @@ export function createClipPlayer({ present, offset, legLength }) {
         );
         const made = sample(clip, gestureTime / clip.duration, poses.c);
         const standing = seat === "none" ? 1 : 0;
-        blend(out, made, amount * (1 - moving) * standing);
+        blend(out, made, amount * (WHOLE_MOVING.has(gesture) ? 1 : 1 - moving) * standing);
         // (On the move, a fighting gesture is the body above the hips; the legs keep walking.)
         if (MOVING_GESTURES.has(gesture)) blendUpper(out, made, amount * moving * standing);
       }

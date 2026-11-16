@@ -200,4 +200,19 @@ assert.deepEqual([middling.roll, middling.hit, middling.damage], [11, true, 3]);
   );
 }
 
+// Undefeatable: every resource at its most.
+{
+  const { toppedUp } = await import("../packages/wanderworld/src/sheet.js");
+  const hurt = changeSheet(changeSheet(checkSheet(null), { set: "hp", field: "value", value: 3 }), {
+    set: "mana",
+    field: "value",
+    value: 0,
+  });
+  const whole = toppedUp(hurt);
+  assert.deepEqual(
+    [valueOf(whole, "hp"), valueOf(whole, "mana"), valueOf(whole, "strength")],
+    [20, entryOf(whole, "mana").max, 10],
+  );
+}
+
 console.log("ok: the character sheet");

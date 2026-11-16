@@ -540,6 +540,7 @@ export function createHerd() {
    */
   function hunt(beast, dt, player, view) {
     // (`angry`: it's been struck, and fights back whatever the settings say of hostile ones, and wherever.)
+    if (view.down) return false; // (they're beaten: it has no more business with them)
     const mode = beast.angry ? "attack" : view.hostile;
     if (!beast.angry && (temperOf(beast) !== "hostile" || view.safe || (mode !== "threaten" && mode !== "attack")))
       return false;

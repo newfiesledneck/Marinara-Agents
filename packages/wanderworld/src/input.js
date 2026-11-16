@@ -1,5 +1,5 @@
 // The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, + / -
-// zoom, E uses what's in front of you, F swings, Space jumps, C sits down on the ground (again: lies down) and Esc
+// zoom, E uses what's in front of you, F swings, Q blocks, R dodges, Ctrl alone turns running on or off, Space jumps, C sits down on the ground (again: lies down) and Esc
 // leaves (a seat, a conversation). Camera dragging, pinching and clicking live in main.js.
 //
 // `read()` returns { x, y, amount, run, yaw, pitch, zoom }: (x, y) is the walking direction (x right,
@@ -23,7 +23,16 @@ const KEYS = {
   _: "zoomOut",
 };
 /** Keys that act once per press rather than while held. */
-const PRESSES = { e: "use", escape: "leave", j: "journal", " ": "jump", c: "rest", f: "attack" };
+const PRESSES = {
+  e: "use",
+  escape: "leave",
+  j: "journal",
+  " ": "jump",
+  c: "rest",
+  f: "attack",
+  q: "block",
+  r: "dodge",
+};
 
 const STICK_SIZE = 116;
 const KNOB_SIZE = 48;
@@ -39,10 +48,13 @@ export function createInput() {
   const held = new Set();
   const pressed = new Set();
   const stick = { x: 0, y: 0, pointerId: null };
-  let running = false; // the touch screen's Run button: on until it's tapped again
+  let running = false; // the touch screen's Run button, or Ctrl: on until it's tapped again
+  let ctrlAlone = false; // Ctrl went down and nothing else has since (so it's not Ctrl+C)
+  let onRunToggle = null;
 
   const onKeyDown = (event) => {
     const key = String(event.key).toLowerCase();
+    ctrlAlone = key === "control" && !event.repeat ? !isTyping(event.target) : key === "control" ? ctrlAlone : false;
     // Esc still leaves while typing in the chat box; nothing else does.
     if (key === "escape" && !event.repeat) pressed.add("leave");
     if (isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -54,6 +66,12 @@ export function createInput() {
     if (action.startsWith("look")) event.preventDefault(); // look around; don't scroll the Home panel
   };
   const onKeyUp = (event) => {
+    // Ctrl pressed and let go by itself: running stays on (or goes off) until it's pressed again.
+    if (String(event.key).toLowerCase() === "control" && ctrlAlone) {
+      ctrlAlone = false;
+      running = !running;
+      onRunToggle?.(running);
+    }
     const action = KEYS[String(event.key).toLowerCase()];
     if (action) held.delete(action);
   };
@@ -161,5 +179,14 @@ export function createInput() {
     held.clear();
   }
 
-  return { stickElement: base, read, take, release, dispose, setRun: (on) => (running = !!on) };
+  return {
+    stickElement: base,
+    read,
+    take,
+    release,
+    dispose,
+    setRun: (on) => (running = !!on),
+    /** `listener(on)` is told when Ctrl turns running on or off. */
+    onRunToggle: (listener) => (onRunToggle = listener),
+  };
 }

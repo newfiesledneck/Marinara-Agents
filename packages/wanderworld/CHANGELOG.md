@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.6.81 — 2026-11-15
+
+- The prompts for Chop wood, Mine, Fish and the rest sit at ground level, at the thing itself.
+- Keys: Ctrl by itself turns running on or off (Shift still runs while held). With combat on, F swings, Q blocks and R dodges. E stays for using and gathering.
+- On a touch screen a Combat button swaps Run, Sit and Jump for Attack, Block and Dodge, and back.
+- Block: for about a second, an attack on you is rolled twice and the worse roll counts. Dodge: a roll of a few steps, and nothing lands on you mid-roll.
+- A third choice for defeat: stay down where you fell while the chat and narration go on, with a Respawn button at the top.
+- Undefeatable (Settings → Inventory → Combat) holds HP, mana and your other resources at their most.
+
 ## 0.6.80 — 2026-11-15
 
 - What you beat can be seen to. Stand at an animal and the prompt says Harvest: hide, meat and the like go into your inventory, and the body goes. At an outlaw it says Search: you take what they carried, coins among it.
