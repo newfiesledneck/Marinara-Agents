@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.95 — 2026-11-15
+
+- People fight back. In real-time combat, someone you strike or cast at turns on you: they close in and swing their class's weapon, or keep off and cast their class's spells. Each go is rolled against your AC or your saving throw and told in the chat. Block and Dodge work against them.
+- They stop at a third of their HP, when you go down, when you get well away, or about 45 seconds after you last went for them.
+- "People you attack fight back" is under "Blows can land on people" in Settings → Inventory → Combat, and is on to begin with.
+
 ## 0.6.94 — 2026-11-15
 
 - Journal → World → Animals is now Creatures, to match Settings → Creatures.
