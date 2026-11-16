@@ -446,17 +446,32 @@ export const SRD_SLOTS = {
   ],
 };
 
-/** The SRD's classes: { [id]: { name, hitDie, weapon: { name, damage } } }. */
+/** The SRD's classes: { [id]: { name, hitDie, weapon: { name, damage }, ranged?: { name, damage, range (metres) } } }. */
 export const SRD_CLASSES = {
   barbarian: { name: "Barbarian", hitDie: 12, weapon: { name: "Greataxe", damage: "1d12" } },
   bard: { name: "Bard", hitDie: 8, weapon: { name: "Rapier", damage: "1d8" } },
   cleric: { name: "Cleric", hitDie: 8, weapon: { name: "Mace", damage: "1d6" } },
   druid: { name: "Druid", hitDie: 8, weapon: { name: "Quarterstaff", damage: "1d6" } },
-  fighter: { name: "Fighter", hitDie: 10, weapon: { name: "Longsword", damage: "1d8" } },
+  fighter: {
+    name: "Fighter",
+    hitDie: 10,
+    weapon: { name: "Longsword", damage: "1d8" },
+    ranged: { name: "Light crossbow", damage: "1d8", range: 24 },
+  },
   monk: { name: "Monk", hitDie: 8, weapon: { name: "Quarterstaff", damage: "1d6" } },
   paladin: { name: "Paladin", hitDie: 10, weapon: { name: "Longsword", damage: "1d8" } },
-  ranger: { name: "Ranger", hitDie: 10, weapon: { name: "Shortsword", damage: "1d6" } },
-  rogue: { name: "Rogue", hitDie: 8, weapon: { name: "Shortsword", damage: "1d6" } },
+  ranger: {
+    name: "Ranger",
+    hitDie: 10,
+    weapon: { name: "Shortsword", damage: "1d6" },
+    ranged: { name: "Longbow", damage: "1d8", range: 24 },
+  },
+  rogue: {
+    name: "Rogue",
+    hitDie: 8,
+    weapon: { name: "Shortsword", damage: "1d6" },
+    ranged: { name: "Shortbow", damage: "1d6", range: 24 },
+  },
   sorcerer: { name: "Sorcerer", hitDie: 6, weapon: { name: "Dagger", damage: "1d4" } },
   warlock: { name: "Warlock", hitDie: 8, weapon: { name: "Dagger", damage: "1d4" } },
   wizard: { name: "Wizard", hitDie: 6, weapon: { name: "Quarterstaff", damage: "1d6" } },
@@ -465,7 +480,8 @@ export const SRD_CLASSES = {
 /**
  * The SRD's numbers for Wanderworld's creatures, by Wanderworld's kind: { name (the SRD creature it's taken
  * as), hp (its hit dice's average), ac, attack (what its attack up close adds to the roll), damage (dice),
- * dex (what it adds to initiative) }.
+ * dex (what it adds to initiative), and where it has them ranged { name, attack, damage, range (metres) },
+ * spells (names from SRD_SPELLS) and wit (what its casting adds) }.
  */
 export const SRD_CREATURES = {
   wolf: { name: "Wolf", hp: 11, ac: 13, attack: 4, damage: "2d4+2", dex: 2 },
@@ -476,7 +492,15 @@ export const SRD_CREATURES = {
   donkey: { name: "Mule", hp: 11, ac: 10, attack: 2, damage: "1d4+2", dex: 0 },
   husky: { name: "Mastiff", hp: 5, ac: 12, attack: 3, damage: "1d6+1", dex: 2 },
   slime: { name: "Gray Ooze", hp: 22, ac: 8, attack: 3, damage: "1d6+1", dex: -2 },
-  skeleton: { name: "Skeleton", hp: 13, ac: 13, attack: 4, damage: "1d6+2", dex: 2 },
+  skeleton: {
+    name: "Skeleton",
+    hp: 13,
+    ac: 13,
+    attack: 4,
+    damage: "1d6+2",
+    dex: 2,
+    ranged: { name: "Shortbow", attack: 4, damage: "1d6+2", range: 24 },
+  },
   spider: { name: "Giant Wolf Spider", hp: 11, ac: 13, attack: 3, damage: "1d6+1", dex: 3 },
   rat: { name: "Giant Rat", hp: 7, ac: 12, attack: 4, damage: "1d4+2", dex: 2 },
   snake: { name: "Poisonous Snake", hp: 2, ac: 13, attack: 5, damage: "2d4+1", dex: 3 },
@@ -484,9 +508,45 @@ export const SRD_CREATURES = {
   wasp: { name: "Giant Wasp", hp: 13, ac: 12, attack: 4, damage: "1d6+2", dex: 2 },
   frog: { name: "Giant Frog", hp: 18, ac: 11, attack: 3, damage: "1d6+1", dex: 1 },
   dragon: { name: "Red Dragon Wyrmling", hp: 75, ac: 17, attack: 6, damage: "1d10+4", dex: 0 },
-  bandit: { name: "Bandit", hp: 11, ac: 12, attack: 3, damage: "1d6+1", dex: 1 },
-  witch: { name: "Cult Fanatic", hp: 22, ac: 13, attack: 4, damage: "1d4+2", dex: 0 },
-  wizard: { name: "Mage", hp: 40, ac: 12, attack: 5, damage: "1d4+2", dex: 0 },
+  bandit: {
+    name: "Bandit",
+    hp: 11,
+    ac: 12,
+    attack: 3,
+    damage: "1d6+1",
+    dex: 1,
+    ranged: { name: "Light Crossbow", attack: 3, damage: "1d8+1", range: 24 },
+  },
+  witch: {
+    name: "Cult Fanatic",
+    hp: 22,
+    ac: 13,
+    attack: 4,
+    damage: "1d4+2",
+    dex: 0,
+    ranged: { name: "Dagger", attack: 4, damage: "1d4+2", range: 6 },
+    spells: ["Sacred Flame", "Inflict Wounds", "Spiritual Weapon"],
+    wit: 1,
+  },
+  wizard: {
+    name: "Mage",
+    hp: 40,
+    ac: 12,
+    attack: 5,
+    damage: "1d4+2",
+    dex: 0,
+    ranged: { name: "Dagger", attack: 5, damage: "1d4+2", range: 6 },
+    spells: ["Fire Bolt", "Magic Missile"],
+    wit: 3,
+  },
   imp: { name: "Imp", hp: 10, ac: 13, attack: 5, damage: "1d4+3", dex: 3 },
-  puglin: { name: "Goblin", hp: 7, ac: 15, attack: 4, damage: "1d6+2", dex: 2 },
+  puglin: {
+    name: "Goblin",
+    hp: 7,
+    ac: 15,
+    attack: 4,
+    damage: "1d6+2",
+    dex: 2,
+    ranged: { name: "Shortbow", attack: 4, damage: "1d6+2", range: 24 },
+  },
 };

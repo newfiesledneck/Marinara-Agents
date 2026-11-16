@@ -29,13 +29,14 @@ const dice = (...faces) => {
 // A weapon is an item whose description gives its damage.
 assert.deepEqual(
   weaponIn({ name: "Iron axe", description: "A forged head. Tool: chops wood. Weapon: 1d8 damage, +1 to attack." }),
-  { name: "Iron axe", damage: "1d8", attack: 1, held: "axe" },
+  { name: "Iron axe", damage: "1d8", attack: 1, held: "axe", range: 0 },
 );
 assert.deepEqual(weaponIn({ name: "Short sword", description: "Weapon: 1d6 + 1 damage." }), {
   name: "Short sword",
   damage: "1d6+1",
   attack: 0,
   held: "sword",
+  range: 0,
 });
 assert.equal(weaponIn({ name: "Fishing rod", description: "Tool: catches fish." }), null);
 assert.equal(weaponIn({ name: "Health potion", description: "+15 HP when drunk." }), null);
@@ -193,7 +194,12 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(PACK.spells, undefined, "the setting pack has no spells of its own");
   assert.match(SRD_CREDIT, /System Reference Document 5\.1[\s\S]*CC BY 4\.0/u);
   assert.equal(Object.keys(SRD_CLASSES).length, 12);
-  assert.deepEqual(SRD_CLASSES.fighter, { name: "Fighter", hitDie: 10, weapon: { name: "Longsword", damage: "1d8" } });
+  assert.deepEqual(SRD_CLASSES.fighter, {
+    name: "Fighter",
+    hitDie: 10,
+    weapon: { name: "Longsword", damage: "1d8" },
+    ranged: { name: "Light crossbow", damage: "1d8", range: 24 },
+  });
   const srd = (name) => SRD_SPELLS.find((spell) => spell.name === name);
   assert.equal(spellRule(srd("Fire Bolt")), "Cantrip. 1d10 fire damage. Range 24.");
   assert.equal(
@@ -457,6 +463,44 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     assert.ok(made.verb && made.xp >= 1 && rollDice(made.damage).total >= 1, `${kind} can be fought`);
   }
   assert.ok(!SRD_CREATURES.person && !SRD_CREATURES.ally, "people keep their own numbers");
+}
+
+// Bows: one carried is what's shot, never what's swung; it goes by Dexterity; creatures have theirs from the SRD.
+{
+  const { bowOf, playerStrike } = await import("../packages/wanderworld/src/combat.js");
+  const { SRD_CREATURES } = await import("../packages/wanderworld/src/srd.js");
+  const bow = { name: "Shortbow", description: "A short bow of yew. Weapon: 1d6 damage. Range 24." };
+  const axe = { name: "Iron axe", description: "Weapon: 1d8 damage, +1 to attack." };
+  assert.equal(weaponIn(bow).range, 24);
+  assert.equal(weaponIn({ name: "Longbow", description: "Weapon: 1d8 damage." }).range, 24, "a bow by its name");
+  assert.equal(weaponIn({ name: "Bowl", description: "Weapon: 1d2 damage." }).range, 0);
+  assert.equal(weaponOf([bow, axe]).name, "Iron axe", "a bow isn't swung");
+  assert.equal(weaponOf([bow]).name, "", "with only a bow, a swing is bare hands");
+  assert.equal(bowOf([axe]), null);
+  assert.deepEqual([bowOf([bow, axe]).name, bowOf([bow, axe]).worn], ["Shortbow", false]);
+  assert.equal(bowOf([{ ...bow, location: "equipped:hands" }]).worn, true);
+  // Dexterity 16 (+3), Strength 8: the bow's roll has the +3, the axe's doesn't.
+  let sheet = checkSheet(null);
+  sheet = changeSheet(sheet, { set: "dexterity", field: "value", value: 16 });
+  sheet = changeSheet(sheet, { set: "strength", field: "value", value: 8 });
+  const mid = () => 0.5; // an 11 on the die
+  const foe = { ac: 5 };
+  assert.equal(playerStrike({ sheet, weapon: weaponIn(bow), foe }, mid).total, 14);
+  assert.equal(playerStrike({ sheet, weapon: weaponIn(axe), foe }, mid).total, 11);
+  assert.match(
+    strikeWords({
+      who: "Zoey",
+      what: "wolf",
+      weapon: weaponIn(bow),
+      result: { hit: false, total: 3, ac: 13 },
+      left: 5,
+      max: 11,
+    }),
+    /^Zoey shoots the shortbow at the wolf/u,
+  );
+  assert.deepEqual(SRD_CREATURES.bandit.ranged, { name: "Light Crossbow", attack: 3, damage: "1d8+1", range: 24 });
+  assert.deepEqual(SRD_CREATURES.wizard.spells, ["Fire Bolt", "Magic Missile"]);
+  assert.ok(!SRD_CREATURES.wolf.ranged && !SRD_CREATURES.wolf.spells, "a wolf has to close with you");
 }
 
 console.log("ok: fighting by the rules");

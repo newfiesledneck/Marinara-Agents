@@ -174,6 +174,8 @@ export const SETTINGS = {
   fightPeople: { value: false },
   // Whether creatures fight with the 5e SRD's numbers (srd.js SRD_CREATURES) or the setting pack's own.
   srdCreatures: { value: true },
+  // Whether creatures that have a bow or spells use them from a distance (real-time combat, with the SRD's numbers).
+  rangedFoes: { value: true },
   // Whether someone the player attacks fights back (real-time combat: main.js angryTick).
   fightBack: { value: true },
   // Whether the party joins a real-time fight (each by their class: main.js alliesTick).

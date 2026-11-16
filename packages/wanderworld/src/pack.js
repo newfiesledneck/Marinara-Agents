@@ -955,6 +955,16 @@ const VENDORS = {
           price: 40,
         },
         { name: "Dagger", description: "A hand's length of sharp iron. Weapon: 1d4 damage.", price: 15 },
+        {
+          name: "Shortbow",
+          description: "A short bow of yew, with a quiver of arrows. Weapon: 1d6 damage. Range 24.",
+          price: 25,
+        },
+        {
+          name: "Light crossbow",
+          description: "A crossbow light enough to span by hand, with bolts. Weapon: 1d8 damage. Range 24.",
+          price: 25,
+        },
         { name: "Wooden shield", description: "Limewood boards rimmed with iron. +2 AC.", price: 20 },
         { name: "Iron helm", description: "A riveted iron cap. +1 AC.", price: 25 },
         { name: "Iron ingot", description: "Iron smelted out of its ore.", price: 12 },
