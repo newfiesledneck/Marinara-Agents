@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.89, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.90, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.89: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.90: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.89, 2026-11-14)
+## Outstanding (as of 0.6.90, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -1043,6 +1043,10 @@ weaponDrawn`): the player keeps facing where the camera looks and steps sideways
 hotkey`): a spell, something to use up, something with a Quartermaster slot to put on and take
        off. Mana is the spell's level (so it agrees with spell slots, for turn-based fights to come).
        Stepping sideways and back with a weapon drawn has its own clips (`clips.js strafe`).
+       _In (0.6.90):_ a fight that moves. Companions are sent about it (`npcs.js fightTo`, `main.js
+allyMoves`): strikers close and work round, casters keep off. Creatures choose whom to go for,
+       the player or a companion (`herd.js hunt`, `view.allies`); companions have HP by class
+       (`allyHp`, `allyAttacked`) and are out of the fight for a while at 0.
        _Not yet:_ people and creatures casting or striking back at range; more
        effects (poison, burning, slowed) and effects on the player; the 5e ruleset as a source of
        creatures' numbers and spells; fights indoors.

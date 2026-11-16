@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.90 — 2026-11-15
+
+- Fights move. A companion who strikes closes with a creature and works round it; one who casts keeps a few paces off and moves along the edge.
+- Creatures go for your companions as well as for you, choosing again every few seconds.
+- Companions have HP from their class. At 0 one is out of the fight for a while, then gets up. They are whole again once a fight is well over.
+
 ## 0.6.89 — 2026-11-15
 
 - Hotkeys. The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one particular spell, use up something you carry, or put on and take off something that has a slot in Quartermaster (a weapon, armour, clothing). The ones you've set are buttons in the chat window too.

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.90",
+          "date": "2026-11-15",
+          "notes": "- Fights move. A companion who strikes closes with a creature and works round it; one who casts keeps a few paces off and moves along the edge.\n- Creatures go for your companions as well as for you, choosing again every few seconds.\n- Companions have HP from their class. At 0 one is out of the fight for a while, then gets up. They are whole again once a fight is well over.",
+          "highlight": false
+        },
+        {
           "version": "0.6.89",
           "date": "2026-11-15",
           "notes": "- Hotkeys. The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one particular spell, use up something you carry, or put on and take off something that has a slot in Quartermaster (a weapon, armour, clothing). The ones you've set are buttons in the chat window too.\n- A spell costs its level in mana: 1 for a first-level spell, 2 for a second, 3 for a third. Cantrips cost none. Spells already on your sheet keep the cost written in them; edit the number, or add the spell again.\n- With a weapon drawn, stepping sideways and backwards has its own animations. Before, the forward walk played while you slid.",
@@ -307,12 +313,6 @@
           "version": "0.6.71",
           "date": "2026-11-15",
           "notes": "- Market stalls are dressed for their trade, with models from the Fantasy Props MegaKit's Pro tier: a smith's stall with tools and weapons, a potion seller's, and a greengrocer's with a cart of vegetables. Other trades keep the plain stall.\n- Shops hang a painted sign by the door for their trade: an anvil for a smith, a potion for an apothecary, a tankard for a tavern, a loaf for a greengrocer. Trades without one keep the board with their name.\n- A stall takes its look when the world loads. If you change a stall's trade, it shows after you open the world again.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.70",
-          "date": "2026-11-15",
-          "notes": "- Market stalls buy and sell by day. A greengrocer joins the trades.\n- Haggle, in a shop's window: a Charisma check once a day at each vendor. It can take a tenth or a fifth off for the day, change nothing, or put prices up.\n- Signs follow the trade. A plain shop's sign says what it sells, and a vendor you name says its name.\n- Settings → World → Vendors: name a vendor, and write what it in particular should stock. \"Trades\" there lets you rewrite what the AI is told each trade stocks, and make trades of your own with a name, guidance and a list of goods.\n- While a shop's window is open, Quartermaster's tracker is held back, so talk of buying doesn't add things you haven't paid for.",
           "highlight": false
         }
       ]

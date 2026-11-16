@@ -541,6 +541,23 @@ export function createHerd() {
   function hunt(beast, dt, player, view) {
     // (`angry`: it's been struck, and fights back whatever the settings say of hostile ones, and wherever.)
     if (view.down) return false; // (they're beaten: it has no more business with them)
+    // In a fight it may go for one of the player's companions instead (`view.allies`: [{ id, x, z }]). It
+    // keeps to whom it chose for a few seconds, then looks again: the nearest as often as not, else any.
+    const near = Math.hypot(player.x - beast.x, player.z - beast.z);
+    if (view.allies?.length && (beast.angry || view.hostile === "attack") && near < HUNT_FROM) {
+      let chosen = beast.foeId ? view.allies.find((ally) => ally.id === beast.foeId) : null;
+      if (clock >= (beast.foeUntil ?? 0) || (beast.foeId && !chosen)) {
+        const all = [{ id: null, x: player.x, z: player.z }, ...view.allies];
+        const byDistance = [...all].sort(
+          (a, b) => Math.hypot(a.x - beast.x, a.z - beast.z) - Math.hypot(b.x - beast.x, b.z - beast.z),
+        );
+        chosen = beast.random() < 0.65 ? byDistance[0] : all[Math.floor(beast.random() * all.length)];
+        beast.foeId = chosen.id;
+        beast.foeUntil = clock + 4 + beast.random() * 4;
+        if (!chosen.id) chosen = null;
+      }
+      if (chosen) player = chosen;
+    } else beast.foeId = null;
     const mode = beast.angry ? "attack" : view.hostile;
     if (!beast.angry && (temperOf(beast) !== "hostile" || view.safe || (mode !== "threaten" && mode !== "attack")))
       return false;
@@ -566,6 +583,7 @@ export function createHerd() {
       if (distance < 1.5) {
         events.push({
           type: "attack",
+          target: player.id ?? null, // (a companion's id when it's them it went for)
           id: beast.id,
           kind: beast.kind,
           scale: beast.scale ?? 1,
@@ -609,7 +627,7 @@ export function createHerd() {
     else if (distance < 4.5)
       toward(beast, beast.x - (dx / distance) * 3, beast.z - (dz / distance) * 3, facts.walk * 1.8, dt);
     else face();
-    if (distance < 9 && clock - lastThreat > THREAT_EVERY) {
+    if (!player.id && distance < 9 && clock - lastThreat > THREAT_EVERY) {
       lastThreat = clock;
       events.push({ type: "threat", kind: beast.kind, x: beast.x, z: beast.z });
     }
