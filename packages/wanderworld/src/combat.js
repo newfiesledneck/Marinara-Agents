@@ -189,19 +189,51 @@ export function spoilsWords(spoils, currency) {
 
 const ATTRIBUTES = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
 const SPELL_COST = /(\d{1,3})\s*mana/iu;
-const SPELL_DAMAGE = /(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?)\s*(?:[a-z]+\s+)?damage/iu;
-const SPELL_HEAL = /\+\s?(\d{1,3})\s*HP/iu;
+const SPELL_DAMAGE = /(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?)\s*(?:([a-z]+)\s+)?damage/iu;
+const SPELL_HEAL = /\+\s?(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?|\d{1,3})\s*HP/iu;
 const SPELL_SAVE = new RegExp(`(${ATTRIBUTES.join("|")})\\s+sav(?:e|ing throw)`, "iu");
-const SPELL_EFFECT = /\b(stunned|frightened)\b(?:\s+(?:for\s+)?(\d{1,3})\s*seconds?)?/iu;
+const SPELL_RANGE = /\brange\s+(\d{1,3}(?:\.\d)?)/iu;
+/** The effects a spell can leave, and what each does here: held where it stands, or sent running. */
+const EFFECTS = { stunned: "hold", paralyzed: "hold", restrained: "hold", incapacitated: "hold", frightened: "flee" };
+const SPELL_EFFECT = new RegExp(
+  `\\b(${Object.keys(EFFECTS).join("|")})\\b(?:\\s+(?:for\\s+)?(\\d{1,3})\\s*seconds?)?`,
+  "iu",
+);
+
+/** How far a spell reaches when its description doesn't say (metres). */
+export const SPELL_REACH = 14;
+/** What a spell of `level` costs in mana: a cantrip (level 0) nothing, the rest a point more than their level. */
+export const spellCost = (level) => (level > 0 ? level + 1 : 0);
+
+/**
+ * A spell's rule as its description says it, for one taken from the SRD (srd.js): "Cantrip. 1d10 fire
+ * damage. Range 24.", "Level 1. 2 mana. 3d6 fire damage. Dexterity save for half. Range 5.", "Level 2. 3
+ * mana. Wisdom save or paralyzed 8 seconds. Range 18.", "Level 1. 2 mana. +1d8 HP." What it reads back as
+ * is `spellIn`.
+ */
+export function spellRule(spell) {
+  const parts = [spell.level > 0 ? `Level ${spell.level}` : "Cantrip"];
+  if (spellCost(spell.level)) parts.push(`${spellCost(spell.level)} mana`);
+  if (spell.heal) parts.push(`+${spell.heal} HP`);
+  if (spell.damage) parts.push(`${spell.damage}${spell.type ? ` ${spell.type}` : ""} damage`);
+  if (spell.sure) parts.push("Always hits");
+  if (spell.save && spell.effect) parts.push(`${spell.save.attribute} save or ${spell.effect} 8 seconds`);
+  else if (spell.save) parts.push(`${spell.save.attribute} save for ${spell.save.onSave === "half" ? "half" : "none"}`);
+  if (!spell.heal) parts.push(`Range ${spell.range}`);
+  return `${parts.join(". ")}.`;
+}
 
 /**
  * What a spell does, from its description on the sheet, written as an item's is:
- *   "2 mana. 1d10 fire damage."                          an attack roll against AC
+ *   "1d10 fire damage."                                  an attack roll against AC; no mana named: a cantrip
  *   "3 mana. 2d6 cold damage. Dexterity save for half."  a saving throw: half on a save ("for half"), else none
- *   "2 mana. Wisdom save or stunned 6 seconds."          an effect on a failed save (stunned, frightened)
- *   "3 mana. +8 HP."                                     healing, on the caster
- * { cost, damage, heal, save: { attribute, onSave }, effect: { name, seconds } }, or null when it says none
- * of these (a spell that is only words for the story).
+ *   "2 mana. 1d4+1 force damage. Always hits."           no roll
+ *   "2 mana. Wisdom save or stunned 6 seconds."          an effect on a failed save (stunned, paralyzed,
+ *                                                        restrained, incapacitated: held; frightened: it runs)
+ *   "3 mana. +1d8 HP."                                   healing, on the caster (dice or a number)
+ *   "... Range 18."                                      how far it reaches, in metres
+ * { cost, damage, type, heal, sure, save: { attribute, onSave }, effect: { name, kind, seconds }, range },
+ * or null when it says none of these (a spell that is only words for the story).
  */
 export function spellIn(entry) {
   const text = String(entry?.about ?? "");
@@ -210,23 +242,27 @@ export function spellIn(entry) {
   const effect = SPELL_EFFECT.exec(text);
   if (!damage && !heal && !effect) return null;
   const save = SPELL_SAVE.exec(text);
+  const name = effect?.[1].toLowerCase();
   return {
     cost: Number(SPELL_COST.exec(text)?.[1] ?? 0),
     damage: damage ? damage[1].replace(/\s+/gu, "") : null,
-    heal: heal ? Number(heal[1]) : 0,
+    type: damage?.[2]?.toLowerCase() ?? "",
+    heal: heal ? heal[1].replace(/\s+/gu, "") : null,
+    sure: /\balways hits\b/iu.test(text),
     save: save ? { attribute: save[1].toLowerCase(), onSave: /\bhalf\b/iu.test(text) ? "half" : "none" } : null,
-    effect: effect ? { name: effect[1].toLowerCase(), seconds: Number(effect[2] ?? 6) } : null,
+    effect: effect ? { name, kind: EFFECTS[name], seconds: Number(effect[2] ?? 6) } : null,
+    range: Number(SPELL_RANGE.exec(text)?.[1] ?? SPELL_REACH),
   };
 }
 
 /**
- * A spell cast at a creature. With a saving throw: the creature rolls against the caster's DC (8 + 2 +
- * Intelligence's modifier), taking half or none on a save and the effect only on a failure. Without: a
- * spell attack (a d20 + 2 + Intelligence's modifier) against its AC, as a weapon's, a 20 a critical hit.
- * { hit, saved, crit, roll, total, against, damage, effect }.
+ * A spell cast at a creature by someone whose casting modifier is `wit` (the player's: Intelligence's).
+ * With a saving throw: the creature rolls against the caster's DC (10 + wit), taking half or none on a
+ * save and the effect only on a failure. One that always hits just rolls its damage. Else a spell attack
+ * (a d20 + 2 + wit) against its AC, as a weapon's, a 20 a critical hit.
+ * { hit, saved, crit, sure, roll, total, against, damage, effect }.
  */
-export function spellStrike({ sheet, worn = {}, spell, foe }, random = Math.random) {
-  const wit = modifier(valueOf(sheet, "intelligence") + (worn.intelligence ?? 0));
+export function spellStrike({ wit = 0, spell, foe }, random = Math.random) {
   if (spell.save) {
     const dc = 10 + wit;
     const thrown = savingThrow(
@@ -243,6 +279,7 @@ export function spellStrike({ sheet, worn = {}, spell, foe }, random = Math.rand
       hit: !thrown.saved,
       saved: thrown.saved,
       crit: false,
+      sure: false,
       roll: thrown.roll,
       total: thrown.total,
       against: `DC ${dc}`,
@@ -250,11 +287,26 @@ export function spellStrike({ sheet, worn = {}, spell, foe }, random = Math.rand
       effect: thrown.saved ? null : spell.effect,
     };
   }
+  if (spell.sure) {
+    const damage = spell.damage ? Math.max(1, rollDice(spell.damage, random).total) : 0;
+    return {
+      hit: true,
+      saved: false,
+      crit: false,
+      sure: true,
+      roll: 0,
+      total: 0,
+      against: "",
+      damage,
+      effect: spell.effect,
+    };
+  }
   const result = attackRoll({ bonus: 2 + wit, ac: foe.ac, damage: spell.damage ?? "0" }, random);
   return {
     hit: result.hit,
     saved: false,
     crit: result.crit,
+    sure: false,
     roll: result.roll,
     total: result.total,
     against: `AC ${foe.ac}`,
@@ -263,18 +315,30 @@ export function spellStrike({ sheet, worn = {}, spell, foe }, random = Math.rand
   };
 }
 
-/** A spell cast at a creature, told: "Zoey casts Frost burst at the wolf (it saves, 15 against DC 12): half, for 3. …" */
-export function spellWords({ who, name, what, spell, result, left, max }) {
-  const start = `${who} casts ${name} at the ${what}`;
-  const rolled = spell.save
-    ? `(its ${spell.save.attribute} save: ${result.total} against ${result.against})`
-    : `(${result.crit ? "a 20 on the die" : `${result.total} against ${result.against}`})`;
+/** The player's casting modifier: Intelligence's, with what they wear. */
+export const witOf = (sheet, worn = {}) => modifier(valueOf(sheet, "intelligence") + (worn.intelligence ?? 0));
+
+/**
+ * A spell cast at something, told: "Zoey casts Frost burst at the wolf (its dexterity save: 13 against DC
+ * 13): it saves, for 4. It has 7 of 11 HP left." `named`: `what` is someone's name, not a kind of creature.
+ */
+export function spellWords({ who, name, what, spell, result, left, max, named = false }) {
+  const whom = named ? what : `the ${what}`;
+  const their = named ? "their" : "its";
+  const start = `${who} casts ${name} at ${whom}`;
+  const rolled = result.sure
+    ? ""
+    : spell.save
+      ? ` (${their} ${spell.save.attribute} save: ${result.total} against ${result.against})`
+      : ` (${result.crit ? "a 20 on the die" : `${result.total} against ${result.against}`})`;
   const parts = [];
-  if (spell.save) parts.push(result.saved ? "it saves" : "it fails");
+  if (result.sure) parts.push("it strikes home");
+  else if (spell.save) parts.push(result.saved ? (named ? "they save" : "it saves") : named ? "they fail" : "it fails");
   else parts.push(result.crit ? "a critical hit" : result.hit ? "a hit" : "a miss");
   if (result.damage > 0) parts.push(`for ${result.damage}`);
   if (result.effect) parts.push(`${result.effect.name} for ${result.effect.seconds} seconds`);
-  const told = `${start} ${rolled}: ${parts.join(", ")}.`;
+  const told = `${start}${rolled}: ${parts.join(", ")}.`;
   if (result.damage <= 0) return told;
-  return left > 0 ? `${told} It has ${left} of ${max} HP left.` : `${told} The ${what} goes down.`;
+  if (left <= 0) return `${told} ${named ? what : `The ${what}`} goes down.`;
+  return `${told} ${named ? `${what} has` : "It has"} ${left} of ${max} HP left.`;
 }

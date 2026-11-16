@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.86",
+          "date": "2026-11-15",
+          "notes": "- Spells come from the 5e SRD and from you, and nowhere else. Inventory → Sheet lists 40 SRD spells of level 0 to 3 to add from. The five spells made up for 0.6.85 are gone from the game; any on your sheet stay as your own.\n- Cantrips cost no mana. A spell costs one more than its level.\n- Spells have ranges, some need no roll, and healing rolls dice.\n- A spell can be cast at a person, where blows can land on people.\n- Sitting or lying down slowly restores mana and HP; a sleep restores both fully (Settings → Inventory → Sheet).\n- Spells look like something: a bolt with a trail, a burst where it lands, a ring round what's held, motes for mending.\n- Credits name the SRD 5.1 (CC BY 4.0).",
+          "highlight": false
+        },
+        {
           "version": "0.6.85",
           "date": "2026-11-15",
           "notes": "- Casting. A spell is a line of your sheet whose description is its rule, written like an item's: \"2 mana. 1d10 fire damage.\" or \"3 mana. 2d6 cold damage. Dexterity save for half.\" or \"Wisdom save or stunned 6 seconds.\" or \"+8 HP.\"\n- Z casts the spell that's ready. Each spell has a button in the chat window, and a touch screen's Combat row has a Cast button.\n- A spell flies at the nearest creature ahead of you. It is a spell attack against AC, or the creature makes a saving throw for half or none. Stunned stops it; frightened sends it running. A healing spell mends you.\n- Inventory → Sheet has a button that adds five spells to begin with. You can rewrite them and add your own.",
@@ -307,12 +313,6 @@
           "version": "0.6.67",
           "date": "2026-11-15",
           "notes": "- The axe and pickaxe in your hand are now the models from the Fantasy Props MegaKit's Pro tier, in place of the plain shapes. The fishing rod stays a plain shape: the pack has none.\n- That pack's tools and weapons are converted and in the kit (two axes, two pickaxes, two swords, a dagger, a hammer, a shovel, a hoe and two shields). Only the axe and pickaxe are used so far; the rest are for shops and fights.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.66",
-          "date": "2026-11-15",
-          "notes": "- Tools. Chopping needs an axe, mining a pickaxe and fishing a rod, carried in your inventory. Anything named for one counts. The tool shows in your hand while you use it. Settings → People → Inventory → \"Gathering needs tools\" turns the need off.\n- Crafting. Inventory → Craft lists what you can make and what each needs. The first axe, pickaxe and rod are made from a fallen branch, flint and plant fibre, which foraging now finds in every season.\n- Also: cooked fish, cord, kindling and a torch, and at higher levels a poultice, a quarterstaff, iron ingots and iron tools.\n- \"Make something new\" saves your own recipe: say what goes in, name and describe what comes of it.\n- An axe or a pickaxe says what it does as a weapon. A fishing rod doesn't.",
           "highlight": false
         }
       ]

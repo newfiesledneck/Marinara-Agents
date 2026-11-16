@@ -588,18 +588,6 @@ const SPOILS = {
   },
 };
 
-/**
- * Spells the player can put on their sheet with one button (Inventory → Sheet): a name and a description
- * that says what it does by rule (combat.js spellIn). They're the player's own from then on, to rewrite.
- */
-const SPELLS = [
-  { name: "Fire bolt", about: "A dart of flame. 2 mana. 1d10 fire damage." },
-  { name: "Frost burst", about: "A burst of cold. 3 mana. 2d6 cold damage. Dexterity save for half." },
-  { name: "Daze", about: "A word that stops a mind. 2 mana. Wisdom save or stunned 6 seconds." },
-  { name: "Dread", about: "A shadow of fear. 2 mana. Wisdom save or frightened." },
-  { name: "Mend", about: "Knits a wound. 3 mana. +8 HP." },
-];
-
 /** What's told when the player's HP runs out, and when they come to ({who}). */
 const FIGHT = {
   down: "{who} goes down, and everything goes dark.",
@@ -1115,7 +1103,6 @@ export const PACK = {
   outlaws: OUTLAWS,
   foes: FOES,
   spoils: SPOILS,
-  spells: SPELLS,
   fight: FIGHT,
 };
 

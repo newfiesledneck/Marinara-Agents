@@ -859,6 +859,8 @@ export function createHud(root, handlers) {
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
     fightPeople:
       "Off: a swing passes people by, and only animals, monsters and outlaws can be struck. On: a blow can land on anyone in front of you, your companions too. It's rolled like any other. Whoever you strike remembers it for good and becomes your enemy, anyone who sees it remembers, and at 0 HP they are out cold for a couple of minutes, then get up. Nobody dies. People don't strike back yet.",
+    restRestores:
+      "On: while you sit or lie down (on the ground, a bench, a bed) a point of mana comes back every few seconds and a point of HP a little slower, until both are full. A sleep in a tent or a bed restores both completely. Off: only items, spells and levelling restore them.",
     undefeatable:
       "On: your HP, mana and every other resource with a most are held at their most, whatever happens. Fights are still rolled and told, and nothing can put you down.",
     gathering:
@@ -1266,6 +1268,7 @@ export function createHud(root, handlers) {
     "sheet",
   );
   toggle("undefeatable", "Undefeatable", "sheet");
+  toggle("restRestores", "Resting restores HP and mana", "sheet");
   toggle("fightPeople", "Blows can land on people", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
@@ -2836,17 +2839,36 @@ export function createHud(root, handlers) {
       ),
     );
     body.append(form);
-    // The setting's own spells, to begin with: each becomes one of yours, to rewrite or delete.
-    const starter = inkSmall("Add this setting's spells", () => {
-      handlers.onAddSpells?.();
+    // A spell from the 5e SRD, by name: it becomes a line of the sheet with its rule written out.
+    const spellPick = document.createElement("select");
+    spellPick.style.cssText = `${INK_INPUT}padding:2px 4px;max-width:100%;`;
+    spellPick.setAttribute("aria-label", "A spell from the 5e SRD");
+    const levels = new Map();
+    for (const spell of handlers.spellList?.() ?? []) {
+      if (!levels.has(spell.level)) {
+        const group = document.createElement("optgroup");
+        group.label = spell.level > 0 ? `Level ${spell.level} (${spell.cost} mana)` : "Cantrips (no mana)";
+        levels.set(spell.level, group);
+        spellPick.append(group);
+      }
+      const option = document.createElement("option");
+      option.value = spell.name;
+      option.textContent = `${spell.name} · ${spell.classes}`;
+      option.title = spell.rule;
+      levels.get(spell.level).append(option);
+    }
+    const spellAdd = inkSmall("Add spell", () => {
+      handlers.onAddSpell?.(spellPick.value);
       void drawInventory();
     });
-    starter.title = "Puts a handful of spells on your sheet, each with a description that says what it does by rule";
+    const spellForm = piece("display:flex;flex-wrap:wrap;gap:4px;align-items:center;");
+    spellForm.append(spellPick, spellAdd);
     body.append(
+      piece("font-weight:700;margin-top:6px;", "Add a spell from the 5e SRD"),
       debugNote(
-        'A spell\'s description is its rule, written like an item\'s: "2 mana. 1d10 fire damage." is an attack roll; "3 mana. 2d6 cold damage. Dexterity save for half." asks the target for a saving throw; "Wisdom save or stunned 6 seconds" leaves an effect (stunned, frightened); "+8 HP" heals you. A spell without any of these is only told to the AI.',
+        'These are the SRD\'s spells of level 0 to 3 that a fight here can play. A cantrip costs no mana; a spell costs one more than its level. Once added it is yours: its description is its rule, and you can rewrite it. Your own spells are written the same way: "2 mana. 1d10 fire damage. Range 20." is an attack roll; "Dexterity save for half" asks the target for a saving throw; "Always hits" needs no roll; "Wisdom save or paralyzed 8 seconds" leaves an effect (stunned, paralyzed, restrained and incapacitated hold the target; frightened sends it running); "+1d8 HP" heals you. No mana named makes it a cantrip. A spell with none of these is only told to the AI.',
       ),
-      starter,
+      spellForm,
     );
     // What's switched off, folded away at the bottom: tick one to bring it back.
     const unused = sheet.entries.filter((entry) => !entry.on);
