@@ -6,7 +6,7 @@
 // This module only works things out: main.js moves the bodies and tells what happened.
 
 import { attackRoll, bonusesIn, modifier, rollDice, valueOf } from "./sheet.js";
-import { SRD_ARMOUR, SRD_WEAPONS } from "./srd.js";
+import { SRD_ARMOUR, SRD_LOOT, SRD_MAGIC, SRD_POTIONS, SRD_WEAPONS } from "./srd.js";
 
 /** Bare hands. */
 const UNARMED = { name: "", damage: "1d2", attack: 0, held: null, type: "bludgeoning" };
@@ -173,6 +173,80 @@ export function armourIn(item) {
   return like ? { ...like, name: String(item.name).trim(), plus: plusIn(item.name) } : null;
 }
 
+/** The SRD's worn magic, longest names first, so "Ring of Protection" is found in "Old ring of protection". */
+const MAGIC_NAMES = Object.values(SRD_MAGIC).sort((a, b) => b.name.length - a.name.length);
+/** What `item` is as a worn magic thing, by its name (srd.js SRD_MAGIC's entry), or null. */
+export function accessoryIn(item) {
+  const name = String(item?.name ?? "").toLowerCase();
+  return (name && MAGIC_NAMES.find((entry) => name.includes(entry.name.toLowerCase()))) || null;
+}
+
+const POTION_DICE = /\+\s?(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?)\s*HP/iu;
+const POTION_NAMES = Object.values(SRD_POTIONS).sort((a, b) => b.name.length - a.name.length);
+/**
+ * The dice something heals when it's drunk: as its description says ("+2d4+2 HP"), or by its name (a
+ * Potion of Healing is the SRD's), whichever `byDescription` puts first; "" when it's neither.
+ */
+export function potionIn(item, byDescription = true) {
+  const written = POTION_DICE.exec(String(item?.description ?? ""))?.[1].replace(/\s+/gu, "") ?? "";
+  const name = String(item?.name ?? "").toLowerCase();
+  const linked = (name && POTION_NAMES.find((entry) => name.includes(entry.name.toLowerCase()))?.heal) || "";
+  return byDescription ? written || linked : linked || written;
+}
+
+/** How many of Wanderworld's coins a gold piece is worth (the smith's prices are about three times the SRD's). */
+const COINS_A_GOLD = 3;
+const COIN_GOLD = { cp: 0.01, sp: 0.1, gp: 1, pp: 10 };
+/** A worn magic thing in a line, for what's found on a body: "While worn: Armor Class and saving throws 1 better." */
+export function magicWords(entry) {
+  const parts = [];
+  if (entry.ac && entry.saves) parts.push(`Armor Class and saving throws ${entry.ac} better`);
+  else if (entry.ac) parts.push(`Armor Class ${entry.ac} better`);
+  else if (entry.saves) parts.push(`saving throws ${entry.saves} better`);
+  if (entry.bare) parts.push(`Armor Class ${entry.bare} better with no armour or shield on`);
+  for (const [ability, score] of Object.entries(entry.set ?? {})) parts.push(`${ability} ${score} if it was less`);
+  for (const [ability, amount] of Object.entries(entry.add ?? {})) parts.push(`${ability} ${amount} more`);
+  if (entry.spell) parts.push(`spell attacks and DCs ${entry.spell} better`);
+  return `While worn: ${parts.join("; ")}.`;
+}
+
+/**
+ * What a beaten creature of a treasure `tier` had on it (srd.js SRD_LOOT): { coins, items: [{ name,
+ * description, quantity }] }. Coin is in Wanderworld's coins; a potion or a magic thing is one of the SRD's
+ * of that rarity.
+ */
+export function lootOf(tier, random = Math.random) {
+  const table = SRD_LOOT[tier];
+  const found = { coins: 0, items: [] };
+  if (!table) return found;
+  const pick = (list) => list[Math.floor(random() * list.length)];
+  const total = table.entries.reduce((sum, entry) => sum + entry.weight, 0);
+  for (let roll = Math.max(1, rollDice(table.rolls, random).total); roll > 0; roll--) {
+    let at = random() * total;
+    const entry = table.entries.find((each) => (at -= each.weight) < 0) ?? table.entries[0];
+    if (entry.coins)
+      found.coins += Math.max(
+        1,
+        Math.round(rollDice(entry.count, random).total * COIN_GOLD[entry.coins] * COINS_A_GOLD),
+      );
+    const potions = Object.values(SRD_POTIONS).filter((potion) => potion.rarity === entry.potion);
+    if (entry.potion && potions.length) {
+      const potion = pick(potions);
+      found.items.push({
+        name: potion.name,
+        description: `A stoppered vial. +${potion.heal} HP when drunk.`,
+        quantity: 1,
+      });
+    }
+    const things = Object.values(SRD_MAGIC).filter((thing) => thing.rarity === entry.magic);
+    if (entry.magic && things.length) {
+      const thing = pick(things);
+      found.items.push({ name: thing.name, description: magicWords(thing), quantity: 1 });
+    }
+  }
+  return found;
+}
+
 /**
  * What's worn adds up to, with the gear rules: sheet.js wornBonuses' { [stat]: amount }, and beside it
  * `armour` (the body armour worn, by its name: armourIn), `shield` (a shield's bonus) and `rules` (Armor
@@ -189,6 +263,7 @@ export function gearWorn(
   const total = { ...add };
   let armour = null;
   let shield = 0;
+  const sets = {};
   for (const item of Array.isArray(items) ? items : []) {
     if (typeof item?.location !== "string" || !item.location.startsWith("equipped:")) continue;
     const stated = bonusesIn(item.description, sheet);
@@ -198,7 +273,21 @@ export function gearWorn(
       else if (!armour || linked.ac + linked.plus > armour.ac + armour.plus) armour = linked;
       continue;
     }
+    // (A worn magic thing known by its name: a Ring of Protection, an Amulet of Health.)
+    const charm = rules ? accessoryIn(item) : null;
+    if (charm && !(byDescription && stated.length)) {
+      for (const key of ["ac", "bare", "saves", "spell"]) if (charm[key]) total[key] = (total[key] ?? 0) + charm[key];
+      for (const [ability, amount] of Object.entries(charm.add ?? {})) total[ability] = (total[ability] ?? 0) + amount;
+      for (const [ability, score] of Object.entries(charm.set ?? {}))
+        sets[ability] = Math.max(sets[ability] ?? 0, score);
+      continue;
+    }
     for (const bonus of stated) total[bonus.stat] = (total[bonus.stat] ?? 0) + bonus.amount;
+  }
+  // (An ability a worn thing sets: up to that number, if it was less with everything else counted.)
+  for (const [ability, score] of Object.entries(sets)) {
+    const now = valueOf(sheet, ability) + (total[ability] ?? 0);
+    if (score > now) total[ability] = (total[ability] ?? 0) + score - now;
   }
   if (armour) total.armour = armour;
   if (shield) total.shield = shield;
@@ -339,7 +428,9 @@ export function armourOf(sheet, worn = {}) {
     worn.unarmored && !armour && !(worn.unarmored === "wisdom" && worn.shield)
       ? Math.max(0, modifier(valueOf(sheet, worn.unarmored) + (worn[worn.unarmored] ?? 0)))
       : 0;
-  const body = armour ? armour.ac + armour.plus + Math.min(dex, armour.dex) + (worn.defense ?? 0) : 10 + dex + bare;
+  const body = armour
+    ? armour.ac + armour.plus + Math.min(dex, armour.dex) + (worn.defense ?? 0)
+    : 10 + dex + bare + (worn.shield ? 0 : (worn.bare ?? 0)); // (`bare`: Bracers of Defense, with no shield either)
   return own - 10 + body + (worn.shield ?? 0);
 }
 

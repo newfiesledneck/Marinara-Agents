@@ -1705,3 +1705,116 @@ export const SRD_STYLES = {
 
 /** The SRD's backgrounds: { [id]: { name, skills (ids it's proficient in) } }. */
 export const SRD_BACKGROUNDS = { acolyte: { name: "Acolyte", skills: ["insight", "religion"] } };
+
+/**
+ * The SRD's magic things that are worn and do something a fight here plays: { [id]: { name, rarity, ac (added
+ * to Armor Class), bare (added to it with no armour or shield on), saves (added to every saving throw), set
+ * ({ [ability]: what it becomes, if that's more }), add ({ [ability]: amount }), spell (added to a spell's
+ * attack and DC), cost (gold pieces) } }.
+ */
+export const SRD_MAGIC = {
+  "amulet-of-health": { name: "Amulet of Health", rarity: "rare", set: { constitution: 19 }, cost: 6000 },
+  "belt-of-cloud-giant-strength": {
+    name: "Belt of Cloud Giant Strength",
+    rarity: "legendary",
+    set: { strength: 27 },
+    cost: 96000,
+  },
+  "belt-of-dwarvenkind": { name: "Belt of Dwarvenkind", rarity: "rare", add: { constitution: 2 }, cost: 6000 },
+  "belt-of-fire-giant-strength": {
+    name: "Belt of Fire Giant Strength",
+    rarity: "very_rare",
+    set: { strength: 25 },
+    cost: 24000,
+  },
+  "belt-of-frost-giant-strength": {
+    name: "Belt of Frost Giant Strength",
+    rarity: "very_rare",
+    set: { strength: 23 },
+    cost: 24000,
+  },
+  "belt-of-hill-giant-strength": {
+    name: "Belt of Hill Giant Strength",
+    rarity: "rare",
+    set: { strength: 21 },
+    cost: 6000,
+  },
+  "belt-of-stone-giant-strength": {
+    name: "Belt of Stone Giant Strength",
+    rarity: "very_rare",
+    set: { strength: 23 },
+    cost: 24000,
+  },
+  "belt-of-storm-giant-strength": {
+    name: "Belt of Storm Giant Strength",
+    rarity: "legendary",
+    set: { strength: 29 },
+    cost: 96000,
+  },
+  "bracers-of-defense": { name: "Bracers of Defense", rarity: "rare", bare: 2, cost: 6000 },
+  "cloak-of-protection": { name: "Cloak of Protection", rarity: "uncommon", ac: 1, saves: 1, cost: 1500 },
+  "gauntlets-of-ogre-power": { name: "Gauntlets of Ogre Power", rarity: "uncommon", set: { strength: 19 }, cost: 1500 },
+  "headband-of-intellect": { name: "Headband of Intellect", rarity: "uncommon", set: { intelligence: 19 }, cost: 1500 },
+  "ring-of-protection": { name: "Ring of Protection", rarity: "rare", ac: 1, saves: 1, cost: 6000 },
+  "robe-of-stars": { name: "Robe of Stars", rarity: "very_rare", saves: 1, cost: 24000 },
+  "robe-of-the-archmagi": { name: "Robe of the Archmagi", rarity: "legendary", spell: 2, cost: 96000 },
+  "staff-of-power": { name: "Staff of Power", rarity: "very_rare", ac: 2, saves: 2, spell: 2, cost: 24000 },
+  "staff-of-the-magi": { name: "Staff of the Magi", rarity: "legendary", spell: 2, cost: 96000 },
+  "staff-of-the-woodlands": { name: "Staff of the Woodlands", rarity: "rare", spell: 2, cost: 6000 },
+};
+
+/** The SRD's potions that heal: { [id]: { name, heal (dice), rarity, cost (gold pieces) } }. */
+export const SRD_POTIONS = {
+  "potion-of-greater-healing": { name: "Potion of Greater Healing", heal: "4d4+4", rarity: "uncommon", cost: 150 },
+  "potion-of-healing": { name: "Potion of Healing", heal: "2d4+2", rarity: "common", cost: 50 },
+  "potion-of-superior-healing": { name: "Potion of Superior Healing", heal: "8d4+8", rarity: "rare", cost: 600 },
+  "potion-of-supreme-healing": { name: "Potion of Supreme Healing", heal: "10d4+20", rarity: "very_rare", cost: 2400 },
+};
+
+/**
+ * Pocket treasure by tier (the ruleset package's own tables; the SRD has none): { [tier]: { rolls (dice),
+ * entries: [{ weight, and coins (cp | sp | gp | pp) with count (dice), or potion (a rarity), or magic (a
+ * rarity), or nothing }] } }.
+ */
+export const SRD_LOOT = {
+  treasure_low: {
+    rolls: "1",
+    entries: [
+      { weight: 3, coins: "cp", count: "5d6" },
+      { weight: 4, coins: "sp", count: "4d6" },
+      { weight: 2, coins: "gp", count: "2d6" },
+      { weight: 1, potion: "common" },
+    ],
+  },
+  treasure_mid: {
+    rolls: "1d2",
+    entries: [
+      { weight: 5, coins: "gp", count: "4d6" },
+      { weight: 2, coins: "sp", count: "10d6" },
+      { weight: 2, potion: "uncommon" },
+      { weight: 1 },
+      { weight: 1, magic: "uncommon" },
+    ],
+  },
+  treasure_high: {
+    rolls: "1d2",
+    entries: [
+      { weight: 4, coins: "gp", count: "10d10" },
+      { weight: 3, coins: "pp", count: "2d6" },
+      { weight: 2, potion: "rare" },
+      { weight: 1 },
+      { weight: 1, magic: "rare" },
+    ],
+  },
+  treasure_epic: {
+    rolls: "1d3",
+    entries: [
+      { weight: 5, coins: "pp", count: "4d6" },
+      { weight: 2, coins: "gp", count: "10d10" },
+      { weight: 2, potion: "very_rare" },
+      { weight: 1 },
+      { weight: 1, magic: "very_rare" },
+      { weight: 1, magic: "legendary" },
+    ],
+  },
+};
