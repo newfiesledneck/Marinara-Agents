@@ -198,6 +198,7 @@ import {
   conditionChips,
   conditionFor,
   conditionMods,
+  deathSave,
   hurtConditions,
   lift,
   tickConditions,
@@ -8089,12 +8090,159 @@ function tryEscape() {
   } else narrate(null, `${personaName()} strains against the hold (${total} against DC ${dc}): still held.`);
 }
 
+/** What else shows beside the conditions: a spell being concentrated on, and dying. */
+function statusChips() {
+  const chips = [];
+  if (core.conc?.until && core.conc.until <= core.clock) core.conc = null;
+  if (core.conc?.until)
+    chips.push({
+      id: "conc",
+      label: `Concentrating: ${core.conc.name}`,
+      about: "Being hurt may break it; another such spell ends it.",
+      seconds: Math.ceil(core.conc.until - core.clock),
+    });
+  if (core.dying)
+    chips.push({
+      id: "dying",
+      label: `Dying (${core.dying.wins} saved, ${core.dying.losses} failed): next roll`,
+      about: "Three successes and you hold on; three failures and you're beaten.",
+      seconds: Math.max(0, Math.ceil(core.dying.at - core.clock)),
+    });
+  return chips;
+}
+
+// ── Concentration ──
+
+/** The spell being concentrated on ends: what it held, slowed, calmed, hindered or marked is free of it. */
+function breakConcentration(words) {
+  const conc = core.conc;
+  core.conc = null;
+  if (!conc?.ids?.length) return;
+  for (const id of conc.ids) {
+    core.herd.clear(id);
+    const fx = core.foeFx?.get(id);
+    if (fx) fx.hinder = fx.mark = 0;
+  }
+  if (words) narrate(null, words);
+}
+
+/** Hurt while concentrating: a Constitution save (DC 10, or half the damage if that's more), or the spell ends. */
+function concentrationHurt(damage) {
+  if (!core.conc?.ids?.length || !core.settings.concentration) return;
+  const thrown = playerSave("constitution", Math.max(10, Math.floor(damage / 2)));
+  if (!thrown.saved)
+    breakConcentration(`${personaName()}'s concentration on ${core.conc.name} breaks (${thrown.words}, failed).`);
+}
+
+// ── Cover ──
+
+/** Half cover (+2 AC) when a tree or a boulder stands between `from` and `to` ({ x, z }), else 0. */
+function coverBetween(from, to) {
+  if (!core.settings.cover || core.interior || !core.world?.treeNear) return 0;
+  const far = Math.hypot(to.x - from.x, to.z - from.z);
+  for (let gone = 1.5; gone < far - 1.2; gone += 1) {
+    const x = from.x + ((to.x - from.x) / far) * gone;
+    const z = from.z + ((to.z - from.z) / far) * gone;
+    if (core.world.treeNear(x, z, 0.7) >= 0 || core.world.rockNear(x, z, 0.9) >= 0) return 2;
+  }
+  return 0;
+}
+
+// ── Dying ──
+
+/** At 0 HP with death saving throws on: down and dying, a roll every few seconds (dyingTick). */
+function startDying() {
+  core.downed = true;
+  core.stayDown = false;
+  core.downAt = performance.now();
+  core.dying = { wins: 0, losses: 0, at: core.clock + 5 };
+  core.gesture = "fall";
+  core.walkTo = null;
+  core.afflicted = {};
+  breakConcentration("");
+  core.herd.calm();
+  core.angry?.clear();
+  if (core.battle) battleEnd("");
+  narrate(
+    null,
+    `${personaName()} falls, dying. A death saving throw every few seconds: three successes and they hold on, three failures and they're beaten.`,
+  );
+  const saveId = core.save?.id;
+  later(2.3, () => {
+    if (!core.dying || core.save?.id !== saveId || core.mode !== "walk") return;
+    const { x, z } = core.player.position;
+    core.seat = { x, z, angle: core.player.rotation.y, approach: { x, z }, ground: "lie", taken: "player" };
+    core.mode = "sit";
+  });
+}
+
+/** Up from dying, where they lie: with `hpTo` HP if given (else what healing gave them). */
+function riseFromDying(words, hpTo = 0) {
+  core.dying = null;
+  core.downed = false;
+  if (core.mode === "sit" && core.seat?.ground) {
+    core.seat = null;
+    core.mode = "walk";
+    core.stillUntil = core.clock + 1;
+  }
+  if (hpTo) setSheet(applyChanges(sheetNow(), [{ stat: "hp", to: hpTo }]).sheet);
+  narrate(null, words);
+  core.hud?.refreshInventory?.();
+}
+
+/** The dying roll their death saving throws; healing gets them up at once. */
+function dyingTick() {
+  const dying = core.dying;
+  if (!dying) return;
+  if (!core.downed) return void (core.dying = null);
+  const who = personaName();
+  if ((entryOf(sheetNow(), "hp")?.value ?? 0) > 0) return void riseFromDying(`${who} is brought round.`);
+  if (core.clock < dying.at) return;
+  const thrown = deathSave(dying);
+  core.dying = { wins: thrown.wins, losses: thrown.losses, at: core.clock + 5 };
+  const tally = `${thrown.wins} saved, ${thrown.losses} failed`;
+  if (thrown.outcome === "up") return void riseFromDying(`Death save: a 20. ${who} is up, with 1 HP.`, 1);
+  if (thrown.outcome === "stable")
+    return void riseFromDying(
+      `Death save: ${thrown.roll}, a success (${tally}). ${who} is stable, and comes round with 1 HP.`,
+      1,
+    );
+  const how = thrown.roll >= 10 ? "a success" : thrown.roll === 1 ? "a 1: two failures" : "a failure";
+  narrate(null, `Death save: ${thrown.roll}, ${how} (${tally}).`);
+  if (thrown.outcome !== "beaten") return;
+  core.dying = null;
+  core.downed = false;
+  defeated(true);
+}
+
+/** Whom a creature goes for on its turn: the nearest, or (where the ruleset says how it picks) the most hurt, the weakest, or one who casts. */
+function foeTarget(foe, targets) {
+  const near = (entry) => Math.hypot(entry.x - foe.x, entry.z - foe.z);
+  const nearest = targets.reduce((best, entry) => (near(entry) < near(best) ? entry : best));
+  const wants = extrasOn() ? foeOf(foe.kind, foeTable(), foe.scale).targets : "";
+  const inReach = targets.filter((entry) => near(entry) <= TURN_MOVE + 3);
+  if (!wants || inReach.length < 2) return nearest;
+  const hp = entryOf(sheetNow(), "hp");
+  const state = (entry) => (entry.id ? allyHp(entry.id) : { hp: hp?.value ?? 1, max: hp?.max ?? 1 });
+  const hurt = (entry) => state(entry).hp / Math.max(1, state(entry).max);
+  if (wants === "wounded") return inReach.reduce((best, entry) => (hurt(entry) < hurt(best) ? entry : best));
+  if (wants === "weakest") return inReach.reduce((best, entry) => (state(entry).max < state(best).max ? entry : best));
+  if (wants === "casters")
+    return (
+      inReach.find((entry) =>
+        entry.id ? spellsOfClass(classOf(entry.id)).attack.length > 0 : spellsNow().length > 0,
+      ) ?? nearest
+    );
+  return nearest;
+}
+
 /** The conditions run down (outside a fight by turns, where a turn counts them), hold the player, and are shown. */
 function conditionsTick(dt) {
+  const others = statusChips();
   const has = core.afflicted && Object.keys(core.afflicted).length > 0;
   if (!has) {
     core.escapeAt = undefined;
-    return void core.hud?.setConditions?.([]);
+    return void core.hud?.setConditions?.(others);
   }
   if (core.downed || !core.settings.conditions) core.afflicted = {};
   else if (!core.battle) core.afflicted = tickConditions(core.afflicted, dt);
@@ -8109,7 +8257,7 @@ function conditionsTick(dt) {
       tryEscape();
     }
   }
-  core.hud?.setConditions?.(conditionChips(core.afflicted));
+  core.hud?.setConditions?.([...conditionChips(core.afflicted), ...others]);
 }
 
 /**
@@ -8358,6 +8506,10 @@ function cast(id = null) {
   } else if (!slotted && spell.cost > 0) setSheet(applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet);
   core.gesture = "cast";
   core.castUntil = core.clock + 1.1;
+  if (spell.conc && core.settings.concentration) {
+    breakConcentration(core.conc?.ids?.length ? `${personaName()} lets ${core.conc.name} go.` : "");
+    core.conc = { name, ids: [], until: 0 };
+  }
   const who = personaName();
   const saveId = core.save?.id;
   const colour = colourOf(spell);
@@ -8466,11 +8618,23 @@ function spellLands(foe, who, name, spell, wit, from) {
 
 function spellOnFoe(foe, who, name, spell, wit, from = null) {
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const result = spellStrike({ wit, spell, foe: stats, prof: spellProf() });
+  // (A tree or a boulder in the way: +2 to its AC against a spell attack.)
+  const cover = from && !spell.save && !spell.sure ? coverBetween(from, foe) : 0;
+  const result = spellStrike({
+    wit,
+    spell,
+    foe: cover ? { ...stats, ac: stats.ac + cover } : stats,
+    prof: spellProf(),
+  });
   const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
   const after = Math.max(0, (now.hp ?? stats.hp) - result.damage);
   const kind = result.effect?.kind;
-  const nerve = !foe.hostile || kind === "flee" ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
+  const nerve =
+    !foe.hostile || kind === "flee"
+      ? "flee"
+      : result.damage > 0
+        ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
+        : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   if (!struck) return 0;
   if (!struck.down) {
@@ -8481,6 +8645,10 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
     if (kind === "calm") core.herd.soothe(foe.id, seconds);
     if (kind === "hinder") foeFx(foe.id).hinder = core.clock + seconds;
     if (kind === "mark") foeFx(foe.id).mark = core.clock + seconds;
+    if (kind && spell.conc && core.conc?.name === name && who === personaName()) {
+      core.conc.ids.push(foe.id);
+      core.conc.until = core.clock + seconds;
+    }
     // (A ring round it for as long as it lasts, where it stands now.)
     if (kind && kind !== "flee") {
       const at = core.herd.foes({ x: now.x, z: now.z }, 12).find((entry) => entry.id === foe.id) ?? now;
@@ -8910,9 +9078,7 @@ function battleTick(dt, moved) {
       { id: null, x: at.x, z: at.z },
       ...[...allies.values()].map((person) => ({ id: person.id, x: person.position.x, z: person.position.z })),
     ];
-    const target = targets.reduce((best, entry) =>
-      Math.hypot(entry.x - foe.x, entry.z - foe.z) < Math.hypot(best.x - foe.x, best.z - foe.z) ? entry : best,
-    );
+    const target = foeTarget(foe, targets);
     const far = Math.hypot(target.x - foe.x, target.z - foe.z);
     const reach = 1.2 + foe.room;
     // (One with a bow or spells that reach from where it stands stays there and uses them.)
@@ -9135,7 +9301,13 @@ function foeShoots(event, what) {
         if (core.save?.id !== saveId) return;
         if (!chosen) {
           const verb = `${/bow/iu.test(shot.name) ? "shoots" : "throws"} its ${shot.name.toLowerCase()}`;
-          const with_ = { attack: shot.attack, damage: shot.damage, damageBonus: 0, verb };
+          const with_ = {
+            attack: shot.attack,
+            damage: shot.damage,
+            damageBonus: 0,
+            verb,
+            cover: ally ? 0 : coverBetween(event, to),
+          };
           return void (ally ? allyAttacked(event, what, with_) : foeAttacks(event, what, with_));
         }
         if (ally)
@@ -9397,7 +9569,12 @@ function allyStrikes(person, foe, weapon) {
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const result = attackRoll({ bonus: ALLY_ATTACK, ac: stats.ac, damage: weapon.damage, damageBonus: 2 });
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-  const struck = core.herd.strike(foe.id, result.damage, stats.hp, result.hit ? foeNerve(after, stats.hp) : "fight");
+  const struck = core.herd.strike(
+    foe.id,
+    result.damage,
+    stats.hp,
+    result.hit ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "") : "fight",
+  );
   if (!struck) return false;
   const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
   if (!weapon.range) core.crowd.gesture(person.id, "strike", held, foe.x, foe.z);
@@ -9489,7 +9666,7 @@ function shoot(bow, mode) {
       then: () => {
         if (core.save?.id !== saveId) return;
         if (foe.person) return void landOnPerson(foe, bow);
-        if (mode === "realtime" || mode === "turns") return void landOn(foe, bow);
+        if (mode === "realtime" || mode === "turns") return void landOn(foe, bow, coverBetween(at, foe));
         encounter(foe, (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, ""), "player");
       },
     });
@@ -9671,6 +9848,7 @@ function playerStruck(result, from) {
   if (result.hit && result.damage > 0) {
     setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: -result.damage }]).sheet);
     if (core.afflicted) core.afflicted = hurtConditions(core.afflicted);
+    concentrationHurt(result.damage);
     if (!result.guarded) core.gesture = "hurt";
     const at = core.player.position;
     if (core.mode === "walk" && !core.glide && !core.battle) {
@@ -9688,10 +9866,14 @@ function playerStruck(result, from) {
  * A blow lands on `foe` (herd.js foes): an attack roll against its AC, and what came of it told. A hostile
  * one that's struck fights back (unless it has had enough); a peaceful one runs. Returns whether it's down.
  */
-function landOn(foe, weapon) {
+function landOn(foe, weapon, cover = 0) {
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const swung = () => playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: stats, prof: profNow() });
+  const behind = cover ? { ...stats, ac: stats.ac + cover } : stats;
+  const swung = () => ({
+    ...playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: behind, prof: profNow() }),
+    ...(cover ? { cover } : {}),
+  });
   // (Marked by a spell: the better of two. Hampered by a condition: the worse. Both: one roll.)
   const better = marked(foe.id);
   const worse = afflicted().attackDis;
@@ -9699,7 +9881,11 @@ function landOn(foe, weapon) {
   if (worse && !better) result.hampered = true;
   if (core.battle?.raging && result.hit && !weapon.range) result.damage += 2; // (a barbarian's Rage)
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-  const nerve = !foe.hostile ? "flee" : result.hit ? foeNerve(after, stats.hp) : "fight";
+  const nerve = !foe.hostile
+    ? "flee"
+    : result.hit
+      ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
+      : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   if (!struck) return false;
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
@@ -9933,11 +10119,12 @@ function foeAttacks(event, what, with_ = null) {
   const result = foeStrike({
     foe: stats,
     sheet,
-    worn,
+    worn: stats.cover ? { ...worn, ac: (worn.ac ?? 0) + stats.cover } : worn,
     guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
     hindered: hindered(event.id),
     keen: pack || afflicted().defendAdv,
   });
+  if (stats.cover) result.cover = stats.cover;
   if (core.battle?.raging && result.hit) result.damage = Math.floor(result.damage / 2); // (Rage: half from weapons)
   const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
@@ -9953,8 +10140,9 @@ function foeAttacks(event, what, with_ = null) {
  * Combat → "When your HP runs out" says: they come to where they fell with 1 HP, wake at home with half,
  * or stay down (lying there while the chat and the narration go on) until they press Respawn.
  */
-function defeated() {
+function defeated(final = false) {
   if (core.downed) return;
+  if (!final && core.settings.deathSaves && core.mode === "walk") return void startDying();
   core.downed = true;
   core.stayDown = false;
   core.downAt = performance.now();
@@ -9984,7 +10172,8 @@ function defeated() {
  * have come to, still down (the world was changed under them, say). Asked every frame, so the button can't
  * be lost to the screen being built again or to something else changing what the player is doing.
  */
-const needsRespawn = () => !!core.downed && (!!core.stayDown || performance.now() - (core.downAt ?? 0) > 6000);
+const needsRespawn = () =>
+  !!core.downed && !core.dying && (!!core.stayDown || performance.now() - (core.downAt ?? 0) > 6000);
 
 /**
  * Up again after a defeat: at home (or by the market) with half their HP, or where they fell with 1.
@@ -9994,6 +10183,8 @@ function comeTo(home, free = false) {
   core.downed = false;
   core.stayDown = false;
   core.afflicted = {};
+  core.dying = null;
+  breakConcentration("");
   core.gesture = null;
   if (core.mode === "sit" && core.seat?.ground) {
     core.seat = null;
@@ -11043,6 +11234,7 @@ function step(dt) {
   alliesTick(dt);
   angryTick();
   conditionsTick(dt);
+  dyingTick();
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {

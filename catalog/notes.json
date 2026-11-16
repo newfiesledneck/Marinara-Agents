@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.04",
+          "date": "2026-11-16",
+          "notes": "- Death saving throws (off to begin with): at 0 HP you fall, dying, and roll every few seconds. Three successes and you come round with 1 HP, three failures and you're beaten; a 20 gets you up at once, and so does a companion's healing.\n- Concentration: Hold Person and spells like it end if you're hurt and fail a Constitution save, or when you cast another such spell.\n- Cover: a tree or a boulder between a shot or a spell attack and its target gives +2 AC, for you and for creatures.\n- Creatures have their nerve from the ruleset: skeletons and fanatics never run, cowards run sooner. By turns, wolves go for whoever is most hurt, puglins for the weakest, a dragon for casters.\n- Each has a switch in Settings → Inventory → 5e rules.",
+          "highlight": false
+        },
+        {
           "version": "0.7.03",
           "date": "2026-11-16",
           "notes": "- Creatures use their special attacks from the 5e SRD. A wolf's bite can knock you prone, and wolves, jackals and rats attack with advantage when one of their own is beside you. Snakes, spiders, wasps and imps have venom (a Constitution save for half). A frog's bite holds you. A witch strikes twice. A dragon breathes fire, then has to wait for it to come back.\n- Conditions can land on you: prone, poisoned, frightened, grappled, restrained, blinded, paralyzed, stunned, asleep, slowed. Each shows at the top left with its seconds and wears off. Spells cast at you leave theirs too.\n- Both have switches in Settings → Inventory → 5e rules.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.85",
           "date": "2026-11-15",
           "notes": "- Casting. A spell is a line of your sheet whose description is its rule, written like an item's: \"2 mana. 1d10 fire damage.\" or \"3 mana. 2d6 cold damage. Dexterity save for half.\" or \"Wisdom save or stunned 6 seconds.\" or \"+8 HP.\"\n- Z casts the spell that's ready. Each spell has a button in the chat window, and a touch screen's Combat row has a Cast button.\n- A spell flies at the nearest creature ahead of you. It is a spell attack against AC, or the creature makes a saving throw for half or none. Stunned stops it; frightened sends it running. A healing spell mends you.\n- Inventory → Sheet has a button that adds five spells to begin with. You can rewrite them and add your own.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.84",
-          "date": "2026-11-15",
-          "notes": "- People can be struck, if you allow it: Settings → Inventory → Combat → \"Blows can land on people\", off to begin with.\n- A blow on someone is rolled like any other. They remember it for good and become your enemy (unless you've locked how they see you), and anyone who saw it remembers.\n- At 0 HP they lie out cold for two minutes, then get up. Nobody dies. People don't strike back yet.",
           "highlight": false
         }
       ]

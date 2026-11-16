@@ -96,6 +96,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Charisma", onSave: "none" },
     effect: "hindered",
     seconds: 12,
+    conc: true,
   },
   {
     name: "Burning Hands",
@@ -135,6 +136,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Strength", onSave: "none" },
     effect: "restrained",
     seconds: 12,
+    conc: true,
     area: 3,
   },
   {
@@ -145,6 +147,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Dexterity", onSave: "none" },
     effect: "marked",
     seconds: 12,
+    conc: true,
     area: 3,
   },
   {
@@ -185,6 +188,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Wisdom", onSave: "none" },
     effect: "incapacitated",
     seconds: 3,
+    conc: true,
   },
   { name: "Inflict Wounds", level: 1, classes: ["cleric"], range: 2.5, damage: "3d10", type: "necrotic" },
   {
@@ -235,6 +239,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Charisma", onSave: "none" },
     effect: "calmed",
     seconds: 12,
+    conc: true,
     area: 6,
   },
   {
@@ -273,6 +278,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Wisdom", onSave: "none" },
     effect: "paralyzed",
     seconds: 12,
+    conc: true,
   },
   {
     name: "Moonbeam",
@@ -285,7 +291,15 @@ export const SRD_SPELLS = [
     area: 1.5,
   },
   { name: "Prayer of Healing", level: 2, classes: ["cleric"], range: 9, heal: "2d8" },
-  { name: "Ray of Enfeeblement", level: 2, classes: ["warlock", "wizard"], range: 18, effect: "hindered", seconds: 12 },
+  {
+    name: "Ray of Enfeeblement",
+    level: 2,
+    classes: ["warlock", "wizard"],
+    range: 18,
+    effect: "hindered",
+    seconds: 12,
+    conc: true,
+  },
   {
     name: "Scorching Ray",
     level: 2,
@@ -313,6 +327,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Dexterity", onSave: "none" },
     effect: "restrained",
     seconds: 12,
+    conc: true,
     area: 3,
   },
   {
@@ -333,6 +348,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Wisdom", onSave: "none" },
     effect: "frightened",
     seconds: 12,
+    conc: true,
     area: 4.5,
   },
   {
@@ -363,6 +379,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Wisdom", onSave: "none" },
     effect: "incapacitated",
     seconds: 12,
+    conc: true,
     area: 4.5,
   },
   {
@@ -384,6 +401,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Dexterity", onSave: "none" },
     effect: "prone",
     seconds: 3,
+    conc: true,
     area: 8,
   },
   {
@@ -394,6 +412,7 @@ export const SRD_SPELLS = [
     save: { attribute: "Wisdom", onSave: "none" },
     effect: "slowed",
     seconds: 12,
+    conc: true,
     area: 6,
   },
   {

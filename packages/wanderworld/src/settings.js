@@ -184,6 +184,12 @@ export const SETTINGS = {
   creatureExtras: { value: true },
   // Whether conditions (prone, poisoned, grappled, …) can land on the player (conditions.js).
   conditions: { value: true },
+  // At 0 HP: death saving throws (three successes and they hold on, three failures and they're beaten) before the defeat.
+  deathSaves: { value: false },
+  // Whether a spell marked Concentration ends when its caster is hurt and fails a Constitution save, or casts another.
+  concentration: { value: true },
+  // Whether a tree or a boulder between a shot and its target gives half cover (+2 AC).
+  cover: { value: true },
   // A turn in a fight by turns: actions, bonus actions, attacks for an Attack action, metres to move. 0 leaves
   // each to the rules (combat.js turnBudget: one, one, one or more by class and level, nine).
   turnActions: { value: 0, min: 0, max: 6 },

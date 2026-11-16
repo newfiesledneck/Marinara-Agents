@@ -210,7 +210,10 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     "Level 1. 1 mana. 3d6 fire damage. Dexterity save for half. Area 2.5. Range 5.",
   );
   assert.equal(spellRule(srd("Magic Missile")), "Level 1. 1 mana. 1d4+1 force damage. Always hits. Range 24.");
-  assert.equal(spellRule(srd("Hold Person")), "Level 2. 2 mana. Wisdom save or paralyzed 12 seconds. Range 18.");
+  assert.equal(
+    spellRule(srd("Hold Person")),
+    "Level 2. 2 mana. Wisdom save or paralyzed 12 seconds. Concentration. Range 18.",
+  );
   assert.equal(spellRule(srd("Cure Wounds")), "Level 1. 1 mana. +1d8 HP.");
   assert.deepEqual([spellCost(0), spellCost(1), spellCost(3)], [0, 1, 3]);
   // Every one of them reads back as what it was written from.
@@ -621,6 +624,21 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.deepEqual(SRD_CREATURES.skeleton.vulnerable, ["bludgeoning"]);
   assert.equal(SRD_WEAPONS.longsword.versatile, "1d10");
   assert.deepEqual([SRD_ARMOUR["chain-mail"].ac, SRD_ARMOUR["chain-mail"].dex, SRD_ARMOUR.shield.bonus], [16, 0, 2]);
+}
+
+// Nerve by temperament, and concentration read from a spell's rule.
+{
+  const { spellIn, spellRule } = await import("../packages/wanderworld/src/combat.js");
+  const { SRD_SPELLS } = await import("../packages/wanderworld/src/srd.js");
+  const never = () => 0;
+  assert.equal(foeNerve(1, 20, never, "mindless"), "fight");
+  assert.equal(foeNerve(1, 20, never, "fanatical"), "fight");
+  assert.equal(foeNerve(9, 20, never, "cowardly"), "flee", "a coward runs at half");
+  assert.equal(foeNerve(9, 20, never), "fight");
+  const hold = SRD_SPELLS.find((spell) => spell.name === "Hold Person");
+  assert.equal(hold.conc, true);
+  assert.equal(spellIn({ about: spellRule(hold) }).conc, true);
+  assert.equal(spellIn({ about: spellRule(SRD_SPELLS.find((spell) => spell.name === "Fire Bolt")) }).conc, false);
 }
 
 console.log("ok: fighting by the rules");
