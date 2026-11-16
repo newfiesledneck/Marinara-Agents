@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.80",
+          "date": "2026-11-15",
+          "notes": "- What you beat can be seen to. Stand at an animal and the prompt says Harvest: hide, meat and the like go into your inventory, and the body goes. At an outlaw it says Search: you take what they carried, coins among it.\n- What a creature gives can be sold. The new things have a worth at shops.\n- Settings → Inventory → Combat sets how many minutes the beaten lie where they fell (0 keeps them), and has a button that clears them all.",
+          "highlight": false
+        },
+        {
           "version": "0.6.79",
           "date": "2026-11-15",
           "notes": "- Fighting has no prompt now. F swings; on a touch screen there is an Attack button by your thumb, and the chat window has one too.\n- You swing wherever you face, and can keep walking or running while you do: the swing plays over the walking legs.\n- Nothing is aimed at. When the blow lands, the nearest animal in front of you and in reach takes the attack roll. A swing at nothing is just a swing.\n- Any animal can be struck, not only hostile ones. Peaceful ones run. People and your own animals can't be struck yet.\n- One swing can follow another a little before the last has finished.\n- A creature in a fight no longer draws off six paces after every attack. It chooses each time: stay on you, circle, come again at once, or back away.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.61",
           "date": "2026-11-15",
           "notes": "- The AI can keep your sheet. With Settings → People → Inventory → \"The AI updates your sheet\" on, it reads what was narrated and changes HP, mana and your other stats to match, and awards experience. A note in the chat says what changed. Off to begin with: it costs one more AI call each time.\n- Dice in the chat: /roll or /roll 2d6+1, and /check strength for a d20 plus a line of your sheet. With words after it (\"/check strength to lift the gate\"), what you try is narrated with the result.\n- Lines of the sheet you untick move to \"Not in use\" at the bottom. Tick one to bring it back; one you added yourself can be deleted there.\n- This version is numbered 0.6.61 so that it sorts after 0.6.6.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.07",
-          "date": "2026-11-15",
-          "notes": "- A character sheet. Inventory → Sheet has your level, experience, HP, mana, AC and six attributes, each with a box to change it and a tick for whether the AI is told. Add your own stats, skills, feats and spells, each with a few words saying what it is.\n- The Inventory button now opens Wanderworld's own window in tabs: Items, Sheet and Quartermaster. Items lists what Quartermaster holds, with Equip or Take off, Use and Drop. What you do there is done in Quartermaster too, and said in the chat.\n- Using an item applies what its description gives: \"+10 HP\" heals 10. Worn items that say \"+2 AC\" are counted on the sheet.\n- Not yet: the AI changing your stats, and dice rolled in play.\n- Versions are now written with two digits at the end (0.6.07).",
           "highlight": false
         }
       ]

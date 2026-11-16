@@ -145,3 +145,34 @@ export function foeWords({ who, what, verb, result, left, max }) {
   if (!result.hit) return `${start}: a miss.`;
   return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }
+
+/**
+ * What's had from a beaten creature of `kind`: { items: [{ name, description, quantity }], coins } from the
+ * pack's `spoils` (its own, else nothing). Each thing listed is { name, description, quantity (a number, or
+ * [least, most]), chance (0–1; always when not given) }; `coins` is [least, most]. Bigger ones give no more.
+ */
+export function spoilsOf(kind, spoils, random = Math.random) {
+  const from = spoils?.[kind] ?? {};
+  const between = (range) => {
+    const [least, most] = Array.isArray(range) ? range : [range ?? 1, range ?? 1];
+    return Math.max(0, Math.round(least + random() * (most - least)));
+  };
+  const items = (from.items ?? [])
+    .filter((item) => item.chance === undefined || random() < item.chance)
+    .map((item) => ({
+      name: item.name,
+      description: item.description ?? "",
+      quantity: Math.max(1, between(item.quantity)),
+    }));
+  return { items, coins: from.coins ? between(from.coins) : 0 };
+}
+
+/** What was had, in words: "a wolf pelt, 2 × raw meat and 7 coins"; "nothing of use" for none. */
+export function spoilsWords(spoils, currency) {
+  const parts = spoils.items.map((item) =>
+    item.quantity > 1 ? `${item.quantity} × ${item.name.toLowerCase()}` : item.name.toLowerCase(),
+  );
+  if (spoils.coins > 0) parts.push(`${spoils.coins} ${String(currency).toLowerCase()}`);
+  if (!parts.length) return "nothing of use";
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];
+}

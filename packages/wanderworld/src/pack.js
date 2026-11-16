@@ -516,6 +516,76 @@ const FOES = {
   imp: { hp: 8, ac: 13, attack: 4, damage: "1d4+2", xp: 12, verb: "claws" },
   puglin: { hp: 9, ac: 12, attack: 3, damage: "1d6+1", xp: 12, verb: "swings" },
 };
+/**
+ * What's had from each creature once it's beaten (combat.js spoilsOf): an animal is harvested, a person
+ * searched. Each thing: its name, a description, how many (a number or [least, most]) and, for what isn't
+ * always there, a chance. `coins`: [least, most] of the world's money. A kind not listed gives nothing.
+ */
+const meat = (name, heals) => ({ name, description: `Raw meat, better cooked. +${heals} HP when eaten.` });
+const SPOILS = {
+  wolf: {
+    items: [
+      { name: "Wolf pelt", description: "A thick grey pelt." },
+      { ...meat("Wolf meat", 2), quantity: [1, 2] },
+    ],
+  },
+  deer: {
+    items: [
+      { name: "Deer hide", description: "A soft hide, good for leather." },
+      { ...meat("Venison", 4), quantity: [1, 3] },
+    ],
+  },
+  stag: {
+    items: [
+      { name: "Deer hide", description: "A soft hide, good for leather." },
+      { ...meat("Venison", 4), quantity: [2, 3] },
+      { name: "Antler", description: "A branching antler.", quantity: [1, 2] },
+    ],
+  },
+  fox: { items: [{ name: "Fox pelt", description: "A russet pelt with a white tip." }] },
+  cow: {
+    items: [
+      { name: "Cowhide", description: "A heavy hide." },
+      { ...meat("Beef", 4), quantity: [2, 4] },
+    ],
+  },
+  bull: {
+    items: [
+      { name: "Cowhide", description: "A heavy hide." },
+      { ...meat("Beef", 4), quantity: [2, 4] },
+    ],
+  },
+  horse: { items: [{ name: "Horsehide", description: "A big, tough hide." }] },
+  donkey: { items: [{ name: "Horsehide", description: "A big, tough hide." }] },
+  alpaca: { items: [{ name: "Wool", description: "A soft fleece.", quantity: [1, 2] }] },
+  slime: { items: [{ name: "Slime jelly", description: "A cold, quivering lump. It keeps." }] },
+  skeleton: { items: [{ name: "Old bone", description: "A dry bone.", quantity: [1, 2] }], coins: [0, 4] },
+  spider: { items: [{ name: "Spider silk", description: "A skein of strong, sticky thread." }] },
+  rat: { items: [{ name: "Rat tail", description: "Somebody will pay for these.", chance: 0.6 }] },
+  snake: { items: [{ name: "Snake skin", description: "A patterned skin." }] },
+  bat: { items: [{ name: "Bat wing", description: "A leathery wing.", chance: 0.7 }] },
+  wasp: { items: [{ name: "Giant sting", description: "A sting as long as a finger.", chance: 0.7 }] },
+  frog: { items: [{ ...meat("Frog legs", 2), quantity: 1 }] },
+  dragon: {
+    items: [{ name: "Dragon scale", description: "A scale the size of a plate.", quantity: [2, 4] }],
+    coins: [40, 120],
+  },
+  imp: { items: [{ name: "Imp horn", description: "A small curled horn.", chance: 0.7 }], coins: [0, 5] },
+  puglin: { items: [{ name: "Tusk", description: "A yellowed tusk.", chance: 0.7 }], coins: [0, 6] },
+  bandit: {
+    items: [{ name: "Knife", description: "A plain belt knife. Weapon: 1d4 damage.", chance: 0.5 }],
+    coins: [2, 12],
+  },
+  witch: {
+    items: [{ name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used.", quantity: [1, 2] }],
+    coins: [0, 8],
+  },
+  wizard: {
+    items: [{ name: "Mana potion", description: "A blue draught. +10 Mana when drunk.", chance: 0.6 }],
+    coins: [3, 15],
+  },
+};
+
 /** What's told when the player's HP runs out, and when they come to ({who}). */
 const FIGHT = {
   down: "{who} goes down, and everything goes dark.",
@@ -950,6 +1020,28 @@ const VENDORS = {
     },
   },
   values: {
+    "Wolf pelt": 8,
+    "Deer hide": 6,
+    Venison: 3,
+    "Wolf meat": 1,
+    Antler: 4,
+    "Fox pelt": 7,
+    Cowhide: 8,
+    Beef: 3,
+    Horsehide: 8,
+    Wool: 3,
+    "Slime jelly": 2,
+    "Old bone": 1,
+    "Spider silk": 5,
+    "Rat tail": 1,
+    "Snake skin": 4,
+    "Bat wing": 2,
+    "Giant sting": 3,
+    "Frog legs": 2,
+    "Dragon scale": 60,
+    "Imp horn": 5,
+    Tusk: 4,
+    Knife: 4,
     "River trout": 3,
     Perch: 2,
     Pike: 6,
@@ -1008,6 +1100,7 @@ export const PACK = {
   beasts: BEASTS,
   outlaws: OUTLAWS,
   foes: FOES,
+  spoils: SPOILS,
   fight: FIGHT,
 };
 

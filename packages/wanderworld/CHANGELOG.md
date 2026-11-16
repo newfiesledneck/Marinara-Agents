@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.80 — 2026-11-15
+
+- What you beat can be seen to. Stand at an animal and the prompt says Harvest: hide, meat and the like go into your inventory, and the body goes. At an outlaw it says Search: you take what they carried, coins among it.
+- What a creature gives can be sold. The new things have a worth at shops.
+- Settings → Inventory → Combat sets how many minutes the beaten lie where they fell (0 keeps them), and has a button that clears them all.
+
 ## 0.6.79 — 2026-11-15
 
 - Fighting has no prompt now. F swings; on a touch screen there is an Attack button by your thumb, and the chat window has one too.

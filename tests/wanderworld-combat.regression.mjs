@@ -170,4 +170,27 @@ assert.match(
   assert.deepEqual(herd.foes({ x: 0, z: 0 }, 5), []);
 }
 
+// What's had from the beaten: the pack's list for its kind, by chance and by number.
+{
+  const { spoilsOf, spoilsWords } = await import("../packages/wanderworld/src/combat.js");
+  const wolfSpoils = spoilsOf("wolf", PACK.spoils, () => 0.99);
+  assert.deepEqual(
+    wolfSpoils.items.map((item) => [item.name, item.quantity]),
+    [
+      ["Wolf pelt", 1],
+      ["Wolf meat", 2],
+    ],
+  );
+  assert.equal(spoilsWords(wolfSpoils, "Coins"), "wolf pelt and 2 × wolf meat");
+  const bandit = spoilsOf("bandit", PACK.spoils, () => 0);
+  assert.deepEqual([bandit.items.map((item) => item.name), bandit.coins], [["Knife"], 2]);
+  assert.equal(spoilsOf("bandit", PACK.spoils, () => 0.99).items.length, 0, "what's only there by chance");
+  assert.deepEqual(spoilsOf("unheard-of", PACK.spoils), { items: [], coins: 0 });
+  assert.equal(spoilsWords({ items: [], coins: 0 }, "Coins"), "nothing of use");
+  assert.equal(spoilsWords({ items: [], coins: 7 }, "Coins"), "7 coins");
+  for (const [kind, spoils] of Object.entries(PACK.spoils))
+    for (const item of spoils.items ?? [])
+      assert.ok(item.name && item.description, `${kind}'s ${item.name} is named and described`);
+}
+
 console.log("ok: fighting by the rules");
