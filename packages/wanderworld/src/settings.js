@@ -172,6 +172,8 @@ export const SETTINGS = {
   restRestores: { value: true },
   // Whether a blow can land on a person (the townsfolk, your companions, anyone with a name).
   fightPeople: { value: false },
+  // Whether creatures fight with the 5e SRD's numbers (srd.js SRD_CREATURES) or the setting pack's own.
+  srdCreatures: { value: true },
   // Whether someone the player attacks fights back (real-time combat: main.js angryTick).
   fightBack: { value: true },
   // Whether the party joins a real-time fight (each by their class: main.js alliesTick).

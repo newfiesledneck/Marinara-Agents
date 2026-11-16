@@ -187,7 +187,7 @@ import {
   witOf,
 } from "./combat.js";
 import { createSpellFx, spellColour } from "./spellfx.js";
-import { SRD_CLASSES, SRD_SLOTS, SRD_SPELLS } from "./srd.js";
+import { SRD_CLASSES, SRD_CREATURES, SRD_SLOTS, SRD_SPELLS } from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -8221,7 +8221,7 @@ function cast(id = null) {
  * modifier), its HP, what it does about it, an effect that holds it or sends it running, and all of it told.
  */
 function spellOnFoe(foe, who, name, spell, wit) {
-  const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+  const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const result = spellStrike({ wit, spell, foe: stats });
   const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
   const after = Math.max(0, (now.hp ?? stats.hp) - result.damage);
@@ -8299,7 +8299,7 @@ function battleStart(id) {
       id: foe.id,
       kind: "foe",
       name: foes.filter((other) => other.kind === foe.kind).length > 1 ? `${what(foe)} ${i + 1}` : what(foe),
-      bonus: Math.floor(foeOf(foe.kind, PACK.foes, foe.scale).attack / 2),
+      bonus: foeTable()[foe.kind]?.dex ?? Math.floor(foeOf(foe.kind, foeTable(), foe.scale).attack / 2),
     })),
   ];
   const rolled = initiativeOrder(sides);
@@ -8551,6 +8551,23 @@ async function hotkey(key) {
   }
 }
 
+// ── Creatures' numbers ──
+
+/** The pack's creatures with the SRD's numbers where it has them (HP, AC, attack, damage, initiative); the rest the pack's own. */
+const SRD_FOES = {
+  ...PACK.foes,
+  ...Object.fromEntries(
+    Object.entries(SRD_CREATURES).map(([kind, { hp, ac, attack, damage, dex }]) => [
+      kind,
+      { ...PACK.foes[kind], hp, ac, attack, damage, dex },
+    ]),
+  ),
+};
+/** What each creature is in a fight: the 5e SRD's numbers (Settings → Inventory → Combat), or the setting pack's own. */
+function foeTable() {
+  return core.settings?.srdCreatures ? SRD_FOES : PACK.foes;
+}
+
 // ── The party in a fight ──
 
 /** Someone's class (an SRD class's id): what was chosen for them, else one of their own, always the same. */
@@ -8647,8 +8664,8 @@ function allyAttacked(event, what) {
   const person = fightingAllies().find((entry) => entry.id === event.target);
   if (!person) return;
   const name = nameFor(person.id, person.name);
-  const stats = foeOf(event.kind, PACK.foes, event.scale);
-  const ac = PACK.foes.ally.ac;
+  const stats = foeOf(event.kind, foeTable(), event.scale);
+  const ac = foeTable().ally.ac;
   const result = {
     ...attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 }),
     ac,
@@ -8740,7 +8757,7 @@ function allyActs(person, foes, hurt) {
   }
   if (!inReach) return false; // (nothing of theirs reaches: they keep by the player)
   // A strike with their class's weapon.
-  const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+  const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const weapon = { name: kind.weapon.name, damage: kind.weapon.damage };
   const result = attackRoll({ bonus: ALLY_ATTACK, ac: stats.ac, damage: weapon.damage, damageBonus: 2 });
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
@@ -8764,7 +8781,7 @@ function allyActs(person, foes, hurt) {
 
 /** A spell lands on a person: their saving throw or the spell attack, and what comes of attacking someone. */
 function spellOnPerson(target, name, spell, wit) {
-  const stats = foeOf("person", PACK.foes);
+  const stats = foeOf("person", foeTable());
   const result = spellStrike({ wit, spell, foe: stats });
   const left = personHurt(target, result.damage, stats);
   narrate(
@@ -8815,7 +8832,7 @@ const OUT_SECONDS = 120;
  */
 function landOnPerson(target, weapon) {
   const sheet = sheetNow();
-  const stats = foeOf("person", PACK.foes);
+  const stats = foeOf("person", foeTable());
   const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
   const left = personHurt(target, result.damage, stats);
   narrate(
@@ -8869,7 +8886,7 @@ function personAngry(target, left) {
   if (!core.settings.fightBack || fightMode() !== "realtime") return;
   core.angry ??= new Map();
   const had = core.angry.has(target.id);
-  if (left <= foeOf("person", PACK.foes).hp / 3) {
+  if (left <= foeOf("person", foeTable()).hp / 3) {
     if (core.angry.delete(target.id) && left > 0) narrate(null, `${target.name} backs off: they've had enough.`);
     return;
   }
@@ -8981,7 +8998,7 @@ function playerStruck(result, from) {
  */
 function landOn(foe, weapon) {
   const sheet = sheetNow();
-  const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+  const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const nerve = !foe.hostile ? "flee" : result.hit ? foeNerve(after, stats.hp) : "fight";
@@ -9198,11 +9215,11 @@ function foeAttacks(event, what) {
   if (core.clock < (core.dodgeUntil ?? 0))
     return void narrate(
       null,
-      `The ${what} ${(PACK.foes[event.kind] ?? PACK.foes.default).verb} at ${who}, who rolls clear.`,
+      `The ${what} ${(foeTable()[event.kind] ?? foeTable().default).verb} at ${who}, who rolls clear.`,
     );
   const sheet = sheetNow();
   const worn = wornBonuses(sheet, core.items ?? []);
-  const stats = foeOf(event.kind, PACK.foes, event.scale);
+  const stats = foeOf(event.kind, foeTable(), event.scale);
   const result = foeStrike({
     foe: stats,
     sheet,

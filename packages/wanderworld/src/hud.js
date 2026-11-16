@@ -872,6 +872,8 @@ export function createHud(root, handlers) {
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
     srdSlots:
       "Only where combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell is cast with a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone. You have the slots of a full caster of your level (two first-level slots at level 1, three at level 2, four and two second-level at level 3, and so on up to third-level slots), and a sleep gives them back. Cantrips need neither.",
+    srdCreatures:
+      "On: a creature's HP, AC, attack and damage are those of the 5e SRD creature it is taken as: a wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers, as they all do with this off. People fight by their class either way. Experience for a win is the game's own.",
     partyFights:
       "On: in real-time combat the people travelling with you join in. Each has a class from the 5e SRD (Inventory → Sheet → Your companions), which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and one who can heal mends you when you're below half your HP. Their rolls are told in the chat like yours. They move with the fight: one who strikes closes with a creature and works round it, one who casts keeps a few paces off. Creatures go for them as well as for you; each has HP from their class, and at 0 is out of the fight for a while, then up again. Off: they stand by, and nothing goes for them.",
     fightPeople:
@@ -1368,6 +1370,7 @@ export function createHud(root, handlers) {
   toggle("fightBack", "People you attack fight back", "fightPeople");
   toggle("partyFights", "Your companions fight beside you", "sheet");
   toggle("srdSlots", "Fights by turns use spell slots", "sheet");
+  toggle("srdCreatures", "Creatures use the 5e SRD's numbers", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
   {
